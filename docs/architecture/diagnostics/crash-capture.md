@@ -80,6 +80,19 @@ package is refused by the `crashlogExec` rule in `.golangci/ruleguard/modern.go`
 <!-- source: internal/core/crashlog/exec_unix.go -- the leave that drains the pipe -->
 <!-- source: .golangci/ruleguard/modern.go -- crashlogExec, the rule that refuses a raw execve -->
 
+**A forced exit goes through `exitForced`, which drains the relay before
+`os.Exit`.** An operator's second Ctrl+C, at the daemon's stop
+(`newStopSignals`) or at `ze start --web-only` (`forceExitOnSignal`), ends the
+process at once. `os.Exit` kills the relay goroutines just as an execve does, so
+the lines still queued, and the "forced exit" line itself, would never reach the
+operator. `exitForced` calls `Flush`, which puts the real stderr back, and then
+writes "forced exit" straight to it. `Flush` waits for the relay to reach the
+end of its input for at most 500 ms. A child process started with the relay's
+pipe as its stderr keeps that pipe open, so with plugin processes running the
+forced exit can take the whole 500 ms.
+<!-- source: cmd/ze/hub/main.go -- exitForced -->
+<!-- source: internal/core/crashlog/stderr.go -- Flush -->
+
 **A panic trace that Go code writes to `os.Stderr` is still detected by the
 relay**, for a framework that recovers a panic and prints it, and becomes a crash
 file when the relay reaches the end of its input. **Crash files are written on

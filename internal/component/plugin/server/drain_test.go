@@ -3,7 +3,7 @@
 // VALIDATES: spec-daemon-drain-before-stop AC-2, AC-3, AC-4, AC-6 (abort),
 // AC-8 (live generations only), AC-13 (b), AC-35 (e), Data Flow step 4.2.
 // PREVENTS: a sequential fan-out, a late plugin blocking its caller or the
-// stop, a call dropped at the deadline, and a budget the daemon cannot honor.
+// stop, a call dropped at the deadline, and a budget the daemon cannot honour.
 
 package server
 
@@ -126,7 +126,7 @@ func TestDrainCollectDeadlineNamesLatePlugin(t *testing.T) {
 
 // TestDrainCallerCallOutlivesDeadline proves Data Flow step 4.2: the call
 // runs under the caller's context, so it is still running after the drain
-// deadline passed and is not canceled by it.
+// deadline passed and is not cancelled by it.
 func TestDrainCallerCallOutlivesDeadline(t *testing.T) {
 	callCtxErr := make(chan error, 1)
 	caller, _ := startTestCaller(t, "slow", time.Second, func(ctx context.Context, _ *rpc.DrainInput) error {
@@ -151,7 +151,7 @@ func TestDrainCallerCallOutlivesDeadline(t *testing.T) {
 	}
 }
 
-// TestDrainCollectCancelAborts proves the abort half of AC-6: canceling the
+// TestDrainCollectCancelAborts proves the abort half of AC-6: cancelling the
 // drain context (a signal) stops the reading at once and reports an abort.
 func TestDrainCollectCancelAborts(t *testing.T) {
 	caller, _ := startTestCaller(t, "held", 30*time.Second, holdCall(30*time.Second))

@@ -133,6 +133,7 @@ func runWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 
 	sigCh := make(chan os.Signal, 2) //nolint:mnd // buffer 2: graceful + force
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	writeReadyFile()
 
 	fmt.Println("Ze web running. Press Ctrl+C to stop.")
 	<-sigCh

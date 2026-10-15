@@ -124,6 +124,22 @@ func exitForced() {
 	os.Exit(1)
 }
 
+// writeReadyFile creates the file ze.ready.file names, the test runner's signal
+// that the daemon has started and handles its signals. The runner waits for it
+// before it publishes daemon.pid, so a driver never signals a process that has
+// not yet installed its handler, which would kill it by the default action.
+// Every daemon entry point (the hub and the standalone web server) calls it
+// once its signal handling is in place. An unset key writes nothing.
+func writeReadyFile() {
+	readyFile := env.Get("ze.ready.file")
+	if readyFile == "" {
+		return
+	}
+	if f, createErr := os.Create(readyFile); createErr == nil { //nolint:gosec // test infrastructure path from env
+		f.Close() //nolint:errcheck,gosec // best-effort readiness signal
+	}
+}
+
 // Run executes the hub with the given config file path and optional CLI plugins.
 // store is the daemon's lifetime-owned live store, or nil for stdin discovery.
 // chaosSeed > 0 enables chaos self-test mode; chaosRate < 0 means "use default".
@@ -1475,11 +1491,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}()
 	}
 
-	if readyFile := env.Get("ze.ready.file"); readyFile != "" {
-		if f, createErr := os.Create(readyFile); createErr == nil { //nolint:gosec // test infrastructure path from env
-			f.Close() //nolint:errcheck,gosec // best-effort readiness signal
-		}
-	}
+	writeReadyFile()
 	// Serve managed fleet clients declared under hub server blocks (answers
 	// config-fetch, pushes config-changed). No-op unless a server block has client
 	// entries and storage is blob-backed. Independent of the outbound managed client.

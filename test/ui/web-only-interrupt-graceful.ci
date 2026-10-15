@@ -5,11 +5,15 @@
 #            driver holds, then runWebOnly returns 0.
 # VALIDATES: the first step of the two-step Ctrl+C: one signal shuts down and
 #            exits 0, and never takes the forced exit, even with a connection
-#            that never finishes.
-# PREVENTS:  the first Ctrl+C force-exiting, or the shutdown hanging on a stuck
-#            connection past its deadline.
-# The driver (le test fixture web/interrupt) holds a silent connection open
-# until the runner ends it, after the daemon has exited.
+#            that never finishes. The driver times the stop: no sooner than
+#            2.5 s after the signal (the shutdown waited for the connection)
+#            and no later than 10 s (the 3 s deadline ended that wait).
+# PREVENTS:  the first Ctrl+C force-exiting, a shutdown that ignores open
+#            connections, or the shutdown hanging on a stuck connection past
+#            its deadline.
+# The driver (le test fixture web/interrupt) holds a connection inside the
+# POST /cli handler, which waits for a body that never comes, until the runner
+# ends it after the daemon has exited.
 
 option=env:var=ze.config.dir:value=.
 option=timeout:value=30s
@@ -27,4 +31,5 @@ cmd=foreground:seq=3:exec=ze start --web $PORT --web-only --insecure-web:timeout
 expect=exit:code=0
 expect=stdout:contains=Shutting down (Ctrl+C again to force)...
 expect=stderr:contains=web-interrupt: listener closed after the first SIGINT
+expect=stderr:contains=web-interrupt: the daemon exited after the shutdown deadline
 reject=stderr:contains=forced exit
