@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2348-x-1": {
       "note": "(a) OACK blksize above the client's request; (b) 'above cap' subtest t.Errorf when acked > 60000, and the within-cap subtest pins 1200 == requested 1200, so an ack that ignores a smaller request also goes red.",
@@ -35,8 +36,8 @@
       "note": "Re-judged 2026-09-30: TestTFTPReadLargeFile changed only by losing the retired RFC1350-5-2 tag comment; every assertion is unchanged. TestRFC2348ShortBlockIsTheFinalPacket at a negotiated 1024: a 600-octet file must be exactly [600] with silence after its ACK (a server comparing against 512 sends a block 2 and goes red), and 2500 must be [1024,1024,452] then silence (red on DATA after the short block). Negative: full 1024 blocks are followed by the next block.",
       "requirement_sha": "6c06103dac56424f",
       "tests": {
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "6534ec721202373b",
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "6534ec721202373b",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "9f205b69530ae879",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "9f205b69530ae879",
         "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ShortBlockIsTheFinalPacket": "402f4bee572c1a29",
         "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ShortBlockIsTheFinalPacket#2": "402f4bee572c1a29"
       },
@@ -52,8 +53,8 @@
       "note": "Re-judged 2026-09-30: TestTFTPReadLargeFile changed only by losing the retired RFC1350-5-2 tag comment; every assertion is unchanged. TestRFC2348ZeroLengthBlockEndsAnExactMultiple at a negotiated 1024: 2048 must be [1024,1024,0] (red with no empty terminator), and 1500 must be [1024,476] and 512 must be [512], each followed by 1 s of silence (red on an extra empty packet, including one computed against 512 instead of the negotiated size).",
       "requirement_sha": "d886c63462d6f09f",
       "tests": {
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "6534ec721202373b",
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "6534ec721202373b",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "9f205b69530ae879",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "9f205b69530ae879",
         "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ZeroLengthBlockEndsAnExactMultiple": "402f4bee572c1a29",
         "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ZeroLengthBlockEndsAnExactMultiple#2": "402f4bee572c1a29"
       },
