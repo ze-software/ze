@@ -7,8 +7,9 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
-| 2026-10-15 | b2ec5abb | test(exabgp): api-vpnv4 withdraw carries no label, per RFC 8277 2.4 (+7 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-15T19:20:52Z) | open |
+| 2026-10-15 | b2ec5abb | test(exabgp): api-vpnv4 withdraw carries no label, per RFC 8277 2.4 (+8 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-15T19:20:52Z) | open |
 | 2026-10-15 | b2ec5abb | test(exabgp): api-vpnv4 withdraw carries no label, per RFC 8277 2.4 (+1 more) | native structural checks (red) | arch tier/check is red at HEAD since 9f316482c1 (35 cross-plugin imports, fix in progress); iface-resolution reruns OK now; this commit touches only a .ci and a doc | open |
 | 2026-10-15 | b2ec5abb | fix(interop): BFD two-link prestarts are compiled Go, not shell files | native structural checks (red) | arch tier/check is red at HEAD since 9f316482c1 (35 cross-plugin imports, fix in progress); this commit touches only interop harness code and docs | open |
 | 2026-10-15 | b2ec5abb | fix(interop): BFD two-link prestarts are compiled Go, not shell files (+3 more) | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-10-15 | b2ec5abb | test(rs): worker-queue-size tests expect the applied log line (+4 more) | native structural checks (red) | arch tier/check is red at HEAD since 9f316482c1 (35 cross-plugin imports, fix in progress); these commits touch only tests | open |
+| 2026-10-15 | b2ec5abb | journal(full-disk): TMPDIR leftovers of killed runs have no reaper | native structural checks (red) | arch tier/check is red at HEAD since 9f316482c1 (35 cross-plugin imports, fix in progress); this commit is a journal row | open |
