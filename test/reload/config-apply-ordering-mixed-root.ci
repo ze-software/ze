@@ -113,12 +113,13 @@ option=env:var=ze.log.interface:value=info
 option=env:var=ze.log.static:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+# The daemon writes these lines, so they are asserted under the daemon.
+expect=stderr:contains=sighup reload complete
+expect=stderr:contains=static routes loaded
 cmd=foreground:seq=2:exec=le test fixture reload/config-apply-ordering-mixed-root-driver:timeout=40s
 
 expect=exit:code=0
-expect=stderr:contains=sighup reload complete
 expect=stderr:contains=OK: address ordering held across two roots
-expect=stderr:contains=static routes loaded
 expect=file:path=mixed-events.txt:exists=true
 # This reject cannot fire, and it is kept as a tripwire rather than as
 # evidence. Commit a6ea1ad0b deleted the branch that logged it, so no build

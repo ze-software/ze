@@ -133,4 +133,6 @@ cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 # Asserted under the daemon that writes it. These lines used to sit
 # above every cmd=, where the runner checked them against the whole
 # test's output and they could have been satisfied by any command.
-expect=stderr:contains=private-key is required
+# The YANG mandatory check (60a74fc04b) refuses the candidate at parse,
+# before the interface plugin's own "private-key is required".
+expect=stderr:contains=mandatory field "private-key" is missing

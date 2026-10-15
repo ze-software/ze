@@ -265,10 +265,11 @@ option=env:var=ze.log.interface:value=info
 # driver raced its own teardown.
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+# The daemon writes this line, so it is asserted under the daemon.
+expect=stderr:contains=sighup reload complete
 cmd=foreground:seq=3:exec=le test fixture reload/config-apply-ordering-address-swap-driver:timeout=60s
 
 expect=exit:code=0
-expect=stderr:contains=sighup reload complete
 expect=stderr:contains=OK: break-before-make observed
 expect=file:path=session-returned.txt:exists=true
 expect=file:path=swap-final.txt:contains=zdual0=10.91.0.1/24
