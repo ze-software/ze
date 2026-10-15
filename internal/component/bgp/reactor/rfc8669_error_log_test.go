@@ -100,10 +100,15 @@ const atomicAggregateLength1 = "40060100"
 // boundary discard is recorded after the walk's own). Each must give one ERROR
 // record naming attr=40 and one naming attr=6.
 // RFC 8669 Section 6: "When discarding an attribute, a BGP speaker SHOULD log an error for further analysis."
+// RFC 8669 Section 4: "A BGP speaker SHOULD log an error for further analysis when discarding an attribute."
 // PREVENTS: the audit finding of 2026-10-15, where one record named only the
 // first discarded code and the Prefix-SID discard reached the operator at Debug.
-// MUTATION: log only result.AttrCode in the attribute-discard branch of
-// Session.applyRFC7606; a case loses its attr=40 or its attr=6 record.
+// MUTATION: log result.AttrCode and result.Description for every entry in
+// Session.logRFC7606Discards; the per-code window keeps one record, so a case
+// loses its attr=40 or its attr=6 record.
+//
+// RFC requirement: RFC8669-6-4 positive -- a Prefix-SID discarded for a TLV overrun on IPv4 labeled unicast over an internal session, with a one-octet ATOMIC_AGGREGATE discarded in the same UPDATE before or after it, emits at the default session log level exactly one attribute-discard ERROR record naming attribute 40 whose reason cites RFC 8669, and exactly one naming attribute 6 whose reason does not.
+// RFC requirement: RFC8669-4-2 positive -- a Prefix-SID discarded from an EBGP peer outside the SR domain, with a one-octet ATOMIC_AGGREGATE discarded in the same UPDATE, emits at the default session log level exactly one attribute-discard ERROR record naming attribute 40 whose reason cites RFC 8669, and exactly one naming attribute 6 whose reason does not.
 func TestRFC8669PrefixSIDDiscardBesideAnotherLogsBoth(t *testing.T) {
 	clean := labelIndexTLV("86690604")
 	overrun := rfc8669PrefixSIDAttr(clean[:len(clean)-2], false)
@@ -137,6 +142,44 @@ func TestRFC8669PrefixSIDDiscardBesideAnotherLogsBoth(t *testing.T) {
 			atomic := rfc7606ErrorLines(log.String(), " attr=6 ", " event=attribute-discard ")
 			require.Lenf(t, atomic, 1, "the ATOMIC_AGGREGATE discard; captured:\n%s", log.String())
 			assert.NotContains(t, atomic[0], "RFC 8669", "each record carries its own attribute's reason")
+		})
+	}
+}
+
+// TestRFC8669InvalidPrefixSIDDiscardBesideAnotherLogsBoth receives an "invalid"
+// Prefix-SID (well-formed, but on labeled unicast with no Label-Index TLV) in
+// the same UPDATE as a one-octet ATOMIC_AGGREGATE, both of which Ze discards.
+// Method: the real receive entry on an internal session at the default level,
+// with the ATOMIC_AGGREGATE before and after code 40, then one ERROR record
+// naming attr=40 with the missing Label-Index and one naming attr=6.
+// RFC 8669 Section 4.1: "In the case of an "invalid" BGP Prefix-SID attribute, a BGP speaker MUST follow the error-handling rules specified in Section 6. A BGP speaker SHOULD log an error for further analysis."
+// MUTATION: log result.AttrCode and result.Description for every entry in
+// Session.logRFC7606Discards; a case loses its attr=40 or its attr=6 record.
+//
+// RFC requirement: RFC8669-4.1-15 positive -- an invalid Prefix-SID (an Originator SRGB TLV and no Label-Index TLV on IPv4 labeled unicast) discarded over an internal session, with a one-octet ATOMIC_AGGREGATE discarded in the same UPDATE before or after it, emits at the default session log level exactly one attribute-discard ERROR record naming attribute 40 whose reason names the missing Label-Index TLV, and exactly one naming attribute 6 whose reason does not.
+func TestRFC8669InvalidPrefixSIDDiscardBesideAnotherLogsBoth(t *testing.T) {
+	invalid := rfc8669PrefixSIDAttr(originatorSRGBTLV, false)
+	for _, tc := range []struct {
+		name   string
+		first  string
+		second string
+	}{
+		{name: "ATOMIC_AGGREGATE after", first: invalid, second: atomicAggregateLength1},
+		{name: "ATOMIC_AGGREGATE before", first: atomicAggregateLength1 + invalid, second: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// No parallel execution: captureSessionLog swaps a process-global logger.
+			log := captureSessionLog(t, defaultSessionLogLevel)
+			_, _, action, err := rfc8669DuplicateReceive(t, safiLabeled, tc.first, tc.second, false)
+			require.NoError(t, err)
+			require.Equal(t, message.RFC7606ActionAttributeDiscard, action)
+
+			sid := rfc7606ErrorLines(log.String(), " attr=40 ", " event=attribute-discard ")
+			require.Lenf(t, sid, 1, "the invalid Prefix-SID discard; captured:\n%s", log.String())
+			assert.Contains(t, sid[0], "no Label-Index TLV")
+			atomic := rfc7606ErrorLines(log.String(), " attr=6 ", " event=attribute-discard ")
+			require.Lenf(t, atomic, 1, "the ATOMIC_AGGREGATE discard; captured:\n%s", log.String())
+			assert.NotContains(t, atomic[0], "Label-Index", "each record carries its own attribute's reason")
 		})
 	}
 }
