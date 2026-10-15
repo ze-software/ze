@@ -121,8 +121,11 @@ func (s *tftpServer) restore(cause error) error {
 // strict is the reload mode: it binds every interface or none, and when one
 // cannot be bound it closes the listeners already bound and returns an error
 // naming the interface and the fix. Boot is not strict: it has no previous
-// config to keep, and the install path brings interfaces up after the
-// daemon, so a failed interface is logged and the others serve.
+// config to keep, and a configure error at boot fails the plugin and aborts
+// the whole daemon start, so a failed interface is logged and the others
+// serve. A device ze's own `interface {}` config creates exists by then,
+// because the server starts after the interface plugin (StartAfter in init);
+// a device that appears later is served only after the next reload.
 func bindTFTP(generation context.Context, cfg tftpConfig, sem chan struct{}, log *slog.Logger, strict bool) ([]*net.UDPConn, error) {
 	if !cfg.Enabled {
 		return nil, nil

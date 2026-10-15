@@ -25,12 +25,18 @@ var loggerPtr atomic.Pointer[slog.Logger]
 func init() {
 	loggerPtr.Store(slogutil.DiscardLogger())
 
+	// StartAfter: the server binds each listen-interface in its Stage 2
+	// configure, and the interface plugin creates the VLANs, bridges and dummies
+	// of ze's own `interface {}` config in its own Stage 2 configure, so the
+	// server starts in a later tier whenever both run. It is an order, not a
+	// dependency: a config with no `interface` section does not load interface.
 	reg := registry.Registration{
 		Name:                    "dhcpserver",
 		Description:             "DHCP server: address assignment for LAN clients (RFC 2131)",
 		Features:                "yang",
 		YANG:                    dhcpyang.ZeDHCPServerConfYANG,
 		ConfigRoots:             []string{configRootService},
+		StartAfter:              []string{"interface"},
 		InProcessConfigVerifier: verifyDHCPConfig,
 		RunEngine:               runDHCPServerPlugin,
 	}
@@ -111,8 +117,11 @@ var dhcpListen = listenDHCP
 // naming the interface and the fix, so a reload never reports a server that
 // serves part of its interfaces, or none, and the transaction rolls back to
 // the config that served. Boot is not strict: it has no previous config to
-// keep, and the install path brings interfaces up after the daemon, so a
-// failed interface is logged and the others serve.
+// keep, and a configure error at boot fails the plugin and aborts the whole
+// daemon start, so a failed interface is logged and the others serve. A
+// device ze's own `interface {}` config creates exists by then, because the
+// server starts after the interface plugin (StartAfter in init); a device
+// that appears later is served only after the next reload.
 func bindListeners(cfg serverConfig, handlers []*dhcpHandler, log *slog.Logger, strict bool) ([]*net.UDPConn, error) {
 	if !cfg.Enabled {
 		return nil, nil

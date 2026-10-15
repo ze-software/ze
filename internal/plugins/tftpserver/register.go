@@ -23,12 +23,18 @@ var loggerPtr atomic.Pointer[slog.Logger]
 func init() {
 	loggerPtr.Store(slogutil.DiscardLogger())
 
+	// StartAfter: the server binds each listen-interface in its Stage 2
+	// configure, and the interface plugin creates the VLANs, bridges and dummies
+	// of ze's own `interface {}` config in its own Stage 2 configure, so the
+	// server starts in a later tier whenever both run. It is an order, not a
+	// dependency: a config with no `interface` section does not load interface.
 	reg := registry.Registration{
 		Name:                    "tftpserver",
 		Description:             "TFTP server: read-only file serving for PXE boot (RFC 1350, RFC 2347 option negotiation)",
 		Features:                "yang",
 		YANG:                    tftpyang.ZeTFTPServerConfYANG,
 		ConfigRoots:             []string{configRootService},
+		StartAfter:              []string{"interface"},
 		InProcessConfigVerifier: verifyTFTPConfig,
 		RunEngine:               runTFTPServerPlugin,
 	}

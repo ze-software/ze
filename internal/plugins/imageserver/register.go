@@ -29,12 +29,18 @@ var loggerPtr atomic.Pointer[slog.Logger]
 func init() {
 	loggerPtr.Store(slogutil.DiscardLogger())
 
+	// StartAfter: the server binds each listen-interface in its Stage 2
+	// configure, and the interface plugin creates the VLANs, bridges and dummies
+	// of ze's own `interface {}` config in its own Stage 2 configure, so the
+	// server starts in a later tier whenever both run. It is an order, not a
+	// dependency: a config with no `interface` section does not load interface.
 	reg := registry.Registration{
 		Name:                    "imageserver",
 		Description:             "Image server: HTTP provisioning for disk images and boot files",
 		Features:                "yang",
 		YANG:                    imgyang.ZeImageServerConfYANG,
 		ConfigRoots:             []string{configRootService},
+		StartAfter:              []string{"interface"},
 		InProcessConfigVerifier: verifyImageConfig,
 		RunEngine:               runImageServerPlugin,
 	}
@@ -107,8 +113,12 @@ var (
 // strict is the reload mode: it binds every interface or none, and the error
 // names the interface and the fix, so the transaction rolls back to the
 // config that served. Boot is not strict: it has no previous config to keep,
-// and the install path brings interfaces up after the daemon, so a failed
-// interface is logged and the others serve.
+// a configure error at boot fails the plugin and aborts the whole daemon
+// start, and an interface's IPv4 address may arrive later through DHCP, so a
+// failed interface is logged and the others serve. A device ze's own
+// `interface {}` config creates exists by then, because the server starts
+// after the interface plugin (StartAfter in init); an address or a device
+// that appears later is served only after the next reload.
 func bindImage(cfg imageConfig, zefsPath string, log *slog.Logger, strict bool) ([]*http.Server, error) {
 	if !cfg.Enabled {
 		return nil, nil

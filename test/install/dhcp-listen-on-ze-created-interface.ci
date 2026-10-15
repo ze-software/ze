@@ -1,0 +1,58 @@
+# Test: the DHCP server binds, at boot, a listen-interface that ze's own
+#       `interface {}` config creates in the same startup.
+#
+# VALIDATES: dhcpserver's `StartAfter: ["interface"]` (dhcpserver/register.go).
+#            The interface plugin creates the dummy zedhcpord0 in its Stage 2
+#            configure, and the server binds its listen-interfaces in its own,
+#            so the server has to start in a later tier for the device to exist
+#            when it binds (registry.TopologicalTiers).
+# PREVENTS: the server sharing tier 0 with sysctl, before interface, so the
+#           bind found no device: `dhcpserver: listen failed`, then
+#           `no interfaces bound`, and the interface was never served until
+#           the next reload.
+#
+# needs-linux:caps=net-admin: creating a dummy netdev needs CAP_NET_ADMIN, and
+# only Linux honours SO_BINDTODEVICE, so on another platform the bind would
+# succeed with no device at all. Runs as root under `./le test qemu all-tests`.
+#
+# KERNEL STATE THIS TEST OWNS: the device zedhcpord0 and the address block
+# 198.19.253.0/24. No other file under test/ puts either in a kernel.
+option=needs-linux:caps=net-admin
+option=timeout:value=30s
+
+stdin=ze-dhcp:terminator=EOF_CONF
+interface {
+    backend netlink
+    dummy zedhcpord0 {
+        unit 0 {
+            ipv4 {
+                address [198.19.253.1/24]
+            }
+        }
+    }
+}
+service {
+    dhcp-server {
+        enabled true
+        listen-interface zedhcpord0
+        shared-network install {
+            subnet 198.19.253.0/24 {
+                range pool1 {
+                    start 198.19.253.100
+                    stop 198.19.253.200
+                }
+                default-router 198.19.253.1
+            }
+        }
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.dhcpserver:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-dhcp
+# Producer: dhcpserver/register.go bindListeners, "dhcpserver: started" with
+# listeners=1, logged only after the bind on zedhcpord0 succeeded.
+await=stderr:contains=listeners=1
+reject=stderr:pattern=listen failed
+reject=stderr:pattern=no interfaces bound
