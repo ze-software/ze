@@ -774,6 +774,9 @@ func p05ConcurrentConfigCommit(ctx context.Context, args []string) error {
 		}()
 		return nil
 	})
+	if err := declareObserverAppliesNothing(plugin); err != nil {
+		return err
+	}
 	runErr := plugin.Run(ctx, sdk.Registration{WantsConfig: []string{namespaceBGP}, VerifyBudget: 3})
 	select {
 	case driverErr := <-driverDone:

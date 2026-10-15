@@ -101,6 +101,9 @@ func runHostnamePlugin(conn net.Conn) int {
 	// a reload that changes it is refused at config-verify
 	// (sdk.Plugin.DeclareCapabilitiesFrom).
 	p.DeclareCapabilitiesFrom(hostnameCapabilities, hostnameCapabilityLeaves)
+	// hostname reads no other leaf, so an accepted reload leaves it nothing
+	// to apply.
+	p.DeclareAppliesNothing("reads only the hostname capability leaves, fixed for the process life")
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()

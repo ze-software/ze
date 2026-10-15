@@ -79,6 +79,9 @@ func runLLNHPlugin(conn net.Conn) int {
 	// fixed for the process life (sdk.Plugin.DeclareCapabilitiesFrom).
 	p.OnConfigure(refuseLinkLocalCapabilityWithoutAddressSections)
 	p.DeclareCapabilitiesFrom(llnhCapabilities, llnhCapabilityLeaves)
+	// llnh reads no other leaf, so an accepted reload leaves it nothing to
+	// apply.
+	p.DeclareAppliesNothing("reads only the link-local next-hop capability leaves, fixed for the process life")
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()

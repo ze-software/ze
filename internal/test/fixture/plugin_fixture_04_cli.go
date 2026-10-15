@@ -379,6 +379,9 @@ func commitRejectPlugin04(ctx context.Context, args []string) error {
 		}
 		return nil
 	})
+	if err := declareObserverAppliesNothing(p); err != nil {
+		return err
+	}
 	return p.Run(ctx, sdk.Registration{WantsConfig: []string{namespaceBGP}})
 }
 

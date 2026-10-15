@@ -75,6 +75,9 @@ func RunRouteRefreshPlugin(conn net.Conn) int {
 		// Engine handles config-driven capability advertisement in reactor/config.go.
 		return nil
 	})
+	// It keeps WantsConfig so the bgp root counts it as a consumer, and reads
+	// no leaf, so a reload has nothing for it to apply.
+	p.DeclareAppliesNothing("reads no leaf: the engine advertises route-refresh from the bgp config")
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()

@@ -33,7 +33,6 @@ func init() {
 		"plugin/enricher-external-show-checker": fixture06EnricherExternalChecker,
 		"plugin/enricher-fakeenrich-show":       fixture06EnricherFakeChecker,
 		"plugin/eor-per-family":                 fixture06EORPerFamily,
-		"plugin/errors-config-abort-show":       fixture06ErrorsConfigAbort,
 		"plugin/errors-received-show":           fixture06ErrorsReceived,
 		"plugin/errors-sent-show":               fixture06ErrorsSent,
 		"plugin/event-monitor-basic":            fixture06EventMonitorBasic,
@@ -55,6 +54,12 @@ func init() {
 		})
 	}
 
+	// The one fixture06 observer that wants the bgp root reads no leaf, so it
+	// declares that a reload has nothing for it to apply.
+	Register("plugin/errors-config-abort-show", func(ctx context.Context, _ []string) error {
+		registration := sdk.Registration{WantsConfig: []string{namespaceBGP}}
+		return observeConfigured(ctx, "plugin/errors-config-abort-show", registration, declareObserverAppliesNothing, fixture06ErrorsConfigAbort)
+	})
 	Register("plugin/enricher-external-show-provider", fixture06EnricherExternalProvider)
 	Register("plugin/exabgp-bridge-helper", fixture06ExaBGPHelper)
 	Register("plugin/exabgp-bridge-bare-helper", fixture06ExaBGPBareHelper)
@@ -65,8 +70,6 @@ func fixture06Registration(name string) sdk.Registration {
 	switch name {
 	case "plugin/enricher-external-show-checker":
 		return sdk.Registration{}
-	case "plugin/errors-config-abort-show":
-		return sdk.Registration{WantsConfig: []string{namespaceBGP}}
 	case "plugin/explicit-plugin-config":
 		return sdk.Registration{Families: []sdk.FamilyDecl{
 			{Name: "ipv4/flow", Mode: modeDecode, AFI: 1, SAFI: 133},

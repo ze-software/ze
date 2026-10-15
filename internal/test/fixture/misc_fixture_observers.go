@@ -393,5 +393,8 @@ func managedRejectObserver(ctx context.Context, args []string) error {
 		}
 		return nil
 	})
+	if err := declareObserverAppliesNothing(plugin); err != nil {
+		return err
+	}
 	return plugin.Run(ctx, sdk.Registration{WantsConfig: []string{namespaceBGP}})
 }

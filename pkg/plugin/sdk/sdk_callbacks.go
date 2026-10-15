@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -479,6 +480,30 @@ func (p *Plugin) OnConfigApply(fn ConfigApplyHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackConfigApply] = p.configApplyCallback(fn)
+}
+
+// DeclareAppliesNothing states that this plugin consumes its config roots and
+// holds nothing a reload can apply: it reads no leaf, or only capability
+// leaves, whose change DeclareCapabilitiesFrom refuses at config-verify. The
+// apply is accepted and a debug line names the plugin, the changed roots and
+// reason, so an accepted reload that changed nothing in the plugin says why.
+// It is the explicit form of an apply handler, never a default: a plugin that
+// reads a leaf it could apply MUST register OnConfigApply instead. reason
+// MUST NOT be empty.
+func (p *Plugin) DeclareAppliesNothing(reason string) {
+	if reason == "" {
+		panic("BUG: DeclareAppliesNothing needs the reason the plugin applies nothing")
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.callbacks[callbackConfigApply] = p.configApplyCallback(func(sections []ConfigDiffSection) error {
+		roots := make([]string, 0, len(sections))
+		for i := range sections {
+			roots = append(roots, sections[i].Root)
+		}
+		slog.Debug("config apply: plugin applies nothing", "plugin", p.name, "roots", roots, "reason", reason)
+		return nil
+	})
 }
 
 // configApplyCallback wraps a section apply handler, nil for none, and opens

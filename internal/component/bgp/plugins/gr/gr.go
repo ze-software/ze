@@ -163,6 +163,10 @@ func runGRPlugin(conn net.Conn) int {
 	// family list included, is refused at config-verify
 	// (sdk.Plugin.DeclareCapabilitiesFrom).
 	p.DeclareCapabilitiesFrom(grCapabilities, grCapabilityLeaves)
+	// Every leaf gr reads either reaches that declaration or is checked by
+	// refuseUncarriedGRSections, so an accepted reload leaves gr nothing to
+	// apply.
+	p.DeclareAppliesNothing("reads only graceful-restart capability leaves, fixed for the process life")
 
 	// OnConfigure callback: refuse a graceful-restart family the session does
 	// not carry, then install the LLGR egress filter state.

@@ -73,6 +73,9 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 	p.DeclareCapabilitiesFrom(func([]sdk.ConfigSection) (sdk.CapabilityDeclaration, error) {
 		return sdk.CapabilityDeclaration{Capabilities: caps}, nil
 	}, map[uint8]string{2: "route-refresh", 69: "add-path"})
+	// Its config comes from the command line, so a reload of the bgp root it
+	// joins has nothing for it to apply.
+	p.DeclareAppliesNothing("takes its config from the command line, not from the config tree")
 
 	// Subscribe to all events using text encoding (the bridge translates text events).
 	p.SetStartupSubscriptions([]string{"*"}, nil, "")

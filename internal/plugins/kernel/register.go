@@ -79,6 +79,11 @@ func runKernelPlugin(conn net.Conn) int {
 		return nil
 	})
 
+	// The kernel container is empty: the plugin keeps WantsConfig so the root
+	// autoloads it and counts it as a consumer, and a reload has nothing for it
+	// to apply.
+	p.DeclareAppliesNothing("its config container holds no leaf")
+
 	ctx := context.Background()
 	if err := p.Run(ctx, sdk.Registration{
 		WantsConfig: []string{pluginName},

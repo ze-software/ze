@@ -153,6 +153,14 @@ type ObserverScenario func(context.Context, *sdk.Plugin) error
 // observerSetup installs callbacks and startup subscriptions before Stage 1.
 type observerSetup func(*sdk.Plugin) error
 
+// declareObserverAppliesNothing is the setup of an observer that wants the bgp
+// root to watch a reload's verify or its Stage 2 delivery and holds nothing a
+// reload could apply.
+func declareObserverAppliesNothing(plugin *sdk.Plugin) error {
+	plugin.DeclareAppliesNothing("test observer: it reads the config, it applies none")
+	return nil
+}
+
 // Observe connects as a plugin, completes the five startup stages, runs the
 // scenario when every daemon plugin is ready, and requests a clean shutdown.
 func Observe(ctx context.Context, name string, registration sdk.Registration, scenario ObserverScenario) error {

@@ -154,6 +154,9 @@ func RunSoftverPlugin(conn net.Conn) int {
 	// The declaration is fixed for the process life: a reload that changes
 	// it is refused at config-verify (sdk.Plugin.DeclareCapabilitiesFrom).
 	p.DeclareCapabilitiesFrom(softverCapabilities, softverCapabilityLeaves)
+	// softver reads no other leaf, so an accepted reload leaves it nothing to
+	// apply.
+	p.DeclareAppliesNothing("reads only the software-version capability leaves, fixed for the process life")
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
