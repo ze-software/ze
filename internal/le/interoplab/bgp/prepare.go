@@ -190,7 +190,7 @@ func prepareScenario(root, producer, suffix string, prepare interoplab.PrepareCo
 	}
 	peers, err := scenarioPeers(producer, rendered, suffix, prepare.Network)
 	cleanup := func() error { return os.RemoveAll(rendered) }
-	prestarts, prestartErr := readPrestarts(rendered, linkLocals)
+	prestarts, prestartErr := renderPrestarts(prepare.Source.Name, scenarioPrestarts[prepare.Source.Name], linkLocals, prepare.Network)
 	if prestartErr != nil {
 		return interoplab.PreparedScenario{Cleanup: cleanup}, prestartErr
 	}
@@ -618,6 +618,13 @@ type linkLocalOwner struct {
 	imageCommand []string
 }
 
+// zeLinkLocalOwner and frrLinkLocalOwner name each owner's index, so a table
+// indexed by owner (ownerPrestarts) is written by name, never by position.
+const (
+	zeLinkLocalOwner = iota
+	frrLinkLocalOwner
+)
+
 // linkLocalOwners is every link-local placeholder and its owner. Ze's image
 // runs `tini -- ze` and the wrapper execs ze directly, as the RFC 2545
 // scenario always has. FRR's pinned image (quay.io/frrouting/frr:10.3.1, read
@@ -625,8 +632,8 @@ type linkLocalOwner struct {
 // and Cmd ["/usr/lib/frr/docker-start"]; Docker drops that Cmd once
 // --entrypoint replaces the entrypoint, so the wrapper passes it back.
 var linkLocalOwners = [...]linkLocalOwner{
-	{placeholder: zeLinkLocalPlaceholder, peer: "ze", host: zeHostNumber, entrypoint: "ze"},
-	{placeholder: frrLinkLocalPlaceholder, peer: peerFRR, host: frrHostNumber, entrypoint: "/sbin/tini",
+	zeLinkLocalOwner: {placeholder: zeLinkLocalPlaceholder, peer: "ze", host: zeHostNumber, entrypoint: "ze"},
+	frrLinkLocalOwner: {placeholder: frrLinkLocalPlaceholder, peer: peerFRR, host: frrHostNumber, entrypoint: "/sbin/tini",
 		imageCommand: []string{"--", "/usr/lib/frr/docker-start"}},
 }
 
@@ -647,54 +654,52 @@ func linkLocalAt(network interoplab.Network, host uint8) netip.Addr {
 	})
 }
 
-// prestartSuffix names a scenario file that runs as a shell script in one
-// container before its daemon starts: `<peer>-prestart.sh` runs in <peer>'s
-// container, after its link-local is on eth0 and before the exec of its
-// daemon, with errexit on. What a scenario needs in place before the first
-// packet goes there (a second link, an nft table), so the scenario declares
-// its own topology and the harness names no scenario.
-const prestartSuffix = "-prestart.sh"
-
-// ownerPrestarts holds, by index into linkLocalOwners, the prestart script
-// of each owner, empty when its scenario has none.
+// ownerPrestarts holds, by index into linkLocalOwners, the shell one scenario
+// runs in each owner's container before its daemon starts, empty for an owner
+// that runs none. It runs inside the wrapper that assigns that container's
+// link-local (assignLinkLocal), after the eth0 assignment and before the exec
+// of the daemon, with errexit on. It is what a scenario needs in place before
+// the first packet goes there (a second link, an nft table). It is Go, not a
+// scenario file, because the interop tree carries no interpreted helper
+// (TestInteropTreeUsesOnlyCompiledHelpers), and it may carry the link-local
+// placeholders, which render as they do in the scenario's files.
 type ownerPrestarts [len(linkLocalOwners)]string
 
-// readPrestarts reads every prestart of a rendered scenario. A prestart runs
-// inside the wrapper that assigns its container's link-local, so one for a
-// container that owns no rendered link-local would never run: it is refused
-// rather than ignored.
-func readPrestarts(rendered string, linkLocals renderedLinkLocals) (ownerPrestarts, error) {
-	var prestarts ownerPrestarts
-	paths, err := filepath.Glob(filepath.Join(rendered, "*"+prestartSuffix))
-	if err != nil {
-		return prestarts, err
-	}
-	for _, path := range paths {
-		name := filepath.Base(path)
-		peer := strings.TrimSuffix(name, prestartSuffix)
-		owner := slices.IndexFunc(linkLocalOwners[:], func(o linkLocalOwner) bool { return o.peer == peer })
-		if owner < 0 {
-			return prestarts, errors.New(name + " names container " + peer +
-				", and a prestart runs only in a container that owns a link-local placeholder (" +
-				zeLinkLocalPlaceholder + " for ze, " + frrLinkLocalPlaceholder + " for frr); rename it after one of those or remove it")
+// scenarioPrestarts holds the prestarts of each scenario that has some, by
+// scenario name. A scenario's register file adds its entry, so prepare.go
+// names no scenario.
+var scenarioPrestarts = map[string]ownerPrestarts{}
+
+// renderPrestarts renders a scenario's prestarts for network. A prestart runs
+// inside the wrapper that assigns its container's link-local, so one for an
+// owner whose placeholder no scenario file carries would never run: it is
+// refused rather than ignored.
+func renderPrestarts(scenario string, prestarts ownerPrestarts, linkLocals renderedLinkLocals, network interoplab.Network) (ownerPrestarts, error) {
+	var rendered ownerPrestarts
+	for owner := range linkLocalOwners {
+		if prestarts[owner] == "" {
+			continue
 		}
 		if !linkLocals[owner] {
-			return prestarts, errors.New(name + " runs only once " + peer + "'s link-local is assigned, and no file of the scenario carries " +
-				linkLocalOwners[owner].placeholder + "; use the placeholder where the scenario needs that address, or remove " + name)
+			return rendered, errors.New(scenario + "'s prestart for " + linkLocalOwners[owner].peer +
+				" runs only once its link-local is assigned, and no file of the scenario carries " +
+				linkLocalOwners[owner].placeholder + "; use the placeholder where the scenario needs that address, or remove the prestart")
 		}
-		data, readErr := os.ReadFile(path) //nolint:gosec // the path is a rendered scenario file inside the checkout's tmp
-		if readErr != nil {
-			return prestarts, readErr
+		text := prestarts[owner]
+		for named := range linkLocalOwners {
+			text = strings.ReplaceAll(text, linkLocalOwners[named].placeholder,
+				linkLocalAt(network, linkLocalOwners[named].host).String())
 		}
-		prestarts[owner] = string(data)
+		rendered[owner] = text
 	}
-	return prestarts, nil
+	return rendered, nil
 }
 
 // assignLinkLocal wraps peer's start in a shell that assigns address to eth0,
-// runs prestart (the owner's `<peer>-prestart.sh`, empty when it has none) and
-// then execs the start it replaced: the peer's own --entrypoint when it
-// passes one, the image's otherwise, with the peer's command or the image's.
+// runs prestart (the owner's rendered ownerPrestarts entry, empty when it
+// has none) and then execs the start it replaced: the peer's own --entrypoint
+// when it passes one, the image's otherwise, with the peer's command or the
+// image's.
 func assignLinkLocal(peer *interoplab.PeerConfig, owner linkLocalOwner, address netip.Addr, prestart string) {
 	entrypoint := owner.entrypoint
 	arguments := make([]string, 0, len(peer.Arguments)+2)

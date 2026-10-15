@@ -687,13 +687,17 @@ therefore already holds the address. A placeholder also selects an IPv6 lab
 network, because the address is built from its prefix. The scenario's name
 decides nothing.
 
-A scenario file named `<peer>-prestart.sh` (`ze-prestart.sh`,
-`frr-prestart.sh`) is rendered like every other file and runs inside that
-wrapper, under `sh -e`, after the `eth0` assignment and before the exec. It is
-where a scenario builds what must exist before its daemon sends a packet: a
-second link, a link-local on it, an nft table. A prestart for a container that
-owns no rendered placeholder would never run, so preparation refuses it by
-name rather than skipping it.
+A scenario's prestart is Go, not a scenario file: its register file adds an
+`ownerPrestarts` entry, one shell fragment per link-local owner, to
+`scenarioPrestarts` under the scenario's name. The interop tree carries no
+interpreted helper (`TestInteropTreeUsesOnlyCompiledHelpers`), so the harness
+compiled into `le` holds it. The fragment's link-local placeholders render as
+they do in the scenario's files, and it runs inside that owner's wrapper, under
+`sh -e`, after the `eth0` assignment and before the exec. It is where a
+scenario builds what must exist before its daemon sends a packet: a second
+link, a link-local on it, an nft table. A prestart for an owner whose
+placeholder no scenario file carries would never run, so preparation refuses
+it by name rather than skipping it.
 
 `bgp-rfc2545-linklocal-nexthop-frr` uses IPv6 host 2 for Ze and host 3 for FRR:
 the speaker, its on-link global next hop and the recipient share ONE IPv6 subnet,
@@ -705,7 +709,7 @@ the on-link route via that owned link-local address. A second prefix uses an
 off-link global next hop and must decode as global-only; the IPv6 session must
 remain established after both assertions. These are two routes on one session,
 not identical UPDATEs differing only in their next-hop length.
-<!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, renderScenario, needsIPv6, linkLocalOwners, linkLocalAt, assignLinkLocal, readPrestarts, prestartSuffix -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, renderScenario, needsIPv6, linkLocalOwners, linkLocalAt, assignLinkLocal, ownerPrestarts, scenarioPrestarts, renderPrestarts -->
 <!-- source: internal/le/interoplab/bgp/check_rfc.go -- checkRFC2545NextHops -->
 
 Typed checker queries and their expected JSON field values are rendered onto the
@@ -1008,7 +1012,7 @@ one session per link; FRR one peer per link. Two things make it discriminate:
   puts on the destination or the ifindex `pinsToLink` asks for. Without either,
   the kernel refuses the write (`sendmsg: invalid argument`) and FRR hears
   nothing.
-- **Receive.** `ze-prestart.sh` installs an nft output rule in table
+- **Receive.** Ze's prestart installs an nft output rule in table
   `inet bfdfirst` that drops every BFD Control packet Ze sends with Your
   Discriminator zero. FRR then learns Ze's discriminator only from a packet Ze
   sends after selecting FRR's first packet by address and link, so without the
@@ -1023,9 +1027,10 @@ discriminators crossed. A smoke on colima (not evidence) held both Up with the
 code as it is, and both Down with `reconcileZone` returning its key unchanged
 and with `sendZone` returning `""` and `pinsToLink` returning false.
 <!-- source: internal/le/interoplab/bgp/check_bfd_link_local.go -- checkBFDLinkLocal, checkBFDLinkLocalTwoLinks, checkBFDLinkLocalOn, zeLinkLocalLinks, zeLinkLocalSession, requireCrossedDiscriminators -->
-<!-- source: internal/le/interoplab/bgp/prepare.go -- readPrestarts, assignLinkLocal -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioPrestarts, renderPrestarts, assignLinkLocal -->
 <!-- source: test/interop/scenarios/bfd-link-local-frr/ -- ze.conf, frr.conf -->
-<!-- source: test/interop/scenarios/bfd-link-local-two-links-frr/ -- ze.conf, frr.conf, ze-prestart.sh, frr-prestart.sh -->
+<!-- source: test/interop/scenarios/bfd-link-local-two-links-frr/ -- ze.conf, frr.conf -->
+<!-- source: internal/le/interoplab/bgp/prepare_bfd_link_local.go -- bfdLinkLocalTwoLinksZePrestart, bfdLinkLocalTwoLinksFRRPrestart -->
 
 ### Live attach and BFD opt-in without a session reset
 

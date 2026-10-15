@@ -180,12 +180,12 @@ func TestRFC2545ScenarioPreparesAsBefore(t *testing.T) {
 	}
 }
 
-// VALIDATES: a scenario's `<peer>-prestart.sh` runs in that peer's start
-// wrapper, rendered, after the eth0 link-local and before the exec of the
-// daemon, and a prestart that would never run is refused by name.
+// VALIDATES: a scenario's registered prestart (scenarioPrestarts) runs in each
+// owner's start wrapper, rendered, after the eth0 link-local and before the
+// exec of the daemon, and a prestart that would never run is refused by name.
 // Method: prepare the committed bfd-link-local-two-links-frr scenario and read
-// each wrapped start in order; then prepare fixtures whose prestart names a
-// container with no wrapper, or an owner whose placeholder no file carries.
+// each wrapped start in order; then render a prestart for an owner whose
+// placeholder no scenario file carries.
 // PREVENTS: the two links or the Your-Discriminator-zero drop being built after
 // the daemon's first packet, an unrendered placeholder reaching `ip`, and a
 // prestart silently skipped.
@@ -257,31 +257,13 @@ func TestPrestartRunsBeforeTheDaemon(t *testing.T) {
 		t.Fatalf("FRR's wrapper carries the nft drop, which belongs to ze's sends alone:\n%s", scripts[peerFRR])
 	}
 
-	for _, refused := range []struct {
-		name, file, zeConfig, want string
-	}{
-		{"no wrapper for the container", "bird-prestart.sh", "local " + zeLinkLocalPlaceholder + "\n", "names container bird"},
-		{"owner without its placeholder", "ze-prestart.sh", "bfd {}\n", "no file of the scenario carries " + zeLinkLocalPlaceholder},
-	} {
-		t.Run(refused.name, func(t *testing.T) {
-			fixture := t.TempDir()
-			writeFixture(t, filepath.Join(fixture, zeConfigFile), refused.zeConfig)
-			writeFixture(t, filepath.Join(fixture, frrConfigFile), "bfd\n")
-			writeFixture(t, filepath.Join(fixture, refused.file), "true\n")
-			prepared, err := prepareScenario(t.TempDir(), t.TempDir(), "fixture", interoplab.PrepareContext{
-				Source:  interoplab.ScenarioSource{Name: refused.name, Directory: fixture},
-				Network: network,
-			})
-			if prepared.Cleanup != nil {
-				t.Cleanup(func() {
-					if cleanupErr := prepared.Cleanup(); cleanupErr != nil {
-						t.Error(cleanupErr)
-					}
-				})
-			}
-			if err == nil || !strings.Contains(err.Error(), refused.want) {
-				t.Fatalf("error = %v, want it to contain %q", err, refused.want)
-			}
-		})
-	}
+	t.Run("owner without its placeholder", func(t *testing.T) {
+		var linkLocals renderedLinkLocals
+		linkLocals[frrLinkLocalOwner] = true
+		_, err := renderPrestarts("fixture", ownerPrestarts{zeLinkLocalOwner: "true\n"}, linkLocals, network)
+		want := "no file of the scenario carries " + zeLinkLocalPlaceholder
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Fatalf("error = %v, want it to contain %q", err, want)
+		}
+	})
 }

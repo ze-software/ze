@@ -63,14 +63,15 @@ func checkBFDLinkLocal(ctx context.Context, check *interoplab.CheckContext) erro
 // sessions to FRR's link-local, so ze.conf declares them once and this reads
 // them back; at least two are required.
 //
-// The scenario's files make it discriminating where bfd-link-local-frr is not.
-// ze-prestart.sh drops every BFD Control packet ze sends with Your
-// Discriminator zero, so FRR learns ze's discriminator only from a packet ze
-// sends after it selected FRR's first packet by address and link: with the
-// zone reconciliation broken no first packet is selected and neither side
-// leaves Down. Two links put the sessions on an unbound socket, so each
-// packet reaches its link only through the zone or the ifindex ze puts on the
-// send; without either the kernel refuses the write and FRR hears nothing.
+// The scenario's files and prestarts make it discriminating where
+// bfd-link-local-frr is not. Ze's prestart (prepare_bfd_link_local.go) drops
+// every BFD Control packet ze sends with Your Discriminator zero, so FRR
+// learns ze's discriminator only from a packet ze sends after it selected
+// FRR's first packet by address and link: with the zone reconciliation
+// broken no first packet is selected and neither side leaves Down. Two links
+// put the sessions on an unbound socket, so each packet reaches its link only
+// through the zone or the ifindex ze puts on the send; without either the
+// kernel refuses the write and FRR hears nothing.
 func checkBFDLinkLocalTwoLinks(ctx context.Context, check *interoplab.CheckContext) error {
 	if !check.Network.IPv6.IsValid() {
 		return checkerFailure(ctx, check.Lab, bfdLinkLocalTwoLinksScenario, 1, errors.New("no IPv6 lab network was selected, so no link-local exists"))
