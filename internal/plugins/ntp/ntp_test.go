@@ -370,7 +370,7 @@ func TestShowSystemNTPPeersWiring(t *testing.T) {
 // VALIDATES: AC-1 - show system ntp with synced state.
 // PREVENTS: Missing fields in synced response.
 func TestShowSystemNTPEnabled(t *testing.T) {
-	t.Parallel()
+	// Not parallel: stores into the package-global globalState.
 
 	st := &syncState{
 		Enabled:      true,
@@ -403,7 +403,7 @@ func TestShowSystemNTPEnabled(t *testing.T) {
 // VALIDATES: AC-3 - show system ntp disabled.
 // PREVENTS: Disabled state returning sync details.
 func TestShowSystemNTPDisabled(t *testing.T) {
-	t.Parallel()
+	// Not parallel: stores into the package-global globalState.
 
 	st := &syncState{Enabled: false}
 	globalState.Store(st)
@@ -423,7 +423,7 @@ func TestShowSystemNTPDisabled(t *testing.T) {
 // VALIDATES: AC-4 - show system ntp peers with servers.
 // PREVENTS: Missing or wrong per-server fields.
 func TestShowSystemNTPPeers(t *testing.T) {
-	t.Parallel()
+	// Not parallel: stores into the package-global globalState.
 
 	st := &syncState{
 		Enabled: true,
@@ -471,7 +471,7 @@ func TestShowSystemNTPPeers(t *testing.T) {
 // VALIDATES: AC-5 - show system ntp peers with no servers.
 // PREVENTS: Nil instead of empty array.
 func TestShowSystemNTPPeersEmpty(t *testing.T) {
-	t.Parallel()
+	// Not parallel: stores into the package-global globalState.
 
 	st := &syncState{Enabled: true, Servers: nil}
 	globalState.Store(st)
@@ -646,7 +646,7 @@ func TestServerSelectionEmpty(t *testing.T) {
 // VALIDATES: AC-16 - no data race between writer and reader.
 // PREVENTS: Torn reads from concurrent access.
 func TestSyncStateSnapshot(t *testing.T) {
-	t.Parallel()
+	// Not parallel: stores into the package-global globalState.
 
 	// Store a state.
 	st := &syncState{
