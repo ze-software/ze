@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -25,6 +26,7 @@ import (
 	"go.fd.io/govpp/binapi/ip_types"
 	"go.fd.io/govpp/binapi/ipip"
 	"go.fd.io/govpp/binapi/lcp"
+	"go.fd.io/govpp/binapi/qos"
 	"go.fd.io/govpp/binapi/span"
 	"go.fd.io/govpp/binapi/vxlan"
 	"go.fd.io/govpp/binapi/wireguard"
@@ -2737,19 +2739,162 @@ func TestVPPUpdateVLANQoSMap(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-16 -- VPP revert clears egress map.
-// PREVENTS: stale QoS maps after session-down.
-func TestVPPUpdateVLANQoSMapRevert(t *testing.T) {
-	ch := &routeChannel{}
+// qosChannel is a GoVPP channel stub for UpdateVLANQoSMap: it records every
+// request under a mutex, answers the mark request with markRetval, and, when
+// holdEgress is set, holds the first QosEgressMapUpdate reply until released.
+type qosChannel struct {
+	routeChannel
+	mu         sync.Mutex
+	requests   []api.Message
+	markRetval int32
+	holdEgress chan struct{} // nil: never hold
+	held       chan struct{} // signalled when the first egress update is held
+	heldOnce   sync.Once
+}
+
+func (c *qosChannel) SendRequest(msg api.Message) api.RequestCtx {
+	c.mu.Lock()
+	c.requests = append(c.requests, msg)
+	c.mu.Unlock()
+	return &qosRequestCtx{ch: c, msg: msg}
+}
+
+func (c *qosChannel) recorded() []api.Message {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return slices.Clone(c.requests)
+}
+
+type qosRequestCtx struct {
+	ch  *qosChannel
+	msg api.Message
+}
+
+func (r *qosRequestCtx) ReceiveReply(reply api.Message) error {
+	if _, ok := r.msg.(*qos.QosEgressMapUpdate); ok && r.ch.holdEgress != nil {
+		first := false
+		r.ch.heldOnce.Do(func() { first = true })
+		if first {
+			r.ch.held <- struct{}{}
+			<-r.ch.holdEgress
+		}
+	}
+	if markReply, ok := reply.(*qos.QosMarkEnableDisableReply); ok {
+		markReply.Retval = r.ch.markRetval
+	}
+	return nil
+}
+
+// TestVPPUpdateVLANQoSMapEmptyEgressDisablesMark proves AC-18b on VPP: an
+// empty or nil egress map disables the mark instead of doing nothing, a
+// non-empty one writes a whole row (0 for each omitted priority) and enables
+// it, and a disable on a sub-interface with no mark is accepted for the two
+// retvals VPP's qos_mark_disable answers that state with, while any other
+// nonzero retval fails the call.
+func TestVPPUpdateVLANQoSMapEmptyEgressDisablesMark(t *testing.T) {
+	newBackend := func(retval int32) (*vppBackendImpl, *qosChannel) {
+		ch := &qosChannel{markRetval: retval}
+		b := &vppBackendImpl{ch: ch, names: newNameMap()}
+		b.populate.Do(func() {})
+		b.names.Add("xe0.100", 42, "xe0.100")
+		return b, ch
+	}
+	for name, egress := range map[string]map[uint32]uint32{"empty egress": {}, "nil egress": nil} {
+		t.Run(name, func(t *testing.T) {
+			b, ch := newBackend(0)
+			if err := b.UpdateVLANQoSMap("xe0.100", nil, egress); err != nil {
+				t.Fatalf("UpdateVLANQoSMap: %v", err)
+			}
+			reqs := ch.recorded()
+			if len(reqs) != 1 {
+				t.Fatalf("expected 1 request (mark disable), got %d", len(reqs))
+			}
+			mark, ok := reqs[0].(*qos.QosMarkEnableDisable)
+			if !ok || mark.Enable || mark.Mark.SwIfIndex != 42 {
+				t.Fatalf("expected QosMarkEnableDisable{Enable:false, SwIfIndex:42}, got %#v", reqs[0])
+			}
+		})
+	}
+	t.Run("non-empty egress replaces the row", func(t *testing.T) {
+		b, ch := newBackend(0)
+		if err := b.UpdateVLANQoSMap("xe0.100", nil, map[uint32]uint32{5: 3}); err != nil {
+			t.Fatalf("UpdateVLANQoSMap: %v", err)
+		}
+		reqs := ch.recorded()
+		if len(reqs) != 2 {
+			t.Fatalf("expected egress-map + mark, got %d", len(reqs))
+		}
+		update, ok := reqs[0].(*qos.QosEgressMapUpdate)
+		if !ok {
+			t.Fatalf("first request %T, want QosEgressMapUpdate", reqs[0])
+		}
+		row := update.Map.Rows[qos.QOS_API_SOURCE_VLAN].Outputs
+		for prio, pcp := range row {
+			want := byte(0)
+			if prio == 5 {
+				want = 3
+			}
+			if pcp != want {
+				t.Fatalf("row[%d] = %d, want %d", prio, pcp, want)
+			}
+		}
+		if mark, ok := reqs[1].(*qos.QosMarkEnableDisable); !ok || !mark.Enable {
+			t.Fatalf("second request %#v, want an enabled mark", reqs[1])
+		}
+	})
+	t.Run("disable when no mark is enabled", func(t *testing.T) {
+		for _, retval := range []api.VPPApiError{api.NO_MATCHING_INTERFACE, api.VALUE_EXIST} {
+			b, _ := newBackend(int32(retval))
+			if err := b.UpdateVLANQoSMap("xe0.100", nil, nil); err != nil {
+				t.Fatalf("retval %d (%v) must be accepted as already disabled: %v", retval, retval, err)
+			}
+		}
+		b, _ := newBackend(int32(api.INVALID_SW_IF_INDEX))
+		if err := b.UpdateVLANQoSMap("xe0.100", nil, nil); err == nil {
+			t.Fatalf("another nonzero retval must fail the call")
+		}
+	})
+}
+
+// TestVPPUpdateVLANQoSMapSerialised proves R-17 on VPP: the stub holds call
+// A after its QosEgressMapUpdate; call B issues no request until A's mark
+// reply returned, so the recorded requests are A's pair then B's pair.
+func TestVPPUpdateVLANQoSMapSerialised(t *testing.T) {
+	ch := &qosChannel{holdEgress: make(chan struct{}), held: make(chan struct{}, 1)}
 	b := &vppBackendImpl{ch: ch, names: newNameMap()}
 	b.populate.Do(func() {})
 	b.names.Add("xe0.100", 42, "xe0.100")
 
-	if err := b.UpdateVLANQoSMap("xe0.100", nil, nil); err != nil {
-		t.Fatalf("UpdateVLANQoSMap revert: %v", err)
+	doneA := make(chan error, 1)
+	doneB := make(chan error, 1)
+	go func() { doneA <- b.UpdateVLANQoSMap("xe0.100", nil, map[uint32]uint32{5: 5}) }()
+	<-ch.held
+	go func() { doneB <- b.UpdateVLANQoSMap("xe0.100", nil, map[uint32]uint32{1: 1}) }()
+	time.Sleep(200 * time.Millisecond)
+	if n := len(ch.recorded()); n != 1 {
+		t.Errorf("call B issued a request while call A was held: %d requests recorded, want 1", n)
 	}
-	if len(ch.allRequests) != 0 {
-		t.Fatalf("expected 0 VPP requests for nil maps (revert to static), got %d", len(ch.allRequests))
+	close(ch.holdEgress)
+	if err := <-doneA; err != nil {
+		t.Fatalf("call A: %v", err)
+	}
+	if err := <-doneB; err != nil {
+		t.Fatalf("call B: %v", err)
+	}
+	reqs := ch.recorded()
+	if len(reqs) != 4 {
+		t.Fatalf("expected 4 requests, got %d", len(reqs))
+	}
+	first, ok := reqs[0].(*qos.QosEgressMapUpdate)
+	if !ok || first.Map.Rows[qos.QOS_API_SOURCE_VLAN].Outputs[5] != 5 {
+		t.Fatalf("request 0 is not A's egress update: %#v", reqs[0])
+	}
+	if _, ok := reqs[1].(*qos.QosMarkEnableDisable); !ok {
+		t.Fatalf("request 1 is not A's mark: %#v", reqs[1])
+	}
+	third, ok := reqs[2].(*qos.QosEgressMapUpdate)
+	if !ok || third.Map.Rows[qos.QOS_API_SOURCE_VLAN].Outputs[1] != 1 {
+		t.Fatalf("request 2 is not B's egress update: %#v", reqs[2])
 	}
 }
 

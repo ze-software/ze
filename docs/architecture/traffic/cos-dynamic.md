@@ -45,8 +45,9 @@ it is what the shaper uses. `OnStarted` is not that hook.
 ### Reverting the static map passes nil
 
 There is no backend method that reads the current QoS maps, so a revert cannot
-restore what it did not record. Passing nil clears the map, which is the correct
-end state when no static config exists.
+restore what it did not record. Passing nil clears the map on both backends,
+because `UpdateVLANQoSMap` is a full replace (`../iface/vlan-qos-map.md`), which
+is the correct end state when no static config exists.
 
 ## Consequences
 

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sync"
 	"syscall"
 
 	"github.com/vishvananda/netlink"
@@ -163,6 +164,24 @@ func validateQoSMap(m map[uint32]uint32) error {
 	return nil
 }
 
+// qosMapMu serialises every UpdateVLANQoSMap from its read of the installed
+// maps to its write, so two overlapping calls (the cos RADIUS handler on the
+// event bus and an iface apply in a transaction) never compute their replace
+// from one snapshot, which would leave the entry one of them removes. It is
+// package-level, not a backend field, because the kernel state it guards is
+// shared by every backend instance and iface.LoadBackend can leave two live.
+var qosMapMu sync.Mutex
+
+// afterQoSMapReadForTest is a test seam called between the read of the
+// installed maps and the write. Nil in production.
+var afterQoSMapReadForTest func()
+
+// UpdateVLANQoSMap installs exactly the given maps on the VLAN, replacing what
+// it held (iface.Backend contract). The kernel merges a VLAN QoS attribute per
+// entry and the library sends no attribute for a nil map, so a plain modify
+// keeps every entry the call omits. The call therefore sends all 8 ingress
+// slots and zeroes each egress key the installed map holds and the new one
+// omits. Safe for concurrent use: calls are serialised under qosMapMu.
 func (b *netlinkBackend) UpdateVLANQoSMap(ifaceName string, ingress, egress map[uint32]uint32) error {
 	if err := iface.ValidateIfaceName(ifaceName); err != nil {
 		return fmt.Errorf("iface: update vlan qos %q: %w", ifaceName, err)
@@ -173,20 +192,60 @@ func (b *netlinkBackend) UpdateVLANQoSMap(ifaceName string, ingress, egress map[
 	if err := validateQoSMap(egress); err != nil {
 		return fmt.Errorf("iface: update vlan qos %q: egress: %w", ifaceName, err)
 	}
+
+	qosMapMu.Lock()
+	defer qosMapMu.Unlock()
+
 	link, err := netlink.LinkByName(ifaceName)
 	if err != nil {
 		return fmt.Errorf("iface: update vlan qos %q: not found: %w", ifaceName, err)
 	}
-	vlan, ok := link.(*netlink.Vlan)
+	installed, ok := link.(*netlink.Vlan)
 	if !ok {
 		return fmt.Errorf("iface: update vlan qos %q: not a VLAN device", ifaceName)
 	}
-	vlan.IngressQosMap = ingress
-	vlan.EgressQosMap = egress
-	if err := netlink.LinkModify(vlan); err != nil {
+	if afterQoSMapReadForTest != nil {
+		afterQoSMapReadForTest()
+	}
+	ingressSent, egressSent := qosReplaceMaps(installed.EgressQosMap, ingress, egress)
+	// A minimal Vlan, so no field of the fetched snapshot but the name, the
+	// index and the VLAN id reaches the kernel. TxQLen -1 keeps the library
+	// from sending IFLA_TXQLEN.
+	modify := &netlink.Vlan{
+		LinkAttrs:     netlink.LinkAttrs{Index: installed.Attrs().Index, Name: installed.Attrs().Name, TxQLen: -1},
+		VlanId:        installed.VlanId,
+		IngressQosMap: ingressSent,
+		EgressQosMap:  egressSent,
+	}
+	if err := netlink.LinkModify(modify); err != nil {
 		return fmt.Errorf("iface: update vlan qos %q: %w", ifaceName, err)
 	}
 	return nil
+}
+
+// vlanPCPSlots is the number of 802.1p PCP values, the size of the kernel's
+// ingress map (IEEE 802.1Q: the PCP field of the TCI is 3 bits).
+const vlanPCPSlots = 8
+
+// qosReplaceMaps computes what a modify must send so the VLAN ends up holding
+// exactly ingress and egress, given the egress map installed now. Ingress
+// carries every PCP slot, an absent one at priority 0, the kernel default.
+// Egress carries every wanted entry plus each installed key the wanted map
+// omits, at PCP 0, which the kernel keeps and does not dump, so it behaves as
+// an absent key. Pure.
+func qosReplaceMaps(installedEgress, ingress, egress map[uint32]uint32) (ingressSent, egressSent map[uint32]uint32) {
+	ingressSent = make(map[uint32]uint32, vlanPCPSlots)
+	for pcp := range uint32(vlanPCPSlots) {
+		ingressSent[pcp] = ingress[pcp]
+	}
+	egressSent = make(map[uint32]uint32, len(egress)+len(installedEgress))
+	for priority := range installedEgress {
+		egressSent[priority] = 0
+	}
+	for priority, pcp := range egress {
+		egressSent[priority] = pcp
+	}
+	return ingressSent, egressSent
 }
 
 func (b *netlinkBackend) DeleteInterface(name string) error {

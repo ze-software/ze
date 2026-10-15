@@ -9,7 +9,7 @@ The named-profile layer above these maps is
 [`../traffic/cos-plugin.md`](../traffic/cos-plugin.md). This page is the
 mechanism the interface component owns.
 
-<!-- source: internal/plugins/iface/netlink/manage_linux.go -- CreateVLAN, UpdateVLANQoSMap, validateQoSMap -->
+<!-- source: internal/plugins/iface/netlink/manage_linux.go -- CreateVLAN, UpdateVLANQoSMap, qosReplaceMaps, validateQoSMap -->
 <!-- source: internal/component/iface/iface.go -- IngressQoSMap, EgressQoSMap -->
 
 ## Decision: two maps, because the kernel has two
@@ -28,9 +28,21 @@ and on the update path. The kernel would accept a larger value and truncate it.
 
 ## Decision: a map change modifies the link, it does not recreate it
 
-`UpdateVLANQoSMap` looks the device up, asserts it is a VLAN device, sets both
-maps and calls `LinkModify`. Deleting and recreating the subinterface would drop
-its addresses, its routes and every session on it for a QoS-only change.
+`UpdateVLANQoSMap` looks the device up, asserts it is a VLAN device and calls
+`LinkModify`. Deleting and recreating the subinterface would drop its addresses,
+its routes and every session on it for a QoS-only change.
+
+The call is a full replace: afterwards the VLAN holds exactly the given maps,
+and a nil or empty map leaves no mapping. The kernel merges a QoS attribute per
+entry and the library sends no attribute for a nil map, so the backend sends all
+8 ingress slots (an absent one at priority 0, the kernel default) and zeroes
+each egress key the installed map holds and the call omits (`qosReplaceMaps`).
+`LinkModify` is sent a minimal `Vlan` carrying only the index, the name, the
+VLAN id and the two maps, so no other attribute of the fetched snapshot is
+re-sent. Calls are serialised under a package mutex held from the read to the
+write, because the cos RADIUS handler and an interface apply can overlap. The
+VPP backend writes a whole egress row, disables the mark for an empty egress
+map, and serialises its two requests under a backend mutex.
 
 `show interface` reports the maps the kernel holds, not the maps the config
 asked for.

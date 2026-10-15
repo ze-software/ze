@@ -59,7 +59,10 @@ func init() {
 // call that needs it, at which point vpp has had time to connect.
 type vppBackendImpl struct {
 	// chMu guards ch and chReady.
-	chMu     sync.Mutex
+	chMu sync.Mutex
+	// qosMu serialises UpdateVLANQoSMap, whose egress-map update and mark
+	// request are two requests (R-17). Taken after resolveIndex.
+	qosMu    sync.Mutex
 	ch       api.Channel
 	chReady  bool // ch acquired (may be nil in tests that inject directly)
 	populate sync.Once
@@ -360,6 +363,13 @@ func (b *vppBackendImpl) CreateVLAN(spec iface.VLANSpec) error {
 	return nil
 }
 
+// UpdateVLANQoSMap installs exactly the given maps on the sub-interface
+// (iface.Backend contract). Ingress must be identity (VPP qos-record copies
+// PCP verbatim), so only egress is programmed: a non-empty map writes a whole
+// 256-entry row, an omitted priority at PCP 0, and enables the mark; an empty
+// or nil map disables the mark. Safe for concurrent use: the two requests of
+// one call run under qosMu, so the installed maps are those of the call that
+// returned last.
 func (b *vppBackendImpl) UpdateVLANQoSMap(ifaceName string, ingress, egress map[uint32]uint32) error {
 	for pcp, prio := range ingress {
 		if pcp != prio {
@@ -370,44 +380,80 @@ func (b *vppBackendImpl) UpdateVLANQoSMap(ifaceName string, ingress, egress map[
 	if err != nil {
 		return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q: %w", ifaceName, err)
 	}
-	if len(egress) > 0 {
-		mapID := uint32(subIdx)
-		row := qos.QosEgressMapRow{Outputs: make([]byte, 256)}
-		for prio, pcp := range egress {
-			if prio < 256 && pcp < 256 {
-				row.Outputs[prio] = byte(pcp)
-			}
-		}
-		var emap qos.QosEgressMap
-		emap.ID = mapID
-		emap.Rows[qos.QOS_API_SOURCE_VLAN] = row
-
-		emReply := &qos.QosEgressMapUpdateReply{}
-		if err := b.ch.SendRequest(&qos.QosEgressMapUpdate{
-			Map: emap,
-		}).ReceiveReply(emReply); err != nil {
-			return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q egress-map: %w", ifaceName, err)
-		}
-		if emReply.Retval != 0 {
-			return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q egress-map retval=%d", ifaceName, emReply.Retval)
-		}
-
-		markReply := &qos.QosMarkEnableDisableReply{}
-		if err := b.ch.SendRequest(&qos.QosMarkEnableDisable{
-			Mark: qos.QosMark{
-				SwIfIndex:    uint32(subIdx),
-				MapID:        mapID,
-				OutputSource: qos.QOS_API_SOURCE_VLAN,
-			},
-			Enable: true,
-		}).ReceiveReply(markReply); err != nil {
-			return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q mark: %w", ifaceName, err)
-		}
-		if markReply.Retval != 0 {
-			return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q mark retval=%d", ifaceName, markReply.Retval)
+	// Taken after resolveIndex, which can reach the lazy channel setup under
+	// chMu, so chMu is never nested inside qosMu.
+	b.qosMu.Lock()
+	defer b.qosMu.Unlock()
+	if len(egress) == 0 {
+		return b.disableVLANQoSMark(ifaceName, subIdx)
+	}
+	mapID := uint32(subIdx)
+	row := qos.QosEgressMapRow{Outputs: make([]byte, 256)}
+	for prio, pcp := range egress {
+		if prio < 256 && pcp < 256 {
+			row.Outputs[prio] = byte(pcp)
 		}
 	}
+	var emap qos.QosEgressMap
+	emap.ID = mapID
+	emap.Rows[qos.QOS_API_SOURCE_VLAN] = row
+
+	emReply := &qos.QosEgressMapUpdateReply{}
+	if err := b.ch.SendRequest(&qos.QosEgressMapUpdate{
+		Map: emap,
+	}).ReceiveReply(emReply); err != nil {
+		return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q egress-map: %w", ifaceName, err)
+	}
+	if emReply.Retval != 0 {
+		return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q egress-map retval=%d", ifaceName, emReply.Retval)
+	}
+
+	markReply := &qos.QosMarkEnableDisableReply{}
+	if err := b.ch.SendRequest(&qos.QosMarkEnableDisable{
+		Mark: qos.QosMark{
+			SwIfIndex:    uint32(subIdx),
+			MapID:        mapID,
+			OutputSource: qos.QOS_API_SOURCE_VLAN,
+		},
+		Enable: true,
+	}).ReceiveReply(markReply); err != nil {
+		return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q mark: %w", ifaceName, err)
+	}
+	if markReply.Retval != 0 {
+		return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q mark retval=%d", ifaceName, markReply.Retval)
+	}
 	return nil
+}
+
+// disableVLANQoSMark removes the egress mark from a sub-interface, which
+// leaves no egress map applied. A sub-interface with no mark enabled is
+// already in that state. VPP's qos_mark_disable (src/vnet/qos/qos_mark.c)
+// answers it with one of two codes: NO_MATCHING_INTERFACE when the index is
+// past the per-source config vector, VALUE_EXIST when the index has no map.
+// Both are accepted; any other nonzero retval fails the call. The caller
+// MUST hold qosMu.
+func (b *vppBackendImpl) disableVLANQoSMark(ifaceName string, subIdx interface_types.InterfaceIndex) error {
+	markReply := &qos.QosMarkEnableDisableReply{}
+	if err := b.ch.SendRequest(&qos.QosMarkEnableDisable{
+		Mark: qos.QosMark{
+			SwIfIndex:    uint32(subIdx),
+			OutputSource: qos.QOS_API_SOURCE_VLAN,
+		},
+		Enable: false,
+	}).ReceiveReply(markReply); err != nil {
+		return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q mark disable: %w", ifaceName, err)
+	}
+	retval := api.VPPApiError(markReply.Retval)
+	if retval == 0 {
+		return nil
+	}
+	if retval == api.NO_MATCHING_INTERFACE {
+		return nil // index past the config vector: no mark was ever enabled
+	}
+	if retval == api.VALUE_EXIST {
+		return nil // no map on this index: the mark is already disabled
+	}
+	return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q mark disable retval=%d", ifaceName, markReply.Retval)
 }
 
 // enableVLANQoS wires VPP's QoS record + egress-map + mark pipeline on a

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"maps"
 	"net"
 	"strings"
 	"testing"
@@ -197,4 +198,38 @@ func TestRemoveRouteMissReportsWhatTheTableReadEstablished(t *testing.T) {
 			t.Fatalf("the report does not say what the read established: %q", out)
 		}
 	})
+}
+
+// TestNetlinkUpdateVLANQoSMapReplaces proves AC-18b's computation: what a
+// modify sends so the VLAN ends up with exactly the wanted maps, given the
+// installed egress map. Ingress always carries the 8 PCP slots, an absent one
+// at 0; egress carries each installed key the call omits at PCP 0.
+func TestNetlinkUpdateVLANQoSMapReplaces(t *testing.T) {
+	allZero := map[uint32]uint32{0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0}
+	tests := []struct {
+		name                    string
+		installedEgress         map[uint32]uint32
+		ingress, egress         map[uint32]uint32
+		wantIngress, wantEgress map[uint32]uint32
+	}{
+		{"omitted ingress slot", nil, map[uint32]uint32{6: 6},
+			nil, map[uint32]uint32{0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 6, 7: 0}, map[uint32]uint32{}},
+		{"omitted egress key", map[uint32]uint32{3: 3, 5: 5}, nil, map[uint32]uint32{3: 3},
+			allZero, map[uint32]uint32{3: 3, 5: 0}},
+		{"nil ingress", nil, nil, map[uint32]uint32{1: 2}, allZero, map[uint32]uint32{1: 2}},
+		{"nil egress", map[uint32]uint32{4: 4}, map[uint32]uint32{1: 1}, nil,
+			map[uint32]uint32{0: 0, 1: 1, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0}, map[uint32]uint32{4: 0}},
+		{"both nil", map[uint32]uint32{2: 7}, nil, nil, allZero, map[uint32]uint32{2: 0}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ingress, egress := qosReplaceMaps(tt.installedEgress, tt.ingress, tt.egress)
+			if !maps.Equal(ingress, tt.wantIngress) {
+				t.Errorf("ingress sent %v, want %v", ingress, tt.wantIngress)
+			}
+			if !maps.Equal(egress, tt.wantEgress) {
+				t.Errorf("egress sent %v, want %v", egress, tt.wantEgress)
+			}
+		})
+	}
 }
