@@ -430,6 +430,19 @@ func TestRunBuildsBootstrapSetupAndSSHCommands(t *testing.T) {
 		t.Errorf("setup command selects the patched tree at %d, want after the real GOROOT (%d) and safe.directory (%d)",
 			tree, realRoot, safeDir)
 	}
+	// The generator writes its tree into a guest-only tmpfs mounted over
+	// cache/stdpatch first, so no tree linked into the guest's /usr/local/go
+	// reaches the host through the 9p share
+	// (plan/journal/gate-verdict-depends-on-the-machine.md, 2026-10-15).
+	guestCache := strings.Index(guestPatchedTree, "mount -t tmpfs tmpfs "+guestStdpatchCache)
+	generator := strings.Index(guestPatchedTree, "go run ./internal/le/go/stdpatch/goroot")
+	if guestCache < 0 || generator < guestCache {
+		t.Errorf("the patched tree line mounts the guest cache at %d, want before the generator (%d): %s",
+			guestCache, generator, guestPatchedTree)
+	}
+	if guestStdpatchCache != "/workspace/cache/stdpatch" {
+		t.Errorf("the guest-only cache covers %s, want /workspace/cache/stdpatch, where the generator writes", guestStdpatchCache)
+	}
 	if n := len(keepAliveProfile); n == 0 || keepAliveProfile[n-1] != guestPatchedTree ||
 		!slices.Contains(keepAliveProfile, "export GOROOT=/usr/local/go") {
 		t.Errorf("keep-alive profile %q does not end by selecting the patched tree over /usr/local/go", keepAliveProfile)

@@ -108,7 +108,14 @@ The generator does this, each time:
    and even when the diff would still apply. A patch with no stamp stops the
    same way. The error ends with the command to run after the repair,
    `./le go stdpatch goroot`.
-3. When `cache/stdpatch/<key>/goroot` exists, answer it.
+3. First remove every tree under `cache/stdpatch/` whose `VERSION` link names
+   nothing on this machine, then, when `cache/stdpatch/<key>/goroot` exists,
+   answer it. A tree goes dead when its GOROOT goes: a package manager replaced
+   the toolchain, or another machine built the tree into a cache it shared. A
+   dead tree breaks every go command and every walk of the checkout that reads
+   it, and its key is never built again, so only its removal frees the cache.
+   A directory still being built (`tmp-*`) is never judged.
+
 4. Otherwise build the tree in a new directory under `cache/stdpatch/`, run
    `git apply` in it with `GIT_CEILING_DIRECTORIES` set so that git does not find
    the Ze repository, and check that `go list std cmd` under the new tree answers
@@ -120,6 +127,7 @@ The generator does this, each time:
    patch file, git's output, and the section "When the Go version changes", and
    that ends with the command to run after the repair. No
    caller builds without the tree after that error.
+<!-- source: internal/le/go/stdpatch/gen/tree.go -- dropDeadTrees -->
 
 `./le scratch cache-clean` leaves `cache/stdpatch/` alone and reports the size of
 each tree, because a build in another session may be running under one of them.
@@ -198,7 +206,10 @@ Outside le, each route runs the same generator itself:
   through le passes by inheritance: `./le build gokrazy`, and the le tests that
   run `ze appliance build` as a child.
 - A QEMU guest or a container has its own GOROOT, so it runs the generator in
-  the guest or the build stage and exports the three values. The CI workflows
+  the guest or the build stage and exports the three values. A QEMU guest
+  shares the checkout over 9p, so it first mounts a guest-only tmpfs over
+  `cache/stdpatch/`: a tree linked into the guest's GOROOT never reaches the
+  host's cache (`guestPatchedTree` in `internal/le/test/qemu/run.go`). The CI workflows
   that run go directly do the same in a step after `setup-go`.
 <!-- source: le -- build_le -->
 <!-- source: internal/appliance/cmd_build.go -- SetGokGoEnv -->

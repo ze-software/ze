@@ -265,6 +265,59 @@ func TestStdpatchConcurrentBuildsAnswerOneTree(t *testing.T) {
 	}
 }
 
+// deadTreeAt writes a tree at cache/name whose VERSION link names a GOROOT
+// this machine does not hold: what a QEMU guest's generator left in a shared
+// cache once the host read it (/usr/local/go, 2026-10-15).
+func deadTreeAt(t *testing.T, cache, name string) string {
+	t.Helper()
+	tree := filepath.Join(cache, name, "goroot")
+	if err := os.MkdirAll(tree, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	gone := filepath.Join(t.TempDir(), "gone", "VERSION")
+	if err := os.Symlink(gone, filepath.Join(tree, "VERSION")); err != nil {
+		t.Fatal(err)
+	}
+	return tree
+}
+
+// TestStdpatchBuildDropsATreeWhoseLinksDangle proves a tree whose links no
+// longer resolve is absent, over the real toolchain: one at the build's own
+// key is rebuilt rather than answered, one at another key is removed, and a
+// staging directory is never judged.
+// PREVENTS: the host answering, or walking, a tree a QEMU guest built against
+// its own /usr/local/go in the shared cache, which refused every hook-checked
+// Bash read under ai/ (plan/journal/gate-verdict-depends-on-the-machine.md).
+func TestStdpatchBuildDropsATreeWhoseLinksDangle(t *testing.T) {
+	cache := t.TempDir()
+	build := builder{cache: cache, toolchain: realToolchain(t, cache), patches: shippedPatches(t), layout: layoutVersion}
+	targets, err := build.targetFiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ownKey := build.key(targets)
+	deadTreeAt(t, cache, ownKey)
+	deadTreeAt(t, cache, "guest-key")
+	staging := deadTreeAt(t, cache, stagingPrefix+"in-flight")
+
+	tree, err := build.build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tree != filepath.Join(cache, ownKey, "goroot") {
+		t.Fatalf("build answered %s, want the tree at its own key", tree)
+	}
+	if _, err := os.Stat(filepath.Join(tree, "VERSION")); err != nil {
+		t.Fatalf("build answered a tree whose VERSION does not resolve: %v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(cache, "guest-key")); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("a dead tree at another key is still in the cache: %v", err)
+	}
+	if _, err := os.Lstat(staging); err != nil {
+		t.Errorf("a staging directory was judged as a tree: %v", err)
+	}
+}
+
 // TestStdpatchTreeServesTheWholeStdlib proves the tree's shape (AC-25) over
 // the real toolchain: `go list -e std cmd` under the tree answers the real
 // set with no package error for each target and cgo setting; every src

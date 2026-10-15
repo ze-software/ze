@@ -620,7 +620,27 @@ func (r *Run) virtfsArgs() ([]string, error) {
 // refusal stops the setup chain, and in the keep-alive login profile leaves
 // the real GOROOT in place, where a build of internal/core/eap then fails on
 // the compile-time marker instead of building unpatched.
-const guestPatchedTree = `tree="$(go run ./internal/le/go/stdpatch/goroot)" && export GOROOT="$tree" GOTOOLCHAIN=local PATH="$tree/bin:$PATH"`
+//
+// The line first mounts a guest-only tmpfs over guestStdpatchCache, so the
+// tree the generator writes, and the one the guest le's own activation
+// writes, never reach the host through the 9p share. Every link in that tree
+// names the guest's /usr/local/go, which dangles on the host: a host walk of
+// the checkout then failed, and the pretool hook refused every Bash read under
+// ai/ (plan/journal/gate-verdict-depends-on-the-machine.md, 2026-10-15). The
+// marker file lives inside the tmpfs, so the keep-alive profile, which runs at
+// every login, mounts it once and later logins answer the same tree.
+const guestPatchedTree = `mkdir -p ` + guestStdpatchCache + ` && { [ -e ` + guestStdpatchMarker + ` ] || { mount -t tmpfs tmpfs ` +
+	guestStdpatchCache + ` && touch ` + guestStdpatchMarker + `; }; } && ` +
+	`tree="$(go run ./internal/le/go/stdpatch/goroot)" && export GOROOT="$tree" GOTOOLCHAIN=local PATH="$tree/bin:$PATH"`
+
+// guestStdpatchCache is the directory stdpatch's CacheDir answers for the
+// checkout the guest mounts at /workspace: where both the generator and the
+// guest le's activation write their tree.
+const guestStdpatchCache = "/workspace/cache/stdpatch"
+
+// guestStdpatchMarker exists only inside the guest's tmpfs over
+// guestStdpatchCache, so its presence says the mount is in place.
+const guestStdpatchMarker = guestStdpatchCache + "/.guest-only"
 
 const runBootstrapCommand = "setup-interfaces -a 2>/dev/null; ifup eth0 2>/dev/null; ifup lo 2>/dev/null; echo nameserver 8.8.8.8 > /etc/resolv.conf; apk add --no-cache openssh; echo PermitRootLogin yes >> /etc/ssh/sshd_config; echo PermitEmptyPasswords yes >> /etc/ssh/sshd_config; passwd -d root; ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N '' 2>/dev/null; ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -N '' 2>/dev/null; /usr/sbin/sshd; echo SSHD_READY"
 

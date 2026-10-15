@@ -90,8 +90,11 @@ func CacheDirs(root string) []string {
 // CacheDir answers the directory the trees live in: cache/stdpatch under the
 // checkout, or tmp/stdpatch when cache/ is not usable here. cache/ is a link
 // to ~/.cache/ze on the development hosts and dangles anywhere the checkout is
-// shared without it (a QEMU guest mounts only the checkout), the same
-// fallback the launcher's build_le takes for GOCACHE.
+// shared without it, the same fallback the launcher's build_le takes for
+// GOCACHE. A QEMU guest mounts a tmpfs of its own over cache/stdpatch before
+// it calls here (guestPatchedTree in internal/le/test/qemu/run.go), because a
+// tree written through the shared checkout would link the host to the guest's
+// GOROOT.
 func CacheDir(root string) (string, error) {
 	dirs := CacheDirs(root)
 	cache, fallback := dirs[0], dirs[1]

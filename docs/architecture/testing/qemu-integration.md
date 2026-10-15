@@ -32,8 +32,13 @@ compile uses it directly. Ze compiles only against its patched `crypto/tls`, so
 both guest profiles, the setup command and the keep-alive login profile
 (`/etc/profile.d/ze.sh`), then run `go run ./internal/le/go/stdpatch/goroot` in
 `/workspace` and export its answer as `GOROOT`, with `GOTOOLCHAIN=local` and the
-tree's `bin` first on `PATH` (`guestPatchedTree`). The guest's `cache/` link
-dangles, so the tree lands under `tmp/stdpatch/`. A refusal stops the setup
+tree's `bin` first on `PATH` (`guestPatchedTree`). The generator writes its tree
+to `/workspace/cache/stdpatch`, and the same line first mounts a guest-only tmpfs
+there (`guestStdpatchCache`), so the tree stays in the guest. Every link in it
+names the guest's `/usr/local/go`, which does not exist on the host: written
+through the 9p share, it broke every host walk of the checkout, and the pretool
+hook then refused each Bash read under `ai/` (2026-10-15). A marker file inside
+the tmpfs makes the login profile mount it only once. A refusal stops the setup
 command; in a login shell it leaves the real GOROOT, where a build of
 `internal/core/eap` fails on the compile-time marker
 (`docs/contributing/patching-the-standard-library.md`).

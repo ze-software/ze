@@ -40,6 +40,10 @@ type builder struct {
 	layout string
 }
 
+// stagingPrefix starts the name of every directory a build writes before its
+// rename, so nothing that judges finished trees mistakes one for a tree.
+const stagingPrefix = "tmp-"
+
 // build answers the tree, building it when its key directory is absent.
 //
 // RFC 5216 Section 2.1.1: "If the peer's sessionId is null or unrecognized by
@@ -55,13 +59,18 @@ func (b builder) build() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// A dead tree, its own key's included, is absent: the step below then
+	// builds the key again rather than answering links into nothing.
+	if err := dropDeadTrees(b.cache); err != nil {
+		return "", err
+	}
 	final := filepath.Join(b.cache, b.key(targets))
 	tree := filepath.Join(final, "goroot")
 	if _, err := os.Lstat(tree); err == nil {
 		return tree, nil
 	}
 
-	staging, err := os.MkdirTemp(b.cache, "tmp-")
+	staging, err := os.MkdirTemp(b.cache, stagingPrefix)
 	if err != nil {
 		return "", fmt.Errorf("stdpatch: %w", err)
 	}
@@ -110,6 +119,51 @@ func (b builder) build() (string, error) {
 	}
 	renamed = true
 	return tree, nil
+}
+
+// dropDeadTrees removes every tree in cache whose links no longer resolve on
+// this machine. The key holds the real GOROOT's path, so a tree whose GOROOT
+// is gone is never built again under that key and only its removal frees it:
+// a toolchain the package manager replaced, or a tree another machine built
+// into a cache it shared, such as a QEMU guest against its own /usr/local/go
+// before the guest kept its cache to itself. A dead tree is worse than none,
+// because every go command and every walk of the checkout that reads it fails
+// (plan/journal/gate-verdict-depends-on-the-machine.md, 2026-10-15). A
+// staging directory is never judged: a build in progress owns it.
+func dropDeadTrees(cache string) error {
+	entries, err := os.ReadDir(cache)
+	if err != nil {
+		return fmt.Errorf("stdpatch: %w", err)
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		if strings.HasPrefix(entry.Name(), stagingPrefix) {
+			continue
+		}
+		dir := filepath.Join(cache, entry.Name())
+		if !deadTree(filepath.Join(dir, "goroot")) {
+			continue
+		}
+		if err := os.RemoveAll(dir); err != nil {
+			return fmt.Errorf("stdpatch: remove the tree %s, whose links name a GOROOT this machine does not hold: %w", dir, err)
+		}
+	}
+	return nil
+}
+
+// deadTree answers whether tree holds its VERSION link and the link names
+// nothing. VERSION is a top-level entry, so it is a link in every tree
+// (populate), and the losing side of a build race reads it too (build).
+// A tree with no VERSION entry is not one this rule can judge, so it stays.
+func deadTree(tree string) bool {
+	version := filepath.Join(tree, "VERSION")
+	if _, err := os.Lstat(version); err != nil {
+		return false
+	}
+	_, err := os.Stat(version)
+	return errors.Is(err, fs.ErrNotExist)
 }
 
 // targetFiles answers each GOROOT file a patch changes, with its bytes.
