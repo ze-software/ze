@@ -111,7 +111,9 @@ func TestRIBReselectOnBlackholeRuleChange(t *testing.T) {
 
 // TestReselectKeyOneElectionPerRoute proves the reselect walk's dedupe key:
 // the same prefix from two add-path ids, or from a peer without add-path, is
-// one election, and two prefixes are two.
+// one election, and two prefixes are two. A VPN route, which has no prefix and
+// is keyed by its route key, is one election across add-path ids and labels,
+// and two Route Distinguishers are two.
 // VALIDATES: reselectAIGPRoutes runs one election per route, not per stored path.
 // PREVENTS: a reload's reselect running each prefix's election once per peer
 // that holds it, inside the apply deadline.
@@ -130,4 +132,17 @@ func TestReselectKeyOneElectionPerRoute(t *testing.T) {
 	require.Equal(t, keyOf(plain, false), keyOf(pathOne, true), "add-path id 1 and no add-path name one route")
 	require.Equal(t, keyOf(pathOne, true), keyOf(pathTwo, true), "two add-path ids of one prefix are one route")
 	require.NotEqual(t, keyOf(plain, false), keyOf(other, false), "two prefixes are two routes")
+
+	vpnKeyOf := func(nlri []byte, addPath bool) reselectKey {
+		key, ok := newReselectKey(vpnv4Family, nlri, addPath, scratch[:])
+		require.True(t, ok)
+		return key
+	}
+	vpnPlain := vpnv4NLRI(100, vpnRouteKeyRD, 0x0a)
+	vpnPathOne := framedKey(1, vpnv4NLRI(100, vpnRouteKeyRD, 0x0a))
+	vpnPathTwo := framedKey(2, vpnv4NLRI(101, vpnRouteKeyRD, 0x0a))
+	vpnOtherRD := vpnv4NLRI(100, [8]byte{0, 0, 0, 0, 0, 0, 0, 2}, 0x0a)
+	require.Equal(t, vpnKeyOf(vpnPlain, false), vpnKeyOf(vpnPathOne, true), "a VPN route with and without add-path is one route")
+	require.Equal(t, vpnKeyOf(vpnPathOne, true), vpnKeyOf(vpnPathTwo, true), "two add-path ids and labels of one VPN route are one route")
+	require.NotEqual(t, vpnKeyOf(vpnPlain, false), vpnKeyOf(vpnOtherRD, false), "two Route Distinguishers are two routes")
 }
