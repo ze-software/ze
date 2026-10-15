@@ -45,6 +45,11 @@ func (r *RIBManager) runAIGPSelection(ctx context.Context) {
 	}
 }
 
+// reselectAIGPRoutes runs best-path selection again over every stored
+// prefix and publishes what changed. Two inputs change a winner without an
+// UPDATE: a next-hop distance (RFC 7311 AIGP, the loop above) and a selection
+// rule a config reload installed (installConfig, config_tx.go). The name
+// predates the second input, and an RFC-tagged test calls it.
 func (r *RIBManager) reselectAIGPRoutes() {
 	// Copy keys while their pools are retained by PeerRIB.Iterate, then release
 	// every read lock before checkBestPathChange can publish into Loc-RIB.

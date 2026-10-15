@@ -4,7 +4,19 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 )
+
+// extractMultipathJSON runs extractMultipathConfig over the bgp subtree of a
+// Stage 2 section body.
+func extractMultipathJSON(t *testing.T, jsonStr string) (uint32, bool, error) {
+	t.Helper()
+	bgp, ok := configjson.ParseBGPSubtree(jsonStr)
+	require.True(t, ok, "section %s holds no bgp subtree", jsonStr)
+	return extractMultipathConfig(bgp)
+}
 
 // TestExtractMultipathConfigPresent verifies that a bgp/multipath container
 // with both fields populated is parsed correctly.
@@ -15,20 +27,22 @@ import (
 // RIB plugin so ECMP never activates.
 func TestExtractMultipathConfigPresent(t *testing.T) {
 	jsonStr := `{"bgp":{"multipath":{"maximum-paths":4,"relax-as-path":true}}}`
-	maxPaths, relax := extractMultipathConfig(jsonStr)
-	assert.Equal(t, uint16(4), maxPaths)
+	maxPaths, relax, err := extractMultipathJSON(t, jsonStr)
+	require.NoError(t, err)
+	assert.Equal(t, uint32(4), maxPaths)
 	assert.True(t, relax)
 }
 
 // TestExtractMultipathConfigMissing verifies that an absent multipath container
-// returns zero values so the caller can apply the RFC 4271 default (1).
+// reads as the RFC 4271 default (1), so a reload that removes it restores it.
 //
 // VALIDATES: cmd-3 AC-1 -- no multipath config means single best-path.
 // PREVENTS: Unintended ECMP activation on daemons that never configured it.
 func TestExtractMultipathConfigMissing(t *testing.T) {
 	jsonStr := `{"bgp":{"router-id":"10.0.0.1"}}`
-	maxPaths, relax := extractMultipathConfig(jsonStr)
-	assert.Equal(t, uint16(0), maxPaths)
+	maxPaths, relax, err := extractMultipathJSON(t, jsonStr)
+	require.NoError(t, err)
+	assert.Equal(t, uint32(1), maxPaths)
 	assert.False(t, relax)
 }
 
@@ -39,8 +53,9 @@ func TestExtractMultipathConfigMissing(t *testing.T) {
 // PREVENTS: Missing maximum-paths defaulting to 0 (disabled) instead of 1.
 func TestExtractMultipathConfigDefault(t *testing.T) {
 	jsonStr := `{"bgp":{"multipath":{"maximum-paths":1,"relax-as-path":false}}}`
-	maxPaths, relax := extractMultipathConfig(jsonStr)
-	assert.Equal(t, uint16(1), maxPaths)
+	maxPaths, relax, err := extractMultipathJSON(t, jsonStr)
+	require.NoError(t, err)
+	assert.Equal(t, uint32(1), maxPaths)
 	assert.False(t, relax)
 }
 
@@ -51,12 +66,13 @@ func TestExtractMultipathConfigDefault(t *testing.T) {
 // PREVENTS: Silent truncation of the maximum configured value.
 func TestExtractMultipathConfigBoundary(t *testing.T) {
 	jsonStr := `{"bgp":{"multipath":{"maximum-paths":256}}}`
-	maxPaths, _ := extractMultipathConfig(jsonStr)
-	assert.Equal(t, uint16(256), maxPaths)
+	maxPaths, _, err := extractMultipathJSON(t, jsonStr)
+	require.NoError(t, err)
+	assert.Equal(t, uint32(256), maxPaths)
 }
 
 // TestExtractMultipathConfigOutOfRange verifies that an out-of-range value
-// (e.g. 1000 or 0) is rejected so the caller can apply the RFC 4271 default.
+// (e.g. 1000 or 0) is refused with an error naming the leaf, never read as the default.
 //
 // VALIDATES: Defensive bound check independent of YANG validation.
 // PREVENTS: A raw JSON delivery path (tests, plugin IPC) smuggling an
@@ -69,8 +85,9 @@ func TestExtractMultipathConfigOutOfRange(t *testing.T) {
 		`{"bgp":{"multipath":{"maximum-paths":-1}}}`,
 		`{"bgp":{"multipath":{"maximum-paths":"abc"}}}`,
 	} {
-		maxPaths, _ := extractMultipathConfig(js)
-		assert.Equal(t, uint16(0), maxPaths, "out-of-range %q should yield 0", js)
+		_, _, err := extractMultipathJSON(t, js)
+		require.Error(t, err, "out-of-range %q must be refused", js)
+		assert.Contains(t, err.Error(), "maximum-paths")
 	}
 }
 
@@ -81,7 +98,8 @@ func TestExtractMultipathConfigOutOfRange(t *testing.T) {
 // PREVENTS: Plugin silently ignoring config depending on round-trip format.
 func TestExtractMultipathConfigStringNumber(t *testing.T) {
 	jsonStr := `{"bgp":{"multipath":{"maximum-paths":"8","relax-as-path":"true"}}}`
-	maxPaths, relax := extractMultipathConfig(jsonStr)
-	assert.Equal(t, uint16(8), maxPaths)
+	maxPaths, relax, err := extractMultipathJSON(t, jsonStr)
+	require.NoError(t, err)
+	assert.Equal(t, uint32(8), maxPaths)
 	assert.True(t, relax)
 }

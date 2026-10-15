@@ -156,7 +156,7 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 	}
 
 	// Snapshot the multipath config once per call. The atomic fields are
-	// written only at Stage 2 OnConfigure and rarely after, so a single
+	// written only at Stage 2 and at a reload apply, so a single
 	// load is race-free and cheap.
 	multipathMax := r.maximumPaths.Load()
 	relaxASPath := r.relaxASPath.Load()

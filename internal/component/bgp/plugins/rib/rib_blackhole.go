@@ -105,21 +105,6 @@ func blackholeRouteType(cfg blackholeConfig, route netip.Prefix, hasCommunity fu
 	return routetype.Blackhole
 }
 
-// blackholeHonorRuleCount reports how many RFC 7999 rules the configuration
-// resolved to. It exists for the configure log line, so an operator can see the
-// leaves landed.
-//
-// It counts RULES rather than sessions: a dynamic group contributes one entry
-// that every member of its listen range resolves to, and the count cannot say
-// how many members will connect.
-func (r *RIBManager) blackholeHonorRuleCount() int {
-	p := r.blackholeCfg.Load()
-	if p == nil {
-		return 0
-	}
-	return len(*p)
-}
-
 // blackholeRouteTypeForBest returns the forwarding action to stamp on one
 // winning best path.
 //

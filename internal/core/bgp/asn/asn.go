@@ -227,23 +227,36 @@ func Configure(token string) error {
 // absence. A value the reader cannot read must not come back looking like a
 // value nobody wrote.
 func ConfigureFromBGP(bgp map[string]any) error {
+	notation, err := NotationFromBGP(bgp)
+	if err != nil {
+		return err
+	}
+	Record(notation)
+	return nil
+}
+
+// NotationFromBGP reads the notation the as-notation leaf of a bgp config
+// subtree selects, and records nothing. A config reload parses with it at
+// verify, where a write would survive a refused commit. An absent leaf selects
+// asplain; a leaf that is not a string, or names no notation, is an error.
+func NotationFromBGP(bgp map[string]any) (Notation, error) {
 	value, present := bgp[LeafName]
 	if !present {
-		return Configure("")
+		return NotationPlain, nil
 	}
 	token, ok := value.(string)
 	if !ok {
-		return fmt.Errorf("%s must be a string, got %T", LeafName, value)
+		return NotationPlain, fmt.Errorf("%s must be a string, got %T", LeafName, value)
 	}
 	// A leaf that IS present goes through parseNotation, so an empty value is
 	// refused rather than read as asplain. Absence is what selects asplain,
 	// and a leaf holding nothing is not an absent leaf.
-	notation, err := parseNotation(token)
-	if err != nil {
-		return err
-	}
+	return parseNotation(token)
+}
+
+// Record makes notation the one this process writes an AS number in.
+func Record(notation Notation) {
 	configured.Store(uint32(notation))
-	return nil
 }
 
 // Number is an AS number as it crosses a JSON payload.

@@ -33,7 +33,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
 	"github.com/ze-software/ze/internal/component/bgp/attrpool"
@@ -704,56 +703,12 @@ func runRIBPlugin(conn net.Conn) int {
 		return r.handleCommand(command, peer, args)
 	})
 
-	// Stage 2: Configure callback -- extract bgp/multipath from config tree.
-	// RFC 4271 §9.1.2 extension: maximum-paths>1 enables ECMP/multipath best-path
-	// selection with up to N equal-cost paths per prefix.
-	//
-	// maximumPaths is already initialized to 1 (RFC 4271 single best-path) at
-	// RIBManager construction. If the config omits bgp/multipath entirely, or
-	// provides an out-of-range value, the extractor returns 0 and we leave the
-	// default in place.
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != configRootBGP {
-				continue
-			}
-			maxP, relax := extractMultipathConfig(section.Data)
-			if maxP > 0 {
-				r.maximumPaths.Store(uint32(maxP))
-			}
-			r.relaxASPath.Store(relax)
-
-			// RFC 7999 honoring. A parse failure REFUSES the configuration
-			// rather than leaving the previous map in place: this decides
-			// whether a peer can make Ze discard traffic, and a rejected edit
-			// that silently keeps running with the old answer is the worst of
-			// the three outcomes.
-			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
-			if !ok {
-				return errRibInvalidBgpConfigJson
-			}
-			blackholeCfg, err := parseBlackholeConfig(bgpCfg)
-			if err != nil {
-				return err
-			}
-			r.blackholeCfg.Store(&blackholeCfg)
-
-			// The notation an operator reads an AS number in. A bad token
-			// REFUSES the configuration, for the reason the blackhole map
-			// does. Running on with the previous answer tells the operator
-			// their edit took effect when it did not.
-			if err := configureASNotation(bgpCfg); err != nil {
-				return err
-			}
-		}
-		logger().Debug("rib configured",
-			"as-notation", asn.Configured().String(),
-			"maximum-paths", r.maximumPaths.Load(),
-			"relax-as-path", r.relaxASPath.Load(),
-			"blackhole-honor-rules", r.blackholeHonorRuleCount(),
-		)
-		return nil
-	})
+	// Config: maximum-paths, relax-as-path, the RFC 7999 honoring rules and the
+	// AS notation, installed at Stage 2 and on every reload that changes them
+	// (config_tx.go). RFC 4271 Section 9.1.2 extension: maximum-paths > 1 enables
+	// ECMP/multipath best-path selection with up to N equal-cost paths per prefix.
+	// The notation is recorded here only when this rib runs outside the daemon.
+	r.newConfigTx(!p.IsInternal()).Register(p)
 
 	// Register event subscriptions atomically with startup completion.
 	// Included in the "ready" RPC so the engine registers them before SignalAPIReady,
@@ -792,8 +747,8 @@ func runRIBPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		// WantsConfig: receive the bgp subtree in Stage 2 so OnConfigure can
-		// read multipath config (maximum-paths, relax-as-path).
+		// WantsConfig: receive the bgp subtree at Stage 2 and on every reload
+		// that changes it, for the config transaction (config_tx.go).
 		WantsConfig: []string{configRootBGP},
 		Commands:    commandDecls(),
 	})

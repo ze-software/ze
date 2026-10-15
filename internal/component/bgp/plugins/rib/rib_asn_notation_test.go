@@ -24,15 +24,13 @@ func TestParseASNotation(t *testing.T) {
 		{map[string]any{"as-notation": "asdot"}, asn.NotationDot},
 		{map[string]any{"as-notation": "asdot+"}, asn.NotationDotPlus},
 	}
-	restore := asn.Configured()
-	t.Cleanup(func() { asn.Configure(restore.String()) }) //nolint:errcheck // a configured notation always parses
-
 	for _, tc := range accepted {
-		if err := configureASNotation(tc.config); err != nil {
-			t.Fatalf("configureASNotation(%v): unexpected error %v", tc.config, err)
+		got, err := parseASNotation(tc.config)
+		if err != nil {
+			t.Fatalf("parseASNotation(%v): unexpected error %v", tc.config, err)
 		}
-		if got := asn.Configured(); got != tc.want {
-			t.Errorf("configureASNotation(%v) recorded %v, want %v", tc.config, got, tc.want)
+		if got != tc.want {
+			t.Errorf("parseASNotation(%v) read %v, want %v", tc.config, got, tc.want)
 		}
 	}
 
@@ -41,8 +39,8 @@ func TestParseASNotation(t *testing.T) {
 		{"as-notation": ""},
 		{"as-notation": 3},
 	} {
-		if err := configureASNotation(config); err == nil {
-			t.Errorf("configureASNotation(%v) accepted a value that names no notation", config)
+		if _, err := parseASNotation(config); err == nil {
+			t.Errorf("parseASNotation(%v) accepted a value that names no notation", config)
 		}
 	}
 }

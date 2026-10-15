@@ -1,0 +1,173 @@
+# Test: a reload that raises bgp multipath maximum-paths reselects the
+#       prefixes the RIB already holds, so the system RIB carries both
+#       equal-cost next hops without any new UPDATE.
+# Initial config: maximum-paths 1, relax-as-path true; bgp-rib and the system
+#                 RIB (rib). One idle BGP session; the staged fixture injects
+#                 10.1.0.0/24 from two synthetic peers with equal attributes
+#                 and next hops 10.0.0.11 and 10.0.0.12.
+# Live change:    the staged fixture rewrites maximum-paths 1 -> 2 and sends
+#                 SIGHUP. Nothing else changes.
+# Expected:       before the reload the system RIB entry has no ecmp-paths;
+#                 after it, with no route injected or received since, the
+#                 entry carries the second next hop as an ecmp path. Only the
+#                 apply's reselect walk over stored routes can put it there.
+#
+# VALIDATES: spec-plugin-reload-applies-or-refuses AC-1, AC-6 and wiring row
+#            "SIGHUP after maximum-paths 1 to 2 -> rib apply + reselect walk".
+# PREVENTS: the silent reload: with OnConfigure alone the SDK answered
+#           config-apply OK and the rib kept maximum-paths 1; and an apply
+#           that installs the rule but leaves stored prefixes on their old
+#           multipath set until their next UPDATE.
+#
+# DISCRIMINATION: red with the rib's ConfigTx registration replaced by
+# p.OnConfigure(...Configure) (the has-ecmp stage fails), and red with the
+# reselect call dropped from installConfig (same stage).
+option=timeout:value=60s
+
+# The test peer holds one session open for the life of the run: the runner
+# stops the daemon once its background peers are done. It sends no route.
+stdin=peer:terminator=EOF_PEER
+option=asn:value=65000
+option=tcp_connections:value=1
+option=timeout:value=50s
+# EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# The clean shutdown after the last stage: Cease / Administrative Shutdown.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal bgp-rib {
+		use bgp-rib
+	}
+	internal rib {
+		use rib
+	}
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+
+bgp {
+	multipath {
+		maximum-paths 1
+		relax-as-path true
+	}
+
+	group ix {
+		connection {
+			remote {
+				ip dynamic
+				connect false
+				range 127.0.0.0/8
+			}
+			local {
+				ip 127.0.0.1
+				accept true
+			}
+		}
+		session {
+			asn {
+				local 65000
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					mode enable
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		attach process bgp-rib {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+# The second config: maximum-paths 1 -> 2 is the ONLY difference. The plugin
+# block is byte-identical, so the staged fixture survives the reload.
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	internal bgp-rib {
+		use bgp-rib
+	}
+	internal rib {
+		use rib
+	}
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+
+bgp {
+	multipath {
+		maximum-paths 2
+		relax-as-path true
+	}
+
+	group ix {
+		connection {
+			remote {
+				ip dynamic
+				connect false
+				range 127.0.0.0/8
+			}
+			local {
+				ip 127.0.0.1
+				accept true
+			}
+		}
+		session {
+			asn {
+				local 65000
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					mode enable
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		attach process bgp-rib {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF2
+
+tmpfs=stages.script:terminator=EOF_SCRIPT
+# Two stored paths for one prefix, equal in every attribute the selection reads.
+has request bgp rib inject 10.0.0.98 ipv4/unicast 10.1.0.0/24 origin igp aspath 65001 localpref 100 nexthop 10.0.0.11 => 10.1.0.0/24
+has request bgp rib inject 10.0.0.99 ipv4/unicast 10.1.0.0/24 origin igp aspath 65001 localpref 100 nexthop 10.0.0.12 => 10.1.0.0/24
+# Before the reload: one best path, no equal-cost sibling.
+has show rib => 10.1.0.0/24
+lacks show rib => ecmp-paths
+reload config2.conf
+# After it: the stored prefix was reselected under maximum-paths 2.
+has show rib => ecmp-paths
+has show bgp rib best => multipath-peers
+say MAXIMUM-PATHS-RELOAD: the stored prefix gained its equal-cost path at the reload
+EOF_SCRIPT
+
+cmd=background:seq=1:exec=le test peer --dial 127.0.0.1:$PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=60s
+
+expect=stderr:contains=MAXIMUM-PATHS-RELOAD: the stored prefix gained its equal-cost path at the reload
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
