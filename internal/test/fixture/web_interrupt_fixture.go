@@ -40,6 +40,10 @@ const (
 	// webInterruptExitPoll is the interval between two liveness checks of the
 	// daemon, and so the resolution of the measured stop time.
 	webInterruptExitPoll = 10 * time.Millisecond
+	// webInterruptClosePolls and webInterruptClosePoll bound the wait for the
+	// listener to refuse after the first SIGINT: 100 dials, 100 ms apart.
+	webInterruptClosePolls = 100
+	webInterruptClosePoll  = 100 * time.Millisecond
 )
 
 // webInterrupt plays an operator pressing Ctrl+C at `ze start --web-only`,
@@ -102,7 +106,7 @@ func webInterrupt(ctx context.Context, args []string) error {
 	if err := syscall.Kill(pid, syscall.SIGINT); err != nil {
 		return fmt.Errorf("first SIGINT to %d: %w", pid, err)
 	}
-	if !Poll(ctx, 100, 100*time.Millisecond, func() bool { return webInterruptRefused(ctx, address) }) {
+	if !Poll(ctx, webInterruptClosePolls, webInterruptClosePoll, func() bool { return webInterruptRefused(ctx, address) }) {
 		return webInterruptNeverClosed(pid, address, sent, ctx.Err())
 	}
 	fmt.Fprintln(os.Stderr, "web-interrupt: listener closed after the first SIGINT")
@@ -254,7 +258,8 @@ func webInterruptAwaitExit(ctx context.Context, pid int, sent time.Time) error {
 // refuse after the first SIGINT, sent at sent. The runner ends the driver the
 // moment it has reaped the daemon, so a daemon that exits within one poll of
 // closing its listener ends the poll too: that is a shutdown that did not wait
-// for the held connection, and it is named as one.
+// for the held connection, and it is named as one. ctxErr is the driver
+// context's error, nil when Poll used every attempt before the context ended.
 func webInterruptNeverClosed(pid int, address string, sent time.Time, ctxErr error) error {
 	gone, err := webInterruptGone(pid)
 	if err != nil {
@@ -264,7 +269,13 @@ func webInterruptNeverClosed(pid int, address string, sent time.Time, ctxErr err
 		return fmt.Errorf("the daemon %d exited %s after the first SIGINT, before the driver saw its listener close: "+
 			"the shutdown did not wait for the held connection", pid, time.Since(sent).Round(time.Millisecond))
 	}
-	return fmt.Errorf("the web listener on %s did not close after the first SIGINT (driver context: %w)", address, ctxErr)
+	if ctxErr != nil {
+		return fmt.Errorf("the web listener on %s did not close after the first SIGINT before the driver context ended: %w",
+			address, ctxErr)
+	}
+	return fmt.Errorf("the web listener on %s did not close after the first SIGINT: the driver dialed it %d times, "+
+		"%s apart, and no dial was refused, so the shutdown kept the listener open",
+		address, webInterruptClosePolls, webInterruptClosePoll)
 }
 
 // webInterruptGone answers whether the daemon has exited: signal 0 to its pid
