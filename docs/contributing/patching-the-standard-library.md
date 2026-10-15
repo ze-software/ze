@@ -108,13 +108,18 @@ The generator does this, each time:
    and even when the diff would still apply. A patch with no stamp stops the
    same way. The error ends with the command to run after the repair,
    `./le go stdpatch goroot`.
-3. First remove every tree under `cache/stdpatch/` whose `VERSION` link names
-   nothing on this machine, then, when `cache/stdpatch/<key>/goroot` exists,
-   answer it. A tree goes dead when its GOROOT goes: a package manager replaced
-   the toolchain, or another machine built the tree into a cache it shared. A
-   dead tree breaks every go command and every walk of the checkout that reads
-   it, and its key is never built again, so only its removal frees the cache.
-   A directory still being built (`tmp-*`) is never judged.
+3. When `cache/stdpatch/<key>/goroot` exists and its `VERSION` link names
+   nothing on this machine, remove that one key directory, so the next step
+   builds it again; otherwise, when it exists, answer it. A tree goes dead when
+   its GOROOT goes, such as a package manager replacing the toolchain in place,
+   and a dead tree breaks every go command that reads it. Only the build's own
+   key is judged. A tree at any other key is never removed, only ignored: the
+   key holds the GOROOT path, so another key may belong to another machine that
+   shares the cache, whose links name nothing here and everything there. A QEMU
+   guest that judged every key once deleted the host's live tree over 9p. The
+   walks of the checkout that read Go files skip `cache/` instead
+   (`ai/DOCS-TO-CODE.md`'s generator). A directory still being built (`tmp-*`)
+   is never a key, so it is never judged.
 
 4. Otherwise build the tree in a new directory under `cache/stdpatch/`, run
    `git apply` in it with `GIT_CEILING_DIRECTORIES` set so that git does not find
@@ -127,7 +132,8 @@ The generator does this, each time:
    patch file, git's output, and the section "When the Go version changes", and
    that ends with the command to run after the repair. No
    caller builds without the tree after that error.
-<!-- source: internal/le/go/stdpatch/gen/tree.go -- dropDeadTrees -->
+<!-- source: internal/le/go/stdpatch/gen/tree.go -- dropDeadTree -->
+<!-- source: internal/le/doc/index/docstocode.go -- skipPaths -->
 
 `./le scratch cache-clean` leaves `cache/stdpatch/` alone and reports the size of
 each tree, because a build in another session may be running under one of them.

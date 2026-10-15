@@ -59,13 +59,13 @@ func (b builder) build() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// A dead tree, its own key's included, is absent: the step below then
-	// builds the key again rather than answering links into nothing.
-	if err := dropDeadTrees(b.cache); err != nil {
-		return "", err
-	}
 	final := filepath.Join(b.cache, b.key(targets))
 	tree := filepath.Join(final, "goroot")
+	// A dead tree at this build's own key is absent: the step below then
+	// builds the key again rather than answering links into nothing.
+	if err := dropDeadTree(final); err != nil {
+		return "", err
+	}
 	if _, err := os.Lstat(tree); err == nil {
 		return tree, nil
 	}
@@ -121,34 +121,22 @@ func (b builder) build() (string, error) {
 	return tree, nil
 }
 
-// dropDeadTrees removes every tree in cache whose links no longer resolve on
-// this machine. The key holds the real GOROOT's path, so a tree whose GOROOT
-// is gone is never built again under that key and only its removal frees it:
-// a toolchain the package manager replaced, or a tree another machine built
-// into a cache it shared, such as a QEMU guest against its own /usr/local/go
-// before the guest kept its cache to itself. A dead tree is worse than none,
-// because every go command and every walk of the checkout that reads it fails
-// (plan/journal/gate-verdict-depends-on-the-machine.md, 2026-10-15). A
-// staging directory is never judged: a build in progress owns it.
-func dropDeadTrees(cache string) error {
-	entries, err := os.ReadDir(cache)
-	if err != nil {
-		return fmt.Errorf("stdpatch: %w", err)
+// dropDeadTree removes the tree at dir, the build's own key, when its links
+// no longer resolve on this machine. The key holds the real GOROOT's path, so
+// a tree at this key whose GOROOT is gone (a toolchain the package manager
+// replaced in place) is never answered and only its removal frees the key.
+// A tree at any OTHER key is never judged, let alone removed: "dead" is this
+// machine's view, and cache/ can be shared with another machine whose GOROOT
+// those links do name. A QEMU guest that judged every key deleted the host's
+// live tree over 9p, because the host's /opt/homebrew links name nothing in
+// the guest (2026-10-15). Such a tree is only ignored, because no build here
+// derives its key. A staging directory is never a key, so it is never judged.
+func dropDeadTree(dir string) error {
+	if !deadTree(filepath.Join(dir, "goroot")) {
+		return nil
 	}
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		if strings.HasPrefix(entry.Name(), stagingPrefix) {
-			continue
-		}
-		dir := filepath.Join(cache, entry.Name())
-		if !deadTree(filepath.Join(dir, "goroot")) {
-			continue
-		}
-		if err := os.RemoveAll(dir); err != nil {
-			return fmt.Errorf("stdpatch: remove the tree %s, whose links name a GOROOT this machine does not hold: %w", dir, err)
-		}
+	if err := os.RemoveAll(dir); err != nil {
+		return fmt.Errorf("stdpatch: remove the tree %s, whose links name a GOROOT this machine does not hold, then run the command again: %w", dir, err)
 	}
 	return nil
 }

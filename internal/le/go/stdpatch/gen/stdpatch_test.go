@@ -282,12 +282,14 @@ func deadTreeAt(t *testing.T, cache, name string) string {
 }
 
 // TestStdpatchBuildDropsATreeWhoseLinksDangle proves a tree whose links no
-// longer resolve is absent, over the real toolchain: one at the build's own
-// key is rebuilt rather than answered, one at another key is removed, and a
-// staging directory is never judged.
-// PREVENTS: the host answering, or walking, a tree a QEMU guest built against
-// its own /usr/local/go in the shared cache, which refused every hook-checked
-// Bash read under ai/ (plan/journal/gate-verdict-depends-on-the-machine.md).
+// longer resolve is judged only at the build's own key, over the real
+// toolchain: the own key's dead tree is rebuilt rather than answered, a dead
+// tree at another key is left in place and not answered, and a staging
+// directory is never judged.
+// PREVENTS: the host answering a tree a QEMU guest built against its own
+// /usr/local/go in the shared cache (plan/journal/gate-verdict-depends-on-the-machine.md),
+// and a guest deleting the host's live tree over 9p because the host's
+// /opt/homebrew links name nothing inside the guest (2026-10-15).
 func TestStdpatchBuildDropsATreeWhoseLinksDangle(t *testing.T) {
 	cache := t.TempDir()
 	build := builder{cache: cache, toolchain: realToolchain(t, cache), patches: shippedPatches(t), layout: layoutVersion}
@@ -297,7 +299,7 @@ func TestStdpatchBuildDropsATreeWhoseLinksDangle(t *testing.T) {
 	}
 	ownKey := build.key(targets)
 	deadTreeAt(t, cache, ownKey)
-	deadTreeAt(t, cache, "guest-key")
+	other := deadTreeAt(t, cache, "guest-key")
 	staging := deadTreeAt(t, cache, stagingPrefix+"in-flight")
 
 	tree, err := build.build()
@@ -310,10 +312,10 @@ func TestStdpatchBuildDropsATreeWhoseLinksDangle(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(tree, "VERSION")); err != nil {
 		t.Fatalf("build answered a tree whose VERSION does not resolve: %v", err)
 	}
-	if _, err := os.Lstat(filepath.Join(cache, "guest-key")); !errors.Is(err, fs.ErrNotExist) {
-		t.Errorf("a dead tree at another key is still in the cache: %v", err)
+	if _, err := os.Lstat(filepath.Join(other, "VERSION")); err != nil {
+		t.Errorf("a tree at another key, which may belong to another machine's GOROOT, was removed: %v", err)
 	}
-	if _, err := os.Lstat(staging); err != nil {
+	if _, err := os.Lstat(filepath.Join(staging, "VERSION")); err != nil {
 		t.Errorf("a staging directory was judged as a tree: %v", err)
 	}
 }
