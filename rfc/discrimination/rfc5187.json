@@ -48,6 +48,28 @@
     {
       "rid": "RFC5187-3.1-1",
       "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5187_gr_nvs_test.go::TestRestartFactPersistsAcrossRestart",
+      "unit-sha": "9cb57b6837f40fe7",
+      "claim-sha": "2db7fcc95b54d340",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/gr_nvs.go::writeRestartFact",
+      "producer-sha": "b7a30e63f764bcf8",
+      "break": "body of writeRestartFact replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5187-3.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5187_gr_nvs_test.go::TestStaleRestartFactIgnored",
+      "unit-sha": "66312b2053f771c1",
+      "claim-sha": "a27b142849ac76ee",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/gr_nvs.go::writeRestartFact",
+      "producer-sha": "b7a30e63f764bcf8",
+      "break": "body of writeRestartFact replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5187-3.1-1",
+      "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart",
       "unit-sha": "e7aad454c9759889",
       "claim-sha": "0c13810e8e622537",
@@ -66,6 +88,28 @@
       "producer": "internal/plugins/ospf/gr_preserve.go::restorePrefixLSIDs",
       "producer-sha": "c823d01f1fccfc3e",
       "break": "body of restorePrefixLSIDs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5187-3.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5187_gr_nvs_test.go::TestRestartFactPersistsAcrossRestart",
+      "unit-sha": "9cb57b6837f40fe7",
+      "claim-sha": "5e38db2f7a6a9438",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/gr_nvs.go::writeRestartFact",
+      "producer-sha": "b7a30e63f764bcf8",
+      "break": "body of writeRestartFact replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5187-3.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5187_gr_nvs_test.go::TestStaleRestartFactIgnored",
+      "unit-sha": "66312b2053f771c1",
+      "claim-sha": "6943c8e62c91bc8f",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/gr_nvs.go::writeRestartFact",
+      "producer-sha": "b7a30e63f764bcf8",
+      "break": "body of writeRestartFact replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5187-3.2-1",
