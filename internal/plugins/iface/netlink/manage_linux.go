@@ -10,6 +10,7 @@ package ifacenetlink
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"sync"
 	"syscall"
@@ -164,7 +165,7 @@ func validateQoSMap(m map[uint32]uint32) error {
 	return nil
 }
 
-// qosMapMu serialises every UpdateVLANQoSMap from its read of the installed
+// qosMapMu serializes every UpdateVLANQoSMap from its read of the installed
 // maps to its write, so two overlapping calls (the cos RADIUS handler on the
 // event bus and an iface apply in a transaction) never compute their replace
 // from one snapshot, which would leave the entry one of them removes. It is
@@ -181,7 +182,7 @@ var afterQoSMapReadForTest func()
 // entry and the library sends no attribute for a nil map, so a plain modify
 // keeps every entry the call omits. The call therefore sends all 8 ingress
 // slots and zeroes each egress key the installed map holds and the new one
-// omits. Safe for concurrent use: calls are serialised under qosMapMu.
+// omits. Safe for concurrent use: calls are serialized under qosMapMu.
 func (b *netlinkBackend) UpdateVLANQoSMap(ifaceName string, ingress, egress map[uint32]uint32) error {
 	if err := iface.ValidateIfaceName(ifaceName); err != nil {
 		return fmt.Errorf("iface: update vlan qos %q: %w", ifaceName, err)
@@ -212,7 +213,9 @@ func (b *netlinkBackend) UpdateVLANQoSMap(ifaceName string, ingress, egress map[
 	// index and the VLAN id reaches the kernel. TxQLen -1 keeps the library
 	// from sending IFLA_TXQLEN.
 	modify := &netlink.Vlan{
-		LinkAttrs:     netlink.LinkAttrs{Index: installed.Attrs().Index, Name: installed.Attrs().Name, TxQLen: -1},
+		Index:         installed.Attrs().Index,
+		Name:          installed.Attrs().Name,
+		TxQLen:        -1,
 		VlanId:        installed.VlanId,
 		IngressQosMap: ingressSent,
 		EgressQosMap:  egressSent,
@@ -242,9 +245,7 @@ func qosReplaceMaps(installedEgress, ingress, egress map[uint32]uint32) (ingress
 	for priority := range installedEgress {
 		egressSent[priority] = 0
 	}
-	for priority, pcp := range egress {
-		egressSent[priority] = pcp
-	}
+	maps.Copy(egressSent, egress)
 	return ingressSent, egressSent
 }
 

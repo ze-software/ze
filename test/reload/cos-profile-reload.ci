@@ -1,0 +1,77 @@
+# Test: a reload that edits only a class-of-service profile reprograms the
+# VLANs whose parent names it.
+#
+# The daemon boots with profile `edge` (ingress PCP 5 -> priority 5, egress
+# priority 3 -> PCP 3 and 5 -> PCP 5) on dummy zcos0, whose unit v100 is VLAN
+# zcos0.100. The reload changes the profile and nothing else: ingress PCP 2 ->
+# priority 2, egress priority 3 -> PCP 6. The interface section is identical in
+# both configs, so the only way the VLAN changes is iface reading
+# class-of-service (ConfigReads) and resolving against the delivered profiles
+# (spec-plugin-reload-applies-or-refuses, AC-13, AC-18, A-7).
+#
+# The fixture reads the maps back with `ip -d link show` before and after, so
+# the assertion is the kernel's state. The after-state has no `5:5` on either
+# side, which a merge into the old maps would leave.
+#
+# Creating a dummy and a VLAN needs CAP_NET_ADMIN (ai/rules/qemu-testing.md).
+option=needs-linux:caps=net-admin
+
+stdin=ze-bgp:terminator=EOF_CONF
+class-of-service {
+	ieee-802.1p edge {
+		ingress {
+			pcp 5 { priority 5; }
+		}
+		egress {
+			priority 3 { pcp 3; }
+			priority 5 { pcp 5; }
+		}
+	}
+}
+
+interface {
+	backend netlink;
+	dummy zcos0 {
+		class-of-service edge;
+		unit v100 {
+			vlan-id 100;
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+class-of-service {
+	ieee-802.1p edge {
+		ingress {
+			pcp 2 { priority 2; }
+		}
+		egress {
+			priority 3 { pcp 6; }
+		}
+	}
+}
+
+interface {
+	backend netlink;
+	dummy zcos0 {
+		class-of-service edge;
+		unit v100 {
+			vlan-id 100;
+		}
+	}
+}
+EOF_CONF2
+
+# The daemon runs in the background and the fixture in the foreground: the
+# fixture's OK lines are its own stderr, which an await= on the daemon's
+# stderr never sees, and the runner tears the daemon down once it returns.
+# Setup removes a zcos0 an earlier run left, so every run starts from no VLAN.
+cmd=foreground:seq=1:exec=le test fixture reload/cos-profile-reload-setup:exit=0
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp:timeout=40s
+cmd=foreground:seq=3:exec=le test fixture reload/cos-profile-reload:timeout=40s:exit=0
+expect=stderr:contains=OK: boot programmed zcos0.100
+expect=stderr:contains=OK: the profile edit reprogrammed zcos0.100
+expect=stderr:contains=sighup reload complete
+reject=stderr:contains=reload error
+reject=stderr:pattern=panic

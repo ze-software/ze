@@ -4,10 +4,12 @@ package ifacenetlink
 
 import (
 	"maps"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 
 	"github.com/ze-software/ze/internal/component/iface"
 )
@@ -119,11 +121,34 @@ func TestNetlinkUpdateVLANQoSMapSerialised(t *testing.T) {
 		}
 		t.Cleanup(func() { afterQoSMapReadForTest = nil })
 
+		// A namespace belongs to an OS thread, not to the process, so a new
+		// goroutine starts outside the test namespace and finds no zes0.320.
+		// Each call therefore locks its thread and enters the namespace. The
+		// thread is never unlocked: Go ends a thread whose goroutine exits
+		// locked, so the namespace change never reaches another goroutine.
+		testNS, err := netns.Get()
+		if err != nil {
+			t.Fatalf("get the test namespace: %v", err)
+		}
+		t.Cleanup(func() { testNS.Close() }) //nolint:errcheck // best-effort cleanup
+		updateInTestNS := func(egress map[uint32]uint32, done chan<- error) {
+			runtime.LockOSThread()
+			if err := netns.Set(testNS); err != nil {
+				done <- err
+				return
+			}
+			done <- b.UpdateVLANQoSMap("zes0.320", nil, egress)
+		}
+
 		doneA := make(chan error, 1)
 		doneB := make(chan error, 1)
-		go func() { doneA <- b.UpdateVLANQoSMap("zes0.320", nil, map[uint32]uint32{3: 3, 5: 5}) }()
-		<-arrived
-		go func() { doneB <- b.UpdateVLANQoSMap("zes0.320", nil, map[uint32]uint32{3: 3}) }()
+		go updateInTestNS(map[uint32]uint32{3: 3, 5: 5}, doneA)
+		select {
+		case <-arrived:
+		case err := <-doneA:
+			t.Fatalf("call A returned before reaching the hook: %v", err)
+		}
+		go updateInTestNS(map[uint32]uint32{3: 3}, doneB)
 
 		bArrivedWhileAHeld := false
 		select {
@@ -136,7 +161,11 @@ func TestNetlinkUpdateVLANQoSMapSerialised(t *testing.T) {
 			t.Fatalf("call A: %v", err)
 		}
 		if !bArrivedWhileAHeld {
-			<-arrived
+			select {
+			case <-arrived:
+			case err := <-doneB:
+				t.Fatalf("call B returned before reaching the hook: %v", err)
+			}
 		}
 		release <- struct{}{}
 		if err := <-doneB; err != nil {

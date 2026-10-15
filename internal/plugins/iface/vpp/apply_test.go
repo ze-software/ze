@@ -2748,7 +2748,7 @@ type qosChannel struct {
 	requests   []api.Message
 	markRetval int32
 	holdEgress chan struct{} // nil: never hold
-	held       chan struct{} // signalled when the first egress update is held
+	held       chan struct{} // signaled when the first egress update is held
 	heldOnce   sync.Once
 }
 

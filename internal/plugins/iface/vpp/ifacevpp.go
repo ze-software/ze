@@ -60,7 +60,7 @@ func init() {
 type vppBackendImpl struct {
 	// chMu guards ch and chReady.
 	chMu sync.Mutex
-	// qosMu serialises UpdateVLANQoSMap, whose egress-map update and mark
+	// qosMu serializes UpdateVLANQoSMap, whose egress-map update and mark
 	// request are two requests (R-17). Taken after resolveIndex.
 	qosMu    sync.Mutex
 	ch       api.Channel
