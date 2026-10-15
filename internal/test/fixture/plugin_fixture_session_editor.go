@@ -241,7 +241,7 @@ func sessionEditorDriver(ctx context.Context, args []string) error {
 func sessionEditorUser(args []string) (string, error) {
 	const usage = "usage: session-editor <ssh-port> <config> <script> [user <name>]"
 	if len(args) == 3 {
-		return "admin", nil
+		return valueTestUser, nil
 	}
 	if len(args) != 5 {
 		return "", errors.New(usage)

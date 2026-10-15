@@ -118,7 +118,7 @@ func drainShow(ctx context.Context, args []string) error {
 	if len(args) != 1 {
 		return errors.New("usage: plugin/drain-show <ssh-port>")
 	}
-	creds := sshclient.Credentials{Host: addrLoopback, Port: args[0], Username: "admin", Auth: "testpass"}
+	creds := sshclient.Credentials{Host: addrLoopback, Port: args[0], Username: valueTestUser, Auth: valueTestPassword}
 	plugin, err := newObserver("drain-show")
 	if err != nil {
 		return err
@@ -333,7 +333,7 @@ func drainSSHRestart(ctx context.Context, args []string) error {
 	if len(args) != 1 {
 		return errors.New("usage: plugin/drain-ssh-restart <ssh-port>")
 	}
-	creds := sshclient.Credentials{Host: addrLoopback, Port: args[0], Username: "admin", Auth: "testpass"}
+	creds := sshclient.Credentials{Host: addrLoopback, Port: args[0], Username: valueTestUser, Auth: valueTestPassword}
 	if _, err := waitSSHCommandExtra3(ctx, creds, "show version"); err != nil {
 		fakedrain.Log("drain-fixture: FAIL SSH never answered, so restart was not sent: " + err.Error())
 		return err

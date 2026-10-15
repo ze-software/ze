@@ -85,7 +85,7 @@ type Backend interface {
 	// UpdateVLANQoSMap installs exactly the given ingress and egress
 	// 802.1p QoS maps on an existing VLAN sub-interface: an entry the call
 	// omits is removed, and a nil or empty map leaves no mapping. An
-	// implementation MUST serialise its calls, so with two overlapping calls
+	// implementation MUST serialize its calls, so with two overlapping calls
 	// the installed maps are those of the call that returned last. Used by
 	// iface apply and dynamic CoS to change maps without deleting the VLAN.
 	UpdateVLANQoSMap(ifaceName string, ingress, egress map[uint32]uint32) error
