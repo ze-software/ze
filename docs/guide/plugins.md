@@ -113,6 +113,18 @@ carries the same option and a migrated configuration keeps working.
 Past the restart bound the plugin is disabled, `show health` reports
 `plugin-down` for it, and ze carries on.
 
+## When a Reload Changes a Plugin's Config
+
+A plugin that reads a section of the config is asked to check a reload's
+candidate before anything is applied, then to apply it, and to put its previous
+config back if the commit fails. A plugin that registers those handlers either
+takes the change at commit or refuses the reload at that check, naming the leaf
+and the restart steps; a plugin that registers none still answers the commit OK
+and keeps the config it started with. What
+each plugin does with a reload, and which leaves need a restart, is listed once,
+in [config reload](config-reload.md), under "Plugin config changed" and "What
+Requires Restart".
+
 ## When a Reload Changes a Plugin's Capability
 
 A plugin that adds a capability to ze's OPEN (`bgp-softver`, `bgp-hostname`,

@@ -202,17 +202,12 @@ func init() {
 }
 
 // verifyAS112Config is the offline verifier: it parses and validates the
-// committed config without binding or applying anything.
+// committed config without binding or applying anything. It is the parse the
+// reload's config verify runs (parseAS112Sections, through sdk.ConfigTx), so
+// the static check and the reload cannot disagree.
 func verifyAS112Config(sections []sdk.ConfigSection) error {
-	for _, s := range sections {
-		if s.Root != configRootService {
-			continue
-		}
-		if _, err := parseConfig(s.Data); err != nil {
-			return fmt.Errorf("as112: %w", err)
-		}
-	}
-	return nil
+	_, _, err := parseAS112Sections(sections)
+	return err
 }
 
 // runAS112Plugin is the engine entry point. On each committed config it

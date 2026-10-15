@@ -105,17 +105,12 @@ func init() {
 
 // verifyGeoDNSConfig is the offline verifier: it parses and validates the
 // committed config without binding or applying anything, so a bad config aborts
-// the commit. It shares parseConfig with the engine's apply path.
+// the commit. It is the parse the reload's config verify runs
+// (parseGeoDNSSections, through sdk.ConfigTx), so the static check and the
+// reload cannot disagree.
 func verifyGeoDNSConfig(sections []sdk.ConfigSection) error {
-	for _, s := range sections {
-		if s.Root != configRootService {
-			continue
-		}
-		if _, err := parseConfig(s.Data); err != nil {
-			return fmt.Errorf("geodns: %w", err)
-		}
-	}
-	return nil
+	_, _, err := parseGeoDNSSections(sections)
+	return err
 }
 
 // runGeoDNSPlugin is the engine entry point. On each committed config it parses
