@@ -15,9 +15,9 @@
 # only the apply handler calls on a reload: without the handler the second
 # expectation fails. That an edit elsewhere under service replaces no server
 # is proven in Go by TestConfigTxUnchangedSubtreeIsNoop
-# (imageserver/config_tx_test.go). The listener names an interface that does
-# not exist, so its address does not resolve and that is logged; the reload
-# asserts the install, not the socket.
+# (imageserver/config_tx_test.go). No listen-interface is named, so the server
+# binds every address on the leased port, which a reload must bind or fail
+# (R-13); imageserver-reload-unbindable-interface-refused proves the failure.
 
 option=env:var=ze.log.imageserver:value=info
 
@@ -25,7 +25,7 @@ stdin=ze-bgp:terminator=EOF_CONF
 service {
 	image-server {
 		enabled true
-		listen-interface ze-no-such-iface0
+		listen-port $PORT
 		image-directory /srv/ze-img-a
 	}
 }
@@ -35,7 +35,7 @@ tmpfs=config2.conf:terminator=EOF_CONF2
 service {
 	image-server {
 		enabled true
-		listen-interface ze-no-such-iface0
+		listen-port $PORT
 		image-directory /srv/ze-img-b
 	}
 }

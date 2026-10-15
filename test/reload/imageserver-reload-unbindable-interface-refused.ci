@@ -1,0 +1,50 @@
+# Test: a reload that moves the image server onto an interface that cannot be
+#       resolved is refused, and the server keeps serving the config it ran.
+# Initial config: image-server on every address of the leased port.
+# After SIGHUP:   listen-interface is ze-no-such-iface0, a device that does
+#                 not exist, and the image-directory changes.
+# Expected: imageserver's apply cannot resolve the interface, binds the
+#           replaced config again and returns an error naming the interface
+#           and the fix, so the reload fails and rolls back. No "config
+#           applied" line for the new image-directory.
+#
+# VALIDATES: spec-plugin-reload-applies-or-refuses R-13 for imageserver.
+# PREVENTS: the commit that succeeded while the image server was dark (the
+#           failure was logged and install returned nil).
+#
+# DISCRIMINATION: with bindImage called with strict false on a reload, the
+# resolve failure is logged, install returns nil and logs "config applied"
+# for /srv/ze-img-b, which the reject below refuses, and the "cannot listen
+# on interface" expectation fails. The interface resolve fails on every
+# platform, so this runs everywhere.
+
+option=env:var=ze.log.imageserver:value=info
+
+stdin=ze-bgp:terminator=EOF_CONF
+service {
+	image-server {
+		enabled true
+		listen-port $PORT
+		image-directory /srv/ze-img-a
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+service {
+	image-server {
+		enabled true
+		listen-interface ze-no-such-iface0
+		image-directory /srv/ze-img-b
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le test fixture reload/tx-protocol-sighup-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=reload error:then=stop
+expect=stderr:pattern=imageserver: config applied.*image-directory=/srv/ze-img-a
+expect=stderr:pattern=cannot listen on interface .ze-no-such-iface0.
+expect=stderr:contains=Fix: name an interface that exists and has an IPv4 address in service image-server listen-interface
+reject=stderr:pattern=imageserver: config applied.*image-directory=/srv/ze-img-b
+reject=stderr:pattern=panic

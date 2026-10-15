@@ -27,7 +27,7 @@ func TestServeTargetAdvertisesItsOwnAddress(t *testing.T) {
 	targets := []listenTarget{{iface: "first", ip: "127.0.0.1"}, {iface: "second", ip: "127.0.0.2"}}
 
 	log, _ := captureServerLog()
-	servers := startTargets(cfg, "", targets, log)
+	servers, _ := startTargets(cfg, "", targets, log, false)
 	t.Cleanup(func() {
 		for _, srv := range servers {
 			_ = srv.Close()

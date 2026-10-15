@@ -3,8 +3,10 @@
 package imageserver
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -25,15 +27,38 @@ func imageSections(imageDir, description string) []sdk.ConfigSection {
 // server was replaced.
 func newTestImageConfigTx(t *testing.T) (*sdk.ConfigTx[imageConfig], *imageServer) {
 	t.Helper()
-	orig := imageStartTargets
-	t.Cleanup(func() { imageStartTargets = orig })
-	imageStartTargets = func(cfg imageConfig, _ string, _ []listenTarget, _ *slog.Logger) []*http.Server {
-		return []*http.Server{{Addr: cfg.ImageDirectory}}
+	tx, srv, _ := newTestImageConfigTxRefusing(t)
+	return tx, srv
+}
+
+// imageSectionsOn returns a service section with image-server enabled on
+// iface, serving imageDir.
+func imageSectionsOn(iface, imageDir string) []sdk.ConfigSection {
+	return []sdk.ConfigSection{{Root: configRootService, Data: `{"service":{"image-server":{"enabled":"true",` +
+		`"listen-interface":["` + iface + `"],"image-directory":"` + imageDir + `"}}}`}}
+}
+
+// newTestImageConfigTxRefusing is newTestImageConfigTx, and also answers the
+// set of interface names the stub cannot bind, which a test fills to model
+// an interface that does not exist.
+func newTestImageConfigTxRefusing(t *testing.T) (*sdk.ConfigTx[imageConfig], *imageServer, map[string]bool) {
+	t.Helper()
+	origResolve, origServe := imageResolveIPv4, imageServeTarget
+	t.Cleanup(func() { imageResolveIPv4, imageServeTarget = origResolve, origServe })
+	refused := map[string]bool{}
+	imageResolveIPv4 = func(name string) (string, error) {
+		if refused[name] {
+			return "", errors.New("no such interface")
+		}
+		return "127.0.0.1", nil
+	}
+	imageServeTarget = func(cfg imageConfig, _ string, _ listenTarget) (*http.Server, error) {
+		return &http.Server{Addr: cfg.ImageDirectory}, nil
 	}
 
 	srv := &imageServer{log: slog.New(slog.DiscardHandler)}
 	t.Cleanup(srv.stop)
-	return sdk.NewConfigTx(imageConfig{}, parseImageSections, srv.install), srv
+	return sdk.NewConfigTx(imageConfig{}, parseImageSections, srv.install), srv, refused
 }
 
 // TestConfigTxAppliesReloadedImageDirectory proves AC-1 to AC-4 for
@@ -117,5 +142,57 @@ func TestConfigTxUnchangedSubtreeIsNoop(t *testing.T) {
 		if len(srv.httpServers) != 1 || srv.httpServers[0] != server {
 			t.Fatalf("%s of an edit outside image-server replaced the server", step.name)
 		}
+	}
+}
+
+// TestConfigTxUnbindableInterfaceFailsApply proves R-13 for imageserver: an
+// apply whose listen-interface cannot be bound returns an error naming the
+// interface and the fix, so the transaction rolls back, and the server
+// serves the config it ran again.
+// VALIDATES: spec-plugin-reload-applies-or-refuses R-13 for imageserver.
+// PREVENTS: a commit that succeeds while the image server serves nothing.
+// MUTATION: log the bind failure and return nil, and the error check fails.
+func TestConfigTxUnbindableInterfaceFailsApply(t *testing.T) {
+	tx, srv, refused := newTestImageConfigTxRefusing(t)
+	refused["eth9"] = true
+	if err := tx.Configure(imageSectionsOn("eth0", "/srv/a")); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	if err := tx.Verify(imageSectionsOn("eth9", "/srv/b")); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	err := tx.Apply()
+	if err == nil {
+		t.Fatal("apply onto an interface that cannot be bound succeeded")
+	}
+	for _, want := range []string{"eth9", "listen-interface"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("apply error %q does not name %s", err, want)
+		}
+	}
+	if len(srv.httpServers) != 1 || srv.httpServers[0].Addr != "/srv/a" {
+		t.Fatalf("a failed apply does not serve the config it ran: %v", srv.httpServers)
+	}
+}
+
+// TestConfigTxRollbackThatCannotRebindFails proves the CodeBroken path of
+// R-13 is reachable for imageserver: a rollback whose replaced config can no
+// longer be bound returns an error, so the orchestrator restarts the plugin.
+// VALIDATES: spec-plugin-reload-applies-or-refuses R-13, AC-4.
+// PREVENTS: a rollback acked while the image server serves nothing.
+func TestConfigTxRollbackThatCannotRebindFails(t *testing.T) {
+	tx, _, refused := newTestImageConfigTxRefusing(t)
+	if err := tx.Configure(imageSectionsOn("eth0", "/srv/a")); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	if err := tx.Verify(imageSectionsOn("eth1", "/srv/a")); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	if err := tx.Apply(); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	refused["eth0"] = true
+	if err := tx.Rollback(); err == nil {
+		t.Fatal("rollback onto an interface that cannot be bound succeeded")
 	}
 }

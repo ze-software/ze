@@ -47,12 +47,23 @@ ZeFS database.
 
 A reload that changes nothing under `service image-server` leaves the server
 alone: `sdk.ConfigTx` finds the parsed config equal to the running one and
-installs nothing. A reload that changes it closes every HTTP server and starts
-new ones for the new config, and logs `imageserver: config applied`.
-`http.Server.Close` closes the active connections as well, so a download in
-flight is cut and the client has to fetch it again. The zefs database is
-rebuilt in a new temporary directory and the old one is removed.
-<!-- source: internal/plugins/imageserver/config_tx.go -- imageServer.install, imageServer.stop -->
+installs nothing. A reload that changes it first builds the zefs database in a
+new temporary directory, then closes every HTTP server and starts new ones for
+the new config, and logs `imageserver: config applied`. `http.Server.Close`
+closes the active connections as well, so a download in flight is cut and the
+client has to fetch it again. The old zefs directory is removed once the new
+servers serve.
+
+A reload resolves and binds every `listen-interface` or none. When one cannot
+be resolved or bound, or the zefs database cannot be built, the apply returns
+an error naming the cause and the fix, so the commit fails and rolls back, and
+the replaced config's servers are bound again. When those cannot be bound
+either, the error says the server is not serving; a rollback that answers so
+is reported broken and the engine restarts the plugin. The boot configure is
+not strict: it logs `resolve interface failed` or `listen failed` for an
+interface and serves on the others, or logs `no interfaces bound`.
+<!-- source: internal/plugins/imageserver/config_tx.go -- imageServer.install, imageServer.restore, prepareZefs, imageServer.stop -->
+<!-- source: internal/plugins/imageserver/register.go -- bindImage, listenTargets, startTargets -->
 
 ## Traps
 

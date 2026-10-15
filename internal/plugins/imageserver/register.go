@@ -64,7 +64,9 @@ func runImageServerPlugin(conn net.Conn) int {
 	defer closeLogged(p, log, "plugin conn")
 
 	srv := &imageServer{log: log}
-	sdk.NewConfigTx(imageConfig{}, parseImageSections, srv.install).Register(p)
+	tx := sdk.NewConfigTx(imageConfig{}, parseImageSections, srv.install)
+	tx.Register(p)
+	p.OnConfigure(func(sections []sdk.ConfigSection) error { return srv.configureAtBoot(tx, sections) })
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -92,40 +94,87 @@ type listenTarget struct {
 	ip    string
 }
 
+// imageResolveIPv4 resolves a listen-interface and imageServeTarget binds
+// one target (vars so tests can stub the resolve and the bind).
+var (
+	imageResolveIPv4 = resolveInterfaceIPv4
+	imageServeTarget = serveTarget
+)
+
+// bindImage resolves and binds every listen-interface of cfg. A disabled cfg
+// binds nothing.
+//
+// strict is the reload mode: it binds every interface or none, and the error
+// names the interface and the fix, so the transaction rolls back to the
+// config that served. Boot is not strict: it has no previous config to keep,
+// and the install path brings interfaces up after the daemon, so a failed
+// interface is logged and the others serve.
+func bindImage(cfg imageConfig, zefsPath string, log *slog.Logger, strict bool) ([]*http.Server, error) {
+	if !cfg.Enabled {
+		return nil, nil
+	}
+	targets, err := listenTargets(cfg.ListenInterfaces, log, strict)
+	if err != nil {
+		return nil, err
+	}
+	servers, err := startTargets(cfg, zefsPath, targets, log, strict)
+	if err != nil {
+		return nil, err
+	}
+	if len(servers) == 0 {
+		// Every named interface failed to resolve or to bind. Report that
+		// instead of logging "started" over a server that serves nothing.
+		log.Error("imageserver: no interfaces bound; server not serving",
+			"interfaces", cfg.ListenInterfaces)
+	}
+	return servers, nil
+}
+
 // listenTargets resolves every entry of listen-interface to its IPv4 address,
 // one target for each entry. The leaf is a leaf-list, so every entry is served:
-// internal/plugins/tftpserver/register.go and
+// internal/plugins/tftpserver/config_tx.go and
 // internal/plugins/dhcpserver/register.go read the same leaf the same way, and
 // an operator who runs the three services for one PXE install gets all of them
-// on the interfaces named. An entry that does not resolve is reported and
-// skipped, so one wrong name does not stop the interfaces that do resolve.
-// With no entry at all the result is one target with an empty address, which
-// binds every address of the host.
-func listenTargets(names []string, log *slog.Logger) []listenTarget {
+// on the interfaces named. Not strict, an entry that does not resolve is
+// reported and skipped, so one wrong name does not stop the interfaces that do
+// resolve; strict, it is the error. With no entry at all the result is one
+// target with an empty address, which binds every address of the host.
+func listenTargets(names []string, log *slog.Logger, strict bool) ([]listenTarget, error) {
 	if len(names) == 0 {
-		return []listenTarget{{}}
+		return []listenTarget{{}}, nil
 	}
 
 	targets := make([]listenTarget, 0, len(names))
 	for _, name := range names {
-		ip, err := resolveInterfaceIPv4(name)
+		ip, err := imageResolveIPv4(name)
+		if err != nil && strict {
+			return nil, unboundImageInterface(name, err)
+		}
 		if err != nil {
 			log.Error("imageserver: resolve interface failed", "interface", name, "error", err)
 			continue
 		}
 		targets = append(targets, listenTarget{iface: name, ip: ip})
 	}
-	return targets
+	return targets, nil
 }
 
 // startTargets binds one HTTP server for each target and returns the servers
-// that bound. A target that fails to bind is reported and skipped, so one
-// unusable interface does not stop the others from serving. The caller MUST
-// call Close on every returned server to stop its serve goroutine.
-func startTargets(cfg imageConfig, zefsPath string, targets []listenTarget, log *slog.Logger) []*http.Server {
+// that bound. Not strict, a target that fails to bind is reported and
+// skipped, so one unusable interface does not stop the others from serving;
+// strict, the servers already bound are closed and the failure is the error.
+// The caller MUST call Close on every returned server to stop its serve
+// goroutine.
+func startTargets(cfg imageConfig, zefsPath string, targets []listenTarget, log *slog.Logger, strict bool) ([]*http.Server, error) {
 	servers := make([]*http.Server, 0, len(targets))
 	for _, target := range targets {
-		srv, err := serveTarget(cfg, zefsPath, target)
+		srv, err := imageServeTarget(cfg, zefsPath, target)
+		if err != nil && strict {
+			for _, bound := range servers {
+				closeLogged(bound, log, "http server")
+			}
+			return nil, unboundImageInterface(target.iface, err)
+		}
 		if err != nil {
 			log.Error("imageserver: listen failed",
 				"interface", target.iface, "addr", listenAddr(target.ip, cfg.ListenPort), "error", err)
@@ -134,7 +183,21 @@ func startTargets(cfg imageConfig, zefsPath string, targets []listenTarget, log 
 		log.Info("imageserver: listening", "interface", target.iface, "addr", srv.Addr)
 		servers = append(servers, srv)
 	}
-	return servers
+	return servers, nil
+}
+
+// unboundImageInterface is the reload error for a listen-interface the image
+// server cannot resolve or bind. An empty name is the "no interface named"
+// target, which binds every address of the host.
+func unboundImageInterface(name string, err error) error {
+	if name == "" {
+		return fmt.Errorf("imageserver: cannot listen on every address: %w. "+
+			"The image server does not take this config.\n"+
+			"Fix: free the listen-port under service image-server, or choose another one", err)
+	}
+	return fmt.Errorf("imageserver: cannot listen on interface %q: %w. "+
+		"The image server does not take this config.\n"+
+		"Fix: name an interface that exists and has an IPv4 address in service image-server listen-interface, or remove %q from it", name, err, name)
 }
 
 // serveTarget binds one HTTP server on the target address and serves it in its
