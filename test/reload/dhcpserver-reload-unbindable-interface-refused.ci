@@ -1,0 +1,70 @@
+# Test: a reload that moves the DHCP server onto an interface that cannot be
+#       bound is refused, and the server keeps serving the config it ran.
+# Initial config: dhcp-server on lo, one subnet.
+# After SIGHUP:   listen-interface is ze-no-such-iface0, a device that does not
+#                 exist.
+# Expected: dhcpserver's apply cannot bind the new interface, binds lo again
+#           and returns an error that names the interface and the fix, so the
+#           reload fails and rolls back. No second "config applied" line.
+#
+# VALIDATES: spec-plugin-reload-applies-or-refuses R-13 for dhcpserver: an
+#            apply that cannot bind returns an error, so the transaction rolls
+#            back instead of committing a server that serves nothing.
+# PREVENTS: the commit that succeeded while the DHCP server was dark (the bind
+#           failure was logged and install returned nil).
+#
+# DISCRIMINATION: with bindListeners called with strict false on a reload, the
+# bind failure is logged, install returns nil, the reload completes, and the
+# "cannot listen on interface" expectation and the reject of a second
+# "config applied" both fail.
+#
+# needs-linux: other platforms ignore the interface name and bind port 67 on
+# every address, so the failure cannot be forced. net-bind: the boot binds
+# lo:67, a privileged port. TestConfigTxUnbindableInterfaceFailsApply
+# (dhcpserver/config_tx_test.go) covers the same path on every platform.
+
+option=needs-linux:caps=net-admin,net-bind
+option=env:var=ze.log.dhcpserver:value=info
+
+stdin=ze-bgp:terminator=EOF_CONF
+service {
+	dhcp-server {
+		enabled true
+		listen-interface lo
+		shared-network lan {
+			subnet 198.19.1.0/24 {
+				range pool1 {
+					start 198.19.1.100
+					stop 198.19.1.200
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+service {
+	dhcp-server {
+		enabled true
+		listen-interface ze-no-such-iface0
+		shared-network lan {
+			subnet 198.19.1.0/24 {
+				range pool1 {
+					start 198.19.1.100
+					stop 198.19.1.200
+				}
+			}
+		}
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le test fixture reload/tx-protocol-sighup-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=reload error:then=stop
+expect=stderr:pattern=dhcpserver: config applied.*subnets-kept=0 subnets-restarted=1
+expect=stderr:pattern=cannot listen on interface .ze-no-such-iface0.
+expect=stderr:contains=Fix: name an interface that exists in service dhcp-server listen-interface
+reject=stderr:pattern=dhcpserver: config applied.*subnets-kept=1
+reject=stderr:pattern=panic

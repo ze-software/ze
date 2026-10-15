@@ -80,8 +80,14 @@ type dhcpHandler struct {
 
 func newDHCPHandler(sub subnetConfig, serverIP netip.Addr, pxe pxeConfig) *dhcpHandler {
 	p := newPool(sub.Ranges, sub.StaticMappings)
-	lt := newLeaseTable(p, clock.RealClock{})
+	return newDHCPHandlerWithTables(sub, serverIP, pxe, p, newLeaseTable(p, clock.RealClock{}))
+}
 
+// newDHCPHandlerWithTables builds a handler for sub over an existing pool and
+// lease table. A reload passes the tables of the previous handler of the same
+// subnet when its address plan is unchanged, so the leases survive while the
+// options and PXE settings are new. lt MUST be the lease table of p.
+func newDHCPHandlerWithTables(sub subnetConfig, serverIP netip.Addr, pxe pxeConfig, p *pool, lt *leaseTable) *dhcpHandler {
 	staticByMAC := make(map[string]netip.Addr, len(sub.StaticMappings))
 	for _, sm := range sub.StaticMappings {
 		staticByMAC[string(sm.MAC)] = sm.IP

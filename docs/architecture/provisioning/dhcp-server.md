@@ -54,14 +54,27 @@ config migration is needed.
 
 A reload that changes nothing under `service dhcp-server` leaves the server
 alone: `sdk.ConfigTx` finds the parsed config equal to the running one and
-installs nothing. A reload that changes it rebuilds only the subnets it
-touched. A subnet whose definition and PXE settings are unchanged keeps its
-handler, and with it its pool and its leases; every other subnet gets a new
-handler and starts with an empty lease table. The listeners are closed and
-bound again over the new handler set, so a packet that arrives during the swap
-is lost and the client retransmits it. The apply logs
+installs nothing. A reload that changes it builds a new handler for every
+subnet, with the new options and PXE settings. A subnet whose address plan is
+unchanged (the same prefix, the same range bounds, the same static MAC to
+address bindings) keeps its pool and lease table, so its leases survive an
+edit of its options, its lease time or the PXE settings; every other subnet
+starts with an empty lease table. The listeners are closed and bound again
+over the new handler set, so a packet that arrives during the swap is lost and
+the client retransmits it. The apply logs
 `dhcpserver: config applied subnets-kept=N subnets-restarted=M`.
-<!-- source: internal/plugins/dhcpserver/config_tx.go -- dhcpServer.install, buildHandlers -->
+
+A reload binds every `listen-interface` or none. When one cannot be bound, the
+apply binds the replaced config's listeners again over the replaced handlers
+and returns an error naming the interface and the fix, so the commit fails and
+rolls back with the leases intact. When the replaced listeners cannot be bound
+either, the error says the server is not serving; a rollback that answers so
+is reported broken and the engine restarts the plugin. The boot configure is
+not strict: it has no previous config to keep and the install path brings
+interfaces up after the daemon, so it logs `listen failed` for an interface
+and serves on the others, or logs `no interfaces bound` when none binds.
+<!-- source: internal/plugins/dhcpserver/config_tx.go -- dhcpServer.install, buildHandlers, sameAddressPlan, dhcpServer.restore -->
+<!-- source: internal/plugins/dhcpserver/register.go -- bindListeners -->
 
 ## Traps
 

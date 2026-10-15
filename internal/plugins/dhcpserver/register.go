@@ -68,7 +68,9 @@ func runDHCPServerPlugin(conn net.Conn) int {
 	defer closeLogged(p, log, "plugin conn")
 
 	srv := &dhcpServer{log: log}
-	sdk.NewConfigTx(serverConfig{}, parseDHCPSections, srv.install).Register(p)
+	tx := sdk.NewConfigTx(serverConfig{}, parseDHCPSections, srv.install)
+	tx.Register(p)
+	p.OnConfigure(func(sections []sdk.ConfigSection) error { return srv.configureAtBoot(tx, sections) })
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -101,33 +103,49 @@ func closeLogged(c closer, log *slog.Logger, what string) {
 // bind without privileges or a real interface).
 var dhcpListen = listenDHCP
 
-// startListeners binds a DHCP listener on each configured interface and starts
-// serving. It returns the bound listeners, or nil when none bound -- so the
-// caller never logs a false "started" for a server with zero listeners (the
-// same silent-failure class fixed in tftpserver/imageserver).
-func startListeners(cfg serverConfig, handlers []*dhcpHandler, log *slog.Logger) []*net.UDPConn {
+// bindListeners binds a DHCP listener on every interface of cfg and starts
+// serving handlers on each. A disabled cfg binds nothing.
+//
+// strict is the reload mode: it binds every interface or none, and when one
+// cannot be bound it closes the listeners already bound and returns an error
+// naming the interface and the fix, so a reload never reports a server that
+// serves part of its interfaces, or none, and the transaction rolls back to
+// the config that served. Boot is not strict: it has no previous config to
+// keep, and the install path brings interfaces up after the daemon, so a
+// failed interface is logged and the others serve.
+func bindListeners(cfg serverConfig, handlers []*dhcpHandler, log *slog.Logger, strict bool) ([]*net.UDPConn, error) {
+	if !cfg.Enabled {
+		return nil, nil
+	}
 	var listeners []*net.UDPConn
 	for _, iface := range cfg.ListenInterfaces {
 		ln, err := dhcpListen(iface)
-		if err != nil {
+		if err != nil && !strict {
 			log.Error("dhcpserver: listen failed", "interface", iface, "error", err)
 			continue
 		}
+		if err != nil {
+			for _, bound := range listeners {
+				closeLogged(bound, log, "udp listener")
+			}
+			return nil, fmt.Errorf("dhcpserver: cannot listen on interface %q: %w. "+
+				"The DHCP server does not take this config.\n"+
+				"Fix: name an interface that exists in service dhcp-server listen-interface, or remove %q from it", iface, err, iface)
+		}
 		listeners = append(listeners, ln)
+	}
+	if len(listeners) == 0 {
+		log.Error("dhcpserver: no interfaces bound; server not serving", "interfaces", cfg.ListenInterfaces)
+		return nil, nil
+	}
+	for _, ln := range listeners {
 		go serveMulti(ln, handlers, log)
 	}
-
-	if len(listeners) == 0 {
-		log.Error("dhcpserver: no interfaces bound; server not serving",
-			"interfaces", cfg.ListenInterfaces)
-		return nil
-	}
-
 	log.Info("dhcpserver: started",
 		"shared-networks", len(cfg.SharedNetworks),
 		"interfaces", cfg.ListenInterfaces,
 		"listeners", len(listeners))
-	return listeners
+	return listeners, nil
 }
 
 func serveMulti(conn *net.UDPConn, handlers []*dhcpHandler, log *slog.Logger) {

@@ -3,8 +3,10 @@
 package dhcpserver
 
 import (
+	"errors"
 	"net"
 	"net/netip"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -22,18 +24,40 @@ func dhcpSections(stop2, description string) []sdk.ConfigSection {
 		`"tftp":{"description":"` + description + `"}}}`}}
 }
 
+// dhcpSectionsOn returns a service section serving 10.0.1.0/24 (range .100
+// to .200) on iface, with router as its default router and, when bootfile is
+// not empty, PXE answering with bootfile as the BIOS boot file.
+func dhcpSectionsOn(iface, router, bootfile string) []sdk.ConfigSection {
+	pxe := ""
+	if bootfile != "" {
+		pxe = `,"pxe":{"enabled":"true","tftp-server":"10.0.1.1","bootfile-bios":"` + bootfile + `","bootfile-uefi":"ipxe.efi"}`
+	}
+	return []sdk.ConfigSection{{Root: configRootService, Data: `{"service":{"dhcp-server":{"enabled":"true",` +
+		`"listen-interface":["` + iface + `"],"shared-network":{"LAN":{"subnet":{` +
+		`"10.0.1.0/24":{"range":{"start":"10.0.1.100","stop":"10.0.1.200"},"lease-time":"3600",` +
+		`"default-router":"` + router + `"}}}}` + pxe + `}}}`}}
+}
+
 // newTestDHCPConfigTx returns a transaction whose listeners bind loopback
-// sockets in place of the configured interfaces.
-func newTestDHCPConfigTx(t *testing.T) (*sdk.ConfigTx[serverConfig], *dhcpServer) {
+// sockets in place of the configured interfaces, and the set of interface
+// names whose bind the stub refuses, which a test fills to model an interface
+// that does not exist.
+func newTestDHCPConfigTx(t *testing.T) (*sdk.ConfigTx[serverConfig], *dhcpServer, map[string]bool) {
 	t.Helper()
 	orig := dhcpListen
 	t.Cleanup(func() { dhcpListen = orig })
-	dhcpListen = func(string) (*net.UDPConn, error) { return ephemeralUDP(t), nil }
+	refused := map[string]bool{}
+	dhcpListen = func(iface string) (*net.UDPConn, error) {
+		if refused[iface] {
+			return nil, errors.New("no such device")
+		}
+		return ephemeralUDP(t), nil
+	}
 
 	log, _ := captureLogger()
 	srv := &dhcpServer{log: log}
 	t.Cleanup(srv.stop)
-	return sdk.NewConfigTx(serverConfig{}, parseDHCPSections, srv.install), srv
+	return sdk.NewConfigTx(serverConfig{}, parseDHCPSections, srv.install), srv, refused
 }
 
 // handlerFor answers the running handler of prefix, failing the test when
@@ -58,9 +82,9 @@ func handlerFor(t *testing.T, srv *dhcpServer, prefix string) *dhcpHandler {
 // pointers and lease lookups are compared across verify, apply and rollback.
 // VALIDATES: spec-plugin-reload-applies-or-refuses row 24, Q3 (d1), R-11.
 // PREVENTS: every dhcp edit dropping every client's lease.
-// MUTATION: make unchangedHandler return nil and the kept-lease check fails.
+// MUTATION: make sameAddressPlan return false and the kept-lease check fails.
 func TestConfigTxKeepsLeasesOfUnchangedSubnets(t *testing.T) {
-	tx, srv := newTestDHCPConfigTx(t)
+	tx, srv, _ := newTestDHCPConfigTx(t)
 	if err := tx.Configure(dhcpSections("10.0.2.200", "x")); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
@@ -79,15 +103,15 @@ func TestConfigTxKeepsLeasesOfUnchangedSubnets(t *testing.T) {
 	if err := tx.Apply(); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
-	if handlerFor(t, srv, "10.0.1.0/24") != kept {
-		t.Fatal("apply replaced the handler of the subnet the reload did not edit")
+	if handlerFor(t, srv, "10.0.1.0/24").leases != kept.leases {
+		t.Fatal("apply replaced the lease table of the subnet the reload did not edit")
 	}
 	if kept.leases.lookup(mac) == nil {
 		t.Fatal("apply dropped a lease of the subnet the reload did not edit")
 	}
 	applied := handlerFor(t, srv, "10.0.2.0/24")
-	if applied == edited {
-		t.Fatal("apply kept the old handler of the edited subnet")
+	if applied.leases == edited.leases {
+		t.Fatal("apply kept the old lease table of the subnet whose range it edited")
 	}
 	if applied.subnet.Ranges[0].Stop != netip.MustParseAddr("10.0.2.150") {
 		t.Fatalf("edited subnet range ends at %s, want 10.0.2.150", applied.subnet.Ranges[0].Stop)
@@ -99,8 +123,8 @@ func TestConfigTxKeepsLeasesOfUnchangedSubnets(t *testing.T) {
 	if err := tx.Rollback(); err != nil {
 		t.Fatalf("rollback: %v", err)
 	}
-	if handlerFor(t, srv, "10.0.1.0/24") != kept {
-		t.Fatal("rollback replaced the handler of the subnet neither config edited")
+	if handlerFor(t, srv, "10.0.1.0/24").leases != kept.leases {
+		t.Fatal("rollback replaced the lease table of the subnet neither config edited")
 	}
 	restored := handlerFor(t, srv, "10.0.2.0/24")
 	if restored.subnet.Ranges[0].Stop != netip.MustParseAddr("10.0.2.200") {
@@ -118,7 +142,7 @@ func TestConfigTxKeepsLeasesOfUnchangedSubnets(t *testing.T) {
 // MUTATION: delete the reflect.DeepEqual short-circuit in sdk.ConfigTx.Apply
 // and the listener check fails.
 func TestConfigTxUnchangedSubtreeIsNoop(t *testing.T) {
-	tx, srv := newTestDHCPConfigTx(t)
+	tx, srv, _ := newTestDHCPConfigTx(t)
 	if err := tx.Configure(dhcpSections("10.0.2.200", "first")); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
@@ -143,5 +167,121 @@ func TestConfigTxUnchangedSubtreeIsNoop(t *testing.T) {
 				t.Fatalf("%s of an edit outside dhcp-server replaced a handler", step.name)
 			}
 		}
+	}
+}
+
+// TestConfigTxOptionsOrPXEEditKeepsLeases proves Q3 = d1 by the letter: a
+// reload that edits only a subnet's options, or only the PXE settings, keeps
+// the subnet's pool and lease table, because its prefix, ranges and static
+// mappings are unchanged, while the handler answers with the new options.
+// Method: a lease is added, the edit is applied, and the running handler's
+// lease table, the lease, and the edited value are read back.
+// VALIDATES: spec-plugin-reload-applies-or-refuses Q3 (d1), R-11.
+// PREVENTS: a default-router or boot file edit dropping every client's lease.
+// MUTATION: compare the whole subnet and the PXE settings in sameAddressPlan
+// and both cases fail.
+func TestConfigTxOptionsOrPXEEditKeepsLeases(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		edit  []sdk.ConfigSection
+		check func(h *dhcpHandler) bool
+	}{
+		{"default-router", dhcpSectionsOn("eth1", "10.0.1.254", ""), func(h *dhcpHandler) bool {
+			return h.subnet.DefaultRouter == netip.MustParseAddr("10.0.1.254")
+		}},
+		{"pxe", dhcpSectionsOn("eth1", "10.0.1.1", "ipxe.pxe"), func(h *dhcpHandler) bool {
+			return h.pxe.BootfileBIOS == "ipxe.pxe"
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tx, srv, _ := newTestDHCPConfigTx(t)
+			if err := tx.Configure(dhcpSectionsOn("eth1", "10.0.1.1", "")); err != nil {
+				t.Fatalf("configure: %v", err)
+			}
+			booted := handlerFor(t, srv, "10.0.1.0/24")
+			mac := net.HardwareAddr{0x02, 0, 0, 0, 0, 1}
+			booted.leases.add(mac, netip.MustParseAddr("10.0.1.100"), 3600)
+
+			if err := tx.Verify(tc.edit); err != nil {
+				t.Fatalf("verify: %v", err)
+			}
+			if err := tx.Apply(); err != nil {
+				t.Fatalf("apply: %v", err)
+			}
+			applied := handlerFor(t, srv, "10.0.1.0/24")
+			if applied.leases != booted.leases {
+				t.Fatalf("a %s edit replaced the lease table of a subnet whose address plan it did not edit", tc.name)
+			}
+			if applied.leases.lookup(mac) == nil {
+				t.Fatalf("a %s edit dropped a lease", tc.name)
+			}
+			if !tc.check(applied) {
+				t.Fatalf("the running handler does not answer with the %s edit", tc.name)
+			}
+		})
+	}
+}
+
+// TestConfigTxUnbindableInterfaceFailsApply proves R-13 for dhcpserver: an
+// apply whose listen-interface cannot be bound returns an error that names
+// the interface and the fix, so the transaction rolls back, and the server
+// keeps serving the config it ran, with its listener and its leases.
+// Method: the listener stub refuses eth9, a reload moves the server there,
+// and the apply's error, the listener count and the lease are read back.
+// VALIDATES: spec-plugin-reload-applies-or-refuses R-13 for dhcpserver.
+// PREVENTS: a commit that succeeds while the DHCP server serves nothing.
+// MUTATION: log the bind failure and return nil, and the error check fails.
+func TestConfigTxUnbindableInterfaceFailsApply(t *testing.T) {
+	tx, srv, refused := newTestDHCPConfigTx(t)
+	refused["eth9"] = true
+	if err := tx.Configure(dhcpSectionsOn("eth1", "10.0.1.1", "")); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	booted := handlerFor(t, srv, "10.0.1.0/24")
+	mac := net.HardwareAddr{0x02, 0, 0, 0, 0, 1}
+	booted.leases.add(mac, netip.MustParseAddr("10.0.1.100"), 3600)
+
+	if err := tx.Verify(dhcpSectionsOn("eth9", "10.0.1.1", "")); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	err := tx.Apply()
+	if err == nil {
+		t.Fatal("apply onto an interface that cannot be bound succeeded")
+	}
+	for _, want := range []string{`"eth9"`, "listen-interface"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("apply error %q does not name %s", err, want)
+		}
+	}
+	if len(srv.listeners) != 1 {
+		t.Fatalf("a failed apply left %d listeners, want the 1 it ran", len(srv.listeners))
+	}
+	if handlerFor(t, srv, "10.0.1.0/24").leases != booted.leases || booted.leases.lookup(mac) == nil {
+		t.Fatal("a failed apply dropped the running leases")
+	}
+}
+
+// TestConfigTxRollbackThatCannotRebindFails proves the CodeBroken path of
+// R-13 is reachable for dhcpserver: a rollback whose replaced config can no
+// longer be bound returns an error, so the orchestrator restarts the plugin
+// instead of believing the old config runs.
+// Method: apply moves the server from eth1 to eth2, eth1 is then refused, and
+// the rollback's answer is read.
+// VALIDATES: spec-plugin-reload-applies-or-refuses R-13, AC-4.
+// PREVENTS: a rollback acked while the DHCP server serves nothing.
+func TestConfigTxRollbackThatCannotRebindFails(t *testing.T) {
+	tx, _, refused := newTestDHCPConfigTx(t)
+	if err := tx.Configure(dhcpSectionsOn("eth1", "10.0.1.1", "")); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	if err := tx.Verify(dhcpSectionsOn("eth2", "10.0.1.1", "")); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	if err := tx.Apply(); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	refused["eth1"] = true
+	if err := tx.Rollback(); err == nil {
+		t.Fatal("rollback onto an interface that cannot be bound succeeded")
 	}
 }

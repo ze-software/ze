@@ -1,6 +1,6 @@
 # Test: the DHCP server reports a clear error and does NOT claim "started" when
 # no interface binds -- the install-path silent-failure class.
-# VALIDATES: startListeners zero-listener guard (dhcpserver/register.go): a bind
+# VALIDATES: bindListeners zero-listener guard (dhcpserver/register.go): a bind
 #            failure on every configured interface yields "no interfaces bound"
 #            instead of a false "dhcpserver: started".
 # PREVENTS: regression of the silent bind-failure that left the install servers
@@ -14,7 +14,7 @@
 #
 # needs-linux: other platforms ignore the interface and bind the port globally
 # (no SO_BINDTODEVICE), so the failure cannot be forced portably; the unit test
-# TestStartListenersGuardsZeroBind covers the guard on every platform.
+# TestBindListenersAtBootServesWhatBinds covers the boot mode on every platform.
 option=needs-linux
 
 stdin=ze-dhcp:terminator=EOF_CONF
@@ -44,7 +44,7 @@ cmd=background:seq=1:exec=ze -:stdin=ze-dhcp
 # the expect below still asserts the full phrase. The exit-code expectation is
 # gone because awaitDaemonStderr owns the wait arm in runner_exec.go, so it could
 # never fire. Every stderr assertion is unchanged.
-# Producer: dhcpserver/register.go startListeners, "dhcpserver: no interfaces
+# Producer: dhcpserver/register.go bindListeners, "dhcpserver: no interfaces
 # bound; server not serving".
 await=stderr:contains=no interfaces bound
 expect=stderr:contains=no interfaces bound

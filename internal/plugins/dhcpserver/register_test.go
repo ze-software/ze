@@ -10,25 +10,24 @@ import (
 	"testing"
 )
 
-// TestStartListenersGuardsZeroBind pins the silent-failure class fixed across
-// the server plugins: when every interface fails to bind, startListeners must
-// report it and return nil, and must NOT log a false "dhcpserver: started".
-func TestStartListenersGuardsZeroBind(t *testing.T) {
+// TestBindListenersRefusesUnboundInterface pins R-13: when an interface
+// fails to bind, bindListeners returns an error naming it and the fix, and
+// never logs a false "dhcpserver: started".
+func TestBindListenersRefusesUnboundInterface(t *testing.T) {
 	orig := dhcpListen
 	t.Cleanup(func() { dhcpListen = orig })
 	dhcpListen = func(string) (*net.UDPConn, error) { return nil, errors.New("bind refused") }
 
 	log, buf := captureLogger()
-	got := startListeners(serverConfig{ListenInterfaces: []string{"enp2s0"}}, nil, log)
-	if got != nil {
-		t.Fatalf("expected nil listeners when all binds fail, got %d", len(got))
+	got, err := bindListeners(serverConfig{Enabled: true, ListenInterfaces: []string{"enp2s0"}}, nil, log, true)
+	if err == nil || got != nil {
+		t.Fatalf("expected an error and no listeners when the bind fails, got %d, %v", len(got), err)
 	}
-	out := buf.String()
-	if !strings.Contains(out, "no interfaces bound") {
-		t.Errorf("missing zero-listener error in: %s", out)
+	if !strings.Contains(err.Error(), `"enp2s0"`) || !strings.Contains(err.Error(), "Fix:") {
+		t.Errorf("error does not name the interface and the fix: %v", err)
 	}
-	if strings.Contains(out, "dhcpserver: started") {
-		t.Errorf("must not log a false \"started\" with zero listeners: %s", out)
+	if strings.Contains(buf.String(), "dhcpserver: started") {
+		t.Errorf("must not log a false \"started\": %s", buf.String())
 	}
 }
 
@@ -46,17 +45,17 @@ func ephemeralUDP(t *testing.T) *net.UDPConn {
 	return c
 }
 
-// TestStartListenersReportsBoundCount covers the success path: every interface
-// binds, so startListeners returns them all and logs "started" with the count.
-func TestStartListenersReportsBoundCount(t *testing.T) {
+// TestBindListenersReportsBoundCount covers the success path: every interface
+// binds, so bindListeners returns them all and logs "started" with the count.
+func TestBindListenersReportsBoundCount(t *testing.T) {
 	orig := dhcpListen
 	t.Cleanup(func() { dhcpListen = orig })
 	dhcpListen = func(string) (*net.UDPConn, error) { return ephemeralUDP(t), nil }
 
 	log, buf := captureLogger()
-	got := startListeners(serverConfig{ListenInterfaces: []string{"eth0", "eth1"}}, nil, log)
-	if len(got) != 2 {
-		t.Fatalf("expected 2 listeners, got %d", len(got))
+	got, err := bindListeners(serverConfig{Enabled: true, ListenInterfaces: []string{"eth0", "eth1"}}, nil, log, true)
+	if err != nil || len(got) != 2 {
+		t.Fatalf("expected 2 listeners, got %d, %v", len(got), err)
 	}
 	out := buf.String()
 	if !strings.Contains(out, "dhcpserver: started") || !strings.Contains(out, "listeners=2") {
@@ -64,32 +63,32 @@ func TestStartListenersReportsBoundCount(t *testing.T) {
 	}
 }
 
-// TestStartListenersPartialBind covers the partial path: one interface binds,
-// another fails. startListeners returns only the bound listener, logs the
-// failure, and still reports "started" because at least one bound.
-func TestStartListenersPartialBind(t *testing.T) {
+// TestBindListenersPartialBindBindsNothing covers the partial path: one
+// interface binds and the next fails. bindListeners closes the bound one and
+// returns the error, so an install never serves part of its interfaces.
+func TestBindListenersPartialBindBindsNothing(t *testing.T) {
 	orig := dhcpListen
 	t.Cleanup(func() { dhcpListen = orig })
-	calls := 0
+	var first *net.UDPConn
 	dhcpListen = func(string) (*net.UDPConn, error) {
-		calls++
-		if calls == 1 {
-			return ephemeralUDP(t), nil
+		if first == nil {
+			first = ephemeralUDP(t)
+			return first, nil
 		}
 		return nil, errors.New("second interface down")
 	}
 
-	log, buf := captureLogger()
-	got := startListeners(serverConfig{ListenInterfaces: []string{"eth0", "eth1"}}, nil, log)
-	if len(got) != 1 {
-		t.Fatalf("expected 1 listener, got %d", len(got))
+	log, _ := captureLogger()
+	got, err := bindListeners(serverConfig{Enabled: true, ListenInterfaces: []string{"eth0", "eth1"}}, nil, log, true)
+	if err == nil || got != nil {
+		t.Fatalf("expected an error and no listeners, got %d, %v", len(got), err)
 	}
-	out := buf.String()
-	if !strings.Contains(out, "listen failed") {
-		t.Errorf("expected a listen-failed log for the down interface: %s", out)
+	addr, ok := first.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatalf("listener address is %T, want *net.UDPAddr", first.LocalAddr())
 	}
-	if !strings.Contains(out, "dhcpserver: started") || !strings.Contains(out, "listeners=1") {
-		t.Errorf("expected started log with listeners=1, got: %s", out)
+	if _, wErr := first.WriteToUDP([]byte{0}, addr); wErr == nil {
+		t.Error("the listener bound before the failure was left open")
 	}
 }
 
@@ -175,5 +174,28 @@ func TestMsgTypeName(t *testing.T) {
 		if got := msgTypeName(code); got != want {
 			t.Errorf("msgTypeName(%d) = %q, want %q", code, got, want)
 		}
+	}
+}
+
+// TestBindListenersAtBootServesWhatBinds pins the boot mode: Stage 2 has no
+// previous config to keep and the install path brings interfaces up after
+// the daemon, so a failed interface is logged and the others serve.
+func TestBindListenersAtBootServesWhatBinds(t *testing.T) {
+	orig := dhcpListen
+	t.Cleanup(func() { dhcpListen = orig })
+	dhcpListen = func(iface string) (*net.UDPConn, error) {
+		if iface == "eth1" {
+			return nil, errors.New("second interface down")
+		}
+		return ephemeralUDP(t), nil
+	}
+
+	log, buf := captureLogger()
+	got, err := bindListeners(serverConfig{Enabled: true, ListenInterfaces: []string{"eth0", "eth1"}}, nil, log, false)
+	if err != nil || len(got) != 1 {
+		t.Fatalf("expected 1 listener and no error at boot, got %d, %v", len(got), err)
+	}
+	if !strings.Contains(buf.String(), "listen failed") {
+		t.Errorf("expected a listen-failed log for the down interface: %s", buf.String())
 	}
 }
