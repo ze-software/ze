@@ -635,12 +635,23 @@ Documents that only `<!-- source: -->` mention a changed file (advisory, from `.
 
 ## Review Gate
 
-Artifact: `tmp/review/plugin-reload-applies-or-refuses-3be8cd06-0062-4950-8b30-09ebec04cbaf.md` (`./le spec review record`, verdict findings, round 2, 24 files; round 1 recorded 198 files over commits bb51f2d519..4bd6dd97a2). Round 1 scope: cross-phase consistency, the end-to-end reload contract and docs/spec agreement (each phase had its own independent review). Round 2 scope: the round-1 fixes only, c409650a9b, 14d1c8f19c, 5df6d44522, 98a5ddd46b, 49163b4833.
+Artifact: `tmp/review/plugin-reload-applies-or-refuses-3be8cd06-0062-4950-8b30-09ebec04cbaf.md` (`./le spec review record`, verdict findings, round 3, 20 files; round 2 recorded 24 files; round 1 recorded 198 files over commits bb51f2d519..4bd6dd97a2). Round 1 scope: cross-phase consistency, the end-to-end reload contract and docs/spec agreement (each phase had its own independent review). Round 2 scope: the round-1 fixes only, c409650a9b, 14d1c8f19c, 5df6d44522, 98a5ddd46b, 49163b4833. Round 3 scope: the round-2 fixes only, 6a3d05537e, cf6beb29e5, 224b0ef514, 03a180b606, 96ee317784.
 
 | Round | BLOCKER | ISSUE | NOTE | Verdict |
 |-------|---------|-------|------|---------|
 | 1 | 0 | 3 | 2 | findings: not clean |
 | 2 | 1 | 3 | 2 | findings: not clean |
+| 3 | 0 | 2 | 1 | findings: not clean |
+
+Round 3 findings (2026-10-15):
+
+| ID | Severity | Where | Finding | Fix owed |
+|----|----------|-------|---------|----------|
+| ISSUE-7 | ISSUE | `dhcpserver`, `tftpserver`, `imageserver` `restore`; `dnsserver.Manager.restorePrevious`; `config-reload.md`, `transaction-protocol.md`, `server-harness.md`, the three provisioning pages | the `ErrRunningConfigLost` refusal says "Fix: commit the running config again, or restart the plugin". A commit of the running config has no diff, and `Server` reload stops at "config reload: no changes" (`reload.go`, `config.DiffMaps` empty) before any transaction, so no apply reaches `ConfigTx` and the broken branch is never reached that way; no operator command restarts one plugin. The text reaches the operator after `TxCoordinator.Execute` already ran the rollback (reinstall, or `CodeBroken` restart), and reload returns only the apply error, so "it no longer serves them" is false once the rollback repaired it, and the operator never learns which outcome happened. The provisioning texts omit freeing the port. The pages repeat "committing the running config again binds them" | say what the engine does next and the operator's real remedy (free the address and port; the restart is automatic), or report the rollback outcome with the error; the pages follow |
+| ISSUE-8 | ISSUE | `dnsserver.Manager.keptSecure`; `secure-transports.md`, `server-harness.md` | a lenient boot whose DoT or DoH certificate cannot load records `secureRunning{inputs, tls: nil}`. A later strict host-data reload with the same inputs and the certificate still missing returns `*running`: the commit succeeds with DoT/DoH configured and not served, and the warning says the listeners "keep the material they serve" while none serves. Before 6a3d05537e this reload was refused (`secureLoadRefusal`). `TestApplyStrictUnchangedSecureKeepsMaterialWhenItCannotLoad` covers only a running apply that loaded its material | keep only when the running apply holds TLS material, otherwise refuse; a test from a lenient boot with a missing certificate; the pages say so |
+| NOTE-5 | NOTE | `sdk.configApplyCallback` -> bridge `dispatchRollback` -> `TxCoordinator.handleRollbackAck` | no test drives the whole chain from an `ErrRunningConfigLost` apply to `restartFn`; each link is tested on its own | - |
+
+Checked clean in round 3: `ConfigTx.broken` is read and written only under `tx.mu`; the gate opens before the apply-failed answer leaves the plugin, and the engine emits the rollback after that ack on both `runApply` and `runOperationPath`, to every participant; a rollback install error becomes `CodeBroken` and `restartPlugin` respawns and re-handshakes (Stage 2 binds leniently); in dhcp, tftp and image `restore` keeps each survivor bound over the running handlers, generation or zefs; `ErrRunningConfigLost` is wrapped only on a real loss in all five installers (as112 `refuse` also on a failed registration restore); `restorePrevious` clears the applied signature so the broken rollback rebinds; 224b0ef514 leaves no lenient wrapper and every production caller names its `BindPolicy`. `go test -race` over sdk, dnsserver, geodns, as112, dhcpserver, tftpserver, imageserver green. `./le commit audit` WEAKENED on the RFC-approved files is the journaled tool defect, not counted.
 
 Round 2 findings (2026-10-15):
 
