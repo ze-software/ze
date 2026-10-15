@@ -6,6 +6,7 @@ package message
 
 import (
 	"encoding/hex"
+	"maps"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -43,6 +44,39 @@ func TestRFC9252ServiceTLVOverrunTreatAsWithdraw(t *testing.T) {
 				r := psidValidate(t, reach, psidOverrun(tlvType), false)
 				psidRequireDiscard(t, r)
 				require.Equal(t, "RFC 8669 Section 6: Prefix-SID TLV length exceeds attribute bounds", r.Description)
+			})
+		}
+	}
+}
+
+// TestRFC9252ZeroLengthServiceTLVTreatAsWithdraw feeds SRv6 L3 and L2 Service
+// TLVs of length 0 on every family, and, as the boundary control, the same TLVs
+// of length 1 (the RESERVED octet alone), which are well-formed. On labeled
+// unicast a conforming Label-Index rides along, so RFC 8669 Section 4.1 has
+// nothing to refuse and only the Service TLV decides the action.
+// RFC 9252 Section 7: "An SRv6 Service TLV is considered malformed in the
+// following cases: * The TLV Length is less than 1."
+//
+// RFC requirement: RFC9252-3.4-1 negative -- an SRv6 L3 (type 5) or L2 (type 6) Service TLV whose length is 0 is a malformed Service TLV, and the receive walk answers exactly treat-as-withdraw for code 40 on IPv4 VPN, IPv6 unicast and IPv4/IPv6 labeled unicast, while the same TLV of length 1 answers no action.
+func TestRFC9252ZeroLengthServiceTLVTreatAsWithdraw(t *testing.T) {
+	families := maps.Clone(psidOffLabeledUnicast)
+	maps.Copy(families, psidLabeledUnicast)
+	for family, reach := range families {
+		labelIndex := ""
+		if _, labeled := psidLabeledUnicast[family]; labeled {
+			labelIndex = psidLabelIndex7
+		}
+		for _, tlvType := range []byte{5, 6} {
+			name := family + "/service-" + string('0'+tlvType)
+			t.Run(name+"/length-0", func(t *testing.T) {
+				r := psidValidate(t, reach, labelIndex+psidTLV(tlvType, 0), false)
+				require.Equal(t, RFC7606ActionTreatAsWithdraw, r.Action, "description %q", r.Description)
+				require.Equal(t, attrCodePrefixSID, r.AttrCode)
+				require.Contains(t, r.Description, "RFC 9252 Section 7")
+			})
+			t.Run(name+"/length-1", func(t *testing.T) {
+				r := psidValidate(t, reach, labelIndex+psidTLV(tlvType, 1), false)
+				require.Equal(t, RFC7606ActionNone, r.Action, "description %q", r.Description)
 			})
 		}
 	}

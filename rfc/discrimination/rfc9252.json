@@ -347,6 +347,17 @@
     {
       "rid": "RFC9252-3.4-1",
       "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go::TestRFC9252ZeroLengthServiceTLVTreatAsWithdraw",
+      "unit-sha": "836dbf99a1a29fc5",
+      "claim-sha": "1b7b1830aa1a57fb",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/prefixsid_wire.go::validateSRv6ServiceTLV",
+      "producer-sha": "6573fc2acd8b2826",
+      "break": "body of validateSRv6ServiceTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9252-3.4-1",
+      "polarity": "negative",
       "unit": "test/plugin/prefixsid-malformed-receive.ci",
       "unit-sha": "7425830268a64109",
       "claim-sha": "13b4c9a2a491f662",
