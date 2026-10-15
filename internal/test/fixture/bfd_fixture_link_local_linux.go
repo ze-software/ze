@@ -207,7 +207,7 @@ func bfdFirstPacketLinkLocalScenario(ctx context.Context, plugin *sdk.Plugin) er
 		return err
 	}
 	for _, end := range ends {
-		if err := end.expectOwnFrames(ends); err != nil {
+		if err := end.expectOwnFrames(ends, writeErr); err != nil {
 			return err
 		}
 	}
@@ -369,12 +369,19 @@ func bfdLinkLocalSessions(ctx context.Context, plugin *sdk.Plugin) ([]map[string
 // at least one of Ze's frames carrying this link's discriminator and none
 // carrying another link's. Frames the far end itself wrote are skipped by
 // packet type, and frames Ze sent before it learned the discriminator carry
-// zero and prove nothing either way.
-func (end *bfdLinkLocalEnd) expectOwnFrames(ends []*bfdLinkLocalEnd) error {
+// zero and prove nothing either way. A writer that failed during the window
+// is reported as itself: with no injection the neighbor is gone, so a missing
+// frame would otherwise read as a frame that left on the wrong link.
+func (end *bfdLinkLocalEnd) expectOwnFrames(ends []*bfdLinkLocalEnd, writeErr <-chan error) error {
 	buffer := make([]byte, 2048)
 	own := 0
 	deadline := time.Now().Add(bfdLinkLocalCaptureWindow)
 	for time.Now().Before(deadline) {
+		select {
+		case err := <-writeErr:
+			return err
+		default:
+		}
 		n, from, err := unix.Recvfrom(end.capture, buffer, 0)
 		if err != nil {
 			if errors.Is(err, unix.EAGAIN) {

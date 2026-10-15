@@ -16,8 +16,10 @@
 #            zbl1 (destination and sendZone in
 #            internal/component/bfd/transport/udp.go, plus the IPV6_PKTINFO pin).
 # PREVENTS:  a link-local session that is selected only once the neighbor has
-#            echoed Ze's discriminator, and a link-local packet that leaves on
-#            whichever link the kernel's fe80::/64 route picks.
+#            echoed Ze's discriminator, a link-local packet that does not leave
+#            on its session's link (Linux refuses a send with neither zone nor
+#            pktinfo ifindex: sendmsg EINVAL), and one that leaves on the other
+#            session's link.
 #
 # The neighbor is played by raw frames the fixture writes on the far end of each
 # veth (zbl0p, zbl1p). The far ends hold no address and a permanent neighbor
@@ -29,7 +31,7 @@
 # the send half is carried by the zone and the pktinfo ifindex, which is what
 # this test is about. Reverting only sendZone stays green on Linux, because the
 # pktinfo ifindex still pins the link (spec R-1); the recorded send red reverts
-# both.
+# both, and a second send red swaps the two links' zones.
 #
 # Two single-hop-session entries for one peer need the config parser to key a
 # multi-leaf-key list on its whole key (spec-bfd-link-local-peer-zone, Q-3 (a)).
