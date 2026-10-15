@@ -133,7 +133,12 @@ func prepareZefs(cfg imageConfig) (dir, path string, err error) {
 	if !cfg.Enabled {
 		return "", "", nil
 	}
-	if cfg.SSHUsername == "" || cfg.SSHPasswordHash == "" {
+	// No SSH user: the image carries no zefs database, which is not an error.
+	if cfg.SSHUsername == "" {
+		return "", "", nil
+	}
+	// No password hash: the same, since a user without one cannot log in.
+	if cfg.SSHPasswordHash == "" {
 		return "", "", nil
 	}
 	dir, err = os.MkdirTemp("", "imageserver-zefs-*")

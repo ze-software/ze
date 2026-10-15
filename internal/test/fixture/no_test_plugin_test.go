@@ -13,7 +13,8 @@ import (
 )
 
 // testPluginPackages is the import path prefix of the test-only plugins. Only
-// a ze_test build links them, through internal/test/plugins/all.
+// a ze built with the zetest tag links them, through
+// cmd/ze/plugins_zetest.go and internal/test/plugins/all.
 const testPluginPackages = "github.com/ze-software/ze/internal/test/plugins/"
 
 // VALIDATES: importing the fixture package registers no test-only plugin.

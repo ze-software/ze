@@ -7,8 +7,8 @@
 // `internal fakedrain` and externally through the fixture
 // plugin/drain-responder; both modes answer the stop drain with
 // drain.Responder, so a .ci asserts the same lines whichever transport carried
-// the drain. Its init registers the plugin, so only a ze_test build imports
-// this package; a fixture imports the registration-free drain package instead.
+// the drain. Its init registers the plugin, so only a ze built with the zetest tag
+// imports this package; a fixture imports the registration-free drain package instead.
 package fakedrain
 
 import (

@@ -435,7 +435,7 @@ func TestRunBuildsBootstrapSetupAndSSHCommands(t *testing.T) {
 	// reaches the host through the 9p share
 	// (plan/journal/gate-verdict-depends-on-the-machine.md, 2026-10-15).
 	guestCache := strings.Index(guestPatchedTree, "mount -t tmpfs tmpfs "+guestStdpatchCache)
-	generator := strings.Index(guestPatchedTree, "go run ./internal/le/go/stdpatch/goroot")
+	generator := strings.Index(guestPatchedTree, "./internal/le/go/stdpatch/goroot")
 	if guestCache < 0 || generator < guestCache {
 		t.Errorf("the patched tree line mounts the guest cache at %d, want before the generator (%d): %s",
 			guestCache, generator, guestPatchedTree)
