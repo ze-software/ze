@@ -179,3 +179,109 @@ func TestRFC2545ScenarioPreparesAsBefore(t *testing.T) {
 		t.Fatalf("rendered ze.conf still carries a placeholder:\n%s", config)
 	}
 }
+
+// VALIDATES: a scenario's `<peer>-prestart.sh` runs in that peer's start
+// wrapper, rendered, after the eth0 link-local and before the exec of the
+// daemon, and a prestart that would never run is refused by name.
+// Method: prepare the committed bfd-link-local-two-links-frr scenario and read
+// each wrapped start in order; then prepare fixtures whose prestart names a
+// container with no wrapper, or an owner whose placeholder no file carries.
+// PREVENTS: the two links or the Your-Discriminator-zero drop being built after
+// the daemon's first packet, an unrendered placeholder reaching `ip`, and a
+// prestart silently skipped.
+func TestPrestartRunsBeforeTheDaemon(t *testing.T) {
+	network := interoplab.Network{
+		Name: "lab",
+		IPv4: netip.MustParsePrefix("172.30.44.0/24"),
+		IPv6: netip.MustParsePrefix("fd00:1e:2c::/64"),
+	}
+	source := filepath.Join("..", "..", "..", "..", "test", "interop", "scenarios", bfdLinkLocalTwoLinksScenario)
+	prepared, err := prepareScenario(t.TempDir(), t.TempDir(), "fixture", interoplab.PrepareContext{
+		Source:  interoplab.ScenarioSource{Name: bfdLinkLocalTwoLinksScenario, Directory: source},
+		Network: network,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if cleanupErr := prepared.Cleanup(); cleanupErr != nil {
+			t.Error(cleanupErr)
+		}
+	})
+	scripts := map[string]string{}
+	for _, want := range []struct {
+		peer  string
+		steps []string
+	}{
+		{"ze", []string{
+			"ip -6 address add fe80::fd00:1e:2c:2/64 dev eth0 nodad\n",
+			"ip link add link eth0 name eth1 type vlan id 101\n",
+			"ip link add link eth0 name eth2 type vlan id 102\n",
+			"ip -6 address add fe80::fd00:1e:2c:2/64 dev eth1 nodad\n",
+			"ip -6 address add fe80::fd00:1e:2c:2/64 dev eth2 nodad\n",
+			"udp dport 3784 @th,128,32 0 drop\n",
+			"exec ze ",
+		}},
+		{peerFRR, []string{
+			"ip -6 address add fe80::fd00:1e:2c:3/64 dev eth0 nodad\n",
+			"ip link add link eth0 name eth1 type vlan id 101\n",
+			"ip link add link eth0 name eth2 type vlan id 102\n",
+			"ip -6 address add fe80::fd00:1e:2c:3/64 dev eth1 nodad\n",
+			"ip -6 address add fe80::fd00:1e:2c:3/64 dev eth2 nodad\n",
+			"exec /sbin/tini ",
+		}},
+	} {
+		index := slices.IndexFunc(prepared.Peers, func(p interoplab.PeerConfig) bool { return p.Name == want.peer })
+		if index < 0 {
+			t.Fatalf("no %s peer prepared", want.peer)
+		}
+		command := prepared.Peers[index].Command
+		if len(command) < 2 || command[0] != shellErrexitCommand {
+			t.Fatalf("%s start = %q, want a %s wrapper", want.peer, command, shellErrexitCommand)
+		}
+		script := command[1]
+		scripts[want.peer] = script
+		if strings.Contains(script, "_LINK_LOCAL@") {
+			t.Fatalf("%s wrapper carries an unrendered placeholder:\n%s", want.peer, script)
+		}
+		at := 0
+		for _, step := range want.steps {
+			found := strings.Index(script[at:], step)
+			if found < 0 {
+				t.Fatalf("%s wrapper lacks %q after offset %d:\n%s", want.peer, step, at, script)
+			}
+			at += found + len(step)
+		}
+	}
+	if strings.Contains(scripts[peerFRR], "nft") {
+		t.Fatalf("FRR's wrapper carries the nft drop, which belongs to ze's sends alone:\n%s", scripts[peerFRR])
+	}
+
+	for _, refused := range []struct {
+		name, file, zeConfig, want string
+	}{
+		{"no wrapper for the container", "bird-prestart.sh", "local " + zeLinkLocalPlaceholder + "\n", "names container bird"},
+		{"owner without its placeholder", "ze-prestart.sh", "bfd {}\n", "no file of the scenario carries " + zeLinkLocalPlaceholder},
+	} {
+		t.Run(refused.name, func(t *testing.T) {
+			fixture := t.TempDir()
+			writeFixture(t, filepath.Join(fixture, zeConfigFile), refused.zeConfig)
+			writeFixture(t, filepath.Join(fixture, frrConfigFile), "bfd\n")
+			writeFixture(t, filepath.Join(fixture, refused.file), "true\n")
+			prepared, err := prepareScenario(t.TempDir(), t.TempDir(), "fixture", interoplab.PrepareContext{
+				Source:  interoplab.ScenarioSource{Name: refused.name, Directory: fixture},
+				Network: network,
+			})
+			if prepared.Cleanup != nil {
+				t.Cleanup(func() {
+					if cleanupErr := prepared.Cleanup(); cleanupErr != nil {
+						t.Error(cleanupErr)
+					}
+				})
+			}
+			if err == nil || !strings.Contains(err.Error(), refused.want) {
+				t.Fatalf("error = %v, want it to contain %q", err, refused.want)
+			}
+		})
+	}
+}

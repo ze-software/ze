@@ -4,13 +4,14 @@ package bgp
 
 import (
 	"net/netip"
+	"slices"
 	"strings"
 	"testing"
 )
 
-// VALIDATES: the bfd-link-local-frr checker's two decisions, each in both
-// polarities: which ze session it reads, and whether the discriminators
-// crossed. Method: feed hand-written `show bfd sessions` answers and
+// VALIDATES: the bfd-link-local checkers' three decisions, each in both
+// polarities: which links ze's sessions to the peer run on, which ze session
+// a link's check reads, and whether the discriminators crossed. Method: feed hand-written `show bfd sessions` answers and
 // discriminator pairs, and require the accept or the named refusal.
 // PREVENTS: a checker that passes on a session to the right address on the
 // wrong link, on a session not yet Up, or on one direction of traffic alone.
@@ -35,6 +36,32 @@ func TestBFDLinkLocalCheckerBranches(t *testing.T) {
 	} {
 		t.Run(refused.name, func(t *testing.T) {
 			_, err := zeLinkLocalSession(refused.output, peer, "eth0")
+			if err == nil || !strings.Contains(err.Error(), refused.want) {
+				t.Fatalf("error = %v, want it to contain %q", err, refused.want)
+			}
+		})
+	}
+
+	t.Run("links of the sessions to the peer, whatever their state", func(t *testing.T) {
+		links, err := zeLinkLocalLinks(`[{"peer":"fe80::fd00:1e:2c:3","interface":"eth2","state":"down"},`+
+			`{"peer":"fe80::fd00:1e:2c:9","interface":"eth9","state":"up"},`+
+			`{"peer":"fe80::fd00:1e:2c:3%eth1","interface":"eth1","state":"up"},`+
+			`{"peer":"fe80::fd00:1e:2c:3","interface":"eth2","state":"down"}]`, peer)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(links, []string{"eth1", "eth2"}) {
+			t.Fatalf("links = %q, want [eth1 eth2]: sorted, distinct, the other peer's eth9 left out", links)
+		}
+	})
+	for _, refused := range []struct {
+		name, output, want string
+	}{
+		{"not JSON", `error: no service`, "decode ze BFD sessions JSON"},
+		{"peer not an address", `[{"peer":"zbl0","interface":"eth1","state":"up"}]`, "is not an address"},
+	} {
+		t.Run("links "+refused.name, func(t *testing.T) {
+			_, err := zeLinkLocalLinks(refused.output, peer)
 			if err == nil || !strings.Contains(err.Error(), refused.want) {
 				t.Fatalf("error = %v, want it to contain %q", err, refused.want)
 			}

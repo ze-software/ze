@@ -687,6 +687,14 @@ therefore already holds the address. A placeholder also selects an IPv6 lab
 network, because the address is built from its prefix. The scenario's name
 decides nothing.
 
+A scenario file named `<peer>-prestart.sh` (`ze-prestart.sh`,
+`frr-prestart.sh`) is rendered like every other file and runs inside that
+wrapper, under `sh -e`, after the `eth0` assignment and before the exec. It is
+where a scenario builds what must exist before its daemon sends a packet: a
+second link, a link-local on it, an nft table. A prestart for a container that
+owns no rendered placeholder would never run, so preparation refuses it by
+name rather than skipping it.
+
 `bgp-rfc2545-linklocal-nexthop-frr` uses IPv6 host 2 for Ze and host 3 for FRR:
 the speaker, its on-link global next hop and the recipient share ONE IPv6 subnet,
 not separate IPv4 and IPv6 connected prefixes. Its `ze.conf` carries
@@ -697,7 +705,7 @@ the on-link route via that owned link-local address. A second prefix uses an
 off-link global next hop and must decode as global-only; the IPv6 session must
 remain established after both assertions. These are two routes on one session,
 not identical UPDATEs differing only in their next-hop length.
-<!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, renderScenario, needsIPv6, linkLocalOwners, linkLocalAt, assignLinkLocal -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, renderScenario, needsIPv6, linkLocalOwners, linkLocalAt, assignLinkLocal, readPrestarts, prestartSuffix -->
 <!-- source: internal/le/interoplab/bgp/check_rfc.go -- checkRFC2545NextHops -->
 
 Typed checker queries and their expected JSON field values are rendered onto the
@@ -986,9 +994,38 @@ scenario can tell apart. The send side cannot fail here either: every session
 of the loop names `eth0`, so the loop's socket is bound to that device
 (`resolveLoopDevices`) and the kernel puts the packet on `eth0` with no zone
 and no ifindex. Both reverts stayed Up in a smoke run. The discrimination is
-`test/bfd/bfd-first-packet-link-local.ci`, on two links in the QEMU guest.
-<!-- source: internal/le/interoplab/bgp/check_bfd_link_local.go -- checkBFDLinkLocal, zeLinkLocalSession, requireCrossedDiscriminators -->
+`test/bfd/bfd-first-packet-link-local.ci` in the QEMU guest, and
+`bfd-link-local-two-links-frr` against FRR.
+
+`bfd-link-local-two-links-frr` puts two links between Ze and FRR and ONE
+address pair on both. Each container's prestart builds `eth1` (VLAN 101) and
+`eth2` (VLAN 102) over `eth0`, and gives the container's link-local to both, so
+the address cannot tell the two sessions apart and only the link can. Ze names
+one session per link; FRR one peer per link. Two things make it discriminate:
+
+- **Send.** The sessions name two interfaces, so the loop's socket is bound to
+  no device, and a packet reaches its link only through the zone `sendZone`
+  puts on the destination or the ifindex `pinsToLink` asks for. Without either,
+  the kernel refuses the write (`sendmsg: invalid argument`) and FRR hears
+  nothing.
+- **Receive.** `ze-prestart.sh` installs an nft output rule in table
+  `inet bfdfirst` that drops every BFD Control packet Ze sends with Your
+  Discriminator zero. FRR then learns Ze's discriminator only from a packet Ze
+  sends after selecting FRR's first packet by address and link, so without the
+  zone reconciliation (`reconcileZone`) neither side leaves Down. Ze logs each
+  dropped send as `bfd send failed ... operation not permitted`, which is the
+  rule working.
+
+The checker reads the links from Ze's own `show bfd sessions` (the interfaces of
+its sessions to FRR's link-local, at least two), then runs the one-link check
+on each: FRR's peer on that link Up, Ze's session on that link Up, and the
+discriminators crossed. A smoke on colima (not evidence) held both Up with the
+code as it is, and both Down with `reconcileZone` returning its key unchanged
+and with `sendZone` returning `""` and `pinsToLink` returning false.
+<!-- source: internal/le/interoplab/bgp/check_bfd_link_local.go -- checkBFDLinkLocal, checkBFDLinkLocalTwoLinks, checkBFDLinkLocalOn, zeLinkLocalLinks, zeLinkLocalSession, requireCrossedDiscriminators -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- readPrestarts, assignLinkLocal -->
 <!-- source: test/interop/scenarios/bfd-link-local-frr/ -- ze.conf, frr.conf -->
+<!-- source: test/interop/scenarios/bfd-link-local-two-links-frr/ -- ze.conf, frr.conf, ze-prestart.sh, frr-prestart.sh -->
 
 ### Live attach and BFD opt-in without a session reset
 
@@ -1954,6 +1991,7 @@ is not packet-forwarding evidence.
 | 45 | bgp-sr-policy-gobgp | Ze, GoBGP | RFC 9830: GoBGP's text RIB holds Ze's configured IPv4 and IPv6 SR Policies with their distinguisher, color and endpoint, Binding SID label 1048575 and Type A segment labels 16 and 1048575. Goal validation for origination: in-range labels never reach the 20-bit range check, so no revert turns it red |
 | 46 | bgp-sr-policy-malformed-receive-gobgp | Ze, GoBGP, raw injector | RFC 9830 Section 5: after policies A, B and control C reach GoBGP, A beside a 13-octet NLRI and then B without its Tunnel Encapsulation attribute are each treat-as-withdraw, so GoBGP loses A, then B, keeps C, and its session with Ze stays up (GoBGP resets a session that carries an SR Policy NLRI whose length is neither 96 nor 192 bits) |
 | 47 | bfd-link-local-frr | Ze, FRR bfdd | RFC 5881 Section 3: a BFD-plugin-pinned single-hop session to FRR's IPv6 link-local on `eth0` reaches Up, each side holding the other's discriminator. Acceptance, not discrimination (see "BFD over link-local") |
+| 48 | bfd-link-local-two-links-frr | Ze, FRR bfdd | RFC 5881 Section 3: two sessions to ONE link-local address, one each on `eth1` and `eth2`, reach Up on their own link with their own discriminators crossed, while Ze's Your-Discriminator-zero sends are dropped. Discriminates the receive-side zone reconciliation and the send-side link pinning (see "BFD over link-local") |
 <!-- source: test/interop/scenarios/ -- scenario directories -->
 
 ### Running

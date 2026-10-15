@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strings"
 	"time"
 
@@ -17,7 +18,10 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
-const bfdLinkLocalScenario = "bfd-link-local-frr"
+const (
+	bfdLinkLocalScenario         = "bfd-link-local-frr"
+	bfdLinkLocalTwoLinksScenario = "bfd-link-local-two-links-frr"
+)
 
 // zeBFDSession is the part of one `show bfd sessions` entry this checker
 // reads (api.SessionState). The discriminators are pointers so a field ze did
@@ -41,19 +45,74 @@ type zeBFDSession struct {
 //
 // This is acceptance evidence. Both sides are Active, so the session also
 // converges through Your Discriminator once FRR answers, and the scenario
-// does not discriminate the zone reconciliation on receive; that proof is
-// test/bfd/bfd-first-packet-link-local.ci.
+// does not discriminate the zone reconciliation on receive; with one link the
+// socket is bound to eth0, so it does not discriminate the send pinning either.
+// bfd-link-local-two-links-frr (checkBFDLinkLocalTwoLinks) discriminates both.
 func checkBFDLinkLocal(ctx context.Context, check *interoplab.CheckContext) error {
 	if !check.Network.IPv6.IsValid() {
 		return checkerFailure(ctx, check.Lab, bfdLinkLocalScenario, 1, errors.New("no IPv6 lab network was selected, so no link-local exists"))
 	}
+	return checkBFDLinkLocalOn(ctx, check, bfdLinkLocalScenario, containerInterface)
+}
+
+// RFC 5881 Section 3
+//
+// checkBFDLinkLocalTwoLinks proves that two sessions to ONE link-local
+// address, one on each of two links, each reach Up on their own link with
+// their own discriminators crossed. The links are the interfaces of ze's own
+// sessions to FRR's link-local, so ze.conf declares them once and this reads
+// them back; at least two are required.
+//
+// The scenario's files make it discriminating where bfd-link-local-frr is not.
+// ze-prestart.sh drops every BFD Control packet ze sends with Your
+// Discriminator zero, so FRR learns ze's discriminator only from a packet ze
+// sends after it selected FRR's first packet by address and link: with the
+// zone reconciliation broken no first packet is selected and neither side
+// leaves Down. Two links put the sessions on an unbound socket, so each
+// packet reaches its link only through the zone or the ifindex ze puts on the
+// send; without either the kernel refuses the write and FRR hears nothing.
+func checkBFDLinkLocalTwoLinks(ctx context.Context, check *interoplab.CheckContext) error {
+	if !check.Network.IPv6.IsValid() {
+		return checkerFailure(ctx, check.Lab, bfdLinkLocalTwoLinksScenario, 1, errors.New("no IPv6 lab network was selected, so no link-local exists"))
+	}
+	frrAddress := linkLocalAt(check.Network, frrHostNumber)
+	sessions := zeCommand(zeShowBFDSessions)
+	var links []string
+	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: 30 * time.Second, Interval: time.Second, Description: "ze BFD sessions to FRR's link-local on two links",
+	}, func(probeCtx context.Context) (string, error) {
+		return check.Lab.Query(probeCtx, "ze", sessions, queryEnvironment("ze", sessions))
+	}, func(output string) bool {
+		found, findErr := zeLinkLocalLinks(output, frrAddress)
+		if findErr != nil {
+			return false
+		}
+		links = found
+		return len(links) >= 2
+	})
+	if err != nil {
+		return checkerFailure(ctx, check.Lab, bfdLinkLocalTwoLinksScenario, 2, withLastOutput(err, last))
+	}
+	for _, link := range links {
+		if err := checkBFDLinkLocalOn(ctx, check, bfdLinkLocalTwoLinksScenario, link); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// checkBFDLinkLocalOn requires FRR's BFD peer for ze's link-local on link to
+// be Up, ze's session to FRR's link-local on link to be Up, and the two to
+// hold each other's discriminator. Its failures are numbered 2 to 5 under
+// scenario.
+func checkBFDLinkLocalOn(ctx context.Context, check *interoplab.CheckContext, scenario, link string) error {
 	zeAddress := linkLocalAt(check.Network, zeHostNumber)
 	frrAddress := linkLocalAt(check.Network, frrHostNumber)
 	var text textbuf.Buffer
-	frrPeer := []string{cmdVtysh, "-c", text.Str("show bfd peer ").Addr(zeAddress).Str(" interface ").Str(containerInterface).Str(" json").String()}
+	frrPeer := []string{cmdVtysh, "-c", text.Str("show bfd peer ").Addr(zeAddress).Str(" interface ").Str(link).Str(" json").String()}
 
 	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
-		Timeout: 90 * time.Second, Interval: time.Second, Description: "FRR BFD peer up on eth0",
+		Timeout: 90 * time.Second, Interval: time.Second, Description: text.Reset().Str("FRR BFD peer up on ").Str(link).String(),
 	}, func(probeCtx context.Context) (string, error) {
 		return check.Lab.Query(probeCtx, peerFRR, frrPeer, nil)
 	}, func(output string) bool {
@@ -61,27 +120,27 @@ func checkBFDLinkLocal(ctx context.Context, check *interoplab.CheckContext) erro
 		return decodeErr == nil
 	})
 	if err != nil {
-		return checkerFailure(ctx, check.Lab, bfdLinkLocalScenario, 2, withLastOutput(err, last))
+		return checkerFailure(ctx, check.Lab, scenario, 2, withLastOutput(err, last))
 	}
 	frr, err := decodeFRRBFDPeer(last)
 	if err != nil {
-		return checkerFailure(ctx, check.Lab, bfdLinkLocalScenario, 3, err)
+		return checkerFailure(ctx, check.Lab, scenario, 3, err)
 	}
 	if frr.ID == nil {
-		return checkerFailure(ctx, check.Lab, bfdLinkLocalScenario, 3, errors.New("FRR BFD peer JSON has no id"))
+		return checkerFailure(ctx, check.Lab, scenario, 3, errors.New("FRR BFD peer JSON has no id"))
 	}
 	if frr.RemoteID == nil {
-		return checkerFailure(ctx, check.Lab, bfdLinkLocalScenario, 3, errors.New("FRR BFD peer JSON has no remote-id"))
+		return checkerFailure(ctx, check.Lab, scenario, 3, errors.New("FRR BFD peer JSON has no remote-id"))
 	}
 
 	sessions := zeCommand(zeShowBFDSessions)
 	var ze zeBFDSession
 	last, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{
-		Timeout: 30 * time.Second, Interval: time.Second, Description: "ze BFD session up on eth0",
+		Timeout: 30 * time.Second, Interval: time.Second, Description: text.Reset().Str("ze BFD session up on ").Str(link).String(),
 	}, func(probeCtx context.Context) (string, error) {
 		return check.Lab.Query(probeCtx, "ze", sessions, queryEnvironment("ze", sessions))
 	}, func(output string) bool {
-		session, findErr := zeLinkLocalSession(output, frrAddress, containerInterface)
+		session, findErr := zeLinkLocalSession(output, frrAddress, link)
 		if findErr != nil {
 			return false
 		}
@@ -89,12 +148,37 @@ func checkBFDLinkLocal(ctx context.Context, check *interoplab.CheckContext) erro
 		return true
 	})
 	if err != nil {
-		return checkerFailure(ctx, check.Lab, bfdLinkLocalScenario, 4, withLastOutput(err, last))
+		return checkerFailure(ctx, check.Lab, scenario, 4, withLastOutput(err, last))
 	}
 	if err := requireCrossedDiscriminators(*frr.ID, *frr.RemoteID, ze); err != nil {
-		return checkerFailure(ctx, check.Lab, bfdLinkLocalScenario, 5, err)
+		return checkerFailure(ctx, check.Lab, scenario, 5, err)
 	}
 	return nil
+}
+
+// zeLinkLocalLinks answers the sorted, distinct interfaces of ze's BFD
+// sessions to peer in a `show bfd sessions` answer, whatever their state.
+func zeLinkLocalLinks(output string, peer netip.Addr) ([]string, error) {
+	var sessions []zeBFDSession
+	if err := json.Unmarshal([]byte(output), &sessions); err != nil {
+		return nil, fmt.Errorf("decode ze BFD sessions JSON: %w; output: %s", err, strings.TrimSpace(output))
+	}
+	var links []string
+	for _, session := range sessions {
+		address, err := netip.ParseAddr(session.Peer)
+		if err != nil {
+			return nil, fmt.Errorf("ze BFD session peer %q is not an address: %w", session.Peer, err)
+		}
+		if address.WithZone("") != peer {
+			continue
+		}
+		if slices.Contains(links, session.Interface) {
+			continue
+		}
+		links = append(links, session.Interface)
+	}
+	slices.Sort(links)
+	return links, nil
 }
 
 // zeLinkLocalSession finds ze's Up session to peer on iface in a
