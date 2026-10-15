@@ -29,5 +29,5 @@ func runPluginWithoutApply(ctx context.Context) error {
 		return fmt.Errorf("connect %s: %w", pluginWithoutApplyName, err)
 	}
 	defer plugin.Close() //nolint:errcheck // Run returns the useful transport error
-	return plugin.Run(ctx, sdk.Registration{WantsConfig: []string{namespaceBGP}})
+	return plugin.Run(ctx, &sdk.Registration{WantsConfig: []string{namespaceBGP}})
 }

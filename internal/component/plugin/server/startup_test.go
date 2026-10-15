@@ -97,7 +97,7 @@ func TestPluginStartupRollsBackPartialRegistration(t *testing.T) {
 	const firstFamily = "lifecycle/one"
 	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
 		p := sdk.NewWithConn(pluginName, conn)
-		err := p.Run(context.Background(), sdk.Registration{
+		err := p.Run(context.Background(), &sdk.Registration{
 			Commands: []sdk.CommandDecl{{Name: commandName}},
 			Families: []sdk.FamilyDecl{
 				{Name: firstFamily, Mode: "both", AFI: 65000, SAFI: 200},
@@ -138,7 +138,7 @@ func TestPluginStartupRollsBackFamiliesAfterLaterStageFailure(t *testing.T) {
 		p.OnConfigure(func([]sdk.ConfigSection) error {
 			return fmt.Errorf("reject config")
 		})
-		err := p.Run(context.Background(), sdk.Registration{
+		err := p.Run(context.Background(), &sdk.Registration{
 			Commands: []sdk.CommandDecl{{Name: commandName}},
 			Families: []sdk.FamilyDecl{
 				{Name: familyName, Mode: "both", AFI: 65001, SAFI: 202},
@@ -178,7 +178,7 @@ func TestRunPluginPhaseReturnsStageFailure(t *testing.T) {
 		p.OnConfigure(func([]sdk.ConfigSection) error {
 			return fmt.Errorf("reject config")
 		})
-		err := p.Run(context.Background(), sdk.Registration{Commands: []sdk.CommandDecl{{Name: commandName}}})
+		err := p.Run(context.Background(), &sdk.Registration{Commands: []sdk.CommandDecl{{Name: commandName}}})
 		if err != nil {
 			return 1
 		}
@@ -213,7 +213,7 @@ func TestRunPluginPhaseRollsBackUnprocessedDependencyTier(t *testing.T) {
 		p.OnConfigure(func([]sdk.ConfigSection) error {
 			return fmt.Errorf("reject config")
 		})
-		err := p.Run(context.Background(), sdk.Registration{})
+		err := p.Run(context.Background(), &sdk.Registration{})
 		if err != nil {
 			return 1
 		}
@@ -221,7 +221,7 @@ func TestRunPluginPhaseRollsBackUnprocessedDependencyTier(t *testing.T) {
 	})
 	registerLifecyclePluginWithDeps(t, dependentPlugin, []string{failingPlugin}, nil, func(conn net.Conn) int {
 		p := sdk.NewWithConn(dependentPlugin, conn)
-		err := p.Run(context.Background(), sdk.Registration{})
+		err := p.Run(context.Background(), &sdk.Registration{})
 		if err != nil {
 			return 1
 		}
@@ -253,7 +253,7 @@ func TestRunPluginPhaseAllowsMissingOptionalDependency(t *testing.T) {
 	const pluginName = "lifecycle-optional"
 	registerLifecyclePlugin(t, pluginName, []string{"missing-optional"}, func(conn net.Conn) int {
 		p := sdk.NewWithConn(pluginName, conn)
-		err := p.Run(context.Background(), sdk.Registration{})
+		err := p.Run(context.Background(), &sdk.Registration{})
 		if err != nil {
 			return 1
 		}
@@ -291,7 +291,7 @@ func TestOnRegistrationRegistersPluginPipes(t *testing.T) {
 	const aliasName = "totals"
 	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
 		p := sdk.NewWithConn(pluginName, conn)
-		err := p.Run(context.Background(), sdk.Registration{
+		err := p.Run(context.Background(), &sdk.Registration{
 			Commands: []sdk.CommandDecl{{Name: commandName}},
 			Pipes: []sdk.PipeDecl{{
 				Command:     commandName,
@@ -340,7 +340,7 @@ func TestOnRegistrationRefusesMalformedPluginPipe(t *testing.T) {
 	const commandName = "show lifecycle badpipe"
 	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
 		p := sdk.NewWithConn(pluginName, conn)
-		err := p.Run(context.Background(), sdk.Registration{
+		err := p.Run(context.Background(), &sdk.Registration{
 			Commands: []sdk.CommandDecl{{Name: commandName}},
 			Pipes: []sdk.PipeDecl{{
 				Command:   commandName,
@@ -382,7 +382,7 @@ func TestOnRegistrationRefusesPipeOnUndeclaredCommand(t *testing.T) {
 	const claimedCommand = "show lifecycle borrowed"
 	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
 		p := sdk.NewWithConn(pluginName, conn)
-		err := p.Run(context.Background(), sdk.Registration{
+		err := p.Run(context.Background(), &sdk.Registration{
 			Commands: []sdk.CommandDecl{{Name: declaredCommand}},
 			Pipes: []sdk.PipeDecl{{
 				Command:   claimedCommand,
@@ -481,7 +481,7 @@ func TestPluginPipesRemovedOnPluginStop(t *testing.T) {
 
 	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
 		p := sdk.NewWithConn(pluginName, conn)
-		err := p.Run(context.Background(), sdk.Registration{
+		err := p.Run(context.Background(), &sdk.Registration{
 			Commands: []sdk.CommandDecl{{Name: commandName}},
 			Pipes: []sdk.PipeDecl{{
 				Command:     commandName,
@@ -695,7 +695,7 @@ func TestRegisterPluginShapes(t *testing.T) {
 
 	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
 		p := sdk.NewWithConn(pluginName, conn)
-		err := p.Run(context.Background(), sdk.Registration{
+		err := p.Run(context.Background(), &sdk.Registration{
 			Commands: []sdk.CommandDecl{{
 				Name:          commandName,
 				Shape:         "tab",
@@ -743,7 +743,7 @@ func TestPluginShapeDoesNotInheritItsParentsFields(t *testing.T) {
 
 	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
 		p := sdk.NewWithConn(pluginName, conn)
-		err := p.Run(context.Background(), sdk.Registration{
+		err := p.Run(context.Background(), &sdk.Registration{
 			Commands: []sdk.CommandDecl{{
 				Name:          parentCommand,
 				Shape:         "tab",
@@ -804,7 +804,7 @@ func TestPluginShapeOverridesEmptyDeclaration(t *testing.T) {
 
 	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
 		p := sdk.NewWithConn(pluginName, conn)
-		err := p.Run(context.Background(), sdk.Registration{
+		err := p.Run(context.Background(), &sdk.Registration{
 			Commands: []sdk.CommandDecl{{
 				Name:    commandName,
 				Shape:   "tab",
@@ -851,7 +851,7 @@ func TestUnregisterPluginShapes(t *testing.T) {
 
 	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
 		p := sdk.NewWithConn(pluginName, conn)
-		err := p.Run(context.Background(), sdk.Registration{
+		err := p.Run(context.Background(), &sdk.Registration{
 			Commands: []sdk.CommandDecl{{
 				Name:          commandName,
 				Shape:         "tab",
@@ -1011,7 +1011,7 @@ func TestPluginHelpDeclarationReachesTheCommandTree(t *testing.T) {
 
 	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
 		p := sdk.NewWithConn(pluginName, conn)
-		err := p.Run(context.Background(), sdk.Registration{
+		err := p.Run(context.Background(), &sdk.Registration{
 			Commands: []sdk.CommandDecl{{
 				Name:        commandName,
 				ShortHelp:   summary,
@@ -1075,7 +1075,7 @@ func TestPluginWithNoHelpDeclarationKeepsItsSummary(t *testing.T) {
 
 	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
 		p := sdk.NewWithConn(pluginName, conn)
-		err := p.Run(context.Background(), sdk.Registration{
+		err := p.Run(context.Background(), &sdk.Registration{
 			Commands: []sdk.CommandDecl{{
 				Name:      commandName,
 				ShortHelp: summary,

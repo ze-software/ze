@@ -35,7 +35,7 @@ func runLGLab(name string) error {
 		}()
 		return nil
 	})
-	return plugin.Run(ctx, sdk.Registration{})
+	return plugin.Run(ctx, &sdk.Registration{})
 }
 
 var lgInjections = []lgInjection{

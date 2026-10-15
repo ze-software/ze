@@ -312,8 +312,8 @@ func (r *bridgeRunner) stop() {
 // started again. A migrated ExaBGP configuration that wrote `respawn true` is
 // then asking for something ze can give, and its scripts come back after a
 // crash the way their author expected.
-func bridgeRegistration() sdk.Registration {
-	return sdk.Registration{
+func bridgeRegistration() *sdk.Registration {
+	return &sdk.Registration{
 		Families:      familyDecls([]string{defaultFamily}),
 		WantsConfig:   []string{configRoot},
 		FailurePolicy: sdk.FailureRestart,

@@ -154,7 +154,7 @@ func startDecodeNLRITransport(t *testing.T, ctx context.Context) (*ipc.PluginCon
 	p := sdk.NewWithConn("vpn-decoder-response", pluginEnd)
 	p.OnDecodeNLRI(vpn.DecodeNLRIHex)
 	runDone := make(chan error, 1)
-	go func() { runDone <- p.Run(ctx, sdk.Registration{}) }()
+	go func() { runDone <- p.Run(ctx, &sdk.Registration{}) }()
 	t.Cleanup(func() {
 		// Cleanup MUST close both endpoints before joining Run.
 		if err := p.Close(); err != nil {

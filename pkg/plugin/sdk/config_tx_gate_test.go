@@ -79,7 +79,7 @@ func TestConfigRollbackOwedOnlyForUncommittedApply(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 	completeStartup(t, ctx, engine)
 
@@ -155,7 +155,7 @@ func TestConfigCommittedRunsOnlyForOpenApply(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 	completeStartup(t, ctx, engine)
 

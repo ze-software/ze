@@ -76,7 +76,7 @@ func eventObserver02(name string, events []string, scenario eventScenario02) Dri
 			return nil
 		})
 
-		runErr := plugin.Run(runCtx, sdk.Registration{})
+		runErr := plugin.Run(runCtx, &sdk.Registration{})
 		shutdownOnce.Do(func() { close(shutdown) })
 		cancel()
 		select {

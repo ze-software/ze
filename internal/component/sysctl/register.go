@@ -421,7 +421,7 @@ func runSysctlPlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	err := p.Run(ctx, sdk.Registration{
+	err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 1,
 		ApplyBudget:  1,

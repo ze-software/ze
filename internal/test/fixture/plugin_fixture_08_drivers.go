@@ -195,7 +195,7 @@ func hubExternalAcceptor08(ctx context.Context, args []string) error {
 		fmt.Fprintln(os.Stderr, "hub-external-plugin reached stage running")
 		return nil
 	})
-	err = p.Run(ctx, sdk.Registration{})
+	err = p.Run(ctx, &sdk.Registration{})
 	if ctx.Err() != nil {
 		return nil
 	}

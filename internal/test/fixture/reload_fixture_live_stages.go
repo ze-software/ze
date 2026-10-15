@@ -56,7 +56,7 @@ func liveStagesDriver(ctx context.Context, args []string) error {
 		return fmt.Errorf("reload/live-stages: read script: %w", err)
 	}
 	steps := strings.Split(string(script), "\n")
-	return Observe(ctx, "live-stages", sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
+	return Observe(ctx, "live-stages", &sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
 		for number, line := range steps {
 			step := strings.TrimSpace(line)
 			if step == "" || strings.HasPrefix(step, "#") {

@@ -437,7 +437,7 @@ func runEngine(conn net.Conn) int {
 	})
 
 	ctx := context.Background()
-	if err := p.Run(ctx, sdk.Registration{
+	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRootFirewall},
 		VerifyBudget: 2,
 		ApplyBudget:  10,

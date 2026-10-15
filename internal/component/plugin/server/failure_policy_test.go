@@ -55,7 +55,7 @@ func registerCrashingPlugin(t *testing.T, name, commandName string, policy rpc.F
 			if generation == 1 {
 				go crashOnSignal(crash, cancel)
 			}
-			if err := p.Run(ctx, sdk.Registration{
+			if err := p.Run(ctx, &sdk.Registration{
 				FailurePolicy: policy,
 				Commands:      []sdk.CommandDecl{{Name: commandName}},
 			}); err != nil {
@@ -314,7 +314,7 @@ func TestStartupFailureOfAFatalPluginStopsTheDaemon(t *testing.T) {
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(name, conn)
 			p.OnConfigure(func([]sdk.ConfigSection) error { return configureFailed })
-			if err := p.Run(context.Background(), sdk.Registration{
+			if err := p.Run(context.Background(), &sdk.Registration{
 				FailurePolicy: rpc.FailureFatal,
 			}); err != nil {
 				return 1
@@ -358,7 +358,7 @@ func TestStartupFailureOfASilentPluginLeavesTheDaemonRunning(t *testing.T) {
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(name, conn)
 			p.OnConfigure(func([]sdk.ConfigSection) error { return configureFailed })
-			if err := p.Run(context.Background(), sdk.Registration{}); err != nil {
+			if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
 				return 1
 			}
 			return 0

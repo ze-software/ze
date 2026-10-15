@@ -126,9 +126,9 @@ func number09(v any) int {
 }
 
 func observe09(ctx context.Context, name string, scenario ObserverScenario) error {
-	return Observe(ctx, name, sdk.Registration{}, scenario)
+	return Observe(ctx, name, &sdk.Registration{}, scenario)
 }
-func passiveObserve09(ctx context.Context, name string, registration sdk.Registration, scenario ObserverScenario) error {
+func passiveObserve09(ctx context.Context, name string, registration *sdk.Registration, scenario ObserverScenario) error {
 	plugin, err := newObserver(name)
 	if err != nil {
 		return fmt.Errorf("connect observer %s: %w", name, err)
@@ -156,7 +156,7 @@ func passiveObserve09(ctx context.Context, name string, registration sdk.Registr
 
 func announceWithdraw09(family, add, del string) Driver {
 	return func(ctx context.Context, _ []string) error {
-		return passiveObserve09(ctx, "announce-routes", sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+		return passiveObserve09(ctx, "announce-routes", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 			for _, command := range []string{add, del} {
 				announced, withdrawn, err := p.UpdateRoute(ctx, "*", "update text "+command)
 				if err != nil {
@@ -246,7 +246,7 @@ func injectRoute09(ctx context.Context, p *sdk.Plugin, peer, prefix string) erro
 
 func lgInjectRoutes09(name string) Driver {
 	return func(ctx context.Context, _ []string) error {
-		return passiveObserve09(ctx, name, sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+		return passiveObserve09(ctx, name, &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 			for i := range 15 {
 				if err := injectRoute09(ctx, p, "10.0.1.1", fmt.Sprintf("10.20.%d.0/24", i)); err != nil {
 					return err

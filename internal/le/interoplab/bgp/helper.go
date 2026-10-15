@@ -91,7 +91,7 @@ func runProcessHelper(args []string) error {
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, sdk.Registration{})
+	runErr := plugin.Run(ctx, &sdk.Registration{})
 	if errors.Is(runErr, context.Canceled) {
 		return nil
 	}
@@ -350,7 +350,7 @@ func runRawMEDFilter(name string) error {
 		_, _ = fmt.Fprintf(os.Stderr, "RAW-MED-DROP: removed MULTI_EXIT_DISC for %s\n", input.Peer)
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Raw: stripped}, nil
 	})
-	return plugin.Run(context.Background(), sdk.Registration{Filters: []sdk.FilterDecl{{
+	return plugin.Run(context.Background(), &sdk.Registration{Filters: []sdk.FilterDecl{{
 		Name: "drop-med-raw", Direction: sdk.FilterExport, Raw: true, OnError: sdk.OnErrorReject,
 	}}})
 }
@@ -425,7 +425,7 @@ func runRPKIObserver(name string) error {
 		}()
 		return nil
 	})
-	err = plugin.Run(ctx, sdk.Registration{})
+	err = plugin.Run(ctx, &sdk.Registration{})
 	if errors.Is(err, context.Canceled) {
 		return nil
 	}

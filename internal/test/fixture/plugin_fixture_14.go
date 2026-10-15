@@ -96,7 +96,7 @@ func plugin14RunUntilShutdown(ctx context.Context, name string, updates []plugin
 		return nil
 	})
 
-	runErr := plugin.Run(ctx, sdk.Registration{})
+	runErr := plugin.Run(ctx, &sdk.Registration{})
 	select {
 	case scenarioErr := <-result:
 		return errors.Join(scenarioErr, runErr)
@@ -107,7 +107,7 @@ func plugin14RunUntilShutdown(ctx context.Context, name string, updates []plugin
 
 func plugin14Observer(name string, scenario ObserverScenario) Driver {
 	return func(ctx context.Context, _ []string) error {
-		return Observe(ctx, name, sdk.Registration{}, scenario)
+		return Observe(ctx, name, &sdk.Registration{}, scenario)
 	}
 }
 
@@ -132,7 +132,7 @@ func plugin14EventObserver(name string, subscriptions []string, scenario plugin1
 			})
 			return nil
 		}
-		return observeConfigured(ctx, name, sdk.Registration{}, setup, func(ctx context.Context, plugin *sdk.Plugin) error {
+		return observeConfigured(ctx, name, &sdk.Registration{}, setup, func(ctx context.Context, plugin *sdk.Plugin) error {
 			return scenario(ctx, plugin, events)
 		})
 	}

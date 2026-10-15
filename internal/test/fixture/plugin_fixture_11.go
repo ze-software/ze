@@ -73,7 +73,7 @@ func runPlugin11(ctx context.Context, name string, setup func(*sdk.Plugin), scen
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, sdk.Registration{})
+	runErr := plugin.Run(ctx, &sdk.Registration{})
 	select {
 	case scenarioErr := <-result:
 		return errors.Join(scenarioErr, runErr)
@@ -252,7 +252,7 @@ func registrationObserver(ctx context.Context, _ []string) error {
 		Families: []sdk.FamilyDecl{{Name: familyIPv4Unicast, Mode: modeBoth, AFI: 1, SAFI: 1}},
 		Commands: []sdk.CommandDecl{{Name: "show test-plugin registration"}},
 	}
-	return Observe(ctx, "test-plugin", reg, func(ctx context.Context, p *sdk.Plugin) error {
+	return Observe(ctx, "test-plugin", &reg, func(ctx context.Context, p *sdk.Plugin) error {
 		status, data, err := dispatchMap11(ctx, p, "system command list")
 		if err != nil || status != statusDone {
 			return fmt.Errorf("system command list status=%s: %w", status, err)
@@ -311,7 +311,7 @@ func watchdogCommands(ctx context.Context, _ []string) error {
 }
 
 func metricsOwned(ctx context.Context, _ []string) error {
-	return Observe(ctx, "metrics-list-test", sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+	return Observe(ctx, "metrics-list-test", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 		status, data, err := dispatchMap11(ctx, p, "show metrics list")
 		if err != nil || status != statusDone {
 			return fmt.Errorf("show metrics list status=%s: %w", status, err)
@@ -357,7 +357,7 @@ func metricSeriesCount(data map[string]any) int {
 }
 
 func metricsRegistered(ctx context.Context, _ []string) error {
-	return Observe(ctx, "plugin-metrics", sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+	return Observe(ctx, "plugin-metrics", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 		for _, name := range []string{"ze_role_route_rejects_total", "ze_role_route_suppressions_total"} {
 			var count int
 			ok := Poll(ctx, 40, 250*time.Millisecond, func() bool {
@@ -425,7 +425,7 @@ func routeCount(ctx context.Context, p *sdk.Plugin, command string) (int, bool) 
 }
 func routeCountAtLeastOne(name, output string) Driver {
 	return func(ctx context.Context, _ []string) error {
-		return Observe(ctx, name, sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+		return Observe(ctx, name, &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 			var count int
 			if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
 				var ok bool
@@ -445,7 +445,7 @@ func routeCountAtLeastOne(name, output string) Driver {
 
 func prefixCountExact(expected int, control bool, label string) Driver {
 	return func(ctx context.Context, _ []string) error {
-		return Observe(ctx, "prefix-count-"+label, sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+		return Observe(ctx, "prefix-count-"+label, &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 			if control {
 				var count int
 				if !Poll(ctx, 60, 250*time.Millisecond, func() bool { count, _ = routeCount(ctx, p, "show bgp rib received count"); return count >= 1 }) {
@@ -474,7 +474,7 @@ func prefixCountExact(expected int, control bool, label string) Driver {
 
 func prefixCountBounded(maximum int, label string) Driver {
 	return func(ctx context.Context, _ []string) error {
-		return Observe(ctx, "prefix-count-"+label, sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+		return Observe(ctx, "prefix-count-"+label, &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 			var count int
 			if !Poll(ctx, 60, 250*time.Millisecond, func() bool { count, _ = routeCount(ctx, p, "show bgp rib received count"); return count >= 1 }) {
 				return errors.New("the control route never reached the RIB")
@@ -500,7 +500,7 @@ func prefixCountBounded(maximum int, label string) Driver {
 const policyUpdate = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020E02030000FBF00000FC000000FBF14003040101010140050400000064180A0000"
 
 func policyObserve(ctx context.Context, name string, fn func(context.Context, *sdk.Plugin) error) error {
-	return Observe(ctx, name, sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
+	return Observe(ctx, name, &sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
 		if !peerDetailReady(ctx, plugin, 40, "state", func(value any) bool { return value == stateEstablished }) {
 			return errors.New("configured policy peer never reached established")
 		}
@@ -697,7 +697,7 @@ func eofNoSpin(ctx context.Context, _ []string) error {
 	defer engine.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
 	runResult := make(chan error, 1)
-	go func() { runResult <- plugin.Run(ctx, sdk.Registration{}) }()
+	go func() { runResult <- plugin.Run(ctx, &sdk.Registration{}) }()
 	nextRequest := func() (*rpc.Request, error) {
 		select {
 		case request := <-engine.Requests():

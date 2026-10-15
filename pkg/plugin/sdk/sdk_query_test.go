@@ -17,8 +17,8 @@ import (
 
 // queryDeclaration is the declaration both tests hand the entry point. It
 // carries one command and one pipe, so an answer that drops a field is visible.
-func queryDeclaration() Registration {
-	return Registration{
+func queryDeclaration() *Registration {
+	return &Registration{
 		Commands: []rpc.CommandDecl{{Name: "show acme state", ShortHelp: "Show acme state"}},
 		Pipes: []rpc.PipeDecl{{
 			Command:     "show acme state",

@@ -67,7 +67,7 @@ func TestPluginConnBridgeBatchCutover(t *testing.T) {
 		return nil
 	})
 	runDone := make(chan error, 1)
-	go func() { runDone <- consumer.Run(ctx, sdk.Registration{}) }()
+	go func() { runDone <- consumer.Run(ctx, &sdk.Registration{}) }()
 	t.Cleanup(func() {
 		cancel()
 		if err := consumer.Close(); err != nil {

@@ -650,7 +650,7 @@ func startReloadEngine(t *testing.T, bp *BMPPlugin, startupBGP string) *reloadEn
 	ctx, cancel := context.WithCancel(context.Background())
 	runResult := make(chan error, 1)
 	go func() {
-		runResult <- plugin.Run(ctx, sdk.Registration{
+		runResult <- plugin.Run(ctx, &sdk.Registration{
 			WantsConfig: []string{configRootBGP, configRootEnvironment},
 		})
 	}()

@@ -292,7 +292,7 @@ func runPlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	if err := p.Run(ctx, sdk.Registration{
+	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRootL2TP},
 		VerifyBudget: 1,
 		ApplyBudget:  1,

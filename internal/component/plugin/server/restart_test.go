@@ -39,7 +39,7 @@ func registerRestartPlugins(t *testing.T, claimant, standDown, commandName strin
 		Claims:      []string{restartExclusiveRole},
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(claimant, conn)
-			if err := p.Run(context.Background(), sdk.Registration{}); err != nil {
+			if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
 				return 1
 			}
 			return 0
@@ -63,7 +63,7 @@ func registerRestartPlugins(t *testing.T, claimant, standDown, commandName strin
 				probe.commands.Add(1)
 				return "done", map[string]any{"served": true}, nil
 			})
-			err := p.Run(context.Background(), sdk.Registration{
+			err := p.Run(context.Background(), &sdk.Registration{
 				Commands: []sdk.CommandDecl{{Name: commandName}},
 			})
 			if err != nil {
@@ -219,7 +219,7 @@ func TestRestartBeforeStartupCompletesLeavesTheFanOutToDeliverOnce(t *testing.T)
 				ready.Add(1)
 				return nil
 			})
-			if err := p.Run(context.Background(), sdk.Registration{}); err != nil {
+			if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
 				return 1
 			}
 			return 0

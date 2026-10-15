@@ -95,7 +95,7 @@ func drainSignaler(ctx context.Context, args []string) error {
 			return nil
 		})
 	}
-	return plugin.Run(ctx, sdk.Registration{DrainBudget: drain.Budget})
+	return plugin.Run(ctx, &sdk.Registration{DrainBudget: drain.Budget})
 }
 
 // drainShowCommand is the drain-show plugin's own command. Only this plugin's
@@ -150,7 +150,7 @@ func drainShow(ctx context.Context, args []string) error {
 		DrainBudget: drain.Budget,
 		Commands:    []sdk.CommandDecl{{Name: drainShowCommand}},
 	}
-	return drainAnsweredOrFail(answered, plugin.Run(ctx, registration))
+	return drainAnsweredOrFail(answered, plugin.Run(ctx, &registration))
 }
 
 // drainShowAnswers dispatches one command during the drain and answers true
@@ -273,7 +273,7 @@ func drainExits(ctx context.Context, _ []string) error {
 		plugin.Close() //nolint:errcheck,gosec // closing is the exit under test; its error changes no assertion
 		return errDrainExitsLeft
 	})
-	runErr := plugin.Run(ctx, sdk.Registration{DrainBudget: drain.Budget, FailurePolicy: sdk.FailureRestart})
+	runErr := plugin.Run(ctx, &sdk.Registration{DrainBudget: drain.Budget, FailurePolicy: sdk.FailureRestart})
 	if errors.Is(runErr, errDrainExitsLeft) {
 		return nil
 	}
@@ -297,7 +297,7 @@ func drainGroup(ctx context.Context, _ []string) error {
 		go signalDaemonGroupAfterSettle()
 		return nil
 	})
-	return drainAnsweredOrFail(answered, plugin.Run(ctx, sdk.Registration{DrainBudget: drain.Budget}))
+	return drainAnsweredOrFail(answered, plugin.Run(ctx, &sdk.Registration{DrainBudget: drain.Budget}))
 }
 
 // signalDaemonGroupAfterSettle waits drainRequesterSettle, then signals ze's

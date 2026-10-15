@@ -19,7 +19,7 @@ func registerPlugin08(name, pluginName string, scenario plugin08Scenario) {
 		if len(args) != 0 {
 			return fmt.Errorf("%s: unexpected arguments: %v", name, args)
 		}
-		return Observe(ctx, pluginName, sdk.Registration{}, scenario)
+		return Observe(ctx, pluginName, &sdk.Registration{}, scenario)
 	})
 }
 

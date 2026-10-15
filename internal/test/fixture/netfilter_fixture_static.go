@@ -220,7 +220,7 @@ type staticRow struct {
 }
 
 func staticShow(ctx context.Context, _ []string) error {
-	return Observe(ctx, "static-show", sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+	return Observe(ctx, "static-show", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 		var rows []staticRow
 		status, err := Dispatch(ctx, p, "show static", &rows)
 		if err != nil || status != statusDone {
@@ -267,7 +267,7 @@ func staticTableInterfaceSetup(ctx context.Context, _ []string) error {
 }
 
 func staticTableInterface(ctx context.Context, _ []string) error {
-	return Observe(ctx, "static-show", sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+	return Observe(ctx, "static-show", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 		var rows []staticRow
 		status, err := Dispatch(ctx, p, "show static", &rows)
 		if err != nil || status != statusDone {

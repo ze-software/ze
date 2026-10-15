@@ -34,5 +34,5 @@ func runCoarseRootObserver(ctx context.Context) error {
 		}
 		return nil
 	})
-	return plugin.Run(ctx, sdk.Registration{WantsConfig: []string{"rsvp-te"}})
+	return plugin.Run(ctx, &sdk.Registration{WantsConfig: []string{"rsvp-te"}})
 }

@@ -74,7 +74,7 @@ func TestStartupClaimsPrecedeReady(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	// Stage 1.

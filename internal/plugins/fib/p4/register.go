@@ -102,7 +102,7 @@ func runFIBP4Plugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	err := p.Run(ctx, sdk.Registration{
+	err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{"fib/p4"},
 		VerifyBudget: 1,
 		ApplyBudget:  1,

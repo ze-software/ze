@@ -29,7 +29,7 @@ func runAIGPSourceCostProcess(name string) error {
 		{Name: aigpReleaseCommand, ShortHelp: "Release the synchronized AIGP source"},
 	}}
 	var runErr error
-	code := sdk.RunOrDeclare(registration, func() int {
+	code := sdk.RunOrDeclare(&registration, func() int {
 		plugin, err := sdk.NewFromEnv(name)
 		if err != nil {
 			runErr = err
@@ -70,7 +70,7 @@ func runAIGPSourceCostProcess(name string) error {
 			}
 			return rpc.StatusDone, map[string]any{"next-hop": hop.String(), "metric": metric, "installed": installed}, nil
 		})
-		runErr = plugin.Run(context.Background(), registration)
+		runErr = plugin.Run(context.Background(), &registration)
 		if runErr != nil {
 			return 1
 		}

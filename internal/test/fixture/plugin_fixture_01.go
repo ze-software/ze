@@ -56,7 +56,7 @@ func init() {
 	}
 	for fixtureName, observer := range observers {
 		Register(fixtureName, func(ctx context.Context, _ []string) error {
-			return Observe(ctx, observer.authName, sdk.Registration{}, ObserverScenario(observer.scenario))
+			return Observe(ctx, observer.authName, &sdk.Registration{}, ObserverScenario(observer.scenario))
 		})
 	}
 

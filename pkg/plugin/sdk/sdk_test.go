@@ -141,7 +141,7 @@ func TestSDKStartup(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, reg)
+		errCh <- p.Run(ctx, &reg)
 	}()
 
 	// === Stage 1: Engine reads declare-registration ===
@@ -238,7 +238,7 @@ func TestSDKEventDelivery(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	// Complete startup (stages 1-5)
@@ -292,7 +292,7 @@ func TestSDKByeCallback(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -368,7 +368,7 @@ func TestSDKEncodeNLRI(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -421,7 +421,7 @@ func TestSDKDecodeNLRI(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -483,7 +483,7 @@ func TestSDKCapabilities(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, reg)
+		errCh <- p.Run(ctx, &reg)
 	}()
 
 	// Stage 1: read declare-registration
@@ -553,7 +553,7 @@ func TestSDKDecodeCapability(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -606,7 +606,7 @@ func TestSDKExecuteCommand(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -654,7 +654,7 @@ func TestSDKDispatchConfigVerify(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -717,7 +717,7 @@ func TestSDKDispatchConfigApply(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -782,7 +782,7 @@ func TestSDKDispatchConfigOperationApply(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -849,7 +849,7 @@ func TestSDKConfigVerifyReject(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -903,7 +903,7 @@ func TestSDKConfigApplyReject(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -957,7 +957,7 @@ func TestSDKConfigVerifyNoHandler(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -1008,7 +1008,7 @@ func TestSDKConfigApplyNoHandler(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -1058,7 +1058,7 @@ func TestSDKUpdateRoute(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -1129,7 +1129,7 @@ func TestSDKDispatchCommand(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -1199,7 +1199,7 @@ func TestSDKDispatchCommandArgs(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -1364,7 +1364,7 @@ func TestSDKConnectionCloseCleanShutdown(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -1405,7 +1405,7 @@ func TestSDKStage5ConnectionCloseCleanShutdown(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	// Stage 1: read and respond to declare-registration
@@ -1470,7 +1470,7 @@ func TestSDKDispatchValidateOpen(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	// Verify WantsValidateOpen is auto-set in Stage 1
@@ -1573,7 +1573,7 @@ func TestSDKValidateOpenReject(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -1628,7 +1628,7 @@ func TestSDKDecodeNLRIEngineCall(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -1700,7 +1700,7 @@ func TestSDKEncodeNLRIEngineCall(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -1772,7 +1772,7 @@ func TestSDKDecodeMPReachEngineCall(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -1846,7 +1846,7 @@ func TestSDKDecodeMPUnreachEngineCall(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -1915,7 +1915,7 @@ func TestSDKDecodeUpdateEngineCall(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -2127,7 +2127,7 @@ func TestCallEngineRawDirect(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -2195,7 +2195,7 @@ func TestSDKExecuteCommandDirectBridge(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -2245,7 +2245,7 @@ func TestCallEngineRawDirectError(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -2309,7 +2309,7 @@ func TestSDKSingleConnStartup(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	// Engine side: single connection, use MuxConn for bidirectional.
@@ -2399,7 +2399,7 @@ func TestRegistrationWantsConfig(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, reg)
+		errCh <- p.Run(ctx, &reg)
 	}()
 
 	// Stage 1: read declare-registration and verify WantsConfig
@@ -2435,7 +2435,7 @@ func TestRegistrationBudgets(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, reg)
+		errCh <- p.Run(ctx, &reg)
 	}()
 
 	// Stage 1: read declare-registration and verify budgets
@@ -2474,7 +2474,7 @@ func TestOnConfigRollbackCallback(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)
@@ -2579,7 +2579,7 @@ func TestSDKOnAllPluginsReadyFires(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	// Stage 1: declare-registration
@@ -2640,7 +2640,7 @@ func TestSDKOnAllPluginsReadyPropagatesError(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	req := readEngineRequest(t, ctx, engine.mux)
@@ -2679,7 +2679,7 @@ func TestSDKOnAllPluginsReadyNoHandlerIsNoop(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	req := readEngineRequest(t, ctx, engine.mux)
@@ -2723,7 +2723,7 @@ func TestPluginAnswersRecordsWithoutDeclaringAShape(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	// Stage 1: declare-registration.
@@ -2809,7 +2809,7 @@ func TestPluginRecordEnvelopeErrorsRefused(t *testing.T) {
 		defer cancel()
 
 		errCh := make(chan error, 1)
-		go func() { errCh <- p.Run(ctx, Registration{}) }()
+		go func() { errCh <- p.Run(ctx, &Registration{}) }()
 		completeStartup(t, ctx, engine)
 
 		_, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:execute-command",
@@ -2830,7 +2830,7 @@ func TestPluginRecordEnvelopeErrorsRefused(t *testing.T) {
 		defer cancel()
 
 		errCh := make(chan error, 1)
-		go func() { errCh <- p.Run(ctx, Registration{}) }()
+		go func() { errCh <- p.Run(ctx, &Registration{}) }()
 		completeStartup(t, ctx, engine)
 		require.Eventually(t, func() bool { return bridge.HasExecuteCommand() }, 2*time.Second, 10*time.Millisecond,
 			"the bridge's execute-command handler is set after startup")
@@ -2886,7 +2886,7 @@ func TestSDKPluginWithoutOperationCallbacksAnswersUnknownMethod(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	completeStartup(t, ctx, engine)

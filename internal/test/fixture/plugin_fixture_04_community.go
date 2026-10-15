@@ -56,7 +56,7 @@ func communityAttributes04(ctx context.Context, args []string) error {
 		}()
 		return nil
 	})
-	runErr := p.Run(ctx, sdk.Registration{})
+	runErr := p.Run(ctx, &sdk.Registration{})
 	select {
 	case scenarioErr := <-result:
 		return errors.Join(scenarioErr, runErr)

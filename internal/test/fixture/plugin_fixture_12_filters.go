@@ -51,7 +51,7 @@ func p12RegisterFilterFixtures() {
 	))
 }
 
-func p12FilterDriver(name string, registration sdk.Registration, handler sdk.FilterUpdateHandler, scenario p12Scenario) Driver {
+func p12FilterDriver(name string, registration *sdk.Registration, handler sdk.FilterUpdateHandler, scenario p12Scenario) Driver {
 	return func(ctx context.Context, args []string) error {
 		var marker string
 		if name == "filter-export-modify-test" {
@@ -150,7 +150,7 @@ func p12FilterChainDriver() Driver {
 		fmt.Fprintf(os.Stderr, "OK: filters called in correct order: ['%s']\n", strings.Join(state.order, "', '"))
 		return nil
 	}
-	return p12FilterDriver("filter-chain-test", registration, handler, scenario)
+	return p12FilterDriver("filter-chain-test", &registration, handler, scenario)
 }
 
 func p12FilterDeclareDriver() Driver {
@@ -160,7 +160,7 @@ func p12FilterDeclareDriver() Driver {
 		Attributes: []string{fieldASPath, fieldCommunity},
 		OnError:    sdk.OnErrorReject,
 	}}}
-	return p12FilterDriver("filter-declare-test", registration, nil, func(ctx context.Context, plugin *sdk.Plugin) error {
+	return p12FilterDriver("filter-declare-test", &registration, nil, func(ctx context.Context, plugin *sdk.Plugin) error {
 		fmt.Fprintln(os.Stderr, "OK: filter declaration accepted, startup complete")
 		if !p12WaitPeerCounter(ctx, plugin, "*", "eor-sent", 1) {
 			return fmt.Errorf("ze sent no end-of-rib to peer1 before shutdown")
@@ -200,7 +200,7 @@ func p12FilterExportModifyDriver() Driver {
 		fmt.Fprintf(os.Stderr, "OK: export filter modified %d forward(s)\n", count)
 		return nil
 	}
-	return p12FilterDriver("filter-export-modify-test", registration, handler, scenario)
+	return p12FilterDriver("filter-export-modify-test", &registration, handler, scenario)
 }
 
 func p12FilterExportRejectDriver() Driver {
@@ -241,7 +241,7 @@ func p12FilterExportRejectDriver() Driver {
 		fmt.Fprintf(os.Stderr, "OK: export filter rejected %d forward(s), passed %d\n", rejected, passed)
 		return nil
 	}
-	return p12FilterDriver("filter-export-reject-test", registration, handler, scenario)
+	return p12FilterDriver("filter-export-reject-test", &registration, handler, scenario)
 }
 
 func p12FilterImportDriver(name, filterName string, attributes []string, action sdk.FilterAction, success string) Driver {
@@ -287,5 +287,5 @@ func p12FilterImportDriver(name, filterName string, attributes []string, action 
 		fmt.Fprintf(os.Stderr, "OK: "+success+"\n", count)
 		return nil
 	}
-	return p12FilterDriver(name, registration, handler, scenario)
+	return p12FilterDriver(name, &registration, handler, scenario)
 }

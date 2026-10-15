@@ -380,7 +380,7 @@ func runStaticPlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	err := p.Run(ctx, sdk.Registration{
+	err := p.Run(ctx, &sdk.Registration{
 		// The "interface" root is requested so config-time validation of an
 		// interface-only next-hop's reference is possible (the payload is
 		// otherwise blind to interface config: BuildPluginConfigSections sends

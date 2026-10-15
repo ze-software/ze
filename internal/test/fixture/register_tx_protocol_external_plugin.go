@@ -36,5 +36,5 @@ func runExternalPluginTransactionObserver(ctx context.Context) error {
 		}
 		return nil
 	})
-	return plugin.Run(ctx, sdk.Registration{WantsConfig: []string{namespaceBGP}})
+	return plugin.Run(ctx, &sdk.Registration{WantsConfig: []string{namespaceBGP}})
 }

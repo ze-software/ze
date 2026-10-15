@@ -58,7 +58,7 @@ func init() {
 	// declares that a reload has nothing for it to apply.
 	Register("plugin/errors-config-abort-show", func(ctx context.Context, _ []string) error {
 		registration := sdk.Registration{WantsConfig: []string{namespaceBGP}}
-		return observeConfigured(ctx, "plugin/errors-config-abort-show", registration, declareObserverAppliesNothing, fixture06ErrorsConfigAbort)
+		return observeConfigured(ctx, "plugin/errors-config-abort-show", &registration, declareObserverAppliesNothing, fixture06ErrorsConfigAbort)
 	})
 	Register("plugin/enricher-external-show-provider", fixture06EnricherExternalProvider)
 	Register("plugin/exabgp-bridge-helper", fixture06ExaBGPHelper)
@@ -66,12 +66,12 @@ func init() {
 	Register("plugin/exec-answer-unconditional-frame-check", fixture06FrameCheck)
 }
 
-func fixture06Registration(name string) sdk.Registration {
+func fixture06Registration(name string) *sdk.Registration {
 	switch name {
 	case "plugin/enricher-external-show-checker":
-		return sdk.Registration{}
+		return &sdk.Registration{}
 	case "plugin/explicit-plugin-config":
-		return sdk.Registration{Families: []sdk.FamilyDecl{
+		return &sdk.Registration{Families: []sdk.FamilyDecl{
 			{Name: "ipv4/flow", Mode: modeDecode, AFI: 1, SAFI: 133},
 			{Name: "ipv6/flow", Mode: modeDecode, AFI: 2, SAFI: 133},
 			{Name: "ipv4/flow-vpn", Mode: modeDecode, AFI: 1, SAFI: 134},
@@ -79,7 +79,7 @@ func fixture06Registration(name string) sdk.Registration {
 			{Name: familyIPv4Unicast, Mode: modeBoth, AFI: 1, SAFI: 1},
 		}}
 	default:
-		return sdk.Registration{}
+		return &sdk.Registration{}
 	}
 }
 
@@ -375,7 +375,7 @@ func fixture06EnricherExternalProvider(ctx context.Context, _ []string) error {
 		}
 		return map[string]any{}, nil
 	})
-	return p.Run(ctx, sdk.Registration{Enrichers: []sdk.EnricherDecl{{Command: "show test enrich", Key: "ext-cos"}}})
+	return p.Run(ctx, &sdk.Registration{Enrichers: []sdk.EnricherDecl{{Command: "show test enrich", Key: "ext-cos"}}})
 }
 
 func fixture06EnricherExternalChecker(ctx context.Context, p *sdk.Plugin) error {

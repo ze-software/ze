@@ -15,7 +15,7 @@ import (
 
 // fixtureObserveInitialReplay MUST install capture before startup; its scenario
 // MUST report completion with this receipt, never a later session's token.
-func fixtureObserveInitialReplay(ctx context.Context, name string, registration sdk.Registration, scenario func(context.Context, *sdk.Plugin, uint64) error) error {
+func fixtureObserveInitialReplay(ctx context.Context, name string, registration *sdk.Registration, scenario func(context.Context, *sdk.Plugin, uint64) error) error {
 	receipt := make(chan uint64, 1)
 	setup := func(plugin *sdk.Plugin) error {
 		plugin.SetStartupSubscriptions([]string{eventState}, nil, "")

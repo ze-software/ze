@@ -223,7 +223,7 @@ func runEngine(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	if err := p.Run(ctx, sdk.Registration{
+	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRootFlowExport},
 		VerifyBudget: 2,
 		ApplyBudget:  10,

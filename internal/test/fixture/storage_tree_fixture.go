@@ -87,7 +87,7 @@ func storageProbe(ctx context.Context, _ []string) error {
 	if err := os.WriteFile("ca-fingerprint", []byte(fingerprint), 0o600); err != nil {
 		return err
 	}
-	return Observe(ctx, "storage-probe", sdk.Registration{}, func(context.Context, *sdk.Plugin) error {
+	return Observe(ctx, "storage-probe", &sdk.Registration{}, func(context.Context, *sdk.Plugin) error {
 		fmt.Fprintln(os.Stderr, "OK: storage probe authenticated")
 		return nil
 	})
@@ -889,7 +889,7 @@ func storageStateObserver(ctx context.Context, args []string) error {
 	if len(args) != 1 || (args[0] != observerModeWrite && args[0] != observerModeRead) {
 		return errors.New("state-observer requires write or read")
 	}
-	return Observe(ctx, "ospf", sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
+	return Observe(ctx, "ospf", &sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
 		const key = "meta/ospf/gr-fact-storage-fixture"
 		if args[0] == observerModeWrite {
 			if _, found, err := plugin.StateGet(ctx, key); err != nil || found {

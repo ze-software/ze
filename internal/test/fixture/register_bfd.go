@@ -23,6 +23,6 @@ func init() {
 // what the daemon calls the plugin back on.
 func bfdObserver(name string, scenario ObserverScenario) Driver {
 	return func(ctx context.Context, _ []string) error {
-		return Observe(ctx, name, sdk.Registration{}, scenario)
+		return Observe(ctx, name, &sdk.Registration{}, scenario)
 	}
 }

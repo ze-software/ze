@@ -937,7 +937,7 @@ func TestReloadKeepsSharedDependencyForNewConfigOwner(t *testing.T) {
 		Dependencies: []string{dependencyName},
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(newOwnerName, conn)
-			if err := p.Run(context.Background(), sdk.Registration{
+			if err := p.Run(context.Background(), &sdk.Registration{
 				Commands: []sdk.CommandDecl{{Name: commandName}},
 			}); err != nil {
 				return 1

@@ -58,7 +58,7 @@ func observer02(name string, scenario ObserverScenario) Driver {
 		if len(args) != 0 {
 			return fmt.Errorf("%s takes no arguments", name)
 		}
-		return Observe(ctx, name, sdk.Registration{}, scenario)
+		return Observe(ctx, name, &sdk.Registration{}, scenario)
 	}
 }
 
@@ -499,7 +499,7 @@ func pathASNExportDriver02() Driver {
 		marker := args[0]
 		_ = os.Remove(marker) //nolint:errcheck // a stale marker from an earlier run is the only thing this can remove
 
-		return Observe(ctx, "test-path-asn-export", sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
+		return Observe(ctx, "test-path-asn-export", &sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
 			if !p12WaitPeerCounter(ctx, plugin, "127.0.0.2", "eor-sent", 1) {
 				return errors.New("peer2 never finished its initial sync, so the source peer would have raced it")
 			}

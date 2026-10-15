@@ -29,7 +29,7 @@ func runPathsLimitProcess(name string) error {
 		Name: pathsLimitCommand, ShortHelp: "Offer a PATHS-LIMIT interop phase and its ordering sentinel",
 	}}}
 	var runErr error
-	code := sdk.RunOrDeclare(registration, func() int {
+	code := sdk.RunOrDeclare(&registration, func() int {
 		plugin, err := sdk.NewFromEnv(name)
 		if err != nil {
 			runErr = err
@@ -56,7 +56,7 @@ func runPathsLimitProcess(name string) error {
 			}
 			return rpc.StatusDone, map[string]int{"phase": phase}, nil
 		})
-		runErr = plugin.Run(context.Background(), registration)
+		runErr = plugin.Run(context.Background(), &registration)
 		if runErr != nil {
 			return 1
 		}

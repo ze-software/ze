@@ -90,7 +90,7 @@ func runRoutingTablePlugin(conn net.Conn) int {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	err := p.Run(ctx, sdk.Registration{
+	err := p.Run(ctx, &sdk.Registration{
 		WantsConfig: []string{pluginName},
 	})
 	if err != nil {

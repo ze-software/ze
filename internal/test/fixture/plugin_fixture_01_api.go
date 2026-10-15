@@ -220,7 +220,7 @@ func plugin01APIDoctorProvider(ctx context.Context, _ []string) error {
 			Code: codeDoctorTestCacheDown, Severity: severityWarning, Message: "test cache not responding",
 		}}, nil
 	})
-	return plugin.Run(ctx, sdk.Registration{DoctorChecks: []sdk.DoctorCheckDecl{{
+	return plugin.Run(ctx, &sdk.Registration{DoctorChecks: []sdk.DoctorCheckDecl{{
 		Name: "test-cache-reachable", Phase: sdk.DoctorPhasePostConfig, Codes: []string{codeDoctorTestCacheDown},
 	}}})
 }

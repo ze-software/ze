@@ -569,7 +569,7 @@ func ifaceTunnelRestartBoot08(ctx context.Context, args []string) error {
 		result <- err
 		return nil
 	})
-	runErr := p.Run(ctx, sdk.Registration{})
+	runErr := p.Run(ctx, &sdk.Registration{})
 	select {
 	case scenarioErr := <-result:
 		if scenarioErr != nil {

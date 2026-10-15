@@ -147,7 +147,7 @@ func runFirewallIRR(conn net.Conn) int {
 		return plug.configure(cfg)
 	})
 
-	if err := p.Run(ctx, sdk.Registration{
+	if err := p.Run(ctx, &sdk.Registration{
 		Commands:    commandDecls(),
 		WantsConfig: []string{configRoot},
 		// The cache this plugin serves the firewall from survives a restart in

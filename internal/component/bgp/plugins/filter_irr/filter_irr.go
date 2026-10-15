@@ -173,7 +173,7 @@ func runFilterIRR(conn net.Conn) int {
 		return nil
 	})
 
-	if err := p.Run(ctx, sdk.Registration{
+	if err := p.Run(ctx, &sdk.Registration{
 		Commands:    commandDecls(),
 		WantsConfig: []string{configRootBGP},
 	}); err != nil {

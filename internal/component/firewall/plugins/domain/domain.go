@@ -193,7 +193,7 @@ func runFirewallDomain(conn net.Conn) int {
 	defer cancel()
 	defer plug.stop()
 
-	if err := p.Run(ctx, sdk.Registration{
+	if err := p.Run(ctx, &sdk.Registration{
 		Commands:    commandDecls(),
 		Enrichers:   []sdk.EnricherDecl{{Command: enrichCommand, Key: enrichKey}},
 		WantsConfig: []string{configRoot},

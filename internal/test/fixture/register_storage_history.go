@@ -84,7 +84,7 @@ func storageHistoryObserver(ctx context.Context, _ []string) error {
 		return declareObserverAppliesNothing(plugin)
 	}
 	registration := sdk.Registration{WantsConfig: []string{namespaceBGP}}
-	return observeConfigured(ctx, "history-observer", registration, setup, func(context.Context, *sdk.Plugin) error { return nil })
+	return observeConfigured(ctx, "history-observer", &registration, setup, func(context.Context, *sdk.Plugin) error { return nil })
 }
 
 func historyDigest(data []byte) string {

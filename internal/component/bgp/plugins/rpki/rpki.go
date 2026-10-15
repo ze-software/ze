@@ -431,7 +431,7 @@ func runRPKIPlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	err := p.Run(ctx, sdk.Registration{
+	err := p.Run(ctx, &sdk.Registration{
 		Commands: commandDecls(),
 		Pipes:    pipeDecls(),
 		// pki is not repeated here: the registry's ConfigReads declares it, and

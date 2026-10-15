@@ -61,7 +61,7 @@ func flowExportShow(ctx context.Context, _ []string) error {
 		Address  string `json:"address"`
 		Protocol string `json:"protocol"`
 	}
-	return Observe(ctx, "flow-export-show-test", sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+	return Observe(ctx, "flow-export-show-test", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 		var collectors []collector
 		if !Poll(ctx, 100, 100*time.Millisecond, func() bool {
 			collectors = nil
@@ -95,7 +95,7 @@ func receiveOne(ctx context.Context, name string, args []string, check func([]by
 	}
 	defer sock.Close() //nolint:errcheck // fixture teardown
 	_ = sock.SetReadDeadline(time.Now().Add(8 * time.Second))
-	return Observe(ctx, name, sdk.Registration{}, func(context.Context, *sdk.Plugin) error {
+	return Observe(ctx, name, &sdk.Registration{}, func(context.Context, *sdk.Plugin) error {
 		data := make([]byte, 65535)
 		n, _, readErr := sock.ReadFromUDP(data)
 		if readErr != nil {
@@ -166,7 +166,7 @@ func multiCollectorReceiver(ctx context.Context, args []string) error {
 		return err
 	}
 	defer ipfixSock.Close() //nolint:errcheck // fixture teardown
-	return Observe(ctx, "multi-receiver", sdk.Registration{}, func(context.Context, *sdk.Plugin) error {
+	return Observe(ctx, "multi-receiver", &sdk.Registration{}, func(context.Context, *sdk.Plugin) error {
 		type result struct {
 			kind string
 			data []byte

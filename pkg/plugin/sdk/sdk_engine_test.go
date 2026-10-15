@@ -84,7 +84,7 @@ func TestDispatchCommandAnswerYieldsRows(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	req := readEngineRequest(t, ctx, engine.mux)
@@ -166,7 +166,7 @@ func TestDispatchCommandAnswerBoundedIsDocument(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, Registration{})
+		errCh <- p.Run(ctx, &Registration{})
 	}()
 
 	req := readEngineRequest(t, ctx, engine.mux)

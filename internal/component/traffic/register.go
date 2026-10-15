@@ -384,7 +384,7 @@ func runEngine(conn net.Conn) int {
 	})
 
 	ctx := context.Background()
-	if err := p.Run(ctx, sdk.Registration{
+	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRootTraffic},
 		VerifyBudget: 2,
 		ApplyBudget:  10,

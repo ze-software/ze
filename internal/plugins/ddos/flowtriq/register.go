@@ -160,7 +160,7 @@ func runEngine(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	if err := p.Run(ctx, sdk.Registration{
+	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 2,
 		// 20 rather than 10 because an apply now waits for a delivery already

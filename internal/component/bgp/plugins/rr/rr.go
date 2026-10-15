@@ -193,7 +193,7 @@ func runRouteReflector(conn net.Conn) int {
 		stop := rr.startValidation(ctx, *bus)
 		defer stop()
 	}
-	err := p.Run(ctx, sdk.Registration{
+	err := p.Run(ctx, &sdk.Registration{
 		CacheConsumer:          true,
 		CacheConsumerUnordered: true,
 		Commands:               commandDecls(),

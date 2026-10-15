@@ -52,7 +52,7 @@ func runMixedRollbackFailer(ctx context.Context) error {
 		tb.Str("OK: mixed rollback: the failing participant refused its section apply\n").StdErr() //nolint:errcheck // fixture progress output
 		return errors.New("config-apply-ordering-mixed-rollback: refusing the section apply on purpose")
 	})
-	return plugin.Run(ctx, sdk.Registration{WantsConfig: []string{mixedRollbackRoot}})
+	return plugin.Run(ctx, &sdk.Registration{WantsConfig: []string{mixedRollbackRoot}})
 }
 
 // runMixedRollbackApplied prints the line the test asserts on when the
@@ -70,7 +70,7 @@ func runMixedRollbackApplied(ctx context.Context) error {
 		tb.Str("OK: mixed rollback: the coarse node received the section rollback\n").StdErr() //nolint:errcheck // fixture progress output
 		return nil
 	})
-	return plugin.Run(ctx, sdk.Registration{WantsConfig: []string{mixedRollbackRoot}})
+	return plugin.Run(ctx, &sdk.Registration{WantsConfig: []string{mixedRollbackRoot}})
 }
 
 // runMixedRollbackUnapplied prints the line the test rejects if the
@@ -89,5 +89,5 @@ func runMixedRollbackUnapplied(ctx context.Context) error {
 		tb.Str("BUG: mixed rollback: a participant that never applied ran its rollback handler\n").StdErr() //nolint:errcheck // fixture progress output
 		return nil
 	})
-	return plugin.Run(ctx, sdk.Registration{WantsConfig: []string{mixedRollbackRoot}})
+	return plugin.Run(ctx, &sdk.Registration{WantsConfig: []string{mixedRollbackRoot}})
 }

@@ -120,7 +120,7 @@ func aliasProvider(which aliasCase) Driver {
 				return statusError, map[string]any{fieldError: "unknown: " + command}, nil
 			}
 		})
-		return plugin.Run(ctx, registration)
+		return plugin.Run(ctx, &registration)
 	}
 }
 

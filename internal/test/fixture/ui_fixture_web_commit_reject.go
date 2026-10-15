@@ -21,5 +21,5 @@ func runWebCommitReject(ctx context.Context) error {
 	plugin.OnConfigApply(func([]sdk.ConfigDiffSection) error {
 		return errors.New("web test apply rejected")
 	})
-	return plugin.Run(ctx, sdk.Registration{WantsConfig: []string{namespaceBGP}})
+	return plugin.Run(ctx, &sdk.Registration{WantsConfig: []string{namespaceBGP}})
 }

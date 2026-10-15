@@ -256,7 +256,7 @@ func runAS112Plugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	if err := p.Run(ctx, sdk.Registration{
+	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRootService},
 		VerifyBudget: 2,
 		ApplyBudget:  5,

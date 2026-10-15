@@ -69,7 +69,7 @@ func init() {
 	for _, observer := range observers {
 		o := observer
 		Register(o.fixture, func(ctx context.Context, _ []string) error {
-			return Observe(ctx, o.plugin, sdk.Registration{}, o.run)
+			return Observe(ctx, o.plugin, &sdk.Registration{}, o.run)
 		})
 	}
 }

@@ -130,14 +130,14 @@ func mcpHiddenCommand09(ctx context.Context, _ []string) error {
 		{Name: "show mcpgate visible", ShortHelp: "visible probe command"},
 		{Name: "show mcpgate concealed", ShortHelp: "concealed probe command", Hidden: true},
 	}}
-	return passiveObserve09(ctx, "mcpgate-test", registration, func(context.Context, *sdk.Plugin) error {
+	return passiveObserve09(ctx, "mcpgate-test", &registration, func(context.Context, *sdk.Plugin) error {
 		fmt.Fprintln(os.Stderr, "OK: declared one visible and one hidden command")
 		return nil
 	})
 }
 
 func medLocallySet09(ctx context.Context, _ []string) error {
-	return passiveObserve09(ctx, "med-local", sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+	return passiveObserve09(ctx, "med-local", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 		announced, withdrawn, err := p.UpdateRoute(ctx, "*", "update text origin igp med 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.0.0.1/32")
 		if err != nil {
 			return err
@@ -244,7 +244,7 @@ func medRawDrop09(ctx context.Context, _ []string) error {
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, sdk.Registration{Filters: []sdk.FilterDecl{{Name: "drop-med-raw", Direction: sdk.FilterExport, Raw: true, OnError: sdk.OnErrorReject}}})
+	runErr := plugin.Run(ctx, &sdk.Registration{Filters: []sdk.FilterDecl{{Name: "drop-med-raw", Direction: sdk.FilterExport, Raw: true, OnError: sdk.OnErrorReject}}})
 	select {
 	case scenarioErr := <-result:
 		if scenarioErr != nil {
@@ -301,7 +301,7 @@ func rsObserver09(_ string, expectedPeers int) Driver {
 			}()
 			return nil
 		})
-		runErr := plugin.Run(ctx, sdk.Registration{})
+		runErr := plugin.Run(ctx, &sdk.Registration{})
 		select {
 		case scenarioErr := <-result:
 			if scenarioErr != nil {
@@ -556,7 +556,7 @@ func accumulatorIsolation09(ctx context.Context, _ []string) error {
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, sdk.Registration{})
+	runErr := plugin.Run(ctx, &sdk.Registration{})
 	select {
 	case scenarioErr := <-result:
 		if scenarioErr != nil {

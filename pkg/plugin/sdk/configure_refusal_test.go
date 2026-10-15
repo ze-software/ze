@@ -49,7 +49,7 @@ func TestConfigureHandlerErrorReachesEngineAsAResponse(t *testing.T) {
 	})
 
 	go func() {
-		_ = p.Run(ctx, Registration{}) //nolint:errcheck // the refusal ends the run
+		_ = p.Run(ctx, &Registration{}) //nolint:errcheck // the refusal ends the run
 	}()
 
 	engineMux := rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd))

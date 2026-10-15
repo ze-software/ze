@@ -21,7 +21,7 @@
 //	p := sdk.NewFromEnv("my-plugin")
 //	p.OnEvent(func(event string) error { ... })
 //	p.OnConfigure(func(sections []sdk.ConfigSection) error { ... })
-//	p.Run(ctx, sdk.Registration{
+//	p.Run(ctx, &sdk.Registration{
 //	    Families: []sdk.FamilyDecl{{Name: "ipv4/flow", Mode: "both"}},
 //	})
 package sdk
@@ -30,6 +30,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -419,11 +420,23 @@ func (p *Plugin) Close() error {
 	return p.engineConn.Close()
 }
 
+// errNilRegistration refuses a nil declaration at the entry of Run and
+// RunOrDeclare, before any stage reads it.
+var errNilRegistration = errors.New("plugin declaration is nil: the engine needs the plugin's registration at stage 1; pass &sdk.Registration{...}")
+
 // Run executes the 5-stage startup protocol and enters the event loop.
 // Returns nil on clean shutdown (bye received), or error on failure. Before
 // returning it fences and drains direct event handlers, so the owner MUST wait
 // for Run to return before releasing state those handlers use.
-func (p *Plugin) Run(ctx context.Context, reg Registration) error {
+//
+// Run copies the declaration at entry and never reads the caller's value
+// again, so the caller may reuse or change it once Run is called. A nil
+// declaration is refused with an error rather than a panic.
+func (p *Plugin) Run(ctx context.Context, declaration *Registration) error {
+	if declaration == nil {
+		return errNilRegistration
+	}
+	reg := *declaration
 	if p.bridge != nil {
 		defer func() {
 			p.bridge.CloseCallbacks()

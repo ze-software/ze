@@ -60,7 +60,7 @@ func failurePolicyAct(ctx context.Context, plugin *sdk.Plugin, act ObserverScena
 // goroutine for one plugin lifecycle, ended by the send; the channel is
 // buffered, so it never blocks.
 func failurePolicyServe(ctx context.Context, plugin *sdk.Plugin, policy sdk.FailurePolicy, ended chan<- error) {
-	ended <- plugin.Run(ctx, sdk.Registration{FailurePolicy: policy})
+	ended <- plugin.Run(ctx, &sdk.Registration{FailurePolicy: policy})
 }
 
 // failurePolicyRun connects as an external plugin, declares policy, completes

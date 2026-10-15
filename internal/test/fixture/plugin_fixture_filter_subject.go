@@ -95,5 +95,5 @@ func filterSubjectObserver(ctx context.Context, args []string) error {
 		return nil
 	}
 
-	return observeConfigured(ctx, "filter-subject-test", registration, setup, scenario)
+	return observeConfigured(ctx, "filter-subject-test", &registration, setup, scenario)
 }

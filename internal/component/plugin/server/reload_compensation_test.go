@@ -133,7 +133,7 @@ func TestFailedReloadCompensationRetainsRetry(t *testing.T) {
 						active.Store(staged)
 						return nil
 					})
-					err := p.Run(context.Background(), sdk.Registration{WantsConfig: []string{root}})
+					err := p.Run(context.Background(), &sdk.Registration{WantsConfig: []string{root}})
 					if closeErr := p.Close(); err == nil {
 						err = closeErr
 					}

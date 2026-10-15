@@ -139,7 +139,7 @@ func TestStartupBridgePublicationBoundary(t *testing.T) {
 					close(started)
 					return nil
 				})
-				if err := p.Run(t.Context(), sdk.Registration{
+				if err := p.Run(t.Context(), &sdk.Registration{
 					Commands: []sdk.CommandDecl{{Name: commandName}},
 				}); err != nil {
 					return 1
@@ -250,7 +250,7 @@ func TestStartupStopBeforeBridgePublication(t *testing.T) {
 			close(started)
 			return nil
 		})
-		err := p.Run(t.Context(), sdk.Registration{})
+		err := p.Run(t.Context(), &sdk.Registration{})
 		close(sdkDone)
 		if err != nil {
 			return 1

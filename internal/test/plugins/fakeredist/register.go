@@ -73,7 +73,7 @@ func runPlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	if err := p.Run(ctx, sdk.Registration{
+	if err := p.Run(ctx, &sdk.Registration{
 		Commands: commandDecls(),
 	}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)

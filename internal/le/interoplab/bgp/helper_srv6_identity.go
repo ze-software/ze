@@ -111,7 +111,7 @@ func runSRv6IdentityPolicy(name string) error {
 		},
 	}
 	var runErr error
-	code := sdk.RunOrDeclare(registration, func() int {
+	code := sdk.RunOrDeclare(&registration, func() int {
 		plugin, err := sdk.NewFromEnv(name)
 		if err != nil {
 			runErr = err
@@ -131,7 +131,7 @@ func runSRv6IdentityPolicy(name string) error {
 			}
 			return rpc.StatusDone, ledger.snapshot(), nil
 		})
-		runErr = plugin.Run(context.Background(), registration)
+		runErr = plugin.Run(context.Background(), &registration)
 		if runErr != nil {
 			return 1
 		}

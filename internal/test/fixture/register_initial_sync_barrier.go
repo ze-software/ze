@@ -51,7 +51,7 @@ func initialSyncBarrierRaw(ctx context.Context, _ []string) error {
 	// Keep the reporter declaration and ready signal paired. This exercises
 	// session-ready bookkeeping without treating it as a marker-order barrier.
 	reg := sdk.Registration{SignalsSessionReady: true}
-	return fixtureObserveInitialReplay(ctx, "raw-injector", reg, func(ctx context.Context, plugin *sdk.Plugin, initialReplay uint64) error {
+	return fixtureObserveInitialReplay(ctx, "raw-injector", &reg, func(ctx context.Context, plugin *sdk.Plugin, initialReplay uint64) error {
 		if _, err := plugin01RequireDone(ctx, plugin, "send bgp 127.0.0.1 raw hex "+rawUpdateWire); err != nil {
 			return err
 		}

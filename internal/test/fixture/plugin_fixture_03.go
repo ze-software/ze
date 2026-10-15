@@ -59,7 +59,7 @@ func observe03(name string, scenario ObserverScenario) Driver {
 		if len(args) != 0 {
 			return fmt.Errorf("%s: unexpected arguments %q", name, args)
 		}
-		return Observe(ctx, name, sdk.Registration{}, scenario)
+		return Observe(ctx, name, &sdk.Registration{}, scenario)
 	}
 }
 
@@ -68,7 +68,7 @@ func observePort03(name string, scenario func(context.Context, *sdk.Plugin, stri
 		if len(args) != 1 {
 			return fmt.Errorf("%s: expected port argument, got %q", name, args)
 		}
-		return Observe(ctx, name, sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
+		return Observe(ctx, name, &sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
 			return scenario(ctx, plugin, args[0])
 		})
 	}

@@ -1354,7 +1354,7 @@ func rsvpProducerObserve(path string) error {
 	})
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	return plugin.Run(ctx, sdk.Registration{})
+	return plugin.Run(ctx, &sdk.Registration{})
 }
 
 func (node *rsvpProducerNode) observations(t *testing.T) []rsvpProducerObservation {

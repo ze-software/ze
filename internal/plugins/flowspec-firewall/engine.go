@@ -155,7 +155,7 @@ func runEngine(conn net.Conn) int {
 	})
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	if err := p.Run(ctx, sdk.Registration{}); err != nil {
+	if err := p.Run(ctx, &sdk.Registration{}); err != nil {
 		log.Error("flowspec-firewall plugin failed", "error", err)
 		return 1
 	}

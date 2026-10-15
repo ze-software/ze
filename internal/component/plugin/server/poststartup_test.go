@@ -53,7 +53,7 @@ func TestMidLifeAutoLoadDeliversPostStartup(t *testing.T) {
 				}
 				return "done", map[string]any{"claimed": true}, nil
 			})
-			err := p.Run(context.Background(), sdk.Registration{
+			err := p.Run(context.Background(), &sdk.Registration{
 				Commands: []sdk.CommandDecl{{Name: claimCommand}},
 			})
 			if err != nil {
@@ -76,7 +76,7 @@ func TestMidLifeAutoLoadDeliversPostStartup(t *testing.T) {
 				_, _, err := p.DispatchCommand(ctx, claimCommand)
 				return err
 			})
-			if err := p.Run(context.Background(), sdk.Registration{}); err != nil {
+			if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
 				return 1
 			}
 			return 0

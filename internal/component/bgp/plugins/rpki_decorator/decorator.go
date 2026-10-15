@@ -85,7 +85,7 @@ func runDecorator(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	err := p.Run(ctx, sdk.Registration{})
+	err := p.Run(ctx, &sdk.Registration{})
 	if err != nil {
 		logger().Error("bgp-rpki-decorator plugin failed", "error", err)
 		return 1

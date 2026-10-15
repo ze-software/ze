@@ -33,7 +33,7 @@ func observeDriver(pluginName string, scenario ObserverScenario) Driver {
 		if len(args) != 0 {
 			return fmt.Errorf("%s takes no arguments", pluginName)
 		}
-		return Observe(ctx, pluginName, sdk.Registration{}, scenario)
+		return Observe(ctx, pluginName, &sdk.Registration{}, scenario)
 	}
 }
 
@@ -169,7 +169,7 @@ func reloadRESTObserver(pluginName string, mode reloadRESTMode) Driver {
 		if err != nil {
 			return fmt.Errorf("REST port: %w", err)
 		}
-		return Observe(ctx, pluginName, sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
+		return Observe(ctx, pluginName, &sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
 			return runReloadRESTScenario(ctx, plugin, mode, port)
 		})
 	}
@@ -396,5 +396,5 @@ func managedRejectObserver(ctx context.Context, args []string) error {
 	if err := declareObserverAppliesNothing(plugin); err != nil {
 		return err
 	}
-	return plugin.Run(ctx, sdk.Registration{WantsConfig: []string{namespaceBGP}})
+	return plugin.Run(ctx, &sdk.Registration{WantsConfig: []string{namespaceBGP}})
 }

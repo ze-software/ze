@@ -18,16 +18,16 @@ func init() {
 	Register("plugin/teardown-tunnel-peer", plugin16L2TPTunnelPeer)
 	Register("plugin/teardown-session-peer", plugin16L2TPSessionPeer)
 	Register("plugin/teardown-tunnel", func(ctx context.Context, _ []string) error {
-		return Observe(ctx, "teardown-tunnel-test", sdk.Registration{}, plugin16TeardownTunnel)
+		return Observe(ctx, "teardown-tunnel-test", &sdk.Registration{}, plugin16TeardownTunnel)
 	})
 	Register("plugin/teardown-tunnel-all", func(ctx context.Context, _ []string) error {
-		return Observe(ctx, "teardown-tunnel-all-test", sdk.Registration{}, plugin16TeardownTunnelAll)
+		return Observe(ctx, "teardown-tunnel-all-test", &sdk.Registration{}, plugin16TeardownTunnelAll)
 	})
 	Register("plugin/teardown-session", func(ctx context.Context, _ []string) error {
-		return Observe(ctx, "teardown-session-test", sdk.Registration{}, plugin16TeardownSession)
+		return Observe(ctx, "teardown-session-test", &sdk.Registration{}, plugin16TeardownSession)
 	})
 	Register("plugin/teardown-session-all", func(ctx context.Context, _ []string) error {
-		return Observe(ctx, "teardown-session-all-test", sdk.Registration{}, plugin16TeardownSessionAll)
+		return Observe(ctx, "teardown-session-all-test", &sdk.Registration{}, plugin16TeardownSessionAll)
 	})
 }
 

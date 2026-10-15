@@ -335,7 +335,7 @@ func runEngine(conn net.Conn) int {
 	// it (pendingConfig.clear).
 	p.OnConfigRollback(pending.rollback)
 
-	if err := p.Run(ctx, sdk.Registration{
+	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 2,
 		ApplyBudget:  10,

@@ -31,26 +31,33 @@ import (
 // BEFORE this call is outside the guarantee, and a plugin that keeps such work
 // in its main runs it under a query too.
 //
-// The declaration written here is the argument exactly as it is given. Run
+// The declaration written here is the argument exactly as it is given. A nil
+// declaration is refused with exit code 1 in both modes, before activate runs. Run
 // derives two fields from the callbacks a Plugin registered, WantsValidateOpen
 // (OnValidateOpen) and DrainHandler (OnDrain); no Plugin exists under a query,
 // so a plugin that wants either field in its query answer states it in the
 // declaration it passes here.
-func RunOrDeclare(reg Registration, activate func() int) int {
+func RunOrDeclare(reg *Registration, activate func() int) int {
 	return runOrDeclare(os.Stdout, reg, activate)
 }
 
 // runOrDeclare carries the decision, with the answer's writer as a parameter so
 // a test reads the line the caller writes to stdout.
-func runOrDeclare(out io.Writer, reg Registration, activate func() int) int {
+func runOrDeclare(out io.Writer, reg *Registration, activate func() int) int {
 	if activate == nil {
 		panic("BUG: sdk.RunOrDeclare called with no activation function")
+	}
+	if reg == nil {
+		var message textbuf.Buffer
+		message.Str("error: ").Err(errNilRegistration).Byte('\n')
+		_ = message.StdErr() //nolint:errcheck // the refusal already failed; the exit code carries it
+		return 1
 	}
 	if !QueryModeRequested() {
 		return activate()
 	}
 
-	if err := rpc.WriteDeclaration(out, &reg); err != nil {
+	if err := rpc.WriteDeclaration(out, reg); err != nil {
 		var message textbuf.Buffer
 		message.Str("error: declaration query: ").Err(err).Byte('\n')
 		_ = message.StdErr() //nolint:errcheck // the answer already failed; the exit code carries it

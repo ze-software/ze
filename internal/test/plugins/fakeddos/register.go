@@ -77,7 +77,7 @@ func runEngine(conn net.Conn) int {
 	inj := &injector{lifetime: ctx}
 	sdk.NewConfigTx(false, activationFromSections, inj.install).Register(p)
 
-	if err := p.Run(ctx, sdk.Registration{
+	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 2,
 		ApplyBudget:  10,

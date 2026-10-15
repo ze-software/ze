@@ -510,7 +510,7 @@ func runEngine(conn net.Conn) int {
 		<-workerExited
 	}()
 
-	if err := p.Run(ctx, sdk.Registration{
+	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 2,
 		ApplyBudget:  10,

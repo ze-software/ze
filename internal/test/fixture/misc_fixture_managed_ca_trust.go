@@ -396,7 +396,7 @@ func managedHubCAExportDriver(ctx context.Context, args []string) error {
 	})
 	// The hub stays up for the client to reach, so this returns only when the
 	// daemon stops. It never asks for a shutdown.
-	return plugin.Run(ctx, sdk.Registration{})
+	return plugin.Run(ctx, &sdk.Registration{})
 }
 
 // caTrustExportRoot dispatches the export command and writes its PEM field.

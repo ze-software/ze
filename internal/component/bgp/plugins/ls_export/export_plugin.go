@@ -137,7 +137,7 @@ func runTopologyExporter(conn net.Conn) int {
 		defer finish()
 		return exporter.shutdown(shutdown)
 	})
-	if err := p.Run(ctx, sdk.Registration{WantsConfig: []string{exporterName}}); err != nil {
+	if err := p.Run(ctx, &sdk.Registration{WantsConfig: []string{exporterName}}); err != nil {
 		exportLogger.Error("native BGP-LS exporter stopped", "error", err)
 		return 1
 	}

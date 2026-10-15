@@ -54,7 +54,7 @@ func TestAdHocProcessHandshake(t *testing.T) {
 
 	runDone := make(chan error, 1)
 	go func() {
-		runDone <- p.Run(context.Background(), sdk.Registration{})
+		runDone <- p.Run(context.Background(), &sdk.Registration{})
 	}()
 
 	// Wait for the handshake to complete, then close plugin side.
@@ -126,7 +126,7 @@ func TestAdHocProcessRuntime(t *testing.T) {
 		return nil
 	})
 
-	_ = p.Run(context.Background(), sdk.Registration{})
+	_ = p.Run(context.Background(), &sdk.Registration{})
 
 	// The dispatch-command may return an error (unknown command) but the
 	// RPC itself should complete -- proving the runtime loop is running.
@@ -179,7 +179,7 @@ func TestNewWithIO(t *testing.T) {
 	// Plugin-side: run handshake.
 	runDone := make(chan error, 1)
 	go func() {
-		runDone <- p.Run(context.Background(), sdk.Registration{})
+		runDone <- p.Run(context.Background(), &sdk.Registration{})
 	}()
 
 	select {

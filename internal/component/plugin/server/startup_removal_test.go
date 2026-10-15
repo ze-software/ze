@@ -52,7 +52,7 @@ func TestPluginRemovalCallbackKeepsEngineConnection(t *testing.T) {
 					callback <- err
 					return err
 				})
-				runResult <- p.Run(context.Background(), sdk.Registration{FailurePolicy: rpc.FailureFatal})
+				runResult <- p.Run(context.Background(), &sdk.Registration{FailurePolicy: rpc.FailureFatal})
 				if err := p.Close(); err != nil {
 					return 1
 				}
@@ -119,7 +119,7 @@ func TestConfigRemovalReleasesStateBeforeDependenciesStop(t *testing.T) {
 	residue := make(chan map[string]bool, 1)
 	callbacks := make(chan error, 3)
 	exited := make(chan error, 3)
-	run := func(p *sdk.Plugin, registration sdk.Registration) int {
+	run := func(p *sdk.Plugin, registration *sdk.Registration) int {
 		err := p.Run(context.Background(), registration)
 		if closeErr := p.Close(); err == nil {
 			err = closeErr
@@ -153,7 +153,7 @@ func TestConfigRemovalReleasesStateBeforeDependenciesStop(t *testing.T) {
 				callbacks <- nil
 				return nil
 			})
-			return run(p, sdk.Registration{Commands: []sdk.CommandDecl{{Name: backendCommand}}})
+			return run(p, &sdk.Registration{Commands: []sdk.CommandDecl{{Name: backendCommand}}})
 		},
 	}))
 	require.NoError(t, registry.Register(registry.Registration{
@@ -175,7 +175,7 @@ func TestConfigRemovalReleasesStateBeforeDependenciesStop(t *testing.T) {
 				callbacks <- err
 				return err
 			})
-			return run(p, sdk.Registration{Commands: []sdk.CommandDecl{{Name: middleCommand}}})
+			return run(p, &sdk.Registration{Commands: []sdk.CommandDecl{{Name: middleCommand}}})
 		},
 	}))
 	require.NoError(t, registry.Register(registry.Registration{
@@ -191,7 +191,7 @@ func TestConfigRemovalReleasesStateBeforeDependenciesStop(t *testing.T) {
 				callbacks <- err
 				return err
 			})
-			return run(p, sdk.Registration{})
+			return run(p, &sdk.Registration{})
 		},
 	}))
 	s, spawner := newLifecycleStartupServer(t)
@@ -285,7 +285,7 @@ func TestReloadRemovalFailureRecoversCommittedService(t *testing.T) {
 					}
 					return sdk.NewWithConn(name, conn)
 				}
-				run := func(p *sdk.Plugin, registration sdk.Registration) int {
+				run := func(p *sdk.Plugin, registration *sdk.Registration) int {
 					err := p.Run(context.Background(), registration)
 					if closeErr := p.Close(); err == nil {
 						err = closeErr
@@ -326,7 +326,7 @@ func TestReloadRemovalFailureRecoversCommittedService(t *testing.T) {
 							backendClosed = true
 							return nil
 						})
-						return run(p, sdk.Registration{Commands: []sdk.CommandDecl{{Name: command}}})
+						return run(p, &sdk.Registration{Commands: []sdk.CommandDecl{{Name: command}}})
 					},
 				}))
 				require.NoError(t, registry.Register(registry.Registration{
@@ -382,7 +382,7 @@ func TestReloadRemovalFailureRecoversCommittedService(t *testing.T) {
 							// It reads its root at configure only and applies no reload.
 							p.DeclareAppliesNothing("test producer: reads its root at configure only")
 						}
-						return run(p, registration)
+						return run(p, &registration)
 					},
 				}))
 				configs := []plugin.PluginConfig{
@@ -418,7 +418,7 @@ func TestReloadRemovalFailureRecoversCommittedService(t *testing.T) {
 								appliedCounter.Store(staged)
 								return nil
 							})
-							return run(p, sdk.Registration{WantsConfig: []string{counterRoot}})
+							return run(p, &sdk.Registration{WantsConfig: []string{counterRoot}})
 						},
 					}))
 					configs = append(configs, plugin.PluginConfig{Name: counter, Internal: true, Encoder: plugin.EncodingJSON})

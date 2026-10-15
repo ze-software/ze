@@ -58,7 +58,7 @@ func drainRequester(ctx context.Context, args []string) error {
 			go requestStopAfterSettle(plugin, command)
 			return nil
 		})
-		return drainAnsweredOrFail(answered, plugin.Run(ctx, sdk.Registration{DrainBudget: drain.Budget}))
+		return drainAnsweredOrFail(answered, plugin.Run(ctx, &sdk.Registration{DrainBudget: drain.Budget}))
 	}
 
 	// The peer's session MUST still be up when the drain arrives: a stop that
@@ -89,7 +89,7 @@ func drainRequester(ctx context.Context, args []string) error {
 		go requestStopAfterSettle(plugin, command)
 		return nil
 	})
-	return drainAnsweredOrFail(answered, plugin.Run(ctx, sdk.Registration{DrainBudget: drain.Budget}))
+	return drainAnsweredOrFail(answered, plugin.Run(ctx, &sdk.Registration{DrainBudget: drain.Budget}))
 }
 
 // drainAnsweredOrFail is the end of every responder fixture: Run returned,
@@ -132,7 +132,7 @@ func drainResponder(ctx context.Context, _ []string) error {
 	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
 	answered := drain.Responder(plugin)
-	return drainAnsweredOrFail(answered, plugin.Run(ctx, sdk.Registration{DrainBudget: drain.Budget}))
+	return drainAnsweredOrFail(answered, plugin.Run(ctx, &sdk.Registration{DrainBudget: drain.Budget}))
 }
 
 // drainBudgetOverCeiling declares a DrainBudget one second above the daemon
@@ -145,7 +145,7 @@ func drainBudgetOverCeiling(ctx context.Context, _ []string) error {
 	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
 	plugin.OnDrain(func(context.Context, rpc.DrainInput) error { return nil })
-	return plugin.Run(ctx, sdk.Registration{DrainBudget: rpc.DrainCeilingSeconds + 1})
+	return plugin.Run(ctx, &sdk.Registration{DrainBudget: rpc.DrainCeilingSeconds + 1})
 }
 
 // drainNeverRepliesBudget is the budget drain-never-replies declares: short,
@@ -169,7 +169,7 @@ func drainNeverReplies(ctx context.Context, _ []string) error {
 		<-drainCtx.Done()
 		return drainCtx.Err()
 	})
-	return plugin.Run(ctx, sdk.Registration{DrainBudget: drainNeverRepliesBudget})
+	return plugin.Run(ctx, &sdk.Registration{DrainBudget: drainNeverRepliesBudget})
 }
 
 // drainZeroWait declares a drain budget and answers its drain at once, the
@@ -186,5 +186,5 @@ func drainZeroWait(ctx context.Context, _ []string) error {
 		drain.Log("drain-fixture: drain answered at once")
 		return nil
 	})
-	return plugin.Run(ctx, sdk.Registration{DrainBudget: drain.Budget})
+	return plugin.Run(ctx, &sdk.Registration{DrainBudget: drain.Budget})
 }

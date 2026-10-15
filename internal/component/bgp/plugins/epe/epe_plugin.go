@@ -98,7 +98,7 @@ func runEPEProducer(conn net.Conn) int {
 	p.OnAllPluginsReady(source.Replay)
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	if err := p.Run(ctx, sdk.Registration{WantsConfig: []string{Name}}); err != nil {
+	if err := p.Run(ctx, &sdk.Registration{WantsConfig: []string{Name}}); err != nil {
 		epeLogger.Error("BGP EPE producer stopped", "error", err)
 		return 1
 	}

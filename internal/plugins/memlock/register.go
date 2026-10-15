@@ -64,7 +64,7 @@ func runMemlockPlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	if err := p.Run(ctx, sdk.Registration{}); err != nil {
+	if err := p.Run(ctx, &sdk.Registration{}); err != nil {
 		fmt.Fprintf(os.Stderr, "memlock: plugin failed: %v\n", err)
 		return 1
 	}

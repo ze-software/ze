@@ -445,7 +445,7 @@ func RunRouteServer(conn net.Conn) int {
 
 	ctx := context.Background()
 	defer rs.stopping.Store(true)
-	err := p.Run(ctx, sdk.Registration{
+	err := p.Run(ctx, &sdk.Registration{
 		// CacheConsumer: true is required for bgp-cache-forward to work.
 		// Without it, Activate(id, 0) evicts cache entries immediately after
 		// event delivery, causing the forward worker to find the entry

@@ -93,7 +93,7 @@ func filterMatchOnOrigin(ctx context.Context, args []string) error {
 		return nil
 	}
 
-	return observeConfigured(ctx, "origin-policy", registration, setup,
+	return observeConfigured(ctx, "origin-policy", &registration, setup,
 		func(ctx context.Context, plugin *sdk.Plugin) error {
 			return filterOriginCheck(ctx, plugin, state)
 		})

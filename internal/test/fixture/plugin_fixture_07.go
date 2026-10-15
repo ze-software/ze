@@ -49,7 +49,7 @@ func init() {
 	for name, scenario := range observers {
 		n, s := name, scenario
 		Register(n, func(ctx context.Context, _ []string) error {
-			return Observe(ctx, n, sdk.Registration{}, s)
+			return Observe(ctx, n, &sdk.Registration{}, s)
 		})
 	}
 	Register("plugin/fib-vpp-coexist-with-fib-kernel", fibVPPCoexist07)

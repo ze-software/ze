@@ -69,7 +69,7 @@ func init() {
 		if len(args) != 1 {
 			return fmt.Errorf("usage: plugin/iface-link-flap-during-commit METRICS_PORT")
 		}
-		return Observe(ctx, "iface-link-flap-during-commit", sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+		return Observe(ctx, "iface-link-flap-during-commit", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 			return ifaceLinkFlap08(ctx, p, args[0])
 		})
 	})

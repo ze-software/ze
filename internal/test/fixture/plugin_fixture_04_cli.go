@@ -382,7 +382,7 @@ func commitRejectPlugin04(ctx context.Context, args []string) error {
 	if err := declareObserverAppliesNothing(p); err != nil {
 		return err
 	}
-	return p.Run(ctx, sdk.Registration{WantsConfig: []string{namespaceBGP}})
+	return p.Run(ctx, &sdk.Registration{WantsConfig: []string{namespaceBGP}})
 }
 
 func cliCommitDriver04(reject bool) Driver {

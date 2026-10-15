@@ -91,7 +91,7 @@ func init() {
 	for name, observer := range observers { //nolint:gocritic // the registered closure outlives the iteration
 		Register(name, func(ctx context.Context, _ []string) error {
 			if observer.setup == nil && observer.replayScenario == nil {
-				return Observe(ctx, observer.pluginName, observer.registration, observer.scenario)
+				return Observe(ctx, observer.pluginName, &observer.registration, observer.scenario)
 			}
 			return fixture10Observe(ctx, &observer)
 		})
@@ -101,7 +101,7 @@ func init() {
 
 func fixture10Observe(ctx context.Context, driver *fixture10Driver) error {
 	if driver.replayScenario != nil {
-		return fixtureObserveInitialReplay(ctx, driver.pluginName, driver.registration, driver.replayScenario)
+		return fixtureObserveInitialReplay(ctx, driver.pluginName, &driver.registration, driver.replayScenario)
 	}
 	plugin, err := newObserver(driver.pluginName)
 	if err != nil {
@@ -122,7 +122,7 @@ func fixture10Observe(ctx context.Context, driver *fixture10Driver) error {
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, driver.registration)
+	runErr := plugin.Run(ctx, &driver.registration)
 	select {
 	case scenarioErr := <-result:
 		return errors.Join(scenarioErr, runErr)
@@ -1146,7 +1146,7 @@ func fixture10PluginCheck(ctx context.Context, _ []string) error {
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, sdk.Registration{})
+	runErr := plugin.Run(ctx, &sdk.Registration{})
 	select {
 	case scenarioErr := <-result:
 		return errors.Join(scenarioErr, runErr)

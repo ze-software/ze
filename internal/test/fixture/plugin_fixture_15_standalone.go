@@ -621,7 +621,7 @@ func plugin15SummaryFormat(ctx context.Context, _ []string) error {
 		})
 		return nil
 	})
-	runErr := p.Run(ctx, sdk.Registration{})
+	runErr := p.Run(ctx, &sdk.Registration{})
 	if timer != nil {
 		timer.Stop()
 	}

@@ -163,7 +163,7 @@ func declareObserverAppliesNothing(plugin *sdk.Plugin) error {
 
 // Observe connects as a plugin, completes the five startup stages, runs the
 // scenario when every daemon plugin is ready, and requests a clean shutdown.
-func Observe(ctx context.Context, name string, registration sdk.Registration, scenario ObserverScenario) error {
+func Observe(ctx context.Context, name string, registration *sdk.Registration, scenario ObserverScenario) error {
 	return observeConfigured(ctx, name, registration, nil, scenario)
 }
 
@@ -173,7 +173,7 @@ func Observe(ctx context.Context, name string, registration sdk.Registration, sc
 func observeConfigured(
 	ctx context.Context,
 	name string,
-	registration sdk.Registration,
+	registration *sdk.Registration,
 	setup observerSetup,
 	scenario ObserverScenario,
 ) error {

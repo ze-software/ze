@@ -190,7 +190,7 @@ func cmdPluginCLI(args []string) int {
 
 	// Run 5-stage handshake + event loop (blocks until shutdown).
 	fmt.Fprintf(os.Stderr, "Running 5-stage handshake...\n")
-	if err := p.Run(ctx, reg); err != nil {
+	if err := p.Run(ctx, &reg); err != nil {
 		// Context cancellation from interactive bye is expected.
 		if ctx.Err() == nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)

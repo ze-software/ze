@@ -38,7 +38,7 @@ func pluginDialNoAnchor(ctx context.Context, _ []string) error {
 		ReportFailure(probeErr)
 		return probeErr
 	}
-	return Observe(ctx, dialNoAnchorPlugin, sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
+	return Observe(ctx, dialNoAnchorPlugin, &sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
 		// The peer is held until ze sends its End-of-RIB, for the reason
 		// fixture10PKIExport states: a shutdown requested before the marker
 		// reaches the peer replaces it with a Cease notification, and the .ci

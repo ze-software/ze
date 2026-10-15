@@ -432,7 +432,7 @@ func runBMPPlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	err := p.Run(ctx, sdk.Registration{
+	err := p.Run(ctx, &sdk.Registration{
 		Commands:    commandDecls(),
 		WantsConfig: []string{configRootBGP, configRootEnvironment, configRootSystem},
 	})

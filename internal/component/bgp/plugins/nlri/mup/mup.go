@@ -73,7 +73,7 @@ func runMUPPlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	err := p.Run(ctx, sdk.Registration{
+	err := p.Run(ctx, &sdk.Registration{
 		Families: []sdk.FamilyDecl{
 			familyDecl(IPv4MUP),
 			familyDecl(IPv6MUP),

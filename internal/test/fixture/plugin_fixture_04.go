@@ -65,7 +65,7 @@ func observe04(s ObserverScenario) Driver {
 		if len(args) != 0 {
 			return fmt.Errorf("unexpected arguments: %v", args)
 		}
-		return Observe(ctx, "fixture-plugin-04", sdk.Registration{}, s)
+		return Observe(ctx, "fixture-plugin-04", &sdk.Registration{}, s)
 	}
 }
 

@@ -114,7 +114,7 @@ func CmdEngineSteps(args []string) int {
 		return nil
 	})
 
-	runErr := p.Run(ctx, sdk.Registration{})
+	runErr := p.Run(ctx, &sdk.Registration{})
 
 	select {
 	case err := <-stepResult:

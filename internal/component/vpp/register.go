@@ -148,7 +148,7 @@ func runVPPEngine(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	rc := 0
-	if err := p.Run(ctx, sdk.Registration{
+	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig: []string{componentVPP},
 	}); err != nil {
 		lg.Error("vpp plugin failed", "error", err)

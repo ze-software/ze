@@ -395,7 +395,7 @@ func runBGPEngine(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	if err := p.Run(ctx, sdk.Registration{
+	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig: []string{configRootBGP},
 		ConfigOperations: []sdk.ConfigOperationDecl{{
 			Root:      configRootBGP,

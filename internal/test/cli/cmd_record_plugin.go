@@ -221,7 +221,7 @@ func CmdRecordPlugin(_ []string) int {
 			{Name: recordArgumentCommand, ShortHelp: "The arguments the engine judged and sent"},
 		},
 	}
-	if runErr := p.Run(ctx, registration); runErr != nil {
+	if runErr := p.Run(ctx, &registration); runErr != nil {
 		slog.Error("record-plugin: plugin loop ended", "error", runErr)
 		return 1
 	}

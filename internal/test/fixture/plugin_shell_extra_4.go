@@ -39,7 +39,7 @@ func pluginShellExtra4Observe(ctx context.Context, name string, args []string, w
 	if len(args) != want {
 		return fmt.Errorf("%s: got %d arguments, want %d", name, len(args), want)
 	}
-	return Observe(ctx, "fixture-plugin-shell-extra-4-"+name, sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
+	return Observe(ctx, "fixture-plugin-shell-extra-4-"+name, &sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
 		return scenario(ctx, plugin, args)
 	})
 }
@@ -226,7 +226,7 @@ func pluginShellExtra4StartupUnreachable(ctx context.Context, args []string) err
 		return fmt.Errorf("startup-unreachable-services: got %d arguments, want config path", len(args))
 	}
 	configPath := args[0]
-	return Observe(ctx, "fixture-plugin-shell-extra-4-startup-unreachable", sdk.Registration{}, func(ctx context.Context, _ *sdk.Plugin) error {
+	return Observe(ctx, "fixture-plugin-shell-extra-4-startup-unreachable", &sdk.Registration{}, func(ctx context.Context, _ *sdk.Plugin) error {
 		fmt.Fprintln(os.Stderr, "OK: daemon reached ready with all external services blackholed")
 		config, err := os.ReadFile(configPath) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
@@ -314,7 +314,7 @@ func pluginShellExtra4TacacsDriver(ctx context.Context, name string, args []stri
 	if err := pluginShellExtra4StartTacacs(ctx, args[0], user, options...); err != nil {
 		return err
 	}
-	return Observe(ctx, "fixture-plugin-shell-extra-4-"+name, sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
+	return Observe(ctx, "fixture-plugin-shell-extra-4-"+name, &sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
 		return scenario(ctx, plugin, args[1])
 	})
 }

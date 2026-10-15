@@ -262,7 +262,7 @@ func runNTPPlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	if err := p.Run(ctx, sdk.Registration{
+	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRootEnvironment},
 		VerifyBudget: 2,
 		// ApplyBudget in seconds (orchestrator sums per-tier maxima). The

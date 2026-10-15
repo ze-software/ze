@@ -28,7 +28,7 @@ func runPlugin(conn net.Conn) int {
 	defer p.Close() //nolint:errcheck // test plugin teardown, so a close failure changes no assertion
 
 	answered := drain.Responder(p)
-	err := p.Run(context.Background(), sdk.Registration{DrainBudget: drain.Budget})
+	err := p.Run(context.Background(), &sdk.Registration{DrainBudget: drain.Budget})
 	if !answered() {
 		drain.Log("drain-fixture: FAIL connection closed before the drain was answered")
 		return 1

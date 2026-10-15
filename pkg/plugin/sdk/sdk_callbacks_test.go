@@ -51,7 +51,7 @@ func TestOnExecuteCommandAnyMap(t *testing.T) {
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- p.Run(ctx, Registration{}) }()
+	go func() { errCh <- p.Run(ctx, &Registration{}) }()
 	completeStartup(t, ctx, engine)
 
 	out := executeCommand(t, ctx, engine.mux,
@@ -84,7 +84,7 @@ func TestOnExecuteCommandAnyStruct(t *testing.T) {
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- p.Run(ctx, Registration{}) }()
+	go func() { errCh <- p.Run(ctx, &Registration{}) }()
 	completeStartup(t, ctx, engine)
 
 	out := executeCommand(t, ctx, engine.mux,
@@ -112,7 +112,7 @@ func TestOnExecuteCommandAnyNil(t *testing.T) {
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- p.Run(ctx, Registration{}) }()
+	go func() { errCh <- p.Run(ctx, &Registration{}) }()
 	completeStartup(t, ctx, engine)
 
 	out := executeCommand(t, ctx, engine.mux,
@@ -136,7 +136,7 @@ func TestOnExecuteCommandAnySlice(t *testing.T) {
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- p.Run(ctx, Registration{}) }()
+	go func() { errCh <- p.Run(ctx, &Registration{}) }()
 	completeStartup(t, ctx, engine)
 
 	out := executeCommand(t, ctx, engine.mux,
@@ -166,7 +166,7 @@ func TestOnExecuteCommandRawMessagePassthrough(t *testing.T) {
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- p.Run(ctx, Registration{}) }()
+	go func() { errCh <- p.Run(ctx, &Registration{}) }()
 	completeStartup(t, ctx, engine)
 
 	out := executeCommand(t, ctx, engine.mux,
@@ -197,7 +197,7 @@ func TestOnDoctorCheckCallback(t *testing.T) {
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- p.Run(ctx, Registration{}) }()
+	go func() { errCh <- p.Run(ctx, &Registration{}) }()
 	completeStartup(t, ctx, engine)
 
 	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:doctor-check",
@@ -223,7 +223,7 @@ func TestOnDoctorCheckDefaultNoOp(t *testing.T) {
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- p.Run(ctx, Registration{}) }()
+	go func() { errCh <- p.Run(ctx, &Registration{}) }()
 	completeStartup(t, ctx, engine)
 
 	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:doctor-check",
@@ -258,7 +258,7 @@ func TestOnEnrichShowCallback(t *testing.T) {
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- p.Run(ctx, Registration{}) }()
+	go func() { errCh <- p.Run(ctx, &Registration{}) }()
 	completeStartup(t, ctx, engine)
 
 	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:enrich-show",
@@ -289,7 +289,7 @@ func TestOnEnrichShowDefaultNoOp(t *testing.T) {
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- p.Run(ctx, Registration{}) }()
+	go func() { errCh <- p.Run(ctx, &Registration{}) }()
 	completeStartup(t, ctx, engine)
 
 	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:enrich-show",
@@ -324,7 +324,7 @@ func TestOnExecuteCommandStringIsDoubleEncoded(t *testing.T) {
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- p.Run(ctx, Registration{}) }()
+	go func() { errCh <- p.Run(ctx, &Registration{}) }()
 	completeStartup(t, ctx, engine)
 
 	out := executeCommand(t, ctx, engine.mux,
@@ -462,7 +462,7 @@ func TestExecuteCommandValueAnswerIsUnchanged(t *testing.T) {
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- p.Run(ctx, Registration{}) }()
+	go func() { errCh <- p.Run(ctx, &Registration{}) }()
 	completeStartup(t, ctx, engine)
 
 	for _, tc := range executeCommandValueCases {
@@ -570,7 +570,7 @@ func TestExecuteCommandRecordResult(t *testing.T) {
 			defer cancel()
 
 			errCh := make(chan error, 1)
-			go func() { errCh <- p.Run(ctx, Registration{}) }()
+			go func() { errCh <- p.Run(ctx, &Registration{}) }()
 			completeStartup(t, ctx, engine)
 
 			answer, err := engine.mux.CallAnswer(ctx, "ze-plugin-callback:execute-command",

@@ -126,7 +126,7 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 		Families:    familyDecls,
 		WantsConfig: []string{"bgp"},
 	}
-	if sdkErr := p.Run(ctx, reg); sdkErr != nil {
+	if sdkErr := p.Run(ctx, &reg); sdkErr != nil {
 		if ctx.Err() == nil {
 			fmt.Fprintf(os.Stderr, "error: SDK run: %v\n", sdkErr)
 		}

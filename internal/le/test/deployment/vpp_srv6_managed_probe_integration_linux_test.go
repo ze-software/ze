@@ -61,7 +61,7 @@ func TestVPPSRv6ManagedProbe(t *testing.T) {
 	})
 	// This goroutine has one owner: cancellation plus the joined Run result.
 	done := make(chan error, 1)
-	go func() { done <- p.Run(ctx, sdk.Registration{}) }()
+	go func() { done <- p.Run(ctx, &sdk.Registration{}) }()
 	joined := false
 	defer func() {
 		cancel()

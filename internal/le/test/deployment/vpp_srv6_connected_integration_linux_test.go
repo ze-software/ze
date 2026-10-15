@@ -43,7 +43,7 @@ func TestVPPSRv6ConnectedProbe(t *testing.T) {
 	ready := make(chan struct{})
 	p.OnAllPluginsReady(func() error { close(ready); return nil })
 	done := make(chan error, 1)
-	go func() { done <- p.Run(ctx, sdk.Registration{}) }()
+	go func() { done <- p.Run(ctx, &sdk.Registration{}) }()
 	joined := false
 	defer func() {
 		cancel()

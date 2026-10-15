@@ -76,7 +76,7 @@ func registerDrainPlugin(t *testing.T, spec drainPluginSpec, crash <-chan struct
 					return nil
 				})
 			}
-			if err := p.Run(ctx, sdk.Registration{FailurePolicy: spec.policy, DrainBudget: spec.budget}); err != nil {
+			if err := p.Run(ctx, &sdk.Registration{FailurePolicy: spec.policy, DrainBudget: spec.budget}); err != nil {
 				return 1
 			}
 			return 0

@@ -240,7 +240,7 @@ func rsObserver04(expected int, prefix string, requireReplay bool) Driver {
 			}()
 			return nil
 		})
-		runErr := p.Run(ctx, sdk.Registration{})
+		runErr := p.Run(ctx, &sdk.Registration{})
 		select {
 		case scenarioErr := <-result:
 			return errors.Join(scenarioErr, runErr)

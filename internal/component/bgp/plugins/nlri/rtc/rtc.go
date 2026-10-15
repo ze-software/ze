@@ -50,7 +50,7 @@ func runRTCPlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	err := p.Run(ctx, sdk.Registration{
+	err := p.Run(ctx, &sdk.Registration{
 		Families: []sdk.FamilyDecl{
 			{Name: familyIPv4RTC, Mode: familyModeDecode, AFI: 1, SAFI: 132},
 		},

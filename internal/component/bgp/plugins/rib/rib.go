@@ -750,7 +750,7 @@ func runRIBPlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	err := p.Run(ctx, sdk.Registration{
+	err := p.Run(ctx, &sdk.Registration{
 		// WantsConfig: receive the bgp subtree at Stage 2 and on every reload
 		// that changes it, for the config transaction (config_tx.go).
 		WantsConfig: []string{configRootBGP},

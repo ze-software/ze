@@ -481,7 +481,7 @@ func TestReloadFailureStopsAutoLoadedPluginByName(t *testing.T) {
 		ConfigRoots: []string{"fib/kernel"},
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(pluginName, conn)
-			err := p.Run(context.Background(), sdk.Registration{WantsConfig: []string{"fib/kernel"}})
+			err := p.Run(context.Background(), &sdk.Registration{WantsConfig: []string{"fib/kernel"}})
 			if err != nil {
 				return 1
 			}
@@ -549,7 +549,7 @@ func TestReloadFailureKeepsPreExistingDependency(t *testing.T) {
 		Description: "pre-existing dependency",
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(depName, conn)
-			if err := p.Run(context.Background(), sdk.Registration{}); err != nil {
+			if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
 				return 1
 			}
 			return 0
@@ -563,7 +563,7 @@ func TestReloadFailureKeepsPreExistingDependency(t *testing.T) {
 		Dependencies: []string{depName},
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(pluginName, conn)
-			err := p.Run(context.Background(), sdk.Registration{WantsConfig: []string{"fib/kernel"}})
+			err := p.Run(context.Background(), &sdk.Registration{WantsConfig: []string{"fib/kernel"}})
 			if err != nil {
 				return 1
 			}

@@ -19,7 +19,7 @@ func orderingTestEngine(name string, configure func() error) func(net.Conn) int 
 		p := sdk.NewWithConn(name, conn)
 		defer p.Close() //nolint:errcheck // Test transport cleanup.
 		p.OnConfigure(func([]sdk.ConfigSection) error { return configure() })
-		if err := p.Run(context.Background(), sdk.Registration{}); err != nil {
+		if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
 			return 1
 		}
 		return 0

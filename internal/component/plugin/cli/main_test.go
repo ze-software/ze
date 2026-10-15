@@ -232,7 +232,7 @@ func TestQueryAnswerIsTheSameLineFromBothWriters(t *testing.T) {
 	require.Equal(t, 0, zeCode, "stderr: %s", zeStderr)
 
 	sdkCode, sdkLine, sdkStderr := captureStdio(t, func() int {
-		return sdk.RunOrDeclare(sdk.Registration{Commands: commands, Pipes: pipes}, func() int { return 1 })
+		return sdk.RunOrDeclare(&sdk.Registration{Commands: commands, Pipes: pipes}, func() int { return 1 })
 	})
 	require.Equal(t, 0, sdkCode, "stderr: %s", sdkStderr)
 

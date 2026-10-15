@@ -235,7 +235,7 @@ func runConnectedPlugin(conn net.Conn) int {
 	p.DeclareAppliesNothing("its config container holds no leaf")
 
 	ctx := context.Background()
-	if err := p.Run(ctx, sdk.Registration{
+	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig: []string{pluginName},
 	}); err != nil {
 		logger().Error("connected plugin failed", "error", err)

@@ -117,7 +117,7 @@ func plugin01AnswerUnconditionalFirst(ctx context.Context, _ []string) error {
 		result <- scenarioErr
 		return scenarioErr
 	})
-	runErr := plugin.Run(ctx, sdk.Registration{})
+	runErr := plugin.Run(ctx, &sdk.Registration{})
 	select {
 	case scenarioErr := <-result:
 		return errors.Join(scenarioErr, runErr)

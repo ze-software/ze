@@ -156,7 +156,7 @@ func TestOnDrainRunsOffEventLoop(t *testing.T) {
 			p, engine := newTestPair(t)
 			setup(p)
 			runDone := make(chan error, 1)
-			go func() { runDone <- p.Run(ctx, Registration{DrainBudget: 5}) }()
+			go func() { runDone <- p.Run(ctx, &Registration{DrainBudget: 5}) }()
 			completeStartup(t, ctx, engine)
 			return func(ctx context.Context, method string, params json.RawMessage) error {
 				return callAndExpectOK(ctx, engine.mux, method, params)

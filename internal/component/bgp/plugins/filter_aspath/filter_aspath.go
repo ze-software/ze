@@ -56,7 +56,7 @@ func runFilterAsPath(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	if err := p.Run(ctx, sdk.Registration{
+	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig: []string{configRootBGP},
 	}); err != nil {
 		logger().Error("filter-aspath plugin failed", "error", err)

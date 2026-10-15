@@ -60,7 +60,7 @@ func init() {
 
 func p12ObserveDriver(name string, scenario p12Scenario) Driver {
 	return func(ctx context.Context, _ []string) error {
-		return Observe(ctx, name, sdk.Registration{}, scenario)
+		return Observe(ctx, name, &sdk.Registration{}, scenario)
 	}
 }
 
@@ -89,7 +89,7 @@ func p12SubscribedDriver(name string, events []string, setup func(*sdk.Plugin) p
 			return nil
 		})
 
-		runErr := plugin.Run(ctx, sdk.Registration{})
+		runErr := plugin.Run(ctx, &sdk.Registration{})
 		select {
 		case scenarioErr := <-result:
 			if scenarioErr != nil {
@@ -133,7 +133,7 @@ func p12WaitForDaemonDriver(name string, scenario p12Scenario) Driver {
 			}()
 			return nil
 		})
-		runErr := plugin.Run(ctx, sdk.Registration{})
+		runErr := plugin.Run(ctx, &sdk.Registration{})
 		select {
 		case scenarioErr := <-result:
 			return errorsJoinP12(scenarioErr, runErr)

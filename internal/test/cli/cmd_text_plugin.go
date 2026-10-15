@@ -44,7 +44,7 @@ func CmdTextPlugin(_ []string) int {
 	p.SetStartupSubscriptions([]string{"update"}, nil, "")
 
 	reg := sdk.Registration{}
-	if err := p.Run(ctx, reg); err != nil {
+	if err := p.Run(ctx, &reg); err != nil {
 		fmt.Fprintf(os.Stderr, "text-plugin: run: %v\n", err)
 		return 1
 	}

@@ -55,7 +55,7 @@ func p05Observe(ctx context.Context, args []string, process string, scenario Obs
 	if err := p05NoArgs(args); err != nil {
 		return err
 	}
-	return Observe(ctx, process, sdk.Registration{}, scenario)
+	return Observe(ctx, process, &sdk.Registration{}, scenario)
 }
 
 func p05Dispatch(ctx context.Context, plugin *sdk.Plugin, command string) (string, any, json.RawMessage, error) {
@@ -439,7 +439,7 @@ func p05ConfigEditSSHSession(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("SSH port %q: %w", args[0], err)
 	}
-	return Observe(ctx, "ssh-session-test", sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
+	return Observe(ctx, "ssh-session-test", &sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
 		if !Poll(ctx, 50, 200*time.Millisecond, func() bool {
 			ok, _ := p05Dial(ctx, port, true)
 			return ok
@@ -467,7 +467,7 @@ func p05ConfigEditSSH(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("SSH port %q: %w", args[0], err)
 	}
-	return Observe(ctx, "config-edit-test", sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
+	return Observe(ctx, "config-edit-test", &sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
 		Poll(ctx, 50, 200*time.Millisecond, func() bool {
 			ok, _ := p05Dial(ctx, port, false)
 			return ok
@@ -634,7 +634,7 @@ func p05CursorReplay(ctx context.Context, args []string) error {
 	})
 }
 
-func p05RunActivePlugin(ctx context.Context, process string, registration sdk.Registration, scenario func(context.Context, *sdk.Plugin) error) error {
+func p05RunActivePlugin(ctx context.Context, process string, registration *sdk.Registration, scenario func(context.Context, *sdk.Plugin) error) error {
 	plugin, err := newObserver(process)
 	if err != nil {
 		return err
@@ -669,7 +669,7 @@ func p05CustomFlowspecPlugin(ctx context.Context, args []string) error {
 		{Name: "ipv6/flow-vpn", Mode: modeDecode, AFI: 2, SAFI: 134},
 		{Name: familyIPv4Unicast, Mode: modeBoth, AFI: 1, SAFI: 1},
 	}}
-	return p05RunActivePlugin(ctx, "acme-traffic-filter", registration, func(ctx context.Context, plugin *sdk.Plugin) error {
+	return p05RunActivePlugin(ctx, "acme-traffic-filter", &registration, func(ctx context.Context, plugin *sdk.Plugin) error {
 		if _, _, err := plugin.UpdateRoute(ctx, "*", "update text origin igp local-preference 100 nhop 1.2.3.4 nlri ipv4/unicast add 77.77.77.0/24"); err != nil {
 			return err
 		}
@@ -702,7 +702,7 @@ func p05DDoSFlowspecAnnounce(ctx context.Context, args []string) error {
 	if err := p05NoArgs(args); err != nil {
 		return err
 	}
-	return p05RunActivePlugin(ctx, "ddos-flowspec-announce", sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
+	return p05RunActivePlugin(ctx, "ddos-flowspec-announce", &sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
 		commands := []string{
 			cmdAnnounceFirstPrefix,
 			"update text extended-community [rate-limit:9600] nhop self nlri ipv4/flow add destination-ipv4 192.0.2.0/24 protocol =6 destination-port =80",
@@ -777,7 +777,7 @@ func p05ConcurrentConfigCommit(ctx context.Context, args []string) error {
 	if err := declareObserverAppliesNothing(plugin); err != nil {
 		return err
 	}
-	runErr := plugin.Run(ctx, sdk.Registration{WantsConfig: []string{namespaceBGP}, VerifyBudget: 3})
+	runErr := plugin.Run(ctx, &sdk.Registration{WantsConfig: []string{namespaceBGP}, VerifyBudget: 3})
 	select {
 	case driverErr := <-driverDone:
 		return errors.Join(driverErr, runErr)

@@ -42,7 +42,7 @@ func runVPLSPlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	err := p.Run(ctx, sdk.Registration{
+	err := p.Run(ctx, &sdk.Registration{
 		Families: []sdk.FamilyDecl{
 			{Name: familyVPLS, Mode: "decode", AFI: 25, SAFI: 65},
 		},

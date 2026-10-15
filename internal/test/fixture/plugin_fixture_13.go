@@ -171,7 +171,7 @@ func waitEORSent13(ctx context.Context, plugin *sdk.Plugin, selector string) err
 }
 
 func observe13(ctx context.Context, name string, scenario ObserverScenario) error {
-	return Observe(ctx, name, sdk.Registration{}, scenario)
+	return Observe(ctx, name, &sdk.Registration{}, scenario)
 }
 
 func runPlugin13(ctx context.Context, name string, setup func(*sdk.Plugin), scenario func(context.Context, *sdk.Plugin) error, shutdown bool) error {
@@ -196,7 +196,7 @@ func runPlugin13(ctx context.Context, name string, setup func(*sdk.Plugin), scen
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, sdk.Registration{})
+	runErr := plugin.Run(ctx, &sdk.Registration{})
 	select {
 	case scenarioErr := <-result:
 		return errors.Join(scenarioErr, runErr)
@@ -215,7 +215,7 @@ func passivePlugin13(name string) Driver {
 			return err
 		}
 		defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
-		return plugin.Run(ctx, sdk.Registration{})
+		return plugin.Run(ctx, &sdk.Registration{})
 	}
 }
 

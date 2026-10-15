@@ -549,7 +549,7 @@ func liveStageOneDeclaration(t *testing.T, reg *sdk.Registration, validateOpen b
 	stopped := make(chan struct{})
 	go func() {
 		defer close(stopped)
-		_ = witness.Run(ctx, *reg) //nolint:errcheck // Stage 2 never comes: the error ends the handshake and is not the fact under test
+		_ = witness.Run(ctx, reg) //nolint:errcheck // Stage 2 never comes: the error ends the handshake and is not the fact under test
 	}()
 
 	engine := pluginipc.NewPluginConn(engineEnd, engineEnd)
@@ -587,7 +587,7 @@ func queriedDeclaration(t *testing.T, reg *sdk.Registration) rpc.DeclareRegistra
 	withQueryMode(t)
 
 	stdout := captureStdout(t, func() {
-		code := sdk.RunOrDeclare(*reg, func() int {
+		code := sdk.RunOrDeclare(reg, func() int {
 			t.Error("the plugin activated under a declaration query")
 			return 1
 		})

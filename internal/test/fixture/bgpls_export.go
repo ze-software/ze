@@ -40,7 +40,7 @@ func init() {
 				return err
 			}
 		}
-		return Observe(ctx, "plugin/bgpls-export-lifecycle", sdk.Registration{}, bgplsExportLifecycle)
+		return Observe(ctx, "plugin/bgpls-export-lifecycle", &sdk.Registration{}, bgplsExportLifecycle)
 	})
 }
 

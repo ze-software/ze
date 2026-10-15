@@ -125,7 +125,7 @@ func connectBMP04(ctx context.Context, args []string) (net.Conn, error) {
 
 func withBMP04(fn func(context.Context, *sdk.Plugin, net.Conn) error) Driver {
 	return func(ctx context.Context, args []string) error {
-		return Observe(ctx, "fixture-bmp-04", sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+		return Observe(ctx, "fixture-bmp-04", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 			conn, err := connectBMP04(ctx, args)
 			if err != nil {
 				return err
@@ -203,7 +203,7 @@ func bmpLGHTTPRoutes04(ctx context.Context, args []string) error {
 	if len(args) != 2 {
 		return errors.New("usage: fixture requires BMP port and looking-glass port")
 	}
-	return Observe(ctx, "fixture-bmp-04", sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+	return Observe(ctx, "fixture-bmp-04", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 		conn, err := connectBMP04(ctx, args[:1])
 		if err != nil {
 			return err
@@ -399,7 +399,7 @@ func bmpReceiverSessionDriver04(ctx context.Context, args []string) error {
 		return errors.New("usage: receiver-session <port>")
 	}
 	port := args[0]
-	return Observe(ctx, "fixture-bmp-receiver-session-04", sdk.Registration{}, func(ctx context.Context, _ *sdk.Plugin) error {
+	return Observe(ctx, "fixture-bmp-receiver-session-04", &sdk.Registration{}, func(ctx context.Context, _ *sdk.Plugin) error {
 		if !Poll(ctx, 100, 200*time.Millisecond, func() bool {
 			dialer := net.Dialer{Timeout: time.Second}
 			conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort("127.0.0.1", port))

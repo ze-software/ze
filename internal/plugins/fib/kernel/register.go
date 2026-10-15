@@ -280,7 +280,7 @@ func runFIBKernelPlugin(conn net.Conn) int {
 		return "error", "", fmt.Errorf("unknown command: %s", command)
 	})
 
-	err := p.Run(ctx, sdk.Registration{
+	err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 1,
 		ApplyBudget:  1,

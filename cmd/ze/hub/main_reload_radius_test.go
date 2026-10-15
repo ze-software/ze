@@ -76,7 +76,7 @@ func registerRadiusReloadProbe(t *testing.T) {
 						return ctx.Err()
 					}
 				})
-				if err := p.Run(ctx, sdk.Registration{
+				if err := p.Run(ctx, &sdk.Registration{
 					WantsConfig: []string{radiusReloadProbeRoot}, VerifyBudget: 1, ApplyBudget: 10,
 				}); err != nil {
 					return 1

@@ -116,7 +116,7 @@ func runHealthcheckPlugin(conn net.Conn) int {
 	logger().Info("healthcheck plugin starting")
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	err := p.Run(ctx, sdk.Registration{
+	err := p.Run(ctx, &sdk.Registration{
 		WantsConfig: []string{configRootBGP},
 		Commands:    commandDecls(),
 	})
