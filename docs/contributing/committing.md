@@ -213,7 +213,13 @@ them. One commit block holds, in order:
    says to run the script again once the other git command finishes, removing
    the lock only when no git process is running: git waited only
    `core.filesRefLockTimeout`, so the holder may be a live git that is slow.
-   Every refusal before the branch moves opens `ERROR: commit <tag> (<subject>) was not published`.
+   Every refusal before the branch moves opens `ERROR: commit <tag> (<subject>) was not published`,
+   with one exception: a block whose message file is gone opens `ERROR: commit
+   <tag> (<subject>) was not run`, because a missing file means the block most
+   likely published on an earlier run of the script. Both lines say HEAD is
+   unchanged by that block, never by the run, since an earlier block of the same
+   script can have published in this run. The subject the refusal prints is
+   quoted once as a whole, so no character in it is shell syntax.
    The landed commit is printed as `[<short-sha>] <subject>` with its stat.
 7. A drift note, then the message file is deleted. The note stages the working
    tree into a throwaway index and reports any named path whose content, mode,

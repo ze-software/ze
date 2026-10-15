@@ -174,7 +174,10 @@ func renderPublish(block commitBlock, scriptPath string) string {
 		// stop the script with bash's bare "No such file" under `set -e`.
 		renderRefusal(`! -f "$_ze_message"`, notRunLine(block),
 			`echo "Its message file $_ze_message is gone. A block deletes it once its commit lands, so this block already published on an earlier run of this script, or the file was cleaned up."`,
-			`echo "Check whether it landed with: git log --format='%h %s' --fixed-strings --grep=`+shellQuote(commentSafe(block.Subject))+`"`,
+			// The subject is user text: quoted once as the whole echo argument, so
+			// no character in it is shell syntax, and the printed command, quoted
+			// again inside, pastes back into a shell as it reads.
+			`echo `+shellQuote("Check whether it landed with: git log --format='%h %s' --fixed-strings --grep="+shellQuote(commentSafe(block.Subject))),
 			`echo "Then prepare whatever is still uncommitted again with ./le commit create, rather than running this script again."`),
 		`_ze_text=$(git stripspace < "$_ze_message")`,
 		renderRefusal(`-z "$_ze_text"`, notPublished,
@@ -292,9 +295,10 @@ func refuseBlocksWithoutBookkeeping(script, body string) error {
 
 // notRunLine is the first line of the refusal for a block whose message file is
 // gone: the block may well have published on an earlier run, so it cannot say
-// "not published".
+// "not published". It says HEAD is unchanged by this block, never by the run:
+// an earlier block of the same script can have published in this run.
 func notRunLine(block commitBlock) string {
-	return "ERROR: commit " + block.Tag + " (" + commentSafe(block.Subject) + ") was not run, and HEAD is unchanged by this run."
+	return "ERROR: commit " + block.Tag + " (" + commentSafe(block.Subject) + ") was not run, and HEAD is unchanged by it."
 }
 
 // notPublishedLine is the first line of every refusal before the branch moves.

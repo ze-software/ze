@@ -638,6 +638,66 @@ func TestARerunAfterTheBlockPublishedIsRefusedByName(t *testing.T) {
 	}
 }
 
+// TestASubjectWithShellSyntaxIsInertInTheScript publishes a commit whose
+// subject holds every character a shell reads inside double quotes, then runs
+// the script again.
+//
+// VALIDATES: the first run parses and publishes the subject verbatim; the
+// rerun stops at the missing-message refusal, prints the check command with
+// the subject intact, and that printed command, pasted into bash, finds the
+// commit.
+// PREVENTS: the subject interpolated into a double-quoted echo (review of
+// 7de7c2586d): an odd `"` left every script for the commit unparseable, a
+// backtick ran a command, an unset `$name` aborted under `set -u`, and an
+// apostrophe mangled the printed command.
+func TestASubjectWithShellSyntaxIsInertInTheScript(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "subject-fixture")
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+	subject := `say "hi" now" ` + "`touch PWNED`" + ` $HOME $ZE_UNSET_VAR it's`
+	prepared, err := Create(root, &Options{Subject: subject, Files: []string{"mine.txt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	runCommitScript(t, root, prepared.Script)
+
+	if landed := strings.TrimSpace(runCommitGitOutput(t, root, "log", "-1", "--format=%s")); landed != subject {
+		t.Fatalf("HEAD's subject is %q, want %q", landed, subject)
+	}
+	head := headOf(t, root)
+
+	output, err := runScript(t, root, prepared.Script)
+
+	if err == nil {
+		t.Fatalf("the rerun succeeded, want a refusal:\n%s", output)
+	}
+	if now := headOf(t, root); now != head {
+		t.Fatalf("the refused rerun moved HEAD from %s to %s\n%s", head, now, output)
+	}
+	if _, statErr := os.Stat(filepath.Join(root, "PWNED")); statErr == nil {
+		t.Fatalf("a backtick in the subject ran a command:\n%s", output)
+	}
+	if !strings.Contains(output, "ERROR: commit a ("+subject+") was not run") {
+		t.Fatalf("the refusal does not name the commit by its subject:\n%s", output)
+	}
+	_, after, printed := strings.Cut(output, "Check whether it landed with: ")
+	if !printed {
+		t.Fatalf("the refusal prints no check command:\n%s", output)
+	}
+	check, _, _ := strings.Cut(after, "\n")
+	pasted := exec.CommandContext(t.Context(), "bash", "-c", check)
+	pasted.Dir = root
+	found, pasteErr := pasted.CombinedOutput()
+	if pasteErr != nil {
+		t.Fatalf("the printed check command %q does not run: %v: %s", check, pasteErr, found)
+	}
+	if !strings.Contains(string(found), subject) {
+		t.Fatalf("the printed check command %q does not find the commit:\n%s", check, found)
+	}
+}
+
 // TestAppendOntoABlockWithoutBookkeepingIsRefused appends to a script whose
 // block has no `_ze_own` line, the shape an older le prepared.
 //
