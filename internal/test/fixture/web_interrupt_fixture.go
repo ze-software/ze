@@ -112,7 +112,7 @@ func webInterrupt(ctx context.Context, args []string) error {
 	}
 
 	// The kernel may hand a dead daemon's pid to another process, so a pid is
-	// signalled only while the daemon still holds it.
+	// signaled only while the daemon still holds it.
 	gone, err := webInterruptGone(pid)
 	if err != nil {
 		return err
@@ -264,7 +264,7 @@ func webInterruptNeverClosed(pid int, address string, sent time.Time, ctxErr err
 		return fmt.Errorf("the daemon %d exited %s after the first SIGINT, before the driver saw its listener close: "+
 			"the shutdown did not wait for the held connection", pid, time.Since(sent).Round(time.Millisecond))
 	}
-	return fmt.Errorf("the web listener on %s did not close after the first SIGINT (driver context: %v)", address, ctxErr)
+	return fmt.Errorf("the web listener on %s did not close after the first SIGINT (driver context: %w)", address, ctxErr)
 }
 
 // webInterruptGone answers whether the daemon has exited: signal 0 to its pid

@@ -404,7 +404,7 @@ func TestStdpatchTreeServesTheWholeStdlib(t *testing.T) {
 // os.Executable answers the unresolved path, finds the tree as its root, so a
 // Resolve that runs the first go on PATH by name answers the tree. The test
 // discriminates only on darwin: on Linux os.Executable reads /proc/self/exe,
-// which the kernel already resolved, so even the go run by name answers the
+// which the kernel already resolved, so even the go started by name answers the
 // real root there and the test stays green without the fix.
 func TestResolveAnswersTheRealRootUnderATreeFirstOnPath(t *testing.T) {
 	t.Setenv("GOROOT", "")
