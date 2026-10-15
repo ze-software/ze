@@ -70,23 +70,23 @@
     {
       "rid": "RFC1350-4-3",
       "polarity": "positive",
-      "unit": "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350ServerChoosesOneTIDForTheTransfer",
-      "unit-sha": "652500271435feed",
-      "claim-sha": "1c3350f5ca4f0de0",
+      "unit": "internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip",
+      "unit-sha": "a6c8e94d4af1c8ee",
+      "claim-sha": "ed6abab42edd12c3",
       "route": "revert",
       "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-      "producer-sha": "0e32084edc3f5ed9",
+      "producer-sha": "56992fc1830c92da",
       "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC1350-4-3",
       "polarity": "positive",
-      "unit": "internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip",
-      "unit-sha": "6472bc4c39c68dc8",
-      "claim-sha": "ed6abab42edd12c3",
+      "unit": "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350ServerChoosesOneTIDForTheTransfer",
+      "unit-sha": "652500271435feed",
+      "claim-sha": "1c3350f5ca4f0de0",
       "route": "revert",
       "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-      "producer-sha": "0e32084edc3f5ed9",
+      "producer-sha": "56992fc1830c92da",
       "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
