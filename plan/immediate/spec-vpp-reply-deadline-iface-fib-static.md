@@ -173,7 +173,7 @@ for does not exist.
 |----------|--------|
 | What breaks if this is wrong? | Too long a deadline keeps today's behaviour, which is a wedged router that reports nothing. Too short a deadline fails healthy commits under load. Getting the rollback verdict wrong makes an operator wait a second deadline for a failure they were already going to get, on a router whose dataplane is not answering |
 | How is it reverted? | Single commit revert. No config migration and no persisted state. The env var becomes unknown and is ignored |
-| Who else touches this path? | `plan/immediate/spec-traffic-vpp-deferred-reply-timeout.md` covers the traffic backend, the fourth plugin in this class. It should land first or together; the two must not choose different mechanisms |
+| Who else touches this path? | spec-traffic-vpp-deferred-reply-timeout (closed 2026-10-15) covered the traffic backend, the fourth plugin in this class, with a per-plugin constructor: `newGovppOps` in `internal/plugins/traffic/vpp/timeout_linux.go`, described in `docs/architecture/traffic/fw-7b-backend-hardening.md`. This spec must not choose a different mechanism |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -385,10 +385,10 @@ timeout arm deterministically.
 | The rollback verdict is one decision, applied to both paths | Fix iface and leave the firewall inconsistent | The owner asked for the same operator-visible outcome. Fixing one side and not the other leaves exactly the inconsistency the request names |
 
 ## Known Limitations
-- The traffic backend is the fourth plugin in this class and is covered by
-  `plan/immediate/spec-traffic-vpp-deferred-reply-timeout.md`. If that spec lands first
-  with a per-plugin constructor, this spec must reconcile the two mechanisms
-  rather than add a second.
+- The traffic backend is the fourth plugin in this class. spec-traffic-vpp-deferred-reply-timeout
+  (closed 2026-10-15) landed a per-plugin constructor, `newGovppOps` in
+  `internal/plugins/traffic/vpp/timeout_linux.go`, so this spec must reuse that
+  mechanism rather than add a second.
 - The connect phase already bounds its own wait, and this spec does not change
   it. An absent VPP and a wedged VPP stay different conditions.
 

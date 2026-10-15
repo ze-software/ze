@@ -33,7 +33,7 @@ route add/withdraw/dump, process restart, tunnel and WireGuard state, SPAN/LCP,
 traffic and firewall Apply, event subscription, stats-segment emulation, a
 source-to-handler parity gate and runtime strict mode. It also owns the
 silent-reply proof transferred by
-`plan/immediate/spec-traffic-vpp-deferred-reply-timeout.md`: accept a traffic
+spec-traffic-vpp-deferred-reply-timeout (closed 2026-10-15): accept a traffic
 request, withhold the reply, observe a bounded identifiable timeout, then prove
 that another apply can proceed (AC-16).
 

@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | 6/6 |
 | Handoff | verify |
-| Updated | 2026-10-12 |
+| Updated | 2026-10-15 |
 
 <!-- Handoff `verify`: the implementation session commits the work, sets Status to
      `verification` and stops. A later session reviews that commit and closes, on Opus when the model is an Anthropic one. -->
@@ -432,10 +432,11 @@ any wire; it installs a client-side deadline.
   fourth was found during this implementation and was named by nothing before it:
   `newVPPBackend` (`internal/component/ike/dataplane/vpp.go`) takes a channel and
   binds no deadline, and it HOLDS that channel for the backend's lifetime rather
-  than per apply, so every SA and SPD request waits on it. It is recorded in
-  `plan/journal/guard-added-to-one-half-of-a-pair.md` and belongs with the same
-  owner decision as the three below; `plan/immediate/spec-vpp-reply-deadline-iface-fib-static.md`
-  does not reach it.
+  than per apply, so every SA and SPD request waits on it. It is a defect walked
+  into, so its record is the 2026-10-15 `ike ipsec vpp dataplane` row of
+  `plan/journal/guard-added-to-one-half-of-a-pair.md`, written after re-reading
+  the producer, and no spec owns it (`ai/rules/rule-precedence.md`);
+  `plan/immediate/spec-vpp-reply-deadline-iface-fib-static.md` does not reach it.
 - **Three more VPP backends carry the same defect and are OUT OF SCOPE here.**
   `grep -rn 'SetReplyTimeout' --include=*.go internal/` on 2026-08-11 returns one
   production call, the firewall one. `internal/plugins/iface/vpp` (through
@@ -488,9 +489,10 @@ any wire; it installs a client-side deadline.
 
 ## Implementation Summary
 
-### Closure verdict: NOT CLOSED
+### Closure verdict: CLOSED 2026-10-15
 
-The spec stays open in `plan/immediate/`. The September 5 closure attempt
+Closed after Review Gate round 3, with the IKE `newVPPBackend` finding routed to
+its journal row (Work Not Done). History follows. The September 5 closure attempt
 reached no guest tests and did not demonstrate AC-5. Its two reported runner
 causes no longer describe the current implementation: `Run` derives the guest
 Go release from `go.mod` through `goversion.DeclaredRelease`, and
@@ -502,7 +504,7 @@ pause named its resolution: resume the guest proof on the repaired runner. That
 proof ran on 2026-10-12 (AC-5 row below): the unit phase and the integration
 phase of `./le test qemu all-tests` each printed
 `ok github.com/ze-software/ze/internal/plugins/traffic/vpp` inside the guest.
-The spec is handed to verification. The constructor/clamp evidence below is
+The spec was then handed to verification. The constructor/clamp evidence below is
 evidence of that seam, not proof that a silent VPP replied.
 
 ### What Was Implemented
@@ -634,15 +636,15 @@ and remaining ownership are stated in the closure verdict and Work Not Done.
 |-------------------|-----|---------------------------|
 | An end-to-end proof that a wedged VPP unblocks: a stub mode that accepts a request and never answers it, plus an assertion that traffic apply returns an identifiable reply-timeout error within the configured bound and permits a subsequent apply | The wait is inside vendored govpp and the constructor proof observes the installed value only | `plan/spec-finish-vpp-stub.md`, AC-16. AC-11 remains the successful-Apply proof and cannot substitute for the withheld-reply case |
 | The reply deadline for `internal/plugins/iface/vpp`, `internal/plugins/fib/vpp` and `internal/plugins/static/vpp` | Different callers, different locks, different blast radii from traffic's | `plan/immediate/spec-vpp-reply-deadline-iface-fib-static.md` |
-| The reply deadline for `newVPPBackend` (`internal/component/ike/dataplane/vpp.go`), which holds one channel for the backend's lifetime | `newVPPBackend` and `Connector.NewChannel` still install no deadline. The finding is outside this traffic repair and has no approved destination | Owner decision remains open: assign a dedicated IKE deadline spec or explicitly extend an existing deadline owner. `plan/journal/guard-added-to-one-half-of-a-pair.md` preserves the discovery but is not a destination spec |
+| The reply deadline for `newVPPBackend` (`internal/component/ike/dataplane/vpp.go`), which holds one channel for the backend's lifetime | `newVPPBackend` and `Connector.NewChannel` still install no deadline (re-read 2026-10-15). It is a defect this spec walked into, outside the one backend the deferral row named, so it is routed as a journal row and not as a spec (`ai/rules/rule-precedence.md`) | None: `plan/journal/guard-added-to-one-half-of-a-pair.md`, the 2026-10-15 `ike ipsec vpp dataplane` row, is its record until the deliberate pass over that class |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | `tmp/review/traffic-vpp-deferred-reply-timeout-zeclose-vpptimeout.md` (7 files, verdict=clean) |
-| `review check` | OK -- `review_gate: OK (0 code files, clean, hashes match ...)`. The run carries a NOTE that the model could not be determined, so the review-model boundary is UNCHECKED |
-| Rounds | 2 |
+| Artifact | `tmp/review/traffic-vpp-deferred-reply-timeout-3be8cd06-0062-4950-8b30-09ebec04cbaf.md` (7 files, verdict=clean, model=claude-opus-5-5). The earlier `-zeclose-vpptimeout.md` artifact no longer exists in `tmp/review/` |
+| `review check` | OK -- `review_gate: OK (5 code files, clean, hashes match ...)`, 2026-10-15. The model is recorded, so the review-model boundary is checked. The IKE `newVPPBackend` finding is routed to its journal row (Work Not Done) |
+| Rounds | 3 |
 | Reviewer lenses used | wiring + logic + guard audit; security + edge cases; style pass (`docs/contributing/ze-go-style.md`) and documentation drift |
 
 ### Findings fixed
@@ -652,7 +654,13 @@ and remaining ownership are stated in the closure verdict and Work Not Done.
 | 1 | NOTE | The fake channel spells its unreachable methods `panic("unused")`, outside the prefix list the style guide states and `writeGoPatterns` (`internal/le/hookruntime/writeedit.go`) enforces on write. Test-only and unreachable by a peer, so NOTE rather than ISSUE (`/ze-review` step 22) | `internal/plugins/traffic/vpp/timeout_linux_test.go`, `recordingChannel` | rewritten as `panic("BUG: ...")` naming the method that must not be reached |
 | 2 | NOTE | The spec's Files to Modify named `internal/le/integration/gates.go`, a path that has never existed in this tree | the spec | Deviations records the real file, `internal/le/qemu/alltests.go` |
 
-Round 2 re-read the two edits above and found nothing further. Both are record
+Round 3 (2026-10-15, the closing session, which wrote none of this code) re-read
+`newGovppOps`, `vppReplyTimeout`, `(*backend).Apply` and both test files at HEAD,
+confirmed `conn.NewChannel()` is still the package's one channel acquisition and
+`newGovppOps` its one facade construction after `d484f44faf`, ran
+`go test -count=1 ./internal/plugins/traffic/vpp/...` (ok, darwin, untagged
+ratchet) and `GOOS=linux go vet` over the package (clean), and found no BLOCKER,
+ISSUE or NOTE. Round 2 re-read the two edits above and found nothing further. Both are record
 or test-only, so neither earned another product round
 (`ai/rules/planning.md`, "A finding in the record is not a finding in the
 product"). No BLOCKER and no ISSUE was raised in either round. The two QEMU
