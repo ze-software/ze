@@ -39,8 +39,8 @@ func imageSectionsOn(iface, imageDir string) []sdk.ConfigSection {
 }
 
 // newTestImageConfigTxRefusing is newTestImageConfigTx, and also answers the
-// set of interface names the stub cannot bind, which a test fills to model
-// an interface that does not exist.
+// set of interface names the stub can neither resolve nor bind, which a test
+// fills to model an interface that does not exist, or a port taken.
 func newTestImageConfigTxRefusing(t *testing.T) (*sdk.ConfigTx[imageConfig], *imageServer, map[string]bool) {
 	t.Helper()
 	origResolve, origServe := imageResolveIPv4, imageServeTarget
@@ -52,7 +52,10 @@ func newTestImageConfigTxRefusing(t *testing.T) (*sdk.ConfigTx[imageConfig], *im
 		}
 		return "127.0.0.1", nil
 	}
-	imageServeTarget = func(cfg imageConfig, _ string, _ listenTarget) (*http.Server, error) {
+	imageServeTarget = func(cfg imageConfig, _ string, target listenTarget) (*http.Server, error) {
+		if refused[target.iface] {
+			return nil, errors.New("address already in use")
+		}
 		return &http.Server{Addr: cfg.ImageDirectory}, nil
 	}
 
@@ -194,5 +197,86 @@ func TestConfigTxRollbackThatCannotRebindFails(t *testing.T) {
 	refused["eth0"] = true
 	if err := tx.Rollback(); err == nil {
 		t.Fatal("rollback onto an interface that cannot be bound succeeded")
+	}
+}
+
+// imageSectionsOnAll is imageSectionsOn serving imageDir on every interface
+// of ifaces.
+func imageSectionsOnAll(imageDir string, ifaces ...string) []sdk.ConfigSection {
+	return []sdk.ConfigSection{{Root: configRootService, Data: `{"service":{"image-server":{"enabled":"true",` +
+		`"listen-interface":["` + strings.Join(ifaces, `","`) + `"],"image-directory":"` + imageDir + `"}}}`}}
+}
+
+// TestConfigTxReloadThatLosesARunningInterfaceNamesIt proves ISSUE-5 for
+// imageserver, partial loss: a refused reload whose running servers cannot
+// all be bound again keeps the ones that bind serving and fails with
+// sdk.ErrRunningConfigLost naming the one it lost.
+// Method: the server runs on eth1 and eth2; the reload names eth9, which is
+// refused, and eth2 is refused too, as a port taken in the rebind window.
+// VALIDATES: spec-plugin-reload-applies-or-refuses round 2 ISSUE-5.
+// PREVENTS: one lost interface closing every other one, and an error that
+// does not say the running config is no longer what runs.
+func TestConfigTxReloadThatLosesARunningInterfaceNamesIt(t *testing.T) {
+	tx, srv, refused := newTestImageConfigTxRefusing(t)
+	if err := tx.Configure(imageSectionsOnAll("/srv/a", "eth1", "eth2")); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	if err := tx.Verify(imageSectionsOnAll("/srv/a", "eth9")); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	refused["eth9"] = true
+	refused["eth2"] = true
+	err := tx.Apply()
+	if !errors.Is(err, sdk.ErrRunningConfigLost) {
+		t.Fatalf("reload that lost eth2: %v, want sdk.ErrRunningConfigLost", err)
+	}
+	for _, want := range []string{`"eth9"`, `"eth2"`, "1 of the 2", "commit the running config again"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("apply error %q does not say %s", err, want)
+		}
+	}
+	if strings.Contains(err.Error(), `"eth1"`) {
+		t.Errorf("apply error %q names eth1, which serves again", err)
+	}
+	if len(srv.httpServers) != 1 {
+		t.Fatalf("after losing eth2, %d servers serve, want eth1's 1", len(srv.httpServers))
+	}
+}
+
+// TestConfigTxReloadThatLosesEveryRunningInterfaceRepairs proves ISSUE-5 for
+// imageserver, total loss, through sdk.ConfigTx: the failed apply wraps
+// sdk.ErrRunningConfigLost, the rollback while eth1 is still refused answers
+// an error (the bridge acks it CodeBroken and the engine restarts the
+// plugin), and once eth1 binds, committing the running config again binds it
+// rather than being skipped as unchanged.
+// VALIDATES: spec-plugin-reload-applies-or-refuses round 2 ISSUE-5.
+// PREVENTS: an image server dark after a refused reload, with every later
+// commit of the running config answered OK as a no-op.
+func TestConfigTxReloadThatLosesEveryRunningInterfaceRepairs(t *testing.T) {
+	tx, srv, refused := newTestImageConfigTxRefusing(t)
+	if err := tx.Configure(imageSectionsOn("eth1", "/srv/a")); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	if err := tx.Verify(imageSectionsOn("eth9", "/srv/a")); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	refused["eth9"] = true
+	refused["eth1"] = true
+	if err := tx.Apply(); !errors.Is(err, sdk.ErrRunningConfigLost) {
+		t.Fatalf("reload that lost eth1: %v, want sdk.ErrRunningConfigLost", err)
+	}
+	if err := tx.Rollback(); err == nil {
+		t.Fatal("rollback while eth1 is still refused answered OK")
+	}
+
+	refused["eth1"] = false
+	if err := tx.Verify(imageSectionsOn("eth1", "/srv/a")); err != nil {
+		t.Fatalf("verify the running config: %v", err)
+	}
+	if err := tx.Apply(); err != nil {
+		t.Fatalf("commit the running config again: %v", err)
+	}
+	if len(srv.httpServers) != 1 {
+		t.Fatalf("after the re-commit %d servers serve, want 1", len(srv.httpServers))
 	}
 }

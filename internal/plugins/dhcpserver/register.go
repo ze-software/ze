@@ -109,6 +109,13 @@ func closeLogged(c closer, log *slog.Logger, what string) {
 // bind without privileges or a real interface).
 var dhcpListen = listenDHCP
 
+// dhcpListener is one bound listener and the interface it serves, which a
+// refused reload binds again.
+type dhcpListener struct {
+	iface string
+	conn  *net.UDPConn
+}
+
 // bindListeners binds a DHCP listener on every interface of cfg and starts
 // serving handlers on each. A disabled cfg binds nothing.
 //
@@ -122,11 +129,11 @@ var dhcpListen = listenDHCP
 // device ze's own `interface {}` config creates exists by then, because the
 // server starts after the interface plugin (StartAfter in init); a device
 // that appears later is served only after the next reload.
-func bindListeners(cfg serverConfig, handlers []*dhcpHandler, log *slog.Logger, strict bool) ([]*net.UDPConn, error) {
+func bindListeners(cfg serverConfig, handlers []*dhcpHandler, log *slog.Logger, strict bool) ([]dhcpListener, error) {
 	if !cfg.Enabled {
 		return nil, nil
 	}
-	var listeners []*net.UDPConn
+	var listeners []dhcpListener
 	for _, iface := range cfg.ListenInterfaces {
 		ln, err := dhcpListen(iface)
 		if err != nil && !strict {
@@ -135,20 +142,20 @@ func bindListeners(cfg serverConfig, handlers []*dhcpHandler, log *slog.Logger, 
 		}
 		if err != nil {
 			for _, bound := range listeners {
-				closeLogged(bound, log, "udp listener")
+				closeLogged(bound.conn, log, "udp listener")
 			}
 			return nil, fmt.Errorf("dhcpserver: cannot listen on interface %q: %w. "+
 				"The DHCP server does not take this config.\n"+
 				"Fix: name an interface that exists in service dhcp-server listen-interface, or remove %q from it", iface, err, iface)
 		}
-		listeners = append(listeners, ln)
+		listeners = append(listeners, dhcpListener{iface: iface, conn: ln})
 	}
 	if len(listeners) == 0 {
 		log.Error("dhcpserver: no interfaces bound; server not serving", "interfaces", cfg.ListenInterfaces)
 		return nil, nil
 	}
 	for _, ln := range listeners {
-		go serveMulti(ln, handlers, log)
+		go serveMulti(ln.conn, handlers, log)
 	}
 	log.Info("dhcpserver: started",
 		"shared-networks", len(cfg.SharedNetworks),

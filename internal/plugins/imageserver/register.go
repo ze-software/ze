@@ -119,7 +119,7 @@ var (
 // `interface {}` config creates exists by then, because the server starts
 // after the interface plugin (StartAfter in init); an address or a device
 // that appears later is served only after the next reload.
-func bindImage(cfg imageConfig, zefsPath string, log *slog.Logger, strict bool) ([]*http.Server, error) {
+func bindImage(cfg imageConfig, zefsPath string, log *slog.Logger, strict bool) ([]imageListener, error) {
 	if !cfg.Enabled {
 		return nil, nil
 	}
@@ -169,14 +169,21 @@ func listenTargets(names []string, log *slog.Logger, strict bool) ([]listenTarge
 	return targets, nil
 }
 
+// imageListener is one bound HTTP server and the target it serves, which a
+// refused reload binds again.
+type imageListener struct {
+	*http.Server
+	target listenTarget
+}
+
 // startTargets binds one HTTP server for each target and returns the servers
 // that bound. Not strict, a target that fails to bind is reported and
 // skipped, so one unusable interface does not stop the others from serving;
 // strict, the servers already bound are closed and the failure is the error.
 // The caller MUST call Close on every returned server to stop its serve
 // goroutine.
-func startTargets(cfg imageConfig, zefsPath string, targets []listenTarget, log *slog.Logger, strict bool) ([]*http.Server, error) {
-	servers := make([]*http.Server, 0, len(targets))
+func startTargets(cfg imageConfig, zefsPath string, targets []listenTarget, log *slog.Logger, strict bool) ([]imageListener, error) {
+	servers := make([]imageListener, 0, len(targets))
 	for _, target := range targets {
 		srv, err := imageServeTarget(cfg, zefsPath, target)
 		if err != nil && strict {
@@ -191,7 +198,7 @@ func startTargets(cfg imageConfig, zefsPath string, targets []listenTarget, log 
 			continue
 		}
 		log.Info("imageserver: listening", "interface", target.iface, "addr", srv.Addr)
-		servers = append(servers, srv)
+		servers = append(servers, imageListener{Server: srv, target: target})
 	}
 	return servers, nil
 }

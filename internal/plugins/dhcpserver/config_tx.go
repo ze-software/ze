@@ -5,9 +5,9 @@ package dhcpserver
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log/slog"
-	"net"
 	"net/netip"
 	"slices"
 
@@ -43,7 +43,7 @@ type dhcpServer struct {
 	// are not strict (bindListeners).
 	boot      bool
 	handlers  []*dhcpHandler
-	listeners []*net.UDPConn
+	listeners []dhcpListener
 	log       *slog.Logger
 }
 
@@ -58,18 +58,20 @@ type dhcpServer struct {
 // that arrives meanwhile is lost and the client retransmits it. When an
 // interface of cfg cannot be bound, the replaced listeners are bound again
 // over the replaced handlers and the error is returned, so the transaction
-// rolls back. When those cannot be bound either, the error says so: a
-// rollback that answers it is reported broken and the plugin is restarted.
+// rolls back. When one of those cannot be bound either, the error wraps
+// sdk.ErrRunningConfigLost (restore), so the transaction's rollback installs
+// the running config again or restarts the plugin.
 func (s *dhcpServer) install(cfg serverConfig) error {
 	var handlers []*dhcpHandler
 	if cfg.Enabled {
 		handlers = buildHandlers(cfg, s.handlers)
 	}
+	served := s.listeners
 	s.closeListeners()
 	listeners, err := bindListeners(cfg, handlers, s.log, !s.boot)
 	if err != nil {
 		stopLeasesNotIn(handlers, s.handlers)
-		return s.restore(err)
+		return s.restore(served, err)
 	}
 	stopLeasesNotIn(s.handlers, handlers)
 	kept := len(handlers) - len(newLeaseTables(handlers, s.handlers))
@@ -92,15 +94,30 @@ func (s *dhcpServer) configureAtBoot(tx *sdk.ConfigTx[serverConfig], sections []
 	return tx.Configure(sections)
 }
 
-// restore binds the running config's listeners again after an install whose
-// own listeners failed with cause, and answers the error install returns.
-func (s *dhcpServer) restore(cause error) error {
-	listeners, err := bindListeners(s.running, s.handlers, s.log, true)
-	s.listeners = listeners
-	if err != nil {
-		return fmt.Errorf("%w\nThe previous DHCP config could not be bound again either, so the DHCP server is not serving: %w", cause, err)
+// restore binds again, one by one over the running handlers, the listeners
+// that served before an install whose own listeners failed with cause, and
+// answers the error install returns. A listener that binds serves again, so
+// losing one interface does not close the others. When one cannot be bound,
+// the running config is no longer what runs: the error wraps
+// sdk.ErrRunningConfigLost and names each interface lost and why, and never
+// says the running config was kept.
+func (s *dhcpServer) restore(served []dhcpListener, cause error) error {
+	var lost []error
+	for _, previous := range served {
+		conn, err := dhcpListen(previous.iface)
+		if err != nil {
+			lost = append(lost, fmt.Errorf("interface %q: %w", previous.iface, err))
+			continue
+		}
+		s.listeners = append(s.listeners, dhcpListener{iface: previous.iface, conn: conn})
+		go serveMulti(conn, s.handlers, s.log)
 	}
-	return cause
+	if len(lost) == 0 {
+		return cause
+	}
+	return fmt.Errorf("%w\n%w: the DHCP server could not bind %d of the %d interface(s) it served again, "+
+		"so it no longer serves them (%w).\nFix: commit the running config again, or restart the plugin",
+		cause, sdk.ErrRunningConfigLost, len(lost), len(served), errors.Join(lost...))
 }
 
 // buildHandlers returns one handler per subnet of cfg, each with cfg's
@@ -185,7 +202,7 @@ func subnetServerIP(sub *subnetConfig) netip.Addr {
 
 func (s *dhcpServer) closeListeners() {
 	for _, ln := range s.listeners {
-		closeLogged(ln, s.log, "udp listener")
+		closeLogged(ln.conn, s.log, "udp listener")
 	}
 	s.listeners = nil
 }

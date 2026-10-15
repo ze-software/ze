@@ -221,9 +221,9 @@ func TestConfigTxReloadCutsTransferInFlight(t *testing.T) {
 	if err := tx.Configure(tftpSectionsOn("eth0", rootA)); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
-	server, ok := srv.listeners[0].LocalAddr().(*net.UDPAddr)
+	server, ok := srv.listeners[0].conn.LocalAddr().(*net.UDPAddr)
 	if !ok {
-		t.Fatalf("listener address is %T", srv.listeners[0].LocalAddr())
+		t.Fatalf("listener address is %T", srv.listeners[0].conn.LocalAddr())
 	}
 	client, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	if err != nil {
@@ -258,5 +258,86 @@ func TestConfigTxReloadCutsTransferInFlight(t *testing.T) {
 	n, _, err = client.ReadFromUDP(buf)
 	if err == nil && n >= 4 && binary.BigEndian.Uint16(buf[2:4]) == 2 {
 		t.Fatal("the transfer from the replaced root directory went on after the reload")
+	}
+}
+
+// tftpSectionsOnAll is tftpSectionsOn serving root on every interface of
+// ifaces.
+func tftpSectionsOnAll(root string, ifaces ...string) []sdk.ConfigSection {
+	return []sdk.ConfigSection{{Root: configRootService, Data: `{"service":{"tftp-server":{"enabled":"true",` +
+		`"listen-interface":["` + strings.Join(ifaces, `","`) + `"],"root-directory":"` + root + `","max-transfers":"4"}}}`}}
+}
+
+// TestConfigTxReloadThatLosesARunningInterfaceNamesIt proves ISSUE-5 for
+// tftpserver, partial loss: a refused reload whose running interfaces cannot
+// all be bound again keeps the ones that bind serving and fails with
+// sdk.ErrRunningConfigLost naming the one it lost.
+// Method: the server runs on eth0 and eth1; the reload names eth9, which is
+// refused, and eth1 is refused too, as a port taken in the rebind window.
+// VALIDATES: spec-plugin-reload-applies-or-refuses round 2 ISSUE-5.
+// PREVENTS: one lost interface closing every other one, and an error that
+// does not say the running config is no longer what runs.
+func TestConfigTxReloadThatLosesARunningInterfaceNamesIt(t *testing.T) {
+	tx, srv, _, refused := newTestTFTPConfigTxRefusing(t)
+	if err := tx.Configure(tftpSectionsOnAll("/srv/a", "eth0", "eth1")); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	if err := tx.Verify(tftpSectionsOnAll("/srv/a", "eth9")); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	refused["eth9"] = true
+	refused["eth1"] = true
+	err := tx.Apply()
+	if !errors.Is(err, sdk.ErrRunningConfigLost) {
+		t.Fatalf("reload that lost eth1: %v, want sdk.ErrRunningConfigLost", err)
+	}
+	for _, want := range []string{`"eth9"`, `"eth1"`, "1 of the 2", "commit the running config again"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("apply error %q does not say %s", err, want)
+		}
+	}
+	if strings.Contains(err.Error(), `"eth0"`) {
+		t.Errorf("apply error %q names eth0, which serves again", err)
+	}
+	if len(srv.listeners) != 1 {
+		t.Fatalf("after losing eth1, %d listeners serve, want eth0's 1", len(srv.listeners))
+	}
+}
+
+// TestConfigTxReloadThatLosesEveryRunningInterfaceRepairs proves ISSUE-5 for
+// tftpserver, total loss, through sdk.ConfigTx: the failed apply wraps
+// sdk.ErrRunningConfigLost, the rollback while eth0 is still refused answers
+// an error (the bridge acks it CodeBroken and the engine restarts the
+// plugin), and once eth0 binds, committing the running config again binds it
+// rather than being skipped as unchanged.
+// VALIDATES: spec-plugin-reload-applies-or-refuses round 2 ISSUE-5.
+// PREVENTS: a TFTP server dark after a refused reload, with every later
+// commit of the running config answered OK as a no-op.
+func TestConfigTxReloadThatLosesEveryRunningInterfaceRepairs(t *testing.T) {
+	tx, srv, _, refused := newTestTFTPConfigTxRefusing(t)
+	if err := tx.Configure(tftpSectionsOn("eth0", "/srv/a")); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	if err := tx.Verify(tftpSectionsOn("eth9", "/srv/a")); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	refused["eth9"] = true
+	refused["eth0"] = true
+	if err := tx.Apply(); !errors.Is(err, sdk.ErrRunningConfigLost) {
+		t.Fatalf("reload that lost eth0: %v, want sdk.ErrRunningConfigLost", err)
+	}
+	if err := tx.Rollback(); err == nil {
+		t.Fatal("rollback while eth0 is still refused answered OK")
+	}
+
+	refused["eth0"] = false
+	if err := tx.Verify(tftpSectionsOn("eth0", "/srv/a")); err != nil {
+		t.Fatalf("verify the running config: %v", err)
+	}
+	if err := tx.Apply(); err != nil {
+		t.Fatalf("commit the running config again: %v", err)
+	}
+	if len(srv.listeners) != 1 {
+		t.Fatalf("after the re-commit %d listeners serve, want 1", len(srv.listeners))
 	}
 }

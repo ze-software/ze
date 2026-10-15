@@ -4,9 +4,9 @@
 package imageserver
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -44,7 +44,7 @@ type imageServer struct {
 	// boot is true only while the Stage 2 configure installs, whose binds
 	// are not strict (bindImage).
 	boot        bool
-	httpServers []*http.Server
+	httpServers []imageListener
 	zefsDir     string
 	zefsPath    string
 	log         *slog.Logger
@@ -59,9 +59,9 @@ type imageServer struct {
 //
 // When an interface of cfg cannot be resolved or bound, the replaced config's
 // servers are bound again over its zefs database and the error is returned,
-// so the transaction rolls back. When those cannot be bound either, the error
-// says so: a rollback that answers it is reported broken and the plugin is
-// restarted.
+// so the transaction rolls back. When one of those cannot be bound either,
+// the error wraps sdk.ErrRunningConfigLost (restore), so the transaction's
+// rollback installs the running config again or restarts the plugin.
 func (s *imageServer) install(cfg imageConfig) error {
 	zefsDir, zefsPath, err := prepareZefs(cfg)
 	if err != nil && s.boot {
@@ -73,11 +73,12 @@ func (s *imageServer) install(cfg imageConfig) error {
 	if err != nil {
 		return err
 	}
+	served := s.httpServers
 	s.closeServers()
 	servers, err := bindImage(cfg, zefsPath, s.log, !s.boot)
 	if err != nil {
 		removeZefsDir(zefsDir, s.log)
-		return s.restore(err)
+		return s.restore(served, err)
 	}
 	removeZefsDir(s.zefsDir, s.log)
 	s.running, s.httpServers, s.zefsDir, s.zefsPath = cfg, servers, zefsDir, zefsPath
@@ -112,18 +113,40 @@ func (s *imageServer) configureAtBoot(tx *sdk.ConfigTx[imageConfig], sections []
 	return tx.Configure(sections)
 }
 
-// restore binds the running config's servers again after an install whose
-// own servers failed with cause, and answers the error install returns.
-func (s *imageServer) restore(cause error) error {
-	if !s.running.Enabled {
+// restore binds again, one by one over the running zefs database, the
+// servers that served before an install whose own servers failed with cause,
+// and answers the error install returns. Each binds the address it served,
+// with no new resolve. A server that binds serves again, so losing one
+// interface does not close the others. When one cannot be bound, the running
+// config is no longer what runs: the error wraps sdk.ErrRunningConfigLost and
+// names each interface lost and why, and never says the running config was
+// kept.
+func (s *imageServer) restore(served []imageListener, cause error) error {
+	var lost []error
+	for _, previous := range served {
+		srv, err := imageServeTarget(s.running, s.zefsPath, previous.target)
+		if err != nil {
+			lost = append(lost, lostImageTarget(previous.target, s.running.ListenPort, err))
+			continue
+		}
+		s.httpServers = append(s.httpServers, imageListener{Server: srv, target: previous.target})
+	}
+	if len(lost) == 0 {
 		return cause
 	}
-	servers, err := bindImage(s.running, s.zefsPath, s.log, true)
-	s.httpServers = servers
-	if err != nil {
-		return fmt.Errorf("%w\nThe previous image server config could not be bound again either, so the image server is not serving: %w", cause, err)
+	return fmt.Errorf("%w\n%w: the image server could not bind %d of the %d interface(s) it served again, "+
+		"so it no longer serves them (%w).\nFix: commit the running config again, or restart the plugin",
+		cause, sdk.ErrRunningConfigLost, len(lost), len(served), errors.Join(lost...))
+}
+
+// lostImageTarget names a served target restore could not bind again. An
+// empty interface is the "no interface named" target, which binds every
+// address of the host.
+func lostImageTarget(target listenTarget, port int, err error) error {
+	if target.iface == "" {
+		return fmt.Errorf("every address (%s): %w", listenAddr(target.ip, port), err)
 	}
-	return cause
+	return fmt.Errorf("interface %q (%s): %w", target.iface, listenAddr(target.ip, port), err)
 }
 
 // prepareZefs builds the zefs database of cfg in a new temporary directory

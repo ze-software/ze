@@ -5,6 +5,7 @@ package tftpserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -48,7 +49,7 @@ type tftpServer struct {
 	// boot is true only while the Stage 2 configure installs, whose binds
 	// are not strict (bindTFTP).
 	boot      bool
-	listeners []*net.UDPConn
+	listeners []tftpListener
 	sem       chan struct{}
 	// generation is canceled when a new config serves or the server stops,
 	// which cuts every transfer started under the running config. cancel is
@@ -68,17 +69,19 @@ type tftpServer struct {
 //
 // When an interface of cfg cannot be bound, the replaced listeners are bound
 // again under the replaced generation, so its transfers go on, and the error
-// is returned, so the transaction rolls back. When those cannot be bound
-// either, the error says so: a rollback that answers it is reported broken
-// and the plugin is restarted.
+// is returned, so the transaction rolls back. When one of those cannot be
+// bound either, the error wraps sdk.ErrRunningConfigLost (restore), so the
+// transaction's rollback installs the running config again or restarts the
+// plugin.
 func (s *tftpServer) install(cfg tftpConfig) error {
+	served := s.listeners
 	s.closeListeners()
 	generation, cancel := context.WithCancel(context.Background())
 	sem := make(chan struct{}, cfg.MaxTransfers)
 	listeners, err := bindTFTP(generation, cfg, sem, s.log, !s.boot)
 	if err != nil {
 		cancel()
-		return s.restore(err)
+		return s.restore(served, err)
 	}
 	s.endTransfers()
 	s.running, s.listeners, s.sem, s.generation, s.cancel = cfg, listeners, sem, generation, cancel
@@ -100,19 +103,53 @@ func (s *tftpServer) configureAtBoot(tx *sdk.ConfigTx[tftpConfig], sections []sd
 	return tx.Configure(sections)
 }
 
-// restore binds the running config's listeners again, under its own
-// generation and semaphore, after an install whose own listeners failed with
-// cause, and answers the error install returns.
-func (s *tftpServer) restore(cause error) error {
-	if !s.running.Enabled {
+// restore binds again, one by one under the running generation and
+// semaphore, the listeners that served before an install whose own listeners
+// failed with cause, and answers the error install returns. A listener that
+// binds serves again, so losing one interface does not close the others.
+// When one cannot be bound, the running config is no longer what runs: the
+// error wraps sdk.ErrRunningConfigLost and names each interface lost and
+// why, and never says the running config was kept.
+func (s *tftpServer) restore(served []tftpListener, cause error) error {
+	var lost []error
+	for _, previous := range served {
+		conn, err := listenInterface(previous.iface, s.log)
+		if err != nil {
+			lost = append(lost, fmt.Errorf("interface %q: %w", previous.iface, err))
+			continue
+		}
+		s.listeners = append(s.listeners, tftpListener{iface: previous.iface, conn: conn})
+		go serve(s.generation, conn, s.running.RootDirectory, s.sem, s.log)
+	}
+	if len(lost) == 0 {
 		return cause
 	}
-	listeners, err := bindTFTP(s.generation, s.running, s.sem, s.log, true)
-	s.listeners = listeners
-	if err != nil {
-		return fmt.Errorf("%w\nThe previous TFTP config could not be bound again either, so the TFTP server is not serving: %w", cause, err)
+	return fmt.Errorf("%w\n%w: the TFTP server could not bind %d of the %d interface(s) it served again, "+
+		"so it no longer serves them (%w).\nFix: commit the running config again, or restart the plugin",
+		cause, sdk.ErrRunningConfigLost, len(lost), len(served), errors.Join(lost...))
+}
+
+// tftpListener is one bound listener and the interface it serves, which a
+// refused reload binds again.
+type tftpListener struct {
+	iface string
+	conn  *net.UDPConn
+}
+
+// listenInterface binds the TFTP listener of one logical interface. It
+// resolves the name to its kernel device so SO_BINDTODEVICE binds the right
+// interface when name != os device (os-name / mac-match selectors).
+// Best-effort: when no iface backend is loaded -- the install/provision path
+// configures the interface directly via netlink without starting the iface
+// component -- bindDeviceFor returns the name verbatim, which is the kernel
+// device in that case.
+func listenInterface(ifName string, log *slog.Logger) (*net.UDPConn, error) {
+	device, rerr := bindDeviceFor(ifName)
+	if rerr != nil {
+		log.Debug("tftpserver: iface backend unavailable, binding by name",
+			"interface", ifName, "device", device, "error", rerr)
 	}
-	return cause
+	return tftpListen(device)
 }
 
 // bindTFTP binds a listener on every interface of cfg and serves each under
@@ -126,39 +163,26 @@ func (s *tftpServer) restore(cause error) error {
 // serve. A device ze's own `interface {}` config creates exists by then,
 // because the server starts after the interface plugin (StartAfter in init);
 // a device that appears later is served only after the next reload.
-func bindTFTP(generation context.Context, cfg tftpConfig, sem chan struct{}, log *slog.Logger, strict bool) ([]*net.UDPConn, error) {
+func bindTFTP(generation context.Context, cfg tftpConfig, sem chan struct{}, log *slog.Logger, strict bool) ([]tftpListener, error) {
 	if !cfg.Enabled {
 		return nil, nil
 	}
-	var listeners []*net.UDPConn
+	var listeners []tftpListener
 	for _, ifName := range cfg.ListenInterfaces {
-		// Resolve the logical name to its kernel device so SO_BINDTODEVICE
-		// binds the right interface when name != os device (os-name /
-		// mac-match selectors). Best-effort: when no iface backend is
-		// loaded -- the install/provision path configures the interface
-		// directly via netlink without starting the iface component --
-		// bindDeviceFor returns the name verbatim, which is the kernel
-		// device in that case.
-		device, rerr := bindDeviceFor(ifName)
-		if rerr != nil {
-			log.Debug("tftpserver: iface backend unavailable, binding by name",
-				"interface", ifName, "device", device, "error", rerr)
-		}
-		ln, err := tftpListen(device)
+		ln, err := listenInterface(ifName, log)
 		if err != nil && !strict {
-			log.Error("tftpserver: listen failed",
-				"interface", ifName, "device", device, "error", err)
+			log.Error("tftpserver: listen failed", "interface", ifName, "error", err)
 			continue
 		}
 		if err != nil {
 			for _, bound := range listeners {
-				closeLogged(bound, log, "udp listener")
+				closeLogged(bound.conn, log, "udp listener")
 			}
 			return nil, fmt.Errorf("tftpserver: cannot listen on interface %q: %w. "+
 				"The TFTP server does not take this config.\n"+
 				"Fix: name an interface that exists in service tftp-server listen-interface, or remove %q from it", ifName, err, ifName)
 		}
-		listeners = append(listeners, ln)
+		listeners = append(listeners, tftpListener{iface: ifName, conn: ln})
 	}
 
 	if len(listeners) == 0 {
@@ -167,7 +191,7 @@ func bindTFTP(generation context.Context, cfg tftpConfig, sem chan struct{}, log
 		return nil, nil
 	}
 	for _, ln := range listeners {
-		go serve(generation, ln, cfg.RootDirectory, sem, log)
+		go serve(generation, ln.conn, cfg.RootDirectory, sem, log)
 	}
 	log.Info("tftpserver: started",
 		"root-directory", cfg.RootDirectory,
@@ -180,7 +204,7 @@ func bindTFTP(generation context.Context, cfg tftpConfig, sem chan struct{}, log
 // closeListeners closes every listener, which ends its serve loop.
 func (s *tftpServer) closeListeners() {
 	for _, ln := range s.listeners {
-		closeLogged(ln, s.log, "udp listener")
+		closeLogged(ln.conn, s.log, "udp listener")
 	}
 	s.listeners = nil
 }

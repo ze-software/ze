@@ -57,9 +57,16 @@ servers serve.
 A reload resolves and binds every `listen-interface` or none. When one cannot
 be resolved or bound, or the zefs database cannot be built, the apply returns
 an error naming the cause and the fix, so the commit fails and rolls back, and
-the replaced config's servers are bound again. When those cannot be bound
-either, the error says the server is not serving; a rollback that answers so
-is reported broken and the engine restarts the plugin. The boot configure is
+the replaced config's servers are bound again, each on the address it served,
+one by one, so when another process takes the port of one of them in that
+window, the others still serve. The error then wraps
+`sdk.ErrRunningConfigLost`, says how many of the interfaces that served are
+lost and names each one with its address and cause, and asks for the running
+config to be committed again or the plugin restarted. The transaction is then
+broken: its rollback installs the running config again, and when that fails
+too it answers an error, so the bridge acks `CodeBroken` and the engine
+restarts the plugin; committing the running config again installs it rather
+than skipping it as unchanged. The boot configure is
 not strict: a configure error at boot fails the plugin and aborts the whole
 daemon start, and an interface's IPv4 address may arrive later through DHCP,
 so it logs `resolve interface failed` or `listen failed` for an interface and
@@ -67,7 +74,7 @@ serves on the others, or logs `no interfaces bound`. A VLAN, bridge or dummy
 that ze's own `interface {}` config creates exists by then, because the server
 starts after the interface plugin (`StartAfter: ["interface"]`). An address or
 an interface that appears later is not bound until the next reload.
-<!-- source: internal/plugins/imageserver/config_tx.go -- imageServer.install, imageServer.restore, prepareZefs, imageServer.stop -->
+<!-- source: internal/plugins/imageserver/config_tx.go -- imageServer.install, imageServer.restore, lostImageTarget, prepareZefs, imageServer.stop; pkg/plugin/sdk/config_tx.go -- ConfigTx.Apply, ConfigTx.Rollback -->
 <!-- source: internal/plugins/imageserver/register.go -- bindImage, listenTargets, startTargets -->
 
 ## Traps

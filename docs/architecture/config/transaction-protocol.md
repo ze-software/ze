@@ -222,8 +222,9 @@ candidate is absent or deeply equal to the running config (so a shared-root
 edit outside the plugin's subtree restarts nothing), and otherwise installs it
 and keeps the replaced config, which rollback installs back. Both no-change
 answers drop the undo set, as the contract above requires. An install that
-fails MUST leave the running config as it was; one that cannot (a DNS listener
-of the running config could not be bound again) wraps `ErrRunningConfigLost`,
+fails MUST leave the running config as it was; one that cannot (a listener of
+the running config could not be bound again: the DNS installers, dhcpserver,
+tftpserver and imageserver) wraps `ErrRunningConfigLost`,
 which leaves the transaction broken. Rollback then installs the running config
 again and fails when that install fails, and until an install succeeds apply
 skips the comparison, so a commit of the running config installs it.

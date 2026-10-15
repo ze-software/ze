@@ -49,17 +49,23 @@ reload that sets `enabled false` stops serving the same way.
 A reload binds every `listen-interface` or none. When one cannot be bound, the
 apply binds the replaced config's listeners again under the replaced
 generation, so its transfers go on, and returns an error naming the interface
-and the fix, so the commit fails and rolls back. When the replaced listeners
-cannot be bound either, the error says the server is not serving; a rollback
-that answers so is reported broken and the engine restarts the plugin. The
-boot configure is not strict: a configure error at boot fails the plugin and
+and the fix, so the commit fails and rolls back. The replaced listeners are
+bound one by one, so when another process takes the port of one of them in
+that window, the others still serve. The error then wraps
+`sdk.ErrRunningConfigLost`, says how many of the interfaces that served are
+lost and names each one with its cause, and asks for the running config to be
+committed again or the plugin restarted. The transaction is then broken: its
+rollback installs the running config again, and when that fails too it
+answers an error, so the bridge acks `CodeBroken` and the engine restarts the
+plugin; committing the running config again installs it rather than skipping
+it as unchanged. The boot configure is not strict: a configure error at boot fails the plugin and
 aborts the whole daemon start, so it logs `listen failed` for an interface and
 serves on the others, or logs `no interfaces bound` when none binds. A VLAN,
 bridge or dummy that ze's own `interface {}` config creates exists by then,
 because the server starts after the interface plugin
 (`StartAfter: ["interface"]`). An interface that appears later is not bound
 until the next reload.
-<!-- source: internal/plugins/tftpserver/config_tx.go -- tftpServer.install, tftpServer.restore, bindTFTP -->
+<!-- source: internal/plugins/tftpserver/config_tx.go -- tftpServer.install, tftpServer.restore, bindTFTP; pkg/plugin/sdk/config_tx.go -- ConfigTx.Apply, ConfigTx.Rollback -->
 <!-- source: internal/plugins/tftpserver/handler.go -- handleRRQ -->
 
 ## Traps
