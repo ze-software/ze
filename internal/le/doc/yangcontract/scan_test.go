@@ -68,6 +68,30 @@ func TestSourceCountsExcludeArtifacts(t *testing.T) {
 	}
 }
 
+// TestSourceCountsSkipCheckoutCache puts a stdpatch tree whose link names
+// another machine's GOROOT under the top-level cache/, beside a real package
+// named cache. The counts must skip the first by path and still count the
+// second, so the skip is the doc index's path set, never a name.
+func TestSourceCountsSkipCheckoutCache(t *testing.T) {
+	root := t.TempDir()
+	writeDoc(t, root, "internal/component/resolve/cache/cache_test.go", "package cache\nfunc FuzzCache() {}\nfunc TestCache() {}\n")
+	stdpatch := "cache/stdpatch/key/goroot/src/fmt"
+	writeDoc(t, root, filepath.Join(stdpatch, "copy_test.go"), "package fmt\nfunc FuzzCopy() {}\n")
+	if err := os.Symlink("/absent/goroot/src/fmt/print_test.go", filepath.Join(root, stdpatch, "print_test.go")); err != nil {
+		t.Fatalf("create stdpatch link: %v", err)
+	}
+	c := checker{}
+	if got := c.countFuzzTargets(root); got != 1 {
+		t.Errorf("fuzz targets = %d, want 1", got)
+	}
+	if got := c.countGoTestFunctions(root); got != 1 {
+		t.Errorf("product test functions = %d, want 1", got)
+	}
+	if len(c.unreadable) != 0 {
+		t.Fatalf("the checkout cache was read: %+v", c.unreadable)
+	}
+}
+
 // TestSourceCountsRetainReadFailures puts the same unopenable source in each
 // product area and checks that both counters name it while counting its sibling.
 func TestSourceCountsRetainReadFailures(t *testing.T) {

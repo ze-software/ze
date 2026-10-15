@@ -19,7 +19,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -204,13 +203,13 @@ func (c *checker) countGoTestFunctions(root string) int {
 	return count
 }
 
-// countGoFunctions uses the documentation index's source population. Pruning
-// directories before descent keeps runtime evidence and module caches out of
-// both the counts and the read failures without hiding failures in source.
+// countGoFunctions uses the documentation index's source population: it puts
+// every directory to docindex.SkipsDir, the question the index walk asks, and
+// keeps no copy of the skip set. Pruning directories before descent keeps
+// runtime evidence, module caches and the checkout's build cache out of both
+// the counts and the read failures without hiding failures in source.
 func (c *checker) countGoFunctions(root, walkRoot string, re *regexp.Regexp) int {
 	count := 0
-	skipDirs := docindex.SkipDirs()
-	modCache := filepath.Join(root, docindex.ModCache)
 	//nolint:errcheck // walkFailure records every failure; the walk's own answer adds nothing
 	_ = filepath.WalkDir(walkRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -220,16 +219,7 @@ func (c *checker) countGoFunctions(root, walkRoot string, re *regexp.Regexp) int
 			if path == walkRoot {
 				return nil
 			}
-			if slices.Contains(skipDirs, d.Name()) {
-				return filepath.SkipDir
-			}
-			if strings.HasPrefix(d.Name(), ".") {
-				return filepath.SkipDir
-			}
-			if path == modCache {
-				return filepath.SkipDir
-			}
-			return nil
+			return c.descend(root, path)
 		}
 		if !strings.HasSuffix(d.Name(), "_test.go") {
 			return nil
@@ -238,6 +228,22 @@ func (c *checker) countGoFunctions(root, walkRoot string, re *regexp.Regexp) int
 		return nil
 	})
 	return count
+}
+
+// descend answers whether the walk enters dir: nil to enter it, SkipDir when
+// the documentation index does not. A directory with no path under root is
+// recorded as a failure and skipped, because a population it cannot place is
+// a count it cannot vouch for.
+func (c *checker) descend(root, dir string) error {
+	rel, err := filepath.Rel(root, dir)
+	if err != nil {
+		c.noteUnopenable(dir, err)
+		return filepath.SkipDir
+	}
+	if docindex.SkipsDir(filepath.ToSlash(rel)) {
+		return filepath.SkipDir
+	}
+	return nil
 }
 
 // extractCount reads the first number a pattern's first group captures on a

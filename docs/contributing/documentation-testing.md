@@ -108,16 +108,20 @@ table row, remove a stale entry.
 
 The fuzz count reads first-party `_test.go` files from the working tree,
 including files not yet committed. It uses the documentation index's source
-population: it does not enter dot-prefixed directories, `vendor`, `tmp`,
-`testdata`, `node_modules`, or `gokrazy/modcache`. Runtime evidence and module
-cache copies therefore contribute neither targets nor read failures. The Go
+population by asking the index's own `SkipsDir` for every directory, so the two
+walks cannot drift apart. That walk does not enter dot-prefixed directories,
+`vendor`, `tmp`, `testdata` or `node_modules` at any depth, nor the top-level
+`gokrazy/modcache` and `cache` (the build cache, whose stdpatch trees link into
+whichever machine's GOROOT built them). Runtime evidence, module cache copies
+and build cache links therefore contribute neither targets nor read failures,
+while a package merely named `cache` is still counted. The Go
 unit-test count applies the same exclusions within `internal`, `pkg`, and `cmd`.
 A source file or directory that cannot be read still produces a finding,
 including a failed scan root. Absent optional roots contribute no files and
 no finding. A partial count is not evidence that a published claim is correct.
 
 <!-- source: internal/le/doc/yangcontract/scan.go -- countFuzzTargets, countGoTestFunctions, countGoFunctions -->
-<!-- source: internal/le/doc/index/docstocode.go -- SkipDirs, ModCache, walkGo -->
+<!-- source: internal/le/doc/index/docstocode.go -- SkipsDir, ModCache, Cache, walkGo -->
 
 ### `./le doc yang-contract command-contract`
 

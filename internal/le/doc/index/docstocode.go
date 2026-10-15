@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -146,9 +147,6 @@ func walkGo(root, dir string, visit func(path, rel string) error) error {
 	for _, entry := range entries {
 		name := entry.Name()
 		if entry.IsDir() {
-			if skipDirs[name] || strings.HasPrefix(name, ".") {
-				continue
-			}
 			subdirs = append(subdirs, name)
 			continue
 		}
@@ -176,7 +174,7 @@ func walkGo(root, dir string, visit func(path, rel string) error) error {
 		if err != nil {
 			return fmt.Errorf("locating %s under %s: %w", sub, root, err)
 		}
-		if slices.Contains(skipPaths[:], filepath.ToSlash(rel)) {
+		if SkipsDir(filepath.ToSlash(rel)) {
 			continue
 		}
 		if err := walkGo(root, sub, visit); err != nil {
@@ -270,46 +268,48 @@ func vanished(path string, err error) bool {
 	return errors.Is(statErr, fs.ErrNotExist)
 }
 
-// SkipDirs answers the directory names the walk does not enter, sorted. The
-// caller receives a copy, so a reader cannot widen the walk by editing what it
-// was handed.
-func SkipDirs() []string {
-	out := make([]string, 0, len(skipDirs))
-	for name := range skipDirs {
-		out = append(out, name)
+// SkipsDir reports whether the walk does not enter a directory. rel is the
+// directory's path relative to the checkout root, in slash form, and names a
+// directory below the root, never the root itself.
+//
+// It is the one declaration of the source population: walkGo, IsDesignSource
+// and every other walk that counts first-party source ask it, so no caller
+// keeps a copy of the set that can miss a later addition such as cache/.
+func SkipsDir(rel string) bool {
+	if slices.Contains(skipPaths[:], rel) {
+		return true
 	}
-	slices.Sort(out)
-	return out
+	name := path.Base(rel)
+	if skipDirs[name] {
+		return true
+	}
+	return strings.HasPrefix(name, ".")
 }
 
 // Separators answers the leading topic separators a citation can use between
 // the document path and the topic, longest first.
 func Separators() []string { return slices.Clone(separators[:]) }
 
-// IsDesignSource reports whether writing path can change ai/DOCS-TO-CODE.md.
-// path is relative to the checkout root, in slash form.
+// IsDesignSource reports whether writing source can change ai/DOCS-TO-CODE.md.
+// source is relative to the checkout root, in slash form.
 //
 // The index is built from the `// Design:` header of every `.go` file walkGo
 // visits, so its inputs are exactly that walk: a `.go` file under a directory
-// the walk enters. The population is read from skipDirs and skipPaths rather
-// than restated, so this predicate and the generator cannot answer two
-// different trees.
+// the walk enters. Each ancestor directory is put to SkipsDir, the question
+// walkGo asks, so this predicate and the generator cannot answer two different
+// trees.
 //
 // The header itself is NOT consulted. An edit that REMOVES a `// Design:` line
 // changes the index as surely as one that adds one, and this is asked after the
 // write, when the removed line is already gone.
-func IsDesignSource(path string) bool {
-	if !strings.HasSuffix(path, ".go") {
+func IsDesignSource(source string) bool {
+	if !strings.HasSuffix(source, ".go") {
 		return false
 	}
-	for _, skipped := range skipPaths {
-		if path == skipped || strings.HasPrefix(path, skipped+"/") {
-			return false
-		}
-	}
-	segments := strings.Split(path, "/")
-	for _, name := range segments[:len(segments)-1] {
-		if skipDirs[name] || strings.HasPrefix(name, ".") {
+	// The loop ends at "." for a relative path and at "/" for one that is not,
+	// because path.Dir answers each of those for itself.
+	for dir := path.Dir(source); dir != "." && dir != "/"; dir = path.Dir(dir) {
+		if SkipsDir(dir) {
 			return false
 		}
 	}
