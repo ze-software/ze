@@ -129,8 +129,10 @@ type ChildSA struct {
 	// endpoints (dataplane.tunnelEndpoints refuses them).
 	Mode uint8
 
-	// UDPEncap records that this Child SA RECEIVES UDP-encapsulated ESP on port 4500.
-	// It is the form the inbound XFRM template selects, and nothing else: the form ze
+	// UDPEncap records that this Child SA RECEIVES UDP-encapsulated ESP, on the local
+	// port childEncapPorts (create_child.go) answers: the MOBIKE local path's port when
+	// one is recorded, else the port the bound NAT-T socket holds, which is never
+	// assumed to be 4500. It is the form the inbound XFRM template selects, and nothing else: the form ze
 	// SENDS follows the NAT verdict alone, and installChildSA states why.
 	//
 	// Two independent RFC conditions set it, and either alone is enough.
