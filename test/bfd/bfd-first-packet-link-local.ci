@@ -78,4 +78,10 @@ expect=stderr:contains=OK: the first packet on zbl0 selected the session to fe80
 expect=stderr:contains=OK: the first packet on zbl1 selected the session to fe80::b on zbl1
 expect=stderr:pattern=OK: [0-9]+ frames left on zbl0 with Your Discriminator
 expect=stderr:pattern=OK: [0-9]+ frames left on zbl1 with Your Discriminator
-cmd=foreground:seq=3:exec=le test fixture bfd/bfd-first-packet-link-local-teardown:exit=0
+# The runner does not wait for a ze foreground command before starting the next
+# one, so without this barrier the teardown deletes both veths while the
+# observer still reads them (measured in the QEMU guest 2026-10-15: "read the
+# capture on zbl0p: network is down", the links deleted 190ms after selection).
+cmd=foreground:seq=3:exec=le test fixture daemon/await-exit:timeout=30s
+expect=stderr:contains=OK: the first daemon exited
+cmd=foreground:seq=4:exec=le test fixture bfd/bfd-first-packet-link-local-teardown:exit=0

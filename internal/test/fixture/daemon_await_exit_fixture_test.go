@@ -68,6 +68,30 @@ func TestDaemonAwaitExit(t *testing.T) {
 		defer cancel()
 		require.NoError(t, daemonAwaitExit(ctx, nil))
 	})
+	// BusyBox ps (the QEMU guest's Alpine) has no -p: it exits 1 with its
+	// usage on stderr and nothing on stdout, the "no such process" answer.
+	// A host with a procfs MUST answer from it and never from that ps; a host
+	// without one (darwin, whose ps has -p) MUST hand the question to ps.
+	// MUTATION: delete the procProcessState call in daemonProcessState and
+	// this case reports the running process exited on Linux.
+	t.Run("running, ps without -p", func(t *testing.T) {
+		target := startAwaitExitTarget(t)
+		if _, err := os.Stat("/proc/self/stat"); err != nil {
+			_, answered, err := procProcessState(target.Process.Pid)
+			require.NoError(t, err)
+			assert.False(t, answered, "a host with no procfs answered from it")
+			return
+		}
+		bin := t.TempDir()
+		busybox := "#!/bin/sh\necho 'ps: unrecognized option: p' >&2\nexit 1\n"
+		require.NoError(t, os.WriteFile(filepath.Join(bin, "ps"), []byte(busybox), 0o700)) //nolint:gosec // an executable stand-in for ps
+		t.Setenv("PATH", bin)
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+		err := daemonAwaitExit(ctx, nil)
+		require.Error(t, err, "a running process was reported exited by a ps that has no -p")
+		assert.Contains(t, err.Error(), "never exited")
+	})
 	t.Run("no pid file", func(t *testing.T) {
 		t.Chdir(t.TempDir())
 		err := daemonAwaitExit(t.Context(), nil)
