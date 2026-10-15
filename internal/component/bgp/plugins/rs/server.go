@@ -405,13 +405,9 @@ func RunRouteServer(conn net.Conn) int {
 	// with the roots Registration.WantsConfig declares below. That declaration
 	// also makes bgp-rs a participant in every bgp reload, so the verify/apply
 	// pair is what lets a committed edit reach the pool: with OnConfigure alone
-	// the SDK answers config-apply OK and changes nothing (config_tx.go).
+	// the SDK refuses the reload at config-verify (sdk_callbacks.go).
 	// The env var takes precedence over the leaf at boot and on reload.
-	queueSizeTx := newQueueSizeConfigTx(rs.workers, env.Get("ze.bgp.route-server.worker-queue-size") != "")
-	p.OnConfigure(queueSizeTx.configure)
-	p.OnConfigVerify(queueSizeTx.verify)
-	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error { return queueSizeTx.apply() })
-	p.OnConfigRollback(func(_ string) error { return queueSizeTx.rollback() })
+	newQueueSizeConfigTx(rs.workers, env.Get("ze.bgp.route-server.worker-queue-size") != "").Register(p)
 
 	// Register event subscriptions atomically with startup completion.
 	// Included in the "ready" RPC so the engine registers them before SignalAPIReady,
