@@ -52,8 +52,13 @@ generation, so its transfers go on, and returns an error naming the interface
 and the fix, so the commit fails and rolls back. When the replaced listeners
 cannot be bound either, the error says the server is not serving; a rollback
 that answers so is reported broken and the engine restarts the plugin. The
-boot configure is not strict: it logs `listen failed` for an interface and
-serves on the others, or logs `no interfaces bound` when none binds.
+boot configure is not strict: a configure error at boot fails the plugin and
+aborts the whole daemon start, so it logs `listen failed` for an interface and
+serves on the others, or logs `no interfaces bound` when none binds. A VLAN,
+bridge or dummy that ze's own `interface {}` config creates exists by then,
+because the server starts after the interface plugin
+(`StartAfter: ["interface"]`). An interface that appears later is not bound
+until the next reload.
 <!-- source: internal/plugins/tftpserver/config_tx.go -- tftpServer.install, tftpServer.restore, bindTFTP -->
 <!-- source: internal/plugins/tftpserver/handler.go -- handleRRQ -->
 

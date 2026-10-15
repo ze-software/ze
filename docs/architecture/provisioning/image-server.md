@@ -60,8 +60,13 @@ an error naming the cause and the fix, so the commit fails and rolls back, and
 the replaced config's servers are bound again. When those cannot be bound
 either, the error says the server is not serving; a rollback that answers so
 is reported broken and the engine restarts the plugin. The boot configure is
-not strict: it logs `resolve interface failed` or `listen failed` for an
-interface and serves on the others, or logs `no interfaces bound`.
+not strict: a configure error at boot fails the plugin and aborts the whole
+daemon start, and an interface's IPv4 address may arrive later through DHCP,
+so it logs `resolve interface failed` or `listen failed` for an interface and
+serves on the others, or logs `no interfaces bound`. A VLAN, bridge or dummy
+that ze's own `interface {}` config creates exists by then, because the server
+starts after the interface plugin (`StartAfter: ["interface"]`). An address or
+an interface that appears later is not bound until the next reload.
 <!-- source: internal/plugins/imageserver/config_tx.go -- imageServer.install, imageServer.restore, prepareZefs, imageServer.stop -->
 <!-- source: internal/plugins/imageserver/register.go -- bindImage, listenTargets, startTargets -->
 

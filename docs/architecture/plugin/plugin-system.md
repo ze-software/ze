@@ -235,6 +235,16 @@ and static asks for it once, in its own `OnStarted`. In one tier static could
 start first and run every next-hop without BFD. A static-only configuration, or
 a build without the bfd plugin, never loads BFD through this edge.
 
+The DHCP, TFTP and image servers use `StartAfter: ["interface"]`: each binds its
+listen-interfaces in its Stage 2 configure, and the interface plugin creates
+the VLANs, bridges and dummies of ze's own `interface {}` config in its own
+Stage 2 configure. In one tier the server could bind before the device exists
+and serve nothing on it until the next reload. A config with no `interface`
+section never loads the interface plugin through this edge.
+<!-- source: internal/plugins/dhcpserver/register.go -- StartAfter -->
+<!-- source: internal/plugins/tftpserver/register.go -- StartAfter -->
+<!-- source: internal/plugins/imageserver/register.go -- StartAfter -->
+
 The daemon checks its config-path and explicit startup selections together.
 Already-selected explicit prerequisites move into the config-path phase when
 needed; unrelated explicit plugins remain later. Thus an explicitly selected

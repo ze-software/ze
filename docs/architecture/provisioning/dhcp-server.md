@@ -70,9 +70,13 @@ and returns an error naming the interface and the fix, so the commit fails and
 rolls back with the leases intact. When the replaced listeners cannot be bound
 either, the error says the server is not serving; a rollback that answers so
 is reported broken and the engine restarts the plugin. The boot configure is
-not strict: it has no previous config to keep and the install path brings
-interfaces up after the daemon, so it logs `listen failed` for an interface
-and serves on the others, or logs `no interfaces bound` when none binds.
+not strict: it has no previous config to keep, and a configure error at boot
+fails the plugin and aborts the whole daemon start, so it logs `listen failed`
+for an interface and serves on the others, or logs `no interfaces bound` when
+none binds. A VLAN, bridge or dummy that ze's own `interface {}` config creates
+exists by then, because the server starts after the interface plugin
+(`StartAfter: ["interface"]`). An interface that appears later, by hotplug for
+example, is not bound until the next reload.
 <!-- source: internal/plugins/dhcpserver/config_tx.go -- dhcpServer.install, buildHandlers, sameAddressPlan, dhcpServer.restore -->
 <!-- source: internal/plugins/dhcpserver/register.go -- bindListeners -->
 
