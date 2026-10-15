@@ -115,11 +115,16 @@ func pruneLearnedRoles() {
 // configured and the installed config does not is a peer the commit removed,
 // whatever its group: a static peer a group lists carries that group too, and
 // a commit that removes the group's listen range removes the group's template
-// selector while the static peer stays. Any other key was never a configured
-// peer's, and only a dynamic member's role is stored that way, so the answer is
-// whether its group is still a configured dynamic group. An entry that is
-// neither, such as one an OPEN recorded while the commit removing its peer was
-// in flight, is dropped rather than kept unreachable forever.
+// selector while the static peer stays.
+//
+// Any other key was never a configured peer's. With a group, it is a dynamic
+// member's, so the answer is whether its group is still a configured dynamic
+// group. Without one, it is kept: a peer an operator made at runtime with
+// `create bgp peer <addr>` stores its role under its generated name
+// (peer-<addr>), carries no group, and survives every commit that does not
+// declare it, so no commit is evidence that it is gone. Dropping it stopped
+// every export to that peer as role "unknown" until its session bounced,
+// because an established peer sends no second OPEN.
 func learnedRolePeerConfiguredLocked(key string, state remoteRoleState) bool {
 	if _, configured := filterPeerKeys[key]; configured {
 		return true
@@ -128,7 +133,7 @@ func learnedRolePeerConfiguredLocked(key string, state remoteRoleState) bool {
 		return false
 	}
 	if state.group == "" {
-		return false
+		return true
 	}
 	_, groupConfigured := filterPeerKeys[configjson.CapabilityGroupKey(state.group)]
 	return groupConfigured
@@ -233,15 +238,29 @@ func getFilterConfig(addr, name, group string) (cfg *peerRoleConfig, remoteRole 
 // The address is tried first, so a configured peer resolves exactly as it did
 // before the name was consulted at all.
 //
+// The bare name is tried last, for a peer a reload added. Its session can
+// validate an OPEN before the role plugin installs the config that names it,
+// and filterKeyLocked then has no translation, so the OPEN is stored under the
+// name. Once the config is installed the name translates to the address, which
+// holds no entry, and the peer's role read as unknown until its session
+// bounced. A later OPEN writes the address key, which is read first.
+//
 // Caller must hold filterMu.
 func remoteRoleLocked(addr, name string) (remoteRoleState, bool) {
 	if state, ok := filterRemoteRoles[addr]; ok {
 		return state, true
 	}
-	if name != "" && name != addr {
-		if state, ok := filterRemoteRoles[filterKeyLocked(name)]; ok {
-			return state, true
-		}
+	if name == "" {
+		return remoteRoleState{}, false
+	}
+	if name == addr {
+		return remoteRoleState{}, false
+	}
+	if state, ok := filterRemoteRoles[filterKeyLocked(name)]; ok {
+		return state, true
+	}
+	if state, ok := filterRemoteRoles[name]; ok {
+		return state, true
 	}
 	return remoteRoleState{}, false
 }

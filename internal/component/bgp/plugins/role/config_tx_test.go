@@ -341,32 +341,79 @@ func TestRoleCommitRemovingGroupRangeKeepsStaticMemberRole(t *testing.T) {
 	}
 }
 
-// TestRoleCommitDropsRoleLearnedForUnconfiguredPeer proves that the prune
-// also drops a role stored under a key no config ever named, such as an OPEN
-// validated while the commit removing its peer was in flight.
-// Method: roles are recorded for a peer name and a group neither config
-// holds, then an unrelated commit runs.
+// TestRoleCommitDropsRoleLearnedForMemberOfUnconfiguredGroup proves that the
+// prune drops a role learned for a member of a group no config holds, such as
+// an OPEN validated while the commit removing that group was in flight.
+// Method: a role is recorded for a dynamic member of group gone, which neither
+// config holds, then an unrelated commit runs.
 // VALIDATES: spec-plugin-reload-applies-or-refuses R-14 for bgp-role.
 // PREVENTS: an entry keyed outside both configured-peer sets surviving every
 // later prune, since a diff of the two sets can never name it.
-func TestRoleCommitDropsRoleLearnedForUnconfiguredPeer(t *testing.T) {
+func TestRoleCommitDropsRoleLearnedForMemberOfUnconfiguredGroup(t *testing.T) {
 	resetRoleState(t)
 	tx := newRoleConfigTx()
 	if err := tx.configure(rolelessPeerSections(true, "first")); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
 	setFilterRemoteRole("plain", "", roleCustomer)
-	setFilterRemoteRole("ghost", "", rolePeer)
 	setFilterRemoteRole("dyn-198.51.100.8", "gone", rolePeer)
 
 	commitRoleReload(t, tx, rolelessPeerSections(true, "second"))
-	if remoteRoleRecorded("", "ghost") {
-		t.Fatalf("a role learned under a never-configured peer survived the prune")
-	}
 	if remoteRoleRecorded("198.51.100.8", "dyn-198.51.100.8") {
 		t.Fatalf("a role learned for a member of a never-configured group survived the prune")
 	}
 	if _, learned := getFilterConfig("192.0.2.3", "plain", ""); learned != roleCustomer {
 		t.Fatalf("the configured peer lost its learned role: %q", learned)
+	}
+}
+
+// TestRoleUnrelatedCommitKeepsCreatedPeerRole proves that a commit keeps the
+// learned role of a peer made at runtime with `create bgp peer <addr>`.
+// Method: the role is recorded the way that peer's OPEN stores it, under the
+// generated name peer-10-0-0-1 with no group (reactor peerConfigNameFor), which
+// no config ever names; an unrelated commit runs, then getFilterConfig, which
+// OTCEgressFilter reads for the export set, is read.
+// VALIDATES: spec-plugin-reload-applies-or-refuses R-14 for bgp-role.
+// PREVENTS: the prune dropping a created peer's role on any commit, which
+// withdrew every route the export set sends it as role "unknown" until its
+// session bounced, because the created peer survives a commit that does not
+// declare it and an established peer sends no second OPEN.
+func TestRoleUnrelatedCommitKeepsCreatedPeerRole(t *testing.T) {
+	resetRoleState(t)
+	tx := newRoleConfigTx()
+	if err := tx.configure(rolelessPeerSections(true, "first")); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	setFilterRemoteRole("peer-10-0-0-1", "", roleCustomer)
+
+	commitRoleReload(t, tx, rolelessPeerSections(true, "second"))
+	if _, learned := getFilterConfig("10.0.0.1", "peer-10-0-0-1", ""); learned != roleCustomer {
+		t.Fatalf("an unrelated commit dropped the created peer's learned role: %q", learned)
+	}
+}
+
+// TestRoleOpenBeforeInstallOfAddedPeerKeepsRole proves that a peer a reload
+// adds keeps the role its OPEN declared when that OPEN was validated before the
+// role plugin installed the config naming the peer.
+// Method: the OPEN of peer other is recorded while the installed config does
+// not hold other, so its name has no address and the role is stored under the
+// name; the reload adding other (192.0.2.2, with a role block, so its name now
+// maps to its address) commits, then getFilterConfig is read by address and
+// name, as OTCEgressFilter reads it.
+// VALIDATES: spec-plugin-reload-applies-or-refuses R-14 for bgp-role.
+// PREVENTS: the reader translating the name to the address, which holds no
+// entry, and reading the added peer's role as unknown until its session
+// bounced.
+func TestRoleOpenBeforeInstallOfAddedPeerKeepsRole(t *testing.T) {
+	resetRoleState(t)
+	tx := newRoleConfigTx()
+	if err := tx.configure(roleTxSections("false", `["default"]`, false, false)); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	setFilterRemoteRole("other", "", roleCustomer)
+
+	commitRoleReload(t, tx, roleTxSections("false", `["default"]`, true, false))
+	if _, learned := getFilterConfig("192.0.2.2", "other", ""); learned != roleCustomer {
+		t.Fatalf("the added peer's role, learned before the install, was not read: %q", learned)
 	}
 }
