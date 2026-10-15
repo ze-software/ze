@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
+
+	"github.com/ze-software/ze/internal/core/dnsserver"
 )
 
 // compressionZone is a zone with nine nameservers. An apex NS query draws nine
@@ -46,7 +48,7 @@ func serveCompressionZone(t *testing.T) *net.UDPAddr {
 	cfg := compressionZone(t, port)
 	storeApplied(cfg, 1)
 	mgr := newServerManager(testLogger())
-	if err := mgr.apply(cfg); err != nil {
+	if err := mgr.reconcile(cfg, dnsserver.BindLenient); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	t.Cleanup(mgr.stopAll)
@@ -481,7 +483,7 @@ func TestRFC1035_LabelLengthOctetBeginsWithTwoZeroBits(t *testing.T) {
 	cfg.Listeners = []listenerEndpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}}
 	storeApplied(cfg, 1)
 	mgr := newServerManager(testLogger())
-	if err := mgr.apply(cfg); err != nil {
+	if err := mgr.reconcile(cfg, dnsserver.BindLenient); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	t.Cleanup(mgr.stopAll)

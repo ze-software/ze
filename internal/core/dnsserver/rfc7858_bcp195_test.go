@@ -47,10 +47,10 @@ func TestRFC7858DoTNegotiatesOnlyBCP195Suites(t *testing.T) {
 			}
 			port := freePort(t)
 			mgr := New(testLogger(), echoHandler("10.0.0.7"), Options{})
-			if err := mgr.applyListeners(true, Listeners{
+			if err := mgr.reconcile(true, Listeners{
 				DoT:       []Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}},
 				TLSConfig: srvTLS,
-			}); err != nil {
+			}, BindLenient); err != nil {
 				t.Fatalf("ApplyListeners: %v", err)
 			}
 			t.Cleanup(mgr.Stop)

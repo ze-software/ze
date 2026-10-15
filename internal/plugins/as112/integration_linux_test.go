@@ -32,7 +32,7 @@ func bindLoopback53(t *testing.T, cfg as112Config) (addr string, cleanup func())
 	storeState(buildState(cfg, 1))
 
 	mgr := newServerManager(testLogger(), nil)
-	err := mgr.apply(true, []dnsserver.Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: 53}})
+	err := mgr.mgr.ApplyWithSecure(true, []dnsserver.Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: 53}}, dnsserver.SecureConfig{}, dnsserver.BindLenient, testLogger())
 	if err != nil {
 		mgr.stopAll()
 		t.Skipf("bind 127.0.0.1:53 failed (needs CAP_NET_BIND_SERVICE/root): %v", err)

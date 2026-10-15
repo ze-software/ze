@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
+
+	"github.com/ze-software/ze/internal/core/dnsserver"
 )
 
 // VALIDATES: one record definition is served from several listeners with
@@ -35,7 +37,7 @@ func TestMultipleListenersShareRecords(t *testing.T) {
 	}
 	storeApplied(cfg, 1)
 	mgr := newServerManager(testLogger())
-	if err := mgr.apply(cfg); err != nil {
+	if err := mgr.reconcile(cfg, dnsserver.BindLenient); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	t.Cleanup(mgr.stopAll)

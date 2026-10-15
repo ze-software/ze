@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
+
+	"github.com/ze-software/ze/internal/core/dnsserver"
 )
 
 // VALIDATES: RFC 2181 section 4.1 -- a UDP reply leaves from the address the
@@ -26,7 +28,7 @@ func TestRFC2181ReplySourcedFromTheQueriedAddress(t *testing.T) {
 	cfg.Listeners = []listenerEndpoint{{IP: netip.MustParseAddr("127.0.0.2"), Port: port}}
 	storeApplied(cfg, 1)
 	mgr := newServerManager(testLogger())
-	if err := mgr.apply(cfg); err != nil {
+	if err := mgr.reconcile(cfg, dnsserver.BindLenient); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	t.Cleanup(mgr.stopAll)

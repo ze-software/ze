@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
+
+	"github.com/ze-software/ze/internal/core/dnsserver"
 )
 
 func testLogger() *slog.Logger {
@@ -200,7 +202,7 @@ func TestServerResolvesPerSource(t *testing.T) {
 	cfg := resolveTestConfig(t, port)
 	storeApplied(cfg, 1)
 	mgr := newServerManager(testLogger())
-	if err := mgr.apply(cfg); err != nil {
+	if err := mgr.reconcile(cfg, dnsserver.BindLenient); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	t.Cleanup(mgr.stopAll)
@@ -259,7 +261,7 @@ func TestServerResolvesPerSource(t *testing.T) {
 	}
 	cfg2.Listeners = cfg.Listeners
 	storeApplied(cfg2, 2)
-	if err := mgr.apply(cfg2); err != nil {
+	if err := mgr.reconcile(cfg2, dnsserver.BindLenient); err != nil {
 		t.Fatalf("apply reload: %v", err)
 	}
 	resp := queryA(t, "udp", addr, "proxy.test.example.", "1.1.1.1")
@@ -312,7 +314,7 @@ func TestRFC2181_UDPReplySourceAndPort(t *testing.T) {
 	cfg := resolveTestConfig(t, port) // listener bound to 127.0.0.1:port
 	storeApplied(cfg, 1)
 	mgr := newServerManager(testLogger())
-	if err := mgr.apply(cfg); err != nil {
+	if err := mgr.reconcile(cfg, dnsserver.BindLenient); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	t.Cleanup(mgr.stopAll)

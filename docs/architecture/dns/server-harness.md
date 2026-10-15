@@ -4,7 +4,8 @@
 needs: listener lifecycle, client-IP selection, the authoritative answer shape,
 and a CIDR longest-prefix matcher. geodns and as112 both build on it.
 
-<!-- source: internal/core/dnsserver/manager.go -- Manager, New, Apply, Stop -->
+<!-- source: internal/core/dnsserver/manager.go -- Manager, New, Stop -->
+<!-- source: internal/core/dnsserver/secure.go -- ApplyWithSecure, reconcile -->
 <!-- source: internal/core/dnsserver/handler.go -- Peer, AnswerFunc, Authoritative, shapeAuthoritative -->
 
 ## Why a core package and not a shared plugin
@@ -65,18 +66,18 @@ it with the shape above. `dns.ResponseWriter` satisfies `Peer`, so the wrapper
 passes it through with no per-query allocation, and the packet source stays
 lazy: a refused query never pays for `RemoteAddr`.
 
-## Apply must never believe a stale signature
+## An apply must never believe a stale signature
 
-`Manager.Apply` compares the desired endpoint set against `applied` and returns
-early when they match. Two failure modes broke that short-circuit, and both are
+`Manager.ApplyWithSecure`, through `reconcile`, compares the desired listener
+set against `applied` and returns early when they match. Two failure modes broke that short-circuit, and both are
 fixed by invalidating `applied` rather than leaving it:
 
-<!-- source: internal/core/dnsserver/manager.go -- unappliedSig, generation, Apply, Stop -->
+<!-- source: internal/core/dnsserver/manager.go -- unappliedSig, generation, Stop -->
 
 | Sequence | Old result | Fix |
 |----------|-----------|-----|
-| good, then bad, then back to the same good set | the third `Apply` matched the still-stored good signature and bound zero listeners | any failure path resets `applied` to `unappliedSig` |
-| an accept-loop goroutine dies without a `Stop` | a later `Apply` with the same set no-ops forever and believes the dead listener is up | `Stop` bumps a generation counter that `serve` compares against its bind-time snapshot |
+| good, then bad, then back to the same good set | the third apply matched the still-stored good signature and bound zero listeners | any failure path resets `applied` to `unappliedSig` |
+| an accept-loop goroutine dies without a `Stop` | a later apply with the same set no-ops forever and believes the dead listener is up | `Stop` bumps a generation counter that `serve` compares against its bind-time snapshot |
 
 Both bugs were found while implementing as112 and both live in shared code, so
 geodns inherited the fixes.
@@ -112,8 +113,8 @@ While broken, a commit of the running config is installed rather than
 skipped as unchanged, and the harness's signature is cleared so that commit
 binds. A reload that changes the listener set stops every listener before it
 binds the new set, so serving pauses for that moment (and as112 withdraws and
-announces its covering prefixes again, RFC 7534 Section 3.3). `Apply`, the
-cleartext-only primitive, binds leniently.
+announces its covering prefixes again, RFC 7534 Section 3.3). Every caller
+names its policy, tests included: no entry point binds leniently by default.
 
 <!-- source: internal/core/dnsserver/secure.go -- BindPolicy, reconcile, restorePrevious, bindListeners, ApplyWithSecure, secureTLS -->
 <!-- source: internal/plugins/as112/config_tx.go -- as112Installer.install, refuse, configureAtBoot -->

@@ -30,8 +30,8 @@ const drainTimeout = 5 * time.Second
 
 // unappliedSig is a signature no real endpoint set can ever produce
 // (endpointSig only ever returns "disabled" or a comma-joined host:port
-// list). Apply uses it to mark "nothing is known to be correctly bound" so
-// the next Apply call is never short-circuited by the same-signature no-op
+// list). An apply uses it to mark "nothing is known to be correctly bound" so
+// the next apply is never short-circuited by the same-signature no-op
 // fast path -- covers both a fresh Manager and any Manager that just lost a
 // listener (full bind failure, or an unexpected post-bind crash).
 const unappliedSig = "\x00unset"
@@ -78,7 +78,7 @@ type Options struct {
 // expected to be state-independent (reading its own snapshot per request), so
 // only an endpoint-set change triggers a rebind.
 //
-// servers/boundAddrs are written only by the Apply/Stop-calling goroutine
+// servers/boundAddrs are written only by the ApplyWithSecure/Stop-calling goroutine
 // (bind, Stop); mu additionally protects applied/generation, which the
 // background serve goroutines also touch when an unexpected listener crash
 // is detected.
@@ -95,19 +95,19 @@ type Manager struct {
 	// selfSigned caches the ephemeral self-signed certificate used when no
 	// operator cert/key files are configured, so a config reload does not
 	// regenerate it (a fresh cert would change the listener signature and churn
-	// a rebind on every no-op reconcile). Written only by the Apply-calling
-	// goroutine.
+	// a rebind on every no-op reconcile). Written only by the
+	// ApplyWithSecure-calling goroutine.
 	selfSigned *tls.Config
 
 	// running and runningEnabled are the listeners that serve: those of the
 	// last completed apply that bound, which a strict apply that fails binds
-	// again. Written only by the Apply-calling goroutine.
+	// again. Written only by the ApplyWithSecure-calling goroutine.
 	running        Listeners
 	runningEnabled bool
 	// secureRunning is the secure side of the last accepted ApplyWithSecure,
 	// nil before one. A strict apply whose TLS material cannot be loaded keeps
-	// it when its inputs are unchanged. Written only by the Apply-calling
-	// goroutine.
+	// it when its inputs are unchanged. Written only by the
+	// ApplyWithSecure-calling goroutine.
 	secureRunning *secureApplied
 
 	mu         sync.Mutex
@@ -122,7 +122,7 @@ type secureAddr struct {
 	addr  string
 }
 
-// New creates a Manager serving handler for every endpoint Apply binds.
+// New creates a Manager serving handler for every endpoint ApplyWithSecure binds.
 func New(log *slog.Logger, handler dns.Handler, opts Options) *Manager {
 	return &Manager{log: log, handler: handler, opts: opts, applied: unappliedSig}
 }
@@ -139,24 +139,6 @@ func endpointSig(enabled bool, endpoints []Endpoint) string {
 	}
 	slices.Sort(eps)
 	return strings.Join(eps, ",")
-}
-
-// Apply reconciles the bound listeners with the desired endpoint set. A pure
-// host-data change (same endpoints) is a no-op -- the handler is expected to
-// pick up new state itself; an endpoint-set change stops and rebinds.
-//
-// The signature only sticks on a fully successful bind. A transient failure
-// (port momentarily taken, anycast address not yet present) must not wedge
-// the manager into treating an unchanged, still-failed endpoint set as
-// already applied -- the caller's next identical Apply (a periodic
-// reconcile, or an operator re-commit, including reverting straight back to
-// a previously-good endpoint set after an intervening failed Apply) has to
-// actually retry the bind, not silently no-op with zero listeners up.
-//
-// Apply binds leniently (BindLenient); a reload goes through ApplyWithSecure,
-// which names its policy.
-func (m *Manager) Apply(enabled bool, endpoints []Endpoint) error {
-	return m.applyListeners(enabled, Listeners{Plain: endpoints})
 }
 
 func (m *Manager) appliedSig() string {
@@ -184,7 +166,7 @@ func (m *Manager) setRunning(sig string, enabled bool, l Listeners) {
 // Waits for both spawned listener goroutines to reach dns.Server's genuine
 // "started" state (via NotifyStartedFunc) before returning. Without this,
 // a caller that calls Stop() immediately after bind() returns (e.g. a rapid
-// Apply->Apply sequence) can race ActivateAndServe: dns.Server.
+// apply->apply sequence) can race ActivateAndServe: dns.Server.
 // ShutdownContext returns immediately with "server not started", WITHOUT
 // closing the underlying socket, whenever srv.started is still false --
 // which it is until ActivateAndServe's goroutine actually gets scheduled.
@@ -246,17 +228,17 @@ func (m *Manager) bind(ep, addr string) error {
 //
 // An unexpected crash must surface: silently leaving the listener-up gauge
 // at "true" and the Manager's applied signature unchanged would make a dead
-// listener look healthy forever, and a later Apply call with the same
+// listener look healthy forever, and a later apply with the same
 // (still-desired, unchanged) endpoint set would short-circuit as a no-op
 // instead of actually rebinding.
 //
 // Known benign race: a genuine crash whose ActivateAndServe return races a
-// concurrent Stop/Apply's generation++ can be misclassified as graceful
+// concurrent Stop/apply's generation++ can be misclassified as graceful
 // (crashed==false here), losing this function's Error log line. This does
 // not lose state: Stop's own loop unconditionally calls OnListenerChange
 // false for every bound address it tears down and clears m.servers, so the
 // listener-up gauge and m.applied end up correct regardless of which path
-// ran. The concurrent Stop/Apply was already replacing this listener, so
+// ran. The concurrent Stop/apply was already replacing this listener, so
 // the crash is moot once it completes -- only a diagnostic log line is
 // lost, not correctness.
 func (m *Manager) serve(s *dns.Server, ep, addr, proto string, gen int) {

@@ -74,7 +74,7 @@ func startTestServer(t *testing.T, cfg as112Config) string {
 
 	mgr := newServerManager(testLogger(), nil)
 	port := freePort(t)
-	if err := mgr.apply(true, []dnsserver.Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}}); err != nil {
+	if err := mgr.mgr.ApplyWithSecure(true, []dnsserver.Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}}, dnsserver.SecureConfig{}, dnsserver.BindLenient, testLogger()); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	t.Cleanup(mgr.stopAll)

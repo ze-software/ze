@@ -36,7 +36,7 @@ const (
 // ephemeral range and is released before Manager binds it, so any UDP or TCP
 // client socket on the machine, this package's own dns.Client exchanges
 // included, can be given the same number in between. Under a loaded gate run
-// that made Apply fail with "no listeners bound".
+// that made reconcile fail with "no listeners bound".
 func freePort(t *testing.T) uint16 {
 	t.Helper()
 	var lc net.ListenConfig
@@ -103,8 +103,8 @@ func exchangeA(t *testing.T, proto, addr, qname string) *dns.Msg {
 func TestManager_BindsAndServes(t *testing.T) {
 	port := freePort(t)
 	mgr := New(testLogger(), echoHandler("10.0.0.9"), Options{})
-	if err := mgr.Apply(true, []Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}}); err != nil {
-		t.Fatalf("Apply: %v", err)
+	if err := mgr.reconcile(true, Listeners{Plain: []Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}}}, BindLenient); err != nil {
+		t.Fatalf("reconcile: %v", err)
 	}
 	t.Cleanup(mgr.Stop)
 
@@ -121,8 +121,8 @@ func TestManager_BindsAndServes(t *testing.T) {
 	}
 }
 
-// VALIDATES: Apply is a no-op (no rebind) when the endpoint set and enabled
-// flag are unchanged; a second Apply with the same endpoints does not error
+// VALIDATES: reconcile is a no-op (no rebind) when the endpoint set and enabled
+// flag are unchanged; a second reconcile with the same endpoints does not error
 // and the listener keeps serving on the same port (ported from a consumer
 // plugin's reload-without-rebind coverage).
 // PREVENTS: a spurious rebind (and a listen-address race) on every config
@@ -131,14 +131,14 @@ func TestManager_RebindOnlyOnEndpointChange(t *testing.T) {
 	port := freePort(t)
 	mgr := New(testLogger(), echoHandler("10.0.0.1"), Options{})
 	eps := []Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}}
-	if err := mgr.Apply(true, eps); err != nil {
-		t.Fatalf("Apply: %v", err)
+	if err := mgr.reconcile(true, Listeners{Plain: eps}, BindLenient); err != nil {
+		t.Fatalf("reconcile: %v", err)
 	}
 	t.Cleanup(mgr.Stop)
 
 	firstApplied := mgr.applied
-	if err := mgr.Apply(true, eps); err != nil {
-		t.Fatalf("second Apply: %v", err)
+	if err := mgr.reconcile(true, Listeners{Plain: eps}, BindLenient); err != nil {
+		t.Fatalf("second reconcile: %v", err)
 	}
 	if mgr.applied != firstApplied {
 		t.Errorf("applied signature changed on unchanged endpoint set")
@@ -151,8 +151,8 @@ func TestManager_RebindOnlyOnEndpointChange(t *testing.T) {
 	}
 }
 
-// VALIDATES: a failed Apply (every endpoint unbindable) does not stick the
-// signature -- a later Apply with the IDENTICAL endpoint set must retry the
+// VALIDATES: a failed reconcile (every endpoint unbindable) does not stick the
+// signature -- a later reconcile with the IDENTICAL endpoint set must retry the
 // bind rather than silently no-op forever, once the obstruction clears.
 // PREVENTS: a transient bind failure (port momentarily taken, address not
 // yet present) permanently wedging the manager into "already applied" for
@@ -162,7 +162,7 @@ func TestManager_RetriesAfterFailedApply(t *testing.T) {
 	eps := []Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}}
 	addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(int(port)))
 
-	// Occupy the UDP port so the first Apply's bind fails outright.
+	// Occupy the UDP port so the first reconcile's bind fails outright.
 	var lc net.ListenConfig
 	blocker, err := lc.ListenPacket(context.Background(), "udp", addr)
 	if err != nil {
@@ -172,18 +172,18 @@ func TestManager_RetriesAfterFailedApply(t *testing.T) {
 	mgr := New(testLogger(), echoHandler("10.0.0.2"), Options{})
 	t.Cleanup(mgr.Stop)
 
-	if err := mgr.Apply(true, eps); err == nil {
-		t.Fatal("first Apply on an occupied port succeeded, want error")
+	if err := mgr.reconcile(true, Listeners{Plain: eps}, BindLenient); err == nil {
+		t.Fatal("first reconcile on an occupied port succeeded, want error")
 	}
 
 	if cerr := blocker.Close(); cerr != nil {
 		t.Fatalf("release occupied port: %v", cerr)
 	}
 
-	// Same endpoint set, now bindable: a second identical Apply must not be
+	// Same endpoint set, now bindable: a second identical reconcile must not be
 	// treated as already-applied -- it must actually retry and succeed.
-	if err := mgr.Apply(true, eps); err != nil {
-		t.Fatalf("second Apply after obstruction cleared: %v", err)
+	if err := mgr.reconcile(true, Listeners{Plain: eps}, BindLenient); err != nil {
+		t.Fatalf("second reconcile after obstruction cleared: %v", err)
 	}
 
 	resp := exchangeA(t, "udp", addr, "retried.test.")
@@ -192,10 +192,10 @@ func TestManager_RetriesAfterFailedApply(t *testing.T) {
 	}
 }
 
-// VALIDATES: a good->bad->revert-to-good Apply sequence retries the revert,
+// VALIDATES: a good->bad->revert-to-good reconcile sequence retries the revert,
 // rather than getting stuck believing the reverted-to signature is already
-// applied. Apply(A) succeeds; Apply(B) tears down A's listeners via Stop and
-// then fails to bind entirely; Apply(A) again must actually rebind A -- not
+// applied. reconcile(A) succeeds; reconcile(B) tears down A's listeners via Stop and
+// then fails to bind entirely; reconcile(A) again must actually rebind A -- not
 // short-circuit as a no-op against a stale "applied" signature left over
 // from the original success, while zero listeners are actually up.
 // PREVENTS: an operator reverting a bad config change back to the last-good
@@ -211,28 +211,28 @@ func TestManager_RetriesAfterRevertToPreviouslyGoodSignature(t *testing.T) {
 	mgr := New(testLogger(), echoHandler("10.0.0.4"), Options{})
 	t.Cleanup(mgr.Stop)
 
-	if err := mgr.Apply(true, epsA); err != nil {
-		t.Fatalf("Apply(A): %v", err)
+	if err := mgr.reconcile(true, Listeners{Plain: epsA}, BindLenient); err != nil {
+		t.Fatalf("reconcile(A): %v", err)
 	}
 
-	// Occupy B's port so Apply(B) tears down A (via Stop, inside Apply) and
+	// Occupy B's port so reconcile(B) tears down A (via Stop, inside reconcile) and
 	// then fails to bind B at all.
 	var lc net.ListenConfig
 	blocker, err := lc.ListenPacket(context.Background(), "udp", addrB)
 	if err != nil {
 		t.Fatalf("occupy port B: %v", err)
 	}
-	if err := mgr.Apply(true, epsB); err == nil {
-		t.Fatal("Apply(B) on an occupied port succeeded, want error")
+	if err := mgr.reconcile(true, Listeners{Plain: epsB}, BindLenient); err == nil {
+		t.Fatal("reconcile(B) on an occupied port succeeded, want error")
 	}
 	if cerr := blocker.Close(); cerr != nil {
 		t.Fatalf("release occupied port B: %v", cerr)
 	}
 
-	// Revert to A: A's listeners were torn down by Apply(B)'s Stop() call,
+	// Revert to A: A's listeners were torn down by reconcile(B)'s Stop() call,
 	// so this must actually rebind, not no-op against the stale signature.
-	if err := mgr.Apply(true, epsA); err != nil {
-		t.Fatalf("revert Apply(A): %v", err)
+	if err := mgr.reconcile(true, Listeners{Plain: epsA}, BindLenient); err != nil {
+		t.Fatalf("revert reconcile(A): %v", err)
 	}
 	resp := exchangeA(t, "udp", addrA, "reverted.test.")
 	if len(resp.Answer) != 1 {
@@ -242,7 +242,7 @@ func TestManager_RetriesAfterRevertToPreviouslyGoodSignature(t *testing.T) {
 
 // VALIDATES: an unexpected listener crash (socket closed out from under the
 // server, not via Stop) fires OnListenerChange(..., false) and invalidates
-// the applied signature so a later Apply with the SAME endpoint set actually
+// the applied signature so a later reconcile with the SAME endpoint set actually
 // retries the bind instead of silently no-op'ing forever.
 // PREVENTS: a dead listener (e.g. an anycast address withdrawn under it)
 // permanently reporting "up" in metrics/logs with no way to recover short of
@@ -263,15 +263,15 @@ func TestManager_UnexpectedListenerCrashInvalidatesApplied(t *testing.T) {
 	})
 	t.Cleanup(mgr.Stop)
 
-	if err := mgr.Apply(true, eps); err != nil {
-		t.Fatalf("Apply: %v", err)
+	if err := mgr.reconcile(true, Listeners{Plain: eps}, BindLenient); err != nil {
+		t.Fatalf("reconcile: %v", err)
 	}
 
 	// Simulate an external crash: close the UDP socket out from under the
 	// server without going through Stop (e.g. the bound address is withdrawn
 	// from the interface underneath a live listener).
 	if len(mgr.servers) == 0 {
-		t.Fatal("no servers bound after Apply")
+		t.Fatal("no servers bound after reconcile")
 	}
 	udpServer := mgr.servers[0]
 	if err := udpServer.PacketConn.Close(); err != nil {
@@ -297,10 +297,10 @@ func TestManager_UnexpectedListenerCrashInvalidatesApplied(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	// A later Apply with the SAME endpoint set must actually retry -- not
+	// A later reconcile with the SAME endpoint set must actually retry -- not
 	// silently no-op believing the crashed listener is still up.
-	if err := mgr.Apply(true, eps); err != nil {
-		t.Fatalf("Apply after crash: %v", err)
+	if err := mgr.reconcile(true, Listeners{Plain: eps}, BindLenient); err != nil {
+		t.Fatalf("reconcile after crash: %v", err)
 	}
 	resp := exchangeA(t, "udp", addr, "recovered.test.")
 	if len(resp.Answer) != 1 {
@@ -310,7 +310,7 @@ func TestManager_UnexpectedListenerCrashInvalidatesApplied(t *testing.T) {
 
 // VALIDATES: bind() does not return until the spawned listener goroutines
 // have genuinely reached dns.Server's "started" state -- closing the race
-// where a caller's immediate Stop() (e.g. a rapid Apply->Apply sequence)
+// where a caller's immediate Stop() (e.g. a rapid reconcile->reconcile sequence)
 // calls ShutdownContext before ActivateAndServe has set srv.started=true.
 // ShutdownContext on a not-yet-started *dns.Server returns immediately
 // ("server not started") WITHOUT closing the underlying socket, so the
@@ -328,8 +328,8 @@ func TestManager_BindThenImmediateStopNeverLeaksListener(t *testing.T) {
 		addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(int(port)))
 
 		mgr := New(testLogger(), echoHandler("10.0.0.6"), Options{})
-		if err := mgr.Apply(true, eps); err != nil {
-			t.Fatalf("iteration %d: Apply: %v", i, err)
+		if err := mgr.reconcile(true, Listeners{Plain: eps}, BindLenient); err != nil {
+			t.Fatalf("iteration %d: reconcile: %v", i, err)
 		}
 		// Stop immediately -- the race window is between bind()'s spawned
 		// goroutines starting and ActivateAndServe marking the server

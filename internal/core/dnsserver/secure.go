@@ -93,19 +93,21 @@ const (
 	BindStrict
 )
 
-// applyListeners reconciles every listener with l under BindLenient, the
-// policy of Apply.
-func (m *Manager) applyListeners(enabled bool, l Listeners) error {
-	return m.reconcile(enabled, l, BindLenient)
-}
-
 // reconcile reconciles every bound listener (cleartext, DoT, DoH) with the
-// desired set. Like Apply, a pure host-data change (same listener set + same
-// certificate) is a no-op; any change to the endpoint sets, the DoH path, or the
-// serving certificate stops and rebinds. Rotating the certificate therefore
-// forces a rebind because the signature folds in the leaf certificate
-// fingerprint. policy decides what a listener that cannot be bound does
-// (BindPolicy).
+// desired set. A pure host-data change (same listener set + same certificate)
+// is a no-op, the handler being expected to pick up new state itself; any
+// change to the endpoint sets, the DoH path, or the serving certificate stops
+// and rebinds. Rotating the certificate therefore forces a rebind because the
+// signature folds in the leaf certificate fingerprint. policy decides what a
+// listener that cannot be bound does (BindPolicy); every caller names it.
+//
+// The signature only sticks on a successful bind. A transient failure (port
+// momentarily taken, anycast address not yet present) must not wedge the
+// manager into treating an unchanged, still-failed set as already applied:
+// the caller's next identical apply (a periodic reconcile, or an operator
+// re-commit, including reverting straight back to a previously-good set after
+// an intervening failed apply) has to actually retry the bind, not silently
+// no-op with zero listeners up.
 func (m *Manager) reconcile(enabled bool, l Listeners, policy BindPolicy) error {
 	if policy == BindPolicyUnspecified {
 		panic("BUG: dnsserver: reconcile called without a BindPolicy")

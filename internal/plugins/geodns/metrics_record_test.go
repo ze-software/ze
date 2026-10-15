@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/dnsserver"
 	"github.com/ze-software/ze/internal/core/metrics"
 )
 
@@ -102,7 +103,7 @@ func TestQueryIncrementsMetrics(t *testing.T) {
 	cfg := resolveTestConfig(t, port)
 	storeApplied(cfg, 1)
 	mgr := newServerManager(testLogger())
-	if err := mgr.apply(cfg); err != nil {
+	if err := mgr.reconcile(cfg, dnsserver.BindLenient); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	t.Cleanup(mgr.stopAll)

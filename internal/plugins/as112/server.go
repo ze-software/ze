@@ -151,8 +151,8 @@ func onListenerChange(proto, addr string, up bool) {
 }
 
 // as112Server is a thin adapter over dnsserver.Manager, keeping as112's own
-// apply/stopAll call shape so register.go is unaffected by the harness's
-// endpoint-agnostic Apply/Stop signatures.
+// applyConfig/stopAll call shape so register.go is unaffected by the harness's
+// endpoint-agnostic ApplyWithSecure/Stop signatures.
 type as112Server struct {
 	mgr *dnsserver.Manager
 
@@ -236,13 +236,6 @@ func (s *as112Server) servingFor(fam family.Family) bool {
 		return len(s.upV4) > 0
 	}
 	return len(s.upV6) > 0
-}
-
-// apply reconciles the bound cleartext listeners with the given endpoints. It is
-// the low-level primitive (used by tests binding a specific port); production
-// goes through applyConfig, which also brings up the DoT/DoH listeners.
-func (s *as112Server) apply(enabled bool, endpoints []dnsserver.Endpoint) error {
-	return s.mgr.Apply(enabled, endpoints)
 }
 
 // applyConfig reconciles every listener with cfg: the fixed anycast addresses

@@ -356,9 +356,9 @@ func onListenerChange(proto, addr string, up bool) {
 }
 
 // geodnsServer is a thin adapter over dnsserver.Manager, keeping geodns's own
-// apply/stopAll call shape (geodnsConfig in, no dnsserver types leaking to
-// callers) so register.go and the existing test suite are unaffected by the
-// harness's endpoint-agnostic Apply/Stop signatures.
+// reconcile/stopAll call shape (geodnsConfig in, the bind policy named by the
+// caller) so register.go and the test suite are unaffected by the harness's
+// endpoint-agnostic ApplyWithSecure/Stop signatures.
 type geodnsServer struct {
 	mgr *dnsserver.Manager
 }
@@ -381,17 +381,12 @@ func newServerManager(log *slog.Logger) *geodnsServer {
 	})}
 }
 
-// apply reconciles the listeners with cfg under dnsserver.BindLenient, the
-// boot policy; the installer goes through reconcile, which names its policy.
-func (s *geodnsServer) apply(cfg geodnsConfig) error {
-	return s.reconcile(cfg, dnsserver.BindLenient)
-}
-
 // reconcile reconciles the bound listeners with cfg: the cleartext UDP+TCP listener
 // set plus any DoT (RFC 7858) / DoH (RFC 8484) listeners on the same IPs sharing
 // the tls cert material. A pure host-data change is a no-op (answerQuery reads
 // the new snapshot via loadState); a listener-set or certificate change stops
-// and rebinds (dnsserver's listener-signature check).
+// and rebinds (dnsserver's listener-signature check). policy is the caller's:
+// BindLenient at boot, BindStrict on reload (dnsserver.BindPolicy).
 func (s *geodnsServer) reconcile(cfg geodnsConfig, policy dnsserver.BindPolicy) error {
 	plain := make([]dnsserver.Endpoint, len(cfg.Listeners))
 	for i, l := range cfg.Listeners {

@@ -28,7 +28,7 @@ func TestListener_FreebindBindsWithoutAddress(t *testing.T) {
 
 	mgr := newServerManager(testLogger(), nil)
 	const nonLocalAddr = "203.0.113.5"
-	err := mgr.apply(true, []dnsserver.Endpoint{{IP: netip.MustParseAddr(nonLocalAddr), Port: 5391}})
+	err := mgr.mgr.ApplyWithSecure(true, []dnsserver.Endpoint{{IP: netip.MustParseAddr(nonLocalAddr), Port: 5391}}, dnsserver.SecureConfig{}, dnsserver.BindLenient, testLogger())
 	if err != nil {
 		t.Skipf("bind to non-local address failed (needs CAP_NET_ADMIN in this environment): %v", err)
 	}
