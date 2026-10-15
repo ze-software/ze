@@ -98,9 +98,18 @@ func drainSignaler(ctx context.Context, args []string) error {
 	return plugin.Run(ctx, sdk.Registration{DrainBudget: fakedrain.Budget})
 }
 
-// drainShow runs `show bgp summary` from inside its drain handler, while the
-// drain is held, and fails the run when the answer takes longer than
-// drainShowBound or is an error (AC-23).
+// drainShowCommand is the drain-show plugin's own command. Only this plugin's
+// event loop answers it, so it is the call a drain handler running on that
+// loop would leave unanswered.
+const drainShowCommand = "show drain-show status"
+
+// drainShow proves the event loop keeps serving while its drain is held
+// (AC-23). From inside its drain handler it dispatches two commands, each of
+// which MUST be answered within drainShowBound: `show bgp`, the BGP summary,
+// which the engine answers (`show bgp summary` was retired and answers
+// "unknown command", plugin_fixture_15_show.go), and drainShowCommand, which
+// the engine routes back to this plugin's event loop. An SDK that ran the
+// handler on the loop answers the second only after the drain, so it fails.
 func drainShow(ctx context.Context, _ []string) error {
 	plugin, err := newObserver("drain-show")
 	if err != nil {
@@ -108,27 +117,50 @@ func drainShow(ctx context.Context, _ []string) error {
 	}
 	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
-	answered := fakedrain.ResponderWith(plugin, func() {
-		showCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		start := time.Now()
-		status, _, showErr := plugin.DispatchCommand(showCtx, "show bgp summary")
-		elapsed := time.Since(start)
-		if showErr != nil {
-			fakedrain.Log("drain-fixture: FAIL show bgp summary during the drain: " + showErr.Error())
-			return
+	plugin.OnExecuteCommand(func(_ string, command string, _ []string, _ string) (string, any, error) {
+		if command != drainShowCommand {
+			return statusError, nil, fmt.Errorf("unknown command %q", command)
 		}
-		if status != "done" {
-			fakedrain.Log("drain-fixture: FAIL show bgp summary during the drain status=" + status)
-			return
-		}
-		if elapsed > drainShowBound {
-			fakedrain.Log("drain-fixture: FAIL show bgp summary took " + elapsed.String() + " during the drain")
-			return
-		}
-		fakedrain.Log("drain-fixture: show bgp summary answered during the drain")
+		return statusDone, map[string]any{"draining": true}, nil
 	})
-	return drainAnsweredOrFail(answered, plugin.Run(ctx, sdk.Registration{DrainBudget: fakedrain.Budget}))
+	answered := fakedrain.ResponderWith(plugin, func() {
+		if drainShowAnswers(plugin, "show bgp") {
+			fakedrain.Log("drain-fixture: show bgp answered during the drain")
+		}
+		if drainShowAnswers(plugin, drainShowCommand) {
+			fakedrain.Log("drain-fixture: plugin command answered during the drain")
+		}
+	})
+	registration := sdk.Registration{
+		DrainBudget: fakedrain.Budget,
+		Commands:    []sdk.CommandDecl{{Name: drainShowCommand}},
+	}
+	return drainAnsweredOrFail(answered, plugin.Run(ctx, registration))
+}
+
+// drainShowAnswers dispatches one command during the drain and answers true
+// when it came back done within drainShowBound. Every other outcome is logged
+// as a FAIL line, which the .ci rejects.
+func drainShowAnswers(plugin *sdk.Plugin, command string) bool {
+	showCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	start := time.Now()
+	status, _, showErr := plugin.DispatchCommand(showCtx, command)
+	elapsed := time.Since(start)
+	if showErr != nil {
+		fakedrain.Log("drain-fixture: FAIL " + command + " during the drain: " + showErr.Error())
+		return false
+	}
+	if status != statusDone {
+		fakedrain.Log("drain-fixture: FAIL " + command + " during the drain status=" + status)
+		return false
+	}
+	if elapsed > drainShowBound {
+		fakedrain.Log("drain-fixture: FAIL " + command + " took " + elapsed.String() + " during the drain")
+		return false
+	}
+	return true
 }
 
 // drainExitsMarker counts drain-exits generations in the test directory.

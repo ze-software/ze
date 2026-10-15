@@ -73,10 +73,17 @@ bgp {
 }
 EOF_CONF
 
+# The daemon is the last command, so expect=exit asserts the daemon's own exit
+# and the runner waits for it. The SSH client runs in the background and polls
+# until the daemon's SSH server answers. With the client last, the runner
+# stopped the daemon with SIGTERM as soon as the client exited, which aborted
+# the restart drain before the plugin could answer.
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=ze start ze-bgp.conf:timeout=30s
-cmd=foreground:seq=3:exec=le test fixture plugin/drain-ssh-restart $PORT2:timeout=30s
+cmd=background:seq=2:exec=le test fixture plugin/drain-ssh-restart $PORT2:timeout=30s
+cmd=foreground:seq=3:exec=ze start ze-bgp.conf:timeout=30s
 expect=exit:code=0
+expect=stderr:contains=drain-fixture: sent restart output=restarting daemon error=none
 expect=stderr:contains=drain-fixture: drain received kind=restart cause=in-place
 expect=stderr:contains=drain-fixture: drain answered
 reject=stderr:contains=drain-fixture: FAIL
+reject=stderr:contains=drain aborted by signal
