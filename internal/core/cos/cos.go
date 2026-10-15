@@ -90,8 +90,10 @@ func RegisterProfileParser(fn ProfileParserFunc) {
 	mu.Unlock()
 }
 
-// ClearProfileParser removes the registered profile parser.
-func ClearProfileParser() {
+// ClearProfileParserForTest removes the registered profile parser. Only a test
+// calls it, to undo the parser it registered; the cos plugin registers once at
+// init and never removes it.
+func ClearProfileParserForTest() {
 	mu.Lock()
 	parser = nil
 	mu.Unlock()

@@ -4372,7 +4372,7 @@ func setupTestCoSResolver(t *testing.T, profiles map[string]coreCos.Profile) map
 		}
 		return set, nil
 	})
-	t.Cleanup(func() { coreCos.Replace(nil); coreCos.ClearResolver(); coreCos.ClearProfileParser() })
+	t.Cleanup(func() { coreCos.Replace(nil); coreCos.ClearResolver(); coreCos.ClearProfileParserForTest() })
 	return profiles
 }
 
