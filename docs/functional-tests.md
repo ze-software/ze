@@ -1884,6 +1884,39 @@ needs its own `OK:` line. `test/plugin/api-peer-save.ci` and
 <!-- source: internal/test/fixture/daemon_await_exit_fixture.go -- daemonAwaitExit -->
 <!-- source: internal/test/runner/runner_exec.go -- runOrchestrated -->
 
+#### Service clients that read what a daemon serves
+
+A log line written beside an install does not prove that the service answers
+with the new config. A reload test of a service plugin asks the service itself,
+through one of three `client/*` fixtures, so it asserts what a user receives.
+Each client asks for one thing until the answer contains the expected text,
+then prints `OK: <what> served <text> from <server>` on stderr, which the `.ci`
+asserts with `expect=stderr:contains=OK: ...`.
+
+| Fixture | Arguments | One attempt |
+|---------|-----------|-------------|
+| `client/dns-query` | `[tls://]<address:port> <name> <type> <expected text>` | one query; the text is matched against the rcode on the first line, then each answer record in presentation form. A bare address is asked over UDP; a `tls://` address over DNS over TLS (RFC 7858), for a server that answers on an unprivileged port only there. The client accepts the self-signed certificate Ze generates when no `cert-file` is set: it proves what the server answers, never who it is |
+| `client/http-get` | `<url> <expected text>` | one GET; the text is matched against the body of a 200 answer. Any other status is a failed attempt |
+| `client/tftp-get` | `<address:port> <file> <expected text>` | one octet-mode RRQ (RFC 1350), each ACK sent to the port the DATA came from; the text is matched against the file content. An ERROR packet, such as file not found, is a failed attempt |
+
+The client polls because it starts beside the reload trigger and cannot know
+when the reload lands. It tries up to 75 times, 200 ms apart, so it waits at
+most 15 s, inside the 20 s daemon timeout every reload `.ci` sets; one request
+is bounded at 1 s, and one answer at 64 KiB. A daemon that keeps serving the old
+config never matches, and the client fails with an error naming the last
+failed attempt or the last answer it read, never a success the server did not
+give.
+
+```
+cmd=foreground:seq=3:exec=le test fixture client/dns-query 127.0.0.1:$PORT b.example. SOA b.example.
+expect=stderr:contains=OK: dns SOA b.example. served b.example.
+```
+
+`test/reload/geodns-reload.ci`, `as112-reload.ci` (DNS over TLS on `[::1]`),
+`tftpserver-reload.ci` and `imageserver-reload.ci` use them.
+<!-- source: internal/test/fixture/service_client_fixture.go -- serviceClientAwait -->
+<!-- source: internal/test/fixture/register_service_client.go -- init -->
+
 ### 5. VPP Tests (`test/vpp/`)
 
 VPP functional tests are outside the default release gate. Run them with:
