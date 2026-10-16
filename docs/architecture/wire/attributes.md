@@ -59,8 +59,10 @@ All path attributes share a common header:
 are ignored, and a relay that copies the received attribute bytes would send
 them on. `writeUpdateBody`, the writer every UPDATE funnels through, clears them
 in the session's private copy of the body, the raw diagnostic write included,
-in the same walk that removes LARGE_COMMUNITY repeats and clears the Prefix-SID
-Label-Index fields. No other flag bit is touched.
+in the same walk that removes LARGE_COMMUNITY repeats, clears the Prefix-SID
+Label-Index fields, and writes 0x800000 into the Compatibility field of every
+labeled-unicast and VPN withdrawal in MP_UNREACH_NLRI (RFC 8277 Section 2.4).
+No other flag bit is touched.
 <!-- source: internal/component/bgp/reactor/session_egress_normalize.go -- normalizeTransmittedUpdate -->
 
 ### Flag Combinations

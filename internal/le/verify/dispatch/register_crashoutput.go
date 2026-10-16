@@ -1,6 +1,10 @@
 // Design: docs/architecture/testing/verify-freshness-scope.md -- a stage process reports its own crash to the run
 // Related: dispatch.go -- the parent side, which hands the stage the crash file
 
+// The file is register_crashoutput.go, not register.go: under internal/le a
+// register.go declares a command, and this package registers a dispatch hook
+// and an env key but no command.
+
 package verifydispatch
 
 import (
