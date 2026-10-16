@@ -277,7 +277,9 @@ func (p *Peer) deliverStaticRouteDelta(wanted []StaticRoute) {
 // The withdrawal is built from the ANNOUNCEMENT the peer received, and then
 // rewritten with message.SynthesizeWithdraw: the NLRI moves into the Withdrawn
 // Routes field for IPv4 unicast, and MP_REACH_NLRI becomes MP_UNREACH_NLRI for
-// every other family (RFC 4760 Section 4). That is what makes one code path serve
+// every other family (RFC 4760 Section 4), with a labeled NLRI's label stack, one
+// label or several, replaced by the one Compatibility field of RFC 8277 Section 2.4
+// (framed with the family's send ADD-PATH). That is what makes one code path serve
 // a VPN route, a labeled-unicast route and a plain prefix alike, without this
 // package naming an NLRI type that lives in a plugin.
 //
@@ -329,7 +331,7 @@ func (p *Peer) withdrawStaticRoutes(session *Session, routes []StaticRoute, maxM
 				"peer", p.addrString, "prefix", route.Prefix)
 			continue
 		}
-		withdrawn, changed := message.SynthesizeWithdraw(body)
+		withdrawn, changed := message.SynthesizeWithdraw(body, addPath)
 		if !changed {
 			routesLogger().Warn("static route not withdrawn: its announcement carries no reachable route",
 				"peer", p.addrString, "prefix", route.Prefix)

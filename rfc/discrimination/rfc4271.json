@@ -119,7 +119,7 @@
       "claim-sha": "f898aaa2e0215a9a",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_egress_normalize.go::normalizeTransmittedUpdate",
-      "producer-sha": "fff3b13bba8e8594",
+      "producer-sha": "80cbb48b079cea46",
       "break": "body of normalizeTransmittedUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -130,7 +130,7 @@
       "claim-sha": "ead501a667b327ac",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_egress_normalize.go::normalizeTransmittedUpdate",
-      "producer-sha": "fff3b13bba8e8594",
+      "producer-sha": "80cbb48b079cea46",
       "break": "body of normalizeTransmittedUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -141,7 +141,7 @@
       "claim-sha": "eedcc35d75d46795",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_egress_normalize.go::normalizeTransmittedUpdate",
-      "producer-sha": "fff3b13bba8e8594",
+      "producer-sha": "80cbb48b079cea46",
       "break": "body of normalizeTransmittedUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -152,7 +152,7 @@
       "claim-sha": "545f4d7c4dae8b87",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_egress_normalize.go::normalizeTransmittedUpdate",
-      "producer-sha": "fff3b13bba8e8594",
+      "producer-sha": "80cbb48b079cea46",
       "break": "body of normalizeTransmittedUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0035020000001A4001010040020602010000FDE940030401010101E0F103AABBCC180A0000"
     },

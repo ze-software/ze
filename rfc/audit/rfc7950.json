@@ -3,6 +3,7 @@
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -349,13 +350,13 @@
       "note": "Re-judged 2026-10-12, second pass (independent auditor) after 60a74fc04b, 600996fb77, 975428e1b3, 3f1bec74f0 and 84382339ce. SHIFTED only: the tagged units are byte-identical (gate-verified). range: receive-hold-time 2 and port 0 refused ErrTypeRange, 1 and 2 refused and 0, 3, 180, 65535 accepted; pattern: router-id not-an-ip refused ErrTypePattern at errs[0] with session/asn/local supplied so no missing-mandatory error comes first, 192.0.2.1 accepted; length: a 256-char isis hostname refused ErrTypeLength and a within-length one raises no length error. The validateString record on TestValidateTree_PatternViolation is current again (no stale record). Base-type conformance is carried by the Section 9 rows. Re-run green 2026-10-12. Verdict stands.",
       "requirement_sha": "5a05032565e079ea",
       "tests": {
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_LengthViolation": "8ce1fc7720fffc2c",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_PatternViolation": "8ce1fc7720fffc2c",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_RangeViolation": "8ce1fc7720fffc2c",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange": "8ce1fc7720fffc2c",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange#2": "8ce1fc7720fffc2c",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_ValidatePattern": "8ce1fc7720fffc2c",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_ValidatePattern#2": "8ce1fc7720fffc2c"
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_LengthViolation": "ba2f54bedfde8139",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_PatternViolation": "ba2f54bedfde8139",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_RangeViolation": "ba2f54bedfde8139",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange": "ba2f54bedfde8139",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange#2": "ba2f54bedfde8139",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_ValidatePattern": "ba2f54bedfde8139",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_ValidatePattern#2": "ba2f54bedfde8139"
       },
       "units": {
         "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_LengthViolation": "12f5b76747db9ef4",
@@ -442,8 +443,8 @@
       "requirement_sha": "cecc88b3b36e0def",
       "tests": {
         "internal/component/config/rfc7950_validator_union_test.go::TestRFC7950UnionAcceptsEveryMemberType": "cded36b0838b1317",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_UnionViolation": "8ce1fc7720fffc2c",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_ValidConfig": "8ce1fc7720fffc2c"
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_UnionViolation": "ba2f54bedfde8139",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_ValidConfig": "ba2f54bedfde8139"
       },
       "units": {
         "internal/component/config/rfc7950_validator_union_test.go::TestRFC7950UnionAcceptsEveryMemberType": "ad02f88c4bb32f5f",
@@ -533,10 +534,10 @@
         "internal/component/config/rfc7950_isis_auth_algorithm_enum_test.go::TestISISAuthAlgorithmEnumAcceptsAll#2": "e4e161212a27bdf8",
         "internal/component/config/rfc7950_radius_auth_method_enum_test.go::TestRadiusAuthMethodEnum": "4c9eafc440ab45ec",
         "internal/component/config/rfc7950_radius_auth_method_enum_test.go::TestRadiusAuthMethodEnum#2": "4c9eafc440ab45ec",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum": "8ce1fc7720fffc2c",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum#2": "8ce1fc7720fffc2c",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum": "8ce1fc7720fffc2c",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum#2": "8ce1fc7720fffc2c"
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum": "ba2f54bedfde8139",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum#2": "ba2f54bedfde8139",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum": "ba2f54bedfde8139",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum#2": "ba2f54bedfde8139"
       },
       "units": {
         "internal/component/config/rfc7950_isis_auth_algorithm_enum_test.go::TestISISAuthAlgorithmEnumAcceptsAll": "67fd8c00e1f8af3a",

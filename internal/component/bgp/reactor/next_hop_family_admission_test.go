@@ -320,6 +320,11 @@ func TestFamilyNextHopForwardAdmission(t *testing.T) {
 							}
 						} else {
 							want := append([]byte{0, byte(fc.fam.AFI), byte(fc.fam.SAFI)}, raw...)
+							// RFC 8277 Section 2.4: a labeled withdrawal carries the
+							// Compatibility 0x800000 in place of the received label.
+							if fc.fam.SAFI == family.SAFIMPLSLabel || fc.fam.SAFI == family.SAFIVPN {
+								copy(want[4:7], []byte{0x80, 0, 0})
+							}
 							if hasReach || !hasUnreach || !bytes.Equal(unreach, want) {
 								t.Errorf("reach=%x withdrawal=%x want withdrawal=%x", reach, unreach, want)
 							}

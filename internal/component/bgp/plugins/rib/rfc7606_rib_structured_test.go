@@ -125,7 +125,7 @@ func TestRIBTreatAsWithdrawRemovesInstalledRoute(t *testing.T) {
 		0x40, 0x03, 0x04, 0x0a, 0x00, 0x00, 0x01, // NEXT_HOP = 10.0.0.1
 		0x08, 0x0a, // NLRI 10.0.0.0/8
 	}
-	withdrawal, changed := message.SynthesizeWithdraw(malformed)
+	withdrawal, changed := message.SynthesizeWithdraw(malformed, false)
 	require.True(t, changed, "treat-as-withdraw must produce a withdrawal for an announced route")
 	feedReceived(r, peer, ctxID, withdrawal)
 	assert.Equal(t, 0, r.bgpPeers[peer].Len(),
@@ -146,7 +146,7 @@ func TestRIBTreatAsWithdrawRemovesInstalledRoute(t *testing.T) {
 		0x40, 0x03, 0x04, 0x0a, 0x00, 0x00, 0x01, // NEXT_HOP = 10.0.0.1
 		0x18, 0x0a, 0x09, 0x09, // NLRI 10.9.9.0/24 (never installed)
 	}
-	newWithdraw, changed2 := message.SynthesizeWithdraw(newAnnounce)
+	newWithdraw, changed2 := message.SynthesizeWithdraw(newAnnounce, false)
 	require.True(t, changed2)
 	feedReceived(r, peer, ctxID, newWithdraw)
 	assert.Equal(t, 0, r.bgpPeers[peer].Len(),
@@ -196,7 +196,7 @@ func TestRIBTreatAsWithdrawAddPathPreservesPathID(t *testing.T) {
 		0x40, 0x03, 0x04, 0x0a, 0x00, 0x00, 0x01, // NEXT_HOP = 10.0.0.1
 	}
 	malformed = append(malformed, path42...)
-	withdrawal, changed := message.SynthesizeWithdraw(malformed)
+	withdrawal, changed := message.SynthesizeWithdraw(malformed, false)
 	require.True(t, changed)
 	feedReceived(r, peer, ctxID, withdrawal)
 

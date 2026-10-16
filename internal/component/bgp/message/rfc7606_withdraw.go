@@ -8,6 +8,8 @@ import (
 	"encoding/binary"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // MP_UNREACH_NLRI is Optional, non-transitive (RFC 4760 Section 4): flags 0x80.
@@ -26,15 +28,16 @@ const (
 // SynthesizeWithdraw rewrites an UPDATE body so every route it announces becomes a
 // withdrawal, and returns (newBody, changed). It is the single-body form of
 // SynthesizeWithdrawFamilies and accepts every MP family (nil predicate); newBody is the
-// primary synthesized body.
+// primary synthesized body. addPath says whether the body's MP NLRIs lead with an ADD-PATH
+// identifier (RFC 7911 Section 3), which the labeled withdrawal rewrite needs to frame them.
 //
 // A treat-as-withdraw UPDATE carrying two DIFFERENT MP families cannot be represented as a
 // single body: the RIB reads only the first MP_UNREACH of an UPDATE and RFC 7606 Section
 // 3.g forbids more than one, so the second family must ride its own UPDATE. Callers on the
 // receive path that must withdraw every family therefore use SynthesizeWithdrawFamilies;
 // this helper returns only the primary body.
-func SynthesizeWithdraw(body []byte) ([]byte, bool) {
-	bodies := SynthesizeWithdrawFamilies(body, nil)
+func SynthesizeWithdraw(body []byte, addPath bool) ([]byte, bool) {
+	bodies := SynthesizeWithdrawFamilies(body, nil, func(uint16, uint8) bool { return addPath })
 	if len(bodies) == 0 {
 		return body, false
 	}
@@ -53,7 +56,9 @@ func SynthesizeWithdraw(body []byte) ([]byte, bool) {
 //
 // The transformation:
 //   - trailing IPv4 NLRI moves into the Withdrawn Routes field
-//   - MP_REACH_NLRI becomes MP_UNREACH_NLRI for the same AFI/SAFI (next hop dropped)
+//   - MP_REACH_NLRI becomes MP_UNREACH_NLRI for the same AFI/SAFI (next hop dropped);
+//     a labeled NLRI (SAFI 4, SAFI 128) trades its label stack for the one Compatibility
+//     field of RFC 8277 Section 2.4 (nlrisplit.LabeledWithdrawal)
 //   - an existing MP_UNREACH_NLRI is kept as-is
 //   - every other path attribute is dropped: a withdrawal carries none, and those
 //     attributes are the very thing that failed validation
@@ -70,12 +75,15 @@ func SynthesizeWithdraw(body []byte) ([]byte, bool) {
 //     UPDATEs: the primary body carries the legacy IPv4 field plus the first family, and
 //     each further family rides its own body (D-3/D-8).
 //
+// addPath says, per AFI/SAFI, whether the MP NLRIs lead with an ADD-PATH identifier; nil
+// means none do.
+//
 // Returns an empty slice when there is nothing to withdraw: an End-of-RIB, a body whose
 // section lengths are structurally unusable (Section 3(b)/3(j) session-reset those upstream,
 // so refusing to guess is the fail-closed choice rather than manufacturing a withdrawal from
 // untrustworthy offsets), or an UPDATE whose only content was a non-negotiated MP family.
 // The caller drops such an UPDATE without dispatching it.
-func SynthesizeWithdrawFamilies(body []byte, accept func(afi uint16, safi uint8) bool) [][]byte {
+func SynthesizeWithdrawFamilies(body []byte, accept, addPath func(afi uint16, safi uint8) bool) [][]byte {
 	if len(body) < 4 {
 		return nil
 	}
@@ -96,7 +104,7 @@ func SynthesizeWithdrawFamilies(body []byte, accept func(afi uint16, safi uint8)
 	pathAttrs := body[attrStart : attrStart+attrLen]
 	nlri := body[attrStart+attrLen:]
 
-	mpAttrs := mpUnreachAttrList(pathAttrs, accept)
+	mpAttrs := mpUnreachAttrList(pathAttrs, accept, addPath)
 
 	// Nothing to withdraw: no IPv4 Withdrawn/NLRI and no admissible MP family. An End-of-RIB
 	// (MP_UNREACH only, no NLRI) lands here too -- but a treat-as-withdraw EOR is a
@@ -146,12 +154,12 @@ func buildWithdrawBody(withdrawn, nlri, mpAttr []byte) []byte {
 // element) that the withdrawal must carry: an existing MP_UNREACH_NLRI is kept, an
 // MP_REACH_NLRI is converted (next hop dropped, RFC 4760 Sections 3 and 4), every other
 // attribute is dropped. A family rejected by accept (not negotiated) is skipped -- see
-// SynthesizeWithdrawFamilies.
+// SynthesizeWithdrawFamilies. addPath is SynthesizeWithdrawFamilies' own.
 //
 // Dropping the other attributes is the point, not an oversight: RFC 4271 Section 4.3 gives
 // a withdrawal no path attributes, and these are the attributes RFC 7606 just judged
 // untrustworthy.
-func mpUnreachAttrList(pathAttrs []byte, accept func(afi uint16, safi uint8) bool) [][]byte {
+func mpUnreachAttrList(pathAttrs []byte, accept, addPath func(afi uint16, safi uint8) bool) [][]byte {
 	if len(pathAttrs) == 0 {
 		return nil
 	}
@@ -171,7 +179,7 @@ func mpUnreachAttrList(pathAttrs []byte, accept func(afi uint16, safi uint8) boo
 			continue
 		}
 		if code == attribute.AttrMPReachNLRI {
-			unreach, converted := mpReachToUnreach(value)
+			unreach, converted := mpReachToUnreach(value, addPath)
 			if !converted {
 				// A malformed MP_REACH cannot legitimately reach here: Section 5.3 makes
 				// it "incorrect" and Section 3(j) escalates that to session reset. Skip it
@@ -205,7 +213,11 @@ func mpFamilyAccepted(unreachValue []byte, accept func(afi uint16, safi uint8) b
 
 // mpReachToUnreach converts an MP_REACH_NLRI value to an MP_UNREACH_NLRI value: keep
 // AFI/SAFI and the NLRI, drop the next hop and reserved byte (RFC 4760 Sections 3 and 4).
-func mpReachToUnreach(value []byte) ([]byte, bool) {
+// A family whose withdrawal carries the RFC 8277 Section 2.4 Compatibility field (labeled
+// unicast and VPN) has each NLRI's label stack, one label or several, replaced by that one
+// field; addPath (nil for none) says whether those NLRIs lead with an ADD-PATH identifier.
+// A labeled NLRI field that does not frame is refused like an overrunning next hop.
+func mpReachToUnreach(value []byte, addPath func(afi uint16, safi uint8) bool) ([]byte, bool) {
 	if len(value) < mpReachFixedPrefix {
 		return nil, false
 	}
@@ -218,7 +230,20 @@ func mpReachToUnreach(value []byte) ([]byte, bool) {
 	out := make([]byte, 0, mpReachAFISAFILen+len(value)-nlriStart)
 	out = append(out, value[:mpReachAFISAFILen]...) // AFI + SAFI
 	out = append(out, value[nlriStart:]...)         // NLRI
-	return out, true
+
+	afi := binary.BigEndian.Uint16(value[0:2])
+	safi := value[2]
+	if !nlrisplit.CarriesCompatibility(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}) {
+		return out, true
+	}
+	pathID := addPath != nil && addPath(afi, safi)
+	// RFC 8277 Section 2.4: "This encoding is used whether or not the Multiple Labels
+	// Capability has been sent or received on the session."
+	n, err := nlrisplit.LabeledWithdrawal(out[mpReachAFISAFILen:], pathID)
+	if err != nil {
+		return nil, false
+	}
+	return out[:mpReachAFISAFILen+n], true
 }
 
 // appendMPUnreach appends a well-formed MP_UNREACH_NLRI attribute carrying value.

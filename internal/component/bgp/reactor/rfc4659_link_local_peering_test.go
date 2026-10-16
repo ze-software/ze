@@ -137,6 +137,12 @@ func TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair(t *testing.T) {
 					}
 				} else {
 					want := mixedUnreachValue(2, byte(fam.SAFI), raw)
+					if !tc.unicast {
+						// RFC 8277 Section 2.4: "Upon transmission, the
+						// Compatibility field SHOULD be set to 0x800000."
+						// The VPN withdrawal carries it in place of the route's label octets 000101.
+						want[4], want[5], want[6] = 0x80, 0x00, 0x00
+					}
 					if hasReach || !hasUnreach || !bytes.Equal(unreach, want) {
 						t.Errorf("forbidden next hop: reach=%x present=%v unreach=%x present=%v, want %x", reach, hasReach, unreach, hasUnreach, want)
 					}

@@ -37,7 +37,7 @@ func TestRFC7606NLRILocatedByTotalAttributeLength(t *testing.T) {
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, verdict.Action, verdict.Description)
 	require.Equal(t, uint8(8), verdict.AttrCode)
 
-	out, changed := SynthesizeWithdraw(body)
+	out, changed := SynthesizeWithdraw(body, false)
 	require.True(t, changed, "an UPDATE announcing two prefixes has routes to withdraw")
 
 	withdrawn, attrs, remaining := splitBody(t, out)

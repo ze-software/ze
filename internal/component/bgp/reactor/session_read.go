@@ -291,7 +291,7 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 			// treat-as-withdraw: the re-announced prefix kept its old entry and went stale.
 			// RFC 4271 Section 8.2.2 Event 27 (UpdateMsg) is still satisfied: the primary
 			// rides the normal path, whose FSM handler restarts the HoldTimer.
-			bodies := message.SynthesizeWithdrawFamilies(wireUpdate.Payload(), s.mpFamilyDispatchable)
+			bodies := message.SynthesizeWithdrawFamilies(wireUpdate.Payload(), s.mpFamilyDispatchable, s.mpAddPathReceiveWire)
 			if len(bodies) == 0 {
 				// Nothing left to withdraw: an UPDATE whose only routes belong to a
 				// non-negotiated MP family (RFC 7606 Section 3.j: nothing is installed to

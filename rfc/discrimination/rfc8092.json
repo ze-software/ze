@@ -16,18 +16,18 @@
       "rid": "RFC8092-3-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteKeepsDistinctLargeCommunities",
-      "unit-sha": "e1ef06e58e4fa64f",
+      "unit-sha": "9f5abfd8c03f3c8a",
       "claim-sha": "e0d2fbbb6f73aa26",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_egress_normalize.go::normalizeTransmittedUpdate",
-      "producer-sha": "fff3b13bba8e8594",
+      "producer-sha": "80cbb48b079cea46",
       "break": "body of normalizeTransmittedUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8092-3-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteRemovesRepeatedLargeCommunity",
-      "unit-sha": "5814802d3e34620f",
+      "unit-sha": "9eca25e3d493db03",
       "claim-sha": "188e85dc6357fef0",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_egress_normalize.go::compactLargeCommunities",
@@ -120,7 +120,7 @@
       "claim-sha": "72ded844679a41bc",
       "route": "revert",
       "producer": "internal/component/bgp/message/rfc7606_withdraw.go::SynthesizeWithdrawFamilies",
-      "producer-sha": "ccded480ba2e58e9",
+      "producer-sha": "1f290ea64d7ffd19",
       "break": "body of SynthesizeWithdrawFamilies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

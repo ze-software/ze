@@ -55,7 +55,7 @@ func TestSynthesizeWithdrawTwoFamilies(t *testing.T) {
 	attrs = append(attrs, append([]byte{0x80, 0x0F, byte(len(mpUnreach))}, mpUnreach...)...)
 	body := buildBody(nil, attrs, nil)
 
-	bodies := SynthesizeWithdrawFamilies(body, nil)
+	bodies := SynthesizeWithdrawFamilies(body, nil, nil)
 	require.Len(t, bodies, 2,
 		"two different MP families must ride two UPDATEs (RFC 7606 3.g: one MP_UNREACH per UPDATE)")
 
@@ -82,7 +82,7 @@ func TestSynthesizeWithdrawFamiliesPrimaryKeepsLegacyField(t *testing.T) {
 
 	body := buildBody(nil, attrs, []byte{24, 192, 0, 2}) // announce 192.0.2.0/24
 
-	bodies := SynthesizeWithdrawFamilies(body, nil)
+	bodies := SynthesizeWithdrawFamilies(body, nil, nil)
 	require.Len(t, bodies, 2)
 
 	// The primary body (bodies[0]) carries the legacy IPv4 field: the announced prefix is now
@@ -108,12 +108,12 @@ func TestSynthesizeWithdrawFamiliesSkipsRejectedFamily(t *testing.T) {
 	// Predicate admits IPv4 only, so the IPv6 family is rejected.
 	acceptIPv4Only := func(afi uint16, _ uint8) bool { return afi == 1 }
 
-	bodies := SynthesizeWithdrawFamilies(body, acceptIPv4Only)
+	bodies := SynthesizeWithdrawFamilies(body, acceptIPv4Only, nil)
 	assert.Empty(t, bodies,
 		"a non-negotiated MP family is skipped, leaving nothing to withdraw -> the caller drops the UPDATE")
 
 	// The same body with an accepting predicate DOES withdraw the family: the skip is caused
 	// by the predicate, not by the body being unusable.
-	require.Len(t, SynthesizeWithdrawFamilies(body, func(uint16, uint8) bool { return true }), 1,
+	require.Len(t, SynthesizeWithdrawFamilies(body, func(uint16, uint8) bool { return true }, nil), 1,
 		"an accepted family must still be withdrawn (isolates the predicate as the cause)")
 }

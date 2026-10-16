@@ -319,7 +319,13 @@ Under ADD-PATH the member is `{"prefix": "10.0.0.0/8", "path-id": 7}`. The
 withdrawn NLRI carries a Compatibility field where the announcement carried its
 label stack, and RFC 8277 Section 2.4 says "Upon reception, the value of the
 Compatibility field MUST be ignored". The event is the same whatever the field
-held: 0x800000, zero, or a value that reads as a label.
+held: 0x800000, zero, or a value that reads as a label. A withdrawal Ze sends
+carries 0x800000 in one three-octet field, whatever label or label stack the
+command named, because the same section says "Upon transmission, the
+Compatibility field SHOULD be set to 0x800000."
+
+<!-- source: internal/component/bgp/reactor/session_egress_normalize.go -- setWithdrawalCompatibility -->
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseNLRISection -->
 
 <!-- source: internal/component/bgp/wireu/mpwire.go -- ParseWithdrawnNLRIs -->
 <!-- source: internal/component/bgp/format/text_json.go -- appendNLRIJSONValue -->

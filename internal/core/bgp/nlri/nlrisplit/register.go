@@ -43,6 +43,7 @@ func init() {
 		prefixKeys[fam] = keyLabeled
 		cidrKeys[fam] = keyLabeled
 		withdrawalSplitters[fam] = splitVPN
+		compatibilityFamilies[fam] = splitVPN
 	}
 
 	// A family ze negotiates and decodes but does not split is accepted on the
@@ -59,6 +60,10 @@ func init() {
 	} {
 		Register(fam, splitVPN)
 		prefixKeys[fam] = keyVPN
+		// RFC 8277 Section 2: "If the prefix is a VPN-IPv4 address prefix or a
+		// VPN-IPv6 address prefix, the SAFI is set to 128." Its withdrawals carry
+		// the Section 2.4 Compatibility field too.
+		compatibilityFamilies[fam] = splitVPN
 	}
 
 	// Route Target Constrain (RFC 4684 Section 4): [length in bits][origin

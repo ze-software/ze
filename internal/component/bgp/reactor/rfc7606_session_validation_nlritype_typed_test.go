@@ -175,7 +175,7 @@ func TestRFC7606Section54FiltersTreatAsWithdrawSynthesis(t *testing.T) {
 	require.Equal(t, message.RFC7606ActionTreatAsWithdraw, action,
 		"a two-octet ORIGIN is treat-as-withdraw, which is the path under test")
 
-	bodies := message.SynthesizeWithdrawFamilies(wu.Payload(), acceptEveryFamily)
+	bodies := message.SynthesizeWithdrawFamilies(wu.Payload(), acceptEveryFamily, nil)
 	require.Len(t, bodies, 1, "the surviving route must still be withdrawn")
 	assert.NotContains(t, string(bodies[0]), string(drop),
 		"the unrecognized route type must not ride out inside the synthesized withdrawal")

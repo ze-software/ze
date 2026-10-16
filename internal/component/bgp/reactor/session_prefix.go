@@ -817,6 +817,13 @@ func (s *Session) mpAddPathReceive(fam family.Family) bool {
 	return mode == capability.AddPathReceive || mode == capability.AddPathBoth
 }
 
+// mpAddPathReceiveWire is mpAddPathReceive for an AFI and SAFI read off the wire.
+// RFC 7606 treat-as-withdraw synthesis (message.SynthesizeWithdrawFamilies) frames a
+// received labeled NLRI with it to rewrite the label stack as a Compatibility field.
+func (s *Session) mpAddPathReceiveWire(afi uint16, safi uint8) bool {
+	return s.mpAddPathReceive(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)})
+}
+
 // prefixConfigLookup answers a uint32 family key from the limits the session
 // resolved once at construction (prefixLimits). It sits on the receive path: an
 // installed announce section reads the maximum before it inserts, and the settle

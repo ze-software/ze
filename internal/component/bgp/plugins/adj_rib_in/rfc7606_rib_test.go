@@ -300,7 +300,7 @@ func TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute(t *testing.T) {
 		0x40, 0x03, 0x04, 0x0a, 0x00, 0x00, 0x01, // NEXT_HOP = 10.0.0.1
 		0x08, 0x0a, // NLRI 10.0.0.0/8
 	}
-	withdrawal, changed := message.SynthesizeWithdraw(malformed)
+	withdrawal, changed := message.SynthesizeWithdraw(malformed, false)
 	require.True(t, changed, "treat-as-withdraw must produce a withdrawal for an announced route")
 	feed(withdrawal)
 	assert.Equal(t, 0, r.ribIn[peer].Len(),

@@ -28,7 +28,7 @@ func TestSynthesizeWithdrawMovesNLRIToWithdrawn(t *testing.T) {
 	}
 	body := buildBody(nil, pathAttrs, []byte{24, 10, 0, 0})
 
-	out, changed := SynthesizeWithdraw(body)
+	out, changed := SynthesizeWithdraw(body, false)
 	require.True(t, changed)
 
 	w, attrs, nlri := splitBody(t, out)
@@ -42,7 +42,7 @@ func TestSynthesizeWithdrawMovesNLRIToWithdrawn(t *testing.T) {
 func TestSynthesizeWithdrawPreservesExistingWithdrawn(t *testing.T) {
 	body := buildBody([]byte{24, 192, 168, 1}, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 0, 0})
 
-	out, changed := SynthesizeWithdraw(body)
+	out, changed := SynthesizeWithdraw(body, false)
 	require.True(t, changed)
 
 	w, _, nlri := splitBody(t, out)
@@ -62,7 +62,7 @@ func TestSynthesizeWithdrawConvertsMPReachToMPUnreach(t *testing.T) {
 	mpReach = append(mpReach, 0x00, 32, 0x20, 0x01, 0x0d, 0xb8) // reserved + NLRI
 	attrs := append([]byte{0x80, 0x0E, byte(len(mpReach))}, mpReach...)
 
-	out, changed := SynthesizeWithdraw(buildBody(nil, attrs, nil))
+	out, changed := SynthesizeWithdraw(buildBody(nil, attrs, nil), false)
 	require.True(t, changed)
 
 	_, newAttrs, _ := splitBody(t, out)
@@ -81,7 +81,7 @@ func TestSynthesizeWithdrawKeepsMPUnreach(t *testing.T) {
 	mpUnreach := []byte{0x00, 0x02, 0x01, 32, 0x20, 0x01, 0x0d, 0xb8}
 	attrs := append([]byte{0x80, 0x0F, byte(len(mpUnreach))}, mpUnreach...)
 
-	out, _ := SynthesizeWithdraw(buildBody(nil, attrs, nil))
+	out, _ := SynthesizeWithdraw(buildBody(nil, attrs, nil), false)
 
 	_, newAttrs, _ := splitBody(t, out)
 	it := newAttrIter(newAttrs)
@@ -95,7 +95,7 @@ func TestSynthesizeWithdrawKeepsMPUnreach(t *testing.T) {
 // PREVENTS: manufacturing a bogus withdrawal from a message that announced nothing.
 func TestSynthesizeWithdrawNoRoutesIsNoOp(t *testing.T) {
 	body := buildBody(nil, nil, nil)
-	out, changed := SynthesizeWithdraw(body)
+	out, changed := SynthesizeWithdraw(body, false)
 	assert.False(t, changed, "nothing was announced, so nothing can be withdrawn")
 	assert.Equal(t, body, out)
 }
@@ -108,7 +108,7 @@ func TestSynthesizeWithdrawRefusesMalformedStructure(t *testing.T) {
 		{0x00},
 		{0x00, 0xFF, 0x00, 0x00}, // withdrawn length overruns
 	} {
-		_, changed := SynthesizeWithdraw(body)
+		_, changed := SynthesizeWithdraw(body, false)
 		assert.False(t, changed, "must refuse rather than guess: %v", body)
 	}
 }
@@ -152,16 +152,16 @@ func TestSynthesizeWithdrawMPUnreachLengthBoundary(t *testing.T) {
 // PREVENTS: reading past the attribute while converting.
 func TestMPReachToUnreachBoundary(t *testing.T) {
 	// AFI(2) SAFI(1) NHLen=200 but only a few bytes follow -> nlriStart > len(value).
-	_, ok := mpReachToUnreach([]byte{0x00, 0x02, 0x01, 200, 0x00})
+	_, ok := mpReachToUnreach([]byte{0x00, 0x02, 0x01, 200, 0x00}, nil)
 	assert.False(t, ok, "must refuse a next-hop length that overruns the attribute")
 
 	// Shortest legal: AFI(2) SAFI(1) NHLen=0 Reserved(1), no NLRI.
-	out, ok := mpReachToUnreach([]byte{0x00, 0x02, 0x01, 0x00, 0x00})
+	out, ok := mpReachToUnreach([]byte{0x00, 0x02, 0x01, 0x00, 0x00}, nil)
 	require.True(t, ok)
 	assert.Equal(t, []byte{0x00, 0x02, 0x01}, out)
 
 	// One octet short of legal.
-	_, ok = mpReachToUnreach([]byte{0x00, 0x02, 0x01})
+	_, ok = mpReachToUnreach([]byte{0x00, 0x02, 0x01}, nil)
 	assert.False(t, ok)
 }
 

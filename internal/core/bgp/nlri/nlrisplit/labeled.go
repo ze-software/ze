@@ -140,3 +140,68 @@ func ExtractLabels(entry []byte, addPath bool) ([]uint32, []byte, error) {
 
 	return labels, cidr, nil
 }
+
+// LabeledWithdrawal rewrites section, a run of labeled NLRIs in announcement
+// form (SplitLabeled framing, SAFI 4 or SAFI 128), in place into the
+// withdrawal form and returns the withdrawal's length. Each NLRI keeps its
+// ADD-PATH identifier and its prefix (the RD included for SAFI 128); its label
+// stack, one label or several, becomes one three-octet Compatibility field set
+// to 0x800000, and its length octet drops 24 bits for every label beyond the
+// first. The result is never longer than the input.
+//
+// A section that does not frame is refused with an error and left exactly as
+// it was: the count pass runs before the first byte is written.
+//
+// Announced NLRI (RFC 8277 Section 2.3, Figure 3) and withdrawn NLRI (Section
+// 2.4, Figure 4), each after the four-octet Path Identifier under ADD-PATH:
+//
+//	+--------+-----------------+-----------------+--------------+
+//	| Length | Label (3) |Rsrv|S| ... repeated until S = 1 | Prefix ~
+//	+--------+-----------------+-----------------+--------------+
+//	| Length | Compatibility 0x800000 (3)  | Prefix ~
+//	+--------+-----------------------------+---------------------
+//
+// RFC 8277 Section 2.4: "This encoding is used whether or not the Multiple
+// Labels Capability has been sent or received on the session." It names one
+// Compatibility field and no label stack, and "there is never any reason for
+// this field to contain a label value or a sequence of label values.".
+func LabeledWithdrawal(section []byte, addPath bool) (int, error) {
+	if _, err := SplitLabeled(section, addPath, nil); err != nil {
+		return 0, err
+	}
+	head := 0
+	if addPath {
+		head = 4
+	}
+	// The count pass framed every NLRI, so each read below is in bounds. The
+	// write offset never passes the read offset: an NLRI only shrinks, and its
+	// four written header octets land on bytes already read.
+	write := 0
+	for read := 0; read < len(section); {
+		copy(section[write:write+head], section[read:read+head])
+		totalBits := int(section[read+head])
+		labels := 0
+		pos := read + head + 1
+		for {
+			bottom := section[pos+2]&0x01 == 1
+			pos += 3
+			labels++
+			if bottom {
+				break
+			}
+		}
+		prefixBytes := (totalBits - labels*24 + 7) / 8
+		// RFC 8277 Section 2.4: "the prefix length is not the same as the NLRI
+		// length; to determine the prefix length of a prefix in an
+		// MP_UNREACH_NLRI, the length of the Compatibility field must be
+		// subtracted from the length of the NLRI."
+		section[write+head] = byte(totalBits - (labels-1)*24)
+		// RFC 8277 Section 2.4: "Upon transmission, the Compatibility field
+		// SHOULD be set to 0x800000."
+		section[write+head+1], section[write+head+2], section[write+head+3] = 0x80, 0x00, 0x00
+		copy(section[write+head+4:], section[pos:pos+prefixBytes])
+		write += head + 4 + prefixBytes
+		read = pos + prefixBytes
+	}
+	return write, nil
+}

@@ -43,7 +43,7 @@ cmd=api:conn=1:seq=2:text=route-driver withdraws it
 # labeled withdrawal takes the same shape as the FlowSpec one flowspec-fw-withdraw.ci
 # pins. The 36-byte bare MP_UNREACH_NLRI this line expected before pinned the
 # earlier encoder.
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0031020000001A4001010040020602010000FDE9800F0A00010430003E810A0100
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0031020000001A4001010040020602010000FDE9800F0A000104308000000A0100
 EOF_PEER
 
 # Native route driver announces, waits for the wire counter, then withdraws.

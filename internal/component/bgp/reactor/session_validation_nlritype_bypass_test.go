@@ -63,7 +63,7 @@ func TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned(t *testing.T) {
 	require.Equal(t, message.RFC7606ActionTreatAsWithdraw, action,
 		"an attribute whose length overruns the section is treat-as-withdraw, the path under test")
 
-	bodies := message.SynthesizeWithdrawFamilies(wu.Payload(), acceptEveryFamily)
+	bodies := message.SynthesizeWithdrawFamilies(wu.Payload(), acceptEveryFamily, nil)
 	require.Len(t, bodies, 1, "the surviving route must still be withdrawn")
 	assert.NotContains(t, string(bodies[0]), string(drop),
 		"the unrecognized route type must not ride out inside the synthesized withdrawal")

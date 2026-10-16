@@ -25,6 +25,17 @@ type PrefixKeyFunc func(raw, scratch []byte, withdraw bool) ([]byte, error)
 var prefixKeys = make(map[family.Family]PrefixKeyFunc)
 var withdrawalSplitters = make(map[family.Family]Splitter)
 
+// compatibilityFamilies maps each family whose withdrawn NLRI carries the
+// three-octet Compatibility field of RFC 8277 Section 2.4 directly after its
+// length octet, where the announcement carried its label stack, to the splitter
+// that frames its withdrawals.
+//
+// It is written only by this package's init (register.go) and never after, so
+// it is frozen before any reader runs: the Go memory model orders a package's
+// init before every function of an importing package, so the session writer
+// reads it with no lock. Nothing may write it outside init.
+var compatibilityFamilies = make(map[family.Family]Splitter)
+
 // cidrKeys holds the families whose route key is the [length][prefix] CIDR of
 // the family's own address family, carried behind fields that are not part of
 // the key: a label stack in an announcement, a Compatibility field in a
@@ -51,6 +62,28 @@ func GetWithdraw(fam family.Family) Splitter {
 		return split
 	}
 	return splitters[fam]
+}
+
+// CarriesCompatibility reports whether a withdrawn NLRI of fam carries the
+// Compatibility field: [length:1][Compatibility:3][rest], after the ADD-PATH
+// identifier when one is negotiated.
+//
+// RFC 8277 Section 2.4: "Upon transmission, the Compatibility field SHOULD be
+// set to 0x800000."
+//
+// CompatibilitySplitter frames such a section. It takes no lock:
+// compatibilityFamilies is frozen after init.
+func CarriesCompatibility(fam family.Family) bool {
+	return compatibilityFamilies[fam] != nil
+}
+
+// CompatibilitySplitter returns the splitter that frames a withdrawal of fam
+// when its withdrawn NLRI carries the RFC 8277 Section 2.4 Compatibility field,
+// and nil for every other family. It is GetWithdraw for those families with no
+// lock taken, because compatibilityFamilies is frozen after init and every
+// UPDATE Ze sends asks it once per MP_UNREACH_NLRI.
+func CompatibilitySplitter(fam family.Family) Splitter {
+	return compatibilityFamilies[fam]
 }
 
 // RouteCIDR returns the [length][prefix] CIDR a route of fam names, with the

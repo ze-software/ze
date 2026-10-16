@@ -174,20 +174,27 @@ writes them under `label`, so a withdrawal carrying 0x003E81 renders
 `"label": [[1000, 16001]]`.
 
 **ZeBGP behavior:** the withdrawal carries no `label` member, whatever the three
-octets hold. The wire Ze sends is unchanged by this: an API `withdraw ... label
-1000` still puts 0x003E81 in the field.
+octets hold. On send, Ze writes 0x800000 in the field of every labeled
+withdrawal, whatever label the API command or the config names: an API
+`withdraw ... label 1000` puts 0x800000 on the wire, where upstream ExaBGP puts
+0x003E81. A command naming a stack, `label [ 1000 2000 ]`, withdraws with the
+one three-octet field rather than the stack. A withdrawal Ze relays, and a raw
+UPDATE an operator injects, leave with 0x800000 too.
 
 **RFC compliance:** RFC 8277 Section 2.4 calls those octets the Compatibility
-field and says "Upon reception, the value of the Compatibility field MUST be
+field and says "Upon transmission, the Compatibility field SHOULD be set to
+0x800000." and "Upon reception, the value of the Compatibility field MUST be
 ignored." Reporting them as the route's label would hand a script a value the
 RFC says carries no meaning. `docs/architecture/api/json-format.md` states the
 same rule for Ze's own event.
 
 **Impact:** a script that read the label of a withdrawn route must key on the
 RD and prefix instead. `test/exabgp-compat/api/api-vpnv4.ci` expects the
-withdrawal without `label`.
+withdrawal without `label`, and 0x800000 in its raw frame.
 <!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- parseVPN -->
 <!-- source: internal/exabgp/bridge/bridge_event.go -- exabgpNLRIObject -->
+<!-- source: internal/component/bgp/reactor/session_egress_normalize.go -- setWithdrawalCompatibility -->
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseNLRISection -->
 
 ---
 

@@ -25,10 +25,10 @@ option=timeout:value=90s
 option=asn:value=65000
 option=linger:value=true
 expect=bgp:conn=1:seq=1:contains=800E380001800C00000000000000000101010100600006410000FDE8000000010A600006510000FDE8000000020A600006610000FDE8000000010B
-expect=bgp:conn=1:seq=2:contains=800F10000180601234500000FDE8000000010A
+expect=bgp:conn=1:seq=2:contains=800F10000180608000000000FDE8000000010A
 # Mandatory-RIB recovery must withdraw both distinct survivors, in either order.
-expect=bgp:conn=1:seq=3:contains=800F10000180600006510000FDE8000000020A
-expect=bgp:conn=1:seq=3:contains=800F10000180600006610000FDE8000000010B
+expect=bgp:conn=1:seq=3:contains=800F10000180608000000000FDE8000000020A
+expect=bgp:conn=1:seq=3:contains=800F10000180608000000000FDE8000000010B
 EOF_RECEIVER
 
 stdin=ze-bgp:terminator=EOF_CONF

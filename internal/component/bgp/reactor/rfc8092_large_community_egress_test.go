@@ -107,7 +107,7 @@ func TestRFC8092WriteRemovesRepeatedLargeCommunity(t *testing.T) {
 			scratch := make([]byte, len(in))
 			allocs := testing.AllocsPerRun(50, func() {
 				copy(scratch, in)
-				normalizeTransmittedUpdate(scratch)
+				normalizeTransmittedUpdate(scratch, nil)
 			})
 			require.Zero(t, allocs)
 		})
@@ -132,7 +132,7 @@ func TestRFC8092WriteKeepsDistinctLargeCommunities(t *testing.T) {
 		scratch := make([]byte, len(in))
 		allocs := testing.AllocsPerRun(50, func() {
 			copy(scratch, in)
-			normalizeTransmittedUpdate(scratch)
+			normalizeTransmittedUpdate(scratch, nil)
 		})
 		require.Zero(t, allocs)
 	}

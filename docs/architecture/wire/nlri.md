@@ -463,8 +463,33 @@ The RECOMMENDED 0x800000 has its S bit clear, so the announcement's walk to the
 bottom of the stack would read past the NLRI. A withdrawal is therefore framed
 by its Length alone (`nlrisplit.GetWithdraw`, `nlrisplit.SplitWithdrawn`), and
 the three octets are skipped whatever they hold (`keyLabeled` with `withdraw`).
+
+On send, the session writer sets the field to 0x800000 in every MP_UNREACH_NLRI
+of a family that carries it (labeled unicast and VPN,
+`nlrisplit.CompatibilitySplitter`), whatever produced the withdrawal: an API
+command or config naming a label, a relayed withdrawal, or a raw UPDATE. It runs
+in the same attribute walk as the other egress rules
+(`normalizeTransmittedUpdate`), allocates nothing, and never changes the NLRI
+length.
+
+The field is one three-octet field whatever the label count, so a producer that
+starts from a label stack builds the withdrawal with one field. An `update text`
+`del` naming `label [ a b ]` keeps the first label only. A withdrawal built from
+an announcement, a static route taken back or an RFC 7606 treat-as-withdraw,
+goes through `nlrisplit.LabeledWithdrawal`, which replaces each NLRI's stack
+with the field and lowers its length octet by 24 bits per label dropped, so the
+receiver and Ze's own route key (`keyLabeled` with `withdraw`) find the prefix
+the announcement named. The withdrawal a withheld forward destination receives
+(`writeWithdrawal`) still copies the announcement's NLRI, so a route announced
+with two or more labels is withdrawn with the stack: recorded in the journal
+`guard-added-to-one-half-of-a-pair`.
 <!-- source: internal/core/bgp/nlri/nlrisplit/nlrisplit.go -- SplitWithdrawn -->
-<!-- source: internal/core/bgp/nlri/nlrisplit/prefix_key.go -- GetWithdraw, keyLabeled -->
+<!-- source: internal/core/bgp/nlri/nlrisplit/prefix_key.go -- GetWithdraw, keyLabeled, CompatibilitySplitter -->
+<!-- source: internal/core/bgp/nlri/nlrisplit/labeled.go -- LabeledWithdrawal -->
+<!-- source: internal/component/bgp/message/rfc7606_withdraw.go -- mpReachToUnreach -->
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseNLRISection -->
+<!-- source: internal/component/bgp/reactor/forward_build.go -- writeWithdrawal -->
+<!-- source: internal/component/bgp/reactor/session_egress_normalize.go -- normalizeTransmittedUpdate, setWithdrawalCompatibility -->
 
 ### Ze Implementation
 
@@ -622,6 +647,33 @@ pre-existing deviation is recorded in `plan/journal/gate-fires-outside-its-popul
 <!-- source: internal/component/bgp/message/rfc7606.go -- validateMPNLRISyntax, mpNLRIJudgementResult -->
 <!-- source: internal/component/bgp/reactor/session_validation_nlritype.go -- typedNLRIEdit -->
 <!-- source: internal/component/bgp/plugins/nlri/srpolicy/split.go -- SplitSRPolicy, judgeSRPolicySection, retainSRPolicySection -->
+
+### SR-Policy in `update text`
+
+`update text` has no SR-Policy parser of its own. An `nlri ipv4/sr-policy` or
+`nlri ipv6/sr-policy` section goes, like every family the `update` package does
+not parse itself, to `parseRegistryNLRISection`, which hands the whole token
+run to the plugin's registered `EncodeNLRIHex`. The grammar is the plugin's:
+`add` or `del` right after the family, then `distinguisher`, `color` and
+`endpoint`.
+
+| Input | Outcome |
+|-------|---------|
+| a second `add` or `del` after the section's first field | refused, for every registry family (mup, mvpn, sr-policy) |
+| `rd`, `label` or any keyword other than the three | refused by the encoder, naming the three it takes |
+| an `endpoint` of the other address family than the NLRI's AFI | refused by `validateSRPolicyEndpoint`, as the config path refuses it |
+| a `path-information` that applies to the section: at top level before its `nlri`, right after the family, or inside its run | the whole command is refused, never stripped silently |
+| a `path-information` inside another family's section of the same command | accepted; that section's NLRI carries it, the SR-Policy NLRI carries none |
+
+The `path-information` refusal is Ze's own rule, not an RFC one: the SR-Policy
+route Ze builds carries no path identifier, and RFC 9830 says nothing about
+ADD-PATH. The plugin declares it in its registration
+(`NLRIAddPathRefusal`), and the parser tests that fact for the section's
+family, so `update` holds no SAFI 73 test. Received SR-Policy NLRIs still
+decode under ADD-PATH, as the section above describes.
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseRegistryNLRISection, refuseAddPath -->
+<!-- source: internal/component/bgp/plugins/nlri/srpolicy/register.go -- NLRIAddPathRefusal -->
+<!-- source: internal/component/bgp/plugins/nlri/srpolicy/encode.go -- EncodeNLRIHex, validateSRPolicyEndpoint -->
 
 ### ADD-PATH Decoding for Plugin Families (RFC 7911)
 

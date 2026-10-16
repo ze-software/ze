@@ -80,5 +80,5 @@ func TestClearTransmittedLabelIndexOnlyOnLabeledUnicast(t *testing.T) {
 // two steps of normalizeTransmittedUpdate leave them as they are and the body
 // keeps its length.
 func clearTransmittedLabelIndex(body []byte) {
-	normalizeTransmittedUpdate(body)
+	normalizeTransmittedUpdate(body, nil)
 }

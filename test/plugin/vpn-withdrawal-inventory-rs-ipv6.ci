@@ -25,7 +25,7 @@ option=timeout:value=90s
 option=asn:value=65002
 option=linger:value=true
 expect=bgp:conn=1:seq=1:contains=800E4D00028018000000000000000020010DB800000000000000000000000100780006410000FDE80000000120010D0A780006510000FDE80000000220010D0A780006610000FDE80000000120010D0B
-expect=bgp:conn=1:seq=2:contains=800F13000280781234500000FDE80000000120010D0A
+expect=bgp:conn=1:seq=2:contains=800F13000280788000000000FDE80000000120010D0A
 # RFC 8277 Section 2.4: "Upon transmission, the Compatibility field SHOULD be set to 0x800000."
 # Mandatory-RIB recovery withdraws both distinct survivors, in either order.
 expect=bgp:conn=1:seq=3:contains=800F13000280788000000000FDE80000000220010D0A

@@ -228,7 +228,7 @@ func TestRFC7606Section54DropsMPReachWhenNothingSurvives(t *testing.T) {
 	_, found := mpReachNLRIOf(t, wu.Payload())
 	assert.False(t, found,
 		"no route survives, so the MP_REACH attribute must be removed rather than emptied")
-	assert.Empty(t, message.SynthesizeWithdrawFamilies(wu.Payload(), acceptEveryFamily),
+	assert.Empty(t, message.SynthesizeWithdrawFamilies(wu.Payload(), acceptEveryFamily, nil),
 		"nothing is left to withdraw, which is what makes processMessage drop the UPDATE")
 }
 
@@ -272,7 +272,7 @@ func TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR(t *testing.T
 
 	// And this is the drop: processMessage synthesizes withdrawals from this body, gets
 	// none, and consumes the UPDATE without dispatching or forwarding it.
-	assert.Empty(t, message.SynthesizeWithdrawFamilies(wu.Payload(), acceptEveryFamily),
+	assert.Empty(t, message.SynthesizeWithdrawFamilies(wu.Payload(), acceptEveryFamily, nil),
 		"no family is left to withdraw, so processMessage drops the UPDATE and counts no EoR")
 }
 

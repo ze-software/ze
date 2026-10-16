@@ -631,7 +631,8 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 	body = s.writeBuf.Buffer()[message.HeaderLen : message.HeaderLen+len(body)]
 	// RFC 4271 Section 4.3, RFC 8092 Section 3, RFC 8669 Section 3.1: on every
 	// write, the raw diagnostic one included (owner, Q-3 (a), 2026-10-14).
-	body = body[:normalizeTransmittedUpdate(body)]
+	// RFC 8277 Section 2.4 as well, in the same walk and for the same reason.
+	body = body[:normalizeTransmittedUpdate(body, ownership.encoding)]
 	if !raw {
 		length, err := ownership.filter(nil, body)
 		if err != nil {
