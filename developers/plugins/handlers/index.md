@@ -20,6 +20,7 @@ p.OnEvent(func(event string) error { ... })
 p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) { ... })
 p.OnConfigVerify(func(sections []sdk.ConfigSection) error { ... })
 p.OnConfigApply(func(diffs []sdk.ConfigDiffSection) error { ... })
+p.DeclareAppliesNothing("why a reload has nothing for this plugin to apply")
 p.OnValidateOpen(func(input *sdk.ValidateOpenInput) *sdk.ValidateOpenOutput { ... })
 p.OnBye(func(reason string) { ... })
 
@@ -31,7 +32,7 @@ p.OnEncodeNLRI(func(family string, args []string) (string, error) { ... })
 p.OnDecodeNLRI(func(family string, hex string) (any, error) { ... })
 p.OnDecodeCapability(func(code uint8, hex string) (any, error) { ... })
 
-p.Run(ctx, sdk.Registration{...})
+p.Run(ctx, &sdk.Registration{...})
 ```
 
 ## Handler Reference
@@ -174,8 +175,10 @@ plugin nor the engine holds the whole answer. See
 
 Called during config reload to validate a candidate config. The plugin receives
 the full candidate config sections and returns nil to accept or an error to reject.
-If no handler is registered, config-verify returns OK (no-op).
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigVerify -->
+If no handler is registered, config-verify accepts. Either way, a plugin that
+registered neither `OnConfigApply` nor `DeclareAppliesNothing` is refused before
+the handler runs: see "A plugin with no apply handler" below.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigVerify, configVerifyCallback -->
 <!-- source: pkg/plugin/rpc/types.go -- ConfigVerifyInput -->
 
 ```go
@@ -201,8 +204,9 @@ Return `nil` to accept the candidate config, or an error to reject the reload.
 
 Called during config reload to apply config changes. The plugin receives diff
 sections describing what changed (added, removed, changed) and returns nil to
-accept or an error to reject. If no handler is registered, config-apply returns
-OK (no-op).
+accept or an error to reject. A plugin that declares `WantsConfig` must register
+it or call `DeclareAppliesNothing`; the handler must not be nil, and the call
+panics on a nil one.
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigApply -->
 <!-- source: pkg/plugin/rpc/types.go -- ConfigApplyInput, ConfigDiffSection -->
 
@@ -237,6 +241,51 @@ p.OnConfigApply(func(diffs []sdk.ConfigDiffSection) error {
 | `Added` | `string` | JSON-encoded added config |
 | `Removed` | `string` | JSON-encoded removed config |
 | `Changed` | `string` | JSON-encoded changed config |
+
+### DeclareAppliesNothing
+
+A plugin that declares `WantsConfig` but holds nothing a reload can apply says
+so in place of an apply handler. Use it when the plugin reads no leaf of its
+roots, or reads only capability leaves, whose change `DeclareCapabilitiesFrom`
+already refuses at config-verify. Its `config-apply` is accepted, the rollback
+gate opens as for any accepted apply, and a debug line names the plugin, the
+changed roots and the reason. The reason must not be empty: the call panics on
+an empty one. A plugin that reads a leaf it could apply registers
+`OnConfigApply` instead.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- DeclareAppliesNothing -->
+
+```go
+p.DeclareCapabilitiesFrom(hostnameCapabilities, hostnameCapabilityLeaves)
+p.DeclareAppliesNothing("reads only the hostname capability leaves, fixed for the process life")
+```
+
+### A plugin with no apply handler
+
+A plugin that registers neither `OnConfigApply` nor `DeclareAppliesNothing`
+cannot apply a reload, so the SDK refuses one rather than accept a change the
+plugin would never act on. Its `config-verify` answers an error before any
+`OnConfigVerify` handler runs, and so does its `config-apply` if one arrives;
+the refused apply opens no rollback gate. The reload is refused and the running
+config stays in force. The text names the plugin, the roots that changed, and
+the restart that delivers the change at startup instead:
+
+```
+plugin <name> cannot apply a change to <roots> while ze runs: it registered no config apply handler and does not declare that it applies nothing, so it would accept the change and keep running the old config
+```
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- configVerifyCallback, refuseConfigApply, refuseWithoutApply -->
+
+Two consequences follow for a third-party plugin that registers only
+`OnConfigure`:
+
+- A plugin that declares a shared root, such as `WantsConfig: []string{"bgp"}`,
+  takes part in every reload that changes anything under that root, so it
+  refuses every edit there, including one to a leaf it never reads. Register
+  `OnConfigApply` (or `sdk.NewConfigTx(...).Register(p)`) when it reads a leaf
+  a reload can change, or `DeclareAppliesNothing` when it reads none.
+- Removing the plugin's root is refused too. The engine still sends the plugin
+  a `config-verify` for a root the candidate no longer holds, with the section
+  data `{}`, and the SDK refuses it like any other change.
+<!-- source: internal/component/plugin/server/reload_compensation.go -- reloadConfigSections -->
 
 ### OnValidateOpen
 
@@ -396,16 +445,43 @@ Must be called after `SetStartupSubscriptions` and before `Run()`.
 p.SetEncoding("text")
 ```
 
-### SetCapabilities
+### DeclareCapabilitiesFrom
 
-Sets the capabilities to declare during Stage 3. Must be called before `Run()`.
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- SetCapabilities -->
+Registers the extractor that computes the plugin's capability declaration from
+the config sections it receives, and the config leaf that sets each code. It is
+the only way a plugin declares capabilities, and it must be called before
+`Run()`. A plugin whose set does not come from config registers an extractor
+that ignores the sections.
+<!-- source: pkg/plugin/sdk/capability_declaration.go -- DeclareCapabilitiesFrom, capabilityChanges -->
+
+`Run` calls the extractor once, on the Stage 2 configuration, and sends its
+capabilities at Stage 3. The engine puts that declaration in every OPEN until
+the plugin process ends, so it is never rewritten: a runtime `configure`
+redelivery reaches `OnConfigure` and never the extractor.
+
+At config-verify the plugin's own `OnConfigVerify` handler answers first. When
+it accepts, the SDK runs the extractor on the candidate sections and compares
+the two declarations per peer selector (`Peers`) and code. A changed payload, a
+code removed from a peer that stays configured, and a code added (a peer added
+with a capability included) are refused, naming the peer, the leaf and the
+plugin, followed by `sdk.RestartSteps()`. A peer the candidate no longer names
+is accepted: it sends no OPEN again. A declaration with no `Peers` applies to
+every peer and is compared as one selector, named `every peer`.
 
 ```go
-p.SetCapabilities([]sdk.CapabilityDecl{
-    {Code: 64, Encoding: "hex", Payload: "0078", Peers: []string{"192.168.1.1"}},
-})
+p.DeclareCapabilitiesFrom(func(sections []sdk.ConfigSection) (sdk.CapabilityDeclaration, error) {
+    return sdk.CapabilityDeclaration{
+        Capabilities: []sdk.CapabilityDecl{
+            {Code: 64, Encoding: "hex", Payload: "0078", Peers: []string{"peer1"}},
+        },
+        Peers: []string{"peer1"}, // every peer selector the config names
+    }, nil
+}, map[uint8]string{64: "graceful-restart"})
 ```
+
+A plugin that reads the `bgp` root wraps its per-section extraction with
+`configjson.BGPCapabilityExtractor`, which reports every peer selector of the
+tree (`configjson.CapabilitySelectors`).
 
 ## Engine Methods (Plugin to Engine)
 
@@ -494,7 +570,7 @@ return fmt.Errorf("validation failed")
 |-----------|----------|
 | Handler returns nil | `{"status":"ok"}` |
 | Handler returns error | `{"status":"error","error":"reason"}` |
-| No handler registered | `{"status":"ok"}` (graceful no-op) |
+| Neither `OnConfigApply` nor `DeclareAppliesNothing` registered | `{"status":"error","error":"plugin <name> cannot apply a change to <roots> while ze runs: ..."}` at config-verify and at config-apply |
 
 **Unknown methods** are rejected with an error response:
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop -->

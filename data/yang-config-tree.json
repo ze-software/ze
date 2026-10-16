@@ -302,7 +302,7 @@
             "type": "boolean"
           },
           {
-            "description": "A name other than default binds the socket to the VRF device of that name. Ze\nruns one socket for each pair of VRF and hop mode, so every multi-hop session in one\nVRF shares it. An empty value is read as default.",
+            "description": "A name other than default binds the socket to the VRF device of that name. Ze\nruns one socket for each pair of VRF and hop mode, so every multi-hop session in one\nVRF shares it. An empty value is refused: the leaf is part of the key.",
             "kind": "leaf",
             "name": "vrf",
             "short-help": "Routing instance the session runs in. The default instance is named default.",
@@ -440,7 +440,7 @@
       {
         "children": [
           {
-            "description": "Ze binds the socket of the loop to this interface with SO_BINDTODEVICE. One\nsocket serves every session of one VRF and hop mode. Ze binds it only when each\nsession in the default VRF names the same interface. A mix of names leaves the\nsocket unbound, with a warning in the log. In a VRF other than default the VRF\ndevice wins, and this leaf is dropped.",
+            "description": "Ze binds the socket of the loop to this interface with SO_BINDTODEVICE. One\nsocket serves every session of one VRF and hop mode. Ze binds it only when each\nsession in the default VRF names the same interface. A mix of names leaves the\nsocket unbound, with a warning in the log. In a VRF other than default the VRF\ndevice wins, and this leaf is dropped from the socket binding; it still names the\nsession's link. An IPv6 link-local peer needs this leaf in every VRF.",
             "kind": "leaf",
             "name": "interface",
             "short-help": "Egress interface name.",
@@ -448,7 +448,7 @@
             "type": "string"
           },
           {
-            "description": "While the leaf is absent, the kernel selects the source address. The address\nis part of the session key. A change to it therefore releases the running session,\nand creates a new one at the next config load.",
+            "description": "While the leaf is absent, the kernel selects the source address. The address\nis part of the session key. A change to it therefore releases the running session,\nand creates a new one at the next config load. An address written with a zone is\nrefused: the link is written in interface.",
             "kind": "leaf",
             "name": "local",
             "short-help": "Local source address (optional).",
@@ -456,7 +456,7 @@
             "type": "string"
           },
           {
-            "description": "The value is the first word after the list name, so single-hop-session\n203.0.113.9 names this peer. Ze refuses an address it cannot parse, and IPv4 and IPv6\nare both accepted. RFC 5881 Section 5 requires a received TTL of 255, so Ze discards\na Control packet from this peer that crossed a router.",
+            "description": "The value is the first word after the list name, so single-hop-session\n203.0.113.9 names this peer. Ze refuses an address it cannot parse, and IPv4 and IPv6\nare both accepted. RFC 5881 Section 5 requires a received TTL of 255, so Ze discards\na Control packet from this peer that crossed a router. An IPv6 link-local peer\n(fe80::/10) is refused unless the entry names its link in interface, and an address\nwritten with a zone (fe80::b%eth0) is refused: the link is written in interface.",
             "kind": "leaf",
             "name": "peer",
             "short-help": "Peer IPv4 or IPv6 address.",
@@ -480,7 +480,7 @@
             "type": "boolean"
           },
           {
-            "description": "A name other than default binds the socket to the VRF device of that name. The\ninterface leaf of every session in that VRF is then dropped, and Ze logs the names it\ndropped once for each loop. An empty value is read as default.",
+            "description": "A name other than default binds the socket to the VRF device of that name. The\ninterface leaf of every session in that VRF is then dropped, and Ze logs the names it\ndropped once for each loop. An empty value is refused: the leaf is part of the key.",
             "kind": "leaf",
             "name": "vrf",
             "short-help": "Routing instance the session runs in. The default instance is named default.",
@@ -3165,7 +3165,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer.",
+                    "description": "RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer, so Ze\nrejects 0.0.0.0. The same section says the identifier is the same for every BGP peer; this override\ndeparts from that, by owner decision: a peer or group that sets it sends its own identifier in its\nOPEN instead of the global router-id.",
                     "kind": "leaf",
                     "name": "router-id",
                     "short-help": "Override the router ID for this peer.",
@@ -4542,7 +4542,7 @@
                 "type": "boolean"
               },
               {
-                "description": "RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer.",
+                "description": "RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer, so Ze\nrejects 0.0.0.0. The same section says the identifier is the same for every BGP peer; this override\ndeparts from that, by owner decision: a peer or group that sets it sends its own identifier in its\nOPEN instead of the global router-id.",
                 "kind": "leaf",
                 "name": "router-id",
                 "short-help": "Override the router ID for this peer.",
@@ -6739,7 +6739,7 @@
                 "type": "boolean"
               },
               {
-                "description": "RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer.",
+                "description": "RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer, so Ze\nrejects 0.0.0.0. The same section says the identifier is the same for every BGP peer; this override\ndeparts from that, by owner decision: a peer or group that sets it sends its own identifier in its\nOPEN instead of the global router-id.",
                 "kind": "leaf",
                 "name": "router-id",
                 "short-help": "Override the router ID for this peer.",

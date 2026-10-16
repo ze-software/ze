@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>66.7%</strong><b>8 of 12 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>12 of 12 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 <article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>4</strong><b>of 4 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
@@ -236,7 +236,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>4</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>8</td>
+<td>12</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5187.md</code></td>
@@ -404,7 +404,7 @@ Same OSPF experimental status.
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L110" title="internal/plugins/ospf/rfc5187_gr_nvs_test.go" target="_blank" rel="noopener"><code>TestStaleRestartFactIgnored</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_test.go#L100" title="internal/plugins/ospf/rfc5187_preserve_restart_test.go" target="_blank" rel="noopener"><code>TestRFC5187LSAIDToPrefixPreservedAcrossRestart</code></a></td>
@@ -414,7 +414,7 @@ Same OSPF experimental status.
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L60" title="internal/plugins/ospf/rfc5187_gr_nvs_test.go" target="_blank" rel="noopener"><code>TestRestartFactPersistsAcrossRestart</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_test.go#L87" title="internal/plugins/ospf/rfc5187_preserve_restart_test.go" target="_blank" rel="noopener"><code>TestRFC5187LSAIDToPrefixPreservedAcrossRestart</code></a></td>
@@ -434,7 +434,7 @@ Same OSPF experimental status.
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L114" title="internal/plugins/ospf/rfc5187_gr_nvs_test.go" target="_blank" rel="noopener"><code>TestStaleRestartFactIgnored</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go#L48" title="internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go" target="_blank" rel="noopener"><code>TestRFC5187InterfaceIDPreservedAcrossRestart</code></a></td>
@@ -444,7 +444,7 @@ Same OSPF experimental status.
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L63" title="internal/plugins/ospf/rfc5187_gr_nvs_test.go" target="_blank" rel="noopener"><code>TestRestartFactPersistsAcrossRestart</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go#L58" title="internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go" target="_blank" rel="noopener"><code>TestRFC5187InterfaceIDPreservedAcrossRestart</code></a></td>
@@ -620,7 +620,7 @@ Same OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

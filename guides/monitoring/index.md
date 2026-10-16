@@ -378,6 +378,7 @@ Read the same number per peer with `show bgp peer <address> detail`, field
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
 | `ze_bgp_update_span_spill_total` | counter | `peer` | Received UPDATEs whose attribute count exceeded the inline span capacity |
+| `ze_bgp_update_nlri_malformed_total` | counter | `peer`, `action` | Received typed NLRIs (BGP-MUP) with a malformed body: `withdrawn` when treated as withdrawn, `discarded` when no route key forms to withdraw them by |
 
 Ze indexes the path attributes of every received UPDATE once, on the receive
 goroutine, and holds the first 8 spans inline. A 9th attribute puts the remainder

@@ -814,8 +814,8 @@ bind, no listener, no timer.</p>
 arguments and returns the exit code:</p>
 <pre><code class="language-go">// declaration is what this plugin provides. It is a pure value: no file, no
 // socket, no goroutine.
-func declaration() sdk.Registration {
-    return sdk.Registration{
+func declaration() *sdk.Registration {
+    return &amp;sdk.Registration{
         Commands: []sdk.CommandDecl{{Name: "acme-monitor status", ShortHelp: "Show monitor status"}},
     }
 }
@@ -838,7 +838,7 @@ func start() int {
     return 0
 }
 </code></pre>
-<p>The declaration is the same <code>sdk.Registration</code> value you pass to <code>Plugin.Run</code>,
+<p>The declaration is the same <code>*sdk.Registration</code> you pass to <code>Plugin.Run</code>,
 so query mode reads nothing new and adds no second list to keep in step.</p>
 <!-- source: pkg/plugin/sdk/sdk_query.go -- RunOrDeclare -->
 <h3 id="what-the-sdk-guarantees">What the SDK guarantees</h3>
@@ -1238,9 +1238,12 @@ Unknown methods are rejected with <code>"unknown method: &lt;method&gt;"</code>.
 clean shutdown (engine closes socket to signal exit).</p>
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, isConnectionClosed -->
 <p><strong>Config reload errors:</strong> <code>config-verify</code> and <code>config-apply</code> return structured results
-with <code>{"status":"ok"}</code> or <code>{"status":"error","error":"..."}</code>. If no handler is registered,
-the response is <code>{"status":"ok"}</code> (graceful no-op).</p>
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigVerify, OnConfigApply, initCallbackDefaults -->
+with <code>{"status":"ok"}</code> or <code>{"status":"error","error":"..."}</code>. A plugin with no
+<code>OnConfigVerify</code> handler accepts at config-verify. A plugin that registered neither
+<code>OnConfigApply</code> nor <code>DeclareAppliesNothing</code> answers both with an error naming the
+plugin and the roots, so the reload is refused rather than accepted and ignored
+(handlers.md, "A plugin with no apply handler").</p>
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigVerify, OnConfigApply, initCallbackDefaults, configVerifyCallback, refuseConfigApply -->
 <h2 id="batched-event-delivery">Batched Event Delivery</h2>
 <p>Events are batched for efficiency. The engine collects pending events from a per-process
 channel, JSON-quotes each one, and sends them in a single <code>deliver-batch</code> RPC.</p>
@@ -1267,7 +1270,7 @@ config-verify, etc.) and bye.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

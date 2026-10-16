@@ -144,7 +144,9 @@ Notification and not used (RFC 5036 section 3.4.4.1).</li>
 <p><code>keepalive-time</code> is the KeepAlive Time ze proposes in the Initialization message
 of each new session (RFC 5036 section 3.5.3). The two LSRs keep the lower of the
 two proposals. Ze then sends a KeepAlive every third of the negotiated value, and
-it closes the session when no PDU arrives inside three times that value. The
+when no PDU arrives inside the negotiated value itself (RFC 5036 section 3.5.3)
+it sends the peer a Notification carrying KeepAlive Timer Expired, then closes
+the session. The
 proposal is exchanged one time, when the session starts, so a change to this leaf
 applies to the sessions that open after it and leaves an established session on
 the value it negotiated.</p>
@@ -212,7 +214,7 @@ neighbor.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

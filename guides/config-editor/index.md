@@ -347,8 +347,10 @@ list.
 session mode too. Each records one structural op in your change file
 (`copy-entry`, `deactivate-leaf`, `activate-leaf`, `deactivate-path`,
 `activate-path`), shows as one change in `show | changes`, and is applied by
-`commit now` before your leaf edits. `copy` never overwrites: a destination that
-exists is refused, so delete it first.
+`commit now` before your leaf edits. `copy` and `rename` never overwrite: a
+destination that is another existing entry is refused, so delete it first, and
+a destination equal to the entry's own key is refused with "new key must differ
+from current key".
 <!-- source: internal/component/cli/editor_draft.go -- writeThroughCopy, writeThroughToggle, writeThroughStructuralOp, applyToggleOp -->
 
 `load` works in session mode and in file mode through one path. The input,
@@ -402,6 +404,9 @@ Tab completion is driven by registered YANG schemas. The editor suggests:
 - Address family names from registered plugins
 - The keys of a list whose key is an enumeration, including the ones the config
   does not hold yet, each with the help text the schema declares
+- For a list whose key names several leaves (`bfd single-hop-session`, keyed
+  `peer vrf interface`), the first value of each configured entry, once, so
+  one peer on two links is offered once; the key leaf names follow it
 - Well-known values a plugin offers for one of its own leaves, such as the
   transit-free ASNs on `bgp policy reject-asn ... via`
 <!-- source: internal/component/cli/completer.go -- valueCompletions, validateCompletions, listKeyCompletions -->

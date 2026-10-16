@@ -280,7 +280,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 When using the GET method, the data payload for this media type MUST be encoded with base64url [RFC4648] and then provided as a variable named "dns" to the URI Template expansion. (§6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Both clauses: a query whose ID 0xfbff makes base64url begin '-_' is answered under 'dns' (200 + A); the same octets in standard base64 ('+/') under 'dns' are refused 400 (the '*' of the HEAD negative is in neither alphabet), and the base64url value under 'query' is refused 400. Records: dohRequestBody revert, both polarities observed red.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Re-judged 2026-09-30. Both clauses: a query whose ID 0xfbff makes base64url begin '-_' is answered under 'dns' (200 + A); the same octets in standard base64 ('+/') under 'dns' are refused 400 (the '*' of the HEAD negative is in neither alphabet), and the base64url value under 'query' is refused 400. Records: dohRequestBody revert, both polarities observed red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

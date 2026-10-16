@@ -136,11 +136,15 @@ remediation guidance.</p>
 </tr>
 <tr>
 <td><code>doctor-service-executable</code></td>
-<td>Installed systemd unit <code>ExecStart</code> points to an executable ze binary</td>
+<td>Installed systemd unit <code>ExecStart</code> points to an executable ze binary, and every <code>ExecReload</code> program exists and is executable</td>
 </tr>
 <tr>
 <td><code>doctor-service-user</code> / <code>doctor-service-group</code></td>
 <td>User/group referenced by installed <code>ze.service</code> exists</td>
+</tr>
+<tr>
+<td><code>doctor-service-stop</code></td>
+<td>The stop settings systemd applies to the installed <code>ze.service</code> (<code>systemctl show -p TimeoutStopUSec -p KillMode</code>, drop-ins included) give ze its whole stop: a timeout of at least 90 s (60 s drain ceiling plus 30 s teardown) and <code>KillMode=mixed</code>. A host with no <code>systemctl</code> is told it does not run systemd and that the unit file is stale; any other failed query carries systemctl's own error <!-- source: internal/plugins/systemd/doctor.go -- checkServiceStop, stopQueryFailure --></td>
 </tr>
 <tr>
 <td><code>doctor-ssh-hostkey-missing</code></td>
@@ -449,7 +453,7 @@ bridges these at execution time. Each check receives a <code>DoctorCheckContext<
 <p>External plugins declare checks in <code>DoctorChecks</code> during Stage 1
 registration, then handle the <code>doctor-check</code> callback at runtime.</p>
 <p>Declaration (in <code>sdk.Registration</code>):</p>
-<pre><code class="language-go">p.Run(ctx, sdk.Registration{
+<pre><code class="language-go">p.Run(ctx, &amp;sdk.Registration{
     DoctorChecks: []rpc.DoctorCheckDecl{{
         Name:         "my-cache-reachable",
         Phase:        rpc.DoctorPhasePostConfig,
@@ -537,7 +541,7 @@ is present and emits the registered code.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

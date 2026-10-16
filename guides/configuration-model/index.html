@@ -295,6 +295,13 @@ bgp {
     }
 }
 </code></pre>
+<p>The global <code>router-id</code> is the BGP Identifier every peer sends by default. A peer
+or group may override it with its own <code>router-id</code> (<code>session router-id</code> in the YANG
+model), and that peer's OPEN then carries the override. This departs from RFC 6286
+Section 2.1, which says the identifier "is the same for every local interface and
+every BGP peer". Ze keeps the override on purpose, as an owner decision, and does
+not count that sentence as met. The override must still be non-zero.</p>
+<!-- source: internal/component/bgp/reactor/config.go — parsePeerSettings, parseRouterID; internal/component/bgp/yang/ze-bgp-conf.yang — session router-id -->
 <p>By default Ze enforces AS-wide BGP Identifier uniqueness: the first peer of an AS to
 present a router-id holds it, and a second peer of the same AS presenting the same
 router-id is rejected with a Bad BGP Identifier NOTIFICATION (RFC 6286 Section 2.1
@@ -3083,9 +3090,13 @@ priority) stamps outgoing frames: a packet leaving with the listed internal
 priority gets the mapped PCP on the wire, so downstream L2 switches honor the
 class of service without inspecting IP headers. Both sides of every entry are
 0-7; unmapped values fall back to 0. The maps require <code>vlan-id</code> and are
-applied when the VLAN sub-interface is created.</p>
+applied when the VLAN sub-interface is created. A reload that changes the maps
+an existing VLAN resolves to, through an inline map edit or an edit to the
+profile the unit uses, reprograms that VLAN in place, and a commit that fails
+afterwards writes the previous maps back.</p>
 <!-- source: internal/plugins/cos/yang/ze-cos-conf.yang -- ingress-qos-map, egress-qos-map lists (qos-maps grouping) -->
-<!-- source: internal/plugins/iface/netlink/manage_linux.go -- CreateVLAN IngressQosMap/EgressQosMap -->
+<!-- source: internal/plugins/iface/netlink/manage_linux.go -- CreateVLAN IngressQosMap/EgressQosMap, UpdateVLANQoSMap -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfig, indexUnitQoS -->
 <pre><code>interface {
     ethernet eth0 {
         unit v100 {
@@ -3121,9 +3132,12 @@ pipeline. Use the netlink backend if remapped ingress is required.</p>
 from interfaces instead of repeating inline <code>ingress-qos-map</code> / <code>egress-qos-map</code>
 lists on every unit. The <code>class-of-service</code> section is provided by the cos
 plugin. Profiles are inherited by all VLAN units on the interface; individual
-units can override with a different profile or opt out with <code>none</code>.</p>
+units can override with a different profile or opt out with <code>none</code>. A unit
+resolves its profile against the <code>class-of-service</code> section of the same
+commit, so one commit can add a profile and the unit that uses it.</p>
 <!-- source: internal/plugins/cos/yang/ze-cos-conf.yang -- ieee-802.1p profile definitions -->
 <!-- source: internal/component/iface/config.go -- parseUnits class-of-service resolution -->
+<!-- source: internal/component/iface/config.go -- parseResolvedIfaceSections, candidateCoSProfiles -->
 <pre><code>class-of-service {
     ieee-802.1p residential {
         ingress {
@@ -5309,7 +5323,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

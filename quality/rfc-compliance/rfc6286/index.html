@@ -118,11 +118,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>75.0%</strong><b>3 of 4 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>25.0%</strong><b>1 of 4 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>7.7%</strong><b>1 of 13 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>31.2%</strong><b>5 of 16 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,6 +135,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>25.0%</strong><b>1 of 4 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 4 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
@@ -166,7 +166,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>Partial proof; remaining gap</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
@@ -231,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>13</td>
+<td>16</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>13</td>
+<td>16</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>1</td>
+<td>5</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc6286.md</code></td>
@@ -267,7 +267,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Section 2.1: the identifier is the same for every peer only when no peer or group sets <code>session router-id</code>; the global <code>router-id</code> is the default and a peer or group may override it (<code>parsePeerSettings</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/config.go</code></a>), an open owner decision tracked as D4 of the BGP OPEN session RFC defects spec. Section 2.3 applies only where RFC 4271 Section 6.8 collision detection already applies (OpenConfirm): ze does not implement the Section 6.8 OpenSent MAY, tracked under the RFC 4271 row.
+Section 2.1: the identifier is the same for every peer only when no peer or group sets <code>session router-id</code>; the global <code>router-id</code> is the default and a peer or group may override it (<code>parsePeerSettings</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/config.go</code></a>), an owner-approved deviation from Section 2.1 (owner, 2026-10-13, D4 of the BGP OPEN session RFC defects spec) that is not counted conformant. Section 2.3 applies only where RFC 4271 Section 6.8 collision detection already applies (OpenConfirm): ze does not implement the Section 6.8 OpenSent MAY, tracked under the RFC 4271 row.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -292,7 +292,7 @@ Section 2.1: the identifier is the same for every peer only when no peer or grou
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
-<td><strong>0</strong></td>
+<td><strong>1</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -309,6 +309,7 @@ Section 2.1: the identifier is the same for every peer only when no peer or grou
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (3):</strong> <a href="#rfc6286-2.2-1"><code>RFC6286-2.2-1</code></a>, <a href="#rfc6286-2.2-2"><code>RFC6286-2.2-2</code></a>, <a href="#rfc6286-2.3-1"><code>RFC6286-2.3-1</code></a></p>
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (1):</strong> <a href="#rfc6286-2.1-1"><code>RFC6286-2.1-1</code></a></p>
+<p class="rfc-id-list"><strong>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (1):</strong> <a href="#rfc6286-2.1-1"><code>RFC6286-2.1-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -321,8 +322,10 @@ Section 2.1: the identifier is the same for every peer only when no peer or grou
 <td>2.1 - Definition of the BGP Identifier</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6286-2.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L128" title="internal/component/bgp/reactor/config_test.go" target="_blank" rel="noopener"><code>TestParsePeerFromTreeInvalid</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the 4-octet unsigned property is structural and has no failure mode a negative test could exercise -- the wire field is a uint32 (internal/component/bgp/message/open.go:55). The same-for-every-peer property is not held: the value is read at config load, the global `router-id` is the default, and a peer or group may override it with the `session router-id` leaf of the `peer-fields` grouping (`parsePeerSettings`, internal/component/bgp/reactor/config.go). Each OPEN carries its own peer&#39;s `PeerSettings.RouterID` (`buildOpen`, internal/component/bgp/reactor/session_negotiate.go), so a configured override gives that peer an identifier different from the others&#39; (open question D4 of the BGP OPEN session RFC defects spec). The non-zero half IS enforced and tested: parseRouterID (internal/component/bgp/reactor/config.go) rejects 0.0.0.0 for both the global leaf and a per-peer override</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_router_id_test.go#L35" title="internal/component/bgp/reactor/rfc6286_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC6286GlobalZeroRouterIDRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_router_id_test.go#L39" title="internal/component/bgp/reactor/rfc6286_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC6286GlobalZeroRouterIDRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_router_id_test.go#L10" title="internal/component/bgp/reactor/rfc6286_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC6286NonZeroRouterIDAccepted</code></a></span></div>
+</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;non-zero integer&#34;; gap &#34;is the same for every local interface and every BGP peer&#34;; owner-approved deviation (spec-bgp-open-session-rfc-defects Q2, owner 2026-10-13: &#34;we should have a global router-id which can be overwritten per peer which is over what the RFC allows&#34;), not counted conformant: the global `router-id` is the default and a peer or group may override it with the `session router-id` leaf, and each OPEN carries its own peer&#39;s identifier, so a configured override gives that peer an identifier different from the others&#39;; internal/component/bgp/reactor/config.go::parsePeerSettings reads the override. The non-zero clause is enforced: parseRouterID rejects 0.0.0.0 for the global leaf and a per-peer override</p><p class="rfc-mark"><strong>Scoped evidence:</strong> Tests and tag-claim records apply only to Tested; zero whole-requirement credit. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-10-14 (independent auditor) after d667673f7e; supersedes the pending rejudge-rfc6286.json. Row is {partial}. Tested: &#39;non-zero integer&#39;. Gap: &#39;is the same for every local interface and every BGP peer&#39;, an owner-approved deviation (spec-bgp-open-session-rfc-defects Q2, 2026-10-13): the per-peer session router-id override read by Producer internal/component/bgp/reactor/config.go::parsePeerSettings gives a peer an identifier different from the others&#39;; not counted conformant. Within Tested: config_test.go::TestParsePeerFromTreeInvalid zero_router_id_rejected requires a peer-level 0.0.0.0 to be refused with the RFC 6286 Section 2.1 error; rfc6286_router_id_test.go::TestRFC6286GlobalZeroRouterIDRejected requires PeersFromTree to refuse a global bgp router-id of 0.0.0.0 with that error and to accept 0.0.0.1, inherited by an override-less peer as identifier 1; TestRFC6286NonZeroRouterIDAccepted requires a peer-level 0.0.0.1 to become identifier 1. Auditor overlay mutants, all red: removing the zero check in parseRouterID (both zero negatives), bypassing parseRouterID in GlobalsFromTree only (the global-leaf test alone), widening the check to id &lt; 2 (both 0.0.0.1 positives). Limit: a config with no router-id at either level reaches PeersFromTree as identifier 0; only the config mandatory check (validate_mandatory_bgp.go) refuses it, and no test tagged to this row exercises that path.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6286-2.1-2">RFC6286-2.1-2</code></td><td colspan="3"><span class="rfc-subject">The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. (Section 2.1)</span></td></tr>
 <tr><td></td>
@@ -370,21 +373,47 @@ Section 2.1: the identifier is the same for every peer only when no peer or grou
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<p>RFC 6286 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc6286-2.1-1"><code>RFC6286-2.1-1</code></a> The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer. (Section 2.1)</td>
+<td>{partial}, Partial proof; remaining gap</td>
+<td>tested &#34;non-zero integer&#34;; gap &#34;is the same for every local interface and every BGP peer&#34;; owner-approved deviation (spec-bgp-open-session-rfc-defects Q2, owner 2026-10-13: &#34;we should have a global router-id which can be overwritten per peer which is over what the RFC allows&#34;), not counted conformant: the global `router-id` is the default and a peer or group may override it with the `session router-id` leaf, and each OPEN carries its own peer&#39;s identifier, so a configured override gives that peer an identifier different from the others&#39;; internal/component/bgp/reactor/config.go::parsePeerSettings reads the override. The non-zero clause is enforced: parseRouterID rejects 0.0.0.0 for the global leaf and a per-peer override</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc6286-2.1-1"><code>RFC6286-2.1-1</code></a></h3>
 <p>The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer. (Section 2.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The only tag (config_test zero_router_id_rejected) proves the non-zero clause for a peer-level router-id. No tagged assertion covers the global router-id leaf, or &#39;the same for every local interface and every BGP peer&#39;: Ze accepts a per-peer router-id override (parsePeerFromTree, session router-id), so a configuration giving peers different identifiers is accepted and nothing tagged goes red on it.</p>
+<p>Scoped tag-claim records only: tested &#34;non-zero integer&#34;; gap &#34;is the same for every local interface and every BGP peer&#34;; owner-approved deviation (spec-bgp-open-session-rfc-defects Q2, owner 2026-10-13: &#34;we should have a global router-id which can be overwritten per peer which is over what the RFC allows&#34;), not counted conformant: the global `router-id` is the default and a peer or group may override it with the `session router-id` leaf, and each OPEN carries its own peer&#39;s identifier, so a configured override gives that peer an identifier different from the others&#39;; internal/component/bgp/reactor/config.go::parsePeerSettings reads the override. The non-zero clause is enforced: parseRouterID rejects 0.0.0.0 for the global leaf and a per-peer override; zero whole-requirement credit.</p>
+<p><strong>Audit verdict:</strong> partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-10-14 (independent auditor) after d667673f7e; supersedes the pending rejudge-rfc6286.json. Row is {partial}. Tested: &#39;non-zero integer&#39;. Gap: &#39;is the same for every local interface and every BGP peer&#39;, an owner-approved deviation (spec-bgp-open-session-rfc-defects Q2, 2026-10-13): the per-peer session router-id override read by Producer internal/component/bgp/reactor/config.go::parsePeerSettings gives a peer an identifier different from the others&#39;; not counted conformant. Within Tested: config_test.go::TestParsePeerFromTreeInvalid zero_router_id_rejected requires a peer-level 0.0.0.0 to be refused with the RFC 6286 Section 2.1 error; rfc6286_router_id_test.go::TestRFC6286GlobalZeroRouterIDRejected requires PeersFromTree to refuse a global bgp router-id of 0.0.0.0 with that error and to accept 0.0.0.1, inherited by an override-less peer as identifier 1; TestRFC6286NonZeroRouterIDAccepted requires a peer-level 0.0.0.1 to become identifier 1. Auditor overlay mutants, all red: removing the zero check in parseRouterID (both zero negatives), bypassing parseRouterID in GlobalsFromTree only (the global-leaf test alone), widening the check to id &lt; 2 (both 0.0.0.1 positives). Limit: a config with no router-id at either level reaches PeersFromTree as identifier 0; only the config mandatory check (validate_mandatory_bgp.go) refuses it, and no test tagged to this row exercises that path.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_router_id_test.go#L39" title="internal/component/bgp/reactor/rfc6286_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC6286GlobalZeroRouterIDRejected</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_router_id_test.go#L10" title="internal/component/bgp/reactor/rfc6286_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC6286NonZeroRouterIDAccepted</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L128" title="internal/component/bgp/reactor/config_test.go" target="_blank" rel="noopener"><code>TestParsePeerFromTreeInvalid</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_router_id_test.go#L35" title="internal/component/bgp/reactor/rfc6286_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC6286GlobalZeroRouterIDRejected</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -652,7 +681,7 @@ Section 2.1: the identifier is the same for every peer only when no peer or grou
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

@@ -502,6 +502,14 @@ A collector without a forwarding role acquires no recipients.</p>
 every retained route after each change, coalescing bursts into one pending
 scan. A change of interior cost alone, with no BGP UPDATE, therefore moves the
 best path, whether or not the candidates carry AIGP.</p>
+<p>The same walk runs when a config reload changes a selection rule
+(<code>maximum-paths</code>, <code>relax-as-path</code>, or the blackhole honoring rules). The RIB
+installs the new rules in the commit's apply phase and reselects there, so a
+prefix that receives no further UPDATE still answers under the new rule. A
+rollback installs the previous rules the same way and reselects again. The walk
+runs one election per route, keyed by the prefix for a CIDR family and by the
+route key otherwise, never by the path identifier: one election already
+gathers the path of every peer holding the prefix.</p>
 <!-- source: internal/component/bgp/plugins/rib/rib_aigp.go -- runAIGPSelection, reselectAIGPRoutes -->
 <p>The RIB reads interior distances from the engine's registered <code>route-metrics</code>
 RPC when it runs in a subprocess. A one-second revision poll invalidates its
@@ -710,7 +718,7 @@ updated after.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

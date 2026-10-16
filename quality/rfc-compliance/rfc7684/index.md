@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 9 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 38.1% | 8 of 21 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 81.0% | 17 of 21 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -64,7 +64,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 21 |
 | Tagged units | 21 |
 | Recorded audit verdicts | 5 |
-| Discrimination records | 8 |
+| Discrimination records | 17 |
 | Summary | `rfc/short/rfc7684.md` |
 | Requirement shard | `rfc/requirements/rfc7684.md` |
 | RFC text | `rfc/full/rfc7684.txt` |
@@ -169,9 +169,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestExtPrefixNFlagNotSetNonHostInterArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L150) | unit/verify | unproven |
+| negative | [`TestExtPrefixNFlagNotSetNonHostInterArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L150) | unit/verify | revert, verified |
 | negative | [`TestRFC7684NFlagNotInventedInterArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go#L83) | unit/verify | revert, verified |
-| positive | [`TestExtPrefixNFlagPreservedInterArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L121) | unit/verify | unproven |
+| positive | [`TestExtPrefixNFlagPreservedInterArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L121) | unit/verify | revert, verified |
 | positive | [`TestRFC7684NFlagOfAnotherRouterPreservedInterArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go#L64) | unit/verify | revert, verified |
 
 ### [`RFC7684-2.1-3`](#rfc7684-2.1-3)
@@ -182,9 +182,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestExtPrefixScopeSelection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L170) | unit/verify | unproven |
+| negative | [`TestExtPrefixScopeSelection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L170) | unit/verify | revert, verified |
 | negative | [`TestRFC7684PrefixNeedingTwoScopesNeverSharesAnLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_scope_per_lsa_test.go#L100) | unit/verify | revert, verified |
-| positive | [`TestExtPrefixScopeSelection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L167) | unit/verify | unproven |
+| positive | [`TestExtPrefixScopeSelection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L167) | unit/verify | revert, verified |
 | positive | [`TestRFC7684EveryPrefixInAnLSAFitsItsScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_scope_per_lsa_test.go#L63) | unit/verify | revert, verified |
 
 ### [`RFC7684-3.1-1`](#rfc7684-3.1-1)
@@ -214,12 +214,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`FuzzOSPFExtLinkBody`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_fuzz_test.go#L111) | unit/verify | unproven |
-| negative | [`FuzzOSPFExtPrefixBody`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_fuzz_test.go#L91) | unit/verify | unproven |
+| negative | [`FuzzOSPFExtLinkBody`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_fuzz_test.go#L111) | unit/verify | revert, verified |
+| negative | [`FuzzOSPFExtPrefixBody`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_fuzz_test.go#L91) | unit/verify | revert, verified |
 | negative | [`TestRFC7684MalformedPermutationsDetected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_malformed_test.go#L30) | unit/verify | revert, verified |
-| negative | [`TestExtPrefixMalformedCounted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go#L160) | unit/verify | unproven |
-| positive | [`TestExtLinkTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_link_test.go#L25) | unit/verify | unproven |
-| positive | [`TestExtPrefixTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_prefix_test.go#L28) | unit/verify | unproven |
+| negative | [`TestExtPrefixMalformedCounted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go#L160) | unit/verify | revert, verified |
+| positive | [`TestExtLinkTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_link_test.go#L25) | unit/verify | revert, verified |
+| positive | [`TestExtPrefixTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_prefix_test.go#L28) | unit/verify | revert, verified |
 | positive | [`TestRFC7684MalformedPermutationsDetected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_malformed_test.go#L27) | unit/verify | revert, verified |
 
 ### [`RFC7684-6.5-1`](#rfc7684-6.5-1)

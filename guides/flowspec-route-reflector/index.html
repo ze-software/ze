@@ -210,6 +210,7 @@ sudo systemctl reload ze.service
 /usr/local/bin/ze cli -c "show rr status"
 /usr/local/bin/ze cli -c "show rr peers"
 </code></pre>
+<p>Each row of an established peer carries <code>families</code>: the address families the reflector recorded from that peer's OPEN, sorted (<code>ipv4/unicast</code> alone when the OPEN carried no Multiprotocol capability). A row whose peer is down, or whose OPEN the reflector could not read, has no <code>families</code> key. <code>show bgp rs peers</code> carries the same key for the route server.</p>
 <p>If a peer does not show the FlowSpec family, check the remote router address-family configuration first. Ze cannot reflect a family that was not negotiated.</p>
 <h2 id="4-inject-a-test-flowspec-rule">4. Inject a test FlowSpec rule</h2>
 <p>The reflector only reflects FlowSpec it <em>receives</em>, so originate the test rule from a peer that announces toward the reflector, not from the reflector itself. The rule below matches TCP traffic to <code>10.0.0.0/8</code> with destination port 80.</p>
@@ -307,7 +308,7 @@ address-family ipv4 flowspec
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 38.5% | 5 of 13 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 13 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 13 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 66.7% | 18 of 27 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 92.6% | 25 of 27 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -71,7 +71,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 27 |
 | Tagged units | 27 |
 | Recorded audit verdicts | 9 |
-| Discrimination records | 18 |
+| Discrimination records | 25 |
 | Summary | `rfc/short/rfc3623.md` |
 | Requirement shard | `rfc/requirements/rfc3623.md` |
 | RFC text | `rfc/full/rfc3623.txt` |
@@ -197,8 +197,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. c23 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestGraceLSAv4BodyBuild`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_lsa_test.go#L22) | unit/verify | unproven |
-| positive | [`TestGraceLSAv4BodyBuild`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_lsa_test.go#L18) | unit/verify | unproven |
+| negative | [`TestGraceLSAv4BodyBuild`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_lsa_test.go#L22) | unit/verify | revert, verified |
+| positive | [`TestGraceLSAv4BodyBuild`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_lsa_test.go#L18) | unit/verify | revert, verified |
 | positive | [`TestRFC3623SharedMediaGraceLSACarriesInterfaceAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_origination_test.go#L58) | unit/verify | revert, verified |
 | positive | [`TestRFC3623OriginatedGraceLSATLVOctets`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go#L48) | unit/verify | revert, verified |
 
@@ -221,7 +221,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestRFC3623PreparedRestartKeepsRoutesSPFNoLongerComputes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_install_wiring_test.go#L85) | unit/verify | revert, verified |
-| positive | [`TestPrepareRestartRetainsFIB`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L91) | unit/verify | unproven |
+| positive | [`TestPrepareRestartRetainsFIB`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L91) | unit/verify | revert, verified |
 | positive | [`TestRFC3623PrepareInstallsPendingSPFAndKeepsIt`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_prepare_fib_test.go#L106) | unit/verify | revert, verified |
 
 ### [`RFC3623-5-1`](#rfc3623-5-1)
@@ -232,9 +232,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestUnplannedDisabledByDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_unplanned_test.go#L16) | unit/verify | unproven |
+| negative | [`TestUnplannedDisabledByDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_unplanned_test.go#L16) | unit/verify | revert, verified |
 | negative | [`TestRFC3623OperatorTurnsUnplannedRecoveryOff`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_origination_test.go#L122) | unit/verify | revert, verified |
-| positive | [`TestUnplannedGraceBeforeHello`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_unplanned_test.go#L40) | unit/verify | unproven |
+| positive | [`TestUnplannedGraceBeforeHello`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_unplanned_test.go#L40) | unit/verify | revert, verified |
 | positive | [`TestRFC3623OperatorTurnsUnplannedRecoveryOff`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_origination_test.go#L119) | unit/verify | revert, verified |
 
 ### [`RFC3623-5-2`](#rfc3623-5-2)
@@ -246,7 +246,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestRFC3623RestartGraceLSAFloodedToAllSPFRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go#L45) | unit/verify | revert, verified |
-| positive | [`TestUnplannedGraceLSAFloodsToAllSPFRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L151) | unit/verify | unproven |
+| positive | [`TestUnplannedGraceLSAFloodsToAllSPFRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L151) | unit/verify | revert, verified |
 | positive | [`TestRFC3623UnplannedColdStartOriginatesGraceLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_unplanned_cold_start_test.go#L131) | unit/verify | revert, verified |
 
 ### [`RFC3623-5-3`](#rfc3623-5-3)
@@ -268,7 +268,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestUnplannedGraceBeforeHello`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_unplanned_test.go#L58) | unit/verify | unproven |
+| positive | [`TestUnplannedGraceBeforeHello`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_unplanned_test.go#L58) | unit/verify | revert, verified |
 | positive | [`TestRFC3623UnplannedGraceLSACarriesUnplannedReason`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_origination_test.go#L80) | unit/verify | revert, verified |
 
 ### [`RFC3623-3-1`](#rfc3623-3-1)

@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 31 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 31 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 31 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 95.1% | 39 of 41 tagged units, 2 escaped and 0 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 95.3% | 41 of 43 tagged units, 2 escaped and 0 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -35,7 +35,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 45.2% | 14 of 31 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 18 | of 31 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 18 | of 31 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 8 shares marked as a part above are the whole of the 31 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -69,10 +69,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 41 |
-| Tagged units | 41 |
+| Test tags | 43 |
+| Tagged units | 43 |
 | Recorded audit verdicts | 18 |
-| Discrimination records | 41 |
+| Discrimination records | 43 |
 | Summary | `rfc/short/rfc3579.md` |
 | Requirement shard | `rfc/requirements/rfc3579.md` |
 | RFC text | `rfc/full/rfc3579.txt` |
@@ -135,7 +135,7 @@ Fifteen MUST and SHOULD requirements are unproven, unreached or unmet: fourteen 
 | `RFC3579-3.1-4` | A NAS supporting the EAP-Message attribute MUST calculate the correct value of the Message-Authenticator and MUST silently discard the packet if it does not match the value sent. (§3.1, restated for any RADIUS client receiving an Access-Accept, Access-Reject or Access-Challenge at §3.2) | MUST | 3.1 - EAP-Message | **positive:** `unit/verify` [`TestRadiusAdminEapVerifiedChallengeIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L915). **negative:** `unit/verify` [`TestRadiusAdminEapDiscardsUnauthenticatedChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L501) |
 | `RFC3579-3.2-1` | When present in an Access-Request packet, Message-Authenticator is an HMAC-MD5 [RFC2104] hash of the entire Access-Request packet, including Type, ID, Length and Authenticator, using the shared secret as the key, as follows. Message-Authenticator = HMAC-MD5 (Type, Identifier, Length, Request Authenticator, Attributes) When the message integrity check is calculated the signature string should be considered to be sixteen octets of zero. (§3.2) | MUST | 3.2 - Message-Authenticator | **positive:** `unit/verify` [`TestSignMessageAuthenticatorMatchesRFC3579`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L438). **negative:** `unit/verify` [`TestSignMessageAuthenticatorZeroesTheSignatureField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L472) |
 | `RFC3579-3.3-1` | The EAP-Message and Message-Authenticator attributes specified in this document MUST NOT be present in an Accounting-Request. (§3.3) | MUST NOT | 3.3 - Table of Attributes | **positive:** `unit/verify` [`TestAccountingRequestRefusesEAPAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L708). **negative:** `unit/verify` [`TestAccountingRequestRefusesEAPAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L705) |
-| `RFC3579-3.3-2` | An Access-Request that contains either a User-Password or CHAP-Password or ARAP-Password or one or more EAP-Message attributes MUST NOT contain more than one type of those four attributes. (§3.3 Note 1) | MUST NOT | 3.3 - Table of Attributes | **positive:** `unit/verify` [`TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L396). **negative:** `unit/verify` [`TestAccessRequestRefusesTwoCredentialTypes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L955) |
+| `RFC3579-3.3-2` | An Access-Request that contains either a User-Password or CHAP-Password or ARAP-Password or one or more EAP-Message attributes MUST NOT contain more than one type of those four attributes. (§3.3 Note 1) | MUST NOT | 3.3 - Table of Attributes | **positive:** `unit/verify` [`TestRFC3579EachCredentialTypeAloneEncodes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L1025). **positive:** `unit/verify` [`TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L396). **negative:** `unit/verify` [`TestAccessRequestRefusesTwoCredentialTypes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L958). **negative:** `unit/verify` [`TestRFC3579ARAPBesideEAPIsRefusedAtExchange`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_credential_types_test.go#L25) |
 | `RFC3579-4.2-1` | Where RADIUS is run over IPsec ESP with a non-null transform, the secret shared between the NAS and the RADIUS server MAY NOT be configured. In this case, a shared secret of zero length MUST be assumed. (§4.2) | MUST | 4.2 - Security Protocol | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze offers no way to run RADIUS over an IPsec SA and its RADIUS server configuration always carries a secret (`internal/component/radius/config.go`), so the zero-length case is unreachable; spec-radius-admin-eap does not add it |
 | `RFC3579-4.2-2` | When IPsec ESP is used with RADIUS, per-packet authentication, integrity and replay protection MUST be used. 3DES-CBC MUST be supported as an encryption transform (§4.2) | MUST | 4.2 - Security Protocol | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze has no RADIUS-over-IPsec profile, so nothing selects a transform for RADIUS traffic; spec-radius-admin-eap does not add it |
 | `RFC3579-4.2-3` | HMAC-SHA1-96 MUST be supported as an authentication transform. (§4.2) | MUST | 4.2 - Security Protocol | **positive:** no positive test. **negative:** no negative test. **{gap}:** same absent RADIUS-over-IPsec profile; ze negotiates no IPsec SA for RADIUS traffic; spec-radius-admin-eap does not add it |
@@ -413,11 +413,13 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. enco
 
 An Access-Request that contains either a User-Password or CHAP-Password or ARAP-Password or one or more EAP-Message attributes MUST NOT contain more than one type of those four attributes. (§3.3 Note 1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. negative covers EAP-Message beside User-Password and beside CHAP-Password only. User-Password beside CHAP-Password is not tested, and ARAP-Password is in no pair: client.go oneCredentialType omits ARAP-Password (70) from its map, so an EAP-Message plus ARAP-Password Access-Request would encode
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-14 by a reader who did not author the tests. (a) forbidden: an Access-Request carrying two of User-Password, CHAP-Password, ARAP-Password, EAP-Message. - TestAccessRequestRefusesTwoCredentialTypes drives all six pairs of the four types through encodeRequest and requires an error naming both types and zero octets; + TestRFC3579EachCredentialTypeAloneEncodes encodes each type alone, so the refusal is the pair's; - TestRFC3579ARAPBesideEAPIsRefusedAtExchange shows the guard at Client.Exchange, with no datagram reaching the server. Producer client.go oneCredentialType now names ARAP-Password (70), called by encodeRequest for every CodeAccessRequest. Several EAP-Message fragments (one type) are allowed by the code and not separately asserted.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestAccessRequestRefusesTwoCredentialTypes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L955) | unit/verify | revert, verified |
+| negative | [`TestAccessRequestRefusesTwoCredentialTypes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L958) | unit/verify | revert, verified |
+| negative | [`TestRFC3579ARAPBesideEAPIsRefusedAtExchange`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_credential_types_test.go#L25) | unit/verify | revert, verified |
+| positive | [`TestRFC3579EachCredentialTypeAloneEncodes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L1025) | unit/verify | revert, verified |
 | positive | [`TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L396) | unit/verify | revert, verified |
 
 ### [`RFC3579-4.2-1`](#rfc3579-4.2-1)

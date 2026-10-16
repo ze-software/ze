@@ -1775,7 +1775,7 @@ when neither socket opens, naming which of the two fixes applies, and
 
 <!-- source: internal/component/ping/cmd/register.go -- showPingLocal -->
 <!-- source: internal/component/ping/cmd/ping.go -- parsePingArgs -->
-<!-- source: internal/plugins/ping-cmd/yang/ze-ping-cmd.yang -- show/ping size leaf -->
+<!-- source: internal/component/ping/yang/ze-ping-cmd.yang -- show/ping size leaf -->
 <!-- source: internal/component/traceroute/cmd/register.go -- showTracerouteLocal -->
 
 ### show crashes
@@ -2839,7 +2839,7 @@ and a later change to the curated table cannot alter what that config does.
 |---------|--------|---------|
 | `show bgp healthcheck` | read-only | One row for each probe: its name, its group and its state |
 | `show bgp healthcheck <name>` | read-only | One row, with the ten fields of that probe |
-| `clear bgp healthcheck <name>` | write | Withdraw route, reset FSM to INIT, immediate re-check. Error if DISABLED. <!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleCommand, handleShow --> |
+| `clear bgp healthcheck <name>` | write | Withdraw route, reset FSM to INIT, and re-check once the old probe's exit has finished: its withdraw command returned, whether it succeeded, failed or timed out after 5 s, and its IPs were removed. A withdraw that failed or timed out leaves the route announced while the probe re-checks. The reply can return before the withdraw has run. Error if DISABLED. <!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleCommand, handleShow, handleReset --> |
 
 Both spellings answer a row set, so `| count`, `| first` and `| match` act on
 either. The two answers carry different field sets on purpose. Each row
@@ -2852,7 +2852,7 @@ declares `map` rather than `tab`. `| fill` is refused by name.
 | Command | Access | Purpose |
 |---------|--------|---------|
 | `show bmp sessions` | read-only | Show active BMP receiver sessions (router address, sysName, uptime) |
-| `show bmp peers` | read-only | Show monitored BGP peers (AS, BGP ID, up/down status) |
+| `show bmp peers` | read-only | Show monitored BGP peers (AS, BGP ID, up/down status, and `rib-peer`, the key `show bgp rib protocol bmp peer` takes) |
 | `show bmp collectors` | read-only | Show BMP sender collector connection status |
 | `show bmp rib` | read-only | Show BMP-monitored routes <!-- source: internal/component/bgp/plugins/bmp/cmd_show.go -- ForwardToPlugin proxy --> |
 

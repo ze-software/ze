@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 22.2% | 2 of 9 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 9 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 72.7% | 8 of 11 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 78.6% | 11 of 14 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -35,7 +35,6 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 44.4% | 4 of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 5 | of 9 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 8 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -54,7 +53,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -69,10 +68,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 12 |
-| Tagged units | 11 |
+| Test tags | 15 |
+| Tagged units | 14 |
 | Recorded audit verdicts | 5 |
-| Discrimination records | 8 |
+| Discrimination records | 11 |
 | Summary | `rfc/short/rfc9072.md` |
 | Requirement shard | `rfc/requirements/rfc9072.md` |
 | RFC text | `rfc/full/rfc9072.txt` |
@@ -116,7 +115,7 @@ Four MUST-level gaps, each annotated in [`rfc/short/rfc9072.md`](https://github.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC9072-2-1` | However, if the length of the Optional Parameters in the BGP OPEN message does exceed 255, the OPEN message MUST be encoded according to the procedure below. (S2) | MUST | 2 | **positive:** `unit/verify` [`TestOpenPackExtendedParams`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L419). **negative:** `unit/verify` [`TestTheExtendedEnvelopeAndItsParametersAgree`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9072_extended_open_test.go#L21) |
+| `RFC9072-2-1` | However, if the length of the Optional Parameters in the BGP OPEN message does exceed 255, the OPEN message MUST be encoded according to the procedure below. (S2) | MUST | 2 | **positive:** `unit/verify` [`TestOpenPackExtendedParams`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L419). **positive:** `unit/verify` [`TestRFC9072OptionalParamsBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go#L64). **negative:** `unit/verify` [`TestRFC9072OptionalParamsBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go#L67). **negative:** `unit/verify` [`TestTheExtendedEnvelopeAndItsParametersAgree`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9072_extended_open_test.go#L21) |
 | `RFC9072-2-2` | (In any case, an implementation MUST accept an OPEN message that uses the encoding of this specification even if the length of the Optional Parameters is 255 or less.) (S2) | MUST | 2 | **positive:** `unit/verify` [`TestOpenUnpackExtendedParams`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L208). **positive:** `unit/verify` [`TestRFC9072ShortExtendedOpenIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9072_short_extended_open_test.go#L32). **negative:** `unit/verify` [`TestOpenUnpackExtendedParams`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L195). **negative:** `unit/verify` [`TestRFC9072ShortExtendedOpenIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9072_short_extended_open_test.go#L34) |
 | `RFC9072-2-3` | The Non-Extended Optional Parameters Length field (Non-Ext OP Len.) SHOULD be set to 255 on transmission and, in any event, MUST NOT be set to 0 (S2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestOpenPackExtendedParams`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L420). **negative:** no negative test. **{single-polarity}:** writeToExtended sets the Non-Ext OP Len to the constant 0xFF marker (open.go:130), so it is structurally never 0 and no code path can produce the negative case |
 | `RFC9072-2-4` | The subsequent one-octet field (which would be the first Optional Parameter Type field in the non-extended format and is called "Non- Ext OP Type" in the figure above) MUST be set to 255 on transmission. (S2) | MUST | 2 | **positive:** `unit/verify` [`TestOpenPackExtendedParams`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L422). **negative:** no negative test. **{single-polarity}:** writeToExtended sets the Non-Ext OP Type to the constant 0xFF (open.go:131), so no code path emits any other value and there is no negative case |
@@ -125,7 +124,7 @@ Four MUST-level gaps, each annotated in [`rfc/short/rfc9072.md`](https://github.
 | `RFC9072-3-1` | It is not considered a fatal error to receive an OPEN message whose (non-extended) Optional Parameters Length value is not 255 and whose first Optional Parameter type code is 255 -- in this case, the encoding of this specification MUST be used for decoding the message. (S3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's OPEN decoder (internal/component/bgp/message/open.go:190) selects the extended form only when Non-Ext OP Len equals 255, not whenever the first type code is 255; the open.go:186-189 comment and the TestOpenUnpackExtendedParams standard-format-first-param-byte-0xFF case cement this, so a first type code of 255 with Non-Ext OP Len != 255 is decoded as a classic OPEN instead of extended |
 | `RFC9072-3-2` | Although the Optional Parameter type code 255 is used in this specification as the indication that the extended encoding is in use, it is not a bona fide Optional Parameter type code in the usual sense and MUST NOT be used other than as described above. (S3) | MUST NOT | 3 | **positive:** `unit/verify` [`TestOpenPackExtendedParams`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L423). **positive:** `unit/verify` [`TestRFC9072ParameterType255OnlyAsTheExtendedMarker`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9072_param_type_test.go#L57). **negative:** `unit/verify` [`TestRFC9072ParameterType255OnlyAsTheExtendedMarker`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9072_param_type_test.go#L59) |
 | `RFC9072-3-3` | Although the Optional Parameter type code 255 is used in this specification as the indication that the extended encoding is in use, it is not a bona fide Optional Parameter type code in the usual sense and MUST NOT be used other than as described above. If encountered other than as the Non-Ext OP Type, it MUST be treated as an unrecognized Optional Parameter and handled according to [RFC4271], Section 6.2. (S3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze silently ignores an unrecognized BGP OPEN optional-parameter type; ParseFromOptionalParams (internal/core/bgp/capability/capability.go:867-874) skips any parameter whose type is not 2 instead of emitting the RFC 4271 Section 6.2 OPEN Message Error (Unsupported Optional Parameter) NOTIFICATION |
-| `RFC9072-2-7` | In the event that the length of the Optional Parameters in the BGP OPEN message does not exceed 255, the encodings of the base BGP specification [RFC4271] SHOULD be used without alteration. (S2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9072-2-7` | In the event that the length of the Optional Parameters in the BGP OPEN message does not exceed 255, the encodings of the base BGP specification [RFC4271] SHOULD be used without alteration. (S2) | SHOULD | 2 | **positive:** `unit/verify` [`TestRFC9072OptionalParamsBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go#L72). **negative:** no negative test |
 | `RFC9072-2-8` | The Non-Extended Optional Parameters Length field (Non-Ext OP Len.) SHOULD be set to 255 on transmission (S2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9072-2-9` | Configuration MAY override this to force the extended format to be used in all cases (S2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
 
@@ -146,12 +145,14 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 However, if the length of the Optional Parameters in the BGP OPEN message does exceed 255, the OPEN message MUST be encoded according to the procedure below. (S2)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Unit changed only by D-15: TestOpenPackExtendedParams now asserts the exact extended body (13+params, the off-by-one D-8 fix) plus the markers and 2-octet length. Still weak: the procedure's two-octet Parameter Length per parameter is not asserted in this row's units (the reactor TestRFC9072ParameterType255OnlyAsTheExtendedMarker parses it but is tagged to 3-2 only). Row is in the child spec's Blocked-by list.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor). RFC 9072 Section 2: 'if the length of the Optional Parameters in the BGP OPEN message does exceed 255, the OPEN message MUST be encoded according to the procedure below.' The new reactor unit TestRFC9072OptionalParamsBoundary builds the OPEN through Session.buildOpen and Open.WriteTo for capability totals 0, 2, 253, 254, 255, 256, 300 and asserts exact octets: at 254 and above (Optional Parameters above 255) Non-Ext OP Len 255, Non-Ext OP Type 255, Extended Opt. Parm. Length 3+capTotal, Parm. Type 2 and the TWO-OCTET Parameter Length capTotal, body length 16+capTotal; at 253 and below the classic form with one-octet lengths. The two-octet Parameter Length the earlier weak verdict found unasserted is now asserted, and the 253/254 edge catches the off-by-two. A conforming decode returns every capability.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestTheExtendedEnvelopeAndItsParametersAgree`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9072_extended_open_test.go#L21) | unit/verify | unproven |
+| negative | [`TestRFC9072OptionalParamsBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go#L67) | unit/verify | revert, verified |
 | positive | [`TestOpenPackExtendedParams`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L419) | unit/verify | revert, verified |
+| positive | [`TestRFC9072OptionalParamsBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go#L64) | unit/verify | revert, verified |
 
 ### [`RFC9072-2-2`](#rfc9072-2-2)
 
@@ -214,7 +215,7 @@ No test carries RFC9072-3-1, so no unit is bound to it.
 
 Although the Optional Parameter type code 255 is used in this specification as the indication that the extended encoding is in use, it is not a bona fide Optional Parameter type code in the usual sense and MUST NOT be used other than as described above. (S3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Marker removed; genuine negative (R1b): TestRFC9072ParameterType255OnlyAsTheExtendedMarker builds capabilities full of 0xFF (AS 0xFFFFFFFF, AFI 0xFFFF, SAFI 0xFF) through buildOptionalParams and requires no parameter type 255 and framing ending exactly at the end, classic below 256 octets, extended above; positive body[10]==0xFF on TestOpenPackExtendedParams.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor). Unit changed only by the move to the one packer (capability.PackOptionalParams via packPeerOptionalParams). TestRFC9072ParameterType255OnlyAsTheExtendedMarker fills capability values with 0xFF octets, writes the OPEN and walks the framing the OPEN announces: below 256 octets no envelope and types [2]; above, the 255/255 envelope and every parameter type 2, framing ending exactly at the OPEN's end. TestOpenPackExtendedParams carries the positive marker position. A packer emitting 255 as a parameter type, or the marker on a short OPEN, goes red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -229,6 +230,16 @@ Although the Optional Parameter type code 255 is used in this specification as t
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC9072-3-3, so no unit is bound to it.
+
+### [`RFC9072-2-7`](#rfc9072-2-7)
+
+In the event that the length of the Optional Parameters in the BGP OPEN message does not exceed 255, the encodings of the base BGP specification [RFC4271] SHOULD be used without alteration. (S2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestRFC9072OptionalParamsBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go#L72) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

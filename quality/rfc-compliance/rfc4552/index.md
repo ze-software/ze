@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 37.0% | 10 of 27 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 27 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 27 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 39.1% | 9 of 23 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 43.5% | 10 of 23 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -71,7 +71,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 23 |
 | Tagged units | 23 |
 | Recorded audit verdicts | 6 |
-| Discrimination records | 9 |
+| Discrimination records | 10 |
 | Summary | `rfc/short/rfc4552.md` |
 | Requirement shard | `rfc/requirements/rfc4552.md` |
 | RFC text | `rfc/full/rfc4552.txt` |
@@ -386,7 +386,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L271) | unit/verify | unproven |
+| positive | [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L271) | unit/verify | revert, verified |
 | positive | [`TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4552_barrier_test.go#L27) | unit/verify | revert, verified |
 
 ### [`RFC4552-11-2`](#rfc4552-11-2)

@@ -874,6 +874,12 @@ the value directly, not a rate: it already IS a count.</p>
 <td><code>peer</code></td>
 <td>Received UPDATEs whose attribute count exceeded the inline span capacity</td>
 </tr>
+<tr>
+<td><code>ze_bgp_update_nlri_malformed_total</code></td>
+<td>counter</td>
+<td><code>peer</code>, <code>action</code></td>
+<td>Received typed NLRIs (BGP-MUP) with a malformed body: <code>withdrawn</code> when treated as withdrawn, <code>discarded</code> when no route key forms to withdraw them by</td>
+</tr>
 </tbody>
 </table>
 <p>Ze indexes the path attributes of every received UPDATE once, on the receive
@@ -1134,7 +1140,7 @@ ze cli -c "show bgp rpki status"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

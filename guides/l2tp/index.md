@@ -424,6 +424,15 @@ RFC 2869 gigaword counters carry the upper 32 bits when nonzero. If the counter
 baseline or a later snapshot is unavailable, Ze logs the failure and omits the
 traffic counters instead of reporting zero.
 
+The Acct-Session-Id is `tunnelID-sessionID-boottag-sequence`, and the Start,
+Interim-Update and Stop records of one session carry the same one. The sequence
+restarts with the process, so the boot tag keeps ids from repeating across a
+restart: 24 hex digits, the Unix seconds read when the first session after
+startup is accounted, then 64 random bits. On a box with no real-time clock that
+starts sessions before NTP answers, two boots can read the same second, and the
+random half still tells their ids apart.
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- genSessionID, mintBootTag -->
+
 PPP waits for address publication and the L2TP accounting callback to capture the
 initial raw interface counters before it enables forwarding. This includes a
 replacement network lifetime on the same PPP unit. Accounting-Start runs
@@ -640,7 +649,7 @@ Ze accepts fourteen identification attributes in a CoA-Request and evaluates
 three of them: Acct-Session-Id, User-Name and NAS-Port. Each one the request
 carries narrows the match. User-Name must equal the session's user name, NAS-Port
 must equal the local session ID, and Acct-Session-Id matches by prefix. Ze writes
-an Acct-Session-Id as `tunnelID-sessionID-sequence` and compares only the
+an Acct-Session-Id as `tunnelID-sessionID-boottag-sequence` and compares only the
 `tunnelID-sessionID-` part, so an id issued to a session that has ended also
 matches a later session that reuses the same tunnel and session IDs. A request
 that carries none of the three matches no session and gets NAK 503.
@@ -677,6 +686,19 @@ Event-Timestamp a SHOULD and lets an implementation be configurable about its
 absence; Ze refuses a request that omits it, because the port takes unsolicited
 packets that tear subscriber sessions down and without the attribute there is no
 replay protection.
+
+A retransmitted request is answered from a cache rather than applied twice.
+RFC 5176 Section 2.3 defines a duplicate by its source address, source UDP port
+and Identifier, and Ze also compares the Request Authenticator, which that
+section requires a retransmission to keep. A request from the same address and
+port with the same Identifier but another Authenticator is a new request: it is
+processed, and its response replaces the cached one. A request from another
+source port is never a duplicate, so two servers behind one NAT address do not
+get each other's answers; a NAT that changes the source port between
+retransmissions defeats the detection. The cache holds each response for five
+minutes, the Event-Timestamp window, and only an authenticated request that
+earned a response enters it.
+<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- replayKey, cachedReplay, rememberReplay, coaReplayWindow -->
 
 The response echoes the request's Proxy-State and State attributes unchanged,
 and Ze never reads their contents.

@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8.5%</strong><b>4 of 47 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 47 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 47 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>86.0%</strong><b>86 of 100 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>86.1%</strong><b>87 of 101 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,7 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>17.0%</strong><b>8 of 47 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>40</strong><b>of 47 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>40</strong><b>of 47 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 47 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -231,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>100</td>
+<td>101</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>100</td>
+<td>101</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>40</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>86</td>
+<td>87</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5216.md</code></td>
@@ -453,7 +453,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>5.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-5.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L353" title="internal/core/eap/rfc9190_revocation_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12RefusesARevokedClientCertificate</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L556" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerRefusesARevokedServerCertificateOverTLS12</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L567" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerRefusesARevokedServerCertificateOverTLS12</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L384" title="internal/core/eap/rfc9190_revocation_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12CompletesWithAnUnrevokedChain</code></a></span></div>
 </div></td>
 </tr>
@@ -493,7 +493,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.3-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_alert_flight_test.go#L101" title="internal/core/eap/rfc5216_eap_tls_alert_flight_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_alert_flight_test.go#L208" title="internal/core/eap/rfc5216_eap_tls_alert_flight_test.go" target="_blank" rel="noopener"><code>TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L518" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216AuthenticatorEndsTheConversationAfterItsFailure</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L529" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216AuthenticatorEndsTheConversationAfterItsFailure</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L207" title="internal/core/eap/rfc5216_termination_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate</code></a></span></div>
 </div></td>
 </tr>
@@ -558,8 +558,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.1-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L36" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L89" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_session_id_test.go#L160" title="internal/core/eap/rfc5216_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLS12FullHandshakeServerHelloSessionID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_session_id_test.go#L244" title="internal/core/eap/rfc5216_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLS12NullSessionIDServerChooses</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_session_id_test.go#L167" title="internal/core/eap/rfc5216_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLS12FullHandshakeServerHelloSessionID</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-5">RFC5216-2.1.1-5</code></td><td colspan="3"><span class="rfc-subject">If the session matches the peer&#39;s, then the ciphersuite MUST match the one negotiated during the handshake protocol execution that established the session. (§2.1.1)</span></td></tr>
@@ -567,9 +568,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.1-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L483" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L37" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L90" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L494" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L36" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L88" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-6">RFC5216-2.1.1-6</code></td><td colspan="3"><span class="rfc-subject">If the EAP server is not resuming a previously established session, then it MUST include a TLS server_certificate handshake message, and a server_hello_done handshake message MUST be the last handshake message encapsulated in this EAP-Request packet. (§2.1.1)</span></td></tr>
@@ -578,8 +579,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.1-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L195" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L38" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L91" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L37" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L89" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-7">RFC5216-2.1.1-7</code></td><td colspan="3"><span class="rfc-subject">The certificate message contains a public key certificate chain for either a key exchange public key (such as an RSA or Diffie-Hellman key exchange public key) or a signature public key (such as an RSA or Digital Signature Standard (DSS) signature public key). In the latter case, a TLS server_key_exchange handshake message MUST also be included to allow the key exchange to take place. (§2.1.1)</span></td></tr>
@@ -606,8 +607,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.1-9">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L252" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerFlightAnswersTheCertificateRequest</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L39" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L92" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L38" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L90" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-10">RFC5216-2.1.1-10</code></td><td colspan="3"><span class="rfc-subject">If the preceding server_hello message sent by the EAP server in the preceding EAP-Request packet indicated the resumption of a previous session, then the peer MUST send only the change_cipher_spec and finished handshake messages. (§2.1.1)</span></td></tr>
@@ -615,9 +616,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.1-10">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L479" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L40" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L93" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L490" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L39" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L91" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.2-1">RFC5216-2.1.2-1</code></td><td colspan="3"><span class="rfc-subject">If the EAP server is resuming a previously established session, then it MUST include only a TLS change_cipher_spec message and a TLS finished handshake message after the server_hello message. (§2.1.2)</span></td></tr>
@@ -625,9 +626,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L451" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L41" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L94" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L462" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L40" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L92" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.5-2">RFC5216-2.1.5-2</code></td><td colspan="3"><span class="rfc-subject">When an EAP-TLS peer receives an EAP-Request packet with the M bit set, it MUST respond with an EAP-Response with EAP-Type=EAP-TLS and no data. (§2.1.5)</span></td></tr>
@@ -1164,7 +1165,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5216-5.3-5"><code>RFC5216-5.3-5</code></a></h3>
 <p>including the ability to retrieve intermediate certificates that may be necessary to validate the peer certificate. (§5.3)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-12 (independent auditor) after 37dbe54095, where the authenticator with resumption on installs redeemTLS13Only (resumption.go), which refuses every TLS 1.2 ticket. The cited producer newTLSMethod changed only in its UnwrapSession branch. Gap stands: it configures crypto/tls with ClientCAs and RequireAndVerifyClientCert only, with no Authority Information Access fetch and no configured intermediate pool on the authenticator, so peer-chain validation uses only the intermediates the peer sends (the Section 5.3 fallback). The Intermediates pools in peer_chain.go are peer-side.</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-14 (independent auditor) after 56e67411be, where the authenticator&#39;s GetConfigForClient (eap_tls.go) answers every handshake negotiatesTLS13 classifies as TLS 1.2 with tls12WithoutTickets, so ze issues no TLS 1.2 ticket, while UnwrapSession redeemTLS13Only/refuseResumption (resumption.go) still refuses a TLS 1.2 session. newTLSMethod changed only by that per-handshake config; the gap stands: it configures ClientCAs and RequireAndVerifyClientCert, with no Authority Information Access fetch and no configured intermediate pool, so peer-chain validation uses only the intermediates the peer sends. No tag.</p>
 <p>No test carries RFC5216-5.3-5, so no unit is bound to it.</p>
 <h3><a href="#rfc5216-5.4-1"><code>RFC5216-5.4-1</code></a></h3>
 <p>EAP-TLS peer and server implementations MUST support the use of Certificate Revocation Lists (CRLs); for details, see Section 3.3 of [RFC3280]. (§5.4)</p>
@@ -1179,7 +1180,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L556" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerRefusesARevokedServerCertificateOverTLS12</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L567" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerRefusesARevokedServerCertificateOverTLS12</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1284,7 +1285,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L518" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216AuthenticatorEndsTheConversationAfterItsFailure</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L529" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216AuthenticatorEndsTheConversationAfterItsFailure</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1418,13 +1419,43 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5216-2.1.1-4"><code>RFC5216-2.1.1-4</code></a></h3>
 <p>If the peer&#39;s sessionId is null or unrecognized by the server, the server MUST choose the sessionId to establish a new session. (§2.1.1)</p>
-<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). The negative unit TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights changed in beb466e549: it now encrypts the session state of a real EAP-TLS 1.3 exchange under each authenticator&#39;s own ticket keys and calls UnwrapSession; the resumption-off config must answer no session at TLS 1.2 and 1.3, the resumption-on config none at TLS 1.2 and the session at TLS 1.3, so refuseResumption and redeemTLS13Only (resumption.go, cs.Version == tls.VersionTLS12 refused) are each told apart from a hook that redeems. The control (on redeems at 1.3) proves the ticket is one a matching authenticator would resume. The no-resumption-state, unparsable-certificate and peer-cache arms are unchanged. None of it bears on a sessionId. Section 2.1.1: &#34;If the peer&#39;s sessionId is null or unrecognized by the server, the server MUST choose the sessionId to establish a new session.&#34; The tags still assert ticket and config behaviour, and crypto/tls sets ServerHello.sessionId only on a TLS 1.2 resumption (echoing the client), so a full TLS 1.2 handshake carries an empty session_id: the server chooses none. Verdict stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor) after 53c17be5e3. RFC 5216 Section 2.1.1: &#39;If the peer&#39;s sessionId is null or unrecognized by the server, the server MUST choose the sessionId to establish a new session.&#39; Producer: the patched GOROOT doFullHandshake (internal/le/go/stdpatch/patches/crypto-tls-server-session-id.patch) writes a fresh 32-octet session_id when the TLS 1.2 full handshake issues no ticket, and eap_tls.go::tls12WithoutTickets disables tickets for every handshake negotiatesTLS13 classifies as TLS 1.2. UNRECOGNIZED half: rfc5216_session_id_test.go::TestRFC5216TLS12FullHandshakeServerHelloSessionID offers ze&#39;s peer&#39;s non-empty random id and requires a 32-octet ServerHello session_id differing from it, no SessionTicket extension and no NewSessionTicket. NULL half: TestRFC5216TLS12NullSessionIDServerChooses rewrites the TLS 1.2 ClientHello to an empty session_id (asserted), replays it at two fresh authenticators and requires each ServerHello to carry a 32-octet id, no ticket, and the two ids to differ. Its recorded break is a panic in tls12WithoutTickets, which shows reachability only, so the auditor ran targeted mutants through go test overlays: a patched doFullHandshake that chooses an id only when the client offered one (&#39;!ticketSupported &amp;&amp; len(clientHello.sessionId) &gt; 0&#39;) leaves the unrecognized-id test green and turns the null-id test red on &#39;session_id is 0 octets&#39;; tls12WithoutTickets without SessionTicketsDisabled turns both red. Limit: the null-id ClientHello still carries the SessionTicket extension; the null-id ClientHello without it is not sent.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L89" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_session_id_test.go#L167" title="internal/core/eap/rfc5216_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLS12FullHandshakeServerHelloSessionID</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_session_id_test.go#L160" title="internal/core/eap/rfc5216_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLS12FullHandshakeServerHelloSessionID</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_session_id_test.go#L244" title="internal/core/eap/rfc5216_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLS12NullSessionIDServerChooses</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5216-2.1.1-5"><code>RFC5216-2.1.1-5</code></a></h3>
+<p>If the session matches the peer&#39;s, then the ciphersuite MUST match the one negotiated during the handshake protocol execution that established the session. (§2.1.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor) after 56e67411be, where the authenticator&#39;s GetConfigForClient (eap_tls.go) answers every handshake negotiatesTLS13 classifies as TLS 1.2 with tls12WithoutTickets, so ze issues no TLS 1.2 ticket, while UnwrapSession redeemTLS13Only/refuseResumption (resumption.go) still refuses a TLS 1.2 session. Section 2.1.1 &#39;If the session matches the peer&#39;s, then the ciphersuite MUST match&#39; binds the resuming server. TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished mints and resumes a TLS 1.2 session on a stock-resumption TEST server (stockTLS12Resumption) only to give the peer a live ticket encrypted under ze&#39;s own ticket keys; the suite-equality check there is a harness check on that test server and proves nothing about ze. The ze assertion is the last attempt, run with ze&#39;s unmodified authenticator config (tune nil): offered that ticket it does not resume and answers a full handshake (certificate, no change_cipher_spec). Ze therefore never matches a TLS 1.2 session, so no matched-session ciphersuite arises, and any TLS 1.2 resumption goes red. The test-server ticket does not weaken this: the subject of the assertion is ze&#39;s own authenticator and the input is the strongest one (a ticket ze&#39;s keys decrypt). Negative TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights: UnwrapSession answers no session at TLS 1.2 (on and off) and redeems at TLS 1.3, so the refusal is not vacuous.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L88" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L494" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1436,40 +1467,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<h3><a href="#rfc5216-2.1.1-5"><code>RFC5216-2.1.1-5</code></a></h3>
-<p>If the session matches the peer&#39;s, then the ciphersuite MUST match the one negotiated during the handshake protocol execution that established the session. (§2.1.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). The negative unit TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights changed in beb466e549: it now encrypts the session state of a real EAP-TLS 1.3 exchange under each authenticator&#39;s own ticket keys and calls UnwrapSession; the resumption-off config must answer no session at TLS 1.2 and 1.3, the resumption-on config none at TLS 1.2 and the session at TLS 1.3, so refuseResumption and redeemTLS13Only (resumption.go, cs.Version == tls.VersionTLS12 refused) are each told apart from a hook that redeems. The control (on redeems at 1.3) proves the ticket is one a matching authenticator would resume. The no-resumption-state, unparsable-certificate and peer-cache arms are unchanged. Section 2.1.1: &#34;If the session matches the peer&#39;s, then the ciphersuite MUST match the one negotiated during the handshake protocol execution that established the session.&#34; Ze meets it by matching no TLS 1.2 session. The earlier limit (the negative only checked an UnwrapSession was installed, which no longer separated the refusal from redeemTLS13Only) is closed: the negative now fails on any off or on config that redeems a TLS 1.2 ticket under its own keys. The wire positive TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished still shows ze&#39;s authenticator answering an offered ticket with a full flight. TLS 1.3 matches belong to RFC 9190.</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L90" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L483" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L37" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-</tbody>
-</table>
-</div>
 <h3><a href="#rfc5216-2.1.1-6"><code>RFC5216-2.1.1-6</code></a></h3>
 <p>If the EAP server is not resuming a previously established session, then it MUST include a TLS server_certificate handshake message, and a server_hello_done handshake message MUST be the last handshake message encapsulated in this EAP-Request packet. (§2.1.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). The negative unit TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights changed in beb466e549: it now encrypts the session state of a real EAP-TLS 1.3 exchange under each authenticator&#39;s own ticket keys and calls UnwrapSession; the resumption-off config must answer no session at TLS 1.2 and 1.3, the resumption-on config none at TLS 1.2 and the session at TLS 1.3, so refuseResumption and redeemTLS13Only (resumption.go, cs.Version == tls.VersionTLS12 refused) are each told apart from a hook that redeems. The control (on redeems at 1.3) proves the ticket is one a matching authenticator would resume. The no-resumption-state, unparsable-certificate and peer-cache arms are unchanged. This row rests on the unchanged unparsable-certificate arm (no tls.Config, so no full handshake without a server_certificate) and on TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone, which reads the first full TLS 1.2 server flight message by message: certificate present, server_hello_done last. The negative covers the certificate clause; the ordering clause rests on the exact-output positive. Verdict stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor) after 56e67411be, where the authenticator&#39;s GetConfigForClient (eap_tls.go) answers every handshake negotiatesTLS13 classifies as TLS 1.2 with tls12WithoutTickets, so ze issues no TLS 1.2 ticket, while UnwrapSession redeemTLS13Only/refuseResumption (resumption.go) still refuses a TLS 1.2 session. Units changed only by withdrawal of the 2.1.1-4 tag lines. TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone requires the authenticator&#39;s first TLS 1.2 flight to carry a certificate and end with server_hello_done; the negative refuses a config with an unparsable certificate. Both polarities hold.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L91" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L89" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1479,7 +1485,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L38" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L37" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1512,18 +1518,43 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5216-2.1.1-9"><code>RFC5216-2.1.1-9</code></a></h3>
 <p>If the preceding server_hello message sent by the EAP server in the preceding EAP-Request packet did not indicate the resumption of a previous session, the data field of this packet MUST encapsulate one or more TLS records containing a TLS client_key_exchange, change_cipher_spec, and finished messages. (§2.1.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). The negative unit TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights changed in beb466e549: it now encrypts the session state of a real EAP-TLS 1.3 exchange under each authenticator&#39;s own ticket keys and calls UnwrapSession; the resumption-off config must answer no session at TLS 1.2 and 1.3, the resumption-on config none at TLS 1.2 and the session at TLS 1.3, so refuseResumption and redeemTLS13Only (resumption.go, cs.Version == tls.VersionTLS12 refused) are each told apart from a hook that redeems. The control (on redeems at 1.3) proves the ticket is one a matching authenticator would resume. The no-resumption-state, unparsable-certificate and peer-cache arms are unchanged. This row rests on the unchanged peer arm (resumption off installs no ClientSessionCache) and on TestRFC5216PeerFlightAnswersTheCertificateRequest, which requires exactly certificate, client_key_exchange, certificate_verify, change_cipher_spec and one sealed finished after a non-resuming server_hello. Discrimination rests on that exact-output positive. Verdict stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor) after 56e67411be, where the authenticator&#39;s GetConfigForClient (eap_tls.go) answers every handshake negotiatesTLS13 classifies as TLS 1.2 with tls12WithoutTickets, so ze issues no TLS 1.2 ticket, while UnwrapSession redeemTLS13Only/refuseResumption (resumption.go) still refuses a TLS 1.2 session. Units changed only by withdrawal of the 2.1.1-4 tag lines. TestRFC5216PeerFlightAnswersTheCertificateRequest requires ze&#39;s peer, after a non-resuming server_hello, to send certificate, client_key_exchange, certificate_verify, then change_cipher_spec and exactly one sealed handshake record (finished). The config negative (no session cache with resumption off) is weaker but the positive asserts the exact flight.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L92" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L90" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L252" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerFlightAnswersTheCertificateRequest</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L38" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5216-2.1.1-10"><code>RFC5216-2.1.1-10</code></a></h3>
+<p>If the preceding server_hello message sent by the EAP server in the preceding EAP-Request packet indicated the resumption of a previous session, then the peer MUST send only the change_cipher_spec and finished handshake messages. (§2.1.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor) after 56e67411be, where the authenticator&#39;s GetConfigForClient (eap_tls.go) answers every handshake negotiatesTLS13 classifies as TLS 1.2 with tls12WithoutTickets, so ze issues no TLS 1.2 ticket, while UnwrapSession redeemTLS13Only/refuseResumption (resumption.go) still refuses a TLS 1.2 session. The obligation binds ze&#39;s PEER. TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished resumes against a TEST server (stockTLS12Resumption: ze&#39;s config with GetConfigForClient and UnwrapSession removed, i.e. stock crypto/tls), which is the counterpart, not the subject, and is needed because ze&#39;s authenticator never resumes TLS 1.2. It requires peer.Resumed() and that ze&#39;s peer answers the resuming server_hello with no plaintext handshake message, change_cipher_spec and one sealed record. A peer that sent client_key_exchange or certificate goes red. The test server does not weaken the proof of ze&#39;s own behaviour.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L91" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L490" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1535,50 +1566,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<h3><a href="#rfc5216-2.1.1-10"><code>RFC5216-2.1.1-10</code></a></h3>
-<p>If the preceding server_hello message sent by the EAP server in the preceding EAP-Request packet indicated the resumption of a previous session, then the peer MUST send only the change_cipher_spec and finished handshake messages. (§2.1.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). The negative unit TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights changed in beb466e549: it now encrypts the session state of a real EAP-TLS 1.3 exchange under each authenticator&#39;s own ticket keys and calls UnwrapSession; the resumption-off config must answer no session at TLS 1.2 and 1.3, the resumption-on config none at TLS 1.2 and the session at TLS 1.3, so refuseResumption and redeemTLS13Only (resumption.go, cs.Version == tls.VersionTLS12 refused) are each told apart from a hook that redeems. The control (on redeems at 1.3) proves the ticket is one a matching authenticator would resume. The no-resumption-state, unparsable-certificate and peer-cache arms are unchanged. This row rests on the unchanged peer arm (no session cache with resumption off) and on TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished, where ze&#39;s peer meets a stock TLS 1.2 resuming server: the ClientHello offers the ticket, Resumed() holds, and the answer must be change_cipher_spec then exactly one sealed finished, so a peer adding certificate, client_key_exchange or certificate_verify fails. Verdict stands.</p>
+<h3><a href="#rfc5216-2.1.2-1"><code>RFC5216-2.1.2-1</code></a></h3>
+<p>If the EAP server is resuming a previously established session, then it MUST include only a TLS change_cipher_spec message and a TLS finished handshake message after the server_hello message. (§2.1.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor) after 56e67411be, where the authenticator&#39;s GetConfigForClient (eap_tls.go) answers every handshake negotiatesTLS13 classifies as TLS 1.2 with tls12WithoutTickets, so ze issues no TLS 1.2 ticket, while UnwrapSession redeemTLS13Only/refuseResumption (resumption.go) still refuses a TLS 1.2 session. Section 2.1.2: &#39;If the EAP server is resuming a previously established session, then it MUST include only a TLS change_cipher_spec message and a TLS finished handshake message after the server_hello message.&#39; TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake mints the TLS 1.2 ticket on a TEST server (issueTLS12Tickets: ze&#39;s config with GetConfigForClient removed, same Resumption store and ticket keys) because ze issues none, then offers it to ze&#39;s unmodified authenticator (tune nil); ticketedTLS12Attempt fails unless the ClientHello really offers the ticket. Ze must not resume and its flight must be the full one (certificate, server_hello_done last, no change_cipher_spec). The precondition &#39;is resuming&#39; therefore never holds for TLS 1.2 in ze, and any TLS 1.2 resumption goes red. The minted ticket is a fixture input, not the subject, so the test still proves ze&#39;s own behaviour; it proves compliance by non-resumption, not the resumed flight&#39;s content (TLS 1.3 resumption is RFC 9190&#39;s). Negative: UnwrapSession refuses TLS 1.2 on and off and redeems TLS 1.3.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L93" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L92" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L479" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L462" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L40" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-</tbody>
-</table>
-</div>
-<h3><a href="#rfc5216-2.1.2-1"><code>RFC5216-2.1.2-1</code></a></h3>
-<p>If the EAP server is resuming a previously established session, then it MUST include only a TLS change_cipher_spec message and a TLS finished handshake message after the server_hello message. (§2.1.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). The negative unit TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights changed in beb466e549: it now encrypts the session state of a real EAP-TLS 1.3 exchange under each authenticator&#39;s own ticket keys and calls UnwrapSession; the resumption-off config must answer no session at TLS 1.2 and 1.3, the resumption-on config none at TLS 1.2 and the session at TLS 1.3, so refuseResumption and redeemTLS13Only (resumption.go, cs.Version == tls.VersionTLS12 refused) are each told apart from a hook that redeems. The control (on redeems at 1.3) proves the ticket is one a matching authenticator would resume. The no-resumption-state, unparsable-certificate and peer-cache arms are unchanged. Section 2.1.2: &#34;If the EAP server is resuming a previously established session, then it MUST include only a TLS change_cipher_spec message and a TLS finished handshake message after the server_hello message.&#34; crypto/tls always sends NewSessionTicket on a TLS 1.2 resumption, so ze meets the sentence by never resuming TLS 1.2. Positive TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake drives a real offer and reads a full flight. The limit the earlier note named (the resumption-off arm checked only that some UnwrapSession was installed) is closed: the negative now calls each config&#39;s hook on a real ticket and fails on any TLS 1.2 redemption, off or on. No tagged unit drives a TLS 1.2 ticket at an off authenticator over the wire; the hook call is the boundary crypto/tls consults (serverHandshakeState.checkForResumption).</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L94" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L451" title="internal/core/eap/rfc5216_flight_content_test.go" target="_blank" rel="noopener"><code>TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L41" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2112,7 +2118,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

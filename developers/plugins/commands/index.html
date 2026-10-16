@@ -78,7 +78,7 @@
 <h2 id="declaring-commands">Declaring Commands</h2>
 <p>Commands are declared in the <code>Registration</code> struct passed to <code>Run</code>. The engine learns about them during Stage 1 (declare-registration).</p>
 <!-- source: pkg/plugin/rpc/types.go -- CommandDecl, DeclareRegistrationInput -->
-<pre><code class="language-go">err := p.Run(ctx, sdk.Registration{
+<pre><code class="language-go">err := p.Run(ctx, &amp;sdk.Registration{
     Commands: []sdk.CommandDecl{
         {Name: "my-plugin status", ShortHelp: "Show current status"},
         {Name: "my-plugin check", ShortHelp: "Trigger immediate check", Args: []string{"target"}},
@@ -476,7 +476,7 @@ CLI waits for the answer, then refuses from what it has in hand.</p>
 </tr>
 </tbody>
 </table>
-<pre><code class="language-go">err := p.Run(ctx, sdk.Registration{
+<pre><code class="language-go">err := p.Run(ctx, &amp;sdk.Registration{
     Commands: []sdk.CommandDecl{{
         Name:          "my-plugin peers",
         ShortHelp:     "Show the sessions",
@@ -510,7 +510,7 @@ every key of the answer and decorate each string that parses as an address.</p>
 for an operator chain they would otherwise type in full. Declare one in the
 <code>Pipes</code> list of the same <code>Registration</code>:</p>
 <!-- source: pkg/plugin/sdk/sdk_types.go -- PipeDecl, Registration -->
-<pre><code class="language-go">err := p.Run(ctx, sdk.Registration{
+<pre><code class="language-go">err := p.Run(ctx, &amp;sdk.Registration{
     Commands: []sdk.CommandDecl{
         {Name: "my-plugin status", ShortHelp: "Show current status"},
     },
@@ -644,7 +644,7 @@ if command == "my-plugin help" {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

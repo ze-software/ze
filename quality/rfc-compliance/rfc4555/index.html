@@ -429,8 +429,8 @@ Atomic migration requires Linux 7.2&#39;s API and CONFIG_XFRM_MIGRATE in the app
 <td>MUST</td>
 <td>4.2.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-4.2.6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1809" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1813" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1811" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1815" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-4.2.1-1">RFC4555-4.2.1-1</code></td><td colspan="3"><span class="rfc-subject">The notification data field MUST be left empty (zero-length) when sending, and its contents (if any) MUST be ignored when this notification is received. (Payload Formats, Section 4.2.1)</span></td></tr>
@@ -530,7 +530,7 @@ Atomic migration requires Linux 7.2&#39;s API and CONFIG_XFRM_MIGRATE in the app
 <td>MAY</td>
 <td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.6-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1778" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1780" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a MAY that permits the update to carry its address list, so the one observable is that Ze&#39;s INFORMATIONAL update carries NO_ADDITIONAL_ADDRESSES (internal/component/ike/engine/mobike_test.go TestMobikeUpdateCarriesItsAddressList); an update without the list is also permitted, so there is no violating input for a negative to refuse</p></td>
 </tr>
@@ -539,7 +539,7 @@ Atomic migration requires Linux 7.2&#39;s API and CONFIG_XFRM_MIGRATE in the app
 <td>MAY</td>
 <td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.6-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1780" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1782" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a MAY that permits the address notifications to ride in the UPDATE_SA_ADDRESSES request, so the one observable is that Ze sends NO_ADDITIONAL_ADDRESSES in that same request (internal/component/ike/engine/mobike_test.go TestMobikeUpdateCarriesItsAddressList); sending them in a separate request is also permitted, so there is no violating input for a negative to refuse</p></td>
 </tr>
@@ -858,12 +858,12 @@ Atomic migration requires Linux 7.2&#39;s API and CONFIG_XFRM_MIGRATE in the app
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1813" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1815" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1809" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1811" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -928,7 +928,7 @@ Atomic migration requires Linux 7.2&#39;s API and CONFIG_XFRM_MIGRATE in the app
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1778" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1780" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -943,7 +943,7 @@ Atomic migration requires Linux 7.2&#39;s API and CONFIG_XFRM_MIGRATE in the app
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1780" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1782" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1325,7 +1325,7 @@ Atomic migration requires Linux 7.2&#39;s API and CONFIG_XFRM_MIGRATE in the app
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

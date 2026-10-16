@@ -415,8 +415,8 @@ arguments and returns the exit code:
 ```go
 // declaration is what this plugin provides. It is a pure value: no file, no
 // socket, no goroutine.
-func declaration() sdk.Registration {
-    return sdk.Registration{
+func declaration() *sdk.Registration {
+    return &sdk.Registration{
         Commands: []sdk.CommandDecl{{Name: "acme-monitor status", ShortHelp: "Show monitor status"}},
     }
 }
@@ -440,7 +440,7 @@ func start() int {
 }
 ```
 
-The declaration is the same `sdk.Registration` value you pass to `Plugin.Run`,
+The declaration is the same `*sdk.Registration` you pass to `Plugin.Run`,
 so query mode reads nothing new and adds no second list to keep in step.
 <!-- source: pkg/plugin/sdk/sdk_query.go -- RunOrDeclare -->
 
@@ -592,9 +592,12 @@ clean shutdown (engine closes socket to signal exit).
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, isConnectionClosed -->
 
 **Config reload errors:** `config-verify` and `config-apply` return structured results
-with `{"status":"ok"}` or `{"status":"error","error":"..."}`. If no handler is registered,
-the response is `{"status":"ok"}` (graceful no-op).
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigVerify, OnConfigApply, initCallbackDefaults -->
+with `{"status":"ok"}` or `{"status":"error","error":"..."}`. A plugin with no
+`OnConfigVerify` handler accepts at config-verify. A plugin that registered neither
+`OnConfigApply` nor `DeclareAppliesNothing` answers both with an error naming the
+plugin and the roots, so the reload is refused rather than accepted and ignored
+(handlers.md, "A plugin with no apply handler").
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigVerify, OnConfigApply, initCallbackDefaults, configVerifyCallback, refuseConfigApply -->
 
 ## Batched Event Delivery
 

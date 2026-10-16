@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 10.4% | 5 of 48 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 48 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 48 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 42.7% | 41 of 96 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 54.2% | 52 of 96 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -71,7 +71,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 96 |
 | Tagged units | 96 |
 | Recorded audit verdicts | 29 |
-| Discrimination records | 41 |
+| Discrimination records | 52 |
 | Summary | `rfc/short/rfc8665.md` |
 | Requirement shard | `rfc/requirements/rfc8665.md` |
 | RFC text | `rfc/full/rfc8665.txt` |
@@ -331,7 +331,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestRFC8665RangeOrderStableThroughConfigRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_range_order_test.go#L34) | unit/verify | revert, verified |
-| positive | [`TestRFC8665RangeOrderStableAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L189) | unit/verify | unproven |
+| positive | [`TestRFC8665RangeOrderStableAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L189) | unit/verify | revert, verified |
 
 ### [`RFC8665-3.2-6`](#rfc8665-3.2-6)
 
@@ -501,9 +501,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. c22 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC8665NoExplicitNullWithoutEFlag`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_explicit_null_label_test.go#L31) | unit/verify | revert, verified |
-| negative | [`TestRFC8665NoPHPKeepsPrefixSIDLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L311) | unit/verify | unproven |
+| negative | [`TestRFC8665NoPHPKeepsPrefixSIDLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L311) | unit/verify | revert, verified |
 | positive | [`TestRFC8665ExplicitNullPushedAsLabelZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_explicit_null_label_test.go#L16) | unit/verify | revert, verified |
-| positive | [`TestRFC8665ExplicitNullReplacesPrefixSID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L344) | unit/verify | unproven |
+| positive | [`TestRFC8665ExplicitNullReplacesPrefixSID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L344) | unit/verify | revert, verified |
 
 ### [`RFC8665-5-4`](#rfc8665-5-4)
 
@@ -536,11 +536,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L229) | unit/verify | revert, verified |
-| negative | [`TestRFC8665DuplicatePrefixSIDsAllIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L329) | unit/verify | unproven |
+| negative | [`TestRFC8665DuplicatePrefixSIDsAllIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L329) | unit/verify | revert, verified |
 | negative | [`TestRFC8665TILFAIgnoresDuplicatePrefixSIDs`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go#L19) | unit/verify | revert, verified |
 | negative | [`TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_prefix_sid_per_router_test.go#L50) | unit/verify | revert, verified |
 | positive | [`TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L218) | unit/verify | revert, verified |
-| positive | [`TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L261) | unit/verify | unproven |
+| positive | [`TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L261) | unit/verify | revert, verified |
 | positive | [`TestRFC8665TILFAIgnoresDuplicatePrefixSIDs`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go#L17) | unit/verify | revert, verified |
 | positive | [`TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_prefix_sid_per_router_test.go#L67) | unit/verify | revert, verified |
 
@@ -603,9 +603,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. c22 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC8665NoExplicitNullWithoutEFlag`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_explicit_null_label_test.go#L33) | unit/verify | revert, verified |
-| negative | [`TestRFC8665NoPHPKeepsPrefixSIDLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L313) | unit/verify | unproven |
+| negative | [`TestRFC8665NoPHPKeepsPrefixSIDLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L313) | unit/verify | revert, verified |
 | positive | [`TestRFC8665ExplicitNullPushedAsLabelZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_explicit_null_label_test.go#L19) | unit/verify | revert, verified |
-| positive | [`TestRFC8665ExplicitNullReplacesPrefixSID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L347) | unit/verify | unproven |
+| positive | [`TestRFC8665ExplicitNullReplacesPrefixSID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L347) | unit/verify | revert, verified |
 
 ### [`RFC8665-5-13`](#rfc8665-5-13)
 
@@ -689,9 +689,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8665AdjSIDWithdrawKeyedByAdjacency`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L469) | unit/verify | unproven |
+| negative | [`TestRFC8665AdjSIDWithdrawKeyedByAdjacency`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L469) | unit/verify | revert, verified |
 | positive | [`TestRFC8665AdjSIDWithdrawnThroughNeighborSink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_adjsid_withdraw_test.go#L20) | unit/verify | revert, verified |
-| positive | [`TestRFC8665AdjSIDWithdrawnWhenAdjacencyDrops`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L434) | unit/verify | unproven |
+| positive | [`TestRFC8665AdjSIDWithdrawnWhenAdjacencyDrops`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L434) | unit/verify | revert, verified |
 
 ### [`RFC8665-10-1`](#rfc8665-10-1)
 
@@ -718,13 +718,13 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | negative | [`TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L84) | unit/verify | revert, verified |
 | negative | [`TestRFC8665LengthInvalidSRGBIgnoresLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_malformed_lsa_test.go#L20) | unit/verify | revert, verified |
 | negative | [`TestRFC8665LengthInvalidTLVIgnoresLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_malformed_lsa_test.go#L56) | unit/verify | revert, verified |
-| negative | [`TestRFC8665TruncatedTLVsRejectedWithoutPanic`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L475) | unit/verify | unproven |
+| negative | [`TestRFC8665TruncatedTLVsRejectedWithoutPanic`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L475) | unit/verify | revert, verified |
 | negative | [`TestRFC8665LengthBeforeFlagsIgnoresLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_length_before_flags_test.go#L68) | unit/verify | revert, verified |
 | positive | [`TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L121) | unit/verify | revert, verified |
 | positive | [`TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L146) | unit/verify | revert, verified |
 | positive | [`TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L72) | unit/verify | revert, verified |
 | positive | [`TestRFC8665LengthInvalidTLVIgnoresLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_malformed_lsa_test.go#L47) | unit/verify | revert, verified |
-| positive | [`TestRFC8665WellFormedTLVsDecode`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L463) | unit/verify | unproven |
+| positive | [`TestRFC8665WellFormedTLVsDecode`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L463) | unit/verify | revert, verified |
 | positive | [`TestRFC8665LengthBeforeFlagsIgnoresLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_length_before_flags_test.go#L56) | unit/verify | revert, verified |
 
 ### [`RFC8665-5-14`](#rfc8665-5-14)

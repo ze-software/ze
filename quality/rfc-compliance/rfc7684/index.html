@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>38.1%</strong><b>8 of 21 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>81.0%</strong><b>17 of 21 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -235,7 +235,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>8</td>
+<td>17</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7684.md</code></td>
@@ -571,7 +571,7 @@ Same OSPF experimental status.
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L150" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagNotSetNonHostInterArea</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go#L83" title="internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go" target="_blank" rel="noopener"><code>TestRFC7684NFlagNotInventedInterArea</code></a></td>
@@ -581,7 +581,7 @@ Same OSPF experimental status.
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L121" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagPreservedInterArea</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go#L64" title="internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go" target="_blank" rel="noopener"><code>TestRFC7684NFlagOfAnotherRouterPreservedInterArea</code></a></td>
@@ -601,7 +601,7 @@ Same OSPF experimental status.
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L170" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixScopeSelection</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_scope_per_lsa_test.go#L100" title="internal/plugins/ospf/rfc7684_scope_per_lsa_test.go" target="_blank" rel="noopener"><code>TestRFC7684PrefixNeedingTwoScopesNeverSharesAnLSA</code></a></td>
@@ -611,7 +611,7 @@ Same OSPF experimental status.
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L167" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixScopeSelection</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_scope_per_lsa_test.go#L63" title="internal/plugins/ospf/rfc7684_scope_per_lsa_test.go" target="_blank" rel="noopener"><code>TestRFC7684EveryPrefixInAnLSAFitsItsScope</code></a></td>
@@ -655,12 +655,12 @@ Same OSPF experimental status.
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_fuzz_test.go#L111" title="internal/plugins/ospf/packet/rfc7684_fuzz_test.go" target="_blank" rel="noopener"><code>FuzzOSPFExtLinkBody</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_fuzz_test.go#L91" title="internal/plugins/ospf/packet/rfc7684_fuzz_test.go" target="_blank" rel="noopener"><code>FuzzOSPFExtPrefixBody</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_malformed_test.go#L30" title="internal/plugins/ospf/packet/rfc7684_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC7684MalformedPermutationsDetected</code></a></td>
@@ -670,17 +670,17 @@ Same OSPF experimental status.
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go#L160" title="internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go" target="_blank" rel="noopener"><code>TestExtPrefixMalformedCounted</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_link_test.go#L25" title="internal/plugins/ospf/packet/rfc7684_ext_link_test.go" target="_blank" rel="noopener"><code>TestExtLinkTLVRoundTrip</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_prefix_test.go#L28" title="internal/plugins/ospf/packet/rfc7684_ext_prefix_test.go" target="_blank" rel="noopener"><code>TestExtPrefixTLVRoundTrip</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_malformed_test.go#L27" title="internal/plugins/ospf/packet/rfc7684_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC7684MalformedPermutationsDetected</code></a></td>
@@ -888,7 +888,7 @@ Same OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

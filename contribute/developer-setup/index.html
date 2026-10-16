@@ -73,9 +73,28 @@
 <li><a href="#drift-guard">Drift Guard</a></li>
 </ol></nav>
 <h2 id="quick-start">Quick Start</h2>
+<p><code>./le</code> is built from this repository with Go, so Go comes first. Install the
+release <code>go.mod</code> names on its <code>go</code> line from
+<a href="https://go.dev/dl/" target="_blank" rel="noopener">https://go.dev/dl/</a>, or any Go 1.21 or newer, which downloads that release on
+first use. Then put two directories on PATH: the Go toolchain's, and the one
+<code>go install</code> writes to, where setup builds <code>golangci-lint</code>, <code>staticcheck</code>,
+<code>goimports</code>, <code>gopls</code> and <code>govulncheck</code>:</p>
+<pre><code class="language-bash">export PATH="$PATH:/usr/local/go/bin"          # the go.dev tarball's location
+export PATH="$PATH:$(go env GOPATH)/bin"       # or $(go env GOBIN) when GOBIN is set
+</code></pre>
+<p>Add both lines to <code>~/.profile</code> (<code>~/.zshenv</code> for zsh) so every new shell has
+them. A non-interactive shell such as <code>ssh host command</code> reads no <code>~/.bashrc</code>.
+Then:</p>
 <pre><code class="language-bash">git clone &lt;repo-url&gt; &amp;&amp; cd ze
 ./le setup install
+./le setup check
 </code></pre>
+<p>When the install directory is not on PATH, setup still builds the tools there,
+reports each as <code>[pending  ] &lt;tool&gt; (in /root/go/bin, which is not on PATH)</code>,
+and prints once the exact <code>export PATH=...</code> line for that directory and the
+profile to keep it in. <code>check</code> reports the same rows the same way: a tool no
+shell can run is never counted present.</p>
+<!-- source: internal/le/setup/gobin.go -- goBinDir, goToolOffPath -->
 <p>This detects your OS (macOS with Homebrew or Debian/Ubuntu with apt), installs
 missing tools, vendors Go dependencies, and reports what it did.</p>
 <p><code>le</code> is the native development-tool personality built from <code>cmd/ze</code>. The root
@@ -138,8 +157,13 @@ this check, because every LSP call against it fails the same way.</p>
 <h3 id="editor-plugin">Editor plugin</h3>
 <p>A language server on PATH is not the whole capability. Claude Code reaches it
 through a plugin, and without that plugin the LSP tool refuses every Go file.</p>
-<p><code>./le setup check</code> reports a missing plugin as a pending step and names the
-command that installs it:</p>
+<p>When Claude Code is installed (<code>claude</code> on PATH, or a <code>~/.claude</code> directory)
+and the plugin is not, <code>./le setup check</code> reports the plugin as a pending step
+and names the command that installs it. On a host without Claude Code the row
+is skipped with the reason "Claude Code is not installed", because there is no
+LSP tool to refuse anything and no session to run the slash command in.</p>
+<!-- source: internal/le/setup/editor.go -- claudeCodePresent -->
+<!-- source: internal/le/setup/setup.go -- visitLspPlugin -->
 <table>
 <thead>
 <tr>
@@ -251,6 +275,10 @@ binary.</p>
 <td><code>grub</code></td>
 <td>GRUB EFI tooling for ISO builds (Linux only)</td>
 </tr>
+<tr>
+<td><code>iproute2</code> (<code>ip</code>)</td>
+<td>The Linux loopback step's <code>ip -6 addr add</code> (Linux only; slim Debian and Ubuntu images lack it, macOS uses <code>ifconfig</code>)</td>
+</tr>
 </tbody>
 </table>
 <h3 id="optional">Optional</h3>
@@ -269,6 +297,14 @@ binary.</p>
 <tr>
 <td><code>docker</code> / <code>colima</code></td>
 <td>Container appliance and kernel builds</td>
+</tr>
+<tr>
+<td><code>xl2tpd</code></td>
+<td>L2TP LAC peer for the root-only L2TP PPP evidence tests (Linux only)</td>
+</tr>
+<tr>
+<td><code>ppp</code> (<code>pppd</code>)</td>
+<td>pppd for the same tests, which run on Linux, where setup installs it with apt. macOS ships <code>/usr/sbin/pppd</code>, so setup reports it present there. Debian installs it as <code>root:dip</code> mode 4754, so a user outside <code>dip</code> cannot run it; setup counts the file as present, because the tests run it as root</td>
 </tr>
 </tbody>
 </table>
@@ -313,7 +349,8 @@ linux executable for that architecture.
 <code>./le setup docker-kernel install</code> puts Ze's cached runtime kernel under
 <code>/boot</code> and makes it GRUB's default, one stated <code>sudo</code> step at a time. It
 needs <code>GRUB_DEFAULT=saved</code> in <code>/etc/default/grub</code>, never reboots, and refuses
-on macOS. When the daemon applies AppArmor (Ubuntu's default), the check runs its
+on macOS. A kernel built with <code>--builder qemu</code> on a host with Docker is
+installed with <code>builder qemu</code>, because the cache entry is keyed by backend. When the daemon applies AppArmor (Ubuntu's default), the check runs its
 probe under Ze's <code>ze-kernel-probe</code> profile, because Docker's <code>docker-default</code>
 denies what the probe does; <code>./le setup docker-kernel apparmor confirm ze-kernel-probe</code> installs and loads it, one stated <code>sudo</code> step at a time. The
 lab peers that write their network sysctls while they run (the VRRP
@@ -413,30 +450,39 @@ NEXT_HOP, so a session whose two ends share one address has every originated
 route withheld. IPv4 spends 127.0.0.0/8, which Linux already routes to <code>lo</code> and
 macOS does not, so setup adds 127.0.0.2 through 127.0.0.5 there. IPv6 gives a
 host exactly <code>::1</code> on every platform. Setup adds <code>fd00::2/128</code> for the speaker
-and next-hop owner, <code>fd00::3/127</code> for the recipient, and <code>fe80::1/128</code> as the
-next-hop owner's link-local. The one connected prefix <code>fd00::2/127</code> contains
-exactly the two unique-local addresses. This makes the RFC2545 compatibility
+and next-hop owner, <code>fd00::3/127</code> for the recipient, and <code>fe80::1</code> as the
+next-hop owner's link-local. macOS already carries <code>fe80::1/64</code> on <code>lo0</code> from
+boot, so setup adds <code>fe80::1/128</code> only where it is absent, normally on Linux.
+The one connected prefix <code>fd00::2/127</code> contains exactly the two unique-local
+addresses. This makes the RFC2545 compatibility
 fixture's common-subnet condition real without routing all of <code>fd00::/64</code>
 locally. Setup checks this as <code>loopback-addresses</code> and, in install mode, runs:</p>
 <pre><code class="language-bash">sudo ifconfig lo0 inet6 fd00::2/128 alias      # macOS
 sudo ifconfig lo0 inet6 fd00::3/127 alias
-sudo ifconfig lo0 inet6 fe80::1/128 alias
+sudo ifconfig lo0 inet6 fe80::1/128 alias      # only if lo0 lacks fe80::1
 sudo ip -6 addr add fd00::2/128 dev lo         # Linux
 sudo ip -6 addr add fd00::3/127 dev lo
 sudo ip -6 addr add fe80::1/128 dev lo
 </code></pre>
 <!-- source: internal/le/setup/actions.go -- Answer -->
 <p>Presence requires a successful socket bind. IPv6 additionally requires the
-exact address and prefix on <code>lo</code> (<code>lo0</code> on macOS); an address elsewhere, or
-<code>fd00::3/128</code>, does not establish this fixture's common subnet. The link-local
-bind probe includes the interface zone. An unreadable interface fails the
+address on <code>lo</code> (<code>lo0</code> on macOS), and the unique-local pair at its exact
+prefix; an address elsewhere, or <code>fd00::3/128</code>, does not establish this
+fixture's common subnet. <code>fe80::1</code> is ready at any prefix length, because the
+fixtures use it only as a next hop and bind address, and its bind probe
+includes the interface zone. An unreadable interface fails the
 ownership check closed. Setup never silently removes an existing address with
 a different prefix: resolve a conflicting assignment explicitly if the add
 command fails.</p>
 <p>These changes require an explicit <code>setup install</code> or the commands above.
-<code>setup check</code> and test runners do not change host networking. The compatibility
-runner's local-address preflight checks bindability, not this complete topology;
-run setup check before the suite.</p>
+<code>setup check</code> and test runners do not change host networking. Every command that
+starts a functional suite (<code>./le test functional</code>, <code>./le verify worktree</code>,
+<code>./le verify current</code>, <code>./le commit debt-clear</code>) runs this same check before it
+builds or runs anything, and refuses to start when an address is missing. The
+refusal names each missing address and the commands above that add it
+(<code>FunctionalHostPreflight</code>). The runners' own per-test probes stay, and check
+bindability only.</p>
+<!-- source: internal/le/setup/system.go -- FunctionalHostPreflight -->
 <!-- source: internal/test/runner/loopback.go -- the runner's probe and its error -->
 <p>These additions do not survive a reboot. Re-run <code>./le setup install</code> after one;
 <code>./le setup check</code> says when it is needed. The merge gate adds the same IPv6
@@ -466,7 +512,7 @@ preventing the lists from drifting apart.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

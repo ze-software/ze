@@ -93,7 +93,7 @@ The container holds the plugin switch, the reusable profiles, and the sessions a
   - **shutdown** `boolean`: Hold the session administratively down and keep its configuration.
     The session stays configured and stops sending control packets, so a peer sees it go down. Delete the list entry to remove it instead.
   - **vrf** `string`: Routing instance the session runs in. The default instance is named default.
-    A name other than default binds the socket to the VRF device of that name. Ze runs one socket for each pair of VRF and hop mode, so every multi-hop session in one VRF shares it. An empty value is read as default.
+    A name other than default binds the socket to the VRF device of that name. Ze runs one socket for each pair of VRF and hop mode, so every multi-hop session in one VRF shares it. An empty value is refused: the leaf is part of the key.
 - **persist-dir** `string`: DEPRECATED. A non-empty value opts a session into sequence persistence.
   DEPRECATED, retained for back-compat and scheduled for removal. The value is no longer interpreted as a directory. TX sequence numbers for Meticulous Keyed authentication now persist to the shared managed store (the database/ tree), instead of a loose file. A non-empty value still opts a session into persistence. RFC 5880 Section 6.7.3 requires the sequence to survive process restarts. Without this leaf set, Meticulous sessions still work at runtime, but a fresh process loses its sequence floor until the peer's replay window slides forward.
 - **profile <name>** `list`: Reusable timer and feature profile.
@@ -126,17 +126,17 @@ The container holds the plugin switch, the reusable profiles, and the sessions a
 - **single-hop-session <peer vrf interface>** `list`: Per-link BFD session on port 3784 with TTL 255 (RFC 5881).
   Per-link BFD session (RFC 5881). Port 3784, TTL=255. A protocol client MUST NOT use this list. A protocol client calls the plugin Service interface at runtime.
   - **interface** `string`: Egress interface name.
-    Ze binds the socket of the loop to this interface with SO_BINDTODEVICE. One socket serves every session of one VRF and hop mode. Ze binds it only when each session in the default VRF names the same interface. A mix of names leaves the socket unbound, with a warning in the log. In a VRF other than default the VRF device wins, and this leaf is dropped.
+    Ze binds the socket of the loop to this interface with SO_BINDTODEVICE. One socket serves every session of one VRF and hop mode. Ze binds it only when each session in the default VRF names the same interface. A mix of names leaves the socket unbound, with a warning in the log. In a VRF other than default the VRF device wins, and this leaf is dropped from the socket binding; it still names the session's link. An IPv6 link-local peer needs this leaf in every VRF.
   - **local** `string`: Local source address (optional).
-    While the leaf is absent, the kernel selects the source address. The address is part of the session key. A change to it therefore releases the running session, and creates a new one at the next config load.
+    While the leaf is absent, the kernel selects the source address. The address is part of the session key. A change to it therefore releases the running session, and creates a new one at the next config load. An address written with a zone is refused: the link is written in interface.
   - **peer** `string`: Peer IPv4 or IPv6 address.
-    The value is the first word after the list name, so single-hop-session 203.0.113.9 names this peer. Ze refuses an address it cannot parse, and IPv4 and IPv6 are both accepted. RFC 5881 Section 5 requires a received TTL of 255, so Ze discards a Control packet from this peer that crossed a router.
+    The value is the first word after the list name, so single-hop-session 203.0.113.9 names this peer. Ze refuses an address it cannot parse, and IPv4 and IPv6 are both accepted. RFC 5881 Section 5 requires a received TTL of 255, so Ze discards a Control packet from this peer that crossed a router. An IPv6 link-local peer (fe80::/10) is refused unless the entry names its link in interface, and an address written with a zone (fe80::b%eth0) is refused: the link is written in interface.
   - **profile** `string`: Named profile to inherit timer parameters from.
     Ze refuses a name that no profile declares. Without this leaf the session takes the engine values: a detect multiplier of 3, and 1000000 microseconds for both the transmit target and the receive floor.
   - **shutdown** `boolean`: When true, the session stays in AdminDown state. RFC 5880 Section 6.8.16.
     The session keeps its configuration and its place in the list, and Ze holds it in AdminDown. Ze applies the value again at each reload, so a change from true to false brings the session back with no restart. Delete the list entry to remove the session instead.
   - **vrf** `string`: Routing instance the session runs in. The default instance is named default.
-    A name other than default binds the socket to the VRF device of that name. The interface leaf of every session in that VRF is then dropped, and Ze logs the names it dropped once for each loop. An empty value is read as default.
+    A name other than default binds the socket to the VRF device of that name. The interface leaf of every session in that VRF is then dropped, and Ze logs the names it dropped once for each loop. An empty value is refused: the leaf is part of the key.
 
 ## bgp
 
@@ -781,7 +781,7 @@ A peer inherits from its group defaults. A group inherits from this global level
       - **route-reflector-client** `boolean`: Mark this peer as a route reflector client (RFC 4456).
         Ze forwards a route from a client to every client and to every non-client. Ze forwards a route from a non-client to the clients alone.
       - **router-id** `ipv4-address`: Override the router ID for this peer.
-        RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer.
+        RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer, so Ze rejects 0.0.0.0. The same section says the identifier is the same for every BGP peer; this override departs from that, by owner decision: a peer or group that sets it sends its own identifier in its OPEN instead of the global router-id.
       - **rs-client** `boolean`: Mark this peer as an RS-client for transparent AS-path forwarding.
         Mark this peer as an RS-client for transparent AS-path forwarding. RFC 7947 Section 2.2.2: the route server MUST NOT modify AS_PATH or any other transitive attribute. When this leaf is true, the reactor skips AS-path prepending for this peer on the forwarding path.
     - **timer** `container`: BGP session timers: hold time, keepalive interval, and connect retry delay.
@@ -1104,7 +1104,7 @@ A peer inherits from its group defaults. A group inherits from this global level
     - **route-reflector-client** `boolean`: Mark this peer as a route reflector client (RFC 4456).
       Ze forwards a route from a client to every client and to every non-client. Ze forwards a route from a non-client to the clients alone.
     - **router-id** `ipv4-address`: Override the router ID for this peer.
-      RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer.
+      RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer, so Ze rejects 0.0.0.0. The same section says the identifier is the same for every BGP peer; this override departs from that, by owner decision: a peer or group that sets it sends its own identifier in its OPEN instead of the global router-id.
     - **rs-client** `boolean`: Mark this peer as an RS-client for transparent AS-path forwarding.
       Mark this peer as an RS-client for transparent AS-path forwarding. RFC 7947 Section 2.2.2: the route server MUST NOT modify AS_PATH or any other transitive attribute. When this leaf is true, the reactor skips AS-path prepending for this peer on the forwarding path.
   - **timer** `container`: BGP session timers: hold time, keepalive interval, and connect retry delay.
@@ -1626,7 +1626,7 @@ A peer inherits from its group defaults. A group inherits from this global level
     - **route-reflector-client** `boolean`: Mark this peer as a route reflector client (RFC 4456).
       Ze forwards a route from a client to every client and to every non-client. Ze forwards a route from a non-client to the clients alone.
     - **router-id** `ipv4-address`: Override the router ID for this peer.
-      RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer.
+      RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer, so Ze rejects 0.0.0.0. The same section says the identifier is the same for every BGP peer; this override departs from that, by owner decision: a peer or group that sets it sends its own identifier in its OPEN instead of the global router-id.
     - **rs-client** `boolean`: Mark this peer as an RS-client for transparent AS-path forwarding.
       Mark this peer as an RS-client for transparent AS-path forwarding. RFC 7947 Section 2.2.2: the route server MUST NOT modify AS_PATH or any other transitive attribute. When this leaf is true, the reactor skips AS-path prepending for this peer on the forwarding path.
   - **timer** `container`: BGP session timers: hold time, keepalive interval, and connect retry delay.

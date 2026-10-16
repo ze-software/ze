@@ -99,8 +99,8 @@ Agents should use the existing inventory and verification surfaces:
 
 Commit preparation uses `internal/le/commit.Answer`: agents pass the vetted
 subject, body, and explicit file list, and the helper creates the session ID,
-message file, executable user-run script, ignored-path checks, and `git commit -F`
-flow.
+message file, executable user-run script, ignored-path checks, and the commit
+itself, built on a parent read once and published with a compare-and-swap.
 <!-- source: internal/le/commit/actions.go -- Answer -->
 
 <!-- source: internal/le/doc/check/actions.go -- Actions -->

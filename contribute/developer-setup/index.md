@@ -7,10 +7,34 @@ Set up a Ze development environment with all build, lint, and test dependencies.
 
 ## Quick Start
 
+`./le` is built from this repository with Go, so Go comes first. Install the
+release `go.mod` names on its `go` line from
+<https://go.dev/dl/>, or any Go 1.21 or newer, which downloads that release on
+first use. Then put two directories on PATH: the Go toolchain's, and the one
+`go install` writes to, where setup builds `golangci-lint`, `staticcheck`,
+`goimports`, `gopls` and `govulncheck`:
+
+```bash
+export PATH="$PATH:/usr/local/go/bin"          # the go.dev tarball's location
+export PATH="$PATH:$(go env GOPATH)/bin"       # or $(go env GOBIN) when GOBIN is set
+```
+
+Add both lines to `~/.profile` (`~/.zshenv` for zsh) so every new shell has
+them. A non-interactive shell such as `ssh host command` reads no `~/.bashrc`.
+Then:
+
 ```bash
 git clone <repo-url> && cd ze
 ./le setup install
+./le setup check
 ```
+
+When the install directory is not on PATH, setup still builds the tools there,
+reports each as `[pending  ] <tool> (in /root/go/bin, which is not on PATH)`,
+and prints once the exact `export PATH=...` line for that directory and the
+profile to keep it in. `check` reports the same rows the same way: a tool no
+shell can run is never counted present.
+<!-- source: internal/le/setup/gobin.go -- goBinDir, goToolOffPath -->
 
 This detects your OS (macOS with Homebrew or Debian/Ubuntu with apt), installs
 missing tools, vendors Go dependencies, and reports what it did.
@@ -102,8 +126,13 @@ this check, because every LSP call against it fails the same way.
 A language server on PATH is not the whole capability. Claude Code reaches it
 through a plugin, and without that plugin the LSP tool refuses every Go file.
 
-`./le setup check` reports a missing plugin as a pending step and names the
-command that installs it:
+When Claude Code is installed (`claude` on PATH, or a `~/.claude` directory)
+and the plugin is not, `./le setup check` reports the plugin as a pending step
+and names the command that installs it. On a host without Claude Code the row
+is skipped with the reason "Claude Code is not installed", because there is no
+LSP tool to refuse anything and no session to run the slash command in.
+<!-- source: internal/le/setup/editor.go -- claudeCodePresent -->
+<!-- source: internal/le/setup/setup.go -- visitLspPlugin -->
 
 | Plugin | Serves | Install |
 |--------|--------|---------|
@@ -165,6 +194,7 @@ The target and its checked feature population are documented in
 | `e2fsprogs` | `mkfs.ext4` and `debugfs` for appliance builds |
 | `xorriso` | ISO image creation |
 | `grub` | GRUB EFI tooling for ISO builds (Linux only) |
+| `iproute2` (`ip`) | The Linux loopback step's `ip -6 addr add` (Linux only; slim Debian and Ubuntu images lack it, macOS uses `ifconfig`) |
 
 ### Optional
 
@@ -172,6 +202,8 @@ The target and its checked feature population are documented in
 |------|---------|
 | `sshpass` | Optional SSH probe fallback |
 | `docker` / `colima` | Container appliance and kernel builds |
+| `xl2tpd` | L2TP LAC peer for the root-only L2TP PPP evidence tests (Linux only) |
+| `ppp` (`pppd`) | pppd for the same tests, which run on Linux, where setup installs it with apt. macOS ships `/usr/sbin/pppd`, so setup reports it present there. Debian installs it as `root:dip` mode 4754, so a user outside `dip` cannot run it; setup counts the file as present, because the tests run it as root |
 
 
 ## Platform Notes
@@ -217,7 +249,8 @@ kernel that lacks one.
   `./le setup docker-kernel install` puts Ze's cached runtime kernel under
   `/boot` and makes it GRUB's default, one stated `sudo` step at a time. It
   needs `GRUB_DEFAULT=saved` in `/etc/default/grub`, never reboots, and refuses
-  on macOS. When the daemon applies AppArmor (Ubuntu's default), the check runs its
+  on macOS. A kernel built with `--builder qemu` on a host with Docker is
+  installed with `builder qemu`, because the cache entry is keyed by backend. When the daemon applies AppArmor (Ubuntu's default), the check runs its
   probe under Ze's `ze-kernel-probe` profile, because Docker's `docker-default`
   denies what the probe does; `./le setup docker-kernel apparmor confirm
   ze-kernel-probe` installs and loads it, one stated `sudo` step at a time. The
@@ -325,16 +358,18 @@ NEXT_HOP, so a session whose two ends share one address has every originated
 route withheld. IPv4 spends 127.0.0.0/8, which Linux already routes to `lo` and
 macOS does not, so setup adds 127.0.0.2 through 127.0.0.5 there. IPv6 gives a
 host exactly `::1` on every platform. Setup adds `fd00::2/128` for the speaker
-and next-hop owner, `fd00::3/127` for the recipient, and `fe80::1/128` as the
-next-hop owner's link-local. The one connected prefix `fd00::2/127` contains
-exactly the two unique-local addresses. This makes the RFC2545 compatibility
+and next-hop owner, `fd00::3/127` for the recipient, and `fe80::1` as the
+next-hop owner's link-local. macOS already carries `fe80::1/64` on `lo0` from
+boot, so setup adds `fe80::1/128` only where it is absent, normally on Linux.
+The one connected prefix `fd00::2/127` contains exactly the two unique-local
+addresses. This makes the RFC2545 compatibility
 fixture's common-subnet condition real without routing all of `fd00::/64`
 locally. Setup checks this as `loopback-addresses` and, in install mode, runs:
 
 ```bash
 sudo ifconfig lo0 inet6 fd00::2/128 alias      # macOS
 sudo ifconfig lo0 inet6 fd00::3/127 alias
-sudo ifconfig lo0 inet6 fe80::1/128 alias
+sudo ifconfig lo0 inet6 fe80::1/128 alias      # only if lo0 lacks fe80::1
 sudo ip -6 addr add fd00::2/128 dev lo         # Linux
 sudo ip -6 addr add fd00::3/127 dev lo
 sudo ip -6 addr add fe80::1/128 dev lo
@@ -343,17 +378,25 @@ sudo ip -6 addr add fe80::1/128 dev lo
 <!-- source: internal/le/setup/actions.go -- Answer -->
 
 Presence requires a successful socket bind. IPv6 additionally requires the
-exact address and prefix on `lo` (`lo0` on macOS); an address elsewhere, or
-`fd00::3/128`, does not establish this fixture's common subnet. The link-local
-bind probe includes the interface zone. An unreadable interface fails the
+address on `lo` (`lo0` on macOS), and the unique-local pair at its exact
+prefix; an address elsewhere, or `fd00::3/128`, does not establish this
+fixture's common subnet. `fe80::1` is ready at any prefix length, because the
+fixtures use it only as a next hop and bind address, and its bind probe
+includes the interface zone. An unreadable interface fails the
 ownership check closed. Setup never silently removes an existing address with
 a different prefix: resolve a conflicting assignment explicitly if the add
 command fails.
 
 These changes require an explicit `setup install` or the commands above.
-`setup check` and test runners do not change host networking. The compatibility
-runner's local-address preflight checks bindability, not this complete topology;
-run setup check before the suite.
+`setup check` and test runners do not change host networking. Every command that
+starts a functional suite (`./le test functional`, `./le verify worktree`,
+`./le verify current`, `./le commit debt-clear`) runs this same check before it
+builds or runs anything, and refuses to start when an address is missing. The
+refusal names each missing address and the commands above that add it
+(`FunctionalHostPreflight`). The runners' own per-test probes stay, and check
+bindability only.
+
+<!-- source: internal/le/setup/system.go -- FunctionalHostPreflight -->
 
 <!-- source: internal/test/runner/loopback.go -- the runner's probe and its error -->
 

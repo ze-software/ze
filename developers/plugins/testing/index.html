@@ -113,7 +113,7 @@ run the plugin in a goroutine and simulate engine messages from the other end of
 
     errCh := make(chan error, 1)
     go func() {
-        errCh &lt;- p.Run(ctx, sdk.Registration{})
+        errCh &lt;- p.Run(ctx, &amp;sdk.Registration{})
     }()
 
     // Complete the 5-stage startup from the engine side
@@ -239,7 +239,7 @@ a serial, command name, args, and peer address, and returns status, data, and er
 
     errCh := make(chan error, 1)
     go func() {
-        errCh &lt;- p.Run(ctx, sdk.Registration{
+        errCh &lt;- p.Run(ctx, &amp;sdk.Registration{
             Commands: []sdk.CommandDecl{
                 {Name: "show-status", ShortHelp: "Show health status"},
             },
@@ -285,8 +285,12 @@ collapse it, which is the engine's own three steps:</p>
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput, ExecuteCommandOutput -->
 <h2 id="testing-configuration-handling">Testing Configuration Handling</h2>
 <p>The <code>OnConfigure</code> callback receives config sections during Stage 2.
-The <code>OnConfigVerify</code> and <code>OnConfigApply</code> callbacks handle config reload.</p>
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigure, OnConfigVerify, OnConfigApply -->
+The <code>OnConfigVerify</code> and <code>OnConfigApply</code> callbacks handle config reload. A test
+pair that wants config and exercises config-verify or config-apply must register
+<code>OnConfigApply</code> or call <code>DeclareAppliesNothing</code>: without either the SDK refuses
+the reload, and <code>TestConfigApplyWithoutHandlerIsRefused</code> in
+<code>pkg/plugin/sdk/sdk_callbacks_test.go</code> asserts that refusal.</p>
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigure, OnConfigVerify, OnConfigApply, DeclareAppliesNothing -->
 <pre><code class="language-go">func TestConfigHandler(t *testing.T) {
     p, engineMux := newTestPair(t)
 
@@ -301,7 +305,7 @@ The <code>OnConfigVerify</code> and <code>OnConfigApply</code> callbacks handle 
 
     errCh := make(chan error, 1)
     go func() {
-        errCh &lt;- p.Run(ctx, sdk.Registration{
+        errCh &lt;- p.Run(ctx, &amp;sdk.Registration{
             WantsConfig: []string{"bgp"},
         })
     }()
@@ -354,7 +358,7 @@ The <code>OnConfigVerify</code> and <code>OnConfigApply</code> callbacks handle 
             ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
             defer cancel()
 
-            go func() { _ = p.Run(ctx, sdk.Registration{}) }()
+            go func() { _ = p.Run(ctx, &amp;sdk.Registration{}) }()
             completeStartup(t, ctx, engineMux)
 
             cmdInput := struct {
@@ -423,7 +427,7 @@ p.OnEvent(func(event string) error {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

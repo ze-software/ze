@@ -56,6 +56,16 @@ The vendored gokrazy command (`github.com/gokrazy/tools/gok`) runs in process.
 network module lookups, and builds `overwrite` from a prepared copy of the
 instance under `tmp/`. No separate gokrazy installation or
 first-party script is required.
+
+The image's ze compiles only against Ze's patched standard library, so the build
+runs under the patched GOROOT. `./le build gokrazy` inherits it from le.
+`ze appliance build` refuses unless its environment already selects it: `GOROOT`
+set to the tree, `GOTOOLCHAIN=local`, and `$GOROOT/bin/go` first on `PATH`. The
+refusal ends with the command line that sets all three:
+
+```
+GOROOT="$(./le go stdpatch goroot)" && export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH" && ze appliance build <name>
+```
 <!-- source: internal/appliance/cmd_build.go -- runGokInProcess -->
 <!-- source: internal/le/build/gokrazy/gokrazy.go -- Run -->
 

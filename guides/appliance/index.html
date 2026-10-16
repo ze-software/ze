@@ -160,6 +160,13 @@ plus <code>xorriso</code>.
 network module lookups, and builds <code>overwrite</code> from a prepared copy of the
 instance under <code>tmp/</code>. No separate gokrazy installation or
 first-party script is required.</p>
+<p>The image's ze compiles only against Ze's patched standard library, so the build
+runs under the patched GOROOT. <code>./le build gokrazy</code> inherits it from le.
+<code>ze appliance build</code> refuses unless its environment already selects it: <code>GOROOT</code>
+set to the tree, <code>GOTOOLCHAIN=local</code>, and <code>$GOROOT/bin/go</code> first on <code>PATH</code>. The
+refusal ends with the command line that sets all three:</p>
+<pre><code>GOROOT="$(./le go stdpatch goroot)" &amp;&amp; export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH" &amp;&amp; ze appliance build &lt;name&gt;
+</code></pre>
 <!-- source: internal/appliance/cmd_build.go -- runGokInProcess -->
 <!-- source: internal/le/build/gokrazy/gokrazy.go -- Run -->
 <h2 id="first-time-setup">First-time setup</h2>
@@ -1029,7 +1036,7 @@ config was saved. If the window completes, the active config hash is written to
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

@@ -63,6 +63,7 @@
 <ol>
 <li><a href="#via-ssh-preferred">Via SSH (preferred)</a></li>
 <li><a href="#via-unix-signals">Via Unix Signals</a></li>
+<li><a href="#stopping">Stopping</a></li>
 <li><a href="#exit-codes-signal-command">Exit Codes (signal command)</a></li>
 </ol></li>
 <li><a href="#health-checks">Health Checks</a>
@@ -296,11 +297,11 @@ ze signal reload --host 10.0.0.1 --port 2222
 </tr>
 <tr>
 <td><code>ze signal stop</code></td>
-<td>Graceful shutdown (no GR marker)</td>
+<td>Graceful shutdown: stop drain, then Cease to every peer (no GR marker)</td>
 </tr>
 <tr>
 <td><code>ze signal restart</code></td>
-<td>Graceful restart (writes GR marker for RFC 4724)</td>
+<td>Graceful restart: writes the GR marker (RFC 4724), drops BGP sessions without a Cease, drain kind <code>restart</code></td>
 </tr>
 <tr>
 <td><code>ze signal status</code></td>
@@ -308,7 +309,7 @@ ze signal reload --host 10.0.0.1 --port 2222
 </tr>
 <tr>
 <td><code>ze signal quit</code></td>
-<td>Goroutine dump to stderr, then exit</td>
+<td>Goroutine dump to stderr, then the same stop as <code>ze signal stop</code></td>
 </tr>
 </tbody>
 </table>
@@ -328,7 +329,7 @@ ze signal reload --host 10.0.0.1 --port 2222
 </tr>
 <tr>
 <td><code>SIGTERM</code> / <code>SIGINT</code></td>
-<td>Graceful shutdown (NOTIFICATION Cease to all peers)</td>
+<td>Graceful shutdown: stop drain, then NOTIFICATION Cease to all peers. A second one skips or cuts the drain, a third forces exit 1 (see Stopping)</td>
 </tr>
 <tr>
 <td><code>SIGUSR1</code></td>
@@ -349,6 +350,51 @@ fatal, and every later SIGHUP reloads. <code>ze install systemd</code> writes th
 unit (<code>sh -c 'trap "" HUP; exec ze start'</code>), because systemd has no directive
 that ignores a signal. A supervisor you write yourself does the same, or never
 sends SIGHUP before ze is ready. Details: <code>docs/architecture/behavior/signals.md</code>.</p>
+<h3 id="stopping">Stopping</h3>
+<p>Every stop takes the same path: SIGTERM, Ctrl+C, <code>ze signal stop</code>,
+<code>request shutdown</code>, <code>request halt</code> and a plugin failure under the <code>fatal</code>
+policy. Ze first lets a config commit already running finish, then runs the
+stop drain: each plugin that declared a drain budget is asked, in parallel, to
+make Ze unattractive to its neighbours before the sessions close, and Ze waits
+for the answers. The wait ends at the latest 60 s after the stop began. Only
+then does teardown start, and BGP sends Cease (Administrative Shutdown) to every
+peer. With no drain-registered plugin the stop is as fast as it was.</p>
+<p><code>ze signal restart</code>, <code>ze signal reboot</code> and <code>request reboot</code> drain with kind
+<code>restart</code>: BGP sessions are dropped without a Cease so peers keep the routes for
+graceful restart. Any IGP wait during that drain runs while BGP peers hold the
+routes as stale, so the BGP restart time must exceed the drain plus teardown and
+start.</p>
+<p>Each phase prints what the next Ctrl+C or SIGTERM does:</p>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Printed line</th>
+<th>Next signal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Config fence</td>
+<td><code>Stopping: finishing config changes (Ctrl+C again to skip the drain)...</code></td>
+<td>skips the drain ("drain skipped by signal")</td>
+</tr>
+<tr>
+<td>Drain</td>
+<td><code>Draining routing protocols for up to N s (Ctrl+C again to stop now)...</code></td>
+<td>aborts the drain ("drain aborted by signal"), teardown goes on</td>
+</tr>
+<tr>
+<td>Teardown</td>
+<td><code>Shutting down (Ctrl+C again to force)...</code></td>
+<td>forces exit 1</td>
+</tr>
+</tbody>
+</table>
+<p>After <code>request shutdown</code> the first signal is the one that aborts the drain. Once
+the drain has begun the stop is final: a plugin that exits is not restarted.</p>
+<!-- source: cmd/ze/hub/drain.go -- stopSignals, runStopDrain, requestRestartStop, requestRebootStop -->
+<!-- source: internal/component/plugin/server/drain.go -- BeginDrain, DrainRound.Run -->
 <h3 id="exit-codes-signal-command">Exit Codes (signal command)</h3>
 <table>
 <thead>
@@ -610,9 +656,11 @@ Type=simple
 User=ze
 Group=ze
 ExecStart=/bin/sh -c 'trap "" HUP; exec /usr/local/bin/ze start'
-ExecReload=/bin/kill -HUP $MAINPID
+ExecReload=/bin/sh -c 'kill -HUP $MAINPID'
 Restart=on-failure
 RestartSec=5
+TimeoutStopSec=90
+KillMode=mixed
 LimitNOFILE=65536
 LimitCORE=infinity
 LimitMEMLOCK=infinity
@@ -854,7 +902,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

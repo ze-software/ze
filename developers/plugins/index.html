@@ -86,7 +86,7 @@ func main() {
     })
     plugin.SetStartupSubscriptions([]string{"update", "state"}, nil, "")
 
-    if err := plugin.Run(context.Background(), sdk.Registration{}); err != nil {
+    if err := plugin.Run(context.Background(), &amp;sdk.Registration{}); err != nil {
         log.Fatal(err)
     }
 }
@@ -156,7 +156,7 @@ func main() {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>4.3%</strong><b>1 of 23 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>88.0%</strong><b>44 of 50 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>88.7%</strong><b>47 of 53 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -230,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>50</td>
+<td>53</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>50</td>
+<td>53</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>15</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>44</td>
+<td>47</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5881.md</code></td>
@@ -369,8 +369,11 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5881-3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go#L57" title="internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go" target="_blank" rel="noopener"><code>TestFirstPacketSelectsALinkLocalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go#L79" title="internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go" target="_blank" rel="noopener"><code>TestFirstPacketTakesTheLinkFromTheZone</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_first_packet_binding_test.go#L17" title="internal/component/bfd/engine/rfc5881_first_packet_binding_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L128" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketMatchesByTuple</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go#L103" title="internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go" target="_blank" rel="noopener"><code>TestTwoLinkLocalSessionsStayApart</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_first_packet_binding_test.go#L21" title="internal/component/bfd/engine/rfc5881_first_packet_binding_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L152" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketWrongSourceDropped</code></a></span></div>
 </div></td>
@@ -758,7 +761,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 </div>
 <h3><a href="#rfc5881-3-2"><code>RFC5881-3-2</code></a></h3>
 <p>any BFD packet from the remote machine with a zero value of Your Discriminator MUST be associated with the session bound to the remote system, interface, and protocol. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (rejudge, netns+pinning). §3 &#34;any BFD packet from the remote machine with a zero value of Your Discriminator MUST be associated with the session bound to the remote system, interface, and protocol&#34;. TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol varies interface and protocol independently of the remote: same IPv4 peer on loop and loop2 plus an IPv6 session on loop2; a YD=0 packet from the IPv4 peer on loop2 is associated with (peer, loop2, IPv4) only, the loop session and the v6 session keep RemoteDiscr 0. Remote-address arm kept (FirstPacketMatchesByTuple, FirstPacketWrongSourceDropped). The protocol arm follows from the address family in the byKey key, so its negative cannot diverge from the remote-address one; accepted. Revert records on loop.go::handleInbound observed red (+/-).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-10-15 (rejudge, three link-local positives added). §3 &#34;any BFD packet from the remote machine with a zero value of Your Discriminator MUST be associated with the session bound to the remote system, interface, and protocol&#34;. Unchanged since the 2026-09-30 verdict: TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol (+/-) varies interface and protocol against one remote, TestRFC5881FirstPacketMatchesByTuple (+) and TestRFC5881FirstPacketWrongSourceDropped (-) the remote address; revert records on loop.go::handleInbound. Added: rfc5881_link_local_first_packet_test.go, the same association for an IPv6 link-local remote whose packet source carries the kernel&#39;s zone while the configured peer has none. TestFirstPacketSelectsALinkLocalPeer asserts the exact RemoteDiscriminator on the session bound to fe80::1 on eth0; TestFirstPacketTakesTheLinkFromTheZone (transport reports no ingress interface, the zone names the link) and TestTwoLinkLocalSessionsStayApart (one address on two links) each assert the exact value on the session bound to the packet&#39;s link and zero on the session bound to the same remote on the other link. Each input is a conforming YD=0 first packet and nothing else in handleInbound&#39;s first-packet path can reject it, so the buffer isolates the rule. Tagged positive only: one packet reaches at most one byKey entry, so no keying break makes one packet set both sessions and the other-link assertion cannot fire alone. Mutant records (reconcileZone, zone != &#34;&#34; -&gt; false, the peer keeps its zone) observed all three red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -777,6 +780,21 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_first_packet_binding_test.go#L17" title="internal/component/bfd/engine/rfc5881_first_packet_binding_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go#L57" title="internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go" target="_blank" rel="noopener"><code>TestFirstPacketSelectsALinkLocalPeer</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go#L79" title="internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go" target="_blank" rel="noopener"><code>TestFirstPacketTakesTheLinkFromTheZone</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go#L103" title="internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go" target="_blank" rel="noopener"><code>TestTwoLinkLocalSessionsStayApart</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L128" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketMatchesByTuple</code></a></td>
@@ -1293,7 +1311,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

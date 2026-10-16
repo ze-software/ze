@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 6 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 53.8% | 7 of 13 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 76.9% | 10 of 13 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 6 | of 6 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -65,7 +65,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 13 |
 | Tagged units | 13 |
 | Recorded audit verdicts | 6 |
-| Discrimination records | 7 |
+| Discrimination records | 10 |
 | Summary | `rfc/short/rfc1071.md` |
 | Requirement shard | `rfc/requirements/rfc1071.md` |
 | RFC text | `rfc/full/rfc1071.txt` |
@@ -133,7 +133,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestOSPFPacketChecksum`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L14) | unit/verify | unproven |
+| positive | [`TestOSPFPacketChecksum`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L14) | unit/verify | revert, verified |
 | positive | [`TestRFC1071PacketChecksumClearedSummedAndComplemented`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc1071_checksum_test.go#L60) | unit/verify | revert, verified |
 
 ### [`RFC1071-1-2`](#rfc1071-1-2)
@@ -155,7 +155,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestRFC1071PacketChecksumClearedSummedAndComplemented`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc1071_checksum_test.go#L61) | unit/verify | revert, verified |
-| positive | [`TestInternetChecksumRFC1071Vectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L61) | unit/verify | unproven |
+| positive | [`TestInternetChecksumRFC1071Vectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L61) | unit/verify | revert, verified |
 
 ### [`RFC1071-1-4`](#rfc1071-1-4)
 
@@ -189,7 +189,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestInternetChecksumRFC1071Vectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L62) | unit/verify | unproven |
+| positive | [`TestInternetChecksumRFC1071Vectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L62) | unit/verify | revert, verified |
 | positive | [`TestRFC1071FoldRepeatsUntilNoCarry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc1071_fold_test.go#L14) | unit/verify | revert, verified |
 
 ## Extraction sign-off

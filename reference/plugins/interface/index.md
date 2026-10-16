@@ -30,7 +30,7 @@ OS network interface monitoring and management
 Order only when both plugins are selected; never auto-loads a plugin.
 
 - Start after: None
-- Starts before: [`bfd`](../bfd/index.md)
+- Starts before: [`bfd`](../bfd/index.md), [`dhcpserver`](../dhcpserver/index.md), [`imageserver`](../imageserver/index.md), [`tftpserver`](../tftpserver/index.md)
 
 ## Repository artifacts
 

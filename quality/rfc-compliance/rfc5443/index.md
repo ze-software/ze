@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 8 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 8 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 8 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 66.7% | 12 of 18 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 94.4% | 17 of 18 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -71,7 +71,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 18 |
 | Tagged units | 18 |
 | Recorded audit verdicts | 5 |
-| Discrimination records | 12 |
+| Discrimination records | 17 |
 | Summary | `rfc/short/rfc5443.md` |
 | Requirement shard | `rfc/requirements/rfc5443.md` |
 | RFC text | `rfc/full/rfc5443.txt` |
@@ -150,9 +150,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLDPSyncRestoresAfterHoldDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L188) | unit/verify | unproven |
+| negative | [`TestLDPSyncRestoresAfterHoldDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L188) | unit/verify | revert, verified |
 | negative | [`TestRFC5443OperationalLinkAdvertisedAtConfiguredCost`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5443_origination_test.go#L170) | unit/verify | revert, verified |
-| positive | [`TestLDPSyncForcesMaxMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L145) | unit/verify | unproven |
+| positive | [`TestLDPSyncForcesMaxMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L145) | unit/verify | revert, verified |
 | positive | [`TestRFC5443NotOperationalLinkAdvertisedAtMaxCost`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5443_origination_test.go#L145) | unit/verify | revert, verified |
 
 ### [`RFC5443-2-2`](#rfc5443-2-2)
@@ -163,7 +163,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLDPSyncDisabledIsNoOp`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L294) | unit/verify | unproven |
+| negative | [`TestLDPSyncDisabledIsNoOp`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L294) | unit/verify | revert, verified |
 | negative | [`TestRFC5443MaxCostIsNotTheConfiguredNearMaxCost`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5443_origination_test.go#L188) | unit/verify | revert, verified |
 | positive | [`TestLDPSyncMaxMetricValue`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L158) | unit/verify | unproven |
 | positive | [`TestRFC5443NotOperationalLinkAdvertisedAtMaxCost`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5443_origination_test.go#L148) | unit/verify | revert, verified |
@@ -213,9 +213,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L369) | unit/verify | unproven |
+| negative | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L369) | unit/verify | revert, verified |
 | negative | [`TestRFC5443BroadcastOnePeerUpKeepsSegmentCostedOut`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc6138_broadcast_origination_test.go#L203) | unit/verify | revert, verified |
-| positive | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L366) | unit/verify | unproven |
+| positive | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L366) | unit/verify | revert, verified |
 | positive | [`TestRFC5443BroadcastCostOutCoversWholeSegment`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc6138_broadcast_origination_test.go#L156) | unit/verify | revert, verified |
 
 ### [`RFC5443-4-1`](#rfc5443-4-1)

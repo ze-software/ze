@@ -18,9 +18,10 @@ This page is the infrastructure it is owed against.
 | L2TP | Docker | `test/interop-l2tp/` | `./le test deployment l2tp-test`, and `./le test deployment l2tp-ppp-test` for the full PPP and NCP path |
 | PPPoE (Ze as client) | Docker: accel-ppp | `test/interop-pppoe/` | `./le test deployment docker-pppoe-accel-test` |
 | RADIUS (admin login: PAP, CHAP, EAP, Filter-Id) | Docker: FreeRADIUS | `test/interop-radius/scenarios/` | `./le test integration interop-radius` |
+| RADIUS (subscriber: accounting, CoA and Disconnect) | Docker: FreeRADIUS, an xl2tpd + pppd LAC | `test/interop-radius-subscriber/scenarios/` | `./le test integration interop-radius-subscriber` |
 | RSVP-TE (Ze as transit) | Docker: freeRouter, ingress and egress | `test/interop-rsvpte/scenarios/` | `./le test integration interop-rsvpte` |
 
-<!-- source: internal/le/test/integration/gates.go -- interop, interop-ipsec, interop-radius and interop-rsvpte verbs -->
+<!-- source: internal/le/test/integration/gates.go -- interop, interop-ipsec, interop-radius, interop-radius-subscriber and interop-rsvpte verbs -->
 <!-- source: internal/le/test/deployment/actions.go -- l2tp-test, l2tp-ppp-test, docker-pppoe-accel-test verbs -->
 
 Every suite discovers its scenarios the same way. `Discover`
@@ -184,10 +185,14 @@ The checker requires FRR installation and removal, complete source and recipient
 wire histories, the negotiated AS_PATH widths, and unchanged FRR daemon/session
 identity. A mixed withdrawal must not manufacture an EOR; the later genuine
 marker must survive. Before teardown, pass and failure both retain `proof.json`
-under the native session scratch directory, including fixture inputs, captures,
-FRR table, PID, version and logs. Required capture or write failures fail the
-proof. Diagnostic collection has a cancellation-independent fifteen-second bound.
+under the native session scratch directory of the checkout the suite runs from,
+including fixture inputs, captures, FRR table, PID, version and logs. The checker
+resolves that directory against `CheckContext.Checkout`, never the working
+directory, and refuses when no checkout is given. Required capture or write
+failures fail the proof. Diagnostic collection has a cancellation-independent
+fifteen-second bound.
 <!-- source: internal/le/interoplab/bgp/check_parsed_empty_mp.go -- checkParsedEmptyMPFRR, parsedEmptyMPDiagnostics -->
+<!-- source: internal/le/interoplab/bgp/proof_directory.go -- retainedProofDirectory -->
 <!-- source: internal/le/interoplab/bgp/check_parsed_empty_mp_wire.go -- parsedEmptyMPCapture, parsedEmptyMPHistory -->
 
 ## Prerequisites
@@ -418,7 +423,21 @@ without the write. In the L2TP lab ze and the xl2tpd LAC hold `NET_ADMIN` and
 `--device /dev/ppp`, and the preflight probes with the same grants and loads no
 module, so it passes only where the peers can run. The PPPoE lab grants ze,
 accel-ppp and the pppd client the same two, its preflight probes the same way,
-and no PPPoE image installs `kmod` or runs `modprobe`.
+and no PPPoE image installs `kmod` or runs `modprobe`. The RADIUS subscriber lab
+grants ze and its LAC the same two and FreeRADIUS neither.
+
+The `/dev/ppp` half of those preflights is declared once, in
+`internal/le/interoplab/pppdevice.go`, because the Docker host kernel check
+below cannot see a character device. Each lab still runs one preflight
+container: it puts `PPPDeviceProbe` (the line printing `DEV_PPP=ok` or
+`DEV_PPP=missing`) first in its `sh -c` command and adds its own probes, parses
+the output with `ParsePreflight`, takes the device entry of its refusal from
+`PPPDeviceMissing`, and refuses a container that did not run through
+`PPPPreflightRunRefusal`. That refusal always wraps Docker's error, keeping the
+operation, exit code, stderr and cause, and adds `sudo modprobe ppp_generic`
+only when Docker's stderr names `/dev/ppp`.
+
+<!-- source: internal/le/interoplab/pppdevice.go -- PPPDeviceArguments, PPPDeviceProbe, ParsePreflight, PPPDeviceMissing, PPPPreflightRunRefusal -->
 
 <!-- source: internal/le/interoplab/apparmor.go -- RegisterAppArmorProfile, appArmorSecurityOption, labAppArmorProfileMissing, labAppArmorUnapplied -->
 <!-- source: internal/le/interoplab/apparmor_netsysctl.go -- NetSysctlAppArmorProfileName, NetSysctlGranted -->
@@ -515,15 +534,33 @@ route: it installs the cached runtime kernel for the host's architecture under
 Debian tools, and saves the new entry as GRUB's default by its title. It
 refuses before any step unless `GRUB_DEFAULT=saved`, and unless the cached
 release ends with the `CONFIG_LOCALVERSION` suffix its config declares (`-ze`,
-so never a bare upstream release another kernel could own). Without
+so never a bare upstream release another kernel could own), and unless the
+cached kernel's config builds in, or as a module, every option this host
+relies on its running kernel for: the PCI hotplug drivers when an interface in
+`/sys/class/net`, or one netplan's generated
+`/run/systemd/network/10-netplan-<id>.network` names, is a slot name (`ens18`,
+which the kernel without them renames `enp0s18`); the option behind each
+iptables table, match or target module in `/proc/modules`; and UFW's stock
+matches and targets when `/etc/ufw/ufw.conf` exists. One table maps each
+module to its option, and a loaded netfilter module it does not map is
+refused by name. The refusal names each dependency, what the kernel would
+break, the missing options, and the rebuild (`hostdeps.go`). After the steps
+it reads `/boot/grub/grub.cfg`, through `sudo cat` when the host keeps it
+root-only, to find the entry's title. Without
 `confirm <release>` it prints the steps and runs none, because passwordless
-sudo asks nothing: `./le setup docker-kernel install confirm 7.2.9-ze`. A
+sudo asks nothing: `./le setup docker-kernel install confirm 7.2.9-ze`. The
+cache entry is keyed by the backend that built the kernel, and ze-host answers
+docker's entry whenever the docker binary is on PATH, so a kernel built with
+QEMU on such a host is named with `builder qemu`
+(`./le setup docker-kernel install builder qemu confirm 7.2.9-ze`); the dry
+run's confirming command and every rebuild it prints keep that backend. A
 reinstall replaces: it removes `/lib/modules/<release>` and
 `/boot/initrd.img-<release>` before writing them again, so `cp -a` never nests
 the new modules inside the old tree. It prints each `sudo` step before it runs
 it, and never reboots. Off Linux it refuses and names the guest
 route, `./le test qemu docker-lab` (`docs/architecture/testing/qemu-integration.md`).
-<!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck, dockerKernelProbeZe, linuxExecutableFor, runDockerKernelInstall -->
+<!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck, dockerKernelProbeZe, linuxExecutableFor, runDockerKernelInstall, cachedKernelServesHost, readGrubConfig -->
+<!-- source: internal/le/setup/dockerkernel/hostdeps.go -- netfilterModuleOptions, ufwModules, slotNameOptions, readHostFacts, hostDependencies, zeKernelServesHost -->
 <!-- source: internal/le/test/qemu/dockerlab.go -- BuildLinuxZe, GuestZeRel -->
 <!-- source: internal/le/interoplab/kernelcheck.go -- DockerKernelRoute -->
 
@@ -628,18 +665,48 @@ Runs that share a fixed subnet or staged binary paths must run serially.
 
 The table gives the fixture addresses, which the runner rewrites onto its selected
 network. IPv6 scenarios also receive host addresses on a selected /64.
+
+A scenario file may carry a link-local placeholder. Each one renders to an
+`fe80::` address whose interface identifier holds the first six bytes of the
+selected IPv6 lab prefix and, in its last byte, the host number of the container
+that owns it:
+
+| Placeholder | Owner | Host |
+|-------------|-------|------|
+| `@ZE_LINK_LOCAL@` | `ze` | 2 |
+| `@FRR_LINK_LOCAL@` | `frr` | 3 |
+
+When any file of the scenario carries a placeholder, its owner's start is
+wrapped: `/bin/sh` assigns the address to `eth0` with `nodad`, then execs the
+start it replaced (Ze's `ze`, or FRR's image entrypoint `/sbin/tini` with its
+command `-- /usr/lib/frr/docker-start`). The daemon's first interface snapshot
+therefore already holds the address. A placeholder also selects an IPv6 lab
+network, because the address is built from its prefix. The scenario's name
+decides nothing.
+
+A scenario's prestart is Go, not a scenario file: its register file adds an
+`ownerPrestarts` entry, one shell fragment per link-local owner, to
+`scenarioPrestarts` under the scenario's name. The interop tree carries no
+interpreted helper (`TestInteropTreeUsesOnlyCompiledHelpers`), so the harness
+compiled into `le` holds it. The fragment's link-local placeholders render as
+they do in the scenario's files, and it runs inside that owner's wrapper, under
+`sh -e`, after the `eth0` assignment and before the exec. It is where a
+scenario builds what must exist before its daemon sends a packet: a second
+link, a link-local on it, an nft table. A prestart for an owner whose
+placeholder no scenario file carries would never run, so preparation refuses
+it by name rather than skipping it.
+
 `bgp-rfc2545-linklocal-nexthop-frr` uses IPv6 host 2 for Ze and host 3 for FRR:
 the speaker, its on-link global next hop and the recipient share ONE IPv6 subnet,
-not separate IPv4 and IPv6 connected prefixes. Its `@ZE_LINK_LOCAL@` token is
-rendered from the selected IPv6 lab prefix and Ze's host number. The scenario's
-startup command assigns that address to Ze's `eth0` before starting Ze, so the
-advertised link-local next hop belongs to the same router as the global address.
+not separate IPv4 and IPv6 connected prefixes. Its `ze.conf` carries
+`@ZE_LINK_LOCAL@`, so the advertised link-local next hop belongs to the same
+router as the global address.
 The checker requires FRR to decode the global-plus-link-local pair and install
 the on-link route via that owned link-local address. A second prefix uses an
 off-link global next hop and must decode as global-only; the IPv6 session must
 remain established after both assertions. These are two routes on one session,
 not identical UPDATEs differing only in their next-hop length.
-<!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, renderScenario, rfc2545LinkLocal -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, renderScenario, needsIPv6, linkLocalOwners, linkLocalAt, assignLinkLocal, ownerPrestarts, scenarioPrestarts, renderPrestarts -->
 <!-- source: internal/le/interoplab/bgp/check_rfc.go -- checkRFC2545NextHops -->
 
 Typed checker queries and their expected JSON field values are rendered onto the
@@ -903,6 +970,65 @@ are the only ones the reload can change.
 <!-- source: internal/le/interoplab/bgp/check_bfd_profile_edit.go -- checkBFDProfileEditLive, requireBFDProfileEditContinuity -->
 <!-- source: test/interop/scenarios/bgp-bfd-profile-edit-live-frr/ -- ze.conf, ze-reload.conf, frr.conf -->
 
+### BFD over link-local
+
+`bfd-link-local-frr` runs no client protocol. Ze's `bfd` root pins one
+single-hop session to FRR's link-local on `eth0`, with Ze's own link-local as
+the source; FRR's `bfd` block names
+`peer <Ze's link-local> local-address <FRR's link-local> interface eth0`.
+Without `local-address`, bfdd 10.3.1 sources its packets from `eth0`'s global
+address, so neither side matches the other's packets to its session and FRR
+stays down with `remote-id` 0.
+Both files carry both placeholders, so both containers own their address
+before the daemons start. The checker waits for FRR's
+`show bfd peer <Ze's link-local> interface eth0 json` to read `up`, then for
+Ze's `show bfd sessions` to hold an `up` session to FRR's address on `eth0`,
+and requires the discriminators to have crossed: FRR's `remote-id` equals Ze's
+`local-discriminator`, and Ze's `remote-discriminator` equals FRR's `id`.
+Each value exists only on the side that chose it until a packet carries it
+over, so neither clause holds on one direction of traffic.
+
+The scenario is acceptance evidence. RFC 5881 Section 3 makes both sides
+Active, so once FRR answers, the session also converges through Your
+Discriminator, and the zone Ze reconciles on a first packet is not what the
+scenario can tell apart. The send side cannot fail here either: every session
+of the loop names `eth0`, so the loop's socket is bound to that device
+(`resolveLoopDevices`) and the kernel puts the packet on `eth0` with no zone
+and no ifindex. Both reverts stayed Up in a smoke run. The discrimination is
+`test/bfd/bfd-first-packet-link-local.ci` in the QEMU guest, and
+`bfd-link-local-two-links-frr` against FRR.
+
+`bfd-link-local-two-links-frr` puts two links between Ze and FRR and ONE
+address pair on both. Each container's prestart builds `eth1` (VLAN 101) and
+`eth2` (VLAN 102) over `eth0`, and gives the container's link-local to both, so
+the address cannot tell the two sessions apart and only the link can. Ze names
+one session per link; FRR one peer per link. Two things make it discriminate:
+
+- **Send.** The sessions name two interfaces, so the loop's socket is bound to
+  no device, and a packet reaches its link only through the zone `sendZone`
+  puts on the destination or the ifindex `pinsToLink` asks for. Without either,
+  the kernel refuses the write (`sendmsg: invalid argument`) and FRR hears
+  nothing.
+- **Receive.** Ze's prestart installs an nft output rule in table
+  `inet bfdfirst` that drops every BFD Control packet Ze sends with Your
+  Discriminator zero. FRR then learns Ze's discriminator only from a packet Ze
+  sends after selecting FRR's first packet by address and link, so without the
+  zone reconciliation (`reconcileZone`) neither side leaves Down. Ze logs each
+  dropped send as `bfd send failed ... operation not permitted`, which is the
+  rule working.
+
+The checker reads the links from Ze's own `show bfd sessions` (the interfaces of
+its sessions to FRR's link-local, at least two), then runs the one-link check
+on each: FRR's peer on that link Up, Ze's session on that link Up, and the
+discriminators crossed. A smoke on colima (not evidence) held both Up with the
+code as it is, and both Down with `reconcileZone` returning its key unchanged
+and with `sendZone` returning `""` and `pinsToLink` returning false.
+<!-- source: internal/le/interoplab/bgp/check_bfd_link_local.go -- checkBFDLinkLocal, checkBFDLinkLocalTwoLinks, checkBFDLinkLocalOn, zeLinkLocalLinks, zeLinkLocalSession, requireCrossedDiscriminators -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioPrestarts, renderPrestarts, assignLinkLocal -->
+<!-- source: test/interop/scenarios/bfd-link-local-frr/ -- ze.conf, frr.conf -->
+<!-- source: test/interop/scenarios/bfd-link-local-two-links-frr/ -- ze.conf, frr.conf -->
+<!-- source: internal/le/interoplab/bgp/prepare_bfd_link_local.go -- bfdLinkLocalTwoLinksZePrestart, bfdLinkLocalTwoLinksFRRPrestart -->
+
 ### Live attach and BFD opt-in without a session reset
 
 Three scenarios change a running FRR peer's Ze config by SIGHUP and require
@@ -1083,6 +1209,41 @@ it makes a red transport scenario readable, because a broken topology reds it to
 Its selectors are INNER addresses the box never sees, which is the one selector pair
 in this lab a translation cannot move.
 
+#### The port column and the rebind step
+
+A row may carry a third column, `<real> <public> <port>`: the public port the
+box maps that peer's UDP 4500 to. 0, 500 and 4500 are refused, because a mapping
+to any of them could not tell an encapsulation port taken from the IKE SA from a
+constant (RFC 3948 Section 2.1: "the Source Port and Destination Port MUST be the
+same as that used by IKE traffic,"). For such a row `natSetupScript` emits a port
+SNAT for UDP source port 4500 AHEAD of the row's address SNAT, and no DNAT: the
+peer initiates and conntrack reverses the replies. The other peer keeps its own
+address, so it is not behind a NAT. That is the precondition of the endpoint
+adoption the rebind step drives, and it is why the peer behind the port
+translation reaches the other one by a host route via its own public address,
+which the checker installs before it initiates (`natPortEstablish`).
+
+The rebind step (`natRebind`) replaces the port rule with one to a second public
+port and deletes the box's UDP conntrack entries with `conntrack -D -p udp`
+(`conntrack-tools` in `Dockerfile.nat`). The flush is needed because a NAT rule
+applies to a flow's first packet only, and the peer's keepalives and DPD keep the
+old entry alive. The peer's next DPD then reaches Ze from the new port, Ze adopts
+it, and the checker waits for exactly one of Ze's four rebind log lines.
+
+| Scenario | Proves |
+|----------|--------|
+| `real-nat-port-translated-ze-responder` | tunnel mode: outbound encap dport 14500, traffic both ways; after the remap the row 1 "migrated" line, dport 14501 on the SAME SPI, traffic both ways |
+| `real-nat-port-translated-transport-ze-responder` | transport mode: after the remap the row 2 "rekeyed" line with `reason="transport mode"`, dport 14501 on a NEW SPI, traffic both ways |
+| `real-nat-port-translated-eap-ze-responder` | the EAP-TLS responder's first Child SA encapsulates to dport 14500 |
+| `responder-eap-tls12` (no NAT) | a strongSwan EAP-TLS client pinned to TLS 1.2 authenticates and traffic crosses |
+
+None of the four has run yet: the Docker host kernel check refuses the host they
+were written on before any scenario starts, so each still owes its first run and
+its revert, rebuild and red walk.
+
+<!-- source: internal/le/interoplab/ipsec/nat.go -- readNATConfig, natSetupScript, natPortRule -->
+<!-- source: internal/le/interoplab/ipsec/natport.go -- natPortEstablish, natRebind, waitRebindLine -->
+
 Two more scenarios reuse the tunnel-control topology to drive `show mtu` across a
 real NAT. `mtu-tunnel-sizing-strongswan` binds the tunnel to an xfrm interface,
 clamps the route the box forwards over to 1400 (`ip route replace ... mtu 1400`,
@@ -1234,6 +1395,32 @@ as evidence.
 <!-- source: internal/le/interoplab/radius/radius.go -- the suite, its pinned image, its peers and its probes -->
 <!-- source: internal/le/interoplab/radius/checkers.go -- every observation, on ze's side and on the server's -->
 <!-- source: test/interop-radius/mods-ze-request-log -- the linelog module the server's record comes from -->
+
+### The FreeRADIUS subscriber suite
+
+`./le test integration interop-radius-subscriber` puts FreeRADIUS 3.2.7, the
+release the admin-login suite pins, in front of ze's subscriber RADIUS surface:
+the accountant and the CoA and Disconnect listener of
+`internal/component/l2tp/plugins/authradius`. Both act only on a kernel L2TP
+session, which no fixture can stand in for, so the lab carries its own LAC
+(xl2tpd and pppd), and ze and the LAC hold `NET_ADMIN` and `/dev/ppp`. That is
+why it is a suite of its own: the admin-login suite promises no capability at
+all, and the L2TP lab's RADIUS peer is a mock ze wrote. FreeRADIUS takes ze's
+Access-Requests and Accounting-Requests on one `auth+acct` listener, because a
+ze server entry carries one port, writes every accounting record to its
+`ze_detail` file, and its `radclient` is the Dynamic Authorization Client.
+
+| Scenario | What it proves |
+|----------|----------------|
+| `radius-coa-duplicate-freeradius` | RFC 5176 Section 2.3 duplicate detection. With ze paused, `radclient` sends one Disconnect-Request and retransmits it on its own socket: ze answers the copies from the cache, `radclient` gets a Disconnect-ACK, and ze logs one teardown. On a second session, two `radclient` processes send one request file with the same Identifier from two ports: the second is processed afresh and answered Disconnect-NAK. A tcpdump capture in ze's container confirms the retransmitted copies share port, Identifier and Authenticator, and the two clients' requests differ in the port alone |
+| `radius-acct-restart-freeradius` | RFC 2866 Section 5.5 across a real restart. The Accounting-Start before ze restarts and the one after carry ids of the form tunnel-session-tag-counter, the two boot tags differ, and each Stop carries its Start's id, all read from FreeRADIUS's detail file |
+
+Both scenarios were added on 2026-10-14 and have not run yet: this machine's
+Docker kernel refuses the lab, so neither has a recorded pass or a recorded red.
+
+<!-- source: internal/le/interoplab/radiussubscriber/radiussubscriber.go -- the suite, its peers, its grants and its preflight -->
+<!-- source: internal/le/interoplab/radiussubscriber/checkers.go -- checkCoADuplicate, checkAcctRestart, judgeCapture -->
+<!-- source: test/interop-radius-subscriber/mods-ze-detail -- the detail module the server's record comes from -->
 
 ### The freeRouter RSVP-TE suite
 
@@ -1611,7 +1798,10 @@ Software Version capability (`frr-software-version` holds two sessions to one FR
 sends the length-prefixed form over IPv4 and must reach Established with FRR showing ze's version,
 while peer `draft` sends the draft's bare form over IPv6 and must be refused, with ze recording
 FRR's NOTIFICATION OPEN Message Error/Unspecific, because FRR 10.3.1 reads the first octet as a
-length), and full
+length, and with ze's log carrying the one WARN `notification received` line that names it), the
+RFC 9072 Section 2 boundary (`bgp-open-extended-params-boundary-frr` pads ze's capabilities to 254
+octets with a 200-octet hostname, so the Optional Parameters field is 256 octets and must take the
+extended form, and requires FRR to reach Established and report a prefix of that hostname), and full
 IS-IS (auth, convergence, dual-stack, LAN DIS,
 P2P, redistribution) and OSPFv2/OSPFv3 (auth, BFD, TE, LFA/TI-LFA, graceful restart,
 segment routing, opaque LSAs, stub/NSSA, virtual links, and more) interop families.
@@ -1793,6 +1983,17 @@ is not packet-forwarding evidence.
 | 35 | srv6-frr | Ze, FRR | SRv6 VPNv6 route exchange and Prefix-SID handling |
 | 36 | remove-private-as-frr | Ze, FRR, GoBGP | remove-private-as export policy to FRR |
 | 37 | remove-private-as-as4path-frr | Ze, FRR, BIRD | remove-private-as handling for AS4_PATH private ASNs |
+| 38 | vpn-addpath-frr | Ze, FRR | ipv4/mpls-vpn over ADD-PATH with no path-information: FRR holds the exact RD, prefix and label, so ze wrote Path Identifier 0 (RFC 7911 Section 3) |
+| 39 | ldp-keepalive-expiry-frr | Ze, FRR ldpd | ze's LDP KeepAlive Timer expires after FRR's TCP toward ze is dropped in ze's container (an `ldplab` nft table); FRR logs a received Notification naming KeepAlive Timer Expired (RFC 5036 Section 3.5.1.2.3) and leaves OPERATIONAL. Ships its own `daemons` (`ldpd=yes`) and gives ze transport address 172.30.0.250 so ze is the active LSR |
+| 40 | bgp-attr-flags-low-nibble-gobgp | Ze, GoBGP, raw injector | RFC 4271 Section 4.3: attribute 241 sent to Ze at flags 0xCF reaches GoBGP at 0xE0 (low nibble cleared, Partial stamped by Section 5), never 0xEF |
+| 41 | bgp-large-community-no-repeat-gobgp | Ze, GoBGP, raw injector | RFC 8092 Section 3: an export policy adding values the route already carries leaves GoBGP with each Large Community once |
+| 42 | bgp-mup-malformed-t1st-withdraw-gobgp | Ze, GoBGP, raw injector | draft-ietf-bess-mup-safi Section 3.1.3.1: a malformed T1ST withdraws the earlier generation at GoBGP, a well-formed sibling stays, the session stays up |
+| 43 | bgp-role-rs-client-learned-not-upward-frr | Ze, FRR 10.4.1, raw injector | RFC 9234 Section 3.1: a route learned on a session where Ze is the Route Server never reaches FRR, Ze's Provider; Ze's own control route does |
+| 44 | bgp-rfc7999-blackhole-readvertise-frr | Ze, BIRD, FRR 10.4.1 | RFC 7999 Section 3.1: a BLACKHOLE-tagged route from BIRD is never re-advertised to FRR, an eBGP neighbor with no agreement; the untagged control is |
+| 45 | bgp-sr-policy-gobgp | Ze, GoBGP | RFC 9830: GoBGP's text RIB holds Ze's configured IPv4 and IPv6 SR Policies with their distinguisher, color and endpoint, Binding SID label 1048575 and Type A segment labels 16 and 1048575. Goal validation for origination: in-range labels never reach the 20-bit range check, so no revert turns it red |
+| 46 | bgp-sr-policy-malformed-receive-gobgp | Ze, GoBGP, raw injector | RFC 9830 Section 5: after policies A, B and control C reach GoBGP, A beside a 13-octet NLRI and then B without its Tunnel Encapsulation attribute are each treat-as-withdraw, so GoBGP loses A, then B, keeps C, and its session with Ze stays up (GoBGP resets a session that carries an SR Policy NLRI whose length is neither 96 nor 192 bits) |
+| 47 | bfd-link-local-frr | Ze, FRR bfdd | RFC 5881 Section 3: a BFD-plugin-pinned single-hop session to FRR's IPv6 link-local on `eth0` reaches Up, each side holding the other's discriminator. Acceptance, not discrimination (see "BFD over link-local") |
+| 48 | bfd-link-local-two-links-frr | Ze, FRR bfdd | RFC 5881 Section 3: two sessions to ONE link-local address, one each on `eth1` and `eth2`, reach Up on their own link with their own discriminators crossed, while Ze's Your-Discriminator-zero sends are dropped. Discriminates the receive-side zone reconciliation and the send-side link pinning (see "BFD over link-local") |
 <!-- source: test/interop/scenarios/ -- scenario directories -->
 
 ### Running

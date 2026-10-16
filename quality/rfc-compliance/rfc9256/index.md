@@ -400,7 +400,7 @@ No test carries RFC9256-7-1, so no unit is bound to it.
 
 The SR Algorithm (refer to Section 3.1.1 of [RFC8402]), the SRv6 SID behavior (as defined in [RFC8986] or other SRv6 specifications), and structure (as defined in [RFC8986]) MAY also be provided. (§4)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. RFC 9256 §4 repeats the same combined permission for Types I, J and K. All three optional fields and all three types are retained by this row and its annotation. parseSegmentList accepts only type-a/type-b and rejects other types; buildSegmentSubSubTLV emits only A/B. Type B SID behavior/structure support is a separate existing permission (RFC9256-4-2), not evidence for I/J/K. No implementation or tagged conformance test exists for the new row; record the optional implementation gap without adding the feature.
+Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-14 (independent auditor) after parseSegmentList gained the 20-bit type-a label check. Gap unchanged: parseSegmentList still accepts only type-a and type-b ('unknown segment type' otherwise) and buildSegmentSubSubTLV emits only Types A and B, so the optional SR Algorithm, SRv6 SID behavior and structure of segment types I, J and K are not produced. Type B endpoint-behavior support is RFC9256-4-2, not evidence here. No tag; the gap authorizes no implementation.
 
 No test carries RFC9256-4-7, so no unit is bound to it.
 

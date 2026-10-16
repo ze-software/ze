@@ -49,7 +49,7 @@
     <h1 id="plugin-catalog-title">Plugin catalog</h1>
     <p>Ze features are composed from plugins. This catalog is generated from the live registry and explains what each plugin is for, what it configures, and which other plugins it relies on. Click any plugin to open a local detail page.</p>
 </div>
-                <p class="plugin-summary">Generated from 93 registry entries: 93 runtime plugins. Among runtime plugins, 73 declare configuration roots, 47 declare dependencies, and 75 ship YANG modules.</p>
+                <p class="plugin-summary">Generated from 94 registry entries: 94 runtime plugins. Among runtime plugins, 73 declare configuration roots, 47 declare dependencies, and 76 ship YANG modules.</p>
                 <div class="plugin-console" role="search" aria-label="Search plugins">
                     <label for="plugin-search">Search by feature, protocol, config root, dependency, or source path</label>
                     <input id="plugin-search" type="search" autocomplete="off" placeholder="Try RPKI, FlowSpec, FIB, DHCP, DDoS, l2tp, bgp-filter..." />
@@ -64,7 +64,7 @@
                                     <option value="services" data-label="Network services">Network services (7)</option>
                                     <option value="dataplane" data-label="Interfaces &amp; dataplane">Interfaces &amp; dataplane (11)</option>
                                     <option value="telemetry" data-label="Telemetry &amp; operations">Telemetry &amp; operations (4)</option>
-                                    <option value="system" data-label="System">System (1)</option>
+                                    <option value="system" data-label="System">System (2)</option>
                                 </select>
                             </label>
                             <label for="plugin-family">Area
@@ -116,6 +116,7 @@
                                     <option value="traffic" data-category="telemetry" data-label="Traffic">Traffic (2)</option>
                                     </optgroup>
                                     <optgroup label="System">
+                                    <option value="crashes" data-category="system" data-label="Crashes">Crashes (1)</option>
                                     <option value="memlock" data-category="system" data-label="Memlock">Memlock (1)</option>
                                     </optgroup>
                                 </select>
@@ -763,6 +764,25 @@
                     </article>
                     </div>
                 </section>
+                <section class="plugin-group" data-plugin-group data-family="crashes" data-category="system" aria-labelledby="plugin-group-crashes">
+                    <div class="plugin-group-head tone-mint">
+                        <h2 id="plugin-group-crashes">Crashes</h2>
+                        <span>1 plugin</span>
+                    </div>
+                    <p>Generated group for registry entries mapped to the Crashes area. Source area: <code>internal/plugins/crashes</code>.</p>
+                    <div class="cards plugin-grid">
+
+                    <article class="card plugin-card tone-mint" id="plugin-crashes" data-plugin-card data-family="crashes" data-category="system" data-search="crashes Crash capture: kernel crash record harvest at daemon start, crash reports Crash capture: kernel crash record harvest at daemon start, crash reports internal/plugins/crashes Crashes       internal/plugins/crashes/yang/ze-crashes-cmd.yang">
+                        <span class="cat">Crashes</span>
+                        <h3><a href="crashes/"><code>crashes</code></a></h3>
+                        <p class="plugin-desc">Crash capture: kernel crash record harvest at daemon start, crash reports</p>
+                        <div class="chips">
+                            <span class="chip">YANG:1</span>
+                        </div>
+                        <dl class="plugin-meta"><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                    </article>
+                    </div>
+                </section>
                 <section class="plugin-group" data-plugin-group data-family="ddos" data-category="security" aria-labelledby="plugin-group-ddos">
                     <div class="plugin-group-head tone-teal">
                         <h2 id="plugin-group-ddos">DDoS</h2>
@@ -1337,15 +1357,16 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>service</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card tone-pink" id="plugin-dhcpserver" data-plugin-card data-family="service" data-category="services" data-search="dhcpserver DHCP server: address assignment for LAN clients (RFC 2131) DHCP server: address assignment for LAN clients (RFC 2131) internal/plugins/dhcpserver Service   service    internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang">
+                    <article class="card plugin-card tone-pink" id="plugin-dhcpserver" data-plugin-card data-family="service" data-category="services" data-search="dhcpserver DHCP server: address assignment for LAN clients (RFC 2131) DHCP server: address assignment for LAN clients (RFC 2131) internal/plugins/dhcpserver Service   service   interface internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang">
                         <span class="cat">Service</span>
                         <h3><a href="dhcpserver/"><code>dhcpserver</code></a></h3>
                         <p class="plugin-desc">DHCP server: address assignment for LAN clients (RFC 2131)</p>
                         <div class="chips">
                             <span class="chip mode">config:service</span>
+                            <span class="chip">Start after:interface</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>service</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>service</code></dd></div><div><dt>Start after</dt><dd><code>interface</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card tone-pink" id="plugin-geodns" data-plugin-card data-family="service" data-category="services" data-search="geodns GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871 client-subnet) GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871 client-subnet) internal/plugins/geodns Service   service    internal/plugins/geodns/yang/ze-geodns-cmd.yang internal/plugins/geodns/yang/ze-geodns-conf.yang">
@@ -1359,26 +1380,28 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>service</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card tone-pink" id="plugin-imageserver" data-plugin-card data-family="service" data-category="services" data-search="imageserver Image server: HTTP provisioning for disk images and boot files Image server: HTTP provisioning for disk images and boot files internal/plugins/imageserver Service   service    internal/plugins/imageserver/yang/ze-image-server-conf.yang">
+                    <article class="card plugin-card tone-pink" id="plugin-imageserver" data-plugin-card data-family="service" data-category="services" data-search="imageserver Image server: HTTP provisioning for disk images and boot files Image server: HTTP provisioning for disk images and boot files internal/plugins/imageserver Service   service   interface internal/plugins/imageserver/yang/ze-image-server-conf.yang">
                         <span class="cat">Service</span>
                         <h3><a href="imageserver/"><code>imageserver</code></a></h3>
                         <p class="plugin-desc">Image server: HTTP provisioning for disk images and boot files</p>
                         <div class="chips">
                             <span class="chip mode">config:service</span>
+                            <span class="chip">Start after:interface</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>service</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>service</code></dd></div><div><dt>Start after</dt><dd><code>interface</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card tone-pink" id="plugin-tftpserver" data-plugin-card data-family="service" data-category="services" data-search="tftpserver TFTP server: read-only file serving for PXE boot (RFC 1350, RFC 2347 option negotiation) TFTP server: read-only file serving for PXE boot (RFC 1350, RFC 2347 option negotiation) internal/plugins/tftpserver Service   service    internal/plugins/tftpserver/yang/ze-tftp-server-conf.yang">
+                    <article class="card plugin-card tone-pink" id="plugin-tftpserver" data-plugin-card data-family="service" data-category="services" data-search="tftpserver TFTP server: read-only file serving for PXE boot (RFC 1350, RFC 2347 option negotiation) TFTP server: read-only file serving for PXE boot (RFC 1350, RFC 2347 option negotiation) internal/plugins/tftpserver Service   service   interface internal/plugins/tftpserver/yang/ze-tftp-server-conf.yang">
                         <span class="cat">Service</span>
                         <h3><a href="tftpserver/"><code>tftpserver</code></a></h3>
                         <p class="plugin-desc">TFTP server: read-only file serving for PXE boot (RFC 1350, RFC 2347 option negotiation)</p>
                         <div class="chips">
                             <span class="chip mode">config:service</span>
+                            <span class="chip">Start after:interface</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>service</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>service</code></dd></div><div><dt>Start after</dt><dd><code>interface</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1641,7 +1664,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

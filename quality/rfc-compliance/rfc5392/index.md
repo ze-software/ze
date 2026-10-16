@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 23.1% | 3 of 13 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 13 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 13 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 35.7% | 5 of 14 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 42.9% | 6 of 14 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -72,7 +72,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 14 |
 | Tagged units | 14 |
 | Recorded audit verdicts | 9 |
-| Discrimination records | 5 |
+| Discrimination records | 6 |
 | Summary | `rfc/short/rfc5392.md` |
 | Requirement shard | `rfc/requirements/rfc5392.md` |
 | RFC text | `rfc/full/rfc5392.txt` |
@@ -237,7 +237,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Orig
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestInterAsTEIPv6AsbrIdType24`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5392_te_interas_test.go#L91) | unit/verify | unproven |
+| positive | [`TestInterAsTEIPv6AsbrIdType24`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5392_te_interas_test.go#L91) | unit/verify | revert, verified |
 | positive | [`TestRFC5392OriginatedV6OnlyLinkCarriesIPv6RemoteASBRID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_v6_remote_asbr_origination_test.go#L15) | unit/verify | revert, verified |
 
 ### [`RFC5392-3.3.3-1`](#rfc5392-3.3.3-1)

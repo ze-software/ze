@@ -227,6 +227,20 @@ operator. Discarding the traffic is a different feature: see [blackhole
 honoring](../configuration-model/index.md#blackhole-honoring-rfc-7999). RFC 7999 Section 3.1
 makes ignoring the community conformant, so `none` is a supported state.
 
+**A received BLACKHOLE route reaches an eBGP peer only if that peer agreed.**
+RFC 7999 Section 3.1: "In a bilateral peering relationship, use of the BLACKHOLE
+community MUST be agreed upon by the two networks before advertising it." The
+agreement is the peer's `blackhole` container listing `blackhole` (65535:666).
+On egress, a route carrying BLACKHOLE is withheld from an eBGP peer whose
+container does not list it, and when the peer held an earlier generation of the
+route it is withdrawn. iBGP sessions (an RFC 7705 migration session included)
+and route-server clients still receive it: an iBGP session is one network, and
+Section 3.1 hands the multilateral case to the operator's policy. A reload that
+changes a `blackhole` container takes effect on the next UPDATE of the route;
+it does not re-judge what a peer already holds.
+
+<!-- source: internal/component/bgp/plugins/filter_community/blackhole.go -- blackholeReadvertiseRefused -->
+<!-- source: internal/component/bgp/plugins/filter_community/filter_community.go -- egressFilter, newCommunityConfigTx, installCommunityConfig -->
 <!-- source: internal/component/bgp/plugins/filter_community/yang/ze-filter-community.yang -- community-filter-fields -->
 <!-- source: internal/component/bgp/plugins/filter_community/filter.go -- applyIngressFilter, applyRelationTag -->
 <!-- source: internal/component/bgp/plugins/filter_community/scrub.go -- scrubOwnGACommunities -->

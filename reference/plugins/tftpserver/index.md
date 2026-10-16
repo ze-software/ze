@@ -25,6 +25,13 @@ TFTP server: read-only file serving for PXE boot (RFC 1350, RFC 2347 option nego
 - Required dependency for: None
 - Optional dependency for: None
 
+## Startup ordering
+
+Order only when both plugins are selected; never auto-loads a plugin.
+
+- Start after: [`interface`](../interface/index.md)
+- Starts before: None
+
 ## Repository artifacts
 
 Package: `internal/plugins/tftpserver`

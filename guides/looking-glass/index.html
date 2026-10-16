@@ -243,7 +243,13 @@ set <code>tls false</code>). No authentication is required unless you set <code>
 </tbody>
 </table>
 <p>Navigation uses a single-page tab layout with HTMX fragment swapping. The real htmx.min.js (v4.0.0) is embedded, and the peers page also loads hx-sse.min.js, htmx 4's SSE extension.</p>
+<p>When the engine cannot answer, a page says so. The peers and search pages show
+a banner. The per-peer page, its download, the route detail and the graph
+answer 502 (the command failed) or 503 (the engine answered nothing usable)
+instead of a "not found" or an empty result. The message names the command and
+the kind of failure. The full reason is in the daemon log.</p>
 <!-- source: internal/component/lg/handler_ui.go -- UI handlers -->
+<!-- source: internal/component/lg/server.go -- ask, engineFailure -->
 <!-- source: internal/component/lg/handler_graph.go -- Graph handler -->
 <h2 id="birdwatcher-rest-api">Birdwatcher REST API</h2>
 <p>The looking glass exposes a birdwatcher-compatible JSON API for integration with tools like Alice-LG.</p>
@@ -282,6 +288,12 @@ set <code>tls false</code>). No authentication is required unless you set <code>
 </tbody>
 </table>
 <p>All API responses use <code>Content-Type: application/json</code> with birdwatcher-convention <code>snake_case</code> field names (not Ze's standard <code>kebab-case</code>).</p>
+<p>An endpoint whose command fails answers 502, or 503 when the engine answered
+nothing usable, with a JSON <code>error</code> naming the command, for example
+<code>{"error":"show bmp peers: engine error"}</code> from <code>/protocols/bmp</code> on a daemon
+that runs no BMP. It never answers 200 with an empty result. The full reason is
+in the daemon log.</p>
+<!-- source: internal/component/lg/handler_api.go -- engineAnswer, writeEngineFailure -->
 <p>The per-peer route counts on <code>/protocols/bgp</code> come from the <code>bgp-rib</code> plugin's
 Adj-RIB-In and Adj-RIB-Out sizes, merged into <code>show bgp</code>:
 <code>routes_received</code> and <code>routes_imported</code> are both the Adj-RIB-In size (Ze retains
@@ -366,7 +378,7 @@ serves a self-signed certificate when that leaf is unset.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

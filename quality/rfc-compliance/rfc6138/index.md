@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 2 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 2 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 2 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 50.0% | 4 of 8 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 75.0% | 6 of 8 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 2 | of 2 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -65,7 +65,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 8 |
 | Tagged units | 8 |
 | Recorded audit verdicts | 2 |
-| Discrimination records | 4 |
+| Discrimination records | 6 |
 | Summary | `rfc/short/rfc6138.md` |
 | Requirement shard | `rfc/requirements/rfc6138.md` |
 | RFC text | `rfc/full/rfc6138.txt` |
@@ -130,9 +130,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC6138PendingSPFNeverLeavesStaleCutEdge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go#L74) | unit/verify | revert, verified |
-| negative | [`TestLDPSyncCutEdgeUsesFreshSPF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_ldp_sync_cutedge_test.go#L60) | unit/verify | unproven |
+| negative | [`TestLDPSyncCutEdgeUsesFreshSPF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_ldp_sync_cutedge_test.go#L60) | unit/verify | revert, verified |
 | positive | [`TestRFC6138PendingSPFRunBeforeCutEdgeAfterLinkLoss`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go#L61) | unit/verify | revert, verified |
-| positive | [`TestLDPSyncCutEdgeUsesFreshSPF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_ldp_sync_cutedge_test.go#L57) | unit/verify | unproven |
+| positive | [`TestLDPSyncCutEdgeUsesFreshSPF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc6138_ldp_sync_cutedge_test.go#L57) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

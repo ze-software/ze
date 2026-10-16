@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 6.2% | 1 of 16 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 16 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 16 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 64.7% | 11 of 17 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 82.4% | 14 of 17 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -71,7 +71,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 17 |
 | Tagged units | 17 |
 | Recorded audit verdicts | 6 |
-| Discrimination records | 11 |
+| Discrimination records | 14 |
 | Summary | `rfc/short/rfc5838.md` |
 | Requirement shard | `rfc/requirements/rfc5838.md` |
 | RFC text | `rfc/full/rfc5838.txt` |
@@ -181,7 +181,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | negative | [`TestRFC5838NonConformingExternalPrefixNotInRouteComputation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L117) | unit/verify | revert, verified |
 | negative | [`TestRFC5838NonConformingInterAreaPrefixNotInRouteComputation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L93) | unit/verify | revert, verified |
 | negative | [`TestRFC5838NonConformingPrefixNotInRouteComputation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L23) | unit/verify | revert, verified |
-| positive | [`TestIPv4OverV3BuildRoutes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_afstrategy_v6_test.go#L283) | unit/verify | unproven |
+| positive | [`TestIPv4OverV3BuildRoutes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_afstrategy_v6_test.go#L283) | unit/verify | revert, verified |
 
 ### [`RFC5838-2.4-1`](#rfc5838-2.4-1)
 
@@ -294,8 +294,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5838VirtualLinkRequiresLocalGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L143) | unit/verify | revert, verified |
-| negative | [`TestV6VirtualEndpointRequiresGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L554) | unit/verify | unproven |
-| positive | [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L518) | unit/verify | unproven |
+| negative | [`TestV6VirtualEndpointRequiresGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L554) | unit/verify | revert, verified |
+| positive | [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L518) | unit/verify | revert, verified |
 
 ### [`RFC5838-4-1`](#rfc5838-4-1)
 

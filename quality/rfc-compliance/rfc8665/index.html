@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>10.4%</strong><b>5 of 48 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 48 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 48 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>42.7%</strong><b>41 of 96 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>54.2%</strong><b>52 of 96 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -239,7 +239,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>29</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>41</td>
+<td>52</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8665.md</code></td>
@@ -1324,7 +1324,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L189" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665RangeOrderStableAcrossRestart</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1573,7 +1573,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L311" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665NoPHPKeepsPrefixSIDLabel</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_explicit_null_label_test.go#L16" title="internal/plugins/ospf/rfc8665_explicit_null_label_test.go" target="_blank" rel="noopener"><code>TestRFC8665ExplicitNullPushedAsLabelZero</code></a></td>
@@ -1583,7 +1583,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L344" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665ExplicitNullReplacesPrefixSID</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1643,7 +1643,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L329" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665DuplicatePrefixSIDsAllIgnored</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go#L19" title="internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go" target="_blank" rel="noopener"><code>TestRFC8665TILFAIgnoresDuplicatePrefixSIDs</code></a></td>
@@ -1663,7 +1663,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L261" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go#L17" title="internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go" target="_blank" rel="noopener"><code>TestRFC8665TILFAIgnoresDuplicatePrefixSIDs</code></a></td>
@@ -1766,7 +1766,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L313" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665NoPHPKeepsPrefixSIDLabel</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_explicit_null_label_test.go#L19" title="internal/plugins/ospf/rfc8665_explicit_null_label_test.go" target="_blank" rel="noopener"><code>TestRFC8665ExplicitNullPushedAsLabelZero</code></a></td>
@@ -1776,7 +1776,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L347" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665ExplicitNullReplacesPrefixSID</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1877,7 +1877,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L469" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDWithdrawKeyedByAdjacency</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_adjsid_withdraw_test.go#L20" title="internal/plugins/ospf/rfc8665_adjsid_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDWithdrawnThroughNeighborSink</code></a></td>
@@ -1887,7 +1887,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L434" title="internal/plugins/ospf/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665AdjSIDWithdrawnWhenAdjacencyDrops</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1952,7 +1952,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L475" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665TruncatedTLVsRejectedWithoutPanic</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_length_before_flags_test.go#L68" title="internal/plugins/ospf/sr_length_before_flags_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthBeforeFlagsIgnoresLSA</code></a></td>
@@ -1982,7 +1982,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L463" title="internal/plugins/ospf/sr/rfc8665_test.go" target="_blank" rel="noopener"><code>TestRFC8665WellFormedTLVsDecode</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_length_before_flags_test.go#L56" title="internal/plugins/ospf/sr_length_before_flags_test.go" target="_blank" rel="noopener"><code>TestRFC8665LengthBeforeFlagsIgnoresLSA</code></a></td>
@@ -2353,7 +2353,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

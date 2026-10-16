@@ -22,14 +22,14 @@ SID. Ze does not allocate egress Service SIDs or install endpoint behaviors.
 |---------|-------------|
 | Attribute parsing | PrefixSID (code 40) stored as opaque bytes; SRv6 SID extracted lazily at best-path time |
 | L3/L2 Service TLVs | Types 5 (L3 Service) and 6 (L2 Service) per RFC 9252 Section 3.1 |
-| SID extraction | First SRv6 SID Information Sub-TLV (type 1) within the Service TLV |
+| SID extraction | First SRv6 SID Information Sub-TLV (type 1) within the first L3 (type 5) and the first L2 (type 6) Service TLV; a later instance of a type is ignored even when the first holds no valid SID |
 | Transposition | SID Structure Sub-Sub-TLV reconstructs full SID from NLRI label bits (VPN/EVPN) |
-| Path ineligibility | Partial: excludes paths with no extractable SID, but invalid SID Structure parameters can still pass best-path admission |
+| Path ineligibility | Excludes a path whose Service TLVs leave it no SID valid for its family: no SID, an invalid SID Structure, a transposition wider than the label field, or any transposition on a family without one |
 | SID resolvability | SRv6 SID must have a covering route in Loc-RIB before FIB installation |
 | EBGP filtering | PrefixSID from EBGP peers discarded unless `accept-srv6-prefix-sid` is set |
 | EBGP propagation | PrefixSID removed on every rail that writes an UPDATE unless `propagate-srv6-prefix-sid` is set: the two forward rails, the two origination rails, and the API/readvertise announce rail |
 | Validation | Malformed SRv6 Service TLVs trigger treat-as-withdraw (RFC 9252 Section 3.4) |
-| Propagation | Label-Index Reserved and Flags are cleared on every transmission, including relay. Originator SRGB and unknown TLVs remain byte-identical. A next-hop change removes only the SRv6 Service TLVs (types 5 and 6), with the whole attribute leaving if no TLV remains; the SR domain boundary strips it whole |
+| Propagation | Label-Index Reserved and Flags are cleared on every transmission on IPv4/IPv6 labeled unicast, including relay; on every other family the Label-Index TLV is unrecognized and leaves octet-equal. Originator SRGB and unknown TLVs remain byte-identical. A next-hop change removes only the SRv6 Service TLVs (types 5 and 6), with the whole attribute leaving if no TLV remains; the SR domain boundary strips it whole |
 | Linux FIB | SEG6 lwtunnel encap via netlink |
 | VPP FIB | Single-Service-SID encapsulation policy, distinct local BSID, and per-prefix/table steering; shared policies are removed after their last reference |
 
@@ -170,7 +170,7 @@ RFC 7606 validator: checks TLV structure, rejects malformed
 EBGP filter: discards attr 40 unless accept-srv6-prefix-sid is set
   |
   v
-RIB best-path: isSRv6Ineligible() excludes SRv6 paths with no extractable SID
+RIB best-path: isSRv6Ineligible(fam, entry) excludes SRv6 paths with no SID valid for the family
   |
   v
 Best-path emission: storedPathSRv6SID() extracts SID from the winner's OtherAttrs
@@ -203,11 +203,16 @@ Origination rails: the configured PrefixSID and any raw attribute 40 are dropped
 
 The final session writers clear the Label-Index Reserved octet and both Flags
 octets in their private outgoing buffer after export policy (RFC 8669 Section
-3.1). This applies to forwarded routes as well as originated routes, without an
+3.1), on IPv4/IPv6 labeled unicast only. RFC 8669 Section 3.1 defines the TLV
+for those families alone ("It MUST be ignored when received for other BGP
+AFI/SAFI combinations"), so elsewhere it is an unknown TLV and is propagated
+unmodified (Section 6). The family is read (`attribute.PrefixSIDRouteFamily`)
+only once a TLV that needs clearing is met; an unreadable family leaves the
+body unmodified. This applies to forwarded routes as well as originated routes, without an
 extra buffer or a change to the borrowed received UPDATE. The Section 3.2
 unchanged-propagation rule applies specifically to Originator SRGB: its bytes
 are never normalized on relay.
-<!-- source: internal/component/bgp/reactor/session_prefix_sid.go -- clearTransmittedLabelIndex -->
+<!-- source: internal/component/bgp/reactor/session_prefix_sid.go -- clearLabelIndexTLVs -->
 
 Forwarding compares the received next-hop entity with the effective address
 after export policy, configured rewriting and Link-Local scope normalization.
@@ -258,7 +263,18 @@ NLRI instead of in the SID Information Sub-TLV. Ze reconstructs the full SID:
 4. OR label bits into SID at the specified bit offset
 
 When Transposition Length is 0, no reconstruction is needed (the full SID is
-in the Sub-TLV). This is the common case for IPv6 unicast.
+in the Sub-TLV). This is the common case for IPv6 unicast, and the only one
+valid there: RFC 9252 Section 7 requires the offset and length to be 0 on a
+family the Transposition Scheme does not apply to, so a non-zero length on
+IPv6 unicast or labeled unicast leaves the path with no valid SID.
+
+A SID Structure that fails a Section 3.2.1 condition makes the SID invalid,
+and nothing is installed from it: a length other than 6, LBL+LNL+FL+AL above
+128 or below Transposition Offset + Transposition Length (erratum 7817), a
+Transposition Length of 0 with a non-zero offset, or a non-zero Argument
+Length (ze knows no Endpoint Behavior, so it ignores every SID with
+arguments). The family-free checks are in `parseSIDStructure`; the label
+width bound, 20 bits on VPN and 24 on EVPN, is `nlrisplit.TranspositionLabelWidth`.
 
 ## FIB Backends
 
@@ -297,7 +313,8 @@ the VPP dispatch logic.
 | Unknown TLVs preserved on propagation | 3 | Implemented (opaque forwarding) |
 | EBGP: discard unless configured to accept | 4 | Implemented (`accept-srv6-prefix-sid`) |
 | Propagation to other ASes explicitly configured | 8 | Implemented (`propagate-srv6-prefix-sid`): every rail that writes an UPDATE asks |
-| Malformed attribute: attribute-discard | 6 | Partial: a TLV overrunning the attribute and trailing octets are discarded; a TLV length outside its type's constraint and an empty attribute are not refused yet (`plan/immediate/spec-bgp-prefix-sid-rfc-defects.md`, D1) |
+| Malformed attribute: attribute-discard | 6 | Implemented: on IPv4/IPv6 labeled unicast a Label-Index TLV of a length other than 7, an Originator SRGB TLV of a length other than 2 + 6N (N >= 1), a TLV overrunning the attribute and trailing octets discard attribute 40; an empty attribute is discarded on every family. Off labeled unicast types 1 and 3 are unrecognized and kept whatever their length (`attribute.ClassifyPrefixSID`) |
+| Invalid attribute (no Label-Index on labeled unicast) | 4.1, 6 | Implemented: attribute-discard on IPv4/IPv6 labeled unicast; kept on other families |
 | Repeated single-occurrence TLV: all but the first discarded | 6 | Implemented: Label-Index, SRv6 L3 and L2 Service TLVs, at ingest, so neither the RIB nor any relay sees the repeat |
 
 ### RFC 9252 (SRv6 Overlay Services)
@@ -310,15 +327,17 @@ the VPP dispatch logic.
 | First SID Sub-TLV preferred | 3.2 SHOULD | Implemented |
 | SID Structure Sub-Sub-TLV | 3.2.1 | Implemented |
 | Transposition reconstruction | 3.2.1 | Implemented (VPN/EVPN) |
-| LBL+LNL+FL+AL <= 128 validation | 3.2.1 | Partial: the sum is checked (errata 7817), but a SID Structure that fails it is only dropped from transposition, and the SID is still used whole instead of being invalid (`plan/immediate/spec-bgp-prefix-sid-rfc-defects.md`, D3) |
+| LBL+LNL+FL+AL <= 128 validation | 3.2.1 | Implemented: a SID Structure that fails the sum (errata 7817), is not 6 octets, carries a zero length with a non-zero offset, or carries a non-zero AL makes the SID invalid |
+| Second L3 or L2 Service TLV ignored | 7 | Implemented: only the first instance of each type is read, whatever it holds |
 | NH unchanged: preserve TLVs | 2 | Implemented: effective address identity, including explicit A-to-A; Reserved and unknown nested bytes are retained |
 | NH changed: SRv6 Service TLVs removed, other TLVs kept | 2 | Implemented removal after policy and configured rewrites, including policy-only changes under `auto` or `unchanged`. Local SID allocation/rebuilding remains unimplemented |
-| Malformed Service TLV: treat-as-withdraw | 7 | Partial: a Service TLV overrunning the attribute gets attribute-discard instead (spec D2) |
-| Path ineligibility (no valid SID) | 7 | Partial: invalid SID Structure parameters and transposition widths can still pass best-path admission (spec D3, D4) |
+| Malformed Service TLV: treat-as-withdraw | 7 | Implemented: on every family, including a Service TLV whose length overruns the attribute and stray octets inside a SID Information Sub-TLV; off labeled unicast a framing error met after a Service TLV is that TLV's length disagreeing with the attribute, so treat-as-withdraw too |
+| Path ineligibility (no valid SID) | 7 | Implemented: `candidateAdmitted` excludes a path whose only SID is invalid, or whose transposition is wider than its family's label field; an unreadable attribute set is excluded too, logged once |
 | SID resolvability before best-path selection | 5 | Partial: sysrib blocks FIB installation without a resolvable SID; BGP pre-selection filtering is not implemented |
 
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- isSRv6Ineligible, srv6SIDFromResult -->
-<!-- source: internal/component/bgp/plugins/rib/pool/srv6sid.go -- ExtractSRv6SID, parseSIDStructure -->
+<!-- source: internal/component/bgp/plugins/rib/pool/srv6sid.go -- ExtractSRv6SIDFull, parseSIDStructure -->
+<!-- source: internal/core/bgp/nlri/nlrisplit/transposition.go -- TranspositionLabelWidth -->
 
 ## Limitations
 

@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 4.3% | 1 of 23 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 23 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 23 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 35.6% | 16 of 45 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 44.4% | 20 of 45 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -71,7 +71,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 45 |
 | Tagged units | 45 |
 | Recorded audit verdicts | 13 |
-| Discrimination records | 16 |
+| Discrimination records | 20 |
 | Summary | `rfc/short/rfc5340.md` |
 | Requirement shard | `rfc/requirements/rfc5340.md` |
 | RFC text | `rfc/full/rfc5340.txt` |
@@ -330,9 +330,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5340ReservedHeaderOctetZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_reserved_send_test.go#L29) | unit/verify | revert, verified |
-| negative | [`TestRFC5340ReservedHeaderOctetIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L377) | unit/verify | unproven |
+| negative | [`TestRFC5340ReservedHeaderOctetIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L377) | unit/verify | revert, verified |
 | positive | [`TestRFC5340ReservedHeaderOctetZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_reserved_send_test.go#L25) | unit/verify | revert, verified |
-| positive | [`TestRFC5340ReservedHeaderOctetIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L373) | unit/verify | unproven |
+| positive | [`TestRFC5340ReservedHeaderOctetIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L373) | unit/verify | revert, verified |
 
 ### [`RFC5340-A.4.7-1`](#rfc5340-a.4.7-1)
 
@@ -395,9 +395,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Both
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5340FloodIncrementsAgeByInfTransDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_flood_age_test.go#L73) | unit/verify | revert, verified |
-| negative | [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L439) | unit/verify | unproven |
+| negative | [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L439) | unit/verify | revert, verified |
 | positive | [`TestRFC5340FloodIncrementsAgeByInfTransDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_flood_age_test.go#L66) | unit/verify | revert, verified |
-| positive | [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L436) | unit/verify | unproven |
+| positive | [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L436) | unit/verify | revert, verified |
 
 ### [`RFC5340-C.3-3`](#rfc5340-c.3-3)
 

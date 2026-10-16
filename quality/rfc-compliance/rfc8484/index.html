@@ -734,7 +734,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 </div>
 <h3><a href="#rfc8484-6-2"><code>RFC8484-6-2</code></a></h3>
 <p>When using the GET method, the data payload for this media type MUST be encoded with base64url [RFC4648] and then provided as a variable named &#34;dns&#34; to the URI Template expansion. (§6)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Both clauses: a query whose ID 0xfbff makes base64url begin &#39;-_&#39; is answered under &#39;dns&#39; (200 + A); the same octets in standard base64 (&#39;+/&#39;) under &#39;dns&#39; are refused 400 (the &#39;*&#39; of the HEAD negative is in neither alphabet), and the base64url value under &#39;query&#39; is refused 400. Records: dohRequestBody revert, both polarities observed red.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Re-judged 2026-09-30. Both clauses: a query whose ID 0xfbff makes base64url begin &#39;-_&#39; is answered under &#39;dns&#39; (200 + A); the same octets in standard base64 (&#39;+/&#39;) under &#39;dns&#39; are refused 400 (the &#39;*&#39; of the HEAD negative is in neither alphabet), and the base64url value under &#39;query&#39; is refused 400. Records: dohRequestBody revert, both polarities observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1047,7 +1047,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

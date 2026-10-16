@@ -112,7 +112,7 @@ Each hook is a leaf-list (multiple commands per event). Hooks execute asynchrono
 |---------|-------------|
 | `show bgp healthcheck` | One row for each probe: its name, its group and its state. |
 | `show bgp healthcheck <name>` | One row, with the ten fields of that probe. |
-| `clear bgp healthcheck <name>` | Withdraw current route, reset FSM to INIT, re-check immediately. Returns error if probe is DISABLED. |
+| `clear bgp healthcheck <name>` | Withdraw current route, reset FSM to INIT, re-check once the withdraw is done. The reply can return before the withdraw has run. Returns error if probe is DISABLED. |
 
 Both spellings answer a row set, so `| count`, `| first`, `| last`, `| match`
 and `| display` act on either. The list rows come back in ascending probe name.

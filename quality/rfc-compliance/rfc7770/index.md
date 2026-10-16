@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 11 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 50.0% | 6 of 12 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 75.0% | 9 of 12 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -64,7 +64,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 12 |
 | Tagged units | 12 |
 | Recorded audit verdicts | 4 |
-| Discrimination records | 6 |
+| Discrimination records | 9 |
 | Summary | `rfc/short/rfc7770.md` |
 | Requirement shard | `rfc/requirements/rfc7770.md` |
 | RFC text | `rfc/full/rfc7770.txt` |
@@ -168,12 +168,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. All 
 | negative | [`TestRFC7770ASRICapabilitiesClaimTEOnlyWhenTERuns`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_scope_test.go#L135) | unit/verify | revert, verified |
 | negative | [`TestRFC7770AreaRICapabilitiesFollowTheArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_scope_test.go#L55) | unit/verify | revert, verified |
 | negative | [`TestRFC7770LinkRICapabilitiesFollowTheInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_scope_test.go#L113) | unit/verify | revert, verified |
-| negative | [`TestRICapabilityBitsFromState`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_test.go#L57) | unit/verify | unproven |
+| negative | [`TestRICapabilityBitsFromState`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_test.go#L57) | unit/verify | revert, verified |
 | positive | [`TestRFC7770ASRICapabilitiesClaimTEOnlyWhenTERuns`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_scope_test.go#L147) | unit/verify | revert, verified |
 | positive | [`TestRFC7770AreaRICapabilitiesFollowTheArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_scope_test.go#L49) | unit/verify | revert, verified |
 | positive | [`TestRFC7770LinkRICapabilitiesFollowTheInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_scope_test.go#L108) | unit/verify | revert, verified |
-| positive | [`TestRICapabilityBitsFromState`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_test.go#L63) | unit/verify | unproven |
-| positive | [`TestRICapabilityTEBitFromConfig`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_test.go#L79) | unit/verify | unproven |
+| positive | [`TestRICapabilityBitsFromState`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_test.go#L63) | unit/verify | revert, verified |
+| positive | [`TestRICapabilityTEBitFromConfig`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_test.go#L79) | unit/verify | revert, verified |
 
 ### [`RFC7770-2.6-1`](#rfc7770-2.6-1)
 

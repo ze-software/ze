@@ -4,7 +4,7 @@ Source: `internal/le/rfc`, `rfc/short/*.md`, and `rfc/audit/*.json`.
 
 ## Gate verdict
 
-RED. 2 open gate issues. Check results below names them, up to the 25 this page inlines. Reproduce it with `./le rfc check`. The gate's own line reads `rfc-requirements: 2 violation(s)`.
+OK. Every enrolled MUST-level requirement carries both test polarities or an annotation saying why not. Reproduce it with `./le rfc check`. The gate's own line reads `rfc-requirements OK: 4148 gated MUST-level requirement(s) across 175 enrolled RFC(s); 8689 test tag(s) resolved.`.
 
 ### Overall
 
@@ -12,8 +12,8 @@ the populations every share below is taken over
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 4,011 | 6,452 extracted from 202 summaries | MUST-level requirements the gate HOLDS, across the 152 RFCs Ze implements, out of 4,140 across the 171 RFCs inspected. A population, not a result: the shares beside it are what says how Ze stands. All 175 were analyzed for every MUST they state, so this population cannot be short. |
-| Out of scope | 707 | of 4,011 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Gated MUSTs | 4,011 | 6,453 extracted from 202 summaries | MUST-level requirements the gate HOLDS, across the 152 RFCs Ze implements, out of 4,140 across the 171 RFCs inspected. A population, not a result: the shares beside it are what says how Ze stands. All 175 were analyzed for every MUST they state, so this population cannot be short. |
+| Out of scope | 705 | of 4,011 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 
 ### Positive
 
@@ -21,11 +21,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Proven by test | 64.6% | 2,593 of 4,011 gated MUSTs across the 152 RFCs Ze implements | the share this site publishes everywhere: Tested both ways and One polarity plus reason added together, two of the five shares that partition the same denominator. That denominator keeps the {not-applicable} obligations, so annotating a requirement away cannot raise it |
-| Tested both ways | 55.8% | 2,240 of 4,011 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 8.8% | 353 of 4,011 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Proven by test | 65.1% | 2,610 of 4,011 gated MUSTs across the 152 RFCs Ze implements | the share this site publishes everywhere: Tested both ways and One polarity plus reason added together, two of the five shares that partition the same denominator. That denominator keeps the {not-applicable} obligations, so annotating a requirement away cannot raise it |
+| Tested both ways | 56.4% | 2,261 of 4,011 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 8.7% | 349 of 4,011 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 4,011 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 61.9% | 5,138 of 8,299 tagged units in enrolled RFCs, 4 escaped and 0 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 64.1% | 5,403 of 8,423 tagged units in enrolled RFCs, 4 escaped and 0 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Gate verdict | OK | 0 open gate issues | whether ./le rfc check passes over this tree |
 
 ### Neutral
 
@@ -33,10 +34,10 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Not applicable | 16.8% | 673 of 4,011 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Not applicable | 16.7% | 671 of 4,011 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 1.0% | 41 of 4,011 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.8% | 34 of 4,011 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Semantic verdicts | 2,230 | 2 shifted, 0 stale, 1,908 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
+| Semantic verdicts | 2,241 | 0 shifted, 0 stale, 1,899 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
 
 ### Negative
 
@@ -44,9 +45,8 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Partial proof; remaining gap | 0.2% | 8 of 4,011 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 16.5% | 662 of 4,011 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Gate verdict | RED | 2 open gate issues | whether ./le rfc check passes over this tree |
+| Partial proof; remaining gap | 0.3% | 11 of 4,011 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| No test at all | 16.1% | 644 of 4,011 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 8 shares marked as a part above are the whole of the 4,011 gated MUSTs: they add to 100%. Proven by test is the first two of them added together, so it is not a part of its own. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -66,19 +66,19 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Gate verdict | bad | the verdict IS the value: green when the gate passes, red when it does not |
+| Gate verdict | ok | the verdict IS the value: green when the gate passes, red when it does not |
 | Semantic verdicts | neutral | no color: a count of judgements recorded is a scale rather than an outcome, and the shifted and stale counts beside it are the states that need reading |
 
 | Metric | Value |
 |---|---:|
-| Gate issues | 2 |
+| Gate issues | 0 |
 | Gated MUST-level requirements | 4,140 |
 | Enrolled RFCs | 175 |
-| Resolved test tags | 8,560 |
-| Declared gaps | 662 |
+| Resolved test tags | 8,689 |
+| Declared gaps | 644 |
 | RFCs with declared gaps | 77 |
-| Fresh semantic audit verdicts | 2,230 |
-| Shifted semantic audit verdicts | 2 |
+| Fresh semantic audit verdicts | 2,241 |
+| Shifted semantic audit verdicts | 0 |
 | Stale semantic audit verdicts | 0 |
 
 ## Who implements each document
@@ -106,20 +106,20 @@ The ledger counts what Ze implements in its own Go. A document another layer per
 
 ## Requirement buckets
 
-The bar is every one of the 4,011 gated MUST-level requirements. 707 of them are {not-applicable} or {feature-declined}: they do not bind Ze, and they are a named segment of the bar rather than an omission from it.
+The bar is every one of the 4,011 gated MUST-level requirements. 705 of them are {not-applicable} or {feature-declined}: they do not bind Ze, and they are a named segment of the bar rather than an omission from it.
 
 | Bucket | Count | Share of gated | Source condition |
 |---|---:|---:|---|
-| Positive and negative tests | 2,240 | 55.8% | `positive tag + negative tag` |
-| One polarity plus reason | 353 | 8.8% | `{single-polarity} annotation + required tag` |
-| Declared gap | 662 | 16.5% | `{gap} annotation + public ledger disclosure` |
-| Partial proof; remaining gap | 8 | 0.2% | `partial annotation; tested clause only, zero whole-requirement credit` |
+| Positive and negative tests | 2,261 | 56.4% | `positive tag + negative tag` |
+| One polarity plus reason | 349 | 8.7% | `{single-polarity} annotation + required tag` |
+| Declared gap | 644 | 16.1% | `{gap} annotation + public ledger disclosure` |
+| Partial proof; remaining gap | 11 | 0.3% | `partial annotation; tested clause only, zero whole-requirement credit` |
 | One polarity, unexcused | 0 | 0.0% | `tag without annotation` |
 | Missing, unexcused | 0 | 0.0% | `no tag, no annotation` |
-| Not applicable | 673 | 16.8% | `{not-applicable} annotation`: the obligation does not bind Ze, so it is scope rather than coverage |
+| Not applicable | 671 | 16.7% | `{not-applicable} annotation`: the obligation does not bind Ze, so it is scope rather than coverage |
 | Met below Ze | 41 | 1.0% | `{lower-layer} annotation + named producer` |
 | Optional feature declined | 34 | 0.8% | `{feature-declined} annotation + quoted RFC sentence`: the obligation does not bind Ze, so it is scope rather than coverage |
-| **Gated MUST-level requirements** | **4,011** | 100.0% | every gated MUST falls in exactly one bucket above, the 707 that do not bind Ze included. This total is the denominator of every share above it |
+| **Gated MUST-level requirements** | **4,011** | 100.0% | every gated MUST falls in exactly one bucket above, the 705 that do not bind Ze included. This total is the denominator of every share above it |
 
 ## Gap disclosure
 
@@ -193,36 +193,33 @@ These 13 sentences are NOT scope. Each is an obligation Ze owes and has not buil
 | `RFC 7950` | 56 | Partial |
 | `RFC 2205` | 43 | Experimental |
 | `RFC 9012` | 42 | Partial |
-| `DRAFT-IETF-BESS-MUP-SAFI` | 40 | Partial |
 | `RFC 4301` | 34 | Partial |
+| `DRAFT-IETF-BESS-MUP-SAFI` | 31 | Partial |
 | `RFC 3209` | 31 | Experimental |
 | `RFC 2131` | 21 | Partial |
-| `RFC 9830` | 18 | Partial |
 | `RFC 5561` | 16 | Partial |
 | `RFC 1661` | 15 | Partial |
 | `RFC 7432` | 15 | Partial |
+| `RFC 3579` | 14 | Partial |
 
 ## How this is checked
 
-This gate runs before a commit is verified: ./le rfc check is 1 stage of the 52 that ./le verify current mode full runs.
+This gate runs before a commit is verified: ./le rfc check is 1 stage of the 53 that ./le verify current mode full runs.
 
 | Input | Producer | What it answered here |
 |---|---|---|
-| Reproduce it | `./le rfc check` | 1 of 52 full-mode verify stages run it |
+| Reproduce it | `./le rfc check` | 1 of 53 full-mode verify stages run it |
 | Requirement source | `rfc/short/*.md` | 4,140 gated MUST-level requirements |
 | Enrolment | `rfc/short/*.md`, the `\| Enrolment \|` Meta row | 175 enrolled RFCs |
-| Test tags | `internal/`, `pkg/`, `test/` | 8,560 resolved tags |
+| Test tags | `internal/`, `pkg/`, `test/` | 8,689 resolved tags |
 | Public ledger | `rfc/short/*.md`, the `\| Support \|` Meta row | 77 RFCs with gaps, 2 Supported with Remaining |
-| Semantic audits | `rfc/audit/*.json` | 2,230 fresh, 2 shifted, 0 stale, 1,908 missing |
-| Pre-commit verification | `internal/le/verify/engine/stages.go` | ./le rfc check, 1 of 52 full-mode stages |
+| Semantic audits | `rfc/audit/*.json` | 2,241 fresh, 0 shifted, 0 stale, 1,899 missing |
+| Pre-commit verification | `internal/le/verify/engine/stages.go` | ./le rfc check, 1 of 53 full-mode stages |
 | Published artifacts | `data/rfc-compliance.json`, `data/rfc-requirements.json` | the same answers this page renders, machine-readable |
 
 ## Check results
 
-| RFC | Requirement | Level | What is wrong | The requirement |
-|---|---|---|---|---|
-| - | `-` | - | rfc/short/rfc4456.md:91: RFC4456-8-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal, internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc4456.md:92: RFC4456-8-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal, internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
+No open issue. Every enrolled MUST-level requirement carries both test polarities or an annotation saying why not.
 
 ## Enrolled RFCs
 
@@ -230,7 +227,7 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 52 
 |---|---|---:|---:|---:|---:|
 | [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY`](draft-abraitis-bgp-version-capability/index.md) Software Version Capability for BGP | Partial | 11 | 0 | 0 | 0 |
 | [`DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT`](draft-abraitis-idr-addpath-paths-limit/index.md) Scalability Considerations for ADD-PATH with PATHS-LIMIT | Supported | 4 | 0 | 0 | 0 |
-| [`DRAFT-IETF-BESS-MUP-SAFI`](draft-ietf-bess-mup-safi/index.md) BGP Extensions for the Mobile User Plane (MUP) SAFI | Partial | 47 | 40 | 0 | 0 |
+| [`DRAFT-IETF-BESS-MUP-SAFI`](draft-ietf-bess-mup-safi/index.md) BGP Extensions for the Mobile User Plane (MUP) SAFI | Partial | 47 | 31 | 0 | 0 |
 | [`DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE`](draft-ietf-idr-bgp-bfd-strict-mode/index.md) BGP BFD Strict-Mode | Partial | 4 | 0 | 0 | 0 |
 | [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY`](draft-ietf-idr-linklocal-capability/index.md) Link-Local Next Hop Capability for BGP | Partial | 15 | 2 | 0 | 0 |
 | [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION`](draft-ietf-sidrops-aspa-verification/index.md) BGP AS_PATH Verification Based on Autonomous System Provider Authorization (ASPA) Objects | Partial | 8 | 1 | 0 | 0 |
@@ -297,7 +294,7 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 52 
 | [`RFC 4724`](rfc4724/index.md) Graceful Restart Mechanism for BGP | Partial | 26 | 8 | 0 | 0 |
 | [`RFC 4760`](rfc4760/index.md) Multiprotocol Extensions for BGP-4 | Supported | 6 | 0 | 0 | 0 |
 | [`RFC 4761`](rfc4761/index.md) Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling | Partial | 18 | 0 | 0 | 0 |
-| [`RFC 5036`](rfc5036/index.md) LDP Specification | Experimental | 90 | 60 | 0 | 0 |
+| [`RFC 5036`](rfc5036/index.md) LDP Specification | Experimental | 91 | 60 | 0 | 0 |
 | [`RFC 5072`](rfc5072/index.md) IP Version 6 over PPP | Partial | 16 | 3 | 0 | 0 |
 | [`RFC 5082`](rfc5082/index.md) The Generalized TTL Security Mechanism (GTSM) | Supported on Linux | 4 | 0 | 0 | 0 |
 | [`RFC 5176`](rfc5176/index.md) Dynamic Authorization Extensions to Remote Authentication Dial In User Service (RADIUS) | Supported for subscriber access | 30 | 0 | 0 | 0 |
@@ -376,7 +373,7 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 52 
 | [`RFC 8654`](rfc8654/index.md) Extended Message Support for BGP | Partial | 12 | 0 | 0 | 0 |
 | [`RFC 8665`](rfc8665/index.md) OSPF Extensions for Segment Routing | Partial | 48 | 14 | 0 | 0 |
 | [`RFC 8666`](rfc8666/index.md) OSPFv3 Extensions for Segment Routing | Partial | 31 | 2 | 0 | 0 |
-| [`RFC 8669`](rfc8669/index.md) Segment Routing Prefix Segment Identifier Extensions for BGP | Partial | 25 | 11 | 0 | 0 |
+| [`RFC 8669`](rfc8669/index.md) Segment Routing Prefix Segment Identifier Extensions for BGP | Partial | 24 | 7 | 0 | 0 |
 | [`RFC 8671`](rfc8671/index.md) Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP) | Supported within BMP sender scope | 10 | 0 | 0 | 0 |
 | [`RFC 8707`](rfc8707/index.md) Resource Indicators for OAuth 2.0 | No public row declared | 2 | 0 | 0 | 0 |
 | [`RFC 8907`](rfc8907/index.md) The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol | Partial | 56 | 0 | 0 | 0 |
@@ -393,15 +390,15 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 52 
 | [`RFC 9117`](rfc9117/index.md) Revised Validation Procedure for BGP Flow Specifications | Partial | 2 | 0 | 0 | 0 |
 | [`RFC 9136`](rfc9136/index.md) IP Prefix Advertisement in Ethernet VPN (EVPN) | Partial | 14 | 5 | 0 | 0 |
 | [`RFC 9234`](rfc9234/index.md) Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages | Supported | 19 | 0 | 0 | 0 |
-| [`RFC 9252`](rfc9252/index.md) BGP Overlay Services Based on Segment Routing over IPv6 (SRv6) | Partial | 25 | 8 | 0 | 0 |
+| [`RFC 9252`](rfc9252/index.md) BGP Overlay Services Based on Segment Routing over IPv6 (SRv6) | Partial | 25 | 5 | 0 | 0 |
 | [`RFC 9256`](rfc9256/index.md) Segment Routing Policy Architecture | Partial | 22 | 7 | 0 | 0 |
 | [`RFC 9494`](rfc9494/index.md) Long-Lived Graceful Restart for BGP | Partial | 25 | 5 | 0 | 0 |
 | [`RFC 9514`](rfc9514/index.md) Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing over IPv6 (SRv6) | Partial | 20 | 3 | 0 | 0 |
 | [`RFC 9552`](rfc9552/index.md) Distribution of Link-State and Traffic Engineering Information Using BGP | Partial | 59 | 3 | 0 | 0 |
-| [`RFC 9568`](rfc9568/index.md) Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6 | Partial | 66 | 4 | 0 | 0 |
+| [`RFC 9568`](rfc9568/index.md) Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6 | Partial | 66 | 6 | 0 | 0 |
 | [`RFC 9687`](rfc9687/index.md) Border Gateway Protocol 4 (BGP-4) Send Hold Timer | Supported | 13 | 0 | 0 | 0 |
 | [`RFC 9728`](rfc9728/index.md) OAuth 2.0 Protected Resource Metadata | Partial | 26 | 0 | 0 | 0 |
-| [`RFC 9830`](rfc9830/index.md) BGP Extensions for the Advertisement of Segment Routing (SR) Policies | Partial | 97 | 18 | 0 | 0 |
+| [`RFC 9830`](rfc9830/index.md) BGP Extensions for the Advertisement of Segment Routing (SR) Policies | Partial | 97 | 13 | 0 | 0 |
 | [`SFLOW-V5`](sflow-v5/index.md) sFlow: A Method for Monitoring Traffic in Switched and Routed Networks | Experimental | 32 | 8 | 0 | 0 |
 
 ## Summaries that are not enrolled

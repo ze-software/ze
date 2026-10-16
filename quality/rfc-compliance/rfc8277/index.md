@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 5.7% | 2 of 35 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 35 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 35 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 83.1% | 54 of 65 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 83.8% | 57 of 68 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -69,10 +69,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 65 |
-| Tagged units | 65 |
+| Test tags | 68 |
+| Tagged units | 68 |
 | Recorded audit verdicts | 12 |
-| Discrimination records | 54 |
+| Discrimination records | 57 |
 | Summary | `rfc/short/rfc8277.md` |
 | Requirement shard | `rfc/requirements/rfc8277.md` |
 | RFC text | `rfc/full/rfc8277.txt` |
@@ -156,7 +156,7 @@ MUST-level gaps are each annotated in [`rfc/short/rfc8277.md`](https://github.co
 | `RFC8277-3.2.2-2` | A BGP speaker MUST NOT send multiple labels to a peer with which it has not exchanged the Multiple Labels Capability (§3.2.2) | MUST NOT | 3.2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no capability code 8 is ever exchanged (internal/core/bgp/capability/capability.go:68-78), and the egress path applies no label-count limit -- BuildLabeledUnicastNLRIBytes encodes every label in LabeledUnicastParams.Labels (internal/component/bgp/message/update_build_labeled.go:257) and the forwarding path copies a received multi-label NLRI verbatim (internal/component/bgp/reactor/filter_delta_handlers.go:241) |
 | `RFC8277-3.2.2-3` | It can decide not to propagate the route to the given peer. In that case, if a previous route with the same AFI, SAFI, and prefix (but with fewer labels) has already been propagated to that peer, that route MUST be withdrawn from that peer using the procedure of Section 2.4. (§3.2.2) | MUST | 3.2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the changed-next-hop label-count decision and its paired withdrawal are not implemented. internal/component/bgp/reactor/filter_delta_handlers.go::mpReachNextHopHandler replaces the next hop and retains the entire NLRI without a recipient label-count decision; internal/component/bgp/message/update_build_labeled.go::BuildLabeledUnicastNLRIBytes serializes the supplied stack without such a decision. No Multiple Labels Capability count is available. The unchanged-next-hop withdrawal gap remains separately recorded in RFC8277-3.2.1-4; neither branch is counted conformant. Recording this absent capability does not authorize its implementation. |
 | `RFC8277-2.2-4` | Rsrv: This 3-bit field SHOULD be set to zero on transmission (§2.2) | SHOULD | 2.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8277-2.4-2` | Upon transmission, the Compatibility field SHOULD be set to 0x800000. (§2.4) | SHOULD | 2.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8277-2.4-2` | Upon transmission, the Compatibility field SHOULD be set to 0x800000. (§2.4) | SHOULD | 2.4 | **positive:** `unit/verify` [`TestWithdrawalCompatibilityEveryWriter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8277_withdrawal_compatibility_test.go#L138). **positive:** `unit/verify` [`TestWithdrawalCompatibilityOnSend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8277_withdrawal_compatibility_test.go#L42). **negative:** `unit/verify` [`TestWithdrawalCompatibilityOnSend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8277_withdrawal_compatibility_test.go#L43) |
 | `RFC8277-2.1-16` | A BGP speaker SHOULD NOT send an UPDATE that binds more labels to a given prefix than its peer is capable of receiving, as specified in the Multiple Labels Capability sent by that peer. (§2.1) | SHOULD NOT | 2.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8277-2.5-4` | BGP speaker S1 SHOULD treat this as an indication that N1 has at least two paths to P (§2.5) | SHOULD | 2.5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8277-2.5-5` | S1 MAY use this fact to do load-balancing of any traffic that it has to send to P. (§2.5) | MAY | 2.5 | **positive:** no positive test. **negative:** no negative test |
@@ -551,6 +551,18 @@ It can decide not to propagate the route to the given peer. In that case, if a p
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Rejudged RFC 8277 Section 3.2.2 independently. When propagation of a changed-next-hop replacement stack is declined because the recipient cannot handle it, the earlier same-AFI/SAFI/prefix fewer-label route requires a Section 2.4 withdrawal. mpReachNextHopHandler still replaces only the next-hop field and retains the whole NLRI tail; BuildLabeledUnicastNLRIBytes serializes every supplied label. Multiple Labels capability/count admission and its coupled changed-next-hop withdrawal decision remain absent. No tagged test proves this row; TestLabeledPropagationChangedNextHopReusesReceivedLabelGap observes unchanged upstream labels after a next-hop rewrite, not the required withdrawal. Ordinary withdrawal ownership does not supply the missing label-count trigger. Preserve the explicit gap separately from RFC8277-3.2.1-4; absence is neither vacuous conformance nor authorization to implement the feature.
 
 No test carries RFC8277-3.2.2-3, so no unit is bound to it.
+
+### [`RFC8277-2.4-2`](#rfc8277-2.4-2)
+
+Upon transmission, the Compatibility field SHOULD be set to 0x800000. (§2.4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestWithdrawalCompatibilityOnSend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8277_withdrawal_compatibility_test.go#L43) | unit/verify | mutant, verified |
+| positive | [`TestWithdrawalCompatibilityEveryWriter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8277_withdrawal_compatibility_test.go#L138) | unit/verify | revert, verified |
+| positive | [`TestWithdrawalCompatibilityOnSend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8277_withdrawal_compatibility_test.go#L42) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

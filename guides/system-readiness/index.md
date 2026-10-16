@@ -45,8 +45,9 @@ remediation guidance.
 | `doctor-plugin-missing` | Plugin binary on PATH |
 | `doctor-plugin-shell-missing` | The shell an external plugin is started with. Ze runs the `run` string as `/bin/sh -c <run>`, so a host with no shell, such as a gokrazy appliance image, starts none of them <!-- source: internal/component/plugin/doctor/check_shell.go -- diagnosePluginShell --> |
 | `doctor-hub-managed-collision` | A `plugin/hub/server` block declares managed clients on the address the plugin acceptor binds, so its managed listener cannot bind and its clients are refused <!-- source: internal/component/plugin/doctor/check_managed_listener.go -- diagnoseManagedListener --> |
-| `doctor-service-executable` | Installed systemd unit `ExecStart` points to an executable ze binary |
+| `doctor-service-executable` | Installed systemd unit `ExecStart` points to an executable ze binary, and every `ExecReload` program exists and is executable |
 | `doctor-service-user` / `doctor-service-group` | User/group referenced by installed `ze.service` exists |
+| `doctor-service-stop` | The stop settings systemd applies to the installed `ze.service` (`systemctl show -p TimeoutStopUSec -p KillMode`, drop-ins included) give ze its whole stop: a timeout of at least 90 s (60 s drain ceiling plus 30 s teardown) and `KillMode=mixed`. A host with no `systemctl` is told it does not run systemd and that the unit file is stale; any other failed query carries systemctl's own error <!-- source: internal/plugins/systemd/doctor.go -- checkServiceStop, stopQueryFailure --> |
 | `doctor-ssh-hostkey-missing` | SSH host key |
 | `doctor-listen-unavailable` | Port binding |
 | `doctor-iface-missing` / `doctor-iface-down` | Interface existence and state |
@@ -205,7 +206,7 @@ registration, then handle the `doctor-check` callback at runtime.
 Declaration (in `sdk.Registration`):
 
 ```go
-p.Run(ctx, sdk.Registration{
+p.Run(ctx, &sdk.Registration{
     DoctorChecks: []rpc.DoctorCheckDecl{{
         Name:         "my-cache-reachable",
         Phase:        rpc.DoctorPhasePostConfig,

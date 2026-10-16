@@ -260,6 +260,15 @@ In process, the RIB subscribes to Loc-RIB changes and reruns selection over
 every retained route after each change, coalescing bursts into one pending
 scan. A change of interior cost alone, with no BGP UPDATE, therefore moves the
 best path, whether or not the candidates carry AIGP.
+
+The same walk runs when a config reload changes a selection rule
+(`maximum-paths`, `relax-as-path`, or the blackhole honoring rules). The RIB
+installs the new rules in the commit's apply phase and reselects there, so a
+prefix that receives no further UPDATE still answers under the new rule. A
+rollback installs the previous rules the same way and reselects again. The walk
+runs one election per route, keyed by the prefix for a CIDR family and by the
+route key otherwise, never by the path identifier: one election already
+gathers the path of every peer holding the prefix.
 <!-- source: internal/component/bgp/plugins/rib/rib_aigp.go -- runAIGPSelection, reselectAIGPRoutes -->
 
 The RIB reads interior distances from the engine's registered `route-metrics`

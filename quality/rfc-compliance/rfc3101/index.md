@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 26 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 26 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 26 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 47.6% | 49 of 103 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 59.2% | 61 of 103 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -72,7 +72,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 108 |
 | Tagged units | 103 |
 | Recorded audit verdicts | 28 |
-| Discrimination records | 49 |
+| Discrimination records | 61 |
 | Summary | `rfc/short/rfc3101.md` |
 | Requirement shard | `rfc/requirements/rfc3101.md` |
 | RFC text | `rfc/full/rfc3101.txt` |
@@ -166,9 +166,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. c22 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFNSSANbitMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go#L68) | unit/verify | unproven |
+| negative | [`TestOSPFNSSANbitMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go#L68) | unit/verify | revert, verified |
 | negative | [`TestRFC3101HelloOptionsMismatchDroppedOnEveryAreaType`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_options_test.go#L56) | unit/verify | revert, verified |
-| positive | [`TestOSPFNSSANbitMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go#L46) | unit/verify | unproven |
+| positive | [`TestOSPFNSSANbitMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go#L46) | unit/verify | revert, verified |
 | positive | [`TestRFC3101HelloOptionsMatchingAreaTypeAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_options_test.go#L38) | unit/verify | revert, verified |
 
 ### [`RFC3101-2.1-2`](#rfc3101-2.1-2)
@@ -190,9 +190,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. c22 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFNSSANbitMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go#L70) | unit/verify | unproven |
+| negative | [`TestOSPFNSSANbitMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go#L70) | unit/verify | revert, verified |
 | negative | [`TestRFC3101NSSAHelloWithNAndESetRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_options_test.go#L99) | unit/verify | revert, verified |
-| positive | [`TestOSPFNSSANbitMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go#L50) | unit/verify | unproven |
+| positive | [`TestOSPFNSSANbitMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go#L50) | unit/verify | revert, verified |
 | positive | [`TestRFC3101NSSAHelloSentWithNSetAndEClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_options_test.go#L77) | unit/verify | revert, verified |
 
 ### [`RFC3101-2.3-1`](#rfc3101-2.3-1)
@@ -214,9 +214,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. c22 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFType7FloodScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_test.go#L92) | unit/verify | unproven |
+| negative | [`TestOSPFType7FloodScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_test.go#L92) | unit/verify | revert, verified |
 | negative | [`TestRFC3101Type7NotFloodedIntoAnotherNSSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go#L70) | unit/verify | revert, verified |
-| positive | [`TestOSPFType7FloodScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_test.go#L86) | unit/verify | unproven |
+| positive | [`TestOSPFType7FloodScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_test.go#L86) | unit/verify | revert, verified |
 | positive | [`TestRFC3101Type7FloodedWithinItsNSSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go#L57) | unit/verify | revert, verified |
 
 ### [`RFC3101-2.4-1`](#rfc3101-2.4-1)
@@ -263,8 +263,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_border_default_pbit_test.go#L23) | unit/verify | revert, verified |
-| positive | [`TestOSPFNSSABorderRouterDefaultsEveryArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go#L38) | unit/verify | unproven |
-| positive | [`TestOSPFv3NSSABorderRouterOriginatesDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go#L71) | unit/verify | unproven |
+| positive | [`TestOSPFNSSABorderRouterDefaultsEveryArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go#L38) | unit/verify | revert, verified |
+| positive | [`TestOSPFv3NSSABorderRouterOriginatesDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go#L71) | unit/verify | revert, verified |
 
 ### [`RFC3101-2.4-5`](#rfc3101-2.4-5)
 
@@ -365,11 +365,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. c23 
 |---|---|---|---|
 | negative | [`TestRFC3101NoNSSAAttachedEBitClearEverywhere`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go#L75) | unit/verify | revert, verified |
 | negative | [`TestRFC3101NSSABorderRouterSetsEBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go#L48) | unit/verify | revert, verified |
-| negative | [`TestOSPFASBRBitFromNSSAType7`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go#L76) | unit/verify | unproven |
+| negative | [`TestOSPFASBRBitFromNSSAType7`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go#L76) | unit/verify | revert, verified |
 | negative | [`TestRFC3101V6NoNSSAAttachedEBitClearEverywhere`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go#L94) | unit/verify | revert, verified |
 | positive | [`TestRFC3101NSSABorderEBitInEveryNonStubArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go#L63) | unit/verify | revert, verified |
 | positive | [`TestRFC3101NSSABorderRouterSetsEBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go#L36) | unit/verify | revert, verified |
-| positive | [`TestOSPFASBRBitFromNSSAType7`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go#L90) | unit/verify | unproven |
+| positive | [`TestOSPFASBRBitFromNSSAType7`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go#L90) | unit/verify | revert, verified |
 | positive | [`TestRFC3101V6NSSABorderEBitInEveryNonStubArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go#L75) | unit/verify | revert, verified |
 
 ### [`RFC3101-2.7-1`](#rfc3101-2.7-1)
@@ -421,8 +421,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFNSSAPbitNotTranslated`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_test.go#L188) | unit/verify | unproven |
-| negative | [`TestOSPFNSSATranslation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_test.go#L142) | unit/verify | unproven |
+| negative | [`TestOSPFNSSAPbitNotTranslated`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_test.go#L188) | unit/verify | revert, verified |
+| negative | [`TestOSPFNSSATranslation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_test.go#L142) | unit/verify | revert, verified |
 | negative | [`TestRFC3101TranslatedType5FollowsSourceFields`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_translation_test.go#L19) | unit/verify | revert, verified |
 | positive | [`TestOSPFNSSATranslation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_test.go#L127) | unit/verify | revert, verified |
 

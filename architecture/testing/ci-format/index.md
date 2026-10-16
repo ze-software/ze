@@ -238,7 +238,14 @@ cmd=foreground:seq=1:exec=ze bgp decode --json --family ipv4/unicast -:stdin=pay
 expect=json:json={ "type": "update", ... }
 ```
 
-The block is PIPED: the `-` belongs to `decode`, not to the daemon.
+The block is PIPED: the `-` belongs to `decode`, not to the daemon. The decode
+suite runs that `exec=` line as written, with `ze` replaced by the binary under
+test and the block piped as one line. Until 2026-10-14 it lifted the flags off
+the line and ran an argv of its own ending in the hex string, so the command
+text was never executed.
+<!-- source: internal/test/runner/decoding_ci.go -- parseDecodeCmdLine -->
+<!-- source: internal/test/runner/decoding.go -- decodingRunner.runTest -->
+<!-- test: internal/test/runner/decoding_exec_test.go TestDecodeRunnerExecutesExecLine, TestDecodeRunnerFailsWhenCommandRefuses -->
 
 **Single-line text:**
 ```
@@ -477,7 +484,7 @@ that intentionally submit invalid Ze configuration remain in the gate: their
 The shared draft boundary also excludes `test/draft` before discovery; a
 malformed unpromoted fixture must not redden repository gates.
 <!-- source: internal/test/runner/peer_asn_corpus_test.go -- peerASCorpus, TestPeerASCorpusRejectsNativeParseFailures, TestPeerASCorpusUsesExecutionParsers -->
-<!-- source: internal/test/runner/decoding.go -- DecodingTests.parseCIFile -->
+<!-- source: internal/test/runner/decoding_ci.go -- DecodingTests.parseCIFile -->
 <!-- source: internal/test/cli/cmd_exabgp.go -- parseExaBGPCI -->
 
 #### Observer completion barriers
@@ -549,7 +556,7 @@ wearing a skip's clothing.
 | `graceful-restart` | State ze-peer's own Graceful Restart capability (`restart-time=<N>`, `family=`, `forward-state=`) |
 | `llgr` | State ze-peer's own Long-Lived Graceful Restart capability (`stale-time=<N>`, `family=`, `forward-state=`) |
 | `paths-limit` | State ze-peer's own PATHS-LIMIT entries (`family=`, `limit=<N>`) |
-<!-- source: internal/test/peer/expect.go -- parseOptionConfig; internal/test/peer/open.go -- buildOpen -->
+<!-- source: internal/test/peer/expect_keys.go -- peerValueArms "open"; internal/test/peer/open.go -- buildOpen -->
 
 ### Sender Facts (hold-time, graceful-restart, llgr, paths-limit)
 
@@ -611,7 +618,7 @@ option=open:value=router-id:id=<a.b.c.d>
 
 Ze-peer's default OPEN carries ze's own BGP Identifier with the last octet incremented, which is always a distinct, valid identifier. This option replaces it outright, so a test can present an identifier the default can never produce: `0.0.0.0`, or ze's own router-id (RFC 6286 Section 2.2 rejects both, the second only from an internal peer). A malformed or IPv6 value fails the file when it is read. It was ignored until 2026-09-08, which sent the DEFAULT identifier from a test that asked for an invalid one: the file then tested the valid identifier and passed.
 
-<!-- source: internal/test/peer/expect.go -- parseOptionConfig "router-id"; internal/test/peer/open.go -- openIdentity -->
+<!-- source: internal/test/peer/expect.go -- parseOpenRouterID; internal/test/peer/open.go -- openIdentity -->
 
 ### Capability Control (drop-capability / add-capability)
 
@@ -678,7 +685,7 @@ expectations.
 | `send-default-route` | none | Send one UPDATE for `0.0.0.0/32` via `192.0.2.1`, an address no test host holds, so the route passes the RFC 4271 Section 6.3 next-hop check |
 | `send-route` | `prefix`, `origin-as`, `next-hop`, and optionally `as-path`, `as-set`, `originator-id`, `cluster-list`, `label` | Send one UPDATE for one prefix. Repeat the line for more |
 | `send-bulk` | `prefix`, `count`, `next-hop`, `origin-as`, and optionally `max-msg`, `eor` | Generate `count` sequential prefixes from `prefix` and send them as whole BGP messages |
-<!-- source: internal/test/peer/expect.go -- parseOptionConfig "update"; parseBulkSpec -->
+<!-- source: internal/test/peer/expect_keys.go -- peerValueArms "update"; internal/test/peer/expect.go -- parseBulkSpec -->
 
 `send-default-route` and `send-route` build the AS_PATH that a real speaker
 sends. On an eBGP session, where ze-peer's OPEN AS differs from ze's, the path
@@ -796,16 +803,20 @@ test open either: the runner stops reading its output pipes 10s after the kill.
 without blocking later steps. Its peers or observer determine when teardown starts.
 **Stop:** Terminates a named background process mid-test (see below).
 
-A foreground helper that is the LAST `cmd=` line is the exception, and a file
-that asserts on its output MUST declare `expect=exit:code=`. The runner waits
-for a foreground helper only while another command still follows it; as the last
-line it is classed with the daemons, so it is started and torn down with no
-`Wait`, and its output reaches the accumulators only if it wins that race. The
-exit assertion is what makes the runner wait for it (`fgProc.Wait()`), and the
-code it asserts is that helper's own. Without it an `expect=stdout:contains=`
-over the helper's span reads an empty buffer, and a `reject=` over the same span
-can never fail.
-<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated, the foreground arm and the ExpectExitCode wait -->
+Every foreground helper (any program other than `ze` and the test peer) is
+waited for, the last `cmd=` line included. A helper earlier in the file that
+exits non-zero fails the test as a setup script. The last helper's exit is the
+one `expect=exit:code=` asserts; with no such line a non-zero exit fails the
+test. A helper still running at the test deadline fails it as a timeout that
+names the command: a process the test does not wait for is `cmd=background`.
+
+Until 2026-10-14 the last helper was classed with the daemons: started, torn
+down with no `Wait` unless `expect=exit:code=` was declared, so its output
+reached the accumulators only if it won that race, and a helper that never
+exited passed as a daemon. `test/ui/update-serve.ci` started its server that
+way and now declares it `cmd=background`.
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated, the last-helper arm and lastHelperErr -->
+<!-- test: internal/test/runner/last_helper_test.go TestLastForegroundHelperOutputIsWaitedFor, TestLastForegroundHelperThatNeverExitsTimesOut, TestLastForegroundHelperExitCodeIsItsOwn, TestLastHelperRejectReadsToTheEndOfTheRun -->
 
 When an embedded observer sends `request shutdown`, teardown waits out that
 daemon's bounded self-stop grace before it stops any other background process,
@@ -847,6 +858,16 @@ runs from there: the chaos suites compile `le`, so `exec=le chaos run ...`
 runs that build. Any other name is found on `PATH`. A shim directory on the
 child's `PATH` holds `ze` and `le`, so a plugin `run "le test ..."`
 line in a config reaches the same binaries.
+
+A step that runs an `le` action names the head `le`, never `./le`. An `le`
+head reaches the build the suite chose, as above: the runner's own executable
+when the suite compiled none. `./le` is the
+repository's launcher script, and the runner drops `ZE_LE_BUILD_NAME` from
+every child, so the launcher runs the shared `bin/le`: a suite started with
+`./le --name <build>` would then test an older binary than its own. The
+appliance steps that exec `le test qemu ...` rely on this.
+<!-- source: internal/test/runner/runner_exec.go -- binNameLE head resolution -->
+<!-- source: internal/test/runner/harness_exec.go -- ownExecutable, droppedFromChild -->
 
 **Provenance:** until 2026-09-02 the `.ci` runner split the value on whitespace
 alone while the parse suite honored quotes. The example above was already
@@ -947,53 +968,92 @@ Prefer `exit=` whenever a file runs more than one quick-exit `ze` command. A
 (`hub`, `start`, `cli`, `monitor`) and which has no config-file argument or
 `--web` flag.
 
-#### Every stream assertion is scoped to the command above it
+#### Every stream assertion sits under a command and is scoped to it
 
-`expect=stdout:`, `reject=stdout:`, `expect=stderr:contains=` and
-`reject=stderr:contains=` are checked against the output of the `cmd=` line
-directly above them, and against nothing else. Position is the grammar: the
+Every `expect=stdout:`, `reject=stdout:`, `expect=stderr:` and `reject=stderr:`
+line belongs to the `cmd=` line directly above it. Position is the grammar: the
 line means what its place in the file says it means.
+
+What each line reads depends on its kind, and no reject reads less than it
+did before the scoping:
+
+| Line | Reads |
+|------|-------|
+| `expect=stdout:`, `expect=stderr:` (`contains=`, `pattern=`) | The stream it names, in the span of the command above it |
+| `reject=stdout:contains=`, `reject=stdout:pattern=`, `reject=stderr:contains=` | Both streams of the span of the command above it: the stream name selects nothing. Under the last foreground helper, both streams from its start to the end of the run |
+| `reject=stderr:pattern=` | The WHOLE run's stderr, wherever the line sits: a log check |
+
+An expect cannot be satisfied by output its author never named. A
+`reject=stderr:pattern=` is the file-wide log check it always was (a panic, a
+fatal error, a level a daemon must not log), so it sees every daemon in the
+file, one started after it included, and its position is irrelevant. A
+`contains=` reject has been scoped to its command since 2026-09-14, so it cannot
+trip on a sibling command's output. A reject failure names where the text sits,
+narrowed to the latest command whose span inside the asserting one holds it:
+`cmd seq=1 (ze start): output unexpectedly contains "panic" on stderr, found
+inside the output span of cmd seq=2 (le test fixture x)`. That names a span,
+not an author: a daemon's span covers every byte a later command wrote too.
+<!-- source: internal/test/runner/runner_output_assert.go -- checkCommandAssertions, rejectSpan, forbid, commandWithin -->
+<!-- source: internal/test/runner/runner_validate.go -- validateLogging, reject=stderr:pattern= -->
+<!-- test: internal/test/runner/stream_scope_test.go TestRejectUnderASiblingIgnoresTheDaemon, TestStderrPatternRejectReadsTheWholeRun, TestRejectUnderTheDaemonSeesLaterOutput, TestRejectReadsBothStreamsOfItsSpan, TestRejectNamesTheNarrowestWriter, TestExpectUnderAFixtureIgnoresTheDaemon -->
 
 - **A line with no `cmd=` above it is refused at parse time**, naming the file
   and the line. It named no command's output, so there was nothing for it to
   assert. Move it below the `cmd=` line that produces what it describes.
 - **A line under a `cmd=stop` is refused for the same reason.** A stop directive
   terminates a named background process; it runs no program and writes nothing.
-- **The stream name still selects nothing for `contains=`.** A command's span
-  covers both its streams, because a program is free to write a message to
-  either and a test that pins which one is asserting the wrong thing.
-- **`expect=stderr:pattern=` and `reject=stderr:pattern=` are NOT scoped.**
-  Those are the daemon-logging mechanism `validateLogging` owns, over the
-  daemon's relayed stderr, and they stay file-level.
+- **On an expect, the stream name selects the stream.** `expect=stdout:` reads
+  the command's stdout span alone and `expect=stderr:` its stderr span alone. A
+  miss whose needle the command wrote to the other stream says so. Until
+  2026-10-14 a span covered both streams, so a stdout assertion passed on text
+  written to stderr. A command-scoped reject still reads both streams, because
+  one stream would check less than it did.
+<!-- source: internal/test/runner/runner_output_assert.go -- checkCommandAssertions, commandStdout, commandStderr -->
+<!-- test: internal/test/runner/stream_scope_test.go TestStreamAssertionReadsTheStreamItNames, TestStreamAssertionMissNamesTheOtherStream -->
+- **`expect=stderr:pattern=` reads what `expect=stderr:contains=` reads**: the
+  stderr span of the `cmd=` line above it. Until 2026-10-14 it read the whole
+  run's stderr, so a regex under one command matched a line another command
+  wrote. An expected pattern about a daemon's log lines therefore sits under
+  the `cmd=` line that runs the daemon. `reject=stderr:pattern=` still reads the
+  whole run's stderr. A pattern inside a `stdin=peer` block is parsed after the
+  file's `cmd=` lines, so it belongs to the last of them.
+<!-- source: internal/test/runner/record_parse.go -- parseExpect, parseReject, assertionTarget -->
+<!-- test: internal/test/runner/stream_scope_test.go TestStderrPatternIsScopedToItsCommand, TestStderrPatternNeedsACommand -->
 
 A command's span is the half-open slice of the run's two accumulators it wrote
 between starting and finishing. A quick-exit `ze` marks both ends around its own
 fold, so its span is exact. A background process is still writing when the test
 ends, and a foreground daemon's bytes arrive throughout its life, so both close
 at the final lengths: a long-running command's span can therefore contain bytes
-a later command wrote. A command the run never reached has an EMPTY span, never
-the whole buffer.
+a later command wrote. A foreground helper's span runs from its start to the
+end of the run unless it is the last helper or a quick `ze` command, so an
+expect under a helper earlier in the file can be satisfied by a later
+command's output. The last helper's span ends when it exits, so an expect
+under it reads only what it wrote; a reject under it still reads both streams
+from its start to the end of the run, so the daemon teardown that follows is
+still forbidden. A command the run never reached has an EMPTY span, never the
+whole buffer.
 
-**This replaced a file-level check over one combined buffer.** Every assertion
+**This replaced a file-level check over one combined buffer.** Every expect
 used to read `Record.ClientOutput`, the concatenated stdout AND stderr of every
 command in the file, so an assertion could be satisfied by a command its author
-never named and a reject could trip on any command's output. Two files did
+never named. Two files did
 exactly that: `test/plugin/kernel-capability-unknown-starts.ci` and
 `kernel-capability-doctor-reports.ci` each asserted that `ze doctor` printed a
 diagnostic code and then ran `ze show diagnostic <that code>`, whose output satisfied the
 assertion on a host where the doctor check does not run at all.
 
-So a file no longer needs splitting to make a negative assertion mean something.
-`test/plugin/vpp-doctor-hugepages.ci` and `vpp-doctor-hugepages-quiet.ci`, and
-`test/appliance/no-install-appliance.ci` and `appliance-help-not-deprecated.ci`,
-are each one scenario in two files for a reason that no longer applies; they are
-correct as they stand and splitting a new file for that reason is not.
+Until 2026-09-14 a `contains=` reject read every command's output, so a
+negative assertion that must not see another command's output needed a file of
+its own. `test/plugin/vpp-doctor-hugepages.ci` and
+`vpp-doctor-hugepages-quiet.ci`, and `test/appliance/no-install-appliance.ci`
+and `appliance-help-not-deprecated.ci`, were split for that reason.
 
 A failure names the command: `cmd seq=2 (ze config validate -): output does not
 contain "..."`.
 <!-- source: internal/test/runner/record.go -- RunCommand.ExpectStdout, stdoutFrom -->
 <!-- source: internal/test/runner/record_parse.go -- Record.assertionTarget -->
-<!-- source: internal/test/runner/runner_output_assert.go -- checkCommandAssertions, commandSpan, closeOpenSpans -->
+<!-- source: internal/test/runner/runner_output_assert.go -- checkCommandAssertions, commandStdout, commandStderr, closeOpenSpans -->
 <!-- source: internal/test/runner/runner_exec_util.go -- awaitQuickZe marks the exact span -->
 <!-- source: internal/test/runner/record_parse_cmd.go -- parseCmdExec, markerExit -->
 <!-- source: internal/test/runner/record.go -- RunCommand.ExitCode -->
@@ -1292,6 +1352,34 @@ describe a vocabulary the runner does not have. The line number is the line in
 the FILE: comments, blank lines and whole `stdin=` and `tmpfs=` blocks are
 consumed before the directives are parsed, and the refusal used to count only
 the directives that survived, which named line 2 for a line that was number 69.
+
+The `option=`, `action=`, `cmd=api` and `await=` families each declare one table
+that maps a type to the keys its parser reads, and the accepted types and keys
+in a refusal come from that table. The type is checked first, so
+`option=bogus:65000` is refused as an unknown option type with the accepted
+list. Three segment shapes are then refused before any key is checked: a segment
+with no `=` (`option=asn:65000`), a key given twice, and a key that does not
+start with a letter, which would otherwise be read as part of the value before
+it (`path=out.txt:!contains=x`). The value of `json=`, `text=`, `hex=` or
+`pattern=` runs to the end of the line, so write those keys last. Those four are
+found by substring search in that order, so a value that holds one of them is
+cut there: in `contains=hex=AB` the inner `hex=` becomes a key of its own and
+`contains=` is left empty. The decode suite, the parse suite's `option=env`, and
+the `option=` lines that ze-peer reads in a `stdin=` block refuse in the same
+way, and ze-peer's options are one table of entries that pair what is accepted
+with the parser that reads it. The decode suite does not read the words of its
+`exec=` line: it runs them, so `ze bgp decode` itself refuses a flag it does
+not know and the test fails on its exit status.
+
+```
+line 3: option=asn: a segment has no key: "65000" has no "="; write each field as key=value (accepts value)
+line 4: http=get: key "status" is given twice; keep one
+```
+<!-- source: internal/test/runner/record_parse_vocabulary.go -- recordOptionArms, recordActionArms, recordCmdArms, recordAwaitArms -->
+<!-- source: internal/test/ci/ciformat.go -- ParseKVPairs, gluedKey -->
+<!-- source: internal/test/peer/expect_keys.go -- peerOptionArms, peerValueArms -->
+<!-- source: internal/test/runner/decoding_ci.go -- decodeCIDirectives, parseDecodeCmdLine -->
+<!-- test: internal/test/runner/record_parse_strict_test.go TestParseCIEveryFamilyRefusesUnknownKey, TestParseCIRefusesMalformedSegments -->
 <!-- source: internal/test/runner/record_parse_vocabulary.go -- recordActions and the type lists each switch gates on -->
 <!-- source: internal/test/tmpfs/tmpfs.go -- Line, the directive text with its file line number -->
 <!-- test: internal/test/runner/record_parse_test.go TestUnknownDirectiveNamesLineAndAccepted, TestDirectiveVocabularyIsLive -->
@@ -1331,9 +1419,9 @@ Two modes:
 - `pattern=`: regex match against stderr (uses Go `regexp` syntax)
 - `contains=`: substring match against stderr
 
-`pattern=` reads the daemon's stderr alone. `contains=` reads the same combined
-buffer every stdout assertion reads (see the scope note below), so it matches a
-needle the command wrote to stdout. Reach for `pattern=` when the stream matters.
+Both modes read the stderr the command above them wrote, and nothing it wrote
+to stdout or any other command wrote (see the scope note below). A daemon's log
+lines are the stderr of the `cmd=` line that runs it.
 
 Stderr must NOT contain text is `reject=stderr:contains=`, below.
 
@@ -1484,14 +1572,18 @@ Inverse of `expect=` -- the test **fails** if the pattern matches. Used to verif
 
 | Type | Description |
 |------|-------------|
-| `reject=stderr:contains=<text>` | Fail if the combined output contains substring (the mirror of `expect=stderr:contains=`) |
-| `reject=stderr:pattern=<regex>` | Fail if stderr matches regex |
-| `reject=stdout:contains=<text>` | Fail if stdout contains substring |
-| `reject=stdout:pattern=<regex>` | Fail if stdout matches regex |
+| `reject=stderr:contains=<text>` | Fail if the command's output (stdout or stderr) contains substring |
+| `reject=stderr:pattern=<regex>` | Fail if the whole run's stderr matches regex, wherever the line sits |
+| `reject=stdout:contains=<text>` | Fail if the command's output (stdout or stderr) contains substring |
+| `reject=stdout:pattern=<regex>` | Fail if the command's output (stdout or stderr) matches regex |
 | `reject=syslog:pattern=<regex>` | Fail if syslog output matches regex |
 | `reject=bgp:conn=<N>:pattern=<hex>` | Fail if connection N of a ze-peer receives a frame carrying these wire bytes |
-<!-- source: internal/test/runner/runner_exec.go -- stdout reject handling -->
-<!-- source: internal/test/runner/runner_validate.go -- stderr/syslog reject handling -->
+
+"The command" is the `cmd=` line above the reject (see "Every stream assertion
+sits under a command and is scoped to it"). A command-scoped reject reads both
+of its streams, so the stream name selects nothing.
+<!-- source: internal/test/runner/runner_output_assert.go -- checkCommandAssertions, stdout and stderr reject handling -->
+<!-- source: internal/test/runner/runner_validate.go -- validateLogging, reject=stderr:pattern= and syslog reject handling -->
 <!-- source: internal/test/peer/reject.go -- reject=bgp, the wire rejection -->
 
 #### `reject=bgp` -- bytes a peer must never receive

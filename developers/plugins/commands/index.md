@@ -8,7 +8,7 @@ Commands are declared in the `Registration` struct passed to `Run`. The engine l
 <!-- source: pkg/plugin/rpc/types.go -- CommandDecl, DeclareRegistrationInput -->
 
 ```go
-err := p.Run(ctx, sdk.Registration{
+err := p.Run(ctx, &sdk.Registration{
     Commands: []sdk.CommandDecl{
         {Name: "my-plugin status", ShortHelp: "Show current status"},
         {Name: "my-plugin check", ShortHelp: "Trigger immediate check", Args: []string{"target"}},
@@ -318,7 +318,7 @@ CLI waits for the answer, then refuses from what it has in hand.
 | `tab` | rows read against the column names you declare |
 
 ```go
-err := p.Run(ctx, sdk.Registration{
+err := p.Run(ctx, &sdk.Registration{
     Commands: []sdk.CommandDecl{{
         Name:          "my-plugin peers",
         ShortHelp:     "Show the sessions",
@@ -359,7 +359,7 @@ for an operator chain they would otherwise type in full. Declare one in the
 <!-- source: pkg/plugin/sdk/sdk_types.go -- PipeDecl, Registration -->
 
 ```go
-err := p.Run(ctx, sdk.Registration{
+err := p.Run(ctx, &sdk.Registration{
     Commands: []sdk.CommandDecl{
         {Name: "my-plugin status", ShortHelp: "Show current status"},
     },

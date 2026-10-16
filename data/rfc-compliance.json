@@ -1,48 +1,36 @@
 {
   "gate": {
-    "ok": false,
-    "error-count": 2,
+    "ok": true,
+    "error-count": 0,
     "gated-must": 4140,
     "enrolled-rfcs": 175,
-    "test-tags": 8560,
-    "message": "rfc-requirements: 2 violation(s)",
-    "violations": [
-      "rfc/short/rfc4456.md:91: RFC4456-8-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal, internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc4456.md:92: RFC4456-8-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal, internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-    ],
-    "findings": [
-      {
-        "message": "rfc/short/rfc4456.md:91: RFC4456-8-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal, internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc4456.md:92: RFC4456-8-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal, internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      }
-    ]
+    "test-tags": 8689,
+    "message": "rfc-requirements OK: 4148 gated MUST-level requirement(s) across 175 enrolled RFC(s); 8689 test tag(s) resolved."
   },
   "share": {
-    "proven": 2593,
+    "proven": 2610,
     "gated": 4011,
     "rfcs": 152,
     "inspected": 171,
     "gated-inspected": 4140,
-    "percent": "64.6"
+    "percent": "65.1"
   },
   "satisfaction": [
     {
       "key": "both_polarities",
-      "count": 2240
+      "count": 2261
     },
     {
       "key": "single_polarity",
-      "count": 353
+      "count": 349
     },
     {
       "key": "gap",
-      "count": 662
+      "count": 644
     },
     {
       "key": "partial-scope",
-      "count": 8
+      "count": 11
     },
     {
       "key": "one_polarity_unexcused",
@@ -54,7 +42,7 @@
     },
     {
       "key": "not_applicable",
-      "count": 673
+      "count": 671
     },
     {
       "key": "lower_layer",
@@ -70,7 +58,7 @@
     }
   ],
   "gaps": {
-    "requirements": 662,
+    "requirements": 644,
     "rfcs": 77,
     "status-counts": [
       {
@@ -118,13 +106,13 @@
         "status": "Partial"
       },
       {
-        "rfc": "DRAFT-IETF-BESS-MUP-SAFI",
-        "count": 40,
+        "rfc": "RFC 4301",
+        "count": 34,
         "status": "Partial"
       },
       {
-        "rfc": "RFC 4301",
-        "count": 34,
+        "rfc": "DRAFT-IETF-BESS-MUP-SAFI",
+        "count": 31,
         "status": "Partial"
       },
       {
@@ -135,11 +123,6 @@
       {
         "rfc": "RFC 2131",
         "count": 21,
-        "status": "Partial"
-      },
-      {
-        "rfc": "RFC 9830",
-        "count": 18,
         "status": "Partial"
       },
       {
@@ -156,19 +139,24 @@
         "rfc": "RFC 7432",
         "count": 15,
         "status": "Partial"
+      },
+      {
+        "rfc": "RFC 3579",
+        "count": 14,
+        "status": "Partial"
       }
     ]
   },
   "audit": {
-    "verdicts": 2232,
-    "fresh": 2230,
-    "shifted": 2,
+    "verdicts": 2241,
+    "fresh": 2241,
+    "shifted": 0,
     "stale": 0,
-    "missing": 1908
+    "missing": 1899
   },
   "verify": {
     "command": "./le rfc check",
-    "stages": 52,
+    "stages": 53,
     "gate-stages": 1
   }
 }

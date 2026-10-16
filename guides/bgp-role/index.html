@@ -263,8 +263,8 @@
 </tr>
 <tr>
 <td>2</td>
-<td>The destination is a Provider, Peer, or RS, and ze's role toward the SOURCE is customer, peer, or rs-client</td>
-<td>Suppress. This is the Gao-Rexford check</td>
+<td>The destination is a Provider, Peer, or RS, and ze's role toward the SOURCE is customer, peer, rs-client, or rs (the source is not a Customer)</td>
+<td>Suppress. This is the Gao-Rexford check of RFC 9234 Section 3.1: only a route learned from a Customer, or locally originated, goes upward or sideways</td>
 </tr>
 <tr>
 <td>3</td>
@@ -364,6 +364,7 @@ advertises it.</p>
 <p>A role stated on a group reaches every member. A configured peer already carries its group's role, merged at parse time. A member of a dynamic group has no entry in the configuration document, so ze resolves its role through its group.</p>
 <p>Resolution is by address first and by group second, so a member that states its own role keeps it. Three decisions take that route: the Section 5 OTC gates, the Section 4.2 OPEN pair check with its strict mode, and the Role capability ze advertises to the member.</p>
 <p>A learned role survives a configuration reload while the configuration still names the peer, or names the group a dynamic member belongs to. An established session sends no second OPEN, so a dropped learned role could not be written back.</p>
+<p>A peer made at runtime with <code>create bgp peer &lt;addr&gt;</code> is named by no configuration, and its learned role survives every reload as well. Deleting that peer removes the role before <code>delete bgp peer</code> returns, and ze logs <code>learned role dropped: peer removed</code> with the role it held, so a peer later created at the same address starts with none. A rolled-back commit that had added a peer removes that peer's role the same way. One case keeps a role: an OPEN that ze was still validating when its peer was removed can store the role after the removal, and ze keeps it until a new OPEN for that name replaces it or the daemon restarts.</p>
 <h2 id="config-that-cannot-be-reached">Config That Cannot Be Reached</h2>
 <p>The runtime resolves role config by peer ADDRESS. A peer with no <code>connection &gt; remote &gt; ip</code>, and a name that is not an address, is logged as a warning and its role config is dropped. The group placeholder <code>dynamic</code> on a peer is refused the same way. Both used to be stored under a key nothing could look up, so the role was inert and silent.</p>
 <p>Every drop is counted, and the first one of each reason raises a warning that names the peer. Later drops are counted only, with per-route detail at debug level.</p>
@@ -523,7 +524,7 @@ RFC 9234; a reject-asn list works against any peer and needs nothing from it.</p
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

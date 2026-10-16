@@ -2,6 +2,23 @@
 
 Plugins declare their configuration schema using YANG (RFC 7950). This guide covers the basics for plugin authors.
 
+## What works today
+
+| Plugin kind | Its own YANG module | Config it receives |
+|-------------|---------------------|--------------------|
+| Internal plugin, compiled into `ze` (package added to `internal/component/plugin/all`) | Registered at build, parsed and validated; the operator writes config under its roots | Its `WantsConfig` roots |
+| External plugin (a separate process, SDK or any language) | **Not yet used.** Ze stores the `YANGText` it declares but never parses it, so the config parser does not know the plugin's root | Only roots that a compiled-in module already defines (for example `bgp`) |
+
+A config block under an external plugin's own root is refused when the config
+is loaded, before any plugin starts: `ze config validate` reports
+`unknown top-level keyword: <root>`. Compiling an external plugin's module at
+startup, so its own root becomes valid config, is planned
+(`plan/spec-plugin-external-yang-at-startup.md`). The `acme-monitor` example
+at the end of this page shows that planned behavior for an external plugin.
+<!-- source: internal/component/plugin/server/startup.go -- handleRegistration stores reg.PluginSchema; deliverConfigRPC -->
+<!-- source: internal/component/config/loader.go -- LoadConfig, parseTreeWithYANG (compiled-in schema plus CollectPluginYANG of internal plugins) -->
+<!-- source: internal/component/config/plugin_verify.go -- BuildPluginConfigSections -->
+
 ## Registering a Schema
 
 Schemas are declared via the `Schema` field of `sdk.Registration`, which is passed to
@@ -12,7 +29,7 @@ Schemas are declared via the `Schema` field of `sdk.Registration`, which is pass
 ```go
 p := sdk.NewWithConn("my-plugin", conn)
 
-p.Run(ctx, sdk.Registration{
+p.Run(ctx, &sdk.Registration{
     Schema: &sdk.SchemaDecl{
         Module:    "ze-my-plugin",
         Namespace: "urn:ze:my-plugin",
@@ -213,7 +230,11 @@ leaf group {
 }
 ```
 
-Ze validates that referenced values exist.
+Ze does not check leafref values today: the validator accepts any value for a
+leafref leaf, so a reference to a peer-group that does not exist is not
+refused. Checking that the referenced value exists is planned
+(`plan/spec-config-yang-type-leafref.md`).
+<!-- source: internal/component/config/yang/validator.go -- validateYangType: the Yleafref arm returns nil -->
 
 ## Best Practices
 
@@ -225,7 +246,20 @@ Ze validates that referenced values exist.
 
 ## Example: Complete Plugin with Schema
 
-A complete example showing YANG schema registration with the SDK:
+**Planned, not yet working for an external plugin.** This plugin runs as an
+external process and defines its own root, `acme-monitor`. Today Ze refuses
+an `acme-monitor { ... }` block in the config (see "What works today" above),
+so the plugin never receives a section. The example becomes valid when
+`plan/spec-plugin-external-yang-at-startup.md` lands. The SDK calls it shows
+(`NewConfigTx`, `Run`, `SchemaDecl`) work today for roots a compiled-in module
+defines.
+
+A complete example showing YANG schema registration with the SDK. The plugin
+reads leaves of its root, so it registers a config transaction: Stage 2
+installs the parsed config, and a reload verifies, applies and, when the commit
+fails, rolls back the same value. A plugin that declares `WantsConfig` and
+registers only `OnConfigure` refuses every reload that changes its root (see
+`handlers.md`, "A plugin with no apply handler").
 
 ```go
 package main
@@ -233,9 +267,12 @@ package main
 import (
     "context"
     _ "embed"
+    "encoding/json"
+    "fmt"
     "log"
     "os"
     "os/signal"
+    "sync"
 
     "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -243,18 +280,54 @@ import (
 //go:embed acme-monitor.yang
 var acmeMonitorYANG string
 
+// monitorConfig is the part of the acme-monitor container the plugin acts on.
+type monitorConfig struct {
+    Endpoint string      `json:"endpoint"`
+    Interval json.Number `json:"interval"`
+}
+
+// parseMonitor reads the plugin's config from one delivery. It changes no
+// state, because a refused verify and a CLI validate run it too.
+func parseMonitor(sections []sdk.ConfigSection) (monitorConfig, bool, error) {
+    for _, s := range sections {
+        if s.Root != "acme-monitor" {
+            continue
+        }
+        var data struct {
+            Monitor monitorConfig `json:"acme-monitor"`
+        }
+        if err := json.Unmarshal([]byte(s.Data), &data); err != nil {
+            return monitorConfig{}, true, fmt.Errorf("acme-monitor: %w", err)
+        }
+        return data.Monitor, true, nil
+    }
+    return monitorConfig{}, false, nil
+}
+
+// monitor holds the running config the poller reads.
+type monitor struct {
+    mu  sync.Mutex
+    cfg monitorConfig
+}
+
+// install makes cfg the running config. A failed install must leave the
+// running config as it was.
+func (m *monitor) install(cfg monitorConfig) error {
+    m.mu.Lock()
+    defer m.mu.Unlock()
+    m.cfg = cfg
+    log.Printf("monitoring %s every %ss", cfg.Endpoint, cfg.Interval)
+    return nil
+}
+
 func main() {
     p, err := sdk.NewFromEnv("acme-monitor")
     if err != nil {
         log.Fatal(err)
     }
 
-    p.OnConfigure(func(sections []sdk.ConfigSection) error {
-        for _, s := range sections {
-            log.Printf("config root=%s data=%s", s.Root, s.Data)
-        }
-        return nil
-    })
+    m := &monitor{}
+    sdk.NewConfigTx(monitorConfig{}, parseMonitor, m.install).Register(p)
 
     p.OnEvent(func(event string) error {
         log.Printf("event: %s", event)
@@ -264,7 +337,7 @@ func main() {
     ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
     defer cancel()
 
-    if err := p.Run(ctx, sdk.Registration{
+    if err := p.Run(ctx, &sdk.Registration{
         Schema: &sdk.SchemaDecl{
             Module:    "acme-monitor",
             Namespace: "urn:acme:monitor",
@@ -278,7 +351,8 @@ func main() {
 }
 ```
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromEnv, Run -->
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigure, OnEvent -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEvent -->
+<!-- source: pkg/plugin/sdk/config_tx.go -- NewConfigTx, ConfigTx.Register, ConfigParser, ConfigInstaller -->
 <!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, SchemaDecl, ConfigSection -->
 
 ### Example YANG Schema

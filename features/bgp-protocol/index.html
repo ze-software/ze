@@ -267,7 +267,20 @@ plugin originates standard SAFI 71 routes from native IGP or EPE state. It does
 not add generic text/API BGP-LS encoding or SAFI 72 origination.</p>
 <p>SR-Policy route encoding leaves the Binding SID's unassigned flag bits clear
 (RFC 9830 Section 2.4.2). It does not request S-Flag or I-Flag behavior.</p>
-<!-- source: internal/component/bgp/plugins/nlri/srpolicy/config.go -- buildBindingSIDSubTLV -->
+<p>An SR-Policy route configured in <code>nlri { ipv4/sr-policy add ... }</code> or encoded
+with <code>ze bgp encode -f ipv4/sr-policy</code> carries only labels it can send as
+written. <code>binding-sid mpls</code> accepts 16 to 1048575: 0 to 15 are the reserved
+MPLS values RFC 9830 Section 2.4.2 forbids, and a label is 20 bits wide.
+<code>type-a mpls</code> accepts 0 to 1048575. A value outside the range is refused with
+the token, the value and the range, before any UPDATE is built.</p>
+<p>On receipt, an SR-Policy NLRI whose length is not 12 octets (AFI 1) or 24
+octets (AFI 2) makes its UPDATE treat-as-withdraw, and NLRI framing that
+cannot be walked resets the session (RFC 9830 Section 5). An SR-Policy
+announcement with no Tunnel Encapsulation attribute is treat-as-withdraw
+(RFC 9830 Section 4.2.1).</p>
+<!-- source: internal/component/bgp/plugins/nlri/srpolicy/config.go -- buildBindingSIDSubTLV, checkBindingSIDLabel, parseSegmentList -->
+<!-- source: internal/component/bgp/plugins/nlri/srpolicy/split.go -- judgeSRPolicySection -->
+<!-- source: internal/component/bgp/reactor/session_tunnel_encap.go -- applyTunnelEncap -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- EVPN family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/srpolicy/register.go -- SR-Policy family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/register.go -- FlowSpec family registration -->
@@ -654,7 +667,7 @@ plugin out removes both the advertisement and the obligation.</p>
 </tr>
 <tr>
 <td><code>ipv4/mup</code>, <code>ipv6/mup</code></td>
-<td>Discard an unrecognized route type (draft-ietf-bess-mup-safi Section 3.1 framing)</td>
+<td>Discard an unrecognized route type (draft-ietf-bess-mup-safi Section 3.1 framing). Treat a malformed route of an implemented type as withdrawn (Section 3.1.3.1)</td>
 </tr>
 <tr>
 <td><code>bgp-ls/bgp-ls</code>, <code>bgp-ls/bgp-ls-vpn</code></td>
@@ -666,14 +679,27 @@ plugin out removes both the advertisement and the obligation.</p>
 </tr>
 </tbody>
 </table>
-<p>The recognizer answers about the route TYPE only. A well-typed but malformed
-NLRI is a Section 5.3 concern, handled before this. When the length fields do
-not agree with the section the NLRI boundaries are unknowable, so no discard
-decision is made rather than one being guessed.</p>
+<p>Every recognizer answers about the route TYPE. A family whose specification
+answers a malformed body with treat-as-withdraw also judges the body: BGP-MUP
+runs every check its decoder makes (draft-ietf-bess-mup-safi Sections 3.1.1 to
+3.1.5), so a T1ST whose mandatory fields overrun its Length, whose TLV area is
+one octet, or whose TLV overruns the NLRI leaves the announcement and becomes a
+withdrawal. The withdrawal joins the same UPDATE as an MP_UNREACH_NLRI, or rides
+its own withdraw-only UPDATE when that UPDATE already carries one (RFC 7606
+Section 3(g) allows one per UPDATE). Its siblings are kept byte for byte and the
+session stays up. A malformed route whose route key cannot form is discarded
+instead, because no withdrawal can name it. Both are logged at debug with the
+NLRI bytes and counted in <code>ze_bgp_update_nlri_malformed_total</code>
+(<code>docs/guide/monitoring.md</code>).</p>
+<p>When the length fields do not agree with the section the NLRI boundaries are
+unknowable, so no decision is made rather than one being guessed, and RFC 7606
+Section 5.3 resets the session.</p>
 <!-- source: internal/core/bgp/nlri/nlritype/nlritype.go -- Register, Retain -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- EVPN recognizer -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- MCAST-VPN recognizer -->
 <!-- source: internal/component/bgp/plugins/nlri/mup/register.go -- MUP recognizer -->
+<!-- source: internal/component/bgp/plugins/nlri/mup/rfc7606.go -- recognizerFor -->
+<!-- source: internal/component/bgp/reactor/session_validation_nlritype.go -- applyTypedNLRIDiscard -->
 <h3 id="rfc-7911-path-identifier-regeneration">RFC 7911 Path Identifier regeneration</h3>
 <p>RFC 7911 Section 2 requires a speaker that re-advertises a route to generate its
 own Path Identifier, assigned so that (prefix, identifier) uniquely names a path
@@ -858,7 +884,7 @@ whether an enabled peer's capture directory is usable
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

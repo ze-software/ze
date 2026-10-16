@@ -152,10 +152,10 @@ ze signal reload --host 10.0.0.1 --port 2222
 | Command | Effect |
 |---------|--------|
 | `ze signal reload` | Transactionally reload configuration (add/remove/update peers) |
-| `ze signal stop` | Graceful shutdown (no GR marker) |
-| `ze signal restart` | Graceful restart (writes GR marker for RFC 4724) |
+| `ze signal stop` | Graceful shutdown: stop drain, then Cease to every peer (no GR marker) |
+| `ze signal restart` | Graceful restart: writes the GR marker (RFC 4724), drops BGP sessions without a Cease, drain kind `restart` |
 | `ze signal status` | Dump process status |
-| `ze signal quit` | Goroutine dump to stderr, then exit |
+| `ze signal quit` | Goroutine dump to stderr, then the same stop as `ze signal stop` |
 <!-- source: internal/plugins/signal/main.go -- Commands registry -->
 
 ### Via Unix Signals
@@ -163,7 +163,7 @@ ze signal reload --host 10.0.0.1 --port 2222
 | Signal | Effect |
 |--------|--------|
 | `SIGHUP` | Transactionally reload configuration |
-| `SIGTERM` / `SIGINT` | Graceful shutdown (NOTIFICATION Cease to all peers) |
+| `SIGTERM` / `SIGINT` | Graceful shutdown: stop drain, then NOTIFICATION Cease to all peers. A second one skips or cuts the drain, a third forces exit 1 (see Stopping) |
 | `SIGUSR1` | Dump status to stderr |
 <!-- source: cmd/ze/hub/main.go -- signal.Notify, SIGHUP/SIGTERM/SIGINT handling -->
 
@@ -180,6 +180,36 @@ fatal, and every later SIGHUP reloads. `ze install systemd` writes this into the
 unit (`sh -c 'trap "" HUP; exec ze start'`), because systemd has no directive
 that ignores a signal. A supervisor you write yourself does the same, or never
 sends SIGHUP before ze is ready. Details: `docs/architecture/behavior/signals.md`.
+
+### Stopping
+
+Every stop takes the same path: SIGTERM, Ctrl+C, `ze signal stop`,
+`request shutdown`, `request halt` and a plugin failure under the `fatal`
+policy. Ze first lets a config commit already running finish, then runs the
+stop drain: each plugin that declared a drain budget is asked, in parallel, to
+make Ze unattractive to its neighbours before the sessions close, and Ze waits
+for the answers. The wait ends at the latest 60 s after the stop began. Only
+then does teardown start, and BGP sends Cease (Administrative Shutdown) to every
+peer. With no drain-registered plugin the stop is as fast as it was.
+
+`ze signal restart`, `ze signal reboot` and `request reboot` drain with kind
+`restart`: BGP sessions are dropped without a Cease so peers keep the routes for
+graceful restart. Any IGP wait during that drain runs while BGP peers hold the
+routes as stale, so the BGP restart time must exceed the drain plus teardown and
+start.
+
+Each phase prints what the next Ctrl+C or SIGTERM does:
+
+| Phase | Printed line | Next signal |
+|-------|--------------|-------------|
+| Config fence | `Stopping: finishing config changes (Ctrl+C again to skip the drain)...` | skips the drain ("drain skipped by signal") |
+| Drain | `Draining routing protocols for up to N s (Ctrl+C again to stop now)...` | aborts the drain ("drain aborted by signal"), teardown goes on |
+| Teardown | `Shutting down (Ctrl+C again to force)...` | forces exit 1 |
+
+After `request shutdown` the first signal is the one that aborts the drain. Once
+the drain has begun the stop is final: a plugin that exits is not restarted.
+<!-- source: cmd/ze/hub/drain.go -- stopSignals, runStopDrain, requestRestartStop, requestRebootStop -->
+<!-- source: internal/component/plugin/server/drain.go -- BeginDrain, DrainRound.Run -->
 
 ### Exit Codes (signal command)
 
@@ -371,9 +401,11 @@ Type=simple
 User=ze
 Group=ze
 ExecStart=/bin/sh -c 'trap "" HUP; exec /usr/local/bin/ze start'
-ExecReload=/bin/kill -HUP $MAINPID
+ExecReload=/bin/sh -c 'kill -HUP $MAINPID'
 Restart=on-failure
 RestartSec=5
+TimeoutStopSec=90
+KillMode=mixed
 LimitNOFILE=65536
 LimitCORE=infinity
 LimitMEMLOCK=infinity

@@ -25,6 +25,13 @@ Image server: HTTP provisioning for disk images and boot files
 - Required dependency for: None
 - Optional dependency for: None
 
+## Startup ordering
+
+Order only when both plugins are selected; never auto-loads a plugin.
+
+- Start after: [`interface`](../interface/index.md)
+- Starts before: None
+
 ## Repository artifacts
 
 Package: `internal/plugins/imageserver`

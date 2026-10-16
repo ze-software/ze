@@ -1024,6 +1024,20 @@ that floor are discarded before reaching the FSM. Pick <code>min-ttl</code> to b
 <code>256 - max-hops</code>.</p>
 <!-- source: internal/component/bfd/engine/loop.go — passesTTLGate -->
 <h3 id="multi-vrf-and-interface-binding">Multi-VRF and interface binding</h3>
+<p>A single-hop session to an IPv6 link-local peer (<code>fe80::/10</code>) must name its
+link in <code>interface</code>, in the default VRF and in any other: the same address can
+be in use on every link, and the interface is what says which one. One peer on
+two links is two entries:</p>
+<pre><code>bfd {
+    single-hop-session fe80::b { interface eth0; }
+    single-hop-session fe80::b { interface eth1; }
+}
+</code></pre>
+<p>Ze refuses a link-local entry with no <code>interface</code>, and refuses a <code>peer</code> or
+<code>local</code> written with a zone (<code>fe80::b%eth0</code>): write the address without the
+zone and the link in <code>interface</code>. A global IPv6 or an IPv4 peer needs no
+<code>interface</code>.</p>
+<!-- source: internal/component/bfd/config.go -- parseSingleHopSession -->
 <p>Single-hop pinned sessions may specify an <code>interface</code> leaf. When every
 pinned session in the same <code>(vrf, single-hop)</code> pair names the same
 interface, the plugin binds the socket to that interface via
@@ -1170,7 +1184,7 @@ document for the full gap list and the intended follow-up order.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

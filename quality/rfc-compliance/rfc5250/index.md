@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 14 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 14 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 14 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 65.1% | 28 of 43 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 76.7% | 33 of 43 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -64,7 +64,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 43 |
 | Tagged units | 43 |
 | Recorded audit verdicts | 11 |
-| Discrimination records | 28 |
+| Discrimination records | 33 |
 | Summary | `rfc/short/rfc5250.md` |
 | Requirement shard | `rfc/requirements/rfc5250.md` |
 | RFC text | `rfc/full/rfc5250.txt` |
@@ -212,9 +212,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOpaqueBitIgnoredOutsideDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go#L63) | unit/verify | unproven |
+| negative | [`TestOpaqueBitIgnoredOutsideDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go#L63) | unit/verify | revert, verified |
 | negative | [`TestRFC5250HelloOBitIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_obit_hello_test.go#L94) | unit/verify | revert, verified |
-| positive | [`TestOpaqueBitIgnoredOutsideDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go#L74) | unit/verify | unproven |
+| positive | [`TestOpaqueBitIgnoredOutsideDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go#L74) | unit/verify | revert, verified |
 | positive | [`TestRFC5250HelloSentWithoutOBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_obit_hello_test.go#L77) | unit/verify | revert, verified |
 
 ### [`RFC5250-5-1`](#rfc5250-5-1)
@@ -226,9 +226,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5250Type11LooksUpOriginatorRoutingEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L49) | unit/verify | revert, verified |
-| negative | [`TestOpaqueType11UnreachableOriginatorNotUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L44) | unit/verify | unproven |
+| negative | [`TestOpaqueType11UnreachableOriginatorNotUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L44) | unit/verify | revert, verified |
 | positive | [`TestRFC5250Type11LooksUpOriginatorRoutingEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L65) | unit/verify | revert, verified |
-| positive | [`TestOpaqueType11UnreachableOriginatorNotUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L51) | unit/verify | unproven |
+| positive | [`TestOpaqueType11UnreachableOriginatorNotUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L51) | unit/verify | revert, verified |
 
 ### [`RFC5250-5-2`](#rfc5250-5-2)
 
@@ -240,7 +240,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 |---|---|---|---|
 | negative | [`TestRFC5250DiscontinueOpaqueFromUnreachableOriginator`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_discontinue_test.go#L64) | unit/verify | revert, verified |
 | positive | [`TestRFC5250DiscontinueOpaqueFromUnreachableOriginator`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_discontinue_test.go#L51) | unit/verify | revert, verified |
-| positive | [`TestOpaqueType11UnreachableOriginatorNotUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L52) | unit/verify | unproven |
+| positive | [`TestOpaqueType11UnreachableOriginatorNotUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L52) | unit/verify | revert, verified |
 
 ### [`RFC5250-5-3`](#rfc5250-5-3)
 

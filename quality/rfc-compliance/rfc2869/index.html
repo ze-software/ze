@@ -355,9 +355,9 @@ Scoped to subscriber access.
 <td>5.19</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2869-5.19-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go#L137" title="internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go" target="_blank" rel="noopener"><code>TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_credential_types_test.go#L51" title="internal/component/radius/rfc2869_credential_types_test.go" target="_blank" rel="noopener"><code>TestRFC2869EAPOnlyAccessRequestIsSent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_credential_types_test.go#L53" title="internal/component/radius/rfc2869_credential_types_test.go" target="_blank" rel="noopener"><code>TestRFC2869EAPOnlyAccessRequestIsSent</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go#L169" title="internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go" target="_blank" rel="noopener"><code>TestRFC2869AccessRequestCarriesOneKindOfCredential</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_credential_types_test.go#L67" title="internal/component/radius/rfc2869_credential_types_test.go" target="_blank" rel="noopener"><code>TestRFC2869EAPBesideAnotherCredentialIsRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_credential_types_test.go#L70" title="internal/component/radius/rfc2869_credential_types_test.go" target="_blank" rel="noopener"><code>TestRFC2869EAPBesideAnotherCredentialIsRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2869-x-2">RFC2869-x-2</code></td><td colspan="3"><span class="rfc-subject">This attribute indicates how many times the Acct-Input-Octets counter has wrapped around 2^32 over the course of this service being provided, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim- Update. (§5.1)</span></td></tr>
@@ -498,7 +498,7 @@ Scoped to subscriber access.
 </div>
 <h3><a href="#rfc2869-5.19-1"><code>RFC2869-5.19-1</code></a></h3>
 <p>An Access-Request that contains either a User-Password or CHAP-Password or ARAP-Password or one or more EAP-Message attributes MUST NOT contain more than one type of those four attributes. (§5.19 Note 1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. The EAP combinations are now driven at the client every Access-Request leaves through: EAP-Message beside User-Password and beside CHAP-Password are refused by Client.Exchange with no datagram on the wire; EAP-only is sent. The L2TP builder pair covers PAP and CHAP-MD5 carrying exactly their own credential. ARAP-Password cannot be emitted: ze declares no ARAP attribute. User-Password beside CHAP-Password is not driven at the client guard, only proven absent from the builders&#39; output.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-14 by a reader who did not author the tests. - TestRFC2869EAPBesideAnotherCredentialIsRefused drives EAP-Message beside User-Password, CHAP-Password and now ARAP-Password through Client.Exchange: each errors and no datagram reaches the server. + TestRFC2869EAPOnlyAccessRequestIsSent sends one datagram carrying EAP-Message and none of the other three. The L2TP builder pair covers PAP and CHAP-MD5 carrying only their own credential. User-Password beside CHAP-Password is not driven by this row&#39;s units; the same guard (client.go oneCredentialType) refuses it under RFC3579-3.3-2&#39;s units.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -509,7 +509,7 @@ Scoped to subscriber access.
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_credential_types_test.go#L67" title="internal/component/radius/rfc2869_credential_types_test.go" target="_blank" rel="noopener"><code>TestRFC2869EAPBesideAnotherCredentialIsRefused</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_credential_types_test.go#L70" title="internal/component/radius/rfc2869_credential_types_test.go" target="_blank" rel="noopener"><code>TestRFC2869EAPBesideAnotherCredentialIsRefused</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -519,7 +519,7 @@ Scoped to subscriber access.
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_credential_types_test.go#L51" title="internal/component/radius/rfc2869_credential_types_test.go" target="_blank" rel="noopener"><code>TestRFC2869EAPOnlyAccessRequestIsSent</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_credential_types_test.go#L53" title="internal/component/radius/rfc2869_credential_types_test.go" target="_blank" rel="noopener"><code>TestRFC2869EAPOnlyAccessRequestIsSent</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1168,7 +1168,7 @@ Scoped to subscriber access.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

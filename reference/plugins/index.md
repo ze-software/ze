@@ -1,6 +1,6 @@
 # Plugin catalog
 
-93 runtime plugins generated from `data/plugin-registry.json`. 73 runtime plugins declare configuration roots and 75 ship YANG modules.
+94 runtime plugins generated from `data/plugin-registry.json`. 73 runtime plugins declare configuration roots and 76 ship YANG modules.
 
 The HTML page includes browser-side search across name, purpose, config roots, dependencies, YANG files, and source directories. Clicking a plugin opens its generated local detail page.
 
@@ -116,6 +116,14 @@ Generated group for registry entries mapped to the Control Plane Protection area
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
 | [`copp`](copp/index.md) | Control-plane policing: rate-limit new TCP connections to BGP listen port | `control-plane-protection` | `firewall` | `internal/plugins/copp` |
+
+## Crashes
+
+Generated group for registry entries mapped to the Crashes area. Source area: `internal/plugins/crashes`.
+
+| Plugin | Used for | Config | Depends on | Source path |
+|--------|----------|--------|------------|-------------|
+| [`crashes`](crashes/index.md) | Crash capture: kernel crash record harvest at daemon start, crash reports | None | None | `internal/plugins/crashes` |
 
 ## DDoS
 
@@ -296,6 +304,9 @@ Generated group for registry entries mapped to the Service area. Config roots: `
 | [`imageserver`](imageserver/index.md) | Image server: HTTP provisioning for disk images and boot files | `service` | None | `internal/plugins/imageserver` |
 | [`tftpserver`](tftpserver/index.md) | TFTP server: read-only file serving for PXE boot (RFC 1350, RFC 2347 option negotiation) | `service` | None | `internal/plugins/tftpserver` |
 
+- [`dhcpserver`](dhcpserver/index.md): Start after `interface` (order only).
+- [`imageserver`](imageserver/index.md): Start after `interface` (order only).
+- [`tftpserver`](tftpserver/index.md): Start after `interface` (order only).
 ## Static
 
 Generated group for registry entries mapped to the Static area. Config roots: `static`. Source area: `internal/plugins/static`.

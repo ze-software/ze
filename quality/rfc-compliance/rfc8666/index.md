@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 9.7% | 3 of 31 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 31 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 31 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 26.7% | 16 of 60 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 33.3% | 20 of 60 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -71,7 +71,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 60 |
 | Tagged units | 60 |
 | Recorded audit verdicts | 23 |
-| Discrimination records | 16 |
+| Discrimination records | 20 |
 | Summary | `rfc/short/rfc8666.md` |
 | Requirement shard | `rfc/requirements/rfc8666.md` |
 | RFC text | `rfc/full/rfc8666.txt` |
@@ -325,9 +325,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8666TransitHopIgnoresOriginatorPHPFlags`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L339) | unit/verify | unproven |
+| negative | [`TestRFC8666TransitHopIgnoresOriginatorPHPFlags`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L339) | unit/verify | revert, verified |
 | positive | [`TestRFC8666NextHopAdvertisedFlagsShapeOutgoingLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L363) | unit/verify | revert, verified |
-| positive | [`TestRFC8666OutgoingLabelUsesNextHopRouter`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L320) | unit/verify | unproven |
+| positive | [`TestRFC8666OutgoingLabelUsesNextHopRouter`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L320) | unit/verify | revert, verified |
 
 ### [`RFC8666-6-9`](#rfc8666-6-9)
 
@@ -488,9 +488,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFv3ERouterBodyCarriesAdjSID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_origination_v6_test.go#L21) | unit/verify | unproven |
+| negative | [`TestOSPFv3ERouterBodyCarriesAdjSID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_origination_v6_test.go#L21) | unit/verify | revert, verified |
 | positive | [`TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_adjsid_fsm_test.go#L78) | unit/verify | revert, verified |
-| positive | [`TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L468) | unit/verify | unproven |
+| positive | [`TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L468) | unit/verify | revert, verified |
 
 ### [`RFC8666-10-1`](#rfc8666-10-1)
 

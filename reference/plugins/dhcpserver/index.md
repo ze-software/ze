@@ -25,6 +25,13 @@ DHCP server: address assignment for LAN clients (RFC 2131)
 - Required dependency for: None
 - Optional dependency for: None
 
+## Startup ordering
+
+Order only when both plugins are selected; never auto-loads a plugin.
+
+- Start after: [`interface`](../interface/index.md)
+- Starts before: None
+
 ## Repository artifacts
 
 Package: `internal/plugins/dhcpserver`

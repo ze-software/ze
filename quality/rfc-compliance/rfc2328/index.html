@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1.9%</strong><b>1 of 52 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 52 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 52 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>65.3%</strong><b>115 of 176 tagged units, 2 escaped and 0 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>84.1%</strong><b>148 of 176 tagged units, 2 escaped and 0 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -240,7 +240,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>52</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>117</td>
+<td>150</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2328.md</code></td>
@@ -1027,12 +1027,12 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_header_test.go#L100" title="internal/plugins/ospf/packet/rfc2328_header_test.go" target="_blank" rel="noopener"><code>TestPacketVerifyChecksum</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L30" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFPacketChecksumExcludesAuth</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go#L31" title="internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go" target="_blank" rel="noopener"><code>TestRFC2328PacketChecksumCoversHeaderExcludesAuth</code></a></td>
@@ -1092,7 +1092,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_test.go#L17" title="internal/plugins/ospf/lsdb/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328BadLSChecksumDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go#L91" title="internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go" target="_blank" rel="noopener"><code>TestRFC2328DiscardedLSAThenNextLSAProcessed</code></a></td>
@@ -1102,7 +1102,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L30" title="internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go" target="_blank" rel="noopener"><code>TestOSPFFloodOutOtherInterfaces</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go#L92" title="internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go" target="_blank" rel="noopener"><code>TestRFC2328DiscardedLSAThenNextLSAProcessed</code></a></td>
@@ -1122,7 +1122,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L248" title="internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go" target="_blank" rel="noopener"><code>TestOSPFStubAreaDropsType5</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go#L112" title="internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go" target="_blank" rel="noopener"><code>TestRFC2328ASExternalFromStubInterfaceGoesNowhere</code></a></td>
@@ -1132,7 +1132,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_area_type_test.go#L15" title="internal/plugins/ospf/lsdb/rfc2328_area_type_test.go" target="_blank" rel="noopener"><code>TestOSPFStubFloodFilter</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go#L63" title="internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go" target="_blank" rel="noopener"><code>TestRFC2328ASExternalNotFloodedIntoStubArea</code></a></td>
@@ -1152,7 +1152,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L20" title="internal/plugins/ospf/neighbor/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328FloodingRequiresExchangeOrHigher</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_flood_state_gate_test.go#L83" title="internal/plugins/ospf/rfc2328_flood_state_gate_test.go" target="_blank" rel="noopener"><code>TestRFC2328LSUpdateBelowExchangeDroppedByEngine</code></a></td>
@@ -1162,7 +1162,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L17" title="internal/plugins/ospf/neighbor/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328FloodingRequiresExchangeOrHigher</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_flood_state_gate_test.go#L120" title="internal/plugins/ospf/rfc2328_flood_state_gate_test.go" target="_blank" rel="noopener"><code>TestRFC2328LSUpdateFromExchangeNeighborProcessed</code></a></td>
@@ -1187,7 +1187,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_test.go#L51" title="internal/plugins/ospf/lsdb/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328OlderInstanceGetsDatabaseCopyBack</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go#L17" title="internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go" target="_blank" rel="noopener"><code>TestRFC2328FreshnessStepsAppliedInOrder</code></a></td>
@@ -1197,7 +1197,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_lsdb_test.go#L126" title="internal/plugins/ospf/lsdb/rfc2328_lsdb_test.go" target="_blank" rel="noopener"><code>TestOSPFFreshnessCompareMatrix</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1322,7 +1322,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L384" title="internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go" target="_blank" rel="noopener"><code>TestOSPFPurgeRetainedForExchangeOrLoading</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go#L36" title="internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go" target="_blank" rel="noopener"><code>TestRFC2328MaxAgeKeptWhileNeighborInExchangeOrLoading</code></a></td>
@@ -1332,7 +1332,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L333" title="internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go" target="_blank" rel="noopener"><code>TestOSPFASExternalPurgeRetainedAcrossAreas</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go#L47" title="internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go" target="_blank" rel="noopener"><code>TestRFC2328MaxAgeRemovedOnceNoNeighborExchangingOrLoading</code></a></td>
@@ -1357,12 +1357,12 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L93" title="internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go" target="_blank" rel="noopener"><code>TestOSPFAckDecisionTable</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L361" title="internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go" target="_blank" rel="noopener"><code>TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_newer_lsa_ack_test.go#L17" title="internal/plugins/ospf/lsdb/rfc2328_newer_lsa_ack_test.go" target="_blank" rel="noopener"><code>TestRFC2328NewerLSAAcknowledgedThroughReceiveUpdate</code></a></td>
@@ -1382,7 +1382,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go#L43" title="internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go" target="_blank" rel="noopener"><code>TestOSPFSelfOriginatedNoLocalCopyFlush</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go#L83" title="internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go" target="_blank" rel="noopener"><code>TestRFC2328ForeignLSANotTakenAsSelfOriginated</code></a></td>
@@ -1392,7 +1392,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_origination_test.go#L426" title="internal/plugins/ospf/lsdb/rfc2328_origination_test.go" target="_blank" rel="noopener"><code>TestOSPFOriginateSelfReceivedHigherSeq</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go#L60" title="internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go" target="_blank" rel="noopener"><code>TestRFC2328SelfOriginatedDetectedByRouterIDOrInterfaceAddress</code></a></td>
@@ -1412,7 +1412,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_spf_test.go#L31" title="internal/plugins/ospf/spf/rfc2328_spf_test.go" target="_blank" rel="noopener"><code>TestOSPFTwoWayCheck</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go#L58" title="internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go" target="_blank" rel="noopener"><code>TestRFC2328SPFSkipsMissingOrMaxAgeVertex</code></a></td>
@@ -1422,7 +1422,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_spf_test.go#L13" title="internal/plugins/ospf/spf/rfc2328_spf_test.go" target="_blank" rel="noopener"><code>TestOSPFSPFShortestPath</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go#L22" title="internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go" target="_blank" rel="noopener"><code>TestRFC2328SPFExaminesNextLinkAfterSkip</code></a></td>
@@ -1442,7 +1442,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_external_test.go#L83" title="internal/plugins/ospf/spf/rfc2328_external_test.go" target="_blank" rel="noopener"><code>TestOSPFExternalE1PreferredOverE2</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_path_preference_test.go#L51" title="internal/plugins/ospf/spf/rfc2328_path_preference_test.go" target="_blank" rel="noopener"><code>TestRFC2328LowerPreferencePathRefused</code></a></td>
@@ -1457,7 +1457,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_route_test.go#L8" title="internal/plugins/ospf/spf/rfc2328_route_test.go" target="_blank" rel="noopener"><code>TestOSPFRouteTablePreference</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1477,7 +1477,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_interarea_test.go#L43" title="internal/plugins/ospf/spf/rfc2328_interarea_test.go" target="_blank" rel="noopener"><code>TestOSPFInterAreaRoute</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_nonabr_summary_test.go#L15" title="internal/plugins/ospf/spf/rfc2328_nonabr_summary_test.go" target="_blank" rel="noopener"><code>TestRFC2328NonABRUsesItsAreaSummaries</code></a></td>
@@ -1497,12 +1497,12 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_external_test.go#L61" title="internal/plugins/ospf/spf/rfc2328_external_test.go" target="_blank" rel="noopener"><code>TestOSPFExternalLSInfinityDropped</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_interarea_test.go#L137" title="internal/plugins/ospf/spf/rfc2328_interarea_test.go" target="_blank" rel="noopener"><code>TestOSPFInterAreaLSInfinityDropped</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go#L40" title="internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go" target="_blank" rel="noopener"><code>TestRFC2328SummaryAdvertisingLSInfinitySkipped</code></a></td>
@@ -1512,17 +1512,17 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_test.go#L43" title="internal/plugins/ospf/spf/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328ExternalSkipsMaxAgeAndSelf</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_test.go#L20" title="internal/plugins/ospf/spf/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328InterAreaSkipsMaxAgeAndSelfSummary</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_interarea_test.go#L44" title="internal/plugins/ospf/spf/rfc2328_interarea_test.go" target="_blank" rel="noopener"><code>TestOSPFInterAreaRoute</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go#L35" title="internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go" target="_blank" rel="noopener"><code>TestRFC2328SummaryAdvertisingLSInfinitySkipped</code></a></td>
@@ -1567,7 +1567,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L47" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthSignVerifyCrypto</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_digest_ip_length_test.go#L35" title="internal/plugins/ospf/transport/rfc2328_digest_ip_length_test.go" target="_blank" rel="noopener"><code>TestRFC2328DigestCountedInIPLengthNotPacketLength</code></a></td>
@@ -1662,7 +1662,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_nsm_test.go#L595" title="internal/plugins/ospf/neighbor/rfc2328_nsm_test.go" target="_blank" rel="noopener"><code>TestOSPFDuplicateDD</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go#L81" title="internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go" target="_blank" rel="noopener"><code>TestRFC2328MasterHoldsOneOutstandingDD</code></a></td>
@@ -1672,7 +1672,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_nsm_test.go#L527" title="internal/plugins/ospf/neighbor/rfc2328_nsm_test.go" target="_blank" rel="noopener"><code>TestOSPFDDRetransmit</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1712,7 +1712,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_config_interface_validate_test.go#L17" title="internal/plugins/ospf/rfc2328_config_interface_validate_test.go" target="_blank" rel="noopener"><code>TestInterfaceCostAndTransmitDelayBoundary</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_cost_default_test.go#L38" title="internal/plugins/ospf/rfc2328_cost_default_test.go" target="_blank" rel="noopener"><code>TestRFC2328DefaultedInterfaceCostIsPositive</code></a></td>
@@ -1722,7 +1722,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_config_interface_validate_test.go#L16" title="internal/plugins/ospf/rfc2328_config_interface_validate_test.go" target="_blank" rel="noopener"><code>TestInterfaceCostAndTransmitDelayBoundary</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_cost_default_test.go#L35" title="internal/plugins/ospf/rfc2328_cost_default_test.go" target="_blank" rel="noopener"><code>TestRFC2328DefaultedInterfaceCostIsPositive</code></a></td>
@@ -2276,7 +2276,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_route_test.go#L98" title="internal/plugins/ospf/rfc2328_virtual_route_test.go" target="_blank" rel="noopener"><code>TestRFC2328VirtualUnusablePathWithdrawsBackboneLink</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_cost_test.go#L30" title="internal/plugins/ospf/rfc2328_virtual_cost_test.go" target="_blank" rel="noopener"><code>TestRFC2328VirtualCostChangeOriginatesNewInstance</code></a></td>
@@ -2286,7 +2286,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_route_test.go#L67" title="internal/plugins/ospf/rfc2328_virtual_route_test.go" target="_blank" rel="noopener"><code>TestRFC2328VirtualCostChangeReoriginatesBackbone</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_virtual_cost_test.go#L15" title="internal/plugins/ospf/spf/rfc2328_virtual_cost_test.go" target="_blank" rel="noopener"><code>TestRFC2328VirtualCostIsTransitPathCost</code></a></td>
@@ -2918,7 +2918,7 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>65.1%</strong><b>28 of 43 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>76.7%</strong><b>33 of 43 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -235,7 +235,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>11</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>28</td>
+<td>33</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5250.md</code></td>
@@ -639,7 +639,7 @@ Same OSPF experimental status.
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go#L63" title="internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go" target="_blank" rel="noopener"><code>TestOpaqueBitIgnoredOutsideDD</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_obit_hello_test.go#L94" title="internal/plugins/ospf/rfc5250_obit_hello_test.go" target="_blank" rel="noopener"><code>TestRFC5250HelloOBitIgnoredOnReceipt</code></a></td>
@@ -649,7 +649,7 @@ Same OSPF experimental status.
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go#L74" title="internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go" target="_blank" rel="noopener"><code>TestOpaqueBitIgnoredOutsideDD</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_obit_hello_test.go#L77" title="internal/plugins/ospf/rfc5250_obit_hello_test.go" target="_blank" rel="noopener"><code>TestRFC5250HelloSentWithoutOBit</code></a></td>
@@ -674,7 +674,7 @@ Same OSPF experimental status.
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L44" title="internal/plugins/ospf/rfc5250_opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L65" title="internal/plugins/ospf/rfc5250_asbr_lookup_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11LooksUpOriginatorRoutingEntry</code></a></td>
@@ -684,7 +684,7 @@ Same OSPF experimental status.
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L51" title="internal/plugins/ospf/rfc5250_opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -709,7 +709,7 @@ Same OSPF experimental status.
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L52" title="internal/plugins/ospf/rfc5250_opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1088,7 +1088,7 @@ Same OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

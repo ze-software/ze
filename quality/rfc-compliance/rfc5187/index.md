@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 4 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 66.7% | 8 of 12 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 100.0% | 12 of 12 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 4 | of 4 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -65,7 +65,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 12 |
 | Tagged units | 12 |
 | Recorded audit verdicts | 4 |
-| Discrimination records | 8 |
+| Discrimination records | 12 |
 | Summary | `rfc/short/rfc5187.md` |
 | Requirement shard | `rfc/requirements/rfc5187.md` |
 | RFC text | `rfc/full/rfc5187.txt` |
@@ -148,9 +148,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestStaleRestartFactIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L110) | unit/verify | unproven |
+| negative | [`TestStaleRestartFactIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L110) | unit/verify | revert, verified |
 | negative | [`TestRFC5187LSAIDToPrefixPreservedAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_test.go#L100) | unit/verify | revert, verified |
-| positive | [`TestRestartFactPersistsAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L60) | unit/verify | unproven |
+| positive | [`TestRestartFactPersistsAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L60) | unit/verify | revert, verified |
 | positive | [`TestRFC5187LSAIDToPrefixPreservedAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_test.go#L87) | unit/verify | revert, verified |
 
 ### [`RFC5187-3.2-1`](#rfc5187-3.2-1)
@@ -161,9 +161,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestStaleRestartFactIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L114) | unit/verify | unproven |
+| negative | [`TestStaleRestartFactIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L114) | unit/verify | revert, verified |
 | negative | [`TestRFC5187InterfaceIDPreservedAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go#L48) | unit/verify | revert, verified |
-| positive | [`TestRestartFactPersistsAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L63) | unit/verify | unproven |
+| positive | [`TestRestartFactPersistsAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_gr_nvs_test.go#L63) | unit/verify | revert, verified |
 | positive | [`TestRFC5187InterfaceIDPreservedAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go#L58) | unit/verify | revert, verified |
 
 ## Extraction sign-off

@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 6 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 50.0% | 6 of 12 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 66.7% | 8 of 12 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -71,7 +71,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 13 |
 | Tagged units | 12 |
 | Recorded audit verdicts | 3 |
-| Discrimination records | 6 |
+| Discrimination records | 8 |
 | Summary | `rfc/short/rfc5286.md` |
 | Requirement shard | `rfc/requirements/rfc5286.md` |
 | RFC text | `rfc/full/rfc5286.txt` |
@@ -189,10 +189,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5286AllReverseLinksCostedOut`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L72) | unit/verify | revert, verified |
-| negative | [`TestRFC5286ReverseCostAllInfinite`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L114) | unit/verify | unproven |
+| negative | [`TestRFC5286ReverseCostAllInfinite`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L114) | unit/verify | revert, verified |
 | negative | [`TestRFC5286TransitNeighborCostedOutReverseNotAlternate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_transit_reverse_test.go#L85) | unit/verify | revert, verified |
 | positive | [`TestRFC5286AllReverseLinksCostedOut`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L59) | unit/verify | revert, verified |
-| positive | [`TestRFC5286ReverseCostAllInfinite`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L99) | unit/verify | unproven |
+| positive | [`TestRFC5286ReverseCostAllInfinite`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L99) | unit/verify | revert, verified |
 | positive | [`TestRFC5286TransitNeighborFiniteReverseIsAlternate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_transit_reverse_test.go#L70) | unit/verify | revert, verified |
 
 ### [`RFC5286-x-4`](#rfc5286-x-4)

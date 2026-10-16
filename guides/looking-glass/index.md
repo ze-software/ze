@@ -106,7 +106,14 @@ set `tls false`). No authentication is required unless you set `token`.
 
 Navigation uses a single-page tab layout with HTMX fragment swapping. The real htmx.min.js (v4.0.0) is embedded, and the peers page also loads hx-sse.min.js, htmx 4's SSE extension.
 
+When the engine cannot answer, a page says so. The peers and search pages show
+a banner. The per-peer page, its download, the route detail and the graph
+answer 502 (the command failed) or 503 (the engine answered nothing usable)
+instead of a "not found" or an empty result. The message names the command and
+the kind of failure. The full reason is in the daemon log.
+
 <!-- source: internal/component/lg/handler_ui.go -- UI handlers -->
+<!-- source: internal/component/lg/server.go -- ask, engineFailure -->
 <!-- source: internal/component/lg/handler_graph.go -- Graph handler -->
 
 ## Birdwatcher REST API
@@ -123,6 +130,13 @@ The looking glass exposes a birdwatcher-compatible JSON API for integration with
 | `GET /api/looking-glass/routes/search?prefix=X` | Prefix lookup across all peers. |
 
 All API responses use `Content-Type: application/json` with birdwatcher-convention `snake_case` field names (not Ze's standard `kebab-case`).
+
+An endpoint whose command fails answers 502, or 503 when the engine answered
+nothing usable, with a JSON `error` naming the command, for example
+`{"error":"show bmp peers: engine error"}` from `/protocols/bmp` on a daemon
+that runs no BMP. It never answers 200 with an empty result. The full reason is
+in the daemon log.
+<!-- source: internal/component/lg/handler_api.go -- engineAnswer, writeEngineFailure -->
 
 The per-peer route counts on `/protocols/bgp` come from the `bgp-rib` plugin's
 Adj-RIB-In and Adj-RIB-Out sizes, merged into `show bgp`:

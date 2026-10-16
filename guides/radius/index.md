@@ -116,7 +116,11 @@ unreachable server falls through to local rather than hanging the login.
 credential and never two, and RFC 3579 §3.3 Note 1 extends the same exclusion to
 EAP: "An Access-Request that contains either a User-Password or CHAP-Password or
 ARAP-Password or one or more EAP-Message attributes MUST NOT contain more than
-one type of those four attributes." Ze sends exactly one.
+one type of those four attributes." Ze sends exactly one, and the client refuses
+before the socket any Access-Request carrying two of the four types. That check
+recognizes ARAP-Password (type 70) by its number, although Ze builds no ARAP
+attribute.
+<!-- source: internal/component/radius/client.go -- oneCredentialType, credentialTypeARAPPassword -->
 
 | | `pap` (default) | `chap` | `eap-md5` | `eap-mschapv2` |
 |---|---|---|---|---|

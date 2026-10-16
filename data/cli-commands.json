@@ -10970,8 +10970,8 @@
   },
   {
     "path": "request halt",
-    "short-help": "Dump goroutine stacks to stderr and terminate immediately.",
-    "description": "Ze writes every goroutine stack through the daemon logger at warning\nlevel, with a 1 MB buffer, and then stops. Use it where a daemon is stuck\nand the stacks are the evidence.",
+    "short-help": "Dump goroutine stacks to stderr, then shut down as 'request shutdown' does.",
+    "description": "Ze writes every goroutine stack through the daemon logger at warning\nlevel, with a 1 MB buffer, and then stops the way 'request shutdown' does,\nstop drain included. Use it where a daemon is stuck and the stacks are the\nevidence.",
     "mode": "daemon",
     "wire-method": "ze-plugin:system-daemon-quit",
     "usage": "request halt",

@@ -35,7 +35,7 @@ func main() {
     })
     plugin.SetStartupSubscriptions([]string{"update", "state"}, nil, "")
 
-    if err := plugin.Run(context.Background(), sdk.Registration{}); err != nil {
+    if err := plugin.Run(context.Background(), &sdk.Registration{}); err != nil {
         log.Fatal(err)
     }
 }

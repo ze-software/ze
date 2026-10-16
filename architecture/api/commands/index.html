@@ -993,7 +993,7 @@ typo from causing memory exhaustion.</p>
 <pre><code>request shutdown         # Graceful shutdown
 request reboot           # Graceful shutdown + OS reboot (requires root on Linux)
 request reload           # Reload configuration
-request halt             # Goroutine dump + immediate exit
+request halt             # Goroutine dump, then graceful shutdown (stop drain included)
 show status              # Get process status
 </code></pre>
 <h3 id="session-commands">Session Commands</h3>
@@ -4012,7 +4012,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

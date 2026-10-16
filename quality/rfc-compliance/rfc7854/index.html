@@ -484,8 +484,8 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>SHOULD</td>
 <td>3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-16">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L95" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionPeerUpOnlyForEstablishedPeers</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L97" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionPeerUpOnlyForEstablishedPeers</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L96" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionPeerUpOnlyForEstablishedPeers</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L98" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionPeerUpOnlyForEstablishedPeers</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-x-17">RFC7854-x-17</code></td><td colspan="3"><span class="rfc-subject">It subsequently sends a Peer Up message over the BMP session for each of its monitored BGP peers that is in the Established state. It follows by sending the contents of its Adj- RIBs-In (pre-policy, post-policy, or both, see Section 5) encapsulated in Route Monitoring messages. (§3.3, Lifecycle of a BMP Session)</span></td></tr>
@@ -493,8 +493,8 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>SHOULD</td>
 <td>3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-17">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L128" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L131" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L129" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L132" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-x-18">RFC7854-x-18</code></td><td colspan="3"><span class="rfc-subject">The sysDescr and sysName Information TLVs MUST be sent, any others are optional. (§4.3, Initiation Message)</span></td></tr>
@@ -1098,12 +1098,12 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L97" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionPeerUpOnlyForEstablishedPeers</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L98" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionPeerUpOnlyForEstablishedPeers</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L95" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionPeerUpOnlyForEstablishedPeers</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L96" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionPeerUpOnlyForEstablishedPeers</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1118,12 +1118,12 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L131" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L132" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L128" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L129" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2089,7 +2089,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

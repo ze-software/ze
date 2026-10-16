@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 16.7% | 2 of 12 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 12 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 12 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 64.9% | 24 of 37 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 78.4% | 29 of 37 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -71,7 +71,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 38 |
 | Tagged units | 37 |
 | Recorded audit verdicts | 11 |
-| Discrimination records | 24 |
+| Discrimination records | 29 |
 | Summary | `rfc/short/rfc7474.md` |
 | Requirement shard | `rfc/requirements/rfc7474.md` |
 | RFC text | `rfc/full/rfc7474.txt` |
@@ -148,9 +148,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. c23 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFAuthCryptoRejectsExtraTrailerBytes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L228) | unit/verify | unproven |
+| negative | [`TestOSPFAuthCryptoRejectsExtraTrailerBytes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L228) | unit/verify | revert, verified |
 | negative | [`TestRFC7474SequenceChangeBreaksDigest`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go#L142) | unit/verify | revert, verified |
-| positive | [`TestOSPFAuthType3SequenceTrailer`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L177) | unit/verify | unproven |
+| positive | [`TestOSPFAuthType3SequenceTrailer`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L177) | unit/verify | revert, verified |
 | positive | [`TestRFC7474SequenceIncludedInDigest`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go#L102) | unit/verify | revert, verified |
 
 ### [`RFC7474-2-2`](#rfc7474-2-2)
@@ -171,7 +171,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestOSPFAuthESNCounterWrapAdvancesBootCount`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L458) | unit/verify | unproven |
+| positive | [`TestOSPFAuthESNCounterWrapAdvancesBootCount`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L458) | unit/verify | revert, verified |
 | positive | [`TestRFC7474EverySentPacketIncrementsSequence`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_replay_test.go#L146) | unit/verify | revert, verified |
 
 ### [`RFC7474-2-4`](#rfc7474-2-4)
@@ -221,9 +221,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. c23 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFAuthCryptoRejectsKeyIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L257) | unit/verify | unproven |
+| negative | [`TestOSPFAuthCryptoRejectsKeyIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L257) | unit/verify | revert, verified |
 | negative | [`TestRFC7474SequenceChangeBreaksDigest`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go#L145) | unit/verify | revert, verified |
-| positive | [`TestOSPFAuthType3SequenceTrailer`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L167) | unit/verify | unproven |
+| positive | [`TestOSPFAuthType3SequenceTrailer`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L167) | unit/verify | revert, verified |
 | positive | [`TestRFC7474SequenceIncludedInDigest`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go#L106) | unit/verify | revert, verified |
 
 ### [`RFC7474-5-1`](#rfc7474-5-1)

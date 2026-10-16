@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>47.6%</strong><b>49 of 103 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>59.2%</strong><b>61 of 103 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -240,7 +240,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>28</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>49</td>
+<td>61</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc3101.md</code></td>
@@ -684,7 +684,7 @@ Disclosed deviation <a href="#rfc3101-3.1-4"><code>RFC3101-3.1-4</code></a> (tra
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go#L68" title="internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSANbitMismatch</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_options_test.go#L56" title="internal/plugins/ospf/iface/rfc3101_hello_options_test.go" target="_blank" rel="noopener"><code>TestRFC3101HelloOptionsMismatchDroppedOnEveryAreaType</code></a></td>
@@ -694,7 +694,7 @@ Disclosed deviation <a href="#rfc3101-3.1-4"><code>RFC3101-3.1-4</code></a> (tra
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go#L46" title="internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSANbitMismatch</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_options_test.go#L38" title="internal/plugins/ospf/iface/rfc3101_hello_options_test.go" target="_blank" rel="noopener"><code>TestRFC3101HelloOptionsMatchingAreaTypeAccepted</code></a></td>
@@ -734,7 +734,7 @@ Disclosed deviation <a href="#rfc3101-3.1-4"><code>RFC3101-3.1-4</code></a> (tra
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go#L70" title="internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSANbitMismatch</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_options_test.go#L99" title="internal/plugins/ospf/iface/rfc3101_hello_options_test.go" target="_blank" rel="noopener"><code>TestRFC3101NSSAHelloWithNAndESetRefused</code></a></td>
@@ -744,7 +744,7 @@ Disclosed deviation <a href="#rfc3101-3.1-4"><code>RFC3101-3.1-4</code></a> (tra
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go#L50" title="internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSANbitMismatch</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_options_test.go#L77" title="internal/plugins/ospf/iface/rfc3101_hello_options_test.go" target="_blank" rel="noopener"><code>TestRFC3101NSSAHelloSentWithNSetAndEClear</code></a></td>
@@ -784,7 +784,7 @@ Disclosed deviation <a href="#rfc3101-3.1-4"><code>RFC3101-3.1-4</code></a> (tra
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_test.go#L92" title="internal/plugins/ospf/lsdb/rfc3101_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFType7FloodScope</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go#L70" title="internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go" target="_blank" rel="noopener"><code>TestRFC3101Type7NotFloodedIntoAnotherNSSA</code></a></td>
@@ -794,7 +794,7 @@ Disclosed deviation <a href="#rfc3101-3.1-4"><code>RFC3101-3.1-4</code></a> (tra
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_test.go#L86" title="internal/plugins/ospf/lsdb/rfc3101_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFType7FloodScope</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go#L57" title="internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go" target="_blank" rel="noopener"><code>TestRFC3101Type7FloodedWithinItsNSSA</code></a></td>
@@ -889,12 +889,12 @@ Disclosed deviation <a href="#rfc3101-3.1-4"><code>RFC3101-3.1-4</code></a> (tra
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go#L38" title="internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSABorderRouterDefaultsEveryArea</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go#L71" title="internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go" target="_blank" rel="noopener"><code>TestOSPFv3NSSABorderRouterOriginatesDefault</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1119,7 +1119,7 @@ Disclosed deviation <a href="#rfc3101-3.1-4"><code>RFC3101-3.1-4</code></a> (tra
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go#L76" title="internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go" target="_blank" rel="noopener"><code>TestOSPFASBRBitFromNSSAType7</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go#L94" title="internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go" target="_blank" rel="noopener"><code>TestRFC3101V6NoNSSAAttachedEBitClearEverywhere</code></a></td>
@@ -1139,7 +1139,7 @@ Disclosed deviation <a href="#rfc3101-3.1-4"><code>RFC3101-3.1-4</code></a> (tra
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go#L90" title="internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go" target="_blank" rel="noopener"><code>TestOSPFASBRBitFromNSSAType7</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go#L75" title="internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go" target="_blank" rel="noopener"><code>TestRFC3101V6NSSABorderEBitInEveryNonStubArea</code></a></td>
@@ -1222,12 +1222,12 @@ Disclosed deviation <a href="#rfc3101-3.1-4"><code>RFC3101-3.1-4</code></a> (tra
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_test.go#L188" title="internal/plugins/ospf/rfc3101_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSAPbitNotTranslated</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_test.go#L142" title="internal/plugins/ospf/rfc3101_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSATranslation</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_translation_test.go#L19" title="internal/plugins/ospf/rfc3101_translation_test.go" target="_blank" rel="noopener"><code>TestRFC3101TranslatedType5FollowsSourceFields</code></a></td>
@@ -1818,7 +1818,7 @@ Disclosed deviation <a href="#rfc3101-3.1-4"><code>RFC3101-3.1-4</code></a> (tra
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

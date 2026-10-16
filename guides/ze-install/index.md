@@ -76,9 +76,11 @@ Type=simple
 User=ze
 Group=ze
 ExecStart=/bin/sh -c 'trap "" HUP; exec <prefix>/bin/ze start'
-ExecReload=/bin/kill -HUP $MAINPID
+ExecReload=/bin/sh -c 'kill -HUP $MAINPID'
 Restart=on-failure
 RestartSec=5
+TimeoutStopSec=90
+KillMode=mixed
 LimitNOFILE=65536
 LimitCORE=infinity
 LimitMEMLOCK=infinity
@@ -96,10 +98,28 @@ RuntimeDirectory=ze
 WantedBy=multi-user.target
 ```
 
+`TimeoutStopSec=90` and `KillMode=mixed` serve the stop drain. On a stop, ze
+first drains its routing protocols for up to 60 s, then tears down for up to
+30 s, so systemd waits 90 s before its SIGKILL. `mixed` sends the stop SIGTERM
+to ze alone, so ze can drain its external plugins before it stops them; the
+SIGKILL at the timeout still reaches the whole unit. `ze doctor` reads the
+values systemd actually applies, drop-ins included, and warns under
+`doctor-service-stop` when either is weaker.
+<!-- source: internal/plugins/systemd/unit.go -- stopTimeoutSeconds -->
+<!-- source: internal/plugins/systemd/doctor.go -- checkServiceStop -->
+
 The shell in `ExecStart` starts ze with SIGHUP ignored, then execs it, so ze
 keeps the main PID. A `systemctl reload` during the first few hundred
 milliseconds, before ze can register a handler, is then lost instead of killing
-the daemon (`docs/architecture/behavior/signals.md`). The install refuses a
+the daemon (`docs/architecture/behavior/signals.md`). `ExecReload` sends that
+SIGHUP with the same shell's builtin `kill`, so the unit runs no program beyond
+`/bin/sh` and ze: `/bin/kill` comes from `procps`, which a minimal host does not
+install. `ze doctor` checks the programs `ExecStart` and `ExecReload` run, and
+reports a missing one under `doctor-service-executable`.
+<!-- source: internal/plugins/systemd/unit.go -- buildUnitFile -->
+<!-- source: internal/plugins/systemd/doctor.go -- checkServiceExecutable -->
+
+The install refuses a
 binary or config path holding a character that systemd or `/bin/sh` interprets:
 a quote, a backslash, `$`, `%`, `;`, `&`, `|`, `<`, `>`, parentheses, a
 backtick, or a glob character.
@@ -163,8 +183,16 @@ Use the structured appliance builder (full reference:
 ze appliance init prod
 # For real hardware: set image.kernel-profile to "hardware" and
 # image.arch to match the target CPU in appliance.json before build.
+# The build runs under Ze's patched Go tree (see below).
+GOROOT="$(./le go stdpatch goroot)" && export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"
 ze appliance build prod
 ```
+
+The image's ze compiles only against Ze's patched standard library, so
+`ze appliance build` refuses unless its environment selects the patched
+GOROOT: the line before it sets `GOROOT`, `GOTOOLCHAIN=local` and the tree's
+`bin` first on `PATH`. Why, and every other build route:
+[patching the standard library](https://github.com/ze-software/ze/blob/main/docs/contributing/patching-the-standard-library.md).
 
 This produces `~/.config/ze/appliances/prod/ze-<timestamp>.img` with TLS, SSH
 credentials, and a seed config baked into `/perm/ze/database.zefs`. Match
@@ -280,7 +308,8 @@ ISO; the installer initrd decompresses it during installation. Create it with:
 <!-- source: internal/appliance/cmd_iso.go -- runIso -->
 
 ```bash
-ze appliance build prod
+GOROOT="$(./le go stdpatch goroot)" && export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"
+ze appliance build prod                       # under the patched Go tree, see "Build the disk image"
 ze appliance kernel --profile hardware prod   # download or build installer kernel (reads arch from config)
 ze appliance initrd                           # download or build installer initrd
 ze appliance iso prod

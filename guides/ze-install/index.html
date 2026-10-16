@@ -194,9 +194,11 @@ Type=simple
 User=ze
 Group=ze
 ExecStart=/bin/sh -c 'trap "" HUP; exec &lt;prefix&gt;/bin/ze start'
-ExecReload=/bin/kill -HUP $MAINPID
+ExecReload=/bin/sh -c 'kill -HUP $MAINPID'
 Restart=on-failure
 RestartSec=5
+TimeoutStopSec=90
+KillMode=mixed
 LimitNOFILE=65536
 LimitCORE=infinity
 LimitMEMLOCK=infinity
@@ -213,10 +215,26 @@ RuntimeDirectory=ze
 [Install]
 WantedBy=multi-user.target
 </code></pre>
+<p><code>TimeoutStopSec=90</code> and <code>KillMode=mixed</code> serve the stop drain. On a stop, ze
+first drains its routing protocols for up to 60 s, then tears down for up to
+30 s, so systemd waits 90 s before its SIGKILL. <code>mixed</code> sends the stop SIGTERM
+to ze alone, so ze can drain its external plugins before it stops them; the
+SIGKILL at the timeout still reaches the whole unit. <code>ze doctor</code> reads the
+values systemd actually applies, drop-ins included, and warns under
+<code>doctor-service-stop</code> when either is weaker.</p>
+<!-- source: internal/plugins/systemd/unit.go -- stopTimeoutSeconds -->
+<!-- source: internal/plugins/systemd/doctor.go -- checkServiceStop -->
 <p>The shell in <code>ExecStart</code> starts ze with SIGHUP ignored, then execs it, so ze
 keeps the main PID. A <code>systemctl reload</code> during the first few hundred
 milliseconds, before ze can register a handler, is then lost instead of killing
-the daemon (<code>docs/architecture/behavior/signals.md</code>). The install refuses a
+the daemon (<code>docs/architecture/behavior/signals.md</code>). <code>ExecReload</code> sends that
+SIGHUP with the same shell's builtin <code>kill</code>, so the unit runs no program beyond
+<code>/bin/sh</code> and ze: <code>/bin/kill</code> comes from <code>procps</code>, which a minimal host does not
+install. <code>ze doctor</code> checks the programs <code>ExecStart</code> and <code>ExecReload</code> run, and
+reports a missing one under <code>doctor-service-executable</code>.</p>
+<!-- source: internal/plugins/systemd/unit.go -- buildUnitFile -->
+<!-- source: internal/plugins/systemd/doctor.go -- checkServiceExecutable -->
+<p>The install refuses a
 binary or config path holding a character that systemd or <code>/bin/sh</code> interprets:
 a quote, a backslash, <code>$</code>, <code>%</code>, <code>;</code>, <code>&amp;</code>, <code>|</code>, <code>&lt;</code>, <code>&gt;</code>, parentheses, a
 backtick, or a glob character.</p>
@@ -289,8 +307,15 @@ describe each piece.</p>
 <pre><code class="language-bash">ze appliance init prod
 # For real hardware: set image.kernel-profile to "hardware" and
 # image.arch to match the target CPU in appliance.json before build.
+# The build runs under Ze's patched Go tree (see below).
+GOROOT="$(./le go stdpatch goroot)" &amp;&amp; export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"
 ze appliance build prod
 </code></pre>
+<p>The image's ze compiles only against Ze's patched standard library, so
+<code>ze appliance build</code> refuses unless its environment selects the patched
+GOROOT: the line before it sets <code>GOROOT</code>, <code>GOTOOLCHAIN=local</code> and the tree's
+<code>bin</code> first on <code>PATH</code>. Why, and every other build route:
+<a href="https://github.com/ze-software/ze/blob/main/docs/contributing/patching-the-standard-library.md" target="_blank" rel="noopener">patching the standard library</a>.</p>
 <p>This produces <code>~/.config/ze/appliances/prod/ze-&lt;timestamp&gt;.img</code> with TLS, SSH
 credentials, and a seed config baked into <code>/perm/ze/database.zefs</code>. Match
 <code>image.arch</code> in <code>appliance.json</code> to the target CPU.</p>
@@ -380,7 +405,8 @@ reports a broken image, kernel, or initrd before hardware is touched.</li>
 install transport for the gokrazy image. The image is gzip-compressed inside the
 ISO; the installer initrd decompresses it during installation. Create it with:</p>
 <!-- source: internal/appliance/cmd_iso.go -- runIso -->
-<pre><code class="language-bash">ze appliance build prod
+<pre><code class="language-bash">GOROOT="$(./le go stdpatch goroot)" &amp;&amp; export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"
+ze appliance build prod                       # under the patched Go tree, see "Build the disk image"
 ze appliance kernel --profile hardware prod   # download or build installer kernel (reads arch from config)
 ze appliance initrd                           # download or build installer initrd
 ze appliance iso prod
@@ -1128,7 +1154,7 @@ real network and <code>ze install remote</code> on port 80.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

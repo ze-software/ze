@@ -15,7 +15,8 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 7 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 7 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 7 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 42.1% | 8 of 19 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 52.2% | 12 of 23 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Audit verdicts | 7 | of 7 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -28,14 +29,6 @@ measures that are neither good news nor bad
 | Not applicable | 0.0% | 0 of 7 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 7 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 7 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 7 | of 7 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 8 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -54,7 +47,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -69,10 +62,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 19 |
-| Tagged units | 19 |
+| Test tags | 23 |
+| Tagged units | 23 |
 | Recorded audit verdicts | 7 |
-| Discrimination records | 8 |
+| Discrimination records | 12 |
 | Summary | `rfc/short/rfc8092.md` |
 | Requirement shard | `rfc/requirements/rfc8092.md` |
 | RFC text | `rfc/full/rfc8092.txt` |
@@ -114,7 +107,7 @@ LARGE_COMMUNITY parsing, validation, duplicate removal, JSON, and RFC 7606 lengt
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC8092-3-1` | Duplicate BGP Large Community values MUST NOT be transmitted. (Section 3) | MUST NOT | 3 - BGP Large Communities Attribute | **positive:** `unit/verify` [`TestLargeCommunitiesWriteToNoDuplicates`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L433). **negative:** `unit/verify` [`TestLargeCommunities`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L224) |
+| `RFC8092-3-1` | Duplicate BGP Large Community values MUST NOT be transmitted. (Section 3) | MUST NOT | 3 - BGP Large Communities Attribute | **positive:** `unit/verify` [`TestLargeCommunitiesWriteToNoDuplicates`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L433). **positive:** `unit/verify` [`TestRFC8092PolicyAddOfPresentValueSentOnce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_large_community_egress_test.go#L149). **positive:** `unit/verify` [`TestRFC8092WriteRemovesRepeatedLargeCommunity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_large_community_egress_test.go#L88). **negative:** `unit/verify` [`TestLargeCommunities`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L224). **negative:** `unit/verify` [`TestRFC8092WriteKeepsDistinctLargeCommunities`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_large_community_egress_test.go#L123). **positive:** `functional/verify` [`rfc8092-large-community-no-repeat-egress.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc8092-large-community-no-repeat-egress.ci#L4) |
 | `RFC8092-3-2` | A receiving speaker MUST silently remove redundant BGP Large Community values from a BGP Large Community attribute. (Section 3) | MUST | 3 - BGP Large Communities Attribute | **positive:** `unit/verify` [`TestLargeCommunitiesDeduplication`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L406). **positive:** `unit/verify` [`TestRFC8092RedundantLargeCommunityRemovedBeforePropagation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go#L102). **negative:** `unit/verify` [`TestLargeCommunitiesParse`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L248). **negative:** `unit/verify` [`TestRFC8092DistinctLargeCommunitiesKeptWhole`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go#L137) |
 | `RFC8092-5-1` | Numbers MUST NOT contain leading zeros; a zero value MUST be represented with a single zero. (Section 5) | MUST NOT | 5 - Canonical Representation | **positive:** `unit/verify` [`TestAppendText_LargeCommunityElement`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc8092_text_append_test.go#L41). **negative:** no negative test. **{single-polarity}:** the canonical rendering LargeCommunity.AppendText (internal/core/bgp/attribute/community.go:316) uses strconv.AppendUint, which never emits leading zeros and renders 0 as a single "0", so every value is canonical and there is no non-canonical rendering to assert as a negative |
 | `RFC8092-6-1` | The BGP Large Communities Global Administrator field may contain any value, and a BGP Large Communities attribute MUST NOT be considered malformed if the Global Administrator field contains an unallocated, unassigned, or reserved ASN. (Section 6) | MUST NOT | 6 - Error Handling | **positive:** `unit/verify` [`TestRFC8092LargeCommunityAnyGlobalAdministratorIsWellFormed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_error_handling_test.go#L30). **positive:** `unit/verify` [`TestRFC8092LargeCommunityValidReservedASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L41). **negative:** no negative test. **{single-polarity}:** the malformed check validateLargeCommunityAttr (internal/component/bgp/message/rfc7606.go:620) inspects the attribute length only and never the Global Administrator value, so a reserved or unallocated ASN is never treated as malformed and there is no ASN-based rejection to assert as a negative |
@@ -138,12 +131,16 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 Duplicate BGP Large Community values MUST NOT be transmitted. (Section 3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: a speaker transmitting a LARGE_COMMUNITY attribute that carries the same 12-octet value twice. TestLargeCommunitiesWriteToNoDuplicates asserts n == 24 for a three-entry list holding one duplicate, so it goes red if LargeCommunities.WriteTo stops deduplicating; TestLargeCommunities (negative) pins that distinct values are all emitted. Only the WriteTo producer is covered: the adj-rib-out replay encoder in internal/component/bgp/plugins/rib/ribout_entry.go (parseLargeCommunityWire then appendAttr) re-encodes the stored value without deduplication, and forward-unchanged raw attribute bytes are not asserted either, so a duplicate can reach the wire on a path no tagged unit exercises.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor, D2). RFC 8092 Section 3: "Duplicate BGP Large Community values MUST NOT be transmitted." Producer: normalizeTransmittedUpdate's compactLargeCommunities, run by writeUpdateBody on every UPDATE write, raw included, so the adj-rib-out replay and forward-unchanged bytes the earlier verdict named now pass the same walk. Positive TestRFC8092WriteRemovesRepeatedLargeCommunity: [X,X,Y] sent as [X,Y], 20 values with one repeat (filter path) and 22 in Extended Length form sent with the repeat removed, first occurrence kept, lengths re-checked by sentLargeCommunities, on the raw, parsed, override and relay writers, zero allocations; TestRFC8092PolicyAddOfPresentValueSentOnce: received [X,Z] plus a policy body [X,Z,X,Y,Y] leaves as exactly [X,Z,Y], 36 octets, message length consistent; the .ci asserts the full relayed hex with the policy repeats gone; TestLargeCommunitiesWriteToNoDuplicates pins the local encoder. Negatives TestRFC8092WriteKeepsDistinctLargeCommunities (3, 16, 17, 20 distinct values leave byte for byte on every writer) and TestLargeCommunities, red on over-removal or reordering. Rejudged 2026-10-16 (independent reader) after the owner-approved withdrawal-Compatibility change: normalizeTransmittedUpdate gained an EncodingContext parameter read only by setWithdrawalCompatibility on an MP_UNREACH_NLRI. The edits in TestRFC8092WriteRemovesRepeatedLargeCommunity and TestRFC8092WriteKeepsDistinctLargeCommunities pass nil; their bodies carry no MP_UNREACH_NLRI, so the context is never read and the Large Community compaction and its exact-output assertions are unchanged. RFC 8092 Section 3: "Duplicate BGP Large Community values MUST NOT be transmitted." Verdict stands.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
+| negative | [`TestRFC8092WriteKeepsDistinctLargeCommunities`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_large_community_egress_test.go#L123) | unit/verify | revert, verified |
 | negative | [`TestLargeCommunities`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L224) | unit/verify | unproven |
+| positive | [`TestRFC8092PolicyAddOfPresentValueSentOnce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_large_community_egress_test.go#L149) | unit/verify | revert, verified |
+| positive | [`TestRFC8092WriteRemovesRepeatedLargeCommunity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_large_community_egress_test.go#L88) | unit/verify | revert, verified |
 | positive | [`TestLargeCommunitiesWriteToNoDuplicates`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L433) | unit/verify | unproven |
+| positive | [`rfc8092-large-community-no-repeat-egress.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc8092-large-community-no-repeat-egress.ci#L4) | functional/verify | revert, verified |
 
 ### [`RFC8092-3-2`](#rfc8092-3-2)
 

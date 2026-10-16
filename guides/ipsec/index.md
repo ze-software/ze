@@ -497,7 +497,9 @@ covers both roles; with it `false` every authentication runs a full handshake an
 still goes out. As the authenticator, Ze resumes TLS 1.3 sessions only: a peer that offers a
 TLS 1.2 ticket gets a full handshake, because RFC 5216 Section 2.1.2 allows nothing but
 change_cipher_spec and finished after a resuming TLS 1.2 server_hello, and the TLS library
-always adds a new ticket there. A resumed authentication re-checks the cached chain against the current
+adds a new ticket there. So a TLS 1.2 handshake runs with session tickets off: Ze issues no
+TLS 1.2 ticket and redeems none, and its full-handshake server_hello carries a session_id Ze
+chose rather than an empty one. A resumed authentication re-checks the cached chain against the current
 `ca-certificate` and `crl`, so a certificate that was revoked or expired since the first
 handshake is refused.
 
@@ -1220,7 +1222,9 @@ proposals in the `esp-group` and a peer that accepts only the second, the payloa
 the second. If Ze cannot resolve that proposal's transforms, which only a Ze defect
 produces, `esp-integrity` is absent and `esp-transform-error` says why. `mode` is
 `tunnel` or `transport`, `udp-encapsulation` says the SA receives
-ESP inside UDP on port 4500, and `remote-address` is the endpoint the SA was installed
+ESP inside UDP on the ports the IKE SA uses: Ze's NAT-T port (4500) and the port the
+peer's authenticated IKE traffic comes from, which a NAT may have translated to any
+port, and `remote-address` is the endpoint the SA was installed
 on, which behind a NAT differs from the configured `remote-address` of the peer. Those
 three, with the transform, are what size an ESP packet on the tunnel.
 

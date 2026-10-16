@@ -2013,7 +2013,7 @@ when neither socket opens, naming which of the two fixes applies, and
 <code>doctor-icmp-probe-unprivileged</code> when ping runs on the fallback.</p>
 <!-- source: internal/component/ping/cmd/register.go -- showPingLocal -->
 <!-- source: internal/component/ping/cmd/ping.go -- parsePingArgs -->
-<!-- source: internal/plugins/ping-cmd/yang/ze-ping-cmd.yang -- show/ping size leaf -->
+<!-- source: internal/component/ping/yang/ze-ping-cmd.yang -- show/ping size leaf -->
 <!-- source: internal/component/traceroute/cmd/register.go -- showTracerouteLocal -->
 <h3 id="show-crashes">show crashes</h3>
 <pre><code>ze show crashes              # List crash reports with size, kind and readiness (JSON)
@@ -3820,7 +3820,7 @@ and a later change to the curated table cannot alter what that config does.</p>
 <tr>
 <td><code>clear bgp healthcheck &lt;name&gt;</code></td>
 <td>write</td>
-<td>Withdraw route, reset FSM to INIT, immediate re-check. Error if DISABLED. <!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleCommand, handleShow --></td>
+<td>Withdraw route, reset FSM to INIT, and re-check once the old probe's exit has finished: its withdraw command returned, whether it succeeded, failed or timed out after 5 s, and its IPs were removed. A withdraw that failed or timed out leaves the route announced while the probe re-checks. The reply can return before the withdraw has run. Error if DISABLED. <!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleCommand, handleShow, handleReset --></td>
 </tr>
 </tbody>
 </table>
@@ -3847,7 +3847,7 @@ declares <code>map</code> rather than <code>tab</code>. <code>| fill</code> is r
 <tr>
 <td><code>show bmp peers</code></td>
 <td>read-only</td>
-<td>Show monitored BGP peers (AS, BGP ID, up/down status)</td>
+<td>Show monitored BGP peers (AS, BGP ID, up/down status, and <code>rib-peer</code>, the key <code>show bgp rib protocol bmp peer</code> takes)</td>
 </tr>
 <tr>
 <td><code>show bmp collectors</code></td>
@@ -4663,7 +4663,7 @@ reaches, where the daemon expands the chain.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

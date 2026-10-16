@@ -405,7 +405,7 @@ typo from causing memory exhaustion.
 request shutdown         # Graceful shutdown
 request reboot           # Graceful shutdown + OS reboot (requires root on Linux)
 request reload           # Reload configuration
-request halt             # Goroutine dump + immediate exit
+request halt             # Goroutine dump, then graceful shutdown (stop drain included)
 show status              # Get process status
 ```
 

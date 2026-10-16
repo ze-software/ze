@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 14 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 14 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 14 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 21.7% | 10 of 46 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 30.4% | 14 of 46 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 15 | of 14 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -65,7 +65,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 46 |
 | Tagged units | 46 |
 | Recorded audit verdicts | 15 |
-| Discrimination records | 10 |
+| Discrimination records | 14 |
 | Summary | `rfc/short/rfc5709.md` |
 | Requirement shard | `rfc/requirements/rfc5709.md` |
 | RFC text | `rfc/full/rfc5709.txt` |
@@ -155,7 +155,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L82) | unit/verify | unproven |
+| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L82) | unit/verify | revert, verified |
 | positive | [`TestRFC5709AnyAlgorithmUnderAnyKeyID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_any_algorithm_any_keyid_test.go#L36) | unit/verify | revert, verified |
 
 ### [`RFC5709-3.1-1`](#rfc5709-3.1-1)
@@ -177,9 +177,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. c23 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFAuthCryptoRejectsExtraTrailerBytes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L229) | unit/verify | unproven |
+| negative | [`TestOSPFAuthCryptoRejectsExtraTrailerBytes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L229) | unit/verify | revert, verified |
 | negative | [`TestRFC5709WrongAuthDataLengthRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go#L74) | unit/verify | revert, verified |
-| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L61) | unit/verify | unproven |
+| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L61) | unit/verify | revert, verified |
 | positive | [`TestRFC5709AuthDataLengthIsHashOutputLength`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go#L21) | unit/verify | revert, verified |
 
 ### [`RFC5709-3.1-3`](#rfc5709-3.1-3)
@@ -191,7 +191,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L140) | unit/verify | revert, verified |
-| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L63) | unit/verify | unproven |
+| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L63) | unit/verify | revert, verified |
 | positive | [`TestRFC5709CryptoSequenceNonDecreasingOnInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_crypto_sequence_test.go#L50) | unit/verify | revert, verified |
 
 ### [`RFC5709-3.1-4`](#rfc5709-3.1-4)

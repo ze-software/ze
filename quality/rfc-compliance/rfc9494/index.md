@@ -204,7 +204,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Two 
 
 If a BGP speaker is configured to support the procedures of this document, it MUST use BGP Capabilities Advertisement [RFC5492] to advertise the Long-Lived Graceful Restart Capability. (§4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a peer configured for LLGR whose capability declaration lacks code 71. TestExtractLLGRCapabilities_Basic fails unless extractLLGRCapabilities emits one Code 71 hex declaration for the peer whose payload decodes to LLST 3600. Negative: TestExtractLLGRCapabilities_NoLLGR asserts no declaration without long-lived-stale-time. Proven at the plugin's capability-declaration boundary; the hand-off to the OPEN is not asserted in these units.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 9494 Section 4: "If a BGP speaker is configured to support the procedures of this document, it MUST use BGP Capabilities Advertisement [RFC5492] to advertise the Long-Lived Graceful Restart Capability." Re-judged 2026-10-15 after the positive tag's claim was reworded (body unchanged): extractLLGRCapabilities is declared through grCapabilities, the plugin's BGPCapabilityExtractor (gr_capability.go), which the claim now names. TestExtractLLGRCapabilities_Basic fails unless extractLLGRCapabilities emits one Code 71 hex declaration for the peer whose payload decodes to LLST 3600. Negative: TestExtractLLGRCapabilities_NoLLGR asserts no declaration without long-lived-stale-time. Proven at the plugin's capability-declaration boundary; the hand-off to the OPEN is not asserted in these units.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

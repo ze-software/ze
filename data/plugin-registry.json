@@ -690,6 +690,18 @@
     ]
   },
   {
+    "name": "crashes",
+    "description": "Crash capture: kernel crash record harvest at daemon start, crash reports",
+    "config_roots": [],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "start_after": [],
+    "source_dir": "internal/plugins/crashes",
+    "yang_files": [
+      "internal/plugins/crashes/yang/ze-crashes-cmd.yang"
+    ]
+  },
+  {
     "name": "ddos-detect",
     "description": "Automatic DDoS attack detector with two-stage detection",
     "config_roots": [
@@ -771,7 +783,9 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
-    "start_after": [],
+    "start_after": [
+      "interface"
+    ],
     "source_dir": "internal/plugins/dhcpserver",
     "yang_files": [
       "internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang"
@@ -981,7 +995,9 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
-    "start_after": [],
+    "start_after": [
+      "interface"
+    ],
     "source_dir": "internal/plugins/imageserver",
     "yang_files": [
       "internal/plugins/imageserver/yang/ze-image-server-conf.yang"
@@ -1306,7 +1322,9 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
-    "start_after": [],
+    "start_after": [
+      "interface"
+    ],
     "source_dir": "internal/plugins/tftpserver",
     "yang_files": [
       "internal/plugins/tftpserver/yang/ze-tftp-server-conf.yang"

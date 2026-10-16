@@ -118,6 +118,8 @@ export XDG_RUNTIME_DIR=/run/ze
 /usr/local/bin/ze cli -c "show rr peers"
 ```
 
+Each row of an established peer carries `families`: the address families the reflector recorded from that peer's OPEN, sorted (`ipv4/unicast` alone when the OPEN carried no Multiprotocol capability). A row whose peer is down, or whose OPEN the reflector could not read, has no `families` key. `show bgp rs peers` carries the same key for the route server.
+
 If a peer does not show the FlowSpec family, check the remote router address-family configuration first. Ze cannot reflect a family that was not negotiated.
 
 ## 4. Inject a test FlowSpec rule

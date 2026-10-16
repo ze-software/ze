@@ -166,7 +166,8 @@ $ sudo systemctl start ze.service
 <code>import [ bgp-filter-irr:&lt;asn&gt; ]</code> takes effect on the running filter. A changed
 as-set does not inherit the list of the old one: the next UPDATE from that peer
 waits a few seconds for the new set to resolve, then is filtered against it.</p>
-<!-- source: internal/component/bgp/plugins/filter_irr/config_tx.go -- irrConfigTx.apply -->
+<!-- source: internal/component/bgp/plugins/filter_irr/config_tx.go -- newIRRConfigTx -->
+<!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx.Apply -->
 <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- handleConfigure -->
 <h2 id="verify-before-carrying-traffic">Verify before carrying traffic</h2>
 <p>After committing the configuration and establishing the BGP session, check the generated list:</p>
@@ -384,7 +385,7 @@ The operational commands use Ze&#39;s default text format. Its key/value layout 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

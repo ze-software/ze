@@ -294,7 +294,7 @@ on-change "logger -t healthcheck state=$STATE"
 </tr>
 <tr>
 <td><code>clear bgp healthcheck &lt;name&gt;</code></td>
-<td>Withdraw current route, reset FSM to INIT, re-check immediately. Returns error if probe is DISABLED.</td>
+<td>Withdraw current route, reset FSM to INIT, re-check once the withdraw is done. The reply can return before the withdraw has run. Returns error if probe is DISABLED.</td>
 </tr>
 </tbody>
 </table>
@@ -356,7 +356,7 @@ shape and <code>| fill</code> is refused by name.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

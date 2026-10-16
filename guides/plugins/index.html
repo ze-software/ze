@@ -57,6 +57,8 @@
 <li><a href="#plugin-block-settings">Plugin Block Settings</a></li>
 </ol></li>
 <li><a href="#when-a-plugin-fails">When a Plugin Fails</a></li>
+<li><a href="#when-a-reload-changes-a-plugins-config">When a Reload Changes a Plugin&#39;s Config</a></li>
+<li><a href="#when-a-reload-changes-a-plugins-capability">When a Reload Changes a Plugin&#39;s Capability</a></li>
 <li><a href="#binding-plugins-to-peers">Binding Plugins to Peers</a>
 <ol>
 <li><a href="#event-types">Event Types</a></li>
@@ -316,6 +318,81 @@ declares <code>restart</code>.</p>
 carries the same option and a migrated configuration keeps working.</p>
 <p>Past the restart bound the plugin is disabled, <code>show health</code> reports
 <code>plugin-down</code> for it, and ze carries on.</p>
+<h2 id="when-a-reload-changes-a-plugins-config">When a Reload Changes a Plugin's Config</h2>
+<p>A plugin that reads a section of the config is asked to check a reload's
+candidate before anything is applied, then to apply it, and to put its previous
+config back if the commit fails. A plugin that registers those handlers either
+takes the change at commit or refuses the reload at that check, naming the leaf
+and the restart steps. A plugin that registers no apply handler, and does not
+declare that it applies nothing, refuses at that check every reload that
+changes a section it reads: the commit fails, the running config stays in
+force, and the error names the plugin, the changed sections and the restart
+that delivers the change at startup. What each plugin does with a reload, and
+which leaves need a restart, is listed once, in <a href="https://github.com/ze-software/ze/blob/main/docs/guide/config-reload.md" target="_blank" rel="noopener">config reload</a>,
+under "Plugin config changed" and "What Requires Restart".</p>
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- configVerifyCallback, refuseWithoutApply -->
+<h2 id="when-a-reload-changes-a-plugins-capability">When a Reload Changes a Plugin's Capability</h2>
+<p>A plugin that adds a capability to ze's OPEN (<code>bgp-softver</code>, <code>bgp-hostname</code>,
+<code>bgp-role</code>, <code>bgp-llnh</code>, <code>bgp-gr</code>, <code>exabgp-bridge</code>) sends it once, when ze
+starts. A reload that would change one is refused, because ze would keep
+sending the old value in its OPEN. The refusal names the peer, the
+<code>capability</code> leaf and the plugin, then how to restart:</p>
+<pre><code>peer 192.0.2.1: capability software-version cannot change while ze runs (plugin bgp-softver).
+The plugin sends its capabilities only when ze starts, so ze would keep sending the old value in its OPEN to this peer.
+To apply the change, stop the ze daemon and start it again:
+  under systemd: systemctl restart ze
+  without systemd: ze signal stop, then start ze the way it was started (ze start, or ze start &lt;config-file&gt;)
+  on the ze appliance: request reboot in the ze CLI, or ze signal reboot from a shell
+</code></pre>
+<p>What counts as a change:</p>
+<table>
+<thead>
+<tr>
+<th>Reload</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A capability's value changes on a peer that stays configured</td>
+<td>Refused</td>
+</tr>
+<tr>
+<td>A capability is removed from a peer that stays configured</td>
+<td>Refused</td>
+</tr>
+<tr>
+<td>A peer is added that carries one of these capabilities</td>
+<td>Refused: ze holds no OPEN capability for it</td>
+</tr>
+<tr>
+<td>A session family is added or removed on a <code>graceful-restart</code> peer with no <code>graceful-restart family</code> list</td>
+<td>Refused: the Graceful Restart payload follows the session families. An explicit <code>family</code> list keeps the payload fixed and the reload is accepted</td>
+</tr>
+<tr>
+<td>The exabgp bridge's families are edited while its <code>add-path</code> is set</td>
+<td>Refused naming <code>add-path</code>: the ADD-PATH payload is built from those families</td>
+</tr>
+<tr>
+<td>A peer is removed, or nothing these plugins declare changes</td>
+<td>Accepted</td>
+</tr>
+</tbody>
+</table>
+<p>The refusal names a peer by its name, or by its address for a plugin that
+keys peers by address (<code>bgp-role</code>). A change in a dynamic group's template is
+named as <code>peers of dynamic group &lt;name&gt;</code>, and a bridge setting, which applies
+to every session, as <code>every peer</code>.</p>
+<p><code>systemctl restart ze</code> and <code>ze signal stop</code> end each session with a normal
+teardown, so peers withdraw ze's routes until it is back. The appliance routes
+(<code>request reboot</code>, <code>ze signal reboot</code>) write the Graceful Restart marker and
+stop without a NOTIFICATION, so peers that negotiated Graceful Restart keep
+ze's routes for the restart time. Under systemd, the restart that keeps the
+marker is <code>ze signal restart</code>, a wait until the process has exited, then
+<code>systemctl start ze</code>: <code>ze signal restart</code> alone leaves ze stopped, because it
+exits cleanly and the unit restarts only on failure.</p>
+<!-- source: pkg/plugin/sdk/capability_declaration.go -- capabilityChanges, capabilityRefusal -->
+<!-- source: pkg/plugin/sdk/restart_text.go -- RestartSteps -->
 <h2 id="binding-plugins-to-peers">Binding Plugins to Peers</h2>
 <p>Each peer declares which plugins receive its events, in <code>attach process</code> blocks.
 The process name must match the plugin's <code>internal</code> or <code>external</code> name in the
@@ -1957,7 +2034,7 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

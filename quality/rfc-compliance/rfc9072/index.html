@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>22.2%</strong><b>2 of 9 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>72.7%</strong><b>8 of 11 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>78.6%</strong><b>11 of 14 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,7 +136,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>44.4%</strong><b>4 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 9 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -190,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -231,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>12</td>
+<td>15</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>11</td>
+<td>14</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>8</td>
+<td>11</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9072.md</code></td>
@@ -321,6 +320,8 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9072-2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L419" title="internal/component/bgp/message/open_test.go" target="_blank" rel="noopener"><code>TestOpenPackExtendedParams</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go#L64" title="internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go" target="_blank" rel="noopener"><code>TestRFC9072OptionalParamsBoundary</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go#L67" title="internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go" target="_blank" rel="noopener"><code>TestRFC9072OptionalParamsBoundary</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9072_extended_open_test.go#L21" title="internal/component/bgp/message/rfc9072_extended_open_test.go" target="_blank" rel="noopener"><code>TestTheExtendedEnvelopeAndItsParametersAgree</code></a></span></div>
 </div></td>
 </tr>
@@ -404,7 +405,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>SHOULD</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9072-2-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go#L72" title="internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go" target="_blank" rel="noopener"><code>TestRFC9072OptionalParamsBoundary</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
@@ -459,7 +460,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc9072-2-1"><code>RFC9072-2-1</code></a></h3>
 <p>However, if the length of the Optional Parameters in the BGP OPEN message does exceed 255, the OPEN message MUST be encoded according to the procedure below. (S2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Unit changed only by D-15: TestOpenPackExtendedParams now asserts the exact extended body (13+params, the off-by-one D-8 fix) plus the markers and 2-octet length. Still weak: the procedure&#39;s two-octet Parameter Length per parameter is not asserted in this row&#39;s units (the reactor TestRFC9072ParameterType255OnlyAsTheExtendedMarker parses it but is tagged to 3-2 only). Row is in the child spec&#39;s Blocked-by list.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor). RFC 9072 Section 2: &#39;if the length of the Optional Parameters in the BGP OPEN message does exceed 255, the OPEN message MUST be encoded according to the procedure below.&#39; The new reactor unit TestRFC9072OptionalParamsBoundary builds the OPEN through Session.buildOpen and Open.WriteTo for capability totals 0, 2, 253, 254, 255, 256, 300 and asserts exact octets: at 254 and above (Optional Parameters above 255) Non-Ext OP Len 255, Non-Ext OP Type 255, Extended Opt. Parm. Length 3+capTotal, Parm. Type 2 and the TWO-OCTET Parameter Length capTotal, body length 16+capTotal; at 253 and below the classic form with one-octet lengths. The two-octet Parameter Length the earlier weak verdict found unasserted is now asserted, and the 253/254 edge catches the off-by-two. A conforming decode returns every capability.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -469,8 +470,18 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go#L67" title="internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go" target="_blank" rel="noopener"><code>TestRFC9072OptionalParamsBoundary</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L419" title="internal/component/bgp/message/open_test.go" target="_blank" rel="noopener"><code>TestOpenPackExtendedParams</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go#L64" title="internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go" target="_blank" rel="noopener"><code>TestRFC9072OptionalParamsBoundary</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -551,7 +562,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <p>No test carries RFC9072-3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9072-3-2"><code>RFC9072-3-2</code></a></h3>
 <p>Although the Optional Parameter type code 255 is used in this specification as the indication that the extended encoding is in use, it is not a bona fide Optional Parameter type code in the usual sense and MUST NOT be used other than as described above. (S3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Marker removed; genuine negative (R1b): TestRFC9072ParameterType255OnlyAsTheExtendedMarker builds capabilities full of 0xFF (AS 0xFFFFFFFF, AFI 0xFFFF, SAFI 0xFF) through buildOptionalParams and requires no parameter type 255 and framing ending exactly at the end, classic below 256 octets, extended above; positive body[10]==0xFF on TestOpenPackExtendedParams.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor). Unit changed only by the move to the one packer (capability.PackOptionalParams via packPeerOptionalParams). TestRFC9072ParameterType255OnlyAsTheExtendedMarker fills capability values with 0xFF octets, writes the OPEN and walks the framing the OPEN announces: below 256 octets no envelope and types [2]; above, the 255/255 envelope and every parameter type 2, framing ending exactly at the OPEN&#39;s end. TestOpenPackExtendedParams carries the positive marker position. A packer emitting 255 as a parameter type, or the marker on a short OPEN, goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -578,6 +589,21 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <p>Although the Optional Parameter type code 255 is used in this specification as the indication that the extended encoding is in use, it is not a bona fide Optional Parameter type code in the usual sense and MUST NOT be used other than as described above. If encountered other than as the Non-Ext OP Type, it MUST be treated as an unrecognized Optional Parameter and handled according to [RFC4271], Section 6.2. (S3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9072-3-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9072-2-7"><code>RFC9072-2-7</code></a></h3>
+<p>In the event that the length of the Optional Parameters in the BGP OPEN message does not exceed 255, the encodings of the base BGP specification [RFC4271] SHOULD be used without alteration. (S2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go#L72" title="internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go" target="_blank" rel="noopener"><code>TestRFC9072OptionalParamsBoundary</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -731,7 +757,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

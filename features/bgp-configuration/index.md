@@ -51,11 +51,14 @@ surface, including one below a non-presence container the file leaves out (RFC
 7950 Section 7.6.5), in every top-level section the file writes; a section the
 file omits is not checked. In the `bgp` section a global `router-id` or
 `session asn local` that every peer resolves from itself or its group counts as
-present; a dynamic group must carry it itself. That inheritance covers the
+present; a dynamic group must carry it itself. A `bgp` section with no `peer`
+and no `group` is accepted and does nothing, so it requires neither; a peer created later with `create bgp peer` that resolves no
+router-id or local AS is refused naming the leaf. That inheritance covers the
 global level only: a mandatory node missing inside a `peer` or `group` entry is
 refused, even when a group would supply its value at run time.
 <!-- source: internal/component/config/yang/validator_mandatory.go -- requireMandatoryUnderAbsent -->
 <!-- source: internal/component/config/validate_mandatory_bgp.go -- bgpMandatoryFailures, EverySessionCarries -->
+<!-- source: internal/component/bgp/reactor/reactor_peers.go -- createdPeerSettings -->
 <!-- source: internal/component/config/validate_sections.go -- ValidateCustomSections, mandatoryFailures, ErrCustomValidation -->
 <!-- source: internal/component/config/loader.go -- LoadConfig calls ValidateCustomSections -->
 <!-- source: cmd/ze/hub/main.go -- recoverableLoadError declines recovery for ErrCustomValidation -->

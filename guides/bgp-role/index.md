@@ -92,7 +92,7 @@ Four checks run in order. The first one that fires decides.
 | # | Check | Action |
 |---|-------|--------|
 | 1 | The route carries OTC and the destination is a Provider, Peer, or RS | Suppress (RFC 9234 Section 5, no source config needed) |
-| 2 | The destination is a Provider, Peer, or RS, and ze's role toward the SOURCE is customer, peer, or rs-client | Suppress. This is the Gao-Rexford check |
+| 2 | The destination is a Provider, Peer, or RS, and ze's role toward the SOURCE is customer, peer, rs-client, or rs (the source is not a Customer) | Suppress. This is the Gao-Rexford check of RFC 9234 Section 3.1: only a route learned from a Customer, or locally originated, goes upward or sideways |
 | 3 | The source states `export` and the destination's capability role is outside that set | Suppress. Operator policy, not an RFC gate |
 | 4 | The destination is a Customer, Peer, or RS-Client, the UPDATE advertises a route, and OTC is absent | Add OTC with ze's local AS for this session |
 
@@ -144,6 +144,8 @@ A role stated on a group reaches every member. A configured peer already carries
 Resolution is by address first and by group second, so a member that states its own role keeps it. Three decisions take that route: the Section 5 OTC gates, the Section 4.2 OPEN pair check with its strict mode, and the Role capability ze advertises to the member.
 
 A learned role survives a configuration reload while the configuration still names the peer, or names the group a dynamic member belongs to. An established session sends no second OPEN, so a dropped learned role could not be written back.
+
+A peer made at runtime with `create bgp peer <addr>` is named by no configuration, and its learned role survives every reload as well. Deleting that peer removes the role before `delete bgp peer` returns, and ze logs `learned role dropped: peer removed` with the role it held, so a peer later created at the same address starts with none. A rolled-back commit that had added a peer removes that peer's role the same way. One case keeps a role: an OPEN that ze was still validating when its peer was removed can store the role after the removal, and ze keeps it until a new OPEN for that name replaces it or the daemon restarts.
 
 ## Config That Cannot Be Reached
 

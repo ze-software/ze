@@ -105,7 +105,7 @@ SID. Ze does not allocate egress Service SIDs or install endpoint behaviors.</p>
 </tr>
 <tr>
 <td>SID extraction</td>
-<td>First SRv6 SID Information Sub-TLV (type 1) within the Service TLV</td>
+<td>First SRv6 SID Information Sub-TLV (type 1) within the first L3 (type 5) and the first L2 (type 6) Service TLV; a later instance of a type is ignored even when the first holds no valid SID</td>
 </tr>
 <tr>
 <td>Transposition</td>
@@ -113,7 +113,7 @@ SID. Ze does not allocate egress Service SIDs or install endpoint behaviors.</p>
 </tr>
 <tr>
 <td>Path ineligibility</td>
-<td class="cell-partial">∿</td>
+<td>Excludes a path whose Service TLVs leave it no SID valid for its family: no SID, an invalid SID Structure, a transposition wider than the label field, or any transposition on a family without one</td>
 </tr>
 <tr>
 <td>SID resolvability</td>
@@ -133,7 +133,7 @@ SID. Ze does not allocate egress Service SIDs or install endpoint behaviors.</p>
 </tr>
 <tr>
 <td>Propagation</td>
-<td>Label-Index Reserved and Flags are cleared on every transmission, including relay. Originator SRGB and unknown TLVs remain byte-identical. A next-hop change removes only the SRv6 Service TLVs (types 5 and 6), with the whole attribute leaving if no TLV remains; the SR domain boundary strips it whole</td>
+<td>Label-Index Reserved and Flags are cleared on every transmission on IPv4/IPv6 labeled unicast, including relay; on every other family the Label-Index TLV is unrecognized and leaves octet-equal. Originator SRGB and unknown TLVs remain byte-identical. A next-hop change removes only the SRv6 Service TLVs (types 5 and 6), with the whole attribute leaving if no TLV remains; the SR domain boundary strips it whole</td>
 </tr>
 <tr>
 <td>Linux FIB</td>
@@ -279,7 +279,7 @@ RFC 7606 validator: checks TLV structure, rejects malformed
 EBGP filter: discards attr 40 unless accept-srv6-prefix-sid is set
   |
   v
-RIB best-path: isSRv6Ineligible() excludes SRv6 paths with no extractable SID
+RIB best-path: isSRv6Ineligible(fam, entry) excludes SRv6 paths with no SID valid for the family
   |
   v
 Best-path emission: storedPathSRv6SID() extracts SID from the winner's OtherAttrs
@@ -308,11 +308,16 @@ Origination rails: the configured PrefixSID and any raw attribute 40 are dropped
 </code></pre>
 <p>The final session writers clear the Label-Index Reserved octet and both Flags
 octets in their private outgoing buffer after export policy (RFC 8669 Section
-3.1). This applies to forwarded routes as well as originated routes, without an
+3.1), on IPv4/IPv6 labeled unicast only. RFC 8669 Section 3.1 defines the TLV
+for those families alone ("It MUST be ignored when received for other BGP
+AFI/SAFI combinations"), so elsewhere it is an unknown TLV and is propagated
+unmodified (Section 6). The family is read (<code>attribute.PrefixSIDRouteFamily</code>)
+only once a TLV that needs clearing is met; an unreadable family leaves the
+body unmodified. This applies to forwarded routes as well as originated routes, without an
 extra buffer or a change to the borrowed received UPDATE. The Section 3.2
 unchanged-propagation rule applies specifically to Originator SRGB: its bytes
 are never normalized on relay.</p>
-<!-- source: internal/component/bgp/reactor/session_prefix_sid.go -- clearTransmittedLabelIndex -->
+<!-- source: internal/component/bgp/reactor/session_prefix_sid.go -- clearLabelIndexTLVs -->
 <p>Forwarding compares the received next-hop entity with the effective address
 after export policy, configured rewriting and Link-Local scope normalization.
 An explicit third-party A-to-A rewrite keeps the Service TLVs, including their
@@ -355,7 +360,17 @@ NLRI instead of in the SID Information Sub-TLV. Ze reconstructs the full SID:</p
 <li>OR label bits into SID at the specified bit offset</li>
 </ol>
 <p>When Transposition Length is 0, no reconstruction is needed (the full SID is
-in the Sub-TLV). This is the common case for IPv6 unicast.</p>
+in the Sub-TLV). This is the common case for IPv6 unicast, and the only one
+valid there: RFC 9252 Section 7 requires the offset and length to be 0 on a
+family the Transposition Scheme does not apply to, so a non-zero length on
+IPv6 unicast or labeled unicast leaves the path with no valid SID.</p>
+<p>A SID Structure that fails a Section 3.2.1 condition makes the SID invalid,
+and nothing is installed from it: a length other than 6, LBL+LNL+FL+AL above
+128 or below Transposition Offset + Transposition Length (erratum 7817), a
+Transposition Length of 0 with a non-zero offset, or a non-zero Argument
+Length (ze knows no Endpoint Behavior, so it ignores every SID with
+arguments). The family-free checks are in <code>parseSIDStructure</code>; the label
+width bound, 20 bits on VPN and 24 on EVPN, is <code>nlrisplit.TranspositionLabelWidth</code>.</p>
 <h2 id="fib-backends">FIB Backends</h2>
 <h3 id="linux-kernel">Linux Kernel</h3>
 <p>Routes with SRv6 SID are installed with SEG6 lightweight tunnel encapsulation:</p>
@@ -410,7 +425,12 @@ the VPP dispatch logic.</p>
 <tr>
 <td>Malformed attribute: attribute-discard</td>
 <td>6</td>
-<td class="cell-partial">∿</td>
+<td>Implemented: on IPv4/IPv6 labeled unicast a Label-Index TLV of a length other than 7, an Originator SRGB TLV of a length other than 2 + 6N (N &gt;= 1), a TLV overrunning the attribute and trailing octets discard attribute 40; an empty attribute is discarded on every family. Off labeled unicast types 1 and 3 are unrecognized and kept whatever their length (<code>attribute.ClassifyPrefixSID</code>)</td>
+</tr>
+<tr>
+<td>Invalid attribute (no Label-Index on labeled unicast)</td>
+<td>4.1, 6</td>
+<td>Implemented: attribute-discard on IPv4/IPv6 labeled unicast; kept on other families</td>
 </tr>
 <tr>
 <td>Repeated single-occurrence TLV: all but the first discarded</td>
@@ -462,7 +482,12 @@ the VPP dispatch logic.</p>
 <tr>
 <td>LBL+LNL+FL+AL &lt;= 128 validation</td>
 <td>3.2.1</td>
-<td class="cell-partial">∿</td>
+<td>Implemented: a SID Structure that fails the sum (errata 7817), is not 6 octets, carries a zero length with a non-zero offset, or carries a non-zero AL makes the SID invalid</td>
+</tr>
+<tr>
+<td>Second L3 or L2 Service TLV ignored</td>
+<td>7</td>
+<td>Implemented: only the first instance of each type is read, whatever it holds</td>
 </tr>
 <tr>
 <td>NH unchanged: preserve TLVs</td>
@@ -477,12 +502,12 @@ the VPP dispatch logic.</p>
 <tr>
 <td>Malformed Service TLV: treat-as-withdraw</td>
 <td>7</td>
-<td class="cell-partial">∿</td>
+<td>Implemented: on every family, including a Service TLV whose length overruns the attribute and stray octets inside a SID Information Sub-TLV; off labeled unicast a framing error met after a Service TLV is that TLV's length disagreeing with the attribute, so treat-as-withdraw too</td>
 </tr>
 <tr>
 <td>Path ineligibility (no valid SID)</td>
 <td>7</td>
-<td class="cell-partial">∿</td>
+<td>Implemented: <code>candidateAdmitted</code> excludes a path whose only SID is invalid, or whose transposition is wider than its family's label field; an unreadable attribute set is excluded too, logged once</td>
 </tr>
 <tr>
 <td>SID resolvability before best-path selection</td>
@@ -492,7 +517,8 @@ the VPP dispatch logic.</p>
 </tbody>
 </table>
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- isSRv6Ineligible, srv6SIDFromResult -->
-<!-- source: internal/component/bgp/plugins/rib/pool/srv6sid.go -- ExtractSRv6SID, parseSIDStructure -->
+<!-- source: internal/component/bgp/plugins/rib/pool/srv6sid.go -- ExtractSRv6SIDFull, parseSIDStructure -->
+<!-- source: internal/core/bgp/nlri/nlrisplit/transposition.go -- TranspositionLabelWidth -->
 <h2 id="limitations">Limitations</h2>
 <ul>
 <li>
@@ -550,7 +576,7 @@ propagates without negotiation. Ze does not signal SRv6 support via capabilities
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>

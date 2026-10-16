@@ -97,6 +97,15 @@ bgp {
 }
 ```
 
+The global `router-id` is the BGP Identifier every peer sends by default. A peer
+or group may override it with its own `router-id` (`session router-id` in the YANG
+model), and that peer's OPEN then carries the override. This departs from RFC 6286
+Section 2.1, which says the identifier "is the same for every local interface and
+every BGP peer". Ze keeps the override on purpose, as an owner decision, and does
+not count that sentence as met. The override must still be non-zero.
+
+<!-- source: internal/component/bgp/reactor/config.go — parsePeerSettings, parseRouterID; internal/component/bgp/yang/ze-bgp-conf.yang — session router-id -->
+
 By default Ze enforces AS-wide BGP Identifier uniqueness: the first peer of an AS to
 present a router-id holds it, and a second peer of the same AS presenting the same
 router-id is rejected with a Bad BGP Identifier NOTIFICATION (RFC 6286 Section 2.1
@@ -2669,10 +2678,14 @@ priority) stamps outgoing frames: a packet leaving with the listed internal
 priority gets the mapped PCP on the wire, so downstream L2 switches honor the
 class of service without inspecting IP headers. Both sides of every entry are
 0-7; unmapped values fall back to 0. The maps require `vlan-id` and are
-applied when the VLAN sub-interface is created.
+applied when the VLAN sub-interface is created. A reload that changes the maps
+an existing VLAN resolves to, through an inline map edit or an edit to the
+profile the unit uses, reprograms that VLAN in place, and a commit that fails
+afterwards writes the previous maps back.
 
 <!-- source: internal/plugins/cos/yang/ze-cos-conf.yang -- ingress-qos-map, egress-qos-map lists (qos-maps grouping) -->
-<!-- source: internal/plugins/iface/netlink/manage_linux.go -- CreateVLAN IngressQosMap/EgressQosMap -->
+<!-- source: internal/plugins/iface/netlink/manage_linux.go -- CreateVLAN IngressQosMap/EgressQosMap, UpdateVLANQoSMap -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfig, indexUnitQoS -->
 
 ```
 interface {
@@ -2715,10 +2728,13 @@ Named 802.1p profiles define PCP-to-priority mappings that can be referenced
 from interfaces instead of repeating inline `ingress-qos-map` / `egress-qos-map`
 lists on every unit. The `class-of-service` section is provided by the cos
 plugin. Profiles are inherited by all VLAN units on the interface; individual
-units can override with a different profile or opt out with `none`.
+units can override with a different profile or opt out with `none`. A unit
+resolves its profile against the `class-of-service` section of the same
+commit, so one commit can add a profile and the unit that uses it.
 
 <!-- source: internal/plugins/cos/yang/ze-cos-conf.yang -- ieee-802.1p profile definitions -->
 <!-- source: internal/component/iface/config.go -- parseUnits class-of-service resolution -->
+<!-- source: internal/component/iface/config.go -- parseResolvedIfaceSections, candidateCoSProfiles -->
 
 ```
 class-of-service {

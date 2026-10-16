@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 1.9% | 1 of 52 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 52 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 52 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 65.3% | 115 of 176 tagged units, 2 escaped and 0 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 84.1% | 148 of 176 tagged units, 2 escaped and 0 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -72,7 +72,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 178 |
 | Tagged units | 176 |
 | Recorded audit verdicts | 52 |
-| Discrimination records | 117 |
+| Discrimination records | 150 |
 | Summary | `rfc/short/rfc2328.md` |
 | Requirement shard | `rfc/requirements/rfc2328.md` |
 | RFC text | `rfc/full/rfc2328.txt` |
@@ -212,8 +212,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. c20 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2328PacketChecksumWrongRangeRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go#L61) | unit/verify | revert, verified |
-| negative | [`TestPacketVerifyChecksum`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_header_test.go#L100) | unit/verify | unproven |
-| positive | [`TestOSPFPacketChecksumExcludesAuth`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L30) | unit/verify | unproven |
+| negative | [`TestPacketVerifyChecksum`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_header_test.go#L100) | unit/verify | revert, verified |
+| positive | [`TestOSPFPacketChecksumExcludesAuth`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L30) | unit/verify | revert, verified |
 | positive | [`TestRFC2328PacketChecksumCoversHeaderExcludesAuth`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go#L31) | unit/verify | revert, verified |
 
 ### [`RFC2328-12.1.7-1`](#rfc2328-12.1.7-1)
@@ -239,9 +239,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2328BadLSChecksumDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_test.go#L17) | unit/verify | unproven |
+| negative | [`TestRFC2328BadLSChecksumDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_test.go#L17) | unit/verify | revert, verified |
 | negative | [`TestRFC2328DiscardedLSAThenNextLSAProcessed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go#L91) | unit/verify | revert, verified |
-| positive | [`TestOSPFFloodOutOtherInterfaces`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L30) | unit/verify | unproven |
+| positive | [`TestOSPFFloodOutOtherInterfaces`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L30) | unit/verify | revert, verified |
 | positive | [`TestRFC2328DiscardedLSAThenNextLSAProcessed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go#L92) | unit/verify | revert, verified |
 
 ### [`RFC2328-13-2`](#rfc2328-13-2)
@@ -252,9 +252,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFStubAreaDropsType5`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L248) | unit/verify | unproven |
+| negative | [`TestOSPFStubAreaDropsType5`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L248) | unit/verify | revert, verified |
 | negative | [`TestRFC2328ASExternalFromStubInterfaceGoesNowhere`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go#L112) | unit/verify | revert, verified |
-| positive | [`TestOSPFStubFloodFilter`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_area_type_test.go#L15) | unit/verify | unproven |
+| positive | [`TestOSPFStubFloodFilter`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_area_type_test.go#L15) | unit/verify | revert, verified |
 | positive | [`TestRFC2328ASExternalNotFloodedIntoStubArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go#L63) | unit/verify | revert, verified |
 
 ### [`RFC2328-13-3`](#rfc2328-13-3)
@@ -265,9 +265,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Engi
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2328FloodingRequiresExchangeOrHigher`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L20) | unit/verify | unproven |
+| negative | [`TestRFC2328FloodingRequiresExchangeOrHigher`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L20) | unit/verify | revert, verified |
 | negative | [`TestRFC2328LSUpdateBelowExchangeDroppedByEngine`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_flood_state_gate_test.go#L83) | unit/verify | revert, verified |
-| positive | [`TestRFC2328FloodingRequiresExchangeOrHigher`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L17) | unit/verify | unproven |
+| positive | [`TestRFC2328FloodingRequiresExchangeOrHigher`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L17) | unit/verify | revert, verified |
 | positive | [`TestRFC2328LSUpdateFromExchangeNeighborProcessed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_flood_state_gate_test.go#L120) | unit/verify | revert, verified |
 
 ### [`RFC2328-13.1-1`](#rfc2328-13.1-1)
@@ -279,9 +279,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. c20 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2328LessRecentByEarlierStepRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go#L55) | unit/verify | revert, verified |
-| negative | [`TestRFC2328OlderInstanceGetsDatabaseCopyBack`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_test.go#L51) | unit/verify | unproven |
+| negative | [`TestRFC2328OlderInstanceGetsDatabaseCopyBack`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_test.go#L51) | unit/verify | revert, verified |
 | positive | [`TestRFC2328FreshnessStepsAppliedInOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go#L17) | unit/verify | revert, verified |
-| positive | [`TestOSPFFreshnessCompareMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_lsdb_test.go#L126) | unit/verify | unproven |
+| positive | [`TestOSPFFreshnessCompareMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_lsdb_test.go#L126) | unit/verify | revert, verified |
 
 ### [`RFC2328-13-4`](#rfc2328-13-4)
 
@@ -341,9 +341,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFPurgeRetainedForExchangeOrLoading`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L384) | unit/verify | unproven |
+| negative | [`TestOSPFPurgeRetainedForExchangeOrLoading`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L384) | unit/verify | revert, verified |
 | negative | [`TestRFC2328MaxAgeKeptWhileNeighborInExchangeOrLoading`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go#L36) | unit/verify | revert, verified |
-| positive | [`TestOSPFASExternalPurgeRetainedAcrossAreas`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L333) | unit/verify | unproven |
+| positive | [`TestOSPFASExternalPurgeRetainedAcrossAreas`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L333) | unit/verify | revert, verified |
 | positive | [`TestRFC2328MaxAgeRemovedOnceNoNeighborExchangingOrLoading`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go#L47) | unit/verify | revert, verified |
 
 ### [`RFC2328-13.5-1`](#rfc2328-13.5-1)
@@ -355,8 +355,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestOSPFDRRefloodsBackOutReceivingInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go#L80) | unit/verify | revert, verified |
-| positive | [`TestOSPFAckDecisionTable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L93) | unit/verify | unproven |
-| positive | [`TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L361) | unit/verify | unproven |
+| positive | [`TestOSPFAckDecisionTable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L93) | unit/verify | revert, verified |
+| positive | [`TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L361) | unit/verify | revert, verified |
 | positive | [`TestRFC2328NewerLSAAcknowledgedThroughReceiveUpdate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_newer_lsa_ack_test.go#L17) | unit/verify | revert, verified |
 
 ### [`RFC2328-13.4-1`](#rfc2328-13.4-1)
@@ -367,9 +367,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Both
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFSelfOriginatedNoLocalCopyFlush`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go#L43) | unit/verify | unproven |
+| negative | [`TestOSPFSelfOriginatedNoLocalCopyFlush`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go#L43) | unit/verify | revert, verified |
 | negative | [`TestRFC2328ForeignLSANotTakenAsSelfOriginated`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go#L83) | unit/verify | revert, verified |
-| positive | [`TestOSPFOriginateSelfReceivedHigherSeq`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_origination_test.go#L426) | unit/verify | unproven |
+| positive | [`TestOSPFOriginateSelfReceivedHigherSeq`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_origination_test.go#L426) | unit/verify | revert, verified |
 | positive | [`TestRFC2328SelfOriginatedDetectedByRouterIDOrInterfaceAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go#L60) | unit/verify | revert, verified |
 
 ### [`RFC2328-16.1-1`](#rfc2328-16.1-1)
@@ -380,9 +380,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. c20 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFTwoWayCheck`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_spf_test.go#L31) | unit/verify | unproven |
+| negative | [`TestOSPFTwoWayCheck`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_spf_test.go#L31) | unit/verify | revert, verified |
 | negative | [`TestRFC2328SPFSkipsMissingOrMaxAgeVertex`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go#L58) | unit/verify | revert, verified |
-| positive | [`TestOSPFSPFShortestPath`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_spf_test.go#L13) | unit/verify | unproven |
+| positive | [`TestOSPFSPFShortestPath`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_spf_test.go#L13) | unit/verify | revert, verified |
 | positive | [`TestRFC2328SPFExaminesNextLinkAfterSkip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go#L22) | unit/verify | revert, verified |
 
 ### [`RFC2328-16.4-1`](#rfc2328-16.4-1)
@@ -393,10 +393,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. All 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFExternalE1PreferredOverE2`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_external_test.go#L83) | unit/verify | unproven |
+| negative | [`TestOSPFExternalE1PreferredOverE2`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_external_test.go#L83) | unit/verify | revert, verified |
 | negative | [`TestRFC2328LowerPreferencePathRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_path_preference_test.go#L51) | unit/verify | revert, verified |
 | positive | [`TestRFC2328PreferredPathTypeSelected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_path_preference_test.go#L36) | unit/verify | revert, verified |
-| positive | [`TestOSPFRouteTablePreference`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_route_test.go#L8) | unit/verify | unproven |
+| positive | [`TestOSPFRouteTablePreference`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_route_test.go#L8) | unit/verify | revert, verified |
 
 ### [`RFC2328-16.2-1`](#rfc2328-16.2-1)
 
@@ -407,7 +407,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. c20 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestOSPFABRBackboneOnlyAcceptance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_interarea_test.go#L74) | unit/verify | revert, verified |
-| positive | [`TestOSPFInterAreaRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_interarea_test.go#L43) | unit/verify | unproven |
+| positive | [`TestOSPFInterAreaRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_interarea_test.go#L43) | unit/verify | revert, verified |
 | positive | [`TestRFC2328NonABRUsesItsAreaSummaries`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_nonabr_summary_test.go#L15) | unit/verify | revert, verified |
 
 ### [`RFC2328-16.2-2`](#rfc2328-16.2-2)
@@ -418,12 +418,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Clos
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFExternalLSInfinityDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_external_test.go#L61) | unit/verify | unproven |
-| negative | [`TestOSPFInterAreaLSInfinityDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_interarea_test.go#L137) | unit/verify | unproven |
+| negative | [`TestOSPFExternalLSInfinityDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_external_test.go#L61) | unit/verify | revert, verified |
+| negative | [`TestOSPFInterAreaLSInfinityDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_interarea_test.go#L137) | unit/verify | revert, verified |
 | negative | [`TestRFC2328SummaryAdvertisingLSInfinitySkipped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go#L40) | unit/verify | revert, verified |
-| negative | [`TestRFC2328ExternalSkipsMaxAgeAndSelf`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_test.go#L43) | unit/verify | unproven |
-| negative | [`TestRFC2328InterAreaSkipsMaxAgeAndSelfSummary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_test.go#L20) | unit/verify | unproven |
-| positive | [`TestOSPFInterAreaRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_interarea_test.go#L44) | unit/verify | unproven |
+| negative | [`TestRFC2328ExternalSkipsMaxAgeAndSelf`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_test.go#L43) | unit/verify | revert, verified |
+| negative | [`TestRFC2328InterAreaSkipsMaxAgeAndSelfSummary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_test.go#L20) | unit/verify | revert, verified |
+| positive | [`TestOSPFInterAreaRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_interarea_test.go#L44) | unit/verify | revert, verified |
 | positive | [`TestRFC2328SummaryAdvertisingLSInfinitySkipped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go#L35) | unit/verify | revert, verified |
 
 ### [`RFC2328-D.2-1`](#rfc2328-d.2-1)
@@ -446,7 +446,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. c21 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestOSPFAuthCryptoRejectsExtraTrailerBytes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L219) | unit/verify | revert, verified |
-| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L47) | unit/verify | unproven |
+| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L47) | unit/verify | revert, verified |
 | positive | [`TestRFC2328DigestCountedInIPLengthNotPacketLength`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_digest_ip_length_test.go#L35) | unit/verify | revert, verified |
 
 ### [`RFC2328-D.3-2`](#rfc2328-d.3-2)
@@ -493,9 +493,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2328MasterSendsNoSecondDDWithoutAck`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go#L118) | unit/verify | revert, verified |
-| negative | [`TestOSPFDuplicateDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_nsm_test.go#L595) | unit/verify | unproven |
+| negative | [`TestOSPFDuplicateDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_nsm_test.go#L595) | unit/verify | revert, verified |
 | positive | [`TestRFC2328MasterHoldsOneOutstandingDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go#L81) | unit/verify | revert, verified |
-| positive | [`TestOSPFDDRetransmit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_nsm_test.go#L527) | unit/verify | unproven |
+| positive | [`TestOSPFDDRetransmit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_nsm_test.go#L527) | unit/verify | revert, verified |
 
 ### [`RFC2328-10.2-1`](#rfc2328-10.2-1)
 
@@ -517,9 +517,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestInterfaceCostAndTransmitDelayBoundary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_config_interface_validate_test.go#L17) | unit/verify | unproven |
+| negative | [`TestInterfaceCostAndTransmitDelayBoundary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_config_interface_validate_test.go#L17) | unit/verify | revert, verified |
 | negative | [`TestRFC2328DefaultedInterfaceCostIsPositive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_cost_default_test.go#L38) | unit/verify | revert, verified |
-| positive | [`TestInterfaceCostAndTransmitDelayBoundary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_config_interface_validate_test.go#L16) | unit/verify | unproven |
+| positive | [`TestInterfaceCostAndTransmitDelayBoundary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_config_interface_validate_test.go#L16) | unit/verify | revert, verified |
 | positive | [`TestRFC2328DefaultedInterfaceCostIsPositive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_cost_default_test.go#L35) | unit/verify | revert, verified |
 
 ### [`RFC2328-3.6-1`](#rfc2328-3.6-1)
@@ -784,9 +784,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 |---|---|---|---|
 | negative | [`TestRFC2328VirtualLinkCostNotConfigurable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_cost_config_test.go#L69) | unit/verify | no-break escape (declaration-only), which is not a proof, verified |
 | negative | [`TestRFC2328VirtualLinkCostNotConfigurableV3`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_cost_config_test.go#L139) | unit/verify | no-break escape (declaration-only), which is not a proof, verified |
-| negative | [`TestRFC2328VirtualUnusablePathWithdrawsBackboneLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_route_test.go#L98) | unit/verify | unproven |
+| negative | [`TestRFC2328VirtualUnusablePathWithdrawsBackboneLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_route_test.go#L98) | unit/verify | revert, verified |
 | positive | [`TestRFC2328VirtualCostChangeOriginatesNewInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_cost_test.go#L30) | unit/verify | revert, verified |
-| positive | [`TestRFC2328VirtualCostChangeReoriginatesBackbone`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_route_test.go#L67) | unit/verify | unproven |
+| positive | [`TestRFC2328VirtualCostChangeReoriginatesBackbone`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_route_test.go#L67) | unit/verify | revert, verified |
 | positive | [`TestRFC2328VirtualCostIsTransitPathCost`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_virtual_cost_test.go#L15) | unit/verify | revert, verified |
 
 ### [`RFC2328-16.1-3`](#rfc2328-16.1-3)

@@ -245,7 +245,11 @@ unreachable server falls through to local rather than hanging the login.</p>
 credential and never two, and RFC 3579 §3.3 Note 1 extends the same exclusion to
 EAP: "An Access-Request that contains either a User-Password or CHAP-Password or
 ARAP-Password or one or more EAP-Message attributes MUST NOT contain more than
-one type of those four attributes." Ze sends exactly one.</p>
+one type of those four attributes." Ze sends exactly one, and the client refuses
+before the socket any Access-Request carrying two of the four types. That check
+recognizes ARAP-Password (type 70) by its number, although Ze builds no ARAP
+attribute.</p>
+<!-- source: internal/component/radius/client.go -- oneCredentialType, credentialTypeARAPPassword -->
 <table>
 <thead>
 <tr>
@@ -597,7 +601,7 @@ Local summary: <code>rfc/short/rfc2865.md</code>.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
                 </div>
             </div>
         </footer>
