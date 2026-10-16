@@ -57,6 +57,17 @@ checkout (`CacheDir`), whatever the caller's environment names. Only the matrix
 fills that cache, so its trim walks a bounded population.
 <!-- source: internal/le/go/staticcheck/judge.go -- CacheDir -->
 
+Staticcheck loads each row with `go list -export -test -deps`, which compiles
+every package of the module and its test variants into the Go build cache. The
+gate adds `-trimpath` to `GOFLAGS` for that run (`judgeEnvironment`), for the
+reason the tracked build passes it: without it each compile action ID carries
+the package's absolute directory, and every verify run extracts the tree into a
+fresh one, so every run compiled the whole module cold. On 2026-10-16 the
+all-features row alone measured 495.7s cold (2157s of CPU) against 11.3s warm,
+and pieces 1 and 6 exceeded their 10m30s and 9m bounds. A compile error names
+the same tree-relative file with or without the flag.
+<!-- source: internal/le/go/staticcheck/judge.go -- judgeEnvironment -->
+
 Staticcheck stops after package and test-variant type checking.
 `./le repo compiles check` supplies committed-tree final-link proof for
 the configurations in `buildMatrix`, not for every shipped build flavor. Keep

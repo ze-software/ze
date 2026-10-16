@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -148,9 +149,7 @@ func Judge(tree string, matrix Matrix, deadline time.Duration) (Verdict, bool, e
 
 	cmd := exec.CommandContext(ctx, "staticcheck", "-checks=-all", "-matrix", "./...")
 	cmd.Dir = tree
-	// The last entry for a key wins, so an inherited STATICCHECK_CACHE cannot
-	// point this run back at a shared cache.
-	cmd.Env = append(os.Environ(), cacheKey+"="+cache)
+	cmd.Env = judgeEnvironment(os.Environ(), cache)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Cancel = func() error {
 		if cmd.Process == nil {
@@ -206,6 +205,42 @@ func Judge(tree string, matrix Matrix, deadline time.Duration) (Verdict, bool, e
 	var tb textbuf.Buffer
 	return verdict, false, errors.New(tb.Str("Staticcheck did not complete: ").Err(runErr).
 		Str("; matrix could not be judged").String())
+}
+
+// goFlagsKey is the variable the go command reads for its default build flags.
+const goFlagsKey = "GOFLAGS"
+
+// trimpathFlag is the go build flag that drops the source directory from every
+// compile action ID.
+const trimpathFlag = "-trimpath"
+
+// judgeEnvironment answers the environment Staticcheck runs under: environ
+// with the gate's own cache and with -trimpath added to GOFLAGS.
+//
+// The last entry for a key wins, so an inherited STATICCHECK_CACHE cannot
+// point this run back at a shared cache.
+//
+// -trimpath is load-bearing for the deadline. Staticcheck loads each row with
+// `go list -export -test -deps`, which compiles every package of the module
+// and its test variants into the Go build cache. Without -trimpath each compile
+// action ID carries the package's absolute directory, and every verify run
+// extracts the tree into a fresh directory, so every run compiled the whole
+// module cold. On 2026-10-16 the all-features row alone took 495.7s cold
+// (2157s of CPU) against 11.3s warm, which left 7 rows no room inside 10m30s.
+// With the flag the IDs are path-independent and a fresh tree reuses what the
+// previous run compiled. The flag changes no diagnostic: a compile error names
+// the same tree-relative file with or without it.
+func judgeEnvironment(environ []string, cache string) []string {
+	flags := ""
+	for _, entry := range environ {
+		if value, found := strings.CutPrefix(entry, goFlagsKey+"="); found {
+			flags = value
+		}
+	}
+	if !slices.Contains(strings.Fields(flags), trimpathFlag) {
+		flags = strings.TrimSpace(flags + " " + trimpathFlag)
+	}
+	return append(slices.Clip(environ), cacheKey+"="+cache, goFlagsKey+"="+flags)
 }
 
 // startFailure states why Staticcheck never ran, in the three forms a reader
