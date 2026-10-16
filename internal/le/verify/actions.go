@@ -64,7 +64,7 @@ var actions = leaction.New(area,
 	},
 )
 
-// setActionRunner supplies the in-process native action dispatcher. Composition
+// setActionRunner supplies the native action dispatcher. Composition
 // calls this before invoking the command. Until then verification fails closed
 // on the first unregistered stage.
 func setActionRunner(runner verifyengine.ActionRunner) {

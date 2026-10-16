@@ -659,7 +659,7 @@ reading that line, never on a schedule.
 | 1 | A stage judged the tree and found it wrong |
 | 2 | The run itself broke before it could judge |
 | 3 | The run reached no verdict: a stage could not judge its subject, or a full device defeated the run |
-| 130 | An interrupt stopped the run between stages |
+| 130 | An interrupt stopped the run, between stages or during one |
 
 A full device is recognized by its typed error at the write site, never by
 matching text (`Defeated`, `internal/le/verify/engine/run.go`). Status 3 says

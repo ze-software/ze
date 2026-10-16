@@ -5,10 +5,6 @@
 package le
 
 import (
-	"os"
-	"path/filepath"
-	"strings"
-
 	"github.com/ze-software/ze/internal/component/command/registry"
 	_ "github.com/ze-software/ze/internal/le/ai/digest"
 	_ "github.com/ze-software/ze/internal/le/ai/hooks"
@@ -187,7 +183,7 @@ func init() {
 // hourly chance to start. A hook never prints and returns nothing, so the
 // command's exit code and output are the dispatch's alone.
 func run(_ *registry.RuntimeContext, args []string) int {
-	program := invocationName()
+	program := leroot.InvocationName()
 	activatePatchedGOROOT()
 	leroot.RunBeforeDispatch(program)
 	return leroot.Dispatch(program, args)
@@ -209,13 +205,4 @@ func activatePatchedGOROOT() {
 	}
 	// RFC 5216 Section 2.1.1
 	_, _ = gen.Activate(root) //nolint:errcheck // kept by stdpatch and returned by gotoolchain.New and ./le go stdpatch goroot
-}
-
-func invocationName() string {
-	name := filepath.Base(os.Args[0])
-	name = strings.TrimSuffix(name, ".exe")
-	if name == "le" {
-		return "le"
-	}
-	return "ze le"
 }

@@ -14,6 +14,7 @@ package leroot
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -22,6 +23,18 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
+
+// InvocationName answers the words this process was started as: "le" for the
+// binary named le, and "ze le" for a tagged ze build reached through its le root.
+// The file name decides it because cmd/ze picks its personality the same way.
+func InvocationName() string {
+	name := filepath.Base(os.Args[0])
+	name = strings.TrimSuffix(name, ".exe")
+	if name == "le" {
+		return "le"
+	}
+	return "ze le"
+}
 
 // isHelpArg reports whether the word asks for usage rather than naming a
 // command. The spellings are declared once, by the package that also reads

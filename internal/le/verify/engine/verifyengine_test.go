@@ -226,3 +226,69 @@ func TestInterruptionStopsBeforeTheNextStageAndRecordsStatus(t *testing.T) {
 		t.Fatalf("interrupted status = %s", status)
 	}
 }
+
+// TestRunnerRefusalReachesTheReport proves a runner's own refusal of a stage
+// (a stage process killed by a signal) is what the report carries, rather than
+// the engine's generic empty-result. Method: a runner answers that refusal.
+func TestRunnerRefusalReachesTheReport(t *testing.T) {
+	runner := func(_ context.Context, _ string, identity Identity) ActionResult {
+		return ActionResult{Identity: identity, Registered: true, Code: 2,
+			Failure: &Failure{Kind: "killed", Stage: identity.Name, Message: "signal: killed"}}
+	}
+	report := RunMode(context.Background(), t.TempDir(), "abc", Mode, runner, Slot{})
+	if report.Code != 2 || report.Completed || len(report.Stages) != 1 {
+		t.Fatalf("report = %#v", report)
+	}
+	if report.Failure == nil || report.Failure.Kind != "killed" {
+		t.Fatalf("failure = %#v, want kind killed", report.Failure)
+	}
+}
+
+// TestInterruptionDuringAStageAnswersInterrupted proves an interrupt that
+// lands while a stage runs ends the run as interrupted (130), whether the
+// run's context saw it or only the stage did. Method: the runner refuses the
+// stage as interrupted, once with the context canceled and once without.
+func TestInterruptionDuringAStageAnswersInterrupted(t *testing.T) {
+	for _, cancelRun := range []bool{true, false} {
+		ctx, cancel := context.WithCancel(context.Background())
+		calls := 0
+		runner := func(_ context.Context, _ string, identity Identity) ActionResult {
+			calls++
+			if cancelRun {
+				cancel()
+			}
+			return ActionResult{Identity: identity, Registered: true, Code: Interrupted,
+				Failure: &Failure{Kind: "interrupted", Stage: identity.Name, Message: "interrupted"}}
+		}
+		report := RunMode(ctx, t.TempDir(), "abc", Mode, runner, Slot{})
+		cancel()
+		if report.Code != Interrupted || report.Completed || calls != 1 {
+			t.Fatalf("cancelRun=%v report=%#v calls=%d", cancelRun, report, calls)
+		}
+		if report.Failure == nil || report.Failure.Kind != "interrupted" {
+			t.Fatalf("cancelRun=%v failure = %#v", cancelRun, report.Failure)
+		}
+	}
+}
+
+// TestCrashedStageIsARedStageAndTheRunContinues proves a stage whose process
+// crashed reads as a failed stage, never as unjudged or a broken run, and does
+// not hide the stages after it. Method: the second stage answers crashed.
+func TestCrashedStageIsARedStageAndTheRunContinues(t *testing.T) {
+	calls := 0
+	runner := func(_ context.Context, _ string, identity Identity) ActionResult {
+		calls++
+		if calls == 2 {
+			return ActionResult{Identity: identity, Registered: true, Completed: true, Code: 1,
+				Failure: &Failure{Kind: "crashed", Stage: identity.Name, Message: "panic"}}
+		}
+		return ActionResult{Identity: identity, Registered: true, Completed: true}
+	}
+	report := RunMode(context.Background(), t.TempDir(), "abc", Mode, runner, Slot{})
+	if report.Code != 1 || calls != len(fullStages()) {
+		t.Fatalf("code=%d calls=%d, want code 1 and %d calls", report.Code, calls, len(fullStages()))
+	}
+	if crashed := report.Stages[1]; crashed.Failure == nil || crashed.Failure.Kind != "crashed" {
+		t.Fatalf("crashed stage = %#v", crashed)
+	}
+}

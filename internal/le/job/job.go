@@ -506,12 +506,14 @@ func (t *Ticket) Release(code int) {
 //
 // A parent is found through ParentKey, which names an entry file. Two callers
 // put it there. Run gives it to the child it starts (childEnviron). A caller
-// that holds a slot and does its nested work IN-PROCESS names its own entry for
-// the length of that work (nameJobParent, internal/le/verify/engine/run.go).
+// that holds a slot and starts its nested work itself names its own entry in
+// its environment for the length of that work, so the processes it starts
+// inherit it (nameJobParent, internal/le/verify/engine/run.go, whose stages
+// are child le processes).
 //
-// So a second Admit in the same process sees the first as its parent only when
-// the first named itself. A holder that names nothing leaves the nested job to
-// claim a slot of its own, which deadlocks when the parent holds the last one.
+// So a nested Admit sees the holder as its parent only when the holder named
+// itself. A holder that names nothing leaves the nested job to claim a slot of
+// its own, which deadlocks when the parent holds the last one.
 func (a *Admission) Admit(label string, argv []string) (*Ticket, error) {
 	if !validLabel(label) {
 		return nil, ErrLabel

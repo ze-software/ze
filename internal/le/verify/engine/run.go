@@ -93,7 +93,7 @@ type Failure struct {
 	Message string `json:"message"`
 }
 
-// ActionResult is the typed answer an in-process action implementation returns.
+// ActionResult is the typed answer an action runner returns for one stage.
 // Registered and Completed are independent so an omitted dispatcher answer
 // fails closed instead of looking like exit zero.
 type ActionResult struct {
@@ -105,7 +105,7 @@ type ActionResult struct {
 	Failure    *Failure `json:"failure,omitempty"`
 }
 
-// ActionRunner dispatches one registered action inside this process. A runner
+// ActionRunner dispatches one registered action. A runner
 // MUST execute the identity in root and return a populated ActionResult.
 type ActionRunner func(context.Context, string, Identity) ActionResult
 
@@ -170,9 +170,10 @@ type Slot struct {
 // nameJobParent names this run's registry entry to every stage it starts, and
 // answers the restore that puts the previous value back.
 //
-// `go lint/run` admits a job of its own (internal/le/go/lint, runHere),
-// and the stages run inside THIS process: a lint that queued for a slot would
-// wait for the one its own parent holds, and neither would ever finish.
+// `go lint/run` admits a job of its own (internal/le/go/lint, runHere), and
+// each stage is a child le process that inherits this environment: a lint that
+// queued for a slot would wait for the one its own parent holds, and neither
+// would ever finish.
 // job.insideParent answers KindInside once it can read the entry named here.
 //
 // A run holding no slot names nothing, because an inherited parent is still the
@@ -383,14 +384,23 @@ func runMode(ctx context.Context, root, commit, mode string, part Part, runner A
 		if stageReport.Code != 0 {
 			report.Code = runCode(report.Code, stageReport.Code)
 		}
-		if stageReport.Failure != nil && stageReport.Failure.Kind != "stage-failed" {
-			report.Code = 2
+		// An interrupt is read before the stage's own verdict: a stage cut short
+		// answers whatever its process died with, and the run's answer is 130.
+		if err := ctx.Err(); err != nil {
+			report.Code = Interrupted
+			report.Failure = failure("interrupted", current.Identity.Name, err.Error())
+			break
+		}
+		if stageReport.Failure != nil && stageReport.Failure.Kind == "interrupted" {
+			report.Code = Interrupted
 			report.Failure = stageReport.Failure
 			break
 		}
-		if ctx.Err() != nil {
-			report.Code = Interrupted
-			report.Failure = failure("interrupted", current.Identity.Name, ctx.Err().Error())
+		// A stage that failed or crashed is red and the next stage still runs; any
+		// other refusal says the run itself broke.
+		if stageReport.Failure != nil && !redStage(stageReport.Failure.Kind) {
+			report.Code = 2
+			report.Failure = stageReport.Failure
 			break
 		}
 	}
@@ -456,6 +466,12 @@ func validateResult(identity Identity, result ActionResult) StageReport {
 	report := StageReport{Identity: identity, Code: result.Code, Failure: result.Failure}
 	var text textbuf.Buffer
 	switch {
+	case !result.Completed && result.Failure != nil:
+		// The runner refused the stage and said why (killed, interrupted, could
+		// not start): its reason is the report's, never the generic one below.
+		if result.Code <= 0 {
+			report.Code = 2
+		}
 	case !result.Registered:
 		report.Code = 2
 		report.Failure = failure("unregistered", identity.Name, "action runner returned no registered action")
@@ -480,6 +496,13 @@ func validateResult(identity Identity, result ActionResult) StageReport {
 			text.Str("action exited ").Int(int64(result.Code)).String())
 	}
 	return report
+}
+
+// redStage answers whether a stage failure is a verdict on the tree, which
+// leaves the run going so a red stage hides no later red: the stage ran and
+// failed, or its process crashed (verifydispatch refuses that as crashed).
+func redStage(kind string) bool {
+	return kind == "stage-failed" || kind == "crashed"
 }
 
 func sameIdentity(left, right Identity) bool {
