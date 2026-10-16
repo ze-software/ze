@@ -631,7 +631,7 @@ func (b *Bridge) translateAndForward(eventStr string, pluginW io.Writer) {
 		return
 	}
 
-	exabgp := ZebgpToExabgpJSON(zebgp)
+	exabgp := zebgpToExabgpJSON(zebgp)
 	out, err := json.Marshal(exabgp)
 	if err != nil {
 		slog.Warn("zebgp->plugin: failed to marshal ExaBGP JSON",

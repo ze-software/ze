@@ -1,10 +1,13 @@
-// Design: docs/architecture/wire/nlri-flowspec.md — FlowSpec NLRI plugin
+// Design: docs/architecture/wire/nlri-flowspec.md — FlowSpec NLRI wire codec
 // RFC: rfc/short/rfc5575.md
 // Detail: types_prefix.go — prefix component (Type 1-2) struct, constructors, parsing
 // Detail: types_numeric.go — numeric/bitmask component (Types 3-13) struct, constructors, parsing
 // Detail: types_vpn.go — FlowSpec VPN wrapper (SAFI 134) struct, methods, parsing
 //
-// Package flowspec implements FlowSpec NLRI types for the flowspec plugin.
+// Package flowspec implements the FlowSpec NLRI wire types and codec. The
+// FlowSpec plugin (internal/component/bgp/plugins/nlri/flowspec) registers the
+// families and owns config and text parsing; the RIB and the FlowSpec firewall
+// read the codec here. This package registers nothing.
 // RFC 8955: Dissemination of Flow Specification Rules (IPv4 FlowSpec)
 // RFC 8956: Dissemination of Flow Specification Rules for IPv6
 package flowspec
@@ -40,14 +43,6 @@ const (
 	RDType0         = nlri.RDType0
 	RDType1         = nlri.RDType1
 	RDType2         = nlri.RDType2
-)
-
-// Family registrations for FlowSpec.
-var (
-	IPv4FlowSpec    = family.MustRegister(AFIIPv4, SAFIFlowSpec, "ipv4", "flow")
-	IPv6FlowSpec    = family.MustRegister(AFIIPv6, SAFIFlowSpec, "ipv6", "flow")
-	IPv4FlowSpecVPN = family.MustRegister(AFIIPv4, SAFIFlowSpecVPN, "ipv4", "flow-vpn")
-	IPv6FlowSpecVPN = family.MustRegister(AFIIPv6, SAFIFlowSpecVPN, "ipv6", "flow-vpn")
 )
 
 // ParseRouteDistinguisher parses an 8-byte Route Distinguisher.
@@ -95,31 +90,31 @@ func (t FlowComponentType) String() string {
 	// answers for these two and this method never has to guess. The type code
 	// alone cannot tell an RFC 8955 prefix from an RFC 8956 one.
 	case FlowDestPrefix:
-		return kwDestinationIPv4
+		return KwDestinationIPv4
 	case FlowSourcePrefix:
-		return kwSourceIPv4
+		return KwSourceIPv4
 	case FlowIPProtocol:
-		return kwProtocol
+		return KwProtocol
 	case FlowPort:
-		return kwPort
+		return KwPort
 	case FlowDestPort:
-		return kwDestPort
+		return KwDestPort
 	case FlowSourcePort:
-		return kwSourcePort
+		return KwSourcePort
 	case FlowICMPType:
-		return kwICMPType
+		return KwICMPType
 	case FlowICMPCode:
-		return kwICMPCode
+		return KwICMPCode
 	case FlowTCPFlags:
-		return kwTCPFlags
+		return KwTCPFlags
 	case FlowPacketLength:
-		return kwPacketLength
+		return KwPacketLength
 	case FlowDSCP:
-		return kwDSCP
+		return KwDSCP
 	case FlowFragment:
-		return kwFragment
+		return KwFragment
 	case FlowFlowLabel:
-		return kwFlowLabel
+		return KwFlowLabel
 	default: // Wire and component-interface codes form an open set.
 		var b textbuf.Buffer
 		return b.Reset().Str("type(").Uint8(uint8(t)).Str(")").String()
@@ -318,11 +313,11 @@ func (f *FlowSpec) componentOfType(t FlowComponentType) FlowComponent {
 	return nil
 }
 
-// componentBytes returns the wire-format encoding of components without length prefix.
+// ComponentBytes returns the wire-format encoding of components without length prefix.
 // This is used for FlowSpec VPN where the VPN wrapper provides its own length.
 // Components are sorted by type per RFC 8955 Section 4.2:
 // "Components MUST follow strict type ordering by increasing numerical order.".
-func (f *FlowSpec) componentBytes() []byte {
+func (f *FlowSpec) ComponentBytes() []byte {
 	data := make([]byte, f.componentLen())
 	f.writeComponentsSorted(data, 0)
 	return data

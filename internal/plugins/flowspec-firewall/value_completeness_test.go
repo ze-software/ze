@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
 	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
 )
@@ -129,7 +129,7 @@ func TestComponentWithNoValueIsRefused(t *testing.T) {
 		flowspec.NewFlowDestPortComponent(),
 		flowspec.NewFlowSourcePortComponent(),
 		flowspec.NewFlowICMPTypeComponent(),
-		flowspec.NewFlowTCPFlagsComponent(),
+		tcpFlagsComponent(),
 		flowspec.NewFlowDSCPComponent(),
 	}
 	for _, comp := range empty {
@@ -154,7 +154,7 @@ func TestAlternativeListRefusesRatherThanTruncates(t *testing.T) {
 
 	lists := []flowspec.FlowComponent{
 		flowspec.NewFlowICMPTypeComponent(3, 8),
-		flowspec.NewFlowTCPFlagsComponent(0x02, 0x10),
+		tcpFlagsComponent(0x02, 0x10),
 		flowspec.NewFlowDSCPComponent(46, 10),
 	}
 	for _, comp := range lists {
@@ -204,7 +204,7 @@ func TestTCPFlagsListSurvivesNativeWire(t *testing.T) {
 
 	fs, err := flowspec.ParseFlowSpec(fam, flowWire(t, fam,
 		flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.1.0.0/24")),
-		flowspec.NewFlowTCPFlagsComponent(2, 16)))
+		tcpFlagsComponent(2, 16)))
 	require.NoError(t, err)
 
 	comp, ok := findComponent(fs, flowspec.FlowTCPFlags)

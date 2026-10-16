@@ -45,7 +45,7 @@ Ze uses the canonical `afi/safi` names from the family registry:
 <!-- source: internal/core/family/registry.go -- RegisterFamily, base family registrations -->
 <!-- source: internal/component/bgp/plugins/nlri/labeled/types.go -- labeled-unicast family registrations -->
 <!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- VPN family registrations -->
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowSpec family registrations -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/register.go -- FlowSpec family registrations -->
 <!-- source: internal/component/bgp/plugins/nlri/srpolicy/register.go -- SR Policy family registrations -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPN family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGP-LS family registrations -->
@@ -117,7 +117,7 @@ EncodingContext.
 <!-- source: internal/component/bgp/plugins/nlri/labeled/types.go -- LabeledUnicast struct -->
 <!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- VPN struct -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPNRouteType constants -->
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowComponentType constants -->
+<!-- source: internal/core/bgp/nlri/flowspec/types.go -- FlowComponentType constants -->
 <!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGPLSNLRIType constants -->
 
 ---
@@ -373,7 +373,7 @@ See `nlri-flowspec.md` for detailed documentation.
 | 12 | Fragment | Binary |
 | 13 | Flow Label (IPv6) | Numeric |
 
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowComponentType constants -->
+<!-- source: internal/core/bgp/nlri/flowspec/types.go -- FlowComponentType constants -->
 
 ---
 

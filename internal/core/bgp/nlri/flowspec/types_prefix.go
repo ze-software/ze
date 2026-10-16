@@ -34,15 +34,15 @@ func NewFlowSourcePrefixComponent(prefix netip.Prefix) FlowComponent {
 	return &prefixComponent{compType: FlowSourcePrefix, prefix: prefix}
 }
 
-// newFlowDestPrefixComponentWithOffset creates an IPv6 destination prefix with offset.
+// NewFlowDestPrefixComponentWithOffset creates an IPv6 destination prefix with offset.
 // The offset field is defined in RFC 8956 for IPv6 FlowSpec.
-func newFlowDestPrefixComponentWithOffset(prefix netip.Prefix, offset uint8) FlowComponent {
+func NewFlowDestPrefixComponentWithOffset(prefix netip.Prefix, offset uint8) FlowComponent {
 	return &prefixComponent{compType: FlowDestPrefix, prefix: flowPrefixPattern(prefix, offset), offset: offset}
 }
 
-// newFlowSourcePrefixComponentWithOffset creates an IPv6 source prefix with offset.
+// NewFlowSourcePrefixComponentWithOffset creates an IPv6 source prefix with offset.
 // The offset field is defined in RFC 8956 for IPv6 FlowSpec.
-func newFlowSourcePrefixComponentWithOffset(prefix netip.Prefix, offset uint8) FlowComponent {
+func NewFlowSourcePrefixComponentWithOffset(prefix netip.Prefix, offset uint8) FlowComponent {
 	return &prefixComponent{compType: FlowSourcePrefix, prefix: flowPrefixPattern(prefix, offset), offset: offset}
 }
 
@@ -86,14 +86,14 @@ func (c *prefixComponent) keyword() string {
 	v6 := c.prefix.Addr().Is6()
 	if c.compType == FlowSourcePrefix {
 		if v6 {
-			return kwSourceIPv6
+			return KwSourceIPv6
 		}
-		return kwSourceIPv4
+		return KwSourceIPv4
 	}
 	if v6 {
-		return kwDestinationIPv6
+		return KwDestinationIPv6
 	}
-	return kwDestinationIPv4
+	return KwDestinationIPv4
 }
 
 // Len returns the wire-format length in bytes.
@@ -216,9 +216,9 @@ func parsePrefixComponent(t FlowComponentType, data []byte, fam Family) (FlowCom
 	prefix := netip.PrefixFrom(addr, prefixLen).Masked()
 	var comp FlowComponent
 	if t == FlowDestPrefix {
-		comp = newFlowDestPrefixComponentWithOffset(prefix, offset)
+		comp = NewFlowDestPrefixComponentWithOffset(prefix, offset)
 	} else {
-		comp = newFlowSourcePrefixComponentWithOffset(prefix, offset)
+		comp = NewFlowSourcePrefixComponentWithOffset(prefix, offset)
 	}
 	return comp, data[headerLen+prefixBytes:], nil
 }

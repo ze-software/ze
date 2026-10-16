@@ -21,10 +21,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	evpn "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/evpn"
-	flowspec "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
-	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/labeled" // blank import: registers InProcessNLRIDecoder
-	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/mup"     // blank import: registers the MUP NLRI encoder
-	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/mvpn"    // blank import: registers the MVPN NLRI encoder
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec" // blank import: registers the FlowSpec families and NLRI encoder
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/labeled"  // blank import: registers InProcessNLRIDecoder
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/mup"      // blank import: registers the MUP NLRI encoder
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/mvpn"     // blank import: registers the MVPN NLRI encoder
 	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/srpolicy"
 	vplspkg "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/vpls"
 	vpn "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/vpn"
@@ -32,6 +32,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 )

@@ -139,7 +139,7 @@ The REST of the v6 vocabulary is not read. v6 is target-first, so it writes
 spelling of each and refuses the v6 one by name.
 
 <!-- source: internal/exabgp/bridge/bridge_selector.go -- bridgeSelectorKeyword, splitBracketSelector, selectorForAddresses -->
-<!-- source: internal/exabgp/bridge/bridge_neighbor.go -- ConvertNeighborControl -->
+<!-- source: internal/exabgp/bridge/bridge_neighbor.go -- convertNeighborControl -->
 
 ## A bare address is a host route
 
@@ -216,7 +216,7 @@ above it are checked by the verb-first grammar gate rather than exempted from it
 ## A neighbor command is one of three things
 
 ExaBGP's API drives a neighbor as well as its routes. The three verbs do not
-share one answer, and `ConvertNeighborControl` decides which answer each one
+share one answer, and `convertNeighborControl` decides which answer each one
 gets.
 
 | ExaBGP line | Answer |
@@ -264,7 +264,7 @@ text response encoder, and it travels UP from the daemon to the script. The
 `api-check` script reads such a line on its stdin. The refusal names the
 direction, so that a reader opens the event encoder rather than the translator.
 
-<!-- source: internal/exabgp/bridge/bridge_neighbor.go -- ConvertNeighborControl, convertTeardown -->
+<!-- source: internal/exabgp/bridge/bridge_neighbor.go -- convertNeighborControl, convertTeardown -->
 
 ## One write is one batch, and a batch nets before it reaches the wire
 

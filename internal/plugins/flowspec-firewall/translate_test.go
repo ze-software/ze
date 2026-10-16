@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
 	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -59,7 +59,7 @@ func TestComponentToMatches(t *testing.T) {
 	assert.Equal(t, firewall.MatchICMPType{Type: 8}, matches[0])
 
 	// Type 9: TCP Flags SYN (0x02)
-	tcpFlags := flowspec.NewFlowTCPFlagsComponent(0x02)
+	tcpFlags := tcpFlagsComponent(0x02)
 	matches, err = componentToMatch(tcpFlags, fam)
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
@@ -97,7 +97,7 @@ func TestUnsupportedComponentRejected(t *testing.T) {
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 
 	// Type 10: Packet Length - unsupported
-	pktLen := flowspec.NewFlowPacketLengthComponent(128)
+	pktLen := packetLengthComponent(128)
 	_, err := componentToMatch(pktLen, fam)
 	assert.ErrorIs(t, err, errUnsupportedComponent)
 

@@ -35,7 +35,7 @@ func TestNeighborTeardownCarriesTheCeaseSubcode(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			translation, ok, err := ConvertNeighborControl(tc.selector, tc.rest)
+			translation, ok, err := convertNeighborControl(tc.selector, tc.rest)
 			if !ok {
 				t.Fatalf("teardown is a neighbor lifecycle command, got ok=false for %q", tc.rest)
 			}
@@ -73,7 +73,7 @@ func TestNeighborTeardownCarriesTheCeaseSubcode(t *testing.T) {
 func TestNeighborTeardownRefusesASubcodeTheWireCannotCarry(t *testing.T) {
 	for _, rest := range []string{"teardown", "teardown abc", "teardown 256", "teardown -1", "teardown 4 now"} {
 		t.Run(rest, func(t *testing.T) {
-			translation, ok, err := ConvertNeighborControl("127.0.0.1", rest)
+			translation, ok, err := convertNeighborControl("127.0.0.1", rest)
 			if !ok {
 				t.Fatalf("the line names teardown, so it is ours to refuse, got ok=false")
 			}
@@ -140,7 +140,7 @@ func TestNeighborCreateWritesTheZeCreateCommand(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			translation, ok, err := ConvertNeighborControl(bridgeEveryPeer, tc.rest)
+			translation, ok, err := convertNeighborControl(bridgeEveryPeer, tc.rest)
 			if !ok {
 				t.Fatalf("create names a neighbor lifecycle command, got ok=false for %q", tc.rest)
 			}
@@ -169,7 +169,7 @@ func TestNeighborCreateWritesTheZeCreateCommand(t *testing.T) {
 func TestNeighborCreateSelectorIsTheCreatedPeer(t *testing.T) {
 	const line = "create neighbor 192.0.2.7 local-address 192.0.2.1 local-as 1 peer-as 2"
 
-	translation, _, err := ConvertNeighborControl(bridgeEveryPeer, line)
+	translation, _, err := convertNeighborControl(bridgeEveryPeer, line)
 	if err != nil {
 		t.Fatalf("error = %v, want a translation", err)
 	}
@@ -241,7 +241,7 @@ func TestNeighborCreateRefusesWhatZeCannotHonour(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			translation, ok, err := ConvertNeighborControl(bridgeEveryPeer, tc.rest)
+			translation, ok, err := convertNeighborControl(bridgeEveryPeer, tc.rest)
 			if !ok {
 				t.Fatal("create names a neighbor lifecycle command, so the bridge owns the refusal")
 			}
@@ -265,7 +265,7 @@ func TestNeighborCreateRefusesWhatZeCannotHonour(t *testing.T) {
 // errNeighborDeleteFilter.
 // PREVENTS: a filtered delete that removes a peer the script did not name.
 func TestNeighborDeleteReachesTheZeDeleteCommand(t *testing.T) {
-	translation, ok, err := ConvertNeighborControl(bridgeEveryPeer, "delete neighbor 127.0.0.1")
+	translation, ok, err := convertNeighborControl(bridgeEveryPeer, "delete neighbor 127.0.0.1")
 	if !ok {
 		t.Fatal("delete names a neighbor lifecycle command")
 	}
@@ -276,12 +276,12 @@ func TestNeighborDeleteReachesTheZeDeleteCommand(t *testing.T) {
 		t.Errorf("command = %q, want %q", got, "delete bgp peer 127.0.0.1")
 	}
 
-	_, _, err = ConvertNeighborControl(bridgeEveryPeer, "delete neighbor 127.0.0.1 local-as 1")
+	_, _, err = convertNeighborControl(bridgeEveryPeer, "delete neighbor 127.0.0.1 local-as 1")
 	if !errors.Is(err, errNeighborDeleteFilter) {
 		t.Fatalf("error = %v, want errNeighborDeleteFilter", err)
 	}
 
-	_, _, err = ConvertNeighborControl(bridgeEveryPeer, "delete neighbor")
+	_, _, err = convertNeighborControl(bridgeEveryPeer, "delete neighbor")
 	if !errors.Is(err, errNeighborDeleteAddress) {
 		t.Fatalf("error = %v, want errNeighborDeleteAddress", err)
 	}
@@ -299,7 +299,7 @@ func TestNeighborDeleteReachesTheZeDeleteCommand(t *testing.T) {
 func TestNeighborReceiveIsRefusedAsAnEvent(t *testing.T) {
 	const rest = "receive update announced 0.0.0.0/32 next-hop 127.0.0.1 origin igp local-preference 100"
 
-	translation, ok, err := ConvertNeighborControl("127.0.0.1", rest)
+	translation, ok, err := convertNeighborControl("127.0.0.1", rest)
 	if !ok {
 		t.Fatal("receive names the event vocabulary, so the bridge owns the refusal")
 	}
@@ -336,7 +336,7 @@ func TestConvertNeighborControlLeavesEveryOtherLine(t *testing.T) {
 		"receiver update",
 	} {
 		t.Run(rest, func(t *testing.T) {
-			translation, ok, err := ConvertNeighborControl("127.0.0.1", rest)
+			translation, ok, err := convertNeighborControl("127.0.0.1", rest)
 			if ok {
 				t.Errorf("this converter claimed %q, which belongs to another one", rest)
 			}

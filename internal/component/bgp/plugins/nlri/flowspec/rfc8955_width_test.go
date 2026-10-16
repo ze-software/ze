@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 )
 
 // TestFlowSpecPreferredNumericEmission compares independent literal operator/value
@@ -33,14 +34,14 @@ import (
 // RFC requirement: RFC8955-4.2.2.10-1 positive -- typed, generic, config and text producers emit exact one/two-octet packet-length operands at 0, 255, 256 and 65535.
 func TestFlowSpecPreferredNumericEmission(t *testing.T) {
 	for _, component := range []struct {
-		kind  FlowComponentType
+		kind  flowspec.FlowComponentType
 		name  string
-		typed func(uint16) FlowComponent
+		typed func(uint16) flowspec.FlowComponent
 	}{
-		{FlowDestPort, "destination-port", func(v uint16) FlowComponent { return NewFlowDestPortComponent(v) }},
-		{FlowSourcePort, "source-port", func(v uint16) FlowComponent { return NewFlowSourcePortComponent(v) }},
-		{FlowICMPCode, "icmp-code", func(v uint16) FlowComponent { return newFlowICMPCodeComponent(uint8(v)) }},
-		{FlowPacketLength, "packet-length", func(v uint16) FlowComponent { return NewFlowPacketLengthComponent(v) }},
+		{flowspec.FlowDestPort, "destination-port", func(v uint16) flowspec.FlowComponent { return flowspec.NewFlowDestPortComponent(v) }},
+		{flowspec.FlowSourcePort, "source-port", func(v uint16) flowspec.FlowComponent { return flowspec.NewFlowSourcePortComponent(v) }},
+		{flowspec.FlowICMPCode, "icmp-code", func(v uint16) flowspec.FlowComponent { return flowspec.NewFlowICMPCodeComponent(uint8(v)) }},
+		{flowspec.FlowPacketLength, "packet-length", func(v uint16) flowspec.FlowComponent { return packetLengthComponent(v) }},
 	} {
 		for _, boundary := range []struct {
 			value uint16
@@ -51,18 +52,18 @@ func TestFlowSpecPreferredNumericEmission(t *testing.T) {
 			{256, []byte{0x91, 1, 0}},
 			{65535, []byte{0x91, 0xff, 0xff}},
 		} {
-			if component.kind == FlowICMPCode && boundary.value > 255 {
+			if component.kind == flowspec.FlowICMPCode && boundary.value > 255 {
 				continue // The typed ICMP code domain ends at 255, not 65535.
 			}
 			t.Run(component.name+"/"+strconv.Itoa(int(boundary.value)), func(t *testing.T) {
 				want := append([]byte{byte(1 + len(boundary.wire)), byte(component.kind)}, boundary.wire...)
 				criterion := component.name + " =" + strconv.Itoa(int(boundary.value))
 				// RFC 8955 Sections 4.2.2.5, 4.2.2.6, 4.2.2.8 and 4.2.2.10.
-				for name, comp := range map[string]FlowComponent{
+				for name, comp := range map[string]flowspec.FlowComponent{
 					"typed":   component.typed(boundary.value),
-					"generic": newFlowNumericComponent(component.kind, []FlowMatch{{Op: FlowOpEqual, Value: uint64(boundary.value)}}),
+					"generic": flowspec.NewFlowNumericComponent(component.kind, []flowspec.FlowMatch{{Op: flowspec.FlowOpEqual, Value: uint64(boundary.value)}}),
 				} {
-					fs := NewFlowSpec(IPv4FlowSpec)
+					fs := flowspec.NewFlowSpec(IPv4FlowSpec)
 					if err := fs.AddComponent(comp); err != nil {
 						t.Fatal(err)
 					}
@@ -94,7 +95,7 @@ func TestFlowSpecPreferredNumericEmission(t *testing.T) {
 				}
 				// The separate match/then route-command grammar only supports
 				// ports among these four components and takes bare port numbers.
-				if component.kind != FlowDestPort && component.kind != FlowSourcePort {
+				if component.kind != flowspec.FlowDestPort && component.kind != flowspec.FlowSourcePort {
 					return
 				}
 				routeCriterion := component.name + " " + strconv.Itoa(int(boundary.value))
@@ -129,47 +130,6 @@ func TestFlowSpecPreferredNumericEmission(t *testing.T) {
 					t.Errorf("text MP_REACH=%x present=%v, want %x", mp, found, wantMP)
 				}
 			})
-		}
-	}
-}
-
-// TestFlowSpecPreferredNumericWideReception prevents an emission SHOULD from
-// becoming a receive-side width MUST. Legal wide operands retain their value;
-// reconstruction emits the preferred width when that value fits the component.
-// RFC 8955 Section 4.2.1.1: "This encodes 1 (len=00), 2 (len=01), 4
-// (len=10), and 8 (len=11) octets."
-// These are compatibility controls for value 255, not negative inputs to the
-// emission SHOULDs and not proof of arbitrary high-bit operand preservation.
-func TestFlowSpecPreferredNumericWideReception(t *testing.T) {
-	for _, kind := range []FlowComponentType{FlowDestPort, FlowSourcePort, FlowICMPCode, FlowPacketLength} {
-		for _, operand := range [][]byte{
-			{0x91, 0, 0xff},
-			{0xa1, 0, 0, 0, 0xff},
-			{0xb1, 0, 0, 0, 0, 0, 0, 0, 0xff},
-		} {
-			wire := append([]byte{byte(1 + len(operand)), byte(kind)}, operand...)
-			// RFC 8955 Sections 4.2.1.1 and 4.2.2.5/6/8/10.
-			fs, err := ParseFlowSpec(IPv4FlowSpec, wire)
-			if err != nil {
-				t.Fatalf("valid wider NLRI %x rejected: %v", wire, err)
-			}
-			if len(fs.Components()) != 1 {
-				t.Fatalf("%x decoded %d components", wire, len(fs.Components()))
-			}
-			numeric, ok := fs.Components()[0].(*numericComponent)
-			if !ok {
-				t.Fatalf("%x decoded as %T", wire, fs.Components()[0])
-			}
-			matches := numeric.Matches()
-			if len(matches) != 1 {
-				t.Fatalf("%x decoded %d matches", wire, len(matches))
-			}
-			if matches[0].Value != 255 || matches[0].Op != FlowOpEqual || matches[0].And {
-				t.Fatalf("%x decoded as %+v", wire, matches[0])
-			}
-			if got, want := fs.Bytes(), []byte{3, byte(kind), 0x81, 0xff}; !bytes.Equal(got, want) {
-				t.Errorf("reconstructed %x as %x, want %x", wire, got, want)
-			}
 		}
 	}
 }

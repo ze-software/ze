@@ -21,6 +21,7 @@ import (
 	"net"
 
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -164,13 +165,13 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 }
 
 // flowSpecFamilySet is every family this plugin encodes and decodes, as the
-// values family.MustRegister returned in types.go. The registry joins each name
+// values family.MustRegister returned in register.go. The registry joins each name
 // from its AFI and SAFI parts, so this package never spells one itself: a
 // renamed SAFI reaches every reader below through the registry.
-var flowSpecFamilySet = []Family{IPv4FlowSpec, IPv6FlowSpec, IPv4FlowSpecVPN, IPv6FlowSpecVPN}
+var flowSpecFamilySet = []flowspec.Family{IPv4FlowSpec, IPv6FlowSpec, IPv4FlowSpecVPN, IPv6FlowSpecVPN}
 
 // familyDecls declares this plugin's families to the plugin server, taking each
-// name and each AFI and SAFI number from the registration in types.go.
+// name and each AFI and SAFI number from the registration in register.go.
 func familyDecls() []sdk.FamilyDecl {
 	decls := make([]sdk.FamilyDecl, len(flowSpecFamilySet))
 	for i, fam := range flowSpecFamilySet {

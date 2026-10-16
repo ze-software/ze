@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
 	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 )
 
@@ -66,7 +66,7 @@ func TestSelectedRuleCapAndUnsupportedRule(t *testing.T) {
 	first.ExtendedCommunities = []byte{0x80, 8, 0xfd, 0xe9, 0, 0, 0, 1}
 	b.handleSelected(first)
 	assert.Nil(t, b.rules.buildTable())
-	b.handleSelected(selectedFixture(t, "10.3.0.0/24", discardTrafficRate, flowspec.NewFlowPacketLengthComponent(128)))
+	b.handleSelected(selectedFixture(t, "10.3.0.0/24", discardTrafficRate, packetLengthComponent(128)))
 	assert.Nil(t, b.rules.buildTable())
 	b.handleSelected(&ribevents.FlowSpecChange{Family: flowFamily(), NLRI: []byte{5, 1, 24, 10}})
 	assert.Nil(t, b.rules.buildTable(), "malformed selected bytes cannot install a widened rule")

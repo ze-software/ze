@@ -27,7 +27,7 @@ var vpnWireDest24 = []byte{
 // RFC requirement: RFC8955-8-1 positive -- the 8 octets after the length decode as the Route Distinguisher and the octets after them as the Flow Specification value (§8).
 // RFC requirement: RFC8955-8-1 negative -- an NLRI too short to hold the fixed-length 8-octet Route Distinguisher is refused (§8).
 func TestRFC8955VPNNLRIStructure(t *testing.T) {
-	fsv, err := ParseFlowSpecVPN(IPv4FlowSpecVPN, vpnWireDest24)
+	fsv, err := ParseFlowSpecVPN(ipv4FlowSpecVPN, vpnWireDest24)
 	require.NoError(t, err)
 
 	wantRD := RouteDistinguisher{Type: RDType0, Value: [6]byte{0x00, 0x64, 0x00, 0x00, 0x00, 0x64}}
@@ -44,7 +44,7 @@ func TestRFC8955VPNNLRIStructure(t *testing.T) {
 
 	// Length 5 claims a value that cannot hold an 8-octet RD: RD 5 octets, no value.
 	short := []byte{0x05, 0x00, 0x00, 0x00, 0x64, 0x00}
-	_, err = ParseFlowSpecVPN(IPv4FlowSpecVPN, short)
+	_, err = ParseFlowSpecVPN(ipv4FlowSpecVPN, short)
 	assert.ErrorIs(t, err, ErrFlowSpecTruncated, "an NLRI shorter than the RD is refused")
 }
 
@@ -56,7 +56,7 @@ func TestRFC8955VPNNLRIStructure(t *testing.T) {
 // RFC requirement: RFC8955-8-2 positive -- the NLRI length field equals 8 octets of RD plus the Flow Specification value length, on parse and on encode (§8).
 // RFC requirement: RFC8955-8-2 negative -- a length field that counts only the Flow Specification value and not the Route Distinguisher is refused (§8).
 func TestRFC8955VPNLengthCoversRD(t *testing.T) {
-	fsv, err := ParseFlowSpecVPN(IPv4FlowSpecVPN, vpnWireDest24)
+	fsv, err := ParseFlowSpecVPN(ipv4FlowSpecVPN, vpnWireDest24)
 	require.NoError(t, err)
 
 	valueLen := len(vpnWireDest24) - 1 - 8
@@ -71,6 +71,6 @@ func TestRFC8955VPNLengthCoversRD(t *testing.T) {
 	// The same RD and value under a length that counts only the value (5): the parser
 	// cannot find an RD inside 5 octets and refuses rather than reading the value as RD.
 	valueOnlyLen := append([]byte{byte(valueLen)}, vpnWireDest24[1:]...)
-	_, err = ParseFlowSpecVPN(IPv4FlowSpecVPN, valueOnlyLen)
+	_, err = ParseFlowSpecVPN(ipv4FlowSpecVPN, valueOnlyLen)
 	assert.ErrorIs(t, err, ErrFlowSpecTruncated, "a length that excludes the RD is refused")
 }

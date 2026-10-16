@@ -12,10 +12,11 @@ import (
 )
 
 const (
-	// encoderSourceFile is the file isComponentKeyword lives in, so the set
-	// this test reads and the function that accepts it cannot come from two
-	// different places.
-	encoderSourceFile = "plugin_encode_text.go"
+	// encoderSourceFile declares the keyword constants isComponentKeyword
+	// switches over. They moved with the wire codec to the core FlowSpec
+	// package, so the set this test reads and the function that accepts it
+	// still name the same constants.
+	encoderSourceFile = "../../../../../core/bgp/nlri/flowspec/vocabulary.go"
 
 	// encoderKeywordMarker opens the const block that declares the component
 	// keywords, and it is the whole reason the block can be found by reading.
@@ -34,7 +35,7 @@ const (
 // VALIDATES: the component set `ze-flowspec-cmd.yang` augments onto
 // `announce flowspec` is exactly the set `isComponentKeyword` recognizes.
 // PREVENTS: the second copy drifting from its producer. The keyword set has one
-// producer, `isComponentKeyword` over the `kw*` constants, and declaring it in
+// producer, `isComponentKeyword` over the `Kw*` constants, and declaring it in
 // YANG makes a copy. A copy with no check is a future disagreement with nothing
 // to arbitrate it (ai/rules/principles.md), and it misleads in both directions:
 // a keyword in the encoder alone is a component an operator can type and cannot
@@ -75,7 +76,8 @@ func TestModelDeclaresEveryComponentKeyword(t *testing.T) {
 // exists to catch would pass unseen. Reading the block instead makes the new
 // constant arrive on the encoder side by itself.
 //
-// The loop is bounded by the line count of one file this test compiles beside.
+// The loop is bounded by the line count of one file: the core vocabulary.go,
+// read from its own package directory, not one this test compiles beside.
 func encoderComponentKeywords(t *testing.T) []string {
 	t.Helper()
 	source, err := os.ReadFile(encoderSourceFile)
@@ -94,7 +96,7 @@ func encoderComponentKeywords(t *testing.T) []string {
 
 	keywords := make([]string, 0, componentCountHint)
 	for line := range strings.SplitSeq(block, "\n") {
-		if !strings.HasPrefix(strings.TrimSpace(line), "kw") {
+		if !strings.HasPrefix(strings.TrimSpace(line), "Kw") {
 			continue
 		}
 		_, value, opened := strings.Cut(line, `= "`)

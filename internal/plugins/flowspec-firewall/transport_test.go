@@ -4,8 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
 	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // ICMP type numbers belong to the NLRI's address family, including when no
@@ -16,8 +17,8 @@ func TestICMPTypeUsesFlowSpecFamily(t *testing.T) {
 		protocol string
 		match    firewall.Match
 	}{
-		{flowspec.IPv4FlowSpec, "icmp", firewall.MatchICMPType{Type: 8}},
-		{flowspec.IPv6FlowSpec, "icmpv6", firewall.MatchICMPv6Type{Type: 8}},
+		{family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}, "icmp", firewall.MatchICMPType{Type: 8}},
+		{family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpec}, "icmpv6", firewall.MatchICMPv6Type{Type: 8}},
 	} {
 		fs := flowspec.NewFlowSpec(tc.family)
 		if err := fs.AddComponent(flowspec.NewFlowICMPTypeComponent(8)); err != nil {
@@ -52,7 +53,7 @@ func TestTCPFlagBitmaskOperators(t *testing.T) {
 		{"include-empty", 0, 0, firewall.MatchTCPFlags{}, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			fs, err := flowspec.ParseFlowSpec(flowspec.IPv4FlowSpec, []byte{3, 9, 0x80 | tc.op, tc.value})
+			fs, err := flowspec.ParseFlowSpec(family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}, []byte{3, 9, 0x80 | tc.op, tc.value})
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -9,11 +9,11 @@ package flowspec
 import (
 	"errors"
 	"fmt"
-	"net/netip"
 	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -42,11 +42,11 @@ func decodeFlowSpecNLRI(famName string, data []byte) map[string]any {
 		return nil
 	}
 
-	var fs *FlowSpec
-	var rd *RouteDistinguisher
+	var fs *flowspec.FlowSpec
+	var rd *flowspec.RouteDistinguisher
 
 	if isVPN {
-		fsv, err := ParseFlowSpecVPN(fam, data)
+		fsv, err := flowspec.ParseFlowSpecVPN(fam, data)
 		if err != nil {
 			flowLogger.Debug("parse flowspec vpn failed", "err", err)
 			return nil
@@ -56,7 +56,7 @@ func decodeFlowSpecNLRI(famName string, data []byte) map[string]any {
 		rd = &rdVal
 	} else {
 		var err error
-		fs, err = ParseFlowSpec(fam, data)
+		fs, err = flowspec.ParseFlowSpec(fam, data)
 		if err != nil {
 			flowLogger.Debug("parse flowspec failed", "err", err)
 			return nil
@@ -73,13 +73,13 @@ func decodeFlowSpecNLRI(famName string, data []byte) map[string]any {
 // One component becomes one key. A component type appears at most once in a
 // FlowSpec (RFC 8955 Section 4.2, enforced by FlowSpec.AddComponent and
 // FlowSpec.parseComponents), so each key is written once and the OR groups of a
-// type all come from formatNumericMatches over that one component.
-func flowSpecToJSON(fs *FlowSpec, family string, rd *RouteDistinguisher) map[string]any {
+// type all come from FormatNumericMatches over that one component.
+func flowSpecToJSON(fs *flowspec.FlowSpec, family string, rd *flowspec.RouteDistinguisher) map[string]any {
 	result := make(map[string]any)
 
 	// Add RD for VPN families
 	if rd != nil {
-		result[kwRD] = rd.String()
+		result[flowspec.KwRD] = rd.String()
 	}
 
 	// Determine IPv4 vs IPv6 from family string
@@ -95,283 +95,67 @@ func flowSpecToJSON(fs *FlowSpec, family string, rd *RouteDistinguisher) map[str
 
 // componentToJSON converts a FlowComponent to ze-bgp JSON format.
 // Returns the key name and nested array values.
-func componentToJSON(comp FlowComponent, isIPv6 bool) (string, [][]string) {
+func componentToJSON(comp flowspec.FlowComponent, isIPv6 bool) (string, [][]string) {
 	compType := comp.Type()
 
 	switch compType {
-	case FlowDestPrefix:
-		key := kwDestinationIPv4
+	case flowspec.FlowDestPrefix:
+		key := flowspec.KwDestinationIPv4
 		if isIPv6 {
-			key = kwDestinationIPv6
+			key = flowspec.KwDestinationIPv6
 		}
-		prefix := formatPrefixWithOffset(comp)
+		prefix := flowspec.FormatPrefixWithOffset(comp)
 		return key, [][]string{{prefix}}
 
-	case FlowSourcePrefix:
-		key := kwSourceIPv4
+	case flowspec.FlowSourcePrefix:
+		key := flowspec.KwSourceIPv4
 		if isIPv6 {
-			key = kwSourceIPv6
+			key = flowspec.KwSourceIPv6
 		}
-		prefix := formatPrefixWithOffset(comp)
+		prefix := flowspec.FormatPrefixWithOffset(comp)
 		return key, [][]string{{prefix}}
 
-	case FlowIPProtocol:
-		key := kwProtocol
+	case flowspec.FlowIPProtocol:
+		key := flowspec.KwProtocol
 		if isIPv6 {
-			key = kwNextHeader
+			key = flowspec.KwNextHeader
 		}
-		return key, formatNumericMatches(comp, compType)
+		return key, flowspec.FormatNumericMatches(comp, compType)
 
-	case FlowPort:
-		return kwPort, formatNumericMatches(comp, compType)
+	case flowspec.FlowPort:
+		return flowspec.KwPort, flowspec.FormatNumericMatches(comp, compType)
 
-	case FlowDestPort:
-		return kwDestPort, formatNumericMatches(comp, compType)
+	case flowspec.FlowDestPort:
+		return flowspec.KwDestPort, flowspec.FormatNumericMatches(comp, compType)
 
-	case FlowSourcePort:
-		return kwSourcePort, formatNumericMatches(comp, compType)
+	case flowspec.FlowSourcePort:
+		return flowspec.KwSourcePort, flowspec.FormatNumericMatches(comp, compType)
 
-	case FlowICMPType:
-		return kwICMPType, formatNumericMatches(comp, compType)
+	case flowspec.FlowICMPType:
+		return flowspec.KwICMPType, flowspec.FormatNumericMatches(comp, compType)
 
-	case FlowICMPCode:
-		return kwICMPCode, formatNumericMatches(comp, compType)
+	case flowspec.FlowICMPCode:
+		return flowspec.KwICMPCode, flowspec.FormatNumericMatches(comp, compType)
 
-	case FlowTCPFlags:
-		return kwTCPFlags, formatBitmaskMatches(comp, tcpFlagValueToNames)
+	case flowspec.FlowTCPFlags:
+		return flowspec.KwTCPFlags, flowspec.FormatBitmaskMatches(comp, flowspec.TCPFlagValueToNames)
 
-	case FlowPacketLength:
-		return kwPacketLength, formatNumericMatches(comp, compType)
+	case flowspec.FlowPacketLength:
+		return flowspec.KwPacketLength, flowspec.FormatNumericMatches(comp, compType)
 
-	case FlowDSCP:
-		return kwDSCP, formatNumericMatches(comp, compType)
+	case flowspec.FlowDSCP:
+		return flowspec.KwDSCP, flowspec.FormatNumericMatches(comp, compType)
 
-	case FlowFragment:
-		return kwFragment, formatBitmaskMatches(comp, fragmentFlagValueToNames)
+	case flowspec.FlowFragment:
+		return flowspec.KwFragment, flowspec.FormatBitmaskMatches(comp, flowspec.FragmentFlagValueToNames)
 
-	case FlowFlowLabel:
-		return kwFlowLabel, formatNumericMatches(comp, compType)
+	case flowspec.FlowFlowLabel:
+		return flowspec.KwFlowLabel, flowspec.FormatNumericMatches(comp, compType)
 
 	default: // Component implementations form an open set; retain numeric keys.
 		var b textbuf.Buffer
 		return b.Reset().Str("type-").Uint8(uint8(compType)).String(), [][]string{}
 	}
-}
-
-// formatPrefixWithOffset formats a prefix component as "prefix/length/offset".
-func formatPrefixWithOffset(comp FlowComponent) string {
-	prefix := ""
-	offset := uint8(0)
-
-	if pc, ok := comp.(interface{ Prefix() netip.Prefix }); ok {
-		prefix = pc.Prefix().String()
-	}
-	if oc, ok := comp.(interface{ Offset() uint8 }); ok {
-		offset = oc.Offset()
-	}
-
-	var b textbuf.Buffer
-	return b.Reset().Str(prefix).Byte('/').Uint8(offset).String()
-}
-
-// protocolNumberToName maps protocol numbers to names for output. It is
-// derived from protocolNameToNumber so the two directions cannot disagree: a
-// name this package accepts is a name it prints back.
-var protocolNumberToName = reverseProtocolNames()
-
-func reverseProtocolNames() map[uint8]string {
-	names := make(map[uint8]string, len(protocolNameToNumber))
-	for name, number := range protocolNameToNumber {
-		names[number] = name
-	}
-	return names
-}
-
-// formatNumericMatches formats numeric component matches for ze-bgp JSON.
-// Returns nested arrays: [[value1], [value2]] for OR logic.
-func formatNumericMatches(comp FlowComponent, compType FlowComponentType) [][]string {
-	nc, ok := comp.(interface{ Matches() []FlowMatch })
-	if !ok {
-		return [][]string{}
-	}
-
-	matches := nc.Matches()
-	result := make([][]string, 0, len(matches))
-	var andGroup []string
-
-	for _, m := range matches {
-		valStr := formatNumericValue(m, compType)
-
-		if m.And && len(andGroup) > 0 {
-			// Continue AND group
-			andGroup = append(andGroup, valStr)
-		} else {
-			// Start new OR group (flush previous AND group if any)
-			if len(andGroup) > 0 {
-				result = append(result, andGroup)
-			}
-			andGroup = []string{valStr}
-		}
-	}
-
-	// Flush final group
-	if len(andGroup) > 0 {
-		result = append(result, andGroup)
-	}
-
-	return result
-}
-
-// formatNumericValue formats a single numeric match value.
-func formatNumericValue(m FlowMatch, compType FlowComponentType) string {
-	// For protocol, try to use name
-	if compType == FlowIPProtocol {
-		if name, ok := protocolNumberToName[uint8(m.Value)]; ok { //nolint:gosec // Protocol values are 8-bit
-			return formatWithOperator(name, m.Op)
-		}
-	}
-
-	// Format with operator prefix
-	return formatWithOperator(textbuf.StringUint(m.Value), m.Op)
-}
-
-// formatWithOperator adds operator prefix to a value string.
-func formatWithOperator(value string, op FlowOperator) string {
-	// Mask out non-comparison bits
-	compOp := op &^ (FlowOpEnd | FlowOpAnd | FlowOpLenMask)
-
-	var prefix string
-	//exhaustive:ignore // Render only comparison bits after masking the operator framing flags.
-	switch compOp {
-	case FlowOpEqual:
-		prefix = "="
-	case FlowOpGreater:
-		prefix = ">"
-	case FlowOpLess:
-		prefix = "<"
-	case FlowOpGreater | FlowOpEqual:
-		prefix = ">="
-	case FlowOpLess | FlowOpEqual:
-		prefix = "<="
-	case FlowOpNotEq:
-		prefix = "!="
-	default: // unrecognized operator — treat as equality
-		prefix = "="
-	}
-	var tb textbuf.Buffer
-	return tb.Str(prefix).Str(value).String()
-}
-
-// tcpFlagValueToNames maps TCP flag bit values to names.
-var tcpFlagValueToNames = map[uint8]string{
-	0x01: "fin",
-	0x02: "syn",
-	0x04: "rst",
-	0x08: "push", // "push" not "psh"
-	0x10: "ack",
-	0x20: "urg",
-	0x40: "ece",
-	0x80: "cwr",
-}
-
-// fragmentFlagValueToNames maps fragment flag bit values to names.
-var fragmentFlagValueToNames = map[uint8]string{
-	0x01: "dont-fragment",
-	0x02: "is-fragment",
-	0x04: "first-fragment",
-	0x08: "last-fragment",
-}
-
-// formatBitmaskMatches formats bitmask component matches (TCP flags, Fragment).
-// Returns nested arrays with combined flag names.
-func formatBitmaskMatches(comp FlowComponent, flagMap map[uint8]string) [][]string {
-	nc, ok := comp.(interface{ Matches() []FlowMatch })
-	if !ok {
-		return [][]string{}
-	}
-
-	matches := nc.Matches()
-	result := make([][]string, 0, len(matches))
-	var andGroup []string
-
-	// The outer array is the OR and the inner array is the AND, exactly as
-	// formatNumericMatches builds it. Until 2026-09-20 this loop gave every
-	// match an inner array of its own and never read m.And, so
-	// `syn | rst & fin & !=push` decoded as four independent alternatives: a
-	// filter that matches a SYN-only packet, which the route does not ask for.
-	// RFC 8955 Section 4.2.1.1 makes the AND bit part of what the component
-	// MEANS, so dropping it is not a display choice.
-	for _, m := range matches {
-		valStr := formatBitmaskValue(m, flagMap)
-
-		if m.And && len(andGroup) > 0 {
-			andGroup = append(andGroup, valStr)
-			continue
-		}
-		if len(andGroup) > 0 {
-			result = append(result, andGroup)
-		}
-		andGroup = []string{valStr}
-	}
-
-	if len(andGroup) > 0 {
-		result = append(result, andGroup)
-	}
-
-	return result
-}
-
-// formatBitmaskValue formats one bitmask match as a single string: the
-// operator, then every named bit joined with `+`.
-//
-// RFC 8955 Section 4.2.1.2 gives the operator two bits that are not the same
-// question, and both are written here:
-//
-//   - N (NOT) negates the result, and renders `!`.
-//   - M (MATCH) asks for an EXACT match rather than "any of these bits set",
-//     and renders `=`.
-//
-// An operator with neither bit renders BARE. Writing `=` for it, which this
-// function did until 2026-09-20, published an exact-match route for one that
-// asked for any bit: `tcp-flags syn` and `tcp-flags =syn` select different
-// packets, and a reader had no way to tell which the peer sent.
-//
-// The bits of ONE value are joined rather than listed, because they are one
-// operand and not a sequence of matches. `+` is the separator every FlowSpec
-// grammar uses for it, including Ze's own config parser.
-func formatBitmaskValue(m FlowMatch, flagMap map[uint8]string) string {
-	var prefix string
-	if m.Op&FlowOpNot != 0 {
-		prefix = "!"
-	}
-	if m.Op&FlowOpMatch != 0 {
-		prefix += "="
-	}
-
-	flags := uint8(m.Value) //nolint:gosec // Bitmask values are 8-bit
-	var b textbuf.Buffer
-	b.Reset().Str(prefix)
-
-	named := false
-	for bit := uint8(0x01); bit != 0; bit <<= 1 {
-		if flags&bit == 0 {
-			continue
-		}
-		name, ok := flagMap[bit]
-		if !ok {
-			continue
-		}
-		if named {
-			b.Byte('+')
-		}
-		b.Str(name)
-		named = true
-	}
-
-	if !named {
-		return b.Reset().Str(prefix).Uint8(flags).String()
-	}
-	return b.String()
 }
 
 // formatFlowSpecText formats FlowSpec components as human-readable text.
@@ -381,10 +165,10 @@ func formatFlowSpecText(result map[string]any) string {
 
 	// Order components logically: destination, source, protocol, ports, etc.
 	componentOrder := []string{
-		kwDestinationIPv4, kwDestinationIPv6, kwSourceIPv4, kwSourceIPv6, kwProtocol,
-		kwPort, kwDestPort, kwSourcePort,
-		kwICMPType, kwICMPCode, kwTCPFlags, kwPacketLength, kwDSCP,
-		kwFragment, kwFlowLabel, kwRD,
+		flowspec.KwDestinationIPv4, flowspec.KwDestinationIPv6, flowspec.KwSourceIPv4, flowspec.KwSourceIPv6, flowspec.KwProtocol,
+		flowspec.KwPort, flowspec.KwDestPort, flowspec.KwSourcePort,
+		flowspec.KwICMPType, flowspec.KwICMPCode, flowspec.KwTCPFlags, flowspec.KwPacketLength, flowspec.KwDSCP,
+		flowspec.KwFragment, flowspec.KwFlowLabel, flowspec.KwRD,
 	}
 
 	for _, key := range componentOrder {
@@ -484,11 +268,11 @@ func jsonToTextComponents(m map[string]any) ([]string, error) {
 	// Keys match text keywords (destination-ipv6, next-header, etc.)
 	// RD must come first for VPN families (parsed before components)
 	componentOrder := []string{
-		kwRD, // Route Distinguisher - must be first for VPN families
-		kwDestinationIPv4, kwDestinationIPv6, kwSourceIPv4, kwSourceIPv6,
-		kwProtocol, kwNextHeader, kwPort, kwDestPort, kwSourcePort,
-		kwICMPType, kwICMPCode, kwTCPFlags, kwPacketLength, kwDSCP,
-		kwFragment, kwFlowLabel,
+		flowspec.KwRD, // Route Distinguisher - must be first for VPN families
+		flowspec.KwDestinationIPv4, flowspec.KwDestinationIPv6, flowspec.KwSourceIPv4, flowspec.KwSourceIPv6,
+		flowspec.KwProtocol, flowspec.KwNextHeader, flowspec.KwPort, flowspec.KwDestPort, flowspec.KwSourcePort,
+		flowspec.KwICMPType, flowspec.KwICMPCode, flowspec.KwTCPFlags, flowspec.KwPacketLength, flowspec.KwDSCP,
+		flowspec.KwFragment, flowspec.KwFlowLabel,
 	}
 
 	for _, key := range componentOrder {
@@ -498,9 +282,9 @@ func jsonToTextComponents(m map[string]any) ([]string, error) {
 		}
 
 		// Handle RD specially - it's a simple string, not an array
-		if key == kwRD {
+		if key == flowspec.KwRD {
 			if rdStr, ok := val.(string); ok {
-				args = append(args, kwRD, rdStr)
+				args = append(args, flowspec.KwRD, rdStr)
 			}
 			continue
 		}
@@ -594,7 +378,7 @@ func normalizeJSONValue(key, val string) string {
 	}
 
 	// Strip operator prefix for protocol/next-header (text parser expects plain value)
-	if key == kwProtocol || key == kwNextHeader {
+	if key == flowspec.KwProtocol || key == flowspec.KwNextHeader {
 		// "=tcp" -> "tcp", "=6" -> "6"
 		val = strings.TrimPrefix(val, "=")
 		val = strings.TrimPrefix(val, "<")
@@ -611,7 +395,7 @@ func normalizeJSONValue(key, val string) string {
 // suffix.
 func isPrefixComponentKey(key string) bool {
 	switch key {
-	case kwDestinationIPv4, kwDestinationIPv6, kwSourceIPv4, kwSourceIPv6:
+	case flowspec.KwDestinationIPv4, flowspec.KwDestinationIPv6, flowspec.KwSourceIPv4, flowspec.KwSourceIPv6:
 		return true
 	}
 	return false

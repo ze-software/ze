@@ -47,17 +47,17 @@ func appendFlowSpecJSON(buf []byte, fs *FlowSpec, family string, rd *RouteDistin
 		switch ct {
 		case FlowDestPrefix, FlowSourcePrefix:
 			hasType[ct] = true
-			matchesByType[ct] = append(matchesByType[ct], []string{formatPrefixWithOffset(comp)})
+			matchesByType[ct] = append(matchesByType[ct], []string{FormatPrefixWithOffset(comp)})
 		case FlowTCPFlags:
 			hasType[ct] = true
-			matchesByType[ct] = append(matchesByType[ct], formatBitmaskMatches(comp, tcpFlagValueToNames)...)
+			matchesByType[ct] = append(matchesByType[ct], FormatBitmaskMatches(comp, TCPFlagValueToNames)...)
 		case FlowFragment:
 			hasType[ct] = true
-			matchesByType[ct] = append(matchesByType[ct], formatBitmaskMatches(comp, fragmentFlagValueToNames)...)
+			matchesByType[ct] = append(matchesByType[ct], FormatBitmaskMatches(comp, FragmentFlagValueToNames)...)
 		case FlowIPProtocol, FlowPort, FlowDestPort, FlowSourcePort,
 			FlowICMPType, FlowICMPCode, FlowPacketLength, FlowDSCP, FlowFlowLabel:
 			hasType[ct] = true
-			matchesByType[ct] = append(matchesByType[ct], formatNumericMatches(comp, ct)...)
+			matchesByType[ct] = append(matchesByType[ct], FormatNumericMatches(comp, ct)...)
 		default: // Component implementations form an open set; retain "type-N":[].
 			if !slices.Contains(unknownTypes, ct) {
 				unknownTypes = append(unknownTypes, ct)
@@ -114,39 +114,39 @@ func flowSpecKey(ct FlowComponentType, isIPv6 bool) string {
 	switch ct {
 	case FlowDestPrefix:
 		if isIPv6 {
-			return kwDestinationIPv6
+			return KwDestinationIPv6
 		}
-		return kwDestinationIPv4
+		return KwDestinationIPv4
 	case FlowSourcePrefix:
 		if isIPv6 {
-			return kwSourceIPv6
+			return KwSourceIPv6
 		}
-		return kwSourceIPv4
+		return KwSourceIPv4
 	case FlowIPProtocol:
 		if isIPv6 {
-			return kwNextHeader
+			return KwNextHeader
 		}
-		return kwProtocol
+		return KwProtocol
 	case FlowPort:
-		return kwPort
+		return KwPort
 	case FlowDestPort:
-		return kwDestPort
+		return KwDestPort
 	case FlowSourcePort:
-		return kwSourcePort
+		return KwSourcePort
 	case FlowICMPType:
-		return kwICMPType
+		return KwICMPType
 	case FlowICMPCode:
-		return kwICMPCode
+		return KwICMPCode
 	case FlowTCPFlags:
-		return kwTCPFlags
+		return KwTCPFlags
 	case FlowPacketLength:
-		return kwPacketLength
+		return KwPacketLength
 	case FlowDSCP:
-		return kwDSCP
+		return KwDSCP
 	case FlowFragment:
-		return kwFragment
+		return KwFragment
 	case FlowFlowLabel:
-		return kwFlowLabel
+		return KwFlowLabel
 	default:
 		panic("BUG: invalid bounded FlowSpec component type")
 	}

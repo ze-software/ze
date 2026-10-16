@@ -1154,7 +1154,7 @@ NLRI plugins register address family support at init time via `family.MustRegist
 <!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- VPN family types -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPN family types -->
 <!-- source: internal/component/bgp/plugins/nlri/vpls/types.go -- VPLS family types -->
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowSpec family types -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/register.go -- FlowSpec family types -->
 <!-- source: internal/component/bgp/plugins/nlri/labeled/types.go -- labeled unicast family types -->
 <!-- source: internal/component/bgp/plugins/nlri/mup/types.go -- MUP family types -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/types.go -- MVPN family types -->

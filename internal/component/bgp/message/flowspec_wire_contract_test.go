@@ -7,8 +7,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // RFC requirement: RFC8955-4-3 positive -- the real UPDATE writer emits a zero-length FlowSpec next hop (§4).
@@ -44,11 +45,11 @@ func TestFlowSpecVPNUpdateCountsRouteDistinguisher(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte{13, 0, 0, 0xfd, 0xe9, 0, 0, 0, 1, 1, 24, 10, 0, 0}, reach.NLRIBytes())
 	require.Equal(t, uint8(134), reach.SAFI())
-	parsed, err := flowspec.ParseFlowSpecVPN(flowspec.IPv4FlowSpecVPN, reach.NLRIBytes())
+	parsed, err := flowspec.ParseFlowSpecVPN(family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpecVPN}, reach.NLRIBytes())
 	require.NoError(t, err)
 	require.Equal(t, []byte{5, 1, 24, 10, 0, 0}, parsed.FlowSpec().Bytes())
 	bad := append([]byte(nil), reach.NLRIBytes()...)
 	bad[0] -= 8
-	_, err = flowspec.ParseFlowSpecVPN(flowspec.IPv4FlowSpecVPN, bad)
+	_, err = flowspec.ParseFlowSpecVPN(family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpecVPN}, bad)
 	require.Error(t, err)
 }

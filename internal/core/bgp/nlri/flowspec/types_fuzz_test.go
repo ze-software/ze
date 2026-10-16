@@ -41,7 +41,7 @@ func FuzzParseFlowSpec(f *testing.F) {
 	f.Add([]byte{0xF0, 0x01, 0x00, 0x01, 0x18, 0x0A, 0x00, 0x00}) // Extended length
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		fs, err := ParseFlowSpec(IPv4FlowSpec, data)
+		fs, err := ParseFlowSpec(ipv4FlowSpec, data)
 		if err != nil {
 			return
 		}
@@ -70,7 +70,7 @@ func FuzzParseFlowSpecIPv6(f *testing.F) {
 	f.Add([]byte{0x00}) // Zero length
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		fs, err := ParseFlowSpec(IPv6FlowSpec, data)
+		fs, err := ParseFlowSpec(ipv6FlowSpec, data)
 		if err != nil {
 			return
 		}
@@ -97,7 +97,7 @@ func FuzzParseFlowSpecVPN(f *testing.F) {
 	f.Add([]byte{0xFF, 0xFF, 0xFF, 0xFF}) // Max values
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		fsv, err := ParseFlowSpecVPN(IPv4FlowSpecVPN, data)
+		fsv, err := ParseFlowSpecVPN(ipv4FlowSpecVPN, data)
 		if err != nil {
 			return
 		}

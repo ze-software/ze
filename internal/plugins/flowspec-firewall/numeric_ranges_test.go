@@ -5,14 +5,15 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
 	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 func TestReceivedPortOperatorsKeepPacketPredicate(t *testing.T) {
 	// Destination 10.0.0.0/24, (port > 80 AND port < 90) OR port == 443.
 	// Leading AND and the reserved numeric bit are intentionally set.
-	fs, err := flowspec.ParseFlowSpec(flowspec.IPv4FlowSpec, []byte{13, 1, 24, 10, 0, 0, 5, 0x4a, 80, 0x44, 90, 0x91, 1, 187})
+	fs, err := flowspec.ParseFlowSpec(family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}, []byte{13, 1, 24, 10, 0, 0, 5, 0x4a, 80, 0x44, 90, 0x91, 1, 187})
 	require.NoError(t, err)
 	terms, err := translateFlowSpec(fs, flowAction{discard: true}, "operators")
 	require.NoError(t, err)
@@ -42,7 +43,7 @@ func TestImpossiblePortAndProtocolCannotWidenMatch(t *testing.T) {
 		// No port is greater than 65535; truncating the operand would widen it.
 		{11, 1, 24, 10, 0, 0, 5, 0xa2, 0, 1, 0, 0},
 	} {
-		fs, err := flowspec.ParseFlowSpec(flowspec.IPv4FlowSpec, wire)
+		fs, err := flowspec.ParseFlowSpec(family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}, wire)
 		require.NoError(t, err)
 		terms, err := translateFlowSpec(fs, flowAction{discard: true}, "impossible")
 		require.Error(t, err)

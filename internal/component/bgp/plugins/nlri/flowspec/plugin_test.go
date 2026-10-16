@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -18,11 +19,11 @@ import (
 // of the bounded key dispatcher and preserves the numeric empty-array output.
 func TestFlowSpecUnknownComponentJSON(t *testing.T) {
 	t.Parallel()
-	fs := NewFlowSpec(IPv4FlowSpec)
-	if err := fs.AddComponent(newFlowNumericComponent(FlowComponentType(99), nil)); err != nil {
+	fs := flowspec.NewFlowSpec(IPv4FlowSpec)
+	if err := fs.AddComponent(flowspec.NewFlowNumericComponent(flowspec.FlowComponentType(99), nil)); err != nil {
 		t.Fatal(err)
 	}
-	if err := fs.AddComponent(NewFlowDestPortComponent(80)); err != nil {
+	if err := fs.AddComponent(flowspec.NewFlowDestPortComponent(80)); err != nil {
 		t.Fatal(err)
 	}
 	const want = `{"destination-port":[["=80"]],"type-99":[]}`
@@ -45,14 +46,14 @@ func TestFlowSpecUnknownComponentJSON(t *testing.T) {
 // project comparison bits, retaining their equality fallback for an unnamed combination.
 func TestFlowSpecOperatorRenderingMasksFraming(t *testing.T) {
 	t.Parallel()
-	comp := newFlowNumericComponent(FlowDestPort, []FlowMatch{
-		{Op: FlowOpEnd | FlowOpAnd | FlowOpLenMask | FlowOpGreater | FlowOpEqual, Value: 80},
-		{Op: FlowOpEnd | FlowOpLenMask | FlowOpLess | FlowOpGreater | FlowOpEqual, Value: 443},
+	comp := flowspec.NewFlowNumericComponent(flowspec.FlowDestPort, []flowspec.FlowMatch{
+		{Op: flowspec.FlowOpEnd | flowspec.FlowOpAnd | flowspec.FlowOpLenMask | flowspec.FlowOpGreater | flowspec.FlowOpEqual, Value: 80},
+		{Op: flowspec.FlowOpEnd | flowspec.FlowOpLenMask | flowspec.FlowOpLess | flowspec.FlowOpGreater | flowspec.FlowOpEqual, Value: 443},
 	})
 	if got := comp.String(); got != "destination-port >=80 =443" {
 		t.Fatalf("component text = %q, want destination-port >=80 =443", got)
 	}
-	fs := NewFlowSpec(IPv4FlowSpec)
+	fs := flowspec.NewFlowSpec(IPv4FlowSpec)
 	if err := fs.AddComponent(comp); err != nil {
 		t.Fatal(err)
 	}
@@ -486,7 +487,7 @@ func TestEncodeFlowSpecProtocolOperatorEquivalence(t *testing.T) {
 //
 // VALIDATES: EncodeFlowSpecComponents (plugin_encode_text.go) parses each repeated
 // keyword into its own component and hands both to FlowSpec.AddComponent, which joins
-// them (types.go). "port >80 <100 port >443 <500" therefore emits one Type 4
+// them (core types.go). "port >80 <100 port >443 <500" therefore emits one Type 4
 // component, and ze parses back what it emitted.
 //
 // PREVENTS: the malformed two-Type-4 NLRI ze announced for this command before the
@@ -503,7 +504,7 @@ func TestEncodeFlowSpecRepeatedKeywordIsOneComponent(t *testing.T) {
 
 	// Both OR groups survive the join: the decoded JSON keeps them as two groups under
 	// one key, which is the round-trip form the JSON encoder reads back.
-	parsed, err := ParseFlowSpec(IPv4FlowSpec, wire)
+	parsed, err := flowspec.ParseFlowSpec(IPv4FlowSpec, wire)
 	require.NoError(t, err)
 	require.Len(t, parsed.Components(), 1)
 	decoded := flowSpecToJSON(parsed, "ipv4/flow", nil)

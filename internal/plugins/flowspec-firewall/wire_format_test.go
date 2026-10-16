@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
 	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -57,7 +57,7 @@ func TestNativeWireProtocolsTranslateOrRefuseWithoutWidening(t *testing.T) {
 }
 
 func TestNativeWireTCPFlagsRemainACondition(t *testing.T) {
-	fs, err := flowspec.ParseFlowSpec(flowFamily(), flowWire(t, flowFamily(), flowspec.NewFlowTCPFlagsComponent(2)))
+	fs, err := flowspec.ParseFlowSpec(flowFamily(), flowWire(t, flowFamily(), tcpFlagsComponent(2)))
 	require.NoError(t, err)
 	terms, err := translateFlowSpec(fs, flowAction{discard: true}, "syn")
 	require.NoError(t, err)

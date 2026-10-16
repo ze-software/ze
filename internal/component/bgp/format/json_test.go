@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	evpn "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/evpn"
-	flowspec "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
 	labeled "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/labeled"
 	vpn "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/vpn"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
@@ -22,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	flowspec "github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )

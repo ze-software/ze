@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/route"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 )
 
 var errMissingFlowspecCommand = errors.New("missing FlowSpec command")
@@ -37,43 +38,43 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 	}
 
 	// Build FlowSpec NLRI
-	var fam Family
+	var fam flowspec.Family
 	if isIPv6 {
-		fam = Family{AFI: AFIIPv6, SAFI: SAFIFlowSpec}
+		fam = flowspec.Family{AFI: flowspec.AFIIPv6, SAFI: flowspec.SAFIFlowSpec}
 	} else {
-		fam = Family{AFI: AFIIPv4, SAFI: SAFIFlowSpec}
+		fam = flowspec.Family{AFI: flowspec.AFIIPv4, SAFI: flowspec.SAFIFlowSpec}
 	}
 
-	fs := NewFlowSpec(fam)
+	fs := flowspec.NewFlowSpec(fam)
 
 	// Add components based on parsed route
 	if parsed.DestPrefix != nil {
-		if err := fs.AddComponent(NewFlowDestPrefixComponent(*parsed.DestPrefix)); err != nil {
+		if err := fs.AddComponent(flowspec.NewFlowDestPrefixComponent(*parsed.DestPrefix)); err != nil {
 			return nil, nil, err
 		}
 	}
 	if parsed.SourcePrefix != nil {
-		if err := fs.AddComponent(NewFlowSourcePrefixComponent(*parsed.SourcePrefix)); err != nil {
+		if err := fs.AddComponent(flowspec.NewFlowSourcePrefixComponent(*parsed.SourcePrefix)); err != nil {
 			return nil, nil, err
 		}
 	}
 	if len(parsed.Protocols) > 0 {
-		if err := fs.AddComponent(NewFlowIPProtocolComponent(parsed.Protocols...)); err != nil {
+		if err := fs.AddComponent(flowspec.NewFlowIPProtocolComponent(parsed.Protocols...)); err != nil {
 			return nil, nil, err
 		}
 	}
 	if len(parsed.Ports) > 0 {
-		if err := fs.AddComponent(NewFlowPortComponent(parsed.Ports...)); err != nil {
+		if err := fs.AddComponent(flowspec.NewFlowPortComponent(parsed.Ports...)); err != nil {
 			return nil, nil, err
 		}
 	}
 	if len(parsed.DestPorts) > 0 {
-		if err := fs.AddComponent(NewFlowDestPortComponent(parsed.DestPorts...)); err != nil {
+		if err := fs.AddComponent(flowspec.NewFlowDestPortComponent(parsed.DestPorts...)); err != nil {
 			return nil, nil, err
 		}
 	}
 	if len(parsed.SourcePorts) > 0 {
-		if err := fs.AddComponent(NewFlowSourcePortComponent(parsed.SourcePorts...)); err != nil {
+		if err := fs.AddComponent(flowspec.NewFlowSourcePortComponent(parsed.SourcePorts...)); err != nil {
 			return nil, nil, err
 		}
 	}

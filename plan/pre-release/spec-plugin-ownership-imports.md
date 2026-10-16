@@ -467,6 +467,26 @@ The split between SHIFTED and STALE within the 72 is read from `./le rfc check`
 after the move, not predicted here: it depends on which staying units change
 text (the approval table above).
 
+**D1 re-scan at HEAD `5baa0ced6e` (2026-10-16, the D1 pre-step).** The
+inventory method (steps 1-7) was re-run, type-checked, after the commits that
+touched these packages since 2026-10-13. Every D1 count above holds unchanged:
+
+| Measure | Count at `5baa0ced6e` |
+|---------|-----------------------|
+| Production files of the plugin losing declarations to core | 8: 6 removed whole (`types.go`, `types_numeric.go`, `types_prefix.go`, `types_vpn.go`, `compare.go`, `json.go`; `types.go` keeps nothing but the four family vars, which go to `register.go`), 2 split (`plugin_decode.go` 10, `plugin_encode_text.go` 21) |
+| Moving declarations, forward edges, reverse symbols, newly exported | 174; 0; 91; 33, exactly the "Newly exported by core" column |
+| Plugin test files moving whole, split, staying | 5 (11 functions), 3 (4 functions move), 8 |
+| Production importers rewritten to the core path | 7: `rib/rib_flowspec_validation.go`, 5 in `flowspec-firewall` (`numeric_ranges`, `selected`, `state`, `translate`, `transport`), `internal/chaos/peer/sender.go` |
+| Test importers rewritten | 12, the four of step 7 building their family from core constants; 3 keep the plugin import (`rib_parsefamily_test.go`, `reactor/rfc8955_width_wire_test.go`, `cmd/announce/announce_test.go`); `plugin/all/all_ze_bgp.go` keeps its blank import |
+| Tagged units needing approval | 27: 18 in place, 9 moved |
+| Discrimination records | 15 re-records, 18 new covers |
+| Audit verdicts | 30 keyed on the plugin directory, 3 outside (`RFC8956-3.1-3` is keyed on the firewall unit too, already inside the 30) |
+| Non-spec lines naming a moving location | 27: `nlri-flowspec.md` 12, `wire/nlri.md` 3, `api/text-format.md` 1, `guide/plugins.md` 1, `rfc/short/rfc8955.md` 6, `test/plugin/rib-flowspec-family-name.ci` 1, Go comments in `rib/rib_nlri.go`, `rib/rib_parsefamily_test.go`, `exabgp/bridge/bridge_event.go` (line 755) |
+
+The three moved fragment tests name subtests with `fam.String()`; in the core
+test binary, where no family is registered, those subtest names become the
+AFI and SAFI fallback. No record, verdict, test or doc names one of those subtests (grep, 2026-10-16).
+
 ## Required Reading
 
 ### Architecture Docs
@@ -693,6 +713,24 @@ handler's old package `bgp/plugins/cmd/rib` stays linked (it keeps `rib show`).
 | `cmd/ze-serial-shell` | 0 -> 0 | none |
 
 Raw output: `tmp/session/2026-10-15-1b0ec3e6-5946-4d37-8431-e1065e283551/scratch/ac3-diff.txt`.
+
+### AC-15 evidence (phase D1, 2026-10-16, this VM)
+
+`BenchmarkRIBFlowSpecValidation` is new in
+`internal/component/bgp/plugins/rib/rib_flowspec_validation_bench_test.go`; its NLRI
+bytes are literals, so its text is the same before and after the move. Logs:
+`scratch/d1-ac15-before.log`, `scratch/d1-ac15-after.log`.
+
+| Benchmark | allocs/op before | allocs/op after | B/op before | B/op after |
+|-----------|------------------|-----------------|-------------|------------|
+| `BenchmarkRIBFlowSpecValidation/ipv4` | 9 | 9 | 320 | 320 |
+| `BenchmarkRIBFlowSpecValidation/ipv6` | 6 | 6 | 232 | 232 |
+| `BenchmarkRIBFlowSpecValidation/ipv4-vpn` | 10 | 10 | 336 | 336 |
+| `BenchmarkForwardDirect` | 6 | 6 | 2050 | 2052 |
+| `BenchmarkForwardDirect_Batch` | 555 | 555 | 168790 | 169655 |
+
+allocs/op identical. ns/op from this VM is not perf evidence (owner: perf is
+measured on his Mac), so the ns/op half of AC-15 is owed from the Mac.
 
 ## End-to-End User Stories
 

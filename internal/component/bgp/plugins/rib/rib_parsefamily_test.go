@@ -48,7 +48,7 @@ func TestParseFamilyMatchesRegistry(t *testing.T) {
 // The registrar is the only place the FlowSpec family name is declared, and the
 // RIB is the surface that reads it back. This test names neither spelling as a
 // literal: it takes each name from the value family.MustRegister returned in
-// internal/component/bgp/plugins/nlri/flowspec/types.go, and requires the RIB
+// internal/component/bgp/plugins/nlri/flowspec/register.go, and requires the RIB
 // to parse that name back to that same value.
 //
 // VALIDATES: AC-2. The RIB and the family registry answer one spelling.

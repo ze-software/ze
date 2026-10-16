@@ -272,7 +272,7 @@ func (t Translator) Line(line string) (Translation, error) {
 	if translation, ok := convertControl(selector, rest); ok {
 		return translation, nil
 	}
-	if translation, ok, err := ConvertNeighborControl(selector, rest); ok {
+	if translation, ok, err := convertNeighborControl(selector, rest); ok {
 		if err != nil {
 			return Translation{}, fmt.Errorf("%w: %q", err, line)
 		}

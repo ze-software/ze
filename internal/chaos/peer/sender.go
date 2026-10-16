@@ -8,9 +8,9 @@ import (
 	"github.com/ze-software/ze/internal/chaos/scenario"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	evpn "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/evpn"
-	flowspec "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 	"github.com/ze-software/ze/internal/core/family"
 )
 

@@ -9,19 +9,20 @@ import (
 	"github.com/stretchr/testify/require"
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 )
 
 // componentAdder is the AddComponent half of FlowSpec and FlowSpecVPN, so one
 // fixture helper serves both.
 type componentAdder interface {
-	AddComponent(c FlowComponent) error
+	AddComponent(c flowspec.FlowComponent) error
 }
 
 // mustAddComponent adds c to target and panics when the component is refused.
 // Every fixture in this file names each component type once, so a refusal is a
 // defect in the fixture rather than the case under test. The helper exists
 // because most fixtures are built inside a closure that holds no *testing.T.
-func mustAddComponent(target componentAdder, c FlowComponent) {
+func mustAddComponent(target componentAdder, c flowspec.FlowComponent) {
 	if err := target.AddComponent(c); err != nil {
 		panic("BUG: flowspec test fixture refused a component: " + err.Error())
 	}
@@ -36,19 +37,19 @@ func mustAddComponent(target componentAdder, c FlowComponent) {
 func TestFlowSpecComponentTypes(t *testing.T) {
 	t.Parallel()
 	// RFC 5575 component types
-	assert.Equal(t, FlowComponentType(1), FlowDestPrefix)
-	assert.Equal(t, FlowComponentType(2), FlowSourcePrefix)
-	assert.Equal(t, FlowComponentType(3), FlowIPProtocol)
-	assert.Equal(t, FlowComponentType(4), FlowPort)
-	assert.Equal(t, FlowComponentType(5), FlowDestPort)
-	assert.Equal(t, FlowComponentType(6), FlowSourcePort)
-	assert.Equal(t, FlowComponentType(7), FlowICMPType)
-	assert.Equal(t, FlowComponentType(8), FlowICMPCode)
-	assert.Equal(t, FlowComponentType(9), FlowTCPFlags)
-	assert.Equal(t, FlowComponentType(10), FlowPacketLength)
-	assert.Equal(t, FlowComponentType(11), FlowDSCP)
-	assert.Equal(t, FlowComponentType(12), FlowFragment)
-	assert.Equal(t, FlowComponentType(13), FlowFlowLabel) // RFC 8956 (IPv6)
+	assert.Equal(t, flowspec.FlowComponentType(1), flowspec.FlowDestPrefix)
+	assert.Equal(t, flowspec.FlowComponentType(2), flowspec.FlowSourcePrefix)
+	assert.Equal(t, flowspec.FlowComponentType(3), flowspec.FlowIPProtocol)
+	assert.Equal(t, flowspec.FlowComponentType(4), flowspec.FlowPort)
+	assert.Equal(t, flowspec.FlowComponentType(5), flowspec.FlowDestPort)
+	assert.Equal(t, flowspec.FlowComponentType(6), flowspec.FlowSourcePort)
+	assert.Equal(t, flowspec.FlowComponentType(7), flowspec.FlowICMPType)
+	assert.Equal(t, flowspec.FlowComponentType(8), flowspec.FlowICMPCode)
+	assert.Equal(t, flowspec.FlowComponentType(9), flowspec.FlowTCPFlags)
+	assert.Equal(t, flowspec.FlowComponentType(10), flowspec.FlowPacketLength)
+	assert.Equal(t, flowspec.FlowComponentType(11), flowspec.FlowDSCP)
+	assert.Equal(t, flowspec.FlowComponentType(12), flowspec.FlowFragment)
+	assert.Equal(t, flowspec.FlowComponentType(13), flowspec.FlowFlowLabel) // RFC 8956 (IPv6)
 }
 
 // TestFlowSpecDestPrefix verifies destination prefix component.
@@ -59,9 +60,9 @@ func TestFlowSpecComponentTypes(t *testing.T) {
 func TestFlowSpecDestPrefix(t *testing.T) {
 	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	comp := NewFlowDestPrefixComponent(prefix)
+	comp := flowspec.NewFlowDestPrefixComponent(prefix)
 
-	assert.Equal(t, FlowDestPrefix, comp.Type())
+	assert.Equal(t, flowspec.FlowDestPrefix, comp.Type())
 	// Type assert to access Prefix method
 	pc, ok := comp.(interface{ Prefix() netip.Prefix })
 	require.True(t, ok)
@@ -76,9 +77,9 @@ func TestFlowSpecDestPrefix(t *testing.T) {
 func TestFlowSpecSourcePrefix(t *testing.T) {
 	t.Parallel()
 	prefix := netip.MustParsePrefix("192.168.1.0/24")
-	comp := NewFlowSourcePrefixComponent(prefix)
+	comp := flowspec.NewFlowSourcePrefixComponent(prefix)
 
-	assert.Equal(t, FlowSourcePrefix, comp.Type())
+	assert.Equal(t, flowspec.FlowSourcePrefix, comp.Type())
 	pc, ok := comp.(interface{ Prefix() netip.Prefix })
 	require.True(t, ok)
 	assert.Equal(t, prefix, pc.Prefix())
@@ -93,9 +94,9 @@ func TestFlowSpecSourcePrefix(t *testing.T) {
 func TestFlowSpecIPProtocol(t *testing.T) {
 	t.Parallel()
 	// TCP = 6
-	comp := NewFlowIPProtocolComponent(6)
+	comp := flowspec.NewFlowIPProtocolComponent(6)
 
-	assert.Equal(t, FlowIPProtocol, comp.Type())
+	assert.Equal(t, flowspec.FlowIPProtocol, comp.Type())
 	nc, ok := comp.(interface{ Values() []uint64 })
 	require.True(t, ok)
 	assert.Contains(t, nc.Values(), uint64(6))
@@ -109,9 +110,9 @@ func TestFlowSpecIPProtocol(t *testing.T) {
 // PREVENTS: Port values lost when multiple specified; port matching incorrect logic.
 func TestFlowSpecPort(t *testing.T) {
 	t.Parallel()
-	comp := NewFlowPortComponent(80, 443)
+	comp := flowspec.NewFlowPortComponent(80, 443)
 
-	assert.Equal(t, FlowPort, comp.Type())
+	assert.Equal(t, flowspec.FlowPort, comp.Type())
 	nc, ok := comp.(interface{ Values() []uint64 })
 	require.True(t, ok)
 	assert.Contains(t, nc.Values(), uint64(80))
@@ -125,9 +126,9 @@ func TestFlowSpecPort(t *testing.T) {
 // PREVENTS: Source/dest port confusion; port value truncation.
 func TestFlowSpecDestPort(t *testing.T) {
 	t.Parallel()
-	comp := NewFlowDestPortComponent(22)
+	comp := flowspec.NewFlowDestPortComponent(22)
 
-	assert.Equal(t, FlowDestPort, comp.Type())
+	assert.Equal(t, flowspec.FlowDestPort, comp.Type())
 	nc, ok := comp.(interface{ Values() []uint64 })
 	require.True(t, ok)
 	assert.Contains(t, nc.Values(), uint64(22))
@@ -140,9 +141,9 @@ func TestFlowSpecDestPort(t *testing.T) {
 // PREVENTS: Source/dest port confusion; multiple values being dropped.
 func TestFlowSpecSourcePort(t *testing.T) {
 	t.Parallel()
-	comp := NewFlowSourcePortComponent(1024, 65535)
+	comp := flowspec.NewFlowSourcePortComponent(1024, 65535)
 
-	assert.Equal(t, FlowSourcePort, comp.Type())
+	assert.Equal(t, flowspec.FlowSourcePort, comp.Type())
 	nc, ok := comp.(interface{ Values() []uint64 })
 	require.True(t, ok)
 	assert.Contains(t, nc.Values(), uint64(1024))
@@ -159,9 +160,9 @@ func TestFlowSpecSourcePort(t *testing.T) {
 func TestFlowSpecICMPType(t *testing.T) {
 	t.Parallel()
 	// Echo Request = 8, Echo Reply = 0 per RFC 792
-	comp := NewFlowICMPTypeComponent(8, 0)
+	comp := flowspec.NewFlowICMPTypeComponent(8, 0)
 
-	assert.Equal(t, FlowICMPType, comp.Type())
+	assert.Equal(t, flowspec.FlowICMPType, comp.Type())
 	nc, ok := comp.(interface{ Values() []uint64 })
 	require.True(t, ok)
 	assert.Contains(t, nc.Values(), uint64(8))
@@ -176,16 +177,16 @@ func TestFlowSpecICMPType(t *testing.T) {
 // PREVENTS: Data corruption during encode/decode; incorrect operator byte handling.
 func TestFlowSpecICMPTypeRoundTrip(t *testing.T) {
 	t.Parallel()
-	original := NewFlowSpec(IPv4FlowSpec)
-	mustAddComponent(original, NewFlowICMPTypeComponent(8)) // Echo Request
+	original := flowspec.NewFlowSpec(IPv4FlowSpec)
+	mustAddComponent(original, flowspec.NewFlowICMPTypeComponent(8)) // Echo Request
 
 	data := original.Bytes()
-	parsed, err := ParseFlowSpec(IPv4FlowSpec, data)
+	parsed, err := flowspec.ParseFlowSpec(IPv4FlowSpec, data)
 	require.NoError(t, err)
 	require.Len(t, parsed.Components(), 1)
 
 	comp := parsed.Components()[0]
-	assert.Equal(t, FlowICMPType, comp.Type())
+	assert.Equal(t, flowspec.FlowICMPType, comp.Type())
 	nc, ok := comp.(interface{ Values() []uint64 })
 	require.True(t, ok)
 	assert.Contains(t, nc.Values(), uint64(8))
@@ -200,9 +201,9 @@ func TestFlowSpecICMPTypeRoundTrip(t *testing.T) {
 func TestFlowSpecICMPCode(t *testing.T) {
 	t.Parallel()
 	// Network Unreachable = 0, Host Unreachable = 1 per RFC 792
-	comp := newFlowICMPCodeComponent(0, 1)
+	comp := flowspec.NewFlowICMPCodeComponent(0, 1)
 
-	assert.Equal(t, FlowICMPCode, comp.Type())
+	assert.Equal(t, flowspec.FlowICMPCode, comp.Type())
 	nc, ok := comp.(interface{ Values() []uint64 })
 	require.True(t, ok)
 	assert.Contains(t, nc.Values(), uint64(0))
@@ -219,24 +220,24 @@ func TestFlowSpecICMPBoundary(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name      string
-		comp      FlowComponent
-		buildNLRI func() *FlowSpec
+		comp      flowspec.FlowComponent
+		buildNLRI func() *flowspec.FlowSpec
 	}{
 		{
 			name: "icmp-type",
-			comp: NewFlowICMPTypeComponent(0, 255),
-			buildNLRI: func() *FlowSpec {
-				fs := NewFlowSpec(IPv4FlowSpec)
-				mustAddComponent(fs, NewFlowICMPTypeComponent(0, 255))
+			comp: flowspec.NewFlowICMPTypeComponent(0, 255),
+			buildNLRI: func() *flowspec.FlowSpec {
+				fs := flowspec.NewFlowSpec(IPv4FlowSpec)
+				mustAddComponent(fs, flowspec.NewFlowICMPTypeComponent(0, 255))
 				return fs
 			},
 		},
 		{
 			name: "icmp-code",
-			comp: newFlowICMPCodeComponent(0, 255),
-			buildNLRI: func() *FlowSpec {
-				fs := NewFlowSpec(IPv4FlowSpec)
-				mustAddComponent(fs, newFlowICMPCodeComponent(0, 255))
+			comp: flowspec.NewFlowICMPCodeComponent(0, 255),
+			buildNLRI: func() *flowspec.FlowSpec {
+				fs := flowspec.NewFlowSpec(IPv4FlowSpec)
+				mustAddComponent(fs, flowspec.NewFlowICMPCodeComponent(0, 255))
 				return fs
 			},
 		},
@@ -254,7 +255,7 @@ func TestFlowSpecICMPBoundary(t *testing.T) {
 			// Round-trip test with boundary values
 			original := tt.buildNLRI()
 			data := original.Bytes()
-			parsed, err := ParseFlowSpec(IPv4FlowSpec, data)
+			parsed, err := flowspec.ParseFlowSpec(IPv4FlowSpec, data)
 			require.NoError(t, err)
 			require.Len(t, parsed.Components(), 1)
 
@@ -274,16 +275,16 @@ func TestFlowSpecICMPBoundary(t *testing.T) {
 // PREVENTS: Data corruption during encode/decode; confusion with ICMP type component.
 func TestFlowSpecICMPCodeRoundTrip(t *testing.T) {
 	t.Parallel()
-	original := NewFlowSpec(IPv4FlowSpec)
-	mustAddComponent(original, newFlowICMPCodeComponent(3)) // Port Unreachable
+	original := flowspec.NewFlowSpec(IPv4FlowSpec)
+	mustAddComponent(original, flowspec.NewFlowICMPCodeComponent(3)) // Port Unreachable
 
 	data := original.Bytes()
-	parsed, err := ParseFlowSpec(IPv4FlowSpec, data)
+	parsed, err := flowspec.ParseFlowSpec(IPv4FlowSpec, data)
 	require.NoError(t, err)
 	require.Len(t, parsed.Components(), 1)
 
 	comp := parsed.Components()[0]
-	assert.Equal(t, FlowICMPCode, comp.Type())
+	assert.Equal(t, flowspec.FlowICMPCode, comp.Type())
 	nc, ok := comp.(interface{ Values() []uint64 })
 	require.True(t, ok)
 	assert.Contains(t, nc.Values(), uint64(3))
@@ -299,9 +300,9 @@ func TestFlowSpecICMPCodeRoundTrip(t *testing.T) {
 func TestFlowSpecTCPFlags(t *testing.T) {
 	t.Parallel()
 	// SYN flag = 0x02
-	comp := NewFlowTCPFlagsComponent(0x02)
+	comp := tcpFlagsComponent(0x02)
 
-	assert.Equal(t, FlowTCPFlags, comp.Type())
+	assert.Equal(t, flowspec.FlowTCPFlags, comp.Type())
 	nc, ok := comp.(interface{ Values() []uint64 })
 	require.True(t, ok)
 	assert.Contains(t, nc.Values(), uint64(0x02))
@@ -316,9 +317,9 @@ func TestFlowSpecTCPFlags(t *testing.T) {
 // multi-value ranges being dropped.
 func TestFlowSpecPacketLength(t *testing.T) {
 	t.Parallel()
-	comp := NewFlowPacketLengthComponent(64, 1500)
+	comp := packetLengthComponent(64, 1500)
 
-	assert.Equal(t, FlowPacketLength, comp.Type())
+	assert.Equal(t, flowspec.FlowPacketLength, comp.Type())
 	nc, ok := comp.(interface{ Values() []uint64 })
 	require.True(t, ok)
 	assert.Contains(t, nc.Values(), uint64(64))
@@ -334,9 +335,9 @@ func TestFlowSpecPacketLength(t *testing.T) {
 func TestFlowSpecDSCP(t *testing.T) {
 	t.Parallel()
 	// EF = 46
-	comp := NewFlowDSCPComponent(46)
+	comp := flowspec.NewFlowDSCPComponent(46)
 
-	assert.Equal(t, FlowDSCP, comp.Type())
+	assert.Equal(t, flowspec.FlowDSCP, comp.Type())
 	nc, ok := comp.(interface{ Values() []uint64 })
 	require.True(t, ok)
 	assert.Contains(t, nc.Values(), uint64(46))
@@ -350,12 +351,12 @@ func TestFlowSpecDSCP(t *testing.T) {
 // PREVENTS: Fragment flags using wrong operator type; flag bits inverted.
 func TestFlowSpecFragment(t *testing.T) {
 	t.Parallel()
-	comp := NewFlowFragmentComponent(FlowFragDontFragment)
+	comp := flowspec.NewFlowFragmentComponent(flowspec.FlowFragDontFragment)
 
-	assert.Equal(t, FlowFragment, comp.Type())
+	assert.Equal(t, flowspec.FlowFragment, comp.Type())
 	nc, ok := comp.(interface{ Values() []uint64 })
 	require.True(t, ok)
-	assert.Contains(t, nc.Values(), uint64(FlowFragDontFragment))
+	assert.Contains(t, nc.Values(), uint64(flowspec.FlowFragDontFragment))
 }
 
 // TestFlowSpecFlowLabel verifies Flow Label component (Type 13, IPv6 only).
@@ -368,9 +369,9 @@ func TestFlowSpecFragment(t *testing.T) {
 func TestFlowSpecFlowLabel(t *testing.T) {
 	t.Parallel()
 	// Flow Label is 20-bit, max value 0xFFFFF
-	comp := NewFlowFlowLabelComponent(0x12345, 0x00000)
+	comp := flowspec.NewFlowFlowLabelComponent(0x12345, 0x00000)
 
-	assert.Equal(t, FlowFlowLabel, comp.Type())
+	assert.Equal(t, flowspec.FlowFlowLabel, comp.Type())
 	nc, ok := comp.(interface{ Values() []uint64 })
 	require.True(t, ok)
 	assert.Contains(t, nc.Values(), uint64(0x12345))
@@ -385,16 +386,16 @@ func TestFlowSpecFlowLabel(t *testing.T) {
 // PREVENTS: Data corruption during encode/decode; incorrect 4-byte value encoding.
 func TestFlowSpecFlowLabelRoundTrip(t *testing.T) {
 	t.Parallel()
-	original := NewFlowSpec(IPv6FlowSpec)
-	mustAddComponent(original, NewFlowFlowLabelComponent(0xABCDE))
+	original := flowspec.NewFlowSpec(IPv6FlowSpec)
+	mustAddComponent(original, flowspec.NewFlowFlowLabelComponent(0xABCDE))
 
 	data := original.Bytes()
-	parsed, err := ParseFlowSpec(IPv6FlowSpec, data)
+	parsed, err := flowspec.ParseFlowSpec(IPv6FlowSpec, data)
 	require.NoError(t, err)
 	require.Len(t, parsed.Components(), 1)
 
 	comp := parsed.Components()[0]
-	assert.Equal(t, FlowFlowLabel, comp.Type())
+	assert.Equal(t, flowspec.FlowFlowLabel, comp.Type())
 	nc, ok := comp.(interface{ Values() []uint64 })
 	require.True(t, ok)
 	assert.Contains(t, nc.Values(), uint64(0xABCDE))
@@ -408,9 +409,9 @@ func TestFlowSpecFlowLabelRoundTrip(t *testing.T) {
 // PREVENTS: AFI/SAFI family confusion; component list corruption.
 func TestFlowSpecIPv4Basic(t *testing.T) {
 	t.Parallel()
-	fs := NewFlowSpec(IPv4FlowSpec)
-	mustAddComponent(fs, NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
-	mustAddComponent(fs, NewFlowIPProtocolComponent(6)) // TCP
+	fs := flowspec.NewFlowSpec(IPv4FlowSpec)
+	mustAddComponent(fs, flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
+	mustAddComponent(fs, flowspec.NewFlowIPProtocolComponent(6)) // TCP
 
 	assert.Equal(t, IPv4FlowSpec, fs.Family())
 	assert.Len(t, fs.Components(), 2)
@@ -418,8 +419,8 @@ func TestFlowSpecIPv4Basic(t *testing.T) {
 	// RFC 5575 Section 4: IPv4 Flow Specification rules use the (AFI=1, SAFI=133) pair,
 	// which is what the encoder writes to the wire (encode.go afi=1/SAFI=133).
 	// RFC requirement: RFC5575-4-2 positive -- IPv4 FlowSpec uses AFI 1 with SAFI 133 (§4)
-	assert.Equal(t, AFI(1), fs.Family().AFI, "IPv4 FlowSpec AFI must be 1")
-	assert.Equal(t, SAFI(133), fs.Family().SAFI, "IPv4 FlowSpec SAFI must be 133")
+	assert.Equal(t, flowspec.AFI(1), fs.Family().AFI, "IPv4 FlowSpec AFI must be 1")
+	assert.Equal(t, flowspec.SAFI(133), fs.Family().SAFI, "IPv4 FlowSpec SAFI must be 133")
 }
 
 // TestFlowSpecIPv6Basic verifies basic IPv6 FlowSpec NLRI.
@@ -430,15 +431,15 @@ func TestFlowSpecIPv4Basic(t *testing.T) {
 // PREVENTS: IPv4/IPv6 family confusion; IPv6 prefix encoding errors.
 func TestFlowSpecIPv6Basic(t *testing.T) {
 	t.Parallel()
-	fs := NewFlowSpec(IPv6FlowSpec)
-	mustAddComponent(fs, NewFlowDestPrefixComponent(netip.MustParsePrefix("2001:db8::/32")))
+	fs := flowspec.NewFlowSpec(IPv6FlowSpec)
+	mustAddComponent(fs, flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("2001:db8::/32")))
 
 	assert.Equal(t, IPv6FlowSpec, fs.Family())
 
 	// RFC 8956 Section 2: IPv6 Flow Specification rules use the (AFI=2, SAFI=133) pair.
 	// RFC requirement: RFC8956-2-2 positive -- IPv6 FlowSpec uses AFI 2 with SAFI 133 (§2)
-	assert.Equal(t, AFI(2), fs.Family().AFI, "IPv6 FlowSpec AFI must be 2")
-	assert.Equal(t, SAFI(133), fs.Family().SAFI, "IPv6 FlowSpec SAFI must be 133")
+	assert.Equal(t, flowspec.AFI(2), fs.Family().AFI, "IPv6 FlowSpec AFI must be 2")
+	assert.Equal(t, flowspec.SAFI(133), fs.Family().SAFI, "IPv6 FlowSpec SAFI must be 133")
 }
 
 // TestFlowSpecBytes verifies wire format encoding.
@@ -448,8 +449,8 @@ func TestFlowSpecIPv6Basic(t *testing.T) {
 // PREVENTS: Missing length prefix; empty output for valid FlowSpec.
 func TestFlowSpecBytes(t *testing.T) {
 	t.Parallel()
-	fs := NewFlowSpec(IPv4FlowSpec)
-	mustAddComponent(fs, NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/8")))
+	fs := flowspec.NewFlowSpec(IPv4FlowSpec)
+	mustAddComponent(fs, flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/8")))
 
 	data := fs.Bytes()
 	require.NotEmpty(t, data)
@@ -465,9 +466,9 @@ func TestFlowSpecBytes(t *testing.T) {
 // PREVENTS: Missing component data in string output; panic on nil components.
 func TestFlowSpecString(t *testing.T) {
 	t.Parallel()
-	fs := NewFlowSpec(IPv4FlowSpec)
-	mustAddComponent(fs, NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
-	mustAddComponent(fs, NewFlowDestPortComponent(80))
+	fs := flowspec.NewFlowSpec(IPv4FlowSpec)
+	mustAddComponent(fs, flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
+	mustAddComponent(fs, flowspec.NewFlowDestPortComponent(80))
 
 	s := fs.String()
 	assert.Contains(t, s, "10.0.0.0/24")
@@ -483,10 +484,10 @@ func TestFlowSpecString(t *testing.T) {
 func TestFlowSpecComplexRule(t *testing.T) {
 	t.Parallel()
 	// Match: TCP traffic to 10.0.0.0/24 port 80,443 from any source
-	fs := NewFlowSpec(IPv4FlowSpec)
-	mustAddComponent(fs, NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
-	mustAddComponent(fs, NewFlowIPProtocolComponent(6)) // TCP
-	mustAddComponent(fs, NewFlowDestPortComponent(80, 443))
+	fs := flowspec.NewFlowSpec(IPv4FlowSpec)
+	mustAddComponent(fs, flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
+	mustAddComponent(fs, flowspec.NewFlowIPProtocolComponent(6)) // TCP
+	mustAddComponent(fs, flowspec.NewFlowDestPortComponent(80, 443))
 
 	assert.Len(t, fs.Components(), 3)
 
@@ -505,14 +506,14 @@ func TestFlowSpecOperatorEncoding(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name   string
-		op     FlowOperator
+		op     flowspec.FlowOperator
 		expect byte
 	}{
-		{"equal", FlowOpEqual, 0x01},
-		{"greater", FlowOpGreater, 0x02},
-		{"less", FlowOpLess, 0x04},
-		{"and", FlowOpAnd, 0x40},
-		{"end", FlowOpEnd, 0x80},
+		{"equal", flowspec.FlowOpEqual, 0x01},
+		{"greater", flowspec.FlowOpGreater, 0x02},
+		{"less", flowspec.FlowOpLess, 0x04},
+		{"and", flowspec.FlowOpAnd, 0x40},
+		{"end", flowspec.FlowOpEnd, 0x80},
 	}
 
 	for _, tt := range tests {
@@ -531,12 +532,12 @@ func TestFlowSpecOperatorEncoding(t *testing.T) {
 func TestParseFlowSpec(t *testing.T) {
 	t.Parallel()
 	// Create a FlowSpec, encode it, then parse it back
-	original := NewFlowSpec(IPv4FlowSpec)
-	mustAddComponent(original, NewFlowDestPrefixComponent(netip.MustParsePrefix("192.168.0.0/16")))
+	original := flowspec.NewFlowSpec(IPv4FlowSpec)
+	mustAddComponent(original, flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("192.168.0.0/16")))
 
 	data := original.Bytes()
 
-	parsed, err := ParseFlowSpec(IPv4FlowSpec, data)
+	parsed, err := flowspec.ParseFlowSpec(IPv4FlowSpec, data)
 	require.NoError(t, err)
 	require.NotNil(t, parsed)
 
@@ -564,7 +565,7 @@ func TestParseFlowSpecErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := ParseFlowSpec(IPv4FlowSpec, tt.data)
+			_, err := flowspec.ParseFlowSpec(IPv4FlowSpec, tt.data)
 			assert.Error(t, err)
 		})
 	}
@@ -579,25 +580,25 @@ func TestFlowSpecRoundTrip(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name       string
-		components []FlowComponent
+		components []flowspec.FlowComponent
 	}{
 		{
 			name: "dest prefix only",
-			components: []FlowComponent{
-				NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/8")),
+			components: []flowspec.FlowComponent{
+				flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/8")),
 			},
 		},
 		{
 			name: "protocol only",
-			components: []FlowComponent{
-				NewFlowIPProtocolComponent(17), // UDP
+			components: []flowspec.FlowComponent{
+				flowspec.NewFlowIPProtocolComponent(17), // UDP
 			},
 		},
 		{
 			name: "prefix and port",
-			components: []FlowComponent{
-				NewFlowDestPrefixComponent(netip.MustParsePrefix("172.16.0.0/12")),
-				NewFlowDestPortComponent(53),
+			components: []flowspec.FlowComponent{
+				flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("172.16.0.0/12")),
+				flowspec.NewFlowDestPortComponent(53),
 			},
 		},
 	}
@@ -605,13 +606,13 @@ func TestFlowSpecRoundTrip(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			original := NewFlowSpec(IPv4FlowSpec)
+			original := flowspec.NewFlowSpec(IPv4FlowSpec)
 			for _, c := range tt.components {
 				mustAddComponent(original, c)
 			}
 
 			data := original.Bytes()
-			parsed, err := ParseFlowSpec(IPv4FlowSpec, data)
+			parsed, err := flowspec.ParseFlowSpec(IPv4FlowSpec, data)
 			require.NoError(t, err)
 
 			assert.Equal(t, len(tt.components), len(parsed.Components()))
@@ -630,8 +631,8 @@ func TestFlowSpecRoundTrip(t *testing.T) {
 // PREVENTS: SAFI value mismatch causing capability negotiation failures.
 func TestFlowSpecVPNSAFI(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, SAFI(134), SAFIFlowSpecVPN)
-	assert.Equal(t, "flow-vpn", SAFIFlowSpecVPN.String())
+	assert.Equal(t, flowspec.SAFI(134), flowspec.SAFIFlowSpecVPN)
+	assert.Equal(t, "flow-vpn", flowspec.SAFIFlowSpecVPN.String())
 }
 
 // TestFlowSpecVPNFamily verifies FlowSpec VPN family constants.
@@ -645,17 +646,17 @@ func TestFlowSpecVPNFamily(t *testing.T) {
 	// use the (AFI=1, SAFI=134) pair matching the FlowSpec VPN application.
 	// RFC requirement: RFC5575-4-2 positive -- IPv4 FlowSpec L3VPN uses AFI 1 with SAFI 134 (§4)
 	// RFC requirement: RFC8955-4-2 positive -- IPv4 FlowSpec L3VPN uses the (AFI 1, SAFI 134) pair (§4)
-	assert.Equal(t, AFIIPv4, IPv4FlowSpecVPN.AFI)
-	assert.Equal(t, AFI(1), IPv4FlowSpecVPN.AFI, "IPv4 FlowSpec VPN AFI must be 1")
-	assert.Equal(t, SAFIFlowSpecVPN, IPv4FlowSpecVPN.SAFI)
-	assert.Equal(t, SAFI(134), IPv4FlowSpecVPN.SAFI, "IPv4 FlowSpec VPN SAFI must be 134")
+	assert.Equal(t, flowspec.AFIIPv4, IPv4FlowSpecVPN.AFI)
+	assert.Equal(t, flowspec.AFI(1), IPv4FlowSpecVPN.AFI, "IPv4 FlowSpec VPN AFI must be 1")
+	assert.Equal(t, flowspec.SAFIFlowSpecVPN, IPv4FlowSpecVPN.SAFI)
+	assert.Equal(t, flowspec.SAFI(134), IPv4FlowSpecVPN.SAFI, "IPv4 FlowSpec VPN SAFI must be 134")
 
 	// RFC 8956 Section 2: IPv6 L3VPN Flow Specification rules use the (AFI=2, SAFI=134) pair.
 	// RFC requirement: RFC8956-2-2 positive -- IPv6 FlowSpec L3VPN uses AFI 2 with SAFI 134 (§2)
-	assert.Equal(t, AFIIPv6, IPv6FlowSpecVPN.AFI)
-	assert.Equal(t, AFI(2), IPv6FlowSpecVPN.AFI, "IPv6 FlowSpec VPN AFI must be 2")
-	assert.Equal(t, SAFIFlowSpecVPN, IPv6FlowSpecVPN.SAFI)
-	assert.Equal(t, SAFI(134), IPv6FlowSpecVPN.SAFI, "IPv6 FlowSpec VPN SAFI must be 134")
+	assert.Equal(t, flowspec.AFIIPv6, IPv6FlowSpecVPN.AFI)
+	assert.Equal(t, flowspec.AFI(2), IPv6FlowSpecVPN.AFI, "IPv6 FlowSpec VPN AFI must be 2")
+	assert.Equal(t, flowspec.SAFIFlowSpecVPN, IPv6FlowSpecVPN.SAFI)
+	assert.Equal(t, flowspec.SAFI(134), IPv6FlowSpecVPN.SAFI, "IPv6 FlowSpec VPN SAFI must be 134")
 }
 
 // TestFlowSpecVPNBasic verifies basic FlowSpec VPN creation.
@@ -665,11 +666,11 @@ func TestFlowSpecVPNFamily(t *testing.T) {
 // PREVENTS: RD being lost; component list not being inherited from FlowSpec.
 func TestFlowSpecVPNBasic(t *testing.T) {
 	t.Parallel()
-	rd := RouteDistinguisher{Type: RDType0, Value: [6]byte{0x00, 0x64, 0x00, 0x00, 0x00, 0x64}} // 100:100
+	rd := flowspec.RouteDistinguisher{Type: flowspec.RDType0, Value: [6]byte{0x00, 0x64, 0x00, 0x00, 0x00, 0x64}} // 100:100
 
-	fsv := NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
-	mustAddComponent(fsv, NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
-	mustAddComponent(fsv, NewFlowDestPortComponent(80))
+	fsv := flowspec.NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
+	mustAddComponent(fsv, flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
+	mustAddComponent(fsv, flowspec.NewFlowDestPortComponent(80))
 
 	assert.Equal(t, IPv4FlowSpecVPN, fsv.Family())
 	assert.Equal(t, rd, fsv.RD())
@@ -684,10 +685,10 @@ func TestFlowSpecVPNBasic(t *testing.T) {
 // PREVENTS: RD bytes not being included; length field not covering RD.
 func TestFlowSpecVPNBytes(t *testing.T) {
 	t.Parallel()
-	rd := RouteDistinguisher{Type: RDType0, Value: [6]byte{0x00, 0x64, 0x00, 0x00, 0x00, 0x64}}
+	rd := flowspec.RouteDistinguisher{Type: flowspec.RDType0, Value: [6]byte{0x00, 0x64, 0x00, 0x00, 0x00, 0x64}}
 
-	fsv := NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
-	mustAddComponent(fsv, NewFlowDestPortComponent(80))
+	fsv := flowspec.NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
+	mustAddComponent(fsv, flowspec.NewFlowDestPortComponent(80))
 
 	data := fsv.Bytes()
 
@@ -710,16 +711,16 @@ func TestFlowSpecVPNBytes(t *testing.T) {
 // PREVENTS: RD corruption during parse; component data loss.
 func TestFlowSpecVPNRoundTrip(t *testing.T) {
 	t.Parallel()
-	rd := RouteDistinguisher{Type: RDType0, Value: [6]byte{0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}} // 65000:100
+	rd := flowspec.RouteDistinguisher{Type: flowspec.RDType0, Value: [6]byte{0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}} // 65000:100
 
-	original := NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
-	mustAddComponent(original, NewFlowDestPrefixComponent(netip.MustParsePrefix("192.168.0.0/16")))
-	mustAddComponent(original, NewFlowIPProtocolComponent(6)) // TCP
-	mustAddComponent(original, NewFlowDestPortComponent(443))
+	original := flowspec.NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
+	mustAddComponent(original, flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("192.168.0.0/16")))
+	mustAddComponent(original, flowspec.NewFlowIPProtocolComponent(6)) // TCP
+	mustAddComponent(original, flowspec.NewFlowDestPortComponent(443))
 
 	data := original.Bytes()
 
-	parsed, err := ParseFlowSpecVPN(IPv4FlowSpecVPN, data)
+	parsed, err := flowspec.ParseFlowSpecVPN(IPv4FlowSpecVPN, data)
 	require.NoError(t, err)
 
 	assert.Equal(t, rd, parsed.RD())
@@ -737,52 +738,52 @@ func TestFlowSpecStringCommandStyle(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name     string
-		fs       *FlowSpec
+		fs       *flowspec.FlowSpec
 		expected string
 	}{
 		{
 			name: "destination prefix only",
-			fs: func() *FlowSpec {
-				f := NewFlowSpec(IPv4FlowSpec)
-				mustAddComponent(f, NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
+			fs: func() *flowspec.FlowSpec {
+				f := flowspec.NewFlowSpec(IPv4FlowSpec)
+				mustAddComponent(f, flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
 				return f
 			}(),
 			expected: "flow destination-ipv4 10.0.0.0/24",
 		},
 		{
 			name: "source prefix only",
-			fs: func() *FlowSpec {
-				f := NewFlowSpec(IPv4FlowSpec)
-				mustAddComponent(f, NewFlowSourcePrefixComponent(netip.MustParsePrefix("192.168.0.0/16")))
+			fs: func() *flowspec.FlowSpec {
+				f := flowspec.NewFlowSpec(IPv4FlowSpec)
+				mustAddComponent(f, flowspec.NewFlowSourcePrefixComponent(netip.MustParsePrefix("192.168.0.0/16")))
 				return f
 			}(),
 			expected: "flow source-ipv4 192.168.0.0/16",
 		},
 		{
 			name: "destination port with multiple values",
-			fs: func() *FlowSpec {
-				f := NewFlowSpec(IPv4FlowSpec)
-				mustAddComponent(f, NewFlowDestPortComponent(80, 443))
+			fs: func() *flowspec.FlowSpec {
+				f := flowspec.NewFlowSpec(IPv4FlowSpec)
+				mustAddComponent(f, flowspec.NewFlowDestPortComponent(80, 443))
 				return f
 			}(),
 			expected: "flow destination-port =80 =443",
 		},
 		{
 			name: "protocol single value",
-			fs: func() *FlowSpec {
-				f := NewFlowSpec(IPv4FlowSpec)
-				mustAddComponent(f, NewFlowIPProtocolComponent(6))
+			fs: func() *flowspec.FlowSpec {
+				f := flowspec.NewFlowSpec(IPv4FlowSpec)
+				mustAddComponent(f, flowspec.NewFlowIPProtocolComponent(6))
 				return f
 			}(),
 			expected: "flow protocol 6",
 		},
 		{
 			name: "complex rule with multiple components",
-			fs: func() *FlowSpec {
-				f := NewFlowSpec(IPv4FlowSpec)
-				mustAddComponent(f, NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
-				mustAddComponent(f, NewFlowDestPortComponent(80, 443))
-				mustAddComponent(f, NewFlowIPProtocolComponent(6))
+			fs: func() *flowspec.FlowSpec {
+				f := flowspec.NewFlowSpec(IPv4FlowSpec)
+				mustAddComponent(f, flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
+				mustAddComponent(f, flowspec.NewFlowDestPortComponent(80, 443))
+				mustAddComponent(f, flowspec.NewFlowIPProtocolComponent(6))
 				return f
 			}(),
 			expected: "flow destination-ipv4 10.0.0.0/24 destination-port =80 =443 protocol 6",
@@ -807,28 +808,28 @@ func TestFlowSpecVPNStringCommandStyle(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name     string
-		fsv      *FlowSpecVPN
+		fsv      *flowspec.FlowSpecVPN
 		expected string
 	}{
 		{
 			name: "basic flow-vpn",
-			fsv: func() *FlowSpecVPN {
-				rd := RouteDistinguisher{Type: RDType0, Value: [6]byte{0x00, 0x64, 0x00, 0x00, 0x00, 0x64}}
-				f := NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
-				mustAddComponent(f, NewFlowDestPortComponent(80))
+			fsv: func() *flowspec.FlowSpecVPN {
+				rd := flowspec.RouteDistinguisher{Type: flowspec.RDType0, Value: [6]byte{0x00, 0x64, 0x00, 0x00, 0x00, 0x64}}
+				f := flowspec.NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
+				mustAddComponent(f, flowspec.NewFlowDestPortComponent(80))
 				return f
 			}(),
 			expected: "flow-vpn rd 0:100:100 destination-port =80",
 		},
 		{
 			name: "flow-vpn multiple components",
-			fsv: func() *FlowSpecVPN {
-				rd := RouteDistinguisher{Type: RDType1}
+			fsv: func() *flowspec.FlowSpecVPN {
+				rd := flowspec.RouteDistinguisher{Type: flowspec.RDType1}
 				copy(rd.Value[:4], []byte{10, 0, 0, 1})
 				binary.BigEndian.PutUint16(rd.Value[4:6], 200)
-				f := NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
-				mustAddComponent(f, NewFlowDestPrefixComponent(netip.MustParsePrefix("192.168.1.0/24")))
-				mustAddComponent(f, NewFlowDestPortComponent(443))
+				f := flowspec.NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
+				mustAddComponent(f, flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("192.168.1.0/24")))
+				mustAddComponent(f, flowspec.NewFlowDestPortComponent(443))
 				return f
 			}(),
 			expected: "flow-vpn rd 1:10.0.0.1:200 destination-ipv4 192.168.1.0/24 destination-port =443",
@@ -854,22 +855,22 @@ func TestPrefixComponentString(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name     string
-		comp     FlowComponent
+		comp     flowspec.FlowComponent
 		expected string
 	}{
 		{
 			name:     "destination prefix",
-			comp:     NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")),
+			comp:     flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")),
 			expected: "destination-ipv4 10.0.0.0/24",
 		},
 		{
 			name:     "source prefix",
-			comp:     NewFlowSourcePrefixComponent(netip.MustParsePrefix("192.168.0.0/16")),
+			comp:     flowspec.NewFlowSourcePrefixComponent(netip.MustParsePrefix("192.168.0.0/16")),
 			expected: "source-ipv4 192.168.0.0/16",
 		},
 		{
 			name:     "destination prefix IPv6",
-			comp:     NewFlowDestPrefixComponent(netip.MustParsePrefix("2001:db8::/32")),
+			comp:     flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("2001:db8::/32")),
 			expected: "destination-ipv6 2001:db8::/32",
 		},
 	}
@@ -892,52 +893,52 @@ func TestNumericComponentString(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name     string
-		comp     FlowComponent
+		comp     flowspec.FlowComponent
 		expected string
 	}{
 		{
 			name:     "destination-port single",
-			comp:     NewFlowDestPortComponent(80),
+			comp:     flowspec.NewFlowDestPortComponent(80),
 			expected: "destination-port =80",
 		},
 		{
 			name:     "destination-port multiple",
-			comp:     NewFlowDestPortComponent(80, 443),
+			comp:     flowspec.NewFlowDestPortComponent(80, 443),
 			expected: "destination-port =80 =443",
 		},
 		{
 			name:     "source-port",
-			comp:     NewFlowSourcePortComponent(1024),
+			comp:     flowspec.NewFlowSourcePortComponent(1024),
 			expected: "source-port =1024",
 		},
 		{
 			name:     "protocol",
-			comp:     NewFlowIPProtocolComponent(6),
+			comp:     flowspec.NewFlowIPProtocolComponent(6),
 			expected: "protocol 6",
 		},
 		{
 			name:     "port",
-			comp:     NewFlowPortComponent(53, 80),
+			comp:     flowspec.NewFlowPortComponent(53, 80),
 			expected: "port =53 =80",
 		},
 		{
 			name:     "icmp-type",
-			comp:     NewFlowICMPTypeComponent(8),
+			comp:     flowspec.NewFlowICMPTypeComponent(8),
 			expected: "icmp-type =8",
 		},
 		{
 			name:     "icmp-code",
-			comp:     newFlowICMPCodeComponent(0),
+			comp:     flowspec.NewFlowICMPCodeComponent(0),
 			expected: "icmp-code =0",
 		},
 		{
 			name:     "packet-length",
-			comp:     NewFlowPacketLengthComponent(1500),
+			comp:     packetLengthComponent(1500),
 			expected: "packet-length =1500",
 		},
 		{
 			name:     "dscp",
-			comp:     NewFlowDSCPComponent(46),
+			comp:     flowspec.NewFlowDSCPComponent(46),
 			expected: "dscp =46",
 		},
 	}
@@ -960,56 +961,56 @@ func TestNumericOperatorString(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name     string
-		comp     FlowComponent
+		comp     flowspec.FlowComponent
 		expected string
 	}{
 		{
 			name: "equal operator",
-			comp: newFlowNumericComponent(FlowDestPort, []FlowMatch{
-				{Op: FlowOpEqual, Value: 80},
+			comp: flowspec.NewFlowNumericComponent(flowspec.FlowDestPort, []flowspec.FlowMatch{
+				{Op: flowspec.FlowOpEqual, Value: 80},
 			}),
 			expected: "destination-port =80",
 		},
 		{
 			name: "greater than",
-			comp: newFlowNumericComponent(FlowDestPort, []FlowMatch{
-				{Op: FlowOpGreater, Value: 1024},
+			comp: flowspec.NewFlowNumericComponent(flowspec.FlowDestPort, []flowspec.FlowMatch{
+				{Op: flowspec.FlowOpGreater, Value: 1024},
 			}),
 			expected: "destination-port >1024",
 		},
 		{
 			name: "less than",
-			comp: newFlowNumericComponent(FlowDestPort, []FlowMatch{
-				{Op: FlowOpLess, Value: 65535},
+			comp: flowspec.NewFlowNumericComponent(flowspec.FlowDestPort, []flowspec.FlowMatch{
+				{Op: flowspec.FlowOpLess, Value: 65535},
 			}),
 			expected: "destination-port <65535",
 		},
 		{
 			name: "greater or equal",
-			comp: newFlowNumericComponent(FlowDestPort, []FlowMatch{
-				{Op: FlowOpGreater | FlowOpEqual, Value: 1024},
+			comp: flowspec.NewFlowNumericComponent(flowspec.FlowDestPort, []flowspec.FlowMatch{
+				{Op: flowspec.FlowOpGreater | flowspec.FlowOpEqual, Value: 1024},
 			}),
 			expected: "destination-port >=1024",
 		},
 		{
 			name: "less or equal",
-			comp: newFlowNumericComponent(FlowDestPort, []FlowMatch{
-				{Op: FlowOpLess | FlowOpEqual, Value: 65535},
+			comp: flowspec.NewFlowNumericComponent(flowspec.FlowDestPort, []flowspec.FlowMatch{
+				{Op: flowspec.FlowOpLess | flowspec.FlowOpEqual, Value: 65535},
 			}),
 			expected: "destination-port <=65535",
 		},
 		{
 			name: "not equal",
-			comp: newFlowNumericComponent(FlowDestPort, []FlowMatch{
-				{Op: FlowOpNotEq, Value: 0},
+			comp: flowspec.NewFlowNumericComponent(flowspec.FlowDestPort, []flowspec.FlowMatch{
+				{Op: flowspec.FlowOpNotEq, Value: 0},
 			}),
 			expected: "destination-port !=0",
 		},
 		{
 			name: "range without AND prefix",
-			comp: newFlowNumericComponent(FlowDestPort, []FlowMatch{
-				{Op: FlowOpGreater | FlowOpEqual, Value: 1024},
-				{Op: FlowOpLess | FlowOpEqual, Value: 65535, And: true},
+			comp: flowspec.NewFlowNumericComponent(flowspec.FlowDestPort, []flowspec.FlowMatch{
+				{Op: flowspec.FlowOpGreater | flowspec.FlowOpEqual, Value: 1024},
+				{Op: flowspec.FlowOpLess | flowspec.FlowOpEqual, Value: 65535, And: true},
 			}),
 			// NOTE: No & prefix - parser infers And from position
 			expected: "destination-port >=1024 <=65535",
@@ -1036,14 +1037,14 @@ func TestFlowSpecStringRoundTrip(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name     string
-		fs       *FlowSpec
+		fs       *flowspec.FlowSpec
 		expected string
 	}{
 		{
 			name: "destination prefix",
-			fs: func() *FlowSpec {
-				f := NewFlowSpec(IPv4FlowSpec)
-				mustAddComponent(f, NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
+			fs: func() *flowspec.FlowSpec {
+				f := flowspec.NewFlowSpec(IPv4FlowSpec)
+				mustAddComponent(f, flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
 				return f
 			}(),
 			// Parser expects: nlri ipv4/flow add destination-ipv4 10.0.0.0/24
@@ -1051,11 +1052,11 @@ func TestFlowSpecStringRoundTrip(t *testing.T) {
 		},
 		{
 			name: "port range",
-			fs: func() *FlowSpec {
-				f := NewFlowSpec(IPv4FlowSpec)
-				mustAddComponent(f, newFlowNumericComponent(FlowDestPort, []FlowMatch{
-					{Op: FlowOpGreater | FlowOpEqual, Value: 1024},
-					{Op: FlowOpLess | FlowOpEqual, Value: 65535, And: true},
+			fs: func() *flowspec.FlowSpec {
+				f := flowspec.NewFlowSpec(IPv4FlowSpec)
+				mustAddComponent(f, flowspec.NewFlowNumericComponent(flowspec.FlowDestPort, []flowspec.FlowMatch{
+					{Op: flowspec.FlowOpGreater | flowspec.FlowOpEqual, Value: 1024},
+					{Op: flowspec.FlowOpLess | flowspec.FlowOpEqual, Value: 65535, And: true},
 				}))
 				return f
 			}(),
@@ -1064,9 +1065,9 @@ func TestFlowSpecStringRoundTrip(t *testing.T) {
 		},
 		{
 			name: "tcp flags combined",
-			fs: func() *FlowSpec {
-				f := NewFlowSpec(IPv4FlowSpec)
-				mustAddComponent(f, NewFlowTCPFlagsComponent(0x12)) // SYN+ACK
+			fs: func() *flowspec.FlowSpec {
+				f := flowspec.NewFlowSpec(IPv4FlowSpec)
+				mustAddComponent(f, tcpFlagsComponent(0x12)) // SYN+ACK
 				return f
 			}(),
 			// Parser expects: tcp-flags syn&ack
@@ -1074,11 +1075,11 @@ func TestFlowSpecStringRoundTrip(t *testing.T) {
 		},
 		{
 			name: "full rule",
-			fs: func() *FlowSpec {
-				f := NewFlowSpec(IPv4FlowSpec)
-				mustAddComponent(f, NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
-				mustAddComponent(f, NewFlowIPProtocolComponent(6)) // TCP
-				mustAddComponent(f, NewFlowDestPortComponent(80, 443))
+			fs: func() *flowspec.FlowSpec {
+				f := flowspec.NewFlowSpec(IPv4FlowSpec)
+				mustAddComponent(f, flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
+				mustAddComponent(f, flowspec.NewFlowIPProtocolComponent(6)) // TCP
+				mustAddComponent(f, flowspec.NewFlowDestPortComponent(80, 443))
 				return f
 			}(),
 			// Parser expects: destination-ipv4 10.0.0.0/24 protocol =6 destination-port =80 =443
@@ -1105,58 +1106,58 @@ func TestBitmaskComponentString(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name     string
-		comp     FlowComponent
+		comp     flowspec.FlowComponent
 		expected string
 	}{
 		{
 			name:     "tcp-flags syn",
-			comp:     NewFlowTCPFlagsComponent(0x02),
+			comp:     tcpFlagsComponent(0x02),
 			expected: "tcp-flags syn",
 		},
 		{
 			name:     "tcp-flags ack",
-			comp:     NewFlowTCPFlagsComponent(0x10),
+			comp:     tcpFlagsComponent(0x10),
 			expected: "tcp-flags ack",
 		},
 		{
 			name:     "tcp-flags syn+ack",
-			comp:     NewFlowTCPFlagsComponent(0x12),
+			comp:     tcpFlagsComponent(0x12),
 			expected: "tcp-flags syn&ack",
 		},
 		{
 			name:     "fragment dont-fragment",
-			comp:     NewFlowFragmentComponent(FlowFragDontFragment),
+			comp:     flowspec.NewFlowFragmentComponent(flowspec.FlowFragDontFragment),
 			expected: "fragment dont-fragment",
 		},
 		{
 			name:     "fragment is-fragment",
-			comp:     NewFlowFragmentComponent(FlowFragIsFragment),
+			comp:     flowspec.NewFlowFragmentComponent(flowspec.FlowFragIsFragment),
 			expected: "fragment is-fragment",
 		},
 		{
 			name:     "fragment first-fragment",
-			comp:     NewFlowFragmentComponent(FlowFragFirstFragment),
+			comp:     flowspec.NewFlowFragmentComponent(flowspec.FlowFragFirstFragment),
 			expected: "fragment first-fragment",
 		},
 		{
 			name:     "fragment last-fragment",
-			comp:     NewFlowFragmentComponent(FlowFragLastFragment),
+			comp:     flowspec.NewFlowFragmentComponent(flowspec.FlowFragLastFragment),
 			expected: "fragment last-fragment",
 		},
 		{
 			name: "tcp-flags multiple matches with AND",
-			comp: newFlowNumericComponent(FlowTCPFlags, []FlowMatch{
-				{Op: 0, Value: 0x02},                    // SYN
-				{Op: FlowOpNot, Value: 0x04, And: true}, // AND NOT RST
+			comp: flowspec.NewFlowNumericComponent(flowspec.FlowTCPFlags, []flowspec.FlowMatch{
+				{Op: 0, Value: 0x02},                             // SYN
+				{Op: flowspec.FlowOpNot, Value: 0x04, And: true}, // AND NOT RST
 			}),
 			// Parser expects: tcp-flags syn &!rst
 			expected: "tcp-flags syn &!rst",
 		},
 		{
 			name: "fragment multiple with match and AND",
-			comp: newFlowNumericComponent(FlowFragment, []FlowMatch{
-				{Op: FlowOpMatch, Value: uint64(FlowFragDontFragment)},        // =dont-fragment
-				{Op: FlowOpNot, Value: uint64(FlowFragIsFragment), And: true}, // &!is-fragment
+			comp: flowspec.NewFlowNumericComponent(flowspec.FlowFragment, []flowspec.FlowMatch{
+				{Op: flowspec.FlowOpMatch, Value: uint64(flowspec.FlowFragDontFragment)},        // =dont-fragment
+				{Op: flowspec.FlowOpNot, Value: uint64(flowspec.FlowFragIsFragment), And: true}, // &!is-fragment
 			}),
 			expected: "fragment =dont-fragment &!is-fragment",
 		},
@@ -1196,7 +1197,7 @@ func walkComponentOps(t *testing.T, b []byte) (ops []byte, values [][]byte) {
 // TestFlowSpecComponentsAscendingOrder verifies components are emitted in strictly
 // ascending type order regardless of the order they were added.
 //
-// VALIDATES: FlowSpec.WriteTo (via writeComponentsSorted, types.go) emits components
+// VALIDATES: FlowSpec.WriteTo (via writeComponentsSorted, core types.go) emits components
 // sorted by increasing component type, so a lower-type component always precedes any
 // higher-type component on the wire.
 //
@@ -1206,17 +1207,17 @@ func TestFlowSpecComponentsAscendingOrder(t *testing.T) {
 	t.Parallel()
 
 	// Add components deliberately OUT of type order: 5, 12, 3, 1.
-	fs := NewFlowSpec(IPv4FlowSpec)
-	mustAddComponent(fs, NewFlowDestPortComponent(443))                                    // Type 5
-	mustAddComponent(fs, NewFlowFragmentComponent(FlowFragIsFragment))                     // Type 12
-	mustAddComponent(fs, NewFlowIPProtocolComponent(6))                                    // Type 3
-	mustAddComponent(fs, NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24"))) // Type 1
+	fs := flowspec.NewFlowSpec(IPv4FlowSpec)
+	mustAddComponent(fs, flowspec.NewFlowDestPortComponent(443))                                    // Type 5
+	mustAddComponent(fs, flowspec.NewFlowFragmentComponent(flowspec.FlowFragIsFragment))            // Type 12
+	mustAddComponent(fs, flowspec.NewFlowIPProtocolComponent(6))                                    // Type 3
+	mustAddComponent(fs, flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24"))) // Type 1
 
 	// Encode to the wire (routes through WriteTo -> writeComponentsSorted) and parse
 	// back; ParseFlowSpec appends components in the exact order they appear on the wire,
 	// so the parsed order reflects the emitted order.
 	data := fs.Bytes()
-	parsed, err := ParseFlowSpec(IPv4FlowSpec, data)
+	parsed, err := flowspec.ParseFlowSpec(IPv4FlowSpec, data)
 	require.NoError(t, err)
 	comps := parsed.Components()
 	require.Len(t, comps, 4)
@@ -1233,18 +1234,18 @@ func TestFlowSpecComponentsAscendingOrder(t *testing.T) {
 			i-1, comps[i-1].Type(), i, comps[i].Type())
 	}
 	// Concretely, the out-of-order add above must serialize as 1, 3, 5, 12.
-	assert.Equal(t, FlowDestPrefix, comps[0].Type())
-	assert.Equal(t, FlowIPProtocol, comps[1].Type())
-	assert.Equal(t, FlowDestPort, comps[2].Type())
-	assert.Equal(t, FlowFragment, comps[3].Type())
+	assert.Equal(t, flowspec.FlowDestPrefix, comps[0].Type())
+	assert.Equal(t, flowspec.FlowIPProtocol, comps[1].Type())
+	assert.Equal(t, flowspec.FlowDestPort, comps[2].Type())
+	assert.Equal(t, flowspec.FlowFragment, comps[3].Type())
 }
 
 // TestFlowSpecJoinsRepeatedTypeIntoOneComponent verifies an OR of AND groups for one
 // component type reaches the wire as ONE component whose operator list holds both
 // groups.
 //
-// VALIDATES: FlowSpec.AddComponent (types.go) merges a component whose type is already
-// present through numericComponent.mergeMatches (types_numeric.go), so WriteTo emits a
+// VALIDATES: FlowSpec.AddComponent (core types.go) merges a component whose type is already
+// present through numericComponent.mergeMatches (core types_numeric.go), so WriteTo emits a
 // single Type 4 component for "(>80 AND <100) OR (>443 AND <500)".
 //
 // PREVENTS: the two-Type-4 NLRI ze emitted before the merge existed. RFC 8955
@@ -1254,14 +1255,14 @@ func TestFlowSpecJoinsRepeatedTypeIntoOneComponent(t *testing.T) {
 
 	// Two OR groups of Type 4, built as the text parser builds them: one component
 	// per group, each group's leading match with its AND bit clear.
-	fs := NewFlowSpec(IPv4FlowSpec)
-	mustAddComponent(fs, newFlowNumericComponent(FlowPort, []FlowMatch{
-		{Op: FlowOpGreater, Value: 80},
-		{Op: FlowOpLess, Value: 100, And: true},
+	fs := flowspec.NewFlowSpec(IPv4FlowSpec)
+	mustAddComponent(fs, flowspec.NewFlowNumericComponent(flowspec.FlowPort, []flowspec.FlowMatch{
+		{Op: flowspec.FlowOpGreater, Value: 80},
+		{Op: flowspec.FlowOpLess, Value: 100, And: true},
 	}))
-	mustAddComponent(fs, newFlowNumericComponent(FlowPort, []FlowMatch{
-		{Op: FlowOpGreater, Value: 443},
-		{Op: FlowOpLess, Value: 500, And: true},
+	mustAddComponent(fs, flowspec.NewFlowNumericComponent(flowspec.FlowPort, []flowspec.FlowMatch{
+		{Op: flowspec.FlowOpGreater, Value: 443},
+		{Op: flowspec.FlowOpLess, Value: 500, And: true},
 	}))
 
 	// RFC 8955 Section 4.2: "A given component type MAY (exactly once) be present in
@@ -1281,7 +1282,7 @@ func TestFlowSpecJoinsRepeatedTypeIntoOneComponent(t *testing.T) {
 	assert.Equal(t, want, fs.Bytes())
 
 	// The emitted NLRI is one ze accepts back, which the two-component form is not.
-	parsed, err := ParseFlowSpec(IPv4FlowSpec, fs.Bytes())
+	parsed, err := flowspec.ParseFlowSpec(IPv4FlowSpec, fs.Bytes())
 	require.NoError(t, err)
 	require.Len(t, parsed.Components(), 1)
 }
@@ -1289,7 +1290,7 @@ func TestFlowSpecJoinsRepeatedTypeIntoOneComponent(t *testing.T) {
 // TestParseFlowSpecRefusesRepeatedComponentType verifies a received NLRI carrying two
 // components of one type is refused as malformed.
 //
-// VALIDATES: FlowSpec.parseComponents (types.go) compares each component type against
+// VALIDATES: FlowSpec.parseComponents (core types.go) compares each component type against
 // the previous one and returns ErrFlowSpecDuplicateType for a repeat.
 //
 // PREVENTS: ze accepting an NLRI whose match semantics no two implementations need
@@ -1305,20 +1306,20 @@ func TestParseFlowSpecRefusesRepeatedComponentType(t *testing.T) {
 	// considered malformed and error handling according to Section 10 is performed."
 	// RFC requirement: RFC5575-4-3 negative -- an NLRI repeating a component type is refused (§4.2)
 	// RFC requirement: RFC8955-4.2-1 negative -- an NLRI repeating a component type is refused (§4.2)
-	_, err := ParseFlowSpec(IPv4FlowSpec, repeated)
-	require.ErrorIs(t, err, ErrFlowSpecDuplicateType)
+	_, err := flowspec.ParseFlowSpec(IPv4FlowSpec, repeated)
+	require.ErrorIs(t, err, flowspec.ErrFlowSpecDuplicateType)
 
 	// The merged form of the same match is accepted, so the refusal above is about the
 	// repeat and not about the values.
 	merged := []byte{0x0b, 0x04, 0x02, 0x50, 0x44, 0x64, 0x12, 0x01, 0xbb, 0xd4, 0x01, 0xf4}
-	_, err = ParseFlowSpec(IPv4FlowSpec, merged)
+	_, err = flowspec.ParseFlowSpec(IPv4FlowSpec, merged)
 	require.NoError(t, err)
 }
 
 // TestParseFlowSpecRefusesDescendingComponentType verifies a received NLRI whose
 // component types descend is refused as malformed.
 //
-// VALIDATES: FlowSpec.parseComponents (types.go) returns ErrFlowSpecTypeOrder when a
+// VALIDATES: FlowSpec.parseComponents (core types.go) returns ErrFlowSpecTypeOrder when a
 // component type is lower than the one before it.
 //
 // PREVENTS: ze reading a rule from an NLRI a conforming peer discards, so the two ends
@@ -1333,13 +1334,13 @@ func TestParseFlowSpecRefusesDescendingComponentType(t *testing.T) {
 	// numeric type value."
 	// RFC requirement: RFC5575-4-4 negative -- an NLRI whose component types descend is refused (§4.2)
 	// RFC requirement: RFC8955-4.2-2 negative -- an NLRI whose component types descend is refused (§4.2)
-	_, err := ParseFlowSpec(IPv4FlowSpec, descending)
-	require.ErrorIs(t, err, ErrFlowSpecTypeOrder)
+	_, err := flowspec.ParseFlowSpec(IPv4FlowSpec, descending)
+	require.ErrorIs(t, err, flowspec.ErrFlowSpecTypeOrder)
 
 	// The same two components in ascending order are accepted, so the refusal above is
 	// about the order and not about the components.
 	ascending := []byte{0x06, 0x03, 0x81, 0x06, 0x05, 0x81, 0x50}
-	parsed, err := ParseFlowSpec(IPv4FlowSpec, ascending)
+	parsed, err := flowspec.ParseFlowSpec(IPv4FlowSpec, ascending)
 	require.NoError(t, err)
 	require.Len(t, parsed.Components(), 2)
 }
@@ -1347,7 +1348,7 @@ func TestParseFlowSpecRefusesDescendingComponentType(t *testing.T) {
 // TestParseFlowSpecVPNRefusesRepeatedComponentType verifies the VPN NLRI walk applies
 // the same component rule as the unicast one.
 //
-// VALIDATES: ParseFlowSpecVPN (types_vpn.go) parses its components through the shared
+// VALIDATES: ParseFlowSpecVPN (core types_vpn.go) parses its components through the shared
 // FlowSpec.parseComponents, so RFC 8955 Section 4.2 holds behind the Route
 // Distinguisher too.
 //
@@ -1365,14 +1366,14 @@ func TestParseFlowSpecVPNRefusesRepeatedComponentType(t *testing.T) {
 	}
 
 	// RFC requirement: RFC8955-4.2-1 negative -- a VPN NLRI repeating a component type is refused (§4.2)
-	_, err := ParseFlowSpecVPN(IPv4FlowSpecVPN, repeated)
-	require.ErrorIs(t, err, ErrFlowSpecDuplicateType)
+	_, err := flowspec.ParseFlowSpecVPN(IPv4FlowSpecVPN, repeated)
+	require.ErrorIs(t, err, flowspec.ErrFlowSpecDuplicateType)
 }
 
 // TestAddComponentRefusesASecondPrefix verifies a prefix component cannot be added
 // twice, because there is no operator list to join it to.
 //
-// VALIDATES: FlowSpec.AddComponent (types.go) merges only a numeric or bitmask
+// VALIDATES: FlowSpec.AddComponent (core types.go) merges only a numeric or bitmask
 // component and returns ErrFlowSpecDuplicateType for a second Type 1 or Type 2.
 //
 // PREVENTS: a second destination prefix silently replacing the first, or being
@@ -1381,12 +1382,12 @@ func TestParseFlowSpecVPNRefusesRepeatedComponentType(t *testing.T) {
 func TestAddComponentRefusesASecondPrefix(t *testing.T) {
 	t.Parallel()
 
-	fs := NewFlowSpec(IPv4FlowSpec)
-	require.NoError(t, fs.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24"))))
+	fs := flowspec.NewFlowSpec(IPv4FlowSpec)
+	require.NoError(t, fs.AddComponent(flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24"))))
 
 	// RFC requirement: RFC8955-4.2-1 negative -- a second component of a type that cannot be merged is refused (§4.2)
-	err := fs.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("10.1.0.0/24")))
-	require.ErrorIs(t, err, ErrFlowSpecDuplicateType)
+	err := fs.AddComponent(flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.1.0.0/24")))
+	require.ErrorIs(t, err, flowspec.ErrFlowSpecDuplicateType)
 
 	// The refusal leaves the FlowSpec as it was: the first prefix is neither replaced
 	// nor joined by a second one.
@@ -1398,7 +1399,7 @@ func TestAddComponentRefusesASecondPrefix(t *testing.T) {
 // leaves reserved bit 4 clear across value lengths and comparison operators.
 //
 // VALIDATES: numericComponent.Bytes() builds the operator as lenCode<<4 | AND | END |
-// comparison bits (types_numeric.go), so RFC 8955 Section 4.2.1.1 reserved bit 4 (0x08)
+// comparison bits (core types_numeric.go), so RFC 8955 Section 4.2.1.1 reserved bit 4 (0x08)
 // is never set.
 //
 // PREVENTS: reserved bit contamination that would corrupt the len field or be rejected
@@ -1408,10 +1409,10 @@ func TestFlowSpecNumericOperatorReservedBitZero(t *testing.T) {
 
 	// One component exercising all three encoder len codes (1, 2, 4 octet values) and
 	// several comparison operators, plus the AND and END bits.
-	comp := newFlowNumericComponent(FlowPacketLength, []FlowMatch{
-		{Op: FlowOpEqual, Value: 6},                 // 1-octet value (lenCode 0)
-		{Op: FlowOpGreater, Value: 1024, And: true}, // 2-octet value (lenCode 1)
-		{Op: FlowOpLess, Value: 0x12345, And: true}, // 4-octet value (lenCode 2), END set
+	comp := flowspec.NewFlowNumericComponent(flowspec.FlowPacketLength, []flowspec.FlowMatch{
+		{Op: flowspec.FlowOpEqual, Value: 6},                 // 1-octet value (lenCode 0)
+		{Op: flowspec.FlowOpGreater, Value: 1024, And: true}, // 2-octet value (lenCode 1)
+		{Op: flowspec.FlowOpLess, Value: 0x12345, And: true}, // 4-octet value (lenCode 2), END set
 	})
 	ops, _ := walkComponentOps(t, comp.Bytes())
 	require.Len(t, ops, 3)
@@ -1427,7 +1428,7 @@ func TestFlowSpecNumericOperatorReservedBitZero(t *testing.T) {
 // leaves reserved bits 4-5 clear.
 //
 // VALIDATES: numericComponent.Bytes() for a bitmask type (TCP flags) builds the
-// operator as lenCode<<4 | AND | END | NOT/MATCH bits (types_numeric.go), so RFC 8955
+// operator as lenCode<<4 | AND | END | NOT/MATCH bits (core types_numeric.go), so RFC 8955
 // Section 4.2.1.2 reserved bits 4-5 (0x0C) are never set.
 //
 // PREVENTS: reserved-bit contamination in the bitmask operand that a strict peer would
@@ -1436,9 +1437,9 @@ func TestFlowSpecBitmaskOperatorReservedBitsZero(t *testing.T) {
 	t.Parallel()
 
 	// TCP flags (Type 9) uses the bitmask operator; exercise MATCH, NOT and AND/END bits.
-	comp := newFlowTCPFlagsMatchComponent([]FlowMatch{
-		{Op: FlowOpMatch, Value: 0x02},                        // =syn
-		{Op: FlowOpNot | FlowOpMatch, Value: 0x04, And: true}, // AND !=rst, END set
+	comp := flowspec.NewFlowTCPFlagsMatchComponent([]flowspec.FlowMatch{
+		{Op: flowspec.FlowOpMatch, Value: 0x02},                                 // =syn
+		{Op: flowspec.FlowOpNot | flowspec.FlowOpMatch, Value: 0x04, And: true}, // AND !=rst, END set
 	})
 	ops, _ := walkComponentOps(t, comp.Bytes())
 	require.Len(t, ops, 2)
@@ -1454,8 +1455,8 @@ func TestFlowSpecBitmaskOperatorReservedBitsZero(t *testing.T) {
 // TestFlowSpecFragmentReservedHighNibbleZero verifies the Type-12 Fragment bitmask
 // value leaves its reserved high nibble clear.
 //
-// VALIDATES: A fragment component (types_numeric.go NewFlowFragment*Component) encodes
-// its value from the low-nibble FlowFragmentFlag constants (types.go), so the RFC 8955
+// VALIDATES: A fragment component (core types_numeric.go NewFlowFragment*Component) encodes
+// its value from the low-nibble FlowFragmentFlag constants (core types.go), so the RFC 8955
 // Section 4.2.2.12 reserved high nibble (bits 0-3, 0xF0) stays zero on the wire.
 //
 // PREVENTS: stray high-nibble bits in the fragment operand that would be interpreted as
@@ -1464,9 +1465,9 @@ func TestFlowSpecFragmentReservedHighNibbleZero(t *testing.T) {
 	t.Parallel()
 
 	// Fragment (Type 12) with combined and single flags across two {op, value} pairs.
-	comp := newFlowFragmentMatchComponent([]FlowMatch{
-		{Op: FlowOpMatch, Value: uint64(FlowFragIsFragment | FlowFragFirstFragment)},
-		{Op: FlowOpMatch, Value: uint64(FlowFragDontFragment), And: true},
+	comp := flowspec.NewFlowFragmentMatchComponent([]flowspec.FlowMatch{
+		{Op: flowspec.FlowOpMatch, Value: uint64(flowspec.FlowFragIsFragment | flowspec.FlowFragFirstFragment)},
+		{Op: flowspec.FlowOpMatch, Value: uint64(flowspec.FlowFragDontFragment), And: true},
 	})
 	_, values := walkComponentOps(t, comp.Bytes())
 	require.Len(t, values, 2)
@@ -1544,7 +1545,7 @@ func TestRFC8955FirstOperatorAndBitEncodedUnset(t *testing.T) {
 // TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode verifies a received NLRI whose
 // FIRST operator octet has the AND bit set is still decoded as a plain (OR) term.
 //
-// VALIDATES: formatNumericMatches (plugin_decode.go) only continues an AND group when a
+// VALIDATES: FormatNumericMatches (core format.go) only continues an AND group when a
 // group is already open (`m.And && len(andGroup) > 0`), so the leading pair always opens
 // a new OR group whatever the wire 'a' bit says.
 //
@@ -1560,9 +1561,9 @@ func TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode(t *testing.T) {
 	// Same NLRI with the AND bit (0x40) set on the FIRST operator only.
 	leadingAnd := []byte{0x05, 0x05, 0x41, 0x50, 0x81, 0x16}
 
-	parsedClean, err := ParseFlowSpec(IPv4FlowSpec, clean)
+	parsedClean, err := flowspec.ParseFlowSpec(IPv4FlowSpec, clean)
 	require.NoError(t, err)
-	parsedAnd, err := ParseFlowSpec(IPv4FlowSpec, leadingAnd)
+	parsedAnd, err := flowspec.ParseFlowSpec(IPv4FlowSpec, leadingAnd)
 	require.NoError(t, err)
 
 	// RFC 8955 Section 4.2.1.1: "the AND bit ... SHOULD be encoded as unset and MUST be
@@ -1580,9 +1581,9 @@ func TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode(t *testing.T) {
 // TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode verifies reserved bits 4-5 of a
 // bitmask operator octet do not change the decoded match.
 //
-// VALIDATES: formatBitmaskValue (plugin_decode.go) consults only the NOT (0x02) and
-// MATCH (0x01) bits of the decoded operator, so the reserved 0x0C bits parseNumericComponent
-// carries through are never interpreted.
+// VALIDATES: parseNumericComponent (core types_numeric.go) masks the reserved 0x0C
+// bits out of the decoded operator, and formatBitmaskValue (core format.go) consults
+// only the NOT (0x02) and MATCH (0x01) bits, so the reserved bits are never interpreted.
 //
 // PREVENTS: a peer that sets the reserved bits having its TCP-flags term silently
 // re-interpreted as a different match.
@@ -1594,9 +1595,9 @@ func TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode(t *testing.T) {
 	// Same operator with both reserved bits (0x0C) set.
 	reserved := []byte{0x03, 0x09, 0x8D, 0x02}
 
-	parsedClean, err := ParseFlowSpec(IPv4FlowSpec, clean)
+	parsedClean, err := flowspec.ParseFlowSpec(IPv4FlowSpec, clean)
 	require.NoError(t, err)
-	parsedReserved, err := ParseFlowSpec(IPv4FlowSpec, reserved)
+	parsedReserved, err := flowspec.ParseFlowSpec(IPv4FlowSpec, reserved)
 	require.NoError(t, err)
 
 	jsonClean := flowSpecToJSON(parsedClean, "ipv4/flow", nil)
@@ -1613,8 +1614,8 @@ func TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode(t *testing.T) {
 // TestRFC8955FragmentReservedBitsIgnoredOnDecode verifies the reserved high nibble of a
 // Type-12 fragment bitmask value does not change the decoded match.
 //
-// VALIDATES: formatBitmaskValue (plugin_decode.go) walks the fragment value bit by bit
-// against fragmentFlagValueToNames, which only defines 0x01..0x08, so any bit in the
+// VALIDATES: formatBitmaskValue (core format.go) walks the fragment value bit by bit
+// against FragmentFlagValueToNames, which only defines 0x01..0x08, so any bit in the
 // reserved high nibble is dropped rather than interpreted.
 //
 // PREVENTS: undefined high-nibble bits from a peer being rendered as (or mistaken for)
@@ -1627,9 +1628,9 @@ func TestRFC8955FragmentReservedBitsIgnoredOnDecode(t *testing.T) {
 	// Same value with every reserved high-nibble bit set.
 	reserved := []byte{0x03, 0x0C, 0x81, 0xF2}
 
-	parsedClean, err := ParseFlowSpec(IPv4FlowSpec, clean)
+	parsedClean, err := flowspec.ParseFlowSpec(IPv4FlowSpec, clean)
 	require.NoError(t, err)
-	parsedReserved, err := ParseFlowSpec(IPv4FlowSpec, reserved)
+	parsedReserved, err := flowspec.ParseFlowSpec(IPv4FlowSpec, reserved)
 	require.NoError(t, err)
 
 	jsonClean := flowSpecToJSON(parsedClean, "ipv4/flow", nil)
@@ -1647,7 +1648,7 @@ func TestRFC8955FragmentReservedBitsIgnoredOnDecode(t *testing.T) {
 // bitmask in one octet.
 //
 // VALIDATES: parseFlowTCPFlagMatches (config_builder.go) resolves flag names to 8-bit
-// values, and numericComponent.Bytes() (types_numeric.go) picks lenCode 0 / one octet for
+// values, and numericComponent.Bytes() (core types_numeric.go) picks lenCode 0 / one octet for
 // any value <= 0xFF, so the emitted bitmask is always within the RFC's 1-2 octet range.
 //
 // PREVENTS: a TCP flags bitmask widening to 4 octets, which RFC 8955 Section 4.2.2.9
@@ -1676,7 +1677,7 @@ func TestRFC8955TCPFlagsBitmaskSingleOctet(t *testing.T) {
 // exactly one octet.
 //
 // VALIDATES: parseFlowOctets (config_builder.go) parses DSCP values as uint8 and
-// NewFlowDSCPComponent (types_numeric.go) stores them, so numericComponent.Bytes() always
+// NewFlowDSCPComponent (core types_numeric.go) stores them, so numericComponent.Bytes() always
 // selects lenCode 0 (one octet).
 //
 // PREVENTS: a 2- or 4-octet DSCP value, which RFC 8955 Section 4.2.2.11 forbids.
@@ -1703,7 +1704,7 @@ func TestRFC8955DSCPValueSingleOctet(t *testing.T) {
 // bitmask in exactly one octet.
 //
 // VALIDATES: parseFlowFragment (config_builder.go) resolves fragment names to the
-// low-nibble FlowFragmentFlag constants (types.go), so numericComponent.Bytes() selects
+// low-nibble FlowFragmentFlag constants (core types.go), so numericComponent.Bytes() selects
 // lenCode 0 (one octet) for every fragment value.
 //
 // PREVENTS: a multi-octet fragment bitmask, which RFC 8955 Section 4.2.2.12 forbids.
@@ -1724,4 +1725,24 @@ func TestRFC8955FragmentBitmaskSingleOctet(t *testing.T) {
 	for i, v := range values {
 		assert.Len(t, v, 1, "fragment bitmask %d must encode as a single octet", i)
 	}
+}
+
+// tcpFlagsComponent builds a TCP flags component (Type 9) whose matches carry
+// no operator bits, through the constructor the config builder uses.
+func tcpFlagsComponent(flags ...uint8) flowspec.FlowComponent {
+	matches := make([]flowspec.FlowMatch, len(flags))
+	for i, f := range flags {
+		matches[i] = flowspec.FlowMatch{Value: uint64(f)}
+	}
+	return flowspec.NewFlowTCPFlagsMatchComponent(matches)
+}
+
+// packetLengthComponent builds a packet length component (Type 10) of
+// equality matches, through the constructor the config builder uses.
+func packetLengthComponent(lengths ...uint16) flowspec.FlowComponent {
+	matches := make([]flowspec.FlowMatch, len(lengths))
+	for i, l := range lengths {
+		matches[i] = flowspec.FlowMatch{Op: flowspec.FlowOpEqual, Value: uint64(l)}
+	}
+	return flowspec.NewFlowNumericComponent(flowspec.FlowPacketLength, matches)
 }

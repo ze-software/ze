@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 )
 
 var (
@@ -28,90 +29,12 @@ var (
 	errFragmentRequiresValue               = errors.New("fragment requires value")
 )
 
-// FlowSpec component keywords.
-const (
-	kwDestinationIPv4 = "destination-ipv4" // Type 1 (IPv4)
-	kwDestinationIPv6 = "destination-ipv6" // Type 1 (IPv6, RFC 8956 Section 3.1)
-	kwSourceIPv4      = "source-ipv4"      // Type 2 (IPv4)
-	kwSourceIPv6      = "source-ipv6"      // Type 2 (IPv6, RFC 8956 Section 3.2)
-	kwProtocol        = "protocol"         // Type 3 (IPv4)
-	kwNextHeader      = "next-header"      // Type 3 (IPv6)
-	kwPort            = "port"             // Type 4
-	kwDestPort        = "destination-port" // Type 5
-	kwSourcePort      = "source-port"      // Type 6
-	kwICMPType        = "icmp-type"        // Type 7
-	kwICMPCode        = "icmp-code"        // Type 8
-	kwTCPFlags        = "tcp-flags"        // Type 9
-	kwPacketLength    = "packet-length"    // Type 10
-	kwDSCP            = "dscp"             // Type 11
-	// kwTrafficClass is the ExaBGP spelling of Type 11. RFC 8956 Section 8
-	// registers the type under one name for both families -- "IPv4 Name: DSCP"
-	// and "IPv6 Name: DSCP" -- so dscp is the word Ze writes and this one is an
-	// accepted alias. It is declared here, beside the word it aliases, because
-	// the config path took it while the text path refused it for as long as the
-	// two paths each held their own copy of the vocabulary.
-	kwTrafficClass = "traffic-class" // Type 11, ExaBGP spelling
-	kwFragment     = "fragment"      // Type 12
-	kwFlowLabel    = "flow-label"    // Type 13 (IPv6 only)
-	kwRD           = "rd"            // Route Distinguisher (VPN)
-)
-
 // familyModeBoth declares a family this plugin both sends and receives.
 //
 // The family names themselves are not declared here. family.MustRegister in
-// types.go joins each one from its AFI and SAFI parts, so flowSpecFamilySet in
+// register.go joins each one from its AFI and SAFI parts, so flowSpecFamilySet in
 // plugin.go reads them back from the registry rather than spelling them again.
 const familyModeBoth = "both"
-
-// protocolNameToNumber maps protocol names to numbers. It is the ONLY protocol
-// vocabulary in this package: the config parser, the text encoder and the
-// decoder all read it, and protocolNumberToName is derived from it. Three
-// copies of this table used to exist and they had already diverged, so a name
-// one path accepted another path did not.
-// IANA Protocol Numbers: https://www.iana.org/assignments/protocol-numbers
-var protocolNameToNumber = map[string]uint8{
-	"icmp":   1,
-	"igmp":   2,
-	"tcp":    6,
-	"udp":    17,
-	"gre":    47,
-	"esp":    50,
-	"ah":     51,
-	"icmpv6": 58,
-	"ospf":   89,
-	"sctp":   132,
-}
-
-// tcpFlagNameToValue maps TCP flag names to values. It is the ONLY TCP flag
-// vocabulary in this package: the config parser reads it too, so a name one
-// path accepts is a name every path accepts.
-// RFC 8955 Section 4.2.2.9.
-var tcpFlagNameToValue = map[string]uint8{
-	"fin":    0x01,
-	"syn":    0x02,
-	"rst":    0x04,
-	"reset":  0x04, // alias for rst
-	"psh":    0x08,
-	"push":   0x08, // alias for psh
-	"ack":    0x10,
-	"urg":    0x20,
-	"urgent": 0x20, // alias for urg
-	"ece":    0x40,
-	"cwr":    0x80,
-}
-
-// fragmentFlagNameToValue maps fragment flag names to values.
-// RFC 8955 Section 4.2.2.12.
-var fragmentFlagNameToValue = map[string]uint8{
-	"dont-fragment":  0x01,
-	"is-fragment":    0x02,
-	"first-fragment": 0x04,
-	"last-fragment":  0x08,
-	"df":             0x01, // alias
-	"isf":            0x02, // alias
-	"ff":             0x04, // alias
-	"lf":             0x08, // alias
-}
 
 // EncodeFlowSpecComponents parses text components and returns wire bytes.
 // Format: <component>+ where component is one of:
@@ -123,12 +46,12 @@ var fragmentFlagNameToValue = map[string]uint8{
 //   - etc.
 //
 // This function is used by the engine to delegate FlowSpec text parsing to the plugin.
-func EncodeFlowSpecComponents(fam Family, args []string) ([]byte, error) {
-	isVPN := fam.SAFI == SAFIFlowSpecVPN
+func EncodeFlowSpecComponents(fam flowspec.Family, args []string) ([]byte, error) {
+	isVPN := fam.SAFI == flowspec.SAFIFlowSpecVPN
 
-	var fs *FlowSpec
-	var fsv *FlowSpecVPN
-	var rd RouteDistinguisher
+	var fs *flowspec.FlowSpec
+	var fsv *flowspec.FlowSpecVPN
+	var rd flowspec.RouteDistinguisher
 
 	// Parse RD first if VPN family
 	if isVPN {
@@ -137,12 +60,12 @@ func EncodeFlowSpecComponents(fam Family, args []string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		fsv = NewFlowSpecVPN(fam, rd)
+		fsv = flowspec.NewFlowSpecVPN(fam, rd)
 	} else {
-		fs = NewFlowSpec(fam)
+		fs = flowspec.NewFlowSpec(fam)
 	}
 
-	addComponent := func(c FlowComponent) error {
+	addComponent := func(c flowspec.FlowComponent) error {
 		if fsv != nil {
 			return fsv.AddComponent(c)
 		}
@@ -181,26 +104,27 @@ func EncodeFlowSpecComponents(fam Family, args []string) ([]byte, error) {
 // parseRDFromArgs parses "rd <value>" from args and returns the arguments with
 // that keyword-value pair removed, so the component walk that follows never meets
 // the rd keyword again.
-func parseRDFromArgs(args []string) (RouteDistinguisher, []string, error) {
+func parseRDFromArgs(args []string) (flowspec.RouteDistinguisher, []string, error) {
 	for i := range len(args) - 1 {
-		if args[i] != kwRD {
+		if args[i] != flowspec.KwRD {
 			continue
 		}
 		rd, err := nlri.ParseRDString(args[i+1])
 		if err != nil {
-			return RouteDistinguisher{}, nil, fmt.Errorf("invalid rd: %w", err)
+			return flowspec.RouteDistinguisher{}, nil, fmt.Errorf("invalid rd: %w", err)
 		}
 		remaining := make([]string, 0, len(args)-2)
 		remaining = append(remaining, args[:i]...)
 		remaining = append(remaining, args[i+2:]...)
 		return rd, remaining, nil
 	}
-	return RouteDistinguisher{}, nil, errRdRequiredForVpnFamily
+	return flowspec.RouteDistinguisher{}, nil, errRdRequiredForVpnFamily
 }
 
 // parseComponentText parses a single FlowSpec component from args.
-// Named differently from parseFlowComponent in types.go (which parses wire format).
-func parseComponentText(args []string, fam Family) (FlowComponent, int, error) {
+// Named differently from parseFlowComponent in the core codec
+// (internal/core/bgp/nlri/flowspec/types.go), which parses wire format.
+func parseComponentText(args []string, fam flowspec.Family) (flowspec.FlowComponent, int, error) {
 	if len(args) == 0 {
 		return nil, 0, errExpectedComponent
 	}
@@ -208,33 +132,33 @@ func parseComponentText(args []string, fam Family) (FlowComponent, int, error) {
 	keyword := strings.ToLower(args[0])
 
 	switch keyword {
-	case kwDestinationIPv4, kwDestinationIPv6:
-		return parsePrefixComponentText(args, FlowDestPrefix, fam)
-	case kwSourceIPv4, kwSourceIPv6:
-		return parsePrefixComponentText(args, FlowSourcePrefix, fam)
-	case kwProtocol, kwNextHeader:
+	case flowspec.KwDestinationIPv4, flowspec.KwDestinationIPv6:
+		return parsePrefixComponentText(args, flowspec.FlowDestPrefix, fam)
+	case flowspec.KwSourceIPv4, flowspec.KwSourceIPv6:
+		return parsePrefixComponentText(args, flowspec.FlowSourcePrefix, fam)
+	case flowspec.KwProtocol, flowspec.KwNextHeader:
 		return parseProtocolComponentText(args[1:])
-	case kwPort:
-		return parseNumericComponentText(args[1:], FlowPort)
-	case kwDestPort:
-		return parseNumericComponentText(args[1:], FlowDestPort)
-	case kwSourcePort:
-		return parseNumericComponentText(args[1:], FlowSourcePort)
-	case kwICMPType:
-		return parseNumericComponentText(args[1:], FlowICMPType)
-	case kwICMPCode:
-		return parseNumericComponentText(args[1:], FlowICMPCode)
-	case kwTCPFlags:
+	case flowspec.KwPort:
+		return parseNumericComponentText(args[1:], flowspec.FlowPort)
+	case flowspec.KwDestPort:
+		return parseNumericComponentText(args[1:], flowspec.FlowDestPort)
+	case flowspec.KwSourcePort:
+		return parseNumericComponentText(args[1:], flowspec.FlowSourcePort)
+	case flowspec.KwICMPType:
+		return parseNumericComponentText(args[1:], flowspec.FlowICMPType)
+	case flowspec.KwICMPCode:
+		return parseNumericComponentText(args[1:], flowspec.FlowICMPCode)
+	case flowspec.KwTCPFlags:
 		return parseTCPFlagsComponentText(args[1:])
-	case kwPacketLength:
-		return parseNumericComponentText(args[1:], FlowPacketLength)
-	case kwDSCP, kwTrafficClass:
-		return parseNumericComponentText(args[1:], FlowDSCP)
-	case kwFragment:
+	case flowspec.KwPacketLength:
+		return parseNumericComponentText(args[1:], flowspec.FlowPacketLength)
+	case flowspec.KwDSCP, flowspec.KwTrafficClass:
+		return parseNumericComponentText(args[1:], flowspec.FlowDSCP)
+	case flowspec.KwFragment:
 		return parseFragmentComponentText(args[1:])
-	case kwFlowLabel:
-		return parseNumericComponentText(args[1:], FlowFlowLabel)
-	case kwRD:
+	case flowspec.KwFlowLabel:
+		return parseNumericComponentText(args[1:], flowspec.FlowFlowLabel)
+	case flowspec.KwRD:
 		// EncodeFlowSpecComponents removes the rd pair from a VPN family's arguments
 		// before this walk starts, so an rd reaching here names a family that carries
 		// no Route Distinguisher.
@@ -246,7 +170,7 @@ func parseComponentText(args []string, fam Family) (FlowComponent, int, error) {
 }
 
 // parsePrefixComponentText parses destination or source prefix from text.
-func parsePrefixComponentText(args []string, compType FlowComponentType, fam Family) (FlowComponent, int, error) {
+func parsePrefixComponentText(args []string, compType flowspec.FlowComponentType, fam flowspec.Family) (flowspec.FlowComponent, int, error) {
 	if len(args) < 2 {
 		return nil, 0, fmt.Errorf("%s requires prefix", args[0])
 	}
@@ -257,21 +181,21 @@ func parsePrefixComponentText(args []string, compType FlowComponentType, fam Fam
 	}
 
 	// Validate AFI match
-	if prefix.Addr().Is4() && fam.AFI != AFIIPv4 {
+	if prefix.Addr().Is4() && fam.AFI != flowspec.AFIIPv4 {
 		return nil, 0, errIpv4PrefixForIpv6Flowspec
 	}
-	if prefix.Addr().Is6() && fam.AFI != AFIIPv6 {
+	if prefix.Addr().Is6() && fam.AFI != flowspec.AFIIPv6 {
 		return nil, 0, errIpv6PrefixForIpv4Flowspec
 	}
 
-	if compType == FlowDestPrefix {
-		return NewFlowDestPrefixComponent(prefix), 2, nil
+	if compType == flowspec.FlowDestPrefix {
+		return flowspec.NewFlowDestPrefixComponent(prefix), 2, nil
 	}
-	return NewFlowSourcePrefixComponent(prefix), 2, nil
+	return flowspec.NewFlowSourcePrefixComponent(prefix), 2, nil
 }
 
 // parseProtocolComponentText parses protocol values (names or numbers).
-func parseProtocolComponentText(args []string) (FlowComponent, int, error) {
+func parseProtocolComponentText(args []string) (flowspec.FlowComponent, int, error) {
 	var protocols []uint8
 	consumed := 0
 
@@ -288,7 +212,7 @@ func parseProtocolComponentText(args []string) (FlowComponent, int, error) {
 		token = strings.TrimPrefix(token, "=")
 
 		// Try name first
-		if num, ok := protocolNameToNumber[token]; ok {
+		if num, ok := flowspec.ProtocolNameToNumber[token]; ok {
 			protocols = append(protocols, num)
 			consumed++
 			continue
@@ -310,12 +234,12 @@ func parseProtocolComponentText(args []string) (FlowComponent, int, error) {
 		return nil, 0, errProtocolRequiresValue
 	}
 
-	return NewFlowIPProtocolComponent(protocols...), consumed + 1, nil
+	return flowspec.NewFlowIPProtocolComponent(protocols...), consumed + 1, nil
 }
 
 // parseNumericComponentText parses numeric component with operators.
-func parseNumericComponentText(args []string, compType FlowComponentType) (FlowComponent, int, error) {
-	var matches []FlowMatch
+func parseNumericComponentText(args []string, compType flowspec.FlowComponentType) (flowspec.FlowComponent, int, error) {
+	var matches []flowspec.FlowMatch
 	consumed := 0
 
 	maxValue := componentMaxValue(compType)
@@ -338,7 +262,7 @@ func parseNumericComponentText(args []string, compType FlowComponentType) (FlowC
 			return nil, 0, fmt.Errorf("%s value %d exceeds max %d", compType, value, maxValue)
 		}
 
-		matches = append(matches, FlowMatch{
+		matches = append(matches, flowspec.FlowMatch{
 			Op:    op,
 			Value: value,
 			And:   consumed > 0,
@@ -350,12 +274,12 @@ func parseNumericComponentText(args []string, compType FlowComponentType) (FlowC
 		return nil, 0, fmt.Errorf("%s requires value", compType)
 	}
 
-	return newFlowNumericComponent(compType, matches), consumed + 1, nil
+	return flowspec.NewFlowNumericComponent(compType, matches), consumed + 1, nil
 }
 
 // parseTCPFlagsComponentText parses TCP flags with bitmask operators.
-func parseTCPFlagsComponentText(args []string) (FlowComponent, int, error) {
-	var matches []FlowMatch
+func parseTCPFlagsComponentText(args []string) (flowspec.FlowComponent, int, error) {
+	var matches []flowspec.FlowMatch
 	consumed := 0
 
 	for i := range args {
@@ -365,7 +289,7 @@ func parseTCPFlagsComponentText(args []string) (FlowComponent, int, error) {
 		}
 
 		// Parse modifiers and flags
-		op, flags, hasAndPrefix, err := parseBitmaskValue(token, tcpFlagNameToValue)
+		op, flags, hasAndPrefix, err := parseBitmaskValue(token, flowspec.TCPFlagNameToValue)
 		if err != nil {
 			if consumed == 0 {
 				return nil, 0, fmt.Errorf("invalid tcp-flags: %w", err)
@@ -373,7 +297,7 @@ func parseTCPFlagsComponentText(args []string) (FlowComponent, int, error) {
 			break
 		}
 
-		matches = append(matches, FlowMatch{
+		matches = append(matches, flowspec.FlowMatch{
 			Op:    op,
 			Value: uint64(flags),
 			And:   hasAndPrefix, // AND only if explicit & prefix
@@ -385,12 +309,12 @@ func parseTCPFlagsComponentText(args []string) (FlowComponent, int, error) {
 		return nil, 0, errTcpFlagsRequiresValue
 	}
 
-	return newFlowTCPFlagsMatchComponent(matches), consumed + 1, nil
+	return flowspec.NewFlowTCPFlagsMatchComponent(matches), consumed + 1, nil
 }
 
 // parseFragmentComponentText parses fragment flags.
-func parseFragmentComponentText(args []string) (FlowComponent, int, error) {
-	var matches []FlowMatch
+func parseFragmentComponentText(args []string) (flowspec.FlowComponent, int, error) {
+	var matches []flowspec.FlowMatch
 	consumed := 0
 
 	for i := range args {
@@ -399,7 +323,7 @@ func parseFragmentComponentText(args []string) (FlowComponent, int, error) {
 			break
 		}
 
-		op, flags, hasAndPrefix, err := parseBitmaskValue(token, fragmentFlagNameToValue)
+		op, flags, hasAndPrefix, err := parseBitmaskValue(token, flowspec.FragmentFlagNameToValue)
 		if err != nil {
 			if consumed == 0 {
 				return nil, 0, fmt.Errorf("invalid fragment: %w", err)
@@ -407,7 +331,7 @@ func parseFragmentComponentText(args []string) (FlowComponent, int, error) {
 			break
 		}
 
-		matches = append(matches, FlowMatch{
+		matches = append(matches, flowspec.FlowMatch{
 			Op:    op,
 			Value: uint64(flags),
 			And:   hasAndPrefix, // AND only if explicit & prefix
@@ -419,30 +343,30 @@ func parseFragmentComponentText(args []string) (FlowComponent, int, error) {
 		return nil, 0, errFragmentRequiresValue
 	}
 
-	return newFlowFragmentMatchComponent(matches), consumed + 1, nil
+	return flowspec.NewFlowFragmentMatchComponent(matches), consumed + 1, nil
 }
 
 // isComponentKeyword checks if token is a component keyword.
 func isComponentKeyword(token string) bool {
 	switch token {
-	case kwDestinationIPv4, kwDestinationIPv6, kwSourceIPv4, kwSourceIPv6,
-		kwProtocol, kwNextHeader, kwPort, kwDestPort, kwSourcePort,
-		kwICMPType, kwICMPCode, kwTCPFlags, kwPacketLength, kwDSCP, kwTrafficClass,
-		kwFragment, kwFlowLabel, kwRD:
+	case flowspec.KwDestinationIPv4, flowspec.KwDestinationIPv6, flowspec.KwSourceIPv4, flowspec.KwSourceIPv6,
+		flowspec.KwProtocol, flowspec.KwNextHeader, flowspec.KwPort, flowspec.KwDestPort, flowspec.KwSourcePort,
+		flowspec.KwICMPType, flowspec.KwICMPCode, flowspec.KwTCPFlags, flowspec.KwPacketLength, flowspec.KwDSCP, flowspec.KwTrafficClass,
+		flowspec.KwFragment, flowspec.KwFlowLabel, flowspec.KwRD:
 		return true
 	}
 	return false
 }
 
 // componentMaxValue returns max valid value for component type.
-func componentMaxValue(compType FlowComponentType) uint64 {
+func componentMaxValue(compType flowspec.FlowComponentType) uint64 {
 	//exhaustive:ignore // This numeric-width projection specializes bounded criteria; others keep the 32-bit limit.
 	switch compType {
-	case FlowIPProtocol, FlowICMPType, FlowICMPCode:
+	case flowspec.FlowIPProtocol, flowspec.FlowICMPType, flowspec.FlowICMPCode:
 		return 255
-	case FlowPort, FlowDestPort, FlowSourcePort, FlowPacketLength:
+	case flowspec.FlowPort, flowspec.FlowDestPort, flowspec.FlowSourcePort, flowspec.FlowPacketLength:
 		return 65535
-	case FlowDSCP:
+	case flowspec.FlowDSCP:
 		return 63
 	default: // 32-bit max for flow-label and other types
 		return 0xFFFFFFFF
@@ -450,29 +374,29 @@ func componentMaxValue(compType FlowComponentType) uint64 {
 }
 
 // parseOperatorValue parses "<op><value>" like "=80", ">100", "80".
-func parseOperatorValue(token string) (FlowOperator, uint64, error) {
-	op := FlowOpEqual
+func parseOperatorValue(token string) (flowspec.FlowOperator, uint64, error) {
+	op := flowspec.FlowOpEqual
 	s := token
 
 	// Parse operator prefix
 	switch {
 	case strings.HasPrefix(s, ">="):
-		op = FlowOpGreater | FlowOpEqual
+		op = flowspec.FlowOpGreater | flowspec.FlowOpEqual
 		s = s[2:]
 	case strings.HasPrefix(s, "<="):
-		op = FlowOpLess | FlowOpEqual
+		op = flowspec.FlowOpLess | flowspec.FlowOpEqual
 		s = s[2:]
 	case strings.HasPrefix(s, "!="):
-		op = FlowOpNotEq
+		op = flowspec.FlowOpNotEq
 		s = s[2:]
 	case strings.HasPrefix(s, ">"):
-		op = FlowOpGreater
+		op = flowspec.FlowOpGreater
 		s = s[1:]
 	case strings.HasPrefix(s, "<"):
-		op = FlowOpLess
+		op = flowspec.FlowOpLess
 		s = s[1:]
 	case strings.HasPrefix(s, "="):
-		op = FlowOpEqual
+		op = flowspec.FlowOpEqual
 		s = s[1:]
 	}
 
@@ -486,8 +410,8 @@ func parseOperatorValue(token string) (FlowOperator, uint64, error) {
 
 // parseBitmaskValue parses bitmask with modifiers like "!syn", "=ack", "syn&ack", "&!is-fragment".
 // Returns operator, flags value, whether token had AND prefix, and error.
-func parseBitmaskValue(token string, nameToValue map[string]uint8) (FlowOperator, uint8, bool, error) {
-	var op FlowOperator
+func parseBitmaskValue(token string, nameToValue map[string]uint8) (flowspec.FlowOperator, uint8, bool, error) {
+	var op flowspec.FlowOperator
 	s := token
 
 	// Handle leading & (AND connector with previous) - strip it first
@@ -496,11 +420,11 @@ func parseBitmaskValue(token string, nameToValue map[string]uint8) (FlowOperator
 
 	// Parse modifiers (!, =) that may come after & prefix
 	if strings.HasPrefix(s, "!") {
-		op |= FlowOpNot
+		op |= flowspec.FlowOpNot
 		s = s[1:]
 	}
 	if strings.HasPrefix(s, "=") {
-		op |= FlowOpMatch
+		op |= flowspec.FlowOpMatch
 		s = s[1:]
 	}
 

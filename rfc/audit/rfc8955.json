@@ -1,6 +1,8 @@
 {
-  "audited": "2026-10-13",
+  "audited": "2026-10-16",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -29,8 +31,8 @@
       "note": "Independent source judgment of every current tagged carrier against RFC 8955 Section 4 in its full dissemination context: 'When advertising Flow Specifications, the Length of the Next-Hop Network Address MUST be set to 0.' Agree with the saved flow-vpn-final-rfc8955.pending.json for this advertisement clause only, not the distinct ignored-receipt requirement RFC8955-4-4. TestFlowSpecOriginationOmitsConfiguredNextHop drives actual config initial sync, established API batch and both queued drains to a TCP recipient; literal complete UPDATEs pin zero length, exact native NLRI, VPN RD and traffic-rate action for all four AFI 1/2 SAFI 133/134 families with absent, explicit IPv4 and explicit IPv6 configured addresses. Empty-address controls and required packet equality rule out suppression as a passing implementation. TestFlowSpecForwardingOmitsNextHop covers cached forwarding across unchanged/self/explicit-v4/explicit-v6 destination settings and empty/recipient-address/IPv6 received fields, requiring exactly one delivered rule and exact MP_REACH bytes plus action, with no legacy NLRI or MP_UNREACH. TestFlowSpecRouteServerOmitsNextHop uses negotiated TCP, registered daemon RIB and route-server ownership, real covering-route authorization and exact received native rule/RD/action for the same four families, rather than a supplied authorization callback. The mixed-UPDATE carrier additionally requires both output sections, preserves observer bytes, and retains the independent legacy NEXT_HOP announcement or peer-own-address withdrawal gate. The dedicated builder carrier pins zero length and unchanged NLRI; the full daemon flow-encode.ci frames supplement the four-family unit matrix (that fixture itself advertises only three families). These are meaningful advertised-byte assertions, not decoder-only or bare-count evidence. Read producers Family.NeedsNextHop, buildMPReachPlugin, buildBatchAnnounceUpdate, buildRIBRouteUpdate, payloadNextHop, applyNextHopFamily and mpReachNextHopHandler plus normalization placement on both forwarding rails. Origination omits the address by family; received FlowSpec addresses cannot become a forwarding gate; normalization clears MP rewrite operations or requests removal of a received nonempty field while retaining genuine legacy operations; the handler retains NLRI and emits length zero. The saved proposal's causal argument remains supported by current source. This does not certify every FlowSpec requirement, external FRR/GoBGP interoperability, or every future rail. Existing approved native observations are not rerun or newly claimed; stored producer-panic records establish only the breaks they name, and are not substituted for these semantic assertions. No build, test, mutation, stamp or freshness check was run. The row currently has no audit entry: first stamp, without mode rejudge or upgrade_reason.",
       "requirement_sha": "40d8aaf28c3c7063",
       "tests": {
-        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop": "fd0429028bee0447",
-        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop#2": "fd0429028bee0447",
+        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop": "0c3cf4704d7e9ed6",
+        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop#2": "0c3cf4704d7e9ed6",
         "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop": "ed7a220acf5e4000",
         "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop#2": "ed7a220acf5e4000",
         "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop": "d1febe7855cdb093",
@@ -55,15 +57,15 @@
       "verdict": "enforced"
     },
     "RFC8955-4.2-2": {
-      "note": "positive re-parses an out-of-order build and pins the exact emitted order 1,3,5,12; negative feeds a descending 5-then-3 NLRI and asserts ErrFlowSpecTypeOrder, with the same components ascending accepted, so the refusal is isolated to order",
+      "note": "Re-judged 2026-10-16 after the codec moved to internal/core/bgp/nlri/flowspec; units changed only by package qualification. RFC 8955 Section 4.2: \"If present, it MUST precede any component of higher numeric type value.\" Positive re-parses an out-of-order build and pins the exact emitted order 1,3,5,12 (core writeComponentsSorted); negative feeds 5-then-3 and requires ErrFlowSpecTypeOrder from core parseComponents, with the same components ascending accepted, so the refusal is isolated to order.",
       "requirement_sha": "6ead3d1f0aeb1502",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder": "13a03de15f8818cf",
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestParseFlowSpecRefusesDescendingComponentType": "13a03de15f8818cf"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder": "369dd5aaffff3a63",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestParseFlowSpecRefusesDescendingComponentType": "369dd5aaffff3a63"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder": "fc21580eb1f6ea1f",
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestParseFlowSpecRefusesDescendingComponentType": "2d4e69c6e177de5a"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder": "ced2b5aa0d12f25a",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestParseFlowSpecRefusesDescendingComponentType": "07936c9d90ac97d1"
       },
       "verdict": "enforced"
     },
@@ -71,7 +73,7 @@
       "note": "single-polarity positive: a config range '>8080&<8088' encodes two ops and the test asserts the first carries AND clear (0x40) while the second carries it set, so an encoder setting AND on the first operator goes red",
       "requirement_sha": "e315a964ba4762ce",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitEncodedUnset": "13a03de15f8818cf"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitEncodedUnset": "369dd5aaffff3a63"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitEncodedUnset": "01b9e0dc99521f0b"
@@ -79,167 +81,167 @@
       "verdict": "enforced"
     },
     "RFC8955-4.2.1.1-2": {
-      "note": "decodes the same OR list with the first operator's AND bit clear and set and asserts the identical [[=80],[=22]] structure. The parser guard (types_numeric.go And: len(matches) > 0) is backed by consumer guards (plugin_decode.go andGroup, types_numeric.go i > 0), so breaking the parser guard alone stays green; the assertion is on the end-to-end decode, which is what the sentence obliges. Test comment misquotes the encode half as SHOULD",
+      "note": "Re-judged again 2026-10-16 after a comment-only edit (VALIDATES now names core format.go, which is correct); stays weak, downgraded from enforced earlier the same day. RFC 8955 Section 4.2.1.1: \"In the first operator octet of a sequence, it MUST be encoded as unset and MUST be treated as always unset on decoding.\" The row carries both clauses. Both tagged units are one decode test, TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode, which parses the same OR list with the first AND bit clear and set and requires identical [[=80],[=22]] JSON. That proves the decode clause. Nothing in this row's tags exercises encoding, so an encoder that set the AND bit on the first operator (core writeToAFI `i > 0 && m.And`) stays green here. The earlier note said the sentence obliges only decoding, which the RFC text contradicts. The encode clause IS proven elsewhere, by the RFC8955-4.2.1.1-1 unit (ops[0]&0x40 zero) and by core TestFlowSpecNumericReservedAndEightOctetOperand (0xf9 re-encoded as 0xb1), but neither carries this row's tag. Remedy: tag one of those for RFC8955-4.2.1.1-2, or add an encode assertion to this unit.",
       "requirement_sha": "5fc210c4350d3f91",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode": "13a03de15f8818cf",
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode#2": "13a03de15f8818cf"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode": "369dd5aaffff3a63",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode#2": "369dd5aaffff3a63"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode": "d19ff08379ea6c02",
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode#2": "d19ff08379ea6c02"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode": "f8d1f85ca6b7f25b",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode#2": "f8d1f85ca6b7f25b"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC8955-4.2.1.1-3": {
-      "note": "wire op 0xf9 carries the reserved bit (0x08) and a leading AND; positive asserts the exact decoded FlowMatch{Op: FlowOpEqual} (reserved bit ignored), negative asserts the re-encoded op is 0xb1 (reserved and AND cleared on encoding)",
+      "note": "Re-judged 2026-10-16: the unit moved verbatim to core compare_rfc8955_test.go, with only the family identifier renamed. RFC 8955 Section 4.2.1.1: \"0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding\". Wire op 0xf9 carries the reserved bit 0x08 and a leading AND. The positive requires the exact decoded []FlowMatch{{Op: FlowOpEqual, Value: 1<<56|7}}, so the reserved bit is ignored by core parseNumericComponent's 0x07 mask. The negative requires re-encoding to the exact op 0xb1, so reserved and leading AND are cleared by writeToAFI, and a missing end-of-list bit is refused.",
       "requirement_sha": "0e5b0a2ee264ae69",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecNumericReservedAndEightOctetOperand": "328da0a428605906",
-        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecNumericReservedAndEightOctetOperand#2": "328da0a428605906"
+        "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecNumericReservedAndEightOctetOperand": "8a8b7496f21e3491",
+        "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecNumericReservedAndEightOctetOperand#2": "8a8b7496f21e3491"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecNumericReservedAndEightOctetOperand": "cd8f486b24f0c759",
-        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecNumericReservedAndEightOctetOperand#2": "cd8f486b24f0c759"
+        "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecNumericReservedAndEightOctetOperand": "e5bf1c4c34a64881",
+        "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecNumericReservedAndEightOctetOperand#2": "e5bf1c4c34a64881"
       },
       "verdict": "enforced"
     },
     "RFC8955-4.2.1.2-1": {
-      "note": "Re-read 2026-09-27 after J078 deleted the retired RFC5575-4-6 tag and reworded one comment inside TestFlowSpecBitmaskOperatorReservedBitsZero; no assertion changed. Encode: a bitmask operator with 0x0C set on the wire is forbidden; assert.Zero(op&0x0C) over every emitted TCP-flags operator (MATCH, NOT, AND/END) goes red on it. Decode: reading meaning into 0x0C is forbidden; TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode decodes op 0x8D and assert.Equal against the 0x81 render goes red if the bits change the match, with the clean render pinned first. The decode proof is at the rendered match, not at the firewall lowering.",
+      "note": "Re-judged again 2026-10-16 after a comment-only edit. The new VALIDATES claim that parseNumericComponent masks 0x0C is TRUE: core types_numeric.go computes compOp = op & 0x03 for FlowTCPFlags and FlowFragment. RFC 8955 Section 4.2.1.2: \"0 (all 0 bits): MUST be set to 0 on NLRI encoding and MUST be ignored during\" decoding. Encode: assert.Zero(op&0x0C) over every emitted TCP-flags operator (MATCH, NOT, AND+END) goes red if the length, AND, END, NOT or MATCH bits move into 0x0C. The inputs carry no reserved bits, so deleting the 0x03 mask in core writeToAFI alone stays green. That mask is defence in depth: no reachable producer sets 0x0C, because parseBitmaskValue (text) and parseFlowTCPFlagMatches (config) build only NOT/MATCH, and parseNumericComponent masks received ops to 0x03. Decode: op 0x8D must render exactly like 0x81 (=syn) through the plugin JSON path, with the clean render pinned first. The decode proof is at the rendered match, not at the firewall lowering.",
       "requirement_sha": "4928db2bb028e706",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecBitmaskOperatorReservedBitsZero": "13a03de15f8818cf",
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode": "13a03de15f8818cf"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecBitmaskOperatorReservedBitsZero": "369dd5aaffff3a63",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode": "369dd5aaffff3a63"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecBitmaskOperatorReservedBitsZero": "a4a44e713cdb5f1e",
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode": "7a759591101a6add"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecBitmaskOperatorReservedBitsZero": "a6f575d24d6bd491",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode": "39de27620827bcec"
       },
       "verdict": "enforced"
     },
     "RFC8955-4.2.2.10-1": {
-      "note": "Packet-length emission asserts one/two-octet encoding at 0/255/256/65535 through typed, generic, registered config/text and forwarding paths; shortest selection is local policy, and the separate route-command grammar lacks this criterion. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage.",
+      "note": "Re-judged 2026-10-16: same units and same change as RFC8955-4.2.2.5-1. RFC 8955 Section 4.2.2.10: \"Type 10 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01).\" Packet-length emission requires exact one- and two-octet operands at 0/255/256/65535 across the typed, generic, config and text producers, plus recipient forwarding. Single-polarity as annotated, and the shortest width is local policy. Second re-judgement 2026-10-16: TestFlowSpecPreferredNumericEmission's typed packet-length producer is now the test helper packetLengthComponent (plugin types_test.go), which builds FlowMatch{Op: FlowOpEqual, Value: v} through NewFlowNumericComponent(FlowPacketLength, ...). That is byte-for-byte the matches that the deleted NewFlowPacketLengthComponent built at HEAD (plugin types_numeric.go:457-463). The deleted constructor had no non-test caller at HEAD, so no production producer lost coverage. The typed and generic cases now drive the same constructor, and the registered config, text and forwarding producers carry the distinct evidence.",
       "requirement_sha": "0f57ab4586d8f6b2",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "62b760e381317095",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "3702e53b4d70ea3b",
         "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "4ab6e5908e201226"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "18942c52e4531d65",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "bc7f944d7cc6c556",
         "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "b1aebcd1b508a409"
       },
       "verdict": "enforced"
     },
     "RFC8955-4.2.2.11-1": {
-      "note": "single-polarity positive: DSCP 46, 0 and 63 each encode as exactly one octet",
+      "note": "Re-judged 2026-10-16: the unit changed only in a comment path. RFC 8955 Section 4.2.2.11: \"Type 11 component values MUST be encoded as single octet (numeric_op len=00).\" Single-polarity positive: DSCP 46, 0 and 63 through the config producer each encode as exactly one octet. Core parseNumericComponent also refuses a DSCP valueLen other than 1 on receipt.",
       "requirement_sha": "9de9fa5f99284bba",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955DSCPValueSingleOctet": "13a03de15f8818cf"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955DSCPValueSingleOctet": "369dd5aaffff3a63"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955DSCPValueSingleOctet": "62ec50dbbdc9fbfc"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955DSCPValueSingleOctet": "f00b3bbb1bd18d03"
       },
       "verdict": "enforced"
     },
     "RFC8955-4.2.2.12-1": {
-      "note": "single-polarity positive: all four fragment flags encode as exactly one-octet bitmasks",
+      "note": "Re-judged 2026-10-16: the unit changed only in a comment path. RFC 8955 Section 4.2.2.12: \"The Type 12 component bitmask MUST be encoded as single octet bitmask (bitmask_op len=00).\" Single-polarity positive: all four fragment flags through the config producer encode as exactly one-octet values. The text producer's numeric fragment operand is bounded to 255 by parseUint8, and core writeToAFI masks fragment values before choosing a width, so no wider bitmask is reachable.",
       "requirement_sha": "75f8108d190d68be",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentBitmaskSingleOctet": "13a03de15f8818cf"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentBitmaskSingleOctet": "369dd5aaffff3a63"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentBitmaskSingleOctet": "b5f34657c3e8a2ec"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentBitmaskSingleOctet": "e43781338b27c1f9"
       },
       "verdict": "enforced"
     },
     "RFC8955-4.2.2.12-2": {
-      "note": "Re-read 2026-09-27 after J078 deleted the retired RFC5575-4-7 tag and reworded one comment inside TestFlowSpecFragmentReservedHighNibbleZero; no assertion changed. Encode: a fragment value with any 0xF0 bit set is forbidden; assert.Zero(v[0]&0xF0) over each emitted value goes red on it. Decode: reading meaning into the high nibble is forbidden; TestRFC8955FragmentReservedBitsIgnoredOnDecode decodes 0xF2 and assert.Equal against the 0x02 render goes red if it changes the match, with the clean render pinned first. The decode proof is at the rendered match, not at the firewall lowering.",
+      "note": "Re-judged again 2026-10-16 after a comment-only edit (VALIDATES now names core format.go); stays weak, downgraded from enforced earlier the same day. The unit bodies are unchanged. RFC 8955 Section 4.2.2.12: \"0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding\" (the four high bits of the fragment bitmask). Decode is proven: TestRFC8955FragmentReservedBitsIgnoredOnDecode requires value 0xF2 to render exactly like 0x02 (=is-fragment). Encode is not. TestFlowSpecFragmentReservedHighNibbleZero builds its component only from the named constants IsF|FF (0x03) and DF (0x01), so assert.Zero(v[0]&0xF0) cannot go red if the IPv4 mask is lost: fragmentMask(AFIIPv4)=0x0f and the `m.Value &= fragmentMask(afi)` step in core writeToAFI. Non-compliant input is reachable: parseFragmentComponentText takes numeric operands through parseBitmaskValue/parseUint8 (0..255), so \"fragment 242\" reaches the IPv4 encoder with high-nibble bits, and only that mask clears them. The IPv6 mask is exercised by RFC8956-3.6-1 (all ones encodes as 0x0e), but no unit covers the IPv4 path. Remedy: feed a value with high-nibble bits (for example 0xF3) through an IPv4 producer and require the exact 0x03.",
       "requirement_sha": "0986ccf7d3e364fa",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecFragmentReservedHighNibbleZero": "13a03de15f8818cf",
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentReservedBitsIgnoredOnDecode": "13a03de15f8818cf"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecFragmentReservedHighNibbleZero": "369dd5aaffff3a63",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentReservedBitsIgnoredOnDecode": "369dd5aaffff3a63"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecFragmentReservedHighNibbleZero": "90d28de1c170f3c5",
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentReservedBitsIgnoredOnDecode": "48eecee9411b80d1"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecFragmentReservedHighNibbleZero": "39d50c5b5e1c6677",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentReservedBitsIgnoredOnDecode": "e72cf404f77aaa61"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC8955-4.2.2.5-1": {
-      "note": "Destination-port emission asserts independent literal widths and values at 0/255/256/65535 across typed, generic, registered config/text and supported route-command producers, including recipient TCP observation; one or two octets satisfy the RFC SHOULD, whereas shortest encoding is Ze policy; legal-wide reception remains separate compatibility coverage. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage.",
+      "note": "Re-judged 2026-10-16: the emission unit changed only by package qualification (constructors and types now from core flowspec), and the reactor forwarding unit is unchanged. RFC 8955 Section 4.2.2.5: \"Type 5 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01).\" TestFlowSpecPreferredNumericEmission requires exact literal operator and value bytes at 0/255/256/65535 from typed, generic, registered config (ConfigRouteParserByFamily) and registered text (EncodeNLRIByFamily) producers, and from the EncodeRoute route command's MP_REACH. TestFlowSpecPreferredNumericForwarding carries the recipient TCP observation. Single-polarity as annotated, and the shortest width is Ze policy. The legal wide-reception compatibility control, which this row does not tag, moved to core numeric_wide_reception_test.go::TestFlowSpecPreferredNumericWideReception. Second re-judgement 2026-10-16: TestFlowSpecPreferredNumericEmission's typed packet-length producer is now the test helper packetLengthComponent (plugin types_test.go), which builds FlowMatch{Op: FlowOpEqual, Value: v} through NewFlowNumericComponent(FlowPacketLength, ...). That is byte-for-byte the matches that the deleted NewFlowPacketLengthComponent built at HEAD (plugin types_numeric.go:457-463). The deleted constructor had no non-test caller at HEAD, so no production producer lost coverage. The typed and generic cases now drive the same constructor, and the registered config, text and forwarding producers carry the distinct evidence.",
       "requirement_sha": "be10025decf5c2c3",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "62b760e381317095",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "3702e53b4d70ea3b",
         "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "4ab6e5908e201226"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "18942c52e4531d65",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "bc7f944d7cc6c556",
         "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "b1aebcd1b508a409"
       },
       "verdict": "enforced"
     },
     "RFC8955-4.2.2.6-1": {
-      "note": "Source-port emission has the same boundary, producer and forwarding coverage; the single-polarity annotation is justified and does not turn the recommendation into a receiving-width MUST. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage.",
+      "note": "Re-judged 2026-10-16: same units and same change as RFC8955-4.2.2.5-1. RFC 8955 Section 4.2.2.6: \"Type 6 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01).\" Source-port emission requires exact one- and two-octet operands at 0/255/256/65535 across the typed, generic, config, text and route-command producers, plus recipient forwarding. Single-polarity as annotated. Second re-judgement 2026-10-16: TestFlowSpecPreferredNumericEmission's typed packet-length producer is now the test helper packetLengthComponent (plugin types_test.go), which builds FlowMatch{Op: FlowOpEqual, Value: v} through NewFlowNumericComponent(FlowPacketLength, ...). That is byte-for-byte the matches that the deleted NewFlowPacketLengthComponent built at HEAD (plugin types_numeric.go:457-463). The deleted constructor had no non-test caller at HEAD, so no production producer lost coverage. The typed and generic cases now drive the same constructor, and the registered config, text and forwarding producers carry the distinct evidence.",
       "requirement_sha": "fc598b483c50d2eb",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "62b760e381317095",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "3702e53b4d70ea3b",
         "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "4ab6e5908e201226"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "18942c52e4531d65",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "bc7f944d7cc6c556",
         "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "b1aebcd1b508a409"
       },
       "verdict": "enforced"
     },
     "RFC8955-4.2.2.8-1": {
-      "note": "ICMP-code emission asserts the recommended single octet at 0/255 across typed, generic, registered config/text and recipient forwarding paths; the separate route-command grammar lacks this criterion, and wider representations of 255 remain valid compatibility controls. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage.",
+      "note": "Re-judged 2026-10-16: same units and same change as RFC8955-4.2.2.5-1. RFC 8955 Section 4.2.2.8: \"Type 8 component values SHOULD be encoded as single octet (numeric_op len=00).\" ICMP-code emission requires the exact single octet at 0 and 255 across the typed (NewFlowICMPCodeComponent, now exported from core), generic, config and text producers, plus recipient forwarding. The route-command grammar has no ICMP-code criterion. Single-polarity as annotated. Second re-judgement 2026-10-16: TestFlowSpecPreferredNumericEmission's typed packet-length producer is now the test helper packetLengthComponent (plugin types_test.go), which builds FlowMatch{Op: FlowOpEqual, Value: v} through NewFlowNumericComponent(FlowPacketLength, ...). That is byte-for-byte the matches that the deleted NewFlowPacketLengthComponent built at HEAD (plugin types_numeric.go:457-463). The deleted constructor had no non-test caller at HEAD, so no production producer lost coverage. The typed and generic cases now drive the same constructor, and the registered config, text and forwarding producers carry the distinct evidence.",
       "requirement_sha": "ede78e78a8974f4c",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "62b760e381317095",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "3702e53b4d70ea3b",
         "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "4ab6e5908e201226"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "18942c52e4531d65",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "bc7f944d7cc6c556",
         "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "b1aebcd1b508a409"
       },
       "verdict": "enforced"
     },
     "RFC8955-4.2.2.9-1": {
-      "note": "single-polarity positive: every emitted tcp-flags bitmask from a config with AND/NOT/OR terms is asserted non-empty and at most 2 octets",
+      "note": "Re-judged 2026-10-16: the unit changed only in a comment path (core types_numeric.go). RFC 8955 Section 4.2.2.9: \"Type 9 component bitmasks MUST be encoded as 1- or 2-octet bitmask (bitmask_op len=00 or len=01).\" Single-polarity positive, as annotated: every emitted tcp-flags bitmask from the config producer (buildFlowSpecComponents with AND, NOT and OR terms) must be non-empty and at most 2 octets.",
       "requirement_sha": "f382e60cf70ce69c",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955TCPFlagsBitmaskSingleOctet": "13a03de15f8818cf"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955TCPFlagsBitmaskSingleOctet": "369dd5aaffff3a63"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955TCPFlagsBitmaskSingleOctet": "30b28db2d61521da"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955TCPFlagsBitmaskSingleOctet": "7f38dcc7d7c66988"
       },
       "verdict": "enforced"
     },
     "RFC8955-5.1-1": {
-      "note": "Compare is asserted antisymmetric (a<b, b>a, a==a) over type, prefix, operator-byte and width pairs, so the order is a function of the two NLRIs alone; the arrival-order claim in the negative tag rests on that, and the kernel arrival-order case sits under 5.1-2",
+      "note": "Re-judged 2026-10-16: the unit moved verbatim to core compare_rfc8955_test.go, with only the family identifier renamed. RFC 8955 Section 5.1: \"This ordering function is such that it does not depend on the arrival order of the Flow Specification via BGP and thus is consistent in the network.\" Compare is required to be antisymmetric and reflexive (a<b, b>a, a==a) over type, prefix, operator-byte and width pairs. Core Compare reads only component content (no peer, time or action). The arrival-order sort itself is exercised by RFC5575-5.1-1's TestRFC5575PrecedenceIndependentOfArrival, which this row does not tag.",
       "requirement_sha": "403ddbf13affec9d",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "328da0a428605906",
-        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "328da0a428605906"
+        "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "8a8b7496f21e3491",
+        "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "8a8b7496f21e3491"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "12fd4ff344e8089e",
-        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "12fd4ff344e8089e"
+        "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "883b15a889ee68c6",
+        "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "883b15a889ee68c6"
       },
       "verdict": "enforced"
     },
     "RFC8955-5.1-2": {
-      "note": "RFC 8955 Section 5.1: \"The relative order of two Flow Specifications is determined by comparing their respective components.\" Whole rule read through the concluding sentence: \"If the common prefix is equal, the longest string is considered to have higher precedence than the shorter one.\" compare_rfc8955_test.go TestFlowSpecPrecedenceFromWire pins lower component type, absent/present next component after an equal first component, most-specific overlapping prefix, lower disjoint prefix, equal-width memcmp and received-width byte ordering rather than numeric canonicalization; every pair asserts forward/reverse signs and self equality. Compare walks increasing component type, uses prefix specificity/address ordering, then common-byte comparison and reverse length comparison. TestSelectedFlowSpecKernelPacketSemantics adds actual Linux packet evidence: the covering discard installed first blocks traffic, then the narrower terminal mark admits the same packet with DSCP 10; T-set again reaches the covering discard. These are separate conforming/control states, not two labels on one assertion. Build constraints require integration+linux with namespace/nft privileges; a skipped host/guest run is NOT runtime proof. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step. Whole normative list (rfc/full/rfc8955.txt:840-863): \"The relative order of two Flow Specifications is determined by comparing their respective components. The algorithm starts by comparing the left-most components (lowest component type value) of the Flow Specifications. If the types differ, the Flow Specification with lowest numeric type value has higher precedence (and thus will match before) than the Flow Specification that doesn't contain that component type. If the component types are the same, then a type-specific comparison is performed (see below). If the types are equal, the algorithm continues with the next component. For IP prefix values (IP destination or source prefix), if one of the two prefixes to compare is a more specific prefix of the other, the more specific prefix has higher precedence. Otherwise, the one with the lowest IP value has higher precedence. For all other component types, unless otherwise specified, the comparison is performed by comparing the component data as a binary string using the memcmp() function as defined by [ISO_IEC_9899]. For strings with equal lengths, the lowest string (memcmp) has higher precedence. For strings of different lengths, the common prefix is compared. If the common prefix is not equal, the string with the lowest prefix has higher precedence. If the common prefix is equal, the longest string is considered to have higher precedence than the shorter one.\"",
+      "note": "Re-judged 2026-10-16: the compare unit moved verbatim to core and the flowspec-firewall kernel unit is unchanged. RFC 8955 Section 5.1: \"The relative order of two Flow Specifications is determined by comparing their respective components.\" TestFlowSpecPrecedenceFromWire pins, with forward and reverse signs and self equality, each of these: a lower type first, a present-versus-absent next component, a more-specific overlapping prefix first, a lower disjoint prefix first, equal-width memcmp, and received-width bytes over numeric value. TestSelectedFlowSpecKernelPacketSemantics adds Linux packet evidence that the more-specific terminal rule wins over a covering discard in either install order. That unit needs integration+linux privileges, and a skipped run is not runtime proof. The clause \"If the common prefix is equal, the longest string is considered to have higher precedence\" has no pair. It is unreachable for well-formed numeric or bitmask data: the end-of-list bit sits in the operator octet, so one valid component's data can never be a proper prefix of another's.",
       "requirement_sha": "5eb646f616d945eb",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "328da0a428605906",
-        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "328da0a428605906",
+        "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "8a8b7496f21e3491",
+        "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "8a8b7496f21e3491",
         "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "cddf304ba024a756",
         "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "cddf304ba024a756"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "12fd4ff344e8089e",
-        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "12fd4ff344e8089e",
+        "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "883b15a889ee68c6",
+        "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "883b15a889ee68c6",
         "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "a770f2869bd51ed2",
         "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "a770f2869bd51ed2"
       },
@@ -399,28 +401,28 @@
       "verdict": "enforced"
     },
     "RFC8955-8-1": {
-      "note": "positive decodes RD 100:100 from the 8 octets after the length and the destination component after them, and re-encodes the exact wire; negative refuses a length too short to hold the RD with ErrFlowSpecTruncated",
+      "note": "Re-judged 2026-10-16: the unit moved verbatim to core rfc8955_vpn_test.go, with only the family identifier renamed (test-local AFI 1/SAFI 134). RFC 8955 Section 8: \"The NLRI format for this address family consists of a fixed-length Route Distinguisher field (8 octets) followed by the Flow Specification NLRI value (Section 4.2).\" The positive decodes RD 100:100 from the 8 octets after the length and the destination component after them, and requires the exact wire back from WriteTo. The negative requires ErrFlowSpecTruncated from core ParseFlowSpecVPN for a length too short to hold the RD.",
       "requirement_sha": "eb3b19de7abaaff9",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure": "286526372c7293bd",
-        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure#2": "286526372c7293bd"
+        "internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure": "ac3a8f469b24e3f2",
+        "internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure#2": "ac3a8f469b24e3f2"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure": "a84c0880fd0a66da",
-        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure#2": "a84c0880fd0a66da"
+        "internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure": "bd95225f6da7c3f4",
+        "internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure#2": "bd95225f6da7c3f4"
       },
       "verdict": "enforced"
     },
     "RFC8955-8-2": {
-      "note": "positive asserts Len and the encoded length octet count RD plus value (its first assertion checks the fixture against itself, the WriteTo one is the real check); negative refuses a length that counts only the value",
+      "note": "Re-judged 2026-10-16: the unit moved verbatim to core, with only the family identifier renamed. RFC 8955 Section 8: \"The NLRI length field shall include both the 8 octets of the Route Distinguisher as well as the subsequent Flow Specification NLRI value.\" The positive requires Len() and the WriteTo length octet to equal 8 plus the value length; its first assertion checks the fixture against itself, and the WriteTo assertion is the real check. The negative requires ErrFlowSpecTruncated for the same RD and value under a length that counts only the value.",
       "requirement_sha": "9d0035ea6b3b6b30",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNLengthCoversRD": "286526372c7293bd",
-        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNLengthCoversRD#2": "286526372c7293bd"
+        "internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNLengthCoversRD": "ac3a8f469b24e3f2",
+        "internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNLengthCoversRD#2": "ac3a8f469b24e3f2"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNLengthCoversRD": "3f0314682b047503",
-        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNLengthCoversRD#2": "3f0314682b047503"
+        "internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNLengthCoversRD": "25382a184876dbef",
+        "internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNLengthCoversRD#2": "25382a184876dbef"
       },
       "verdict": "enforced"
     }

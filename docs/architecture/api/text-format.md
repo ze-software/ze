@@ -132,7 +132,7 @@ Each NLRI type plugin implements `String()`, which produces the text appended af
 <!-- source: internal/core/bgp/nlri/inet.go -- INET.String -->
 <!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- String -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- String -->
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- String -->
+<!-- source: internal/core/bgp/nlri/flowspec/types.go -- String -->
 <!-- source: internal/component/bgp/plugins/nlri/labeled/types.go -- String -->
 <!-- source: internal/component/bgp/plugins/nlri/vpls/types.go -- String -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/types.go -- String -->

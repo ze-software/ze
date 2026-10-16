@@ -8,6 +8,8 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 )
 
 // buildFlowSpecComponents builds the FlowSpec from config-format match criteria
@@ -18,13 +20,13 @@ import (
 // reject a non-empty dropped list. The `seen` set is populated by the blocks
 // themselves, so a future criterion missing its block fails loud rather than
 // being silently dropped.
-func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*FlowSpec, []string) {
+func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*flowspec.FlowSpec, []string) {
 	fam := IPv4FlowSpec
 	if isIPv6 {
 		fam = IPv6FlowSpec
 	}
 
-	fs := NewFlowSpec(fam)
+	fs := flowspec.NewFlowSpec(fam)
 	var dropped []string
 	seen := make(map[string]bool, len(matchCriteria))
 
@@ -33,7 +35,7 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 	// merge (RFC 8955 Section 4.2), which is the same fail-loud case as a value
 	// that would not parse: the criterion is present in the config and produced no
 	// match, so the caller must reject the route rather than widen it.
-	add := func(key string, c FlowComponent) {
+	add := func(key string, c flowspec.FlowComponent) {
 		if err := fs.AddComponent(c); err != nil {
 			dropped = append(dropped, key)
 		}
@@ -41,7 +43,7 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 
 	// Prefix components are singular. Refuse multiple values rather than
 	// silently selecting the first; report the operator's criterion name.
-	if key, vals, ok := prefixCriterion(matchCriteria, kwDestinationIPv4, kwDestinationIPv6); ok {
+	if key, vals, ok := prefixCriterion(matchCriteria, flowspec.KwDestinationIPv4, flowspec.KwDestinationIPv6); ok {
 		seen[key] = true
 		switch len(vals) {
 		case 1:
@@ -50,14 +52,14 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 				dropped = append(dropped, key)
 				break
 			}
-			add(key, newFlowDestPrefixComponentWithOffset(prefix, offset))
+			add(key, flowspec.NewFlowDestPrefixComponentWithOffset(prefix, offset))
 		default:
 			dropped = append(dropped, key)
 		}
 	}
 
 	// Source prefixes have the same singular-value requirement.
-	if key, vals, ok := prefixCriterion(matchCriteria, kwSourceIPv4, kwSourceIPv6); ok {
+	if key, vals, ok := prefixCriterion(matchCriteria, flowspec.KwSourceIPv4, flowspec.KwSourceIPv6); ok {
 		seen[key] = true
 		switch len(vals) {
 		case 1:
@@ -66,77 +68,77 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 				dropped = append(dropped, key)
 				break
 			}
-			add(key, newFlowSourcePrefixComponentWithOffset(prefix, offset))
+			add(key, flowspec.NewFlowSourcePrefixComponentWithOffset(prefix, offset))
 		default:
 			dropped = append(dropped, key)
 		}
 	}
 
 	// Numeric / match criteria: a present key with no parseable value is dropped.
-	addNumeric := func(key string, typ FlowComponentType, parse func([]string) []FlowMatch) {
+	addNumeric := func(key string, typ flowspec.FlowComponentType, parse func([]string) []flowspec.FlowMatch) {
 		if vals, ok := matchCriteria[key]; ok {
 			seen[key] = true
 			if matches := parse(vals); len(matches) > 0 {
-				add(key, newFlowNumericComponent(typ, matches))
+				add(key, flowspec.NewFlowNumericComponent(typ, matches))
 			} else {
 				dropped = append(dropped, key)
 			}
 		}
 	}
-	addNumeric(kwProtocol, FlowIPProtocol, parseFlowProtocolMatchesSlice)
-	addNumeric(kwNextHeader, FlowIPProtocol, parseFlowProtocolMatchesSlice)
-	addNumeric(kwPort, FlowPort, parseFlowMatchesSlice)
-	addNumeric(kwDestPort, FlowDestPort, parseFlowMatchesSlice)
-	addNumeric(kwSourcePort, FlowSourcePort, parseFlowMatchesSlice)
-	addNumeric(kwPacketLength, FlowPacketLength, parseFlowMatchesSlice)
-	addNumeric(kwTCPFlags, FlowTCPFlags, parseFlowTCPFlagMatchesSlice)
+	addNumeric(flowspec.KwProtocol, flowspec.FlowIPProtocol, parseFlowProtocolMatchesSlice)
+	addNumeric(flowspec.KwNextHeader, flowspec.FlowIPProtocol, parseFlowProtocolMatchesSlice)
+	addNumeric(flowspec.KwPort, flowspec.FlowPort, parseFlowMatchesSlice)
+	addNumeric(flowspec.KwDestPort, flowspec.FlowDestPort, parseFlowMatchesSlice)
+	addNumeric(flowspec.KwSourcePort, flowspec.FlowSourcePort, parseFlowMatchesSlice)
+	addNumeric(flowspec.KwPacketLength, flowspec.FlowPacketLength, parseFlowMatchesSlice)
+	addNumeric(flowspec.KwTCPFlags, flowspec.FlowTCPFlags, parseFlowTCPFlagMatchesSlice)
 
-	if vals, ok := matchCriteria[kwDSCP]; ok {
-		seen[kwDSCP] = true
+	if vals, ok := matchCriteria[flowspec.KwDSCP]; ok {
+		seen[flowspec.KwDSCP] = true
 		if octets := parseFlowOctetsSlice(vals); len(octets) > 0 {
-			add(kwDSCP, NewFlowDSCPComponent(octets...))
+			add(flowspec.KwDSCP, flowspec.NewFlowDSCPComponent(octets...))
 		} else {
-			dropped = append(dropped, kwDSCP)
+			dropped = append(dropped, flowspec.KwDSCP)
 		}
 	}
-	if vals, ok := matchCriteria[kwTrafficClass]; ok {
-		seen[kwTrafficClass] = true
+	if vals, ok := matchCriteria[flowspec.KwTrafficClass]; ok {
+		seen[flowspec.KwTrafficClass] = true
 		if octets := parseFlowOctetsSlice(vals); len(octets) > 0 {
-			add(kwTrafficClass, NewFlowDSCPComponent(octets...))
+			add(flowspec.KwTrafficClass, flowspec.NewFlowDSCPComponent(octets...))
 		} else {
-			dropped = append(dropped, kwTrafficClass)
+			dropped = append(dropped, flowspec.KwTrafficClass)
 		}
 	}
-	if vals, ok := matchCriteria[kwFlowLabel]; ok {
-		seen[kwFlowLabel] = true
+	if vals, ok := matchCriteria[flowspec.KwFlowLabel]; ok {
+		seen[flowspec.KwFlowLabel] = true
 		if labels := parseFlowLabelsSlice(vals); len(labels) > 0 {
-			add(kwFlowLabel, NewFlowFlowLabelComponent(labels...))
+			add(flowspec.KwFlowLabel, flowspec.NewFlowFlowLabelComponent(labels...))
 		} else {
-			dropped = append(dropped, kwFlowLabel)
+			dropped = append(dropped, flowspec.KwFlowLabel)
 		}
 	}
-	if vals, ok := matchCriteria[kwFragment]; ok {
-		seen[kwFragment] = true
+	if vals, ok := matchCriteria[flowspec.KwFragment]; ok {
+		seen[flowspec.KwFragment] = true
 		if flags := parseFlowFragmentSlice(vals); len(flags) > 0 {
-			add(kwFragment, NewFlowFragmentComponent(flags...))
+			add(flowspec.KwFragment, flowspec.NewFlowFragmentComponent(flags...))
 		} else {
-			dropped = append(dropped, kwFragment)
+			dropped = append(dropped, flowspec.KwFragment)
 		}
 	}
-	if vals, ok := matchCriteria[kwICMPType]; ok {
-		seen[kwICMPType] = true
+	if vals, ok := matchCriteria[flowspec.KwICMPType]; ok {
+		seen[flowspec.KwICMPType] = true
 		if types := parseFlowICMPTypesSlice(vals); len(types) > 0 {
-			add(kwICMPType, NewFlowICMPTypeComponent(types...))
+			add(flowspec.KwICMPType, flowspec.NewFlowICMPTypeComponent(types...))
 		} else {
-			dropped = append(dropped, kwICMPType)
+			dropped = append(dropped, flowspec.KwICMPType)
 		}
 	}
-	if vals, ok := matchCriteria[kwICMPCode]; ok {
-		seen[kwICMPCode] = true
+	if vals, ok := matchCriteria[flowspec.KwICMPCode]; ok {
+		seen[flowspec.KwICMPCode] = true
 		if codes := parseFlowICMPCodesSlice(vals); len(codes) > 0 {
-			add(kwICMPCode, newFlowICMPCodeComponent(codes...))
+			add(flowspec.KwICMPCode, flowspec.NewFlowICMPCodeComponent(codes...))
 		} else {
-			dropped = append(dropped, kwICMPCode)
+			dropped = append(dropped, flowspec.KwICMPCode)
 		}
 	}
 
@@ -184,83 +186,83 @@ func parseFlowPrefixWithOffset(s string) (netip.Prefix, uint8) {
 }
 
 // parseFlowProtocolMatches parses protocol values with operators.
-func parseFlowProtocolMatches(s string) []FlowMatch {
+func parseFlowProtocolMatches(s string) []flowspec.FlowMatch {
 	s = strings.Trim(s, "[]")
 	parts := strings.Fields(s)
-	var result []FlowMatch
+	var result []flowspec.FlowMatch
 
 	for _, p := range parts {
-		var op FlowOperator
+		var op flowspec.FlowOperator
 
 		// Parse operator prefix
 		switch {
 		case strings.HasPrefix(p, "!="):
-			op = FlowOpNotEq
+			op = flowspec.FlowOpNotEq
 			p = strings.TrimPrefix(p, "!=")
 		case strings.HasPrefix(p, "="):
-			op = FlowOpEqual
+			op = flowspec.FlowOpEqual
 			p = strings.TrimPrefix(p, "=")
 		default: // No operator prefix — bare protocol name/number implies equality
-			op = FlowOpEqual
+			op = flowspec.FlowOpEqual
 		}
 
 		p = strings.ToLower(p)
-		if v, ok := protocolNameToNumber[p]; ok {
-			result = append(result, FlowMatch{Op: op, Value: uint64(v)})
+		if v, ok := flowspec.ProtocolNameToNumber[p]; ok {
+			result = append(result, flowspec.FlowMatch{Op: op, Value: uint64(v)})
 			continue
 		}
 		n, err := strconv.ParseUint(p, 10, 8)
 		if err != nil {
 			return nil
 		}
-		result = append(result, FlowMatch{Op: op, Value: n})
+		result = append(result, flowspec.FlowMatch{Op: op, Value: n})
 	}
 	return result
 }
 
 // parseFlowMatches parses FlowSpec match expressions with operators.
 // Formats: "=80", ">1024", "[ =80 =8080 ]", ">8080&<8088", "!=443".
-func parseFlowMatches(s string) []FlowMatch {
+func parseFlowMatches(s string) []flowspec.FlowMatch {
 	s = strings.Trim(s, "[]")
 	parts := strings.Fields(s)
-	var result []FlowMatch
+	var result []flowspec.FlowMatch
 
 	for _, p := range parts {
 		// Handle range operators like ">8080&<8088" by splitting on &
 		rangeParts := strings.Split(p, "&")
 		for i, rp := range rangeParts {
-			var op FlowOperator
+			var op flowspec.FlowOperator
 			isAnd := i > 0 // Parts after & are AND-ed with previous
 
 			// Parse operator prefix
 			switch {
 			case strings.HasPrefix(rp, "!="):
-				op = FlowOpNotEq
+				op = flowspec.FlowOpNotEq
 				rp = strings.TrimPrefix(rp, "!=")
 			case strings.HasPrefix(rp, ">="):
-				op = FlowOpGreater | FlowOpEqual
+				op = flowspec.FlowOpGreater | flowspec.FlowOpEqual
 				rp = strings.TrimPrefix(rp, ">=")
 			case strings.HasPrefix(rp, "<="):
-				op = FlowOpLess | FlowOpEqual
+				op = flowspec.FlowOpLess | flowspec.FlowOpEqual
 				rp = strings.TrimPrefix(rp, "<=")
 			case strings.HasPrefix(rp, ">"):
-				op = FlowOpGreater
+				op = flowspec.FlowOpGreater
 				rp = strings.TrimPrefix(rp, ">")
 			case strings.HasPrefix(rp, "<"):
-				op = FlowOpLess
+				op = flowspec.FlowOpLess
 				rp = strings.TrimPrefix(rp, "<")
 			case strings.HasPrefix(rp, "="):
-				op = FlowOpEqual
+				op = flowspec.FlowOpEqual
 				rp = strings.TrimPrefix(rp, "=")
 			default: // No operator prefix — bare number implies equality
-				op = FlowOpEqual
+				op = flowspec.FlowOpEqual
 			}
 
 			n, err := strconv.ParseUint(rp, 10, 64)
 			if err != nil {
 				return nil
 			}
-			result = append(result, FlowMatch{Op: op, And: isAnd, Value: n})
+			result = append(result, flowspec.FlowMatch{Op: op, And: isAnd, Value: n})
 		}
 	}
 	return result
@@ -390,17 +392,17 @@ func parseFlowICMPCodes(s string) []uint8 {
 }
 
 // parseFlowFragment parses fragment flags like "[ first-fragment last-fragment ]".
-func parseFlowFragment(s string) []FlowFragmentFlag {
+func parseFlowFragment(s string) []flowspec.FlowFragmentFlag {
 	s = strings.Trim(s, "[]")
 	parts := strings.Fields(s)
-	var result []FlowFragmentFlag
+	var result []flowspec.FlowFragmentFlag
 
 	for _, p := range parts {
-		f, ok := fragmentFlagNameToValue[p]
+		f, ok := flowspec.FragmentFlagNameToValue[p]
 		if !ok {
 			return nil
 		}
-		result = append(result, FlowFragmentFlag(f))
+		result = append(result, flowspec.FlowFragmentFlag(f))
 	}
 	return result
 }
@@ -410,16 +412,16 @@ func parseFlowFragment(s string) []FlowFragmentFlag {
 //   - 0x01 = MATCH (exact match)
 //   - 0x02 = NOT (negate)
 //   - 0x40 = AND (AND with previous)
-func parseFlowTCPFlagMatches(s string) []FlowMatch {
+func parseFlowTCPFlagMatches(s string) []flowspec.FlowMatch {
 	s = strings.Trim(s, "[]")
 	parts := strings.Fields(s)
-	var result []FlowMatch
+	var result []flowspec.FlowMatch
 
 	for _, p := range parts {
 		// Handle combined flags like "RST&FIN&!=push"
 		flagParts := strings.Split(p, "&")
 		for i, fp := range flagParts {
-			var op FlowOperator
+			var op flowspec.FlowOperator
 			isAnd := i > 0 // Parts after & are AND-ed
 
 			// Check for != (NOT+MATCH)
@@ -434,11 +436,11 @@ func parseFlowTCPFlagMatches(s string) []FlowMatch {
 			}
 
 			fp = strings.ToLower(fp)
-			f, ok := tcpFlagNameToValue[fp]
+			f, ok := flowspec.TCPFlagNameToValue[fp]
 			if !ok {
 				return nil
 			}
-			result = append(result, FlowMatch{Op: op, And: isAnd, Value: uint64(f)})
+			result = append(result, flowspec.FlowMatch{Op: op, And: isAnd, Value: uint64(f)})
 		}
 	}
 	return result
@@ -463,8 +465,8 @@ func parseFlowLabels(s string) []uint32 {
 // --- Slice helpers for map[string][]string NLRI format ---
 
 // parseFlowProtocolMatchesSlice parses protocol values from a pre-split slice.
-func parseFlowProtocolMatchesSlice(vals []string) []FlowMatch {
-	result := make([]FlowMatch, 0, len(vals))
+func parseFlowProtocolMatchesSlice(vals []string) []flowspec.FlowMatch {
+	result := make([]flowspec.FlowMatch, 0, len(vals))
 	for _, v := range vals {
 		matches := parseFlowProtocolMatches(v)
 		if len(matches) == 0 {
@@ -476,8 +478,8 @@ func parseFlowProtocolMatchesSlice(vals []string) []FlowMatch {
 }
 
 // parseFlowMatchesSlice parses numeric match expressions from a pre-split slice.
-func parseFlowMatchesSlice(vals []string) []FlowMatch {
-	result := make([]FlowMatch, 0, len(vals))
+func parseFlowMatchesSlice(vals []string) []flowspec.FlowMatch {
+	result := make([]flowspec.FlowMatch, 0, len(vals))
 	for _, v := range vals {
 		matches := parseFlowMatches(v)
 		if len(matches) == 0 {
@@ -515,8 +517,8 @@ func parseFlowLabelsSlice(vals []string) []uint32 {
 }
 
 // parseFlowFragmentSlice parses fragment flags from a pre-split slice.
-func parseFlowFragmentSlice(vals []string) []FlowFragmentFlag {
-	result := make([]FlowFragmentFlag, 0, len(vals))
+func parseFlowFragmentSlice(vals []string) []flowspec.FlowFragmentFlag {
+	result := make([]flowspec.FlowFragmentFlag, 0, len(vals))
 	for _, v := range vals {
 		flags := parseFlowFragment(v)
 		if len(flags) == 0 {
@@ -528,8 +530,8 @@ func parseFlowFragmentSlice(vals []string) []FlowFragmentFlag {
 }
 
 // parseFlowTCPFlagMatchesSlice parses TCP flag matches from a pre-split slice.
-func parseFlowTCPFlagMatchesSlice(vals []string) []FlowMatch {
-	result := make([]FlowMatch, 0, len(vals))
+func parseFlowTCPFlagMatchesSlice(vals []string) []flowspec.FlowMatch {
+	result := make([]flowspec.FlowMatch, 0, len(vals))
 	for _, v := range vals {
 		matches := parseFlowTCPFlagMatches(v)
 		if len(matches) == 0 {

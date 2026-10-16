@@ -10,7 +10,19 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
+)
+
+// Family registrations for FlowSpec. The wire codec in
+// internal/core/bgp/nlri/flowspec builds the same families from the
+// internal/core/family constants and registers nothing.
+var (
+	IPv4FlowSpec    = family.MustRegister(flowspec.AFIIPv4, flowspec.SAFIFlowSpec, "ipv4", "flow")
+	IPv6FlowSpec    = family.MustRegister(flowspec.AFIIPv6, flowspec.SAFIFlowSpec, "ipv6", "flow")
+	IPv4FlowSpecVPN = family.MustRegister(flowspec.AFIIPv4, flowspec.SAFIFlowSpecVPN, "ipv4", "flow-vpn")
+	IPv6FlowSpecVPN = family.MustRegister(flowspec.AFIIPv6, flowspec.SAFIFlowSpecVPN, "ipv6", "flow-vpn")
 )
 
 func init() {

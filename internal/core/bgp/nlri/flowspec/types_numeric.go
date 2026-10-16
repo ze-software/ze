@@ -161,13 +161,13 @@ func bitmaskToString(flags uint8, names map[uint8]string) string {
 // tcpFlagsToString converts TCP flags byte to named flags.
 // RFC 8955 Section 4.2.2.9: TCP flags are in order FIN, SYN, RST, PSH, ACK, URG, ECE, CWR.
 func tcpFlagsToString(flags uint8) string {
-	return bitmaskToString(flags, tcpFlagValueToNames)
+	return bitmaskToString(flags, TCPFlagValueToNames)
 }
 
 // fragmentFlagsToString converts fragment flags to named flags.
 // RFC 8955 Section 4.2.2.12: Fragment bitmask operand.
 func fragmentFlagsToString(flags FlowFragmentFlag) string {
-	return bitmaskToString(uint8(flags), fragmentFlagValueToNames)
+	return bitmaskToString(uint8(flags), FragmentFlagValueToNames)
 }
 
 // Len returns the wire-format length in bytes.
@@ -348,9 +348,9 @@ func parseNumericComponent(t FlowComponentType, data []byte, afi AFI) (FlowCompo
 // Component constructors
 // ============================================================================
 
-// newFlowNumericComponent creates a numeric component with explicit matches.
+// NewFlowNumericComponent creates a numeric component with explicit matches.
 // This is the general constructor for any numeric component type (3-12).
-func newFlowNumericComponent(compType FlowComponentType, matches []FlowMatch) FlowComponent {
+func NewFlowNumericComponent(compType FlowComponentType, matches []FlowMatch) FlowComponent {
 	return &numericComponent{compType: compType, matches: matches}
 }
 
@@ -421,11 +421,11 @@ func NewFlowICMPTypeComponent(types ...uint8) FlowComponent {
 	return &numericComponent{compType: FlowICMPType, matches: matches}
 }
 
-// newFlowICMPCodeComponent creates an ICMP code component (Type 8).
+// NewFlowICMPCodeComponent creates an ICMP code component (Type 8).
 // RFC 8955 Section 4.2.2.8: Matches the code field of an ICMP packet.
 // Values SHOULD be encoded as single octet (len=00).
 // Only ICMP packets (IP protocol=1) can match when this component is present.
-func newFlowICMPCodeComponent(codes ...uint8) FlowComponent {
+func NewFlowICMPCodeComponent(codes ...uint8) FlowComponent {
 	matches := make([]FlowMatch, len(codes))
 	for i, c := range codes {
 		matches[i] = FlowMatch{Op: FlowOpEqual, Value: uint64(c)}
@@ -433,39 +433,10 @@ func newFlowICMPCodeComponent(codes ...uint8) FlowComponent {
 	return &numericComponent{compType: FlowICMPCode, matches: matches}
 }
 
-// NewFlowTCPFlagsComponent creates a TCP flags component (Type 9).
-// RFC 8955 Section 4.2.2.9: Uses bitmask_op operator (not numeric_op).
-// Values MUST be encoded as 1- or 2-octet bitmask (len=00 or len=01).
-// Only TCP packets (IP protocol=6) can match when this component is present.
-func NewFlowTCPFlagsComponent(flags ...uint8) FlowComponent {
-	matches := make([]FlowMatch, len(flags))
-	for i, f := range flags {
-		matches[i] = FlowMatch{Op: 0, Value: uint64(f)} // bitmask_op, not numeric_op
-	}
-	return &numericComponent{compType: FlowTCPFlags, matches: matches}
-}
-
-// newFlowTCPFlagsMatchComponent creates a TCP flags component with explicit matches.
+// NewFlowTCPFlagsMatchComponent creates a TCP flags component with explicit matches.
 // Allows specifying bitmask operator bits (NOT, Match) per RFC 8955 Section 4.2.1.2.
-func newFlowTCPFlagsMatchComponent(matchList []FlowMatch) FlowComponent {
+func NewFlowTCPFlagsMatchComponent(matchList []FlowMatch) FlowComponent {
 	return &numericComponent{compType: FlowTCPFlags, matches: matchList}
-}
-
-// NewFlowPacketLengthComponent creates a packet length component (Type 10).
-// RFC 8955 Section 4.2.2.10: Matches total IP packet length (excluding L2).
-// Values SHOULD be encoded as 1- or 2-octet quantities.
-func NewFlowPacketLengthComponent(lengths ...uint16) FlowComponent {
-	matches := make([]FlowMatch, len(lengths))
-	for i, l := range lengths {
-		matches[i] = FlowMatch{Op: FlowOpEqual, Value: uint64(l)}
-	}
-	return &numericComponent{compType: FlowPacketLength, matches: matches}
-}
-
-// NewFlowPacketLengthMatchComponent creates a packet length component with explicit matches.
-// Allows specifying range matches (e.g., >=100 AND <=200).
-func NewFlowPacketLengthMatchComponent(matchList []FlowMatch) FlowComponent {
-	return &numericComponent{compType: FlowPacketLength, matches: matchList}
 }
 
 // NewFlowDSCPComponent creates a DSCP component (Type 11).
@@ -492,9 +463,9 @@ func NewFlowFragmentComponent(flags ...FlowFragmentFlag) FlowComponent {
 	return &numericComponent{compType: FlowFragment, matches: matches}
 }
 
-// newFlowFragmentMatchComponent creates a fragment component with explicit matches.
+// NewFlowFragmentMatchComponent creates a fragment component with explicit matches.
 // Allows specifying bitmask operator bits (NOT, Match) per RFC 8955 Section 4.2.1.2.
-func newFlowFragmentMatchComponent(matchList []FlowMatch) FlowComponent {
+func NewFlowFragmentMatchComponent(matchList []FlowMatch) FlowComponent {
 	return &numericComponent{compType: FlowFragment, matches: matchList}
 }
 

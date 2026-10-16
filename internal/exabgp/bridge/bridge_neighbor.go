@@ -64,7 +64,7 @@ var (
 //
 // It is refused by name so that a reader of the refusal opens the event encoder
 // rather than the translator. ze has no text event encoder at all today:
-// bridge_event.go declares ZebgpToExabgpJSON and nothing else, and no code in
+// bridge_event.go declares zebgpToExabgpJSON and nothing else, and no code in
 // the bridge reads the `encoder text` setting a script's config can carry.
 var errNeighborReceive = errors.New("`receive` names an event ze sends up to the script, not a command a script sends down")
 
@@ -72,7 +72,7 @@ var errNeighborReceive = errors.New("`receive` names an event ze sends up to the
 // NOTIFICATION field cannot carry.
 var errTeardownSubcode = errors.New("teardown takes one BGP cease subcode, 0 to 255")
 
-// ConvertNeighborControl translates the ExaBGP neighbor lifecycle commands
+// convertNeighborControl translates the ExaBGP neighbor lifecycle commands
 // that are not routes. It reports false when the line is not one of them.
 //
 //	neighbor <ip> teardown <subcode>  -> request peer <ip> teardown <subcode>
@@ -95,7 +95,7 @@ var errTeardownSubcode = errors.New("teardown takes one BGP cease subcode, 0 to 
 // `neighbor`, so both ignore the selector they arrive with: the line begins
 // with the verb rather than with `neighbor`, so splitNeighborSelector had
 // nothing to read and answered the wildcard.
-func ConvertNeighborControl(selector, rest string) (Translation, bool, error) {
+func convertNeighborControl(selector, rest string) (Translation, bool, error) {
 	fields := strings.Fields(rest)
 	if len(fields) == 0 {
 		return Translation{}, false, nil

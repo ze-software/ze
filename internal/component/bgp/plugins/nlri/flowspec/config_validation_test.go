@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 )
 
 // A partly readable expression cannot be installed as the readable subset:
@@ -14,18 +15,18 @@ func TestConfigFlowSpecRejectsPartialCriteria(t *testing.T) {
 		name, key string
 		values    []string
 	}{
-		{"port-and", kwDestPort, []string{">80&<oops"}},
-		{"port-list", kwPort, []string{"80", "oops"}},
-		{"protocol-list", kwProtocol, []string{"tcp", "unknown"}},
-		{"dscp-list", kwDSCP, []string{"46", "unknown"}},
-		{"icmp-type-list", kwICMPType, []string{"echo-request", "unknown"}},
-		{"icmp-code-list", kwICMPCode, []string{"port-unreachable", "unknown"}},
-		{"tcp-flags-and", kwTCPFlags, []string{"syn&unknown"}},
-		{"fragment-list", kwFragment, []string{"first-fragment", "unknown"}},
-		{"multiple-prefixes", kwDestinationIPv4, []string{"10.0.0.0/8", "192.0.2.0/24"}},
+		{"port-and", flowspec.KwDestPort, []string{">80&<oops"}},
+		{"port-list", flowspec.KwPort, []string{"80", "oops"}},
+		{"protocol-list", flowspec.KwProtocol, []string{"tcp", "unknown"}},
+		{"dscp-list", flowspec.KwDSCP, []string{"46", "unknown"}},
+		{"icmp-type-list", flowspec.KwICMPType, []string{"echo-request", "unknown"}},
+		{"icmp-code-list", flowspec.KwICMPCode, []string{"port-unreachable", "unknown"}},
+		{"tcp-flags-and", flowspec.KwTCPFlags, []string{"syn&unknown"}},
+		{"fragment-list", flowspec.KwFragment, []string{"first-fragment", "unknown"}},
+		{"multiple-prefixes", flowspec.KwDestinationIPv4, []string{"10.0.0.0/8", "192.0.2.0/24"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			content := []string{kwSourceIPv4, "192.0.2.0/24", tc.key, "["}
+			content := []string{flowspec.KwSourceIPv4, "192.0.2.0/24", tc.key, "["}
 			content = append(content, tc.values...)
 			content = append(content, "]")
 			if _, err := parseConfigRoute(registry.ConfigRouteRequest{Content: content}); err == nil {
@@ -35,7 +36,7 @@ func TestConfigFlowSpecRejectsPartialCriteria(t *testing.T) {
 	}
 	_, err := parseConfigRoute(registry.ConfigRouteRequest{
 		IsIPv6:  true,
-		Content: []string{kwSourceIPv6, "2001:db8::/32", kwFlowLabel, "[", "100", "bad", "]"},
+		Content: []string{flowspec.KwSourceIPv6, "2001:db8::/32", flowspec.KwFlowLabel, "[", "100", "bad", "]"},
 	})
 	if err == nil {
 		t.Fatal("partial IPv6 flow label accepted")
@@ -44,10 +45,10 @@ func TestConfigFlowSpecRejectsPartialCriteria(t *testing.T) {
 
 func TestConfigFlowSpecRejectsMissingCriteriaValues(t *testing.T) {
 	for _, suffix := range [][]string{
-		{kwDestPort},
-		{kwDestPort, "[", "]"},
+		{flowspec.KwDestPort},
+		{flowspec.KwDestPort, "[", "]"},
 	} {
-		content := append([]string{kwDestinationIPv4, "192.0.2.0/24"}, suffix...)
+		content := append([]string{flowspec.KwDestinationIPv4, "192.0.2.0/24"}, suffix...)
 		if _, err := parseConfigRoute(registry.ConfigRouteRequest{Content: content}); err == nil {
 			t.Fatalf("missing criterion values widened the route: %v", content)
 		}
@@ -58,15 +59,15 @@ func TestConfigFlowSpecRejectsMissingCriteriaValues(t *testing.T) {
 // rejected before encoding, never decoded later as unrelated component bytes.
 func TestFlowSpecRejectsPrefixFamilyMismatch(t *testing.T) {
 	for _, tc := range []struct {
-		family Family
+		family flowspec.Family
 		prefix netip.Prefix
 	}{
 		{IPv4FlowSpec, netip.MustParsePrefix("2001:db8::/32")},
 		{IPv6FlowSpec, netip.MustParsePrefix("192.0.2.0/24")},
 		{IPv4FlowSpec, netip.Prefix{}},
 	} {
-		fs := NewFlowSpec(tc.family)
-		if err := fs.AddComponent(NewFlowDestPrefixComponent(tc.prefix)); err == nil {
+		fs := flowspec.NewFlowSpec(tc.family)
+		if err := fs.AddComponent(flowspec.NewFlowDestPrefixComponent(tc.prefix)); err == nil {
 			t.Fatalf("accepted prefix %s in %s", tc.prefix, tc.family)
 		}
 		if len(fs.Components()) != 0 {
@@ -76,14 +77,14 @@ func TestFlowSpecRejectsPrefixFamilyMismatch(t *testing.T) {
 }
 
 func TestIPv4FlowSpecRejectsIPv6FlowLabel(t *testing.T) {
-	fs := NewFlowSpec(IPv4FlowSpec)
-	if err := fs.AddComponent(NewFlowFlowLabelComponent(1)); err == nil {
+	fs := flowspec.NewFlowSpec(IPv4FlowSpec)
+	if err := fs.AddComponent(flowspec.NewFlowFlowLabelComponent(1)); err == nil {
 		t.Fatal("IPv6-only flow label accepted in IPv4 builder")
 	}
-	if _, err := ParseFlowSpec(IPv4FlowSpec, []byte{3, 13, 0x81, 1}); err == nil {
+	if _, err := flowspec.ParseFlowSpec(IPv4FlowSpec, []byte{3, 13, 0x81, 1}); err == nil {
 		t.Fatal("IPv6-only flow label accepted from IPv4 wire")
 	}
-	if _, err := ParseFlowSpec(IPv6FlowSpec, []byte{3, 13, 0x81, 1}); err != nil {
+	if _, err := flowspec.ParseFlowSpec(IPv6FlowSpec, []byte{3, 13, 0x81, 1}); err != nil {
 		t.Fatalf("valid IPv6 flow label refused: %v", err)
 	}
 }

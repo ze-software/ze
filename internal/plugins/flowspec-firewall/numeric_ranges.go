@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
 	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 )
 
 // numericPortRanges lowers OR-of-AND comparisons to disjoint port intervals.

@@ -21,7 +21,7 @@ func TestRFC5575PrecedenceIndependentOfArrival(t *testing.T) {
 		for _, order := range [][2]int{{0, 1}, {1, 0}} {
 			var received []*FlowSpec
 			for _, index := range order {
-				rule, err := ParseFlowSpec(IPv4FlowSpec, bytes.Clone(pair[index]))
+				rule, err := ParseFlowSpec(ipv4FlowSpec, bytes.Clone(pair[index]))
 				if err != nil {
 					t.Fatal(err)
 				}

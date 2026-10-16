@@ -198,10 +198,10 @@ func eventKindByKey(payload map[string]any) string {
 	return ""
 }
 
-// ZebgpToExabgpJSON reads one ze JSON event and renders it as ExaBGP JSON. It
+// zebgpToExabgpJSON reads one ze JSON event and renders it as ExaBGP JSON. It
 // is the two steps in one call, for a caller that renders a single event in a
 // single format.
-func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
+func zebgpToExabgpJSON(zebgp map[string]any) map[string]any {
 	return ReadEvent(zebgp).ExabgpJSON()
 }
 
@@ -752,7 +752,7 @@ var flowICMPTypeNames = map[string]string{
 //
 // A bitmask flag used to lose a `=` here, because ze wrote one for every
 // operator including RFC 8955 Section 4.2.1.2's bare "any bit set". That is
-// fixed at the decoder now (formatBitmaskValue, plugins/nlri/flowspec), so the
+// fixed at the decoder now (formatBitmaskValue, core/bgp/nlri/flowspec), so the
 // `=` that arrives is the one the peer really sent and stripping it would lose
 // the distinction a second time.
 func flowValueText(key string, value any) any {

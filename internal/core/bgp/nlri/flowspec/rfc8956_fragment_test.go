@@ -10,9 +10,9 @@ import (
 // RFC requirement: RFC8956-3.6-1 positive -- the enclosing IPv6 FlowSpec and VPN producers emit exactly one octet for each fragment operand, even when the supplied value contains high reserved bits.
 // RFC requirement: RFC8956-3.6-1 negative -- a received two-octet fragment operand is malformed rather than accepted as a wider numeric component.
 func TestRFC8956FragmentSingleOctet(t *testing.T) {
-	for _, fam := range []Family{IPv6FlowSpec, IPv6FlowSpecVPN} {
+	for _, fam := range []Family{ipv6FlowSpec, ipv6FlowSpecVPN} {
 		t.Run(fam.String(), func(t *testing.T) {
-			component := newFlowFragmentMatchComponent([]FlowMatch{{Op: FlowOpMatch, Value: ^uint64(0)}})
+			component := NewFlowFragmentMatchComponent([]FlowMatch{{Op: FlowOpMatch, Value: ^uint64(0)}})
 			want := []byte{3, 12, 0x81, 0x0e}
 			malformed := []byte{4, 12, 0x91, 0, 0x0e}
 			if fam.SAFI == SAFIFlowSpecVPN {
@@ -46,7 +46,7 @@ func TestRFC8956FragmentSingleOctet(t *testing.T) {
 // RFC requirement: RFC8956-3.6-2 negative -- IPv4's Don't Fragment bit is reserved in IPv6 and cannot leak into IPv6 output; sharing the component does not remove it from IPv4 output.
 func TestRFC8956FragmentEncodingRespectsEnclosingFamily(t *testing.T) {
 	component := NewFlowFragmentComponent(FlowFragDontFragment|FlowFragIsFragment, FlowFragFirstFragment, FlowFragLastFragment)
-	for _, fam := range []Family{IPv6FlowSpec, IPv4FlowSpec, IPv6FlowSpecVPN, IPv4FlowSpecVPN} {
+	for _, fam := range []Family{ipv6FlowSpec, ipv4FlowSpec, ipv6FlowSpecVPN, ipv4FlowSpecVPN} {
 		t.Run(fam.String(), func(t *testing.T) {
 			want := []byte{7, 12, 0, 2, 0, 4, 0x80, 8}
 			if fam.AFI == AFIIPv4 {
@@ -69,7 +69,7 @@ func TestRFC8956FragmentEncodingRespectsEnclosingFamily(t *testing.T) {
 // RFC requirement: RFC8956-3.6-3 positive -- reserved operand bits are accepted and ignored while IPv6 IsF, FF and LF decode to their semantic flags.
 // RFC requirement: RFC8956-3.6-3 negative -- reserved bits, including IPv4's DF bit, cannot appear in the decoded IPv6 match or its re-encoded NLRI.
 func TestRFC8956FragmentDecodeIgnoresReservedBits(t *testing.T) {
-	for _, fam := range []Family{IPv6FlowSpec, IPv6FlowSpecVPN} {
+	for _, fam := range []Family{ipv6FlowSpec, ipv6FlowSpecVPN} {
 		t.Run(fam.String(), func(t *testing.T) {
 			// Three OR terms each carry one meaningful flag and every reserved
 			// bit. The last term is reserved bits only and must decode to zero.

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
 	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 )
 
 const tableName = "ze_flowspec"

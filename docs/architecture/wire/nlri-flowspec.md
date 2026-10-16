@@ -2,9 +2,13 @@
 
 **Source:** ExaBGP `bgp/message/update/nlri/flow.py`
 **Family:** AFI 1/2, SAFI 133 (flow_ip) or 134 (flow_vpn)
+**Code:** the wire codec (component types, parsing, encoding, precedence, JSON) is
+`internal/core/bgp/nlri/flowspec`, which registers nothing; the plugin
+`internal/component/bgp/plugins/nlri/flowspec` registers the four families and owns
+config and text parsing. The RIB and the FlowSpec firewall read the core codec.
 
 <!-- source: internal/core/family/family.go -- SAFIFlowSpec, SAFIFlowSpecVPN -->
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- IPv4FlowSpec, IPv6FlowSpec, IPv4FlowSpecVPN, IPv6FlowSpecVPN -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/register.go -- IPv4FlowSpec, IPv6FlowSpec, IPv4FlowSpecVPN, IPv6FlowSpecVPN -->
 
 ---
 
@@ -20,8 +24,8 @@
 +---------------------------+
 ```
 
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowSpec struct -->
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/types_vpn.go -- FlowSpecVPN struct -->
+<!-- source: internal/core/bgp/nlri/flowspec/types.go -- FlowSpec struct -->
+<!-- source: internal/core/bgp/nlri/flowspec/types_vpn.go -- FlowSpecVPN struct -->
 
 ---
 
@@ -75,7 +79,7 @@ else:
 | 9 | TCP Flags | Both |
 | 12 | Fragment | Both |
 
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowComponentType constants -->
+<!-- source: internal/core/bgp/nlri/flowspec/types.go -- FlowComponentType constants -->
 
 ---
 
@@ -123,10 +127,10 @@ Empty lists and criteria with no value are rejected before component
 construction, so a valid prefix cannot conceal a missing constraint.
 
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/config_builder.go -- buildFlowSpecComponents -->
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- AddComponent and parseFlowComponent -->
+<!-- source: internal/core/bgp/nlri/flowspec/types.go -- AddComponent and parseFlowComponent -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/config.go -- flowSpecCriteriaFromContent -->
 
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/types_prefix.go -- prefix component encoding -->
+<!-- source: internal/core/bgp/nlri/flowspec/types_prefix.go -- prefix component encoding -->
 
 ---
 
@@ -170,7 +174,7 @@ Common to all non-prefix components:
 | 10 | not (none set) |
 | 11 | diff (at least one selected bit clear) |
 
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowOperator type and flags -->
+<!-- source: internal/core/bgp/nlri/flowspec/types.go -- FlowOperator type and flags -->
 
 Decoding ignores the reserved operator bits and the first operator's AND bit.
 Numeric operands retain all eight octets when their length code is 3. TCP flag
@@ -181,7 +185,7 @@ selects the reserved-bit mask: IPv4 permits `0x0f`, while IPv6 permits `0x0e`
 on reception and clears them on transmission. Components can be shared between
 families without changing their semantic flags.
 An operator list without an end-of-list bit is malformed.
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/types_numeric.go -- numericComponent, parseNumericComponent -->
+<!-- source: internal/core/bgp/nlri/flowspec/types_numeric.go -- numericComponent, parseNumericComponent -->
 
 RFC 8955 recommends one or two octets for destination port (type 5), source port
 (type 6) and packet length (type 10), and one octet for ICMP code (type 8).
@@ -206,7 +210,8 @@ packet-length criteria; the registered text NLRI and config entries do.
 The forwarding test's authorization lookup is a fixture, not proof of RIB
 validation.
 
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go -- TestFlowSpecPreferredNumericEmission, TestFlowSpecPreferredNumericWideReception -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go -- TestFlowSpecPreferredNumericEmission -->
+<!-- source: internal/core/bgp/nlri/flowspec/numeric_wide_reception_test.go -- TestFlowSpecPreferredNumericWideReception -->
 <!-- source: internal/component/bgp/reactor/rfc8955_width_wire_test.go -- TestFlowSpecPreferredNumericForwarding -->
 
 ---
@@ -355,7 +360,7 @@ This means: match RST **OR** match (FIN **and** PUSH together).
 
 Available: `dont-fragment`, `is-fragment`, `first-fragment`, `last-fragment`.
 
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowFragment, FlowTCPFlags constants -->
+<!-- source: internal/core/bgp/nlri/flowspec/types.go -- FlowFragment, FlowTCPFlags constants -->
 
 ### Numeric Range Example
 
@@ -402,7 +407,7 @@ malformed, and Section 10 sends the error to RFC 7606 handling.
 Ze holds both rules in the FlowSpec model rather than at the wire boundary, so a
 FlowSpec cannot carry two components of one type.
 
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- AddComponent, parseComponents, writeComponentsSorted -->
+<!-- source: internal/core/bgp/nlri/flowspec/types.go -- AddComponent, parseComponents, writeComponentsSorted -->
 
 | Direction | Producer | Behavior |
 |-----------|----------|----------|
@@ -430,7 +435,7 @@ session.
 
 ### Packet-filter precedence
 
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/compare.go -- Compare -->
+<!-- source: internal/core/bgp/nlri/flowspec/compare.go -- Compare -->
 <!-- source: internal/plugins/flowspec-firewall/state.go -- ruleMap.buildTable -->
 
 The firewall orders complete FlowSpec rules with the RFC 8955 Section 5.1

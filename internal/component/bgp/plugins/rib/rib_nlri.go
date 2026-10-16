@@ -28,7 +28,7 @@ var (
 // inverse of formatFamily below. A hardcoded AFI and SAFI switch stood here and
 // duplicated the registry's table. It had drifted in both directions: it
 // spelled the FlowSpec SAFI "flowspec" where the registrar
-// (internal/component/bgp/plugins/nlri/flowspec/types.go) names it "flow", so
+// (internal/component/bgp/plugins/nlri/flowspec/register.go) names it "flow", so
 // the name an operator types was refused and a name no family carries was
 // accepted; and it knew none of the families a plugin registers, so MVPN, MUP,
 // SR-Policy, RTC, VPLS, BGP-LS and FlowSpec VPN were all unreachable through

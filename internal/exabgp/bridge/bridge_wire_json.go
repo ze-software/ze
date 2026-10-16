@@ -1,5 +1,5 @@
 // Design: docs/architecture/exabgp-bridge.md -- the ExaBGP JSON the bridge writes
-// Related: bridge_event.go -- ZebgpToExabgpJSON, which this feeds
+// Related: bridge_event.go -- zebgpToExabgpJSON, which this feeds
 //
 // The file carries the BGP gate because it is the one place the bridge reads an
 // UPDATE's own octets: it names internal/component/bgp/types, and that package
@@ -100,7 +100,7 @@ func WireUpdateToExabgpJSON(payload []byte, facts SessionFacts, direction rpc.Me
 		AttrsWire:  attrs,
 	}
 
-	// The ze-native document first, in the one encoding ZebgpToExabgpJSON reads.
+	// The ze-native document first, in the one encoding zebgpToExabgpJSON reads.
 	rendered := format.AppendMessage(nil, peer, message, bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatParsed,
@@ -109,7 +109,7 @@ func WireUpdateToExabgpJSON(payload []byte, facts SessionFacts, direction rpc.Me
 	if err := json.Unmarshal(rendered, &zebgp); err != nil {
 		return nil, fmt.Errorf("exabgp-bridge: the ze document does not parse: %w", err)
 	}
-	document := ZebgpToExabgpJSON(zebgp)
+	document := zebgpToExabgpJSON(zebgp)
 
 	// Two members are rebuilt from the PARSED attributes rather than from the
 	// document above, because ze's own JSON is lossy for them and the bridge

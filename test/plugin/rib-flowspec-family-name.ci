@@ -8,7 +8,7 @@
 #            family registry hold one spelling.
 # PREVENTS:  the RIB drifting back to its own family table. Until 2026-09-14 a
 #            hand-written AFI/SAFI switch spelled the SAFI "flowspec" where the
-#            registrar (internal/component/bgp/plugins/nlri/flowspec/types.go)
+#            registrar (internal/component/bgp/plugins/nlri/flowspec/register.go)
 #            composes "flow", so the name an operator typed was refused and a
 #            name no family carries was accepted. The two commands below invert
 #            under that switch, so restoring it turns both assertions red.

@@ -52,7 +52,7 @@ func TestZebgpToExabgpJSON_UpdateAnnounce(t *testing.T) {
 		},
 	}
 
-	result := ZebgpToExabgpJSON(zebgp)
+	result := zebgpToExabgpJSON(zebgp)
 
 	assert.Equal(t, Version, result["exabgp"])
 	assert.Equal(t, "update", result["type"])
@@ -105,7 +105,7 @@ func TestZebgpToExabgpJSON_RouterID(t *testing.T) {
 		},
 	}
 
-	result := ZebgpToExabgpJSON(zebgp)
+	result := zebgpToExabgpJSON(zebgp)
 	neighbor, ok := result["neighbor"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "1.2.3.4", neighbor["router-id"])
@@ -114,7 +114,7 @@ func TestZebgpToExabgpJSON_RouterID(t *testing.T) {
 	peerMap, ok := zebgp["bgp"].(map[string]any)["peer"].(map[string]any)
 	require.True(t, ok)
 	delete(peerMap, "router-id")
-	result2 := ZebgpToExabgpJSON(zebgp)
+	result2 := zebgpToExabgpJSON(zebgp)
 	neighbor2, ok := result2["neighbor"].(map[string]any)
 	require.True(t, ok)
 	_, hasRouterID := neighbor2["router-id"]
@@ -149,7 +149,7 @@ func TestZebgpToExabgpJSON_FlowSpecExtendedCommunityNormalize(t *testing.T) {
 		},
 	}
 
-	result := ZebgpToExabgpJSON(zebgp)
+	result := zebgpToExabgpJSON(zebgp)
 
 	neighbor, ok := result["neighbor"].(map[string]any)
 	require.True(t, ok)
@@ -213,7 +213,7 @@ func TestZebgpToExabgpJSON_UpdateWithdraw(t *testing.T) {
 		},
 	}
 
-	result := ZebgpToExabgpJSON(zebgp)
+	result := zebgpToExabgpJSON(zebgp)
 
 	neighbor, ok := result["neighbor"].(map[string]any)
 	require.True(t, ok)
@@ -243,7 +243,7 @@ func TestZebgpToExabgpJSON_StateUp(t *testing.T) {
 		},
 	}
 
-	result := ZebgpToExabgpJSON(zebgp)
+	result := zebgpToExabgpJSON(zebgp)
 
 	assert.Equal(t, "state", result["type"])
 	neighbor, ok := result["neighbor"].(map[string]any)
@@ -278,7 +278,7 @@ func TestZebgpToExabgpJSON_DirectionMapping(t *testing.T) {
 				},
 			}
 
-			result := ZebgpToExabgpJSON(zebgp)
+			result := zebgpToExabgpJSON(zebgp)
 			neighbor, ok := result["neighbor"].(map[string]any)
 			require.True(t, ok)
 			assert.Equal(t, tt.want, neighbor["direction"])
@@ -592,7 +592,7 @@ func TestRoundTrip(t *testing.T) {
 		},
 	}
 
-	exabgp := ZebgpToExabgpJSON(zebgp)
+	exabgp := zebgpToExabgpJSON(zebgp)
 	neighbor, ok := exabgp["neighbor"].(map[string]any)
 	require.True(t, ok)
 	addrMap, ok := neighbor["address"].(map[string]any)
@@ -1099,7 +1099,7 @@ func TestZebgpToExabgpJSON_Negotiated(t *testing.T) {
 		},
 	}
 
-	result := ZebgpToExabgpJSON(zebgp)
+	result := zebgpToExabgpJSON(zebgp)
 
 	// Check envelope
 	assert.Equal(t, Version, result["exabgp"])
@@ -1162,7 +1162,7 @@ func TestZebgpToExabgpJSON_NegotiatedMinimal(t *testing.T) {
 		},
 	}
 
-	result := ZebgpToExabgpJSON(zebgp)
+	result := zebgpToExabgpJSON(zebgp)
 
 	assert.Equal(t, "negotiated", result["type"])
 
@@ -1192,7 +1192,7 @@ func TestZebgpToExabgpJSON_NegotiatedMissing(t *testing.T) {
 		},
 	}
 
-	result := ZebgpToExabgpJSON(zebgp)
+	result := zebgpToExabgpJSON(zebgp)
 
 	assert.Equal(t, "negotiated", result["type"])
 
@@ -1992,7 +1992,7 @@ func TestExabgpJSONStatesBothEndsOfTheSession(t *testing.T) {
 		},
 	}
 
-	neighbor, ok := ZebgpToExabgpJSON(zebgp)["neighbor"].(map[string]any)
+	neighbor, ok := zebgpToExabgpJSON(zebgp)["neighbor"].(map[string]any)
 	require.True(t, ok, "the answer carries no neighbor object")
 
 	address, ok := neighbor["address"].(map[string]any)
@@ -2037,7 +2037,7 @@ func TestExabgpJSONSpellsSAFI4TheWayExaBGPDoes(t *testing.T) {
 		},
 	}
 
-	neighbor, ok := ZebgpToExabgpJSON(zebgp)["neighbor"].(map[string]any)
+	neighbor, ok := zebgpToExabgpJSON(zebgp)["neighbor"].(map[string]any)
 	require.True(t, ok, "the answer carries no neighbor object")
 	message, ok := neighbor["message"].(map[string]any)
 	require.True(t, ok, "the neighbor carries no message: an update with NLRI must state one")

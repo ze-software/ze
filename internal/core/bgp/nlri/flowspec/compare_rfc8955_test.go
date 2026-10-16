@@ -28,9 +28,9 @@ func TestFlowSpecPrecedenceFromWire(t *testing.T) {
 	}
 	for _, pair := range pairs {
 		t.Run(pair.name, func(t *testing.T) {
-			a, err := ParseFlowSpec(IPv4FlowSpec, pair.first)
+			a, err := ParseFlowSpec(ipv4FlowSpec, pair.first)
 			require.NoError(t, err)
-			b, err := ParseFlowSpec(IPv4FlowSpec, pair.second)
+			b, err := ParseFlowSpec(ipv4FlowSpec, pair.second)
 			require.NoError(t, err)
 			require.Negative(t, Compare(a, b))
 			require.Positive(t, Compare(b, a))
@@ -44,13 +44,13 @@ func TestFlowSpecPrecedenceFromWire(t *testing.T) {
 func TestFlowSpecNumericReservedAndEightOctetOperand(t *testing.T) {
 	// The high octet distinguishes the operand from a truncated uint32.
 	wire := []byte{10, 5, 0xf9, 1, 0, 0, 0, 0, 0, 0, 7}
-	fs, err := ParseFlowSpec(IPv4FlowSpec, wire)
+	fs, err := ParseFlowSpec(ipv4FlowSpec, wire)
 	require.NoError(t, err)
 	numeric, ok := fs.Components()[0].(*numericComponent)
 	require.True(t, ok, "component is %T", fs.Components()[0])
 	matches := numeric.Matches()
 	require.Equal(t, []FlowMatch{{Op: FlowOpEqual, Value: 1<<56 | 7}}, matches)
 	require.Equal(t, []byte{10, 5, 0xb1, 1, 0, 0, 0, 0, 0, 0, 7}, fs.Bytes())
-	_, err = ParseFlowSpec(IPv4FlowSpec, []byte{3, 5, 0x01, 80})
+	_, err = ParseFlowSpec(ipv4FlowSpec, []byte{3, 5, 0x01, 80})
 	require.Error(t, err, "missing EOL cannot consume a following component as another operand")
 }
