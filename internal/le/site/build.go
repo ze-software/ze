@@ -463,7 +463,7 @@ func refreshNativeSurfaces(paths Paths) (err error) {
 }
 
 // liveCommandCatalog answers the command catalog a build publishes, read from
-// the daemon the build compiled (buildDaemon), run in the checkout. It is a
+// the daemon the build compiled (liveDaemon), run in the checkout. It is a
 // variable so a test can state a catalog rather than run a daemon.
 var liveCommandCatalog = docyangcontract.CommandCatalog
 

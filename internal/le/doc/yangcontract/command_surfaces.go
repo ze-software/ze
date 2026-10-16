@@ -170,7 +170,17 @@ type publishedCommand struct {
 	Subcommands  []string                `json:"subcommands,omitempty"`
 }
 
-const commandCatalogGenerationTimeout = 2 * time.Minute
+// commandCatalogGenerationTimeout bounds one run of the compiled daemon's
+// `ze help command --json`, which compiles nothing. It is a variable so a test
+// can prove the bound covers the command and not the compile before it.
+var commandCatalogGenerationTimeout = 2 * time.Minute
+
+// daemonBuildTimeout bounds the one compile of cmd/ze that BuildDaemon performs.
+const daemonBuildTimeout = 5 * time.Minute
+
+// catalogDaemon compiles the daemon the drift check reads the live catalog
+// from. It is a variable so a test can state the daemon rather than compile it.
+var catalogDaemon = BuildDaemon
 
 func (c *checker) checkPublishedCommandSurfaces(commandCatalogPath string) []Issue {
 	root := c.root
@@ -393,7 +403,15 @@ func commandSurfaceReadIssue(surface string, err error) Issue {
 // gated command reaches the documentation.
 const shippedCommandCatalogBase = "ze_core"
 
-func loadLiveCommandCatalog(root, commandCatalogPath string) ([]byte, []publishedCommand, error) {
+// loadLiveCommandCatalog answers the catalog read from the fixture named, or,
+// when none is named, from a daemon it compiles from the checkout at root into
+// a temporary directory it removes afterwards.
+//
+// It compiles first and runs second, each under its own bound. It used to `go
+// run` the daemon under the command's two minutes, and a compile on a loaded
+// host (`./le verify worktree` runs this beside every other stage) outlasted
+// them: "generate `ze help command --json`: signal: killed".
+func loadLiveCommandCatalog(root, commandCatalogPath string) (raw []byte, commands []publishedCommand, err error) {
 	if commandCatalogPath != "" {
 		data, err := os.ReadFile(commandCatalogPath) //nolint:gosec // caller-selected fixture or repository artifact
 		if err != nil {
@@ -403,25 +421,56 @@ func loadLiveCommandCatalog(root, commandCatalogPath string) ([]byte, []publishe
 		return data, commands, err
 	}
 
-	tags, err := repofeaturetags.DaemonBuildTags(root, shippedCommandCatalogBase)
+	daemonDir, err := os.MkdirTemp("", "ze-catalog-daemon-*")
+	if err != nil {
+		return nil, nil, fmt.Errorf("daemon build directory: %w", err)
+	}
+	defer func() { err = errors.Join(err, os.RemoveAll(daemonDir)) }()
+
+	binary, err := catalogDaemon(root, daemonDir)
 	if err != nil {
 		return nil, nil, err
 	}
-	return runCommandCatalog(root, "go", "run", "-tags", tags, "./cmd/ze")
+	return runCommandCatalog(root, binary)
 }
 
-// runCommandCatalog runs `ze help command --json` through the program and
-// leading arguments named, in dir, and answers the catalog it printed with the
-// catalog parsed. The bound covers everything the program does: for `go run`
-// that includes compiling the daemon.
-func runCommandCatalog(dir, program string, leading ...string) ([]byte, []publishedCommand, error) {
+// BuildDaemon compiles cmd/ze from the checkout at repository into dir, with
+// ze_core and every gate feature-gates.txt declares, and answers the binary's
+// path. The compile has its own bound, so the bound on each command run
+// afterwards covers only that command.
+//
+// It is exported for the site build, which reads its command catalog and its
+// configuration tree from the one binary this compiles.
+func BuildDaemon(repository, dir string) (string, error) {
+	tags, err := repofeaturetags.DaemonBuildTags(repository, shippedCommandCatalogBase)
+	if err != nil {
+		return "", err
+	}
+	binary := filepath.Join(dir, "ze")
+
+	ctx, cancel := context.WithTimeout(context.Background(), daemonBuildTimeout)
+	defer cancel()
+	// #nosec G204 -- the argv is fixed apart from the build tags, which are read
+	// from the checkout's own feature-gates.txt, and the output path is ours.
+	command := osexec.CommandContext(ctx, "go", "build", "-tags", tags, "-o", binary, "./cmd/ze")
+	command.Dir = repository
+	var output bytes.Buffer
+	command.Stdout = &output
+	command.Stderr = &output
+	if err := command.Run(); err != nil {
+		return "", fmt.Errorf("compile ./cmd/ze: %w: %s", err, strings.TrimSpace(output.String()))
+	}
+	return binary, nil
+}
+
+// runCommandCatalog runs the daemon binary's `ze help command --json` in dir,
+// and answers the catalog it printed with the catalog parsed.
+func runCommandCatalog(dir, binary string) ([]byte, []publishedCommand, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), commandCatalogGenerationTimeout)
 	defer cancel()
-	args := slices.Concat(leading, []string{"help", "command", "--json"})
-	// #nosec G204 -- the program is `go` or a daemon the caller built, and the
-	// argv is fixed apart from the build tags, which featuretags reads from the
-	// checkout's own feature-gates.txt.
-	cmd := osexec.CommandContext(ctx, program, args...)
+	// #nosec G204 -- the binary is a daemon the caller built, and the argv is
+	// fixed.
+	cmd := osexec.CommandContext(ctx, binary, "help", "command", "--json")
 	cmd.Dir = dir
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr

@@ -256,8 +256,14 @@ temporary directory it removes afterwards. `publishCommandCatalog` asks
 `ze help command --json` gives, and writes it to
 `../gh-pages/data/cli-commands.json`. The configuration tree above is read from
 the same binary. The producers below read that file and nothing else.
+`yangcontract.BuildDaemon` performs the compile, under a 5-minute bound of its
+own, and the documentation drift check (`./le doc check verify`) compiles its
+live catalog the same way. Each run of the compiled binary has a 2-minute bound
+that covers the command alone, so a slow compile on a loaded host does not kill
+the catalog.
 <!-- source: internal/le/site/build.go -- refreshNativeSurfaces, publishCommandCatalog, liveCommandCatalog -->
-<!-- source: internal/le/site/yang.go -- buildDaemon, runYANGConfigTree -->
+<!-- source: internal/le/site/yang.go -- liveDaemon, runYANGConfigTree -->
+<!-- source: internal/le/doc/yangcontract/command_surfaces.go -- BuildDaemon, loadLiveCommandCatalog, runCommandCatalog -->
 <!-- source: internal/le/site/catalog.go -- catalogFile, loadCommandCatalog -->
 
 | Published route | Producer | What it renders |

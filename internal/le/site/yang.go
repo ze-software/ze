@@ -10,22 +10,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
-	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
+	docyangcontract "github.com/ze-software/ze/internal/le/doc/yangcontract"
 )
-
-// daemonBuildTimeout bounds the one compile of cmd/ze a build performs.
-const daemonBuildTimeout = 5 * time.Minute
 
 // schemaExtractionTimeout bounds one run of the compiled daemon's schema
 // command, which compiles nothing.
 const schemaExtractionTimeout = 2 * time.Minute
-
-// daemonCoreTag is the build tag the shipped daemon always carries, beside
-// every feature gate feature-gates.txt declares.
-const daemonCoreTag = "ze_core"
 
 type yangNode struct {
 	Name string `json:"name"`
@@ -38,7 +30,7 @@ var liveYANGConfigTree = runYANGConfigTree
 // runYANGConfigTree runs the daemon's typed schema command and answers its JSON.
 //
 // The binary is run as it stands. A build passes the daemon it compiled from
-// THIS checkout (buildDaemon), and the config-tree action passes the binary its
+// THIS checkout (liveDaemon), and the config-tree action passes the binary its
 // caller named or one it compiled the same way.
 func runYANGConfigTree(repository, binary string) ([]byte, error) {
 	info, err := os.Stat(binary)
@@ -65,42 +57,12 @@ func runYANGConfigTree(repository, binary string) ([]byte, error) {
 }
 
 // liveDaemon compiles the daemon a build reads its command catalog and its
-// configuration tree from. It is a variable so a test that states both
-// answers compiles nothing.
-var liveDaemon = buildDaemon
-
-// buildDaemon compiles cmd/ze from THIS checkout's sources into dir, with the
-// feature gates the shipped daemon carries, and answers the binary's path.
-//
-// A bin/ze somebody left behind was built at an unknown commit with unknown
-// gates and would publish a reference for a daemon nobody ships, which is the
-// staleness the site build exists to remove, so the build compiles its own.
-// It compiles ONCE: the catalog and the tree used to `go run` the daemon each,
-// under a bound that covered the compile as well as the command, and a compile
-// on a loaded host outlasted the catalog's two minutes. The compile now has its
-// own bound, the one the tree's `go run` already granted it, and each command's
-// bound covers only that command.
-func buildDaemon(repository, dir string) (string, error) {
-	tags, err := repofeaturetags.DaemonBuildTags(repository, daemonCoreTag)
-	if err != nil {
-		return "", err
-	}
-	binary := filepath.Join(dir, "ze")
-
-	ctx, cancel := context.WithTimeout(context.Background(), daemonBuildTimeout)
-	defer cancel()
-	// #nosec G204 -- the argv is fixed apart from the build tags, which are read
-	// from the checkout's own feature-gates.txt, and the output path is ours.
-	command := exec.CommandContext(ctx, "go", "build", "-tags", tags, "-o", binary, "./cmd/ze")
-	command.Dir = repository
-	var output bytes.Buffer
-	command.Stdout = &output
-	command.Stderr = &output
-	if err := command.Run(); err != nil {
-		return "", fmt.Errorf("compile ./cmd/ze: %w: %s", err, strings.TrimSpace(output.String()))
-	}
-	return binary, nil
-}
+// configuration tree from, once per build, from THIS checkout's sources with
+// the feature gates the shipped daemon carries. A bin/ze somebody left behind
+// was built at an unknown commit with unknown gates and would publish a
+// reference for a daemon nobody ships, so the build compiles its own. It is a
+// variable so a test that states both answers compiles nothing.
+var liveDaemon = docyangcontract.BuildDaemon
 
 // extractYANGConfigTree writes the top-level-name-indexed configuration tree
 // the site publishes, and answers how many roots it holds.
