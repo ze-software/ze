@@ -185,6 +185,25 @@ func loadYANGModules(pluginYANG map[string]string) (*yang.Resolved, error) {
 	return resolved, nil
 }
 
+// YANGValidator answers the plugin-free YANG value validator, built once and
+// shared by every later call, for the reason YANGSchema is: its input is
+// embedded or registered at init, and nothing changes the validator after it
+// is built.
+//
+// ValidateCustomSections rebuilt it on every call, and it runs on every config
+// load and every editor commit: each build resolves every YANG module, so a
+// commit spent its time parsing YANG, and under the race detector a one-leaf
+// editor commit outran its 30 s .et budget. A failed build is cached too, for
+// the same reason as yangSchemaOnce. Safe for concurrent use: the validator is
+// read-only once built.
+func YANGValidator() (*yang.Validator, error) {
+	return yangValidatorOnce()
+}
+
+var yangValidatorOnce = sync.OnceValues(func() (*yang.Validator, error) {
+	return YANGValidatorWithPlugins(nil)
+})
+
 // YANGValidatorWithPlugins creates a YANG value validator with all modules loaded.
 // Registers custom validators, attaches registry, and checks integrity.
 // Used for runtime attribute validation (origin enum, med/local-pref uint32 ranges).

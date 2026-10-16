@@ -154,7 +154,7 @@ func (e SectionValidationError) Message() string {
 // failures found": a validator that cannot be built must refuse the config, not
 // wave it through.
 func ValidateCustomSections(tree *Tree) ([]SectionValidationError, error) {
-	validator, err := YANGValidatorWithPlugins(nil)
+	validator, err := YANGValidator()
 	if err != nil {
 		return nil, fmt.Errorf("build YANG validator: %w", err)
 	}
