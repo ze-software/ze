@@ -16,11 +16,11 @@ var (
 )
 
 // RunBootEffects runs the BootEffect of every registered plugin once, in
-// plugin name order, with the path of the config the daemon started from.
-// The daemon start path MUST call it exactly once, after host tuning; a later
-// call runs nothing, so a config reload cannot repeat a boot effect.
-// Safe for concurrent use.
-func RunBootEffects(configPath string) {
+// plugin name order, with the config text the daemon started from and the name
+// it read that text from. The daemon start path MUST call it exactly once,
+// after host tuning; a later call runs nothing, so a config reload cannot
+// repeat a boot effect. Safe for concurrent use.
+func RunBootEffects(configName string, configData []byte) {
 	bootMu.Lock()
 	if bootEffectsRan {
 		bootMu.Unlock()
@@ -31,7 +31,7 @@ func RunBootEffects(configPath string) {
 
 	for _, reg := range All() {
 		if reg.BootEffect != nil {
-			reg.BootEffect(configPath)
+			reg.BootEffect(configName, configData)
 		}
 	}
 }

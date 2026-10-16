@@ -198,9 +198,11 @@ opens an existing store. Appliance first boot explicitly imports its seed throug
 
 After host tuning and before the smart manager starts, the hub runs the boot
 effect every registered plugin declared (`Registration.BootEffect`), once, in
-plugin name order, with the config path the daemon started from. A later call
-runs nothing, so a reload never repeats one. Crash capture uses it to harvest
-the kernel's crash records at daemon start; the hub names no plugin for it.
+plugin name order, with the config text the daemon started from and the name
+it read that text from. An effect never reads the source again, because a `-`
+source is a stdin the daemon has already consumed. A later call runs nothing,
+so a reload never repeats one. Crash capture uses it to harvest the kernel's
+crash records at daemon start; the hub names no plugin for it.
 <!-- source: cmd/ze/hub/main.go -- registry.RunBootEffects call -->
 <!-- source: internal/component/plugin/registry/boot.go -- RunBootEffects -->
 

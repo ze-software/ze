@@ -26,6 +26,12 @@ import (
 // something the operator chose.
 func Readiness(configPath string) crashlog.Readiness {
 	intent, err := system.LoadCrashDumpIntent(configPath)
+	return readinessOf(intent, err)
+}
+
+// readinessOf answers readiness for an intent, or names why the intent could
+// not be read, which is a different fact from crash capture being off.
+func readinessOf(intent crashlog.Intent, err error) crashlog.Readiness {
 	if err != nil {
 		readiness := crashlog.CrashReadiness(crashlog.Intent{})
 		readiness.Reason = err.Error()
@@ -42,8 +48,8 @@ func Readiness(configPath string) crashlog.Readiness {
 // during the fault and read here on the next healthy boot, so there is nothing
 // to re-run on a config reload: the reservation itself is a boot argument, and
 // a commit cannot change what the running kernel already reserved.
-func harvestAtDaemonStart(configPath string) {
-	readiness := HarvestAtBoot(configPath)
+func harvestAtDaemonStart(configName string, configData []byte) {
+	readiness := HarvestAtBoot(configName, configData)
 	if !readiness.DirectoryWritable {
 		slogutil.Logger(componentName).Warn("no crash directory is writable; a crash report would be lost")
 	}
@@ -56,8 +62,9 @@ func harvestAtDaemonStart(configPath string) {
 // it is the only caller that
 // writes: every other surface reads. The return is the readiness the caller
 // logs, so a box that is configured and not armed says so in its startup log as
-// well as in `show crashes`.
-func HarvestAtBoot(configPath string) crashlog.Readiness {
+// well as in `show crashes`. configData is the config text the daemon started
+// on and configName the source it read that text from, named in a parse error.
+func HarvestAtBoot(configName string, configData []byte) crashlog.Readiness {
 	log := slogutil.Logger("crashes")
 
 	result := crashlog.HarvestKernelCrashes()
@@ -68,7 +75,9 @@ func HarvestAtBoot(configPath string) crashlog.Readiness {
 		log.Warn("kernel crash records kept for the next boot", "records", result.Retained, "reason", result.Reason)
 	}
 
-	readiness := Readiness(configPath)
+	// The intent comes from the text the daemon started on, never from a
+	// second read of configName: a "-" source is a stdin already consumed.
+	readiness := readinessOf(system.ParseCrashDumpIntent(configName, configData))
 	publishReadiness(readiness)
 	if readiness.Configured && !readiness.Armed {
 		log.Warn("kernel crash capture is configured but not armed", "reason", readiness.Reason)

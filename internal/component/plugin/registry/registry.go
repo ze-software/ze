@@ -278,7 +278,12 @@ type Registration struct {
 	// the record the previous boot's kernel left. The daemon start path runs
 	// every registered effect through RunBootEffects (boot.go), so it names
 	// no plugin. Never called on a config reload. Nil = no boot effect.
-	BootEffect func(configPath string)
+	//
+	// It receives the config text the daemon already read, with the name it
+	// was read from, and MUST NOT read configName itself: a daemon started on
+	// config "-" has consumed stdin, so a second read finds nothing, or blocks
+	// for good while the supervisor holds the pipe open.
+	BootEffect func(configName string, configData []byte)
 
 	// ConfigureEventBus is called before RunEngine with the EventBus instance.
 	// The plugin stores the reference for emitting and subscribing to

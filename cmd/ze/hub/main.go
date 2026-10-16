@@ -124,6 +124,11 @@ func exitForced() {
 	os.Exit(1)
 }
 
+// stopForceExit is what the stop's signal watcher calls to force exit 1. It is
+// exitForced; a test replaces it to observe a forced exit without ending the
+// test binary. runYANGConfig reads it once, when the stop starts.
+var stopForceExit = exitForced
+
 // writeReadyFile creates the file ze.ready.file names, the test runner's signal
 // that the daemon has started and handles its signals. The runner waits for it
 // before it publishes daemon.pid, so a driver never signals a process that has
@@ -405,6 +410,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	hupCh := make(chan os.Signal, 1)
 	signal.Notify(hupCh, syscall.SIGHUP)
 	defer signal.Stop(hupCh)
+	// The stop's force-exit channel (made below, once the stop starts) is
+	// released here. Registered this early, it runs after every later defer has
+	// finished the teardown, so a signal forces exit until runYANGConfig
+	// returns, and the watcher reading the channel ends with it rather than
+	// turning a later signal to this process into exit 1.
+	var forceCh chan os.Signal
+	defer func() { releaseForceSignals(forceCh) }()
 
 	// Phase 1: Parse config and resolve plugins.
 	loadResult, err := zeconfig.LoadConfig(string(data), configPath, plugins)
@@ -1044,8 +1056,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	applyHostTuning(&sc)
 	// Boot effects a plugin registered (crash capture's kernel record harvest):
-	// once, at daemon start, never on a reload.
-	registry.RunBootEffects(configPath)
+	// once, at daemon start, never on a reload. They take the config text
+	// this boot already read: a "-" source is a stdin nobody can read twice.
+	registry.RunBootEffects(configPath, data)
 	startSmartManager(loadResult.Tree)
 	defer stopSmartManager()
 	applyConsole(&sc)
@@ -1553,9 +1566,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// mid-shutdown kill the daemon with exit 1. Notify only what an operator
 	// means as "stop waiting".
 	// Lifecycle goroutine, not a hot path.
-	forceCh := make(chan os.Signal, 1)
+	forceCh = make(chan os.Signal, 1)
 	signal.Notify(forceCh, syscall.SIGINT, syscall.SIGTERM)
-	signals := newStopSignals(exitForced)
+	signals := newStopSignals(stopForceExit)
 	go signals.run(forceCh)
 
 	close(reloadCh)

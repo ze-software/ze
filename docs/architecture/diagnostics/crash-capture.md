@@ -158,10 +158,12 @@ the fault, so no Ze defect can cost the reboot as well as the record.
 **The harvest is the crashes plugin's boot effect.** The plugin's
 registration carries it as `BootEffect`, and the daemon start path runs every
 registered boot effect once through `registry.RunBootEffects`, after host tuning
-and before the smart manager starts. The start path names no plugin, so a build
-without crash capture has no harvest, and a config reload never repeats it. The
-registration's engine is a no-op that nothing auto-loads: it declares no family,
-config root, event or data-plane need.
+and before the smart manager starts. The harvest reads the crash-dump intent
+from the config text the daemon started on, never from a second read of its
+source, which for config `-` is a stdin already consumed. The start path names
+no plugin, so a build without crash capture has no harvest, and a config reload
+never repeats it. The registration's engine is a no-op that nothing auto-loads:
+it declares no family, config root, event or data-plane need.
 <!-- source: internal/plugins/crashes/register.go -- the crashes Registration and its BootEffect -->
 <!-- source: internal/component/plugin/registry/boot.go -- RunBootEffects -->
 

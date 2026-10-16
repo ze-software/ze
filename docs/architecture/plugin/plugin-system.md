@@ -73,7 +73,7 @@ importing its package:
 |-------|------|---------|
 | `ConfigureEngineLogger` | `func(loggerName string)` | Set the logger for in-process engine mode |
 | `ConfigureMetrics` | `func(reg metrics.Registry)` | Called before `RunEngine` so the plugin registers its gauges and counters |
-| `BootEffect` | `func(configPath string)` | Work the plugin owns that runs once at daemon start, whether or not its engine ever runs. `RunBootEffects` (`registry/boot.go`) runs every registered effect in plugin name order, once, after host tuning, and never on a config reload. Crash capture uses it to harvest the kernel crash record the previous boot left |
+| `BootEffect` | `func(configName string, configData []byte)` | Work the plugin owns that runs once at daemon start, whether or not its engine ever runs. It receives the config text the daemon already read and MUST NOT read `configName` again: a `-` source is a stdin the daemon has consumed. `RunBootEffects` (`registry/boot.go`) runs every registered effect in plugin name order, once, after host tuning, and never on a config reload. Crash capture uses it to harvest the kernel crash record the previous boot left |
 | `ConfigureEventBus` | `func(eventBus ze.EventBus)` | Called before `RunEngine` with the bus the plugin emits on |
 | `ConfigurePluginServer` | `func(server PluginServerAccessor)` | Called before `RunEngine` with the plugin server, through a leaf interface |
 | `RPCHandlers` | `map[string]func(json.RawMessage) (any, error)` | RPC method name to handler, collected by the plugin server |

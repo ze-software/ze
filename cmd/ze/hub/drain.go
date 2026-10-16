@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -99,8 +100,8 @@ const (
 	stopLineTeardown = "\nShutting down (Ctrl+C again to force)..."
 )
 
-// stopSignals owns the daemon's stop signals from waitLoop's return to exit,
-// and follows the signal state table of spec-daemon-drain-before-stop: a
+// stopSignals owns the daemon's stop signals from waitLoop's return until
+// runYANGConfig returns, and follows the signal state table of spec-daemon-drain-before-stop: a
 // signal before the drain has finished skips it (during the fence) or aborts
 // it (during the drain), and the ordered teardown continues; any later signal
 // forces exit 1. "Signal" means an OS SIGINT or SIGTERM: the value
@@ -131,12 +132,24 @@ func newStopSignals(forceExit func()) *stopSignals {
 	return &stopSignals{phase: stopPhaseFence, forceExit: forceExit}
 }
 
-// run reads signals until the process exits. It is the channel's one reader,
-// and the loop has no end because the exit ends it.
+// run reads signals until releaseForceSignals closes the channel, which
+// runYANGConfig does as it returns. It is the channel's one reader.
 func (s *stopSignals) run(sigCh <-chan os.Signal) {
 	for range sigCh {
 		s.onSignal()
 	}
+}
+
+// releaseForceSignals stops delivery to the stop's force-exit channel and then
+// closes it, which ends stopSignals.run. signal.Stop guarantees no delivery
+// after it returns, so the close cannot race a send. A nil channel is a stop
+// that never started, and has nothing to release.
+func releaseForceSignals(forceCh chan os.Signal) {
+	if forceCh == nil {
+		return
+	}
+	signal.Stop(forceCh)
+	close(forceCh)
 }
 
 // onSignal applies one signal to the phase the stop is in.

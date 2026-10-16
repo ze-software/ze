@@ -261,10 +261,13 @@ hub through the daemon shutdown function.
 Once the stop has begun, `stopSignals` reads SIGINT and SIGTERM from `forceCh`
 and acts by phase: during the fence a signal skips the drain, during the drain
 it aborts the round, and after either, or once teardown has begun, it forces
-exit 1. Each phase prints the line naming what the next signal does. The full
+exit 1. Each phase prints the line naming what the next signal does. When
+`runYANGConfig` returns, after its last deferred teardown, `releaseForceSignals`
+stops delivery to `forceCh` and closes it, so the reader ends with the run and
+a signal sent to the process afterwards is not turned into exit 1. The full
 description is in `docs/architecture/hub-architecture.md` and the operator
 view in `docs/guide/operations.md`, "Stopping".
-<!-- source: cmd/ze/hub/drain.go -- stopSignals, runStopDrain -->
+<!-- source: cmd/ze/hub/drain.go -- stopSignals, runStopDrain, releaseForceSignals -->
 <!-- source: cmd/ze/hub/main.go -- run, forceCh -->
 
 ### Daemon Liveness

@@ -64,7 +64,16 @@ func LoadCrashDumpIntent(configPath string) (crashlog.Intent, error) {
 	if err != nil {
 		return crashlog.Intent{}, err
 	}
+	return ParseCrashDumpIntent(name, data)
+}
 
+// ParseCrashDumpIntent extracts the crash-capture intent from config text a
+// caller has already read, naming it name in a parse error.
+//
+// The daemon's boot harvest takes this path rather than LoadCrashDumpIntent: it
+// holds the text it started on, and its source may be "-", a stdin the daemon
+// has already consumed and cannot read again.
+func ParseCrashDumpIntent(name string, data []byte) (crashlog.Intent, error) {
 	result, parseErr := config.LoadConfig(string(data), name, nil)
 	if parseErr != nil {
 		return crashlog.Intent{}, fmt.Errorf("crash-dump intent: parse %s: %w", name, parseErr)

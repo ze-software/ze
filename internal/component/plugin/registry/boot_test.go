@@ -6,7 +6,7 @@ import (
 )
 
 // TestBootEffectsRunOnce verifies each registered plugin's BootEffect runs
-// once, with the config path, in plugin name order, that a plugin with none
+// once, with the config name and text, in plugin name order, that a plugin with none
 // is passed over, and that a second RunBootEffects (a reload) runs nothing.
 //
 // VALIDATES: AC-14's once-only daemon-start contract of RunBootEffects.
@@ -27,7 +27,7 @@ func TestBootEffectsRunOnce(t *testing.T) {
 	})
 
 	var calls []string
-	register := func(name string, effect func(string)) {
+	register := func(name string, effect func(string, []byte)) {
 		t.Helper()
 		if err := Register(Registration{
 			Name:        name,
@@ -39,14 +39,18 @@ func TestBootEffectsRunOnce(t *testing.T) {
 			t.Fatalf("Register(%q): %v", name, err)
 		}
 	}
-	register("zeta", func(configPath string) { calls = append(calls, "zeta:"+configPath) })
-	register("alpha", func(configPath string) { calls = append(calls, "alpha:"+configPath) })
+	register("zeta", func(configName string, configData []byte) {
+		calls = append(calls, "zeta:"+configName+":"+string(configData))
+	})
+	register("alpha", func(configName string, configData []byte) {
+		calls = append(calls, "alpha:"+configName+":"+string(configData))
+	})
 	register("middle", nil)
 
-	RunBootEffects("/etc/ze/ze.conf")
-	RunBootEffects("/etc/ze/other.conf")
+	RunBootEffects("/etc/ze/ze.conf", []byte("first"))
+	RunBootEffects("/etc/ze/other.conf", []byte("second"))
 
-	want := []string{"alpha:/etc/ze/ze.conf", "zeta:/etc/ze/ze.conf"}
+	want := []string{"alpha:/etc/ze/ze.conf:first", "zeta:/etc/ze/ze.conf:first"}
 	if len(calls) != len(want) {
 		t.Fatalf("calls = %v, want %v", calls, want)
 	}

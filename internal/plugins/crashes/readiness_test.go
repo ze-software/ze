@@ -12,12 +12,15 @@ package crashes
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	_ "github.com/ze-software/ze/internal/component/config/system/yang" // registers ze-system-conf.yang so a config carrying crash-dump parses
+	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/crashlog"
 )
 
@@ -132,4 +135,43 @@ func captureShowList(t *testing.T) map[string]any {
 		t.Fatalf("decode payload: %v", err)
 	}
 	return payload
+}
+
+// TestBootHarvestReadsTheConfigTheDaemonAlreadyRead verifies the boot harvest
+// takes its crash-dump intent from the config the daemon started on, without
+// reading that config's source a second time.
+//
+// A daemon started on config "-" has already read stdin. The method holds the
+// substituted stdin open, as a supervisor that never closes the pipe does, and
+// runs the harvest on a config that enables crash capture: a harvest that reads
+// "-" again blocks on the open pipe, and one that finds stdin consumed reports
+// capture as unconfigured. Either way the operator's setting is lost.
+func TestBootHarvestReadsTheConfigTheDaemonAlreadyRead(t *testing.T) {
+	restoreDir := crashlog.SetCrashDirForTest(t.TempDir())
+	t.Cleanup(restoreDir)
+
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("stdin pipe: %v", err)
+	}
+	restoreStreams := cliio.SwapStreams(reader, io.Discard)
+	t.Cleanup(restoreStreams)
+	// The writer closes before the reader, so a harvest still parked on the
+	// pipe after a failed wait sees EOF and returns rather than outliving the
+	// test.
+	t.Cleanup(func() { _ = reader.Close() })
+	t.Cleanup(func() { _ = writer.Close() })
+
+	text := "system {\n    crash-dump {\n        enabled true\n        reserve 32\n    }\n}\n"
+	harvested := make(chan crashlog.Readiness, 1)
+	go func() { harvested <- HarvestAtBoot("-", []byte(text)) }()
+
+	select {
+	case readiness := <-harvested:
+		if !readiness.Configured {
+			t.Fatalf("Configured = false, want true (reason %q)", readiness.Reason)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("boot harvest still reading config \"-\" from stdin after 10s")
+	}
 }
