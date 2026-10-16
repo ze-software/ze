@@ -249,11 +249,15 @@ the site with `./le site build`.
 
 ## Command surfaces
 
-Every published command page is generated from one file. `publishCommandCatalog`
-asks `internal/le/doc/yangcontract.LiveCommandCatalog` for the answer `ze help command
---json` gives, and writes it to `../gh-pages/data/cli-commands.json`. The
-producers below read that file and nothing else.
-<!-- source: internal/le/site/build.go -- publishCommandCatalog, liveCommandCatalog -->
+Every published command page is generated from one file. A build compiles
+`cmd/ze` once, with `ze_core` and every gate `feature-gates.txt` declares, into a
+temporary directory it removes afterwards. `publishCommandCatalog` asks
+`internal/le/doc/yangcontract.CommandCatalog` for the answer that binary's
+`ze help command --json` gives, and writes it to
+`../gh-pages/data/cli-commands.json`. The configuration tree above is read from
+the same binary. The producers below read that file and nothing else.
+<!-- source: internal/le/site/build.go -- refreshNativeSurfaces, publishCommandCatalog, liveCommandCatalog -->
+<!-- source: internal/le/site/yang.go -- buildDaemon, runYANGConfigTree -->
 <!-- source: internal/le/site/catalog.go -- catalogFile, loadCommandCatalog -->
 
 | Published route | Producer | What it renders |

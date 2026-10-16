@@ -271,26 +271,32 @@ func TestBuildStagesADeployableArtifact(t *testing.T) {
 //
 // A build refreshes four data files from the live product before any producer
 // runs: the command catalog, the plugin registry, the YANG configuration tree
-// and the facts snapshot. Each needs a real checkout -- three cost a compile of
-// cmd/ze and the fourth walks the test tree and the RFC ledger -- so a test
-// over a synthetic tree states all four together rather than one at a time: a
-// build test that stubbed one and forgot another would fail on a missing
-// feature-gates.txt rather than on what it set out to check.
+// and the facts snapshot. Each needs a real checkout -- the catalog and the
+// tree run a daemon the build compiles from cmd/ze, the registry pairs the
+// registrations with the checkout's YANG, and the facts walk the test tree and
+// the RFC ledger -- so a test over a synthetic tree states all four together
+// rather than one at a time: a build test that stubbed one and forgot another
+// would fail on a missing feature-gates.txt rather than on what it set out to
+// check.
 func stubLiveInputs(t *testing.T, catalog string) {
 	t.Helper()
+	previousDaemon := liveDaemon
 	previousCatalog := liveCommandCatalog
 	previousPlugins := livePluginRegistry
 	previousTree := liveYANGConfigTree
 	previousFacts := liveSiteFacts
 	previousLedger := liveRequirementLedger
 	t.Cleanup(func() {
+		liveDaemon = previousDaemon
 		liveCommandCatalog = previousCatalog
 		livePluginRegistry = previousPlugins
 		liveYANGConfigTree = previousTree
 		liveSiteFacts = previousFacts
 		liveRequirementLedger = previousLedger
 	})
-	liveCommandCatalog = func(string) ([]byte, error) { return []byte(catalog), nil }
+	// The stated catalog and tree run no daemon, so the build compiles none.
+	liveDaemon = func(_, dir string) (string, error) { return filepath.Join(dir, "ze"), nil }
+	liveCommandCatalog = func(string, string) ([]byte, error) { return []byte(catalog), nil }
 	livePluginRegistry = func(string) ([]repoinventory.Plugin, error) {
 		return []repoinventory.Plugin{{
 			Name: "static", Description: "Static routes",

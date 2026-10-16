@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	testhealth "github.com/ze-software/ze/internal/le/test/health"
 )
 
 // Paths is the filesystem contract shared by every site action.
@@ -13,6 +15,22 @@ type Paths struct {
 	Repository string
 	Source     string
 	Output     string
+
+	// testHealth answers the test-health render of Repository. Build sets it
+	// to one run-once read shared by every page that states a test count: a
+	// render walks every test file in the tree, and the build asked for it
+	// twice, once for the testing-health page and once for the site facts.
+	// One read also keeps the two pages on one answer. A Paths built without
+	// it (a test that calls one producer) reads liveTestHealth directly.
+	testHealth func() (testhealth.Rendered, error)
+}
+
+// readTestHealth answers the test-health render this build reads.
+func (p Paths) readTestHealth() (testhealth.Rendered, error) {
+	if p.testHealth == nil {
+		return liveTestHealth(p.Repository)
+	}
+	return p.testHealth()
 }
 
 // resolvePaths derives the site source and output roots from one checkout.

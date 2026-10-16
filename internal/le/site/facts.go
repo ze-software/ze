@@ -283,7 +283,7 @@ func deriveSiteFacts(paths Paths) (siteFacts, error) {
 	if err := factsFromRepositoryFile(paths.Source, &facts); err != nil {
 		return siteFacts{}, err
 	}
-	if err := factsFromTestHealth(paths.Repository, &facts); err != nil {
+	if err := factsFromTestHealth(paths, &facts); err != nil {
 		return siteFacts{}, err
 	}
 	if err := factsFromRFCLedger(paths.Repository, &facts); err != nil {
@@ -345,8 +345,8 @@ func factsFromRepositoryFile(source string, facts *siteFacts) error {
 // moment both existed; reading test/health/latest.json here instead would bring
 // that back, because health.go reads the tree while the committed snapshot is
 // refreshed by hand.
-func factsFromTestHealth(repository string, facts *siteFacts) error {
-	rendered, err := liveTestHealth(repository)
+func factsFromTestHealth(paths Paths, facts *siteFacts) error {
+	rendered, err := paths.readTestHealth()
 	if err != nil {
 		return err
 	}

@@ -43,7 +43,7 @@ var liveTestHealth = testhealth.Render
 // committed snapshot is refreshed by hand. A page sourced from it would state
 // yesterday's tree while claiming to describe today's.
 func renderHealth(paths Paths) ([]string, error) {
-	rendered, err := liveTestHealth(paths.Repository)
+	rendered, err := paths.readTestHealth()
 	if err != nil {
 		return nil, err
 	}

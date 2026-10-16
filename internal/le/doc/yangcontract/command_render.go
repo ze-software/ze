@@ -27,15 +27,17 @@ import (
 // 396 pages of about 10KB each.
 var renderCommandSurfaces = renderNativeCommandSurfaces
 
-// LiveCommandCatalog answers `ze help command --json` for the checkout at root,
-// built with every feature tag feature-gates.txt names.
+// CommandCatalog answers `ze help command --json` from the daemon binary named,
+// run in dir, and refuses an answer that does not parse as the catalog.
 //
 // It is exported for the site build, which publishes the catalog and every page
-// derived from it. The publisher and this checker therefore read the same
-// producer, so a page can only disagree with the registries between one build
-// and the next.
-func LiveCommandCatalog(root string) ([]byte, error) {
-	raw, _, err := loadLiveCommandCatalog(root, "")
+// derived from it. The site compiles the daemon once, from the checkout with
+// every feature tag feature-gates.txt names, and reads both the catalog and the
+// configuration tree from that one binary. This checker runs the same command
+// built from the same tags, so a page can only disagree with the registries
+// between one build and the next.
+func CommandCatalog(dir, binary string) ([]byte, error) {
+	raw, _, err := runCommandCatalog(dir, binary)
 	return raw, err
 }
 

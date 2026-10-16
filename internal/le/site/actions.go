@@ -232,7 +232,7 @@ func runConfigTree(arguments leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	count, err := extractYANGConfigTree(root, paths.Output, arguments.One("binary"))
+	count, err := configTreeFrom(root, paths.Output, arguments.One("binary"))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1

@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -14,12 +15,14 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ze-software/ze/internal/le/derived"
 	docyangcontract "github.com/ze-software/ze/internal/le/doc/yangcontract"
 	"github.com/ze-software/ze/internal/le/feature"
 	repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
+	testhealth "github.com/ze-software/ze/internal/le/test/health"
 )
 
 const sourceListTimeout = 30 * time.Second
@@ -66,6 +69,10 @@ func Build(options BuildOptions) (BuildReport, error) {
 	if err != nil {
 		return BuildReport{}, err
 	}
+	repository := paths.Repository
+	paths.testHealth = sync.OnceValues(func() (testhealth.Rendered, error) {
+		return liveTestHealth(repository)
+	})
 
 	// A derived artifact is absent for most of a session: a write to one of its
 	// inputs removes it, and only a shell command that spells its path rebuilds
@@ -412,8 +419,21 @@ func copyPath(source, target string) error {
 // These run BEFORE the producer registry, because a producer reads what they
 // wrote: publishCommandCatalog writes data/cli-commands.json, and the CLI
 // reference, the vendor command map and llms.txt each read it back.
-func refreshNativeSurfaces(paths Paths) error {
-	if err := publishCommandCatalog(paths); err != nil {
+//
+// The catalog and the configuration tree are both read from one daemon this
+// build compiles into a temporary directory, removed when the refresh ends.
+func refreshNativeSurfaces(paths Paths) (err error) {
+	daemonDir, err := os.MkdirTemp("", "ze-site-daemon-*")
+	if err != nil {
+		return fmt.Errorf("daemon build directory: %w", err)
+	}
+	defer func() { err = errors.Join(err, os.RemoveAll(daemonDir)) }()
+
+	daemon, err := liveDaemon(paths.Repository, daemonDir)
+	if err != nil {
+		return err
+	}
+	if err := publishCommandCatalog(paths, daemon); err != nil {
 		return err
 	}
 	if err := publishPluginRegistry(paths); err != nil {
@@ -422,7 +442,7 @@ func refreshNativeSurfaces(paths Paths) error {
 	if err := publishRFCLedger(paths); err != nil {
 		return err
 	}
-	if err := publishYANGConfigTree(paths); err != nil {
+	if err := publishYANGConfigTree(paths, daemon); err != nil {
 		return err
 	}
 	// The facts snapshot counts the two files above, so it is written after
@@ -442,10 +462,10 @@ func refreshNativeSurfaces(paths Paths) error {
 	return nil
 }
 
-// liveCommandCatalog answers the command catalog a build publishes. It is a
-// variable so a test can state a catalog rather than build the daemon, which
-// the real reader does with `go run ./cmd/ze`.
-var liveCommandCatalog = docyangcontract.LiveCommandCatalog
+// liveCommandCatalog answers the command catalog a build publishes, read from
+// the daemon the build compiled (buildDaemon), run in the checkout. It is a
+// variable so a test can state a catalog rather than run a daemon.
+var liveCommandCatalog = docyangcontract.CommandCatalog
 
 // publishCommandCatalog republishes the command catalog read from the binary.
 //
@@ -461,8 +481,8 @@ var liveCommandCatalog = docyangcontract.LiveCommandCatalog
 // pages now have their own producers, in commands.go and equivalents.go, and
 // docvalid keeps rendering its fixture into a temporary tree of its own, where
 // the drift check compares it against what those producers published.
-func publishCommandCatalog(paths Paths) error {
-	raw, err := liveCommandCatalog(paths.Repository)
+func publishCommandCatalog(paths Paths, daemon string) error {
+	raw, err := liveCommandCatalog(paths.Repository, daemon)
 	if err != nil {
 		return err
 	}
@@ -504,8 +524,8 @@ func publishPluginRegistry(paths Paths) error {
 
 // publishYANGConfigTree republishes the configuration tree the live YANG schema
 // answers, which the configuration reference and llms.txt both read.
-func publishYANGConfigTree(paths Paths) error {
-	if _, err := extractYANGConfigTree(paths.Repository, paths.Output, ""); err != nil {
+func publishYANGConfigTree(paths Paths, daemon string) error {
+	if _, err := extractYANGConfigTree(paths.Repository, paths.Output, daemon); err != nil {
 		return err
 	}
 	return nil

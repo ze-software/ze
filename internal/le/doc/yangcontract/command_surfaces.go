@@ -407,13 +407,22 @@ func loadLiveCommandCatalog(root, commandCatalogPath string) ([]byte, []publishe
 	if err != nil {
 		return nil, nil, err
 	}
+	return runCommandCatalog(root, "go", "run", "-tags", tags, "./cmd/ze")
+}
+
+// runCommandCatalog runs `ze help command --json` through the program and
+// leading arguments named, in dir, and answers the catalog it printed with the
+// catalog parsed. The bound covers everything the program does: for `go run`
+// that includes compiling the daemon.
+func runCommandCatalog(dir, program string, leading ...string) ([]byte, []publishedCommand, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), commandCatalogGenerationTimeout)
 	defer cancel()
-	args := []string{"run", "-tags", tags, "./cmd/ze", "help", "command", "--json"}
-	// #nosec G204 -- the argv is fixed apart from the build tags, which
-	// featuretags reads from the checkout's own feature-gates.txt.
-	cmd := osexec.CommandContext(ctx, "go", args...)
-	cmd.Dir = root
+	args := slices.Concat(leading, []string{"help", "command", "--json"})
+	// #nosec G204 -- the program is `go` or a daemon the caller built, and the
+	// argv is fixed apart from the build tags, which featuretags reads from the
+	// checkout's own feature-gates.txt.
+	cmd := osexec.CommandContext(ctx, program, args...)
+	cmd.Dir = dir
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	data, err := cmd.Output()
