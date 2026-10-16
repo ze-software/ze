@@ -500,7 +500,10 @@ func parseRegistryNLRISection(args []string, fam family.Family, accum nlriAccum)
 	start := i
 	for i < len(args) && !endsRegistrySection(args[i]) {
 		token := args[i]
-		if token == kwAdd || token == kwDel {
+		if token == kwAdd {
+			return nlriParseResult{}, fmt.Errorf("%w: %s section has %q after its first field", errLaterAddDel, fam, token)
+		}
+		if token == kwDel {
 			return nlriParseResult{}, fmt.Errorf("%w: %s section has %q after its first field", errLaterAddDel, fam, token)
 		}
 		if refusesAddPath && token == kwPathInfo {
