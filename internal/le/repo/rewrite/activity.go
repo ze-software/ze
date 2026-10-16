@@ -20,6 +20,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -409,7 +410,31 @@ func isActivitySourcePath(path string, options ActivityOptions) bool {
 	return activityCodeNames[filepath.Base(path)] || options.Extensions[strings.ToLower(filepath.Ext(path))]
 }
 
+// fnmatch answers whether value matches the shell glob pattern.
+//
+// A pattern is translated and compiled once, then reused: the activity scan
+// tests every exclude against every path of a year of numstat lines, and a
+// compile per test was the single largest cost of a site build. The cache holds
+// one entry per distinct exclude pattern, which the defaults, the --exclude
+// argument and the output path bound. Safe for concurrent use.
 func fnmatch(pattern, value string) bool {
+	compiled, ok := fnmatchCache.Load(pattern)
+	if !ok {
+		compiled, _ = fnmatchCache.LoadOrStore(pattern, compileFnmatch(pattern))
+	}
+	expression, _ := compiled.(*regexp.Regexp) // only compileFnmatch results are stored
+	// A pattern that does not compile matches nothing, which is what the
+	// per-call regexp.MatchString answered for it.
+	return expression != nil && expression.MatchString(value)
+}
+
+// fnmatchCache maps a glob pattern to its compiled expression, or to a nil
+// *regexp.Regexp when the translation does not compile.
+var fnmatchCache sync.Map
+
+// compileFnmatch translates a shell glob into an anchored expression and
+// compiles it, answering nil when it does not compile.
+func compileFnmatch(pattern string) *regexp.Regexp {
 	var expression textbuf.Buffer
 	expression.Reset().Byte('^')
 	for index := 0; index < len(pattern); index++ {
@@ -436,8 +461,11 @@ func fnmatch(pattern, value string) bool {
 		}
 	}
 	expression.Byte('$')
-	matched, err := regexp.MatchString(expression.String(), value)
-	return err == nil && matched
+	compiled, err := regexp.Compile(expression.String())
+	if err != nil {
+		return nil
+	}
+	return compiled
 }
 
 func collectGoStats(options ActivityOptions) (ActivityGo, error) {
