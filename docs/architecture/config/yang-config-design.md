@@ -519,7 +519,13 @@ closest ancestor, and the entry exists, so the leaf must exist in it.
 peer, so a value a group sets reaches its peers at run time, but the check does
 not count it: the owner's ruling on inherited values covers the global
 router-id and local ASN only. A future mandatory peer-level leaf that only the
-group sets is therefore refused, and needs an owner ruling when it lands. An
+group sets is therefore refused, and needs an owner ruling when it lands. A
+bgp section with no peer and no group answers as carried for the leaves
+`bgpSessionPathOf` names, router-id and the local ASN: the section is accepted
+and does nothing, so no session consumes them. The inheritance ruling binds
+only once a session exists. Any other global leaf stays required there. A peer `create bgp peer`
+builds later is refused by `createdPeerSettings` when it resolves no router-id,
+and by the peer parser when it resolves no local AS. An
 entry path never counts as carried, because `EverySessionCarries` looks its
 `peer[...]` segment up as a session field and no session holds one. A section
 absent from the config is not walked, which is the reading libyang's
@@ -528,6 +534,7 @@ absent from the config is not walked, which is the reading libyang's
 <!-- source: internal/component/config/validate_sections.go -- mandatoryFailures -->
 <!-- source: internal/component/config/validate_mandatory_bgp.go -- bgpMandatoryFailures, EverySessionCarries -->
 <!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
+<!-- source: internal/component/bgp/reactor/reactor_peers.go -- createdPeerSettings -->
 <!-- source: internal/component/config/yang/validator_mandatory.go -- Sections -->
 
 ### Layer 3: Plugin config verifiers

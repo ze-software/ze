@@ -132,7 +132,89 @@ func TestAddDynamicPeerRefusesAnIncompleteTree(t *testing.T) {
 	assert.False(t, exists, "a tree the parser refuses leaves no peer behind")
 }
 
-// newDynamicPeerReactor builds the reactor these three tests drive.
+// TestAddDynamicPeerRefusesAPeerWithNoIdentity holds the refusal a peer created
+// at runtime meets when nothing supplies its router id or its local AS.
+//
+// GOAL: a bgp section with no peer and
+// no group loads with neither a global router-id nor a global local ASN, so
+// `create bgp peer` over such a daemon is the first place either can be
+// missing. The peer MUST be refused, naming the leaf, and never run with a
+// zero BGP Identifier or a zero local AS (ai/rules/principles.md).
+// METHOD: a reactor whose own local AS and router id are both zero; call
+// AddDynamicPeer once with no router-id and once with no local AS.
+//
+// VALIDATES: each call errors naming the missing leaf and leaves no peer.
+// PREVENTS: a created peer opening with BGP Identifier 0.0.0.0, which RFC 6286
+// Section 2.1 rules out ("a 4-octet, unsigned, non-zero integer").
+func TestAddDynamicPeerRefusesAPeerWithNoIdentity(t *testing.T) {
+	r := newDynamicPeerReactor(t, 0, 0)
+
+	cases := []struct {
+		name    string
+		session map[string]any
+		want    string
+	}{
+		{
+			name:    "no router id",
+			session: map[string]any{"asn": map[string]any{"remote": "65002", "local": "65001"}},
+			want:    "router-id",
+		},
+		{
+			name: "no local AS",
+			session: map[string]any{
+				"asn":       map[string]any{"remote": "65002"},
+				"router-id": "1.2.3.4",
+			},
+			want: "local as",
+		},
+	}
+	for i, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			addr := netip.AddrFrom4([4]byte{192, 0, 2, byte(20 + i)})
+			err := r.AddDynamicPeer(addr, map[string]any{"session": tc.session})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.want)
+
+			r.mu.RLock()
+			_, exists := r.findPeerByAddr(addr)
+			r.mu.RUnlock()
+			assert.False(t, exists, "a refused peer leaves nothing in the reactor")
+		})
+	}
+}
+
+// TestAddDynamicPeerAcceptsItsOwnIdentity is the positive control of the
+// refusal above.
+//
+// GOAL: the router-id refusal fires only when nothing supplies one, so a peer
+// that states its own router id and local AS is created over a reactor whose
+// own are both zero.
+// METHOD: AddDynamicPeer over a zero-identity reactor with a tree stating both.
+//
+// VALIDATES: the peer exists and carries the router id and local AS it stated.
+// PREVENTS: the guard reading the reactor's router id instead of the resolved
+// one, which would refuse every created peer on a daemon whose bgp section
+// holds no session.
+func TestAddDynamicPeerAcceptsItsOwnIdentity(t *testing.T) {
+	r := newDynamicPeerReactor(t, 0, 0)
+
+	addr := netip.MustParseAddr("192.0.2.30")
+	require.NoError(t, r.AddDynamicPeer(addr, map[string]any{
+		"session": map[string]any{
+			"asn":       map[string]any{"remote": "65002", "local": "65001"},
+			"router-id": "1.2.3.4",
+		},
+	}))
+
+	r.mu.RLock()
+	peer, exists := r.findPeerByAddr(addr)
+	r.mu.RUnlock()
+	require.True(t, exists, "the created peer is in the reactor")
+	assert.Equal(t, uint32(0x01020304), peer.Settings().RouterID)
+	assert.Equal(t, uint32(65001), peer.Settings().LocalAS)
+}
+
+// newDynamicPeerReactor builds the reactor these tests drive.
 //
 // It states the config explicitly rather than reusing newTestReactor, which
 // leaves the config pointer nil: AddDynamicPeer reads the router's own local AS

@@ -930,9 +930,11 @@ func TestValidator_HoldTimeRange(t *testing.T) {
 // TestValidator_MandatoryField proves a missing bgp router-id is refused at
 // LoadConfig, the entry point a daemon start and a reload share.
 //
-// VALIDATES: a bgp section carrying router-id and the local ASN loads; the
-// same section without router-id, and with no session to carry one, is
-// refused with a validation refusal naming bgp/router-id.
+// VALIDATES: a bgp section carrying router-id and the local ASN, with one peer
+// that carries neither, loads; the same section without router-id is
+// refused with a validation refusal naming bgp/router-id. A bgp section with no
+// peer and no group does nothing and requires neither leaf
+// (TestMandatoryBGPLeafNotRequiredWithNoSession).
 // PREVENTS: a mandatory node checked only by a validator method no production
 // path calls (Validator.ValidateContainer has none), which let the config load.
 //
@@ -941,12 +943,13 @@ func TestValidator_HoldTimeRange(t *testing.T) {
 // RFC requirement: RFC7950-7.6.5-1 positive -- LoadConfig accepts a bgp section carrying both mandatory leaves, router-id and session/asn/local.
 // RFC requirement: RFC7950-7.6.5-1 negative -- LoadConfig refuses the bgp section without router-id, naming bgp/router-id.
 func TestValidator_MandatoryField(t *testing.T) {
-	complete := "bgp {\n\trouter-id 192.0.2.1\n\tsession {\n\t\tasn {\n\t\t\tlocal 65001\n\t\t}\n\t}\n}\n"
+	peer := "\tpeer p1 {\n\t\tconnection { remote { ip 192.0.2.2 } }\n\t\tsession { asn { remote 65002; } }\n\t}\n"
+	complete := "bgp {\n\trouter-id 192.0.2.1\n\tsession {\n\t\tasn {\n\t\t\tlocal 65001\n\t\t}\n\t}\n" + peer + "}\n"
 	if _, err := LoadConfig(complete, "test.conf", nil); err != nil {
 		t.Errorf("LoadConfig refused a bgp section carrying every mandatory leaf: %v", err)
 	}
 
-	noRouterID := "bgp {\n\tsession {\n\t\tasn {\n\t\t\tlocal 65001\n\t\t}\n\t}\n}\n"
+	noRouterID := "bgp {\n\tsession {\n\t\tasn {\n\t\t\tlocal 65001\n\t\t}\n\t}\n" + peer + "}\n"
 	_, err := LoadConfig(noRouterID, "test.conf", nil)
 	require.Error(t, err, "LoadConfig accepted a bgp section with no router-id")
 	assert.ErrorIs(t, err, ErrCustomValidation)

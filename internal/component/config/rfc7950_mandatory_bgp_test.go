@@ -19,6 +19,9 @@ import (
 //
 // VALIDATES: a bgp section with no local ASN anywhere is refused, naming the
 // leaf and the set command that supplies it; one with the leaf is accepted.
+// Both sections carry one peer, because a bgp section with no session
+// does nothing and requires neither leaf (owner, 2026-10-16)
+// (TestMandatoryBGPLeafNotRequiredWithNoSession).
 // PREVENTS: the walk stopping at the absent session container, which let the
 // config load with no local ASN.
 //
@@ -27,7 +30,8 @@ import (
 // RFC requirement: RFC7950-7.6.5-1 negative -- LoadConfig refuses a bgp section whose mandatory bgp/session/asn/local sits under absent non-presence containers, naming the path and the set command.
 // RFC requirement: RFC7950-7.6.5-1 positive -- LoadConfig accepts the same section once bgp/session/asn/local is present.
 func TestRFC7950MandatoryRefusesBGPConfig(t *testing.T) {
-	_, err := LoadConfig("bgp {\n\trouter-id 192.0.2.1\n}\n", "test.conf", nil)
+	peer := "\tpeer p1 {\n\t\tconnection { remote { ip 192.0.2.2 } }\n\t\tsession { asn { remote 65001; } }\n\t}\n"
+	_, err := LoadConfig("bgp {\n\trouter-id 192.0.2.1\n"+peer+"}\n", "test.conf", nil)
 	if err == nil {
 		t.Fatal("LoadConfig accepted a bgp section with no local ASN")
 	}
@@ -40,7 +44,7 @@ func TestRFC7950MandatoryRefusesBGPConfig(t *testing.T) {
 		}
 	}
 
-	complete := "bgp {\n\trouter-id 192.0.2.1\n\tsession {\n\t\tasn {\n\t\t\tlocal 65000\n\t\t}\n\t}\n}\n"
+	complete := "bgp {\n\trouter-id 192.0.2.1\n\tsession {\n\t\tasn {\n\t\t\tlocal 65000\n\t\t}\n\t}\n" + peer + "}\n"
 	if _, err := LoadConfig(complete, "test.conf", nil); err != nil {
 		t.Errorf("LoadConfig refused a bgp section carrying every mandatory leaf: %v", err)
 	}
@@ -106,6 +110,73 @@ func TestMandatoryBGPLeafInheritedBySessions(t *testing.T) {
 	_, err := LoadConfig(oneWithout, "test.conf", nil)
 	if err == nil {
 		t.Fatal("a peer resolving no router-id was accepted with no global router-id")
+	}
+	if !strings.Contains(err.Error(), "bgp/router-id") {
+		t.Errorf("refusal %q does not name bgp/router-id", err)
+	}
+}
+
+// TestMandatoryBGPLeafNotRequiredWithNoSession proves the owner's reading of
+// 2026-10-16: a bgp section with no peer and no group starts no session and
+// does nothing, so no
+// session consumes bgp/router-id or bgp/session/asn/local and neither is
+// required; the first peer brings the requirement back.
+//
+// VALIDATES: an empty bgp section, and one holding only an unrelated leaf,
+// load; the same section with one peer resolving neither leaf is refused
+// naming both.
+// PREVENTS: refusing the `bgp { }` the ExaBGP migration writes for a config
+// with processes and no neighbor, and the inverse, a peer accepted with no
+// router-id or local ASN.
+//
+// Method: LoadConfig over three configs.
+func TestMandatoryBGPLeafNotRequiredWithNoSession(t *testing.T) {
+	for _, config := range []string{"bgp {\n}\n", "bgp {\n\trouter-id 192.0.2.1\n}\n"} {
+		if _, err := LoadConfig(config, "test.conf", nil); err != nil {
+			t.Errorf("a bgp section with no session was refused: %v\n%s", err, config)
+		}
+	}
+
+	onePeer := `bgp {
+	peer p1 {
+		connection { remote { ip 192.0.2.2 } }
+		session { asn { remote 65001; } }
+	}
+}
+`
+	_, err := LoadConfig(onePeer, "test.conf", nil)
+	if err == nil {
+		t.Fatal("a peer resolving no router-id and no local ASN was accepted")
+	}
+	for _, want := range []string{"bgp/router-id", "bgp/session/asn/local"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal %q does not name %q", err, want)
+		}
+	}
+}
+
+// TestMandatoryBGPNoSessionExcusesOnlySessionLeaves pins the scope of the
+// no-session answer.
+//
+// VALIDATES: a bgp section with no peer and no group still reports a global
+// mandatory leaf bgpSessionPathOf does not name (bgp/id in the test module);
+// a section holding only an empty, non-dynamic group with no router-id is
+// refused naming bgp/router-id, because a group is a session source.
+// PREVENTS: EverySessionCarries answering true for every leaf when no source
+// exists, or counting a group with no peer as no source, either of which would
+// load a config whose session or feature lacks a mandatory value.
+//
+// Method: bgpMandatoryFailures over the test module with an empty bgp tree,
+// and LoadConfig over a section holding one empty group.
+func TestMandatoryBGPNoSessionExcusesOnlySessionLeaves(t *testing.T) {
+	empty := peerMandatoryFailurePaths(t, func(*Tree) {})
+	assert.Equal(t, []string{"bgp/id"}, empty,
+		"a global mandatory leaf no session consumes stays required with no session")
+
+	emptyGroup := "bgp {\n\tsession { asn { local 65000; } }\n\tgroup g {\n\t}\n}\n"
+	_, err := LoadConfig(emptyGroup, "test.conf", nil)
+	if err == nil {
+		t.Fatal("a section whose only group resolves no router-id was accepted")
 	}
 	if !strings.Contains(err.Error(), "bgp/router-id") {
 		t.Errorf("refusal %q does not name bgp/router-id", err)

@@ -11,14 +11,15 @@ import (
 	"github.com/ze-software/ze/internal/component/config/yang"
 )
 
-// bgpSessionPathOf names, for a global bgp leaf whose peer-level override sits
-// at a different path, where a peer or a group carries that override. A global
-// leaf not named here is overridden at the same relative path, as
-// session/asn/local is. A mandatory global leaf added later with no entry here
-// is checked at its own path: if no peer carries it there, the config is
-// refused, so a missing entry fails closed.
+// bgpSessionPathOf names the global bgp leaves a BGP session consumes, each
+// with the path where a peer or a group carries its override. Only a leaf named
+// here is excused in a bgp section with no session, which does nothing (owner,
+// 2026-10-16). A mandatory global leaf added later with no entry here is
+// checked at its own relative path and is required even with no session, so a
+// missing entry fails closed.
 var bgpSessionPathOf = map[string]string{
-	"router-id": "session/router-id",
+	"router-id":         "session/router-id",
+	"session/asn/local": "session/asn/local",
 }
 
 // bgpMandatoryFailures runs the RFC 7950 Section 7.6.5 mandatory check over the
@@ -47,7 +48,10 @@ var bgpSessionPathOf = map[string]string{
 // the bgp section exists. Ze's design lets a group or a peer supply both, and
 // ResolveBGPTree layers global, group and peer values into each session, so the
 // owner ruled on 2026-10-12 that a value every session resolves counts as
-// present (plan/pre-release/spec-config-yang-when-unique-choice.md, AC-2).
+// present (plan/pre-release/spec-config-yang-when-unique-choice.md, AC-2). That
+// ruling never covered a bgp section with no peer and no group: it starts no
+// session and does nothing, so it requires neither leaf (owner, 2026-10-16;
+// EverySessionCarries).
 func bgpMandatoryFailures(validator *yang.Validator, tree *Tree) []SectionValidationError {
 	bgp := tree.GetContainer(string(ConfigTypeBGP))
 	if bgp == nil {
@@ -78,13 +82,22 @@ func bgpMandatoryFailures(validator *yang.Validator, tree *Tree) []SectionValida
 // its own value or its group's. A source is a standalone peer, a peer inside a
 // group, a group with no peer, and a dynamic group whether or not it lists
 // peers, because a dynamic group is the template its accepted sessions are
-// built from. A section with no source answers false: nothing supplies the
-// value, so the global leaf stays required.
+// built from.
+//
+// A section with no source answers true for a leaf bgpSessionPathOf names: no
+// session starts, so no session consumes the value: the section does nothing
+// and requires neither router-id nor the local ASN (owner, 2026-10-16).
+// A peer created at runtime over that section is refused by the reactor when
+// it resolves no router-id (createdPeerSettings) or no local AS
+// (parsePeerSettings). For any other leaf a section with no source answers
+// false, so the global leaf stays required.
 func EverySessionCarries(data map[string]any, missingPath string) bool {
 	relative := strings.TrimPrefix(missingPath, string(ConfigTypeBGP)+"/")
 	sessionPath := relative
+	consumed := false
 	if p, ok := bgpSessionPathOf[relative]; ok {
 		sessionPath = p
+		consumed = true
 	}
 	path := strings.Split(sessionPath, "/")
 
@@ -118,7 +131,10 @@ func EverySessionCarries(data map[string]any, missingPath string) bool {
 			}
 		}
 	}
-	return sources > 0
+	if sources == 0 {
+		return consumed
+	}
+	return true
 }
 
 // IsDynamicBGPGroup reports whether a bgp group's fields, in the shape

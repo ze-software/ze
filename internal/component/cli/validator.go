@@ -324,9 +324,11 @@ func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) ([
 		delete(bgpMap, keyGroup)
 		yangErrs := v.yangValidator.ValidateTree("bgp", bgpMap)
 		// A missing mandatory global leaf refuses (RFC 7950 Section 7.6.5),
-		// unless every session resolves it from its group or itself: the
-		// owner's 2026-10-12 ruling, applied by config.EverySessionCarries so
-		// the editor and LoadConfig reach one verdict.
+		// unless every session resolves it from its group or itself (the
+		// owner's 2026-10-12 ruling) or, for router-id and the local ASN, the
+		// section holds no peer and no group, so it does nothing (owner, 2026-10-16). Both
+		// are applied by config.EverySessionCarries so the editor and
+		// LoadConfig reach one verdict.
 		bgpData := bgp.ToMap()
 		for i := range yangErrs {
 			if yangErrs[i].Type == yang.ErrTypeMissing && config.EverySessionCarries(bgpData, yangErrs[i].Path) {

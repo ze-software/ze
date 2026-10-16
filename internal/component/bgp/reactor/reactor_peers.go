@@ -515,7 +515,9 @@ func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (*plugin.PeerInfo
 // running (createdPeers, reactor.go), and RemovePeer is how it leaves.
 //
 // The local AS and the router ID default to the reactor's own when the tree
-// states neither.
+// states neither. When neither the tree nor the reactor holds one, the call is
+// refused naming the leaf (createdPeerSettings): a bgp section with no session
+// requires neither globally.
 //
 // The two leaves parsePeerFromTree REQUIRES are filled in here when the caller
 // left them out: the remote address is the one the caller named, and the local
@@ -567,6 +569,16 @@ func (r *Reactor) createdPeerSettings(addr netip.Addr, tree map[string]any) (*Pe
 	settings, err := parsePeerFromTree(addr.String(), tree, globals.LocalAS, globals.RouterID)
 	if err != nil {
 		return nil, fmt.Errorf("dynamic peer %s: %w", addr, err)
+	}
+	// A bgp section with no peer and no group loads with no global router-id
+	// (it does nothing, owner 2026-10-16; config.EverySessionCarries), so a
+	// created peer is the first that can resolve none. The config validator
+	// guards every configured peer; this guards the one it never sees, and a
+	// zero is refused here rather than sent in an OPEN.
+	// RFC 6286 Section 2.1: "The BGP Identifier is a 4-octet, unsigned,
+	// non-zero integer that should be unique within an AS."
+	if settings.RouterID == 0 {
+		return nil, fmt.Errorf("dynamic peer %s: missing required router-id (neither global nor peer-level): %w", addr, ErrIncompleteConfig)
 	}
 	// The peer carries the name the running configuration declares it under,
 	// and the one `update bgp config` writes it to the file under, so a reload
