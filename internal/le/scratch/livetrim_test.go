@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -327,6 +328,9 @@ func TestTrimSkipsLivenessWithoutSessions(t *testing.T) {
 		}
 	}
 
+	// A fresh HOME with no .zt, and longer than 19 bytes, so the test-temp row is a
+	// skip and nothing of the user's is trimmed.
+	t.Setenv("HOME", t.TempDir())
 	report, _ := trimStoresScanning(root, storeTrimOn, func() ([]session.Process, error) { return noCLI, nil })
 	if got := rowNamed(t, report.Stores, checkoutCache); got.Skipped != "" || got.SizeBefore == 0 {
 		t.Errorf("checkout cache row = %+v, want it measured: the caches trim without a session", got)
@@ -406,5 +410,119 @@ func TestTrimOrphanTestbins(t *testing.T) {
 	row := rowNamed(t, rows, testbinStore)
 	if row.EntriesRemoved != len(want) || row.Kept != 4 || row.Error != "" {
 		t.Errorf("testbins row = %+v, want %d removed, 4 kept, no error", row, len(want))
+	}
+}
+
+// TestTestTempOpenFailureNamesItsFix proves the row error of an old entry
+// that cannot be opened.
+//
+// VALIDATES: a permission refusal, the shape a root-owned leftover of a
+// `sudo -E` run gives (EPERM on chmod), names `sudo chown -R $USER <base>`;
+// any other failure is reported as it is, with no chown remedy.
+// PREVENTS: an hourly trim red on every run with no hint that root made the
+// entry. A non-root test cannot make a directory it does not own, so the
+// refusal is built as chmod returns it.
+func TestTestTempOpenFailureNamesItsFix(t *testing.T) {
+	base := "/home/u/.zt"
+	refused := &fs.PathError{Op: "chmod", Path: base + "/TestRoot1", Err: syscall.EPERM}
+	if got := testTempOpenFailure(refused, base); got != refused.Error()+"; sudo chown -R $USER "+base {
+		t.Errorf("testTempOpenFailure(EPERM) = %q, want the error and the chown remedy", got)
+	}
+	broken := &fs.PathError{Op: "lstat", Path: base + "/TestIO1", Err: syscall.EIO}
+	if got := testTempOpenFailure(broken, base); got != broken.Error() {
+		t.Errorf("testTempOpenFailure(EIO) = %q, want %q", got, broken.Error())
+	}
+}
+
+// lockedEntry makes a test temp entry holding a 0o000 directory with a file
+// in it, as a killed permission test leaves it, and ages the entry. Cleanup
+// opens the directory again so t.TempDir() can remove whatever is left.
+func lockedEntry(t *testing.T, path string, now time.Time, age time.Duration) string {
+	t.Helper()
+	locked := filepath.Join(path, "locked")
+	if err := os.MkdirAll(locked, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(locked, "data"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(locked, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chmod(locked, 0o700); err != nil && !errors.Is(err, fs.ErrNotExist) { //nolint:gosec // the test must open its own 0o000 directory to remove it
+			t.Error(err)
+		}
+	})
+	return agedDir(t, path, now, age)
+}
+
+// TestTrimTestTempLeftovers proves the test temp row of the store trim.
+//
+// VALIDATES: a go-build* work directory past goBuildIdleAge and any other
+// entry past testTempIdleAge are removed; a go-build* entry younger than its
+// floor and a t.TempDir() parent past goBuildIdleAge but younger than
+// testTempIdleAge are kept, and the row counts both. An old entry holding a
+// 0o000 directory is opened and removed with no error; a young one is kept
+// and named as contention, never as the row's error. A home whose base cannot
+// be used is a skip that says why, never a trim of some other directory.
+// PREVENTS: the temp dirs of killed test runs piling up under ~/.zt, which no
+// test binary removes once its process is gone, a live run losing its temp
+// dir to the shorter go-build floor, and a killed permission test's leftover
+// turning every hourly trim red.
+func TestTrimTestTempLeftovers(t *testing.T) {
+	now := time.Now()
+	base := t.TempDir()
+	stale := agedDir(t, filepath.Join(base, "TestKilled123"), now, testTempIdleAge+time.Hour)
+	work := agedDir(t, filepath.Join(base, "go-build456"), now, goBuildIdleAge+time.Hour)
+	building := agedDir(t, filepath.Join(base, "go-build789"), now, 30*time.Minute)
+	slow := agedDir(t, filepath.Join(base, "TestSlow321"), now, goBuildIdleAge+time.Hour)
+	live := agedDir(t, filepath.Join(base, "TestRunning789"), now, time.Hour)
+	var removed []string
+	row := StoreTrim{Name: testTempStore, Path: base}
+	trimTestTemp(t.Context(), &row, &livenessPass{now: now, remove: recordingRemove(t, &removed)})
+	if got, want := sortedBases(removed), sortedBases([]string{stale, work}); !slices.Equal(got, want) {
+		t.Errorf("removed %v, want %v", got, want)
+	}
+	for _, kept := range []string{building, slow, live} {
+		if !exists(t, kept) {
+			t.Errorf("%s was removed while younger than its floor", kept)
+		}
+	}
+	if row.EntriesRemoved != 2 || row.Kept != 3 || row.Error != "" {
+		t.Errorf("test temp row = %+v, want 2 removed, 3 kept, no error", row)
+	}
+
+	t.Run("a 0o000 leftover is removed when old and contention when young", func(t *testing.T) {
+		if os.Geteuid() == 0 {
+			t.Skip("root reads a 0o000 directory, so no EACCES can arise")
+		}
+		base := t.TempDir()
+		lockedOld := lockedEntry(t, filepath.Join(base, "TestLocked111"), now, testTempIdleAge+time.Hour)
+		lockedYoung := lockedEntry(t, filepath.Join(base, "TestHolding222"), now, time.Hour)
+		var removed []string
+		row := StoreTrim{Name: testTempStore, Path: base}
+		trimTestTemp(t.Context(), &row, &livenessPass{now: now, remove: recordingRemove(t, &removed)})
+		if exists(t, lockedOld) {
+			t.Errorf("%s, older than %s, was not removed", lockedOld, testTempIdleAge)
+		}
+		if !exists(t, lockedYoung) {
+			t.Errorf("%s was removed while younger than %s", lockedYoung, testTempIdleAge)
+		}
+		if row.Error != "" {
+			t.Errorf("test temp row error = %q, want none: a 0o000 leftover is no failure", row.Error)
+		}
+		if row.Contended != lockedYoung || row.EntriesRemoved != 1 || row.Kept != 1 {
+			t.Errorf("test temp row = %+v, want 1 removed, 1 kept, contended %s", row, lockedYoung)
+		}
+	})
+
+	t.Setenv("HOME", "relative")
+	if skipped := testTempRow(); skipped.Skipped == "" || skipped.Path != "" {
+		t.Errorf("test temp row for a relative home = %+v, want a skip with no path", skipped)
+	}
+	t.Setenv("HOME", "/h")
+	if named := testTempRow(); named.Path != "/h/.zt" || named.Skipped != "" {
+		t.Errorf("test temp row for /h = %+v, want path /h/.zt", named)
 	}
 }

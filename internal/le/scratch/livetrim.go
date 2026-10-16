@@ -33,6 +33,24 @@ const (
 	// testbinIdleAge: a functional run builds its testbin and removes it when
 	// it ends; one older than this outlived its run.
 	testbinIdleAge = 6 * time.Hour
+	// goBuildIdleAge and testTempIdleAge: a test binary removes its
+	// t.TempDir() parents and the go command its go-build* work directory when
+	// they end, so what stays under the test temp base is what a killed run
+	// left. A work directory is 0.5-0.7G and lands on the home device, so its
+	// floor is short: a live one's mtime moves each time a bNNN child comes or
+	// goes. That holds only while packages build: once a test binary runs, its
+	// $WORK gets no new child, and the binary still executes from there (a fuzz
+	// coordinator re-execs os.Args[0], and tests re-exec os.Executable()), so a
+	// single test binary running past 2h can lose it. A t.TempDir() parent's
+	// mtime moves only when the test makes another temp dir, so its floor is
+	// longer than le's default test-binary timeout
+	// (gotoolchain.DefaultTestTimeout) by far. A run given a -timeout or
+	// -fuzztime longer than either floor, or -timeout 0, can outlive it and
+	// lose its work directory or its parent.
+	goBuildIdleAge  = 2 * time.Hour
+	testTempIdleAge = 6 * time.Hour
+	// goBuildPrefix names the go command's work directories (cmd/go, $WORK).
+	goBuildPrefix = "go-build"
 	// startSlack absorbs the second of rounding in a ps-measured start time. A
 	// process that started after the testbin was made does not own it (pid
 	// reuse), and the slack keeps a jittered owner from looking like reuse.
@@ -44,6 +62,7 @@ const (
 	launcherStore    = "launchers"
 	sessionStore     = "sessions"
 	testbinStore     = "testbins"
+	testTempStore    = "test-temp"
 	noSessionVisible = "no session process visible"
 	noSessionRoot    = "no tmp/session directory"
 	testbinPIDPrefix = "testbin-pid-"
@@ -340,6 +359,115 @@ func testbinOwned(pass *livenessPass, pid int, made time.Time) bool {
 		return !started.After(made.Add(startSlack))
 	}
 	return false
+}
+
+// testTempRow answers the test temp row, untouched: the base every le-run Go
+// test keeps its temporary directories under (gotoolchain.TestTempDir), or a
+// skip that says why this home has none. It creates nothing.
+func testTempRow() StoreTrim {
+	row := StoreTrim{Name: testTempStore}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		row.Skipped = err.Error()
+		return row
+	}
+	base, err := gotoolchain.TestTempBase(home)
+	if err != nil {
+		row.Skipped = err.Error()
+		return row
+	}
+	row.Path = base
+	return row
+}
+
+// trimTestTemp removes each entry under the test temp base older than its
+// floor: goBuildIdleAge for a go-build* work directory, testTempIdleAge for
+// anything else, a t.TempDir() parent above all. Age alone judges it, with no
+// session liveness: the base is per user and shared by every checkout and
+// session, so no one session owns an entry, and a run still writing one is
+// younger than the floor. Only pass.now and pass.remove are read.
+//
+// A killed permission test leaves a directory it chmodded to 0o000 or 0o500,
+// which no walk can measure and RemoveAll cannot empty. An old entry is first
+// opened back to its owner (openTestTempEntry); a young one that cannot be
+// measured is contention, a run still holding it, never the row's error.
+func trimTestTemp(ctx context.Context, row *StoreTrim, pass *livenessPass) {
+	if row.Skipped != "" {
+		return
+	}
+	entries, err := os.ReadDir(row.Path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return
+	}
+	if err != nil {
+		row.Error = err.Error()
+		return
+	}
+	for _, entry := range entries {
+		path := filepath.Join(row.Path, entry.Name())
+		info, err := os.Lstat(path)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			row.Error = err.Error()
+			continue
+		}
+		floor := testTempIdleAge
+		if strings.HasPrefix(entry.Name(), goBuildPrefix) {
+			floor = goBuildIdleAge
+		}
+		old := olderThan(info.ModTime(), pass.now, floor)
+		if old {
+			if err := openTestTempEntry(path); err != nil {
+				row.Error = testTempOpenFailure(err, row.Path)
+				row.Kept++
+				continue
+			}
+		}
+		size, err := treeBytes(path)
+		switch {
+		case err == nil:
+		case !old && errors.Is(err, fs.ErrPermission):
+			row.Contended = path
+		default:
+			row.Error = err.Error()
+		}
+		row.SizeBefore += size
+		row.SizeAfter += size
+		if !old {
+			row.Kept++
+			continue
+		}
+		removeLivenessEntry(ctx, row, pass, path, size)
+	}
+}
+
+// testTempOpenFailure answers the row error for an old entry that cannot be
+// opened. A permission refusal there is an entry this user does not own, which
+// a `sudo -E` test run leaves as root's, so the error names the chown that
+// gives the base back; any other failure is reported as it is.
+func testTempOpenFailure(err error, base string) string {
+	if errors.Is(err, fs.ErrPermission) {
+		return err.Error() + "; sudo chown -R $USER " + base
+	}
+	return err.Error()
+}
+
+// openTestTempEntry gives every directory under path, path included, back
+// to its owner (0700), so a walk can measure it and RemoveAll can empty it.
+// WalkDir visits a directory before it reads it, so a 0o000 directory is
+// opened before the walk needs to enter it. It follows no symbolic link.
+func openTestTempEntry(path string) error {
+	return filepath.WalkDir(path, func(walked string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !entry.IsDir() {
+			return nil
+		}
+		return os.Chmod(walked, 0o700) //nolint:gosec // a directory needs its search bit to be walked and emptied; owner only
+	})
 }
 
 // olderThan answers whether a modification time is at least age before now.

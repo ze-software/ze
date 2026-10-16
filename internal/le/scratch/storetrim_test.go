@@ -31,7 +31,7 @@ const contenders = 20
 
 // recordSpawn answers a spawn seam that appends one line to <root>/spawns for
 // each call, with O_APPEND so lines from many processes never interleave.
-func recordSpawn(root string) TrimSpawn {
+func recordSpawn(root string) trimSpawn {
 	return func(string) error {
 		file, err := os.OpenFile(filepath.Join(root, "spawns"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
 		if err != nil {
@@ -925,12 +925,16 @@ func TestTrimReportJSON(t *testing.T) {
 
 	t.Run("an unreadable switch is refused and the stores still trim", func(t *testing.T) {
 		t.Setenv("XDG_CACHE_HOME", t.TempDir())
+		// A fresh HOME with no .zt, and longer than 19 bytes, so the test-temp row is a
+		// skip and nothing of the user's is trimmed.
+		t.Setenv("HOME", t.TempDir())
 		root := t.TempDir()
 		report, code := trimStores(root, "maybe")
 		if code != 1 || !strings.Contains(report.Refusal, StoreTrimKey) {
 			t.Errorf("trimStores(maybe) = %d, refusal %q; want 1 naming the key", code, report.Refusal)
 		}
-		if len(report.Stores) != len(cleanTargets(root, "", t.TempDir()))+len(livenessRows(root)) {
+		// The caches, the liveness stores, and the one test temp row.
+		if len(report.Stores) != len(cleanTargets(root, "", t.TempDir()))+len(livenessRows(root))+1 {
 			t.Errorf("trimStores(maybe) reported %d stores; the switch governs only the automatic trim", len(report.Stores))
 		}
 		// The ambient row is a skip, and still names the cache it leaves

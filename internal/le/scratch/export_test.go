@@ -6,3 +6,6 @@ package scratch
 // handler and so cannot be package scratch, record the store-trim spawn instead
 // of starting a child of the test binary.
 var StoreTrimSpawn = &storeTrimSpawn
+
+// TrimSpawn names the spawn seam's type for the same external test.
+type TrimSpawn = trimSpawn

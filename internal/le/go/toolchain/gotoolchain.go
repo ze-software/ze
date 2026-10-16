@@ -8,7 +8,7 @@
 // create two records of one fact. An unchecked copy can drift. The manifest read
 // uses internal/le/repo/featuretags, which already reads this value for daemon builds.
 //
-// Four variables have behavior that their names do not show:
+// Five variables have behavior that their names do not show:
 //
 //   - GOCACHE resides inside the checkout, not under TMPDIR. A cache under
 //     TMPDIR breaks the Unix-socket tests because socket paths exceed the kernel
@@ -39,6 +39,12 @@
 //   - GOMAXPROCS limits each Go process or test run to a QUARTER of the cores.
 //     No process or test run gets more.
 //
+//   - GOTMPDIR, on a test run only, is <home>/.zt (TestTempDir). Go 1.27's
+//     t.TempDir() creates beneath GOTMPDIR, and the go command writes its work
+//     directory there, so both land on the device holding the user's home
+//     rather than under TMPDIR. TMPDIR itself is left alone: the socket helpers
+//     that call os.MkdirTemp("") keep the directory they chose for path length.
+//
 // PORT CORRECTION. The Python implementation returns an empty tag tuple when
 // it cannot read feature-gates.txt. It also returns an empty tuple for a
 // manifest that declares no ze_ tag. test_tags then renders `ze_core` alone.
@@ -55,11 +61,13 @@ package gotoolchain
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
@@ -405,6 +413,114 @@ func BootstrapCache(root string) string {
 	return filepath.Join(root, "tmp", "go-cache")
 }
 
+// The Unix socket budget a test temp base must fit. A socket test binds a
+// leaf under t.TempDir(), which is the base plus "/", the test name cut to 64
+// bytes, up to 10 random digits, and "/001": 79 bytes. sun_path holds 108
+// bytes with its NUL, so 107 are usable, and a base of 23 leaves 5 for the
+// socket leaf ("/a.sk"). ~/.cache/tmp, 22 bytes, is the default it replaces on
+// the Linux VM (plan/journal/full-disk-false-red.md, 2026-10-16).
+const (
+	sunPathMax       = 107
+	tempDirSuffixMax = 79
+	socketLeafMax    = 5
+	testTempPathMax  = sunPathMax - tempDirSuffixMax - socketLeafMax
+)
+
+// testTempLeaf is the directory under the user's home that holds every le-run
+// Go test's temporary directories. It is short because the base is part of
+// every socket path a test builds under t.TempDir().
+const testTempLeaf = ".zt"
+
+// TestTempBase answers the test temp base for one home directory: <home>/.zt.
+// It refuses a home that is empty or relative, and a base longer than
+// testTempPathMax, rather than answering a path a socket test cannot use. It
+// touches no filesystem, so internal/le/scratch can name the directory it
+// trims without creating it.
+func TestTempBase(home string) (string, error) {
+	if home == "" {
+		return "", errors.New("HOME is not set; set HOME to your home directory")
+	}
+	if !filepath.IsAbs(home) {
+		return "", errors.New("HOME=" + home + " is not an absolute path; set HOME to your home directory's absolute path")
+	}
+	base := filepath.Join(home, testTempLeaf)
+	if len(base) > testTempPathMax {
+		var tb textbuf.Buffer
+		tb.Str(base).Str(" is ").Int(int64(len(base))).Str(" bytes, longer than the ").
+			Int(testTempPathMax).Str(" a Unix socket under t.TempDir() can afford; run le with HOME set to an ").
+			Str("absolute path of at most ").Int(testTempPathMax - int64(len(testTempLeaf)) - 1).Str(" bytes")
+		return "", errors.New(tb.String())
+	}
+	return base, nil
+}
+
+// makeTestTempDir creates base (0700) when it is missing and proves a test can
+// create a directory in it, the one operation t.TempDir() performs there. Its
+// error names the command that repairs the directory: chown and chmod when
+// the probe is refused permission (root-owned after a `sudo -E` run), the
+// device otherwise, because a full, read-only or failing disk is no
+// ownership problem.
+func makeTestTempDir(base string) error {
+	if err := os.MkdirAll(base, 0o700); err != nil {
+		return errors.New(err.Error() + "; make the parent writable, or create it: mkdir -m 700 " + base)
+	}
+	probe, err := os.MkdirTemp(base, "probe-")
+	if errors.Is(err, fs.ErrPermission) {
+		return errors.New(err.Error() + "; give it back to yourself: sudo chown -R $USER " + base + " && chmod 700 " + base)
+	}
+	if err != nil {
+		return errors.New(err.Error() + "; check the device that holds it: df -h " + base)
+	}
+	return os.Remove(probe)
+}
+
+// testTempOnce resolves the test temp dir once for each le process, so the
+// warning is written once however many commands the process starts.
+var testTempOnce = sync.OnceValue(func() string {
+	base, err := testTempDirFor(os.UserHomeDir)
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("le: Go tests keep their temp dirs under TMPDIR, because the test temp dir is unusable: ").
+			Str(err.Error()).Byte('\n')
+		_, _ = os.Stderr.WriteString(tb.String()) // A warning that cannot be written has nowhere else to go.
+		return ""
+	}
+	return base
+})
+
+// testTempDir is the resolver Overrides calls; a test replaces it so it
+// neither touches the real ~/.zt nor reads the answer it asserts from the
+// function under test.
+var testTempDir = TestTempDir
+
+// testTempDirFor resolves, creates and probes the base under the directory
+// home answers.
+func testTempDirFor(home func() (string, error)) (string, error) {
+	dir, err := home()
+	if err != nil {
+		return "", errors.New(err.Error() + "; set HOME to your home directory")
+	}
+	base, err := TestTempBase(dir)
+	if err != nil {
+		return "", err
+	}
+	if err := makeTestTempDir(base); err != nil {
+		return "", err
+	}
+	return base, nil
+}
+
+// TestTempDir answers the GOTMPDIR every le-run Go test gets: <home>/.zt,
+// created 0700 on first use, on the device that holds the user's home. It
+// answers "" when the directory cannot be used (no home, a base too long for
+// a socket path, a directory a test cannot write), after writing the reason
+// to stderr once; a caller then sets no GOTMPDIR and the run keeps Go's
+// default. Safe for concurrent use. The store trim removes what a killed run
+// leaves there (internal/le/scratch, trimTestTemp).
+func TestTempDir() string {
+	return testTempOnce()
+}
+
 // namedLauncherPrefix starts the bin/ directory of every launcher the `le`
 // script builds under a name: `./le --name <name>` builds bin/le-<name>/le,
 // and a foreign-platform bin/le falls back to bin/le-<uname -s>-<uname -m>/le.
@@ -531,9 +647,13 @@ type EnvOptions struct {
 }
 
 // Overrides returns the variables that this toolchain SETS: GOCACHE,
-// GOLANGCI_LINT_CACHE and CGO_ENABLED always, and GOMAXPROCS, GOMEMLIMIT,
-// GOOS and GOARCH when opts asks. It returns KEY=VALUE entries in a fixed
-// order. It sets no GOROOT and no GOTOOLCHAIN: the process environment holds
+// GOLANGCI_LINT_CACHE and CGO_ENABLED always, GOTMPDIR on a test run when
+// TestTempDir has one, and GOMAXPROCS, GOMEMLIMIT, GOOS and GOARCH when opts
+// asks. Like GOCACHE, a GOTMPDIR the caller exported is overridden: the
+// test temp dir is the one place the store trim reaps. It returns KEY=VALUE
+// entries in a fixed order. The test temp dir is resolved here, on the first
+// test run, so a process that starts no test never creates it. It sets no
+// GOROOT and no GOTOOLCHAIN: the process environment holds
 // both, set by gen.Activate, and a second declaration here could only
 // disagree with it.
 //
@@ -552,6 +672,12 @@ func (t Toolchain) Overrides(opts EnvOptions) []string {
 		over = append(over, "CGO_ENABLED=1")
 	} else {
 		over = append(over, "CGO_ENABLED=0")
+	}
+	if opts.Test {
+		if testTemp := testTempDir(); testTemp != "" {
+			tb.Reset()
+			over = append(over, tb.Str("GOTMPDIR=").Str(testTemp).String())
+		}
 	}
 	if opts.Procs {
 		tb.Reset()

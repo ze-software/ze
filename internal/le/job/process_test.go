@@ -35,6 +35,8 @@ func TestMain(m *testing.M) {
 		}
 		os.Args = []string{os.Args[0], "-test.run=^TestGoTestChildRootProbe$"}
 	}
+	// No test here touches the real ~/.zt; the one that asserts GOTMPDIR sets its own.
+	testTempDir = func() string { return "" }
 	os.Exit(m.Run())
 }
 
@@ -47,6 +49,10 @@ func TestGoTestEnvironmentDropsOnlyLauncherIdentity(t *testing.T) {
 		"PATH=/keep", "ZE_RUN_JOB=/keep-job",
 		"GOFLAGS=-race=false",
 	}
+	testTemp := t.TempDir()
+	restore := testTempDir
+	t.Cleanup(func() { testTempDir = restore })
+	testTempDir = func() string { return testTemp }
 	for _, command := range [][]string{
 		{"go", "test", "./..."},
 		{"/tools/go", "test", "./..."},
@@ -57,8 +63,12 @@ func TestGoTestEnvironmentDropsOnlyLauncherIdentity(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%v environment: %v", command, err)
 		}
-		if len(got) != 4 {
+		// A test run also gets the test temp dir.
+		if len(got) != 5 {
 			t.Fatalf("%v inherited launcher identity: %v", command, got)
+		}
+		if got[3] != "GOTMPDIR="+testTemp {
+			t.Errorf("%v test run GOTMPDIR entry = %q, want GOTMPDIR=%s", command, got[3], testTemp)
 		}
 		if got[0] != inherited[6] || got[1] != inherited[7] {
 			t.Errorf("%v lost unrelated environment: %v", command, got)
@@ -66,8 +76,8 @@ func TestGoTestEnvironmentDropsOnlyLauncherIdentity(t *testing.T) {
 		if got[2] != inherited[8] {
 			t.Errorf("%v lost explicit GOFLAGS: %q", command, got[2])
 		}
-		if got[3] != "CGO_ENABLED=0" {
-			t.Errorf("%v ordinary test CGO = %q, want CGO_ENABLED=0", command, got[3])
+		if cgo := got[len(got)-1]; cgo != "CGO_ENABLED=0" {
+			t.Errorf("%v ordinary test CGO = %q, want CGO_ENABLED=0", command, cgo)
 		}
 	}
 	for _, command := range [][]string{

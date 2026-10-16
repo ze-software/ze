@@ -25,5 +25,7 @@ func TestMain(m *testing.M) {
 			os.Exit(2)
 		}
 	}
+	// No test here touches the real ~/.zt; the one that asserts GOTMPDIR sets its own resolver.
+	testTempDir = func() string { return "" }
 	os.Exit(m.Run())
 }

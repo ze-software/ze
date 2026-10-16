@@ -87,7 +87,10 @@ production commands retain operator checkout overrides and named-build checks.
 Direct `./le job run ... command go test ...` children use the same isolation
 at the process boundary, including Go's optional leading `-C` directory option.
 The admission process retains its root and job identity; only the test child's
-checkout/build identity is removed.
+checkout/build identity is removed. The test child also gets `GOTMPDIR` set to
+the test temp dir on the home device, as every le-started test does
+([running-commands.md](running-commands.md), "Where a Go test keeps its temp
+dirs").
 <!-- source: internal/le/job/process.go -- commandEnvironment, RunProcess -->
 <!-- source: internal/le/job/job.go -- Admission.stream -->
 

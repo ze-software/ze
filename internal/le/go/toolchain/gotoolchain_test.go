@@ -599,3 +599,138 @@ func TestToolchainOverridesLeaveTheToolchainToTheProcess(t *testing.T) {
 		}
 	})
 }
+
+// TestTestRunsKeepTheirTempDirsOnTheTestTempDir proves the GOTMPDIR override.
+//
+// VALIDATES: a test run carries GOTMPDIR naming what the resolver answers, a
+// build carries none and never asks the resolver, and a resolver that could
+// not make the directory adds none, so the run keeps Go's default rather than
+// naming a missing directory. An inherited GOTMPDIR loses to the override.
+// PREVENTS: test temp dirs back on the slow ~/.cache device, where fsync under
+// concurrent writers timed whole packages out (plan/journal/full-disk-false-red.md,
+// 2026-10-16).
+func TestTestRunsKeepTheirTempDirsOnTheTestTempDir(t *testing.T) {
+	hasGOTMPDIR := func(over []string) bool {
+		return slices.ContainsFunc(over, func(entry string) bool { return strings.HasPrefix(entry, "GOTMPDIR=") })
+	}
+	asked := 0
+	restore := testTempDir
+	t.Cleanup(func() { testTempDir = restore })
+	testTempDir = func() string { asked++; return "/h/.zt" }
+
+	chain := Toolchain{Root: "/x"}
+	if over := chain.Overrides(EnvOptions{}); hasGOTMPDIR(over) || asked != 0 {
+		t.Errorf("a build set GOTMPDIR or resolved it (%d calls): %v", asked, over)
+	}
+	if over := chain.Overrides(EnvOptions{Test: true}); !slices.Contains(over, "GOTMPDIR=/h/.zt") {
+		t.Errorf("a test run did not set GOTMPDIR=/h/.zt: %v", over)
+	}
+	t.Setenv("GOTMPDIR", "/elsewhere")
+	// os/exec keeps the last of duplicate keys, so the last GOTMPDIR is the one the child sees.
+	last := ""
+	for _, entry := range chain.Environment(EnvOptions{Test: true}) {
+		if value, found := strings.CutPrefix(entry, "GOTMPDIR="); found {
+			last = value
+		}
+	}
+	if last != "/h/.zt" {
+		t.Errorf("a test child sees GOTMPDIR=%q under an inherited /elsewhere, want /h/.zt", last)
+	}
+	testTempDir = func() string { return "" }
+	if over := chain.Overrides(EnvOptions{Test: true}); hasGOTMPDIR(over) {
+		t.Errorf("a resolver with no test temp dir still set GOTMPDIR: %v", over)
+	}
+}
+
+// TestTheTestTempBaseIsShortAndUnderHome proves where the base may live.
+//
+// VALIDATES: the base is <home>/.zt; a relative or empty home and a base past
+// testTempPathMax are refused with a reason, never shortened or replaced.
+// PREVENTS: a base so long that a socket under t.TempDir() exceeds sun_path.
+func TestTheTestTempBaseIsShortAndUnderHome(t *testing.T) {
+	if base, err := TestTempBase("/home/u"); err != nil || base != "/home/u/.zt" {
+		t.Errorf("TestTempBase(/home/u) = %q, %v; want /home/u/.zt", base, err)
+	}
+	// The base adds "/.zt", 4 bytes, to the home.
+	atMax := "/" + strings.Repeat("h", testTempPathMax-len(testTempLeaf)-2)
+	if base, err := TestTempBase(atMax); err != nil || len(base) != testTempPathMax {
+		t.Errorf("TestTempBase(%q) = %q, %v; want a %d-byte base", atMax, base, err, testTempPathMax)
+	}
+	// Each refusal names its fix (ai/rules/user-facing-errors.md).
+	for home, fix := range map[string]string{"": "set HOME", "home/u": "absolute path", atMax + "h": "at most 19 bytes"} {
+		base, err := TestTempBase(home)
+		if err == nil {
+			t.Errorf("TestTempBase(%q) = %q with no error; want a refusal", home, base)
+			continue
+		}
+		if !strings.Contains(err.Error(), fix) {
+			t.Errorf("TestTempBase(%q) refusal %q does not name its fix %q", home, err, fix)
+		}
+	}
+	if _, err := testTempDirFor(func() (string, error) { return "", os.ErrNotExist }); err == nil {
+		t.Error("testTempDirFor answered a base when the home did not resolve")
+	}
+	if testTempPathMax+tempDirSuffixMax+socketLeafMax != sunPathMax {
+		t.Errorf("the base budget %d does not leave a %d-byte leaf under t.TempDir's %d bytes in sun_path %d",
+			testTempPathMax, socketLeafMax, tempDirSuffixMax, sunPathMax)
+	}
+}
+
+// TestTheTestTempDirIsMadePrivateAndWritable proves makeTestTempDir.
+//
+// VALIDATES: a missing base is created 0700; an existing base is kept; a base
+// that cannot be written answers an error rather than a path. The error names
+// the fix for its cause: chown and chmod for a permission refusal, the device
+// for any other failure (here ENAMETOOLONG, which no permission repairs).
+// PREVENTS: GOTMPDIR naming a directory a test cannot create its temp dir in,
+// which fails every t.TempDir() call in the run, and a chown remedy offered for
+// a full or read-only disk.
+func TestTheTestTempDirIsMadePrivateAndWritable(t *testing.T) {
+	// The probe path is base + "/probe-" + at least one digit, so a base of
+	// 4090 bytes exists while every probe under it passes PATH_MAX (4096).
+	deep := t.TempDir()
+	for len(deep) < 4090-201 {
+		deep = filepath.Join(deep, strings.Repeat("d", 200))
+	}
+	deep = filepath.Join(deep, strings.Repeat("e", 4090-len(deep)-1))
+	err := makeTestTempDir(deep)
+	if err == nil {
+		t.Fatalf("makeTestTempDir(%d-byte base) answered no error", len(deep))
+	}
+	if !strings.Contains(err.Error(), "df -h "+deep) || strings.Contains(err.Error(), "chown") {
+		t.Errorf("makeTestTempDir(too long) = %q; want the device check df -h <base> and no chown", err)
+	}
+
+	base := filepath.Join(t.TempDir(), ".zt")
+	if err := makeTestTempDir(base); err != nil {
+		t.Fatalf("makeTestTempDir(missing): %v", err)
+	}
+	info, err := os.Stat(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mode := info.Mode().Perm(); mode != 0o700 {
+		t.Errorf("made %s with mode %o, want 700", base, mode)
+	}
+	if err := makeTestTempDir(base); err != nil {
+		t.Errorf("makeTestTempDir(existing): %v", err)
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("root writes a read-only directory, so the refusal cannot be observed")
+	}
+	if err := os.Chmod(base, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chmod(base, 0o700); err != nil {
+			t.Error(err)
+		}
+	})
+	err = makeTestTempDir(base)
+	if err == nil {
+		t.Fatal("makeTestTempDir(read-only) answered no error")
+	}
+	if !strings.Contains(err.Error(), "sudo chown -R $USER "+base) || strings.Contains(err.Error(), "df -h") {
+		t.Errorf("makeTestTempDir(read-only) = %q; want the chown remedy and no device check", err)
+	}
+}

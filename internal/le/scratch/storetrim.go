@@ -221,9 +221,9 @@ func (t Trigger) String() string {
 	}
 }
 
-// TrimSpawn starts the background trim for the checkout at root. It MUST
+// trimSpawn starts the background trim for the checkout at root. It MUST
 // return without waiting for the trim to finish.
-type TrimSpawn func(root string) error
+type trimSpawn func(root string) error
 
 // storeTrimBeforeDispatch is the hook register.go gives le's root handler
 // (leroot.RegisterBeforeDispatch), so the store trim has its hourly chance to
@@ -253,7 +253,7 @@ var storeTrimSpawn = detachedTrim
 //
 // A checkout that cannot be resolved answers TriggerFailed with nowhere to
 // write why; the command le was asked for then reports the same failure itself.
-func startStoreTrimWhenDue(spawn TrimSpawn) Trigger {
+func startStoreTrimWhenDue(spawn trimSpawn) Trigger {
 	root, err := checkoutRoot()
 	if err != nil {
 		return TriggerFailed
@@ -266,7 +266,7 @@ func startStoreTrimWhenDue(spawn TrimSpawn) Trigger {
 // the lock, because that answers almost every call; only a due stamp takes the
 // lock, and under it the stamp is read again, because a peer may have written
 // it between the two reads.
-func startTrimWhenDue(root string, now time.Time, automatic string, spawn TrimSpawn) Trigger {
+func startTrimWhenDue(root string, now time.Time, automatic string, spawn trimSpawn) Trigger {
 	enabled, switchErr := parseStoreTrim(automatic)
 	if switchErr == nil && !enabled {
 		return TriggerOff
@@ -409,7 +409,7 @@ func appendTrimLog(root string, now time.Time, message string) {
 // The started process is released rather than waited for; a long-lived
 // parent therefore holds a zombie entry until it exits, which costs a pid and
 // nothing else.
-func detachedTrim(leading []string) TrimSpawn {
+func detachedTrim(leading []string) trimSpawn {
 	return func(root string) error {
 		executable, err := os.Executable()
 		if err != nil {
@@ -658,6 +658,9 @@ func trimStoresScanning(root, automatic string, scan func() ([]session.Process, 
 		}
 	}
 	report.Stores = append(report.Stores, livenessStores(ctx, root, scan)...)
+	testTemp := testTempRow()
+	trimTestTemp(ctx, &testTemp, &livenessPass{now: time.Now(), remove: os.RemoveAll})
+	report.Stores = append(report.Stores, testTemp)
 	return report, report.verdict()
 }
 

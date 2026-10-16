@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/gaterun"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
 // ProcessIO specifies the streams and environment for one child process.
@@ -57,6 +58,10 @@ func RunProcess(argv []string, processIO ProcessIO) (int, error) {
 	return 0, nil
 }
 
+// testTempDir is the test temp resolver commandEnvironment calls; a test
+// replaces it with a directory of its own, so it never touches the real ~/.zt.
+var testTempDir = gotoolchain.TestTempDir
+
 // commandEnvironment isolates direct Go tests and selects CGO for their race
 // flag. Other commands retain their launch context and CGO setting.
 func commandEnvironment(argv []string, dir string, environ []string) ([]string, error) {
@@ -94,6 +99,10 @@ func commandEnvironment(argv []string, dir string, environ []string) ([]string, 
 		race = goFlagsRace(flags)
 	}
 	isolated := env.Without(environ, "ze.repo.root", "ze.le.build.name")
+	// The same test temp dir a native test action gets (gotoolchain.Overrides).
+	if testTemp := testTempDir(); testTemp != "" {
+		isolated = append(isolated, "GOTMPDIR="+testTemp)
+	}
 	if race {
 		return append(isolated, "CGO_ENABLED=1"), nil
 	}

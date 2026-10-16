@@ -399,6 +399,58 @@ before you write anything down. And a failure you tried to reproduce and could
 not is the one kind `ai/rules/completion.md` lets you RECORD instead of fix, so
 its journal row carries the reproduction attempt and says the storage stalled.
 
+## Where a Go test keeps its temp dirs
+
+Every Go test le starts, through a native unit action, a verify unit stage or
+`./le job run ... command go test`, runs with `GOTMPDIR=<home>/.zt`. Go 1.27's
+`t.TempDir()` creates beneath `GOTMPDIR`, and the go command writes its build
+work directory there, test binaries included, so both sit on the device that
+holds your home rather than under `TMPDIR`. A work directory holds 0.5-0.7G
+while a package builds, so that room now comes from the home device. On the
+Linux VM `TMPDIR` is `~/.cache/tmp`, on a second disk whose `fsync` under
+concurrent writers was measured ten times slower: the
+storage tests took 271s there against 75s on the home device, and whole
+packages hit the 20m timeout (`plan/journal/full-disk-false-red.md`,
+2026-10-16). `TMPDIR` itself is left alone, because the socket helpers that
+call `os.MkdirTemp("")` chose it for path length.
+
+The base must stay short. A socket under `t.TempDir()` adds up to 79 bytes to
+it, and `sun_path` holds 107, so a base longer than 23 bytes is refused. A
+home that does not resolve, a base that long, or a directory a test cannot
+write leaves `GOTMPDIR` unset; le then writes one line to stderr naming the
+reason and its fix, and the run keeps Go's default. The directory is created
+`0700` on first use. `df -h ~/.zt` answers how much room it has. Like
+`GOCACHE`, a `GOTMPDIR` you exported yourself is overridden on a test run.
+
+Under `sudo -E`, the test runs as root with your `HOME`, so root creates
+root-owned entries in `~/.zt` that your next run cannot use or remove. Give
+them back with `sudo chown -R $USER ~/.zt`.
+
+A test binary removes its own temp dirs when it ends, and the go command its
+`go-build*` work directory, so what stays under `~/.zt` is what a killed run
+left. The hourly store trim removes those on its `test-temp` row (see "When
+the disk is full"), and `./le scratch store-trim` does the same on demand: a
+`go-build*` entry more than 2 hours old, and any other entry more than 6 hours
+old. A work directory's mtime moves each time a package build starts or ends,
+so 2 hours is safe while packages build; once a test binary runs, its work
+directory gets no new child and the binary still executes from it (a fuzz
+coordinator, and every test that re-executes its own binary), so one test
+binary running longer than 2 hours can lose it. A `t.TempDir()` parent's
+mtime moves only when the test makes another temp dir. A run given a
+`-timeout` or `-fuzztime` longer than either age, or `-timeout 0`, can lose
+its work directory or its parent.
+
+A killed permission test can leave a directory chmodded to `0o000`. The trim
+gives each directory of an old entry back to its owner (`0700`) before it
+removes it, so such a leftover goes with no error. An old entry it cannot
+open is one this user does not own, which a `sudo -E` run leaves; the row
+error then names `sudo chown -R $USER ~/.zt`. A young entry it cannot read
+is a run still holding it: the row names it as contention and keeps it, and
+the row stays green.
+<!-- source: internal/le/go/toolchain/gotoolchain.go -- TestTempDir, TestTempBase, testTempPathMax, makeTestTempDir, Overrides -->
+<!-- source: internal/le/job/process.go -- commandEnvironment -->
+<!-- source: internal/le/scratch/livetrim.go -- testTempRow, trimTestTemp, openTestTempEntry, testTempOpenFailure, goBuildIdleAge, testTempIdleAge -->
+
 ## When another session cleans the cache under you
 
 `cache/go-cache/...: no such file or directory`, on files that are there, is a
@@ -584,7 +636,15 @@ them; the caches are trimmed either way. A row counts what it removed and what
 it kept, and an error in one of these rows also makes the action exit 1. With
 no `tmp/session/`, or when the session directories cannot be judged, the
 `testbins` row is a skip that says which.
-<!-- source: internal/le/scratch/livetrim.go -- trimLiveness, trimSessions, trimTestbins -->
+
+The last row, `test-temp`, is the per-user test temp base `~/.zt` (see "Where a
+Go test keeps its temp dirs"). Age alone judges it, with or without a Claude
+CLI in the process table, because every checkout and session shares the base
+and a run still writing an entry is younger than the floor: a `go-build*` work
+directory more than 2 hours old and any other entry more than 6 hours old is
+removed. A home with no usable base makes the row a skip that says
+why.
+<!-- source: internal/le/scratch/livetrim.go -- trimLiveness, trimSessions, trimTestbins, trimTestTemp -->
 <!-- source: internal/le/session/reap.go -- Judge, ScanProcesses -->
 
 ### A verify worktree shares that cache
