@@ -846,7 +846,9 @@ TED and flooded-LSA assertions and add a BGP-LS speaker sidecar. Ze exports its
 native OSPF database through `bgp-ls-export`; the collector records actual
 negotiated SAFI 71 UPDATEs, not injected substitutes. The checker reconstructs
 the final received inventory, including withdrawals, with the native UPDATE
-and BGP-LS decoders. It requires exact Node and bidirectional Link auxiliary
+and BGP-LS decoders: the wire types and TLV codes come from the core codec
+`internal/core/bgp/nlri/bgpls`, and the attribute decode runs through the
+plugin's registered `bgp-nlri-ls` decoder. It requires exact Node and bidirectional Link auxiliary
 IPv4 Router-ID TLVs for ordinary TE, and local IPv4 plus remote IPv4/IPv6 IDs
 for the configured inter-AS link. It rejects missing, swapped, duplicate or
 invented local IPv6 IDs. The bounded capture must finish successfully and

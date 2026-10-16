@@ -10,15 +10,9 @@ import (
 	"net/netip"
 	"strings"
 
-	"github.com/ze-software/ze/internal/core/textbuf"
-)
+	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
 
-// Prefix attribute TLV type codes.
-// RFC 7752 Section 3.3.3 defines prefix attribute TLVs.
-const (
-	TLVIGPFlags         uint16 = 1152 // RFC 7752 Section 3.3.3.1
-	TLVPrefixMetric     uint16 = 1155 // RFC 7752 Section 3.3.3.4
-	TLVOpaquePrefixAttr uint16 = 1157 // RFC 7752 Section 3.3.3.6
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // --- TLV 1152: IGP Flags ---
@@ -33,11 +27,11 @@ type lsIGPFlags struct {
 	Flags uint8
 }
 
-func (t *lsIGPFlags) Code() uint16 { return TLVIGPFlags }
+func (t *lsIGPFlags) Code() uint16 { return bgpls.TLVIGPFlags }
 func (t *lsIGPFlags) Len() int     { return 4 + 1 }
 
 func (t *lsIGPFlags) WriteTo(buf []byte, off int) int {
-	n := writeTLV(buf, off, TLVIGPFlags, 1)
+	n := bgpls.WriteTLV(buf, off, bgpls.TLVIGPFlags, 1)
 	buf[off+4] = t.Flags
 	return n
 }
@@ -45,18 +39,18 @@ func (t *lsIGPFlags) WriteTo(buf []byte, off int) int {
 func (t *lsIGPFlags) ToJSON() map[string]any {
 	return map[string]any{
 		"igp-flags": map[string]any{
-			"D":             int((t.Flags >> 7) & 1),
-			"N":             int((t.Flags >> 6) & 1),
-			"L":             int((t.Flags >> 5) & 1),
-			"P":             int((t.Flags >> 4) & 1),
-			jsonKeyReserved: int(t.Flags & 0x0F),
+			"D":                   int((t.Flags >> 7) & 1),
+			"N":                   int((t.Flags >> 6) & 1),
+			"L":                   int((t.Flags >> 5) & 1),
+			"P":                   int((t.Flags >> 4) & 1),
+			bgpls.JSONKeyReserved: int(t.Flags & 0x0F),
 		},
 	}
 }
 
 func decodeIGPFlags(data []byte) (lsAttrTLV, error) {
 	if len(data) < 1 {
-		return nil, ErrBGPLSTruncated
+		return nil, bgpls.ErrBGPLSTruncated
 	}
 	return &lsIGPFlags{Flags: data[0]}, nil
 }
@@ -69,11 +63,11 @@ type lsPrefixMetric struct {
 	Metric uint32
 }
 
-func (t *lsPrefixMetric) Code() uint16 { return TLVPrefixMetric }
+func (t *lsPrefixMetric) Code() uint16 { return bgpls.TLVPrefixMetric }
 func (t *lsPrefixMetric) Len() int     { return 4 + 4 }
 
 func (t *lsPrefixMetric) WriteTo(buf []byte, off int) int {
-	n := writeTLV(buf, off, TLVPrefixMetric, 4)
+	n := bgpls.WriteTLV(buf, off, bgpls.TLVPrefixMetric, 4)
 	binary.BigEndian.PutUint32(buf[off+4:], t.Metric)
 	return n
 }
@@ -84,7 +78,7 @@ func (t *lsPrefixMetric) ToJSON() map[string]any {
 
 func decodePrefixMetric(data []byte) (lsAttrTLV, error) {
 	if len(data) < 4 {
-		return nil, ErrBGPLSTruncated
+		return nil, bgpls.ErrBGPLSTruncated
 	}
 	return &lsPrefixMetric{Metric: binary.BigEndian.Uint32(data)}, nil
 }
@@ -97,11 +91,11 @@ type lsOpaquePrefixAttr struct {
 	Data []byte
 }
 
-func (t *lsOpaquePrefixAttr) Code() uint16 { return TLVOpaquePrefixAttr }
+func (t *lsOpaquePrefixAttr) Code() uint16 { return bgpls.TLVOpaquePrefixAttr }
 func (t *lsOpaquePrefixAttr) Len() int     { return 4 + len(t.Data) }
 
 func (t *lsOpaquePrefixAttr) WriteTo(buf []byte, off int) int {
-	return WriteTLVBytes(buf, off, TLVOpaquePrefixAttr, t.Data)
+	return bgpls.WriteTLVBytes(buf, off, bgpls.TLVOpaquePrefixAttr, t.Data)
 }
 
 func (t *lsOpaquePrefixAttr) ToJSON() map[string]any {
@@ -116,14 +110,6 @@ func decodeOpaquePrefixAttr(data []byte) (lsAttrTLV, error) {
 
 // --- Phase 2: SR-MPLS Prefix Attribute TLVs (RFC 9085) ---
 
-// SR-MPLS prefix attribute TLV type codes.
-const (
-	TLVPrefixSID      uint16 = 1158 // RFC 9085 Section 2.3.1
-	TLVSIDLabel       uint16 = 1161 // RFC 9085 Section 2.1.1
-	TLVSRPrefixFlags  uint16 = 1170 // RFC 9085 Section 2.3.2
-	TLVSourceRouterID uint16 = 1171 // RFC 9085 Section 2.3.3
-)
-
 // --- TLV 1158: Prefix SID ---
 
 // lsPrefixSID represents BGP-LS Prefix SID (TLV 1158).
@@ -136,7 +122,7 @@ type lsPrefixSID struct {
 	wireLen int
 }
 
-func (t *lsPrefixSID) Code() uint16 { return TLVPrefixSID }
+func (t *lsPrefixSID) Code() uint16 { return bgpls.TLVPrefixSID }
 
 func (t *lsPrefixSID) Len() int {
 	if t.wireLen > 0 {
@@ -147,7 +133,7 @@ func (t *lsPrefixSID) Len() int {
 
 func (t *lsPrefixSID) WriteTo(buf []byte, off int) int {
 	valueLen := t.Len() - 4
-	n := writeTLV(buf, off, TLVPrefixSID, valueLen)
+	n := bgpls.WriteTLV(buf, off, bgpls.TLVPrefixSID, valueLen)
 	vOff := off + 4
 	buf[vOff] = t.Flags
 	buf[vOff+1] = t.Algorithm
@@ -167,9 +153,9 @@ func (t *lsPrefixSID) WriteTo(buf []byte, off int) int {
 func (t *lsPrefixSID) ToJSON() map[string]any {
 	return map[string]any{
 		"prefix-sid": map[string]any{
-			jsonKeyFlags:     int(t.Flags),
-			jsonKeyAlgorithm: int(t.Algorithm),
-			jsonKeySID:       t.SID,
+			bgpls.JSONKeyFlags: int(t.Flags),
+			jsonKeyAlgorithm:   int(t.Algorithm),
+			jsonKeySID:         t.SID,
 		},
 	}
 }
@@ -177,7 +163,7 @@ func (t *lsPrefixSID) ToJSON() map[string]any {
 func decodePrefixSID(data []byte) (lsAttrTLV, error) {
 	// RFC 9085 Section 2.3.1: 7 or 8 bytes
 	if len(data) != 7 && len(data) != 8 {
-		return nil, ErrBGPLSTruncated
+		return nil, bgpls.ErrBGPLSTruncated
 	}
 	ps := &lsPrefixSID{
 		Flags:     data[0],
@@ -205,7 +191,7 @@ type lsSIDLabel struct {
 	wireLen int
 }
 
-func (t *lsSIDLabel) Code() uint16 { return TLVSIDLabel }
+func (t *lsSIDLabel) Code() uint16 { return bgpls.TLVSIDLabel }
 
 func (t *lsSIDLabel) Len() int {
 	if t.wireLen > 0 {
@@ -216,7 +202,7 @@ func (t *lsSIDLabel) Len() int {
 
 func (t *lsSIDLabel) WriteTo(buf []byte, off int) int {
 	valueLen := t.Len() - 4
-	n := writeTLV(buf, off, TLVSIDLabel, valueLen)
+	n := bgpls.WriteTLV(buf, off, bgpls.TLVSIDLabel, valueLen)
 	if valueLen == 3 {
 		buf[off+4] = byte(t.SID >> 16)
 		buf[off+5] = byte(t.SID >> 8)
@@ -233,7 +219,7 @@ func (t *lsSIDLabel) ToJSON() map[string]any {
 
 func decodeSIDLabel(data []byte) (lsAttrTLV, error) {
 	if len(data) != 3 && len(data) != 4 {
-		return nil, ErrBGPLSTruncated
+		return nil, bgpls.ErrBGPLSTruncated
 	}
 	var sid uint32
 	if len(data) == 4 {
@@ -256,11 +242,11 @@ type lsSRPrefixFlags struct {
 	Flags uint8
 }
 
-func (t *lsSRPrefixFlags) Code() uint16 { return TLVSRPrefixFlags }
+func (t *lsSRPrefixFlags) Code() uint16 { return bgpls.TLVSRPrefixFlags }
 func (t *lsSRPrefixFlags) Len() int     { return 4 + 1 }
 
 func (t *lsSRPrefixFlags) WriteTo(buf []byte, off int) int {
-	n := writeTLV(buf, off, TLVSRPrefixFlags, 1)
+	n := bgpls.WriteTLV(buf, off, bgpls.TLVSRPrefixFlags, 1)
 	buf[off+4] = t.Flags
 	return n
 }
@@ -268,17 +254,17 @@ func (t *lsSRPrefixFlags) WriteTo(buf []byte, off int) int {
 func (t *lsSRPrefixFlags) ToJSON() map[string]any {
 	return map[string]any{
 		"sr-prefix-flags": map[string]any{
-			"X":             int((t.Flags >> 7) & 1),
-			"R":             int((t.Flags >> 6) & 1),
-			"N":             int((t.Flags >> 5) & 1),
-			jsonKeyReserved: int(t.Flags & 0x1F),
+			"X":                   int((t.Flags >> 7) & 1),
+			"R":                   int((t.Flags >> 6) & 1),
+			"N":                   int((t.Flags >> 5) & 1),
+			bgpls.JSONKeyReserved: int(t.Flags & 0x1F),
 		},
 	}
 }
 
 func decodeSRPrefixFlags(data []byte) (lsAttrTLV, error) {
 	if len(data) < 1 {
-		return nil, ErrBGPLSTruncated
+		return nil, bgpls.ErrBGPLSTruncated
 	}
 	return &lsSRPrefixFlags{Flags: data[0]}, nil
 }
@@ -291,11 +277,11 @@ type lsSourceRouterID struct {
 	ID []byte // 4 or 16 bytes
 }
 
-func (t *lsSourceRouterID) Code() uint16 { return TLVSourceRouterID }
+func (t *lsSourceRouterID) Code() uint16 { return bgpls.TLVSourceRouterID }
 func (t *lsSourceRouterID) Len() int     { return 4 + len(t.ID) }
 
 func (t *lsSourceRouterID) WriteTo(buf []byte, off int) int {
-	return WriteTLVBytes(buf, off, TLVSourceRouterID, t.ID)
+	return bgpls.WriteTLVBytes(buf, off, bgpls.TLVSourceRouterID, t.ID)
 }
 
 func (t *lsSourceRouterID) ToJSON() map[string]any {
@@ -312,7 +298,7 @@ func (t *lsSourceRouterID) ToJSON() map[string]any {
 
 func decodeSourceRouterID(data []byte) (lsAttrTLV, error) {
 	if len(data) != 4 && len(data) != 16 {
-		return nil, ErrBGPLSTruncated
+		return nil, bgpls.ErrBGPLSTruncated
 	}
 	cp := make([]byte, len(data))
 	copy(cp, data)

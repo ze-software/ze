@@ -1,6 +1,6 @@
 // Design: docs/architecture/wire/nlri-bgpls.md -- BGP-LS SR attribute decode.
 // RFC: rfc/short/rfc9085.md
-// Related: attr_node.go -- decodeSRCapabilities, decodeSRLocalBlock
+// Related: attr_node.go -- decodeSRLocalBlock; register_attr.go -- the TLV 1034 adapter over bgpls.DecodeSRCapabilities
 //
 // VALIDATES: a received SR Capabilities TLV 1034 or SR Local Block TLV 1036
 // whose Flags and Reserved octets are all ones decodes to the range it
@@ -12,14 +12,18 @@
 // speaker sets a flag or reserved bit this implementation does not know.
 package ls
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
+)
 
 // rfc9085ReceivedRange is a Flags ff, Reserved ff header followed by one range
 // of 1000 labels whose SID/Label sub-TLV 1161 of length 3 carries label 16000.
 var rfc9085ReceivedRange = []byte{0xff, 0xff, 0x00, 0x03, 0xe8, 0x04, 0x89, 0x00, 0x03, 0x00, 0x3e, 0x80}
 
 // rfc9085CheckRange fails unless ranges holds the one range above.
-func rfc9085CheckRange(t *testing.T, ranges []LsSrLabelRange) {
+func rfc9085CheckRange(t *testing.T, ranges []bgpls.LsSrLabelRange) {
 	t.Helper()
 	if len(ranges) != 1 {
 		t.Fatalf("ranges = %+v, want one", ranges)
@@ -40,11 +44,11 @@ func rfc9085CheckRange(t *testing.T, ranges []LsSrLabelRange) {
 // RFC requirement: RFC9085-2.1.4-1 positive -- a received TLV 1036 with Flags ff is not rejected and its range decodes intact: the flags are ignored on receipt (§2.1.4).
 // RFC requirement: RFC9085-2.1.4-2 positive -- a received TLV 1036 with Reserved ff is not rejected and its range decodes intact: the Reserved octet is ignored on receipt (§2.1.4).
 func TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved(t *testing.T) {
-	decoded, err := decodeSRCapabilities(rfc9085ReceivedRange)
+	decoded, err := lookupLsAttrTLVDecoder(bgpls.TLVSRCapabilities)(rfc9085ReceivedRange)
 	if err != nil {
 		t.Fatalf("TLV 1034 refused: %v", err)
 	}
-	capabilities, ok := decoded.(*LsSRCapabilities)
+	capabilities, ok := decoded.(*bgpls.LsSRCapabilities)
 	if !ok {
 		t.Fatalf("TLV 1034 decoded as %T", decoded)
 	}

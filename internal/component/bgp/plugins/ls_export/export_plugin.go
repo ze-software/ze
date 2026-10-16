@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp"
-	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/linkstateevents"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -118,8 +118,8 @@ func runTopologyExporter(conn net.Conn) int {
 		case rpc.EventKindState:
 			exporter.peerState(peer, event.GetPeerState() == "up")
 		case rpc.EventKindRefresh:
-			if event.AFI == ls.BGPLSFamily.AFI {
-				if event.SAFI == ls.BGPLSFamily.SAFI {
+			if event.AFI == family.AFIBGPLS {
+				if event.SAFI == family.SAFIBGPLinkState {
 					exporter.peerRefresh(peer)
 				}
 			}

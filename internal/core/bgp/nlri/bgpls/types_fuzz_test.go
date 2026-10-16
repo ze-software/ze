@@ -1,4 +1,4 @@
-package ls
+package bgpls
 
 import (
 	"testing"
@@ -92,7 +92,7 @@ func FuzzParseBGPLSWithRest(f *testing.F) {
 	f.Add([]byte{0x00, 0x01, 0x00, 0x00}) // Zero length
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		nlri, rest, err := parseBGPLSWithRest(data)
+		nlri, rest, err := ParseBGPLSWithRest(data)
 		if err != nil {
 			return
 		}

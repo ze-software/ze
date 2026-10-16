@@ -6,7 +6,7 @@
 // asn 65000") instead of the structured RFC 7752 / 9514 JSON.
 //
 // Outer JSON shape is streamed directly (eliminates the outer map + Marshal
-// round-trip). Nested descriptor arrays still come from the parseBGPLS*TLVs
+// round-trip). Nested descriptor arrays still come from the ParseBGPLS*TLVs
 // helpers and are emitted via json.Marshal per element -- cold path, TLV
 // trees are deep, full streaming would duplicate every walker branch.
 //
@@ -15,7 +15,7 @@
 // downstream consumer that diffs JSON text sees the same bytes whether the
 // NLRI went through the RPC decode path or the in-process fast path.
 
-package ls
+package bgpls
 
 import (
 	"encoding/json"
@@ -36,8 +36,8 @@ func (s *BGPLSSRv6SID) AppendJSON(buf []byte) []byte { return appendBGPLSJSON(bu
 
 // appendBGPLSJSON streams the BGP-LS JSON representation of n into buf in
 // alphabetical key order (matches json.Marshal(bgplsToJSON(...))).
-// Mirrors bgplsToJSON (plugin.go) -- update both if the shape changes.
-func appendBGPLSJSON(buf []byte, n bGPLSNLRI) []byte {
+// Mirrors bgplsToJSON in the BGP-LS plugin (internal/component/bgp/plugins/nlri/ls/plugin.go) -- update both if the shape changes.
+func appendBGPLSJSON(buf []byte, n BGPLSNLRI) []byte {
 	data := bgplsRawBytes(n)
 
 	buf = append(buf, '{')
@@ -49,7 +49,7 @@ func appendBGPLSJSON(buf []byte, n bGPLSNLRI) []byte {
 		buf = append(buf, ',')
 		buf = appendType(buf, n)
 		buf = append(buf, `,"node-descriptors":`...)
-		buf = appendMarshaled(buf, parseBGPLSNodeTLVs(data))
+		buf = appendMarshaled(buf, ParseBGPLSNodeTLVs(data))
 		buf = append(buf, ',')
 		buf = appendProtocol(buf, n)
 
@@ -57,21 +57,21 @@ func appendBGPLSJSON(buf []byte, n bGPLSNLRI) []byte {
 		// Keys: interface-addresses, l3-routing-topology, link-identifiers,
 		// local-node-descriptors, ls-nlri-type, multi-topology-ids,
 		// neighbor-addresses, protocol-id, remote-node-descriptors.
-		localDescs, remoteDescs, info := parseBGPLSLinkTLVs(data)
+		localDescs, remoteDescs, info := ParseBGPLSLinkTLVs(data)
 		buf = append(buf, `"interface-addresses":`...)
-		buf = appendMarshaled(buf, info.ifAddrs)
+		buf = appendMarshaled(buf, info.IfAddrs)
 		buf = append(buf, ',')
 		buf = appendTopology(buf, n)
 		buf = append(buf, `,"link-identifiers":`...)
-		buf = appendMarshaled(buf, info.linkIDs)
+		buf = appendMarshaled(buf, info.LinkIDs)
 		buf = append(buf, `,"local-node-descriptors":`...)
 		buf = appendMarshaled(buf, localDescs)
 		buf = append(buf, ',')
 		buf = appendType(buf, n)
 		buf = append(buf, `,"multi-topology-ids":`...)
-		buf = appendMarshaled(buf, info.mtIDs)
+		buf = appendMarshaled(buf, info.MTIDs)
 		buf = append(buf, `,"neighbor-addresses":`...)
-		buf = appendMarshaled(buf, info.neighAddrs)
+		buf = appendMarshaled(buf, info.NeighAddrs)
 		buf = append(buf, ',')
 		buf = appendProtocol(buf, n)
 		buf = append(buf, `,"remote-node-descriptors":`...)
@@ -81,19 +81,19 @@ func appendBGPLSJSON(buf []byte, n bGPLSNLRI) []byte {
 		// Keys: ip-reach-prefix, ip-reachability-tlv (both only if prefix!=""),
 		// l3-routing-topology, ls-nlri-type, multi-topology-ids,
 		// node-descriptors, protocol-id.
-		nodeDescs, prefixInfo := parseBGPLSPrefixTLVs(data, n.NLRIType())
-		if prefixInfo.prefix != "" {
+		nodeDescs, prefixInfo := ParseBGPLSPrefixTLVs(data, n.NLRIType())
+		if prefixInfo.Prefix != "" {
 			buf = append(buf, `"ip-reach-prefix":`...)
-			buf = appendJSONQuoted(buf, prefixInfo.prefix)
+			buf = appendJSONQuoted(buf, prefixInfo.Prefix)
 			buf = append(buf, `,"ip-reachability-tlv":`...)
-			buf = appendJSONQuoted(buf, prefixInfo.prefix)
+			buf = appendJSONQuoted(buf, prefixInfo.Prefix)
 			buf = append(buf, ',')
 		}
 		buf = appendTopology(buf, n)
 		buf = append(buf, ',')
 		buf = appendType(buf, n)
 		buf = append(buf, `,"multi-topology-ids":`...)
-		buf = appendMarshaled(buf, prefixInfo.mtIDs)
+		buf = appendMarshaled(buf, prefixInfo.MTIDs)
 		buf = append(buf, `,"node-descriptors":`...)
 		buf = appendMarshaled(buf, nodeDescs)
 		buf = append(buf, ',')
@@ -106,12 +106,12 @@ func appendBGPLSJSON(buf []byte, n bGPLSNLRI) []byte {
 		buf = append(buf, ',')
 		buf = appendType(buf, n)
 		buf = append(buf, `,"node-descriptors":`...)
-		buf = appendMarshaled(buf, parseBGPLSNodeTLVs(data))
+		buf = appendMarshaled(buf, ParseBGPLSNodeTLVs(data))
 		buf = append(buf, ',')
 		buf = appendProtocol(buf, n)
 		if v, ok := n.(*BGPLSSRv6SID); ok && len(v.SRv6SID.SRv6SID) > 0 {
 			buf = append(buf, `,"srv6-sid":`...)
-			buf = appendJSONQuoted(buf, formatIPv6Compressed(v.SRv6SID.SRv6SID))
+			buf = appendJSONQuoted(buf, FormatIPv6Compressed(v.SRv6SID.SRv6SID))
 		}
 
 	default: // The interface admits an open type set; emit only common keys.
@@ -127,19 +127,19 @@ func appendBGPLSJSON(buf []byte, n bGPLSNLRI) []byte {
 }
 
 // appendType writes `"ls-nlri-type":"<name>"` (no leading comma).
-func appendType(buf []byte, n bGPLSNLRI) []byte {
+func appendType(buf []byte, n BGPLSNLRI) []byte {
 	buf = append(buf, `"ls-nlri-type":`...)
-	return appendJSONQuoted(buf, bgplsNLRITypeString(uint16(n.NLRIType())))
+	return appendJSONQuoted(buf, BGPLSNLRITypeString(uint16(n.NLRIType())))
 }
 
 // appendTopology writes `"l3-routing-topology":<identifier>` (no leading comma).
-func appendTopology(buf []byte, n bGPLSNLRI) []byte {
+func appendTopology(buf []byte, n BGPLSNLRI) []byte {
 	buf = append(buf, `"l3-routing-topology":`...)
 	return strconv.AppendUint(buf, n.Identifier(), 10)
 }
 
 // appendProtocol writes `"protocol-id":<proto>` (no leading comma).
-func appendProtocol(buf []byte, n bGPLSNLRI) []byte {
+func appendProtocol(buf []byte, n BGPLSNLRI) []byte {
 	buf = append(buf, `"protocol-id":`...)
 	return strconv.AppendInt(buf, int64(n.ProtocolID()), 10)
 }
@@ -147,7 +147,7 @@ func appendProtocol(buf []byte, n bGPLSNLRI) []byte {
 // bgplsRawBytes returns the wire bytes for n, preferring the cached slice set
 // by parseBGPLS so wire-parsed NLRIs skip a fresh WriteTo allocation on every
 // AppendJSON call. Returns n.Bytes() for programmatically-constructed NLRIs.
-func bgplsRawBytes(n bGPLSNLRI) []byte {
+func bgplsRawBytes(n BGPLSNLRI) []byte {
 	type cacher interface{ cachedBytes() []byte }
 	if c, ok := n.(cacher); ok {
 		if b := c.cachedBytes(); b != nil {
@@ -160,7 +160,7 @@ func bgplsRawBytes(n bGPLSNLRI) []byte {
 // appendMarshaled encodes v with json.Marshal and appends the result to buf.
 // On error the JSON "null" literal is written so the surrounding object stays
 // valid JSON -- callers are walking wire TLVs, not untrusted user input, so a
-// marshal failure means a programming bug in a parseBGPLS* helper.
+// marshal failure means a programming bug in a ParseBGPLS* helper.
 func appendMarshaled(buf []byte, v any) []byte {
 	b, err := json.Marshal(v)
 	if err != nil {

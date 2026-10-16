@@ -71,23 +71,23 @@
       "rid": "RFC9085-2.1.2-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags",
-      "unit-sha": "dcdade5a65c4fd5b",
+      "unit-sha": "6c51f8d0c90e070b",
       "claim-sha": "c8a902d2b699a9bc",
       "route": "revert",
-      "producer": "internal/component/bgp/plugins/nlri/ls/attr_node.go::decodeSRCapabilities",
-      "producer-sha": "aa6d83afae309a7f",
-      "break": "body of decodeSRCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/core/bgp/nlri/bgpls/sr_capabilities.go::DecodeSRCapabilities",
+      "producer-sha": "be055a075f0738aa",
+      "break": "body of DecodeSRCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9085-2.1.2-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved",
-      "unit-sha": "018676020d7ae409",
+      "unit-sha": "22147dbee8dad0fb",
       "claim-sha": "2ae3adb017e4bef9",
       "route": "revert",
-      "producer": "internal/component/bgp/plugins/nlri/ls/attr_node.go::decodeSRCapabilities",
-      "producer-sha": "aa6d83afae309a7f",
-      "break": "body of decodeSRCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/core/bgp/nlri/bgpls/sr_capabilities.go::DecodeSRCapabilities",
+      "producer-sha": "be055a075f0738aa",
+      "break": "body of DecodeSRCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9085-2.1.2-1",
@@ -115,23 +115,23 @@
       "rid": "RFC9085-2.1.2-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags",
-      "unit-sha": "dcdade5a65c4fd5b",
+      "unit-sha": "6c51f8d0c90e070b",
       "claim-sha": "8e0c5df80fa4359a",
       "route": "revert",
-      "producer": "internal/component/bgp/plugins/nlri/ls/attr_node.go::decodeSRCapabilities",
-      "producer-sha": "aa6d83afae309a7f",
-      "break": "body of decodeSRCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/core/bgp/nlri/bgpls/sr_capabilities.go::DecodeSRCapabilities",
+      "producer-sha": "be055a075f0738aa",
+      "break": "body of DecodeSRCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9085-2.1.2-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved",
-      "unit-sha": "018676020d7ae409",
+      "unit-sha": "22147dbee8dad0fb",
       "claim-sha": "3ec5f909fe04f91f",
       "route": "revert",
-      "producer": "internal/component/bgp/plugins/nlri/ls/attr_node.go::decodeSRCapabilities",
-      "producer-sha": "aa6d83afae309a7f",
-      "break": "body of decodeSRCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/core/bgp/nlri/bgpls/sr_capabilities.go::DecodeSRCapabilities",
+      "producer-sha": "be055a075f0738aa",
+      "break": "body of DecodeSRCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9085-2.1.2-2",
@@ -181,11 +181,11 @@
       "rid": "RFC9085-2.1.4-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved",
-      "unit-sha": "018676020d7ae409",
+      "unit-sha": "22147dbee8dad0fb",
       "claim-sha": "44ad3ec956b05e9d",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/ls/attr_node.go::decodeSRLocalBlock",
-      "producer-sha": "cd279b8237a2b928",
+      "producer-sha": "4d9e3a9c031df0f0",
       "break": "body of decodeSRLocalBlock replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -214,11 +214,11 @@
       "rid": "RFC9085-2.1.4-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved",
-      "unit-sha": "018676020d7ae409",
+      "unit-sha": "22147dbee8dad0fb",
       "claim-sha": "1cf1f3cd9c3c5b19",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/ls/attr_node.go::decodeSRLocalBlock",
-      "producer-sha": "cd279b8237a2b928",
+      "producer-sha": "4d9e3a9c031df0f0",
       "break": "body of decodeSRLocalBlock replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -273,7 +273,7 @@
       "claim-sha": "974ba59ce3075283",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::encodeTopology",
-      "producer-sha": "c01087982ad8e011",
+      "producer-sha": "8cd787137d3e2d50",
       "break": "body of encodeTopology replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -284,7 +284,7 @@
       "claim-sha": "90bacd0f3279e2e3",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::encodeTopology",
-      "producer-sha": "c01087982ad8e011",
+      "producer-sha": "8cd787137d3e2d50",
       "break": "body of encodeTopology replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -339,7 +339,7 @@
       "claim-sha": "1b328c0ef500a9d6",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/ls/attr_link.go::decodeAdjacencySID",
-      "producer-sha": "77d24412fede179a",
+      "producer-sha": "4dc092af8794f10b",
       "break": "body of decodeAdjacencySID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -449,7 +449,7 @@
       "claim-sha": "96d823ed3b49ca49",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::encodeTopology",
-      "producer-sha": "c01087982ad8e011",
+      "producer-sha": "8cd787137d3e2d50",
       "break": "body of encodeTopology replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -460,7 +460,7 @@
       "claim-sha": "1cabb0500992d640",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::encodeTopology",
-      "producer-sha": "c01087982ad8e011",
+      "producer-sha": "8cd787137d3e2d50",
       "break": "body of encodeTopology replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -515,7 +515,7 @@
       "claim-sha": "5e6ba4e8f890cc27",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/ls/attr_prefix.go::decodePrefixSID",
-      "producer-sha": "1f66d221fbad301d",
+      "producer-sha": "13b121df59848b12",
       "break": "body of decodePrefixSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

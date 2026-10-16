@@ -1159,7 +1159,7 @@ NLRI plugins register address family support at init time via `family.MustRegist
 <!-- source: internal/component/bgp/plugins/nlri/mup/types.go -- MUP family types -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/types.go -- MVPN family types -->
 <!-- source: internal/component/bgp/plugins/nlri/rtc/types.go -- RTC family types -->
-<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGP-LS family types -->
+<!-- source: internal/core/bgp/nlri/bgpls/types.go -- BGP-LS family types -->
 <!-- source: internal/core/family/registry.go -- family registry -->
 
 ## Hub Configuration

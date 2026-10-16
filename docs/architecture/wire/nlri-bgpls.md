@@ -4,7 +4,7 @@
 **Family:** AFI 16388 (BGP-LS), SAFI 71 (bgp_ls) or 72 (bgp_ls_vpn)
 
 <!-- source: internal/core/family/family.go -- AFIBGPLS, SAFIBGPLinkState, SAFIBGPLinkStateVPN -->
-<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGPLSFamily, BGPLSVPNFamily -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/register.go -- BGPLSFamily, BGPLSVPNFamily -->
 
 ---
 
@@ -44,7 +44,7 @@
 +---------------------------+
 ```
 
-<!-- source: internal/component/bgp/plugins/nlri/ls/types_nlri.go -- BGP-LS wire format parsing -->
+<!-- source: internal/core/bgp/nlri/bgpls/types_nlri.go -- BGP-LS wire format parsing -->
 
 ---
 
@@ -58,7 +58,7 @@
 | 4 | IPv6 Prefix NLRI | IPv6 reachability |
 | 6 | SRv6 SID NLRI | Segment Routing v6 (RFC 9514) |
 
-<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGPLSNLRIType constants -->
+<!-- source: internal/core/bgp/nlri/bgpls/types.go -- BGPLSNLRIType constants -->
 
 ---
 
@@ -75,7 +75,7 @@
 | 7 | BGP Egress Peer Engineering |
 | 227 | FreeRTR (non-standard) |
 
-<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGPLSProtocolID, ProtoISISL1..ProtoOSPFv3 -->
+<!-- source: internal/core/bgp/nlri/bgpls/types.go -- BGPLSProtocolID, ProtoISISL1..ProtoOSPFv3 -->
 
 ---
 
@@ -118,9 +118,9 @@ the encoder writes it after the container, and `parseSRv6SIDDescriptorTLVs` read
 on receive, keeping the first when a sender repeats it (RFC 9552 Section 8.2.2 forbids
 refusing the NLRI for that). The node walk ignores TLV 518 wherever it appears.
 
-<!-- source: internal/component/bgp/plugins/nlri/ls/types_descriptor.go -- NodeDescriptor struct, TLV constants -->
-<!-- source: internal/component/bgp/plugins/nlri/ls/types_descriptor.go -- NodeDescriptor.WriteTo -->
-<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- parseSRv6SIDDescriptorTLVs -->
+<!-- source: internal/core/bgp/nlri/bgpls/types_descriptor.go -- NodeDescriptor struct, TLV constants -->
+<!-- source: internal/core/bgp/nlri/bgpls/types_descriptor.go -- NodeDescriptor.WriteTo -->
+<!-- source: internal/core/bgp/nlri/bgpls/types.go -- parseSRv6SIDDescriptorTLVs -->
 
 ---
 
@@ -157,7 +157,7 @@ refusing the NLRI for that). The node walk ignores TLV 518 wherever it appears.
 | 262 | IPv6 Neighbor Address | 16 |
 | 263 | Multi-Topology ID | 2 |
 
-<!-- source: internal/component/bgp/plugins/nlri/ls/types_descriptor.go -- LinkDescriptor TLV constants -->
+<!-- source: internal/core/bgp/nlri/bgpls/types_descriptor.go -- LinkDescriptor TLV constants -->
 
 ---
 
@@ -189,7 +189,7 @@ refusing the NLRI for that). The node walk ignores TLV 518 wherever it appears.
 | 264 | OSPF Route Type | 1 |
 | 265 | IP Reachability Information | Variable |
 
-<!-- source: internal/component/bgp/plugins/nlri/ls/types_descriptor.go -- prefix descriptor TLV constants -->
+<!-- source: internal/core/bgp/nlri/bgpls/types_descriptor.go -- prefix descriptor TLV constants -->
 
 ---
 
@@ -405,7 +405,7 @@ prevent proof of the conditional placement duties in Sections 2.2 and 2.3.
 The exporter is the package `internal/component/bgp/plugins/ls_export`, and
 `bgp-epe` is the package `internal/component/bgp/plugins/epe`. Each package
 registers one plugin and owns its YANG module. Both encode through the BGP-LS
-codec in `internal/component/bgp/plugins/nlri/ls`.
+codec in `internal/core/bgp/nlri/bgpls`.
 
 The `bgp-ls-export` and `bgp-epe` schemas are always loaded. A `bgp-ls-export`
 or `bgp-epe` block in the configuration starts its plugin, and removing the
@@ -574,8 +574,8 @@ An NLRI Type this document does not define stays opaque and is propagated whole,
 Section 5.2 requires it. No TLV value octet is read here either, for the reason the
 attribute half gives.
 
-<!-- source: internal/component/bgp/plugins/nlri/ls/types_nlri.go -- BGPLSNode, BGPLSLink, BGPLSPrefix -->
-<!-- source: internal/component/bgp/plugins/nlri/ls/types_srv6.go -- BGPLSSRv6SID -->
+<!-- source: internal/core/bgp/nlri/bgpls/types_nlri.go -- BGPLSNode, BGPLSLink, BGPLSPrefix -->
+<!-- source: internal/core/bgp/nlri/bgpls/types_srv6.go -- BGPLSSRv6SID -->
 
 ---
 

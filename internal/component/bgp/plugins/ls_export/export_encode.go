@@ -10,7 +10,8 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
+
 	"github.com/ze-software/ze/internal/core/linkstateevents"
 )
 
@@ -54,7 +55,7 @@ func encodeTopology(snapshot *linkstateevents.Snapshot) (map[string]exportedRout
 		return nil, err
 	}
 	routes := make(map[string]exportedRoute, len(snapshot.Nodes)+len(snapshot.Links)+len(snapshot.Prefixes))
-	protocol := ls.BGPLSProtocolID(snapshot.Domain.Protocol)
+	protocol := bgpls.BGPLSProtocolID(snapshot.Domain.Protocol)
 	identifier := snapshot.Domain.Identifier
 	var unreachable map[originIdentity]struct{}
 	//exhaustive:ignore // Only IGP protocols project unreachable origins into topology filtering.
@@ -96,7 +97,7 @@ func encodeTopology(snapshot *linkstateevents.Snapshot) (map[string]exportedRout
 		if err != nil {
 			return nil, err
 		}
-		nlri := ls.NewBGPLSNode(protocol, identifier, exportNodeID(node.ID))
+		nlri := bgpls.NewBGPLSNode(protocol, identifier, exportNodeID(node.ID))
 		if err := add(nlri.Bytes(), attributes); err != nil {
 			return nil, err
 		}
@@ -148,13 +149,13 @@ func encodeTopology(snapshot *linkstateevents.Snapshot) (map[string]exportedRout
 		reachability := make([]byte, 1+(masked.Bits()+7)/8)
 		reachability[0] = byte(masked.Bits())
 		copy(reachability[1:], masked.Addr().AsSlice())
-		desc := ls.PrefixDescriptor{MultiTopologyID: prefix.Topology, HasMultiTopologyID: true,
+		desc := bgpls.PrefixDescriptor{MultiTopologyID: prefix.Topology, HasMultiTopologyID: true,
 			OSPFRouteType: prefix.RouteType, IPReachabilityInfo: reachability}
-		var nlri *ls.BGPLSPrefix
+		var nlri *bgpls.BGPLSPrefix
 		if masked.Addr().Is4() {
-			nlri = ls.NewBGPLSPrefixV4(protocol, identifier, exportNodeID(prefix.Node), desc)
+			nlri = bgpls.NewBGPLSPrefixV4(protocol, identifier, exportNodeID(prefix.Node), desc)
 		} else {
-			nlri = ls.NewBGPLSPrefixV6(protocol, identifier, exportNodeID(prefix.Node), desc)
+			nlri = bgpls.NewBGPLSPrefixV6(protocol, identifier, exportNodeID(prefix.Node), desc)
 		}
 		attributes, err := originateAttributes(snapshot.Domain.Protocol, uint16(nlri.NLRIType()), prefix.Attributes, prefix.Opaque)
 		if err != nil {
@@ -177,8 +178,8 @@ func encodeTopology(snapshot *linkstateevents.Snapshot) (map[string]exportedRout
 		if !slices.ContainsFunc(sid.Attributes, func(attr linkstateevents.TLV) bool { return attr.Type == 1250 && len(attr.Value) == 4 }) {
 			return nil, errors.New("native SRv6 SID lacks Endpoint Behavior")
 		}
-		nlri := ls.NewBGPLSSRv6SID(protocol, identifier, exportNodeID(sid.Node),
-			ls.SRv6SIDDescriptor{MultiTopologyID: sid.Topology, SRv6SID: sid.SID.AsSlice()})
+		nlri := bgpls.NewBGPLSSRv6SID(protocol, identifier, exportNodeID(sid.Node),
+			bgpls.SRv6SIDDescriptor{MultiTopologyID: sid.Topology, SRv6SID: sid.SID.AsSlice()})
 		attributes, err := originateAttributes(snapshot.Domain.Protocol, 6, sid.Attributes, nil)
 		if err != nil {
 			return nil, err
@@ -190,7 +191,7 @@ func encodeTopology(snapshot *linkstateevents.Snapshot) (map[string]exportedRout
 	return routes, nil
 }
 
-func encodeNativeLink(protocol ls.BGPLSProtocolID, identifier uint64, link *linkstateevents.Link, topology uint16) ([]byte, error) {
+func encodeNativeLink(protocol bgpls.BGPLSProtocolID, identifier uint64, link *linkstateevents.Link, topology uint16) ([]byte, error) {
 	descriptors := make([]linkstateevents.TLV, 0, len(link.LocalAddresses)+len(link.RemoteAddresses)+2)
 	for _, addr := range link.LocalAddresses {
 		if !addr.IsValid() {
@@ -224,7 +225,7 @@ func encodeNativeLink(protocol ls.BGPLSProtocolID, identifier uint64, link *link
 		binary.BigEndian.PutUint32(ids[4:], link.RemoteID)
 		descriptors = append(descriptors, linkstateevents.TLV{Type: 258, Value: ids})
 	}
-	if protocol != ls.BGPLSProtocolID(linkstateevents.BGP) {
+	if protocol != bgpls.BGPLSProtocolID(linkstateevents.BGP) {
 		mtid := []byte{byte(topology >> 8), byte(topology)}
 		descriptors = append(descriptors, linkstateevents.TLV{Type: 263, Value: mtid})
 	}
@@ -237,7 +238,7 @@ func encodeNativeLink(protocol ls.BGPLSProtocolID, identifier uint64, link *link
 		}
 		return bytes.Compare(a.Value, b.Value)
 	})
-	base := ls.NewBGPLSLink(protocol, identifier, exportNodeID(link.Local), exportNodeID(link.Remote), ls.LinkDescriptor{})
+	base := bgpls.NewBGPLSLink(protocol, identifier, exportNodeID(link.Local), exportNodeID(link.Remote), bgpls.LinkDescriptor{})
 	length := base.Len()
 	for i, desc := range descriptors {
 		if i > 0 && desc.Type == descriptors[i-1].Type && bytes.Equal(desc.Value, descriptors[i-1].Value) {
@@ -254,14 +255,14 @@ func encodeNativeLink(protocol ls.BGPLSProtocolID, identifier uint64, link *link
 		if i > 0 && desc.Type == descriptors[i-1].Type && bytes.Equal(desc.Value, descriptors[i-1].Value) {
 			continue
 		}
-		off += ls.WriteTLVBytes(wire, off, desc.Type, desc.Value)
+		off += bgpls.WriteTLVBytes(wire, off, desc.Type, desc.Value)
 	}
 	binary.BigEndian.PutUint16(wire[2:], uint16(length-4))
 	return wire, nil
 }
 
-func exportNodeID(id linkstateevents.NodeID) ls.NodeDescriptor {
-	node := ls.NodeDescriptor{ASN: id.ASN, BGPLSIdentifier: id.BGPLSID, HasBGPLSIdentifier: id.HasBGPLSID,
+func exportNodeID(id linkstateevents.NodeID) bgpls.NodeDescriptor {
+	node := bgpls.NodeDescriptor{ASN: id.ASN, BGPLSIdentifier: id.BGPLSID, HasBGPLSIdentifier: id.HasBGPLSID,
 		OSPFAreaID: id.Area, HasOSPFAreaID: id.HasArea, IGPRouterID: id.RouterID, ConfedMember: id.Confederation}
 	if id.BGPRouterID.Is4() {
 		b := id.BGPRouterID.As4()
@@ -338,7 +339,7 @@ func originateAttributes(protocol linkstateevents.Protocol, kind uint16, attribu
 	wire := make([]byte, length)
 	off := 0
 	for _, attr := range ordered {
-		n := ls.WriteTLVBytes(wire, off, attr.Type, attr.Value)
+		n := bgpls.WriteTLVBytes(wire, off, attr.Type, attr.Value)
 		value := wire[off+4 : off+n]
 		if err := clearOriginatedReserved(attr.Type, value); err != nil {
 			return nil, err

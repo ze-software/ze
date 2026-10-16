@@ -4,7 +4,7 @@
 // Overview: types.go — core types, bgplsBase, TLV constants, parser functions
 // Related: types_descriptor.go — NodeDescriptor embedded in BGPLSSRv6SID
 // Related: types_nlri.go — RFC 7752 NLRI types (Node, Link, Prefix)
-package ls
+package bgpls
 
 import (
 	"encoding/binary"

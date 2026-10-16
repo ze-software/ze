@@ -6,7 +6,7 @@
 // with every field set and when the NLRI around it carries an SRv6 SID.
 // PREVENTS: a repeated sub-TLV type in one Node Descriptor, which the encoder
 // once produced by writing one TLV 518 per stored SRv6 SID.
-package ls
+package bgpls
 
 import (
 	"bytes"

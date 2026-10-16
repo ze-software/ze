@@ -1,6 +1,5 @@
 // Design: docs/architecture/wire/nlri-bgpls.md — BGP-LS attribute TLV framework
 // RFC: rfc/short/rfc7752.md — BGP-LS attribute type 29 TLV format
-// Overview: types.go — core types, TLV constants, and helper functions
 // Detail: attr_node.go — node attribute TLV types
 // Detail: attr_link.go — link attribute TLV types
 // Detail: attr_prefix.go — prefix attribute TLV types
@@ -11,20 +10,17 @@ package ls
 import (
 	"encoding/binary"
 	"errors"
+
+	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
 )
 
 // JSON keys shared by the ToJSON methods of the attribute TLVs in
 // attr_node.go, attr_link.go, attr_prefix.go and attr_srv6.go. A consumer of
 // the decoded BGP-LS attribute matches these by exact string.
 const (
-	jsonKeyFlags     = "flags"
 	jsonKeyWeight    = "weight"
 	jsonKeySID       = "sid"
 	jsonKeyAlgorithm = "algorithm"
-
-	// jsonKeyReserved carries the reserved bits of a flags octet, so a
-	// consumer sees what the wire held even for bits ze does not name.
-	jsonKeyReserved = "RSV"
 
 	// jsonKeySourceRouterID is the Source Router Identifier TLV (1171).
 	jsonKeySourceRouterID = "source-router-id"
@@ -98,7 +94,7 @@ func iterateAttrTLVs(data []byte, fn func(attrTLVEntry) bool) error {
 		tlvLen := int(binary.BigEndian.Uint16(data[offset+2 : offset+4]))
 
 		if offset+4+tlvLen > len(data) {
-			return ErrBGPLSTruncated
+			return bgpls.ErrBGPLSTruncated
 		}
 
 		entry := attrTLVEntry{

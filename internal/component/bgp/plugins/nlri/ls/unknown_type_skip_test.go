@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -102,13 +104,13 @@ func TestParseBGPLSWithRestReturnsRemainderOnParseError(t *testing.T) {
 	data = append(data, lsUnknownType...)
 	data = append(data, lsNode...)
 
-	parsed, rest, err := parseBGPLSWithRest(data)
+	parsed, rest, err := bgpls.ParseBGPLSWithRest(data)
 	require.Error(t, err, "an unrecognized NLRI type is still an error for this parser")
 	assert.Nil(t, parsed)
 	assert.Equal(t, lsNode, rest, "the next NLRI must be reachable despite the error")
 
 	// Broken framing is the case where no remainder can be offered.
-	_, rest, err = parseBGPLSWithRest([]byte{0x00, 0x01, 0x00, 0xc8, 0xaa})
+	_, rest, err = bgpls.ParseBGPLSWithRest([]byte{0x00, 0x01, 0x00, 0xc8, 0xaa})
 	require.Error(t, err)
 	assert.Nil(t, rest)
 }

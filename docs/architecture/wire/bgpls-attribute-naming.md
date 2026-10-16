@@ -40,7 +40,7 @@ Input = output symmetry: what you type is what you see.
 | 1035 | SR Algorithm | `sr-algorithms` | N/A | `sr_algorithms` | []int | plural: list of IDs |
 | 1036 | SR Local Block | `sr-local-block` | N/A | `sr_local_block` | object | {ranges[]} |
 
-<!-- source: internal/component/bgp/plugins/nlri/ls/attr_node.go -- SR capability TLV decoding -->
+<!-- source: internal/core/bgp/nlri/bgpls/sr_capabilities.go -- SR capability TLV decoding -->
 
 ## Link Attribute TLVs (RFC 7752 Section 3.3.2)
 

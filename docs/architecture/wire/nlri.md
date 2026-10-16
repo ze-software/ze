@@ -48,7 +48,7 @@ Ze uses the canonical `afi/safi` names from the family registry:
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/register.go -- FlowSpec family registrations -->
 <!-- source: internal/component/bgp/plugins/nlri/srpolicy/register.go -- SR Policy family registrations -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPN family registration -->
-<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGP-LS family registrations -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/register.go -- BGP-LS family registrations -->
 
 ---
 
@@ -118,7 +118,7 @@ EncodingContext.
 <!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- VPN struct -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPNRouteType constants -->
 <!-- source: internal/core/bgp/nlri/flowspec/types.go -- FlowComponentType constants -->
-<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGPLSNLRIType constants -->
+<!-- source: internal/core/bgp/nlri/bgpls/types.go -- BGPLSNLRIType constants -->
 
 ---
 
@@ -410,7 +410,7 @@ See `nlri-bgpls.md` for detailed documentation.
 | 5 | Static |
 | 6 | OSPFv3 |
 
-<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGPLSNLRIType, BGPLSProtocolID -->
+<!-- source: internal/core/bgp/nlri/bgpls/types.go -- BGPLSNLRIType, BGPLSProtocolID -->
 
 ---
 

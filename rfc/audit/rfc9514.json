@@ -1,5 +1,6 @@
 {
-  "audited": "2026-10-03",
+  "audited": "2026-10-16",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC9514-3.1-1": {
       "note": "Forbidden: an SRv6-capable node with no TLV 1038, or with two. TestRFC9514ISISSRv6CapabilitiesSingleInstance positive fails on len(got)!=1 for a node advertising SRv6 Capabilities (absence goes red); negative feeds two native sub-TLVs and fails on len(got)!=1 (a second instance goes red).",
@@ -28,19 +29,19 @@
       "verdict": "enforced"
     },
     "RFC9514-3.1-3": {
-      "note": "rejudge 2026-09-30: receipt clause as before (TestRFC9514CapabilitiesReservedIgnored, exact map). Originate clause now tagged: ls_export TestRFC9514OriginatedReservedWordsZero (+) and TestRFC9514PoisonedSourceReservedNeverOriginated (-: source reserved 0xff, wire TLV 1038 = 40 00 00 00). Judge break (1038 clear removed in clearOriginatedReserved) turns the negative red.",
+      "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). The decode producers in attr_srv6.go changed only by bgpls.ErrBGPLSTruncated/WriteTLV qualification and the owner-approved unexporting of lsSRv6EndpointBehavior/lsSRv6BGPPeerNodeSID. RFC 9514 Section 3.1: \"Reserved: 2-octet field that MUST be set to 0 when originated and ignored on receipt.\" Originate: ls_export TestRFC9514OriginatedReservedWordsZero / TestRFC9514PoisonedSourceReservedNeverOriginated assert TLV 1038 Reserved word 0 from a 0xff source (originateAttributes -> clearOriginatedReserved). Receipt: nonzero Reserved leaves the decoded capability flags and the following Node Name unchanged (exact map).",
       "requirement_sha": "84dc54bd7e45450a",
       "tests": {
         "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514OriginatedReservedWordsZero": "feafdf005465d506",
         "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514PoisonedSourceReservedNeverOriginated": "feafdf005465d506",
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514CapabilitiesDecode": "7a1d6ac0c2d3e3d7",
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514CapabilitiesReservedIgnored": "7a1d6ac0c2d3e3d7"
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514CapabilitiesDecode": "54ef8216fabaae35",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514CapabilitiesReservedIgnored": "54ef8216fabaae35"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514OriginatedReservedWordsZero": "e8d95068fc64c85e",
         "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514PoisonedSourceReservedNeverOriginated": "64a548785a5b077c",
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514CapabilitiesDecode": "965ad0f8efd31710",
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514CapabilitiesReservedIgnored": "e2fe1f8d6eb464af"
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514CapabilitiesDecode": "5af74e5efff36804",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514CapabilitiesReservedIgnored": "4a38df010746a2b2"
       },
       "verdict": "enforced"
     },
@@ -58,17 +59,17 @@
       "verdict": "enforced"
     },
     "RFC9514-4.1-2": {
-      "note": "rejudge 2026-09-30: receipt clause as before. Originate clause: isis TestRFC9514ISISEndXOriginatedReservedZero (+) and TestRFC9514ISISEndXAllOnesNeverReachReserved (-: native flags and weight 0xff) assert TLV 1106 Reserved octet 0 from adjacencySIDv6. Judge break (Reserved written from weight) turns both red.",
+      "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). The decode producers in attr_srv6.go changed only by bgpls.ErrBGPLSTruncated/WriteTLV qualification and the owner-approved unexporting of lsSRv6EndpointBehavior/lsSRv6BGPPeerNodeSID. RFC 9514 Section 4.1: \"Reserved: 1-octet field that MUST be set to 0 when originated and ignored on receipt.\" Originate: isis End.X TLV 1106 pair (unchanged). Receipt: TLV 1106 with Reserved 0xFF decodes equal to the Reserved-0 TLV, no error, no field carries it.",
       "requirement_sha": "92c3b8bc9d969327",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored": "54ef8216fabaae35",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored#2": "54ef8216fabaae35",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved": "8dc79db14f32fa32",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero": "8dc79db14f32fa32"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored": "c9d55a15d8f4a9c6",
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored#2": "c9d55a15d8f4a9c6",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored": "4e9c7bd6cf4d7fc3",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored#2": "4e9c7bd6cf4d7fc3",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved": "78561b61814ed0c2",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero": "c7cc2d5be809bdd0"
       },
@@ -88,17 +89,17 @@
       "verdict": "enforced"
     },
     "RFC9514-4.2-2": {
-      "note": "rejudge 2026-09-30: receipt clause as before. Originate clause: the same isis units assert TLV 1107 Reserved octet 0 from adjacencySIDv6 for ordinary and all-ones native flags and weight. Judge break (Reserved written from weight) turns both red.",
+      "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). The decode producers in attr_srv6.go changed only by bgpls.ErrBGPLSTruncated/WriteTLV qualification and the owner-approved unexporting of lsSRv6EndpointBehavior/lsSRv6BGPPeerNodeSID. RFC 9514 Section 4.2: \"Reserved: 1-octet field that MUST be set to 0 when originated and ignored on receipt.\" Originate: isis LAN End.X TLV 1107 pair (unchanged). Receipt: 1107 and 1108 with Reserved 0xFF decode equal to Reserved 0.",
       "requirement_sha": "63e161c6ceabd73f",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored": "54ef8216fabaae35",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored#2": "54ef8216fabaae35",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved": "8dc79db14f32fa32",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero": "8dc79db14f32fa32"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored": "c9d55a15d8f4a9c6",
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored#2": "c9d55a15d8f4a9c6",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored": "4e9c7bd6cf4d7fc3",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored#2": "4e9c7bd6cf4d7fc3",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved": "78561b61814ed0c2",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero": "c7cc2d5be809bdd0"
       },
@@ -118,19 +119,19 @@
       "verdict": "enforced"
     },
     "RFC9514-5.1-2": {
-      "note": "rejudge 2026-09-30: receipt clause as before (TestRFC9514LocatorReservedIgnored). Originate clause: ls_export units assert TLV 1162 Reserved word 0 with flags, algorithm, metric and sub-TLVs intact, from a zero and a 0xff-poisoned source. Judge break (1162 clear removed) turns the negative red.",
+      "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). The decode producers in attr_srv6.go changed only by bgpls.ErrBGPLSTruncated/WriteTLV qualification and the owner-approved unexporting of lsSRv6EndpointBehavior/lsSRv6BGPPeerNodeSID. RFC 9514 Section 5.1: \"Reserved: 2-octet field. The value MUST be set to 0 when originated and ignored on receipt.\" Originate: ls_export TLV 1162 Reserved word 0 from zero and 0xff-poisoned sources. Receipt: nonzero Reserved changes neither flags, algorithm and metric nor suppresses the following Node Name.",
       "requirement_sha": "fefc787ab84df78c",
       "tests": {
         "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514OriginatedReservedWordsZero": "feafdf005465d506",
         "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514PoisonedSourceReservedNeverOriginated": "feafdf005465d506",
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514LocatorDecode": "7a1d6ac0c2d3e3d7",
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514LocatorReservedIgnored": "7a1d6ac0c2d3e3d7"
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514LocatorDecode": "54ef8216fabaae35",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514LocatorReservedIgnored": "54ef8216fabaae35"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514OriginatedReservedWordsZero": "e8d95068fc64c85e",
         "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514PoisonedSourceReservedNeverOriginated": "64a548785a5b077c",
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514LocatorDecode": "d1d277dc9064e01f",
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514LocatorReservedIgnored": "717646b02a665a32"
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514LocatorDecode": "1b917b6ca38ba0af",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514LocatorReservedIgnored": "8b3769f425e1babc"
       },
       "verdict": "enforced"
     },
@@ -183,17 +184,17 @@
       "verdict": "enforced"
     },
     "RFC9514-7.1-4": {
-      "note": "rejudge 2026-09-30: receipt clause as before. Originate clause: isis TestRFC9514ISISEndpointBehaviorOriginatedFlagsZero (+) and ...NativeFlagsNeverOriginated (-: native End flags 0xff) assert TLV 1250 exactly 00 01 00 00 (no flag is defined, so every flag is undefined). Judge break (native flags copied into the Flags octet in endSID) turns the negative red.",
+      "note": "D2 rejudge 2026-10-16 (independent judge). The receive unit changed only by the owner-approved rename LsSRv6EndpointBehavior -> lsSRv6EndpointBehavior; decodeSRv6EndpointBehavior changed only by bgpls.ErrBGPLSTruncated. RFC 9514 Section 7.1: \"Undefined flags MUST be set to 0 when originating and ignored on receipt.\" Originate: isis TestRFC9514ISISEndpointBehaviorOriginatedFlagsZero / ...NativeFlagsNeverOriginated assert TLV 1250 exactly 00 01 00 00 from native flags 0 and 0xff (unchanged). Receipt: Flags 0xFF decodes without error to the same Behavior 0x13 and Algorithm 0x80 as Flags 0.",
       "requirement_sha": "4911510c5aec9d08",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored": "7a1d6ac0c2d3e3d7",
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored#2": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored": "54ef8216fabaae35",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored#2": "54ef8216fabaae35",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorNativeFlagsNeverOriginated": "8dc79db14f32fa32",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorOriginatedFlagsZero": "8dc79db14f32fa32"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored": "6df1040e2d4e0632",
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored#2": "6df1040e2d4e0632",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored": "c494b822646b288c",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored#2": "c494b822646b288c",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorNativeFlagsNeverOriginated": "cb96011879421996",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorOriginatedFlagsZero": "5753445e3b72489c"
       },
@@ -201,33 +202,33 @@
     },
     "RFC9514-7.2-5": {
       "code": {
-        "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID": "6e83d9c49a0186a9"
+        "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID": "b8f7ae9121272e79"
       },
-      "note": "Independent BGPHighJudge 2026-10-02. RFC 9514 Section 7.2: \"Other bits are reserved for future use and MUST be set to 0 when originated and ignored on receipt.\" Tested selector \"ignored on receipt.\" is supported by TestRFC9514PeerNodeSIDReservedIgnored: well-formed 12-byte TLV values differing only in low five Flags bits (0xe0 versus 0xff) must both decode, preserve Weight/PeerAS/PeerBGPID and retain exact AS 65000. The rejection negative and meaningful-field equality positive cover distinct failures; raw Flags display is not interpretation of reserved bits. Producer internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID is registered for 1251 and reached by AttrTLVsToJSON/offline UPDATE decoding; the propagator intentionally performs no semantic TLV interpretation. Gap selector \"MUST be set to 0 when originated\" remains unmet: native EPE publishLocked originates MPLS PeerNode 1101 only, no SRv6 EPE assignment/origination. Offline encoding and exporter masking cannot prove that clause. Existing two native receive revert records retained; partial earns zero whole-requirement proof credit.",
+      "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). The decode producers in attr_srv6.go changed only by bgpls.ErrBGPLSTruncated/WriteTLV qualification and the owner-approved unexporting of lsSRv6EndpointBehavior/lsSRv6BGPPeerNodeSID. Tested \"ignored on receipt.\": TestRFC9514PeerNodeSIDReservedIgnored decodes 12-octet TLV 1251 values differing only in the low five Flags bits (0xe0 vs 0xff) to the same Weight, Peer AS 65000 and Peer BGP-ID, and never refuses them. Gap \"MUST be set to 0 when originated\": no live SRv6 BGP EPE origination of TLV 1251 exists (native EPE originates MPLS PeerNode 1101 only). Producer internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID, body unchanged apart from the renames. Partial earns no whole-requirement credit.",
       "requirement_sha": "e5fefbe264fb1b9a",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7"
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "54ef8216fabaae35",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "54ef8216fabaae35"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "e1975d3f0776c205",
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "e1975d3f0776c205"
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "3b650c4956bdf60d",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "3b650c4956bdf60d"
       },
       "verdict": "partial"
     },
     "RFC9514-7.2-6": {
       "code": {
-        "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID": "6e83d9c49a0186a9"
+        "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID": "b8f7ae9121272e79"
       },
-      "note": "Independent BGPHighJudge 2026-10-02. RFC 9514 Section 7.2: \"Reserved: 2-octet field. The value MUST be set to 0 when originated and ignored on receipt.\" Tested selector \"ignored on receipt.\" is supported by TestRFC9514PeerNodeSIDReservedIgnored: the 12-byte value with Reserved 0xffff is accepted and equals the complete decoded zero-Reserved object, independently detecting rejection and field leakage. Producer internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID skips bytes 2:4; it is registered in the operator-facing AttrTLVsToJSON/offline decoder path. Gap selector \"MUST be set to 0 when originated\" remains unmet because no live native SRv6 BGP EPE assignment/origination produces TLV 1251. Neither offline WriteTo zeroes nor export masking establish a live originator. Full quote, existing receive tags and both native receive revert records remain; partial is a finding, not enforced conformance.",
+      "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). The decode producers in attr_srv6.go changed only by bgpls.ErrBGPLSTruncated/WriteTLV qualification and the owner-approved unexporting of lsSRv6EndpointBehavior/lsSRv6BGPPeerNodeSID. Tested \"ignored on receipt.\": TestRFC9514PeerNodeSIDReservedIgnored accepts Reserved 0xffff and requires the whole decoded object equal to the Reserved-0 decode. Gap \"MUST be set to 0 when originated\": no live native origination of TLV 1251. Producer internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID skips bytes 2:4, unchanged apart from the renames.",
       "requirement_sha": "fc8121b1658ba7ec",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7"
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "54ef8216fabaae35",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "54ef8216fabaae35"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "e1975d3f0776c205",
-        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "e1975d3f0776c205"
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "3b650c4956bdf60d",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "3b650c4956bdf60d"
       },
       "verdict": "partial"
     },

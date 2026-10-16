@@ -3,7 +3,7 @@
 // Overview: types.go — core types, TLV constants, and helper functions
 // Related: types_nlri.go — NLRI types that embed these descriptors
 // Related: types_srv6.go — SRv6 SID descriptor (RFC 9514)
-package ls
+package bgpls
 
 import (
 	"encoding/binary"
@@ -119,26 +119,26 @@ func (nd *NodeDescriptor) WriteTo(buf []byte, off int) int {
 	pos := off
 
 	if nd.ASN != 0 {
-		pos += writeTLV(buf, pos, TLVAutonomousSystem, 4)
+		pos += WriteTLV(buf, pos, TLVAutonomousSystem, 4)
 		binary.BigEndian.PutUint32(buf[pos-4:], nd.ASN)
 	}
 	if nd.HasBGPLSIdentifier || nd.BGPLSIdentifier != 0 {
-		pos += writeTLV(buf, pos, TLVBGPLSIdentifier, 4)
+		pos += WriteTLV(buf, pos, TLVBGPLSIdentifier, 4)
 		binary.BigEndian.PutUint32(buf[pos-4:], nd.BGPLSIdentifier)
 	}
 	if nd.HasOSPFAreaID || nd.OSPFAreaID != 0 {
-		pos += writeTLV(buf, pos, TLVOSPFAreaID, 4)
+		pos += WriteTLV(buf, pos, TLVOSPFAreaID, 4)
 		binary.BigEndian.PutUint32(buf[pos-4:], nd.OSPFAreaID)
 	}
 	if len(nd.IGPRouterID) > 0 {
 		pos += WriteTLVBytes(buf, pos, TLVIGPRouterID, nd.IGPRouterID)
 	}
 	if nd.BGPRouterID != 0 {
-		pos += writeTLV(buf, pos, TLVBGPRouterID, 4)
+		pos += WriteTLV(buf, pos, TLVBGPRouterID, 4)
 		binary.BigEndian.PutUint32(buf[pos-4:], nd.BGPRouterID)
 	}
 	if nd.ConfedMember != 0 {
-		pos += writeTLV(buf, pos, TLVConfedMember, 4)
+		pos += WriteTLV(buf, pos, TLVConfedMember, 4)
 		binary.BigEndian.PutUint32(buf[pos-4:], nd.ConfedMember)
 	}
 
@@ -277,7 +277,7 @@ func (ld *LinkDescriptor) WriteTo(buf []byte, off int) int {
 	pos := off
 
 	if ld.LinkLocalID != 0 || ld.LinkRemoteID != 0 {
-		pos += writeTLV(buf, pos, TLVLinkLocalRemoteID, 8)
+		pos += WriteTLV(buf, pos, TLVLinkLocalRemoteID, 8)
 		binary.BigEndian.PutUint32(buf[pos-8:], ld.LinkLocalID)
 		binary.BigEndian.PutUint32(buf[pos-4:], ld.LinkRemoteID)
 	}
@@ -291,7 +291,7 @@ func (ld *LinkDescriptor) WriteTo(buf []byte, off int) int {
 	}
 
 	if ld.HasMultiTopologyID || ld.MultiTopologyID != 0 {
-		pos += writeTLV(buf, pos, TLVMultiTopologyID, 2)
+		pos += WriteTLV(buf, pos, TLVMultiTopologyID, 2)
 		binary.BigEndian.PutUint16(buf[pos-2:], ld.MultiTopologyID)
 	}
 
@@ -373,7 +373,7 @@ func (pd *PrefixDescriptor) Len() int {
 func (pd *PrefixDescriptor) WriteTo(buf []byte, off int) int {
 	pos := off
 	if pd.HasMultiTopologyID || pd.MultiTopologyID != 0 {
-		pos += writeTLV(buf, pos, TLVMultiTopologyID, 2)
+		pos += WriteTLV(buf, pos, TLVMultiTopologyID, 2)
 		binary.BigEndian.PutUint16(buf[pos-2:], pd.MultiTopologyID)
 	}
 	if pd.OSPFRouteType != 0 {

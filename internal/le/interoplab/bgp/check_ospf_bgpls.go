@@ -25,9 +25,12 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls"
+	// The BGP-LS plugin registers the "bgp-nlri-ls" in-process decoder this
+	// check looks up; the wire constants come from the core codec.
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
@@ -185,7 +188,7 @@ func ospfBGPLSRouterIDVerdict(logs, local, remote string, interAS bool) error {
 	}
 	seen := make(map[string]bool)
 	for _, route := range inventory {
-		if route.Protocol != int(ls.ProtoOSPFv2) {
+		if route.Protocol != int(bgpls.ProtoOSPFv2) {
 			continue
 		}
 		localDesc := route.Local
@@ -254,14 +257,14 @@ func ospfBGPLSApplyUpdate(inventory map[string]ospfBGPLSRoute, body []byte) erro
 			if len(value) < 5 || 5+int(value[3]) > len(value) {
 				return errors.New("truncated BGP-LS MP_REACH")
 			}
-			if binary.BigEndian.Uint16(value) == uint16(ls.AFIBGPLS) && value[2] == byte(ls.SAFIBGPLinkState) {
+			if binary.BigEndian.Uint16(value) == uint16(bgpls.AFIBGPLS) && value[2] == byte(bgpls.SAFIBGPLinkState) {
 				reach = value[5+int(value[3]):]
 			}
 		case 15:
 			if len(value) < 3 {
 				return errors.New("truncated BGP-LS MP_UNREACH")
 			}
-			if binary.BigEndian.Uint16(value) == uint16(ls.AFIBGPLS) && value[2] == byte(ls.SAFIBGPLinkState) {
+			if binary.BigEndian.Uint16(value) == uint16(bgpls.AFIBGPLS) && value[2] == byte(bgpls.SAFIBGPLinkState) {
 				unreach = value[3:]
 			}
 		case 29:

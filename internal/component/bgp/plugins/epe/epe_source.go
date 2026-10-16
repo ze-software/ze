@@ -14,7 +14,7 @@ import (
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/bgp"
-	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
 	"github.com/ze-software/ze/internal/core/linkstateevents"
 	"github.com/ze-software/ze/internal/core/mplsfib"
 	"github.com/ze-software/ze/pkg/ze"
@@ -206,11 +206,11 @@ func (s *Source) publishLocked() error {
 		copy(key[4:], id[:])
 		if _, exists := nodes[key]; !exists {
 			nodes[key] = struct{}{}
-			capabilities := ls.LsSRCapabilities{Ranges: []ls.LsSrLabelRange{{Range: s.config.Size, FirstSID: s.config.Base, SIDLen: 3}}}
+			capabilities := bgpls.LsSRCapabilities{Ranges: []bgpls.LsSrLabelRange{{Range: s.config.Size, FirstSID: s.config.Base, SIDLen: 3}}}
 			wire := make([]byte, capabilities.Len())
 			capabilities.WriteTo(wire, 0)
 			snapshot.Nodes = append(snapshot.Nodes, linkstateevents.Node{ID: session.local,
-				Attributes: []linkstateevents.TLV{{Type: ls.TLVSRCapabilities, Value: wire[4:]}}})
+				Attributes: []linkstateevents.TLV{{Type: bgpls.TLVSRCapabilities, Value: wire[4:]}}})
 		}
 		// Index encoding refers to the advertised local SRGB. P reflects the
 		// persistent operator assignment, while V and L are clear for an index.

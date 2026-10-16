@@ -1009,7 +1009,7 @@ Each TLV: 2-byte type + 2-byte length + value. Decoded via offset-based iterator
 
 Source: `internal/component/bgp/plugins/nlri/ls/`.
 <!-- source: internal/component/bgp/plugins/nlri/ls/register.go -- the BGP-LS code 29 registration -->
-<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGP-LS TLV decoding -->
+<!-- source: internal/core/bgp/nlri/bgpls/types.go -- BGP-LS TLV decoding -->
 
 ---
 

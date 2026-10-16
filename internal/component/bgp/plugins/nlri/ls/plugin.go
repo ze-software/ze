@@ -5,7 +5,6 @@ package ls
 
 import (
 	"bufio"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -13,8 +12,9 @@ import (
 	"io"
 	"log/slog"
 	"net"
-	"net/netip"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
 
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
@@ -84,7 +84,7 @@ func runBGPLSPlugin(conn net.Conn) int {
 // familyModeDecode declares a family this plugin decodes but never encodes.
 // The plugin server reads it as sdk.FamilyDecl.Mode.
 //
-// The family names are not declared here. family.MustRegister in types.go joins
+// The family names are not declared here. family.MustRegister in register.go joins
 // each one from its AFI and SAFI parts, and bgpLSFamilies reads them back.
 const familyModeDecode = "decode"
 
@@ -95,7 +95,7 @@ func bgpLSFamilies() []string {
 }
 
 // familyDecl declares fam to the plugin server, taking its name and its AFI and
-// SAFI numbers from the registration in types.go. Nothing here repeats them.
+// SAFI numbers from the registration in register.go. Nothing here repeats them.
 func familyDecl(fam family.Family) sdk.FamilyDecl {
 	return sdk.FamilyDecl{
 		Name: fam.String(),
@@ -111,9 +111,6 @@ const (
 	// carries the undecoded wire bytes that go with a false.
 	jsonKeyParsed = "parsed"
 	jsonKeyRaw    = "raw"
-
-	// jsonKeyRouterID is the IGP Router-ID of a node descriptor (TLV 515).
-	jsonKeyRouterID = "router-id"
 )
 
 // Protocol constants.
@@ -320,7 +317,7 @@ func decodeBGPLSNLRI(data []byte, addPath bool) []map[string]any {
 	for len(remaining) > 0 {
 		// RFC 7911 Section 3: "the NLRI encoding MUST be extended by prepending
 		// the Path Identifier field, which is of four octets." Split it before
-		// the NLRI header, so parseBGPLSWithRest reads the type and length at
+		// the NLRI header, so ParseBGPLSWithRest reads the type and length at
 		// the right offset.
 		pathID, body, pathErr := nlri.SplitPathID(remaining, addPath)
 		if pathErr != nil {
@@ -332,7 +329,7 @@ func decodeBGPLSNLRI(data []byte, addPath bool) []map[string]any {
 		}
 		remaining = body
 
-		parsed, rest, err := parseBGPLSWithRest(remaining)
+		parsed, rest, err := bgpls.ParseBGPLSWithRest(remaining)
 		if err != nil {
 			bgplsLogger.Debug("parse bgpls failed", "err", err)
 			if rest == nil {
@@ -373,350 +370,46 @@ func decodeBGPLSNLRI(data []byte, addPath bool) []map[string]any {
 
 // bgplsToJSON converts a BGP-LS NLRI to JSON format.
 // RFC 7752 defines the NLRI structure.
-func bgplsToJSON(n bGPLSNLRI, data []byte) map[string]any {
+func bgplsToJSON(n bgpls.BGPLSNLRI, data []byte) map[string]any {
 	result := map[string]any{
-		"ls-nlri-type":        bgplsNLRITypeString(uint16(n.NLRIType())),
+		"ls-nlri-type":        bgpls.BGPLSNLRITypeString(uint16(n.NLRIType())),
 		"l3-routing-topology": n.Identifier(),
 		"protocol-id":         int(n.ProtocolID()),
 	}
 
 	// Type-specific fields based on NLRI type - parse from wire bytes
 	switch n.NLRIType() {
-	case BGPLSNodeNLRI:
-		result["node-descriptors"] = parseBGPLSNodeTLVs(data)
+	case bgpls.BGPLSNodeNLRI:
+		result["node-descriptors"] = bgpls.ParseBGPLSNodeTLVs(data)
 
-	case BGPLSLinkNLRI:
-		localDescs, remoteDescs, info := parseBGPLSLinkTLVs(data)
+	case bgpls.BGPLSLinkNLRI:
+		localDescs, remoteDescs, info := bgpls.ParseBGPLSLinkTLVs(data)
 		result["local-node-descriptors"] = localDescs
 		result["remote-node-descriptors"] = remoteDescs
-		result["interface-addresses"] = info.ifAddrs
-		result["neighbor-addresses"] = info.neighAddrs
-		result["multi-topology-ids"] = info.mtIDs
-		result["link-identifiers"] = info.linkIDs
+		result["interface-addresses"] = info.IfAddrs
+		result["neighbor-addresses"] = info.NeighAddrs
+		result["multi-topology-ids"] = info.MTIDs
+		result["link-identifiers"] = info.LinkIDs
 
-	case BGPLSPrefixV4NLRI, BGPLSPrefixV6NLRI:
-		nodeDescs, prefixInfo := parseBGPLSPrefixTLVs(data, n.NLRIType())
+	case bgpls.BGPLSPrefixV4NLRI, bgpls.BGPLSPrefixV6NLRI:
+		nodeDescs, prefixInfo := bgpls.ParseBGPLSPrefixTLVs(data, n.NLRIType())
 		result["node-descriptors"] = nodeDescs
-		if prefixInfo.prefix != "" {
-			result["ip-reachability-tlv"] = prefixInfo.prefix
-			result["ip-reach-prefix"] = prefixInfo.prefix
+		if prefixInfo.Prefix != "" {
+			result["ip-reachability-tlv"] = prefixInfo.Prefix
+			result["ip-reach-prefix"] = prefixInfo.Prefix
 		}
-		result["multi-topology-ids"] = prefixInfo.mtIDs
+		result["multi-topology-ids"] = prefixInfo.MTIDs
 
-	case BGPLSSRv6SIDNLRI:
-		result["node-descriptors"] = parseBGPLSNodeTLVs(data)
-		if v, ok := n.(*BGPLSSRv6SID); ok && len(v.SRv6SID.SRv6SID) > 0 {
-			result["srv6-sid"] = formatIPv6Compressed(v.SRv6SID.SRv6SID)
+	case bgpls.BGPLSSRv6SIDNLRI:
+		result["node-descriptors"] = bgpls.ParseBGPLSNodeTLVs(data)
+		if v, ok := n.(*bgpls.BGPLSSRv6SID); ok && len(v.SRv6SID.SRv6SID) > 0 {
+			result["srv6-sid"] = bgpls.FormatIPv6Compressed(v.SRv6SID.SRv6SID)
 		}
 	default:
 		// The interface admits an open type set; retain only the common keys.
 	}
 
 	return result
-}
-
-// bgplsNLRITypeString returns the NLRI type string.
-// RFC 7752 Section 3.2, Table 1 defines NLRI types 1-4, RFC 9514 defines type 6.
-func bgplsNLRITypeString(nlriType uint16) string {
-	switch nlriType {
-	case 1:
-		return "bgpls-node"
-	case 2:
-		return "bgpls-link"
-	case 3:
-		return "bgpls-prefix-v4"
-	case 4:
-		return "bgpls-prefix-v6"
-	case 6:
-		return "bgpls-srv6-sid"
-	}
-	// RFC 7752: Unknown NLRI types are valid and should be labeled generically.
-	// This is forward-compatibility, not silent ignore.
-	var b textbuf.Buffer
-	return b.Reset().Str("bgpls-type-").Uint16(nlriType).String()
-}
-
-// prefixDescriptorInfo holds parsed prefix descriptor information.
-type prefixDescriptorInfo struct {
-	prefix string
-	mtIDs  []any
-}
-
-// parseBGPLSPrefixTLVs parses a Prefix NLRI wire format to extract all fields.
-// RFC 7752 Section 3.2.3 defines the Prefix NLRI format.
-func parseBGPLSPrefixTLVs(data []byte, nlriType BGPLSNLRIType) (nodeDescs []any, info prefixDescriptorInfo) {
-	info.mtIDs = []any{}
-
-	// Minimum: Type(2) + Len(2) + ProtoID(1) + Identifier(8) = 13 bytes
-	if len(data) < 13 {
-		return nodeDescs, info
-	}
-
-	offset := 13
-
-	for offset+4 <= len(data) {
-		tlvType := binary.BigEndian.Uint16(data[offset : offset+2])
-		tlvLen := int(binary.BigEndian.Uint16(data[offset+2 : offset+4]))
-
-		if offset+4+tlvLen > len(data) {
-			break
-		}
-
-		value := data[offset+4 : offset+4+tlvLen]
-
-		switch tlvType {
-		case 256: // Local Node Descriptors
-			nodeDescs = parseNodeDescriptorSubTLVs(value)
-		case 263: // Multi-Topology ID
-			for i := 0; i+2 <= len(value); i += 2 {
-				mtID := binary.BigEndian.Uint16(value[i:i+2]) & 0x0FFF
-				info.mtIDs = append(info.mtIDs, int(mtID))
-			}
-		case 265: // IP Reachability Information
-			info.prefix = formatIPReachability(value, nlriType)
-		}
-		// RFC 7752: Unknown TLVs are skipped (forward-compatibility).
-
-		offset += 4 + tlvLen
-	}
-
-	return nodeDescs, info
-}
-
-// parseBGPLSNodeTLVs parses a Node NLRI wire format to extract node descriptors.
-// RFC 7752 Section 3.2.1 defines the Node NLRI format.
-func parseBGPLSNodeTLVs(data []byte) []any {
-	// Minimum: Type(2) + Len(2) + ProtoID(1) + Identifier(8) = 13 bytes
-	if len(data) < 13 {
-		return []any{}
-	}
-
-	offset := 13
-
-	for offset+4 <= len(data) {
-		tlvType := binary.BigEndian.Uint16(data[offset : offset+2])
-		tlvLen := int(binary.BigEndian.Uint16(data[offset+2 : offset+4]))
-
-		if offset+4+tlvLen > len(data) {
-			break
-		}
-
-		value := data[offset+4 : offset+4+tlvLen]
-
-		if tlvType == 256 { // Local Node Descriptors
-			return parseNodeDescriptorSubTLVs(value)
-		}
-		// RFC 7752: Unknown TLVs are skipped (forward-compatibility).
-
-		offset += 4 + tlvLen
-	}
-
-	return []any{}
-}
-
-// linkDescriptorInfo holds parsed link descriptor information.
-type linkDescriptorInfo struct {
-	ifAddrs    []any // IPv4/IPv6 interface addresses
-	neighAddrs []any // IPv4/IPv6 neighbor addresses
-	mtIDs      []any // Multi-topology IDs
-	linkIDs    []any // Link local/remote identifiers
-}
-
-// parseBGPLSLinkTLVs parses a Link NLRI wire format to extract all TLVs.
-// RFC 7752 Section 3.2.2 defines the Link NLRI format.
-func parseBGPLSLinkTLVs(data []byte) (localDescs, remoteDescs []any, info linkDescriptorInfo) {
-	info = linkDescriptorInfo{
-		ifAddrs:    []any{},
-		neighAddrs: []any{},
-		mtIDs:      []any{},
-		linkIDs:    []any{},
-	}
-
-	// Minimum: Type(2) + Len(2) + ProtoID(1) + Identifier(8) = 13 bytes
-	if len(data) < 13 {
-		return localDescs, remoteDescs, info
-	}
-
-	offset := 13
-
-	for offset+4 <= len(data) {
-		tlvType := binary.BigEndian.Uint16(data[offset : offset+2])
-		tlvLen := int(binary.BigEndian.Uint16(data[offset+2 : offset+4]))
-
-		if offset+4+tlvLen > len(data) {
-			break
-		}
-
-		value := data[offset+4 : offset+4+tlvLen]
-
-		switch tlvType {
-		case 256: // Local Node Descriptors
-			localDescs = parseNodeDescriptorSubTLVs(value)
-		case 257: // Remote Node Descriptors
-			remoteDescs = parseNodeDescriptorSubTLVs(value)
-		case 258: // Link Local/Remote Identifiers (8 bytes: local(4) + remote(4))
-			if len(value) >= 8 {
-				localID := binary.BigEndian.Uint32(value[0:4])
-				remoteID := binary.BigEndian.Uint32(value[4:8])
-				info.linkIDs = append(info.linkIDs, map[string]any{
-					"link-local-id":  localID,
-					"link-remote-id": remoteID,
-				})
-			}
-		case 259: // IPv4 Interface Address
-			if len(value) == 4 {
-				info.ifAddrs = append(info.ifAddrs,
-					textbuf.StringAddr(netip.AddrFrom4([4]byte(value[:4]))))
-			}
-		case 260: // IPv4 Neighbor Address
-			if len(value) == 4 {
-				info.neighAddrs = append(info.neighAddrs,
-					textbuf.StringAddr(netip.AddrFrom4([4]byte(value[:4]))))
-			}
-		case 261: // IPv6 Interface Address
-			if len(value) == 16 {
-				info.ifAddrs = append(info.ifAddrs, formatIPv6Compressed(value))
-			}
-		case 262: // IPv6 Neighbor Address
-			if len(value) == 16 {
-				info.neighAddrs = append(info.neighAddrs, formatIPv6Compressed(value))
-			}
-		case 263: // Multi-Topology ID
-			for i := 0; i+2 <= len(value); i += 2 {
-				mtID := binary.BigEndian.Uint16(value[i:i+2]) & 0x0FFF
-				info.mtIDs = append(info.mtIDs, int(mtID))
-			}
-		}
-		// RFC 7752: Unknown TLVs are skipped (forward-compatibility).
-
-		offset += 4 + tlvLen
-	}
-
-	return localDescs, remoteDescs, info
-}
-
-// parseNodeDescriptorSubTLVs parses node descriptor sub-TLVs into array format.
-// RFC 7752 Section 3.2.1.4 defines the sub-TLV types.
-func parseNodeDescriptorSubTLVs(data []byte) []any {
-	var descs []any
-	offset := 0
-
-	for offset+4 <= len(data) {
-		tlvType := binary.BigEndian.Uint16(data[offset : offset+2])
-		tlvLen := int(binary.BigEndian.Uint16(data[offset+2 : offset+4]))
-
-		if offset+4+tlvLen > len(data) {
-			break
-		}
-
-		value := data[offset+4 : offset+4+tlvLen]
-
-		switch tlvType {
-		case 512: // Autonomous System
-			if len(value) >= 4 {
-				descs = append(descs, map[string]any{
-					"autonomous-system": binary.BigEndian.Uint32(value),
-				})
-			}
-		case 513: // BGP-LS Identifier
-			if len(value) >= 4 {
-				descs = append(descs, map[string]any{
-					"bgp-ls-identifier": textbuf.StringUint32(binary.BigEndian.Uint32(value)),
-				})
-			}
-		case 514: // OSPF Area-ID
-			if len(value) >= 4 {
-				descs = append(descs, map[string]any{
-					"ospf-area-id": textbuf.StringAddr(netip.AddrFrom4([4]byte(value[:4]))),
-				})
-			}
-		case 515: // IGP Router-ID
-			routerID := formatRouterID(value)
-			// Check for pseudonode (7-8 bytes) and add designated-router-id
-			switch len(value) {
-			case 8:
-				// OSPF pseudonode: Router-ID + DR interface
-				descs = append(descs, map[string]any{
-					jsonKeyRouterID:        textbuf.StringAddr(netip.AddrFrom4([4]byte(value[:4]))),
-					"designated-router-id": textbuf.StringAddr(netip.AddrFrom4([4]byte(value[4:8]))),
-				})
-			case 7:
-				// IS-IS pseudonode: System-ID + PSN
-				descs = append(descs, map[string]any{
-					jsonKeyRouterID: routerID,
-					"psn":           textbuf.StringUint8(value[6]),
-				})
-			// RFC 7752: 4-byte (OSPF) and 6-byte (IS-IS) are standard lengths.
-			case 4, 6:
-				descs = append(descs, map[string]any{jsonKeyRouterID: routerID})
-			}
-			// Unknown Router-ID lengths are silently skipped per RFC 7752 forward-compatibility.
-		}
-		// RFC 7752: Unknown sub-TLVs are skipped (forward-compatibility).
-
-		offset += 4 + tlvLen
-	}
-
-	return descs
-}
-
-// formatRouterID formats the IGP Router-ID based on its length.
-// - 4 bytes: OSPF Router-ID as dotted decimal
-// - 6 bytes: IS-IS System ID as hex
-// - 7 bytes: IS-IS pseudonode (6-byte System ID + 1-byte PSN)
-// - 8 bytes: OSPF pseudonode (4-byte Router-ID + 4-byte interface).
-func formatRouterID(id []byte) string {
-	switch len(id) {
-	case 4:
-		return textbuf.StringAddr(netip.AddrFrom4([4]byte(id[:4])))
-	case 6:
-		return textbuf.StringHex(id)
-	case 7:
-		return textbuf.StringHex(id)
-	case 8:
-		var b textbuf.Buffer
-		return b.Reset().Addr(netip.AddrFrom4([4]byte(id[:4]))).Byte(',').Addr(netip.AddrFrom4([4]byte(id[4:8]))).String()
-	}
-	// Unknown length: return hex (forward-compatibility).
-	return strings.ToUpper(textbuf.StringHex(id))
-}
-
-// formatIPReachability formats the IP Reachability Information TLV.
-// RFC 7752 Section 3.2.3.2 defines the format: prefix-length + prefix-bytes.
-func formatIPReachability(data []byte, nlriType BGPLSNLRIType) string {
-	if len(data) < 1 {
-		return ""
-	}
-
-	prefixLen := int(data[0])
-	byteLen := (prefixLen + 7) / 8
-
-	if len(data) < 1+byteLen {
-		return ""
-	}
-
-	prefixBytes := data[1 : 1+byteLen]
-
-	if nlriType == BGPLSPrefixV6NLRI {
-		addr := make([]byte, 16)
-		copy(addr, prefixBytes)
-		var b textbuf.Buffer
-		return b.Reset().Str(formatIPv6Compressed(addr)).Byte('/').Int(int64(prefixLen)).String()
-	}
-
-	var b4 [4]byte
-	copy(b4[:], prefixBytes)
-	var b textbuf.Buffer
-	return b.Reset().Addr(netip.AddrFrom4(b4)).Byte('/').Int(int64(prefixLen)).String()
-}
-
-// formatIPv6Compressed formats a 16-byte IPv6 address with zero compression.
-func formatIPv6Compressed(addr []byte) string {
-	if len(addr) != 16 {
-		return strings.ToUpper(textbuf.StringHex(addr))
-	}
-	ip := netip.AddrFrom16([16]byte(addr))
-	return ip.String()
 }
 
 // formatBGPLSText formats BGP-LS NLRI results as human-readable text.

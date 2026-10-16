@@ -11,7 +11,15 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
+)
+
+// Family registrations for BGP-LS. The wire codec in internal/core/bgp/nlri/bgpls
+// registers nothing; the families exist only where this plugin is linked.
+var (
+	BGPLSFamily    = family.MustRegister(family.AFIBGPLS, family.SAFIBGPLinkState, "bgp-ls", "bgp-ls")
+	BGPLSVPNFamily = family.MustRegister(family.AFIBGPLS, family.SAFIBGPLinkStateVPN, "bgp-ls", "bgp-ls-vpn")
 )
 
 func init() {

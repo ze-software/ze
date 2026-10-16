@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,9 +36,9 @@ func TestRFC9514EndXSIDReservedIgnored(t *testing.T) {
 		code       uint16
 		neighborID []byte
 	}{
-		{"end.x 1106", TLVSRv6EndXSID, nil},
-		{"lan end.x is-is 1107", TLVSRv6LANEndXISIS, []byte{0x19, 0x20, 0x00, 0x00, 0x00, 0x01}},
-		{"lan end.x ospfv3 1108", TLVSRv6LANEndXOSPF, []byte{0x0a, 0x00, 0x00, 0x01}},
+		{"end.x 1106", bgpls.TLVSRv6EndXSID, nil},
+		{"lan end.x is-is 1107", bgpls.TLVSRv6LANEndXISIS, []byte{0x19, 0x20, 0x00, 0x00, 0x00, 0x01}},
+		{"lan end.x ospfv3 1108", bgpls.TLVSRv6LANEndXOSPF, []byte{0x0a, 0x00, 0x00, 0x01}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -75,9 +77,9 @@ func TestRFC9514EndpointBehaviorUndefinedFlagsIgnored(t *testing.T) {
 	set, err := decodeSRv6EndpointBehavior([]byte{0x00, 0x13, 0xFF, 0x80})
 	require.NoError(t, err, "undefined flags are not refused")
 
-	want, ok := clear.(*LsSRv6EndpointBehavior)
+	want, ok := clear.(*lsSRv6EndpointBehavior)
 	require.True(t, ok)
-	got, ok := set.(*LsSRv6EndpointBehavior)
+	got, ok := set.(*lsSRv6EndpointBehavior)
 	require.True(t, ok)
 	assert.Equal(t, want.EndpointBehavior, got.EndpointBehavior)
 	assert.Equal(t, want.Algorithm, got.Algorithm)
@@ -101,7 +103,7 @@ func TestRFC9514PeerNodeSIDReservedIgnored(t *testing.T) {
 	// B, S and P are the defined flags (0xE0); the low five bits are reserved.
 	base, err := decodeSRv6BGPPeerNodeSID(srv6PeerNodeValue(0xE0, [2]byte{0, 0}))
 	require.NoError(t, err)
-	want, ok := base.(*LsSRv6BGPPeerNodeSID)
+	want, ok := base.(*lsSRv6BGPPeerNodeSID)
 	require.True(t, ok)
 
 	t.Run("reserved flag bits", func(t *testing.T) {
@@ -109,7 +111,7 @@ func TestRFC9514PeerNodeSIDReservedIgnored(t *testing.T) {
 		// RFC requirement: RFC9514-7.2-5 negative -- the reserved flag bits never cause the TLV to be refused (§7.2).
 		set, err := decodeSRv6BGPPeerNodeSID(srv6PeerNodeValue(0xFF, [2]byte{0, 0}))
 		require.NoError(t, err, "reserved flag bits are not refused")
-		got, ok := set.(*LsSRv6BGPPeerNodeSID)
+		got, ok := set.(*lsSRv6BGPPeerNodeSID)
 		require.True(t, ok)
 		assert.Equal(t, want.Weight, got.Weight)
 		assert.Equal(t, want.PeerAS, got.PeerAS)
@@ -131,7 +133,7 @@ func TestRFC9514PeerNodeSIDReservedIgnored(t *testing.T) {
 // RFC requirement: RFC9514-3.1-3 positive -- with Reserved zero, the consumer decodes the capability flags and the following Node Name.
 func TestRFC9514CapabilitiesDecode(t *testing.T) {
 	attr := buildAttrTLV(nil, 1038, []byte{0x80, 0x01, 0, 0})
-	attr = buildAttrTLV(attr, TLVNodeName, []byte("core1"))
+	attr = buildAttrTLV(attr, bgpls.TLVNodeName, []byte("core1"))
 	assert.Equal(t, map[string]any{
 		"srv6-capabilities": map[string]any{"flags": 32769},
 		"node-name":         "core1",
@@ -143,7 +145,7 @@ func TestRFC9514CapabilitiesDecode(t *testing.T) {
 // RFC requirement: RFC9514-3.1-3 negative -- nonzero Reserved does not change the decoded capability flags or suppress the following Node Name.
 func TestRFC9514CapabilitiesReservedIgnored(t *testing.T) {
 	attr := buildAttrTLV(nil, 1038, []byte{0x40, 0x02, 0xff, 0xff})
-	attr = buildAttrTLV(attr, TLVNodeName, []byte("core2"))
+	attr = buildAttrTLV(attr, bgpls.TLVNodeName, []byte("core2"))
 	assert.Equal(t, map[string]any{
 		"srv6-capabilities": map[string]any{"flags": 16386},
 		"node-name":         "core2",
@@ -158,7 +160,7 @@ func TestRFC9514LocatorDecode(t *testing.T) {
 		0x80, 128, 0, 0, 0x01, 0x02, 0x03, 0x04,
 		0xfe, 0x01, 0, 1, 0xa5,
 	})
-	attr = buildAttrTLV(attr, TLVNodeName, []byte("core1"))
+	attr = buildAttrTLV(attr, bgpls.TLVNodeName, []byte("core1"))
 	got := AttrTLVsToJSON(attr)
 	locator, ok := got["srv6-locator"].(map[string]any)
 	require.True(t, ok)
@@ -183,7 +185,7 @@ func TestRFC9514LocatorDecode(t *testing.T) {
 // RFC requirement: RFC9514-5.1-2 negative -- nonzero Reserved neither changes locator flags, algorithm and metric nor suppresses the following Node Name.
 func TestRFC9514LocatorReservedIgnored(t *testing.T) {
 	attr := buildAttrTLV(nil, 1162, []byte{0, 129, 0xff, 0xff, 0, 0, 0, 42})
-	attr = buildAttrTLV(attr, TLVNodeName, []byte("core2"))
+	attr = buildAttrTLV(attr, bgpls.TLVNodeName, []byte("core2"))
 	assert.Equal(t, map[string]any{
 		"srv6-locator": map[string]any{
 			"flags": 0, "algorithm": 129, "metric": uint32(42),

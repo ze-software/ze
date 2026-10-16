@@ -3,35 +3,24 @@
   "records": [
     {
       "rid": "RFC9086-3-1",
-      "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
-      "unit-sha": "8f41c860bd5d880f",
-      "claim-sha": "1fb6453039a60ae5",
-      "route": "revert",
-      "producer": "internal/component/bgp/plugins/epe/epe_source.go::publishLocked",
-      "producer-sha": "2d24248ac4acb6cc",
-      "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9086-3-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativeLinkWithoutPeerNodeRefused",
       "unit-sha": "df314609258a99eb",
       "claim-sha": "de3a4445515ebbec",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/ls_export/export_epe.go::validateNativeEPE",
-      "producer-sha": "c4306b4891b7a16c",
+      "producer-sha": "e6607d87d9455066",
       "break": "body of validateNativeEPE replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC9086-3-2",
+      "rid": "RFC9086-3-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
       "unit-sha": "8f41c860bd5d880f",
-      "claim-sha": "8e5d7dc3c49fadb1",
+      "claim-sha": "1fb6453039a60ae5",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/epe/epe_source.go::publishLocked",
-      "producer-sha": "2d24248ac4acb6cc",
+      "producer-sha": "326f0928961a7220",
       "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -42,7 +31,18 @@
       "claim-sha": "46e474f92eea5893",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/epe/epe_source.go::publishLocked",
-      "producer-sha": "2d24248ac4acb6cc",
+      "producer-sha": "326f0928961a7220",
+      "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9086-3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
+      "unit-sha": "8f41c860bd5d880f",
+      "claim-sha": "8e5d7dc3c49fadb1",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/epe/epe_source.go::publishLocked",
+      "producer-sha": "326f0928961a7220",
       "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -53,7 +53,7 @@
       "claim-sha": "63c58e65683f4559",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::exportNodeID",
-      "producer-sha": "03055ef88c72e77e",
+      "producer-sha": "7eb61def5fdd7cdc",
       "break": "body of exportNodeID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "06d83c16d4cca7b1",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/epe/epe_source.go::publishLocked",
-      "producer-sha": "2d24248ac4acb6cc",
+      "producer-sha": "326f0928961a7220",
       "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "001bd0e5ffc7810b",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/epe/epe_source.go::publishLocked",
-      "producer-sha": "2d24248ac4acb6cc",
+      "producer-sha": "326f0928961a7220",
       "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -113,25 +113,25 @@
     },
     {
       "rid": "RFC9086-5-1",
-      "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
-      "unit-sha": "8f41c860bd5d880f",
-      "claim-sha": "4897979624c081a8",
-      "route": "revert",
-      "producer": "internal/component/bgp/plugins/epe/epe_source.go::publishLocked",
-      "producer-sha": "2d24248ac4acb6cc",
-      "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9086-5-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativeLinkWithoutPeerNodeRefused",
       "unit-sha": "df314609258a99eb",
       "claim-sha": "b72cca58deb54d08",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/ls_export/export_epe.go::validateNativeEPE",
-      "producer-sha": "c4306b4891b7a16c",
+      "producer-sha": "e6607d87d9455066",
       "break": "body of validateNativeEPE replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9086-5-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
+      "unit-sha": "8f41c860bd5d880f",
+      "claim-sha": "4897979624c081a8",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/epe/epe_source.go::publishLocked",
+      "producer-sha": "326f0928961a7220",
+      "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9086-5-10",
@@ -141,7 +141,7 @@
       "claim-sha": "c5af3b5b6b32ebfc",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/epe/epe_source.go::publishLocked",
-      "producer-sha": "2d24248ac4acb6cc",
+      "producer-sha": "326f0928961a7220",
       "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -152,30 +152,8 @@
       "claim-sha": "cef49ee537d172b1",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/ls_export/export_epe.go::validateNativeEPE",
-      "producer-sha": "c4306b4891b7a16c",
+      "producer-sha": "e6607d87d9455066",
       "break": "body of validateNativeEPE replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9086-5-3",
-      "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go::TestRFC9086OriginatedPeerSIDRsvdBitsZero",
-      "unit-sha": "eb7317826534a07f",
-      "claim-sha": "fd78bda49b394b18",
-      "route": "revert",
-      "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::clearOriginatedReserved",
-      "producer-sha": "52e68cb09ad57c46",
-      "break": "body of clearOriginatedReserved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9086-5-3",
-      "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go::TestRFC9086SourceRsvdBitsNeverOriginated",
-      "unit-sha": "480c464955f88faf",
-      "claim-sha": "6c7f5519804091e4",
-      "route": "revert",
-      "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::clearOriginatedReserved",
-      "producer-sha": "52e68cb09ad57c46",
-      "break": "body of clearOriginatedReserved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9086-5-3",
@@ -202,8 +180,30 @@
     {
       "rid": "RFC9086-5-3",
       "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go::TestRFC9086OriginatedPeerSIDRsvdBitsZero",
+      "unit-sha": "eb7317826534a07f",
+      "claim-sha": "fd78bda49b394b18",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::clearOriginatedReserved",
+      "producer-sha": "52e68cb09ad57c46",
+      "break": "body of clearOriginatedReserved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9086-5-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go::TestRFC9086SourceRsvdBitsNeverOriginated",
+      "unit-sha": "480c464955f88faf",
+      "claim-sha": "6c7f5519804091e4",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::clearOriginatedReserved",
+      "producer-sha": "52e68cb09ad57c46",
+      "break": "body of clearOriginatedReserved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9086-5-3",
+      "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9086PeerSIDIgnoresReservedFields",
-      "unit-sha": "7ca54b4b6256c9cf",
+      "unit-sha": "0a24fabf12094be4",
       "claim-sha": "077e7f1e6a2ae798",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/ls/attr.go::lookupLsAttrTLVDecoder",
@@ -214,7 +214,7 @@
       "rid": "RFC9086-5-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go::TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived",
-      "unit-sha": "952798d2f9011961",
+      "unit-sha": "c426f377b208c93e",
       "claim-sha": "08be586a4a3a0f87",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/ls/attr.go::lookupLsAttrTLVDecoder",
@@ -229,7 +229,7 @@
       "claim-sha": "fa1ec6345481a87b",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/epe/epe_source.go::publishLocked",
-      "producer-sha": "2d24248ac4acb6cc",
+      "producer-sha": "326f0928961a7220",
       "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -240,7 +240,7 @@
       "claim-sha": "95de167da0797bd5",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/epe/epe_source.go::publishLocked",
-      "producer-sha": "2d24248ac4acb6cc",
+      "producer-sha": "326f0928961a7220",
       "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

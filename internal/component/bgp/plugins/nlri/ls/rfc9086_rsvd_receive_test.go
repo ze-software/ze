@@ -3,6 +3,8 @@ package ls
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,7 +39,7 @@ func TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived(t *testing.T) {
 		{name: "label", flagsVL: 0xc0, sid: []byte{0x00, 0x5d, 0xc0}},
 		{name: "index", flagsVL: 0x00, sid: []byte{0x00, 0x00, 0x5d, 0xc0}},
 	}
-	for _, code := range []uint16{TLVPeerNodeSID, TLVPeerAdjSID, TLVPeerSetSID} {
+	for _, code := range []uint16{bgpls.TLVPeerNodeSID, bgpls.TLVPeerAdjSID, bgpls.TLVPeerSetSID} {
 		decode := lookupLsAttrTLVDecoder(code)
 		require.NotNil(t, decode, "TLV %d has a registered receive decoder", code)
 		for _, form := range forms {

@@ -6,7 +6,7 @@
 // PREVENTS: an NLRI a BGP-LS Propagator must treat as malformed, and the
 // Section 5.2.1.1 breach where one node acquires two keys because its repeated
 // sub-TLVs were stored in a different order.
-package ls
+package bgpls
 
 import (
 	"bytes"

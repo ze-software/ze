@@ -17,6 +17,8 @@ package ls
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,7 +29,7 @@ import (
 func flagAttrWithTrailer(flagType uint16, flags byte) []byte {
 	var attr []byte
 	attr = buildAttrTLV(attr, flagType, []byte{flags})
-	attr = buildAttrTLV(attr, TLVNodeName, []byte("core1"))
+	attr = buildAttrTLV(attr, bgpls.TLVNodeName, []byte("core1"))
 	return attr
 }
 
@@ -39,7 +41,7 @@ func definedFlagBits(t *testing.T, tlv lsAttrTLV, jsonKey string) map[string]any
 	require.True(t, ok, "flag TLV JSON is keyed %q", jsonKey)
 	defined := make(map[string]any, len(js))
 	for k, v := range js {
-		if k == jsonKeyReserved {
+		if k == bgpls.JSONKeyReserved {
 			continue
 		}
 		defined[k] = v
@@ -62,9 +64,9 @@ func TestRFC9552NodeFlagBitsUndefinedBitsIgnored(t *testing.T) {
 	const definedOnly byte = 0xA8   // O=1 A=0 E=1 B=0 R=1 V=0, undefined bits 0.
 	const withUndefined byte = 0xAB // the same six defined bits, undefined bits 1.
 
-	clear, err := decodeAllAttrTLVs(flagAttrWithTrailer(TLVNodeFlagBits, definedOnly))
+	clear, err := decodeAllAttrTLVs(flagAttrWithTrailer(bgpls.TLVNodeFlagBits, definedOnly))
 	require.NoError(t, err, "undefined bits clear: the attribute decodes")
-	set, err := decodeAllAttrTLVs(flagAttrWithTrailer(TLVNodeFlagBits, withUndefined))
+	set, err := decodeAllAttrTLVs(flagAttrWithTrailer(bgpls.TLVNodeFlagBits, withUndefined))
 	require.NoError(t, err, "undefined bits set: the attribute still decodes")
 
 	require.Len(t, clear, 2, "flag TLV and the Node Name after it")
@@ -99,9 +101,9 @@ func TestRFC9552IGPFlagsUndefinedBitsIgnored(t *testing.T) {
 	const definedOnly byte = 0xA0   // D=1 N=0 L=1 P=0, undefined bits 0.
 	const withUndefined byte = 0xAF // the same four defined bits, undefined bits 1.
 
-	clear, err := decodeAllAttrTLVs(flagAttrWithTrailer(TLVIGPFlags, definedOnly))
+	clear, err := decodeAllAttrTLVs(flagAttrWithTrailer(bgpls.TLVIGPFlags, definedOnly))
 	require.NoError(t, err, "undefined bits clear: the attribute decodes")
-	set, err := decodeAllAttrTLVs(flagAttrWithTrailer(TLVIGPFlags, withUndefined))
+	set, err := decodeAllAttrTLVs(flagAttrWithTrailer(bgpls.TLVIGPFlags, withUndefined))
 	require.NoError(t, err, "undefined bits set: the attribute still decodes")
 
 	require.Len(t, clear, 2, "flag TLV and the Node Name after it")
@@ -125,10 +127,10 @@ func TestRFC9552IGPFlagsUndefinedBitsIgnored(t *testing.T) {
 // flags cannot turn on a defined node capability in the consumer's JSON view.
 // RFC requirement: RFC9552-5.3.1.1-1 negative -- setting only the undefined node flag bits sets no defined O, T, E, B, R or V bit and does not suppress the following Node Name.
 func TestRFC9552UndefinedNodeBitsDoNotSetDefinedFlags(t *testing.T) {
-	got := AttrTLVsToJSON(flagAttrWithTrailer(TLVNodeFlagBits, 0x03))
+	got := AttrTLVsToJSON(flagAttrWithTrailer(bgpls.TLVNodeFlagBits, 0x03))
 	flags, ok := got["node-flags"].(map[string]any)
 	require.True(t, ok)
-	delete(flags, jsonKeyReserved) // The CLI may display the raw reserved bits.
+	delete(flags, bgpls.JSONKeyReserved) // The CLI may display the raw reserved bits.
 	assert.Equal(t, map[string]any{
 		"node-flags": map[string]any{"O": 0, "T": 0, "E": 0, "B": 0, "R": 0, "V": 0},
 		"node-name":  "core1",
@@ -139,10 +141,10 @@ func TestRFC9552UndefinedNodeBitsDoNotSetDefinedFlags(t *testing.T) {
 // flags cannot become a routing flag in the consumer's JSON view.
 // RFC requirement: RFC9552-5.3.3.1-1 negative -- setting only the undefined IGP flag bits sets no defined D, N, L or P bit and does not suppress the following Node Name.
 func TestRFC9552UndefinedIGPBitsDoNotSetDefinedFlags(t *testing.T) {
-	got := AttrTLVsToJSON(flagAttrWithTrailer(TLVIGPFlags, 0x0f))
+	got := AttrTLVsToJSON(flagAttrWithTrailer(bgpls.TLVIGPFlags, 0x0f))
 	flags, ok := got["igp-flags"].(map[string]any)
 	require.True(t, ok)
-	delete(flags, jsonKeyReserved)
+	delete(flags, bgpls.JSONKeyReserved)
 	assert.Equal(t, map[string]any{
 		"igp-flags": map[string]any{"D": 0, "N": 0, "L": 0, "P": 0},
 		"node-name": "core1",
@@ -164,7 +166,7 @@ func TestRFC9552MPLSProtocolMaskDecode(t *testing.T) {
 // RFC requirement: RFC9552-5.3.2.2-3 negative -- nonzero reserved bits set no defined MPLS protocol flag and do not suppress the following Node Name.
 func TestRFC9552MPLSProtocolMaskReservedIgnored(t *testing.T) {
 	attr := buildAttrTLV(nil, 1094, []byte{0x3f})
-	attr = buildAttrTLV(attr, TLVNodeName, []byte("core1"))
+	attr = buildAttrTLV(attr, bgpls.TLVNodeName, []byte("core1"))
 	assert.Equal(t, map[string]any{
 		"mpls-protocol-mask": map[string]any{"L": 0, "R": 0},
 		"node-name":          "core1",

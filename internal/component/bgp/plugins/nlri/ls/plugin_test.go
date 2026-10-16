@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +20,7 @@ import (
 func TestBGPLSPluginDecodeMode(t *testing.T) {
 	t.Parallel()
 	// Create a node NLRI for testing
-	node := NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
+	node := bgpls.NewBGPLSNode(bgpls.ProtoOSPFv2, 0x100, bgpls.NodeDescriptor{
 		ASN:         65001,
 		IGPRouterID: []byte{1, 1, 1, 1},
 	})
@@ -77,7 +79,7 @@ func TestBGPLSPluginInvalidHex(t *testing.T) {
 // PREVENTS: CLI mode output incompatible with downstream tools.
 func TestBGPLSCLIDecode(t *testing.T) {
 	t.Parallel()
-	node := NewBGPLSNode(ProtoISISL2, 0x200, NodeDescriptor{
+	node := bgpls.NewBGPLSNode(bgpls.ProtoISISL2, 0x200, bgpls.NodeDescriptor{
 		ASN:         65500,
 		IGPRouterID: []byte{10, 0, 0, 1},
 	})
@@ -105,7 +107,7 @@ func TestBGPLSCLIDecode(t *testing.T) {
 // PREVENTS: Text mode crashes or produces garbled output.
 func TestBGPLSCLIDecodeText(t *testing.T) {
 	t.Parallel()
-	node := NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
+	node := bgpls.NewBGPLSNode(bgpls.ProtoOSPFv2, 0x100, bgpls.NodeDescriptor{
 		ASN:         65001,
 		IGPRouterID: []byte{1, 1, 1, 1},
 	})
@@ -142,7 +144,7 @@ func TestBGPLSCLIDecodeInvalidFamily(t *testing.T) {
 // PREVENTS: Node-specific fields missing from output.
 func TestBGPLSNodeNLRIDecode(t *testing.T) {
 	t.Parallel()
-	node := NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
+	node := bgpls.NewBGPLSNode(bgpls.ProtoOSPFv2, 0x100, bgpls.NodeDescriptor{
 		ASN:             65001,
 		BGPLSIdentifier: 0x12345678,
 		IGPRouterID:     []byte{1, 1, 1, 1},
@@ -168,11 +170,11 @@ func TestBGPLSNodeNLRIDecode(t *testing.T) {
 // PREVENTS: Link-specific fields missing from output.
 func TestBGPLSLinkNLRIDecode(t *testing.T) {
 	t.Parallel()
-	link := NewBGPLSLink(
-		ProtoISISL2, 0x200,
-		NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
-		NodeDescriptor{ASN: 65002, IGPRouterID: []byte{2, 2, 2, 2}},
-		LinkDescriptor{LinkLocalID: 100, LinkRemoteID: 200},
+	link := bgpls.NewBGPLSLink(
+		bgpls.ProtoISISL2, 0x200,
+		bgpls.NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
+		bgpls.NodeDescriptor{ASN: 65002, IGPRouterID: []byte{2, 2, 2, 2}},
+		bgpls.LinkDescriptor{LinkLocalID: 100, LinkRemoteID: 200},
 	)
 
 	results := decodeBGPLSNLRI(link.Bytes(), false)
@@ -195,10 +197,10 @@ func TestBGPLSLinkNLRIDecode(t *testing.T) {
 // PREVENTS: Prefix-specific fields missing from output.
 func TestBGPLSPrefixV4NLRIDecode(t *testing.T) {
 	t.Parallel()
-	prefix := NewBGPLSPrefixV4(
-		ProtoOSPFv2, 0x100,
-		NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
-		PrefixDescriptor{IPReachabilityInfo: []byte{24, 10, 0, 0}},
+	prefix := bgpls.NewBGPLSPrefixV4(
+		bgpls.ProtoOSPFv2, 0x100,
+		bgpls.NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
+		bgpls.PrefixDescriptor{IPReachabilityInfo: []byte{24, 10, 0, 0}},
 	)
 
 	results := decodeBGPLSNLRI(prefix.Bytes(), false)
@@ -213,10 +215,10 @@ func TestBGPLSPrefixV4NLRIDecode(t *testing.T) {
 // PREVENTS: IPv6-specific handling issues.
 func TestBGPLSPrefixV6NLRIDecode(t *testing.T) {
 	t.Parallel()
-	prefix := NewBGPLSPrefixV6(
-		ProtoOSPFv3, 0x200,
-		NodeDescriptor{ASN: 65002},
-		PrefixDescriptor{IPReachabilityInfo: []byte{64, 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0}},
+	prefix := bgpls.NewBGPLSPrefixV6(
+		bgpls.ProtoOSPFv3, 0x200,
+		bgpls.NodeDescriptor{ASN: 65002},
+		bgpls.PrefixDescriptor{IPReachabilityInfo: []byte{64, 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0}},
 	)
 
 	results := decodeBGPLSNLRI(prefix.Bytes(), false)
@@ -231,10 +233,10 @@ func TestBGPLSPrefixV6NLRIDecode(t *testing.T) {
 // PREVENTS: Wrong NLRI type detection.
 func TestBGPLSSRv6SIDNLRIDecode(t *testing.T) {
 	t.Parallel()
-	srv6 := NewBGPLSSRv6SID(
-		ProtoSegment, 0x300,
-		NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
-		SRv6SIDDescriptor{SRv6SID: []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}},
+	srv6 := bgpls.NewBGPLSSRv6SID(
+		bgpls.ProtoSegment, 0x300,
+		bgpls.NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
+		bgpls.SRv6SIDDescriptor{SRv6SID: []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}},
 	)
 
 	results := decodeBGPLSNLRI(srv6.Bytes(), false)
@@ -254,20 +256,20 @@ func TestBGPLSSRv6SIDNLRIDecode(t *testing.T) {
 // PREVENTS: Unknown protocol ID crashes.
 func TestBGPLSProtocolIDs(t *testing.T) {
 	t.Parallel()
-	protocols := []BGPLSProtocolID{
-		ProtoISISL1,
-		ProtoISISL2,
-		ProtoOSPFv2,
-		ProtoDirect,
-		ProtoStatic,
-		ProtoOSPFv3,
-		ProtoBGP,
+	protocols := []bgpls.BGPLSProtocolID{
+		bgpls.ProtoISISL1,
+		bgpls.ProtoISISL2,
+		bgpls.ProtoOSPFv2,
+		bgpls.ProtoDirect,
+		bgpls.ProtoStatic,
+		bgpls.ProtoOSPFv3,
+		bgpls.ProtoBGP,
 	}
 
 	for _, proto := range protocols {
 		t.Run(proto.String(), func(t *testing.T) {
 			t.Parallel()
-			node := NewBGPLSNode(proto, 0x100, NodeDescriptor{ASN: 65001})
+			node := bgpls.NewBGPLSNode(proto, 0x100, bgpls.NodeDescriptor{ASN: 65001})
 			results := decodeBGPLSNLRI(node.Bytes(), false)
 			require.Len(t, results, 1)
 		})
@@ -327,32 +329,6 @@ func TestIsValidBGPLSFamily(t *testing.T) {
 	}
 }
 
-// TestFormatRouterID verifies router ID formatting for different lengths.
-//
-// VALIDATES: Router ID formatted correctly for OSPF (4B), IS-IS (6/7B), pseudonode (8B).
-// PREVENTS: Incorrect router ID display in JSON output.
-func TestFormatRouterID(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name     string
-		id       []byte
-		expected string
-	}{
-		{"ospf_4byte", []byte{1, 2, 3, 4}, "1.2.3.4"},
-		{"isis_6byte", []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06}, "010203040506"},
-		{"isis_7byte_psn", []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}, "01020304050607"},
-		{"ospf_8byte_psn", []byte{1, 2, 3, 4, 5, 6, 7, 8}, "1.2.3.4,5.6.7.8"},
-		{"unknown_3byte", []byte{0xAB, 0xCD, 0xEF}, "ABCDEF"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.expected, formatRouterID(tt.id))
-		})
-	}
-}
-
 // TestFormatIPv6Compressed verifies IPv6 address formatting.
 //
 // VALIDATES: IPv6 addresses formatted with zero compression via netip.
@@ -361,7 +337,7 @@ func TestFormatIPv6Compressed(t *testing.T) {
 	t.Parallel()
 	// 2001:db8::1
 	addr := []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
-	result := formatIPv6Compressed(addr)
+	result := bgpls.FormatIPv6Compressed(addr)
 	assert.Equal(t, "2001:db8::1", result)
 }
 
@@ -387,7 +363,7 @@ func TestBGPLSNLRITypeString(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.expected, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.expected, bgplsNLRITypeString(tt.nlriType))
+			assert.Equal(t, tt.expected, bgpls.BGPLSNLRITypeString(tt.nlriType))
 		})
 	}
 }
@@ -399,11 +375,11 @@ func TestBGPLSNLRITypeString(t *testing.T) {
 func TestBGPLSMultipleNLRIDecode(t *testing.T) {
 	t.Parallel()
 	// Create two Node NLRIs with different ASNs
-	node1 := NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
+	node1 := bgpls.NewBGPLSNode(bgpls.ProtoOSPFv2, 0x100, bgpls.NodeDescriptor{
 		ASN:         65001,
 		IGPRouterID: []byte{1, 1, 1, 1},
 	})
-	node2 := NewBGPLSNode(ProtoISISL2, 0x200, NodeDescriptor{
+	node2 := bgpls.NewBGPLSNode(bgpls.ProtoISISL2, 0x200, bgpls.NodeDescriptor{
 		ASN:         65002,
 		IGPRouterID: []byte{2, 2, 2, 2},
 	})
@@ -431,7 +407,7 @@ func TestBGPLSMultipleNLRIDecode(t *testing.T) {
 // PREVENTS: VPN family rejected despite being valid.
 func TestBGPLSVPNFamilyDecode(t *testing.T) {
 	t.Parallel()
-	node := NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
+	node := bgpls.NewBGPLSNode(bgpls.ProtoOSPFv2, 0x100, bgpls.NodeDescriptor{
 		ASN:         65001,
 		IGPRouterID: []byte{1, 1, 1, 1},
 	})
@@ -460,7 +436,7 @@ func TestBGPLSVPNFamilyDecode(t *testing.T) {
 // PREVENTS: CLI rejecting valid VPN family.
 func TestBGPLSCLIDecodeVPNFamily(t *testing.T) {
 	t.Parallel()
-	node := NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
+	node := bgpls.NewBGPLSNode(bgpls.ProtoOSPFv2, 0x100, bgpls.NodeDescriptor{
 		ASN:         65001,
 		IGPRouterID: []byte{1, 1, 1, 1},
 	})

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -803,7 +804,7 @@ func TestAdjSIDViaAttrTLVs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Build wire: TLV 1099 header + value
 			wire := make([]byte, 4+len(tt.data))
-			binary.BigEndian.PutUint16(wire[0:], ls.TLVAdjacencySID)
+			binary.BigEndian.PutUint16(wire[0:], bgpls.TLVAdjacencySID)
 			binary.BigEndian.PutUint16(wire[2:], uint16(len(tt.data))) //nolint:gosec // test
 			copy(wire[4:], tt.data)
 
@@ -897,10 +898,10 @@ func TestSRAdjMultipleInstances(t *testing.T) {
 	d1 := []byte{0x30, 0x00, 0x00, 0x00, 0x04, 0x93, 0x10} // V=1,L=1 SID=299792
 	d2 := []byte{0x70, 0x00, 0x00, 0x00, 0x04, 0x93, 0x00} // B=1,V=1,L=1 SID=299776
 	wire := make([]byte, 0, 4+len(d1)+4+len(d2))
-	wire = binary.BigEndian.AppendUint16(wire, ls.TLVAdjacencySID)
+	wire = binary.BigEndian.AppendUint16(wire, bgpls.TLVAdjacencySID)
 	wire = binary.BigEndian.AppendUint16(wire, uint16(len(d1))) //nolint:gosec // test
 	wire = append(wire, d1...)
-	wire = binary.BigEndian.AppendUint16(wire, ls.TLVAdjacencySID)
+	wire = binary.BigEndian.AppendUint16(wire, bgpls.TLVAdjacencySID)
 	wire = binary.BigEndian.AppendUint16(wire, uint16(len(d2))) //nolint:gosec // test
 	wire = append(wire, d2...)
 

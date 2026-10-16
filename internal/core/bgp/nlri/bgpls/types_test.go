@@ -1,4 +1,4 @@
-package ls
+package bgpls
 
 import (
 	"testing"
@@ -296,7 +296,7 @@ func TestBGPLSRoundTrip(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name string
-		nlri bGPLSNLRI
+		nlri BGPLSNLRI
 	}{
 		{
 			name: "node",

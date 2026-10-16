@@ -8,7 +8,8 @@ import (
 	"errors"
 	"net/netip"
 
-	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
+
 	"github.com/ze-software/ze/internal/core/linkstateevents"
 )
 
@@ -27,7 +28,7 @@ func validateNativeEPE(snapshot *linkstateevents.Snapshot) error {
 			return errors.New("native BGP node requires ASN and nonzero BGP Router-ID")
 		}
 		for _, attr := range node.Attributes {
-			if attr.Type != ls.TLVSRCapabilities {
+			if attr.Type != bgpls.TLVSRCapabilities {
 				continue
 			}
 			if len(attr.Value) < 12 {
@@ -35,7 +36,7 @@ func validateNativeEPE(snapshot *linkstateevents.Snapshot) error {
 			}
 			var total uint64
 			for value := attr.Value[2:]; len(value) != 0; {
-				if len(value) < 10 || binary.BigEndian.Uint16(value[3:5]) != ls.TLVSIDLabel || binary.BigEndian.Uint16(value[5:7]) != 3 {
+				if len(value) < 10 || binary.BigEndian.Uint16(value[3:5]) != bgpls.TLVSIDLabel || binary.BigEndian.Uint16(value[5:7]) != 3 {
 					return errors.New("native EPE SRGB requires complete label ranges")
 				}
 				size := uint32(value[0])<<16 | uint32(value[1])<<8 | uint32(value[2])
@@ -56,10 +57,10 @@ func validateNativeEPE(snapshot *linkstateevents.Snapshot) error {
 		}
 		peerNode := false
 		for _, attr := range link.Attributes {
-			if attr.Type != ls.TLVPeerNodeSID && attr.Type != ls.TLVPeerAdjSID && attr.Type != ls.TLVPeerSetSID {
+			if attr.Type != bgpls.TLVPeerNodeSID && attr.Type != bgpls.TLVPeerAdjSID && attr.Type != bgpls.TLVPeerSetSID {
 				continue
 			}
-			peerNode = peerNode || attr.Type == ls.TLVPeerNodeSID
+			peerNode = peerNode || attr.Type == bgpls.TLVPeerNodeSID
 			switch len(attr.Value) {
 			case 7:
 				if attr.Value[0]&0xc0 != 0xc0 || attr.Value[4]&0xf0 != 0 {

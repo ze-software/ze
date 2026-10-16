@@ -6,6 +6,8 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,15 +21,15 @@ import (
 func TestTLVRegistration(t *testing.T) {
 	phase1Codes := []uint16{
 		// Node
-		TLVNodeFlagBits, TLVOpaqueNodeAttr, TLVNodeName,
-		TLVISISAreaID, TLVIPv4RouterIDLocal, TLVIPv6RouterIDLocal,
+		bgpls.TLVNodeFlagBits, bgpls.TLVOpaqueNodeAttr, bgpls.TLVNodeName,
+		bgpls.TLVISISAreaID, bgpls.TLVIPv4RouterIDLocal, bgpls.TLVIPv6RouterIDLocal,
 		// Link
-		TLVIPv4RouterIDRemote, TLVIPv6RouterIDRemote,
-		TLVAdminGroup, TLVMaxLinkBandwidth, TLVMaxReservableBW,
-		TLVUnreservedBW, TLVTEDefaultMetric, TLVIGPMetric,
-		TLVSRLG, TLVOpaqueLinkAttr, TLVLinkName,
+		bgpls.TLVIPv4RouterIDRemote, bgpls.TLVIPv6RouterIDRemote,
+		bgpls.TLVAdminGroup, bgpls.TLVMaxLinkBandwidth, bgpls.TLVMaxReservableBW,
+		bgpls.TLVUnreservedBW, bgpls.TLVTEDefaultMetric, bgpls.TLVIGPMetric,
+		bgpls.TLVSRLG, bgpls.TLVOpaqueLinkAttr, bgpls.TLVLinkName,
 		// Prefix
-		TLVIGPFlags, TLVPrefixMetric, TLVOpaquePrefixAttr,
+		bgpls.TLVIGPFlags, bgpls.TLVPrefixMetric, bgpls.TLVOpaquePrefixAttr,
 	}
 
 	for _, code := range phase1Codes {
@@ -46,10 +48,10 @@ func TestTLVRegistration(t *testing.T) {
 func TestTLVIterator(t *testing.T) {
 	// Build wire: TLV 1026 (Node Name) "test" + TLV 1095 (IGP Metric) 1-byte value
 	data := make([]byte, 4+4+4+1)
-	binary.BigEndian.PutUint16(data[0:], TLVNodeName)
+	binary.BigEndian.PutUint16(data[0:], bgpls.TLVNodeName)
 	binary.BigEndian.PutUint16(data[2:], 4)
 	copy(data[4:8], "test")
-	binary.BigEndian.PutUint16(data[8:], TLVIGPMetric)
+	binary.BigEndian.PutUint16(data[8:], bgpls.TLVIGPMetric)
 	binary.BigEndian.PutUint16(data[10:], 1)
 	data[12] = 10
 
@@ -61,9 +63,9 @@ func TestTLVIterator(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, entries, 2)
 
-	assert.Equal(t, TLVNodeName, entries[0].Type)
+	assert.Equal(t, bgpls.TLVNodeName, entries[0].Type)
 	assert.Equal(t, []byte("test"), entries[0].Value)
-	assert.Equal(t, TLVIGPMetric, entries[1].Type)
+	assert.Equal(t, bgpls.TLVIGPMetric, entries[1].Type)
 	assert.Equal(t, []byte{10}, entries[1].Value)
 }
 
@@ -83,7 +85,7 @@ func TestTLVIteratorTruncated(t *testing.T) {
 		t.Fatal("should not yield entries on truncated data")
 		return true
 	})
-	assert.ErrorIs(t, err, ErrBGPLSTruncated)
+	assert.ErrorIs(t, err, bgpls.ErrBGPLSTruncated)
 }
 
 // TestTLVIteratorEmpty verifies no error on empty input.
@@ -107,10 +109,10 @@ func TestTLVIteratorEmpty(t *testing.T) {
 func TestTLVIteratorStopEarly(t *testing.T) {
 	// Two TLVs: first one should be yielded, second should not
 	data := make([]byte, 4+1+4+1)
-	binary.BigEndian.PutUint16(data[0:], TLVNodeFlagBits)
+	binary.BigEndian.PutUint16(data[0:], bgpls.TLVNodeFlagBits)
 	binary.BigEndian.PutUint16(data[2:], 1)
 	data[4] = 0xFF
-	binary.BigEndian.PutUint16(data[5:], TLVNodeFlagBits)
+	binary.BigEndian.PutUint16(data[5:], bgpls.TLVNodeFlagBits)
 	binary.BigEndian.PutUint16(data[7:], 1)
 	data[9] = 0x00
 
@@ -466,11 +468,11 @@ func TestDecodeAllAttrTLVs(t *testing.T) {
 	// Build wire: Node Name "r1" + IGP Metric 10 + unknown TLV 9999
 	data := make([]byte, 4+2+4+1+4+2)
 	off := 0
-	binary.BigEndian.PutUint16(data[off:], TLVNodeName)
+	binary.BigEndian.PutUint16(data[off:], bgpls.TLVNodeName)
 	binary.BigEndian.PutUint16(data[off+2:], 2)
 	copy(data[off+4:], "r1")
 	off += 6
-	binary.BigEndian.PutUint16(data[off:], TLVIGPMetric)
+	binary.BigEndian.PutUint16(data[off:], bgpls.TLVIGPMetric)
 	binary.BigEndian.PutUint16(data[off+2:], 1)
 	data[off+4] = 10
 	off += 5
@@ -483,8 +485,8 @@ func TestDecodeAllAttrTLVs(t *testing.T) {
 	require.NoError(t, err)
 	// Unknown TLV 9999 is not in the result (only recognized ones)
 	assert.Len(t, tlvs, 2)
-	assert.Equal(t, TLVNodeName, tlvs[0].Code())
-	assert.Equal(t, TLVIGPMetric, tlvs[1].Code())
+	assert.Equal(t, bgpls.TLVNodeName, tlvs[0].Code())
+	assert.Equal(t, bgpls.TLVIGPMetric, tlvs[1].Code())
 }
 
 // TestAttrTLVsToJSON verifies JSON output with known and unknown TLVs.
@@ -494,7 +496,7 @@ func TestDecodeAllAttrTLVs(t *testing.T) {
 func TestAttrTLVsToJSON(t *testing.T) {
 	// Build wire: Node Name "test" + unknown TLV 8888
 	data := make([]byte, 4+4+4+1)
-	binary.BigEndian.PutUint16(data[0:], TLVNodeName)
+	binary.BigEndian.PutUint16(data[0:], bgpls.TLVNodeName)
 	binary.BigEndian.PutUint16(data[2:], 4)
 	copy(data[4:8], "test")
 	binary.BigEndian.PutUint16(data[8:], 8888)
@@ -537,9 +539,9 @@ func TestMergeRouterIDs(t *testing.T) {
 // VALIDATES: SR Capabilities with nested SID/Label sub-TLVs round-trip.
 // PREVENTS: Sub-TLV nesting, 3-byte range encoding, label range parse errors.
 func TestSRCapabilitiesRoundTrip(t *testing.T) {
-	original := &LsSRCapabilities{
+	original := &bgpls.LsSRCapabilities{
 		Flags: 0xC0, // I=1, V=1
-		Ranges: []LsSrLabelRange{
+		Ranges: []bgpls.LsSrLabelRange{
 			{Range: 8000, FirstSID: 16000, SIDLen: 4},
 			{Range: 1000, FirstSID: 100000, SIDLen: 3},
 		},
@@ -584,7 +586,7 @@ func TestSRAlgorithmRoundTrip(t *testing.T) {
 func TestSRLocalBlockRoundTrip(t *testing.T) {
 	original := &lsSRLocalBlock{
 		Flags:  0, // RFC 9085 Section 5: MUST be 0
-		Ranges: []LsSrLabelRange{{Range: 1000, FirstSID: 15000, SIDLen: 4}},
+		Ranges: []bgpls.LsSrLabelRange{{Range: 1000, FirstSID: 15000, SIDLen: 4}},
 	}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, uint8(0), decoded.Flags)
@@ -725,9 +727,9 @@ func TestSourceRouterIDRoundTrip(t *testing.T) {
 // PREVENTS: Missing Phase 2 registration.
 func TestPhase2Registration(t *testing.T) {
 	phase2Codes := []uint16{
-		TLVSRCapabilities, TLVSRAlgorithm, TLVSRLocalBlock,
-		TLVAdjacencySID,
-		TLVPrefixSID, TLVSIDLabel, TLVSRPrefixFlags, TLVSourceRouterID,
+		bgpls.TLVSRCapabilities, bgpls.TLVSRAlgorithm, bgpls.TLVSRLocalBlock,
+		bgpls.TLVAdjacencySID,
+		bgpls.TLVPrefixSID, bgpls.TLVSIDLabel, bgpls.TLVSRPrefixFlags, bgpls.TLVSourceRouterID,
 	}
 	for _, code := range phase2Codes {
 		decoder := lookupLsAttrTLVDecoder(code)
@@ -744,9 +746,9 @@ func TestPhase2Registration(t *testing.T) {
 // VALIDATES: Peer Node SID with 4-byte index round-trip.
 // PREVENTS: Wrong TLV code in PeerSID dispatch.
 func TestPeerNodeSIDRoundTrip(t *testing.T) {
-	original := &lsPeerSID{TLVCode: TLVPeerNodeSID, Flags: 0xC0, Weight: 5, SID: 24000, wireLen: 8}
+	original := &lsPeerSID{TLVCode: bgpls.TLVPeerNodeSID, Flags: 0xC0, Weight: 5, SID: 24000, wireLen: 8}
 	decoded := tlvRoundTrip(t, original)
-	assert.Equal(t, TLVPeerNodeSID, decoded.TLVCode)
+	assert.Equal(t, bgpls.TLVPeerNodeSID, decoded.TLVCode)
 	assert.Equal(t, uint8(0xC0), decoded.Flags)
 	assert.Equal(t, uint8(5), decoded.Weight)
 	assert.Equal(t, uint32(24000), decoded.SID)
@@ -761,9 +763,9 @@ func TestPeerNodeSIDRoundTrip(t *testing.T) {
 // VALIDATES: Peer Adjacency SID with 3-byte label.
 // PREVENTS: Label 20-bit masking error in peer SID.
 func TestPeerAdjSIDRoundTrip(t *testing.T) {
-	original := &lsPeerSID{TLVCode: TLVPeerAdjSID, Flags: 0x80, Weight: 10, SID: 16001, wireLen: 7}
+	original := &lsPeerSID{TLVCode: bgpls.TLVPeerAdjSID, Flags: 0x80, Weight: 10, SID: 16001, wireLen: 7}
 	decoded := tlvRoundTrip(t, original)
-	assert.Equal(t, TLVPeerAdjSID, decoded.TLVCode)
+	assert.Equal(t, bgpls.TLVPeerAdjSID, decoded.TLVCode)
 	assert.Equal(t, uint32(16001)&0xFFFFF, decoded.SID)
 }
 
@@ -773,7 +775,7 @@ func TestPeerAdjSIDRoundTrip(t *testing.T) {
 // PREVENTS: Nested sub-TLV parse failure, SID byte ordering.
 func TestSRv6EndXSIDRoundTrip(t *testing.T) {
 	original := &lsSRv6EndXSID{
-		TLVCode:          TLVSRv6EndXSID,
+		TLVCode:          bgpls.TLVSRv6EndXSID,
 		EndpointBehavior: 42,
 		Flags:            0xE0,
 		Algorithm:        1,
@@ -797,7 +799,7 @@ func TestSRv6EndXSIDRoundTrip(t *testing.T) {
 // PREVENTS: Neighbor ID length mismatch.
 func TestSRv6LANEndXISISRoundTrip(t *testing.T) {
 	original := &lsSRv6EndXSID{
-		TLVCode:          TLVSRv6LANEndXISIS,
+		TLVCode:          bgpls.TLVSRv6LANEndXISIS,
 		EndpointBehavior: 6,
 		Flags:            0x40,
 		Algorithm:        0,
@@ -806,7 +808,7 @@ func TestSRv6LANEndXISISRoundTrip(t *testing.T) {
 		SID:              [16]byte{0xfd, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02},
 	}
 	decoded := tlvRoundTrip(t, original)
-	assert.Equal(t, TLVSRv6LANEndXISIS, decoded.TLVCode)
+	assert.Equal(t, bgpls.TLVSRv6LANEndXISIS, decoded.TLVCode)
 	assert.Equal(t, []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06}, decoded.NeighborID)
 	assert.Equal(t, original.SID, decoded.SID)
 }
@@ -816,9 +818,9 @@ func TestSRv6LANEndXISISRoundTrip(t *testing.T) {
 // VALIDATES: Peer Set SID with 4-byte index round-trip.
 // PREVENTS: Missing Peer Set SID variant.
 func TestPeerSetSIDRoundTrip(t *testing.T) {
-	original := &lsPeerSID{TLVCode: TLVPeerSetSID, Flags: 0x00, Weight: 1, SID: 50000, wireLen: 8}
+	original := &lsPeerSID{TLVCode: bgpls.TLVPeerSetSID, Flags: 0x00, Weight: 1, SID: 50000, wireLen: 8}
 	decoded := tlvRoundTrip(t, original)
-	assert.Equal(t, TLVPeerSetSID, decoded.TLVCode)
+	assert.Equal(t, bgpls.TLVPeerSetSID, decoded.TLVCode)
 	assert.Equal(t, uint32(50000), decoded.SID)
 
 	j := decoded.ToJSON()
@@ -845,7 +847,7 @@ func TestRFC9086PeerSIDIgnoresReservedFields(t *testing.T) {
 	// SID(4)). Flags 0xCF = meaningful V(0x80) and L(0x40) bits set AND all four
 	// low-nibble reserved bits (0x0F) set; Weight 0x05; the 2-octet Reserved field
 	// 0xFFFF set non-zero; SID 0x00005DC0 = 24000.
-	decode := lookupLsAttrTLVDecoder(TLVPeerNodeSID)
+	decode := lookupLsAttrTLVDecoder(bgpls.TLVPeerNodeSID)
 	require.NotNil(t, decode)
 	tlv, err := decode([]byte{0xCF, 0x05, 0xFF, 0xFF, 0x00, 0x00, 0x5D, 0xC0})
 	require.NoError(t, err) // non-zero reserved bits/field must NOT reject the TLV.
@@ -904,8 +906,10 @@ func TestRFC9085SIDLabelMasksLeftmostFourBits(t *testing.T) {
 // PREVENTS: a non-zero Reserved octet being consumed as range data (a 1-byte
 // misalignment that corrupts or rejects the decode); an undefined Flags bit
 // rejecting the TLV or masking away the meaningful I/V flags.
-// Producer: decodeSRCapabilities (attr_node.go:358-368; Flags stored at :367,
-// reserved octet skipped by decodeSrLabelRanges(data[2:]) at :363).
+// Producer: bgpls.DecodeSRCapabilities (internal/core/bgp/nlri/bgpls,
+// sr_capabilities.go; Flags stored as-is, reserved octet skipped by
+// DecodeSRLabelRanges(data[2:])), reached through the decoder this plugin
+// registers for TLV 1034, so the adapter is exercised too.
 func TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags(t *testing.T) {
 	// TLV 1034 value bytes (RFC 9085 Section 3: Flags(1) + Reserved(1) +
 	// N x {Range(3) + SID/Label sub-TLV}).
@@ -920,9 +924,9 @@ func TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags(t *testing.T) {
 		0x00, 0x04, // sub-TLV length = 4
 		0x00, 0x00, 0x3E, 0x80, // SID/Label = 16000
 	}
-	tlv, err := decodeSRCapabilities(srCapValue)
+	tlv, err := lookupLsAttrTLVDecoder(bgpls.TLVSRCapabilities)(srCapValue)
 	require.NoError(t, err) // non-zero reserved octet / undefined flag bit must NOT reject the TLV.
-	caps, ok := tlv.(*LsSRCapabilities)
+	caps, ok := tlv.(*bgpls.LsSRCapabilities)
 	require.True(t, ok)
 	require.Len(t, caps.Ranges, 1)
 
@@ -947,7 +951,7 @@ func TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags(t *testing.T) {
 // PREVENTS: OSPFv3 neighbor ID length mismatch.
 func TestSRv6LANEndXOSPFRoundTrip(t *testing.T) {
 	original := &lsSRv6EndXSID{
-		TLVCode:          TLVSRv6LANEndXOSPF,
+		TLVCode:          bgpls.TLVSRv6LANEndXOSPF,
 		EndpointBehavior: 9,
 		Flags:            0x20,
 		Algorithm:        0,
@@ -956,7 +960,7 @@ func TestSRv6LANEndXOSPFRoundTrip(t *testing.T) {
 		SID:              [16]byte{0xfd, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x03},
 	}
 	decoded := tlvRoundTrip(t, original)
-	assert.Equal(t, TLVSRv6LANEndXOSPF, decoded.TLVCode)
+	assert.Equal(t, bgpls.TLVSRv6LANEndXOSPF, decoded.TLVCode)
 	assert.Equal(t, []byte{0x0A, 0x00, 0x00, 0x01}, decoded.NeighborID)
 	assert.Equal(t, original.SID, decoded.SID)
 }
@@ -999,7 +1003,7 @@ func TestDelayVariationRoundTrip(t *testing.T) {
 // VALIDATES: SRv6 Endpoint Behavior fields round-trip.
 // PREVENTS: Field byte ordering.
 func TestSRv6EndpointBehaviorRoundTrip(t *testing.T) {
-	original := &LsSRv6EndpointBehavior{EndpointBehavior: 48, Flags: 0x80, Algorithm: 1}
+	original := &lsSRv6EndpointBehavior{EndpointBehavior: 48, Flags: 0x80, Algorithm: 1}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, uint16(48), decoded.EndpointBehavior)
 	assert.Equal(t, uint8(0x80), decoded.Flags)
@@ -1011,7 +1015,7 @@ func TestSRv6EndpointBehaviorRoundTrip(t *testing.T) {
 // VALIDATES: SRv6 BGP Peer Node SID with all fields round-trip.
 // PREVENTS: PeerAS/PeerBGPID byte position errors.
 func TestSRv6BGPPeerNodeSIDRoundTrip(t *testing.T) {
-	original := &LsSRv6BGPPeerNodeSID{
+	original := &lsSRv6BGPPeerNodeSID{
 		Flags:     0x40,
 		Weight:    3,
 		PeerAS:    65001,
@@ -1037,75 +1041,16 @@ func TestSRv6SIDStructureAttrRoundTrip(t *testing.T) {
 	assert.Equal(t, uint8(0), decoded.ArgLen)
 }
 
-// TestDescriptorBGPRouterID tests descriptor sub-TLV 516 round-trip.
-//
-// VALIDATES: BGP Router-ID in NodeDescriptor encodes and parses.
-// PREVENTS: Missing TLV 516 in descriptor encoding/parsing.
-func TestDescriptorBGPRouterID(t *testing.T) {
-	nd := NodeDescriptor{
-		ASN:         65001,
-		BGPRouterID: 0x0A000001, // 10.0.0.1 as uint32
-	}
-
-	buf := make([]byte, nd.Len())
-	nd.WriteTo(buf, 0)
-
-	var parsed NodeDescriptor
-	err := parseNodeDescriptorTLVs(buf, &parsed)
-	require.NoError(t, err)
-	assert.Equal(t, uint32(65001), parsed.ASN)
-	assert.Equal(t, uint32(0x0A000001), parsed.BGPRouterID)
-}
-
-// TestDescriptorConfedMember tests descriptor sub-TLV 517 round-trip.
-//
-// VALIDATES: Confederation Member in NodeDescriptor encodes and parses.
-// PREVENTS: Missing TLV 517 in descriptor encoding/parsing.
-func TestDescriptorConfedMember(t *testing.T) {
-	nd := NodeDescriptor{
-		ASN:          65001,
-		ConfedMember: 65100,
-	}
-
-	buf := make([]byte, nd.Len())
-	nd.WriteTo(buf, 0)
-
-	var parsed NodeDescriptor
-	err := parseNodeDescriptorTLVs(buf, &parsed)
-	require.NoError(t, err)
-	assert.Equal(t, uint32(65001), parsed.ASN)
-	assert.Equal(t, uint32(65100), parsed.ConfedMember)
-}
-
-// TestDescriptorSRv6SID tests the SRv6 SID Information TLV 518 round-trip.
-//
-// VALIDATES: an SRv6 SID NLRI encodes its SID (16-byte IPv6 address) as TLV 518
-// after the Local Node Descriptors, and parsing returns it in the SRv6 SID
-// Descriptor (RFC 9514 Section 6).
-// PREVENTS: TLV 518 written inside the Node Descriptor or lost on parse.
-func TestDescriptorSRv6SID(t *testing.T) {
-	sid := []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
-	nlri := NewBGPLSSRv6SID(ProtoISISL2, 0, NodeDescriptor{ASN: 65001}, SRv6SIDDescriptor{SRv6SID: sid})
-
-	parsed, err := parseBGPLS(nlri.Bytes())
-	require.NoError(t, err)
-	srv6, ok := parsed.(*BGPLSSRv6SID)
-	require.True(t, ok)
-	assert.Equal(t, uint32(65001), srv6.LocalNode.ASN)
-	assert.Equal(t, sid, srv6.SRv6SID.SRv6SID)
-	assert.Equal(t, 8, srv6.LocalNode.Len(), "TLV 518 must not be read into the Node Descriptor")
-}
-
 // TestPhase3Registration verifies all Phase 3 TLV decoders are registered.
 //
 // VALIDATES: Phase 3 registration adds 12 more TLV codes.
 // PREVENTS: Missing Phase 3 registration.
 func TestPhase3Registration(t *testing.T) {
 	phase3Codes := []uint16{
-		TLVPeerNodeSID, TLVPeerAdjSID, TLVPeerSetSID,
-		TLVSRv6EndXSID, TLVSRv6LANEndXISIS, TLVSRv6LANEndXOSPF,
-		TLVUnidirectionalDelay, TLVMinMaxDelay, TLVDelayVariation,
-		TLVSRv6EndpointBehavior, TLVSRv6BGPPeerNodeSID, TLVSRv6SIDStructure,
+		bgpls.TLVPeerNodeSID, bgpls.TLVPeerAdjSID, bgpls.TLVPeerSetSID,
+		bgpls.TLVSRv6EndXSID, bgpls.TLVSRv6LANEndXISIS, bgpls.TLVSRv6LANEndXOSPF,
+		bgpls.TLVUnidirectionalDelay, bgpls.TLVMinMaxDelay, bgpls.TLVDelayVariation,
+		bgpls.TLVSRv6EndpointBehavior, bgpls.TLVSRv6BGPPeerNodeSID, bgpls.TLVSRv6SIDStructure,
 	}
 	for _, code := range phase3Codes {
 		decoder := lookupLsAttrTLVDecoder(code)
@@ -1113,4 +1058,17 @@ func TestPhase3Registration(t *testing.T) {
 	}
 	// Phase 1 (20) + Phase 2 (8) + Phase 3 (12) = 40
 	assert.GreaterOrEqual(t, registeredLsAttrTLVCount(), 40)
+}
+
+// TestSRCapabilitiesDecoderReturnsNilInterfaceOnError proves the TLV 1034
+// adapter in register_attr.go: a value too short for Flags and Reserved is
+// refused, and the decoder returns a nil lsAttrTLV, not a typed nil
+// *bgpls.LsSRCapabilities wrapped in a non-nil interface.
+//
+// VALIDATES: the adapter's error path keeps a caller's nil check true.
+// PREVENTS: a decode error surfacing as a non-nil TLV a caller then uses.
+func TestSRCapabilitiesDecoderReturnsNilInterfaceOnError(t *testing.T) {
+	decoded, err := lookupLsAttrTLVDecoder(bgpls.TLVSRCapabilities)([]byte{0x80})
+	require.ErrorIs(t, err, bgpls.ErrBGPLSTruncated)
+	require.True(t, decoded == nil, "decoder returned %#v, want a nil interface", decoded)
 }

@@ -3,8 +3,8 @@
 // Ze is a BGP-LS consumer and transit speaker: it decodes AFI 16388 NLRI and
 // the type-29 attribute, and forwards received UPDATEs verbatim. It originates
 // no BGP-LS from an IGP, so the tests here pin the decode side and the encoding
-// form of the only BGP-LS encoders ze owns (types_nlri.go, types_descriptor.go,
-// attr_*.go).
+// form of the only BGP-LS encoders ze owns (types_nlri.go and types_descriptor.go
+// in internal/core/bgp/nlri/bgpls, and attr_*.go here).
 
 package ls
 
@@ -14,6 +14,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
 )
 
 // unknownAttrTLVType is a TLV type code with no registered decoder. Chosen from
@@ -35,19 +37,19 @@ func buildAttrTLV(dst []byte, tlvType uint16, value []byte) []byte {
 // decoder for.
 func nodeNLRIWithUnknownSubTLV() []byte {
 	var descs []byte
-	descs = buildAttrTLV(descs, TLVAutonomousSystem, []byte{0x00, 0x00, 0xFD, 0xE8}) // AS 65000
+	descs = buildAttrTLV(descs, bgpls.TLVAutonomousSystem, []byte{0x00, 0x00, 0xFD, 0xE8}) // AS 65000
 	descs = buildAttrTLV(descs, unknownAttrTLVType, []byte{0xDE, 0xAD})
 
 	var container []byte
-	container = buildAttrTLV(container, TLVLocalNodeDesc, descs)
+	container = buildAttrTLV(container, bgpls.TLVLocalNodeDesc, descs)
 
 	body := make([]byte, 9, 9+len(container))
-	body[0] = byte(ProtoOSPFv2)
+	body[0] = byte(bgpls.ProtoOSPFv2)
 	binary.BigEndian.PutUint64(body[1:], 7)
 	body = append(body, container...)
 
 	nlri := make([]byte, 4, 4+len(body))
-	binary.BigEndian.PutUint16(nlri[0:], uint16(BGPLSNodeNLRI))
+	binary.BigEndian.PutUint16(nlri[0:], uint16(bgpls.BGPLSNodeNLRI))
 	binary.BigEndian.PutUint16(nlri[2:], uint16(len(body)))
 	return append(nlri, body...)
 }
@@ -55,8 +57,8 @@ func nodeNLRIWithUnknownSubTLV() []byte {
 // TestRFC7752UnknownTLVPreservedAndPropagated proves an unrecognized TLV
 // survives both halves of ze's BGP-LS path: the attribute decoder keeps its
 // bytes under a generic key, and a parsed NLRI re-encodes byte-identically
-// because parseBGPLS caches the wire slice (types.go:333) and WriteTo copies it
-// back out (types_nlri.go:63).
+// because the core parser (bgpls.ParseBGPLSWithRest) caches the wire slice and
+// WriteTo copies it back out.
 //
 // VALIDATES: forward compatibility -- ze never drops TLVs it cannot name.
 // PREVENTS: an unknown TLV being silently stripped on re-advertisement.
@@ -64,7 +66,7 @@ func TestRFC7752UnknownTLVPreservedAndPropagated(t *testing.T) {
 	// RFC requirement: RFC7752-3.1-1 positive -- an unrecognized attribute TLV is kept verbatim and an unrecognized NLRI sub-TLV survives decode/re-encode unchanged (§3.1)
 	// RFC requirement: RFC9552-5.1-3 positive -- the unknown type is preserved and propagated in both halves: the attribute keeps its bytes and the NLRI re-encodes identically (§5.1)
 	var attr []byte
-	attr = buildAttrTLV(attr, TLVIPv4RouterIDLocal, []byte{10, 0, 0, 1})
+	attr = buildAttrTLV(attr, bgpls.TLVIPv4RouterIDLocal, []byte{10, 0, 0, 1})
 	attr = buildAttrTLV(attr, unknownAttrTLVType, []byte{0xAA, 0xBB, 0xCC})
 
 	js := AttrTLVsToJSON(attr)
@@ -77,9 +79,10 @@ func TestRFC7752UnknownTLVPreservedAndPropagated(t *testing.T) {
 	require.Len(t, tlvs, 1, "only the recognized TLV is typed")
 
 	wire := nodeNLRIWithUnknownSubTLV()
-	parsed, err := parseBGPLS(wire)
+	parsed, rest, err := bgpls.ParseBGPLSWithRest(wire)
 	require.NoError(t, err)
-	node, ok := parsed.(*BGPLSNode)
+	require.Empty(t, rest, "the one NLRI consumes the whole buffer")
+	node, ok := parsed.(*bgpls.BGPLSNode)
 	require.True(t, ok, "type 1 NLRI parses as a Node NLRI")
 	assert.Equal(t, uint32(65000), node.LocalNode.ASN, "known sub-TLV decodes")
 
@@ -109,17 +112,17 @@ func TestRFC7752MalformedTLVNotPreserved(t *testing.T) {
 		t.Fatal("a truncated TLV must not be yielded")
 		return false
 	})
-	assert.ErrorIs(t, err, ErrBGPLSTruncated, "TLV sum beyond the attribute length is refused")
+	assert.ErrorIs(t, err, bgpls.ErrBGPLSTruncated, "TLV sum beyond the attribute length is refused")
 
 	_, err = decodeAllAttrTLVs(truncated)
-	assert.ErrorIs(t, err, ErrBGPLSTruncated)
+	assert.ErrorIs(t, err, bgpls.ErrBGPLSTruncated)
 
 	assert.Empty(t, AttrTLVsToJSON(truncated),
 		"a malformed TLV is not preserved under a generic key")
 
 	// Fixed-length TLV 1028 (IPv4 Router-ID) with three value octets.
-	_, err = decodeAttrTLV(attrTLVEntry{Type: TLVIPv4RouterIDLocal, Value: []byte{10, 0, 0}})
-	assert.ErrorIs(t, err, ErrBGPLSTruncated, "fixed-length TLV of the wrong size is refused")
+	_, err = decodeAttrTLV(attrTLVEntry{Type: bgpls.TLVIPv4RouterIDLocal, Value: []byte{10, 0, 0}})
+	assert.ErrorIs(t, err, bgpls.ErrBGPLSTruncated, "fixed-length TLV of the wrong size is refused")
 }
 
 // TestRFC7752AttrSyntacticChecks proves the positive half of the Section 6.2.2
@@ -132,9 +135,9 @@ func TestRFC7752MalformedTLVNotPreserved(t *testing.T) {
 func TestRFC7752AttrSyntacticChecks(t *testing.T) {
 	// RFC requirement: RFC7752-6.2.2-2 positive -- a TLV sequence whose lengths sum exactly to the attribute length, with fixed-length TLVs at their specified size, decodes completely (§6.2.2)
 	var attr []byte
-	attr = buildAttrTLV(attr, TLVIPv4RouterIDLocal, []byte{192, 0, 2, 1}) // fixed 4
-	attr = buildAttrTLV(attr, TLVNodeName, []byte("core1"))               // variable
-	attr = buildAttrTLV(attr, TLVIGPMetric, []byte{0x00, 0x0A})           // 2-octet OSPF metric
+	attr = buildAttrTLV(attr, bgpls.TLVIPv4RouterIDLocal, []byte{192, 0, 2, 1}) // fixed 4
+	attr = buildAttrTLV(attr, bgpls.TLVNodeName, []byte("core1"))               // variable
+	attr = buildAttrTLV(attr, bgpls.TLVIGPMetric, []byte{0x00, 0x0A})           // 2-octet OSPF metric
 
 	var types []uint16
 	var consumed int
@@ -144,7 +147,7 @@ func TestRFC7752AttrSyntacticChecks(t *testing.T) {
 		return true
 	})
 	require.NoError(t, err)
-	assert.Equal(t, []uint16{TLVIPv4RouterIDLocal, TLVNodeName, TLVIGPMetric}, types)
+	assert.Equal(t, []uint16{bgpls.TLVIPv4RouterIDLocal, bgpls.TLVNodeName, bgpls.TLVIGPMetric}, types)
 	assert.Equal(t, len(attr), consumed, "TLV lengths sum exactly to the attribute length")
 
 	tlvs, err := decodeAllAttrTLVs(attr)
@@ -153,7 +156,7 @@ func TestRFC7752AttrSyntacticChecks(t *testing.T) {
 }
 
 // TestRFC7752NodeDescriptorSubTLVsAscending pins the sub-TLV order emitted by
-// NodeDescriptor.WriteTo (types_descriptor.go:98): 512, 513, 514, 515, 516, 517
+// NodeDescriptor.WriteTo (internal/core/bgp/nlri/bgpls/types_descriptor.go): 512, 513, 514, 515, 516, 517
 // in strictly ascending type order, independent of struct field order.
 //
 // VALIDATES: node descriptor sub-TLV ordering on encode.
@@ -162,7 +165,7 @@ func TestRFC7752AttrSyntacticChecks(t *testing.T) {
 func TestRFC7752NodeDescriptorSubTLVsAscending(t *testing.T) {
 	// RFC requirement: RFC7752-3.2.1.4-3 positive -- node descriptor sub-TLVs are emitted in ascending sub-TLV type order (§3.2.1.4)
 	// RFC requirement: RFC9552-5.2.1.4-2 positive -- the sub-TLVs within a Node Descriptor are arranged in ascending order by sub-TLV type (§5.2.1.4)
-	nd := NodeDescriptor{
+	nd := bgpls.NodeDescriptor{
 		ASN:             65001,
 		BGPLSIdentifier: 1,
 		OSPFAreaID:      2,
@@ -187,8 +190,8 @@ func TestRFC7752NodeDescriptorSubTLVsAscending(t *testing.T) {
 			"sub-TLV %d (%d) must precede %d", i-1, types[i-1], types[i])
 	}
 	assert.Equal(t, []uint16{
-		TLVAutonomousSystem, TLVBGPLSIdentifier, TLVOSPFAreaID,
-		TLVIGPRouterID, TLVBGPRouterID, TLVConfedMember,
+		bgpls.TLVAutonomousSystem, bgpls.TLVBGPLSIdentifier, bgpls.TLVOSPFAreaID,
+		bgpls.TLVIGPRouterID, bgpls.TLVBGPRouterID, bgpls.TLVConfedMember,
 	}, types)
 }
 
@@ -206,7 +209,7 @@ func TestRFC7752TEDefaultMetricZeroPadded(t *testing.T) {
 		buf := make([]byte, tlv.Len())
 		n := tlv.WriteTo(buf, 0)
 		require.Equal(t, 8, n, "4 octet header + 4 octet value")
-		assert.Equal(t, TLVTEDefaultMetric, binary.BigEndian.Uint16(buf[0:]))
+		assert.Equal(t, bgpls.TLVTEDefaultMetric, binary.BigEndian.Uint16(buf[0:]))
 		assert.Equal(t, uint16(4), binary.BigEndian.Uint16(buf[2:]), "value is always 4 octets")
 		assert.Equal(t, metric, binary.BigEndian.Uint32(buf[4:]))
 
@@ -219,7 +222,7 @@ func TestRFC7752TEDefaultMetricZeroPadded(t *testing.T) {
 }
 
 // TestRFC7752NonVPNFamilyIsAFI16388SAFI71 pins the non-VPN BGP-LS family to
-// AFI 16388 / SAFI 71, both in the family registry (types.go:40) and in the
+// AFI 16388 / SAFI 71, both in the family registry (register.go) and in the
 // decode-mode declaration the plugin publishes (plugin.go:70).
 //
 // VALIDATES: link, node and prefix information travels as (16388, 71).
@@ -227,26 +230,26 @@ func TestRFC7752TEDefaultMetricZeroPadded(t *testing.T) {
 func TestRFC7752NonVPNFamilyIsAFI16388SAFI71(t *testing.T) {
 	// RFC requirement: RFC7752-3.2-5 positive -- non-VPN link-state information uses AFI 16388 with SAFI 71 (§3.2)
 	// RFC requirement: RFC9552-5.2-1 positive -- all non-VPN link, node and prefix information is encoded using AFI 16388 / SAFI 71 (§5.2)
-	assert.Equal(t, AFI(16388), BGPLSFamily.AFI)
-	assert.Equal(t, SAFI(71), BGPLSFamily.SAFI)
+	assert.Equal(t, bgpls.AFI(16388), BGPLSFamily.AFI)
+	assert.Equal(t, bgpls.SAFI(71), BGPLSFamily.SAFI)
 	assert.Equal(t, "bgp-ls/bgp-ls", BGPLSFamily.String())
 
-	node := NewBGPLSNode(ProtoISISL2, 0, NodeDescriptor{ASN: 65001})
+	node := bgpls.NewBGPLSNode(bgpls.ProtoISISL2, 0, bgpls.NodeDescriptor{ASN: 65001})
 	assert.Equal(t, BGPLSFamily, node.Family(), "a Node NLRI belongs to (16388, 71)")
 
 	assert.True(t, isValidBGPLSFamily("bgp-ls/bgp-ls"))
 }
 
 // TestRFC7752VPNFamilyIsAFI16388SAFI72 is the VPN counterpart: BGP-LS VPN
-// information travels as AFI 16388 / SAFI 72 (types.go:41, plugin.go:71).
+// information travels as AFI 16388 / SAFI 72 (register.go, plugin.go).
 //
 // VALIDATES: the VPN link-state family is a distinct SAFI, not a variant of 71.
 // PREVENTS: VPN link-state being folded into the non-VPN SAFI.
 func TestRFC7752VPNFamilyIsAFI16388SAFI72(t *testing.T) {
 	// RFC requirement: RFC7752-3.2-6 positive -- VPN link-state information uses AFI 16388 with SAFI 72 (§3.2)
 	// RFC requirement: RFC9552-5.2-2 positive -- VPN link, node and prefix information is encoded using AFI 16388 / SAFI 72 (§5.2)
-	assert.Equal(t, AFI(16388), BGPLSVPNFamily.AFI)
-	assert.Equal(t, SAFI(72), BGPLSVPNFamily.SAFI)
+	assert.Equal(t, bgpls.AFI(16388), BGPLSVPNFamily.AFI)
+	assert.Equal(t, bgpls.SAFI(72), BGPLSVPNFamily.SAFI)
 	assert.Equal(t, "bgp-ls/bgp-ls-vpn", BGPLSVPNFamily.String())
 	assert.NotEqual(t, BGPLSFamily, BGPLSVPNFamily, "VPN and non-VPN are separate families")
 

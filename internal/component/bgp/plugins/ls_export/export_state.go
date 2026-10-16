@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/linkstateevents"
 )
 
@@ -342,7 +342,7 @@ func (e *topologyExporter) send(ctx context.Context, peer string, route exported
 		copy(attrs[11:], route.attributes)
 		command += "attr set " + hex.EncodeToString(attrs) + " nhop set self "
 	}
-	command += "nlri " + ls.BGPLSFamily.String()
+	command += "nlri " + family.Family{AFI: family.AFIBGPLS, SAFI: family.SAFIBGPLinkState}.String()
 	if withdraw {
 		command += " del "
 	} else {

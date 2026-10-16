@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-05",
+  "audited": "2026-10-16",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -64,23 +64,23 @@
       "verdict": "enforced"
     },
     "RFC9086-5-3": {
-      "note": "RFC 9086 Section 5: \"Rsvd bits: Reserved for future use and MUST be zero when originated and ignored when received.\" All six current covers read. TestRFC9086OriginatedPeerSIDRsvdBitsZero and TestRFC9086SourceRsvdBitsNeverOriginated compare emitted flags for conforming 0xc0 and forbidden-source 0xcf. TestRFC9086NativePeerSIDReservedFlagsZero checks defined flags/weight/SID survive while reserved bits/field clear. TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived drives all three registered SID decoders with BOTH conforming seven-octet label and eight-octet index forms, with reserved flags set/clear, requiring equal meaningful flags, weight and SID. The older TestRFC9086PeerSIDIgnoresReservedFields additionally accepts nonzero reserved field; its eight-octet V/L-set fixture is not relied on as the conforming receive witness. clearOriginatedReserved handles 1101/1102/1103; decodePeerSID reads flags without rejecting reserved bits and decodes SID independently. Both originate and receive clauses are genuinely exercised in historical supported scope; no PeerAdj/PeerSet origin feature is claimed. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
+      "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9086 Section 5: \"Rsvd bits: Reserved for future use and MUST be zero when originated and ignored when received.\" Originate: ls_export 0xc0/0xcf pair and the native PeerNode reserved-flags unit (unchanged). Receive: TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived iterates bgpls.TLVPeerNodeSID/AdjSID/SetSID (same codes 1101-1103) over the registered decoders with reserved set and clear, requiring equal flags, weight and SID; decodePeerSID unchanged.",
       "requirement_sha": "8c984fd02855eedf",
       "tests": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero": "de280b1c094e08d4",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero#2": "de280b1c094e08d4",
         "internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go::TestRFC9086OriginatedPeerSIDRsvdBitsZero": "82eb3a8bd223fd22",
         "internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go::TestRFC9086SourceRsvdBitsNeverOriginated": "82eb3a8bd223fd22",
-        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9086PeerSIDIgnoresReservedFields": "a041abb18f874b0e",
-        "internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go::TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived": "13c55f324c7d165f"
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9086PeerSIDIgnoresReservedFields": "1c16ad65174c662e",
+        "internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go::TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived": "c1edf4546807e1b7"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero": "a3d1695f2324dd74",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero#2": "a3d1695f2324dd74",
         "internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go::TestRFC9086OriginatedPeerSIDRsvdBitsZero": "3dfd56c9ea55abec",
         "internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go::TestRFC9086SourceRsvdBitsNeverOriginated": "ce50bdc9826537ab",
-        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9086PeerSIDIgnoresReservedFields": "0943cd48780de072",
-        "internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go::TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived": "74c2d9af6264b12b"
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9086PeerSIDIgnoresReservedFields": "16fd883ab5762bb7",
+        "internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go::TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived": "d6ad44cb774267da"
       },
       "verdict": "enforced"
     },

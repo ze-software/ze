@@ -9,7 +9,7 @@
 // which discarded every octet after the container, and the RFC 9514 Section 6
 // TLV being filed as a Node Descriptor sub-TLV, which RFC 9552 Section 5.2.1.4
 // then sees repeated.
-package ls
+package bgpls
 
 import (
 	"bytes"

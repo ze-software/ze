@@ -6,7 +6,7 @@
 // PREVENTS: the RFC 9552 Section 5.2.1.1 violation "Two different nodes MUST
 // NOT be represented by the same key", which the value-only encoder produced
 // for every OSPF backbone node.
-package ls
+package bgpls
 
 import (
 	"bytes"

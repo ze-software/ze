@@ -1,15 +1,18 @@
-// Design: docs/architecture/wire/nlri-bgpls.md — BGP-LS NLRI plugin
+// Design: docs/architecture/wire/nlri-bgpls.md — BGP-LS NLRI wire codec
 // RFC: rfc/short/rfc7752.md
 // Detail: types_descriptor.go — node, link, and prefix descriptor TLV encoding
 // Detail: types_nlri.go — concrete NLRI types (Node, Link, Prefix)
 // Detail: types_srv6.go — SRv6 SID NLRI and descriptor (RFC 9514)
-// Detail: attr.go — BGP-LS attribute TLV framework (type 29)
 //
-// Package bgp_ls implements BGP-LS family types and plugin for ze.
+// Package bgpls implements the BGP-LS NLRI wire types and codec, the
+// attribute TLV type codes, and the SR Capabilities TLV (1034). The BGP-LS
+// plugin (internal/component/bgp/plugins/nlri/ls) registers the two families
+// and the attribute TLV decoders; ls_export and epe read the codec here. This
+// package registers nothing.
 // RFC 7752: North-Bound Distribution of Link-State and TE Information Using BGP
 // RFC 9085: BGP-LS Extensions for Segment Routing
 // RFC 9514: BGP-LS Extensions for SRv6
-package ls
+package bgpls
 
 import (
 	"encoding/binary"
@@ -33,12 +36,6 @@ const (
 	AFIBGPLS            = family.AFIBGPLS
 	SAFIBGPLinkState    = family.SAFIBGPLinkState
 	SAFIBGPLinkStateVPN = family.SAFIBGPLinkStateVPN
-)
-
-// Family registrations for BGP-LS.
-var (
-	BGPLSFamily    = family.MustRegister(AFIBGPLS, SAFIBGPLinkState, "bgp-ls", "bgp-ls")
-	BGPLSVPNFamily = family.MustRegister(AFIBGPLS, SAFIBGPLinkStateVPN, "bgp-ls", "bgp-ls-vpn")
 )
 
 // BGP-LS errors.
@@ -232,9 +229,9 @@ const (
 	TLVIPReachabilityInfo uint16 = 265 // IP Reachability Information (RFC 7752 Section 3.2.3)
 )
 
-// bGPLSNLRI is the interface for BGP-LS NLRI types.
+// BGPLSNLRI is the interface for BGP-LS NLRI types.
 // RFC 7752 Section 3.2 defines the common NLRI header format.
-type bGPLSNLRI interface {
+type BGPLSNLRI interface {
 	NLRI
 	NLRIType() BGPLSNLRIType     // RFC 7752 Section 3.2 - NLRI Type (2 bytes)
 	ProtocolID() BGPLSProtocolID // RFC 7752 Section 3.2 - Protocol-ID (1 byte)
@@ -296,7 +293,7 @@ func (b *bgplsBase) cachedBytes() []byte { return b.cached }
 //	+------------------+
 //	| Descriptors      |  <- body[9:]
 //	+------------------+
-func parseBGPLS(data []byte) (bGPLSNLRI, error) {
+func parseBGPLS(data []byte) (BGPLSNLRI, error) {
 	// RFC 7752 Section 3.2 - minimum 4 bytes for Type + Length header
 	if len(data) < 4 {
 		return nil, ErrBGPLSTruncated
@@ -496,10 +493,10 @@ func parseSRv6SIDDescriptorTLVs(data []byte, sd *SRv6SIDDescriptor) error {
 	return nil
 }
 
-// parseBGPLSWithRest parses a single BGP-LS NLRI and returns the remaining data.
+// ParseBGPLSWithRest parses a single BGP-LS NLRI and returns the remaining data.
 // This enables parsing multiple packed NLRIs from MP_REACH/MP_UNREACH.
 // RFC 7752 Section 3.2: NLRI format is Type(2) + Length(2) + Value(Length).
-func parseBGPLSWithRest(data []byte) (bGPLSNLRI, []byte, error) {
+func ParseBGPLSWithRest(data []byte) (BGPLSNLRI, []byte, error) {
 	// Need at least 4 bytes for Type + Length header
 	if len(data) < 4 {
 		return nil, nil, ErrBGPLSTruncated
@@ -554,10 +551,10 @@ func uint32ToBytes(v uint32) []byte {
 	return b
 }
 
-// writeTLV writes a TLV header and reserves space for the value.
+// WriteTLV writes a TLV header and reserves space for the value.
 // Returns total bytes written (4 + valueLen).
 // Caller must write value data to buf[off+4:off+4+valueLen].
-func writeTLV(buf []byte, off int, tlvType uint16, valueLen int) int {
+func WriteTLV(buf []byte, off int, tlvType uint16, valueLen int) int {
 	binary.BigEndian.PutUint16(buf[off:], tlvType)
 	binary.BigEndian.PutUint16(buf[off+2:], uint16(valueLen)) //nolint:gosec // Length validated by caller
 	return 4 + valueLen

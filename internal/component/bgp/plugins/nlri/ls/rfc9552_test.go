@@ -18,6 +18,8 @@ import (
 	"encoding/binary"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,10 +32,10 @@ import (
 // make the attribute malformed.
 func descendingAttr() []byte {
 	var attr []byte
-	attr = buildAttrTLV(attr, unknownAttrTLVType, []byte{0x01, 0x02}) // 0x7FFF, highest
-	attr = buildAttrTLV(attr, TLVAdminGroup, []byte{0, 0, 0, 7})      // 1088, link TLV
-	attr = buildAttrTLV(attr, TLVNodeName, []byte("core1"))           // 1026
-	attr = buildAttrTLV(attr, TLVNodeFlagBits, []byte{0xFF})          // 1024, all bits set
+	attr = buildAttrTLV(attr, unknownAttrTLVType, []byte{0x01, 0x02})  // 0x7FFF, highest
+	attr = buildAttrTLV(attr, bgpls.TLVAdminGroup, []byte{0, 0, 0, 7}) // 1088, link TLV
+	attr = buildAttrTLV(attr, bgpls.TLVNodeName, []byte("core1"))      // 1026
+	attr = buildAttrTLV(attr, bgpls.TLVNodeFlagBits, []byte{0xFF})     // 1024, all bits set
 	return attr
 }
 
@@ -61,7 +63,7 @@ func TestRFC9552UnorderedUnexpectedAttributeTLVs(t *testing.T) {
 		return true
 	})
 	require.NoError(t, err, "descending TLV order is not an error")
-	assert.Equal(t, []uint16{unknownAttrTLVType, TLVAdminGroup, TLVNodeName, TLVNodeFlagBits}, types,
+	assert.Equal(t, []uint16{unknownAttrTLVType, bgpls.TLVAdminGroup, bgpls.TLVNodeName, bgpls.TLVNodeFlagBits}, types,
 		"every TLV is yielded in wire order, descending included")
 
 	tlvs, err := decodeAllAttrTLVs(attr)
@@ -75,9 +77,9 @@ func TestRFC9552UnorderedUnexpectedAttributeTLVs(t *testing.T) {
 
 	// Node Flag Bits 0xFF sets every reserved bit RFC 9552 leaves undefined.
 	// A semantic check would reject it; ze decodes it.
-	flags, err := decodeAttrTLV(attrTLVEntry{Type: TLVNodeFlagBits, Value: []byte{0xFF}})
+	flags, err := decodeAttrTLV(attrTLVEntry{Type: bgpls.TLVNodeFlagBits, Value: []byte{0xFF}})
 	require.NoError(t, err, "reserved flag bits set is not a decode error")
-	assert.Equal(t, TLVNodeFlagBits, flags.Code())
+	assert.Equal(t, bgpls.TLVNodeFlagBits, flags.Code())
 }
 
 // TestRFC9552AttributeSyntaxStillRejected is the counter-case. RFC 9552 forbids
@@ -102,113 +104,16 @@ func TestRFC9552AttributeSyntaxStillRejected(t *testing.T) {
 	overrun := append(descendingAttr(), 0x7F, 0xFE, 0x00, 0x10, 0xAA) // claims 16 octets, 1 present
 
 	err := iterateAttrTLVs(overrun, func(attrTLVEntry) bool { return true })
-	assert.ErrorIs(t, err, ErrBGPLSTruncated, "a TLV length past the attribute end is refused")
+	assert.ErrorIs(t, err, bgpls.ErrBGPLSTruncated, "a TLV length past the attribute end is refused")
 
 	_, err = decodeAllAttrTLVs(overrun)
-	assert.ErrorIs(t, err, ErrBGPLSTruncated)
+	assert.ErrorIs(t, err, bgpls.ErrBGPLSTruncated)
 
 	// Fixed-length TLV 1088 (Administrative Group) is 4 octets. A Consumer cannot
 	// decode 3; that is its semantic check, never a reason to call the attribute
 	// malformed on the receive path.
-	_, err = decodeAttrTLV(attrTLVEntry{Type: TLVAdminGroup, Value: []byte{0, 0, 7}})
-	assert.ErrorIs(t, err, ErrBGPLSTruncated, "the Consumer decoder refuses a fixed-length TLV at the wrong size")
-}
-
-// nodeNLRIOddButLegal builds a Node NLRI that is semantically questionable and
-// syntactically perfect: a Private Use Protocol-ID (200), an Identifier that no
-// well-known registry names, no IGP Router-ID sub-TLV at all (the descriptor a
-// Consumer would call mandatory), and a sub-TLV type ze has no decoder for.
-func nodeNLRIOddButLegal() []byte {
-	var descs []byte
-	descs = buildAttrTLV(descs, unknownAttrTLVType, []byte{0xDE, 0xAD, 0xBE, 0xEF})
-
-	var container []byte
-	container = buildAttrTLV(container, TLVLocalNodeDesc, descs)
-
-	body := make([]byte, 9, 9+len(container))
-	body[0] = 200 // RFC 9552 Section 5.2: Protocol-ID 200-255 is Private Use
-	binary.BigEndian.PutUint64(body[1:], 0xFFFFFFFFFFFFFFFF)
-	body = append(body, container...)
-
-	nlri := make([]byte, 4, 4+len(body))
-	binary.BigEndian.PutUint16(nlri[0:], uint16(BGPLSNodeNLRI))
-	binary.BigEndian.PutUint16(nlri[2:], uint16(len(body)))
-	return append(nlri, body...)
-}
-
-// TestRFC9552NLRIContentsNeverMakeItMalformed proves parseBGPLS (types.go:295)
-// judges an NLRI on framing alone. It reads the type, the total length, the
-// Protocol-ID and the Identifier, hands the rest to parseNodeDescriptorTLVs
-// (types.go:391) -- which switches on known sub-TLV types and ignores the rest
-// -- and caches the wire bytes so WriteTo (types_nlri.go:63) replays them.
-//
-// That is exactly the Propagator behavior RFC 9552 Section 8.2.2 demands:
-// mandatory-TLV presence, value ranges and per-NLRI-type TLV applicability are
-// Consumer concerns, and ze checks none of them.
-//
-// VALIDATES: a Private Use Protocol-ID, a missing IGP Router-ID and an unknown
-// sub-TLV all parse, and the NLRI propagates byte-identically.
-// PREVENTS: a semantic guard being added to the parser and dropping topology a
-// downstream Consumer would have understood.
-func TestRFC9552NLRIContentsNeverMakeItMalformed(t *testing.T) {
-	// RFC requirement: RFC9552-8.2.2-1 positive -- a Link-State NLRI missing the descriptors a Consumer treats as mandatory, carrying an unknown sub-TLV and a Private Use Protocol-ID, is not malformed (§8.2.2)
-	// RFC requirement: RFC9552-8.2.2-3 positive -- ze performs no semantic validation on the propagation path: the NLRI parses and re-emits byte-identically (§8.2.2)
-	wire := nodeNLRIOddButLegal()
-
-	parsed, err := parseBGPLS(wire)
-	require.NoError(t, err, "content, not framing, is a Consumer concern")
-	node, ok := parsed.(*BGPLSNode)
-	require.True(t, ok)
-	assert.Equal(t, BGPLSProtocolID(200), node.ProtocolID(), "a Private Use Protocol-ID is kept")
-	assert.Equal(t, uint64(0xFFFFFFFFFFFFFFFF), node.Identifier())
-	assert.Empty(t, node.LocalNode.IGPRouterID, "no IGP Router-ID sub-TLV is present, and none is required")
-
-	out := make([]byte, parsed.Len())
-	n := parsed.WriteTo(out, 0)
-	require.Equal(t, len(wire), n)
-	assert.Equal(t, wire, out[:n], "the NLRI propagates unchanged, unknown sub-TLV included")
-
-	// An empty descriptor set is likewise accepted: body is Protocol-ID plus
-	// Identifier and nothing else.
-	bare := []byte{0x00, 0x01, 0x00, 0x09, 0x03, 0, 0, 0, 0, 0, 0, 0, 0}
-	bareParsed, err := parseBGPLS(bare)
-	require.NoError(t, err, "an NLRI with no Local Node Descriptors TLV is not malformed")
-	assert.Equal(t, BGPLSNodeNLRI, bareParsed.NLRIType())
-}
-
-// TestRFC9552NLRIFramingErrorsRejected is the counter-case: the syntactic floor
-// RFC 9552 Section 8.2.2 keeps. A Total NLRI Length that runs past the buffer,
-// a body too short to hold the Protocol-ID and Identifier, and a sub-TLV length
-// that overruns the descriptor are all refused.
-//
-// VALIDATES: parseBGPLS length checks (types.go:297, :306, :311) and
-// parseNodeDescriptorTLVs (types.go:396) reject framing errors.
-// PREVENTS: "no semantic validation" being read as "no validation".
-func TestRFC9552NLRIFramingErrorsRejected(t *testing.T) {
-	// RFC requirement: RFC9552-8.2.2-1 negative -- framing errors (Total NLRI Length past the buffer, body shorter than Protocol-ID plus Identifier, sub-TLV length overrun) ARE malformed (§8.2.2)
-	// RFC requirement: RFC9552-8.2.2-3 negative -- ze still validates syntax, so tolerating content is not tolerating everything (§8.2.2)
-	overrun := []byte{0x00, 0x01, 0x00, 0x40, 0x03, 0, 0, 0, 0, 0, 0, 0, 0}
-	_, err := parseBGPLS(overrun)
-	assert.ErrorIs(t, err, ErrBGPLSTruncated, "Total NLRI Length past the buffer is malformed")
-
-	short := []byte{0x00, 0x01, 0x00, 0x04, 0x03, 0, 0, 0}
-	_, err = parseBGPLS(short)
-	assert.ErrorIs(t, err, ErrBGPLSTruncated, "a body shorter than Protocol-ID plus Identifier is malformed")
-
-	var descs []byte
-	descs = append(descs, 0x02, 0x00, 0x00, 0x20, 0x01) // sub-TLV 512 claims 32 octets, 1 present
-	var container []byte
-	container = buildAttrTLV(container, TLVLocalNodeDesc, descs)
-	body := make([]byte, 9, 9+len(container))
-	body[0] = byte(ProtoISISL2)
-	body = append(body, container...)
-	badSub := make([]byte, 4, 4+len(body))
-	binary.BigEndian.PutUint16(badSub[0:], uint16(BGPLSNodeNLRI))
-	binary.BigEndian.PutUint16(badSub[2:], uint16(len(body)))
-	badSub = append(badSub, body...)
-
-	_, err = parseBGPLS(badSub)
-	assert.ErrorIs(t, err, ErrBGPLSTruncated, "a sub-TLV length past the descriptor is malformed")
+	_, err = decodeAttrTLV(attrTLVEntry{Type: bgpls.TLVAdminGroup, Value: []byte{0, 0, 7}})
+	assert.ErrorIs(t, err, bgpls.ErrBGPLSTruncated, "the Consumer decoder refuses a fixed-length TLV at the wrong size")
 }
 
 // TestRFC9552ISISSmallMetricTwoMSBsZero pins the one BGP-LS value RFC 9552
@@ -228,7 +133,7 @@ func TestRFC9552ISISSmallMetricTwoMSBsZero(t *testing.T) {
 		buf := make([]byte, tlv.Len())
 		n := tlv.WriteTo(buf, 0)
 		require.Equal(t, 5, n, "4 octet header + 1 octet IS-IS small metric")
-		assert.Equal(t, TLVIGPMetric, binary.BigEndian.Uint16(buf[0:]))
+		assert.Equal(t, bgpls.TLVIGPMetric, binary.BigEndian.Uint16(buf[0:]))
 		assert.Equal(t, uint16(1), binary.BigEndian.Uint16(buf[2:]))
 		assert.Zero(t, buf[4]&0xC0, "the two most significant bits are zero")
 		assert.Equal(t, byte(metric), buf[4])
@@ -285,16 +190,16 @@ const isisTestMTID uint16 = 0x00E
 // Multi-Topology Identifier TLV (263) followed by trailer. The MT-ID is written
 // with its four leading R bits taken from rBits, so the same topology value can
 // be sent with the reserved bits clear and with all four set.
-func isisMTIDDescriptorNLRI(nlriType BGPLSNLRIType, rBits uint16, trailer []byte) []byte {
+func isisMTIDDescriptorNLRI(nlriType bgpls.BGPLSNLRIType, rBits uint16, trailer []byte) []byte {
 	value := make([]byte, 2)
 	binary.BigEndian.PutUint16(value, rBits<<12|isisTestMTID)
 
 	var descs []byte
-	descs = buildAttrTLV(descs, TLVMultiTopologyID, value)
+	descs = buildAttrTLV(descs, bgpls.TLVMultiTopologyID, value)
 	descs = append(descs, trailer...)
 
 	body := make([]byte, 9, 9+len(descs))
-	body[0] = byte(ProtoISISL2) // an IS-IS Protocol-ID: the polarity this clause governs
+	body[0] = byte(bgpls.ProtoISISL2) // an IS-IS Protocol-ID: the polarity this clause governs
 	body = append(body, descs...)
 
 	nlri := make([]byte, 4, 4+len(body))
@@ -305,9 +210,10 @@ func isisMTIDDescriptorNLRI(nlriType BGPLSNLRIType, rBits uint16, trailer []byte
 
 // TestRFC9552ISISMTIDReservedBitsIgnoredOnReceipt proves the R bits of an IS-IS
 // MT-ID carry no meaning for a receiver. Both descriptor walks mask the MT-ID
-// field to its low 12 bits (plugin.go:405 for a Prefix Descriptor, plugin.go:519
-// for a Link Descriptor), so a peer that leaves the reserved bits set yields the
-// same topology as one that clears them.
+// field to its low 12 bits (bgpls.ParseBGPLSPrefixTLVs for a Prefix Descriptor,
+// bgpls.ParseBGPLSLinkTLVs for a Link Descriptor, both in
+// internal/core/bgp/nlri/bgpls/descriptor_info.go), so a peer that leaves the
+// reserved bits set yields the same topology as one that clears them.
 //
 // "Ignored" is the load-bearing word: the walk does not stop either. The TLV
 // after the MT-ID still decodes, which is what separates ignoring the bits from
@@ -320,22 +226,22 @@ func isisMTIDDescriptorNLRI(nlriType BGPLSNLRIType, rBits uint16, trailer []byte
 func TestRFC9552ISISMTIDReservedBitsIgnoredOnReceipt(t *testing.T) {
 	// RFC requirement: RFC9552-5.2.2.1-1 positive -- the reserved Bits R of an IS-IS Link or Prefix Descriptor MT-ID are ignored on receipt: all four set decodes to the same MT-ID as all four clear (§5.2.2.1)
 	var linkTrailer []byte
-	linkTrailer = buildAttrTLV(linkTrailer, TLVIPv4InterfaceAddr, []byte{192, 0, 2, 1})
+	linkTrailer = buildAttrTLV(linkTrailer, bgpls.TLVIPv4InterfaceAddr, []byte{192, 0, 2, 1})
 
-	_, _, linkClear := parseBGPLSLinkTLVs(isisMTIDDescriptorNLRI(BGPLSLinkNLRI, 0x0, linkTrailer))
-	_, _, linkSet := parseBGPLSLinkTLVs(isisMTIDDescriptorNLRI(BGPLSLinkNLRI, 0xF, linkTrailer))
+	_, _, linkClear := bgpls.ParseBGPLSLinkTLVs(isisMTIDDescriptorNLRI(bgpls.BGPLSLinkNLRI, 0x0, linkTrailer))
+	_, _, linkSet := bgpls.ParseBGPLSLinkTLVs(isisMTIDDescriptorNLRI(bgpls.BGPLSLinkNLRI, 0xF, linkTrailer))
 
-	require.Equal(t, []any{int(isisTestMTID)}, linkClear.mtIDs, "reserved bits clear: the MT-ID is the value sent")
-	assert.Equal(t, linkClear.mtIDs, linkSet.mtIDs, "reserved bits set: the four R bits carry no topology meaning")
-	assert.Equal(t, []any{"192.0.2.1"}, linkSet.ifAddrs, "the descriptor after the MT-ID TLV still decodes")
+	require.Equal(t, []any{int(isisTestMTID)}, linkClear.MTIDs, "reserved bits clear: the MT-ID is the value sent")
+	assert.Equal(t, linkClear.MTIDs, linkSet.MTIDs, "reserved bits set: the four R bits carry no topology meaning")
+	assert.Equal(t, []any{"192.0.2.1"}, linkSet.IfAddrs, "the descriptor after the MT-ID TLV still decodes")
 
 	var prefixTrailer []byte
-	prefixTrailer = buildAttrTLV(prefixTrailer, TLVIPReachabilityInfo, []byte{24, 192, 0, 2})
+	prefixTrailer = buildAttrTLV(prefixTrailer, bgpls.TLVIPReachabilityInfo, []byte{24, 192, 0, 2})
 
-	_, prefixClear := parseBGPLSPrefixTLVs(isisMTIDDescriptorNLRI(BGPLSPrefixV4NLRI, 0x0, prefixTrailer), BGPLSPrefixV4NLRI)
-	_, prefixSet := parseBGPLSPrefixTLVs(isisMTIDDescriptorNLRI(BGPLSPrefixV4NLRI, 0xF, prefixTrailer), BGPLSPrefixV4NLRI)
+	_, prefixClear := bgpls.ParseBGPLSPrefixTLVs(isisMTIDDescriptorNLRI(bgpls.BGPLSPrefixV4NLRI, 0x0, prefixTrailer), bgpls.BGPLSPrefixV4NLRI)
+	_, prefixSet := bgpls.ParseBGPLSPrefixTLVs(isisMTIDDescriptorNLRI(bgpls.BGPLSPrefixV4NLRI, 0xF, prefixTrailer), bgpls.BGPLSPrefixV4NLRI)
 
-	require.Equal(t, []any{int(isisTestMTID)}, prefixClear.mtIDs, "reserved bits clear: the MT-ID is the value sent")
-	assert.Equal(t, prefixClear.mtIDs, prefixSet.mtIDs, "reserved bits set: the four R bits carry no topology meaning")
-	assert.Equal(t, "192.0.2.0/24", prefixSet.prefix, "the descriptor after the MT-ID TLV still decodes")
+	require.Equal(t, []any{int(isisTestMTID)}, prefixClear.MTIDs, "reserved bits clear: the MT-ID is the value sent")
+	assert.Equal(t, prefixClear.MTIDs, prefixSet.MTIDs, "reserved bits set: the four R bits carry no topology meaning")
+	assert.Equal(t, "192.0.2.0/24", prefixSet.Prefix, "the descriptor after the MT-ID TLV still decodes")
 }
