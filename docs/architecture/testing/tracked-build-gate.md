@@ -68,6 +68,22 @@ and pieces 1 and 6 exceeded their 10m30s and 9m bounds. A compile error names
 the same tree-relative file with or without the flag.
 <!-- source: internal/le/go/staticcheck/judge.go -- judgeEnvironment -->
 
+The flag makes a fresh tree reuse the cache; it cannot help after a change to a
+package most of the module imports, which gives every dependent a new action ID.
+The per-row bound was sized against a whole-matrix run that shared one compile
+over 38 rows, and the first piece of a cut run paid that compile alone: piece 1
+exceeded 10m30s at 9858e07c8e, after a change to `internal/component/config`.
+So before the Staticcheck deadline starts, the gate compiles the widest row of
+the piece, the one with the most feature tags, with the `go list` arguments
+Staticcheck's own load passes, in the same environment (`warmBuildCache`). The
+rows differ only by tags, so that row compiles nearly every package the others
+load; one row and not seven, because a warm load still hashes the whole module
+(about 26s a row on 2026-10-16). The compile has its own 30-minute bound, the
+job registry's default stall window, and the per-row deadline then measures the
+type check. A compile that fails is left to Staticcheck, which repeats the load
+and reports the failure as its verdict.
+<!-- source: internal/le/go/staticcheck/judge.go -- warmBuildCache -->
+
 Staticcheck stops after package and test-variant type checking.
 `./le repo compiles check` supplies committed-tree final-link proof for
 the configurations in `buildMatrix`, not for every shipped build flavor. Keep

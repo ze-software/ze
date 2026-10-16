@@ -144,19 +144,19 @@ func Judge(tree string, matrix Matrix, deadline time.Duration) (Verdict, bool, e
 			Str("; matrix could not be judged").String())
 	}
 
+	environ := judgeEnvironment(os.Environ(), cache)
+	if err := warmBuildCache(tree, matrix, environ); err != nil {
+		return Verdict{}, false, err
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), deadline)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "staticcheck", "-checks=-all", "-matrix", "./...")
 	cmd.Dir = tree
-	cmd.Env = judgeEnvironment(os.Environ(), cache)
+	cmd.Env = environ
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Cancel = func() error {
-		if cmd.Process == nil {
-			return nil
-		}
-		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-	}
+	cmd.Cancel = killGroup(cmd)
 	cmd.Stdin = bytes.NewReader(rendered)
 
 	var toolStdout, toolStderr bytes.Buffer
@@ -205,6 +205,91 @@ func Judge(tree string, matrix Matrix, deadline time.Duration) (Verdict, bool, e
 	var tb textbuf.Buffer
 	return verdict, false, errors.New(tb.Str("Staticcheck did not complete: ").Err(runErr).
 		Str("; matrix could not be judged").String())
+}
+
+// compileDeadline bounds the compile warmBuildCache runs before the Staticcheck
+// deadline starts. The all-features row alone measured 495.7s cold on
+// 2026-10-16, and 30 minutes is the job registry's default stall window
+// (ZE_JOB_STALL_SECONDS, internal/le/job): a compile still running past it is
+// hung, and the verify slot holding it can be broken anyway.
+const compileDeadline = 30 * time.Minute
+
+// warmBuildCache compiles every package and test variant of the widest row
+// Staticcheck is about to load, so the Staticcheck deadline bounds the type
+// check and not the compile.
+//
+// deadlinePerRow was sized against a whole-matrix cold run, whose one compile
+// was shared by 38 rows. A verify cuts the matrix into pieces, and a change to a
+// package most of the module imports gives every dependent a new action ID, so
+// the first piece of the next run paid that whole compile alone: on 2026-10-16
+// piece 1 exceeded 10m30s at 9858e07c8e, after f1cfbc2a60 changed
+// internal/component/config. A compile is slow, not hung, so it gets its own
+// bound.
+//
+// One row and not each: the rows differ only by feature tags, so the widest
+// row compiles nearly every package the others load, and what a narrower row
+// adds is its tag-gated files and their dependents, which stay inside the
+// deadline as they did before the cut. A warm load still hashes the whole
+// module, measured at about 26s a row on 2026-10-16, so warming all seven rows
+// of a piece cost three minutes in a fresh tree whose cache was already warm.
+//
+// The arguments are the ones golang.org/x/tools/go/packages passes for
+// Staticcheck's load mode (golistargs in go/packages/golist.go), and environ
+// is the one Staticcheck runs under, so each compile here is the action
+// Staticcheck would otherwise run, with the same action ID. A load that fails
+// is not an answer here: Staticcheck repeats the same load and reports the
+// failure as its verdict, so only the bound is an error.
+func warmBuildCache(tree string, matrix Matrix, environ []string) error {
+	row := widestRow(matrix)
+
+	ctx, cancel := context.WithTimeout(context.Background(), compileDeadline)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "go", warmArguments(row)...) //nolint:gosec // the arguments are the fixed go/packages load flags plus the build tags of a matrix row Derive read from the checkout
+	cmd.Dir = tree
+	cmd.Env = environ
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = killGroup(cmd)
+	cmd.Run() //nolint:errcheck // Staticcheck repeats this load and reports its failure as the verdict
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		var tb textbuf.Buffer
+		return errors.New(tb.Str("compiling row ").Str(row.Name).Str(" for Staticcheck exceeded the ").
+			Str(compileDeadline.String()).Str(" compile bound; matrix could not be judged").String())
+	}
+	return nil
+}
+
+// widestRow answers the row of matrix carrying the most feature tags, the
+// first of them on a tie. Render has already refused an empty matrix.
+func widestRow(matrix Matrix) Row {
+	widest := matrix[0]
+	for _, row := range matrix[1:] {
+		if len(row.Tags) > len(widest.Tags) {
+			widest = row
+		}
+	}
+	return widest
+}
+
+// warmArguments answers the go list arguments Staticcheck's load runs for row.
+// The tags are spelled as Render spells them for Staticcheck.
+func warmArguments(row Row) []string {
+	var tags textbuf.Buffer
+	tags.Str("-tags=").Str(strings.Join(row.Tags, ","))
+	return []string{"list", "-e", "-compiled=true", "-test=true", "-export=true",
+		"-deps=true", "-find=false", "-buildvcs=false", "-pgo=off", tags.String(), "--", "./..."}
+}
+
+// killGroup answers the Cancel function that kills cmd's whole process group,
+// so a go or Staticcheck child that outlives its deadline leaves no compiler
+// behind. The command MUST set Setpgid.
+func killGroup(cmd *exec.Cmd) func() error {
+	return func() error {
+		if cmd.Process == nil {
+			return nil
+		}
+		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	}
 }
 
 // goFlagsKey is the variable the go command reads for its default build flags.
