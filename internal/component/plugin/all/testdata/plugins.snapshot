@@ -46,6 +46,7 @@ bgp-watchdog
 connected
 copp
 cos
+crashes
 ddos-detect
 ddos-flowspec
 ddos-flowtriq

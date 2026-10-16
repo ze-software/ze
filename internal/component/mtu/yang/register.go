@@ -7,5 +7,6 @@ import (
 )
 
 func init() {
+	configyang.RegisterModule("ze-mtu-cmd.yang", ZeMtuCmdYANG)
 	configyang.RegisterModule("ze-mtu-conf.yang", ZeMtuConfYANG)
 }

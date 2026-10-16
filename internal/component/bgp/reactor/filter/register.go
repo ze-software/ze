@@ -15,6 +15,9 @@ func init() {
 		Name:    "loop",
 		Stage:   filterapi.FilterStageProtocol,
 		Ingress: LoopIngress,
+		// Loop detection runs as an always-on protocol filter, not as a run
+		// plugin, so its counters arrive through filterapi.SetMetricsRegistry.
+		ConfigureMetrics: SetMetricsRegistry,
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "loop: filter registration failed: %v\n", err)
 		os.Exit(1)

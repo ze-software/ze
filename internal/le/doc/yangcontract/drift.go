@@ -256,6 +256,29 @@ func (c *checker) checkDesignMD(pluginNames, familyNames []string, ciTotal, inte
 				})
 			}
 		}
+
+		// The registered-plugin count follows the same floor-or-exact rule,
+		// judged against the registry this build carries.
+		if m, isFloor := extractFloorCount(line, `(\d+)(\+?) registered plugins`); m > 0 {
+			actual := len(pluginNames)
+			tb.Reset()
+			switch {
+			case isFloor && actual < m:
+				issues = append(issues, Issue{
+					File: designDoc, Line: lineNum,
+					Message: tb.Str("claims at least ").Int(int64(m)).
+						Str(" registered plugins, registry has ").Int(int64(actual)).String(),
+				})
+			case !isFloor && m != actual:
+				issues = append(issues, Issue{
+					File: designDoc, Line: lineNum,
+					Message: tb.Str("claims ").Int(int64(m)).
+						Str(" registered plugins, registry has ").Int(int64(actual)).
+						Str(" (write ").Int(int64(m)).
+						Str("+ for a floor that needs no edit when a plugin registers)").String(),
+				})
+			}
+		}
 	}
 
 	tablePlugins := extractTableColumn(lines, "Plugin", "Purpose", 0)

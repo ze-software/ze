@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/raw" // The RIB's update-route replay dispatches to a command this registers.
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/gr"
 	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/component/plugin"

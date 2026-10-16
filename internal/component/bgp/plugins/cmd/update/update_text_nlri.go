@@ -68,12 +68,6 @@ func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
 		return parseEVPNSection(args, fam, accum)
 	}
 
-	// SR-Policy families use different parsing (distinguisher/color/endpoint)
-	// RFC 9830: SR-Policy NLRI + Tunnel Encapsulation attribute
-	if fam.SAFI == family.SAFISRPolicy {
-		return parseSRPolicySection(args, fam)
-	}
-
 	// A family this package does not parse itself reaches its registered plugin
 	// encoder, which takes the WHOLE token run rather than one prefix per
 	// token: `nlri ipv4/mup add route-type mup-isd rd 100:100 prefix 10.0.0.0/24`
@@ -199,8 +193,16 @@ func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
 			continue
 		}
 
-		// Parse prefix based on family
-		n, extra, err := parseNLRI(token, fam, accum)
+		// Parse prefix based on family. A labeled withdrawal keeps one label of
+		// the stack, which the session writer sets to 0x800000: RFC 8277 Section
+		// 2.4 gives a withdrawn NLRI one Compatibility field, "used whether or not
+		// the Multiple Labels Capability has been sent or received on the
+		// session", and a second label would reach the peer as prefix bits.
+		fields := accum
+		if mode == kwDel && len(accum.Labels) > 1 {
+			fields.Labels = accum.Labels[:1]
+		}
+		n, extra, err := parseNLRI(token, fam, fields)
 		if err != nil {
 			return nlriParseResult{}, err
 		}
@@ -249,6 +251,7 @@ func parseINETNLRI(token string, fam family.Family, pathID uint32) (nlri.NLRI, i
 // Returns NLRI, extra args consumed, and any error.
 // For FlowSpec families, this function is not used - see parseFlowSpecSection.
 func parseNLRI(token string, fam family.Family, accum nlriAccum) (nlri.NLRI, int, error) {
+	//exhaustive:ignore // parseNLRISection calls this only for a nativeTextFamily family it has not already handed to its own section parser (FlowSpec, VPLS, EVPN), so only unicast, multicast, VPN and labeled unicast arrive; every other SAFI goes to parseRegistryNLRISection.
 	switch fam.SAFI {
 	case family.SAFIVPN: // SAFI 128 - MPLS VPN
 		return parseVPNNLRI(token, fam, accum)
@@ -257,13 +260,12 @@ func parseNLRI(token string, fam family.Family, accum nlriAccum) (nlri.NLRI, int
 	case family.SAFIFlowSpec, family.SAFIFlowSpecVPN:
 		// FlowSpec uses special parsing - should not reach here
 		return nil, 0, errFlowspecParsingRequiresParseflowspecsection
-	case family.SAFIUnicast, family.SAFIMulticast, family.SAFIMVPN,
-		family.SAFIVPLS, family.SAFIEVPN, family.SAFIBGPLinkState,
-		family.SAFIBGPLinkStateVPN, family.SAFISRPolicy, family.SAFIMUP, family.SAFIRTC:
+	case family.SAFIUnicast, family.SAFIMulticast:
 		return parseINETNLRI(token, fam, accum.PathID)
 	default:
-		// The supplied SAFI set is open; retain the generic INET parser fallback.
-		return parseINETNLRI(token, fam, accum.PathID)
+		// No other SAFI reaches here (see the ignore reason above); refuse
+		// rather than guess a prefix encoding for it.
+		return nil, 0, fmt.Errorf("%w: %s", route.ErrFamilyNotSupported, fam)
 	}
 }
 
@@ -445,13 +447,20 @@ func nativeTextFamily(f family.Family) bool {
 		return true
 	case family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: // EVPN (SAFI 70) - RFC 7432
 		return true
-	case family.Family{AFI: family.AFIIPv4, SAFI: family.SAFISRPolicy},
-		family.Family{AFI: family.AFIIPv6, SAFI: family.SAFISRPolicy}: // SR-Policy (SAFI 73) - RFC 9830
-		return true
 	default: // unsupported family
 		return false
 	}
 }
+
+// errLaterAddDel refuses an add or del written after the first field of a
+// registry family section. The section is one NLRI, so a second mode would
+// either be read as a value by the plugin encoder or silently win.
+var errLaterAddDel = errors.New("add or del after the first field: write one add or del right after the family")
+
+// errFamilyRefusesAddPath refuses a path-information that applies to a section
+// whose plugin declared its NLRI carries no ADD-PATH identifier
+// (registry.Registration.NLRIAddPathRefusal).
+var errFamilyRefusesAddPath = errors.New("path-information not supported")
 
 // parseRegistryNLRISection parses an NLRI section whose family this package
 // does not parse itself, by handing the section's whole token run to the
@@ -463,9 +472,22 @@ func nativeTextFamily(f family.Family) bool {
 // `route-type mup-isd rd 100:100 prefix 10.0.0.0/24`
 // (internal/component/bgp/plugins/nlri/mup/encode.go, EncodeNLRIHex) and the
 // mvpn encoder reads its own.
+//
+// A family whose plugin declared that its NLRI carries no ADD-PATH identifier
+// refuses a path-information in exactly three positions: one at top level,
+// which the accumulator it was handed carries; one right after the family; and
+// one inside the run. A path-information inside another family's section lives
+// in that section's own accumulator copy, so it never reaches this parser.
 func parseRegistryNLRISection(args []string, fam family.Family, accum nlriAccum) (nlriParseResult, error) {
 	// args[0] = "nlri", args[1] = family; the caller has consumed neither.
+	refusal, refusesAddPath := registry.NLRIAddPathRefusalFor(fam.String())
+	if refusesAddPath && accum.HasPathID {
+		return nlriParseResult{}, refuseAddPath(fam, refusal)
+	}
 	i := 2
+	if refusesAddPath && i < len(args) && args[i] == kwPathInfo {
+		return nlriParseResult{}, refuseAddPath(fam, refusal)
+	}
 	mode := ""
 	if i < len(args) && (args[i] == kwAdd || args[i] == kwDel) {
 		mode = args[i]
@@ -477,6 +499,13 @@ func parseRegistryNLRISection(args []string, fam family.Family, accum nlriAccum)
 
 	start := i
 	for i < len(args) && !endsRegistrySection(args[i]) {
+		token := args[i]
+		if token == kwAdd || token == kwDel {
+			return nlriParseResult{}, fmt.Errorf("%w: %s section has %q after its first field", errLaterAddDel, fam, token)
+		}
+		if refusesAddPath && token == kwPathInfo {
+			return nlriParseResult{}, refuseAddPath(fam, refusal)
+		}
 		i++
 	}
 	if i == start {
@@ -488,6 +517,13 @@ func parseRegistryNLRISection(args []string, fam family.Family, accum nlriAccum)
 		return nlriParseResult{}, err
 	}
 	return buildSingleNLRIResult(fam, mode, encoded, i)
+}
+
+// refuseAddPath builds the one error a path-information applying to fam's
+// section gets: the reason fam's plugin registered, and the two ways out.
+func refuseAddPath(fam family.Family, reason string) error {
+	return fmt.Errorf("%w for %s: %s; drop path-information, or send the %s section in its own command",
+		errFamilyRefusesAddPath, fam, reason, fam)
 }
 
 // endsRegistrySection reports whether a token ends a plugin family's token run.

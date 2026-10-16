@@ -42,7 +42,7 @@ correctness for speed of implementation.
 FlowSpec, FlowSpec VPN, EVPN, VPLS, BGP-LS, MPLS, MUP, MVPN, RTC, SR-Policy), 14 capabilities
 (Multiprotocol Extensions, ASN4, ADD-PATH, PATHS-LIMIT, Extended Message,
 Extended Next Hop, Graceful Restart, Long-Lived Graceful Restart, Route Refresh,
-Enhanced Route Refresh, BGP Role, Hostname, Software Version, Link-Local Next Hop), 97 registered plugins,
+Enhanced Route Refresh, BGP Role, Hostname, Software Version, Link-Local Next Hop), 91+ registered plugins,
 and BGP path attribute support including AIGP. RFC 8203 Administrative Shutdown
 Communication provides graceful teardown with human-readable messages. Encode,
 decode, and round-trip paths share the same wire representation.
@@ -366,6 +366,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `flowspec-firewall` | Translate BGP FlowSpec routes into nftables firewall rules |
 | `traffic` | Traffic control (TC qdisc/class) via netlink or VPP backend |
 | `cos` | 802.1p class-of-service profile definitions |
+| `crashes` | Crash capture: kernel crash record harvest at daemon start, `show crashes` |
 | `interface` | Interface management via netlink or VPP backend |
 | `iface-dhcp` | DHCP client for interface address assignment |
 | `iface-ra` | IPv6 Router Advertisement sender for a LAN interface unit (RFC 4861) |

@@ -19,8 +19,10 @@ type loopMetrics struct {
 var loopMetricsPtr atomic.Pointer[loopMetrics]
 
 // SetMetricsRegistry creates the loop-filter metrics from the given registry.
-// Called from the reactor's metrics-enable block. A nil registry is a no-op, so
-// the increment in LoopIngress stays disabled.
+// The loop filter declares it as its filterapi.Filter.ConfigureMetrics, so
+// filterapi.SetMetricsRegistry calls it from the reactor's metrics-enable
+// block. A nil registry is a no-op, so the increment in LoopIngress stays
+// disabled.
 func SetMetricsRegistry(reg metrics.Registry) {
 	if reg == nil {
 		return

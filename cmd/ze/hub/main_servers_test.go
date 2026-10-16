@@ -24,7 +24,8 @@ import (
 // pipe of its own and relays every line to the descriptor it saved, and it does
 // that work inside a sync.Once. The daemon arms it as the first statement of
 // main (cmd/ze/dispatch.go), so by the time a boot reaches
-// crashes.HarvestAtBoot -> crashlog.HarvestKernelCrashes -> Init the Once is
+// the crashes boot effect (registry.RunBootEffects -> crashes.HarvestAtBoot ->
+// crashlog.HarvestKernelCrashes -> Init) the Once is
 // spent and nothing moves. A test binary has no such main, so that lazy Init
 // fires mid-boot instead: it took os.Stderr off this pipe part-way through and
 // sent the rest of the boot to the terminal, where the assertion could not see

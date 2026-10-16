@@ -8,5 +8,4 @@ import (
 
 func init() {
 	configyang.RegisterModule("ze-rib-cmd.yang", ZeRibCmdYANG)
-	configyang.RegisterModule("ze-rib-poolstats-cmd.yang", ZeRibPoolStatsCmdYANG)
 }

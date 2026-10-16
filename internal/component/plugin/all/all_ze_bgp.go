@@ -78,6 +78,8 @@ import (
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/vpn"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/redistribute_egress"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rib"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rib/poolcmd"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rib/poolcmd/yang"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rib/yang"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/role"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/role/yang"

@@ -39,13 +39,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/cache"             // init() registers cache command RPCs
-	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/commit"            // init() registers commit command RPCs
-	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/peer"              // init() registers peer management RPCs
-	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/raw"               // init() registers raw message RPCs
-	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/update"            // init() registers update parsing RPCs
-	_ "github.com/ze-software/ze/internal/component/bgp/plugins/route_refresh/handler" // init() registers route-refresh command RPCs
-	"github.com/ze-software/ze/internal/component/bgp/reactor/filter"
 	bgpserver "github.com/ze-software/ze/internal/component/bgp/server"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -1302,16 +1295,14 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		r.rmetrics = initReactorMetrics(r.metricsRegistry, version,
 			routerID, textbuf.StringUint(uint64(r.config.LocalAS)))
 		r.rmetrics.peersConfigured.Set(float64(len(r.peers)))
-		// Wire the always-on protocol filters' metrics (loop detection) into the
-		// same registry; they self-register via filterapi, not as run plugins,
-		// so their ConfigureMetrics callback never fires.
-		filter.SetMetricsRegistry(r.metricsRegistry)
-		// Same reasoning for the attribute-modification contract counters. The
-		// AttrMod handlers register at init() via filterapi.RegisterAttrModHandler
-		// and run during the progressive build whether or not the plugin that
-		// supplied them is running, so a ConfigureMetrics hook on that plugin
-		// would leave the counter dead in exactly the configurations where a
-		// contract violation is reachable.
+		// The attribute-modification contract counters and the always-on
+		// protocol filters' metrics (loop detection). The AttrMod handlers
+		// register at init() via filterapi.RegisterAttrModHandler and run during
+		// the progressive build whether or not the plugin that supplied them is
+		// running, and the protocol filters register through filterapi.Register,
+		// not as run plugins, so a plugin's ConfigureMetrics hook would leave
+		// these counters dead. filterapi hands the registry to each filter's
+		// Filter.ConfigureMetrics.
 		filterapi.SetMetricsRegistry(r.metricsRegistry)
 		// The announce size guard's counter, for the same reason: both drop sites
 		// are free functions with no Reactor to read rmetrics off

@@ -36,6 +36,11 @@ func init() {
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return runBGPLSDecode(input, output)
 		},
+		// RFC 9552 Section 5.3: the BGP-LS Attribute (type 29) is rendered by
+		// this plugin for the offline decoder, which names no plugin.
+		AttributeJSONDecoders: map[uint8]registry.AttributeJSONDecoder{
+			29: {Key: "bgp-ls", Decode: AttrTLVsToJSON},
+		},
 	}
 	reg.CLIHandler = func(args []string) int {
 		var family *string

@@ -155,6 +155,16 @@ the oops or panic log into a reserved memory region that a warm reboot does not
 clear, and Ze reads it on the NEXT healthy boot. No Ze code runs at the moment of
 the fault, so no Ze defect can cost the reboot as well as the record.
 
+**The harvest is the crashes plugin's boot effect.** The plugin's
+registration carries it as `BootEffect`, and the daemon start path runs every
+registered boot effect once through `registry.RunBootEffects`, after host tuning
+and before the smart manager starts. The start path names no plugin, so a build
+without crash capture has no harvest, and a config reload never repeats it. The
+registration's engine is a no-op that nothing auto-loads: it declares no family,
+config root, event or data-plane need.
+<!-- source: internal/plugins/crashes/register.go -- the crashes Registration and its BootEffect -->
+<!-- source: internal/component/plugin/registry/boot.go -- RunBootEffects -->
+
 **A kernel record is a second ARTIFACT KIND, not a second system.** It resolves
 through the same directory probe, rotates under the same `ze.crash.keep` count,
 is listed by the same `show crashes`, and travels in the same `crashes` support

@@ -30,18 +30,18 @@ var commandOwners = []commandOwner{
 	{"l2tp", "l2tp-cmd"},
 	{"ldp", "ldp-cmd"},
 	{"mpls", "mpls-cmd"},
-	{"ping", "ping-cmd"},
 	{"pki", "pki-cmd"},
 	{"pppoe", "pppoe-cmd"},
 	{"resolve", "resolve-cmd"},
 	{"rsvpte", "rsvpte-cmd"},
 	{"storage", "storage-cmd"},
 	{"subscriber", "subscriber-cmd"},
-	{"traceroute", "traceroute-cmd"},
 	{"traffic", "traffic-cmd"},
 }
 
-var intrinsicCommandOwners = []string{"doctor", "firewall", "iface", "ike"}
+// intrinsicCommandOwners are components whose command modules stay in their
+// own yang/ directory: the command belongs to the component, not a -cmd plugin.
+var intrinsicCommandOwners = []string{"doctor", "firewall", "iface", "ike", "mtu", "ping", "traceroute"}
 
 var commandReferenceDirs = []string{
 	"internal/component/cmd/show/yang",

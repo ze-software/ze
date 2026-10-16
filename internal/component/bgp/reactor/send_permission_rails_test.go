@@ -26,6 +26,9 @@ import (
 	// composition root (plugin/all/all_ze_bgp.go). Without it the dispatcher has
 	// the ze-bgp:cache-forward wire method and no `send bgp <sel> cached` path,
 	// so the entry point this file drives would not exist in the test binary.
+	// The cache package itself registers the ze-bgp:cache-forward handler the
+	// grammar points at; the daemon links it through the same composition root.
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/cache"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/cache/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"

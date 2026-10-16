@@ -11,9 +11,6 @@ import (
 	tcpkg "github.com/ze-software/ze/internal/component/traffic"
 	tccmd "github.com/ze-software/ze/internal/component/traffic/cmd"
 	"github.com/ze-software/ze/internal/core/helpfmt"
-
-	// Register the tc backend so tcpkg.LoadBackend("tc") resolves.
-	_ "github.com/ze-software/ze/internal/plugins/traffic/netlink"
 )
 
 // Run executes the traffic control subcommand. Returns exit code.

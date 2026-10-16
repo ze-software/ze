@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/raw" // The RIB's update-route replay dispatches to a command this registers.
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"

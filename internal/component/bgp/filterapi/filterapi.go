@@ -28,6 +28,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -624,6 +625,13 @@ type Filter struct {
 	// lock held, before the removed peer's Cease is sent, so it MUST NOT call
 	// back into the reactor or block. Nil = no per-peer state.
 	PeerRemoved func(PeerFilterInfo)
+	// ConfigureMetrics hands the filter the daemon's metrics registry, so a
+	// filter that counts what it does builds its metrics without the reactor
+	// naming its package. SetMetricsRegistry calls it once, from the reactor's
+	// metrics-enable block, with a non-nil registry; a build with metrics
+	// disabled never calls it. It is no pipeline contribution: a filter that
+	// declares only this is refused by Register. Nil = no metrics.
+	ConfigureMetrics func(metrics.Registry)
 }
 
 var (

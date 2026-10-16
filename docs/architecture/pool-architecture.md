@@ -687,8 +687,25 @@ The scheduler is wired into the RIB plugin via `OnStarted`:
 
 Implementation: `internal/component/bgp/plugins/rib/compaction.go` (thin wiring), `rib.go` (OnStarted callback).
 
-`pool.AllPools()` in `internal/component/bgp/plugins/rib/pool/attributes.go` returns all 13 attribute pools.
+`pool.AllPools()` in `internal/component/bgp/plugins/rib/pool/attributes.go` returns all 14 pools: the 13 attribute pools and `rib-out`.
+It derives from `pool.AllNamedPools()`, the one list of the pools, so a pool
+added there is both scheduled for compaction and reported by `pool-stats`.
 <!-- source: internal/component/bgp/plugins/rib/ -- compaction wiring, AllPools -->
+<!-- source: internal/component/bgp/plugins/rib/pool/attributes.go -- AllNamedPools -->
+
+### pool-stats, the operator view of the attribute pools
+
+`show metrics pool` (RPC `ze-bgp:pool-stats`) answers one row per pool in
+`pool.AllNamedPools()` order, `rib-out` included, each under its own name:
+`live-slots`, `dead-slots`, `live-bytes`, `dead-bytes`, `intern`, `hits` and
+`dedup-rate`, then the `count` of rows and the `total-*` sums. The handler is
+the `poolcmd` package inside the rib plugin
+(`internal/component/bgp/plugins/rib/poolcmd/`), with its command module
+`ze-rib-poolstats-cmd.yang` beside it in `poolcmd/yang/`. It reads the pools
+the rib plugin owns, in process, so removing the rib plugin removes the command
+with it. The `ze-bgp:` prefix on the RPC name is a legacy label, not an
+ownership claim. `test/plugin/bgp-pool-stats.ci` proves the path.
+<!-- source: internal/component/bgp/plugins/rib/poolcmd/pool_stats.go -- handlePoolStats -->
 
 ---
 

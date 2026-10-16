@@ -21,8 +21,9 @@ import (
 	// Blank imports trigger init() registration for RPC handlers.
 	// These packages call pluginserver.RegisterRPCs in init() but are not
 	// included in plugin/all due to import cycles (see plugin_imports.go rpcDirs).
-	// The BGP ones live in tree_bgp.go behind //go:build ze_bgp, the BFD one
-	// in tree_bfd.go behind //go:build ze_bfd.
+	// The BFD one lives in tree_bfd.go behind //go:build ze_bfd. The BGP
+	// command packages need no import here: plugin/all already carries them
+	// (all_ze_bgp.go, behind the same ze_bgp tag).
 	_ "github.com/ze-software/ze/internal/component/cli"
 	_ "github.com/ze-software/ze/internal/component/cmd/delete"
 	_ "github.com/ze-software/ze/internal/component/cmd/metrics"

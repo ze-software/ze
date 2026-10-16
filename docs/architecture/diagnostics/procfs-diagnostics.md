@@ -47,13 +47,15 @@ and share one result.
 "already in progress" error path with no channel bookkeeping.
 <!-- source: internal/component/cmd/show/profile.go -- runtime profiling -->
 
-**BFD raw capture is reached through an interface plus a setter, not a type
-assertion on the reactor.** BFD is a separate plugin with no reactor context.
-The plugin service implements `BFDRawCaptureProvider` and calls
-`show.SetBFDRawCaptureProvider()` at startup, aggregating across every engine
-loop. Without that call, `capture-raw start bfd` answers "BFD plugin not
-loaded". The ring lives on the engine `Loop` behind an atomic pointer, so it
+**BFD raw capture is reached through a provider published in `bfd/api`, not a
+type assertion on the reactor.** BFD is a separate plugin with no reactor
+context. The plugin service implements `api.RawCapture` and publishes
+itself with `api.SetRawCaptureProvider()` when it starts, aggregating across
+every engine loop; the diag command reads it with `api.RawCaptureProvider()`,
+so neither plugin imports the other. Without that publication,
+`capture-raw start bfd` answers "BFD plugin not loaded". The ring lives on the engine `Loop` behind an atomic pointer, so it
 costs nothing when disabled, with hooks in `handleInbound` and `sendLocked`.
+<!-- source: internal/component/bfd/api/raw_capture.go -- RawCapture, SetRawCaptureProvider, RawCaptureProvider -->
 <!-- source: internal/component/bfd/engine/raw_capture.go -- RawCaptureRing and the Loop capture methods -->
 
 **The test bypass for the root privilege check is a package variable, not

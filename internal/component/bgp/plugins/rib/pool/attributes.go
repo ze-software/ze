@@ -73,12 +73,41 @@ func init() {
 	OtherAttrs = mustPool(14, 1<<16, shardsHot)    // unknown attrs, diverse
 }
 
+// NamedPool is one attribute pool and the name an operator reads it under in
+// `pool-stats`.
+type NamedPool struct {
+	Name string
+	Pool *attrpool.Pool
+}
+
+// AllNamedPools returns every pool with its name. It is the one list of the
+// pools: AllPools derives from it, so a pool added here is both scheduled for
+// compaction and reported by pool-stats under its own name.
+func AllNamedPools() []NamedPool {
+	return []NamedPool{
+		{"origin", Origin},
+		{"as-path", ASPath},
+		{"local-pref", LocalPref},
+		{"med", MED},
+		{"next-hop", NextHop},
+		{"communities", Communities},
+		{"large-communities", LargeCommunities},
+		{"ext-communities", ExtCommunities},
+		{"cluster-list", ClusterList},
+		{"originator-id", OriginatorID},
+		{"atomic-aggregate", AtomicAggregate},
+		{"aggregator", Aggregator},
+		{"other-attrs", OtherAttrs},
+		{"rib-out", RibOut},
+	}
+}
+
 // AllPools returns all attribute pools for scheduler construction.
 func AllPools() []*attrpool.Pool {
-	return []*attrpool.Pool{
-		Origin, ASPath, LocalPref, MED, NextHop,
-		Communities, LargeCommunities, ExtCommunities,
-		ClusterList, OriginatorID, AtomicAggregate,
-		Aggregator, OtherAttrs, RibOut,
+	named := AllNamedPools()
+	pools := make([]*attrpool.Pool, len(named))
+	for i := range named {
+		pools[i] = named[i].Pool
 	}
+	return pools
 }

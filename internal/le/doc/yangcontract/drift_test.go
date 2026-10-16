@@ -13,6 +13,7 @@ package docyangcontract
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -408,5 +409,40 @@ func TestVanishedTellsAGoneFileFromAnUnreadableOne(t *testing.T) {
 	}
 	if vanished(link) {
 		t.Errorf("a dangling symbolic link reads as vanished, so the file it names is never reported")
+	}
+}
+
+// VALIDATES: AC-16: "N+ registered plugins" in docs/DESIGN.md is a FLOOR judged
+// against the registry this build carries, and a bare "N" is exact.
+// PREVENTS: the page claiming more plugins than the registry holds, and the
+// churn of an exact count edited every time a plugin registers.
+func TestCheckDesignMDPluginCount(t *testing.T) {
+	const marker = " registered plugins, registry has"
+	actual := len(registryPluginNames())
+	if actual < 2 {
+		t.Fatalf("the test binary registers %d plugins; the rows below need at least 2", actual)
+	}
+	itoa := strconv.Itoa
+
+	for _, tc := range []struct {
+		name   string
+		claim  string
+		reject bool
+	}{
+		{name: "floor below actual is accepted", claim: itoa(actual-1) + "+ registered plugins ship."},
+		{name: "floor equal to actual is accepted", claim: itoa(actual) + "+ registered plugins ship."},
+		{name: "exact equal is accepted", claim: itoa(actual) + " registered plugins ship."},
+		{name: "floor above actual is rejected", claim: itoa(actual+1) + "+ registered plugins ship.", reject: true},
+		{name: "exact different is rejected", claim: itoa(actual-1) + " registered plugins ship.", reject: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeDoc(t, root, "docs/DESIGN.md", "# Design\n\n"+tc.claim+"\n")
+
+			report := Drift(root)
+			if got := reports(report, marker); got != tc.reject {
+				t.Fatalf("claim %q: plugin-count complaint present=%v, want %v: %v", tc.claim, got, tc.reject, messages(report))
+			}
+		})
 	}
 }

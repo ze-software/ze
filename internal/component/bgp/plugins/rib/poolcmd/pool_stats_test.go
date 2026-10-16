@@ -1,4 +1,4 @@
-package rib
+package poolcmd
 
 import (
 	"testing"
@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -49,4 +50,26 @@ func TestHandlePoolStats(t *testing.T) {
 		require.True(t, ok, "dedup-rate must be a formatted string")
 		assert.Contains(t, rate, "%")
 	}
+}
+
+// TestPoolStatsNamesEveryPool verifies every pool row carries the name
+// declared beside the pool, one row per pool, and none reads "unknown".
+//
+// VALIDATES: pool-stats names its 14th pool (rib-out) instead of "unknown".
+// PREVENTS: a pool added to the pool package and reported without a name.
+func TestPoolStatsNamesEveryPool(t *testing.T) {
+	resp, err := handlePoolStats(&pluginserver.CommandContext{}, commandtest.Args())
+	require.NoError(t, err)
+	data, ok := resp.Data.(plugin.Map)
+	require.True(t, ok, "expected plugin.Map data")
+	rows, ok := data["pools"].([]map[string]any)
+	require.True(t, ok, "expected []map[string]any in pools field")
+
+	named := pool.AllNamedPools()
+	require.Len(t, rows, len(named))
+	for i, row := range rows {
+		assert.Equal(t, named[i].Name, row["name"])
+		assert.NotEqual(t, "unknown", row["name"])
+	}
+	assert.Equal(t, "rib-out", rows[len(rows)-1]["name"])
 }

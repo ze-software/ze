@@ -43,7 +43,7 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 // The owner package reuses parseConfigRoute so config and canonical route encoding
 // share SR-Policy field validation and Tunnel Encapsulation attribute construction.
 func EncodeRoute(routeCmd, famName string, localAS uint32, isIBGP, asn4, addPath bool) ([]byte, []byte, error) {
-	_ = addPath // SR-Policy NLRIs do not support ADD-PATH.
+	_ = addPath // The SR-Policy route Ze builds carries no ADD-PATH path identifier.
 	afi, err := srPolicyAFI(famName)
 	if err != nil {
 		return nil, nil, err
@@ -143,7 +143,7 @@ func parseSRPolicyNLRIArgs(args []string) (uint32, uint32, netip.Addr, error) {
 			endpoint = ep
 			hasEndpoint = true
 		default:
-			return 0, 0, netip.Addr{}, fmt.Errorf("unknown sr-policy keyword: %s", key)
+			return 0, 0, netip.Addr{}, fmt.Errorf("sr-policy takes only distinguisher, color, endpoint: %q is not one of them", key)
 		}
 	}
 

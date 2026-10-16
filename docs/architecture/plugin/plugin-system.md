@@ -73,12 +73,15 @@ importing its package:
 |-------|------|---------|
 | `ConfigureEngineLogger` | `func(loggerName string)` | Set the logger for in-process engine mode |
 | `ConfigureMetrics` | `func(reg metrics.Registry)` | Called before `RunEngine` so the plugin registers its gauges and counters |
+| `BootEffect` | `func(configPath string)` | Work the plugin owns that runs once at daemon start, whether or not its engine ever runs. `RunBootEffects` (`registry/boot.go`) runs every registered effect in plugin name order, once, after host tuning, and never on a config reload. Crash capture uses it to harvest the kernel crash record the previous boot left |
 | `ConfigureEventBus` | `func(eventBus ze.EventBus)` | Called before `RunEngine` with the bus the plugin emits on |
 | `ConfigurePluginServer` | `func(server PluginServerAccessor)` | Called before `RunEngine` with the plugin server, through a leaf interface |
 | `RPCHandlers` | `map[string]func(json.RawMessage) (any, error)` | RPC method name to handler, collected by the plugin server |
 | `InProcessDecoder` | `func(input, output *bytes.Buffer) int` | Decode function for the CLI fallback path |
+| `AttributeJSONDecoders` | `map[uint8]AttributeJSONDecoder` | Path attribute code to the JSON key and renderer `ze bgp decode` uses for an attribute the plugin owns (BGP-LS registers 29). `Register` refuses a code another plugin declared, and an entry with no key or no function |
 | `InProcessNLRIDecoder` | `func(family, hex string, addPath, withdraw bool) (any, error)` | NLRI decode without RPC. `addPath` carries negotiated four-octet Path Identifier framing, including identifier zero. `withdraw` selects MP_UNREACH withdrawal semantics; false means announcement |
 | `InProcessNLRIEncoder` | `func(family string, args []string) (string, error)` | NLRI encode without RPC |
+| `NLRIAddPathRefusal` | `string` | When not empty, the plugin's families carry no ADD-PATH path identifier and this is the reason `update text` gives when a `path-information` applies to their section. SR-Policy sets it |
 | `InProcessRouteEncoder` | `func(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath bool) ([]byte, []byte, error)` | Builds a full UPDATE for `ze bgp encode` |
 | `InProcessConfigVerifier` | `func([]rpc.ConfigSection) error` | Side-effect-free equivalent of `OnConfigVerify`, used by static, API and CLI validation |
 | `InProcessConfigNLRIBuilder` | `func(matchCriteria map[string][]string, isIPv6, forVPN bool) []byte` | Builds NLRI bytes from config-format match criteria |
@@ -104,6 +107,15 @@ RFC 4271 Section 5 treatment. Selectors MUST be pure and safe for concurrent
 calls, and registration MUST finish before peers start. The route-server plugin
 owns the selection for its clients; the body builder and caches consume only
 the resulting treatment. Removing that plugin leaves ordinary treatment.
+
+A `filterapi.Filter` can also declare `ConfigureMetrics func(metrics.Registry)`.
+`filterapi.SetMetricsRegistry`, called once from the reactor's metrics-enable
+block with a non-nil registry, hands each declaring filter the daemon's
+registry, so a filter that counts what it does (loop detection) builds its own
+metrics without the reactor naming its package. A build with metrics disabled
+never calls it. It is no pipeline contribution: `filterapi.Register` refuses a
+filter that declares only this.
+<!-- source: internal/component/bgp/filterapi/filterapi.go -- Filter.ConfigureMetrics -->
 
 ## The setup record: a plugin's second declaration
 

@@ -40,13 +40,18 @@ func init() {
 	}
 
 	reg := registry.Registration{
-		Name:                       "bgp-nlri-srpolicy",
-		Description:                "SR-Policy family plugin (RFC 9830, SAFI 73)",
-		SupportsNLRI:               true,
-		Features:                   "nlri",
-		Families:                   []string{IPv4SRPolicy.String(), IPv6SRPolicy.String()},
-		InProcessNLRIDecoder:       DecodeNLRIHex,
-		InProcessNLRIEncoder:       EncodeNLRIHex,
+		Name:                 "bgp-nlri-srpolicy",
+		Description:          "SR-Policy family plugin (RFC 9830, SAFI 73)",
+		SupportsNLRI:         true,
+		Features:             "nlri",
+		Families:             []string{IPv4SRPolicy.String(), IPv6SRPolicy.String()},
+		InProcessNLRIDecoder: DecodeNLRIHex,
+		InProcessNLRIEncoder: EncodeNLRIHex,
+		// Ze's own rule, not an RFC one: RFC 9830 says nothing about ADD-PATH,
+		// and DecodeNLRIHex accepts a received path identifier (RFC 7911). The
+		// SR-Policy route Ze builds carries none (SRPolicy.SupportsAddPath), so
+		// `update text` refuses one rather than dropping it.
+		NLRIAddPathRefusal:         "Ze builds SR-Policy routes without an ADD-PATH path identifier",
 		InProcessRouteEncoder:      EncodeRoute,
 		InProcessConfigRouteParser: parseConfigRoute,
 		RunEngine:                  func(net.Conn) int { return 0 },

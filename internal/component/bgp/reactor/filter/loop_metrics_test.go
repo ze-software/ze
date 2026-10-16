@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/metrics"
 )
 
@@ -89,4 +90,21 @@ func TestASPathLoopMetricNilRegistryNoPanic(t *testing.T) {
 	loopMetricsPtr.Store(nil)
 	body := makeUpdateBody(buildASPathAttr([]uint32{65002, 65001, 65003}, false))
 	assert.NotPanics(t, func() { _ = accept(ibgpPeer(), body) })
+}
+
+// TestLoopMetricsWiredThroughFilterAPI verifies the loop filter receives the
+// metrics registry through filterapi.SetMetricsRegistry, the only call the
+// reactor makes, so the reactor needs no import of this package.
+//
+// VALIDATES: the loop filter's Filter.ConfigureMetrics hook is registered and
+// filterapi calls it with the registry.
+// PREVENTS: ze_bgp_as_path_loop_detected_total silently dead once the reactor
+// stopped calling SetMetricsRegistry here directly.
+func TestLoopMetricsWiredThroughFilterAPI(t *testing.T) {
+	loopMetricsPtr.Store(nil)
+	t.Cleanup(func() { loopMetricsPtr.Store(nil) })
+
+	filterapi.SetMetricsRegistry(metrics.NewPrometheusRegistry())
+
+	require.NotNil(t, loopMetricsPtr.Load(), "filterapi.SetMetricsRegistry did not reach the loop filter")
 }

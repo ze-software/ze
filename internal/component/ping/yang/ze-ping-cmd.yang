@@ -1,0 +1,144 @@
+module ze-ping-cmd {
+    namespace "urn:ze:ping:cmd";
+    prefix pingcmd;
+    import ze-extensions { prefix ze; }
+    // The dedicated ping module owns the whole ping surface, so it lives in one
+    // place. Its subtrees container-merge onto the show, monitor, and resolve
+    // verb roots. See ai/rules/plugin-self-containment.md.
+    description "The ping command tree: show ping, monitor ping, and resolve ping.";
+    // The handler already reads them as keyword pairs. The description spelled
+    // them in prose and the model stated nothing.
+    // The probe layer gained a Don't Fragment mode; the keyword is the same
+    // word on ping and on traceroute, and the same word on show and resolve.
+    revision 2026-09-15 { description "Add the do-not-fragment keyword to show ping and resolve ping."; }
+    revision 2026-08-29 { description "Declare the target and the three optional values of resolve ping."; }
+    // The ICMP engine and resolve ping already supported a payload size, and the
+    // web Ping tool offered the field, but show ping had no argument to carry it.
+    revision 2026-07-15 { description "Add the size leaf to show ping."; }
+    // It left the central show, monitor, and resolve schemas.
+    revision 2026-06-03 { description "Relocate the ping command surface into the dedicated ping module."; }
+
+    container show {
+        config false;
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
+
+        container ping {
+            config false;
+            ze:command "ze-ping:show-ping";
+            ze:rpc "ze-cli-show-api:ping";
+            description "Sends ICMP echo requests to <dest> (IP or hostname). Default count is 5.
+Timeout uses Go duration syntax (e.g. 3s, 500ms). Confirms reachability from
+this box, not from your workstation.";
+            ze:help "Ping a target from the router itself.";
+            leaf dest {
+                type string;
+                description "The value is the first bare word of the command. A host name is resolved
+in either address family, and the family of the answer selects ICMPv4 or ICMPv6.";
+                ze:help "Target host or IP address.";
+            }
+            leaf count {
+                type uint32;
+                description "The value is the number of echo requests Ze sends, 1 to 100, paced 10
+milliseconds apart. Absent, the value is 5.";
+                ze:help "Number of ping packets.";
+            }
+            leaf size {
+                type uint32 {
+                    range "1..65507";
+                }
+                description "Ze fills the payload to exactly this many bytes, with its marker copied
+into the front so a capture still identifies the sender.";
+                ze:help "ICMP echo payload size in bytes (1-65507). Omit for the engine default.";
+            }
+            leaf timeout {
+                type string {
+                    pattern '\d+[smh]?';
+                }
+                description "The value is the time Ze waits for each reply, in Go duration syntax, 1s
+to 30s. Absent, the value is 5s.";
+                ze:help "Timeout duration.";
+            }
+            leaf do-not-fragment {
+                type enumeration {
+                    enum honor-cache { ze:help "Set the DF bit and refuse a probe larger than the kernel's cached path MTU."; }
+                    enum bypass-cache { ze:help "Set the DF bit and ignore the cached path MTU, so the wire answers for itself."; }
+                }
+                description "The keyword takes one of two values. honor-cache sets the Don't Fragment bit
+and honors the kernel's cached path MTU: a probe larger than the cached value is refused at
+send time, and a router's Fragmentation Needed answer updates the cache. bypass-cache sets
+the bit and ignores the cached value, so the probe is put on the wire at its full size.
+Absent, the kernel fragments a probe larger than the path, which is the behavior of before
+the keyword existed.";
+                ze:help "Set the Don't Fragment bit; honor-cache obeys the cached path MTU, bypass-cache ignores it.";
+            }
+        }
+    }
+
+    container monitor {
+        config false;
+        ze:help "Continuous monitoring commands (Ctrl-C to stop).";
+
+        container ping {
+            config false;
+            ze:command "ze-ping:monitor-ping";
+            ze:task-support required;
+            description "Pings <target> until you stop it. Adjust interval and timeout as needed. Shows
+running min/avg/max RTT and packet loss.";
+            ze:help "Continuous ping with live loss and RTT statistics.";
+        }
+    }
+
+    container resolve {
+        config false;
+        ze:help "DNS, ASN, PeeringDB, and IRR resolution tools.";
+
+        container ping {
+            config false;
+            ze:command "ze-ping:resolve-ping";
+            description "The target takes a hostname or an address, and it accepts a zone suffix such as
+fe80::1%eth0. The source binds a local address and takes the same zone suffix.
+The count runs from 1 to 100 and the payload size from 1 to 65507 bytes. 'show
+ping' declares no source leaf and puts no upper bound on its count. The
+do-not-fragment keyword is the same word, with the same two values, on both.";
+            ze:help "Ping from the router with optional source binding.";
+            leaf target {
+                type string { pattern '[a-zA-Z0-9.:%-]+'; length "1..253"; }
+                mandatory true;
+                description "The value follows the target keyword. A host name is resolved in either
+address family, and the family of the answer selects ICMPv4 or ICMPv6.";
+                ze:help "Host or IP address to ping.";
+            }
+            leaf source {
+                type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; }
+                description "The value is a local IPv4 or IPv6 address, with an optional %zone, that Ze
+binds the echo socket to. Absent, the kernel picks the source.";
+                ze:help "Source IP address to bind.";
+            }
+            leaf count {
+                type uint32 { range "1..100"; }
+                description "Ze sends this many echo requests and waits 5 seconds for each reply.
+Absent, the value is 4.";
+                ze:help "Number of echo requests.";
+            }
+            leaf size {
+                type uint32 { range "1..65507"; }
+                description "Ze fills the payload to exactly this many bytes, with its marker copied
+into the front. Absent, Ze sends the small default payload.";
+                ze:help "ICMP echo payload size in bytes.";
+            }
+            leaf do-not-fragment {
+                type enumeration {
+                    enum honor-cache { ze:help "Set the DF bit and refuse a probe larger than the kernel's cached path MTU."; }
+                    enum bypass-cache { ze:help "Set the DF bit and ignore the cached path MTU, so the wire answers for itself."; }
+                }
+                description "The keyword takes one of two values. honor-cache sets the Don't Fragment bit
+and honors the kernel's cached path MTU: a probe larger than the cached value is refused at
+send time, and a router's Fragmentation Needed answer updates the cache. bypass-cache sets
+the bit and ignores the cached value, so the probe is put on the wire at its full size.
+Absent, the kernel fragments a probe larger than the path, which is the behavior of before
+the keyword existed.";
+                ze:help "Set the Don't Fragment bit; honor-cache obeys the cached path MTU, bypass-cache ignores it.";
+            }
+        }
+    }
+}

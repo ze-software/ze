@@ -21,7 +21,9 @@ type attrModMetrics struct {
 var attrModMetricsPtr atomic.Pointer[attrModMetrics]
 
 // SetMetricsRegistry creates the attribute-modification metrics from the given
-// registry. A nil registry is a no-op, leaving the recorders disabled.
+// registry, then hands the registry to every registered filter that declares
+// Filter.ConfigureMetrics. A nil registry is a no-op, leaving the recorders
+// and the filters' metrics disabled.
 //
 // Called from the reactor's metrics-enable block, NOT from a plugin's
 // ConfigureMetrics callback. The handlers these metrics describe are registered
@@ -29,8 +31,10 @@ var attrModMetricsPtr atomic.Pointer[attrModMetrics]
 // whether or not the owning plugin is running -- bgp-filter-community supplies
 // the COMMUNITY handler even for a config with no `community { }` block at all.
 // A ConfigureMetrics hook would therefore leave the counter dead in exactly the
-// configuration where the contract violation it counts was first found. This is
-// the same reasoning the reactor already records for filter.SetMetricsRegistry.
+// configuration where the contract violation it counts was first found. The
+// same reasoning holds for the filters: the always-on protocol filters (loop
+// detection) register through Register, not as run plugins, so their metrics
+// arrive through Filter.ConfigureMetrics here and never through a plugin hook.
 func SetMetricsRegistry(reg metrics.Registry) {
 	if reg == nil {
 		return
@@ -47,6 +51,14 @@ func SetMetricsRegistry(reg metrics.Registry) {
 			[]string{"store"},
 		),
 	})
+
+	mu.RLock()
+	defer mu.RUnlock()
+	for _, f := range filters {
+		if f.ConfigureMetrics != nil {
+			f.ConfigureMetrics(reg)
+		}
+	}
 }
 
 // RecordEditSpill counts one destination whose edit set outgrew an inline store.

@@ -226,6 +226,12 @@ type Registration struct {
 	// Optional handlers.
 	ConfigureEngineLogger func(loggerName string)               // Configure logger for in-process engine mode
 	InProcessDecoder      func(input, output *bytes.Buffer) int // Decode function for CLI fallback
+	// AttributeJSONDecoders render a path attribute this plugin owns as JSON
+	// for the offline decoder (`ze bgp decode`), keyed by attribute type code.
+	// The decoder looks a code up here instead of importing the plugin, so a
+	// build without the plugin renders the attribute as unknown. Register
+	// refuses a code another plugin already declared.
+	AttributeJSONDecoders map[uint8]AttributeJSONDecoder
 
 	// In-process NLRI decode/encode: fast path for infrastructure code (text.go, update_text.go)
 	// that avoids plugin package imports. Same semantics as the SDK's OnDecodeNLRI/OnEncodeNLRI
@@ -237,6 +243,12 @@ type Registration struct {
 	// callers MUST pass the enclosing message's action, not infer it from bytes.
 	InProcessNLRIDecoder func(family, hex string, addPath, withdraw bool) (any, error)
 	InProcessNLRIEncoder func(family string, args []string) (string, error) // (family, args) → hex
+	// NLRIAddPathRefusal, when not empty, declares that the NLRI of every family
+	// this plugin registers carries no ADD-PATH path identifier, and is the
+	// reason an operator reads when a command gives one. Empty means the family
+	// takes ADD-PATH like any other. `update text` asks NLRIAddPathRefusalFor
+	// instead of testing a SAFI.
+	NLRIAddPathRefusal string
 
 	// In-process route encoder: builds a full UPDATE message for a given family.
 	// Used by `ze bgp encode` to delegate family-specific encoding to plugins,
@@ -260,6 +272,13 @@ type Registration struct {
 	// ConfigureMetrics is called before RunEngine with the metrics registry.
 	// The plugin registers its gauges/counters on it.
 	ConfigureMetrics func(reg metrics.Registry)
+
+	// BootEffect is work the plugin owns that runs once when the daemon
+	// starts, whether or not its engine ever runs: crash capture recovering
+	// the record the previous boot's kernel left. The daemon start path runs
+	// every registered effect through RunBootEffects (boot.go), so it names
+	// no plugin. Never called on a config reload. Nil = no boot effect.
+	BootEffect func(configPath string)
 
 	// ConfigureEventBus is called before RunEngine with the EventBus instance.
 	// The plugin stores the reference for emitting and subscribing to
@@ -392,6 +411,13 @@ var (
 	// Registration.DataPlane, which would leave the writer for that data plane
 	// decided by map order.
 	ErrDuplicateDataPlane = errors.New("registry: duplicate data plane")
+	// ErrDuplicateAttributeDecoder is returned when two plugins declare a JSON
+	// decoder for the same path attribute code, which would leave the rendering
+	// `ze bgp decode` prints to map order.
+	ErrDuplicateAttributeDecoder = errors.New("registry: duplicate attribute JSON decoder")
+	// ErrInvalidAttributeDecoder is returned when an attribute JSON decoder has
+	// no JSON key or no decode function, so it could render nothing.
+	ErrInvalidAttributeDecoder = errors.New("registry: attribute JSON decoder needs a key and a decode function")
 	// ErrNilRunEngine is returned when RunEngine is nil.
 	ErrNilRunEngine = errors.New("registry: RunEngine is nil")
 	// ErrNilCLIHandler is returned when CLIHandler is nil.
@@ -562,6 +588,22 @@ func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registra
 		}
 		if len(reg.FilterTypes) == 0 {
 			return fmt.Errorf("registry: plugin %q declares filter obligation %q but owns no filter type", reg.Name, ob)
+		}
+	}
+	// One plugin owns each attribute code, so the decoder `ze bgp decode` uses
+	// never depends on map order.
+	for code, dec := range reg.AttributeJSONDecoders {
+		if dec.Key == "" {
+			return fmt.Errorf("%w: plugin %q attribute %d has no key", ErrInvalidAttributeDecoder, reg.Name, code)
+		}
+		if dec.Decode == nil {
+			return fmt.Errorf("%w: plugin %q attribute %d has no decode function", ErrInvalidAttributeDecoder, reg.Name, code)
+		}
+		for _, other := range plugins {
+			if _, dup := other.AttributeJSONDecoders[code]; dup {
+				return fmt.Errorf("%w: attribute %d claimed by %q and %q",
+					ErrDuplicateAttributeDecoder, code, other.Name, reg.Name)
+			}
 		}
 	}
 	for i, dc := range reg.DoctorChecks {
@@ -858,6 +900,27 @@ func CapabilityMap() map[uint8]string {
 		}
 	}
 	return m
+}
+
+// AttributeJSONDecoder renders one path attribute's value as JSON under Key.
+// Decode answers an empty map when the value holds nothing it can render.
+type AttributeJSONDecoder struct {
+	Key    string
+	Decode func(value []byte) map[string]any
+}
+
+// AttributeJSONDecoderFor answers the registered JSON decoder of attribute
+// code, and false when no registered plugin declares one. Safe for
+// concurrent use.
+func AttributeJSONDecoderFor(code uint8) (AttributeJSONDecoder, bool) {
+	mu.RLock()
+	defer mu.RUnlock()
+	for _, reg := range plugins {
+		if dec, ok := reg.AttributeJSONDecoders[code]; ok {
+			return dec, true
+		}
+	}
+	return AttributeJSONDecoder{}, false
 }
 
 // InProcessDecoders returns a map from plugin name to decode function.
@@ -1218,6 +1281,23 @@ func HasNLRIEncoderForFamily(family string) bool {
 
 	reg := familyIndex[family]
 	return reg != nil && reg.InProcessNLRIEncoder != nil
+}
+
+// NLRIAddPathRefusalFor answers the reason the plugin registered for family
+// gives for refusing an ADD-PATH path identifier, and false when the family
+// takes one or no plugin registers it. Safe for concurrent use.
+func NLRIAddPathRefusalFor(family string) (string, bool) {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	reg := familyIndex[family]
+	if reg == nil {
+		return "", false
+	}
+	if reg.NLRIAddPathRefusal == "" {
+		return "", false
+	}
+	return reg.NLRIAddPathRefusal, true
 }
 
 // RouteEncoderByFamily finds the plugin registered for a family and returns

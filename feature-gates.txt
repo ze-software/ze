@@ -294,6 +294,7 @@ ze_bgp   internal/component/bgp/plugins/nlri/vpls
 ze_bgp   internal/component/bgp/plugins/nlri/vpn
 ze_bgp   internal/component/bgp/plugins/redistribute_egress
 ze_bgp   internal/component/bgp/plugins/rib
+ze_bgp   internal/component/bgp/plugins/rib/poolcmd
 ze_bgp   internal/component/bgp/plugins/role
 ze_bgp   internal/component/bgp/plugins/route_refresh
 ze_bgp   internal/component/bgp/plugins/route_refresh/handler

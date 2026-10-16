@@ -663,6 +663,21 @@ the families a plugin encodes, whose encoders answer with the payload alone.
 Whether those octets reach the wire is still the session's ADD-PATH
 negotiation, which `WriteNLRI` reads.
 
+A family whose plugin declares that its NLRI carries no path identifier
+(`NLRIAddPathRefusal` in its registration; SR-Policy does) refuses a
+`path-information` that applies to its section: one written at top level
+before that section's `nlri`, one right after the family, or one inside the
+section. The whole command is refused, so a command mixing that section with
+another family never half-applies. A `path-information` written inside
+another family's section belongs to that section and is accepted.
+
+A section of a family a plugin encodes (mup, mvpn, sr-policy) is one NLRI, so
+its `add` or `del` comes once, right after the family. A second `add` or `del`
+later in the section is refused. The families Ze parses itself (unicast,
+multicast, vpn, labeled, flowspec, vpls, evpn) keep switching mode on a later
+`add` or `del`: `nlri ipv4/unicast add 10.0.0.0/24 del 10.0.1.0/24`.
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseRegistryNLRISection -->
+
 All three are accepted in TWO positions, before the first `nlri` section and
 inside one, and they mean the same thing in both. `path-information` used to be
 accepted inside a section only, so a command that wrote all three together had

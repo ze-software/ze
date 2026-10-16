@@ -26,13 +26,6 @@ import (
 	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/selfcert"
 	"github.com/ze-software/ze/pkg/zefs"
-
-	// Register the netlink backend so iface.LoadBackend("netlink")
-	// below resolves. Without this blank import, DiscoverInterfaces
-	// returns "no backend loaded" and every detected interface
-	// (ethernet, dummy, veth, bridge, tunnel, wireguard) is silently
-	// dropped from the initial ze.conf.
-	_ "github.com/ze-software/ze/internal/plugins/iface/netlink"
 )
 
 // Key aliases for readability (from zefs key registry).

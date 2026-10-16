@@ -7,14 +7,13 @@
 // The module imports neither the IKE engine nor the interface backend. IPsec
 // state arrives through the registered inventory snapshot, and the probes go
 // through internal/core/probe. The YANG command schema container-merges onto
-// the show verb root; see ../../../plugins/mtu-cmd/yang/ze-mtu-cmd.yang. The
+// the show verb root; see ../yang/ze-mtu-cmd.yang. The
 // reference address is the environment mtu reference-address leaf of
 // ../yang/ze-mtu-conf.yang.
 package cmd
 
 import (
-	// The blank imports register this module's two YANG modules: the show mtu
+	// The blank import registers this module's two YANG modules: the show mtu
 	// command tree, and the environment mtu configuration leaf.
 	_ "github.com/ze-software/ze/internal/component/mtu/yang"
-	_ "github.com/ze-software/ze/internal/plugins/mtu-cmd/yang"
 )

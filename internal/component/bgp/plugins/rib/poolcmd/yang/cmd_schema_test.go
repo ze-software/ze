@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-// TestRibPoolStatsSchemaOwnsPoolStats asserts the BGP RIB command cluster owns
+// TestRibPoolStatsSchemaOwnsPoolStats asserts the BGP rib plugin owns
 // the "metrics pool" command node (ze-bgp:pool-stats). pool-stats reads the BGP
-// RIB attribute pools (bgp/plugins/rib/pool); the central metrics verb keeps
+// RIB attribute pools (bgp/plugins/rib/pool) and lives beside them; the central metrics verb keeps
 // only the generic Prometheus-registry commands. This is the owner half of the
 // self-containment invariant. See ai/rules/plugins.md.
 func TestRibPoolStatsSchemaOwnsPoolStats(t *testing.T) {

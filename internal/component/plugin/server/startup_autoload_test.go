@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	_ "github.com/ze-software/ze/internal/plugins/crashes" // Registers the crashes boot-effect plugin under test.
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -1231,4 +1232,26 @@ func TestReadRootDoesNotAutoLoadThePlugin(t *testing.T) {
 
 	names = autoLoadNames([]string{"bgp", "pki"}, "")
 	assert.Contains(t, names, "bgp-rpki", "a bgp config still loads bgp-rpki")
+}
+
+// TestAutoloadStartsNoCrashesEngine proves the crashes registration, which
+// exists only to carry its boot effect, never makes the server start its no-op
+// engine. Method: every config root a registered plugin declares is present,
+// with no `plugin` block, and the auto-load set must still leave crashes out.
+//
+// VALIDATES: A-9, AC-16: crashes declares no family, config root, event or
+// data-plane need.
+// PREVENTS: a trigger added to the crashes registration starting a plugin
+// process that does nothing at every daemon start.
+func TestAutoloadStartsNoCrashesEngine(t *testing.T) {
+	require.NotNil(t, registry.Lookup("crashes"), "the crashes registration must be linked")
+
+	var everyRoot []string
+	for _, roots := range registry.ConfigRootsMap() {
+		everyRoot = append(everyRoot, roots...)
+	}
+	require.NotEmpty(t, everyRoot, "registered plugins declare config roots")
+
+	assert.NotContains(t, autoLoadNames(everyRoot, ""), "crashes",
+		"a config with every section present and no plugin block must not start crashes")
 }

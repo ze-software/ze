@@ -1043,7 +1043,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	applyHostTuning(&sc)
-	harvestKernelCrashes(configPath)
+	// Boot effects a plugin registered (crash capture's kernel record harvest):
+	// once, at daemon start, never on a reload.
+	registry.RunBootEffects(configPath)
 	startSmartManager(loadResult.Tree)
 	defer stopSmartManager()
 	applyConsole(&sc)

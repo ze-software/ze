@@ -153,3 +153,39 @@ func TestAttrLabelNamesTheListValuedAttributes(t *testing.T) {
 		assert.Equal(t, tc.want, attrLabel(tc.code), "code %d", tc.code)
 	}
 }
+
+// TestSetMetricsRegistryWiresRegisteredFilterMetrics verifies a registered
+// filter's ConfigureMetrics hook receives the registry SetMetricsRegistry is
+// given, and that a nil registry stays a no-op that calls no hook.
+//
+// VALIDATES: route C: the loop filter's metrics arrive through filterapi, so
+// the reactor names no filter package.
+// PREVENTS: a filter's counters left dead because nothing hands it the
+// registry. Not parallel: it writes the package filter registry.
+func TestSetMetricsRegistryWiresRegisteredFilterMetrics(t *testing.T) {
+	const name = "test-metrics-hook"
+	var got metrics.Registry
+	calls := 0
+	require.NoError(t, Register(Filter{
+		Name:    name,
+		Ingress: func(PeerFilterInfo, []byte, map[string]any) (bool, []byte) { return true, nil },
+		ConfigureMetrics: func(reg metrics.Registry) {
+			calls++
+			got = reg
+		},
+	}))
+	t.Cleanup(func() {
+		mu.Lock()
+		delete(filters, name)
+		mu.Unlock()
+		attrModMetricsPtr.Store(nil)
+	})
+
+	SetMetricsRegistry(nil)
+	assert.Equal(t, 0, calls, "a nil registry must call no hook")
+
+	reg := metrics.NewPrometheusRegistry()
+	SetMetricsRegistry(reg)
+	assert.Equal(t, 1, calls)
+	assert.Same(t, reg, got)
+}

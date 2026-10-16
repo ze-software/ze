@@ -34,10 +34,26 @@ func Readiness(configPath string) crashlog.Readiness {
 	return crashlog.CrashReadiness(intent)
 }
 
+// harvestAtDaemonStart is the crashes boot effect (register.go): it harvests,
+// and warns when no crash directory is writable, because a crash report would
+// then be lost.
+//
+// It runs at daemon start and only there. The record is written by the kernel
+// during the fault and read here on the next healthy boot, so there is nothing
+// to re-run on a config reload: the reservation itself is a boot argument, and
+// a commit cannot change what the running kernel already reserved.
+func harvestAtDaemonStart(configPath string) {
+	readiness := HarvestAtBoot(configPath)
+	if !readiness.DirectoryWritable {
+		slogutil.Logger(componentName).Warn("no crash directory is writable; a crash report would be lost")
+	}
+}
+
 // HarvestAtBoot moves any kernel crash record the previous boot left into the
 // crash directory, then reports readiness and publishes both gauges.
 //
-// It runs once, from the daemon start path, and it is the only caller that
+// It runs once, from the daemon start path through harvestAtDaemonStart, and
+// it is the only caller that
 // writes: every other surface reads. The return is the readiness the caller
 // logs, so a box that is configured and not armed says so in its startup log as
 // well as in `show crashes`.

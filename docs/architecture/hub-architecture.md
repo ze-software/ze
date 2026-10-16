@@ -194,6 +194,16 @@ refuses a blob, invalid permissions, corruption or another owner. A bare start
 opens an existing store. Appliance first boot explicitly imports its seed through
 `gokrazyAutoInit`; the importer also retires the seed and recovers interrupted imports.
 
+### Boot effects
+
+After host tuning and before the smart manager starts, the hub runs the boot
+effect every registered plugin declared (`Registration.BootEffect`), once, in
+plugin name order, with the config path the daemon started from. A later call
+runs nothing, so a reload never repeats one. Crash capture uses it to harvest
+the kernel's crash records at daemon start; the hub names no plugin for it.
+<!-- source: cmd/ze/hub/main.go -- registry.RunBootEffects call -->
+<!-- source: internal/component/plugin/registry/boot.go -- RunBootEffects -->
+
 The launch records a `ConfigSource` on the shared storage handle. Explicit-file
 starts always read that file and refresh stored history; bare starts read the
 stored active version. Reload, archive and BGP readers retain that decision.

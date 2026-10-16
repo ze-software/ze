@@ -11,9 +11,6 @@ import (
 	fwpkg "github.com/ze-software/ze/internal/component/firewall"
 	fwcmd "github.com/ze-software/ze/internal/component/firewall/cmd"
 	"github.com/ze-software/ze/internal/core/helpfmt"
-
-	// Register the nft backend so fwpkg.LoadBackend("nft") resolves.
-	_ "github.com/ze-software/ze/internal/plugins/firewall/nft"
 )
 
 // Run executes the firewall subcommand. Returns exit code.

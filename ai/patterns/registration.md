@@ -42,9 +42,12 @@ The primary registry. A plugin registration carries everything the core needs.
 | `SendTypes` | Send operations this plugin enables |
 | `InProcessNLRIDecoder` | NLRI hex plus the ADD-PATH flag -> JSON |
 | `InProcessNLRIEncoder` | NLRI args -> hex |
+| `NLRIAddPathRefusal` | Non-empty: the families carry no ADD-PATH path identifier; the reason `update text` gives for a `path-information` on their section (SR-Policy) |
 | `InProcessDecoder` | Full message decode (for `ze bgp decode`) |
+| `AttributeJSONDecoders` | Path attribute code -> JSON key and renderer, for `ze bgp decode`; one plugin per code |
 | `ConfigureEngineLogger` | Callback to set plugin logger |
 | `ConfigureMetrics` | Callback to set metrics registry |
+| `BootEffect` | Work run once at daemon start, never on reload, via `registry.RunBootEffects` (crash harvest) |
 
 **Location:** `internal/component/plugin/registry/registry.go`
 **Registration:** `registry.Register(Registration{...})` in plugin `init()`
@@ -287,6 +290,11 @@ carries no protocol filter knowledge).
 | Protocol | 0 | RFC-mandated checks | Loop detection (RFC 4271/4456) |
 | Policy | 100 | Operator-configured | Community filtering |
 | Annotation | 200 | Protocol stamps | OTC stamping (RFC 9234) |
+
+**Metrics:** `Filter.ConfigureMetrics func(metrics.Registry)` receives the
+daemon registry from `filterapi.SetMetricsRegistry`, called once by the reactor
+when metrics are enabled, so a counting filter (loop detection) builds its own
+metrics; `Register` refuses a filter that declares only this field.
 
 **Query:** `filterapi.IngressFilters()`, `filterapi.EgressFilters()` return ordered slices
 

@@ -1,0 +1,67 @@
+# Test: show metrics pool answers from the rib-owned pool-stats handler
+#
+# Flow:
+# 1. BGP session establishes
+# 2. native fixture plugin dispatches "show metrics pool" via dispatch-command
+# 3. Verifies one row per pool in pool.AllNamedPools, in order, each under its
+#    own name (no "unknown"), and that count matches the rows
+# 4. Shuts down daemon
+#
+# VALIDATES: AC-12 -- pool-stats is answered by internal/component/bgp/plugins/rib/poolcmd
+#            and names every pool, rib-out included.
+# PREVENTS: the RPC losing its handler when the rib owner moves, and a pool
+#           reported as "unknown" because its name lives in a second list.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+
+# EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external pool-stats-test {
+		run "le test fixture plugin/bgp-pool-stats"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

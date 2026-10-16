@@ -13,12 +13,6 @@ import (
 	ifacepkg "github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/suggest"
-
-	// Register the netlink backend so ifacepkg.LoadBackend("netlink")
-	// below resolves. Without this blank import, every subcommand that
-	// calls into the backend (show, create, delete, unit, addr, migrate)
-	// fails with "iface: no backend loaded".
-	_ "github.com/ze-software/ze/internal/plugins/iface/netlink"
 )
 
 // Subcommand names. ifaceCommands below and the Run dispatch each list the

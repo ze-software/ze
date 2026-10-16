@@ -8,7 +8,7 @@ path from the handler reaches a configuration write, and the remediation
 commands are strings for the operator to apply.
 
 This page is the owner of the `mtu` component (`internal/component/mtu/cmd`) and
-of the `mtu-cmd` YANG plugin (`internal/plugins/mtu-cmd/yang`). It states the
+of its command schema (`internal/component/mtu/yang`). It states the
 command grammar, the payload shape, the reference-address leaf, the run, the
 search, the arithmetic, the verdicts and the local state.
 
@@ -39,7 +39,7 @@ show mtu [host <address>] [exhaustive] [detail]
 | `exhaustive` | bare word | a slower run whose figure comes from probing every size on the wire: the kernel's cached path MTU and the router's reported value are both discarded |
 | `detail` | bare word | add, per target, the size of every probe sent and the answer each one received |
 
-The grammar is `internal/plugins/mtu-cmd/yang/ze-mtu-cmd.yang`, which
+The grammar is `internal/component/mtu/yang/ze-mtu-cmd.yang`, which
 container-merges its `show mtu` node onto the show verb root. `host` is a
 `zt:ip-address` leaf, so the dispatcher refuses a value outside the two address
 patterns before the handler runs, and `parseMTUArgs` parses it a second time
@@ -48,7 +48,7 @@ into a `netip.Addr`. The two bare words are the enumeration values of the
 A token that is none of the three is refused by name, and so is a dash-leading
 value, which is an option and never data.
 
-<!-- source: internal/plugins/mtu-cmd/yang/ze-mtu-cmd.yang -- the show mtu node -->
+<!-- source: internal/component/mtu/yang/ze-mtu-cmd.yang -- the show mtu node -->
 <!-- source: internal/component/mtu/cmd/mtu.go -- parseMTUArgs, mtuRequest -->
 
 ## The run

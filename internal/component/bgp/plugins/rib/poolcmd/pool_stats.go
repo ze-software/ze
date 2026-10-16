@@ -1,14 +1,7 @@
-// Design: docs/architecture/api/commands.md — BGP attribute-pool statistics handler
-//
-// pool-stats reports per-attribute-pool occupancy and deduplication rates for
-// the BGP RIB attribute pools (internal/component/bgp/plugins/rib/pool). Unlike
-// the other RIB commands in this package it is an in-process reader, not a proxy
-// to the bgp-rib plugin process. It lives with the RIB command cluster because
-// the attribute pools are a RIB subsystem; the central "metrics" verb keeps only
-// the generic Prometheus-registry commands. The ze-bgp: WireMethod prefix is a
-// legacy label, not an ownership claim.
+// Design: docs/architecture/pool-architecture.md -- pool-stats, the operator view of the attribute pools
+// Related: register.go -- the ze-bgp:pool-stats RPC registration
 
-package rib
+package poolcmd
 
 import (
 	"strconv"
@@ -20,33 +13,20 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
-func init() {
-	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:pool-stats", Handler: handlePoolStats},
-	)
-}
-
-var poolNames = [...]string{
-	"origin", "as-path", "local-pref", "med", "next-hop",
-	"communities", "large-communities", "ext-communities",
-	"cluster-list", "originator-id", "atomic-aggregate",
-	"aggregator", "other-attrs",
-}
+// fieldCount is the row count pool-stats answers beside its pool rows. It is
+// NOT the `| count` pipe operator.
+const fieldCount = "count"
 
 func handlePoolStats(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
-	pools := pool.AllPools()
+	pools := pool.AllNamedPools()
 	rows := make([]map[string]any, 0, len(pools))
 	var totalLive, totalDead int32
 	var totalLiveBytes, totalDeadBytes int64
 	var totalIntern, totalHits int64
-	for i, p := range pools {
-		m := p.Metrics()
-		name := "unknown"
-		if i < len(poolNames) {
-			name = poolNames[i]
-		}
+	for _, named := range pools {
+		m := named.Pool.Metrics()
 		rows = append(rows, map[string]any{
-			"name":       name,
+			"name":       named.Name,
 			"live-slots": m.LiveSlots,
 			"dead-slots": m.DeadSlots,
 			"live-bytes": m.LiveBytes,

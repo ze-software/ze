@@ -23,6 +23,8 @@ import (
 	evpn "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/evpn"
 	flowspec "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/labeled" // blank import: registers InProcessNLRIDecoder
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/mup"     // blank import: registers the MUP NLRI encoder
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/mvpn"    // blank import: registers the MVPN NLRI encoder
 	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/srpolicy"
 	vplspkg "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/vpls"
 	vpn "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/vpn"
@@ -3944,7 +3946,9 @@ func TestParseUpdateText_SRPolicyUnknownKeyword(t *testing.T) {
 		"distingisher", "0", "color", "100", "endpoint", "10.0.0.1",
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown keyword")
+	// The plugin encoder's refusal names the typo and the three valid fields.
+	assert.Contains(t, err.Error(), `"distingisher" is not one of them`)
+	assert.Contains(t, err.Error(), "distinguisher, color, endpoint")
 }
 
 // TestStaleLevelFromMeta verifies the LLGR stale-level extraction (RFC 9494)
@@ -3973,4 +3977,140 @@ func TestStaleLevelFromMeta(t *testing.T) {
 			}
 		})
 	}
+}
+
+// srPolicyWire builds the SR-Policy NLRI bytes the plugin type produces, the
+// reference every accepted `update text` input must reach.
+func srPolicyWire(afi family.AFI, distinguisher, color uint32, endpoint string) []byte {
+	return srpolicy.New(afi, distinguisher, color, netip.MustParseAddr(endpoint)).Bytes()
+}
+
+// TestSRPolicyTextMatchesPluginGrammar runs the A-3 input table of
+// spec-plugin-ownership-imports through ParseUpdateText. Accepted rows must
+// carry the bytes the plugin type builds; refused rows must name the problem.
+//
+// VALIDATES: AC-11a to AC-11f: `update text` speaks the grammar the SR-Policy
+// plugin registers, and refuses an ADD-PATH identifier because the plugin's
+// registration declares none, in the three positions AC-11d lists.
+// PREVENTS: a second SR-Policy grammar in `update`, a path-information dropped
+// silently, and a refusal answered by ErrMissingAddDel or the encoder's
+// unknown-keyword error instead of the ADD-PATH reason.
+func TestSRPolicyTextMatchesPluginGrammar(t *testing.T) {
+	const tail = "distinguisher 1 color 2 endpoint 10.0.0.1"
+	accepted := []struct {
+		name string
+		args string
+		del  bool
+		want []byte
+	}{
+		{"ipv4 add", "nhop 192.0.2.1 nlri ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1", false, srPolicyWire(family.AFIIPv4, 0, 100, "10.0.0.1")},
+		{"ipv6 add", "nhop 2001:db8::2 nlri ipv6/sr-policy add distinguisher 0 color 100 endpoint 2001:db8::1", false, srPolicyWire(family.AFIIPv6, 0, 100, "2001:db8::1")},
+		{"ipv4 del", "nlri ipv4/sr-policy del " + tail, true, srPolicyWire(family.AFIIPv4, 1, 2, "10.0.0.1")},
+		{"max fields", "nhop 192.0.2.1 nlri ipv4/sr-policy add distinguisher 4294967295 color 4294967295 endpoint 10.0.0.1", false, srPolicyWire(family.AFIIPv4, 4294967295, 4294967295, "10.0.0.1")},
+	}
+	for _, tc := range accepted {
+		t.Run("accept/"+tc.name, func(t *testing.T) {
+			result, err := ParseUpdateText(strings.Fields(tc.args))
+			require.NoError(t, err)
+			require.Len(t, result.Groups, 1)
+			got := result.Groups[0].Announce
+			if tc.del {
+				got = result.Groups[0].Withdraw
+			}
+			require.Len(t, got, 1)
+			assert.Equal(t, tc.want, got[0].Bytes())
+		})
+	}
+
+	refused := []struct {
+		name    string
+		args    string
+		is      error  // nil when the row is judged by message alone
+		message string // a fragment the operator must read
+	}{
+		{"AC-11b later del", "nhop 192.0.2.1 nlri ipv4/sr-policy add distinguisher 1 del color 2 endpoint 10.0.0.1", errLaterAddDel, "right after the family"},
+		{"AC-11c field before add", "nhop 192.0.2.1 nlri ipv4/sr-policy " + tail, route.ErrMissingAddDel, ""},
+		{"AC-11d top level", "nhop 192.0.2.1 path-information 5 nlri ipv4/sr-policy add " + tail, errFamilyRefusesAddPath, "without an ADD-PATH path identifier"},
+		{"AC-11d top level mixed", "nhop 192.0.2.1 path-information 5 nlri ipv4/unicast add 10.0.0.0/24 nlri ipv4/sr-policy add " + tail, errFamilyRefusesAddPath, "own command"},
+		{"AC-11d before add", "nhop 192.0.2.1 nlri ipv4/sr-policy path-information 5 add " + tail, errFamilyRefusesAddPath, "without an ADD-PATH path identifier"},
+		{"AC-11d inside run", "nhop 192.0.2.1 nlri ipv4/sr-policy add distinguisher 1 path-information 5 color 2 endpoint 10.0.0.1", errFamilyRefusesAddPath, "without an ADD-PATH path identifier"},
+		{"AC-11e rd", "nhop 192.0.2.1 nlri ipv4/sr-policy add distinguisher 1 rd 100:1 color 2 endpoint 10.0.0.1", nil, `"rd"`},
+		{"AC-11e label", "nhop 192.0.2.1 nlri ipv4/sr-policy add distinguisher 1 label 100 color 2 endpoint 10.0.0.1", nil, `"label"`},
+		{"AC-11f endpoint family", "nhop 192.0.2.1 nlri ipv4/sr-policy add distinguisher 1 color 2 endpoint 2001:db8::1", nil, "not IPv4"},
+	}
+	for _, tc := range refused {
+		t.Run("refuse/"+tc.name, func(t *testing.T) {
+			_, err := ParseUpdateText(strings.Fields(tc.args))
+			require.Error(t, err)
+			if tc.is != nil {
+				require.ErrorIs(t, err, tc.is)
+			}
+			assert.Contains(t, err.Error(), tc.message)
+			if errors.Is(tc.is, errFamilyRefusesAddPath) {
+				assert.NotErrorIs(t, err, route.ErrMissingAddDel)
+				assert.NotContains(t, err.Error(), "unknown sr-policy keyword")
+			}
+		})
+	}
+	for _, token := range []string{"rd", "label"} {
+		_, err := ParseUpdateText(strings.Fields("nhop 192.0.2.1 nlri ipv4/sr-policy add distinguisher 1 " + token + " 1 color 2 endpoint 10.0.0.1"))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "distinguisher, color, endpoint", "AC-11e names the three fields")
+	}
+
+	// Q-A control row: a path-information inside ANOTHER family's section stays
+	// with that section; the SR-Policy NLRI carries none.
+	result, err := ParseUpdateText(strings.Fields(
+		"nhop 192.0.2.1 nlri ipv4/unicast path-information 5 add 10.0.0.0/24 nlri ipv4/sr-policy add " + tail))
+	require.NoError(t, err)
+	var sawUnicast, sawSRPolicy bool
+	for _, g := range result.Groups {
+		require.Len(t, g.Announce, 1)
+		if g.Family.SAFI == family.SAFIUnicast {
+			sawUnicast = true
+			assert.Equal(t, uint32(5), g.Announce[0].PathID())
+		}
+		if g.Family.SAFI == family.SAFISRPolicy {
+			sawSRPolicy = true
+			assert.Equal(t, srPolicyWire(family.AFIIPv4, 1, 2, "10.0.0.1"), g.Announce[0].Bytes())
+		}
+	}
+	assert.True(t, sawUnicast, "unicast group present")
+	assert.True(t, sawSRPolicy, "sr-policy group present")
+}
+
+// TestRegistrySectionRefusesLaterAddDel proves the shared registry section
+// parser refuses a later add/del for every registry family with one message,
+// while a native family keeps its mode switch.
+//
+// VALIDATES: AC-11b and A-8: one grammar for every plugin family.
+// PREVENTS: a later add/del reaching a plugin encoder as a value, or a native
+// family being routed through the registry parser.
+func TestRegistrySectionRefusesLaterAddDel(t *testing.T) {
+	for _, tc := range []struct{ name, args string }{
+		{"mup", "nhop 192.0.2.1 nlri ipv4/mup add route-type mup-isd rd 100:100 del prefix 10.0.0.0/24"},
+		{"mvpn", "nhop 192.0.2.1 nlri ipv4/mvpn add source-ad source 10.99.12.4 del group 239.251.255.228 rd 65000:99999"},
+		{"sr-policy", "nhop 192.0.2.1 nlri ipv4/sr-policy add distinguisher 1 del color 2 endpoint 10.0.0.1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ParseUpdateText(strings.Fields(tc.args))
+			require.ErrorIs(t, err, errLaterAddDel)
+			assert.Contains(t, err.Error(), "write one add or del right after the family")
+		})
+	}
+
+	t.Run("native unicast switches mode", func(t *testing.T) {
+		result, err := ParseUpdateText(strings.Fields("nhop 192.0.2.1 nlri ipv4/unicast add 10.0.0.0/24 del 10.0.1.0/24"))
+		require.NoError(t, err)
+		require.Len(t, result.Groups, 1)
+		assert.Len(t, result.Groups[0].Announce, 1)
+		assert.Len(t, result.Groups[0].Withdraw, 1)
+	})
+	t.Run("native vpn with rd and label switches mode", func(t *testing.T) {
+		result, err := ParseUpdateText(strings.Fields("nhop 192.0.2.1 nlri ipv4/mpls-vpn rd 100:1 label 100 add 10.0.0.0/24 del 10.0.1.0/24"))
+		require.NoError(t, err)
+		require.Len(t, result.Groups, 1)
+		assert.Len(t, result.Groups[0].Announce, 1)
+		assert.Len(t, result.Groups[0].Withdraw, 1)
+	})
 }

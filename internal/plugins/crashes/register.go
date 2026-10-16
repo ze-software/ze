@@ -3,6 +3,7 @@
 package crashes
 
 import (
+	"net"
 	"os"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -67,6 +68,26 @@ func init() {
 	// init runs in every build. InjectPluginMetrics defers the hook until then
 	// and drops it in a build with telemetry compiled out.
 	pluginregistry.InjectPluginMetrics(componentName, bindMetrics)
+
+	// The kernel writes its crash record during the fault, and the next
+	// healthy boot recovers it: the daemon start path runs this boot effect
+	// once, never on a reload. The registration declares no family, config
+	// root, event or data-plane need, so nothing ever auto-loads its no-op
+	// engine; it exists to carry the boot effect.
+	if err := pluginregistry.Register(pluginregistry.Registration{
+		Name:        componentName,
+		Description: "Crash capture: kernel crash record harvest at daemon start, crash reports",
+		RunEngine:   func(_ net.Conn) int { return 0 },
+		CLIHandler:  func(_ []string) int { return 0 },
+		BootEffect:  harvestAtDaemonStart,
+	}); err != nil {
+		// A lost registration loses the boot harvest, and a kernel crash
+		// record nobody recovers is gone at the next fault. Fail loudly, as
+		// every other plugin registration does.
+		var tb textbuf.Buffer
+		_ = tb.Str("crashes: registration failed: ").Err(err).Byte('\n').StdErr()
+		os.Exit(1)
+	}
 }
 
 // registerDoctorCheck reports a rejected registration on stderr and leaves the

@@ -39,7 +39,6 @@
 6 internal/component/bgp/plugins/cmd/update/update_text.go
 2 internal/component/bgp/plugins/cmd/update/update_text_evpn.go
 1 internal/component/bgp/plugins/cmd/update/update_text_nlri.go
-2 internal/component/bgp/plugins/cmd/update/update_text_srpolicy.go
 1 internal/component/bgp/plugins/cmd/update/update_text_vpls.go
 4 internal/component/bgp/plugins/filter_community/config.go
 2 internal/component/bgp/plugins/filter_modify/modify.go

@@ -1263,10 +1263,10 @@ func TestArgDefsPopulated(t *testing.T) {
 		"../../../plugins/host-cmd/yang/ze-host-cmd.yang",
 		"../../../plugins/host-cmd/yang/ze-host-set-cmd.yang",
 		"../../../plugins/log/yang/ze-log-cmd.yang",
-		"../../../plugins/mtu-cmd/yang/ze-mtu-cmd.yang",
-		"../../../plugins/ping-cmd/yang/ze-ping-cmd.yang",
+		"../../mtu/yang/ze-mtu-cmd.yang",
+		"../../ping/yang/ze-ping-cmd.yang",
 		"../../../plugins/resolve-cmd/yang/ze-resolve-cmd.yang",
-		"../../../plugins/traceroute-cmd/yang/ze-traceroute-cmd.yang",
+		"../../traceroute/yang/ze-traceroute-cmd.yang",
 	}
 	for _, path := range cmdFiles {
 		loadCmdModule(t, loader, path)
@@ -1350,7 +1350,7 @@ func TestShowMTUArgDefsByName(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 	loadCmdModule(t, loader, cmdBase+"show/yang/ze-cli-show-cmd.yang")
-	loadCmdModule(t, loader, "../../../plugins/mtu-cmd/yang/ze-mtu-cmd.yang")
+	loadCmdModule(t, loader, "../../mtu/yang/ze-mtu-cmd.yang")
 	schema, err := loader.Resolve()
 	require.NoError(t, err)
 	node := navigateTree(BuildCommandTree(schema), "show mtu")

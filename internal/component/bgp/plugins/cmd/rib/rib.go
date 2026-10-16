@@ -68,11 +68,6 @@ const (
 	fieldLocalPref   = "local-pref"
 	fieldMED         = "med"
 	fieldCommunities = "communities"
-
-	// fieldCount is the row count `show bgp rib pool-stats` answers beside its
-	// pool rows (pool_stats.go). It is NOT the `| count` pipe operator, which
-	// registerPipeFilters spells for itself.
-	fieldCount = "count"
 )
 
 func init() {

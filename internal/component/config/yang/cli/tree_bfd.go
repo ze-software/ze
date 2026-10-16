@@ -4,11 +4,10 @@
 
 package cli
 
-// The BFD command package registers its RPC handlers from init() but is not
-// reachable through plugin/all from this package (import cycles -- see
-// plugin_imports.go rpcDirs), so the analysis tree blank-imports it directly.
-// tree.go is always-on, so the import gets a source build tag instead, exactly
-// like the BGP partition in tree_bgp.go (spec-feature-gate-12).
+// The BFD command package registers its RPC handlers from init(). plugin/all
+// already carries it (all_ze_bfd.go, behind the same ze_bfd tag), which tree.go
+// imports, so this blank import duplicates that one; it is kept behind a
+// source build tag because tree.go is always-on (spec-feature-gate-12).
 import (
 	_ "github.com/ze-software/ze/internal/component/bfd/cmd"
 )

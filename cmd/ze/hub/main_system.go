@@ -35,7 +35,6 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/internal/plugins/crashes"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -157,20 +156,6 @@ func applyHostTuningFromMap(tree map[string]any) {
 	}
 	for _, te := range result.Errors {
 		slogutil.Logger("host").Warn("tuning failed (reload)", "op", te.Operation, "subject", te.Subject, "error", te.Err)
-	}
-}
-
-// harvestKernelCrashes moves any record the previous boot's kernel left into the
-// crash directory, then reports readiness.
-//
-// It runs at daemon start and only there. The record is written by the kernel
-// during the fault and read here on the next healthy boot, so there is nothing
-// to re-run on a config reload: the reservation itself is a boot argument, and a
-// commit cannot change what the running kernel already reserved.
-func harvestKernelCrashes(configPath string) {
-	readiness := crashes.HarvestAtBoot(configPath)
-	if !readiness.DirectoryWritable {
-		slogutil.Logger("crashes").Warn("no crash directory is writable; a crash report would be lost")
 	}
 }
 

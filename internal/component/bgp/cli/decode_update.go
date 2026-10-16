@@ -15,7 +15,7 @@ import (
 	"fmt"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -279,10 +279,6 @@ func renderAttributeZe(code byte, value []byte) (key string, rendered any, under
 		if len(value) == 0 {
 			return "", nil, true
 		}
-	case 29: // BGP-LS Attribute (RFC 7752 Section 3.3)
-		if bgplsAttr := ls.AttrTLVsToJSON(value); len(bgplsAttr) > 0 {
-			return "bgp-ls", bgplsAttr, true
-		}
 	case 32: // LARGE_COMMUNITIES (RFC 8092)
 		if comms := parseLargeCommunities(value); len(comms) > 0 {
 			return "large-community", comms, true
@@ -292,6 +288,13 @@ func renderAttributeZe(code byte, value []byte) (key string, rendered any, under
 		}
 	}
 
+	// An attribute a plugin owns (the BGP-LS Attribute, code 29) is rendered
+	// by the decoder that plugin registered, so this file names no plugin.
+	if dec, ok := registry.AttributeJSONDecoderFor(code); ok {
+		if rendered := dec.Decode(value); len(rendered) > 0 {
+			return dec.Key, rendered, true
+		}
+	}
 	return "", nil, false
 }
 

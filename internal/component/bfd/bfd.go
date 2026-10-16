@@ -37,7 +37,6 @@ import (
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	diagCmd "github.com/ze-software/ze/internal/plugins/diag/cmd"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -838,7 +837,7 @@ func RunBFDPlugin(conn net.Conn) int {
 		// clients see nil and skip BFD wiring instead of receiving a
 		// handle whose underlying loop is about to tear down.
 		api.SetService(nil)
-		diagCmd.SetBFDRawCaptureProvider(nil)
+		api.SetRawCaptureProvider(nil)
 		runtimeStateGuard.Lock()
 		defer runtimeStateGuard.Unlock()
 		state.stopAll()
@@ -941,7 +940,7 @@ func RunBFDPlugin(conn net.Conn) int {
 		// EnsureSession does not race the loop creation.
 		svc := &pluginService{state: state}
 		api.SetService(svc)
-		diagCmd.SetBFDRawCaptureProvider(svc)
+		api.SetRawCaptureProvider(svc)
 
 		// Re-bind the Prometheus registry at OnStarted time in case
 		// the registry was not yet installed when ConfigureMetrics

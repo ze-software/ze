@@ -5,20 +5,11 @@ package cmd
 import (
 	"encoding/base64"
 
+	bfdapi "github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
-
-// BFDRawCaptureProvider is satisfied by the BFD plugin when it supports
-// raw byte capture. Set via SetBFDRawCaptureProvider at plugin startup.
-type BFDRawCaptureProvider interface {
-	EnableRawCapture()
-	DisableRawCapture()
-	BFDRawCaptureSnapshot(limit int) []plugin.BGPRawCaptureEntry
-}
-
-var bfdRawCapture BFDRawCaptureProvider
 
 // The three actions `capture-raw` accepts. Each one is both a CLI token and
 // the action echoed in the response payload. The enumeration at
@@ -41,10 +32,6 @@ const (
 	keyDirection = "direction"
 	keyBytes     = "bytes"
 )
-
-func SetBFDRawCaptureProvider(p BFDRawCaptureProvider) {
-	bfdRawCapture = p
-}
 
 func HandleCaptureRaw(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	args := validated.Tokens()
@@ -92,7 +79,7 @@ func captureRawStart(ctx *pluginserver.CommandContext, protocol string) (*plugin
 		}
 	}
 	if protocol == "" || protocol == capBFD {
-		if bfdRawCapture != nil {
+		if bfdRawCapture := bfdapi.RawCaptureProvider(); bfdRawCapture != nil {
 			bfdRawCapture.EnableRawCapture()
 			started = append(started, capBFD)
 		}
@@ -119,7 +106,7 @@ func captureRawStop(ctx *pluginserver.CommandContext, protocol string) (*plugin.
 		}
 	}
 	if protocol == "" || protocol == capBFD {
-		if bfdRawCapture != nil {
+		if bfdRawCapture := bfdapi.RawCaptureProvider(); bfdRawCapture != nil {
 			bfdRawCapture.DisableRawCapture()
 			stopped = append(stopped, capBFD)
 		}
@@ -175,6 +162,7 @@ func captureRawDump(ctx *pluginserver.CommandContext, protocol, format string, l
 	}
 
 	if protocol == "" || protocol == capBFD {
+		bfdRawCapture := bfdapi.RawCaptureProvider()
 		if bfdRawCapture == nil {
 			if protocol == capBFD {
 				result["bfd"] = "BFD plugin not loaded"

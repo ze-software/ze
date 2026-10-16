@@ -4,5 +4,8 @@ package yang
 
 import _ "embed"
 
+//go:embed ze-mtu-cmd.yang
+var ZeMtuCmdYANG string
+
 //go:embed ze-mtu-conf.yang
 var ZeMtuConfYANG string
