@@ -27,7 +27,6 @@ func init() {
 		"plugin/filter-family-import-teardown":             waitForPeerUpdate07(),
 		"plugin/filter-irr-fail":                           filterIRRFail07,
 		"plugin/filter-irr-update":                         filterIRRUpdate07,
-		"plugin/filter-irr":                                waitForPeerUpdate07(),
 		"plugin/firewall-global-options":                   firewallGlobalOptions07,
 		"plugin/firewall-irr-cold-cache-recovers":          firewallIRRColdCache07,
 		"plugin/firewall-irr-commit":                       firewallIRRCommit07,
@@ -52,6 +51,7 @@ func init() {
 			return Observe(ctx, n, &sdk.Registration{}, s)
 		})
 	}
+	Register("plugin/filter-irr", filterIRRDecision07)
 	Register("plugin/fib-vpp-coexist-with-fib-kernel", fibVPPCoexist07)
 	Register("plugin/fib-vpp-plugin-load", fibVPPLoad07)
 	Register("plugin/firewall-metrics-registered", firewallMetrics07)

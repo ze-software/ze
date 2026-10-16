@@ -2,6 +2,7 @@ package fixture
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -10,6 +11,64 @@ import (
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
+
+// filterIRRDecision07 observes test/plugin/filter-irr.ci. Its goal is to hold
+// the daemon up until the IRR import filter has decided the one UPDATE the
+// peer sends, and to check that decision kept 10.0.0.0/24 and dropped
+// 192.168.0.0/24. Method: the reactor delivers a received UPDATE to an attached
+// process only after the import chain accepted or modified it
+// (reactor_notify.go, "Route rejected by filter; don't cache or dispatch"), so
+// the update event IS the decision. The peer's updates-received counter is
+// not: it counts the UPDATE before the chain runs, and an observer that
+// returned on it stopped ze while the filter was still waiting for its first
+// IRR resolution, which then failed with "bridge closed".
+func filterIRRDecision07(ctx context.Context, _ []string) error {
+	const name = "plugin/filter-irr"
+	updates := make(chan string, 4)
+	setup := func(p *sdk.Plugin) error {
+		p.OnEvent(func(event string) error {
+			var decoded map[string]any
+			if json.Unmarshal([]byte(event), &decoded) != nil {
+				return nil //nolint:nilerr // a malformed event is skipped, and failing the handler would end the session
+			}
+			bgp, _ := decoded["bgp"].(map[string]any)
+			message, _ := bgp["message"].(map[string]any)
+			if message["direction"] != directionReceived {
+				return nil
+			}
+			update, _ := bgp["update"].(map[string]any)
+			if _, hasNLRI := update["nlri"]; !hasNLRI {
+				return nil
+			}
+			select {
+			case updates <- text07(update):
+			default:
+			}
+			return nil
+		})
+		p.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
+		return nil
+	}
+	scenario := func(ctx context.Context, _ *sdk.Plugin) error {
+		wait := WaitBudget(50, 10*time.Second)
+		var update string
+		select {
+		case update = <-updates:
+		case <-time.After(wait):
+			return fmt.Errorf("no filtered UPDATE reached the observer within %s: the IRR import filter rejected it or never decided", wait)
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+		if !strings.Contains(update, "10.0.0.0/24") {
+			return fmt.Errorf("the IRR filter dropped the in-list prefix 10.0.0.0/24: update=%s", update)
+		}
+		if strings.Contains(update, "192.168.0.0/24") {
+			return fmt.Errorf("the IRR filter kept the out-of-list prefix 192.168.0.0/24: update=%s", update)
+		}
+		return nil
+	}
+	return observeConfigured(ctx, name, &sdk.Registration{}, setup, scenario)
+}
 
 func filterIRRFail07(ctx context.Context, p *sdk.Plugin) error {
 	until07(ctx, p, "show bgp irr", 20, 500*time.Millisecond, func(result commandResult07) bool {

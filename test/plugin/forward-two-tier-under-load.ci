@@ -22,6 +22,14 @@ option=timeout:value=20s
 # makes ze correctly withdraw the source's routes toward dest, racing the very
 # forwarding burst this test asserts.
 option=linger:value=true
+# await-file: hold the burst until ze has the dest session Established. A route
+# that reaches ze before then matches no forward target and reaches dest later
+# through bgp-rs's peer-up replay, whose order is not the send order, so the
+# ordered= needles below would judge the replay rather than the overflow path.
+# Measured 2026-10-16 under load: dest came up after the burst, 10.0.0-8 went
+# through replayForPeer and arrived after the live 10.0.9.0. The dest block
+# writes the file on ze's first UPDATE to it (its End-of-RIB).
+option=await-file:path=forward-two-tier-under-load-dest.up
 
 # 80 UPDATEs: 10.0.{0..79}.0/24
 # ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, LOCAL_PREF=100
@@ -112,6 +120,7 @@ EOF_SOURCE
 stdin=dest:terminator=EOF_DEST
 option=tcp_connections:value=1
 option=timeout:value=20s
+option=established-file:path=forward-two-tier-under-load-dest.up
 # // reframed seq=N:contains= (one NLRI per message) to seq=1:ordered=
 # (same 80 needles, strict in-order consumption across message boundaries).
 # The old framing asserted a property ze does not owe: the forward rail packs
