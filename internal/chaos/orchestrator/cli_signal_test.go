@@ -15,6 +15,13 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	// The in-process run parses a bgp config block whose processes
+	// receive bgp events and that names the bgp-rs and bgp-rib plugins
+	// (scenario.GenerateConfig).
+	_ "github.com/ze-software/ze/internal/component/bgp/plugin"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rib"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rs"
 )
 
 // TestCLIRunInProcessExitsOnSIGTERM proves that `le chaos run --in-process

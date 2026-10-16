@@ -14,6 +14,13 @@ import (
 	"github.com/ze-software/ze/internal/chaos/scenario"
 	"github.com/ze-software/ze/internal/chaos/shrink"
 	"github.com/ze-software/ze/internal/chaos/validation"
+
+	// The scenario config these tests parse is a bgp block whose
+	// processes receive bgp events and that names the bgp-rs and bgp-rib
+	// plugins (scenario.GenerateConfig).
+	_ "github.com/ze-software/ze/internal/component/bgp/plugin"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rib"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rs"
 	_ "github.com/ze-software/ze/internal/component/plugin/all" // register YANG schemas + plugins
 )
 

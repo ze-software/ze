@@ -3,10 +3,13 @@ package kernelbuilder
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -138,25 +141,30 @@ func TestStoppedAfterLoginPromptNamesTheStage(t *testing.T) {
 // stage, never as "kernel build failed: signal: killed", which reads as a
 // compile failure. A build out of Ze's limit (WithBuildLimit) names the limit,
 // and a deadline ends with the ssh command that watches a running build, never
-// the QEMU command, which boots a VM with no build in it. The fake QEMU prints the login prompt and
-// SSHD_READY at once; the fake ssh answers the readiness probe and sleeps on
-// the build command, so every stop lands in sshRun under buildCtx, about 4 s
-// in. The kernel tarball is cached so nothing is downloaded.
+// the QEMU command, which boots a VM with no build in it. The fake QEMU prints
+// the login prompt and SSHD_READY at once; the fake ssh answers the readiness
+// probe, and on the build command it writes to a FIFO and sleeps. The kernel
+// tarball is cached so nothing is downloaded.
+//
+// Method: each stop is armed by that FIFO write, the moment sshRun starts the
+// guest build, so it always lands under buildCtx however long the stages
+// before it take on a loaded machine. A stop started with the build instead
+// landed in an earlier stage whenever those stages outlasted its delay.
 //
 // VALIDATES: round-7 ISSUE 2, round-8 ISSUE 2 and ISSUE 3.
 // PREVENTS: an operator who pressed Ctrl-C, or whose build ran past Ze's
 // limit, told the kernel failed to compile, or sent to a VM with no build.
 func TestStoppedDuringGuestBuildNamesTheStage(t *testing.T) {
 	cases := []struct {
-		name    string
-		context func() (context.Context, context.CancelFunc)
-		want    error
-		say     string
+		name string
+		stop func() (context.Context, context.CancelFunc)
+		want error
+		say  string
 	}{
 		{"canceled", func() (context.Context, context.CancelFunc) {
 			ctx, cancel := context.WithCancel(context.Background())
-			stop := time.AfterFunc(6*time.Second, cancel)
-			return ctx, func() { stop.Stop(); cancel() }
+			cancel()
+			return ctx, cancel
 		}, context.Canceled, "stopped while it built the kernel: the kernel build was canceled"},
 		{"caller deadline", func() (context.Context, context.CancelFunc) {
 			return context.WithTimeout(context.Background(), 6*time.Second)
@@ -168,12 +176,18 @@ func TestStoppedDuringGuestBuildNamesTheStage(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			fakeQEMU(t, "echo login:\necho SSHD_READY\nexec sleep 60\n")
-			fakeGuestBuildSSH(t)
+			started := filepath.Join(t.TempDir(), "guest-build-started")
+			if err := syscall.Mkfifo(started, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			fakeGuestBuildSSH(t, started)
 			req := Request{Root: t.TempDir(), Arch: "amd64", Version: "6.1.1", Profile: "p", OutputDir: "out", Stderr: os.Stderr, Stdout: os.Stderr}
 			cacheKernelTarball(t, req)
-			ctx, cancel := tc.context()
-			defer cancel()
+			ctx := &stageContext{done: make(chan struct{})}
+			armed := make(chan struct{})
+			go armAtGuestBuild(t, ctx, started, tc.stop, armed)
 			err := runQEMUBuild(ctx, req, "alpine.iso", "worker", "kvm")
+			releaseGuestBuildFIFO(t, started, armed)
 			if err == nil {
 				t.Fatal("a build stopped during the guest build was reported as a build")
 			}
@@ -199,16 +213,121 @@ func TestStoppedDuringGuestBuildNamesTheStage(t *testing.T) {
 	}
 }
 
+// stageContext is the context TestStoppedDuringGuestBuildNamesTheStage hands
+// runQEMUBuild. It runs unstopped until arm gives it a stop, then answers as
+// that stop: its Err, its deadline, and, through Value, the cancelCtx that
+// context.Cause reads, so a WithBuildLimit stop still names Ze's limit. Safe
+// for concurrent use.
+type stageContext struct {
+	// done closes once the armed stop has ended.
+	done chan struct{}
+
+	mu   sync.Mutex
+	stop context.Context // nil until arm
+}
+
+// arm makes stop the context's stop. It MUST be called at most once.
+func (c *stageContext) arm(stop context.Context) {
+	c.mu.Lock()
+	c.stop = stop
+	c.mu.Unlock()
+	context.AfterFunc(stop, func() { close(c.done) })
+}
+
+func (c *stageContext) armed() context.Context {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.stop
+}
+
+// Deadline answers the armed stop's deadline, and none before arm.
+func (c *stageContext) Deadline() (time.Time, bool) {
+	stop := c.armed()
+	if stop == nil {
+		return time.Time{}, false
+	}
+	return stop.Deadline()
+}
+
+// Done closes once the armed stop has ended.
+func (c *stageContext) Done() <-chan struct{} { return c.done }
+
+// Err is nil until Done closes, as the context contract requires, even in
+// the instant between the armed stop ending and its AfterFunc closing done.
+func (c *stageContext) Err() error {
+	select {
+	case <-c.done:
+		return c.armed().Err()
+	default:
+		return nil
+	}
+}
+
+// Value answers from the armed stop, and nothing before arm.
+func (c *stageContext) Value(key any) any {
+	stop := c.armed()
+	if stop == nil {
+		return nil
+	}
+	return stop.Value(key)
+}
+
+// armAtGuestBuild waits for the fake ssh to write the FIFO as it starts the
+// guest build, then arms ctx with a fresh stop and closes armed. A build that
+// never reaches the guest build is released by releaseGuestBuildFIFO, which
+// opens the FIFO itself; the stop is then armed after runQEMUBuild returned,
+// where it changes nothing. The stop's CancelFunc runs at test end.
+func armAtGuestBuild(t *testing.T, ctx *stageContext, fifo string, stop func() (context.Context, context.CancelFunc), armed chan<- struct{}) {
+	defer close(armed)
+	f, err := os.Open(fifo) //nolint:gosec // the test's own FIFO
+	if err != nil {
+		t.Errorf("open the guest-build FIFO: %v", err)
+		return
+	}
+	if _, err := io.Copy(io.Discard, f); err != nil {
+		t.Errorf("read the guest-build FIFO: %v", err)
+	}
+	if err := f.Close(); err != nil {
+		t.Errorf("close the guest-build FIFO: %v", err)
+	}
+	stopCtx, cancel := stop()
+	t.Cleanup(cancel)
+	ctx.arm(stopCtx)
+}
+
+// releaseGuestBuildFIFO joins armAtGuestBuild. When runQEMUBuild returned
+// before its guest build began, the reader still waits in open, so a writer
+// opened here (non-blocking, which succeeds because a reader waits) lets it
+// through. MUST be called after runQEMUBuild returns.
+func releaseGuestBuildFIFO(t *testing.T, fifo string, armed <-chan struct{}) {
+	t.Helper()
+	select {
+	case <-armed:
+		return
+	default:
+	}
+	f, err := os.OpenFile(fifo, os.O_WRONLY|syscall.O_NONBLOCK, 0) //nolint:gosec // the test's own FIFO
+	if err == nil {
+		err = f.Close()
+	}
+	// ENXIO: the reader already left open, so it needs no writer.
+	if err != nil && !errors.Is(err, syscall.ENXIO) {
+		t.Errorf("release the guest-build FIFO: %v", err)
+	}
+	<-armed
+}
+
 // fakeGuestBuildSSH puts an ssh beside the fake QEMU that answers the
-// readiness probe (`true`) at once and sleeps on any other command, so the
-// guest build never ends on its own.
-func fakeGuestBuildSSH(t *testing.T) {
+// readiness probe (`true`) at once and, on any other command, writes to the
+// FIFO started and sleeps, so the guest build never ends on its own and the
+// test learns the moment it begins.
+func fakeGuestBuildSSH(t *testing.T, started string) {
 	t.Helper()
 	qemu, err := exec.LookPath("qemu-system-x86_64")
 	if err != nil {
 		t.Fatal(err)
 	}
-	script := "#!/bin/sh\ncase \" $* \" in *\" true \") exit 0 ;; esac\nexec sleep 60\n"
+	script := "#!/bin/sh\ncase \" $* \" in *\" true \") exit 0 ;; esac\necho build > '" + started + "'\nexec sleep 60\n"
 	if err := os.WriteFile(filepath.Join(filepath.Dir(qemu), "ssh"), []byte(script), 0o755); err != nil { //nolint:gosec // test executable
 		t.Fatal(err)
 	}
