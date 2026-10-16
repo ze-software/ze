@@ -1,3 +1,10 @@
+# The derived timeout is five times this test's rolling average, floored at 5s,
+# and the average settles near 1s on a warm idle host. The fixture runs seven
+# ze-stripped processes and a daemon start under 90% of that budget: a cold first
+# `help command --json` alone took 3.8s on 2026-10-16 and `init` took 4.3s under
+# a loaded verify, so the derived 5s failed the run before the daemon started.
+# The pinned budget is the fixture's own hand-run bound (strippedBudgetFallback).
+option=timeout:value=60s
 cmd=foreground:seq=1:exec=le test fixture ui/ze-stripped-surface
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
 expect=exit:code=0

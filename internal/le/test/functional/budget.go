@@ -22,6 +22,11 @@
 // The calculation is 855 * 1.40 / 0.80 = 1496s, rounded to a whole minute.
 // The kill occurs at 1.75 times the measurement, which identifies a stuck run instead of a busy host.
 //
+// The `appliance` suite has an 840s budget by the same derivation.
+// Its four QEMU proofs build and boot a real image.
+// The suite measured 469s alone on 2026-10-16, and the 600s shared budget had killed it.
+// The calculation is 469 * 1.40 / 0.80 = 821s, rounded up to a whole minute.
+//
 // A report and `timeout` that use different budgets are worse than no budget.
 // A mismatched report says 1500s while the kill occurs at 600s.
 // Suite.Budget supplies the `timeout` argument, runtime line, and warning calculation.
@@ -82,9 +87,9 @@ const sharedBudgetVar = "ZE_SUITE_TIMEOUT"
 
 // budgetDefaults names suites that need more time than the shared budget.
 // Each name uses its own variable for the timeout, runtime, warning, and suggested adjustment.
-// Lower the plugin value after the suite becomes faster or is split.
+// Lower a value after its suite becomes faster or is split.
 // First, read the derivation in this file's header.
-var budgetDefaults = map[string]string{suitePlugin: "1500s"}
+var budgetDefaults = map[string]string{suitePlugin: "1500s", suiteAppliance: "840s"}
 
 var (
 	_ = env.MustRegister(env.EnvEntry{

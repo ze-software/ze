@@ -495,6 +495,7 @@ which kills leaked `ze` daemons and mock servers with it.
 |----------|---------|--------------|
 | `ZE_SUITE_TIMEOUT` | `600s` | The budget a suite gets when it has no budget of its own. `timeout` accepts a bare number of seconds or an `s`, `m`, `h`, or `d` suffix |
 | `ZE_SUITE_TIMEOUT_PLUGIN` | `1500s` | The `plugin` suite's own budget |
+| `ZE_SUITE_TIMEOUT_APPLIANCE` | `840s` | The `appliance` suite's own budget |
 | `ZE_SUITE_KILL_AFTER` | `10s` | How long after SIGTERM the group gets SIGKILL |
 | `ZE_SUITE_WARN_PERCENT` | `80` | The percentage of the budget that makes a green suite print a warning |
 | `ZE_COVER` | unset | Builds the subjects with `-cover` and gives each suite its own `GOCOVERDIR`, then reduces it to the packages the suite reached once the suite ends. It applies to a single suite and to `gating` alike, because both take the directory from one producer (`suiteCoverage`, `internal/le/test/functional/run.go`). Only a whole `gating` run publishes `tmp/ze-suite-map.json` |
@@ -514,13 +515,17 @@ it for all of them. A suite that needs more wall clock gets a
 that budget everywhere: the `timeout` that kills the suite, the runtime line,
 the warning arithmetic, and the variable name the reports tell you to raise.
 
-The `plugin` suite is the one suite that has such a budget today. It holds 663
+Two suites have such a budget today, `plugin` and `appliance`. `plugin` holds 663
 `.ci` tests, and it measured 855s on 2026-08-19 against the 600s shared cap that
 had been killing it. The budget is derived from that measurement: the warning
 point (80% of the budget) must sit 40% above 855s, or a busy box warns on every
 run and the warning names no creep. That gives 855 * 1.40 / 0.80 = 1496s,
 rounded up to the whole minute. The kill then lands at 1.75x the measurement,
 which is a wedged suite and not a busy box.
+
+The `appliance` suite's four QEMU proofs build and boot a real image. The suite
+measured 469s alone on 2026-10-16, after the 600s shared cap had killed it. The
+same derivation gives 469 * 1.40 / 0.80 = 821s, rounded up to 840s.
 
 Adding a suite to that family is one line: a `budgetDefaults` entry in
 `internal/le/test/functional/budget.go`. Setting `ZE_SUITE_TIMEOUT_<SUITE>` in
