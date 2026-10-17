@@ -1,23 +1,23 @@
 {
-  "audited": "2026-10-04",
+  "audited": "2026-10-17",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5082-3-2": {
-      "note": "Re-read 2026-09-27 against the \u00a76.1 quote (setting AND verifying TTL=255 on related ICMP errors). Setting: forbidden is an ICMP error toward a GTSM peer leaving with TTL other than 255; TestGTSMTransmittedICMPErrorCarriesTTL255 fails on packet[8]!=255 and TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255 on packet[7]!=255, both over the route applyHopLimitRoutes installs; the withdraw negatives bind the 255 to that route. Verifying: forbidden is a below-floor ICMP error about the session being delivered; TestGTSMDropsADangerousQuotedICMPError fails when icmpInType rises, TestGTSMMinHopCountDropsALowHopLimitICMPv6Error when TCPMinTTLDrop does not; the TTL-255 negatives show delivery at 255.",
+      "note": "Re-read 2026-10-17 against the Section 6.1 sentence \"This specification mandates setting and verifying TTL=255 of those as well as the main protocol packets.\" after the IPv4 receive proofs moved to match-scoped nft counters. Setting is unchanged: TestGTSMTransmittedICMPErrorCarriesTTL255 fails on packet[8]!=255 and the ICMPv6 twin on packet[7]!=255, over the route applyHopLimitRoutes installs, and the withdraw negatives bind the 255 to that route. Verifying, IPv4: TestGTSMDropsADangerousQuotedICMPError waits on the quoted-destination term's counter (bounded by captureWait), then fails when IcmpMsg InType3 rises, when any term other than exactly that one matched, or when TCPMinTTLDrop moved; Observed in an arm64 guest on kernel 7.2.9: Drop turned to Accept in peerTerms leaves the term matching and the message delivered, and the test goes red at the InType3 assertion. TestGTSMDeliversAQuotedICMPErrorAtTTL255 is a real negative: the same message at TTL 255 must raise InType3 by one and match no term, and with Accept plus the TTL match removed from peerTerms it was observed red at assertNoTermMatched, naming the quoted-destination term. rulePackets now fails a rule with no counter, so a vanished counter cannot read as no match. Verifying, IPv6: TestGTSMMinHopCountDropsALowHopLimitICMPv6Error fails when TCPMinTTLDrop does not rise, unchanged.",
       "requirement_sha": "5ee896f8d5f5b1e8",
       "tests": {
-        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAQuotedICMPErrorAtTTL255": "020e378ebd5b0863",
-        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDropsADangerousQuotedICMPError": "020e378ebd5b0863",
-        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMMinHopCountDropsALowHopLimitICMPv6Error": "020e378ebd5b0863",
-        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPErrorCarriesTTL255": "020e378ebd5b0863",
-        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255": "020e378ebd5b0863",
-        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255": "020e378ebd5b0863",
-        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255": "020e378ebd5b0863",
-        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error": "020e378ebd5b0863"
+        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAQuotedICMPErrorAtTTL255": "6bd308700f8c332b",
+        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDropsADangerousQuotedICMPError": "6bd308700f8c332b",
+        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMMinHopCountDropsALowHopLimitICMPv6Error": "6bd308700f8c332b",
+        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPErrorCarriesTTL255": "6bd308700f8c332b",
+        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255": "6bd308700f8c332b",
+        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255": "6bd308700f8c332b",
+        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255": "6bd308700f8c332b",
+        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error": "6bd308700f8c332b"
       },
       "units": {
-        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAQuotedICMPErrorAtTTL255": "44127b6033b85cfd",
-        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDropsADangerousQuotedICMPError": "53f3d51a99e7293a",
+        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAQuotedICMPErrorAtTTL255": "26432d40c0ecd14d",
+        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDropsADangerousQuotedICMPError": "a66a19639a35d077",
         "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMMinHopCountDropsALowHopLimitICMPv6Error": "a7470776a8007649",
         "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPErrorCarriesTTL255": "c31a5ce8ed6fa515",
         "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255": "02ce064d3278375f",
@@ -42,15 +42,15 @@
       "verdict": "enforced"
     },
     "RFC5082-3-4": {
-      "note": "Re-read 2026-09-27. Two clauses. Trusted dropped: TestGTSMFloorDeliversATrustedPacket fails if the packet at the floor is not received (receiveByte). Unknown dropped: TestGTSMNoFloorDeliversAnUnknownPacket fails if a low-TTL packet on a no-floor socket is not delivered, and TestGTSMDeliversAnICMPErrorNoSessionClaims fails if icmpInType does not rise for three unclaimed ICMP errors at TTL 1.",
+      "note": "Re-read 2026-10-17 against Section 3: \"MUST NOT drop (as part of GTSM processing) packets classified as Trusted or Unknown.\" Trusted: TestGTSMFloorDeliversATrustedPacket fails if the packet at the floor is not received, unchanged. Unknown: TestGTSMNoFloorDeliversAnUnknownPacket is unchanged; TestGTSMDeliversAnICMPErrorNoSessionClaims, with the filter published, injects three unclaimed ICMP errors at TTL 1 and fails unless IcmpMsg InType3 rises by exactly one and no term's counter moved (a rule with no counter fails rather than reading zero). The test no longer proves the chain evaluated the message, an assertion the owner approved losing on 2026-10-17 because a match-scoped counter cannot see a non-match; that does not weaken this MUST NOT, whose observable is delivery, and TestGTSMDropsADangerousQuotedICMPError proves the same chain sees type-3 messages on the same path. With the 0x45 version/IHL match removed from quotedIPv4HeaderGuard, the options case was observed red in an arm64 guest on kernel 7.2.9 (InType3 did not rise), while the other two cases stayed green.",
       "requirement_sha": "bd0ad5653d46a163",
       "tests": {
-        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAnICMPErrorNoSessionClaims": "020e378ebd5b0863",
+        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAnICMPErrorNoSessionClaims": "6bd308700f8c332b",
         "internal/core/network/rfc5082_ttl_gtsm_linux_test.go::TestGTSMFloorDeliversATrustedPacket": "dc6c6456da36476d",
         "internal/core/network/rfc5082_ttl_gtsm_linux_test.go::TestGTSMNoFloorDeliversAnUnknownPacket": "dc6c6456da36476d"
       },
       "units": {
-        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAnICMPErrorNoSessionClaims": "06231ae097a3e15c",
+        "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAnICMPErrorNoSessionClaims": "7931e07403bfcf65",
         "internal/core/network/rfc5082_ttl_gtsm_linux_test.go::TestGTSMFloorDeliversATrustedPacket": "bbc0359121576ce1",
         "internal/core/network/rfc5082_ttl_gtsm_linux_test.go::TestGTSMNoFloorDeliversAnUnknownPacket": "f7737db010b0a5c1"
       },

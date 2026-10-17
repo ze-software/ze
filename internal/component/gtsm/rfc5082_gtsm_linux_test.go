@@ -28,6 +28,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -186,10 +187,11 @@ func sessionQuote() []byte {
 // The observable is the kernel's own count of the ICMPv4 messages it received
 // of that type. The input hook runs before icmp_rcv, so a message the rule
 // drops is never counted there, and a message the rule passes always is. The
-// second assertion names WHICH rule stopped it, by the term after it never
-// being reached. The third reads TCPMinTTLDrop, the counter tcp_v4_err
-// increments when it judges the error itself: a message dropped before the
-// TCP stack leaves it untouched.
+// second assertion names WHICH rule stopped it: the term quoting the session's
+// destination port is the one term whose counter moved, and every rule's
+// counter counts only the packets its term matched. The third reads
+// TCPMinTTLDrop, the counter tcp_v4_err increments when it judges the error
+// itself: a message dropped before the TCP stack leaves it untouched.
 //
 // RFC requirement: RFC5082-3-2 positive -- an ICMPv4 error quoting a TCP
 // header of a GTSM peer's BGP session, arriving with an outer TTL below the
@@ -207,17 +209,17 @@ func TestGTSMDropsADangerousQuotedICMPError(t *testing.T) {
 			bed := newTestbed(t)
 			publishGTSMFilter(t)
 
+			wantTerm := termName(peerV4, icmpv4DestinationUnreachable, firewall.QuotedPortDestination)
 			beforeICMP := icmpInType(t, icmpv4DestinationUnreachable)
 			beforeMinTTL := tcpMinTTLDrop(t)
 			bed.injectICMPv4Error(tc.source, 1, tc.quoted)
-			awaitChainEvaluated(t)
+			awaitTermMatched(t, wantTerm)
 
 			if after := icmpInType(t, icmpv4DestinationUnreachable); after != beforeICMP {
 				t.Fatalf("the kernel received %d ICMP type 3 messages, want the %d it had: the Dangerous message was delivered", after, beforeICMP)
 			}
-			wantTerm := termName(peerV4, icmpv4DestinationUnreachable, firewall.QuotedPortDestination)
-			if got := lastTermReached(t); got != wantTerm {
-				t.Fatalf("the chain stopped at term %q, want %q: another rule claimed the message", got, wantTerm)
+			if got := termsMatched(t); !slices.Equal(got, []string{wantTerm}) {
+				t.Fatalf("terms %q matched the message, want exactly %q: another rule claimed it", got, wantTerm)
 			}
 			if after := tcpMinTTLDrop(t); after != beforeMinTTL {
 				t.Fatalf("TCPMinTTLDrop is %d, want the %d it was: the message reached the TCP stack", after, beforeMinTTL)
@@ -252,7 +254,7 @@ func TestGTSMDeliversAQuotedICMPErrorAtTTL255(t *testing.T) {
 			if after != before+1 {
 				t.Fatalf("the kernel received %d ICMP type 3 messages, want one more than %d: a Trusted message was dropped", after, before)
 			}
-			assertWholeChainEvaluated(t)
+			assertNoTermMatched(t)
 		})
 	}
 }
@@ -278,8 +280,8 @@ var quotedOptionsSpellingTheBGPPort = []byte{0x00, bgpPort, 0x00, bgpPort}
 //
 // RFC requirement: RFC5082-3-4 positive -- with the filter published for a
 // GTSM peer, an ICMPv4 error arriving from another host with an outer TTL
-// below the floor is delivered to the kernel's ICMP receive path, and every
-// rule of the chain is evaluated without matching, when it quotes the peer on
+// below the floor is delivered to the kernel's ICMP receive path, and no rule
+// of the chain matches it, when it quotes the peer on
 // a port other than the BGP port, when it quotes the BGP port toward another
 // destination, or when its quoted header carries IP options, so GTSM
 // processing drops no message classified Unknown.
@@ -313,7 +315,7 @@ func TestGTSMDeliversAnICMPErrorNoSessionClaims(t *testing.T) {
 			if after != before+1 {
 				t.Fatalf("the kernel received %d ICMP type 3 messages, want one more than %d: an Unknown message was dropped", after, before)
 			}
-			assertWholeChainEvaluated(t)
+			assertNoTermMatched(t)
 		})
 	}
 }
@@ -553,62 +555,67 @@ func (b *testbed) awaitOutgoingSYN(t *testing.T) (uint16, uint32) {
 // The observables
 // ---------------------------------------------------------------------------
 
-// awaitChainEvaluated waits until ze's chain has seen the injected message.
-// The counter ze puts on the FIRST rule counts every packet that REACHES that
-// rule, so its first packet is the moment the chain ran.
-func awaitChainEvaluated(t *testing.T) {
+// The counter ze programs on each rule sits at the term's match/action
+// boundary, after the matches and ahead of the verdict (applyChain,
+// internal/plugins/firewall/nft/backend_linux.go). nftables stops evaluating a
+// rule at its first match that fails, so a rule's counter counts the packets
+// the term MATCHED and nothing else. A packet no term matches therefore leaves
+// every counter at zero, and the chain records no trace of having seen it.
+// That is why the delivery proofs wait on the kernel's ICMP receive count
+// rather than on the chain (plan/journal/counter-counts-the-wrong-packets.md).
+
+// awaitTermMatched waits until the named term of ze's chain has matched the
+// injected message. A drop leaves the kernel's ICMP receive count unchanged,
+// which is also what a message still in flight looks like, so the drop proof
+// waits on the counter of the rule that drops it before it reads anything
+// else.
+func awaitTermMatched(t *testing.T, term string) {
 	t.Helper()
 
 	deadline := time.Now().Add(captureWait)
 	for time.Now().Before(deadline) {
-		if lastTermReached(t) != "" {
+		if slices.Contains(termsMatched(t), term) {
 			return
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	t.Fatal("ze's GTSM chain never saw the injected message")
+	t.Fatalf("term %q never matched the injected message; terms matched: %q", term, termsMatched(t))
 }
 
-// assertWholeChainEvaluated fails unless every rule of ze's chain was reached,
-// which is what a message no rule matched looks like: nothing stopped it.
-func assertWholeChainEvaluated(t *testing.T) {
+// assertNoTermMatched fails when any rule of ze's chain matched the injected
+// message. Every term ze publishes for a GTSM peer drops, so a match is a drop
+// of a message GTSM may not drop. The caller MUST first see the message
+// delivered (awaitICMPInType), because the counter of a rule that matched is
+// written before its verdict, and a delivered message has passed every rule.
+func assertNoTermMatched(t *testing.T) {
 	t.Helper()
 
-	awaitChainEvaluated(t)
-	for _, rule := range gtsmRules(t) {
-		if rule.packets != 0 {
-			continue
-		}
-		t.Fatalf("term %q was never reached, so an earlier rule matched a message GTSM may not drop", rule.term)
+	if matched := termsMatched(t); len(matched) != 0 {
+		t.Fatalf("terms %q matched a message GTSM may not drop", matched)
 	}
 }
 
-// lastTermReached names the last rule of ze's GTSM chain the message reached,
-// which is the rule that matched it: a rule's verdict ends the evaluation, so
-// every rule after the matching one keeps a counter of zero. It answers with
-// the empty string when the chain has seen nothing at all.
-//
-// The counter ze programs sits at the FRONT of the rule (applyChain,
-// internal/plugins/firewall/nft/backend_linux.go), so it counts the packets a
-// rule was REACHED by rather than the packets it matched. That is what makes
-// the last non-zero rule the answer, and it is why no test here reads a single
-// rule's counter as a match count
-// (plan/journal/counter-counts-the-wrong-packets.md).
-func lastTermReached(t *testing.T) string {
+// termsMatched names the terms of ze's GTSM chain whose counters are not zero,
+// in evaluation order, each once. One term can be lowered to more than one
+// rule, so a name is reported when any of its rules matched.
+func termsMatched(t *testing.T) []string {
 	t.Helper()
 
-	last := ""
+	var matched []string
 	for _, rule := range gtsmRules(t) {
 		if rule.packets == 0 {
-			break
+			continue
 		}
-		last = rule.term
+		if slices.Contains(matched, rule.term) {
+			continue
+		}
+		matched = append(matched, rule.term)
 	}
-	return last
+	return matched
 }
 
 // gtsmRule is one rule of ze's GTSM chain: the term it was built from, and the
-// number of packets that reached it.
+// number of packets that matched it.
 type gtsmRule struct {
 	term    string
 	packets uint64
@@ -646,7 +653,7 @@ func gtsmRules(t *testing.T) []gtsmRule {
 				t.Fatalf("get rules: %v", err)
 			}
 			for _, rule := range rules {
-				out = append(out, gtsmRule{term: string(rule.UserData), packets: rulePackets(rule)})
+				out = append(out, gtsmRule{term: string(rule.UserData), packets: rulePackets(t, rule)})
 			}
 		}
 	}
@@ -656,8 +663,13 @@ func gtsmRules(t *testing.T) []gtsmRule {
 	return out
 }
 
-// rulePackets is the packet count of a rule's counter expression.
-func rulePackets(rule *nftables.Rule) uint64 {
+// rulePackets is the packet count of a rule's counter expression. A rule with
+// no counter cannot answer, and a zero in its place would read as "matched
+// nothing", which is exactly what assertNoTermMatched passes on. So a missing
+// counter fails the test rather than reporting zero.
+func rulePackets(t *testing.T, rule *nftables.Rule) uint64 {
+	t.Helper()
+
 	for _, e := range rule.Exprs {
 		counter, ok := e.(*expr.Counter)
 		if !ok {
@@ -665,6 +677,7 @@ func rulePackets(rule *nftables.Rule) uint64 {
 		}
 		return counter.Packets
 	}
+	t.Fatalf("rule of term %q carries no counter, so whether it matched cannot be read", string(rule.UserData))
 	return 0
 }
 
