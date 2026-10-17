@@ -492,7 +492,7 @@ Each phase is one commit, TDD (red pasted, then green), its page edits in the sa
 1. **Phase 1: Wiring and the ExaBGP-main pin (FIRST)**
    - Tests: `TestExaBGPMainPinCommands`, `TestExaBGPStageClearsPythonPath`; proof-mode run of three existing cases (A-2, A-3)
    - Files: `exabgp.go`, `cmd_exabgp.go`, `bridge_batch.go` (comment), journal status cells; port `api-on-exit`, `api-disable`, `qa/old/4.2`, `qa/old/5.0`
-   - Verify: both pins run; a shell `PYTHONPATH` is ignored; the ported cases are named in the report with their verdicts (the ones items 2 to 6 turn green are listed as the known reds those phases own, `.claude/rules/known-reds-first.md`)
+   - Verify: both pins run; a shell `PYTHONPATH` is ignored; the ported cases are named in the report with their verdicts (the ones items 2 to 6 turn green are listed as the known reds those phases own, `ai/rules/pre-release.md`)
 2. **Phase 2: API version detection and encoders** - X-1 to X-12; AC-5 to AC-13
 3. **Phase 3: Error answers** - X-13, X-14; AC-14 to AC-16
 4. **Phase 4: v6 vocabulary, group, on-exit, exit withdrawal** - X-15 to X-22; AC-17 to AC-25
