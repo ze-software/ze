@@ -30,10 +30,16 @@ section, and bgp-filter-irr re-admits held routes by ROUTE-REFRESH.
 - **Blocked on the owner:** RFC-tagged `filter_prefix.TestPrefixPolicyFiltersFlowSpecDestination`
   (`rfc8955_flowspec_test.go`): its only change is the subject prefix `"nlri "` → `"mp "`.
   Needs Thomas's explicit words, then `./le rfc approve unit filter_prefix.TestPrefixPolicyFiltersFlowSpecDestination reason "<his words>"`.
-- **In flight in the same files:** IRR items #6 (rewritable widens to MP CIDR
-  blocks, which ends a once-a-minute ROUTE-REFRESH loop) and #7 (echo
-  marker-only blocks). Re-run filter_irr tests and the irr and filter `.ci`
-  patterns before committing.
+- IRR items #6 (rewritable widens to MP CIDR blocks incl. mpls-label, ending
+  the refresh loop for them) and #7 (marker blocks echoed) are done and
+  reviewed; the final review items are applied (compound guards split,
+  filter_prefix reads filtertext.CIDRFamily, marker-echo rule in
+  process-protocol.md, filter-irr-modify-mp.ci proven red/green). New file
+  set additions: `internal/component/bgp/filtertext/cidr*.go`,
+  `filter_irr/testmain_test.go`, `test/plugin/filter-irr-modify-mp.ci`, two
+  journal rows. Gates green: race tests, irr 6/6, filter 35/35, scoped lint,
+  compound-guard. Only `./le doc wiring check` stays red on the five claims
+  below, which need the post-commit rows.
 - After the commit: add six reviewed-claim rows to `plan/doc-reviewed/b2ec5abb.md`
   naming the new SHA, one symbol each: `runIngressPolicyChain` and
   `runEgressPolicyChainASN4` (api/commands.md), `buildModifiedPayloadWithLimit`
@@ -62,10 +68,10 @@ section, and bgp-filter-irr re-admits held routes by ROUTE-REFRESH.
 - Commit 7f59cfe2ad (L2TP) message lost one example phrase to shell quoting:
   amend only if Thomas asks.
 
-## 3. Agents running at the time of writing
-PPPoE `pppoe-padr-replay` (a replayed PADR loses the existing session), L2TP
-interop `02-ppp-bgp-redistribute-frr` (the injected subscriber route never
-reaches FRR), and the IRR #6/#7 work above. Each appends its handoff here.
+## 3. Done since this handover was first written
+PPPoE `pppoe-padr-replay` fixed in the checker (8dce48dd9d); L2TP interop
+`02-ppp-bgp-redistribute-frr` fixed in its frr.conf (b3a5960dc7). No agent
+is running.
 
 ## 4. Remaining known reds (not started)
 - Nightly: ipsec readiness timeouts (5 scenarios); BGP interop 90-minute ssh
