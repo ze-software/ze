@@ -237,10 +237,14 @@ func installBytes(stage, parent *os.File, leaf string, data []byte, syncFile fun
 	if err := unix.Renameat(int(stage.Fd()), name, int(parent.Fd()), leaf); err != nil {
 		return err
 	}
-	if err := syncFile(parent); err != nil {
-		return err
-	}
-	return syncFile(stage)
+	// Two barriers make the value durable: the frame above, then the
+	// destination directory that now names it. The staging directory is not
+	// synced. When it is the destination (the import intent and
+	// WriteConfigFile) that sync would repeat this one. When it is distinct
+	// (a tree key write) it would only make the temporary name's departure
+	// durable, and a `.ze-storage-*` name a crash leaves behind is outside the
+	// key namespace and ignored (storage-backends.md, "Durable publication").
+	return syncFile(parent)
 }
 
 func duplicateFolder(folder *os.File) (*os.File, error) {

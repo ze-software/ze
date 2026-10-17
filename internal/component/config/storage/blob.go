@@ -39,7 +39,7 @@ func OpenBlob(path string, writable bool, opts ...zefs.Option) (Storage, error) 
 	if writable {
 		mode = unix.LOCK_EX
 	}
-	owner, err := lockStoreFile(folder, filepath.Base(path)+".lock", mode)
+	owner, err := lockStoreFile(folder, filepath.Base(path)+".lock", mode, (*os.File).Sync)
 	if err != nil {
 		return nil, err
 	}

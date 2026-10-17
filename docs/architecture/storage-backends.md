@@ -138,13 +138,21 @@ release, so a callback may read the store again.
 
 Tree writes stage a 0600 file in the containing config directory, outside the
 logical key tree. The writer syncs the frame, renames it into the destination and
-syncs both affected directories. Newly created key ancestors are synced before
-publication can proceed. Sync failures are returned to the caller. Leftover
-`.ze-storage-*` files are outside the namespace and cannot appear in list, check
-or repair output. Removing a key prunes empty key directories.
+syncs the destination directory: two barriers per write. The staging directory is
+not synced, because the only change a sync would make durable there is the
+temporary name's departure, and a leftover `.ze-storage-*` file is outside the
+namespace and cannot appear in list, check or repair output. Newly created key
+ancestors are synced before publication can proceed. Sync failures are returned
+to the caller. Removing a key prunes empty key directories.
+
 Staging creation, publication and cleanup all use retained directory descriptors.
 Renaming or replacing the containing directory's pathname does not redirect
 these operations into the replacement directory.
+
+Taking a store lock syncs the containing folder only when the exclusive create
+made the lock file. A lock file that already exists adds no directory entry, and
+the `flock` itself is kernel state, so relocking it makes nothing durable.
+<!-- source: internal/component/config/storage/open.go -- lockStoreFile, openLockNode -->
 
 `Create` auto-creates an empty tree. `CreatePopulated` runs its callback against a
 private `database.init-tmp-*` tree and publishes only after successful population.

@@ -161,11 +161,14 @@ func openTree(folder *os.File, name string, owner *os.File, readonly bool) (*sto
 }
 
 func lockOwner(folder *os.File, name string) (*os.File, error) {
-	return lockStoreFile(folder, name, unix.LOCK_EX)
+	return lockStoreFile(folder, name, unix.LOCK_EX, (*os.File).Sync)
 }
 
-func lockStoreFile(folder *os.File, name string, mode int) (*os.File, error) {
-	fd, err := openLockNode(folder, name)
+// lockStoreFile opens or creates the lock file name in folder and takes mode
+// on it without blocking. syncFolder is the directory barrier, a parameter so
+// a test can count it; every production caller passes (*os.File).Sync.
+func lockStoreFile(folder *os.File, name string, mode int, syncFolder func(*os.File) error) (*os.File, error) {
+	fd, created, err := openLockNode(folder, name)
 	if err != nil {
 		return nil, fmt.Errorf("lock %s: %w", filepath.Join(folder.Name(), name), err)
 	}
@@ -176,7 +179,13 @@ func lockStoreFile(folder *os.File, name string, mode int) (*os.File, error) {
 	if err := unix.Flock(fd, mode|unix.LOCK_NB); err != nil {
 		return nil, errors.Join(fmt.Errorf("%w: %s; close its owner before maintenance: %w", ErrBusy, folder.Name(), err), file.Close())
 	}
-	if err := folder.Sync(); err != nil {
+	// A flock lives in the kernel, never on disk, so taking it makes nothing
+	// durable. Only the exclusive create added a directory entry; a lock file
+	// that already existed changed nothing in folder, so its sync is skipped.
+	if !created {
+		return file, nil
+	}
+	if err := syncFolder(folder); err != nil {
 		return nil, errors.Join(err, file.Close())
 	}
 	return file, nil
@@ -194,13 +203,20 @@ func lockStoreFile(folder *os.File, name string, mode int) (*os.File, error) {
 // coincided with another was therefore refused for a missing lock file instead
 // of being told the store has an owner. ownershipLock reads the lock the same
 // way, so the package has one shape for a create-or-open.
-func openLockNode(folder *os.File, name string) (int, error) {
+//
+// created reports that this call's exclusive create made the file, which is
+// the one case where the folder gained an entry its caller must make durable.
+func openLockNode(folder *os.File, name string) (fd int, created bool, err error) {
 	flags := unix.O_RDWR | unix.O_NOFOLLOW | unix.O_NONBLOCK | unix.O_CLOEXEC
-	fd, err := unix.Openat(int(folder.Fd()), name, flags|unix.O_CREAT|unix.O_EXCL, 0o600)
-	if !errors.Is(err, unix.EEXIST) {
-		return fd, err
+	fd, err = unix.Openat(int(folder.Fd()), name, flags|unix.O_CREAT|unix.O_EXCL, 0o600)
+	if err == nil {
+		return fd, true, nil
 	}
-	return unix.Openat(int(folder.Fd()), name, flags, 0)
+	if !errors.Is(err, unix.EEXIST) {
+		return fd, false, err
+	}
+	fd, err = unix.Openat(int(folder.Fd()), name, flags, 0)
+	return fd, false, err
 }
 
 // Create auto-creates an empty tree, or reopens the completed winner. A busy
