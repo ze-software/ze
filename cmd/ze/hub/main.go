@@ -477,6 +477,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		return 1
 	}
 
+	// show mtu defaults its reference address to the first name server. The
+	// list is published from the post-evolution tree here, before the API
+	// server starts any plugin, so no command a plugin dispatches at startup
+	// can find it unpublished.
+	publishNameServers(loadResult.Tree)
+
 	// The boot configuration is no longer made durable here, before any
 	// listener: on a disk another writer saturates, its syncs held the first
 	// listener back by a minute. bootRecord.Start below runs it beside the rest

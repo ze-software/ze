@@ -6,6 +6,7 @@ module ze-mtu-conf {
     // The reference address lives beside the other service settings under
     // environment, and this module container-merges onto that root.
     description "The settings of the path MTU diagnostic: the reference address show mtu measures.";
+    revision 2026-10-17 { description "Drop the public default of reference-address: the first system name-server stands in."; }
     revision 2026-09-16 { description "Declare environment mtu reference-address."; }
 
     container environment {
@@ -20,13 +21,13 @@ scheduled, so nothing here starts a measurement.";
 
             leaf reference-address {
                 type zt:ip-address;
-                default "1.1.1.1";
                 description "show mtu measures the path MTU to this address beside the peers. A
 reference outside the tunnels is what tells a clamped access circuit from a
 clamped peer path: when it measures the full interface MTU the circuit is not
-clamped, and when it measures the same as the peers the whole circuit is. The
-default is 1.1.1.1. The environment variable ze.mtu.reference-address
-overrides this leaf.";
+clamped, and when it measures the same as the peers the whole circuit is. When
+the leaf is not set, the first system name-server is the reference. When
+neither is set, show mtu refuses to run. The environment variable
+ze.mtu.reference-address overrides this leaf.";
                 ze:help "Address show mtu measures to tell a clamped circuit from a clamped peer path.";
             }
         }

@@ -9,7 +9,8 @@
 // through internal/core/probe. The YANG command schema container-merges onto
 // the show verb root; see ../yang/ze-mtu-cmd.yang. The
 // reference address is the environment mtu reference-address leaf of
-// ../yang/ze-mtu-conf.yang.
+// ../yang/ze-mtu-conf.yang, or the first system name-server when the leaf is
+// not set.
 package cmd
 
 import (

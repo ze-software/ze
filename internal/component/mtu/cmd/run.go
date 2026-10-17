@@ -22,6 +22,7 @@ import (
 	"math"
 	"net/netip"
 
+	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/ikeprobe"
 	"github.com/ze-software/ze/internal/core/ipsecinventory"
@@ -177,6 +178,9 @@ type mtuDeps struct {
 	fragmentation   func() (fragmentationCounters, error)
 	tcpMTUProbing   func() (tcpMTUProbing, error)
 	routeMTUExpires func() (uint32, error)
+	// nameServers answers the system name servers of the running config and
+	// whether any were published; the reference address defaults to the first.
+	nameServers func() ([]string, bool)
 }
 
 // liveDeps is the production dependency set. It is a variable for the same
@@ -195,6 +199,7 @@ var liveDeps = mtuDeps{
 	fragmentation:   func() (fragmentationCounters, error) { return readFragmentationCounters(procMountPoint) },
 	tcpMTUProbing:   readTCPMTUProbing,
 	routeMTUExpires: readRouteMTUExpires,
+	nameServers:     system.NameServers,
 }
 
 // openLiveProber adapts openWireProber to the seam. The nil check keeps a
@@ -466,7 +471,7 @@ func (r *mtuRun) readUnderlay() (row map[string]any, link underlayLink, mtu uint
 	if len(r.measurements) > 0 {
 		routeTo = r.measurements[0].target
 	} else {
-		ref, err := referenceAddress()
+		ref, err := referenceAddress(r.deps)
 		if err != nil {
 			r.note(noteSeverityFault, "the underlay interface could not be found: "+err.Error())
 			return nil, underlayLink{}, 0
@@ -755,7 +760,7 @@ func (r *mtuRun) cacheNote(m *measurement) {
 // measureReference measures the reference address on a default run, unless
 // it is already a target, in which case that measurement is the reference.
 func (r *mtuRun) measureReference() {
-	ref, err := referenceAddress()
+	ref, err := referenceAddress(r.deps)
 	if err != nil {
 		panic("BUG: handleShowMTU validated the reference address before the run")
 	}

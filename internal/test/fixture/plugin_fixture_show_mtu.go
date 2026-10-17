@@ -243,7 +243,9 @@ func showMTUJSON(ctx context.Context, _ []string) error {
 // showMTUNoTunnels checks a registered inventory that holds no tunnel is
 // named as such: `inventory` registered and the verdict no-tunnels, which
 // is a different answer from the not-registered one the unit test
-// TestShowMTUNoInventoryIsNotZeroTunnels pins.
+// TestShowMTUNoInventoryIsNotZeroTunnels pins. The config sets no
+// reference-address and one system name-server, the far address, so the
+// reference row MUST name that server: the default the daemon publishes.
 func showMTUNoTunnels(ctx context.Context, _ []string) error {
 	return observe13(ctx, "show-mtu-test", func(ctx context.Context, plugin *sdk.Plugin) error {
 		doc, err := showMTUResult(ctx, plugin, "show mtu")
@@ -265,6 +267,13 @@ func showMTUNoTunnels(ctx context.Context, _ []string) error {
 		}
 		if showMTUHasNote(doc, "no IPsec inventory is registered") {
 			return fmt.Errorf("show mtu: a registered inventory was reported unregistered: %v", doc["notes"])
+		}
+		reference, ok := doc["reference"].(map[string]any)
+		if !ok {
+			return fmt.Errorf("show mtu: no reference row: %v", doc)
+		}
+		if reference["host"] != showMTUFarAddr {
+			return fmt.Errorf("show mtu: reference %v, want the system name-server %s: %v", reference["host"], showMTUFarAddr, doc)
 		}
 		fmt.Fprintln(os.Stderr, "OK: a registered inventory with no tunnel answers verdict no-tunnels")
 		return nil

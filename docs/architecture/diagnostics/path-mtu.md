@@ -87,7 +87,8 @@ value, which is an option and never data.
    budget, or by no engine being registered, leaves the ICMP figure and
    `prober: icmp` in place, and the row's `ike-declined` and a caution note
    say why the figure is unconfirmed.
-4. **Reference.** On a default run only, the `reference-address` leaf is
+4. **Reference.** On a default run only, the reference address ("The
+   reference address" below: the leaf, else the first name server) is
    measured unless it is already a target, in which case that measurement is
    the reference. A silent reference makes the underlay advice undecidable
    (AC-14).
@@ -159,18 +160,35 @@ written to the payload through `String()` and never compared.
 the tunnels is what makes the underlay advice decidable: a clamped access
 circuit is worth matching, a clamped peer path is not. The address is the
 `environment { mtu { reference-address } }` leaf of
-`internal/component/mtu/yang/ze-mtu-conf.yang`, one IPv4 or IPv6 address with
-the default `1.1.1.1`.
+`internal/component/mtu/yang/ze-mtu-conf.yang`, one IPv4 or IPv6 address. The
+leaf has no YANG default, because a fixed public address is unreachable from a
+host with no internet access, and a run would wait out every probe to it.
 
-The leaf reaches the handler through the env layer. The config package plumbs
-`environment/mtu/reference-address` into the key `ze.mtu.reference-address`
-(`envPlumbingTable`), the OS environment wins over the config value, and the
-registration's default answers when neither names a value. `referenceAddress`
-refuses a value that is not an address by name rather than reading it as no
-reference, because no reference is a different outcome: the underlay advice
-becomes undecidable.
+`referenceAddress` answers in this order:
 
-<!-- source: internal/component/mtu/cmd/mtu.go -- referenceAddress, referenceAddressEntry -->
+| Order | Source | Read through |
+|-------|--------|--------------|
+| 1 | The `reference-address` leaf, or the OS environment key `ze.mtu.reference-address`, which wins over it | the env layer: the config package plumbs `environment/mtu/reference-address` into the key (`envPlumbingTable`) |
+| 2 | The first `system { name-server }` of the running config | `system.NameServers` (`mtuDeps.nameServers`), which the hub's `publishNameServers` fills: at start from the loaded tree, before any plugin starts, and on a reload only after the candidate is promoted |
+| 3 | Neither: the run is refused before any probe, naming both leaves to set | |
+
+A name server is the default because it is an address the operator configured
+and the host must already reach. A reload publishes the list it accepted, so a
+commit that is rolled back, including one whose candidate fails to promote,
+leaves the running config's servers in place, and an accepted config that drops
+the leaf-list publishes an empty list rather than keeping the old one. A process
+in which nothing was ever published is a different answer from a config that
+names no server: the run is refused as an internal fault, because the daemon
+start publishes before anything can dispatch `show mtu`.
+Only a default run needs the reference: `show mtu host <address>` routes the
+underlay through the one host and is never refused for want of one.
+`referenceAddress` refuses a value that is not an address by name rather than
+reading it as no reference, because no reference is a different outcome: the
+underlay advice becomes undecidable.
+
+<!-- source: internal/component/mtu/cmd/mtu.go -- referenceAddress, envKeyReferenceAddress -->
+<!-- source: internal/component/config/system/nameservers.go -- PublishNameServers, NameServers -->
+<!-- source: cmd/ze/hub/main_system.go -- publishNameServers, called by runYANGConfig (main.go) before the API server starts and by runReloadContext (main_reload.go) after promoteReloadCandidate -->
 <!-- source: internal/component/config/apply_env.go -- envPlumbingTable, the mtu row -->
 <!-- source: internal/component/mtu/yang/ze-mtu-conf.yang -- the reference-address leaf -->
 

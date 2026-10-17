@@ -159,6 +159,19 @@ func applyHostTuningFromMap(tree map[string]any) {
 	}
 }
 
+// publishNameServers publishes the system name-server list of tree, the config
+// the daemon now runs, for show mtu's default reference address. Startup calls
+// it before the API server starts; a reload calls it only once the candidate
+// is promoted, so a rolled-back reload leaves the accepted list published. An
+// empty list is published too, so a config that drops the leaf-list clears
+// it. A nil tree publishes nothing and keeps the list already published.
+func publishNameServers(tree *zeconfig.Tree) {
+	if tree == nil {
+		return
+	}
+	system.PublishNameServers(system.ExtractSystemConfig(tree).NameServers)
+}
+
 // applyResolvConf rewrites resolv.conf from the reloaded tree (reload path).
 // A session commit that changes system name-server must reach the resolver
 // without a daemon restart ("commit = apply + propagate"). Best-effort like

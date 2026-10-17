@@ -39,6 +39,13 @@ plugin {
 		encoder json
 	}
 }
+# The reference is the far peer, already a target, so the run sends no probe
+# beyond the two peers: show mtu has no public default to fall back to.
+environment {
+	mtu {
+		reference-address 10.99.2.1
+	}
+}
 interface {
 	xfrm xa {
 		if-id 7

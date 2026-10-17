@@ -60,6 +60,13 @@ type fakeDeps struct {
 	cacheErr error
 	counters fragmentationCounters
 	probing  tcpMTUProbing
+	// nameServers is the running config's system name-server list. Its
+	// default names refV4, so a default run measures refV4 as the reference
+	// the way a host with that one name server would.
+	nameServers []string
+	// nameServersUnpublished makes the seam answer that the daemon has not
+	// published its name servers yet.
+	nameServersUnpublished bool
 }
 
 func newFakeDeps() *fakeDeps {
@@ -70,6 +77,7 @@ func newFakeDeps() *fakeDeps {
 		underlayType: "device",
 		cached:       map[netip.Addr]uint32{},
 		probing:      tcpMTUProbingDisabled,
+		nameServers:  []string{refV4.String()},
 	}
 }
 
@@ -120,6 +128,12 @@ func (f *fakeDeps) install(t *testing.T) {
 		fragmentation:   func() (fragmentationCounters, error) { return f.counters, nil },
 		tcpMTUProbing:   func() (tcpMTUProbing, error) { return f.probing, nil },
 		routeMTUExpires: func() (uint32, error) { return 600, nil },
+		nameServers: func() ([]string, bool) {
+			if f.nameServersUnpublished {
+				return nil, false
+			}
+			return f.nameServers, true
+		},
 	}
 	t.Cleanup(func() { liveDeps = previous })
 }

@@ -36,7 +36,9 @@ module ze-system-conf {
         leaf-list name-server {
             type zt:ip-address;
             description "Ze writes each address to the resolv.conf file named by
-                         dns/resolv-conf-path, and its own resolver asks these servers.";
+                         dns/resolv-conf-path, and its own resolver asks these servers.
+                         When environment mtu reference-address is not set, show mtu
+                         measures the first server as its reference address.";
             ze:help "Static DNS name servers, written to resolv.conf and used by ze internal resolver.";
         }
 

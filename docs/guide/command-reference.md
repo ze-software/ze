@@ -1247,7 +1247,9 @@ a padded exchange (`ike-confirmed` is the largest size it proved; `path-mtu`
 stays the ICMP figure unless IKE refuted it), `prober: icmp` otherwise, with
 `ike-declined` saying why a live SA was not used and each row's `caveats`
 naming what its prober cannot see. The
-reference address is the `environment { mtu { reference-address } }` leaf. The
+reference address is the `environment { mtu { reference-address } }` leaf, or
+the first `system { name-server }` when the leaf is not set; with neither, a run
+over the peers is refused before any probe is sent. The
 payload keys, the run and its outcomes are
 `docs/architecture/diagnostics/path-mtu.md`. The command changes nothing on
 the router: the commands it lists are for the operator to apply.

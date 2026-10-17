@@ -7,6 +7,5 @@ unguarded.
 
 | Test | Reason |
 |------|--------|
-| awaitChainEvaluated | Replaced by awaitTermMatched (owner-approved GTSM fix): commit 7278126c3f moved each nft rule counter after its matches, so the first rule's counter no longer moves for a packet that rule does not match; the helper now waits until any rule's counter moves. |
-| lastTermReached | Replaced by termsMatched (owner-approved): with counters after the matches, every rule whose counter moved is a rule that matched, so the drop test asserts exactly the quoted-destination term matched. |
-| assertWholeChainEvaluated | Replaced by assertNoTermMatched (owner-approved): a non-matching packet leaves no counter trace now, so the proof that the chain evaluated it is gone; the ICMP receive counter and the installed-table check remain, and the delivery tests assert no term matched. |
+| TestReferenceAddressReadsTheDefaultAndRefusesAMalformedOverride | Its first half asserted the 1.1.1.1 default, which the owner removed (2026-10-17: the reference is a configured IP, the DNS server by default). Its malformed-override half moved to reference_test.go, which also asserts the leaf, name-server and refusal order. |
+| mtu_test | The five assertions that left are the removed test above; no other test in the file changed. |

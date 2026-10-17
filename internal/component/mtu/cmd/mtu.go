@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -18,23 +19,18 @@ import (
 // envKeyReferenceAddress overrides the environment mtu reference-address leaf
 // of ze-mtu-conf.yang. The config package plumbs the leaf into this key
 // (envPlumbingTable, internal/component/config/apply_env.go), so one read here
-// answers with the OS environment first, the config value second and the YANG
-// default last.
+// answers with the OS environment first and the config value second. The leaf
+// has no YANG default: when neither names an address, referenceAddress falls
+// back to the first system name server, and refuses when there is none.
 const envKeyReferenceAddress = "ze.mtu.reference-address"
 
-// referenceAddressEntry registers the key. Its Default repeats the YANG
-// default of the leaf, as every plumbed environment leaf's registration does
-// (internal/component/config/environment.go), because env.Get answers the
-// empty string when neither the OS environment nor the config names a value,
-// and referenceAddress reads the default from this entry rather than from a
-// third declaration.
-//
-//nolint:gochecknoglobals // Registration handle, read once per run.
-var referenceAddressEntry = env.MustRegister(env.EnvEntry{
+// The key's registration. It carries no Default, because the leaf has none:
+// a hard-coded public address is unreachable from a host with no internet
+// access, and every probe to it waits out its timeout.
+var _ = env.MustRegister(env.EnvEntry{
 	Key:         envKeyReferenceAddress,
 	Type:        "string",
-	Default:     "1.1.1.1",
-	Description: "Address show mtu measures beside the peers, to tell a clamped circuit from a clamped peer path",
+	Description: "Address show mtu measures beside the peers, to tell a clamped circuit from a clamped peer path; the first system name-server when unset",
 })
 
 // The keywords of `show mtu [host <address>] [exhaustive] [detail]`. The two bare
@@ -182,8 +178,12 @@ func handleShowMTU(cctx *pluginserver.CommandContext, validated command.Validate
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
-	if _, refErr := referenceAddress(); refErr != nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: refErr.Error()}, nil //nolint:nilerr // operational error in Response
+	// Only a default run measures the reference address. A host run measures
+	// the one host and routes the underlay through it, so it needs none.
+	if !req.host.IsValid() {
+		if _, refErr := referenceAddress(&liveDeps); refErr != nil {
+			return &plugin.Response{Status: plugin.StatusError, Error: refErr.Error()}, nil //nolint:nilerr // operational error in Response
+		}
 	}
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(runMTU(requestContext(cctx), &req, &liveDeps))}, nil
 }
@@ -243,21 +243,34 @@ func parseMTUArgs(args []string) (mtuRequest, error) {
 	return req, nil
 }
 
-// referenceAddress answers the configured reference address, read through
-// the env layer so the OS environment, the config leaf and the default apply
-// in that order. The empty string is what env.Get answers when nothing set
-// the key, and it means the default, not no reference. A value that is not
-// an address is refused by name rather than read as no reference, because no
-// reference is a different outcome (the underlay advice becomes undecidable)
-// and the two must not be confused.
-func referenceAddress() (netip.Addr, error) {
-	value := env.Get(envKeyReferenceAddress)
-	if value == "" {
-		value = referenceAddressEntry.Default
+// referenceAddress answers the address a default run measures beside the
+// peers. The reference-address leaf, read through the env layer so the OS
+// environment wins over the config value, comes first; the first system
+// name-server of the running config comes second, because a name server is an
+// address the operator configured and the host must already reach. With
+// neither, the run is refused before any probe is sent: there is no public
+// default, because a host with no internet access would wait out every probe.
+// A value that is not an address is refused by name rather than read as no
+// reference, because no reference is a different outcome and the two must
+// not be confused.
+func referenceAddress(deps *mtuDeps) (netip.Addr, error) {
+	if value := env.Get(envKeyReferenceAddress); value != "" {
+		addr, err := netip.ParseAddr(value)
+		if err != nil {
+			return netip.Addr{}, fmt.Errorf("mtu: the reference address %q (environment mtu reference-address, or %s) is not an IPv4 or IPv6 address: %w\nfix: set environment mtu reference-address <ip>, or unset %s in the daemon's environment, which wins over the leaf", value, envKeyReferenceAddress, err, envKeyReferenceAddress)
+		}
+		return addr, nil
 	}
-	addr, err := netip.ParseAddr(value)
+	servers, published := deps.nameServers()
+	if !published {
+		return netip.Addr{}, errors.New("mtu: internal fault: the system name servers were never published in this process, because the daemon start that publishes them from the loaded config did not run, so show mtu has no default reference address\nfix: report this as a Ze bug; until then, set environment mtu reference-address <ip>")
+	}
+	if len(servers) == 0 {
+		return netip.Addr{}, errors.New("mtu: no reference address: show mtu measures one address outside the tunnels to tell a clamped circuit from a clamped peer path, and neither environment mtu reference-address nor system name-server is configured\nfix: set environment mtu reference-address <ip>, or set system name-server <ip>")
+	}
+	addr, err := netip.ParseAddr(servers[0])
 	if err != nil {
-		return netip.Addr{}, fmt.Errorf("mtu: %s is %q, which is not an IPv4 or IPv6 address: %w", envKeyReferenceAddress, value, err)
+		return netip.Addr{}, fmt.Errorf("mtu: the first system name-server %q is not an IPv4 or IPv6 address, so it cannot be the reference address: %w\nfix: set environment mtu reference-address <ip>", servers[0], err)
 	}
 	return addr, nil
 }

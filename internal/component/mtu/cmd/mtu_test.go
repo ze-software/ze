@@ -20,7 +20,6 @@ import (
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
-	"github.com/ze-software/ze/internal/core/env"
 )
 
 // registeredShowMTU answers the handler init() registered for ze-mtu:show-mtu,
@@ -228,35 +227,4 @@ func TestParseMTUArgs(t *testing.T) {
 			t.Errorf("parse %v was accepted; want a refusal by name", refused)
 		}
 	}
-}
-
-// TestReferenceAddressReadsTheDefaultAndRefusesAMalformedOverride proves the
-// leaf's default reaches the handler through the env layer, and that an
-// override which is not an address is refused by name rather than read as no
-// reference.
-func TestReferenceAddressReadsTheDefaultAndRefusesAMalformedOverride(t *testing.T) {
-	env.ResetCache()
-	addr, err := referenceAddress()
-	if err != nil {
-		t.Fatalf("the default reference address: %v", err)
-	}
-	if addr.String() != referenceAddressEntry.Default {
-		t.Errorf("the default reference address is %s; want %s", addr, referenceAddressEntry.Default)
-	}
-
-	// The canonical dot spelling is the one env.Set writes and env.Get reads.
-	t.Setenv(envKeyReferenceAddress, "resolver.example")
-	env.ResetCache()
-	if _, err := referenceAddress(); err == nil {
-		t.Error("a reference address that is a name was accepted; want a refusal")
-	}
-	newFakeDeps().install(t)
-	resp, err := handleShowMTU(nil, commandtest.Args())
-	if err != nil {
-		t.Fatalf("show mtu: %v", err)
-	}
-	if resp.Status != plugin.StatusError {
-		t.Errorf("show mtu ran with a malformed reference address: status %q", resp.Status)
-	}
-	env.ResetCache()
 }

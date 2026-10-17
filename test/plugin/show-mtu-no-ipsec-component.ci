@@ -1,10 +1,12 @@
 # Test: show mtu with an IKE engine that holds no tunnel says no-tunnels
 # Spec: spec-path-mtu-diagnostic -- AC-18, the registered half
 # VALIDATES: a daemon whose IKE engine is linked but configures no peer answers
-#            `inventory` registered and verdict `no-tunnels`, with no note that
-#            the inventory is unregistered. The other half of AC-18, a build
-#            without the IKE engine answering `not-registered`, cannot be built
-#            by the functional runner (one `ze` links every component), so
+#            `inventory` registered and verdict `no-tunnels`, with no note
+#            that the inventory is unregistered, and measures the first
+#            system name-server as its reference when no reference-address
+#            is set. The other half of AC-18, a build without the IKE
+#            engine answering `not-registered`, cannot be built by the
+#            functional runner (one `ze` links every component), so
 #            TestShowMTUNoInventoryIsNotZeroTunnels pins it over the seam.
 # PREVENTS: an empty inventory read as an absent one, or the reverse.
 #
@@ -15,6 +17,10 @@
 # the raw ICMP socket needs CAP_NET_RAW, so the test runs in the QEMU guest as
 # root (`./le test qemu all-tests`) and skips in the unprivileged merge gate. The
 # fixture removes the namespaces when the daemon exits, whatever its exit code.
+#
+# No reference-address is set, so the reference is the first system
+# name-server (10.99.2.1, the far namespace): the fixture checks the reference
+# row names it. resolv-conf-path is empty so the test writes no resolv.conf.
 
 option=needs-linux:caps=net-admin,net-raw
 
@@ -23,6 +29,12 @@ plugin {
 	external show-mtu-test {
 		run "le test fixture plugin/show-mtu-no-tunnels"
 		encoder json
+	}
+}
+system {
+	name-server 10.99.2.1
+	dns {
+		resolv-conf-path ""
 	}
 }
 EOF_CONF

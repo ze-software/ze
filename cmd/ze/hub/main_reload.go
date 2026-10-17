@@ -796,6 +796,10 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 		}
 	}
 
+	// The name servers go live with the promoted config, never before: a
+	// reload rolled back above leaves the accepted list published.
+	publishNameServers(parsedTree)
+
 	// The complete local and API identity becomes live only after every
 	// fallible reload step, including candidate promotion, has succeeded.
 	// The accepted identity and the rebuilt chain go live as ONE acceptance. The

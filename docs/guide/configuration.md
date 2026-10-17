@@ -3325,7 +3325,7 @@ environment {
         transcript enabled;  # record session commands and output to local file
     }
     mtu {
-        reference-address 1.1.1.1;  # the address show mtu measures beside the peers
+        reference-address 198.51.100.1;  # the address show mtu measures beside the peers
     }
 }
 ```
@@ -3362,13 +3362,17 @@ command that echoes a config value masks it where it is written.
 
 The `mtu { reference-address }` leaf names the address `show mtu` measures
 beside the IPsec peers. A reference outside the tunnels is what tells a clamped
-access circuit from a clamped peer path. The value is one IPv4 or IPv6 address
-and the default is `1.1.1.1`. The environment variable
+access circuit from a clamped peer path. The value is one IPv4 or IPv6 address.
+The leaf has no fixed default: when it is not set, the first `system {
+name-server }` is the reference, because the host must already reach it. When
+neither is set, `show mtu` refuses to run and names both leaves; `show mtu host
+<address>` measures one host and needs no reference. The environment variable
 `ze.mtu.reference-address` overrides the leaf. The command is described in
 `docs/architecture/diagnostics/path-mtu.md`.
 
 <!-- source: internal/component/config/environment.go -- environment block parsing; internal/core/slogutil/slogutil.go -- log level config -->
 <!-- source: internal/component/mtu/cmd/mtu.go -- referenceAddress, the reader of the reference-address leaf -->
+<!-- source: internal/component/config/system/nameservers.go -- NameServers, the published system name-server list -->
 <!-- source: internal/core/version/version.go -- HTTPHeaderHidden, the leaf both HTTP servers read -->
 <!-- source: internal/component/command/pipe.go -- configuredDefault -->
 <!-- source: internal/component/cli/transcript.go -- TranscriptWriter, OpenTranscriptFile -->
@@ -3542,7 +3546,7 @@ system {
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `name-server` | leaf-list ip-address | (none) | Static DNS servers. First server used by ze internal resolver. All written to resolv.conf at startup and after every config commit/reload. |
+| `name-server` | leaf-list ip-address | (none) | Static DNS servers. First server used by ze internal resolver, and measured by `show mtu` as its reference address when `environment { mtu { reference-address } }` is not set. All written to resolv.conf at startup and after every config commit/reload. |
 | `resolv-conf-path` | string | `/tmp/resolv.conf` | Path for resolv.conf output. Default suits gokrazy (read-only rootfs). Empty disables. |
 | `timeout` | uint16 | `5` | Query timeout in seconds. Range: 1-60. |
 | `cache-size` | uint32 | `10000` | Maximum cached entries. 0 disables caching entirely. |
