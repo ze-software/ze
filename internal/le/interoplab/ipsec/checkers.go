@@ -1029,19 +1029,25 @@ func checkDeleteWhileWindowHeld(ctx context.Context, lab *scenarioLab) error {
 	return lab.waitLog(ctx, swanPeer, "received DELETE for ESP CHILD_SA", 15*time.Second)
 }
 
-// The window a refused Child SA rekey is resent in, as strongSwan sees it. Ze waits 15 s
+// The window a refused Child SA rekey is resent in, as strongSwan logs it. Ze waits 15 s
 // less up to 10% (refuseRekey, internal/component/ike/engine/inbound.go), then sends on
-// the next one-second owner-loop tick: 13.5 to 16 s. The checker reads strongSwan's log
-// once a second, so each end of the gap moves by up to a second and a log read.
+// the next one-second owner-loop tick: 13.5 to 16 s. The gap is measured between the
+// timestamps charon writes on its two N(NO_PROP) lines (the scenario's strongswan.conf
+// sets time_format and time_add_ms), never by when the checker reads them: a line can
+// reach `docker logs` late, so a read time cannot tell a late line from a fast resend.
+// The upper bound allows half a second for scheduling past the next tick.
 const (
-	childRekeyRefusedGapMin = 12 * time.Second
-	childRekeyRefusedGapMax = 18 * time.Second
+	childRekeyRefusedGapMin = 13500 * time.Millisecond
+	childRekeyRefusedGapMax = 16500 * time.Millisecond
+	// swanLogClock is the layout of the time_format and time_add_ms prefix the scenario
+	// configures: "%H:%M:%S" followed by ".mmm".
+	swanLogClock = "15:04:05.000"
 )
 
 var (
 	// swanChildRekeyRefused matches strongSwan answering a CREATE_CHILD_SA with
-	// NO_PROPOSAL_CHOSEN alone.
-	swanChildRekeyRefused = regexp.MustCompile(`generating CREATE_CHILD_SA response \d+ \[ N\(NO_PROP\) \]`)
+	// NO_PROPOSAL_CHOSEN alone, and captures the timestamp charon wrote on the line.
+	swanChildRekeyRefused = regexp.MustCompile(`(?m)^(\d{2}:\d{2}:\d{2}\.\d{3}) .*generating CREATE_CHILD_SA response \d+ \[ N\(NO_PROP\) \]`)
 	// swanRekeyInvalidKE matches strongSwan answering a CREATE_CHILD_SA with
 	// INVALID_KE_PAYLOAD alone.
 	swanRekeyInvalidKE = regexp.MustCompile(`generating CREATE_CHILD_SA response \d+ \[ N\(INVAL_KE\) \]`)
@@ -1075,15 +1081,17 @@ func checkChildRekeyRefusedKeepsTheSA(ctx context.Context, lab *scenarioLab) err
 	if err := lab.verifyTunnelTraffic(ctx, "no ESP traffic over the Child SA before its rekey"); err != nil {
 		return err
 	}
-	first, err := waitChildRekeyRefusals(ctx, lab, 1, 75*time.Second)
-	if err != nil {
+	if _, err := waitChildRekeyRefusals(ctx, lab, 1, 75*time.Second); err != nil {
 		return fmt.Errorf("strongSwan never refused Ze's Child SA rekey, so the scenario proves nothing: %w", err)
 	}
-	second, err := waitChildRekeyRefusals(ctx, lab, 2, childRekeyRefusedGapMax+2*time.Second)
+	logs, err := waitChildRekeyRefusals(ctx, lab, 2, childRekeyRefusedGapMax+2*time.Second)
 	if err != nil {
 		return fmt.Errorf("ze did not send the refused Child SA rekey again after its wait: %w", err)
 	}
-	gap := second.Sub(first)
+	gap, err := childRekeyRefusalGap(logs)
+	if err != nil {
+		return err
+	}
 	if gap < childRekeyRefusedGapMin {
 		return fmt.Errorf("ze resent the refused Child SA rekey %v after strongSwan refused it, under the owner's wait of 13.5 to 15 s", gap)
 	}
@@ -1109,14 +1117,39 @@ func checkChildRekeyRefusedKeepsTheSA(ctx context.Context, lab *scenarioLab) err
 }
 
 // waitChildRekeyRefusals waits until strongSwan has refused count Child SA rekeys, and
-// answers the time the checker read the count-th.
-func waitChildRekeyRefusals(ctx context.Context, lab *scenarioLab, count int, timeout time.Duration) (time.Time, error) {
-	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+// answers the log that holds them.
+func waitChildRekeyRefusals(ctx context.Context, lab *scenarioLab, count int, timeout time.Duration) (string, error) {
+	logs, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: timeout, Interval: time.Second, Description: "strongSwan N(NO_PROP) answer to a Child SA rekey",
 	}, func(probe context.Context) (string, error) { return lab.logs(probe, swanPeer) }, func(logs string) bool {
 		return len(swanChildRekeyRefused.FindAllStringIndex(logs, -1)) >= count
 	})
-	return time.Now(), err
+	return logs, err
+}
+
+// childRekeyRefusalGap answers the time between strongSwan's first two N(NO_PROP) answers
+// to a Child SA rekey, read from the timestamps charon wrote on those lines. The
+// timestamps carry no date, so a second line stamped earlier than the first crossed
+// midnight. It fails when the log holds fewer than two refusals or a stamp does not
+// parse, because then no gap was measured.
+func childRekeyRefusalGap(logs string) (time.Duration, error) {
+	matches := swanChildRekeyRefused.FindAllStringSubmatch(logs, 2)
+	if len(matches) < 2 {
+		return 0, fmt.Errorf("strongSwan's log holds %d timestamped N(NO_PROP) answers, the gap needs 2: check that the scenario's strongswan.conf sets time_format and time_add_ms", len(matches))
+	}
+	first, err := time.Parse(swanLogClock, matches[0][1])
+	if err != nil {
+		return 0, fmt.Errorf("strongSwan's first refusal timestamp %q does not parse: %w", matches[0][1], err)
+	}
+	second, err := time.Parse(swanLogClock, matches[1][1])
+	if err != nil {
+		return 0, fmt.Errorf("strongSwan's second refusal timestamp %q does not parse: %w", matches[1][1], err)
+	}
+	gap := second.Sub(first)
+	if gap < 0 {
+		gap += 24 * time.Hour
+	}
+	return gap, nil
 }
 
 // checkIKERekeyRetriesInTheNamedGroup holds ze to the owner's rule for an IKE SA rekey
