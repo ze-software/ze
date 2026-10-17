@@ -171,6 +171,26 @@ func RegisterBackend(name string, factory func() (Backend, error)) error {
 	return nil
 }
 
+// UnregisterBackendForTest removes a factory RegisterBackend added, so a test
+// that registers its own backend leaves the process-wide registry as it found
+// it and the same test can run again under -count. Production never removes a
+// backend: each registers once, from init(). It MUST be called after
+// CloseBackend has unloaded the backend: removing the active one is refused,
+// as is a name nobody registered.
+func UnregisterBackendForTest(name string) error {
+	backendsMu.Lock()
+	defer backendsMu.Unlock()
+
+	if _, exists := backends[name]; !exists {
+		return fmt.Errorf("firewall: backend %q is not registered, so there is nothing to unregister", name)
+	}
+	if ActiveBackendName() == name {
+		return fmt.Errorf("firewall: backend %q is still active: call CloseBackend before unregistering it", name)
+	}
+	delete(backends, name)
+	return nil
+}
+
 // LoadBackend creates and activates the named backend. Called by the firewall
 // component during OnConfigure. Returns an error if the name is not registered.
 // The previous backend is kept alive until the new one is successfully created.

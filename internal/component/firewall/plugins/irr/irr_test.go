@@ -120,7 +120,8 @@ func setsByName(tbl firewall.Table) map[string]firewall.Set {
 
 // useRecordingBackend makes this test's applies land in memory instead of the
 // kernel. The backend name is the test's own, because a registration is global
-// and refusing a duplicate is how the registry protects it.
+// and refusing a duplicate is how the registry protects it, and the cleanup
+// unregisters it, so a second pass under -count registers it again.
 func useRecordingBackend(t *testing.T) *recordingBackend {
 	t.Helper()
 	b := &recordingBackend{}
@@ -128,6 +129,12 @@ func useRecordingBackend(t *testing.T) *recordingBackend {
 	if err := firewall.RegisterBackend(name, func() (firewall.Backend, error) { return b, nil }); err != nil {
 		t.Fatalf("RegisterBackend: %v", err)
 	}
+	// Registered first, so it runs after the CloseBackend cleanup below.
+	t.Cleanup(func() {
+		if err := firewall.UnregisterBackendForTest(name); err != nil {
+			t.Errorf("UnregisterBackendForTest: %v", err)
+		}
+	})
 	if err := firewall.LoadBackend(name); err != nil {
 		t.Fatalf("LoadBackend: %v", err)
 	}
@@ -492,13 +499,19 @@ func (panickingBackend) GetCounters(string) ([]firewall.ChainCounters, error) { 
 func (panickingBackend) Close() error { return nil }
 
 // usePanickingBackend installs it for this test alone, under the test's own
-// name because a backend registration is global.
+// name because a backend registration is global, and unregisters it after.
 func usePanickingBackend(t *testing.T) {
 	t.Helper()
 	name := "panicking-" + t.Name()
 	if err := firewall.RegisterBackend(name, func() (firewall.Backend, error) { return panickingBackend{}, nil }); err != nil {
 		t.Fatalf("RegisterBackend: %v", err)
 	}
+	// Registered first, so it runs after the CloseBackend cleanup below.
+	t.Cleanup(func() {
+		if err := firewall.UnregisterBackendForTest(name); err != nil {
+			t.Errorf("UnregisterBackendForTest: %v", err)
+		}
+	})
 	if err := firewall.LoadBackend(name); err != nil {
 		t.Fatalf("LoadBackend: %v", err)
 	}

@@ -21,6 +21,12 @@ func testBridge(t *testing.T) *bridge {
 		name := "flowspec-unit-" + t.Name()
 		backend := &lowerOnlyCanonicalBackend{}
 		require.NoError(t, firewall.RegisterBackend(name, func() (firewall.Backend, error) { return backend, nil }))
+		// Registered first, so it runs after the CloseBackend cleanup below.
+		t.Cleanup(func() {
+			if err := firewall.UnregisterBackendForTest(name); err != nil {
+				t.Errorf("UnregisterBackendForTest: %v", err)
+			}
+		})
 		require.NoError(t, firewall.LoadBackend(name))
 		t.Cleanup(func() {
 			_ = firewall.RegisterTables("flowspec", nil)

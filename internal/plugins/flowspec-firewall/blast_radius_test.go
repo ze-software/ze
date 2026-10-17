@@ -97,6 +97,12 @@ func TestApplyRulesRejectsUntranslatableRuleAndKeepsOthers(t *testing.T) {
 	require.NoError(t, firewall.RegisterBackend(backendName, func() (firewall.Backend, error) {
 		return be, nil
 	}))
+	// Registered first, so it runs after the CloseBackend cleanup below.
+	t.Cleanup(func() {
+		if err := firewall.UnregisterBackendForTest(backendName); err != nil {
+			t.Errorf("UnregisterBackendForTest: %v", err)
+		}
+	})
 	require.NoError(t, firewall.LoadBackend(backendName))
 	t.Cleanup(func() {
 		_ = firewall.RegisterTables("flowspec", nil)

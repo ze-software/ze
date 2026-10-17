@@ -33,6 +33,38 @@ func TestBackendRegistration(t *testing.T) {
 	}
 }
 
+// VALIDATES: UnregisterBackendForTest refuses a name nobody registered and the
+// active backend, and after CloseBackend removes the name so it registers again.
+// PREVENTS: a test helper unregistering the backend still in use, and the
+// -count>1 duplicate refusal the seam exists to clear.
+func TestUnregisterBackendForTest(t *testing.T) {
+	resetBackends()
+	t.Cleanup(resetBackends)
+
+	factory := func() (Backend, error) { return &fakeBackend{}, nil }
+	if err := UnregisterBackendForTest("again"); err == nil {
+		t.Fatal("unregistering a name nobody registered should fail")
+	}
+	if err := RegisterBackend("again", factory); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	if err := LoadBackend("again"); err != nil {
+		t.Fatalf("LoadBackend: %v", err)
+	}
+	if err := UnregisterBackendForTest("again"); err == nil {
+		t.Fatal("unregistering the active backend should fail")
+	}
+	if err := CloseBackend(); err != nil {
+		t.Fatalf("CloseBackend: %v", err)
+	}
+	if err := UnregisterBackendForTest("again"); err != nil {
+		t.Fatalf("unregister after CloseBackend: %v", err)
+	}
+	if err := RegisterBackend("again", factory); err != nil {
+		t.Errorf("register after unregister: %v", err)
+	}
+}
+
 // VALIDATES: AC-6 duplicate backend name rejected.
 // PREVENTS: silent overwrite of registered backends.
 func TestBackendDuplicateRejected(t *testing.T) {
