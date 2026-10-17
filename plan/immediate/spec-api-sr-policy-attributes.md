@@ -26,6 +26,13 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+**SUPERSEDED on 2026-10-17 by `plan/immediate/spec-exabgp-6-api-compatibility.md` (Phase 5).**
+Its design question is decided there (Key Design Decisions, "SR Policy attributes through
+the API": the API section reaches `parseConfigRoute` through the registry), and its evidence
+is carried there. Do not implement from this file. Its removal goes through
+`./le commit create ... remove plan/immediate/spec-api-sr-policy-attributes.md`, which needs
+the independent-review artifact `CheckReview` asks of any spec removal.
+
 ## Task
 
 The API cannot originate an SR Policy (SAFI 73) with any of its attributes.
