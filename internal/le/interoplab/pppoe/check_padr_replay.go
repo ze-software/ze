@@ -35,6 +35,14 @@ const replayRoundTripBound = 5 * time.Second
 // namespace that the replay is sent on -- the same one pppd dials through.
 const replayInterface = "eth0"
 
+// overCapDialMarker is the ipparam the over-cap dial's pppd carries, and the
+// pattern that stops it. The original dial's pppd is still running then and
+// owns the session the cap is counting, so a stop selected by the executable
+// name (pkill -x pppd) would close that session too, and the checker would
+// then read the empty table as a failed cap. pppd hands ipparam only to its
+// ip-up and ip-down scripts, so the marker never reaches the wire.
+const overCapDialMarker = "ze-over-cap-dial"
+
 // checkZeAccessConcentratorPADRReplay proves two things a unit test cannot,
 // both against a real pppd client on the wire:
 //
@@ -218,16 +226,20 @@ func checkSecondDialAtCapIsRefused(ctx context.Context, lab interoplab.CheckerLa
 	if err := startDiscoveryCapture(ctx, lab); err != nil {
 		return err
 	}
-	if err := pppdDial(ctx, lab, pppdPassword, pppoeService); err != nil {
+	if err := pppdStart(
+		ctx, lab, pppdPassword, pppoeService, refusePAP, []string{"ipparam", overCapDialMarker},
+	); err != nil {
 		return err
 	}
 	if err := waitFixed(ctx, replayRoundTripBound); err != nil {
 		return err
 	}
-	// Best-effort cleanup: this scenario proves what the AC put on the wire,
-	// not how the refused client reacts to it, so a dial that has already
-	// given up on its own leaves pkill nothing to signal.
-	_, _ = exec(ctx, lab, clientImageName, []string{commandPkill, "-TERM", "-x", pppdExecutable})
+	// Best-effort cleanup of the over-cap dial's pppd alone: this scenario
+	// proves what the AC put on the wire, not how the refused client reacts
+	// to it, so a dial that has already given up on its own leaves pkill
+	// nothing to signal. The original dial's pppd keeps running, and with it
+	// the session the cap is counting (overCapDialMarker).
+	_, _ = exec(ctx, lab, clientImageName, []string{commandPkill, "-TERM", "-f", overCapDialMarker})
 
 	capture, err := stopDiscoveryCapture(ctx, lab)
 	if err != nil {
@@ -244,6 +256,12 @@ func checkSecondDialAtCapIsRefused(ctx context.Context, lab interoplab.CheckerLa
 	sessions, err := zeSessions(ctx, lab)
 	if err != nil {
 		return err
+	}
+	// Zero sessions and two sessions are different failures: the first means
+	// the session the cap was counting closed during the over-cap dial, the
+	// second that the cap let the dial through.
+	if len(sessions) == 0 {
+		return errors.New("the first session closed during the over-cap dial: ze now reports 0 sessions, want 1")
 	}
 	if len(sessions) != 1 {
 		return fmt.Errorf("the per-MAC cap did not hold: ze now reports %d sessions, want 1", len(sessions))

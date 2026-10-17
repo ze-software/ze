@@ -440,6 +440,20 @@ func pppdDialRefusing(
 	service string,
 	refused string,
 ) error {
+	return pppdStart(ctx, lab, password, service, refused, nil)
+}
+
+// pppdStart is pppdDialRefusing with extra appended to pppd's own arguments,
+// for a caller that must tell this pppd apart from another one running in the
+// same container (checkSecondDialAtCapIsRefused).
+func pppdStart(
+	ctx context.Context,
+	lab interoplab.CheckerLab,
+	password string,
+	service string,
+	refused string,
+	extra []string,
+) error {
 	const username = pppdUsername
 
 	var tb textbuf.Buffer
@@ -486,6 +500,7 @@ func pppdDialRefusing(
 	if service != "" {
 		arguments = append(arguments, "rp_pppoe_service", service)
 	}
+	arguments = append(arguments, extra...)
 	shell := tb.Reset().Str("exec ").Join(arguments, " ").Str(" >").
 		Str(pppdLogPath).Str(" 2>&1").String()
 	if err := lab.ExecDetached(

@@ -158,7 +158,12 @@ genuinely independent session from the same MAC and requires the PADS it
 provokes to carry session id `0x0000` and an AC-System-Error tag, read off the
 captured frame -- a session count that stayed at one is not enough evidence on
 its own for either claim (`ai/rules/interop-and-goal-validation.md`, "Prove a
-scenario discriminates"). `spec-pppoe-padr-replay-allocates-unbounded-sessions`.
+scenario discriminates"). The first dial's pppd is still running during the
+second dial and owns the session the cap counts, so the second pppd carries
+`ipparam ze-over-cap-dial` and the checker stops only that one (`pkill -f`).
+Ze's table must still list the first session afterwards.
+`TestOverCapDialCleanupSparesTheLiveSession` reproduces the failure a stop of
+every pppd caused. `spec-pppoe-padr-replay-allocates-unbounded-sessions`.
 
 ### pppoe-pap-ze-ac
 

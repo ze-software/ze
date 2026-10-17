@@ -4,12 +4,17 @@ package pppoe
 
 import (
 	"bytes"
+	"context"
+	"encoding/base64"
+	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	discovery "github.com/ze-software/ze/internal/component/l2tp/pppoe"
 	"github.com/ze-software/ze/internal/core/pcap"
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 var (
@@ -198,5 +203,126 @@ func TestObserveDiscoveryFramesFailsClosedOnACorruptFrame(t *testing.T) {
 	capture := buildCapture(t, []byte{0x00, 0x01, 0x02})
 	if _, err := observeDiscoveryFrames(capture); err == nil || !strings.Contains(err.Error(), "did not parse") {
 		t.Fatalf("corrupt-frame error = %v, want a parse complaint", err)
+	}
+}
+
+// clientProcesses models the client container's process table for the
+// over-cap dial: each entry is one running command line, keyed by the
+// executable pkill -x matches. The first entry is the pppd that owns the one
+// live session, and Ze reports that session over REST only while it runs.
+type clientProcesses struct {
+	running []string
+}
+
+// liveSessionPPPD is the command line of the original dial's pppd, the one
+// that holds the session the per-MAC cap is counting.
+const liveSessionPPPD = "pppd plugin pppoe.so nic-eth0 user alice nodetach debug"
+
+// start records the command a detached `sh -c "...; exec <cmd> ..."` runs.
+func (p *clientProcesses) start(argv []string) {
+	shell := argv[len(argv)-1]
+	_, command, found := strings.Cut(shell, "exec ")
+	if !found {
+		return
+	}
+	p.running = append(p.running, command)
+}
+
+// executable is the first word of a command line.
+func executable(command string) string {
+	name, _, _ := strings.Cut(command, " ")
+	return name
+}
+
+// signal applies pkill's two selectors the checker uses: -x matches the
+// executable name exactly, -f matches anywhere in the full command line.
+func (p *clientProcesses) signal(argv []string) {
+	selector, pattern := argv[len(argv)-2], argv[len(argv)-1]
+	kept := p.running[:0]
+	for _, command := range p.running {
+		matched := false
+		switch selector {
+		case "-x":
+			matched = executable(command) == pattern
+		case "-f":
+			matched = strings.Contains(command, pattern)
+		}
+		if !matched {
+			kept = append(kept, command)
+		}
+	}
+	p.running = kept
+}
+
+func (p *clientProcesses) runs(name string) bool {
+	for _, command := range p.running {
+		if executable(command) == name {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *clientProcesses) sessionLive() bool {
+	return slices.Contains(p.running, liveSessionPPPD)
+}
+
+func TestOverCapDialCleanupSparesTheLiveSession(t *testing.T) {
+	// VALIDATES: after the over-cap dial is refused, the checker stops only
+	// the pppd it started for that dial, so the session the cap is counting
+	// is still in Ze's table when the checker reads it.
+	// PREVENTS: the nightly pppoe-padr-replay red of 2026-10-17 (run
+	// 39015310430): a cleanup of `pkill -x pppd` also stopped the original
+	// dial's pppd, which closed the live session, so the checker read 0
+	// sessions and blamed the per-MAC cap. Method: a fake client container
+	// whose process table pkill acts on, and a Ze REST table that lists the
+	// session only while its pppd runs.
+	padr := padrFrame(t, []byte("cookie-over-cap"))
+	capture := base64.StdEncoding.EncodeToString(buildCapture(t, padr, padsErrorFrame(t, padr)))
+	processes := &clientProcesses{running: []string{liveSessionPPPD}}
+	lab := &fakeLab{
+		detachedFn: func(peer string, argv []string) error {
+			if peer != clientImageName {
+				return errors.New("unexpected detached peer " + peer)
+			}
+			processes.start(argv)
+			return nil
+		},
+		execFn: func(peer string, argv []string) (interoplab.CommandResult, error) {
+			switch argv[0] {
+			case "sh":
+				return interoplab.CommandResult{}, nil
+			case "pgrep":
+				if processes.runs(argv[len(argv)-1]) {
+					return interoplab.CommandResult{}, nil
+				}
+				return interoplab.CommandResult{ExitCode: 1}, errors.New("no process")
+			case commandPkill:
+				processes.signal(argv)
+				return interoplab.CommandResult{}, nil
+			}
+			return interoplab.CommandResult{}, errors.New("unexpected exec " + strings.Join(argv, " "))
+		},
+		queryFn: func(peer string, argv []string) (string, error) {
+			if peer == clientImageName {
+				return capture, nil
+			}
+			if !processes.sessionLive() {
+				return `{"status":"done","data":[]}`, nil
+			}
+			return `{"status":"done","data":[{"sid":1,"service-name":"internet","interface":"eth0"}]}`, nil
+		},
+	}
+
+	if err := checkSecondDialAtCapIsRefused(context.Background(), lab); err != nil {
+		t.Fatalf("checkSecondDialAtCapIsRefused: %v", err)
+	}
+	if !processes.sessionLive() {
+		t.Fatal("the over-cap cleanup stopped the pppd that holds the live session")
+	}
+	for _, command := range processes.running {
+		if executable(command) == pppdExecutable && command != liveSessionPPPD {
+			t.Fatalf("the over-cap dial's pppd is still running: %q", command)
+		}
 	}
 }
