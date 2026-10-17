@@ -24,7 +24,7 @@ func TestIRRRowsFollowTheConfiguredNotation(t *testing.T) {
 		config:      &irrConfig{Server: "whois.example.net"},
 		lastRefresh: time.Date(2026, 8, 24, 0, 0, 0, 0, time.UTC),
 		byASN: map[uint32]*asnState{
-			65546: {asn: 65546, asSet: "AS-EXAMPLE", peerAddrs: []string{"192.0.2.1"}},
+			65546: {asn: 65546, configured: "AS-EXAMPLE", asSet: "AS-EXAMPLE", peerAddrs: []string{"192.0.2.1"}},
 		},
 	}
 

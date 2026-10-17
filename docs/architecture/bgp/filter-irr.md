@@ -94,6 +94,20 @@ AS-SET's family into an answer). The first UPDATE after the edit waits, bounded,
 for the new set's resolution rather than being judged against the old one.
 The same pass purges the entry of an ASN the new config no longer enrolls.
 
+**Deleting the configured as-set is a change.** `asnState` keeps two fields:
+`configured`, the as-set the operator wrote and the only query hint, and
+`asSet`, the set the ASN last resolved under, which `show bgp irr` reports.
+With no configured set every refresh passes an empty hint, so the store asks
+PeeringDB each time and keeps its cached set during an outage: neither the
+first answer nor the `AS<asn>` literal an outage produced is pinned. A reload
+carries a state over only while `configured` is the same, including both
+empty. It cancels every state it does not carry over, so a lookup still in
+flight for it commits nothing (`store.commit`), and `forgetUnconfigured`
+purges a deleted or changed set's store entry under `plug.mu`, before the new
+states are published. Without both, `store.discoverASSet`, which keeps a
+cached entry's AS-SET when PeeringDB fails, would hand the deleted set back.
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- asnState, handleConfigure, forgetUnconfigured -->
+
 **The prefix-lists live in memory only.** The owner decided it on 2026-10-17.
 The plugin builds its `PrefixStore` with no persistence, never asks the SDK for
 its state store, and writes nothing to disk. The disk copy it used to keep cost
@@ -209,13 +223,12 @@ captured `st := byASN[asn]` under an RLock must re-read `st = byASN[asn]` under
 the later write lock before it mutates. A reconfigure can swap `byASN` in
 between, which orphans the captured pointer and loses the refresh result in
 silence. This is one bug class, not four separate races. `refreshASNCtx` also
-drops a result when the live state is not the one it captured and names
-another as-set: a lookup a reload superseded with another as-set is dropped.
-The entry it committed stays in the store until the new set's first answer
-replaces it, and it never leaks into that answer, because `store.commit` keeps
-a cached family only for the same AS-SET. It is not purged: the reload's own
-lookup may have committed the new set's entry first, and a purge would delete
-that one.
+drops a result when the live state is not the one it captured and does not
+share its lookups context: a lookup a reload superseded is dropped. The reload
+cancelled it, through a context derived from the state's so the cancel lands
+before the purge, so it either committed nothing or committed before the
+purge removed it. A reload that kept the as-set shares the context, and its
+answer is applied.
 
 **The prefix store is this plugin's own**, in memory, and holds only entries
 for ASNs it enrolled: nothing else writes to it, and `forgetUnconfigured` drops

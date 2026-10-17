@@ -67,14 +67,28 @@ func SetMetricsRegistry(reg metrics.Registry) {
 }
 
 type asnState struct {
-	asn       uint32
-	asSet     string
-	list      *irrPrefixList
-	lastOK    time.Time
-	lastErr   string
-	v4Count   int
-	v6Count   int
-	peerAddrs []string
+	asn uint32
+	// configured is the as-set the operator wrote for this ASN, empty when the
+	// config names none and PeeringDB chooses it. It changes only with config,
+	// and it is the only query hint: an empty one makes every lookup ask
+	// PeeringDB, so an upstream AS-SET change is followed on the next refresh.
+	configured string
+	// asSet is the as-set this ASN last resolved under: configured when the
+	// config names one, otherwise the one the last lookup used, empty before
+	// the first lookup. It is what `show bgp irr` reports, never the hint.
+	asSet string
+	// lookups is cancelled when a reload replaces this state with one that
+	// does not carry it over (the ASN dropped, its configured set changed or
+	// deleted), so a lookup still in flight for it commits nothing to the
+	// store (store.commit). A state carried over shares its predecessor's.
+	lookups       context.Context
+	cancelLookups context.CancelFunc
+	list          *irrPrefixList
+	lastOK        time.Time
+	lastErr       string
+	v4Count       int
+	v6Count       int
+	peerAddrs     []string
 
 	// firstDone is closed exactly once, by signalFirstResolved, when this ASN's
 	// FIRST resolution attempt completes (whether it succeeded, failed, or found
@@ -90,9 +104,34 @@ type asnState struct {
 
 // newASNState builds an enrolled ASN's state with its first-resolution signal
 // armed (open). Every ASN the configure path enrolls goes through here so
-// handleFilterUpdate always has a non-nil channel to wait on.
-func newASNState(asn uint32, asSet string) *asnState {
-	return &asnState{asn: asn, asSet: asSet, firstDone: make(chan struct{})}
+// handleFilterUpdate always has a non-nil channel to wait on, and a lookups
+// context a reload can cancel.
+func newASNState(asn uint32, configured string) *asnState {
+	lookups, cancel := context.WithCancel(context.Background())
+	return &asnState{
+		asn: asn, configured: configured, asSet: configured,
+		lookups: lookups, cancelLookups: cancel,
+		firstDone: make(chan struct{}),
+	}
+}
+
+// carriedOverBy reports whether next, the state a reload built for this ASN,
+// keeps this state's resolution: it does only while the configured as-set is
+// the same, including both being empty. A changed or deleted set answers a
+// question the operator no longer asks.
+func (st *asnState) carriedOverBy(next *asnState) bool {
+	if next == nil {
+		return false
+	}
+	return next.configured == st.configured
+}
+
+// supersede cancels this state's in-flight lookups. Safe on a test literal
+// that carries no lookups context.
+func (st *asnState) supersede() {
+	if st.cancelLookups != nil {
+		st.cancelLookups()
+	}
 }
 
 // signalFirstResolved closes firstDone the first time the ASN's resolution
@@ -268,7 +307,8 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 			newByASN[peer.RemoteASN] = st
 		}
 		st.peerAddrs = append(st.peerAddrs, peer.PeerAddr)
-		if peer.ASSet != "" && st.asSet == "" {
+		if peer.ASSet != "" && st.configured == "" {
+			st.configured = peer.ASSet
 			st.asSet = peer.ASSet
 		}
 	}
@@ -276,26 +316,28 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 	// All mutable plugin fields are published under plug.mu so a concurrent
 	// `show bgp irr` / refresh never reads a half-updated configure.
 	plug.mu.Lock()
-	for asn, newSt := range newByASN {
-		oldSt, ok := plug.byASN[asn]
-		if !ok {
-			continue
-		}
+	oldByASN := plug.byASN
+	for asn, oldSt := range oldByASN {
+		newSt := newByASN[asn]
 		// A list resolved for another AS-SET answers a question the operator
 		// no longer asks. Carrying it over would filter against the old set,
 		// with firstDone already signaled, until the next refresh: the edit
-		// would be accepted and not enforced.
-		if newSt.asSet != "" && newSt.asSet != oldSt.asSet {
+		// would be accepted and not enforced. Deleting the configured set is
+		// a change too, because PeeringDB chooses the set again. The old
+		// state's lookups are cancelled, so one in flight commits nothing
+		// that store.discoverASSet could later hand back as its fallback.
+		if !oldSt.carriedOverBy(newSt) {
+			oldSt.supersede()
 			continue
 		}
+		newSt.supersede() // its own context is replaced by the one it inherits
+		newSt.lookups, newSt.cancelLookups = oldSt.lookups, oldSt.cancelLookups
+		newSt.asSet = oldSt.asSet
 		newSt.list = oldSt.list
 		newSt.lastOK = oldSt.lastOK
 		newSt.lastErr = oldSt.lastErr
 		newSt.v4Count = oldSt.v4Count
 		newSt.v6Count = oldSt.v6Count
-		if newSt.asSet == "" && oldSt.asSet != "" {
-			newSt.asSet = oldSt.asSet
-		}
 		// A reconfigure that carries over a resolved list has already cleared the
 		// first-resolution window for this ASN: a filter UPDATE must not wait for
 		// the upcoming re-resolution. Arm the new state as already-resolved.
@@ -303,7 +345,11 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 			newSt.signalFirstResolved()
 		}
 	}
-	oldByASN := plug.byASN
+	// The purge runs before the new states are published: a refresh that reads
+	// a new state must find the store already without the entries it drops, or
+	// with PeeringDB down discoverASSet hands a deleted set back. The store
+	// takes only its own lock and never calls back, so holding plug.mu is safe.
+	forgetUnconfigured(ps, oldByASN, newByASN)
 	plug.byASN = newByASN
 	plug.prefixStore = ps
 	plug.config = cfg
@@ -313,8 +359,6 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 	plug.refreshStop = make(chan struct{})
 	refreshStop := plug.refreshStop
 	plug.mu.Unlock()
-
-	forgetUnconfigured(ps, oldByASN, newByASN)
 
 	// A prefix held for a peer this config no longer filters under that ASN
 	// has no list to be re-evaluated against, and no peer to ask.
@@ -367,12 +411,16 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 }
 
 // forgetUnconfigured drops from the store every entry the new config no longer
-// asks for: an ASN no longer enrolled, and an ASN whose configured as-set is not
-// the one its entry was resolved for. store.commit keeps a cached family only
-// for the same AS-SET, so an old-set entry cannot hand its prefixes to the new
-// set; purging it keeps the store to the sets the config names.
+// asks for: an ASN no longer enrolled, an ASN whose configured as-set is not
+// the one its entry was resolved for, and an ASN whose configured as-set the
+// new config deleted. store.commit keeps a cached family only for the same
+// AS-SET, so an old-set entry cannot hand its prefixes to the new set; purging
+// it keeps the store to the sets the config names. The deleted set's entry
+// must go too, because store.discoverASSet keeps a cached entry's AS-SET when
+// PeeringDB fails, and it would hand the deleted set back.
 // This is the store's half of "a changed as-set starts from no list";
-// handleConfigure's carry-over rule is the plugin's half.
+// handleConfigure's carry-over rule is the plugin's half. The caller MUST hold
+// plug.mu, so no refresh reads a new state before the purge.
 func forgetUnconfigured(ps *store.PrefixStore, oldByASN, newByASN map[uint32]*asnState) {
 	for asn := range oldByASN {
 		if _, kept := newByASN[asn]; !kept {
@@ -380,14 +428,17 @@ func forgetUnconfigured(ps *store.PrefixStore, oldByASN, newByASN map[uint32]*as
 		}
 	}
 	for asn, st := range newByASN {
-		if st.asSet == "" {
+		if st.configured == "" {
+			if old := oldByASN[asn]; old != nil && old.configured != "" {
+				ps.Purge(asnName(asn))
+			}
 			continue // the as-set is discovered, so no configured one to differ from
 		}
 		entry := ps.Get(asnName(asn))
 		if entry == nil {
 			continue
 		}
-		if entry.ASSet != st.asSet {
+		if entry.ASSet != st.configured {
 			ps.Purge(asnName(asn))
 		}
 	}
@@ -717,7 +768,7 @@ func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 	ps := plug.prefixStore
 	asSet := ""
 	if st != nil {
-		asSet = st.asSet
+		asSet = st.configured
 	}
 	plug.mu.RUnlock()
 	if st == nil || ps == nil {
@@ -729,7 +780,24 @@ func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 
 	// The store owns AS-SET discovery (PeeringDB), the IRR query, and the
 	// in-memory last-known-good. The ASN is the stable identity/key; the
-	// configured (or previously-discovered) AS-SET is passed as a hint.
+	// configured AS-SET is passed as a hint, and an empty one makes the store
+	// ask PeeringDB on every refresh, keeping its cached set on an outage.
+	// A reload that supersedes this state cancels the lookup, and the store
+	// then commits nothing. A test literal carries no lookups context.
+	// The lookup's context descends from the state's, so the reload's cancel
+	// reaches it synchronously, before the reload purges the store; an
+	// AfterFunc would cancel later, on its own goroutine, and the commit could
+	// slip in between. The caller's ctx contributes its deadline only:
+	// refreshASN, the one caller, derives it from Background.
+	if captured.lookups != nil {
+		var cancel context.CancelFunc
+		if deadline, ok := ctx.Deadline(); ok {
+			ctx, cancel = context.WithDeadline(captured.lookups, deadline)
+		} else {
+			ctx, cancel = context.WithCancel(captured.lookups)
+		}
+		defer cancel()
+	}
 	// The store was built with no persistence (handleConfigure), so Refresh
 	// writes nothing durable and nothing between the IRR answer and the
 	// published list waits on a disk.
@@ -745,17 +813,16 @@ func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 		plug.mu.Unlock()
 		return
 	}
-	if st != captured && st.asSet != asSet {
-		// A reload changed this ASN's as-set while the lookup ran, so the answer
-		// is for a set the config no longer names. Applying it would filter
-		// against the old set, so drop it. The reload's own resolution answers
-		// for the new set. A reload that kept the as-set also replaces st, and
-		// its answer is still the right one, so the as-set decides, not the
-		// pointer alone. The entry this lookup committed stays in the store
-		// until the new set's first answer replaces it: store.commit never
-		// merges another AS-SET's family, so it cannot leak into that answer,
-		// and purging it here could delete the new set's entry when the
-		// reload's lookup committed first.
+	if st != captured && st.lookups != captured.lookups {
+		// A reload changed or deleted this ASN's as-set while the lookup ran,
+		// so the answer is for a set the config no longer names. Applying it
+		// would filter against the old set, so drop it. The reload's own
+		// resolution answers for the new config. A reload that kept the as-set
+		// also replaces st, but carries the lookups context over, and its
+		// answer is still the right one, so the context decides, not the
+		// pointer alone. The reload cancelled this lookup, so if it had not
+		// committed by then it committed nothing; one that committed first
+		// was purged by the reload, under the same lock order.
 		liveASSet := st.asSet
 		plug.mu.Unlock()
 		logger().Debug("irr: dropped a lookup a reload superseded", "asn", asn, "as-set", asSet, "live-as-set", liveASSet)
@@ -763,14 +830,15 @@ func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 	}
 	if entry != nil {
 		// Record the resolved AS-SET even on a failed lookup, so `show bgp irr`
-		// reflects the fallback name and later refreshes reuse it.
+		// reflects the fallback name.
 		st.asSet = entry.ASSet
 	}
 	if err != nil {
 		st.lastErr = err.Error()
+		queried := st.asSet
 		st.signalFirstResolved()
 		plug.mu.Unlock()
-		logger().Warn("irr: lookup failed", "asn", asn, "as-set", asSet, "error", err)
+		logger().Warn("irr: lookup failed", "asn", asn, "as-set", queried, "error", err)
 		incRefreshOutcome("error")
 		return
 	}

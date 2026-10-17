@@ -130,6 +130,15 @@ A commit that changes a peer's `as-set`, the IRR `server`, or a peer's
 `import [ bgp-filter-irr:<asn> ]` takes effect on the running filter. A changed
 as-set does not inherit the list of the old one: the next UPDATE from that peer
 waits a few seconds for the new set to resolve, then is filtered against it.
+Deleting the `as-set` counts as a change: Ze asks PeeringDB again, as it would
+for a peer that never named one, and filters against the set PeeringDB returns.
+If PeeringDB does not answer, Ze queries `AS<asn>` itself until the next
+refresh after PeeringDB answers. With no `as-set`, every refresh asks PeeringDB,
+and Ze caches each PeeringDB answer for an hour, so a change to the registered
+AS-SET is followed at the first refresh after the cached answer expires: up to
+about two hours at the default `refresh-interval` of 3600 seconds, and up to a
+day at 86400. A configuration reload starts a new PeeringDB cache, so the next
+refresh after a reload sees the change.
 <!-- source: internal/component/bgp/plugins/filter_irr/config_tx.go -- newIRRConfigTx -->
 <!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx.Apply -->
 <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- handleConfigure -->

@@ -98,7 +98,12 @@ PeeringDB client is configured, or when PeeringDB fails and nothing is cached.
 A PeeringDB failure for a cached name keeps the AS-SET the entry was resolved
 for, so an outage never changes the queried set (`discoverASSet`). PeeringDB
 reports an ASN it does not know as an error, so that case also keeps the
-cached set.
+cached set. The PeeringDB client caches each answer for an hour, and a caller asks only
+when it refreshes, so an upstream AS-SET change is followed at the first
+refresh after the cached answer expires: up to about two hours at
+bgp-filter-irr's default `refresh-interval` of 3600 seconds, and up to a day at
+86400. A reload resets the cache, because `handleConfigure` builds a new
+PeeringDB client.
 
 The BGP `filter_irr` and `firewall-irr` plugins each keep a `PrefixStore`.
 The BGP filter's is memory only: it is built with no persistence, so it writes
@@ -150,6 +155,11 @@ A refresh for another AS-SET that learns nothing leaves the stored entry
 labeled with the set its prefixes were resolved for (`markStale`), so the next
 answer for the new set is not merged either. The entry `Refresh` returns on that
 path names the queried set and carries the prefixes still enforced.
+A lookup whose context is cancelled before the install commits nothing: the
+check runs under the store lock, `Refresh` returns the context's error and the
+entry still enforced. bgp-filter-irr cancels the lookups a reload superseded,
+so an answer nobody wants never becomes the cached AS-SET `discoverASSet`
+falls back to.
 <!-- source: internal/component/resolve/irr/store/store.go -- commit -->
 
 `CachedEntry.Stale` reports the condition, and `Purge` is the deliberate way to

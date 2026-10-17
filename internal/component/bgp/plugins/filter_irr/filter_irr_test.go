@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"net/netip"
 	"strings"
 	"sync"
@@ -27,7 +29,7 @@ func TestRefreshSwapsAtomically(t *testing.T) {
 	})
 	plug := &irrPlugin{
 		byASN: map[uint32]*asnState{
-			65001: {asn: 65001, asSet: "AS-TEST", list: &irrPrefixList{entries: initial}},
+			65001: {asn: 65001, configured: "AS-TEST", asSet: "AS-TEST", list: &irrPrefixList{entries: initial}},
 		},
 		stopCh: make(chan struct{}),
 	}
@@ -433,7 +435,7 @@ func TestUpdateASNUnknownASN(t *testing.T) {
 // VALIDATES: `update bgp irr as-set <as-set>` for an AS-SET used by no peer fails.
 func TestUpdateASSetUnused(t *testing.T) {
 	plug := &irrPlugin{byASN: map[uint32]*asnState{
-		65010: {asn: 65010, asSet: "AS-OTHER"},
+		65010: {asn: 65010, configured: "AS-OTHER", asSet: "AS-OTHER"},
 	}}
 	status, _, err := plug.updateASSet([]string{"AS-NOBODY"})
 	if status != statusError || err == nil {
@@ -534,7 +536,7 @@ func fakeIRRv4Hook(t *testing.T, v4 map[string]string, onQuery func(query string
 func TestFilterIRRUsesStore(t *testing.T) {
 	addr := fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"})
 	plug := &irrPlugin{
-		byASN:       map[uint32]*asnState{65001: {asn: 65001, asSet: "AS-TEST"}},
+		byASN:       map[uint32]*asnState{65001: {asn: 65001, configured: "AS-TEST", asSet: "AS-TEST"}},
 		prefixStore: store.New(irr.NewIRR(addr), nil, nil),
 	}
 
@@ -817,9 +819,16 @@ func TestShowIRRServerEscaped(t *testing.T) {
 
 // irrConfigFor builds the bgp subtree handleConfigure reads: one peer of AS
 // 65001 importing bgp-filter-irr:65001 with the given as-set, resolved against
-// server, or, with an empty asn, a config that enrolls nothing.
+// server, or, with an empty asn, a config that enrolls nothing. PeeringDB is
+// unreachable, so a discovery falls back.
 func irrConfigFor(server, asn, asSet string) map[string]any {
-	policy := map[string]any{"irr": map[string]any{"server": server, "peeringdb-url": "http://127.0.0.1:1"}}
+	return irrConfigWithPeeringDB(server, "http://127.0.0.1:1", asn, asSet)
+}
+
+// irrConfigWithPeeringDB is irrConfigFor with the PeeringDB URL a discovery
+// queries.
+func irrConfigWithPeeringDB(server, peeringDBURL, asn, asSet string) map[string]any {
+	policy := map[string]any{"irr": map[string]any{"server": server, "peeringdb-url": peeringDBURL}}
 	if asn == "" {
 		return map[string]any{"policy": policy}
 	}
@@ -903,15 +912,13 @@ func TestHandleConfigureForgetsUnconfiguredEntries(t *testing.T) {
 }
 
 // VALIDATES: a lookup a reload superseded by changing the ASN's as-set is
-// dropped: the live state keeps the new as-set and no list. The old-set entry
-// the lookup committed stays in the store, labeled AS-OLD, and the new set's
-// next refresh, which learns nothing, neither relabels it nor hands its set
-// back to the live state.
+// dropped, and the cancelled AS-OLD lookup commits nothing: the live state
+// keeps the new as-set and no list, and the store holds no AS-OLD entry, also
+// after a second refresh for AS-NEW that learns nothing.
 // PREVENTS: the in-flight refresh applying the old set's answer to the new
 // state (the filter then enforces a set the config no longer names, with
-// firstDone closed), and a failed AS-NEW refresh relabeling the AS-OLD entry
-// (store.markStale), which would let AS-NEW's next one-family answer keep
-// AS-OLD's other family, or reverting the live as-set to AS-OLD.
+// firstDone closed), or committing an AS-OLD entry the reload no longer wants.
+// The store tests own the guard that a failed lookup never relabels an entry.
 // Method: the fake IRR reconfigures to AS-NEW while it is answering the
 // AS-OLD query, so the reload lands between the lookup and its apply. A second
 // refresh then queries AS-NEW, which the fake IRR holds nothing for.
@@ -952,8 +959,8 @@ func TestRefreshDropsLookupAReloadSuperseded(t *testing.T) {
 	if list != nil {
 		t.Errorf("live list = %v after a failed AS-NEW refresh, want none", list.entries)
 	}
-	if entry := plug.prefixStore.Get("AS65001"); entry == nil || entry.ASSet != "AS-OLD" {
-		t.Errorf("store entry = %+v, want the AS-OLD entry still labeled AS-OLD", entry)
+	if entry := plug.prefixStore.Get("AS65001"); entry != nil {
+		t.Errorf("store entry = %+v, want none: the reload cancelled the AS-OLD lookup, so it commits nothing", entry)
 	}
 }
 
@@ -1019,5 +1026,269 @@ func TestConfigureBeforeStartedQueriesNothing(t *testing.T) {
 	}
 	if plug.byASN[65001] == nil {
 		t.Error("ASN 65001 was not enrolled: the test would pass with nothing to resolve")
+	}
+}
+
+// fakePeeringDBCounting answers /api/net?asn=<n> with the AS-SET asSetByASN
+// holds for n, or with no record, and counts the lookups it answers.
+func fakePeeringDBCounting(t *testing.T, asSetByASN map[string]string, lookups *atomic.Int32) string {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		lookups.Add(1)
+		set, ok := asSetByASN[r.URL.Query().Get("asn")]
+		if !ok {
+			if _, err := w.Write([]byte(`{"data":[]}`)); err != nil {
+				return
+			}
+			return
+		}
+		if _, err := fmt.Fprintf(w, `{"data":[{"irr_as_set":%q}]}`, set); err != nil {
+			return
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return srv.URL
+}
+
+// VALIDATES: deleting the configured as-set hands the choice back to
+// PeeringDB: the reload carries no list over, and the next refresh asks
+// PeeringDB and filters against the set it names.
+// PREVENTS: the removed as-set riding the carry-over as the query hint, so
+// discovery never runs and the ASN keeps filtering against a set the operator
+// deleted until the plugin restarts.
+// Method: resolve AS-OLD from config, reload with no as-set, refresh, and
+// check PeeringDB was asked and its AS-PDB answer is live.
+func TestRemovingConfiguredASSetRediscoversThroughPeeringDB(t *testing.T) {
+	var lookups atomic.Int32
+	pdbURL := fakePeeringDBCounting(t, map[string]string{"65001": "AS-PDB"}, &lookups)
+	addr := fakeIRRv4(t, map[string]string{"AS-OLD": "10.0.0.0/24", "AS-PDB": "192.0.2.0/24"})
+	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
+	t.Cleanup(func() { close(plug.stopCh) })
+
+	plug.handleConfigure(irrConfigWithPeeringDB(addr, pdbURL, "65001", "AS-OLD"))
+	plug.refreshASN(65001)
+	if got := liveASSet(t, plug); got != "AS-OLD" {
+		t.Fatalf("as-set after the first refresh = %q, want AS-OLD", got)
+	}
+
+	plug.handleConfigure(irrConfigWithPeeringDB(addr, pdbURL, "65001", ""))
+
+	plug.mu.RLock()
+	st := plug.byASN[65001]
+	asSet, list := st.asSet, st.list
+	plug.mu.RUnlock()
+	if asSet != "" {
+		t.Errorf("as-set after the reload = %q, want none: the removed set is still the query hint", asSet)
+	}
+	if list != nil {
+		t.Errorf("list after the reload = %v, want none: the removed set's list was carried over", list.entries)
+	}
+	if entry := plug.prefixStore.Get("AS65001"); entry != nil {
+		t.Errorf("store entry after the reload = %+v, want none: the removed set's entry stays cached", entry)
+	}
+
+	plug.refreshASN(65001)
+
+	if n := lookups.Load(); n != 1 {
+		t.Errorf("PeeringDB lookups = %d, want 1: the refresh after the removal did not rediscover", n)
+	}
+	plug.mu.RLock()
+	asSet, list = st.asSet, st.list
+	plug.mu.RUnlock()
+	if asSet != "AS-PDB" {
+		t.Errorf("as-set after the refresh = %q, want AS-PDB from PeeringDB", asSet)
+	}
+	if list == nil || !list.evaluateUpdate("nlri add 192.0.2.0/24") {
+		t.Error("192.0.2.0/24 is not accepted: the AS-PDB list is not live")
+	}
+	if list != nil && list.evaluateUpdate("nlri add 10.0.0.0/24") {
+		t.Error("10.0.0.0/24 is accepted: the removed AS-OLD list is still live")
+	}
+}
+
+// VALIDATES: after the configured as-set is deleted, a PeeringDB outage falls
+// back to the ASN itself, never to the deleted set.
+// PREVENTS: store.discoverASSet keeping the cached AS-SET on a PeeringDB
+// failure, which would hand the deleted set back if its entry stayed cached.
+// Method: PeeringDB unreachable; resolve AS-OLD, reload with no as-set,
+// refresh, and read the as-set the refresh queried.
+func TestRemovedASSetIsNotThePeeringDBFallback(t *testing.T) {
+	addr := fakeIRRv4(t, map[string]string{"AS-OLD": "10.0.0.0/24"})
+	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
+	t.Cleanup(func() { close(plug.stopCh) })
+
+	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-OLD"))
+	plug.refreshASN(65001)
+	plug.handleConfigure(irrConfigFor(addr, "65001", ""))
+	plug.refreshASN(65001)
+
+	if got := liveASSet(t, plug); got != "AS65001" {
+		t.Errorf("as-set after PeeringDB failed = %q, want AS65001: the deleted set came back as the fallback", got)
+	}
+}
+
+// VALIDATES: a reload that configures no as-set before and after keeps the
+// discovered list and set, and the next refresh asks PeeringDB as every
+// refresh with no configured set does.
+// PREVENTS: the configured/discovered split turning every reload into an
+// empty list.
+// Method: count PeeringDB lookups across discover, reload, refresh.
+func TestReloadKeepsADiscoveredASSet(t *testing.T) {
+	var lookups atomic.Int32
+	pdbURL := fakePeeringDBCounting(t, map[string]string{"65001": "AS-PDB"}, &lookups)
+	addr := fakeIRRv4(t, map[string]string{"AS-PDB": "192.0.2.0/24"})
+	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
+	t.Cleanup(func() { close(plug.stopCh) })
+
+	plug.handleConfigure(irrConfigWithPeeringDB(addr, pdbURL, "65001", ""))
+	plug.refreshASN(65001)
+	plug.handleConfigure(irrConfigWithPeeringDB(addr, pdbURL, "65001", ""))
+
+	plug.mu.RLock()
+	st := plug.byASN[65001]
+	asSet, list := st.asSet, st.list
+	plug.mu.RUnlock()
+	if asSet != "AS-PDB" {
+		t.Errorf("as-set after the reload = %q, want the discovered AS-PDB", asSet)
+	}
+	if list == nil {
+		t.Error("list after the reload is none, want the discovered list carried over")
+	}
+
+	plug.refreshASN(65001)
+
+	if n := lookups.Load(); n != 2 {
+		t.Errorf("PeeringDB lookups = %d, want 2: one per refresh, with no configured set", n)
+	}
+	if got := liveASSet(t, plug); got != "AS-PDB" {
+		t.Errorf("as-set after the refresh = %q, want AS-PDB", got)
+	}
+}
+
+// liveASSet reads AS 65001's live as-set under the plugin lock.
+func liveASSet(t *testing.T, plug *irrPlugin) string {
+	t.Helper()
+	plug.mu.RLock()
+	defer plug.mu.RUnlock()
+	st := plug.byASN[65001]
+	if st == nil {
+		t.Fatal("ASN 65001 is not enrolled")
+	}
+	return st.asSet
+}
+
+// VALIDATES: a lookup for a configured as-set still in flight when a reload
+// deletes it commits nothing, so a PeeringDB outage afterwards falls back to
+// the ASN itself rather than to the deleted set.
+// PREVENTS: the superseded lookup installing AS-OLD after the reload purged
+// it, which store.discoverASSet would hand back as the cached AS-SET.
+// Method: the fake IRR holds the AS-OLD query until the reload is done;
+// PeeringDB is unreachable.
+func TestInFlightLookupForADeletedSetCommitsNothing(t *testing.T) {
+	reached := make(chan struct{})
+	gate := make(chan struct{})
+	var once sync.Once
+	addr := fakeIRRv4Hook(t, map[string]string{"AS-OLD": "10.0.0.0/24"}, func(query string) {
+		if query != "!a4AS-OLD" {
+			return
+		}
+		once.Do(func() { close(reached) })
+		<-gate
+	})
+	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
+	t.Cleanup(func() { close(plug.stopCh) })
+	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-OLD"))
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		plug.refreshASN(65001)
+	}()
+	<-reached
+	plug.handleConfigure(irrConfigFor(addr, "65001", ""))
+	close(gate)
+	<-done
+
+	if entry := plug.prefixStore.Get("AS65001"); entry != nil {
+		t.Errorf("store entry = %+v, want none: the superseded AS-OLD lookup committed after the purge", entry)
+	}
+	plug.refreshASN(65001)
+	if got := liveASSet(t, plug); got != "AS65001" {
+		t.Errorf("as-set after PeeringDB failed = %q, want AS65001: the deleted set came back", got)
+	}
+}
+
+// switchablePeeringDB is a fake PeeringDB whose answer and availability a
+// test changes between refreshes.
+type switchablePeeringDB struct {
+	mu    sync.Mutex
+	down  bool
+	asSet string
+}
+
+func (f *switchablePeeringDB) set(down bool, asSet string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.down, f.asSet = down, asSet
+}
+
+func (f *switchablePeeringDB) serve(t *testing.T) string {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		f.mu.Lock()
+		down, asSet := f.down, f.asSet
+		f.mu.Unlock()
+		if down {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		if _, err := fmt.Fprintf(w, `{"data":[{"irr_as_set":%q}]}`, asSet); err != nil {
+			return
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return srv.URL
+}
+
+// VALIDATES: with no configured as-set every refresh asks PeeringDB: after an
+// outage at the first lookup the next refresh picks PeeringDB's set up, an
+// upstream AS-SET change is followed once the PeeringDB client's one-hour
+// answer cache no longer holds the old one, and an outage after that keeps
+// the cached set.
+// PREVENTS: the first answer, or the AS<asn> literal an outage produced,
+// becoming the query hint for the plugin's life.
+// Method: switch the fake PeeringDB between refreshes and read the live set.
+// A fresh PeeringDB client (UseClients, as a reload installs) stands for the
+// client's cache expiring, which a test cannot wait an hour for.
+func TestDiscoveryFollowsPeeringDB(t *testing.T) {
+	pdb := &switchablePeeringDB{}
+	pdbURL := pdb.serve(t)
+	addr := fakeIRRv4(t, map[string]string{
+		"AS65001": "198.51.100.0/24", "AS-ONE": "192.0.2.0/24", "AS-TWO": "203.0.113.0/24",
+	})
+	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
+	t.Cleanup(func() { close(plug.stopCh) })
+	plug.handleConfigure(irrConfigWithPeeringDB(addr, pdbURL, "65001", ""))
+
+	steps := []struct {
+		down    bool
+		asSet   string
+		expired bool
+		want    string
+	}{
+		{down: true, want: "AS65001"},
+		{asSet: "AS-ONE", want: "AS-ONE"},
+		{asSet: "AS-TWO", expired: true, want: "AS-TWO"},
+		{down: true, expired: true, want: "AS-TWO"},
+	}
+	for i, step := range steps {
+		pdb.set(step.down, step.asSet)
+		if step.expired {
+			plug.prefixStore.UseClients(irr.NewIRR(addr), peeringdb.NewPeeringDB(pdbURL))
+		}
+		plug.refreshASN(65001)
+		if got := liveASSet(t, plug); got != step.want {
+			t.Errorf("step %d (PeeringDB down=%v, as-set %q): live as-set = %q, want %q", i, step.down, step.asSet, got, step.want)
+		}
 	}
 }

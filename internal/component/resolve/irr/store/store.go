@@ -212,7 +212,25 @@ func (s *PrefixStore) refreshLive(ctx context.Context, name, asSet string) (*Cac
 	if entry.PrefixList().Empty() {
 		return s.markStale(name, entry), fmt.Errorf("%w for %s (as-set %s)", ErrNoPrefixes, name, entry.ASSet)
 	}
-	return s.commit(name, entry), nil
+	return s.commit(ctx, name, entry)
+}
+
+// cancelledAnswer is what Refresh returns for a lookup cancelled before its
+// install: a copy of the entry still enforced, marked stale in the copy only,
+// naming the queried AS-SET, or, with nothing stored, that set and no prefixes.
+// It writes nothing: a cancelled lookup leaves the store as it found it.
+func cancelledAnswer(name string, kept, fresh *CachedEntry) *CachedEntry {
+	if kept == nil {
+		return &CachedEntry{Name: name, ASSet: fresh.ASSet, StaleSince: time.Now()}
+	}
+	answer := *kept
+	if answer.StaleSince.IsZero() {
+		answer.StaleSince = time.Now()
+	}
+	if fresh.ASSet != "" {
+		answer.ASSet = fresh.ASSet
+	}
+	return &answer
 }
 
 // commit installs a resolved entry, keeping the cached prefixes of every family
@@ -237,10 +255,22 @@ func (s *PrefixStore) refreshLive(ctx context.Context, name, asSet string) (*Cac
 // enforce the old set's prefixes under the new set's name. A lookup that a
 // reload superseded can commit its old-set entry before the reload's lookup
 // commits the new one, so the store cannot rely on its callers to purge first.
-func (s *PrefixStore) commit(name string, fresh *CachedEntry) *CachedEntry {
+//
+// A lookup whose context was cancelled before the install commits nothing and
+// returns ctx's error, with the entry still enforced as markStale reports it.
+// A caller cancels a lookup when the answer stops being wanted (bgp-filter-irr
+// cancels the lookups a reload superseded), and an answer nobody wants must not
+// become the cached AS-SET discoverASSet falls back to. The check runs under
+// s.mu, so a cancel that returned before the install is always seen.
+func (s *PrefixStore) commit(ctx context.Context, name string, fresh *CachedEntry) (*CachedEntry, error) {
 	keptV4, keptV6 := false, false
 
 	s.mu.Lock()
+	if err := ctx.Err(); err != nil {
+		kept := s.entries[name]
+		s.mu.Unlock()
+		return cancelledAnswer(name, kept, fresh), fmt.Errorf("irr/store: lookup for %s cancelled before its answer was stored: %w", name, err)
+	}
 	if cached := s.entries[name]; cached != nil && cached.ASSet == fresh.ASSet {
 		fresh.IPv4, keptV4 = enforcedFamily(fresh.IPv4, cached.IPv4)
 		fresh.IPv6, keptV6 = enforcedFamily(fresh.IPv6, cached.IPv6)
@@ -268,7 +298,7 @@ func (s *PrefixStore) commit(name string, fresh *CachedEntry) *CachedEntry {
 		logger().Warn("irr/store: refresh learned no IPv6 prefixes, keeping the cached ones",
 			"name", name, "kept-prefixes", len(fresh.IPv6))
 	}
-	return fresh
+	return fresh, nil
 }
 
 // enforcedFamily answers with the prefixes one family must enforce after a
