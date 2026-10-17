@@ -235,7 +235,7 @@ func judge(surface Surface, path string, line int, emitter, arg string) (Finding
 		return Finding{
 			File: path, Line: line, Kind: KindDead,
 			Emitter: emitter, Command: cmd,
-			Detail: "resolves to no registered command; the dispatcher answers ErrUnknownCommand",
+			Detail: "resolves to no whole registered command; the dispatcher refuses it as an unknown command or as a prefix with no target",
 		}, verdictFinding
 	}
 

@@ -14,8 +14,9 @@ import "github.com/ze-software/ze/internal/core/textbuf"
 
 // The two kinds a finding can be. They are what `| match dead` selects.
 const (
-	// KindDead is a command string the dispatcher answers ErrUnknownCommand
-	// for. The migration deleted its key.
+	// KindDead is a command string the dispatcher refuses: ErrUnknownCommand,
+	// or IncompleteCommandError for a prefix that names no whole command. The
+	// migration deleted its key, or the call site stops before the target.
 	KindDead = "dead"
 	// KindUnverifiable is a computed command with no static prefix to check.
 	// It fails as loudly as a dead one because an unread command is not proof

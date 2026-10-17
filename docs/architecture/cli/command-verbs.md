@@ -365,6 +365,13 @@ refused, and the refusal names the explicit forms. `clear dns cache` alone does
 nothing and answers with `clear dns cache all`. A typo, an early Enter or a tab
 completion that stops at the prefix therefore cannot empty a cache or reset
 every session. The owner's words and the rule are in `ai/rules/cli.md`.
+The refusal lists only commands that completion and help also show, so a prefix
+whose only commands below it are hidden stays an unknown command. A command that
+is whole still runs when longer commands extend it: `show peer` runs although
+`show peer detail` exists. The dead-command gate (`./le cli dispatch check`)
+counts a bare prefix in Go code as dead, because the dispatcher refuses it.
+<!-- source: internal/component/plugin/server/incomplete.go -- incompleteCommand, IncompleteCommandError -->
+<!-- source: internal/le/cli/dispatch/resolver.go -- Surface.Resolves -->
 
 **Every argument a handler reads MUST be declared in the schema.** An undeclared
 argument reaches the handler and reaches nothing else. Completion cannot offer

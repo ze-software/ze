@@ -164,14 +164,21 @@ func commandLoader(tree string) (*yangloader.Resolved, error) {
 // Resolves reports whether the dispatcher could route cmd.
 //
 // It asks the REAL dispatcher through already-exported API only: every command
-// is registered with a nil handler, so a matched command returns StatusDone and
-// an unmatched one returns ErrUnknownCommand. Any OTHER error -- "requires a
-// selector", an argument-validation complaint -- means the command EXISTS and
-// this checker simply did not supply realistic arguments, which is not what the
-// gate is asking about.
+// is registered with a nil handler, so a matched command returns StatusDone,
+// an unmatched one returns ErrUnknownCommand, and a strict prefix of commands
+// returns *IncompleteCommandError. The last two never run at runtime, so both
+// are refusals. Any OTHER error -- "requires a selector", an
+// argument-validation complaint -- means the command EXISTS and this checker
+// simply did not supply realistic arguments, which is not what the gate is
+// asking about. A computed command's static prefix is judged by prefixKnown,
+// which accepts a prefix on its own scan.
 func (s Surface) Resolves(cmd string) bool {
 	_, err := s.dispatcher.Dispatch(nil, cmd)
-	return !errors.Is(err, pluginserver.ErrUnknownCommand)
+	if errors.Is(err, pluginserver.ErrUnknownCommand) {
+		return false
+	}
+	var incomplete *pluginserver.IncompleteCommandError
+	return !errors.As(err, &incomplete)
 }
 
 // prefixKnown reports whether prefix is the start of some registered command,

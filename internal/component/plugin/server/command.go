@@ -1355,6 +1355,11 @@ func (d *Dispatcher) dispatchPlugin(ctx *CommandContext, input, lowerInput, peer
 	matchedPlugin, matchedLen := d.matchPluginCommand(lowerInput)
 
 	if matchedPlugin == nil {
+		// A prefix of registered commands is refused with the whole forms, so
+		// stopping before the selector never reaches an all-effect.
+		if err := d.incompleteCommand(lowerInput); err != nil {
+			return nil, err
+		}
 		all := d.registry.All()
 		names := make([]string, len(all))
 		for i, c := range all {
