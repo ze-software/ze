@@ -350,7 +350,7 @@
       "claim-sha": "f5b38d892265bda0",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rs/server_handlers.go::sendBatchedWithdrawals",
-      "producer-sha": "747e2288c7745ddf",
+      "producer-sha": "8a09fb0bbe4f5a4c",
       "break": "body of sendBatchedWithdrawals replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -625,7 +625,7 @@
       "claim-sha": "dc66d35ae3a63e2b",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/filter_delta_handlers.go::mpReachNextHopHandler",
-      "producer-sha": "4eb1234ab72f9efc",
+      "producer-sha": "56a57e7ee84478aa",
       "break": "body of mpReachNextHopHandler replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

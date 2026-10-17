@@ -53,7 +53,7 @@
       "claim-sha": "f2b799099cfb4672",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
-      "producer-sha": "a7c94874d6a3be22",
+      "producer-sha": "451e9aae139fe31e",
       "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "ddf078b2a0763f89",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
-      "producer-sha": "a7c94874d6a3be22",
+      "producer-sha": "451e9aae139fe31e",
       "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
