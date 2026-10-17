@@ -1,6 +1,7 @@
 {
-  "audited": "2026-10-16",
+  "audited": "2026-10-17",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -370,28 +371,40 @@
       "verdict": "enforced"
     },
     "RFC9552-5.3.2.3-1": {
-      "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Downgraded from enforced. RFC 9552 Section 5.3.2.3: \"If a source protocol uses a metric width of fewer than 32 bits, then the high-order bits of this field MUST be padded with zero.\" The only tag, plugin ls TestRFC7752TEDefaultMetricZeroPadded, writes lsTEDefaultMetric{Metric: uint32} and reads the uint32 back: lsTEDefaultMetric is constructed only by decodeTEDefaultMetric and its WriteTo has no non-test caller, so the assertion cannot fail on any byte Ze originates. Ze originates TLV 1092 in internal/plugins/isis/bgpls_export.go (3-octet IS-IS TE metric widened) and internal/plugins/ospf/bgpls_export.go; the isis pair tagged RFC7752-3.3.2.3-1 drives that producer but is not tagged here. The {single-polarity} annotation argues from lsTEDefaultMetric.WriteTo, which is not a production encoder. Closing this needs the isis/ospf origination units tagged to this row.",
+      "code": {},
+      "note": "Independent rejudge 2026-10-17, upgraded from weak because the live originator is now tagged. RFC 9552 Section 5.3.2.3: \"If a source protocol uses a metric width of fewer than 32 bits, then the high-order bits of this field MUST be padded with zero.\" Ze widens a metric into TLV 1092 only in internal/plugins/isis/bgpls_export.go linkAttribute case 18 (RFC 5305 sub-TLV 18, 24 bits): alloc(4) then copy(v[1:], value); OSPF TE metric is already 32 bits. TestRFC9552ISISTEDefaultMetricZeroPaddedHighOrder (80 00 01 -> 00 80 00 01) and ...SourceNeverInHighOrder (fe dc ba -> 00 fe dc ba) store a real LSP (TLV 22 with sub-TLV 18), run bgplsBuilder.build (the same build publishBGPLSLocked calls) and assert the exact TLV 1092 octets; copy(v, value) or a wrong width reddens both. The old plugin-ls TestRFC7752TEDefaultMetricZeroPadded stays tagged but drives a decode-side type with no production encoder and carries no weight. The arena dependency is now covered too: TestRFC9552ISISTEDefaultMetricRebuildNeverCarriesStaleArena (negative) builds twice on ONE builder, as the persistent exporter does; the first build fills the arena with 0xff from a 200-octet unmapped TLV 251, a fixture check proves the arena octet under the new TLV 1092 was non-zero before the second build, and the exact 00 0a 0b 0c assertion goes red (ff 0a 0b 0c) if clear(value) is removed from bgplsBuilder.alloc. Every way Ze could leave a non-zero high-order octet (wrong offset, wrong width, dirty arena) now reddens a tagged unit.",
       "requirement_sha": "2cf617d2e6ae56bb",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752TEDefaultMetricZeroPadded": "6c7da98fd78cb69c"
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752TEDefaultMetricZeroPadded": "6c7da98fd78cb69c",
+        "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISTEDefaultMetricRebuildNeverCarriesStaleArena": "6dbf420a1e0e7477",
+        "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISTEDefaultMetricSourceNeverInHighOrder": "6dbf420a1e0e7477",
+        "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISTEDefaultMetricZeroPaddedHighOrder": "6dbf420a1e0e7477"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752TEDefaultMetricZeroPadded": "51bd02f228461791"
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752TEDefaultMetricZeroPadded": "51bd02f228461791",
+        "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISTEDefaultMetricRebuildNeverCarriesStaleArena": "cb135cf0f7ae0448",
+        "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISTEDefaultMetricSourceNeverInHighOrder": "550bbfd567b8f2ab",
+        "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISTEDefaultMetricZeroPaddedHighOrder": "c384f8005386365f"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9552-5.3.2.3-2": {
-      "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Downgraded from enforced. RFC 9552 Section 5.3.2.4: \"IS-IS small metrics are 6 bits in size but are encoded in a 1-octet field; therefore, the two most significant bits of the field MUST be set to 0 by the originator.\" Both tagged units drive lsIGPMetric.WriteTo, which has no non-test caller (plugin ls attribute types are decode-side; nothing re-encodes them in production), so neither can fail on what Ze originates. The live originator is internal/plugins/isis/bgpls_export.go, which emits a 1-octet TLV 1095 from entry.DefaultMetricValue, masked to 6 bits at decode by internal/plugins/isis/packet/tlv_neighbours.go (narrowMetricValueMask); no tagged unit drives that path with the two high bits set at the source. The negative (width grows to 2/3 octets above 0x3F) also only exercises the unused encoder.",
+      "code": {},
+      "note": "Independent rejudge 2026-10-17, upgraded from weak because the live originator is now tagged. RFC 9552 Section 5.3.2.4: \"IS-IS small metrics are 6 bits in size but are encoded in a 1-octet field; therefore, the two most significant bits of the field MUST be set to 0 by the originator and MUST be ignored by the receiver.\" (row carries the originator clause). Ze originates the 1-octet TLV 1095 only in internal/plugins/isis/bgpls_export.go narrowLinks: metric[0] = entry.DefaultMetricValue, where DefaultMetricValue is filled by packet.DecodeNarrowISReachTLV as def & narrowMetricValueMask (0x3f). TestRFC9552ISISSmallMetricOriginatedWithTopBitsZero (source octet ca, reserved bit 8 and I/E over metric 10, -> 0a) and ...FlagBitsNeverReachIGPMetric (ff -> 3f) store a real TLV 2 LSP, run bgplsBuilder.build and assert the exact octet; dropping the mask emits ca/ff and reddens both. That the mask sits in the shared decoder rather than in narrowLinks does not weaken it: per ai/rules/rfc-compliance.md the verdict is judged on what the stack Ze runs produces, and the tests assert the octet the BGP-LS Producer emits, so any change that lets the S or I/E bit reach TLV 1095 (decoder or originator) goes red. The old plugin-ls units stay tagged but drive an encoder with no production caller and carry no weight. The recorded breaks panic the whole decoder, so they prove reach; the mask-specific red is established by reading.",
       "requirement_sha": "9df9c814474f8e54",
       "tests": {
         "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552IGPMetricWidthGrowsInsteadOfTruncating": "40036e95d2697aef",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552ISISSmallMetricTwoMSBsZero": "40036e95d2697aef"
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552ISISSmallMetricTwoMSBsZero": "40036e95d2697aef",
+        "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISSmallMetricFlagBitsNeverReachIGPMetric": "6dbf420a1e0e7477",
+        "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISSmallMetricOriginatedWithTopBitsZero": "6dbf420a1e0e7477"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552IGPMetricWidthGrowsInsteadOfTruncating": "ef65071b7beab1d2",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552ISISSmallMetricTwoMSBsZero": "a0c5e720c1b7bda0"
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552ISISSmallMetricTwoMSBsZero": "a0c5e720c1b7bda0",
+        "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISSmallMetricFlagBitsNeverReachIGPMetric": "600fb96c9176cd1b",
+        "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISSmallMetricOriginatedWithTopBitsZero": "7a3142e18c90ddf0"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9552-5.3.2.6-1": {
       "note": "OSPFv2 link opaque from Extended Link LSA reaches TLV 1097; RI-LSA provenance refused without replacing the valid state; the OSPFv2 link allowlist has one member, so the pair discriminates it",

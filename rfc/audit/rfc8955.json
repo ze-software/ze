@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-16",
+  "audited": "2026-10-17",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -83,17 +83,20 @@
       "verdict": "enforced"
     },
     "RFC8955-4.2.1.1-2": {
-      "note": "Re-judged again 2026-10-16 after a comment-only edit (VALIDATES now names core format.go, which is correct); stays weak, downgraded from enforced earlier the same day. RFC 8955 Section 4.2.1.1: \"In the first operator octet of a sequence, it MUST be encoded as unset and MUST be treated as always unset on decoding.\" The row carries both clauses. Both tagged units are one decode test, TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode, which parses the same OR list with the first AND bit clear and set and requires identical [[=80],[=22]] JSON. That proves the decode clause. Nothing in this row's tags exercises encoding, so an encoder that set the AND bit on the first operator (core writeToAFI `i > 0 && m.And`) stays green here. The earlier note said the sentence obliges only decoding, which the RFC text contradicts. The encode clause IS proven elsewhere, by the RFC8955-4.2.1.1-1 unit (ops[0]&0x40 zero) and by core TestFlowSpecNumericReservedAndEightOctetOperand (0xf9 re-encoded as 0xb1), but neither carries this row's tag. Remedy: tag one of those for RFC8955-4.2.1.1-2, or add an encode assertion to this unit.",
+      "code": {},
+      "note": "Independent rejudge 2026-10-17, upgraded from weak because a new tagged unit closes the encode clause. RFC 8955 Section 4.2.1.1: \"In the first operator octet of a sequence, it MUST be encoded as unset and MUST be treated as always unset on decoding.\" Decode: TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode (both tags) requires identical [[=80],[=22]] JSON with the leading AND bit clear and set. Encode: TestRFC8955TextLeadingAndEncodedUnset drives EncodeFlowSpecComponents, the live text encoder behind the registered InProcessNLRIEncoder (register.go) and OnEncodeNLRI; parseBitmaskValue sets FlowMatch.And from the '&' prefix and NewFlowTCPFlagsMatchComponent stores it unmodified, so \"&syn\" reaches core numericComponent.writeToAFI as a first match with And set, and only the `i > 0 && m.And` guard keeps 0x40 off. The exact 03 09 80 02 assertion goes red (0xc0) if the guard is reduced to `m.And`; the contrast case (syn &ack -> 00 02 c0 10) shows the encoder does set AND at i>0, so the assertion is about position. writeToAFI is shared by FlowSpec.WriteTo (types.go) for config-built rules too. The recorded break (whole writeToAFI panics) proves reach only; the guard-specific red is established by reading.",
       "requirement_sha": "5fc210c4350d3f91",
       "tests": {
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_text_encode_reserved_test.go::TestRFC8955TextLeadingAndEncodedUnset": "d1763c5e3cf0bbbf",
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode": "369dd5aaffff3a63",
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode#2": "369dd5aaffff3a63"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_text_encode_reserved_test.go::TestRFC8955TextLeadingAndEncodedUnset": "3d889acaff85dcc3",
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode": "f8d1f85ca6b7f25b",
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode#2": "f8d1f85ca6b7f25b"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8955-4.2.1.1-3": {
       "note": "Re-judged 2026-10-16: the unit moved verbatim to core compare_rfc8955_test.go, with only the family identifier renamed. RFC 8955 Section 4.2.1.1: \"0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding\". Wire op 0xf9 carries the reserved bit 0x08 and a leading AND. The positive requires the exact decoded []FlowMatch{{Op: FlowOpEqual, Value: 1<<56|7}}, so the reserved bit is ignored by core parseNumericComponent's 0x07 mask. The negative requires re-encoding to the exact op 0xb1, so reserved and leading AND are cleared by writeToAFI, and a missing end-of-list bit is refused.",
@@ -157,17 +160,20 @@
       "verdict": "enforced"
     },
     "RFC8955-4.2.2.12-2": {
-      "note": "Re-judged again 2026-10-16 after a comment-only edit (VALIDATES now names core format.go); stays weak, downgraded from enforced earlier the same day. The unit bodies are unchanged. RFC 8955 Section 4.2.2.12: \"0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding\" (the four high bits of the fragment bitmask). Decode is proven: TestRFC8955FragmentReservedBitsIgnoredOnDecode requires value 0xF2 to render exactly like 0x02 (=is-fragment). Encode is not. TestFlowSpecFragmentReservedHighNibbleZero builds its component only from the named constants IsF|FF (0x03) and DF (0x01), so assert.Zero(v[0]&0xF0) cannot go red if the IPv4 mask is lost: fragmentMask(AFIIPv4)=0x0f and the `m.Value &= fragmentMask(afi)` step in core writeToAFI. Non-compliant input is reachable: parseFragmentComponentText takes numeric operands through parseBitmaskValue/parseUint8 (0..255), so \"fragment 242\" reaches the IPv4 encoder with high-nibble bits, and only that mask clears them. The IPv6 mask is exercised by RFC8956-3.6-1 (all ones encodes as 0x0e), but no unit covers the IPv4 path. Remedy: feed a value with high-nibble bits (for example 0xF3) through an IPv4 producer and require the exact 0x03.",
+      "code": {},
+      "note": "Independent rejudge 2026-10-17, upgraded from weak because a new tagged unit drives the IPv4 mask. RFC 8955 Section 4.2.2.12, of the four high bits of the fragment bitmask: \"0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding\". Decode: TestRFC8955FragmentReservedBitsIgnoredOnDecode requires 0xF2 to render exactly as 0x02. Encode: TestRFC8955TextFragmentIPv4ReservedBitsCleared feeds \"fragment 242\" and \"fragment 255\" through EncodeFlowSpecComponents (the live text encoder); parseBitmaskValue/parseUint8 accept 0..255 and NewFlowFragmentMatchComponent stores the value unmodified, so the reserved nibble reaches core writeToAFI, where `m.Value &= fragmentMask(AFIIPv4)` (0x0f) is the only clearing step. The exact octets 0x02 and 0x0f go red (0xf2, 0xff) if that step is removed, and 0x0f also distinguishes the IPv4 mask from the IPv6 0x0e (DF kept). TestFlowSpecFragmentReservedHighNibbleZero stays tagged but alone cannot fail (named constants only); the row no longer depends on it. The recorded break (fragmentMask panics) proves reach; the mask-specific red is established by reading.",
       "requirement_sha": "0986ccf7d3e364fa",
       "tests": {
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_text_encode_reserved_test.go::TestRFC8955TextFragmentIPv4ReservedBitsCleared": "d1763c5e3cf0bbbf",
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecFragmentReservedHighNibbleZero": "369dd5aaffff3a63",
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentReservedBitsIgnoredOnDecode": "369dd5aaffff3a63"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_text_encode_reserved_test.go::TestRFC8955TextFragmentIPv4ReservedBitsCleared": "a999ecb35a07e157",
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecFragmentReservedHighNibbleZero": "39d50c5b5e1c6677",
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentReservedBitsIgnoredOnDecode": "e72cf404f77aaa61"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8955-4.2.2.5-1": {
       "note": "Re-judged 2026-10-16: the emission unit changed only by package qualification (constructors and types now from core flowspec), and the reactor forwarding unit is unchanged. RFC 8955 Section 4.2.2.5: \"Type 5 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01).\" TestFlowSpecPreferredNumericEmission requires exact literal operator and value bytes at 0/255/256/65535 from typed, generic, registered config (ConfigRouteParserByFamily) and registered text (EncodeNLRIByFamily) producers, and from the EncodeRoute route command's MP_REACH. TestFlowSpecPreferredNumericForwarding carries the recipient TCP observation. Single-polarity as annotated, and the shortest width is Ze policy. The legal wide-reception compatibility control, which this row does not tag, moved to core numeric_wide_reception_test.go::TestFlowSpecPreferredNumericWideReception. Second re-judgement 2026-10-16: TestFlowSpecPreferredNumericEmission's typed packet-length producer is now the test helper packetLengthComponent (plugin types_test.go), which builds FlowMatch{Op: FlowOpEqual, Value: v} through NewFlowNumericComponent(FlowPacketLength, ...). That is byte-for-byte the matches that the deleted NewFlowPacketLengthComponent built at HEAD (plugin types_numeric.go:457-463). The deleted constructor had no non-test caller at HEAD, so no production producer lost coverage. The typed and generic cases now drive the same constructor, and the registered config, text and forwarding producers carry the distinct evidence.",
