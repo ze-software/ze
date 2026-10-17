@@ -67,6 +67,32 @@ func stateRPCClient(t *testing.T, direct bool) *sdk.Plugin {
 	return p
 }
 
+// stateRPCContext bounds the state round trips by the test binary's own
+// deadline, less a margin that leaves time to report the failing line rather
+// than the binary's timeout panic. It is a hang guard and asserts no latency.
+// Every state write is durable, committed through a file sync barrier.
+// Measured under -race on a host saturated with fsync writers, those syncs
+// took 99.9% of the round trip (dispatch and transport stayed near 5ms), so
+// the round trips outran the fixed five seconds this replaced, on both
+// transports.
+func stateRPCContext(t *testing.T) (context.Context, context.CancelFunc) {
+	t.Helper()
+	const reportMargin = 5 * time.Second
+	deadline, ok := t.Deadline()
+	if !ok {
+		// -timeout=0: the operator turned the binary's hang guard off.
+		return context.WithCancel(t.Context())
+	}
+	remaining := time.Until(deadline)
+	if remaining <= reportMargin {
+		// Less than the margin is left: subtracting it would hand the round
+		// trips an expired context, which fails the first call like a hang.
+		// Half of what remains still leaves the other half to report.
+		return context.WithTimeout(t.Context(), remaining/2)
+	}
+	return context.WithDeadline(t.Context(), deadline.Add(-reportMargin))
+}
+
 func requireStateStatus(t *testing.T, err error, want rpc.StateStatus) {
 	t.Helper()
 	var stateErr *rpc.StateError
@@ -88,9 +114,9 @@ func TestPluginStateTransportParity(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			p := stateRPCClient(t, direct)
-			// The store is created before the deadline starts: seeding a
-			// tree takes seconds under the race detector on a loaded
-			// machine, and the deadline bounds the RPC round trips only.
+			// The store is created before the round trips start, so a
+			// failure in its creation is reported as such and never as an
+			// RPC answer.
 			statestore.SetStore(nil)
 			t.Cleanup(func() { statestore.SetStore(nil) })
 			dir := t.TempDir()
@@ -104,7 +130,7 @@ func TestPluginStateTransportParity(t *testing.T) {
 					t.Error(err)
 				}
 			})
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, cancel := stateRPCContext(t)
 			defer cancel()
 			key := zefs.KeyOSPFAuthBootCount.Key()
 			requireStateStatus(t, p.StatePut(ctx, key, []byte{1}), rpc.StateUnavailable)
