@@ -34,7 +34,7 @@ func handleClearDNSCache(_ *pluginserver.CommandContext, validated command.Valid
 		return resp, nil
 	}
 	if len(args) != 0 {
-		return &plugin.Response{Status: plugin.StatusError, Error: "clear dns cache: unexpected arguments"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "clear dns cache all: unexpected arguments"}, nil
 	}
 	resolvers.DNS.CacheClear()
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{keyAction: "clear-all"}}, nil

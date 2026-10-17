@@ -20,4 +20,4 @@
 
 ## Description
 
-Built-in cached DNS resolver for all components. Uses configured `system.name-server` or resolv.conf, and fails closed with `no DNS server configured` when neither is available. It does not silently fall back to public recursive resolvers. Cache management: `show dns cache list/record`, `clear dns cache` (flush/selective delete/stats reset).
+Built-in cached DNS resolver for all components. Uses configured `system.name-server` or resolv.conf, and fails closed with `no DNS server configured` when neither is available. It does not silently fall back to public recursive resolvers. Cache management: `show dns cache list/record`, `clear dns cache all/record/stats` (flush/selective delete/stats reset).

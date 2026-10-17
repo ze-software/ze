@@ -25,7 +25,7 @@ The two sides share no configuration and no cache.
 | Concurrent safe | Mutex-protected cache, safe for multi-goroutine use |
 | System fallback | No configured servers uses `/etc/resolv.conf`; if that is missing or empty, queries fail closed with `no DNS server configured` |
 | Timeout control | Per-resolver configurable timeout (1-60 seconds) |
-| Cache management | List entries, inspect by name, selective delete by name/type, flush all, reset counters |
+| Cache management | List entries, inspect by name, and clear with `clear dns cache all/record/stats`: flush everything, delete by name/type, or reset the counters |
 | `\| resolve` pipe | Reverse DNS enrichment for IP addresses in any command's JSON output |
 | `\| origin` pipe | ASN/network enrichment for IP addresses via Team Cymru DNS queries |
 
@@ -72,7 +72,7 @@ show dns cache record example.com               # Entries for a specific name
 **Clearing:**
 
 ```
-clear dns cache                                 # Flush all entries and reset counters
+clear dns cache all                             # Flush all entries and reset counters (bare `clear dns cache` is refused)
 clear dns cache stats                           # Zero counters without removing entries
 clear dns cache record example.com              # Delete entries for a name (all types)
 clear dns cache record example.com type AAAA    # Delete a single name+type entry

@@ -26,12 +26,13 @@ tmpfs=command-help-explanation-box.et:terminator=EOF_ET
 option=mode:value=command
 option=timeout:value=10s
 
-# "clear dns cache " has two children, so Tab opens the menu on the first one,
-# record. Nothing is explained yet.
+# "clear dns cache " has three children, so Tab opens the menu on the first one,
+# all. The arrow moves the selection to record. Nothing is explained yet.
 input=type:text=clear dns cache
 input=key:name=space
 input=tab
 expect=dropdown:visible
+input=key:name=down
 expect=explanation:empty
 
 # ? explains the highlighted candidate. The box takes the description of

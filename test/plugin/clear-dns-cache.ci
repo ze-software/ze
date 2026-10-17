@@ -1,4 +1,4 @@
-# Test: clear dns cache flushes the resolver cache
+# Test: clear dns cache all/record/stats flush, evict and zero the resolver cache
 # Exercises: dispatch-command -> ze-resolve:clear-dns-cache -> handleClearDNSCache
 # Verifies: AC-6 of spec-clear-command-ownership -- all clear dns cache forms
 #           work via the resolve-owned handler.

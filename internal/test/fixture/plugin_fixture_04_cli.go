@@ -52,7 +52,7 @@ func clearDNS04(ctx context.Context, p *sdk.Plugin) error {
 		return err
 	}
 	for _, check := range []struct{ command, action string }{
-		{"clear dns cache", "clear-all"},
+		{"clear dns cache all", "clear-all"},
 		{"clear dns cache stats", "reset-stats"},
 		{"clear dns cache record localhost", "delete-entry"},
 	} {
@@ -65,6 +65,19 @@ func clearDNS04(ctx context.Context, p *sdk.Plugin) error {
 		}
 		fmt.Fprintf(os.Stderr, "OK: %s -> action=%s\n", check.command, check.action)
 	}
+	// The bare prefix acts on nothing: it is refused, and the refusal names
+	// the explicit everything form (ai/rules/cli.md).
+	status, value, err := command04(ctx, p, "clear dns cache")
+	if err != nil {
+		return err
+	}
+	if status != statusError {
+		return fmt.Errorf("clear dns cache: expected a refusal, got %s: %v", status, value)
+	}
+	if text := fmt.Sprint(value); !strings.Contains(text, "clear dns cache all") {
+		return fmt.Errorf("clear dns cache: refusal does not name clear dns cache all: %s", text)
+	}
+	os.Stderr.WriteString("OK: clear dns cache refused, names clear dns cache all\n") //nolint:errcheck // progress line for the test log
 	return nil
 }
 
