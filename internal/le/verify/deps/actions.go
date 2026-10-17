@@ -112,11 +112,19 @@ func partFrom(args leaction.Arguments) (verifyengine.Part, error) {
 // partNumber reads one keyword's value as a counting number.
 func partNumber(keyword, declared string) (int, error) {
 	value, err := strconv.Atoi(strings.TrimSpace(declared))
-	if err != nil || value < 1 {
-		return 0, fmt.Errorf("%s needs a whole number of 1 or more, got %q: le verify deps unit-race-changed part <index> of <count>",
-			keyword, declared)
+	if err != nil {
+		return 0, partNumberRefusal(keyword, declared)
+	}
+	if value < 1 {
+		return 0, partNumberRefusal(keyword, declared)
 	}
 	return value, nil
+}
+
+// partNumberRefusal names a keyword whose value is not a counting number.
+func partNumberRefusal(keyword, declared string) error {
+	return fmt.Errorf("%s needs a whole number of 1 or more, got %q: le verify deps unit-race-changed part <index> of <count>",
+		keyword, declared)
 }
 
 func metadataOnly() leaction.Area {
