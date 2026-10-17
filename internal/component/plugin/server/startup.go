@@ -598,6 +598,11 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 	if err := validateDrainDecl(proc.Config().Name, input.DrainBudget, input.DrainHandler); err != nil {
 		return err
 	}
+	// Validate the resolver caches before conversion: a misspelled cache
+	// would leave the plugin out of every clear with nothing said.
+	if err := validateResolverCacheDecls(proc.Config().Name, input.ResolverCaches); err != nil {
+		return err
+	}
 	// Validate doctor check declarations before conversion.
 	if err := validateDoctorCheckDecls(input.DoctorChecks); err != nil {
 		return fmt.Errorf("invalid doctor check: %w", err)
@@ -1087,6 +1092,7 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		Claims:              input.Claims,
 		SignalsSessionReady: input.SignalsSessionReady,
 		FailurePolicy:       input.FailurePolicy,
+		ResolverCaches:      slices.Clone(input.ResolverCaches),
 		Done:                true,
 	}
 

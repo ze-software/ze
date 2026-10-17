@@ -851,6 +851,7 @@ site.
 | `drain` | `DrainInput` | `DrainOutput` or error | Stop drain before whole-daemon shutdown ("The stop drain") |
 | `filter-update` | `FilterUpdateInput` | `FilterUpdateOutput` | Route filter request |
 | `doctor-check` | `DoctorCheckInput` | `DoctorCheckOutput` | Doctor readiness check |
+| `resolver-cache-clear` | `ResolverCacheClearInput` | `ResolverCacheClearOutput` | Clear one declared resolver cache |
 | `enrich-show` | `EnrichShowInput` | `EnrichShowOutput` | Show command enrichment |
 
 All methods are prefixed with `ze-plugin-callback:`.
@@ -913,6 +914,18 @@ Declared during Stage 1 via `doctor-checks` field in `declare-registration`.
 Only invoked at runtime via `show doctor`; offline `ze doctor` does not reach plugins.
 
 <!-- source: pkg/plugin/rpc/types.go -- DoctorCheckDecl, DoctorCheckInput, DoctorCheckOutput -->
+
+**resolver-cache-clear:** Engine asks a plugin to clear one resolver cache it
+declared in the Stage 1 `resolver-caches` list (`peeringdb`, `irr` or `cymru`;
+the engine refuses any other name and a name given twice). The input is
+`{"cache":<name>,"action":"clear-all"|"delete-entry","key":<key>}`, where the
+key is a decimal AS number, an AS-SET name or a canonical address. The plugin
+clears only the clients it uses now and answers `{"removed":N}`. Sent when an
+operator runs `clear <cache> cache`; an error answer makes that command an error
+naming the plugin.
+
+<!-- source: pkg/plugin/rpc/resolver_cache.go -- MethodResolverCacheClear, ResolverCacheClearInput, ResolverCacheClearOutput -->
+<!-- source: pkg/plugin/sdk/sdk_resolver_cache.go -- OnResolverCacheClear -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnDoctorCheck -->
 <!-- source: internal/component/plugin/server/server.go -- CallDoctorCheck, DoctorCheckPlugins -->
 <!-- source: internal/component/doctor/cmd/show.go -- HandleShowDoctor plugin integration -->

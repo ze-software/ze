@@ -177,6 +177,7 @@ ze-iface:show-vpp-trace-clear
 ze-iface:show-vpp-trace-show
 ze-iface:show-vpp-trace-start
 ze-ike:clear-vpn-ipsec-sa
+ze-ike:clear-vpn-ipsec-sa-peer
 ze-ike:monitor-vpn-ipsec
 ze-ike:show-vpn-ipsec-dataplane-drift
 ze-ike:show-vpn-ipsec-dataplane-policy
@@ -328,9 +329,15 @@ ze-plugin:system-subsystem-list
 ze-plugin:system-version-api
 ze-plugin:system-version-software
 ze-policyroute:show-policy-routes
+ze-resolve:clear-cymru-cache-address
+ze-resolve:clear-cymru-cache-all
 ze-resolve:clear-dns-cache
 ze-resolve:clear-dns-cache-record
 ze-resolve:clear-dns-cache-stats
+ze-resolve:clear-irr-cache-all
+ze-resolve:clear-irr-cache-as-set
+ze-resolve:clear-peeringdb-cache-all
+ze-resolve:clear-peeringdb-cache-asn
 ze-resolve:cymru-asn-name
 ze-resolve:dns-a
 ze-resolve:dns-aaaa

@@ -215,11 +215,11 @@ func (s *PrefixStore) refreshLive(ctx context.Context, name, asSet string) (*Cac
 	return s.commit(ctx, name, entry)
 }
 
-// cancelledAnswer is what Refresh returns for a lookup cancelled before its
+// canceledAnswer is what Refresh returns for a lookup canceled before its
 // install: a copy of the entry still enforced, marked stale in the copy only,
 // naming the queried AS-SET, or, with nothing stored, that set and no prefixes.
-// It writes nothing: a cancelled lookup leaves the store as it found it.
-func cancelledAnswer(name string, kept, fresh *CachedEntry) *CachedEntry {
+// It writes nothing: a canceled lookup leaves the store as it found it.
+func canceledAnswer(name string, kept, fresh *CachedEntry) *CachedEntry {
 	if kept == nil {
 		return &CachedEntry{Name: name, ASSet: fresh.ASSet, StaleSince: time.Now()}
 	}
@@ -256,7 +256,7 @@ func cancelledAnswer(name string, kept, fresh *CachedEntry) *CachedEntry {
 // reload superseded can commit its old-set entry before the reload's lookup
 // commits the new one, so the store cannot rely on its callers to purge first.
 //
-// A lookup whose context was cancelled before the install commits nothing and
+// A lookup whose context was canceled before the install commits nothing and
 // returns ctx's error, with the entry still enforced as markStale reports it.
 // A caller cancels a lookup when the answer stops being wanted (bgp-filter-irr
 // cancels the lookups a reload superseded), and an answer nobody wants must not
@@ -269,7 +269,7 @@ func (s *PrefixStore) commit(ctx context.Context, name string, fresh *CachedEntr
 	if err := ctx.Err(); err != nil {
 		kept := s.entries[name]
 		s.mu.Unlock()
-		return cancelledAnswer(name, kept, fresh), fmt.Errorf("irr/store: lookup for %s cancelled before its answer was stored: %w", name, err)
+		return canceledAnswer(name, kept, fresh), fmt.Errorf("irr/store: lookup for %s canceled before its answer was stored: %w", name, err)
 	}
 	if cached := s.entries[name]; cached != nil && cached.ASSet == fresh.ASSet {
 		fresh.IPv4, keptV4 = enforcedFamily(fresh.IPv4, cached.IPv4)

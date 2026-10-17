@@ -87,11 +87,41 @@ func NewPeeringDB(baseURL string) *PeeringDB {
 	}
 }
 
+// ClearCache empties the client's cache, prefix counts and AS-SET names alike,
+// and returns the number of entries it removed. The next lookup of each ASN
+// queries PeeringDB again. Safe for concurrent use.
+func (c *PeeringDB) ClearCache() int {
+	return c.prefixCache.Clear() + c.asSetCache.Clear()
+}
+
+// ClearCachedASN removes the cached prefix counts and AS-SET names of asn, and
+// returns how many entries it removed: 0, 1 or 2. Safe for concurrent use.
+func (c *PeeringDB) ClearCachedASN(asn uint32) int {
+	removed := 0
+	if c.prefixCache.Delete(prefixCacheKey(asn)) {
+		removed++
+	}
+	if c.asSetCache.Delete(asSetCacheKey(asn)) {
+		removed++
+	}
+	return removed
+}
+
+// prefixCacheKey is the key LookupASN caches the prefix counts of asn under.
+func prefixCacheKey(asn uint32) string {
+	return "prefix:" + textbuf.StringUint32(asn)
+}
+
+// asSetCacheKey is the key LookupASSet caches the AS-SET names of asn under.
+func asSetCacheKey(asn uint32) string {
+	return "asset:" + textbuf.StringUint32(asn)
+}
+
 // LookupASN queries PeeringDB for prefix counts of the given ASN.
 // Results are cached for 1h keyed by ASN.
 // Returns an error if the ASN is not found in PeeringDB.
 func (c *PeeringDB) LookupASN(ctx context.Context, asn uint32) (PrefixCounts, error) {
-	key := "prefix:" + textbuf.StringUint32(asn)
+	key := prefixCacheKey(asn)
 	if cached, ok := c.prefixCache.Get(key); ok {
 		return cached, nil
 	}
@@ -117,7 +147,7 @@ func (c *PeeringDB) LookupASN(ctx context.Context, asn uint32) (PrefixCounts, er
 // Returns an empty slice (not error) if the ASN exists but has no AS-SET registered.
 // Returns an error if the ASN is not found in PeeringDB.
 func (c *PeeringDB) LookupASSet(ctx context.Context, asn uint32) ([]string, error) {
-	key := "asset:" + textbuf.StringUint32(asn)
+	key := asSetCacheKey(asn)
 	if cached, ok := c.asSetCache.Get(key); ok {
 		return cached, nil
 	}

@@ -148,6 +148,30 @@ func NewIRR(server string) *IRR {
 	}
 }
 
+// ClearCache empties the client's cache, AS-SET members and prefix lists
+// alike, and returns the number of entries it removed. The next lookup of each
+// AS-SET queries the whois server again. The durable prefix store
+// (internal/component/resolve/irr/store) is not a client cache and stays. Safe
+// for concurrent use.
+func (c *IRR) ClearCache() int {
+	return c.asSetCache.Clear() + c.prefixCache.Clear()
+}
+
+// ClearCachedASSet removes the cached members and prefix list of asSet, and
+// returns how many entries it removed: 0, 1 or 2. The name is the cache key and
+// is compared as an exact string, the spelling it was looked up with. Safe for
+// concurrent use.
+func (c *IRR) ClearCachedASSet(asSet string) int {
+	removed := 0
+	if c.asSetCache.Delete(asSet) {
+		removed++
+	}
+	if c.prefixCache.Delete(asSet) {
+		removed++
+	}
+	return removed
+}
+
 // SetSourceAddress sets the local IP address for outbound whois connections.
 func (c *IRR) SetSourceAddress(addr string) {
 	c.sourceAddress = addr

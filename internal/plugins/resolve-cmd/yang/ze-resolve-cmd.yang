@@ -8,6 +8,7 @@ module ze-resolve-cmd {
     revision 2026-08-29 { description "Declare the value each lookup takes: the hostname of the A, AAAA and TXT lookups, the address of the reverse lookup, and the AS number of the Cymru and PeeringDB lookups. The descriptions spelled them in prose and the model stated nothing."; }
     revision 2026-06-03 { description "Relocated clear dns cache out of the central clear schema, and show dns lookup/cache out of the central show schema, into the resolve component (plugin self-containment)."; }
     revision 2026-09-02 { description "Add show resolve rir and update resolve rir: which Regional Internet Registry holds an AS number, and the operator order that refreshes the delegation table."; }
+    revision 2026-10-17 { description "Clear dns cache needs all, record or stats, so the bare form flushes nothing. Add clear peeringdb cache, clear irr cache and clear cymru cache, each taking all or one key, answered by every owner of a resolver client."; }
 
     container resolve {
         config false;
@@ -310,12 +311,19 @@ available without it. Nothing here reaches the network.";
 
             container cache {
                 config false;
-                ze:command "ze-resolve:clear-dns-cache";
-                ze:rpc "ze-cli-clear-api:dns-cache";
-                description "The entries and the four counters go together. Use clear dns cache
+                description "Clear dns cache alone is refused: say all to flush every entry, record
+to evict one name, or stats to zero the counters. Everything is never the default.";
+                ze:help "DNS cache clearing operations: all, record, or stats.";
+
+                container all {
+                    config false;
+                    ze:command "ze-resolve:clear-dns-cache";
+                    ze:rpc "ze-cli-clear-api:dns-cache";
+                    description "The entries and the four counters go together. Use clear dns cache
 stats to zero the counters and keep the entries, or clear dns cache record to evict one
 name.";
-                ze:help "Flush all DNS cache entries and reset all DNS cache counters.";
+                    ze:help "Flush all DNS cache entries and reset all DNS cache counters.";
+                }
 
                 container record {
                     config false;
@@ -352,6 +360,136 @@ the other types of the name in place. The answer reports found true or false.";
                     description "The cached entries stay, so the next lookup is still served
 from the cache. Only the hit, miss, eviction and expiry counters go to zero.";
                     ze:help "Reset DNS cache hit, miss, eviction, and expiry counters without removing cached entries.";
+                }
+            }
+        }
+
+        container peeringdb {
+            config false;
+            description "Each owner of a PeeringDB client clears the client it uses now: the
+hub clears the one resolve peeringdb uses, and every plugin that declared the PeeringDB
+cache, such as bgp-filter-irr and firewall-irr, clears its own, whether it runs inside the
+daemon or as its own process. A client an owner replaced on a reload is not its own any
+more and is not cleared or counted. The client bgp peer prefix update builds lives for one
+command, so no clear reaches it. Nothing here reaches the network.";
+            ze:help "PeeringDB client cache clearing operations.";
+
+            container cache {
+                config false;
+                description "The cache holds the prefix counts and the AS-SET names of each AS
+number for one hour. Name what to clear: all, or asn followed by an AS number. The bare
+form clears nothing.";
+                ze:help "Clear the PeeringDB cache: give all, or asn <number>.";
+
+                container all {
+                    config false;
+                    ze:command "ze-resolve:clear-peeringdb-cache-all";
+                    description "The answer gives removed, the entries removed in total, and
+owners, one row per owner with the entries it removed. The next lookup of each AS number
+queries PeeringDB again. An owner that does not answer makes the command an error naming
+it.";
+                    ze:help "Remove every cached PeeringDB answer.";
+                }
+
+                container asn {
+                    config false;
+                    ze:command "ze-resolve:clear-peeringdb-cache-asn";
+                    description "Removes the prefix counts and the AS-SET names of one AS
+number at every owner and keeps the other entries. The answer reports found true when any
+owner held one, removed, and the owners rows.";
+                    ze:help "Remove the cached PeeringDB answers of one AS number.";
+                    leaf as-number {
+                        type zt:asn-notated;
+                        mandatory true;
+                        description "The AS number in plain decimal or in asdot notation, which Ze
+parses to one 32-bit value. A spelling that parses to no AS number is refused.";
+                        ze:help "AS number to clear.";
+                    }
+                }
+            }
+        }
+
+        container irr {
+            config false;
+            description "Each owner of an IRR client clears the client it uses now: the hub
+clears the one resolve irr uses, and every plugin that declared the IRR cache, such as
+bgp-filter-irr and firewall-irr, clears its own, whether it runs inside the daemon or as its
+own process. A client an owner replaced on a reload is not cleared or counted. The stored
+prefix lists those filters apply are not a cache and stay. Nothing here reaches the
+network.";
+            ze:help "IRR client cache clearing operations.";
+
+            container cache {
+                config false;
+                description "The cache holds the members and the prefix list of each AS-SET for
+one hour. Name what to clear: all, or as-set followed by a name. The bare form clears
+nothing.";
+                ze:help "Clear the IRR cache: give all, or as-set <name>.";
+
+                container all {
+                    config false;
+                    ze:command "ze-resolve:clear-irr-cache-all";
+                    description "The answer gives removed, the entries removed in total, and
+owners, one row per owner with the entries it removed. The next lookup of each AS-SET
+queries the whois server again. An owner that does not answer makes the command an error
+naming it.";
+                    ze:help "Remove every cached IRR answer.";
+                }
+
+                container as-set {
+                    config false;
+                    ze:command "ze-resolve:clear-irr-cache-as-set";
+                    description "Removes the members and the prefix list of one AS-SET and keeps
+the other entries, at every owner. The answer reports found true when any owner held one,
+removed, and the owners rows.";
+                    ze:help "Remove the cached IRR answers of one AS-SET.";
+                    leaf name {
+                        type string { length "1..255"; }
+                        mandatory true;
+                        description "The AS-SET name, compared as an exact string: give it as it was
+looked up, for example AS-EXAMPLE. A name with a control character is refused.";
+                        ze:help "AS-SET name to clear.";
+                    }
+                }
+            }
+        }
+
+        container cymru {
+            config false;
+            description "The hub's Team Cymru resolver is cleared, and so is the one of every
+plugin that declared the Cymru cache. Nothing here reaches the network.";
+            ze:help "Team Cymru cache clearing operations.";
+
+            container cache {
+                config false;
+                description "The cache holds the origin AS of each address and the name of each
+AS for one hour. Name what to clear: all, or address followed by an IP address. The bare
+form clears nothing.";
+                ze:help "Clear the Cymru cache: give all, or address <ip>.";
+
+                container all {
+                    config false;
+                    ze:command "ze-resolve:clear-cymru-cache-all";
+                    description "Removes the address origins and the AS names. The answer gives
+removed, the entries removed in total, and owners, one row per owner. The next lookup asks
+DNS again.";
+                    ze:help "Remove every cached Cymru answer.";
+                }
+
+                container address {
+                    config false;
+                    ze:command "ze-resolve:clear-cymru-cache-address";
+                    description "Removes the origin of one address. The name of the AS it pointed
+at stays cached, because it belongs to the AS. The answer reports found true when any owner
+held it, removed, and the owners rows.";
+                    ze:help "Remove the cached Cymru origin of one IP address.";
+                    leaf ip-address {
+                        type zt:ip-address;
+                        mandatory true;
+                        description "An IPv4 or IPv6 address. Any spelling of the address finds the
+entry, so 2001:DB8::1 and 2001:db8:0::1 are the same key.";
+                        ze:help "IP address to clear.";
+                    }
                 }
             }
         }

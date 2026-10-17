@@ -119,6 +119,12 @@ type PluginRegistration struct {
 
 	// Doctor check declarations (runtime health checks)
 	DoctorChecks []DoctorCheckRegistration // Doctor checks this plugin provides
+
+	// ResolverCaches names the resolver caches (rpc.ResolverCachePeeringDB,
+	// ResolverCacheIRR, ResolverCacheCymru) the plugin holds clients for,
+	// declared in Stage 1. clear <cache> cache asks each plugin that declared
+	// the cache through rpc.MethodResolverCacheClear.
+	ResolverCaches []string
 }
 
 // FilterRegistration holds a named filter declaration from stage 1.

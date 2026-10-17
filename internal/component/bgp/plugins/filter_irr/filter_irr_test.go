@@ -912,7 +912,7 @@ func TestHandleConfigureForgetsUnconfiguredEntries(t *testing.T) {
 }
 
 // VALIDATES: a lookup a reload superseded by changing the ASN's as-set is
-// dropped, and the cancelled AS-OLD lookup commits nothing: the live state
+// dropped, and the canceled AS-OLD lookup commits nothing: the live state
 // keeps the new as-set and no list, and the store holds no AS-OLD entry, also
 // after a second refresh for AS-NEW that learns nothing.
 // PREVENTS: the in-flight refresh applying the old set's answer to the new
@@ -960,7 +960,7 @@ func TestRefreshDropsLookupAReloadSuperseded(t *testing.T) {
 		t.Errorf("live list = %v after a failed AS-NEW refresh, want none", list.entries)
 	}
 	if entry := plug.prefixStore.Get("AS65001"); entry != nil {
-		t.Errorf("store entry = %+v, want none: the reload cancelled the AS-OLD lookup, so it commits nothing", entry)
+		t.Errorf("store entry = %+v, want none: the reload canceled the AS-OLD lookup, so it commits nothing", entry)
 	}
 }
 

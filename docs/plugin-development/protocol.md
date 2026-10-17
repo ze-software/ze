@@ -176,6 +176,7 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `cache-consumer-unordered` | `bool` | Whether unordered cache delivery is acceptable |
 | `filters` | `[]FilterDecl` | Named route filters the plugin provides |
 | `doctor-checks` | `[]DoctorCheckDecl` | Doctor checks the plugin provides |
+| `resolver-caches` | `[]string` | Resolver caches the plugin holds clients for: `peeringdb`, `irr`, `cymru`. Set by `OnResolverCacheClear`; any other name is refused |
 | `enrichers` | `[]EnricherDecl` | Show enrichers the plugin provides |
 | `pipes` | `[]PipeDecl` | CLI pipe aliases the plugin names for its own commands |
 | `claims` | `[]string` | Exclusive runtime roles the plugin takes over |
@@ -497,6 +498,7 @@ each wire method to its registered handler.
 | `ze-plugin-callback:validate-open` | `OnValidateOpen` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN message |
 | `ze-plugin-callback:filter-update` | `OnFilterUpdate` | `FilterUpdateInput` | `FilterUpdateOutput` | Filter a route update. The reactor waits `rpc.FilterUpdateTimeout` (5 s) for the answer, then applies the filter's `on-error` policy, so a handler that waits MUST bound the wait below it |
 | `ze-plugin-callback:doctor-check` | `OnDoctorCheck` | `DoctorCheckInput` | `DoctorCheckOutput` | Run a doctor check |
+| `ze-plugin-callback:resolver-cache-clear` | `OnResolverCacheClear` | `ResolverCacheClearInput` | `ResolverCacheClearOutput` | Clear a declared resolver cache of the plugin's current clients, answering the entries removed |
 | `ze-plugin-callback:enrich-show` | `OnEnrichShow` | `EnrichShowInput` | `EnrichShowOutput` | Add data to show output |
 | `ze-plugin-callback:post-startup` | `OnAllPluginsReady` | None | None | Signal that all plugins are ready |
 | No wire method (DirectBridge only) | `OnStructuredEvent` | `[]any` of `*rpc.StructuredEvent` | None | Deliver structured events without JSON |

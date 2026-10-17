@@ -16,6 +16,7 @@ import (
 	"context"
 	"math"
 	"net"
+	"net/netip"
 	"slices"
 	"strings"
 	"time"
@@ -48,6 +49,37 @@ func New(resolveTXT TXTResolver, c *cache.Cache[string]) *CymruResolver {
 		resolveTXT: resolveTXT,
 		cache:      c,
 	}
+}
+
+// ClearCache empties the resolver's cache, address origins and AS names alike,
+// and returns the number of entries it removed. Safe for concurrent use.
+func (r *CymruResolver) ClearCache() int {
+	return r.cache.Clear()
+}
+
+// ClearCachedAddress removes the cached origin of addr, and returns how many
+// entries it removed: 0 or 1. The AS name the origin pointed at stays cached:
+// it belongs to the AS, not to the address. Safe for concurrent use.
+func (r *CymruResolver) ClearCachedAddress(addr netip.Addr) int {
+	if r.cache.Delete(originKeyPrefix + addr.String()) {
+		return 1
+	}
+	return 0
+}
+
+// originKeyPrefix starts the cache key of an address origin.
+const originKeyPrefix = "origin:"
+
+// originCacheKey is the key LookupOrigin caches the origin of ip under. An
+// address is keyed in its canonical text, so 2001:DB8::1 and 2001:db8:0::1
+// share one entry and ClearCachedAddress finds it under either spelling. Text
+// that is not an address is keyed as given.
+func originCacheKey(ip string) string {
+	addr, err := netip.ParseAddr(ip)
+	if err != nil {
+		return originKeyPrefix + ip
+	}
+	return originKeyPrefix + addr.String()
 }
 
 // LookupASNName returns the organization name for the given ASN.
@@ -93,7 +125,7 @@ type Origin struct {
 // Response format: "ASN | prefix | CC | RIR | Date"
 // Returns (zero Origin, nil) on any failure -- graceful degradation.
 func (r *CymruResolver) LookupOrigin(ctx context.Context, ip string) (Origin, error) {
-	key := "origin:" + ip
+	key := originCacheKey(ip)
 
 	if name, ok := r.cache.Get(key); ok {
 		return parseOriginCached(name), nil

@@ -34,6 +34,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"slices"
 	"sync"
 	"time"
 
@@ -102,6 +103,10 @@ type Plugin struct {
 	// onDrain is the stop drain handler, run on the connection's drain
 	// worker (sdk_drain.go) and declared at Stage 1 as DrainHandler.
 	onDrain DrainHandler
+
+	// resolverCaches is the Stage 1 declaration OnResolverCacheClear records:
+	// the resolver caches whose clear this plugin answers.
+	resolverCaches []string
 
 	// Startup subscriptions: included in the "ready" RPC so the engine
 	// registers them atomically before SignalAPIReady, avoiding the race
@@ -457,6 +462,11 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) error {
 	// DrainBudget that no handler answers.
 	if p.onDrain != nil {
 		reg.DrainHandler = true
+	}
+	// The resolver caches come from the handler registration too, so a
+	// declared cache always has a handler that answers its clear.
+	if len(p.resolverCaches) > 0 {
+		reg.ResolverCaches = slices.Clone(p.resolverCaches)
 	}
 	p.mu.Unlock()
 

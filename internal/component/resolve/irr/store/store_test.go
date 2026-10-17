@@ -1054,14 +1054,14 @@ func TestPurgeRemovesEntry(t *testing.T) {
 	}
 }
 
-// VALIDATES: a lookup whose context is cancelled after the IRR answered and
+// VALIDATES: a lookup whose context is canceled after the IRR answered and
 // before the install commits nothing: Refresh returns context.Canceled and
 // the stored entry is the one held before.
 // PREVENTS: a lookup its caller no longer wants (bgp-filter-irr cancels the
 // ones a reload superseded) installing its AS-SET, which discoverASSet would
 // then hand back as the fallback when PeeringDB fails.
 // Method: the fake IRR cancels the context while it answers the last query,
-// after the client dialled, so the answer still arrives in full.
+// after the client dialed, so the answer still arrives in full.
 func TestRefreshCancelledBeforeCommitStoresNothing(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -1084,14 +1084,14 @@ func TestRefreshCancelledBeforeCommitStoresNothing(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("Refresh error = %v, want context.Canceled", err)
 	}
-	if err != nil && !strings.Contains(err.Error(), "cancelled before its answer was stored") {
+	if err != nil && !strings.Contains(err.Error(), "canceled before its answer was stored") {
 		t.Errorf("Refresh error = %q, want it to say the answer was not stored", err)
 	}
 	after := s.Get("AS65001")
 	if after != nil && !after.StaleSince.IsZero() {
-		t.Errorf("stored entry StaleSince = %v, want unchanged: a cancelled lookup wrote the store", after.StaleSince)
+		t.Errorf("stored entry StaleSince = %v, want unchanged: a canceled lookup wrote the store", after.StaleSince)
 	}
 	if after == nil || after.ASSet != before.ASSet || len(after.IPv4) != 1 || after.IPv4[0] != before.IPv4[0] {
-		t.Errorf("stored entry = %+v, want the one held before %+v: a cancelled lookup was installed", after, before)
+		t.Errorf("stored entry = %+v, want the one held before %+v: a canceled lookup was installed", after, before)
 	}
 }

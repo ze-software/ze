@@ -365,6 +365,63 @@ it. A refresh that stored nothing reports an error and never reports success:
 is a failure to store rather than a successful one.
 <!-- source: internal/component/resolve/cmd/rir.go -- handleRIRRefresh -->
 
+## Clearing a resolver cache
+
+The PeeringDB, IRR and Team Cymru clients each keep a one-hour TTL cache
+(`internal/component/resolve/cache`). Three operator commands empty them, all
+of a cache or one key:
+
+| Command | Clears | Key form |
+|---------|--------|----------|
+| `clear peeringdb cache all` / `asn <as-number>` | prefix counts and AS-SET names, keyed by AS number | decimal or asdot, through `asn.Parse` |
+| `clear irr cache all` / `as-set <name>` | AS-SET members and prefix lists, keyed by AS-SET name | the name as it was looked up, exact match |
+| `clear cymru cache all` / `address <ip-address>` | address origins (and, for `all`, AS names) | IPv4 or IPv6, any spelling: the origin is keyed by the canonical address |
+
+The bare `clear <name> cache` has no `ze:command`, so the dispatcher refuses it
+and lists the two forms: a prefix typed short never clears everything.
+
+More than one client of each kind is alive at once, and each has an owner that
+answers the clear for it. The hub builds one Cymru, one PeeringDB and one IRR
+client at startup (`cmd/ze/hub/main_system.go`), and the handler clears those
+itself. A plugin that holds clients declares the caches at Stage 1
+(`rpc.DeclareRegistrationInput.ResolverCaches`, set by the SDK's
+`OnResolverCacheClear`), and the handler asks each plugin that declared the
+cache through the `ze-plugin-callback:resolver-cache-clear` callback
+(`pluginserver.Server.ResolverCacheOwners`, `CallResolverCacheClear`). The
+callback runs over the plugin connection, so an external-process plugin is
+reached the same way as an internal one; no list of owners exists anywhere.
+`bgp-filter-irr` and `firewall-irr` declare `irr` and `peeringdb`, and answer
+from their prefix store (`store.PrefixStore.ClearResolverCache`), which holds
+the clients the last configure installed through `UseClients`. A client a reload
+replaced is not the store's any more, so it is neither cleared nor counted, and
+the counts are exact. The client `bgp peer prefix update` builds lives for one
+command and is never consulted again, so it has no owner and no clear reaches
+it. Stage 1 refuses a cache name ze does not have, or one named twice.
+
+Answers: `{"action":"clear-all","removed":N,"owners":[...]}` for `all`, and
+`{"action":"delete-entry","<leaf>":<key>,"found":bool,"removed":N,"owners":[...]}`
+for one key, where the leaf is `as-number`, `name` or `ip-address`, `found` is
+true when any owner removed an entry, and each `owners` row is
+`{"owner":<"hub" or the plugin name>,"removed":N}`. A plugin that does not
+answer within five seconds makes the whole command an error naming it, rather
+than counting it as an owner that held nothing. The other owners were already
+cleared by then: the error gives the count they removed, and its data carries
+the same `removed` total and `owners` rows as a success, listing only the owners
+that answered.
+
+Two things a clear does not reach. The IRR prefix store
+(`internal/component/resolve/irr/store`) is the filters' durable copy and not a
+cache, so `clear irr cache` leaves it. The Cymru lookups go through the hub DNS
+resolver, which keeps its own TTL cache of the TXT answers, so the lookup after
+`clear cymru cache` can be answered from the DNS cache rather than by the
+network, until that entry expires or the DNS cache is cleared too.
+
+<!-- source: internal/component/resolve/cmd/clear_caches.go -- handleClearPeeringDBCacheAll, handleClearIRRCacheASSet, handleClearCymruCacheAddress -->
+<!-- source: internal/component/resolve/cmd/clear_caches.go -- clearEveryOwner, clearAnswer -->
+<!-- source: internal/component/plugin/server/resolver_cache.go -- ResolverCacheOwners, CallResolverCacheClear, validateResolverCacheDecls -->
+<!-- source: internal/component/resolve/irr/store/clear.go -- ClearResolverCache -->
+<!-- source: pkg/plugin/rpc/resolver_cache.go -- ResolverCacheClearInput, ResolverCacheClearOutput -->
+
 ## DNS Config
 
 DNS resolver configuration comes from YANG (`ze-system-conf.yang`):

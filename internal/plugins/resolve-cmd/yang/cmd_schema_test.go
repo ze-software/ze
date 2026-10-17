@@ -43,3 +43,34 @@ func TestResolveCmdSchemaOwnsShowDNS(t *testing.T) {
 		}
 	}
 }
+
+// TestResolveCmdSchemaOwnsClearClientCaches is the owner half of the
+// self-containment invariant for clear peeringdb, irr and cymru cache, and it
+// holds the owner's rule that a bare prefix never clears: each cache node
+// declares an all form and a keyed form, and no command of its own.
+//
+// VALIDATES: the six commands live here, and the bare cache nodes carry none.
+// PREVENTS: clear irr cache, typed short, emptying every cache.
+func TestResolveCmdSchemaOwnsClearClientCaches(t *testing.T) {
+	for _, want := range []string{
+		`ze:command "ze-resolve:clear-peeringdb-cache-all"`,
+		`ze:command "ze-resolve:clear-peeringdb-cache-asn"`,
+		`ze:command "ze-resolve:clear-irr-cache-all"`,
+		`ze:command "ze-resolve:clear-irr-cache-as-set"`,
+		`ze:command "ze-resolve:clear-cymru-cache-all"`,
+		`ze:command "ze-resolve:clear-cymru-cache-address"`,
+	} {
+		if !strings.Contains(ZeResolveCmdYANG, want) {
+			t.Errorf("ze-resolve-cmd.yang must declare %q", want)
+		}
+	}
+	for _, banned := range []string{
+		`"ze-resolve:clear-peeringdb-cache"`,
+		`"ze-resolve:clear-irr-cache"`,
+		`"ze-resolve:clear-cymru-cache"`,
+	} {
+		if strings.Contains(ZeResolveCmdYANG, banned) {
+			t.Errorf("ze-resolve-cmd.yang declares %s on the bare cache node: the bare prefix must not clear, give all explicitly", banned)
+		}
+	}
+}

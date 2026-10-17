@@ -661,6 +661,20 @@ func (pc *PluginConn) SendDoctorCheck(ctx context.Context, name string) (*rpc.Do
 	return &out, nil
 }
 
+// SendResolverCacheClear asks the plugin to clear one of the resolver caches
+// it declared at Stage 1 and returns how many entries it removed.
+func (pc *PluginConn) SendResolverCacheClear(ctx context.Context, input *rpc.ResolverCacheClearInput) (*rpc.ResolverCacheClearOutput, error) {
+	result, err := pc.CallRPC(ctx, rpc.MethodResolverCacheClear, input)
+	if err != nil {
+		return nil, err
+	}
+	var out rpc.ResolverCacheClearOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return nil, fmt.Errorf("unmarshal resolver-cache-clear result: %w", err)
+	}
+	return &out, nil
+}
+
 // SendBye sends a shutdown request to the plugin.
 func (pc *PluginConn) SendBye(ctx context.Context, reason string) error {
 	input := &rpc.ByeInput{Reason: reason}

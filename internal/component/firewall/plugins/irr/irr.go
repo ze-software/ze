@@ -34,6 +34,7 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -146,6 +147,10 @@ func runFirewallIRR(conn net.Conn) int {
 		ps.UsePersistence(plug.state)
 		return plug.configure(cfg)
 	})
+
+	// The IRR and PeeringDB clients this plugin uses live in its prefix
+	// store, so the store answers clear irr cache and clear peeringdb cache.
+	p.OnResolverCacheClear(store.ResolverCaches(), plug.clearResolverCache)
 
 	if err := p.Run(ctx, &sdk.Registration{
 		Commands:    commandDecls(),
@@ -288,6 +293,17 @@ func uncachedRefMessage(ref irrRef, absent bool) string {
 		tb.Str("; run 'update firewall irr asn ").Str(bareASN(ref.Name)).Str("' first")
 	}
 	return tb.String()
+}
+
+// clearResolverCache answers clear irr cache and clear peeringdb cache for the
+// clients the prefix store uses now. Before the first configure the plugin
+// holds no client, so it holds no entry and zero is the true count.
+func (plug *irrPlugin) clearResolverCache(input rpc.ResolverCacheClearInput) (int, error) {
+	ps := plug.getPrefixStore()
+	if ps == nil {
+		return 0, nil
+	}
+	return ps.ClearResolverCache(input)
 }
 
 func (plug *irrPlugin) getPrefixStore() *store.PrefixStore {

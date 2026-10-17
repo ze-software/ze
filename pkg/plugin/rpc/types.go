@@ -319,8 +319,14 @@ type DeclareRegistrationInput struct {
 	CacheConsumerUnordered bool                  `json:"cache-consumer-unordered,omitempty"`
 	Filters                []FilterDecl          `json:"filters,omitempty"`
 	DoctorChecks           []DoctorCheckDecl     `json:"doctor-checks,omitempty"`
-	Enrichers              []EnricherDecl        `json:"enrichers,omitempty"`
-	Pipes                  []PipeDecl            `json:"pipes,omitempty"`
+	// ResolverCaches names the resolver caches (rpc.ResolverCachePeeringDB,
+	// ResolverCacheIRR, ResolverCacheCymru) this plugin holds clients for. The
+	// engine asks it to clear each one through MethodResolverCacheClear when
+	// the operator runs clear <cache> cache. The Go SDK sets it from
+	// OnResolverCacheClear.
+	ResolverCaches []string       `json:"resolver-caches,omitempty"`
+	Enrichers      []EnricherDecl `json:"enrichers,omitempty"`
+	Pipes          []PipeDecl     `json:"pipes,omitempty"`
 	// Claims are exclusive runtime roles this plugin takes over from another
 	// plugin's default behavior (e.g. "bgp-peer-up-replay"). The engine unions
 	// the claims of every plugin in the startup set and delivers the result to

@@ -73,3 +73,25 @@ func (c *Cache[V]) Len() int {
 
 	return len(c.entries)
 }
+
+// Delete removes the entry under key and reports whether one was held. An
+// expired entry not yet evicted still counts, because it was still held.
+func (c *Cache[V]) Delete(key string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	_, held := c.entries[key]
+	delete(c.entries, key)
+	return held
+}
+
+// Clear removes every entry and returns how many it removed, expired entries
+// not yet evicted included.
+func (c *Cache[V]) Clear() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	removed := len(c.entries)
+	clear(c.entries)
+	return removed
+}

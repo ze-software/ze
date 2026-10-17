@@ -1405,16 +1405,54 @@ ze show dns cache record example.com  # Show cached entries for a specific name
 
 <!-- source: internal/component/resolve/cmd/show_dns.go -- handleDNSCacheStats, handleDNSCacheList, handleDNSCacheRecord -->
 
-### clear dns cache / stats / record
+### clear dns cache all / stats / record
+
+`clear dns cache` alone is refused and lists these forms: flushing everything
+needs the word `all`.
 
 ```
-clear dns cache                                     # Flush all entries and reset all counters
+clear dns cache all                                 # Flush all entries and reset all counters
 clear dns cache stats                               # Zero counters without removing entries
 clear dns cache record example.com                  # Delete all entries matching name (all types)
 clear dns cache record example.com type AAAA        # Delete a single entry by name and type
 ```
 
 <!-- source: internal/component/resolve/cmd/dns.go -- handleClearDNSCache, handleClearDNSCacheStats, handleClearDNSCacheRecord -->
+
+### clear peeringdb cache / clear irr cache / clear cymru cache
+
+Each owner of a resolver client clears the client it uses now. The hub clears
+the one `resolve peeringdb`, `resolve irr` or `resolve cymru` uses, and every
+plugin that declared that cache clears its own: `bgp-filter-irr` and
+`firewall-irr` hold an IRR and a PeeringDB client, inside the daemon or as their
+own process. A client a plugin replaced on a reload is not cleared or counted.
+The client `bgp peer prefix update` builds lives for one command, so no clear
+reaches it. The bare form is refused and lists the two forms: clearing
+everything needs the word `all`.
+
+```
+clear peeringdb cache all                           # Remove every cached PeeringDB answer
+clear peeringdb cache asn 65001                     # Remove one AS number (decimal or asdot)
+clear irr cache all                                 # Remove every cached AS-SET expansion and prefix list
+clear irr cache as-set AS-EXAMPLE                   # Remove one AS-SET, matched exactly
+clear cymru cache all                               # Remove every cached origin and AS name
+clear cymru cache address 2001:db8::1               # Remove the origin of one address
+```
+
+Every answer carries `removed`, the entries removed in total, and `owners`, one
+row per owner with its `owner` name and its `removed` count. A keyed form also
+answers `found`, true when any owner held the key. An owner that does not answer
+makes the command an error that names it, says how many entries the others
+removed, and points at `show plugin list`. The IRR filters' stored prefix lists
+are not a cache and stay.
+
+```
+clear irr cache all | json
+{"action":"clear-all","removed":3,"owners":[{"owner":"hub","removed":0},{"owner":"bgp-filter-irr","removed":3}]}
+```
+
+<!-- source: internal/component/resolve/cmd/clear_caches.go -- handleClearPeeringDBCacheAll, handleClearPeeringDBCacheASN, handleClearIRRCacheAll, handleClearIRRCacheASSet, handleClearCymruCacheAll, handleClearCymruCacheAddress, clearAnswer -->
+<!-- source: internal/component/resolve/irr/store/clear.go -- ClearResolverCache -->
 
 ### show resolve rir
 

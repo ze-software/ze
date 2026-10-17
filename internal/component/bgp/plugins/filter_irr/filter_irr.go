@@ -77,7 +77,7 @@ type asnState struct {
 	// config names one, otherwise the one the last lookup used, empty before
 	// the first lookup. It is what `show bgp irr` reports, never the hint.
 	asSet string
-	// lookups is cancelled when a reload replaces this state with one that
+	// lookups is canceled when a reload replaces this state with one that
 	// does not carry it over (the ASN dropped, its configured set changed or
 	// deleted), so a lookup still in flight for it commits nothing to the
 	// store (store.commit). A state carried over shares its predecessor's.
@@ -230,6 +230,10 @@ func runFilterIRR(conn net.Conn) int {
 		return nil
 	})
 
+	// The IRR and PeeringDB clients this plugin uses live in its prefix
+	// store, so the store answers clear irr cache and clear peeringdb cache.
+	p.OnResolverCacheClear(store.ResolverCaches(), plug.clearResolverCache)
+
 	if err := p.Run(ctx, &sdk.Registration{
 		Commands:    commandDecls(),
 		WantsConfig: []string{configRootBGP},
@@ -238,6 +242,19 @@ func runFilterIRR(conn net.Conn) int {
 		return 1
 	}
 	return 0
+}
+
+// clearResolverCache answers clear irr cache and clear peeringdb cache for the
+// clients the prefix store uses now. Before the first configure the plugin
+// holds no client, so it holds no entry and zero is the true count.
+func (plug *irrPlugin) clearResolverCache(input rpc.ResolverCacheClearInput) (int, error) {
+	plug.mu.RLock()
+	ps := plug.prefixStore
+	plug.mu.RUnlock()
+	if ps == nil {
+		return 0, nil
+	}
+	return ps.ClearResolverCache(input)
 }
 
 // bgpSubtreeFromSections returns the bgp subtree a configure or verify
@@ -324,7 +341,7 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 		// with firstDone already signaled, until the next refresh: the edit
 		// would be accepted and not enforced. Deleting the configured set is
 		// a change too, because PeeringDB chooses the set again. The old
-		// state's lookups are cancelled, so one in flight commits nothing
+		// state's lookups are canceled, so one in flight commits nothing
 		// that store.discoverASSet could later hand back as its fallback.
 		if !oldSt.carriedOverBy(newSt) {
 			oldSt.supersede()
@@ -820,7 +837,7 @@ func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 		// resolution answers for the new config. A reload that kept the as-set
 		// also replaces st, but carries the lookups context over, and its
 		// answer is still the right one, so the context decides, not the
-		// pointer alone. The reload cancelled this lookup, so if it had not
+		// pointer alone. The reload canceled this lookup, so if it had not
 		// committed by then it committed nothing; one that committed first
 		// was purged by the reload, under the same lock order.
 		liveASSet := st.asSet
