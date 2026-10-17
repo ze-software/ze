@@ -277,9 +277,11 @@ func TestPrefixSIDSRv6MatchesTheConfigPath(t *testing.T) {
 // VALIDATES: the NLRI bytes of test/exabgp-compat/api/api-attributes-path.ci
 // line 7, `01020304 20 10111213` and `01020304 20 14151617`: a four-octet Path
 // Identifier prepended to each <length, prefix>. The fixture writes the
-// identifier in its dotted form, 1.2.3.4, which is 16909060.
+// identifier in its dotted form, 1.2.3.4, which is 16909060; both forms are
+// asserted and give the same bytes.
 // PREVENTS: "unexpected token 'path-information'", which is what the parser
-// answered while accepting the same keyword inside an nlri section.
+// answered while accepting the same keyword inside an nlri section, and
+// `invalid path-information "1.2.3.4"`, which it answered to the dotted form.
 func TestPathInformationAtTheTopLevelReachesTheNLRI(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -298,6 +300,18 @@ func TestPathInformationAtTheTopLevelReachesTheNLRI(t *testing.T) {
 			id:    "67305985",
 			want0: "040302012010111213",
 			want1: "040302012014151617",
+		},
+		{
+			name:  "api-attributes-path.ci dotted 1.2.3.4",
+			id:    "1.2.3.4",
+			want0: "010203042010111213",
+			want1: "010203042014151617",
+		},
+		{
+			name:  "interoplab helper dotted 0.0.0.1",
+			id:    "0.0.0.1",
+			want0: "000000012010111213",
+			want1: "000000012014151617",
 		},
 	}
 
@@ -324,16 +338,42 @@ func TestPathInformationAtTheTopLevelReachesTheNLRI(t *testing.T) {
 // rather than defaulted.
 //
 // VALIDATES: RFC 7911 Section 3 gives the Path Identifier four octets, so a
-// non-numeric token and a value above 4294967295 are each refused BY NAME.
+// token that is neither a decimal 0..4294967295 nor a dotted a.b.c.d is
+// refused BY NAME, at the top level and inside an nlri section, and the error
+// names both accepted forms.
 // PREVENTS: a mistyped identifier silently becoming a different path.
 func TestPathInformationRefusesAMalformedValue(t *testing.T) {
-	for _, value := range []string{"1.2.3.4", "4294967296", "-1"} {
-		_, err := ParseUpdateText([]string{
-			"path-information", value,
-			"nlri", "add", "10.0.0.0/24",
+	for _, value := range []string{"1.2.3", "1.2.3.256", "::1", "4294967296", "-1", "junk"} {
+		for _, args := range [][]string{
+			{"path-information", value, "nlri", "add", "10.0.0.0/24"},
+			{"nlri", "path-information", value, "add", "10.0.0.0/24"},
+		} {
+			_, err := ParseUpdateText(args)
+			require.Error(t, err, "args %v", args)
+			assert.Contains(t, err.Error(), `invalid path-information "`+value+`"`)
+			assert.Contains(t, err.Error(), "0..4294967295")
+			assert.Contains(t, err.Error(), "a.b.c.d")
+		}
+	}
+}
+
+// TestPathInformationDottedInsideAnNLRISection verifies the in-section
+// modifier reads the dotted form the config reads.
+//
+// VALIDATES: `nlri path-information 0.0.0.1 add ...`, the command the
+// interoplab bgp helper sends for bgp-addpath-frr, gives Path Identifier 1,
+// the same as `nlri path-information 1 add ...`.
+// PREVENTS: `invalid path-information "0.0.0.1"` from the section parser.
+func TestPathInformationDottedInsideAnNLRISection(t *testing.T) {
+	for _, value := range []string{"0.0.0.1", "1"} {
+		result, err := ParseUpdateText([]string{
+			"origin", "igp", "next-hop", "10.0.0.1",
+			"nlri", "path-information", value, "add", "10.10.0.0/24",
 		})
-		require.Error(t, err, "value %s", value)
-		assert.Contains(t, err.Error(), value)
+		require.NoError(t, err, "value %s", value)
+		require.Len(t, result.Groups, 1)
+		require.Len(t, result.Groups[0].Announce, 1)
+		assert.Equal(t, uint32(1), result.Groups[0].Announce[0].PathID(), "value %s", value)
 	}
 }
 

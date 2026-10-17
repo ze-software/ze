@@ -1099,7 +1099,7 @@ originator-id <ip>               # Originator ID
 cluster-list <ip>,<ip>,...       # Cluster list
 label <label>                    # MPLS label (per-NLRI-section modifier)
 rd <rd>                          # Route distinguisher (per-NLRI-section modifier)
-info <id>                        # ADD-PATH path ID (per-NLRI-section modifier) — long: path-information
+info <id>                        # ADD-PATH path ID, decimal or dotted a.b.c.d (per-NLRI-section modifier) — long: path-information
 atomic-aggregate                 # Atomic aggregate flag
 aggregator <asn> <ip>            # Aggregator
 aigp <value>                     # AIGP

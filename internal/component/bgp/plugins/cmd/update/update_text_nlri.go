@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/parse"
 )
 
 var errFlowspecParsingRequiresParseflowspecsection = errors.New("flowspec parsing requires parseFlowSpecSection")
@@ -202,11 +203,12 @@ func parseINETSection(args []string, start int, fam family.Family, accum nlriAcc
 			if i+1 >= len(args) {
 				return nlriParseResult{}, errors.New("path-information requires a value")
 			}
-			id, err := strconv.ParseUint(args[i+1], 10, 32)
+			// RFC 7911 Section 3
+			id, err := parse.PathID(args[i+1])
 			if err != nil {
-				return nlriParseResult{}, fmt.Errorf("invalid path-information: %w", err)
+				return nlriParseResult{}, err
 			}
-			accum.PathID = uint32(id) //nolint:gosec // G115: bounded by ParseUint 32-bit
+			accum.PathID = id
 			accum.HasPathID = true
 			i += 2
 			consumed += 2

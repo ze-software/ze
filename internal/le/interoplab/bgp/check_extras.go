@@ -34,8 +34,11 @@ var scenarioExtras = map[string][]operation{
 	"bgp-4byte-asn-frr": {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON}, contains: []string{"4200000000", stateEstablished}},
 	},
+	// FRR 10.3 prints "Paths: (2 available, ...)" and one "AddPath ID: RX <id>,"
+	// line per path, so the two identifiers ze wrote as 0.0.0.1 and 0.0.0.2
+	// must arrive as 1 and 2.
 	scenarioAddPathFRR: {
-		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast 10.10.0.0/24"}, contains: []string{injectPrefixFirst, "2 paths"}},
+		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast 10.10.0.0/24"}, contains: []string{injectPrefixFirst, "Paths: (2 available", "AddPath ID: RX 1,", "AddPath ID: RX 2,"}},
 	},
 	scenarioECMPFRR: {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast 10.100.0.0/24 json"}, contains: []string{ecmpPrefix, zeLabAddress, gobgpLabAddress}},

@@ -65,7 +65,7 @@ func TestAnnouncementPlanOrderAndTimingFixture(t *testing.T) {
 			fmt.Fprintf(plans, "%s|%s|%d|%t\n", update.selector, update.command, update.delay, update.quiesce) //nolint:errcheck // neither hash.Hash nor strings.Builder returns a write error
 		}
 	}
-	const want = "56d0521ea6ecc1e0a896e4072aba0b5b9c81dab6cb5d8b89b91ffea238e36b51"
+	const want = "07fc3552284631b76d6850310997802fbe4b177454134a11d558d40a960b79f0"
 	if got := hex.EncodeToString(digest.Sum(nil)); got != want {
 		t.Fatalf("compiled announcement order/timing digest = %s, want %s\ndigest input:\n%s", got, want, input.String())
 	}

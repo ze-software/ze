@@ -656,7 +656,7 @@ request bgp watchdog withdraw <name>   # withdraw all routes in pool from peers
 |-------------|-------|-----------|-----------|
 | `rd` | `<ASN:NN>` or `<IP:NN>` | `*-vpn` families | All others |
 | `label` | `<label>` or `[ <label>... ]` | `*-vpn`, `*-labeled` families | All others |
-| `path-information` | `<uint32>` | Any (if ADD-PATH negotiated) | Ignored if not negotiated |
+| `path-information` | `<uint32>` or dotted `<a.b.c.d>` | Any (if ADD-PATH negotiated) | Ignored if not negotiated |
 
 RFC 7911 Section 3 gives the Path Identifier four octets and reserves no value,
 so `path-information 0` names the identifier zero and is not a way to say that
@@ -665,6 +665,15 @@ no identifier was written. The keyword's presence is what the parser records
 the families a plugin encodes, whose encoders answer with the payload alone.
 Whether those octets reach the wire is still the session's ADD-PATH
 negotiation, which `WriteNLRI` reads.
+
+The identifier is written as one decimal number, 0 to 4294967295, or in the
+dotted form a.b.c.d, which names the four octets in wire order: `0.0.0.1` is 1
+and `1.2.3.4` is 16909060. ExaBGP writes the dotted form. The config's
+`path-information` leaf reads the same two forms through the same parser,
+`parse.PathID`, at the top level and inside a section alike. Any other token,
+an IPv6 address included, is refused with an error that names it and both
+accepted forms.
+<!-- source: internal/core/parse/pathid.go -- PathID -->
 
 A family whose plugin declares that its NLRI carries no path identifier
 (`NLRIAddPathRefusal` in its registration; SR-Policy does) refuses a
@@ -756,7 +765,7 @@ or `del`. Each applies to every prefix of that section, never to one prefix:
 
 | Modifier | Syntax | Sets |
 |----------|--------|------|
-| `path-information` | `path-information <id>` (alias `info`) | the ADD-PATH path identifier (RFC 7911) |
+| `path-information` | `path-information <id>` (alias `info`), `<id>` decimal or dotted `a.b.c.d` | the ADD-PATH path identifier (RFC 7911) |
 | `rd` | `rd <asn>:<num>` or `rd <ip>:<num>` | the route distinguisher of a VPN family |
 | `label` | `label <num>` or `label [ <num>... ]` | the label stack, read by the parser the top-level `label` uses |
 

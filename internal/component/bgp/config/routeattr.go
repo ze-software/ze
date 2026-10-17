@@ -49,22 +49,19 @@ func (o Origin) String() string {
 // Valid range: 0-4294967295 (0 means not set).
 type PathID uint32
 
-// ParsePathID parses a path-information value.
-// Can be a uint32 or an IPv4 address (converted to uint32).
+// ParsePathID parses a path-information value: a decimal uint32 or the dotted
+// a.b.c.d form, through parse.PathID, the one parser config and `update text`
+// share. An absent value (empty string) is no path identifier.
 func ParsePathID(s string) (PathID, error) {
 	if s == "" {
 		return 0, nil
 	}
-	// Try as integer first
-	if n, err := strconv.ParseUint(s, 10, 32); err == nil {
-		return PathID(n), nil
+	// RFC 7911 Section 3
+	id, err := parse.PathID(s)
+	if err != nil {
+		return 0, err
 	}
-	// Try as IPv4 address (legacy format)
-	if ip, err := netip.ParseAddr(s); err == nil && ip.Is4() {
-		b := ip.As4()
-		return PathID(uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])), nil
-	}
-	return 0, fmt.Errorf("invalid path-information %q: expected integer or IPv4 address", s)
+	return PathID(id), nil
 }
 
 func (p PathID) String() string {

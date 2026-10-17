@@ -60,6 +60,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/parse"
 	"github.com/ze-software/ze/internal/core/selector"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -908,9 +909,8 @@ func parseRDFlat(args []string, accum *parsedAttrs) (int, error) {
 
 // parsePathInfoFlat parses path-information <id> at the top level.
 //
-// RFC 7911 Section 3: "the NLRI encoding MUST be extended by prepending the Path
-// Identifier field, which is of four octets", so the value is read as a 32-bit
-// unsigned number and any wider or non-numeric token is refused by name.
+// The value is read by parse.PathID, the parser the config shares, so the
+// decimal and the dotted a.b.c.d forms are accepted in both places.
 //
 // The keyword is accepted here AND inside an nlri section, as `rd` and `label`
 // are. It used to be accepted only inside one, so a command that wrote all three
@@ -924,11 +924,12 @@ func parsePathInfoFlat(args []string, accum *parsedAttrs) (int, error) {
 	if args[1] == kwSet || args[1] == kwDel {
 		return 0, errSetDelKeywordsRemovedUsePathInfo
 	}
-	id, err := strconv.ParseUint(args[1], 10, 32)
+	// RFC 7911 Section 3
+	id, err := parse.PathID(args[1])
 	if err != nil {
-		return 0, fmt.Errorf("invalid path-information %q: expected 0..4294967295", args[1])
+		return 0, err
 	}
-	accum.PathID = uint32(id) //nolint:gosec // G115: bounded by ParseUint bitSize 32
+	accum.PathID = id
 	accum.HasPathID = true
 	return 2, nil
 }

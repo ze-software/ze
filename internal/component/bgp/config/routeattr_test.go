@@ -214,3 +214,23 @@ func TestRFC8955TrafficActionUnusedBitsZero(t *testing.T) {
 			"spec %q: only the Terminal and Sample bits may be set in the final octet", spec)
 	}
 }
+
+// TestParsePathID verifies the config reads path-information through the
+// parser `update text` uses.
+//
+// VALIDATES: decimal and dotted forms give the same four octets, an absent
+// value is no identifier, and junk is refused naming both forms.
+// PREVENTS: config and `update text` disagreeing on which forms exist.
+func TestParsePathID(t *testing.T) {
+	for input, want := range map[string]PathID{"": 0, "7": 7, "0.0.0.7": 7, "1.2.3.4": 16909060} {
+		got, err := ParsePathID(input)
+		require.NoError(t, err, "input %q", input)
+		assert.Equal(t, want, got, "input %q", input)
+	}
+	for _, input := range []string{"4294967296", "1.2.3", "::1", "junk"} {
+		_, err := ParsePathID(input)
+		require.Error(t, err, "input %q", input)
+		assert.Contains(t, err.Error(), `invalid path-information "`+input+`"`)
+		assert.Contains(t, err.Error(), "a.b.c.d")
+	}
+}
