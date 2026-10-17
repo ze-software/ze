@@ -166,3 +166,34 @@ stall with a file-config .ci, and re-check what filter-irr's stall was.
 
 Commit C (fsync trims): not started. Before/after load numbers: not measured.
 `bin/le-bootrec` deleted; rebuild with `./le --name bootrec`.
+CORRECTION (independent review): the FINDING above is false. The runner rewrites every
+stdin daemon into `ze start <WorkDir>/<name>.conf` (runner_exec.go stdinRouteDaemonConfig,
+parsing.go), so every DUT opens a live store; filter-irr.ci included.
+
+### Route-injection grammar, second agent (2026-10-17, budget hit, nothing committed)
+Done: rr/rs EOR expectations now `mp <fam> eor`; rib llgr_sent_lifecycle_test picks
+`nlri`/`mp <fam>` by family; interoplab speaker_test digest repinned (it pins command text
+on purpose); docs rewritten for command lines only (api/update-syntax.md, api/architecture.md,
+api/commands.md with the refusal quoted, guide/route-injection.md, DESIGN.md, core-design.md
+and about a dozen more); new `test/plugin/update-text-nlri-family-form-refused.ci`, red with
+an alias, green without. Left alone on purpose: config `update { text { nlri <fam> } }`,
+`update hex`/`b64`, received-event text, `decode nlri <family>`.
+Green: go test over update, textparse, exabgp bridge, bgp, rr, rs, redistribute,
+ddos/flowspec, rib, reactor, watchdog, plugin/server, fixture, runner, interoplab/bgp,
+bridgerun, mvpn (no -race, no lint). .ci on a private launcher: encode 66/66, reload
+101/101, plugin 823/825 (lo0 alias 127.0.0.6 missing; one vpp flake passed on rerun),
+ui 272/277.
+Open, in order:
+(a) `./le repo check` flags ClearProcessCursors (update/cursor.go), NextHopIPv6
+(exabgp/bridge/bridge_attribute.go) and ConvertFlowRoute (bridge_flow.go) as exported with
+no cross-package caller: compare with HEAD, unexport or fix.
+(b) `le test sensitivity check` counts 115 assert-nothing tests against a baseline of 114:
+find the extra one.
+(c) Delete bin/le-inject2.
+(d) The interop scenarios on interoplab helper.go and the exabgp-compat suite were not run.
+(e) Check update-syntax.md "Per-NLRI Overrides" (`nlri nhop set ... add`) against the parser,
+which takes only path-information, rd and label; check the plugins/nlri/mvpn/encode.go hunk
+is grammar only.
+(f) Owner questions pending: mp ipv4/unicast, hex/b64, config form, event text, next-hop self.
+(g) Independent review, then commit. test/fixture/plugin_fixture_03_route_server.go also
+carries the fastpath comment from 430a3de516: commit it whole and name it in the body.
