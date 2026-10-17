@@ -438,7 +438,7 @@
       "claim-sha": "e3b0c44298fc1c14",
       "route": "revert",
       "producer": "internal/component/ike/engine/sa.go::adoptAuthenticatedEndpoint",
-      "producer-sha": "f5c4d3eef38098b5",
+      "producer-sha": "142d234e21a24324",
       "break": "body of adoptAuthenticatedEndpoint replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -449,7 +449,7 @@
       "claim-sha": "17c9f0241ffdaffd",
       "route": "revert",
       "producer": "internal/component/ike/engine/sa.go::adoptAuthenticatedEndpoint",
-      "producer-sha": "f5c4d3eef38098b5",
+      "producer-sha": "142d234e21a24324",
       "break": "body of adoptAuthenticatedEndpoint replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -460,7 +460,7 @@
       "claim-sha": "917fed3795734729",
       "route": "revert",
       "producer": "internal/component/ike/engine/sa.go::adoptAuthenticatedEndpoint",
-      "producer-sha": "f5c4d3eef38098b5",
+      "producer-sha": "142d234e21a24324",
       "break": "body of adoptAuthenticatedEndpoint replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -999,7 +999,7 @@
       "claim-sha": "261f8be4101b0938",
       "route": "revert",
       "producer": "internal/component/ike/engine/sa.go::adoptAuthenticatedEndpoint",
-      "producer-sha": "f5c4d3eef38098b5",
+      "producer-sha": "142d234e21a24324",
       "break": "body of adoptAuthenticatedEndpoint replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1010,7 +1010,7 @@
       "claim-sha": "a257219dccfa6376",
       "route": "revert",
       "producer": "internal/component/ike/engine/sa.go::adoptAuthenticatedEndpoint",
-      "producer-sha": "f5c4d3eef38098b5",
+      "producer-sha": "142d234e21a24324",
       "break": "body of adoptAuthenticatedEndpoint replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1021,7 +1021,7 @@
       "claim-sha": "423585bedc83f1ce",
       "route": "revert",
       "producer": "internal/component/ike/engine/sa.go::adoptAuthenticatedEndpoint",
-      "producer-sha": "f5c4d3eef38098b5",
+      "producer-sha": "142d234e21a24324",
       "break": "body of adoptAuthenticatedEndpoint replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
