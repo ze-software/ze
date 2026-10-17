@@ -3,12 +3,14 @@ package fixture
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -132,13 +134,12 @@ func lePlacementAnswers(ctx context.Context) error {
 		}
 	}
 
-	// count selects the only list in the payload.
-	counted, err := command(areaTier, "check", "|", "count")
-	if err != nil {
+	// count selects the only list in the payload. The expected count comes from
+	// the checks the producer itself rendered, so adding a check to the gate does
+	// not redden this fixture, while a count operator that counted the wrong
+	// thing (the payload's own keys, or nothing) still does.
+	if err := leExpectCheckCount(command); err != nil {
 		return err
-	}
-	if strings.TrimSpace(counted.stdout) != "5" {
-		return fmt.Errorf("FAIL: the check reports %q checks, want five", strings.TrimSpace(counted.stdout))
 	}
 
 	// Refusals retain the boundary-specific status assigned by the command
@@ -187,6 +188,41 @@ func lePlacementAnswers(ctx context.Context) error {
 	}
 
 	fmt.Println("PASS: the three placement gates satisfy their checkout contract")
+	return nil
+}
+
+// leExpectCheckCount proves that `arch tier check | count` counts the checks
+// list. The want is the length of the checks list the JSON render carries, and
+// it must differ from the payload's top-level key count, or a count operator
+// that counted the keys would pass unnoticed.
+func leExpectCheckCount(command func(...string) (leCommandResult, error)) error {
+	rendered, err := command(areaTier, actionCheck, "|", renderJSON)
+	if err != nil {
+		return err
+	}
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(rendered.stdout), &payload); err != nil {
+		return fmt.Errorf("FAIL: the check JSON does not decode: %w\n%s", err, rendered.stdout)
+	}
+	var checks []json.RawMessage
+	if err := json.Unmarshal(payload["checks"], &checks); err != nil {
+		return fmt.Errorf("FAIL: the check JSON carries no checks list: %w\n%s", err, rendered.stdout)
+	}
+	if len(checks) == 0 {
+		return errors.New("FAIL: the check JSON lists no check, so the count is vacuous")
+	}
+	if len(checks) == len(payload) {
+		return fmt.Errorf("FAIL: the check lists %d checks and its payload has %d keys, so the count cannot tell them apart", len(checks), len(payload))
+	}
+
+	counted, err := command(areaTier, actionCheck, "|", pipeCount)
+	if err != nil {
+		return err
+	}
+	want := strconv.Itoa(len(checks))
+	if strings.TrimSpace(counted.stdout) != want {
+		return fmt.Errorf("FAIL: the check reports %q checks, want %s", strings.TrimSpace(counted.stdout), want)
+	}
 	return nil
 }
 
