@@ -2,6 +2,8 @@ package l2tp
 
 import (
 	"bytes"
+	"context"
+	"log/slog"
 	"net/netip"
 	"testing"
 	"time"
@@ -68,6 +70,79 @@ func TestReactor_DialCreatesInitiatorTunnel(t *testing.T) {
 	r.tunnelsMu.Unlock()
 	require.Equal(t, L2TPTunnelWaitCtlReply, state)
 	require.True(t, hasTB, "dial installs a tie breaker for simultaneous-open resolution")
+}
+
+// TestReactor_DialFromLoopbackToOffHostRefused proves a loopback-bound
+// listener refuses to dial an off-host remote, before any tunnel exists.
+//
+// VALIDATES: Dial returns ErrDialFromLoopback naming the remote, the listener
+// and the config leaf that fixes it; no SCCRQ is sent and no tunnel is left in
+// the map. Before the refusal, Dial answered success with a local tunnel ID
+// while every SCCRQ failed in the kernel ("sendto: invalid argument"), which
+// is how the 03-ze-lac-xl2tpd-lns interop scenario failed on 2026-10-17.
+// METHOD: a log reactor for server "lab" binds 127.0.0.1; the remote is 192.0.2.1
+// (RFC 5737 TEST-NET-1), which is not on the loopback.
+func TestReactor_DialFromLoopbackToOffHostRefused(t *testing.T) {
+	logs := &lockedBuffer{}
+	logger := slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	ln := newUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), logger)
+	require.NoError(t, ln.Start(context.Background()))
+	r := newL2TPReactor(ln, logger, reactorParams{
+		ServerName: "lab",
+		Defaults:   TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16},
+	})
+	require.NoError(t, r.Start())
+	defer func() {
+		r.Stop()
+		_ = ln.Stop()
+	}()
+
+	remote := netip.MustParseAddrPort("192.0.2.1:1701")
+	localTID, err := r.Dial(DialTarget{Remote: remote})
+	require.ErrorIs(t, err, ErrDialFromLoopback)
+	require.Zero(t, localTID)
+	require.Contains(t, err.Error(), remote.String())
+	require.Contains(t, err.Error(), ln.Addr().String())
+	require.Contains(t, err.Error(), "(environment l2tp server lab)")
+	require.Contains(t, err.Error(), "\n  set environment l2tp server lab ip 0.0.0.0")
+
+	waitForLog(t, logs, "dial refused; listener cannot reach the remote")
+	require.NotContains(t, logs.String(), "SCCRQ sent")
+	require.NotContains(t, logs.String(), "outbound send failed")
+	r.tunnelsMu.Lock()
+	tunnels := len(r.tunnelsByLocalID)
+	r.tunnelsMu.Unlock()
+	require.Zero(t, tunnels, "a refused dial leaves no tunnel behind")
+}
+
+// TestDialSourceUnreachable pins the boundary of the refusal: only a loopback
+// source with a non-loopback destination is refused.
+//
+// VALIDATES: each family's loopback, a second loopback address, the wildcard
+// and a host address as the source, against loopback and off-host remotes.
+func TestDialSourceUnreachable(t *testing.T) {
+	cases := []struct {
+		name, local, remote string
+		unreachable         bool
+	}{
+		{"loopback to loopback", "127.0.0.1", "127.0.0.1", false},
+		{"loopback to other loopback", "127.0.0.1", "127.0.0.2", false},
+		{"loopback to off-host", "127.0.0.1", "172.29.0.3", true},
+		{"second loopback to off-host", "127.255.255.254", "192.0.2.1", true},
+		{"wildcard to off-host", "0.0.0.0", "172.29.0.3", false},
+		{"host address to off-host", "172.29.0.2", "172.29.0.3", false},
+		{"host address to loopback", "172.29.0.2", "127.0.0.1", false},
+		{"ipv6 loopback to off-host", "::1", "2001:db8::1", true},
+		{"ipv6 loopback to loopback", "::1", "::1", false},
+		{"ipv6 wildcard to off-host", "::", "2001:db8::1", false},
+		{"v4-mapped loopback to off-host", "::ffff:127.0.0.1", "192.0.2.1", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := dialSourceUnreachable(netip.MustParseAddr(tc.local), netip.MustParseAddr(tc.remote))
+			require.Equal(t, tc.unreachable, got)
+		})
+	}
 }
 
 // TestReactor_DialLoopbackHandshake -- AC-1 + AC-2 end-to-end over UDP.
@@ -356,4 +431,14 @@ func TestReactor_PlaceIncomingCall_AutoICRQ(t *testing.T) {
 	r.tunnelsMu.Lock()
 	require.Equal(t, 1, len(tun.sessions))
 	r.tunnelsMu.Unlock()
+}
+
+// TestWildcardFor pins the bind the refusal proposes for each remote family.
+//
+// VALIDATES: IPv4 and IPv4-mapped remotes get 0.0.0.0; an IPv6 remote gets ::,
+// because the listener binds udp6 with IPV6_V6ONLY.
+func TestWildcardFor(t *testing.T) {
+	require.Equal(t, "0.0.0.0", wildcardFor(netip.MustParseAddr("192.0.2.1")))
+	require.Equal(t, "0.0.0.0", wildcardFor(netip.MustParseAddr("::ffff:192.0.2.1")))
+	require.Equal(t, "::", wildcardFor(netip.MustParseAddr("2001:db8::1")))
 }

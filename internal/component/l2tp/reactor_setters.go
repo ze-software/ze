@@ -5,6 +5,7 @@
 package l2tp
 
 import (
+	"net/netip"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
@@ -18,6 +19,15 @@ import (
 func (r *l2tpReactor) setSharedSecret(secret string) {
 	r.tunnelsMu.Lock()
 	r.params.Defaults.SharedSecret = secret
+	r.tunnelsMu.Unlock()
+}
+
+// setConfiguredListen records the endpoint a reload declares for this
+// reactor's listener. The socket stays bound to its start address until ze
+// restarts; handleDial reads the value to name that restart as the fix.
+func (r *l2tpReactor) setConfiguredListen(addr netip.AddrPort) {
+	r.tunnelsMu.Lock()
+	r.params.ConfiguredListen = addr
 	r.tunnelsMu.Unlock()
 }
 

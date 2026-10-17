@@ -61,20 +61,22 @@ type peerKey struct {
 // hardcodes host name and capabilities; phase 7 wires them through
 // YANG).
 type reactorParams struct {
-	MaxTunnels      uint16         // 0 = unbounded (by this knob; uint16 still caps at 65535)
-	MaxSessions     uint16         // 0 = unbounded per-tunnel session limit
-	AuthMethod      ppp.AuthMethod // PPP Auth-Protocol first advertised to new sessions
-	AuthRequired    bool           // fail if LCP opens with AuthMethodNone
-	AuthTimeout     time.Duration  // PPP auth-phase timeout
-	ReauthInterval  time.Duration  // periodic re-auth; 0 = disabled
-	HelloInterval   time.Duration  // peer silence before HELLO; 0 = no keepalive
-	HelloRetries    uint8          // dead-peer detection: unanswered HELLO intervals before teardown; 0 = disabled
-	EnableIPCP      bool           // IPCP NCP enabled
-	EnableIPv6CP    bool           // IPv6CP NCP enabled
-	NCPTimeout      time.Duration  // NCP negotiation timeout
-	CQMEchoInterval time.Duration  // when >0, overrides PPP echo interval for CQM sampling
-	Defaults        TunnelDefaults
-	Clock           func() time.Time // injected for tests; time.Now if nil
+	ServerName       string         // `environment l2tp server` key of this reactor's listener, for operator errors
+	ConfiguredListen netip.AddrPort // the listener the config declares now; a reload moves it, never the bound socket
+	MaxTunnels       uint16         // 0 = unbounded (by this knob; uint16 still caps at 65535)
+	MaxSessions      uint16         // 0 = unbounded per-tunnel session limit
+	AuthMethod       ppp.AuthMethod // PPP Auth-Protocol first advertised to new sessions
+	AuthRequired     bool           // fail if LCP opens with AuthMethodNone
+	AuthTimeout      time.Duration  // PPP auth-phase timeout
+	ReauthInterval   time.Duration  // periodic re-auth; 0 = disabled
+	HelloInterval    time.Duration  // peer silence before HELLO; 0 = no keepalive
+	HelloRetries     uint8          // dead-peer detection: unanswered HELLO intervals before teardown; 0 = disabled
+	EnableIPCP       bool           // IPCP NCP enabled
+	EnableIPv6CP     bool           // IPv6CP NCP enabled
+	NCPTimeout       time.Duration  // NCP negotiation timeout
+	CQMEchoInterval  time.Duration  // when >0, overrides PPP echo interval for CQM sampling
+	Defaults         TunnelDefaults
+	Clock            func() time.Time // injected for tests; time.Now if nil
 }
 
 // l2tpReactor is the single goroutine that owns the tunnel map and

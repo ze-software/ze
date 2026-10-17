@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
@@ -343,4 +344,74 @@ func TestListenAddrsEqualIgnoresOrder(t *testing.T) {
 
 	c := []netip.AddrPort{netip.MustParseAddrPort("0.0.0.0:1701")}
 	require.False(t, listenAddrsEqual(a, c))
+}
+
+// dialSourceProvider is the config a reload reads: server "lab" on serverIP,
+// and an outgoing-call remote "lns1" at remoteAddress.
+func dialSourceProvider(serverIP, remoteAddress string) *fakeConfigProvider {
+	return &fakeConfigProvider{trees: map[string]map[string]any{
+		"l2tp": {
+			"enabled": "true",
+			"remote": map[string]any{
+				"lns1": map[string]any{
+					"address":        remoteAddress,
+					"port":           "1701",
+					"outgoing-calls": "true",
+				},
+			},
+		},
+		"environment": {
+			"l2tp": map[string]any{
+				"server": map[string]any{
+					"lab": map[string]any{"ip": serverIP, "port": "1701"},
+				},
+			},
+		},
+	}}
+}
+
+// TestReloadRefusesOffHostRemoteFromLoopbackListener proves a reload cannot
+// add a remote that the bound loopback listener could never dial.
+//
+// VALIDATES: with server "lab" bound on 127.0.0.1 and a loopback remote,
+// a reload that keeps the listener and moves the remote to 203.0.113.5 fails
+// with ErrDialFromLoopback, ends in the exact `set` command, and leaves
+// s.params.Remotes and s.params.Relays as they were.
+// MUTATION: dropping the dial-source check from Reload turns this red.
+func TestReloadRefusesOffHostRemoteFromLoopbackListener(t *testing.T) {
+	remotes := []Remote{{Name: "lns1", Address: netip.MustParseAddrPort("127.0.0.1:1701"), OutgoingCalls: true}}
+	relays := []RelayBinding{{Service: "wholesale", Remote: "lns1"}}
+	s := newStartedSubsystem(t, Parameters{
+		Enabled:       true,
+		HelloInterval: 60 * time.Second,
+		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("127.0.0.1:1701")},
+		ListenNames:   []string{"lab"},
+		Remotes:       remotes,
+		Relays:        relays,
+	})
+	err := s.Reload(context.Background(), dialSourceProvider("127.0.0.1", "203.0.113.5"))
+	require.ErrorIs(t, err, ErrDialFromLoopback)
+	require.Contains(t, err.Error(), `remote "lns1" at 203.0.113.5:1701`)
+	require.True(t, strings.HasSuffix(err.Error(), "\n  set environment l2tp server lab ip 0.0.0.0"), err.Error())
+	require.Equal(t, remotes, s.params.Remotes)
+	require.Equal(t, relays, s.params.Relays)
+}
+
+// TestReloadAcceptsOffHostRemoteWhenListenerMoves proves the reload judges
+// the listener the config now declares, not the bound one: moving server
+// "lab" to 0.0.0.0 in the same reload as an off-host remote is accepted, and
+// the remote applies. The bound socket stays on the loopback until restart;
+// handleDial names that restart (TestSubsystem_DialFromLoopbackNamesServer).
+//
+// VALIDATES: the reload returns nil and s.params.Remotes holds 203.0.113.5.
+func TestReloadAcceptsOffHostRemoteWhenListenerMoves(t *testing.T) {
+	s := newStartedSubsystem(t, Parameters{
+		Enabled:       true,
+		HelloInterval: 60 * time.Second,
+		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("127.0.0.1:1701")},
+		ListenNames:   []string{"lab"},
+	})
+	require.NoError(t, s.Reload(context.Background(), dialSourceProvider("0.0.0.0", "203.0.113.5")))
+	require.Len(t, s.params.Remotes, 1)
+	require.Equal(t, "203.0.113.5:1701", s.params.Remotes[0].Address.String())
 }

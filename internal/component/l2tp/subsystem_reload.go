@@ -58,6 +58,14 @@ func (s *Subsystem) Reload(_ context.Context, cfg ze.ConfigProvider) error {
 	if err != nil {
 		return fmt.Errorf("l2tp reload: %w", err)
 	}
+	// validateDialSources would read next.ListenAddrs[0], but the provider
+	// map carries no config order, so that index names no particular server.
+	// The dialing listener is the one bound at Start from s.params.
+	if listen, server, ok := reloadDialSource(&s.params, &next); ok {
+		if err := checkDialSource(&next, listen, server); err != nil {
+			return fmt.Errorf("l2tp reload: %w", err)
+		}
+	}
 
 	prev := s.params
 	applied := 0
@@ -76,6 +84,17 @@ func (s *Subsystem) Reload(_ context.Context, cfg ze.ConfigProvider) error {
 			"previous", formatListenAddrs(prev.ListenAddrs),
 			"requested", formatListenAddrs(next.ListenAddrs))
 		rejected++
+	}
+	// The sockets stay where Start bound them, but each reactor learns where
+	// its server now points, so a refused dial names the restart. This runs
+	// on every reload, so a config moved back to the bound endpoint clears it.
+	for i, r := range s.reactors {
+		if i >= len(prev.ListenNames) {
+			break
+		}
+		if addr, ok := configuredListen(&next, prev.ListenNames[i]); ok {
+			r.setConfiguredListen(addr)
+		}
 	}
 
 	// CQM observer parameters are restart-only (pools pre-allocated at Start).
@@ -442,6 +461,37 @@ func appendRemotesFromProvider(p *Parameters, l2tpRoot map[string]any) error {
 	return validateRelays(p)
 }
 
+// reloadDialSource returns the endpoint a reload checks its remotes against
+// and the server key that declares it, or false when nothing is bound and no
+// dial can happen. Dials use s.reactors[0], bound at Start from
+// prev.ListenAddrs[0] (validateDialSources). A reload cannot rebind it, so the
+// endpoint is the one next declares for that same server: a config moving it
+// to 0.0.0.0 is accepted, and handleDial then names the restart. A server the
+// reload removed falls back to the bound endpoint, which keeps dialing until
+// ze restarts. The check judges today's dialing server only: a reload that adds
+// a loopback server ahead of it is accepted here and refused at the next start.
+func reloadDialSource(prev, next *Parameters) (netip.AddrPort, string, bool) {
+	if len(prev.ListenAddrs) == 0 {
+		return netip.AddrPort{}, "", false
+	}
+	server := listenName(prev, 0)
+	if addr, ok := configuredListen(next, server); ok {
+		return addr, server, true
+	}
+	return prev.ListenAddrs[0], server, true
+}
+
+// configuredListen returns the endpoint p declares for the server key, and
+// false when p declares no such server.
+func configuredListen(p *Parameters, server string) (netip.AddrPort, bool) {
+	for i, name := range p.ListenNames {
+		if name == server {
+			return p.ListenAddrs[i], true
+		}
+	}
+	return netip.AddrPort{}, false
+}
+
 // appendListenersFromEnv reads environment/l2tp/server entries out of
 // the environment root and appends each to p.ListenAddrs.
 func appendListenersFromEnv(p *Parameters, env map[string]any) error {
@@ -474,6 +524,7 @@ func appendListenersFromEnv(p *Parameters, env map[string]any) error {
 			return fmt.Errorf("l2tp server %q: %w", name, err)
 		}
 		p.ListenAddrs = append(p.ListenAddrs, addr)
+		p.ListenNames = append(p.ListenNames, name)
 	}
 	return nil
 }

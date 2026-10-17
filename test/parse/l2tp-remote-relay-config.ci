@@ -2,7 +2,9 @@
 # binding. spec-followup-l2tp-call AC-6: the remote list (name, address,
 # port, shared-secret, outgoing-calls) and per-service relay binding parse
 # and validate. The relay references a declared remote, so referential
-# integrity (enforced in Go, no YANG leafref) passes.
+# integrity (enforced in Go, no YANG leafref) passes. The listener binds
+# 0.0.0.0: the remotes are off-host, and ze refuses to start with a
+# loopback listener that would have to dial them (validateDialSources).
 stdin=config:terminator=EOF_CONF
 l2tp {
     enabled true
@@ -23,7 +25,7 @@ l2tp {
 environment {
     l2tp {
         server main {
-            ip 127.0.0.1
+            ip 0.0.0.0
             port 1701
         }
     }

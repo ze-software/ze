@@ -1,8 +1,10 @@
 package l2tp
 
 import (
+	"context"
 	"log/slog"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
@@ -126,4 +128,48 @@ func TestResolveCall_NilChannelIsNoOp(t *testing.T) {
 	require.NotPanics(t, func() {
 		sess.resolveCall(callOutcome{err: errCallTornDown})
 	})
+}
+
+// TestSubsystem_DialFromLoopbackNamesServer proves the server key reaches the
+// runtime refusal through Start, and that a reload which moves the listener
+// turns the fix into a restart.
+//
+// VALIDATES: a Subsystem started with server "lab" on 127.0.0.1 refuses
+// PlaceOutgoingCall to 192.0.2.1 with ErrDialFromLoopback naming
+// `(environment l2tp server lab)` and the `set` command. After a reload that
+// sets "lab" to 0.0.0.0, the same call is refused naming the configured
+// 0.0.0.0:1701 and "Restart ze to rebind the listener", with no `set` line.
+// METHOD: real Start over an ephemeral loopback port; the kernel module probe
+// is neutralized, as in TestSubsystem_StartEnabledWithListener.
+// MUTATION: dropping ServerName from Start's reactorParams turns the first
+// half red; dropping the setConfiguredListen loop from Reload the second.
+func TestSubsystem_DialFromLoopbackNamesServer(t *testing.T) {
+	defer SetProbeKernelModulesForTest(func() error { return nil })()
+
+	s := NewSubsystem(Parameters{
+		Enabled:       true,
+		HelloInterval: 60 * time.Second,
+		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("127.0.0.1:0")},
+		ListenNames:   []string{"lab"},
+		Remotes: []Remote{{
+			Name: "lns1", Address: netip.MustParseAddrPort("192.0.2.1:1701"), OutgoingCalls: true,
+		}},
+	})
+	ctx := context.Background()
+	require.NoError(t, s.Start(ctx, nil, nil))
+	defer func() { require.NoError(t, s.Stop(ctx)) }()
+
+	_, err := s.PlaceOutgoingCall("lns1", "555")
+	require.ErrorIs(t, err, ErrDialFromLoopback)
+	require.Contains(t, err.Error(), "(environment l2tp server lab)")
+	require.Contains(t, err.Error(), "remote 192.0.2.1:1701")
+	require.True(t, strings.HasSuffix(err.Error(), "\n  set environment l2tp server lab ip 0.0.0.0"), err.Error())
+
+	require.NoError(t, s.Reload(ctx, dialSourceProvider("0.0.0.0", "192.0.2.1")))
+	_, err = s.PlaceOutgoingCall("lns1", "555")
+	require.ErrorIs(t, err, ErrDialFromLoopback)
+	require.Contains(t, err.Error(), "(environment l2tp server lab)")
+	require.Contains(t, err.Error(), "already sets this listener to 0.0.0.0:1701")
+	require.True(t, strings.HasSuffix(err.Error(), "Restart ze to rebind the listener"), err.Error())
+	require.NotContains(t, err.Error(), "set environment")
 }

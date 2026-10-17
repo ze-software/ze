@@ -8,6 +8,7 @@ package l2tp
 import (
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"net/netip"
 	"time"
 )
@@ -19,6 +20,14 @@ var ErrReactorStopped = errors.New("l2tp: reactor stopped")
 // ErrMaxTunnels is returned by Dial when the configured max-tunnels limit
 // has been reached.
 var ErrMaxTunnels = errors.New("l2tp: max-tunnels limit reached")
+
+// ErrDialFromLoopback is returned by Dial when the reactor's listener is bound
+// to a loopback address and the remote is on another host. Every tunnel of a
+// reactor sends from its listener socket, and the kernel refuses a datagram
+// from a loopback source to an off-host destination (Linux answers sendto
+// with EINVAL), so the SCCRQ and each retransmit would fail and the dial
+// could only time out. The dial is refused before any tunnel exists.
+var ErrDialFromLoopback = errors.New("l2tp: a listener on a loopback address cannot dial a remote on another host")
 
 // ErrCallTimeout is returned by placeOutgoingCallSync when neither a
 // success nor a failure outcome arrives within the caller's deadline. The
@@ -91,7 +100,8 @@ type dialResult struct {
 // path). Safe to call from any goroutine: the request is handed to the single
 // reactor goroutine, which is the sole writer of the tunnel map (R-2). Returns
 // ErrReactorStopped if the reactor is not running, ErrMaxTunnels if the limit
-// is reached, or the tunnel-ID allocation error.
+// is reached, ErrDialFromLoopback if the listener cannot reach the remote, or
+// the tunnel-ID allocation error.
 func (r *l2tpReactor) Dial(target DialTarget) (uint16, error) {
 	return r.dialWithCall(target, nil)
 }
@@ -174,6 +184,32 @@ func (r *l2tpReactor) dialWithCall(target DialTarget, call *pendingCall) (uint16
 func (r *l2tpReactor) handleDial(req dialRequest) {
 	now := r.params.Clock()
 
+	// RFC 2661 Section 8.1: "The initiator of an L2TP tunnel picks an
+	// available source UDP port (which may or may not be 1701), and sends to
+	// the desired destination address at port 1701." and "Once the source and
+	// destination ports and addresses are established, they MUST remain
+	// static for the life of the tunnel." The source is the listener socket,
+	// fixed for the tunnel's life, so a loopback-bound listener has no source
+	// address that can ever reach an off-host destination.
+	local := r.listener.Addr()
+	if dialSourceUnreachable(local.Addr(), req.target.Remote.Addr()) {
+		r.tunnelsMu.Lock()
+		configured := r.params.ConfiguredListen
+		r.tunnelsMu.Unlock()
+		label := "remote " + req.target.Remote.String()
+		err := dialFromLoopbackError(label, local, r.params.ServerName, req.target.Remote.Addr())
+		// A reload already moved the listener off the loopback, but a
+		// listener is bound only at start: repeating the applied fix would
+		// send the operator in a circle.
+		if listenerAwaitsRestart(configured, local, req.target.Remote.Addr()) {
+			err = dialFromStaleListenerError(label, local, r.params.ServerName, configured)
+		}
+		r.logger.Warn("l2tp: dial refused; listener cannot reach the remote",
+			"remote", req.target.Remote.String(), "listener", local.String(), "error", err.Error())
+		req.result <- dialResult{err: err}
+		return
+	}
+
 	r.tunnelsMu.Lock()
 	if r.params.MaxTunnels != 0 && uint16(len(r.tunnelsByLocalID)) >= r.params.MaxTunnels {
 		r.tunnelsMu.Unlock()
@@ -225,6 +261,73 @@ func (r *l2tpReactor) handleDial(req dialRequest) {
 	}
 
 	req.result <- dialResult{localTID: localTID}
+}
+
+// dialSourceUnreachable reports whether a socket bound to local can never send
+// to remote: a loopback source reaches only a loopback destination. A wildcard
+// or a host address leaves the choice to the kernel's route, so it is never
+// refused here.
+func dialSourceUnreachable(local, remote netip.Addr) bool {
+	if !local.IsLoopback() {
+		return false
+	}
+	return !remote.IsLoopback()
+}
+
+// dialFromLoopbackError builds the operator error for a loopback listener
+// asked to reach an off-host remote: the problem, why, then the exact command
+// on its own line. remote describes the remote in the caller's terms; server
+// is the `environment l2tp server` key that declared the listener;
+// remoteAddr picks the wildcard the command proposes. Shared by the config
+// check (validateDialSources), the reload check (Reload) and the runtime
+// refusal (handleDial).
+func dialFromLoopbackError(remote string, listener netip.AddrPort, server string, remoteAddr netip.Addr) error {
+	return fmt.Errorf("%w\n"+
+		"The L2TP listener %s (environment l2tp server %s) is on the loopback, and %s is not.\n"+
+		"Ze sends every tunnel from its listener, and the kernel does not send from a loopback address to another host.\n"+
+		"Bind the listener to every address, or to an address that reaches the remote:\n"+
+		"  set environment l2tp server %s ip %s",
+		ErrDialFromLoopback, listener, server, remote, server, wildcardFor(remoteAddr))
+}
+
+// dialFromStaleListenerError builds the operator error for a loopback listener
+// whose configuration a reload already moved to configured, an address that
+// reaches the remote. A listener is bound only when ze starts, so the fix is a
+// restart, not the command the operator has already applied.
+func dialFromStaleListenerError(remote string, listener netip.AddrPort, server string, configured netip.AddrPort) error {
+	return fmt.Errorf("%w\n"+
+		"The L2TP listener %s (environment l2tp server %s) is on the loopback, and %s is not.\n"+
+		"Ze sends every tunnel from its listener, and the kernel does not send from a loopback address to another host.\n"+
+		"The configuration already sets this listener to %s, but ze binds a listener only when it starts.\n"+
+		"Restart ze to rebind the listener",
+		ErrDialFromLoopback, listener, server, remote, configured)
+}
+
+// listenerAwaitsRestart reports whether a reload moved a loopback listener to
+// configured, an address that reaches remote, while the socket stays bound to
+// local until ze restarts. An unset configured (a reactor no reload has
+// touched) or an unchanged one is not a pending rebind.
+func listenerAwaitsRestart(configured, local netip.AddrPort, remote netip.Addr) bool {
+	if !configured.IsValid() {
+		return false
+	}
+	if configured == local {
+		return false
+	}
+	return !dialSourceUnreachable(configured.Addr(), remote)
+}
+
+// wildcardFor returns the unspecified address of remote's family, the bind
+// that lets the route choose the source. The listener binds udp6 with
+// IPV6_V6ONLY (listener.go), so an IPv6 remote needs `::`; an IPv4 remote,
+// written plainly or IPv4-mapped, needs `0.0.0.0`.
+func wildcardFor(remote netip.Addr) string {
+	if remote.Is6() {
+		if !remote.Is4In6() {
+			return "::"
+		}
+	}
+	return "0.0.0.0"
 }
 
 // dialChanDepth sizes the reactor's dial request channel. Dial callers block

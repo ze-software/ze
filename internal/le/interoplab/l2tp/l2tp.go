@@ -231,6 +231,18 @@ func zePeer(suffix, config string) interoplab.PeerConfig {
 	}
 }
 
+// lacInitScript runs xl2tpd in the foreground as a child of the shell, then
+// keeps the shell alive after xl2tpd exits, for the life of the lab. The trap
+// forwards TERM to xl2tpd and waits for it to exit, so a container stop ends
+// both promptly instead of waiting for Docker's kill timeout, because a shell
+// as PID 1 has no default TERM action.
+const lacInitScript = `trap 'kill -TERM $child 2>/dev/null; wait $child; exit 0' TERM INT
+xl2tpd -D -c /etc/xl2tpd/xl2tpd.conf &
+child=$!
+wait $child
+sleep 2147483647 &
+wait $!`
+
 func lacPeer(suffix, directory string) interoplab.PeerConfig {
 	mounts := make([]interoplab.Mount, 0, 4)
 	for _, file := range []struct{ source, target string }{
@@ -253,7 +265,11 @@ func lacPeer(suffix, directory string) interoplab.PeerConfig {
 		Mounts:       mounts,
 		Capabilities: []string{netAdminCapability},
 		Arguments:    interoplab.PPPDeviceArguments(),
-		Ready:        &interoplab.ReadyProbe{Command: []string{"sh", "-c", "kill -0 1"}, Timeout: 15 * time.Second, Interval: time.Second},
+		// A shell stays PID 1 and xl2tpd runs as its child, so a teardown that
+		// stops xl2tpd (stopLACDaemon) leaves the container running for the
+		// cleanup check. TERM to PID 1 (container stop) ends xl2tpd and exits.
+		Command: []string{"sh", "-c", lacInitScript},
+		Ready:   &interoplab.ReadyProbe{Command: []string{"pidof", "xl2tpd"}, Timeout: 15 * time.Second, Interval: time.Second},
 	}
 }
 

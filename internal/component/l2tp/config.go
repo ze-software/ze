@@ -110,8 +110,13 @@ const (
 // The zero value is a disabled subsystem. Start is safe to call on the zero
 // value and is a no-op (returns nil) until Enabled is true.
 type Parameters struct {
-	Enabled       bool
-	ListenAddrs   []netip.AddrPort
+	Enabled     bool
+	ListenAddrs []netip.AddrPort
+	// ListenNames[i] is the `environment l2tp server` key that declared
+	// ListenAddrs[i]. Both producers append the two together, so the
+	// indexes stay aligned; an error that tells the operator which server
+	// to change reads the name from here.
+	ListenNames   []string
 	MaxTunnels    uint16
 	MaxSessions   uint16
 	AuthMethod    ppp.AuthMethod
@@ -389,8 +394,12 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 					return Parameters{}, fmt.Errorf("l2tp server %q: %w", s.Key, err)
 				}
 				p.ListenAddrs = append(p.ListenAddrs, addr)
+				p.ListenNames = append(p.ListenNames, s.Key)
 			}
 		}
+	}
+	if err := validateDialSources(&p); err != nil {
+		return Parameters{}, err
 	}
 
 	return p, nil
@@ -461,6 +470,47 @@ func validateRelays(p *Parameters) error {
 		}
 	}
 	return nil
+}
+
+// validateDialSources refuses a config whose dialing listener is on a loopback
+// address while a remote is on another host. Every dial, the outgoing-call RPC
+// (outgoing_call.go) and the PPPoE relay (relay_sink.go) alike, uses the
+// reactor of the first listener, s.reactors[0], bound from ListenAddrs[0]. So
+// only that listener is checked: a loopback second listener never dials, and
+// refusing it would refuse a config that works. Which listener a dial should
+// use is open in plan/journal/dial-ignores-which-listener-reaches-the-remote.md.
+// A loopback dialing listener whose remotes are all on the loopback stays
+// valid. The runtime refusal in handleDial is the backstop for a listener
+// this check never saw.
+func validateDialSources(p *Parameters) error {
+	if len(p.ListenAddrs) == 0 {
+		return nil
+	}
+	return checkDialSource(p, p.ListenAddrs[0], listenName(p, 0))
+}
+
+// checkDialSource refuses the first remote in p that a socket bound to listen
+// cannot reach. server is the `environment l2tp server` key that declares
+// listen, named in the operator error.
+func checkDialSource(p *Parameters, listen netip.AddrPort, server string) error {
+	for i := range p.Remotes {
+		remote := p.Remotes[i]
+		if !dialSourceUnreachable(listen.Addr(), remote.Address.Addr()) {
+			continue
+		}
+		label := "remote " + strconv.Quote(remote.Name) + " at " + remote.Address.String()
+		return dialFromLoopbackError(label, listen, server, remote.Address.Addr())
+	}
+	return nil
+}
+
+// listenName returns the server key that declared ListenAddrs[index], or
+// the placeholder `<name>` for Parameters built without names (tests).
+func listenName(p *Parameters, index int) string {
+	if index < len(p.ListenNames) {
+		return p.ListenNames[index]
+	}
+	return "<name>"
 }
 
 // LookupRemote returns the configured remote with the given name and true,

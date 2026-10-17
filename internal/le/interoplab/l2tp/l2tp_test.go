@@ -39,6 +39,9 @@ func (l *recordingLab) Exec(_ context.Context, peer string, arguments []string, 
 		return interoplab.CommandResult{Stdout: "7: ppp0: <POINTOPOINT,UP> mtu 1500\n"}, nil
 	case command == "ip -o addr show dev ppp0":
 		return interoplab.CommandResult{Stdout: "7: ppp0 inet 10.100.0.1 peer 10.100.0.2/32 scope global ppp0\n"}, nil
+	case command == strings.Join(lacStopCommand, " "):
+		l.stopped = true
+		return interoplab.CommandResult{}, nil
 	case command == "ip l2tp show tunnel":
 		if l.stopped {
 			return interoplab.CommandResult{}, nil
@@ -263,6 +266,75 @@ func TestPlanPeerCommandsAndConfigBytes(t *testing.T) {
 	assertMount(t, peerByName(t, prepared[3].Peers, peerZe), filepath.Join(scenario04, "ze.conf"), "/etc/ze/ze.conf")
 }
 
+// VALIDATES: the L2TP listener in every Ze config the lab mounts can reach the
+// other containers: its `environment l2tp server ip` is the wildcard or an
+// address on the lab bridge, never a loopback address.
+// PREVENTS: the 2026-10-17 nightly failure of 03-ze-lac-xl2tpd-lns, whose
+// listener stayed on 127.0.0.1 after the lab left host networking. Ze sends
+// every tunnel from its listener socket, so the kernel refused each SCCRQ to
+// 172.29.0.3 ("sendto: invalid argument") and the tunnel never established.
+func TestZeL2TPListenerReachesTheLabBridge(t *testing.T) {
+	root := l2tpCheckout(t)
+	plans, _, err := plansAt(root, "", testEnvironment())
+	if err != nil {
+		t.Fatalf("build plans: %v", err)
+	}
+	network := interoplab.Network{Name: "n", IPv4: netip.MustParsePrefix("172.29.0.0/24")}
+	for _, plan := range plans {
+		value, err := plan.Prepare(t.Context(), interoplab.PrepareContext{Source: plan.Source, Network: network})
+		if err != nil {
+			t.Fatalf("prepare %s: %v", plan.Source.Name, err)
+		}
+		if value.Cleanup != nil {
+			t.Cleanup(func() {
+				if err := value.Cleanup(); err != nil {
+					t.Errorf("cleanup rendered config: %v", err)
+				}
+			})
+		}
+		config, err := os.ReadFile(mountSource(t, peerByName(t, value.Peers, peerZe), "/etc/ze/ze.conf"))
+		if err != nil {
+			t.Fatalf("read %s ze config: %v", plan.Source.Name, err)
+		}
+		listener, err := l2tpListenerAddress(string(config))
+		if err != nil {
+			t.Fatalf("%s: %v", plan.Source.Name, err)
+		}
+		if listener.IsUnspecified() {
+			continue
+		}
+		if !network.IPv4.Contains(listener) {
+			t.Errorf("%s binds the L2TP listener to %s, which is neither 0.0.0.0 nor on the lab bridge %s, so Ze cannot send to the other containers",
+				plan.Source.Name, listener, network.IPv4)
+		}
+	}
+}
+
+// l2tpListenerAddress returns the `ip` of the first server under
+// `environment { l2tp { ... } }` in a Ze config. It matches the four tokens in
+// order rather than parsing blocks, which the four fixtures' formats (with or
+// without a trailing semicolon) all satisfy. A layout it misreads can only
+// yield an error or a wrong address, so its failure mode is a false red.
+func l2tpListenerAddress(config string) (netip.Addr, error) {
+	tokens := strings.Fields(config)
+	path := []string{"environment", "l2tp", "server", "ip"}
+	next := 0
+	for index, token := range tokens {
+		if token != path[next] {
+			continue
+		}
+		next++
+		if next < len(path) {
+			continue
+		}
+		if index+1 >= len(tokens) {
+			break
+		}
+		return netip.ParseAddr(strings.TrimSuffix(tokens[index+1], ";"))
+	}
+	return netip.Addr{}, errors.New("config has no environment l2tp server ip")
+}
+
 // VALIDATES: each typed checker reads positive state from every required peer and preserves teardown ordering.
 // PREVENTS: a checker passing without an xl2tpd/FRR/RADIUS response or checking absence before the mechanism ran.
 func TestCheckersRecordPeerParticipation(t *testing.T) {
@@ -275,7 +347,7 @@ func TestCheckersRecordPeerParticipation(t *testing.T) {
 			name: scenarioPPPIPv4, wantPeers: []string{peerZe, peerLAC},
 			wantCalls: []recordedCall{
 				{operation: "exec", peer: peerLAC, arguments: []string{"ping", "-c", "3", "-W", "3", localPPPAddress}},
-				{operation: "signal TERM", peer: peerLAC},
+				{operation: "exec", peer: peerLAC, arguments: lacStopCommand},
 			},
 		},
 		{
@@ -283,7 +355,7 @@ func TestCheckersRecordPeerParticipation(t *testing.T) {
 			wantPeers: []string{peerZe, peerLAC, peerFRR},
 			wantCalls: []recordedCall{
 				{operation: "exec", peer: peerFRR, arguments: []string{commandVTYSH, "-c", commandShow + " bgp ipv4 unicast 10.100.0.2/32 json"}},
-				{operation: "signal TERM", peer: peerLAC},
+				{operation: "exec", peer: peerLAC, arguments: lacStopCommand},
 			},
 		},
 		{

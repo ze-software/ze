@@ -88,8 +88,8 @@ func checkPPPIPv4(ctx context.Context, lab labOperations, _ time.Duration) error
 	if err := requirePeerLog(ctx, lab, peerZe, "subscriber route inject"); err != nil {
 		return err
 	}
-	if err := lab.Signal(ctx, peerLAC, "TERM"); err != nil {
-		return fmt.Errorf("stop LAC for teardown: %w", err)
+	if err := stopLACDaemon(ctx, lab); err != nil {
+		return err
 	}
 	if err := waitPeerLog(ctx, lab, peerZe, "subscriber routes withdrawn", 30*time.Second); err != nil {
 		return err
@@ -130,8 +130,8 @@ func checkBGPRedistribute(ctx context.Context, lab labOperations, timeout time.D
 	if !hasRoute {
 		return fmt.Errorf("FRR missing route %s after route readiness", peerPrefix)
 	}
-	if err := lab.Signal(ctx, peerLAC, "TERM"); err != nil {
-		return fmt.Errorf("stop LAC for teardown: %w", err)
+	if err := stopLACDaemon(ctx, lab); err != nil {
+		return err
 	}
 	if err := waitPeerLog(ctx, lab, peerZe, "subscriber routes withdrawn", 30*time.Second); err != nil {
 		return err
@@ -140,6 +140,21 @@ func checkBGPRedistribute(ctx context.Context, lab labOperations, timeout time.D
 		return err
 	}
 	return requireFRRSession(ctx, lab, zeAddress)
+}
+
+// lacStopCommand ends xl2tpd inside the LAC container. xl2tpd closes its
+// tunnels on TERM ("Server closing") and removes its kernel state, while the
+// container's shell stays as PID 1 (lacPeer's Command), so the cleanup check
+// can still read `ip l2tp show tunnel` inside the LAC afterwards. Signaling
+// PID 1 instead would stop the container and leave nothing to measure.
+var lacStopCommand = []string{"sh", "-c", "kill -TERM $(pidof xl2tpd)"}
+
+// stopLACDaemon sends TERM to the LAC's xl2tpd to drive the teardown.
+func stopLACDaemon(ctx context.Context, lab labOperations) error {
+	if _, err := lab.Exec(ctx, peerLAC, lacStopCommand, nil); err != nil {
+		return fmt.Errorf("stop xl2tpd in the LAC for teardown: %w", err)
+	}
+	return nil
 }
 
 func checkInitiator(ctx context.Context, lab labOperations, _ time.Duration) error {

@@ -1,6 +1,7 @@
 package l2tp_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -949,4 +950,125 @@ func loadTree(t *testing.T, src string) *zeconfig.Tree {
 	res, err := zeconfig.LoadConfig(src, "test.conf", nil)
 	require.NoError(t, err)
 	return res.Tree
+}
+
+// TestConfig_LoopbackListenerRefusesOffHostRemote proves a config whose
+// loopback listener would have to dial a remote on another host is refused
+// when it loads, with the problem, the reason and the exact fix command.
+//
+// VALIDATES: a loopback `environment l2tp server` with a remote at
+// 172.29.0.3 fails ExtractParameters with ErrDialFromLoopback, naming the
+// remote, the listener, the server key, and `set environment l2tp server lab
+// ip 0.0.0.0` on its own line. This is the 03-ze-lac-xl2tpd-lns fixture as it
+// stood on 2026-10-17.
+func TestConfig_LoopbackListenerRefusesOffHostRemote(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	remote xl2tpd {
+		address 172.29.0.3
+		port 17010
+		outgoing-calls true
+	}
+}
+environment {
+	l2tp {
+		server lab {
+			ip 127.0.0.1
+			port 17011
+		}
+	}
+}`
+	_, err := l2tp.ExtractParameters(loadTree(t, src))
+	require.ErrorIs(t, err, l2tp.ErrDialFromLoopback)
+	message := err.Error()
+	assert.Contains(t, message, `remote "xl2tpd" at 172.29.0.3:17010`)
+	assert.Contains(t, message, "127.0.0.1:17011 (environment l2tp server lab)")
+	assert.True(t, strings.HasSuffix(message, "\n  set environment l2tp server lab ip 0.0.0.0"), message)
+}
+
+// TestConfig_LoopbackListenerAcceptsLoopbackRemote proves the check refuses
+// only what cannot work: a loopback listener whose remotes are all on the
+// loopback still loads.
+//
+// VALIDATES: listener 127.0.0.1 with remote 127.0.0.1 parses without error,
+// and the listener's server key is carried beside its address.
+func TestConfig_LoopbackListenerAcceptsLoopbackRemote(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	remote local {
+		address 127.0.0.1
+		port 17010
+	}
+}
+environment {
+	l2tp {
+		server lab {
+			ip 127.0.0.1
+			port 17011
+		}
+	}
+}`
+	p, err := l2tp.ExtractParameters(loadTree(t, src))
+	require.NoError(t, err)
+	require.Len(t, p.ListenAddrs, 1)
+	assert.Equal(t, []string{"lab"}, p.ListenNames)
+}
+
+// TestConfig_LoopbackSecondListenerAcceptsOffHostRemote proves the check reads
+// only the dialing listener. Every dial uses the first listener's reactor, so
+// a loopback second listener never sends to the remote and must not refuse
+// the config.
+//
+// VALIDATES: server "wan" on 0.0.0.0 first, server "local" on 127.0.0.1
+// second, and a remote at 203.0.113.10 load without error.
+func TestConfig_LoopbackSecondListenerAcceptsOffHostRemote(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	remote lns {
+		address 203.0.113.10
+		outgoing-calls true
+	}
+}
+environment {
+	l2tp {
+		server wan {
+			ip 0.0.0.0
+			port 1701
+		}
+		server local {
+			ip 127.0.0.1
+			port 1702
+		}
+	}
+}`
+	p, err := l2tp.ExtractParameters(loadTree(t, src))
+	require.NoError(t, err)
+	assert.Equal(t, []string{"wan", "local"}, p.ListenNames)
+}
+
+// TestConfig_IPv6LoopbackListenerProposesIPv6Wildcard proves the fix the
+// refusal prints binds the remote's family. The listener binds udp6 with
+// IPV6_V6ONLY, so `0.0.0.0` would never reach an IPv6 remote.
+//
+// VALIDATES: listener ::1 with a remote at 2001:db8::10 is refused, and the
+// last line of the message is `set environment l2tp server lab ip ::`.
+func TestConfig_IPv6LoopbackListenerProposesIPv6Wildcard(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	remote lns {
+		address 2001:db8::10
+		outgoing-calls true
+	}
+}
+environment {
+	l2tp {
+		server lab {
+			ip ::1
+			port 1701
+		}
+	}
+}`
+	_, err := l2tp.ExtractParameters(loadTree(t, src))
+	require.ErrorIs(t, err, l2tp.ErrDialFromLoopback)
+	assert.True(t, strings.HasSuffix(err.Error(), "\n  set environment l2tp server lab ip ::"), err.Error())
 }

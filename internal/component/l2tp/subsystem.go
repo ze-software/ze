@@ -222,25 +222,27 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 	// Bind every configured listen endpoint and launch a reactor + timer
 	// + kernel worker for each. On any bind failure, unwind the partial
 	// state so a retry is safe.
-	for _, addr := range s.params.ListenAddrs {
+	for index, addr := range s.params.ListenAddrs {
 		ln := newUDPListener(addr, s.logger)
 		if err := ln.Start(ctx); err != nil {
 			s.unwindLocked()
 			return fmt.Errorf("l2tp: bind %s: %w", addr, err)
 		}
 		reactor := newL2TPReactor(ln, s.logger, reactorParams{
-			MaxTunnels:      s.params.MaxTunnels,
-			MaxSessions:     s.params.MaxSessions,
-			AuthMethod:      s.params.AuthMethod,
-			AuthRequired:    !s.params.AllowNoAuth,
-			AuthTimeout:     s.params.AuthTimeout,
-			ReauthInterval:  s.params.ReauthInterval,
-			HelloInterval:   s.params.HelloInterval,
-			HelloRetries:    s.params.HelloRetries,
-			EnableIPCP:      s.params.EnableIPCP,
-			EnableIPv6CP:    s.params.EnableIPv6CP,
-			NCPTimeout:      s.params.NCPTimeout,
-			CQMEchoInterval: s.cqmEchoInterval(),
+			ServerName:       listenName(&s.params, index),
+			ConfiguredListen: addr,
+			MaxTunnels:       s.params.MaxTunnels,
+			MaxSessions:      s.params.MaxSessions,
+			AuthMethod:       s.params.AuthMethod,
+			AuthRequired:     !s.params.AllowNoAuth,
+			AuthTimeout:      s.params.AuthTimeout,
+			ReauthInterval:   s.params.ReauthInterval,
+			HelloInterval:    s.params.HelloInterval,
+			HelloRetries:     s.params.HelloRetries,
+			EnableIPCP:       s.params.EnableIPCP,
+			EnableIPv6CP:     s.params.EnableIPv6CP,
+			NCPTimeout:       s.params.NCPTimeout,
+			CQMEchoInterval:  s.cqmEchoInterval(),
 			Defaults: TunnelDefaults{
 				// HostName left empty; reactor applies "ze" default.
 				// Phase 7 will wire a YANG leaf for operator-controlled hostname.

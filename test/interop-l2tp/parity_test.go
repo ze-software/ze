@@ -59,6 +59,10 @@ func TestNativeConfigBytesArePinned(t *testing.T) {
 		// Repinned for 4a923c72de: the header comment names `./le test integration`.
 		// Repinned for 6948695bdc, which dropped kmod from Dockerfile.ze and
 		// Dockerfile.lac: no lab container loads a kernel module.
+		// Repinned for the 2026-10-17 nightly fix: the 03-ze-lac-xl2tpd-lns
+		// ze.conf L2TP listener binds 0.0.0.0 instead of 127.0.0.1, which
+		// cannot send to the LNS on the lab bridge
+		// (TestZeL2TPListenerReachesTheLabBridge).
 		"Dockerfile.ze":                                      "d18dcba6226a09fb874cee777af6566f92bdb5723f82a91568951b8421cd2213",
 		"Dockerfile.lac":                                     "67007f9802268dbc1762c754fb7187abafca0408314c3e2d9d7252abd36e00f8",
 		"daemons":                                            "6c0f1be1b722ff89041b5bea87ed1212dd0595019b44730616de9e338cb08cd0",
@@ -72,7 +76,7 @@ func TestNativeConfigBytesArePinned(t *testing.T) {
 		"scenarios/02-ppp-bgp-redistribute-frr/ppp-options":  "f09bbbc2e509408723541c5009d4819b9d01cc9d81b4f0961117c31f53314004",
 		"scenarios/02-ppp-bgp-redistribute-frr/l2tp-secrets": "6c08c01fa683780b644f441f8d7f4191d64feaf05a035fe4fe79f63e7365b7e5",
 		"scenarios/02-ppp-bgp-redistribute-frr/frr.conf":     "638a8bbc479cf1ddf922bd3d47b5d2550b28b56fda749afe5d5dcdb88b276d99",
-		"scenarios/03-ze-lac-xl2tpd-lns/ze.conf":             "78bd29a86ddad3572c670e5e30d331042e50b1fffafba8bb166d7d984e6301cd",
+		"scenarios/03-ze-lac-xl2tpd-lns/ze.conf":             "f9e55699a9b087c079b518d5fab2897590a4e10cbbfc071d4a77e9fbbeda9411",
 		"scenarios/03-ze-lac-xl2tpd-lns/xl2tpd.conf":         "bdd8acec47050dd362774130bccc6f17a97d9956b514143cd93e827b716bf013",
 		"scenarios/03-ze-lac-xl2tpd-lns/options.xl2tpd":      "24bd437d8d4bd6d2916236a7036d01d4f990ead0951763b18347c068c809536f",
 		"scenarios/04-radius-acct-attrs/ze.conf":             "a834e28c29c8e80e1d1c135bc6f5f3f02f4a39c33b21914bc3e5af60489e15ae",

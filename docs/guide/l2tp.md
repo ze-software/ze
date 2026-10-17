@@ -82,6 +82,25 @@ until the call establishes (returning the local/remote session IDs) or fails
 (returning the cause and RFC 2661 Result Code: tunnel auth reject, tie-breaker
 loss, peer CDN, or timeout). The remote must have `outgoing-calls true`.
 
+A dialed tunnel sends from the L2TP listener socket, so the listener's `ip`
+is the tunnel's source address (RFC 2661 Section 8.1 requires the addresses
+and ports to stay static for the life of the tunnel). Every dial, from this
+command or from a relay, uses the first `environment l2tp server`. When that
+listener is on a loopback address it cannot reach another host, so Ze refuses
+a config that pairs it with an off-host remote: Ze does not start with it,
+and a reload that adds such a remote is refused and changes nothing.
+`ze config validate` does not check this yet. A dial that still meets the
+case is refused at once. Each error names the remote, the listener and the fix: bind `environment l2tp server <name> ip`
+to an address that reaches the remote, or to the wildcard of the remote's
+family (`0.0.0.0` for IPv4, `::` for IPv6) to let the route choose it. Ze
+binds a listener only when it starts, so after a reload that moves the
+listener, a dial asks for a restart instead.
+
+<!-- source: internal/component/l2tp/config.go -- validateDialSources -->
+<!-- source: cmd/ze/hub/register_l2tp.go -- registerBNGSubsystems -->
+<!-- source: internal/component/l2tp/subsystem_reload.go -- Reload, reloadDialSource -->
+<!-- source: internal/component/l2tp/reactor_dial.go -- handleDial, dialSourceUnreachable, wildcardFor -->
+
 The `relay` binding is the LAC path: a PPPoE subscriber whose Service-Name
 matches is relayed into an L2TP incoming call (ICRQ) toward the bound remote
 instead of terminating PPP locally. The subscriber-PPP↔L2TP kernel channel
