@@ -69,6 +69,13 @@ func eventObserver02(name string, events []string, scenario eventScenario02) Dri
 			go func() {
 				scenarioErr := scenario(runCtx, plugin, eventCh, shutdown)
 				if scenarioErr != nil {
+					// Reported before the shutdown it requests, as observeConfigured
+					// does: the error this driver returns is printed only after Run
+					// ends, which is after the daemon was asked to stop, so it
+					// reaches the runner only when it wins that race. CI lost the
+					// verdict of attach-process-unattached-is-silent that way on
+					// 2026-10-16 and 2026-10-17.
+					ReportFailure(scenarioErr)
 					requestShutdownAsync02(runCtx, plugin)
 				}
 				result <- scenarioErr

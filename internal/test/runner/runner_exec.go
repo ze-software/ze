@@ -1144,8 +1144,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// The deadline killing the helper's process group is a
 				// timeout, and says so, rather than a bare "signal: killed".
 				if testCtx.Err() != nil {
-					rec.Error = fmt.Errorf("cmd seq=%d (%s): foreground helper did not exit within %s; "+
-						"a process the test does not wait for is cmd=background", cmd.Seq, cmd.Exec, timeout)
+					rec.Error = foregroundHelperStopError(ctx, cmd.Seq, cmd.Exec, timeout)
 					rec.SetState(StateTimeout)
 					rec.FailureType = stateTimeout
 					return false
@@ -1171,8 +1170,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				setClientOutput(rec, clientStdout.String(), clientStderr.String())
 				rec.PeerOutput = collectPeerOutput(peerOutputs)
 				rec.Duration = time.Since(rec.StartTime)
-				rec.Error = fmt.Errorf("cmd seq=%d (%s): foreground helper did not exit within %s; "+
-					"a process the test does not wait for is cmd=background", cmd.Seq, cmd.Exec, timeout)
+				rec.Error = foregroundHelperStopError(ctx, cmd.Seq, cmd.Exec, timeout)
 				rec.SetState(StateTimeout)
 				rec.FailureType = stateTimeout
 				return false

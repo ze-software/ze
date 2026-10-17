@@ -108,6 +108,17 @@ func withdrawSourceReady03(ctx context.Context, p *sdk.Plugin, peers int) error 
 	return nil
 }
 
+// bgpRSFastpathEnabled03 is the file the fast-path observer writes once the
+// tracker is on, and the file the .ci's peer holds its route behind
+// (option=await-file). It is relative for the reason dynamicGroupMarker02 is.
+//
+// The tracker counts only Loc-RIB changes that arrive while it is enabled, and
+// this observer runs from OnAllPluginsReady, which the engine does NOT order
+// before peer startup (sendPostStartupToAll, plugin/server/poststartup.go).
+// Under load the peer's UPDATE reached the Loc-RIB first, nothing replays it,
+// and status read forwarded=0 prefixes=0.
+const bgpRSFastpathEnabled03 = "bgp-rs-fastpath.enabled"
+
 func bgpRSFastpath03(ctx context.Context, p *sdk.Plugin) error {
 	value, err := done03(ctx, p, "request bgp rib fastpath enable")
 	if err != nil {
@@ -116,6 +127,9 @@ func bgpRSFastpath03(ctx context.Context, p *sdk.Plugin) error {
 	data, ok := value.(map[string]any)
 	if !ok || data["enabled"] != true {
 		return fmt.Errorf("fast path not enabled: %v", value)
+	}
+	if err := os.WriteFile(bgpRSFastpathEnabled03, []byte("enabled"), 0o600); err != nil {
+		return fmt.Errorf("release the peer's route after enabling the fast path: %w", err)
 	}
 	var last any
 	if !Poll(ctx, 60, 200*time.Millisecond, func() bool {

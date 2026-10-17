@@ -39,9 +39,10 @@ func (p *Peer) awaitFile(ctx context.Context) error {
 			return fmt.Errorf("await-file %q: %w", p.config.AwaitFile, err)
 		}
 		if time.Now().After(deadline) {
-			return fmt.Errorf("await-file %q did not appear within %s: the peer block that declares "+
-				"option=established-file:path=%s never received the daemon's first UPDATE, so that session "+
-				"never reached Established", p.config.AwaitFile, awaitFileMax, p.config.AwaitFile)
+			return fmt.Errorf("await-file %q did not appear within %s: its writer never wrote it. When a "+
+				"peer block declares option=established-file:path=%s, that session never reached Established; "+
+				"when the test's observer writes it, read the observer's ZE-OBSERVER-FAIL line for why it stopped",
+				p.config.AwaitFile, awaitFileMax, p.config.AwaitFile)
 		}
 		select {
 		case <-ctx.Done():

@@ -1,0 +1,6 @@
+# Test: a malformed {partial} marker is refused.
+# accept-only: registered fixture checks rfc check and index-update both refuse it and leave the shard unchanged, in its own HEAD export.
+option=timeout:value=900s
+cmd=foreground:seq=1:exec=le test fixture ui/le-rfc-partial-proof-malformed
+expect=exit:code=0
+expect=stdout:contains=OK

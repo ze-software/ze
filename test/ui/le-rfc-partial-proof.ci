@@ -1,5 +1,5 @@
 # Test: clause-scoped RFC evidence remains scoped through real tooling entry points.
-# accept-only: registered fixture checks JSON/YAML/table, shards, invalid selectors and enforced stamp refusal in its own HEAD export.
+# accept-only: registered fixture seeds one partial row in its own HEAD export and checks the JSON count and scope; its renderers, selector and malformed refusals are le-rfc-partial-proof-render, -selector and -malformed.
 option=timeout:value=900s
 cmd=foreground:seq=1:exec=le test fixture ui/le-rfc-partial-proof
 expect=exit:code=0

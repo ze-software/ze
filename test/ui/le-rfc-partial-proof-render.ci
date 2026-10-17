@@ -1,0 +1,6 @@
+# Test: every renderer of le rfc check discloses a clause-scoped row, and audit-stamp refuses a whole verdict for it.
+# accept-only: registered fixture checks plain, YAML and table output against the JSON exit code, and the enforced stamp refusal, in its own HEAD export.
+option=timeout:value=900s
+cmd=foreground:seq=1:exec=le test fixture ui/le-rfc-partial-proof-render
+expect=exit:code=0
+expect=stdout:contains=OK

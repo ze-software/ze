@@ -1205,3 +1205,19 @@ func resolveOrchestratedTimeout(suggested time.Duration, recordTimeout string, c
 	}
 	return timeout
 }
+
+// foregroundHelperStopError names why a foreground helper was killed before it
+// exited. testCtx is derived from parent, so testCtx being done says only that
+// one of the two ended. When parent ended first (the suite's wall-clock budget
+// or an interrupt), the test's own timeout did not fire, and blaming it sent a
+// reader hunting a hang that was not there.
+func foregroundHelperStopError(parent context.Context, seq int, command string, timeout time.Duration) error {
+	if parent.Err() != nil {
+		return fmt.Errorf("cmd seq=%d (%s): the run ended before this foreground helper exited, "+
+			"inside the test's own %s timeout (%w): the suite's wall-clock budget or an interrupt "+
+			"stopped it. If the suite budget ran out, lower the suite's slowest tests or set "+
+			"ze.suite.timeout.<suite>", seq, command, timeout, context.Cause(parent))
+	}
+	return fmt.Errorf("cmd seq=%d (%s): foreground helper did not exit within %s; "+
+		"a process the test does not wait for is cmd=background", seq, command, timeout)
+}

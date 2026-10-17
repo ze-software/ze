@@ -424,6 +424,13 @@ func plugin14OTCExportUnknown(ctx context.Context, plugin *sdk.Plugin) error {
 	if total < 1 {
 		return fmt.Errorf("adj-rib-in never stored the route, got total=%d", total)
 	}
+	// The dest peer's wire assertion is this test's subject, and returning
+	// stops the daemon. Under load the source's route lands before the dest
+	// session is up (bgp-rs logs "forward matched no target") and reaches the
+	// dest only on its later initial sync, so return only once ze sent it.
+	if err := plugin14WaitDestUpdates(ctx, plugin, 1, "the untagged peer's route"); err != nil {
+		return err
+	}
 	fmt.Fprintln(os.Stderr, "OK: route from untagged peer accepted while dest wire assertion verified forwarding")
 	return nil
 }

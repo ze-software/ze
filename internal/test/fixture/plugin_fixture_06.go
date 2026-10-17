@@ -277,6 +277,14 @@ func fixture06DeadpeerHolddown(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func fixture06DNSCacheShow(ctx context.Context, p *sdk.Plugin) error {
+	// The .ci asserts the session's End-of-RIB reached the peer, and Observe
+	// asks the daemon to stop as soon as this scenario returns. The cache
+	// commands answer in milliseconds, so without this wait a loaded host
+	// shut the session down from OpenConfirm: the peer read Cease 6/2 where
+	// it expected the EOR (CI 2026-10-17, dns-cache-show).
+	if err := fixture06WaitEOR(ctx, p, 1); err != nil {
+		return err
+	}
 	checkShape := func(command string, expected []string) (map[string]any, error) {
 		data, err := fixture06DispatchObject(ctx, p, command)
 		if err != nil {

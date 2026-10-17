@@ -23,7 +23,10 @@ import (
 
 func init() {
 	Register("ui/le-rfc-answers", uiDriver(leRFCAnswers))
-	Register("ui/le-rfc-partial-proof", uiDriver(leRFCPartialProof))
+	Register("ui/le-rfc-partial-proof", uiDriver(leRFCPartialDriver("partial", leRFCPartialProof)))
+	Register("ui/le-rfc-partial-proof-render", uiDriver(leRFCPartialDriver("partial-render", leRFCPartialProofRender)))
+	Register("ui/le-rfc-partial-proof-selector", uiDriver(leRFCPartialDriver("partial-selector", leRFCPartialProofSelector)))
+	Register("ui/le-rfc-partial-proof-malformed", uiDriver(leRFCPartialDriver("partial-malformed", leRFCPartialProofMalformed)))
 }
 
 type leRFCAnswersFailure struct {
@@ -938,71 +941,138 @@ func leRFCAnswersSymmetricDifference(a, b []string) []string {
 	return difference
 }
 
-// leRFCPartialProof exercises the shipped CLI, never the shared checkout's
-// authored summaries or audits. Ambient corpus debt cannot satisfy a seeded RID.
-func leRFCPartialProof(ctx context.Context) (err error) {
-	defer func() {
-		if recovered := recover(); recovered != nil {
-			if failure, ok := recovered.(leRFCAnswersFailure); ok {
-				err = failure
-				return
-			}
-			panic(recovered)
-		}
-	}()
-	root := os.Getenv(envRepoRoot)
-	leRFCAnswersRequire(root != "", "ZE_REPO_ROOT is not set")
-	here, _, err := temporaryLEFixtureWorkspace("le-rfc-partial-")
-	leRFCAnswersRequireNoError(err, "create scoped fixture workspace")
-	defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
-	binary, err := nativeLEBinary()
-	leRFCAnswersRequireNoError(err, "locate native le binary")
-	tree := leRFCAnswersExportHEAD(ctx, root, here, "scoped")
-	runLE := func(args ...string) leRFCAnswersResult {
-		return leRFCAnswersRun(ctx, here, map[string]string{envRepoRoot: tree}, binary, args...)
-	}
-	baseline := runLE("rfc", actionCheck, "|", renderJSON)
-	baselineReport := leRFCAnswersJSONObject(baseline.stdout, "baseline scoped count")
-	leRFCAnswersRequire(baselineReport["cannot-run"] == nil, "baseline cannot run: %v", baselineReport["cannot-run"])
-	beforePartial := leRFCAnswersJSONInt(baselineReport["partial"], "baseline partial count")
-	write := func(rel, text string) {
-		path := filepath.Join(tree, filepath.FromSlash(rel))
-		leRFCAnswersRequireNoError(os.MkdirAll(filepath.Dir(path), 0o750), "create fixture parent")
-		leRFCAnswersRequireNoError(os.WriteFile(path, []byte(text), 0o600), "write scoped fixture "+rel)
-	}
-	const stem = "rfc99999"
-	const rid = "RFC99999-2-1"
-	const summary = "rfc/short/" + stem + ".md"
-	const producer = "internal/le/rfc/ui_partial_fixture.go::UIPartialGapContext"
-	const gap = "MUST be zero when sent"
-	const tested = "ignored on receipt."
-	const sentence = "A widget MUST be zero when sent and ignored on receipt."
-	const marker = `{partial: tested "ignored on receipt."; gap "MUST be zero when sent"; native sending is absent at ` + producer + `}`
-	_, statErr := os.Stat(filepath.Join(tree, summary))
-	leRFCAnswersRequire(os.IsNotExist(statErr), "seed summary already exists: %v", statErr)
-	meta := "# RFC 99999\n\n## Meta\n\n| Field | Value |\n|---|---|\n" +
+// The partial-proof fixture seeds one scoped row into a private HEAD export.
+// Every `le rfc check` it runs walks that whole corpus, so its proofs are four
+// fixtures rather than one: run as one, its ten passes, the first over a cold
+// private build cache, took 554s on a loaded CI runner and the ui suite's 600s
+// budget killed it. Each fixture seeds its own export, so they run in parallel
+// and none reads another's tree; they share only the build cache.
+const (
+	leRFCPartialStem     = "rfc99999"
+	leRFCPartialRID      = "RFC99999-2-1"
+	leRFCPartialSummary  = "rfc/short/" + leRFCPartialStem + ".md"
+	leRFCPartialShard    = "rfc/requirements/" + leRFCPartialStem + ".md"
+	leRFCPartialProducer = "internal/le/rfc/ui_partial_fixture.go::UIPartialGapContext"
+	leRFCPartialGap      = "MUST be zero when sent"
+	leRFCPartialTested   = "ignored on receipt."
+	leRFCPartialSentence = "A widget MUST be zero when sent and ignored on receipt."
+	leRFCPartialMarker   = `{partial: tested "ignored on receipt."; gap "MUST be zero when sent"; native sending is absent at ` + leRFCPartialProducer + `}`
+	leRFCPartialMeta     = "# RFC 99999\n\n## Meta\n\n| Field | Value |\n|---|---|\n" +
 		"| Title | Scoped Widget Fixture |\n| Enrolment | enrolled |\n" +
 		"| Enrolment reason | isolated tooling fixture |\n| Implementation | ze |\n" +
 		"| Implementation reason | the fixture's own Go boundary |\n| Support | bgp-base 999 |\n" +
 		"| Support area | Scoped Widget Fixture |\n| Support status | Partial |\n" +
 		"| Support coverage | scoped receive assertions |\n| Support remaining | One MUST row remains unmet: native sending is absent. |\n" +
 		"\n## Compliance Checklist\n\n"
-	row := "- [ ] [" + rid + "] [MUST] " + sentence + " (§2) " + marker + "\n"
-	write(summary, meta+row)
-	write("rfc/full/"+stem+".txt", "Test RFC 99999\n\n2.  Widgets\n\n"+sentence+"\n")
-	write("internal/le/rfc/ui_partial_fixture.go", "package rfc\n\nfunc UIPartialGapContext() {}\n")
-	write("test/plugin/ui-partial-fixture.ci", "# RFC requirement: "+rid+" positive -- accepts receipt of zero\n"+
-		"# RFC requirement: "+rid+" negative -- ignores nonzero on receipt\nexpect=stdout:contains=OK\n")
-	check := runLE("rfc", actionCheck, "|", renderJSON)
-	leRFCAnswersRequire(check.code == 0 || check.code == 2, "partial check did not answer a gate result: %s", check.stderr)
-	report := leRFCAnswersJSONObject(check.stdout, "scoped check")
-	leRFCAnswersRequire(report["cannot-run"] == nil, "scoped check could not run: %v", report["cannot-run"])
+	leRFCPartialRow = "- [ ] [" + leRFCPartialRID + "] [MUST] " + leRFCPartialSentence + " (§2) " + leRFCPartialMarker + "\n"
+)
+
+// leRFCPartialTree is one fixture's private HEAD export and the shipped CLI
+// that runs over it.
+type leRFCPartialTree struct {
+	tree  string
+	runLE func(args ...string) leRFCAnswersResult
+}
+
+// write replaces one file of the export.
+func (t leRFCPartialTree) write(rel, text string) {
+	path := filepath.Join(t.tree, filepath.FromSlash(rel))
+	leRFCAnswersRequireNoError(os.MkdirAll(filepath.Dir(path), 0o750), "create fixture parent")
+	leRFCAnswersRequireNoError(os.WriteFile(path, []byte(text), 0o600), "write scoped fixture "+rel)
+}
+
+// seed writes the scoped row, its RFC text, its producer and its tagged test.
+func (t leRFCPartialTree) seed() {
+	_, statErr := os.Stat(filepath.Join(t.tree, leRFCPartialSummary))
+	leRFCAnswersRequire(os.IsNotExist(statErr), "seed summary already exists: %v", statErr)
+	t.write(leRFCPartialSummary, leRFCPartialMeta+leRFCPartialRow)
+	t.write("rfc/full/"+leRFCPartialStem+".txt", "Test RFC 99999\n\n2.  Widgets\n\n"+leRFCPartialSentence+"\n")
+	t.write("internal/le/rfc/ui_partial_fixture.go", "package rfc\n\nfunc UIPartialGapContext() {}\n")
+	t.write("test/plugin/ui-partial-fixture.ci", "# RFC requirement: "+leRFCPartialRID+" positive -- accepts receipt of zero\n"+
+		"# RFC requirement: "+leRFCPartialRID+" negative -- ignores nonzero on receipt\nexpect=stdout:contains=OK\n")
+}
+
+// checkJSON runs `le rfc check | json` and returns its exit code and report.
+func (t leRFCPartialTree) checkJSON(what string) (int, map[string]any) {
+	check := t.runLE("rfc", actionCheck, "|", renderJSON)
+	leRFCAnswersRequire(check.code == 0 || check.code == 2, "%s did not answer a gate result: %s", what, check.stderr)
+	report := leRFCAnswersJSONObject(check.stdout, what)
+	leRFCAnswersRequire(report["cannot-run"] == nil, "%s could not run: %v", what, report["cannot-run"])
+	return check.code, report
+}
+
+// indexShard runs index-update over the valid seeded row and returns the shard.
+func (t leRFCPartialTree) indexShard() []byte {
+	index := t.runLE("rfc", actionIndexUpdate)
+	leRFCAnswersRequire(index.code == 0, "index-update refused valid scope: %s", index.stderr)
+	shard := leRFCAnswersRead(t.tree, leRFCPartialShard)
+	for _, fact := range []string{leRFCPartialRID, leRFCPartialTested, leRFCPartialGap, "zero whole-requirement credit"} {
+		leRFCAnswersRequire(strings.Contains(string(shard), fact), "shard omitted %q", fact)
+	}
+	return shard
+}
+
+// refuses proves both gates refuse an invalid row and leave the shard as it was.
+func (t leRFCPartialTree) refuses(shard []byte, row, refusal string) {
+	t.write(leRFCPartialSummary, leRFCPartialMeta+row)
+	bad := t.runLE("rfc", actionCheck, "|", renderJSON)
+	leRFCAnswersRequire(bad.code == 2 && strings.Contains(bad.stdout, refusal), "invalid scope was accepted: %s", bad.stdout)
+	badIndex := t.runLE("rfc", actionIndexUpdate)
+	leRFCAnswersRequire(badIndex.code == 2, "index-update accepted invalid scope")
+	unchanged := leRFCAnswersRead(t.tree, leRFCPartialShard)
+	leRFCAnswersRequire(bytes.Equal(shard, unchanged), "refused index-update changed shard")
+}
+
+// leRFCPartialDriver turns a failure panic into the fixture's error and hands
+// the body a fresh private export of HEAD. The body exercises the shipped CLI,
+// never the shared checkout's authored summaries or audits, so ambient corpus
+// debt cannot satisfy the seeded RID.
+func leRFCPartialDriver(name string, body func(leRFCPartialTree) string) func(context.Context) error {
+	return func(ctx context.Context) (err error) {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				if failure, ok := recovered.(leRFCAnswersFailure); ok {
+					err = failure
+					return
+				}
+				panic(recovered)
+			}
+		}()
+		root := os.Getenv(envRepoRoot)
+		leRFCAnswersRequire(root != "", "ZE_REPO_ROOT is not set")
+		here, _, err := temporaryLEFixtureWorkspace("le-rfc-" + name + "-")
+		leRFCAnswersRequireNoError(err, "create scoped fixture workspace")
+		defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
+		binary, err := nativeLEBinary()
+		leRFCAnswersRequireNoError(err, "locate native le binary")
+		tree := leRFCAnswersExportHEAD(ctx, root, here, "scoped")
+		// Share Go's content-addressed build artifacts, as leRFCAnswersTree
+		// does. `le rfc check` vets every tagged package, and a private cache
+		// builds a patched GOROOT and the whole tree cold in every export:
+		// four exports did that at GOMAXPROCS=1 and none finished in 675s.
+		cache, err := filepath.Abs(filepath.Join(root, "cache"))
+		leRFCAnswersRequireNoError(err, "resolve native build cache")
+		leRFCAnswersRequireNoError(os.Symlink(cache, filepath.Join(tree, "cache")), "link native build cache")
+		fmt.Println(body(leRFCPartialTree{tree: tree, runLE: func(args ...string) leRFCAnswersResult {
+			return leRFCAnswersRun(ctx, here, map[string]string{envRepoRoot: tree}, binary, args...)
+		}}))
+		return nil
+	}
+}
+
+// leRFCPartialProof proves the seeded row adds exactly one partial scope, is
+// not refused, and discloses every fact of its scope in the JSON answer.
+func leRFCPartialProof(t leRFCPartialTree) string {
+	_, baselineReport := t.checkJSON("baseline scoped count")
+	beforePartial := leRFCAnswersJSONInt(baselineReport["partial"], "baseline partial count")
+	t.seed()
+	_, report := t.checkJSON("scoped check")
 	leRFCAnswersRequire(leRFCAnswersJSONInt(report["partial"], "partial count") == beforePartial+1,
 		"seeded partial row did not increase the subset by exactly one: before=%d after=%v violations=%v",
 		beforePartial, report["partial"], report["violations"])
 	violations, _ := report["violations"].([]any)
 	for _, violation := range violations {
-		leRFCAnswersRequire(!strings.Contains(fmt.Sprint(violation), rid), "valid scoped row refused: %v", violation)
+		leRFCAnswersRequire(!strings.Contains(fmt.Sprint(violation), leRFCPartialRID), "valid scoped row refused: %v", violation)
 	}
 	scopes, ok := report["partial-scopes"].([]any)
 	leRFCAnswersRequire(ok, "partial scopes absent from JSON")
@@ -1010,49 +1080,56 @@ func leRFCPartialProof(ctx context.Context) (err error) {
 	for _, scope := range scopes {
 		encoded, encodeErr := json.Marshal(scope)
 		leRFCAnswersRequireNoError(encodeErr, "encode scope")
-		if strings.Contains(string(encoded), rid) {
+		if strings.Contains(string(encoded), leRFCPartialRID) {
 			found = true
-			for _, fact := range []string{sentence, tested, gap, producer} {
+			for _, fact := range []string{leRFCPartialSentence, leRFCPartialTested, leRFCPartialGap, leRFCPartialProducer} {
 				leRFCAnswersRequire(strings.Contains(string(encoded), fact), "scope omits %q: %s", fact, encoded)
 			}
 		}
 	}
 	leRFCAnswersRequire(found, "seeded scope absent from JSON")
+	return "OK: partial scope stays source-bound and is counted once"
+}
+
+// leRFCPartialProofRender proves every renderer of `le rfc check` discloses
+// the scoped facts with the JSON answer's exit code, and that audit-stamp
+// refuses a whole-requirement verdict for a partial row.
+func leRFCPartialProofRender(t leRFCPartialTree) string {
+	t.seed()
+	code, _ := t.checkJSON("scoped check")
 	for _, operator := range []string{"", renderYAML, renderTable} {
 		args := []string{"rfc", actionCheck}
 		if operator != "" {
 			args = append(args, "|", operator)
 		}
-		result := runLE(args...)
-		leRFCAnswersRequire(result.code == check.code, "pipe changed check exit: %s", operator)
-		for _, fact := range []string{rid, tested, gap} {
+		result := t.runLE(args...)
+		leRFCAnswersRequire(result.code == code, "pipe changed check exit: %s", operator)
+		for _, fact := range []string{leRFCPartialRID, leRFCPartialTested, leRFCPartialGap} {
 			leRFCAnswersRequire(strings.Contains(result.stdout, fact), "%s omitted scoped fact %q", operator, fact)
 		}
 	}
-	index := runLE("rfc", actionIndexUpdate)
-	leRFCAnswersRequire(index.code == 0, "index-update refused valid scope: %s", index.stderr)
-	shard := leRFCAnswersRead(tree, "rfc/requirements/"+stem+".md")
-	for _, fact := range []string{rid, tested, gap, "zero whole-requirement credit"} {
-		leRFCAnswersRequire(strings.Contains(string(shard), fact), "shard omitted %q", fact)
-	}
-	for _, control := range []struct{ row, refusal string }{
-		{strings.Replace(row, `tested "ignored on receipt."`, `tested "not in the parent"`, 1), "selector"},
-		{strings.Replace(strings.Replace(row, "{partial", "{ partial", 1), "native sending", "missing {native} sending", 1), "malformed {partial}"},
-	} {
-		write(summary, meta+control.row)
-		bad := runLE("rfc", actionCheck, "|", renderJSON)
-		leRFCAnswersRequire(bad.code == 2 && strings.Contains(bad.stdout, control.refusal), "invalid scope was accepted: %s", bad.stdout)
-		badIndex := runLE("rfc", actionIndexUpdate)
-		leRFCAnswersRequire(badIndex.code == 2, "index-update accepted invalid scope")
-		unchanged := leRFCAnswersRead(tree, "rfc/requirements/"+stem+".md")
-		leRFCAnswersRequire(bytes.Equal(shard, unchanged), "refused index-update changed shard")
-	}
-	write(summary, meta+row)
-	write("scratch/pending-partial.json", `{"rfc":"`+stem+`","requirements":{"`+rid+`":{"verdict":"enforced","note":"whole sentence supposedly proven"}}}`)
-	stamp := runLE("rfc", "audit-stamp", "stem", stem, "from", filepath.Join(tree, "scratch", "pending-partial.json"))
+	t.write("scratch/pending-partial.json", `{"rfc":"`+leRFCPartialStem+`","requirements":{"`+leRFCPartialRID+`":{"verdict":"enforced","note":"whole sentence supposedly proven"}}}`)
+	stamp := t.runLE("rfc", "audit-stamp", "stem", leRFCPartialStem, "from", filepath.Join(t.tree, "scratch", "pending-partial.json"))
 	leRFCAnswersRequire(stamp.code == 2 && strings.Contains(stamp.stderr+stamp.stdout, "cannot be 'enforced'"), "whole verdict accepted: %s%s", stamp.stdout, stamp.stderr)
-	_, statErr = os.Stat(filepath.Join(tree, "rfc/audit/"+stem+".json"))
+	_, statErr := os.Stat(filepath.Join(t.tree, "rfc/audit/"+leRFCPartialStem+".json"))
 	leRFCAnswersRequire(os.IsNotExist(statErr), "refused stamp wrote audit")
-	fmt.Println("OK: partial scope stays source-bound, disclosed and outside whole proof")
-	return nil
+	return "OK: every renderer discloses the partial scope, and it stays outside whole proof"
+}
+
+// leRFCPartialProofSelector proves a tested selector absent from the parent
+// sentence is refused by both gates, which leave the shard unchanged.
+func leRFCPartialProofSelector(t leRFCPartialTree) string {
+	t.seed()
+	shard := t.indexShard()
+	t.refuses(shard, strings.Replace(leRFCPartialRow, `tested "ignored on receipt."`, `tested "not in the parent"`, 1), "selector")
+	return "OK: a selector outside the parent sentence is refused"
+}
+
+// leRFCPartialProofMalformed proves a malformed {partial} marker is refused
+// by both gates, which leave the shard unchanged.
+func leRFCPartialProofMalformed(t leRFCPartialTree) string {
+	t.seed()
+	shard := t.indexShard()
+	t.refuses(shard, strings.Replace(strings.Replace(leRFCPartialRow, "{partial", "{ partial", 1), "native sending", "missing {native} sending", 1), "malformed {partial}")
+	return "OK: a malformed partial marker is refused"
 }
