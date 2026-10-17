@@ -209,7 +209,10 @@ func funcDeclName(text string) (string, bool) {
 		}
 		rest = trimRE2Space(rest[closing+1:])
 	}
-	if rest == "" || !goNameStart(rest[0]) {
+	if rest == "" {
+		return "", false
+	}
+	if !goNameStart(rest[0]) {
 		return "", false
 	}
 	end := 1
