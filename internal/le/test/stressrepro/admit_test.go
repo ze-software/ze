@@ -89,7 +89,7 @@ func TestStressIterationsEachRunInsideOneSlot(t *testing.T) {
 	opts := baseOptions()
 	opts.Iterations, opts.Parallel = iterations, iterations
 
-	report, code := admitRun(context.Background(), root, []string{"run", "suite", "bgp"}, opts, deps)
+	report, code := admitRun(context.Background(), root, []string{"run", "suite", "plugin"}, opts, deps)
 	if code != 1 || report.Completed != iterations || report.SetupError != "" {
 		t.Fatalf("code %d, report %#v: want %d completed, not reproduced", code, report, iterations)
 	}

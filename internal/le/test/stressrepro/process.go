@@ -20,18 +20,14 @@ import (
 type realProcessRunner struct{}
 
 func (realProcessRunner) Invoke(ctx context.Context, spec invocation) processResult {
-	words, err := shellWords(spec.suite)
-	if err != nil {
-		return processResult{code: 2, err: fmt.Errorf("split suite: %w", err)}
-	}
 	testWords, err := shellWords(spec.test)
 	if err != nil {
 		return processResult{code: 2, err: fmt.Errorf("split test: %w", err)}
 	}
-	// The harness is `le test <suite>`, run by this le (D-8).
-	argv := make([]string, 0, len(words)+2+max(1, len(testWords)))
+	// The harness is `le test <suite's registered argv>`, run by this le (D-8).
+	argv := make([]string, 0, len(spec.harness)+2+max(1, len(testWords)))
 	argv = append(argv, "test")
-	argv = append(argv, words...)
+	argv = append(argv, spec.harness...)
 	argv = append(argv, "-v")
 	if len(testWords) == 0 {
 		argv = append(argv, "--all")

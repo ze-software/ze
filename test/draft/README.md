@@ -73,7 +73,7 @@ le test bgp plugin --draft -a
 le test bgp plugin --draft --pattern my-new-test
 
 # 3. prove it under load, still as a draft
-./le test stress-repro run suite "bgp plugin --draft" test 1 any-failure
+./le test stress-repro run suite "plugin --draft" test 1 any-failure
 
 # 4. promote when green: a plain move, no git plumbing needed
 mv test/draft/plugin/my-new-test.ci test/plugin/my-new-test.ci

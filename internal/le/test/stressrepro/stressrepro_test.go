@@ -221,7 +221,7 @@ func testDependencies(runner processRunner) (runDependencies, *int) {
 }
 
 func baseOptions() Options {
-	return Options{Suite: "bgp", Iterations: 1, Parallel: 1, Burners: 1, Minutes: 1, Timeout: 1}
+	return Options{Suite: "plugin", Iterations: 1, Parallel: 1, Burners: 1, Minutes: 1, Timeout: 1}
 }
 
 func TestCPUDefaultsMatchTheOldScript(t *testing.T) {

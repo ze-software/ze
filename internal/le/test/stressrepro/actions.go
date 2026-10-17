@@ -108,11 +108,11 @@ func parseOptions(args []string) (Options, error) {
 			// reading it as data is what started the burn.
 			//
 			// The refusal is on the keyword's own word and MUST stay there.
-			// This parser does forward to a child: realProcessRunner.Invoke
-			// (process.go) shell-splits `suite` and `test` into the child's
-			// argv, and docs/functional-tests.md ships
-			// `suite "bgp plugin --draft"`. A refusal widened to the split
-			// words would refuse the documented recipe.
+			// This parser does forward to a child: harnessArgs (run.go) and
+			// realProcessRunner.Invoke (process.go) shell-split `suite` and
+			// `test` into the child's argv, and docs/functional-tests.md ships
+			// `suite "plugin --draft"`. A refusal widened to the split words
+			// would refuse the documented recipe.
 			// `run suite -help` set suite to the cluster, and the load
 			// generator ran for twenty minutes (2026-09-11).
 			if leaction.IsOption(value) {

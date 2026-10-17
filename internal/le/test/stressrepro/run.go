@@ -25,6 +25,7 @@ import (
 	"github.com/ze-software/ze/internal/le/job"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
+	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
 )
 
 var crashSignatures = []string{
@@ -107,8 +108,9 @@ func valueOr(value, fallback string) string {
 }
 
 type invocation struct {
-	root      string
-	suite     string
+	root string
+	// harness is the child's argv after `le test`, derived by harnessArgs.
+	harness   []string
 	test      string
 	zeBin     string
 	testBin   string
@@ -255,6 +257,12 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 	if err != nil {
 		return setupFailure(report, err)
 	}
+	// Resolved before the daemon build and the burners, so a suite name that
+	// runs nothing is refused before any load starts.
+	harness, err := harnessArgs(opts.Suite)
+	if err != nil {
+		return setupFailure(report, err)
+	}
 	stamp := deps.now().Format("20060102-150405")
 	report.Log = filepath.Join(outDir, slug+"-"+stamp+".log")
 
@@ -297,7 +305,7 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 	defer stopBurners()
 
 	spec := invocation{
-		root: root, suite: opts.Suite, test: opts.Test, zeBin: zeBin, testBin: testBin,
+		root: root, harness: harness, test: opts.Test, zeBin: zeBin, testBin: testBin,
 		timeout: time.Duration(opts.Timeout) * time.Second, extraTags: opts.Tags,
 	}
 	// ran counts the invocations that finished on their own, and failed the
@@ -505,6 +513,55 @@ func slugPart(word string) string {
 		}
 	}
 	return strings.Trim(clean.String(), "-")
+}
+
+// harnessArgs derives the child's argv after `le test` from the functional suite
+// registry (testfunctional.Suites), so `suite plugin` runs `le test bgp plugin`
+// and `suite ui` runs `le test ui`: a suite name is never passed through as a
+// `le test` verb, which launched `le test plugin` and `le test reload` and met
+// "test is a namespace". The first word of suite names the registered suite; the
+// words after it (`--draft`) follow the suite's own arguments. The registry's
+// select-everything word is dropped, because Invoke chooses the selector: `--all`
+// or the `test` words. Every other registered argument, such as reload's serial
+// `-p 1`, is kept, because it is part of what that suite needs to run.
+func harnessArgs(suite string) ([]string, error) {
+	words, err := shellWords(suite)
+	if err != nil {
+		return nil, fmt.Errorf("split suite: %w", err)
+	}
+	if len(words) == 0 {
+		return nil, errors.New("run requires suite <suite>")
+	}
+	registered, found := testfunctional.SuiteNamed(words[0])
+	if !found {
+		return nil, unknownSuiteError(words[0])
+	}
+	args := make([]string, 0, len(registered.Args)+len(words)-1)
+	for _, word := range registered.Args {
+		if word == testfunctional.AllTests {
+			continue
+		}
+		args = append(args, word)
+	}
+	return append(args, words[1:]...), nil
+}
+
+// unknownSuiteError names the word, the suites that exist, and the command to
+// type, all read from the registry the run would launch from.
+func unknownSuiteError(name string) error {
+	var message textbuf.Buffer
+	message.Str("suite ").Quoted(name).
+		Str(" is not a functional test suite, so stress-repro has no le test command to run\n").
+		Str("valid suites: ")
+	for index, registered := range testfunctional.Suites {
+		if index > 0 {
+			message.Str(", ")
+		}
+		message.Str(registered.Name)
+	}
+	message.Str("\nrun one by its name, for example:\n  ./le test stress-repro run suite ").
+		Str(testfunctional.Suites[0].Name)
+	return errors.New(message.String())
 }
 
 func shellWords(values ...string) ([]string, error) {

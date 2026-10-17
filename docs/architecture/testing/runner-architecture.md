@@ -502,12 +502,19 @@ reproduced, 2 a setup error.
 ```
 ./le test stress-repro run suite rsvpte iterations 80
 ./le test stress-repro run suite rsvpte race
-./le test stress-repro run suite bgp burners 32 parallel 8
-./le test stress-repro run suite "bgp plugin" test 97 any-failure
+./le test stress-repro run suite encode burners 32 parallel 8
+./le test stress-repro run suite plugin test 97 any-failure
+./le test stress-repro run suite "plugin --draft" test 97 any-failure
 ```
 
-The suite selector and `test` selector are both split on whitespace, so a
-sub-suite and a multi-token selector reach `le test` exactly as typed by hand.
+The suite is a NAME from the functional suite table
+(`internal/le/test/functional/suites.go`), and the child runs the `le test` argv
+that table gives it, so `suite plugin` runs `le test bgp plugin` and `suite ui`
+runs `le test ui`. A name the table does not hold is refused, with the valid
+names, before the build or any burner starts. Words after the name (`--draft`)
+and the `test` selector are split on whitespace and follow that argv, so a
+multi-token selector reaches `le test` exactly as typed by hand.
+<!-- source: internal/le/test/stressrepro/run.go -- harnessArgs -->
 
 By default only a CRASH signature (a panic, a `DATA RACE`, or a runtime error)
 counts as a reproduction, and everything else is discarded down to the last 500
