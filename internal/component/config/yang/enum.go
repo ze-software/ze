@@ -8,17 +8,9 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"sync"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 )
-
-// modelLoader answers the default loader once for the life of the process.
-//
-// The model is embedded in the binary and registered by init(), so it cannot
-// change while the process runs, and parsing every module costs enough that a
-// guard calling EnumValues on each config apply would pay it again each time.
-var modelLoader = sync.OnceValues(DefaultLoader)
 
 // EnumValues answers every value of the enumeration the model declares at path,
 // sorted, or an error naming why the model could not answer.
@@ -42,7 +34,9 @@ var modelLoader = sync.OnceValues(DefaultLoader)
 // MUST NOT be called from an init function: the modules load through init(), so
 // a caller that runs during init can see a model that is still being built.
 func EnumValues(path string) ([]string, error) {
-	schema, err := modelLoader()
+	// DefaultLoader resolves the model once per process, so a guard calling
+	// EnumValues on each config apply does not parse every module each time.
+	schema, err := DefaultLoader()
 	if err != nil {
 		return nil, fmt.Errorf("load the YANG model: %w", err)
 	}

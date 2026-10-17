@@ -31,6 +31,15 @@ func newBlobStorageAt(t *testing.T, dir string) Storage {
 	return s
 }
 
+// newMemoryStorage returns the memory encoding; dir is unused, because the
+// store touches no file.
+func newMemoryStorage(t *testing.T, _ string) Storage {
+	t.Helper()
+	s := CreateMemory()
+	t.Cleanup(func() { require.NoError(t, s.Close()) })
+	return s
+}
+
 func TestStorageConformance(t *testing.T) {
 	for _, backend := range pointerTestStores() {
 		t.Run(backend.name, func(t *testing.T) { storageConformance(t, backend) })
@@ -567,7 +576,7 @@ func TestGuardListKeysPartialPrefix(t *testing.T) {
 	}
 }
 
-// TestGuardListKeysSorted verifies AC-21: both encodings answer the same keys
+// TestGuardListKeysSorted verifies AC-21: every encoding answers the same keys
 // in the same sorted order.
 //
 // VALIDATES: AC-21, ordering is part of the contract.
@@ -585,6 +594,8 @@ func TestGuardListKeysSorted(t *testing.T) {
 		assert.True(t, slices.IsSorted(got), "%s: %v", backend.name, got)
 		answers = append(answers, got)
 	}
-	require.Len(t, answers, 2)
-	assert.Equal(t, answers[0], answers[1])
+	require.Len(t, answers, len(pointerTestStores()))
+	for i := 1; i < len(answers); i++ {
+		assert.Equal(t, answers[0], answers[i])
+	}
 }

@@ -1,7 +1,6 @@
 package yang
 
 import (
-	"slices"
 	"testing"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
@@ -517,7 +516,7 @@ func TestLoaderNamesEachModuleOnce(t *testing.T) {
 // TestDefaultLoaderReportsEveryRegisteredFailure: DefaultLoader is strict. A
 // registered module that fails to parse, registered before a valid module that
 // imports a module nobody registers, yields no loader and an error naming both
-// failures. Method: replace the package registry for this test only; the
+// failures. Method: register two probes for this test only; the
 // unresolved import is reported only if the module after the parse failure
 // was still parsed.
 //
@@ -527,17 +526,13 @@ func TestLoaderNamesEachModuleOnce(t *testing.T) {
 // PREVENTS: a startup that silently serves a schema missing every module
 // registered after a broken one, or missing a module whose import is absent.
 func TestDefaultLoaderReportsEveryRegisteredFailure(t *testing.T) {
-	saved := modules
-	t.Cleanup(func() { modules = saved })
-	modules = append(slices.Clone(saved),
-		Module{Name: "ze-probe-broken.yang", Content: "module ze-probe-broken {\n    namespace \"urn:ze:probe-broken\";\n    prefix broken;\n    leaf {\n"},
-		Module{Name: "ze-probe-late.yang", Content: `module ze-probe-late {
+	t.Cleanup(RegisterModuleForTest("ze-probe-broken.yang", "module ze-probe-broken {\n    namespace \"urn:ze:probe-broken\";\n    prefix broken;\n    leaf {\n"))
+	t.Cleanup(RegisterModuleForTest("ze-probe-late.yang", `module ze-probe-late {
     namespace "urn:ze:probe-late";
     prefix late;
     import ze-probe-absent { prefix absent; }
     leaf late { type absent:missing; }
-}`},
-	)
+}`))
 
 	loader, err := DefaultLoader()
 	if err == nil {

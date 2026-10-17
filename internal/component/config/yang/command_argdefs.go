@@ -24,9 +24,11 @@ var (
 // SeedCommandArgDefs installs defs as the argument definitions every
 // dispatch route judges a command against (command.ValidateModelArgs). defs
 // MUST be PathToArgDefs over the schema DefaultLoader answered, which is the
-// model commandArgDefs would otherwise load and resolve a second time.
+// model commandArgDefs would otherwise build the definitions from on first use.
 //
-// The daemon seeds it at startup because that second load is not free: about
+// The daemon seeds it at startup because building them on first use is not
+// free: before DefaultLoader shared one resolution per process, the model was
+// loaded and resolved a second time there, about
 // 70 ms on a laptop, paid by the first plugin command, which then reached the
 // plugin after the first BGP UPDATE it was meant to precede. Safe for
 // concurrent use; the map is shared and MUST NOT be written after the call.

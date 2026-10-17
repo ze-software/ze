@@ -11,6 +11,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/openconfig/goyang/pkg/yang"
 )
@@ -23,7 +24,53 @@ import (
 // cannot serve a schema that silently lacks a module or a restriction.
 // LoadRegistered attempts every module, so one broken module does not hide
 // the failures of the modules registered after it.
+//
+// The answer is resolved once per registered module set and shared by every
+// caller in the process. Resolving the whole model is the most expensive
+// thing a CLI model, an editor session or a daemon component does at
+// construction, and every one of them asked for the same module set: 178
+// parallel editor tests each resolved it again for every model, session and
+// restart. The cache is keyed by the registry generation (modulesGeneration),
+// so a test that registers a module for its own duration
+// (RegisterModuleForTest) is resolved over that set, and the shipped set is
+// resolved again once its restore runs. A failure is shared too: the same
+// module set cannot fail differently on a retry. The cache holds one entry,
+// the set of the latest generation asked for.
+//
+// The shared Resolved is read-only: the Loader that produced it is
+// unreachable, so no module can be added to it (ErrLoaderResolved guards the
+// loader itself), and Resolve converted every module and submodule to its
+// entry tree, so a later GetEntry reads goyang's locked entry cache. Callers
+// MUST NOT write to a *yang.Entry or *yang.Module it answers. Safe for
+// concurrent use; concurrent first callers wait for the one resolution.
 func DefaultLoader() (*Resolved, error) {
+	defaultSchema.mu.Lock()
+	defer defaultSchema.mu.Unlock()
+	if defaultSchema.resolved && defaultSchema.generation == modulesGeneration {
+		return defaultSchema.schema, defaultSchema.err
+	}
+	schema, err := resolveDefault()
+	defaultSchema.generation = modulesGeneration
+	defaultSchema.schema, defaultSchema.err = schema, err
+	defaultSchema.resolved = true
+	return schema, err
+}
+
+// defaultSchema is DefaultLoader's one-entry cache: the answer for the module
+// set of registry generation `generation`. resolved names whether the entry
+// holds an answer at all, because generation 0 is a real generation (a binary
+// that registers no module) and so cannot mean "empty".
+var defaultSchema struct {
+	mu         sync.Mutex
+	resolved   bool
+	generation uint64
+	schema     *Resolved
+	err        error
+}
+
+// resolveDefault runs the work DefaultLoader caches: every embedded and
+// registered module into a new Loader, then Resolve.
+func resolveDefault() (*Resolved, error) {
 	l := NewLoader()
 	if err := l.LoadEmbedded(); err != nil {
 		return nil, fmt.Errorf("YANG LoadEmbedded: %w", err)
@@ -63,8 +110,12 @@ var ErrLoaderResolved = errors.New("YANG loader already resolved")
 // The zero value and nil are invalid: only Ze code can build either, and no
 // input reaches one, so every accessor ends in a BUG panic on them. The set
 // cannot change after resolution, because the Loader refuses every load once
-// Resolve ran (ErrLoaderResolved). Not safe for concurrent use: goyang caches
-// entries inside the module set (yang.ToEntry).
+// Resolve ran (ErrLoaderResolved). Safe for concurrent reads: Resolve
+// (goyang's Modules.Process) converts every module and submodule to its entry
+// tree and caches it, so GetEntry is a read of goyang's lock-guarded entry
+// cache (yang.ToEntry). The entries and modules it answers are pointers into
+// that shared set, and a reader MUST NOT write to them: DefaultLoader hands one
+// Resolved to every caller in the process.
 type Resolved struct {
 	modules *sourcedModules
 	// patterns holds every pattern checkPatterns compiled, keyed by the
@@ -87,8 +138,8 @@ func (r *Resolved) set() *sourcedModules {
 // sourcedModules is goyang's module set, keeping the text each module was
 // parsed from. goyang's Statement records no block when a statement has no
 // substatement, so "refine x;" and "refine x {}" parse alike; the text is
-// what tells them apart (statementHasBlock). Not safe for concurrent use, as
-// yang.Modules is not.
+// what tells them apart (statementHasBlock). Not safe for concurrent loads,
+// as yang.Modules is not; once Resolve has run, readers share it read-only.
 type sourcedModules struct {
 	*yang.Modules
 	// texts is the text of each module and submodule Parse added, keyed by

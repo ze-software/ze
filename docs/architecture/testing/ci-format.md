@@ -2368,7 +2368,10 @@ Named keys `input=key:name=<key>` accepts: `tab`, `enter`, `esc`, `escape`,
 <!-- source: internal/component/cli/testing/runner_store.go -- createRunnerStore -->
 
 Editor tests use a tree store by default; `option=storage:value=tree` states
-that choice explicitly. `option=storage:value=blob` runs the test on a backup
+that choice explicitly. The tree mode is held in memory (`storage.CreateMemory`),
+not on disk: it is the live store's contract (name mapping, guards, versions,
+metadata, observers) over a map, so no commit waits on a sync, and it closes
+with the test. `option=storage:value=blob` runs the test on an on-disk backup
 artifact the way `ze config edit --backup` opens one: the runner creates
 `backup.zefs`, seeds it, closes it, reopens it writable through
 `storage.OpenBlob`, and builds each session with

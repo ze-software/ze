@@ -175,7 +175,10 @@ func timedOutError(budget time.Duration) string {
 // runTestCaseIn executes a parsed test case with tmpDir as its working
 // directory. The caller owns tmpDir and MUST remove it.
 //
-// The directory outlives the run so a caller can inspect the persisted tree.
+// The directory holds the tmpfs fixture files, written without a sync, and a
+// blob-mode test's backup artifact. A tree-mode store lives in memory and
+// closes with the run (createRunnerStore), so a caller asserts on stored keys
+// through the .et (expect=key) rather than by reopening the directory.
 func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 	result := &TestResult{}
 

@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/test/runner"
 )
 
@@ -152,10 +151,15 @@ expect=key:path=file/active/test.conf.change.thomas:contains=5.6.7.8
 	assert.True(t, result.Passed, "test should pass: %s", result.Error)
 }
 
-// TestRunnerTreeStorageWritesTreeNotFile commits and inspects both the stored
-// config and the unchanged fixture, guarding against silent loose-file fallback.
-func TestRunnerTreeStorageWritesTreeNotFile(t *testing.T) {
-	etContent := `# Tree-backed editor, committed
+// TestRunnerStoredEditorWritesStoreNotFixture commits and inspects both the
+// store and the unchanged fixture, guarding against silent loose-file fallback.
+// The runner's store is in memory and closes with the run, so the .et asserts
+// the committed edit through the store (expect=key on the active mirror, the
+// key ReadFile("test.conf") reads) while the run holds it open. That a store
+// keeps a commit across a reopen belongs to the storage conformance table's
+// tree row, not to the editor harness.
+func TestRunnerStoredEditorWritesStoreNotFixture(t *testing.T) {
+	etContent := `# Stored editor, committed to the store
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   session {
@@ -179,6 +183,7 @@ input=type:text=commit now
 input=enter
 expect=dirty:false
 expect=error:none
+expect=key:path=file/active/test.conf:contains=5.6.7.8
 `
 
 	tc, err := parseETFile(etContent)
@@ -195,14 +200,6 @@ expect=error:none
 		"the config file on disk keeps its migrated content")
 	assert.NotContains(t, string(onDisk), "5.6.7.8",
 		"a stored editor must not write the loose fixture")
-
-	store, err := storage.OpenReadOnly(tmpDir)
-	require.NoError(t, err)
-	defer store.Close() //nolint:errcheck // test cleanup
-
-	persisted, err := store.ReadFile("test.conf")
-	require.NoError(t, err)
-	assert.Contains(t, string(persisted), "5.6.7.8", "the tree holds the committed edit")
 }
 
 // TestRunnerUnknownStorageBackendFails verifies the storage option fails closed.

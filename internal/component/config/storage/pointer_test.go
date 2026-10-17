@@ -31,6 +31,13 @@ func pointerTestStores() []pointerTestStore {
 			newStore:   newBlobStorageAt,
 			configPath: func(_ string) string { return "/etc/ze/router.conf" },
 		},
+		{
+			// The editor test harness's store: the path it names is
+			// <test dir>/<file>, a directory the store holds no folder for.
+			name:       "memory",
+			newStore:   newMemoryStorage,
+			configPath: func(dir string) string { return filepath.Join(dir, "router.conf") },
+		},
 	}
 }
 

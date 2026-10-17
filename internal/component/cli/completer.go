@@ -61,15 +61,13 @@ type Completer struct {
 // embedded and registered module. A module set that fails to load or resolve
 // is an error: a completer without a schema would answer only the bare
 // command words, and the operator could not tell that from a real answer.
+//
+// The schema is the process-wide one DefaultLoader resolves once and shares,
+// because every model, editor session and restart builds a completer: each
+// resolving the whole model again starved a loaded machine. The completer only
+// reads it.
 func NewCompleter() (*Completer, error) {
-	loader := yang.NewLoader()
-	if err := loader.LoadEmbedded(); err != nil {
-		return nil, fmt.Errorf("YANG schema: %w", err)
-	}
-	if err := loader.LoadRegistered(); err != nil {
-		return nil, fmt.Errorf("YANG schema: %w", err)
-	}
-	schema, err := loader.Resolve()
+	schema, err := yang.DefaultLoader()
 	if err != nil {
 		return nil, fmt.Errorf("YANG schema: %w", err)
 	}

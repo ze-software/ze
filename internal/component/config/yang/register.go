@@ -29,12 +29,32 @@ type Module struct {
 
 var modules []Module
 
+// modulesGeneration names the content of modules: every change to the slice
+// takes a generation no earlier set held, and RegisterModuleForTest's restore
+// returns the generation it saved with the slice it saved. DefaultLoader keys
+// its shared Resolved on it, so a test that registers a module for its own
+// duration is answered from that module set and never from the cached one.
+// Read and written under the same contract as modules: init, or a test that
+// does not run in parallel with another test that loads YANG.
+var modulesGeneration uint64
+
+// modulesGenerationLast is the highest generation ever issued, so a new one
+// can never repeat a generation a restore brings back.
+var modulesGenerationLast uint64
+
+// advanceModulesGeneration gives modules a generation no earlier set held.
+func advanceModulesGeneration() {
+	modulesGenerationLast++
+	modulesGeneration = modulesGenerationLast
+}
+
 // RegisterModule registers a YANG module for loading.
 // Called from init() in packages that own YANG files. Each module is stamped
 // with the import path of the calling package (Registrar).
 // Order of registration does not matter — goyang resolves imports during Resolve().
 func RegisterModule(name, content string) {
 	modules = append(modules, Module{Name: name, Content: content, Registrar: callsite.Package(2)})
+	advanceModulesGeneration()
 }
 
 // RegisterModuleForTest registers one more YANG module for the duration of a
@@ -45,9 +65,10 @@ func RegisterModule(name, content string) {
 // t.Cleanup. Not safe for concurrent use: a test that calls it MUST NOT run
 // in parallel with another test that loads YANG.
 func RegisterModuleForTest(name, content string) (restore func()) {
-	saved := modules
+	saved, savedGeneration := modules, modulesGeneration
 	modules = append(slices.Clone(saved), Module{Name: name, Content: content, Registrar: callsite.Package(2)})
-	return func() { modules = saved }
+	advanceModulesGeneration()
+	return func() { modules, modulesGeneration = saved, savedGeneration }
 }
 
 // Modules returns all registered YANG modules.

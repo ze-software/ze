@@ -12,6 +12,22 @@ implements it.
 <!-- source: internal/component/config/storage/storage.go -- Storage, WriteGuard -->
 <!-- source: internal/component/config/storage/store.go -- store, guard -->
 
+### The memory encoding
+
+`CreateMemory` returns a store whose keys live in a map and die with the
+process. It is the editor test harness's tree-mode store (`./le test editor`),
+never a daemon's: it keeps nothing across a restart. Only the key space differs;
+name mapping, guards, versions, metadata and observers are the store's own code,
+the same that runs over the tree. It refuses a key that would be both a value
+and a directory, as the tree does, returns caller-owned copies, and accepts a
+config name in any directory, as a blob does, because it has no folder to
+compare the name with. For the same reason a backup taken from it refuses no
+target name, as from an artifact source. The conformance table every encoding
+passes includes it.
+<!-- source: internal/component/config/storage/memory.go -- CreateMemory, memoryEncoding -->
+<!-- source: internal/component/config/storage/store.go -- keyEncoding -->
+<!-- source: internal/component/config/storage/backup.go -- refuseStoreName -->
+
 ## Opening and ownership
 
 `Open(configDir)` opens the live tree and holds `configDir/database.lock` until

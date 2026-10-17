@@ -138,7 +138,7 @@ func PluginOnlySchema() (*Schema, error) {
 // modules every init() registered (LoadRegistered). That input set is fixed
 // once the process has started, and no product code writes to the schema
 // after it is built (ExtendCapability has only a test caller), so the build
-// runs ONCE and every later call shares the result.
+// runs once per module set (yangSchemaCache) and every later call shares it.
 //
 // It was rebuilt on every call until 2026-09-17, and a build resolves every
 // YANG module: about 200 ms. One config commit called it fifteen times, three
@@ -149,19 +149,61 @@ func PluginOnlySchema() (*Schema, error) {
 // YANGSchemaWithPlugins takes those as an argument, and they change with the
 // configured plugins.
 func YANGSchema() (*Schema, error) {
-	return yangSchemaOnce()
+	return yangSchemaCache.get(schemaFromResolved)
 }
 
-// yangSchemaOnce builds the plugin-free schema the first time it is called.
-// A failed build is cached too: the input is embedded in the binary, so a
-// second attempt cannot produce a different answer.
-var yangSchemaOnce = sync.OnceValues(func() (*Schema, error) {
-	return YANGSchemaWithPlugins(nil)
-})
+// yangSchemaCache holds the plugin-free schema, built once per module set
+// DefaultLoader answers. A failed build is cached too: the same module set
+// cannot fail differently on a retry.
+var yangSchemaCache resolvedCache[*Schema]
 
-// loadYANGModules loads and resolves every embedded, registered and plugin module.
-// Shared by YANGSchemaWithPlugins and YANGValidatorWithPlugins.
+// resolvedCache memoizes one value built from yang.DefaultLoader's module set,
+// keyed by the *yang.Resolved it was built from. DefaultLoader answers the
+// same Resolved for as long as the registered set is unchanged and a new one
+// when a test registers a module (yang.RegisterModuleForTest) or restores the
+// set, so the schema, the validator and the completer all see one module set.
+// A plain sync.Once froze whichever set the first caller saw. The key keeps
+// the Resolved it names reachable, so a later Resolved never reuses its
+// address. Safe for concurrent use; concurrent callers wait for one build.
+type resolvedCache[T any] struct {
+	mu    sync.Mutex
+	built bool
+	key   *yang.Resolved
+	value T
+	err   error
+}
+
+// get answers the value built from DefaultLoader's current module set,
+// building it with build the first time that set is asked for.
+func (c *resolvedCache[T]) get(build func(*yang.Resolved) (T, error)) (T, error) {
+	resolved, err := loadYANGModules(nil)
+	if err != nil {
+		var none T
+		return none, err
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.built && c.key == resolved {
+		return c.value, c.err
+	}
+	c.value, c.err = build(resolved)
+	c.key, c.built = resolved, true
+	return c.value, c.err
+}
+
+// loadYANGModules answers every embedded, registered and plugin module,
+// resolved. Without plugin modules the set is DefaultLoader's, shared by the
+// whole process; with them it is resolved privately, because they change with
+// the configured plugins. Shared by YANGSchemaWithPlugins and
+// YANGValidatorWithPlugins.
 func loadYANGModules(pluginYANG map[string]string) (*yang.Resolved, error) {
+	if len(pluginYANG) == 0 {
+		resolved, err := yang.DefaultLoader()
+		if err != nil {
+			return nil, fmt.Errorf("resolve YANG modules: %w", err)
+		}
+		return resolved, nil
+	}
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
 		return nil, fmt.Errorf("load embedded YANG: %w", err)
@@ -185,24 +227,24 @@ func loadYANGModules(pluginYANG map[string]string) (*yang.Resolved, error) {
 	return resolved, nil
 }
 
-// YANGValidator answers the plugin-free YANG value validator, built once and
-// shared by every later call, for the reason YANGSchema is: its input is
-// embedded or registered at init, and nothing changes the validator after it
-// is built.
+// YANGValidator answers the plugin-free YANG value validator, built once per
+// module set (yangValidatorCache) and shared by every later call, for the
+// reason YANGSchema is: its input is embedded or registered at init, and
+// nothing changes the validator after it is built.
 //
 // ValidateCustomSections rebuilt it on every call, and it runs on every config
 // load and every editor commit: each build resolves every YANG module, so a
 // commit spent its time parsing YANG, and under the race detector a one-leaf
 // editor commit outran its 30 s .et budget. A failed build is cached too, for
-// the same reason as yangSchemaOnce. Safe for concurrent use: the validator is
+// the same reason as yangSchemaCache. Safe for concurrent use: the validator is
 // read-only once built.
 func YANGValidator() (*yang.Validator, error) {
-	return yangValidatorOnce()
+	return yangValidatorCache.get(validatorFromResolved)
 }
 
-var yangValidatorOnce = sync.OnceValues(func() (*yang.Validator, error) {
-	return YANGValidatorWithPlugins(nil)
-})
+// yangValidatorCache holds the plugin-free validator, once per module set, as
+// yangSchemaCache holds the schema.
+var yangValidatorCache resolvedCache[*yang.Validator]
 
 // YANGValidatorWithPlugins creates a YANG value validator with all modules loaded.
 // Registers custom validators, attaches registry, and checks integrity.
@@ -212,7 +254,11 @@ func YANGValidatorWithPlugins(pluginYANG map[string]string) (*yang.Validator, er
 	if err != nil {
 		return nil, err
 	}
+	return validatorFromResolved(loader)
+}
 
+// validatorFromResolved builds the value validator over one resolved module set.
+func validatorFromResolved(loader *yang.Resolved) (*yang.Validator, error) {
 	v := yang.NewValidator(loader)
 
 	// Register custom validators and attach to validator.
@@ -232,13 +278,16 @@ func YANGValidatorWithPlugins(pluginYANG map[string]string) (*yang.Validator, er
 // YANGSchemaWithPlugins loads YANG with additional plugin modules.
 // pluginYANG maps module filename to YANG content.
 func YANGSchemaWithPlugins(pluginYANG map[string]string) (*Schema, error) {
-	resetSchemaBuildErrors()
-
 	loader, err := loadYANGModules(pluginYANG)
 	if err != nil {
 		return nil, err
 	}
+	return schemaFromResolved(loader)
+}
 
+// schemaFromResolved builds the config schema over one resolved module set.
+func schemaFromResolved(loader *yang.Resolved) (*Schema, error) {
+	resetSchemaBuildErrors()
 	schema := NewSchema()
 
 	// Walk every loaded YANG module whose name ends with "-conf"

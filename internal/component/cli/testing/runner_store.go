@@ -23,18 +23,20 @@ const backupArtifactName = "backup.zefs"
 // createRunnerStore builds the store one .et test runs against and seeds its
 // tmpfs blocks into it. Every session of the test shares it.
 //
-// The tree mode (the default) is a live store. The blob mode is a backup
-// artifact reached the way `ze config edit --backup` reaches one: created and
-// seeded, closed, then reopened writable through storage.OpenBlob at the
-// editable spare policy, so the test edits what the command edits.
-// Caller MUST Close the result.
+// The tree mode (the default) is the live store's contract held in memory
+// (storage.CreateMemory), never the on-disk tree: the suite runs its tests in
+// parallel, and on the tree every commit syncs each frame and directory it
+// writes, so a loaded machine timed tests out while every worker sat in fsync
+// (owner decision, 2026-10-17). Nothing the editor does reads the encoding, so
+// the tests prove the same editor. The blob mode stays on disk, because the
+// artifact file is what it tests: a backup artifact reached the way
+// `ze config edit --backup` reaches one, created and seeded, closed, then
+// reopened writable through storage.OpenBlob at the editable spare policy, so
+// the test edits what the command edits. Caller MUST Close the result.
 func createRunnerStore(tmpDir, mode string, tmpfs []TmpfsBlock) (storage.Storage, error) {
 	switch mode {
 	case "", "tree":
-		store, err := storage.Create(tmpDir)
-		if err != nil {
-			return nil, fmt.Errorf("creating tree storage: %w", err)
-		}
+		store := storage.CreateMemory()
 		if err := seedRunnerStore(store, tmpfs); err != nil {
 			return nil, errors.Join(err, store.Close())
 		}

@@ -65,15 +65,9 @@ func NewConfigValidator() (*ConfigValidator, error) {
 		return nil, fmt.Errorf("YANG schema: %w", err)
 	}
 
-	// Initialize YANG validator
-	loader := yang.NewLoader()
-	if err := loader.LoadEmbedded(); err != nil {
-		return nil, fmt.Errorf("failed to load YANG: %w", err)
-	}
-	if err := loader.LoadRegistered(); err != nil {
-		return nil, fmt.Errorf("failed to load registered YANG: %w", err)
-	}
-	resolved, err := loader.Resolve()
+	// The value validator reads the process-wide schema DefaultLoader resolves
+	// once, rather than resolving every module again for each editor.
+	resolved, err := yang.DefaultLoader()
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve YANG: %w", err)
 	}

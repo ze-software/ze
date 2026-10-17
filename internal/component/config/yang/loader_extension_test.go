@@ -2,7 +2,6 @@ package yang
 
 import (
 	"errors"
-	"slices"
 	"strings"
 	"testing"
 )
@@ -132,11 +131,10 @@ func TestResolveAcceptsParentExtensionInSubmodule(t *testing.T) {
 
 // TestDefaultLoaderSurfacesUndeclaredExtension: a registered module carrying
 // `ze:hepl` makes DefaultLoader fail with ErrUndeclaredExtension. Method:
-// append a probe to the package registry for this test only.
+// register a probe for this test only (RegisterModuleForTest, which also moves
+// the registry generation DefaultLoader caches on).
 func TestDefaultLoaderSurfacesUndeclaredExtension(t *testing.T) {
-	saved := modules
-	t.Cleanup(func() { modules = saved })
-	modules = append(slices.Clone(saved), Module{Name: "ze-probe.yang", Content: `module ze-probe {
+	t.Cleanup(RegisterModuleForTest("ze-probe.yang", `module ze-probe {
     namespace "urn:ze:probe";
     prefix probe;
     import ze-extensions { prefix ze; }
@@ -144,7 +142,7 @@ func TestDefaultLoaderSurfacesUndeclaredExtension(t *testing.T) {
         type string;
         ze:hepl "Probe leaf.";
     }
-}`})
+}`))
 	loader, err := DefaultLoader()
 	if !errors.Is(err, ErrUndeclaredExtension) {
 		t.Fatalf("DefaultLoader answered (%v, %v), want ErrUndeclaredExtension", loader, err)

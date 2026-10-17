@@ -333,6 +333,26 @@ because the generated `register.go` of each `yang/` package blank-imports the
 packages registering its modules' imports (`command-ownership.md`, "YANG as
 Data, Not Code").
 
+`DefaultLoader()` resolves once per registered module set and hands the same
+`Resolved`, or the same error, to every caller in the process. Every CLI
+model, editor session, restart, completer and value validator asks for that
+schema at construction, and each used to resolve every module again. The
+cache holds one entry, keyed by the registry generation that `RegisterModule`
+and `RegisterModuleForTest` advance and the latter's restore puts back, so a
+test that registers a module for its own duration is answered over that module
+set. The shared `Resolved` is read-only. Its `Loader` is unreachable and its
+module set refuses every load (`ErrLoaderResolved`). `Resolve` has already
+converted every module and submodule to its entry tree, so `GetEntry` reads
+goyang's lock-guarded entry cache and concurrent readers are safe. A caller
+MUST NOT write to an entry or a module it reads. A loader built from text or
+from plugin modules (`AddModuleFromText`, `YANGSchemaWithPlugins`) is not
+shared, because its module set is the caller's own. The plugin-free
+`config.YANGSchema()` and `config.YANGValidator()` are built over
+`DefaultLoader`'s `Resolved` and cached against that same `Resolved`
+(`resolvedCache`), so the schema, the value validator and the completer always
+answer from one module set, a registered test module included.
+<!-- source: internal/component/config/yang_schema.go -- YANGSchema, YANGValidator, resolvedCache, loadYANGModules -->
+
 ### Registration Pattern
 
 Each component with a YANG schema follows this pattern:

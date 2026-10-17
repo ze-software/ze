@@ -34,9 +34,19 @@ type keyAccess interface {
 	Remove(string) error
 }
 
+// keyEncoding is a key space the store reaches directly, under its own mutex:
+// the live tree, or the memory encoding of the editor test harness. A blob is
+// reached through its BlobStore outside a guard and its WriteLock inside one.
+type keyEncoding interface {
+	keyAccess
+	has(string) bool
+	list(string) ([]string, error)
+}
+
 type store struct {
 	mu       sync.RWMutex
 	tree     *treeEncoding
+	keys     keyEncoding
 	blob     *zefs.BlobStore
 	owner    *os.File
 	readonly bool
@@ -46,12 +56,18 @@ type store struct {
 }
 
 func newStore(tree *treeEncoding, blob *zefs.BlobStore, owner *os.File, readonly bool) *store {
-	return &store{tree: tree, blob: blob, owner: owner, readonly: readonly, metas: make(map[string]FileMeta)}
+	result := &store{tree: tree, blob: blob, owner: owner, readonly: readonly, metas: make(map[string]FileMeta)}
+	// A nil *treeEncoding stored in keys would be a non-nil interface, and every
+	// keys branch would then call through a nil tree on a blob store.
+	if tree != nil {
+		result.keys = tree
+	}
+	return result
 }
 
 func (s *store) access() keyAccess {
-	if s.tree != nil {
-		return s.tree
+	if s.keys != nil {
+		return s.keys
 	}
 	return s.blob
 }
@@ -187,8 +203,8 @@ func (s *store) Exists(name string) bool {
 		return false
 	}
 	key := resolveKey(name)
-	if s.tree != nil {
-		return s.tree.has(key)
+	if s.keys != nil {
+		return s.keys.has(key)
 	}
 	return s.blob.Has(key)
 }
@@ -218,8 +234,8 @@ func (s *store) ListKeys(prefix string) ([]string, error) {
 	if s.closed {
 		return nil, fs.ErrClosed
 	}
-	if s.tree != nil {
-		return s.tree.list(prefix)
+	if s.keys != nil {
+		return s.keys.list(prefix)
 	}
 	return keysWithPrefix(s.blob.List(""), prefix), nil
 }
@@ -434,7 +450,7 @@ func (g *guard) List(prefix string) ([]string, error) {
 		slices.Sort(keys)
 	} else {
 		var err error
-		keys, err = g.parent.tree.list(key + "/")
+		keys, err = g.parent.keys.list(key + "/")
 		if err != nil {
 			return nil, err
 		}
@@ -470,7 +486,7 @@ func (g *guard) ListKeys(prefix string) ([]string, error) {
 	if g.blobLock != nil {
 		return keysWithPrefix(g.blobLock.List(""), prefix), nil
 	}
-	return g.parent.tree.list(prefix)
+	return g.parent.keys.list(prefix)
 }
 
 // WriteKey writes one raw key through the held guard, as Storage.WriteKey
@@ -536,7 +552,7 @@ func (g *guard) Has(name string) bool {
 	if g.blobLock != nil {
 		return g.blobLock.Has(key)
 	}
-	return g.parent.tree.has(key)
+	return g.parent.keys.has(key)
 }
 func (g *guard) SetModifier(modifier string) { g.modifier = modifier }
 func (g *guard) WriteVersion(name string, data []byte, stamp time.Time) error {
