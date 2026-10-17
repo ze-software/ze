@@ -86,3 +86,48 @@ is running.
 82591173b6), arch tier green. Remaining: route J (AC-17 health RPCs) and closure.
 
 ## Agent handoffs (appended below)
+
+### 2026-10-17 injection grammar `nlri add|del` / `mp <family> add|del` (agent ran out of budget, NOTHING COMMITTED)
+
+Owner decision: `update text` and `update cursor` take the filter-text keywords. Done in the
+working tree (uncommitted, all mine unless named):
+
+- Parser: `internal/component/bgp/plugins/cmd/update/update_text_nlri.go` (parseNLRISection
+  dispatches `nlri` to parseLegacySection, `mp` to parseMPSection; parseINETSection shared),
+  `update_text.go` (kwMP, boundary keyword, grammar comment), `cursor.go`. Old `nlri <family>`
+  refused by name (removedFamilyFormError). `nlri add` with an explicit IPv6 next hop refused,
+  naming `mp ipv4/unicast add`. `mp ipv4/unicast` accepted ONLY for add with an explicit IPv6
+  next hop (RFC 8950); its del, eor, IPv4 or self next hop refused, naming the `nlri` form,
+  because the reactor (inlineIPv4Unicast) cannot put IPv4-next-hop IPv4 unicast in MP_REACH.
+  OWNER QUESTION.
+- New tests: `update_text_section_keyword_test.go`. Package green.
+- Helper: `internal/component/bgp/textparse/section.go` (KWNLRISection, KWMPSection,
+  LegacyNLRISection, IPv6NextHopText).
+- Producers switched: bgp/format.go (announce and withdraw text), rib/rib_replay.go (cursor),
+  redistribute/consumer.go, ddos/flowspec/responder.go, reactor/peer_initial_sync.go (default
+  originate FILTER text, which 6019dd0675 missed), rr/rr.go, rs/server_handlers.go (withdraw and
+  EOR), exabgp bridge (bridge_command.go, bridge_flow.go, bridge_route_forms.go EOR,
+  bridge_attribute.go NextHopIPv6), fixtures 06_decoder, 09, 02_events, cmd/ze/help_ai.go.
+- Rewritten by script (lines holding `update text` or `update cursor`): about 880 lines in about
+  150 files under test/ and internal/ (.ci and Go).
+
+Left to do:
+1. rr and rs tests: TestPeerUpReflectsExistingFlowSpecBeforeEOR (rr validation_test.go),
+   TestReplayForPeer_SendsEOR, TestPeerUpReplaysExistingFlowSpecBeforeEOR (rs
+   server_validation_test.go): expectations still match the old `nlri <fam> eor` text.
+   rs/server_retention_test.go is ANOTHER session's file, not touched.
+2. The rib package does not build because of another session's forward_tracker_test.go; rerun
+   rib tests once it builds (my rib_test, rib_replay_test, llgr_sent_lifecycle_test edits).
+3. Docs not yet updated: docs/guide/route-injection.md, docs/architecture/api/commands.md
+   (update text section), update-syntax.md, architecture.md, text-format.md, plugin-modes.md,
+   ipc_protocol.md, json-format.md, DESIGN.md, core-design.md, docs/exabgp/exabgp-migration.md.
+   Only command lines change; event text (`received update ... nlri <fam> add`) does not.
+4. Functional proof: a .ci that sends `nlri ipv4/unicast add` through the real entry point and
+   asserts the error text; run targeted .ci tests for injection (test/encode, test/plugin).
+5. Independent review (ze-read agent), then commit (main thread; this agent holds no Agent).
+6. Out of scope, owner to decide: `update hex` and `update b64` still use `nlri <family>`;
+   config `update { nlri { <family> add ... } }` and the received-event text format are
+   unchanged; `nlri add next-hop self` may still be moved into MP_REACH by the reactor when
+   self resolves to IPv6.
+7. plugin/server and reactor RFC8654 package failures seen in one run look unrelated
+   (namespace `bgp` not registered); not investigated.
