@@ -2,18 +2,19 @@
 // RFC: rfc/short/rfc9830.md -- SAFI 73 (SR-Policy)
 // Related: types.go -- SRPolicy NLRI type
 // Related: split.go -- NLRI splitter and receive syntax rule
+// Related: engine.go -- plugin engine the daemon starts for SR-Policy families
 
 package srpolicy
 
 import (
 	"log/slog"
-	"net"
 	"os"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisyntax"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // Family registrations for SR-Policy (SAFI 73).
@@ -54,8 +55,11 @@ func init() {
 		NLRIAddPathRefusal:         "Ze builds SR-Policy routes without an ADD-PATH path identifier",
 		InProcessRouteEncoder:      EncodeRoute,
 		InProcessConfigRouteParser: parseConfigRoute,
-		RunEngine:                  func(net.Conn) int { return 0 },
+		RunEngine:                  runSRPolicyPlugin,
 		CLIHandler:                 func([]string) int { return 0 },
+		ConfigureEngineLogger: func(loggerName string) {
+			SetLogger(slogutil.Logger(loggerName))
+		},
 	}
 	if err := registry.Register(reg); err != nil {
 		slog.Error("srpolicy: registration failed", "error", err)
