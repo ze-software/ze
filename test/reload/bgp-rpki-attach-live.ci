@@ -30,6 +30,7 @@
 # that spec's Phase 2) makes the peer read a NOTIFICATION Cease subcode 6
 # where it expects the ROUTE-REFRESH, and the second connection is refused
 # (tcp_connections=1).
+option=storage:value=disk
 option=timeout:value=60s
 
 stdin=peer:terminator=EOF_PEER

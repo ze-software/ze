@@ -1,0 +1,66 @@
+# Test: a config-file DUT the runner starts with no cmd= line (runTest, not
+#       runOrchestrated) creates its absent store in memory, so no database
+#       directory appears beside its config.
+# VALIDATES: spec-boot-record-after-listen AC-6 on the runTest path: the
+#            runner's default selector (runner_exec.go, runTest, rec.DUTStore)
+#            reaches `ze start <workdir>/dut-store.conf`, and the zetest build
+#            obeys it (createTestStore, cmd/ze/register_store_zetest.go).
+# PREVENTS: a runTest that stops passing the selector, which would put every
+#           test/encode DUT back on the disk store without one test going red.
+#           runTest's client stderr has no expect=stderr arm, so the store
+#           directory the disk store writes (StoreDir: the config's directory)
+#           is the observable. dut-store-disk-config.ci proves the check sees it.
+# DISCRIMINATION: red (2026-10-17) with ONLY runTest's store env append
+#                 removed from runner_exec.go by go -overlay: "expect=file:
+#                 glob=database: expected absent, matched 1", and the DUT
+#                 printed "created live store". The same build left
+#                 test/plugin/dut-store-memory-default.ci green, so each test
+#                 covers its own append.
+tmpfs=dut-store.conf:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65000
+			}
+			router-id 10.0.0.2
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		timer {
+			receive-hold-time 180
+		}
+
+		update {
+			attribute {
+				origin igp
+				next-hop 10.0.1.254
+				local-preference 200
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=file:path=dut-store.conf
+option=asn:value=65000
+cmd=api:conn=1:seq=1:text=send bgp * update text origin igp as-path [65533] nhop 10.0.1.254 nlri add 10.0.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FFFD4003040A0001FE180A0000
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"as-path":[65533],"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.0.0/24"],"next-hop":"10.0.1.254"}]}
+cmd=api:conn=1:seq=1:text=send bgp * update text nlri eor
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=file:glob=database:absent=true

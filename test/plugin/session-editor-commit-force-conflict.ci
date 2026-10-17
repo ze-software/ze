@@ -8,6 +8,7 @@
 #            no pending change of his survives to be committed later
 # PREVENTS: force still refusing on a conflict, force overwriting bob's change
 #           without telling him, or bob's discarded change lingering pending
+option=storage:value=disk
 option=timeout:value=90s
 
 tmpfs=session-editor-commit-force-conflict.conf:terminator=EOF_CONF

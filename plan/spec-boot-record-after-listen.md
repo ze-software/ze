@@ -113,6 +113,72 @@ Every daemon start; every config commit in the first moments after start.
 | AC-7 | (B) Every disk-store .ci test keeps the disk store (listed below) |
 | AC-8 | (C) Each trimmed sync carries a comment why, docs updated, ordering unchanged |
 
+## B: tests on the disk store
+
+`option=storage:value=disk` is carried by 80 .ci files, grouped by the first reason that applies. The selector is read in one place, `createAbsentStore` (cmd/ze/ze_core_start.go), which only a `ze start <file>` finding no store reaches; the runner turns `ze -:stdin=<block>` into `ze start <path>`, so that form reaches it too. Every other DUT that creates its store runs on the in-memory store.
+The parse suite (`test/parse`) has its own runner, which never sets `ze.test.storage` and refuses the option (`TestEveryParseCIFileParses`), so parse DUTs stay on disk and carry no option.
+-> Decision: `ze config edit` opening the store by path is correct product behaviour (owner, 2026-10-17), so its tests run on disk rather than the editor learning the daemon's handle.
+
+### Drives `ze config edit` in another process (session-editor, storage/explicit-editor-authority, cli-commit drivers): the editor opens the store by path (`cmdEditWithStorage`) before it edits over SSH, so it cannot see a memory store (40)
+
+- plugin: cli-commit-reject, cli-commit-transactional, login-on-tree, session-editor-commit-completion, session-editor-commit-confirmed-abort, session-editor-commit-confirmed-accept-keeps-candidate, session-editor-commit-confirmed-accept, session-editor-commit-confirmed-boundary, session-editor-commit-confirmed-commit-now-refused, session-editor-commit-confirmed-disconnect, session-editor-commit-confirmed-nested, session-editor-commit-confirmed-other-user, session-editor-commit-confirmed-reconnect, session-editor-commit-confirmed-restart, session-editor-commit-confirmed-system-host, session-editor-commit-confirmed-timeout, session-editor-commit-force-conflict, session-editor-commit-force, session-editor-commit-grammar, session-editor-commit-verify, session-editor-copy-rename-existing, session-editor-copy, session-editor-deactivate-activate, session-editor-load-conflict, session-editor-load-merge, session-editor-load-refused, session-editor-load-replace, session-editor-load-terminal-relative
+- reload: bgp-bfd-added-live, bgp-bfd-profile-edit-live, bgp-bfd-profile-timer-edit-live, bgp-filter-irr-loaded-over-ssh, bgp-route-refresh-enabled-over-ssh, bgp-rpki-added-live, bgp-rpki-attach-live, ipsec-added-live, ospf-added-live, request-reload-promotes-operator-file, traffic-usage-added-live, vrrp-added-live (ipsec, ospf and traffic-usage are darwin-skipped and carry it because they drive the same session-editor fixture)
+
+### A fixture or a second process runs `ze init`, `ze data` or an offline `ze config` verb against the DUT's store (9)
+
+- plugin: authz-recovery-admin, cli-credential-resolution, data-backup-live, history-repaired-store-start, init-from-blob, init-from-path, init-from-url
+- ui: cli-data-config-dir, web-recovery-session-survives-commit
+
+### Reads the store's files after the DUT (`expect=file:path=meta/...` or `expect=key:path=meta/...`) (5)
+
+- plugin: api-config-commit-reject, audit-config-commit, concurrent-config-commit
+- reload: commit-transactional, commit-verify-reject
+
+### Starts ze twice in one work directory: the second start must find what the first recorded (3)
+
+- plugin: api-peer-create-delete-rib, api-peer-save, iface-tunnel-restart
+
+### A fixture owns the DUT and its store (storage, history, data, restart, zefs, rollback, repaired-store, archive and appliance fixtures) (23)
+
+- appliance: serial-login
+- plugin: bfd-auth-meticulous-persist, data-restore-config-live, drain-restart-kind, explicit-file-restart, firewall-irr-update, gr-marker-cold-start, history-rollback-object, mgmt-guard-api-env-started-settings-survive, policy-routes-show, resolve-rir-lookup, resolve-rir-refresh, start-auto-creates, statestore-on-tree, storage-history-restart, storage-rir-restart
+- policy: policy-interface-list-counters
+- static: static-rollback-keeps-committed
+- traffic: traffic-reload-qdisc-tc
+- ui: api-user-removed-by-reload, config-archive-prune, config-schema-stamp-recovers, web-commit-transactional
+
+### The option dropped: nothing in the test reaches `createAbsentStore` (45)
+
+The structural grep gave these the option and review found its reason does not hold, so the option was removed and each file is back at HEAD.
+- Two `ze -` daemons, each in its own `daemon-N/` directory and each started once (17): ipsec-child-rekey, ipsec-clear-reestablish-peer, ipsec-clear-reestablish, ipsec-clear-sa, ipsec-cookie-challenge, ipsec-cookie-threshold-tolerates, ipsec-dpd-holds-tunnel, ipsec-dpd-timeout, ipsec-eap-md5-challenge, ipsec-eap-nak-unacceptable-type, ipsec-eap-tls-clienthello, ipsec-eap-tls13-ocsp-required, ipsec-eap-tls13-ocsp-stapling, ipsec-eap-tls13-resumption, ipsec-peer-show, ipsec-sa-installed, ipsec-sa-show
+- One daemon, then an offline `ze config validate`, which opens no store (`internal/component/config/cli/cmd_validate.go`) (3): traffic-vpp-reject-hfsc, traffic-vpp-reject-mark, traffic-vpp-reject-prio
+- No daemon at all: `ze completion`, `ze data registered`, `ze init`, `ze doctor`, an offline `ze config` verb, or a VM driven by `./le test qemu` (16): plugin data-registered-object, ze-init-piped; ui help-lists-every-local-command, cli-completion-keyword-shorthand, cli-config-dump-sensitive, cli-config-dump-strip-private, cli-zefs-blob-storage, cli-zefs-filesystem-override, config-fmt-write-stdout, config-history-stdin-refused, dash-stdio, dash-stdio-path-scope, doctor-without-store, doctor-store-refuses-legacy-blob; install qemu-full, qemu-iso
+- `ze init` seeds the store first, and `ze start` then opens it (`openExplicitStore`) and never replaces it, or starts `--web-only` with no file (9): plugin mgmt-guard-web-dormant-insecure-warns, mgmt-guard-web-env-started-address-binds; ui test-show-system-sockets-keyword-filters, cli-argument-length-refused, cli-argument-refused-plugin-route, cli-transcript-redacts-credential, web-tool-decode, web-only-interrupt-force, web-only-interrupt-graceful
+
+Rerun on the memory default (2026-10-17, darwin, private launcher): the 4 plugin and 18 ui tests above pass, and test-show-system-sockets-keyword-filters is darwin-skipped. The 17 ipsec tests, the 3 traffic tests and test-show-system-sockets-keyword-filters owe a targeted Linux rerun, and qemu-full and qemu-iso a VM run.
+
+### Run on the memory store after all (14)
+
+The structural grep first put these in the fixture group on the words "restart" or "rollback". Each starts ONE DUT, reloads it in process (a trigger fixture rewrites the file and sends SIGHUP, or the plugin restarts, or the transaction rolls back), reads no store file after it, and opens no store from another process, so the memory store holds everything the test reads. The darwin-runnable ones were rerun on memory one by one: every one passed except the two VPP tests (the race in the table below).
+- plugin: api-commit-lifecycle, failure-policy-restart, prefix-count-installed-cross-family, iface-ensure-rollback (linux, not run here), iface-migrate (linux, not run here), vpp-loopback-reapply, vpp-loopback-reload-create
+- reload: bgp-watchdog-pool-reload, config-apply-ordering-coarse-root (linux, not run here), config-apply-ordering-mixed-rollback (linux, not run here), geodns-reload-unbindable-listener-refused, reload-import-policy-no-bounce, tx-bgp-rollback, tx-protocol-rollback
+
+### Reds of the plugin and reload suites that are not the store's
+
+Full suites on the memory default (2026-10-17, private launcher): plugin 35 of 825 failed, reload 9 of 101. Every one of them was rerun after the disk options landed:
+
+| Test | Result | Cause |
+|------|--------|-------|
+| the 30 plugin and 8 reload tests among the groups above that failed on memory (`no configuration store` from `ze config edit` or the fixture, or a store file missing after the DUT) | pass | needed the disk store |
+| drain-budget-over-ceiling-refused | red in both full runs, pass in the reruns on memory | not the store: the fixture reports the expected refusal as `ZE-OBSERVER-FAIL`, so the verdict reads the relay order (plan/journal/assertion-reads-state-the-scheduler-owns.md, open) |
+| vpp-loopback-reapply, vpp-loopback-reload-create | red 2 of 2 alone on memory ("VPP connector not ready" at the first apply, 55s), pass 2 of 2 on disk | a product race the memory store exposes, not a store defect: `applyConfig` Phase 1 (`internal/component/iface/config_apply.go`, the `cfg.Dummy` loop) fails the boot when `CreateDummy` answers `ErrBackendNotReady`, while the listing and Phase 3+4 defer on the same error and wait for `vppevents.EventConnected`. Nothing orders the interface plugin after the GoVPP handshake (its only dependency is `sysctl`), and the failing log shows the create 1 ms after the vpp component started connecting. The disk store's slower start hid it. The tests run on memory and stay red until the iface fix lands; that fix's session holds the journal row in plan/journal/transient-failure-treated-as-fatal.md and commits it with the fix |
+| storage-rir-restart | red once in the parallel rerun ("cannot read config file"), pass alone | load, not the store |
+| bgp-rib-maximum-paths-reload | red in all three reload suite runs and twice alone (`connection_refused`: the peer's 30 s dial retry never reaches the DUT's listener), once on memory and once with `option=storage:value=disk` | not the store, since it fails the same on disk; the build carried other sessions' uncommitted `internal/component/bgp/reactor` and `plugins/rib` hunks, and the cause is not traced (plan/journal/listener-refuses-the-peer-its-config-names.md, open) |
+| rfc7999-blackhole-readvertise-agreement | red | the runner's pre-flight check, `loopback_address_missing` (no lo0 alias 127.0.0.6), before any store exists: environment |
+| rpki-decorator-merge | red in the full run, pass in the rerun | known flake, plan/journal/gate-red-where-nothing-blocks-on-it.md |
+
+Not run as whole suites on the memory default from here: the ui, parse, ipsec, firewall, traffic, policy, static, appliance and install suites (darwin), and every darwin-skipped test. Their disk options come from the structural grep, not from a red; the ui tests whose option was dropped were rerun one by one (above).
+
 ## End-to-End User Stories
 An operator starts ze on a busy disk; SSH answers at once; a commit typed in the first second
 waits for the record and lands.
@@ -133,6 +199,11 @@ waits for the record and lands.
 
 ### Functional Tests
 - Existing `test/plugin/explicit-file-restart.ci`, `drain-restart-kind.ci` keep disk (B).
+The runner hands the selector to the DUT in two places, so each has its own test. `runOrchestrated` (runner_exec.go) serves every `.ci` with a program `cmd=` line; `runTest` serves a `.ci` with none (at most `cmd=api` peer lines), such as the `test/encode` population. runTest holds no `expect=stderr` arm, so its tests observe the store directory instead: a disk store lands in `database` beside the config (`StoreDir`), a memory store writes nothing.
+- New `test/plugin/dut-store-memory-default.ci` (AC-6, runOrchestrated): a default DUT prints `created memory store (test build)`. Red 2026-10-17 with ONLY runOrchestrated's store env append removed by go -overlay (the await never held, the DUT printed `created live store`); the same build left dut-store-memory-config green. Green restored.
+- New `test/plugin/dut-store-disk-option.ci` (AC-7, runOrchestrated): `option=storage:value=disk` makes the DUT print `created live store`, never the memory line.
+- New `test/encode/dut-store-memory-config.ci` (AC-6, runTest): a cmd-less config-file DUT leaves no `database` in its work directory (`expect=file:glob=database:absent=true`). Red 2026-10-17 with ONLY runTest's store env append removed by go -overlay (`expected absent, matched 1`, the DUT printed `created live store`); the same build left dut-store-memory-default green. Green restored.
+- New `test/encode/dut-store-disk-config.ci` (AC-7, runTest): with `option=storage:value=disk` the same DUT writes `database` (`exists=true`), which also proves the absence check looks where a disk store lands.
 
 ### Interop Tests (Scope: protocol)
 Not protocol.

@@ -59,6 +59,7 @@
 # one device answers for both runs.
 
 # Creating links needs CAP_NET_ADMIN, not merely Linux (ai/rules/platform-linux.md).
+option=storage:value=disk
 option=needs-linux:caps=net-admin
 
 

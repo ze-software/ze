@@ -53,6 +53,7 @@
 # writes the same `inet ze_pr` table and the same global ip-rule table, so the
 # suite runs serial with a per-test namespace. Do NOT raise its parallelism.
 
+option=storage:value=disk
 option=needs-linux:caps=net-admin
 option=timeout:value=40s
 

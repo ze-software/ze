@@ -37,6 +37,7 @@
 # second config is never written over a staged candidate. It also reads the
 # kernel table to check the first reload removed the route, which needs a Linux
 # kernel and CAP_NET_ADMIN.
+option=storage:value=disk
 option=needs-linux:caps=net-admin
 
 stdin=ze-bgp:terminator=EOF_CONF

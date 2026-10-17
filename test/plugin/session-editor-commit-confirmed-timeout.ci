@@ -3,6 +3,7 @@
 #            and no `commit accept`, the daemon restores the previous revision and
 #            the running daemon reports the previous values
 # PREVENTS: a session commit confirmed that never reverts
+option=storage:value=disk
 option=timeout:value=60s
 
 tmpfs=session-editor-commit-confirmed-timeout.conf:terminator=EOF_CONF

@@ -13,6 +13,7 @@
 # then a collision followed by boot-built and reload-built authenticator checks.
 # None of the configs contains BGP or SSH.
 
+option=storage:value=disk
 option=timeout:value=120s
 
 cmd=foreground:seq=1:exec=le test fixture ui/api-user-removed-by-reload:timeout=120s

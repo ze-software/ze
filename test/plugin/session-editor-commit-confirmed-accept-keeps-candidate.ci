@@ -4,6 +4,7 @@
 #            window ends, the applied config stays, the further edit stays
 #            pending and the running daemon does not have it
 # PREVENTS: accept committing the pending edits, or accept dropping them
+option=storage:value=disk
 option=timeout:value=90s
 
 tmpfs=session-editor-commit-confirmed-accept-keeps-candidate.conf:terminator=EOF_CONF

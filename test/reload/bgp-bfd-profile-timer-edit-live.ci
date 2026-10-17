@@ -20,6 +20,7 @@
 #
 # DISCRIMINATION: with applyPinned not calling reprofileClients, the session
 # keeps Detect Mult 3 and stage 2 fails on `detect-multiplier: 7`.
+option=storage:value=disk
 option=timeout:value=60s
 option=env:var=ze.bfd.test-parallel:value=true
 option=env:var=ze.log.bgp.reactor:value=debug

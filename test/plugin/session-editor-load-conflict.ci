@@ -7,6 +7,7 @@
 #            `set`, and neither value reaches the configuration
 # PREVENTS: a load that writes its leaves past another session's pending
 #           change, so the commit silently overwrites what bob is editing
+option=storage:value=disk
 option=timeout:value=90s
 
 tmpfs=session-editor-load-conflict.conf:terminator=EOF_CONF

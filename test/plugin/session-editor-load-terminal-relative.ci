@@ -3,6 +3,7 @@
 #            merge` at `bgp peer peer1`, a pasted block ended by Ctrl-D, roots its
 #            change under the context, changes nothing outside it, and commits
 # PREVENTS: the paste-mode end bypassing write-through in session mode
+option=storage:value=disk
 option=timeout:value=60s
 
 tmpfs=session-editor-load-terminal-relative.conf:terminator=EOF_CONF

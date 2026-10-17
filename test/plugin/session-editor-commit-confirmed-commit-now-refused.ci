@@ -6,6 +6,7 @@
 #            The first refusal is read on screen; the screen redraws only what
 #            changed, so the identical later ones are proven by the daemon state
 # PREVENTS: a commit inside the window that its revert would silently erase
+option=storage:value=disk
 option=timeout:value=90s
 
 tmpfs=session-editor-commit-confirmed-commit-now-refused.conf:terminator=EOF_CONF

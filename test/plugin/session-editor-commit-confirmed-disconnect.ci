@@ -3,6 +3,7 @@
 #            the SSH client is killed, and the daemon still reverts at the deadline
 # PREVENTS: a confirm window owned by the SSH channel, which dies with it and
 #           leaves the operator locked out on the trial config
+option=storage:value=disk
 option=timeout:value=60s
 
 tmpfs=session-editor-commit-confirmed-disconnect.conf:terminator=EOF_CONF

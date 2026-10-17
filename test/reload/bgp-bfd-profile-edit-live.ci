@@ -19,6 +19,7 @@
 # (hotSwappableSettings not copying it), the commit sends Cease subcode 6 and
 # the second connection is refused (tcp_connections=1). The shared-session
 # half of a profile edit is AC-25's and not asserted here.
+option=storage:value=disk
 option=timeout:value=60s
 option=env:var=ze.bfd.test-parallel:value=true
 option=env:var=ze.log.bgp.reactor:value=debug

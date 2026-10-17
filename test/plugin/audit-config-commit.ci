@@ -2,6 +2,7 @@
 # VALIDATES: AC-9, AC-10, and AC-13 -- config commit/discard records audit data queryable by show audit.
 # PREVENTS: config-session mutations bypassing the unified audit trail.
 
+option=storage:value=disk
 option=timeout:value=30s
 # Keep zefs in the per-test working directory. The observer authenticates with
 # the shared bearer token this config names, so a developer database beside the

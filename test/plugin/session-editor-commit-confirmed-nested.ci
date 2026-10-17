@@ -7,6 +7,7 @@
 #            proves the countdown restarted
 # PREVENTS: a nested commit that survives the revert, or a revert to the
 #           state between the two commits
+option=storage:value=disk
 option=timeout:value=90s
 
 tmpfs=session-editor-commit-confirmed-nested.conf:terminator=EOF_CONF

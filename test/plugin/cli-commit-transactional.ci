@@ -2,6 +2,7 @@
 # VALIDATES: AC-1 and AC-15 -- CLI commit with a daemon promotes candidate to active and records rollback.
 # PREVENTS: config editor commit saving disk state before daemon reload succeeds.
 
+option=storage:value=disk
 option=timeout:value=30s
 
 tmpfs=cli-commit.conf:terminator=EOF_CONF

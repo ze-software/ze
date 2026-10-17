@@ -17,6 +17,7 @@
 # reached the asserted state, and the test hung or failed. Declaring the
 # capability turns that into an honest skip naming the runner where it does
 # execute (ai/rules/qemu-testing.md).
+option=storage:value=disk
 option=needs-linux:caps=net-admin
 # Serialize against every other firewall-irr test. The nftables ruleset is
 # NODE-WIDE, and the table names these tests program cannot be varied from a

@@ -29,6 +29,7 @@
 #            would exit non-zero -- both assertions below would then fail. This
 #            is the guard that a strict default did not lock the operator out.
 
+option=storage:value=disk
 tmpfs=authz-recovery-admin.conf:terminator=EOF_CONF
 environment {
 	ssh {

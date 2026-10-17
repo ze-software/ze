@@ -7,6 +7,7 @@
 # PREVENTS: the session editor refusing leaf and path deactivation, and a toggle
 #           that reaches the change file but never the running daemon
 
+option=storage:value=disk
 option=timeout:value=60s
 
 tmpfs=session-editor-toggle.conf:terminator=EOF_CONF

@@ -19,6 +19,7 @@
 # RUN GREEN on 2026-10-07, and observed RED first: with RecoverConfig returning
 # no recovery, the daemon exits on the load error and never reports recovery.
 
+option=storage:value=disk
 option=timeout:value=60s
 option=env:var=ZE_CONFIG_DIR:value=.
 

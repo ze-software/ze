@@ -19,6 +19,7 @@
 #           bgp-rpki in the same commit also keeps the session (receive-only
 #           binding swapped live), which test/reload/bgp-rpki-attach-live.ci
 #           proves (docs/architecture/core-design.md section 18a).
+option=storage:value=disk
 option=timeout:value=60s
 
 stdin=peer:terminator=EOF_PEER

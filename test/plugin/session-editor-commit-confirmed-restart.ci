@@ -6,6 +6,7 @@
 #            and logs that it reverted an unconfirmed commit; no window is left
 # PREVENTS: a restart that boots the unconfirmed config and keeps it, because
 #           the countdown that would have reverted it died with the daemon
+option=storage:value=disk
 option=timeout:value=90s
 option=env:var=ze.log.config.confirm:value=info
 

@@ -18,6 +18,7 @@
 # second edit must run strictly after the commit, and http= steps run in their
 # own phase with no way to place a request after another request's side effect.
 
+option=storage:value=disk
 option=timeout:value=90s
 
 cmd=foreground:seq=1:exec=le test fixture ui/web-recovery-session-survives-commit:timeout=90s

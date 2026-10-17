@@ -5,6 +5,7 @@
 #            commit applies them to the running daemon
 # PREVENTS: the session editor refusing load ("load not supported in session
 #           mode"), and a load that reaches the editor but never the daemon
+option=storage:value=disk
 option=timeout:value=60s
 
 tmpfs=session-editor-load-merge.conf:terminator=EOF_CONF

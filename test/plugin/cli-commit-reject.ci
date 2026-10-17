@@ -2,6 +2,7 @@
 # VALIDATES: AC-2 -- CLI commit with a daemon reports transaction failure, clears candidate, and keeps active unchanged.
 # PREVENTS: config editor promoting a candidate rejected by plugin verify.
 
+option=storage:value=disk
 option=timeout:value=30s
 
 stdin=peer:terminator=EOF_PEER

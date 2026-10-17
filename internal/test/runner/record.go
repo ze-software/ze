@@ -156,6 +156,8 @@ type Record struct {
 	Options []string
 	Extra   map[string]string
 	Conf    map[string]any
+	// DUTStore is option=storage: the store a ze DUT creates when none exists.
+	DUTStore dutStore
 
 	// Expected messages (multiple formats)
 	Messages []messageExpect

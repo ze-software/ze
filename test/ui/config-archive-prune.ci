@@ -11,6 +11,7 @@
 # to this run and the CLI needs the daemon's SSH credentials. It returns an
 # error, reported through ZE-OBSERVER-FAIL, when any round's file set differs
 # from the newest two.
+option=storage:value=disk
 option=timeout:value=60s
 
 cmd=foreground:seq=1:exec=le test fixture ui/config-archive-prune

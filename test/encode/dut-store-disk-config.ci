@@ -1,0 +1,59 @@
+# Test: a config-file DUT the runner starts with no cmd= line and
+#       option=storage:value=disk creates its absent store on disk, in a
+#       database directory beside its config.
+# VALIDATES: spec-boot-record-after-listen AC-7 on the runTest path, and that
+#            the absence check in dut-store-memory-config.ci looks where a disk
+#            store lands (createLiveStore, cmd/ze/ze_core_start.go), so its
+#            green is not vacuous.
+# PREVENTS: a disk option that runTest ignores, and a memory check that passes
+#           because it looks in the wrong directory.
+
+option=storage:value=disk
+tmpfs=dut-store.conf:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65000
+			}
+			router-id 10.0.0.2
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		timer {
+			receive-hold-time 180
+		}
+
+		update {
+			attribute {
+				origin igp
+				next-hop 10.0.1.254
+				local-preference 200
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=file:path=dut-store.conf
+option=asn:value=65000
+cmd=api:conn=1:seq=1:text=send bgp * update text origin igp as-path [65533] nhop 10.0.1.254 nlri add 10.0.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FFFD4003040A0001FE180A0000
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"as-path":[65533],"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.0.0/24"],"next-hop":"10.0.1.254"}]}
+cmd=api:conn=1:seq=1:text=send bgp * update text nlri eor
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=file:glob=database:exists=true

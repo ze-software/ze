@@ -340,6 +340,12 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		// a constant: see pluginStageStall (plugin_stage_stall.go).
 		r.pluginStageStallEnv(testBudget),
 	)
+	// The store a ze DUT creates when its work directory holds none: memory
+	// unless the .ci asks for the disk (option=storage, record_dut_store.go).
+	// Before EnvVars, so an explicit option=env still decides.
+	if storeEnv := rec.DUTStore.env(); storeEnv != "" {
+		clientEnv = append(clientEnv, storeEnv)
+	}
 
 	// Add test-specific environment variables ($PORT/$PORT2 expand like exec
 	// strings so per-test ports work in env knobs too).
@@ -914,6 +920,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		if netnsMode && binName == binNameZe {
 			proc.Env = append(proc.Env,
 				textbuf.StrInt("ZE_TEST_NETNS_HOST=", int64(netnsHostInode)))
+		}
+		// The store a ze DUT creates when none exists, as runTest sets it: for
+		// every child, so a fixture that launches ze passes it on.
+		if storeEnv := rec.DUTStore.env(); storeEnv != "" {
+			proc.Env = append(proc.Env, storeEnv)
 		}
 		// Add test-specific environment variables (option=env:var=KEY:value=VALUE).
 		// $PORT/$PORT2 expand like exec strings so per-test ports work in env

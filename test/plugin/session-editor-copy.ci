@@ -6,6 +6,7 @@
 # PREVENTS: the session editor refusing copy ("not supported in session mode"),
 #           and a copy that reaches the change file but never the running daemon
 
+option=storage:value=disk
 option=timeout:value=60s
 
 tmpfs=session-editor-copy.conf:terminator=EOF_CONF

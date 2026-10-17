@@ -2,6 +2,7 @@
 # VALIDATES: AC-13 (owner decision 2026-10-12, "wait its turn") -- a second commit arriving while a commit is active waits until the first finishes, then is applied as its own commit; both succeed, each is a separate version in history, and they apply in arrival order.
 # PREVENTS: concurrent commits racing candidate pointers, interleaving, or one commit vanishing without a version of its own.
 
+option=storage:value=disk
 option=timeout:value=45s
 
 stdin=peer:terminator=EOF_PEER

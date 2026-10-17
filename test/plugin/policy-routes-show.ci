@@ -11,6 +11,7 @@
 # reached the asserted state, and the test hung or failed. Declaring the
 # capability turns that into an honest skip naming the runner where it does
 # execute (ai/rules/qemu-testing.md).
+option=storage:value=disk
 option=needs-linux:caps=net-admin
 # The ZE_QEMU exclusion that used to sit here is GONE, and removing it is
 # the point. It was added in d419a059e for tests that "need a real Linux

@@ -1,0 +1,20 @@
+# Test: a DUT started by a .ci with option=storage:value=disk creates its
+#       absent store as the live tree on disk, as a shipped build does.
+# VALIDATES: spec-boot-record-after-listen AC-7: the disk option withholds the
+#            memory selector (dutStore.env, record_dut_store.go), so the DUT
+#            reaches createLiveStore (cmd/ze/ze_core_start.go).
+# PREVENTS: a disk option that still hands the DUT the memory selector, which
+#           would leave every restart and store-reading test on a store that
+#           dies with the process.
+
+option=storage:value=disk
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=created live store:then=stop
+expect=stderr:contains=created live store
+reject=stderr:pattern=created memory store

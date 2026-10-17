@@ -38,6 +38,7 @@
 # load-bearing check is unchanged in intent -- the sequence must survive a restart
 # -- and is now observed through the engine's restored-sequence debug log.
 
+option=storage:value=disk
 option=env:var=ze.bfd.test-parallel:value=true
 # BFD listens on the RFC 5881 / RFC 5883 FIXED ports, so every concurrently
 # running BFD test's daemon binds the same wildcard (0.0.0.0, 3784/3785) tuple.

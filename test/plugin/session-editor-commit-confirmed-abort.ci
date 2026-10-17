@@ -6,6 +6,7 @@
 # The abort is matched on its tail, from "rolled back": the countdown the
 # draft poll draws on the status line also starts with "C", and the editor
 # redraws only the cells that changed, so "Changes" can arrive as "hanges"
+option=storage:value=disk
 option=timeout:value=90s
 
 tmpfs=session-editor-commit-confirmed-abort.conf:terminator=EOF_CONF

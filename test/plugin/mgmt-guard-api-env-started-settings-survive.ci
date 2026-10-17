@@ -11,6 +11,7 @@
 # The same gate hid the gRPC tls-cert/tls-key pair, which is why the API is the
 # only surface that could serve an authenticated listener in clear.
 
+option=storage:value=disk
 option=exclusive:group=mgmt-guard
 # Keep zefs in the per-test working directory. The fixture tests token mode, so
 # a developer's power-user database must not enable per-user mode.

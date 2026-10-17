@@ -6,6 +6,7 @@
 #            only that subtree and leaves its siblings alone
 # PREVENTS: a replace that records no deletes, so the omitted structure survives
 #           the commit, and a relative replace that reaches outside its context
+option=storage:value=disk
 option=timeout:value=60s
 
 tmpfs=session-editor-load-replace.conf:terminator=EOF_CONF

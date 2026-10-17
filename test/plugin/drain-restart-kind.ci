@@ -16,6 +16,7 @@
 # config announces no route, and the BGP drain that would re-advertise one
 # arrives in phase 4 of the spec.
 
+option=storage:value=disk
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=20s

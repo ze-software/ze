@@ -125,6 +125,7 @@ var (
 		directiveTypeOpen: {keys: []string{keyValue}, parse: parseOptionOpen},
 		"skip-env":        {keys: []string{keyVar, keyValue}, parse: parseOptionSkipEnv},
 		"skip-os":         {keys: []string{keyValue}, parse: parseOptionSkipOs},
+		"storage":         {keys: []string{keyValue}, parse: parseOptionStorage},
 		"tcp_connections": {keys: []string{keyValue}, parse: parseOptionTcpConnections},
 		"timeout":         {keys: []string{keyValue}, parse: parseOptionTimeout},
 		"update":          {keys: []string{keyValue}, parse: parseOptionUpdate},

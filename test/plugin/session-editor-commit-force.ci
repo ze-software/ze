@@ -7,6 +7,7 @@
 #            `force` are refused naming the error
 # PREVENTS: the session editor refusing `force` ("not yet supported"), and a
 #           `force` that also skips errors
+option=storage:value=disk
 option=timeout:value=60s
 
 tmpfs=session-editor-commit-force.conf:terminator=EOF_CONF

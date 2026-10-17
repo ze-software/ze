@@ -7,6 +7,7 @@
 #            applies only the two edits made before the load
 # PREVENTS: a refused load that applies the part of the input before the
 #           error, or that discards the session's earlier pending changes
+option=storage:value=disk
 option=timeout:value=60s
 
 tmpfs=session-editor-load-refused.conf:terminator=EOF_CONF

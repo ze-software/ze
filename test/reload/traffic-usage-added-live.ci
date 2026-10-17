@@ -32,6 +32,7 @@
 #
 # PLATFORM: skipped on darwin, as ospf-added-live.ci is: the interface
 # dependency has no default backend there.
+option=storage:value=disk
 option=skip-os:value=darwin
 option=timeout:value=60s
 option=env:var=ze.log.traffic.usage:value=info

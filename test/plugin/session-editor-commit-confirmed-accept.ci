@@ -5,6 +5,7 @@
 #            unaccepted window reverts to the accepted state, not the original
 # PREVENTS: the session editor refusing `commit confirmed`, and a window that
 #           reverts after it was accepted
+option=storage:value=disk
 option=timeout:value=60s
 
 tmpfs=session-editor-commit-confirmed-accept.conf:terminator=EOF_CONF

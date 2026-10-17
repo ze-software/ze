@@ -25,6 +25,7 @@
 # zeptrk0 and the tracked zetrk1 veths. A user and network namespace
 # (`unshare -rn`, loopback up) is enough. The tracking demotion itself is
 # proven by vrrp-track.ci; this file proves only the live add.
+option=storage:value=disk
 option=needs-linux:caps=net-admin
 option=exclusive:group=iface-owned-macvlan
 option=timeout:value=60s

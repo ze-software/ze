@@ -7,6 +7,7 @@
 #           a file it never wrote, or a file a reload accepts and a start does not.
 
 # ze-peer expectations
+option=storage:value=disk
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s

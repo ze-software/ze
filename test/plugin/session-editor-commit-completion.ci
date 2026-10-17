@@ -9,6 +9,7 @@
 # completes the single match `commit` and adds a space; the second opens the
 # box with the five subcommands. `confirm` is an unknown command whose answer
 # ends its line, so its wait leaves nothing pending for the candidate waits.
+option=storage:value=disk
 option=timeout:value=60s
 
 tmpfs=session-editor-commit-completion.conf:terminator=EOF_CONF

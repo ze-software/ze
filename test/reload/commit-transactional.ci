@@ -3,6 +3,7 @@
 # PREVENTS: successful reload leaving active pointer stale or candidate pointer present.
 
 
+option=storage:value=disk
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000

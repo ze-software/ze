@@ -2,6 +2,7 @@
 # VALIDATES: AC-3 -- Web commit writes a candidate, promotes it to active, and records rollback.
 # PREVENTS: web commit saving config before runtime reload accepts it.
 
+option=storage:value=disk
 option=env:var=ze.config.dir:value=.
 option=timeout:value=20s
 

@@ -40,12 +40,23 @@ func openExplicitStore(configPath string) (storage.Storage, error) {
 	if !errors.Is(err, storage.ErrNoStore) {
 		return store, err
 	}
-	dir := internalresolve.StoreDir(configPath)
-	store, err = storage.Create(dir)
+	return createAbsentStore(internalresolve.StoreDir(configPath))
+}
+
+// createAbsentStore makes the store openExplicitStore found absent. A shipped
+// build always creates the live tree; only a functional-test DUT build
+// (register_store_zetest.go, the zetest tag) can swap it, so no operator
+// reaches another store by accident.
+var createAbsentStore = createLiveStore
+
+// createLiveStore creates the live tree under dir and says so on stderr.
+func createLiveStore(dir string) (storage.Storage, error) {
+	store, err := storage.Create(dir)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Fprintf(os.Stderr, "created live store: %s\n", filepath.Join(dir, "database"))
+	var tb textbuf.Buffer
+	tb.Str("created live store: ").Str(filepath.Join(dir, "database")).Str("\n").StdErr() //nolint:errcheck // a lost notice line does not change the store
 	return store, nil
 }
 

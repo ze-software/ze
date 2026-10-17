@@ -3,6 +3,7 @@
 #            window and the client is killed; bob's session shows the window and
 #            is refused; admin's new session shows the seconds left and accepts
 # PREVENTS: a window owned by the SSH session, which a reconnect cannot answer
+option=storage:value=disk
 option=timeout:value=90s
 
 tmpfs=session-editor-commit-confirmed-reconnect.conf:terminator=EOF_CONF

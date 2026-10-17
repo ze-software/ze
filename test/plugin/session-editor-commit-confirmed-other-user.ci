@@ -8,6 +8,7 @@
 #            admin still owning the window
 # PREVENTS: a second user's commit landing inside a window that reverts it, or
 #           a second user accepting or aborting a window that is not theirs
+option=storage:value=disk
 option=timeout:value=90s
 
 tmpfs=session-editor-commit-confirmed-other-user.conf:terminator=EOF_CONF

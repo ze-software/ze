@@ -1,0 +1,23 @@
+# Test: a DUT started by a .ci that names no store creates its absent store
+#       in memory, because the runner hands it ze.test.storage=memory.
+# VALIDATES: spec-boot-record-after-listen AC-6 on the cmd= path: the runner's
+#            default reaches the DUT (runner_exec.go, runOrchestrated) and the
+#            zetest build obeys it (createTestStore,
+#            cmd/ze/register_store_zetest.go). The cmd-less path (runTest) is
+#            test/encode/dut-store-memory-config.ci.
+# PREVENTS: a runner that stops passing the selector, which would put every
+#           DUT back on the disk store without one test going red.
+# DISCRIMINATION: red (2026-10-17) with ONLY runOrchestrated's store env append
+#                 removed from runner_exec.go by go -overlay: the await never
+#                 held within 16s and the DUT printed "created live store". The
+#                 same build left test/encode/dut-store-memory-config.ci green.
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=created memory store (test build):then=stop
+expect=stderr:contains=created memory store (test build)
+reject=stderr:pattern=created live store

@@ -4,6 +4,7 @@
 #            it first; nothing changes, so the next commit applies only the
 #            operator's own edit
 # PREVENTS: a copy or rename silently replacing a configured peer
+option=storage:value=disk
 option=timeout:value=60s
 
 tmpfs=session-editor-copy-rename-existing.conf:terminator=EOF_CONF

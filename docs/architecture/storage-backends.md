@@ -16,7 +16,10 @@ implements it.
 
 `CreateMemory` returns a store whose keys live in a map and die with the
 process. It is the editor test harness's tree-mode store (`./le test editor`),
-never a daemon's: it keeps nothing across a restart. Only the key space differs;
+and the store a functional-test DUT creates when it finds none: the `zetest`
+DUT build reads `ze.test.storage=memory`, which the runner sets unless a `.ci`
+carries `option=storage:value=disk`. A shipped daemon never uses it, because
+it keeps nothing across a restart. Only the key space differs;
 name mapping, guards, versions, metadata and observers are the store's own code,
 the same that runs over the tree. It refuses a key that would be both a value
 and a directory, as the tree does, returns caller-owned copies, and accepts a
@@ -24,6 +27,8 @@ config name in any directory, as a blob does, because it has no folder to
 compare the name with. For the same reason a backup taken from it refuses no
 target name, as from an artifact source. The conformance table every encoding
 passes includes it.
+<!-- source: cmd/ze/register_store_zetest.go -- createTestStore -->
+<!-- source: internal/test/runner/record_dut_store.go -- dutStore -->
 <!-- source: internal/component/config/storage/memory.go -- CreateMemory, memoryEncoding -->
 <!-- source: internal/component/config/storage/store.go -- keyEncoding -->
 <!-- source: internal/component/config/storage/backup.go -- refuseStoreName -->

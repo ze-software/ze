@@ -27,6 +27,7 @@
 # as "Configuration merged from <file>". The script therefore waits for the
 # first notice, then for `show | compare` to print the import filter, which only
 # the third section adds; the editor handles input in order.
+option=storage:value=disk
 option=timeout:value=60s
 
 stdin=peer:terminator=EOF_PEER

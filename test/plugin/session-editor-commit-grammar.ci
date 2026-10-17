@@ -8,6 +8,7 @@
 #            `force` is an ordinary value. Nothing reaches the running daemon until
 #            `commit now`.
 # PREVENTS: a typo or a legacy verb applying a configuration over SSH
+option=storage:value=disk
 option=timeout:value=60s
 
 tmpfs=session-editor-commit-grammar.conf:terminator=EOF_CONF

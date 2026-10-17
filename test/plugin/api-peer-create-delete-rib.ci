@@ -12,6 +12,7 @@
 #           a commit that tears a runtime peer down.
 # The scenario and its read-backs: internal/test/fixture/plugin_fixture_13_peer_lifecycle.go.
 
+option=storage:value=disk
 option=timeout:value=60s
 
 # ---------------------------------------------------------------------------

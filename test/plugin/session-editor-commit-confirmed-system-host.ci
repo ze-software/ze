@@ -31,6 +31,7 @@
 # WAITS: the editor redraws only the cells that change, so each wait names text
 # the step newly writes: the merge notice after a status line that held other
 # text, the commit replies, and the timeout notice.
+option=storage:value=disk
 option=timeout:value=60s
 
 tmpfs=session-editor-commit-confirmed-system-host.conf:terminator=EOF_CONF

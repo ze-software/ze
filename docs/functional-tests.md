@@ -322,6 +322,42 @@ validation. Full contract and workflow: `test/draft/README.md`, or the
 <!-- source: internal/test/runner/draft_dir.go -- SuiteDir, isDraftPath, DraftDirName -->
 <!-- source: internal/test/runner/draft_dir_test.go -- TestDraftDirIsInvisibleToRepoGates ratchet -->
 
+### The DUT's store
+
+A ze DUT runs on an in-memory config store by default. The runner sets
+`ze.test.storage=memory` for every process a test starts, and the DUT build
+(the `zetest` tag, `cmd/ze/register_store_zetest.go`) then creates an absent
+store with `storage.CreateMemory` instead of the live tree on disk, printing
+`created memory store (test build)`. A memory store syncs nothing, so a DUT's
+start never waits behind another writer on the disk. A store the test seeded
+before the DUT (`ze init`, a fixture) exists on disk, so it is opened, never
+replaced. A shipped build has no such path: the key is read only under `zetest`.
+
+The key is read only where `ze start <file>` finds no store
+(`createAbsentStore`, `cmd/ze/ze_core_start.go`); the runner turns
+`ze -:stdin=<block>` into `ze start <path>`, so that form counts. A test
+whose ze never gets there (no daemon, `ze start --web-only`, a store `ze init`
+seeded first) is unaffected by the choice.
+
+A test that restarts ze in the same work directory, reads the store after the
+DUT, or runs `ze data`, `ze init`, an offline `ze config` verb or `ze config
+edit` against the DUT's store in another process needs the disk store, and
+says so. `ze config edit`
+counts because it opens the store by path to find the config name before it
+edits over SSH (`cmdEditWithStorage`), so it cannot see a store that lives in
+the DUT's memory:
+
+```
+option=storage:value=disk
+```
+
+`value=memory` states the default; any other value is refused at parse time.
+The list of tests that carry the disk option, and why each does, is in
+`plan/spec-boot-record-after-listen.md` until that spec closes, and the option
+line in each file after.
+<!-- source: internal/test/runner/record_dut_store.go -- dutStore, parseOptionStorage, env -->
+<!-- source: internal/test/runner/runner_exec.go -- runTest, runOrchestrated -->
+
 ### Readiness markers between fixture processes
 
 `le test fixture plugin/wait-file <path>` waits for the named regular file.
@@ -2218,7 +2254,7 @@ option=file:path=test.conf
 option=asn:value=65000
 
 # Commands and expectations
-cmd=api:conn=1:seq=1:text=update text nhop set 10.0.1.1 nlri ipv4/unicast add 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=update text nhop set 10.0.1.1 nlri add 10.0.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFF...
 expect=json:conn=1:seq=1:json={...}
 ```
@@ -2904,7 +2940,7 @@ peer loopback {
 EOF_CONF
 
 option=file:path=mytest.conf
-cmd=api:conn=1:seq=1:text=update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=update text nhop set 1.2.3.4 nlri add 10.0.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D020000001540010100...
 ```
 
@@ -2935,7 +2971,7 @@ peer loopback {
 ```
 # test/encode/mytest.ci
 option=file:path=mytest.conf
-cmd=api:conn=1:seq=1:text=update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=update text nhop set 1.2.3.4 nlri add 10.0.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D020000001540010100...
 ```
 

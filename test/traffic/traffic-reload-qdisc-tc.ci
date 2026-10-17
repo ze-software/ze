@@ -9,6 +9,7 @@
 #           installed in the kernel.
 #
 # Gated option=needs-linux: SKIPs on non-Linux (macOS dev box) and runs as root
+option=storage:value=disk
 option=needs-linux
 
 stdin=ze-bgp:terminator=EOF_CONF

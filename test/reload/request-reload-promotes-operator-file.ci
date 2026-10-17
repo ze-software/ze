@@ -26,6 +26,7 @@
 #           "explicit config changed externally" and the editor never prints
 #           "Session committed:". Measured by building ze with that one line
 #           reverted (go build -overlay): this file goes red at the commit wait.
+option=storage:value=disk
 option=timeout:value=60s
 
 stdin=peer:terminator=EOF_PEER

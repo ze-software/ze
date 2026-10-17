@@ -23,6 +23,7 @@
 # directory, and two daemons opening that directory's store collide ("store is
 # owned by another process", measured 2026-10-10). Through `env` its config is
 # piped and it opens no store.
+option=storage:value=disk
 option=skip-os:value=darwin
 option=env:var=ze_test_ike_port:value=$PORT2
 option=env:var=ze_test_ike_dataplane:value=noop

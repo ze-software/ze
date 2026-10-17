@@ -20,6 +20,7 @@
 #           "unknown field: enable", and the container spelling `route-refresh { }`
 #           reached the reactor as a map that flexString read as "", so the
 #           peer advertised nothing and nothing said so.
+option=storage:value=disk
 option=timeout:value=60s
 
 stdin=peer:terminator=EOF_PEER

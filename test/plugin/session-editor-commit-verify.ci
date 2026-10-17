@@ -4,6 +4,7 @@
 #            lists what `commit now` would report; in every case the running
 #            daemon and the pending changes are unchanged
 # PREVENTS: a verify that applies the candidate, or drops its pending changes
+option=storage:value=disk
 option=timeout:value=60s
 
 tmpfs=session-editor-commit-verify.conf:terminator=EOF_CONF

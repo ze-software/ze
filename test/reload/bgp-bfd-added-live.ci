@@ -29,6 +29,7 @@
 # "error: bfd: plugin not loaded" (the bfd plugin loads on its config root),
 # and the fixture's lacks step polls only a command that succeeds. The base
 # config carries no `bfd` root, so the session cannot exist before the commit.
+option=storage:value=disk
 option=timeout:value=60s
 option=env:var=ze.bfd.test-parallel:value=true
 # BFD binds the RFC 5881 fixed ports; see test/plugin/bgp-bfd-opt-in.ci.

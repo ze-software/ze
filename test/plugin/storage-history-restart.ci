@@ -4,6 +4,7 @@
 # The fixture launches ze start <selected>/router.conf without a config-dir pin.
 # The daemon is the runner's own unstamped build, so the fixture hands it
 # ze.test.update.running.version: the release the manifest's minimum exceeds.
+option=storage:value=disk
 option=timeout:value=70s
 cmd=foreground:seq=1:exec=le test fixture storage/consumer-restart history:timeout=60s
 expect=exit:code=0

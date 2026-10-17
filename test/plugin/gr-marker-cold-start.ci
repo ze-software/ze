@@ -8,6 +8,7 @@
 # VALIDATES: AC-3 -- startup with no marker in zefs produces R=0.
 # PREVENTS: False restart state on cold start.
 
+option=storage:value=disk
 tmpfs=.gr-marker-workdir:terminator=EOF_WORKDIR
 cold
 EOF_WORKDIR

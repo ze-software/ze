@@ -2,6 +2,7 @@
 # VALIDATES: AC-6 -- API session commit failure clears candidate, leaves active unchanged, and keeps session editable.
 # PREVENTS: REST config commit saving a rejected candidate or closing the session on failure.
 
+option=storage:value=disk
 option=timeout:value=30s
 
 stdin=peer:terminator=EOF_PEER
