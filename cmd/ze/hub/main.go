@@ -477,12 +477,23 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		return 1
 	}
 
+	// The boot configuration is no longer made durable here, before any
+	// listener: on a disk another writer saturates, its syncs held the first
+	// listener back by a minute. bootRecord.Start below runs it beside the rest
+	// of startup, so no listener waits for it. Until it lands, reads of the
+	// configuration answer these bytes and every config write waits for it
+	// (storage.BootRecord). A crash before it lands loses nothing: the next
+	// start reads the same source and records it then.
+	var bootRecord *storage.BootRecord
 	if store != nil && configPath != "" && configPath != "-" {
-		if activeErr := initializeConfigSource(store, configPath, data); activeErr != nil {
-			fmt.Fprintf(os.Stderr, "error: initialize active config: %v\n", activeErr)
-			logStartupFailure("initialize active config", activeErr)
+		var deferErr error
+		bootRecord, deferErr = storage.DeferBootRecord(store, data)
+		if deferErr != nil {
+			fmt.Fprintf(os.Stderr, "error: arm boot config record: %v\n", deferErr)
+			logStartupFailure("arm boot config record", deferErr)
 			return 1
 		}
+		defer bootRecord.Wait()
 	}
 
 	configPaths := zeconfig.CollectContainerPaths(loadResult.Tree)
@@ -1419,6 +1430,16 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	fmt.Printf("Starting ze with config: %s\n", configPath)
+
+	// Record the boot configuration (see DeferBootRecord above). It starts
+	// before the plugin wait below and runs beside the rest of startup: SSH
+	// binds during plugin startup with BGP, and web, looking glass, MCP and
+	// managed bind after WaitForStartupComplete, so no listener waits for it.
+	if bootRecord != nil {
+		bootRecord.Start(func(view storage.Storage) error {
+			return recordBootConfig(view, configPath, data)
+		})
+	}
 
 	// Wait for all plugins to complete startup (BGP reactor starts, peers connect, etc.)
 	// before signaling readiness. The test infrastructure polls ze.ready.file.

@@ -284,6 +284,49 @@ active, rollback or recovery, including after a crash between pointer
 publications, and clears a candidate pointer whose entry is already absent.
 Nameless legacy pointers are never read.
 
+### The boot record
+
+A daemon no longer records the configuration it booted from (for an explicit
+file: a candidate promoted to active) before its first listener, because each
+of the record's syncs waits behind any other writer on the disk, and the first
+listener used to wait for all of them. `DeferBootRecord` arms the record on the
+bound handle where the record used to run. `Start` runs it once in its own
+goroutine, against a view of that handle the gate does not hold, before the
+hub waits for plugin startup: SSH binds during plugin startup with BGP, and the
+web UI, looking glass, MCP and managed listeners bind after
+`WaitForStartupComplete`, so the record runs beside the rest of startup and no
+listener waits for it. `Wait` runs before the handle closes. The owner lock, `recoverFileCommit`, stale-candidate
+cleanup and the SSH host key all stay before serving.
+
+While the record is pending, `ReadActiveConfig` of the bound name answers the
+boot bytes from memory and `ReadCandidateConfig` answers no candidate: those
+bytes are the accepted configuration before they are durable. Every config
+write takes the config lock of the bound name, and `configStore.AcquireLock`
+holds that lock back until the record lands, at most 30 seconds. Past the bound
+the write is refused with an error naming the slow disk and the retry. A failed
+record is logged at error level with its fix (`ze data check`, then restart),
+and every later write of the bound name returns that failure, while the daemon
+keeps running the configuration it loaded. Locks of other keys (runtime state,
+the SSH host key) never wait. The gate matches the store key the bound path
+resolves to, not its base name. A daemon that stops before it starts the record
+refuses a waiting write with "ze is stopping" and the retry, not the
+`ze data check` fix, because nothing failed.
+
+The gate lives in the daemon's handle, so a reader in another process does not
+see it. Raw-key readers (`ze data cat`, backup) see the store as it is, and the
+read-only CLI readers that open the store themselves (`withRuntimeStore` in
+`config_data.go`, `cmd_history.go`, `cmd_diff.go`) read the previous active
+configuration, or none on a first start, until the record lands.
+
+A crash between serving and the record loses nothing: the source is unchanged,
+and the next start reads it and runs the record again. A crash inside the record
+leaves at most a candidate, which the next start's stale-candidate cleanup
+clears before it records.
+<!-- source: internal/component/config/storage/boot_record.go -- BootRecord, DeferBootRecord, await, covers, pendingBootConfig -->
+<!-- source: internal/component/config/cli/config_data.go -- withRuntimeStore -->
+<!-- source: internal/component/config/storage/source.go -- configStore.AcquireLock -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+
 ### Content-addressed history
 
 History is content-addressed. A version's bytes are stored once, under

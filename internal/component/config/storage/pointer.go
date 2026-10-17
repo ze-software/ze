@@ -373,7 +373,14 @@ func releaseGuard(guard WriteGuard, err error) error {
 }
 
 // ReadActiveConfig reads the config referenced by the active pointer, falling back to legacy active storage.
+//
+// While the boot record is pending (boot_record.go) the bound name answers the
+// bytes the daemon booted from: they are the accepted configuration before
+// they are durable.
 func ReadActiveConfig(store Storage, configPath string) ([]byte, error) {
+	if data, pending := pendingBootConfig(store, configPath); pending {
+		return data, nil
+	}
 	stamp, ok, err := readPointer(store, configPath, pointerActive)
 	if err != nil {
 		return nil, err
@@ -397,7 +404,13 @@ func activePointerKey(configPath string) string {
 }
 
 // ReadCandidateConfig reads the config version referenced by candidate.
+//
+// While the boot record is pending the bound name has no candidate: boot
+// cleared any stale one, and the record's own transient candidate is not one.
 func ReadCandidateConfig(store Storage, configPath string) ([]byte, string, bool, error) {
+	if _, pending := pendingBootConfig(store, configPath); pending {
+		return nil, "", false, nil
+	}
 	stamp, ok, err := readPointer(store, configPath, pointerCandidate)
 	if err != nil || !ok {
 		return nil, "", ok, err

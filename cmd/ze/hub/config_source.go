@@ -56,6 +56,18 @@ func initializeConfigSource(store storage.Storage, path string, content []byte) 
 	return nil
 }
 
+// recordBootConfig is the boot record runYANGConfig starts once it serves. A
+// failure is logged here, with the fix, and the record keeps it: every later
+// config change is refused with it (storage.BootRecord), while the daemon keeps
+// running the configuration it booted from.
+func recordBootConfig(store storage.Storage, path string, content []byte) error {
+	err := initializeConfigSource(store, path, content)
+	if err != nil {
+		slogutil.Logger("hub.config").Error("boot configuration not recorded in the store; configuration changes are refused until ze restarts", "source", path, "error", err, "fix", "run `ze data check`, then restart ze")
+	}
+	return err
+}
+
 // promoteConfigCandidate publishes a candidate the daemon authored: an SSH,
 // web, API or managed commit, or a schema migration. With an explicit file it
 // writes the candidate to that file through a file-commit intent, and refuses

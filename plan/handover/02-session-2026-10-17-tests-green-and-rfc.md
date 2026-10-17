@@ -218,3 +218,38 @@ bgp/config/register.go and storage-backends.md (boot record), and every .ci hunk
 `option=storage:value=disk` (commit B).
 Left: lint; three scripts (grammar with exabgp, the TestMain fix, the journal row); interop in
 the guest; owner questions (f); independent review.
+
+### boot-record continuation agent (2026-10-17), stopped at budget
+
+Commit A PREPARED, not run: `tmp/commit-900fdd06-boot-a-b67e18.sh` (review ISSUES 1-3 and all
+notes applied; see its message file). Evidence: storage + cmd/ze/hub `go test -race` green;
+`TestBootRecordPendingReadAnswersBootBytes` red with the ReadCandidateConfig gate removed;
+history-repaired-store-start.ci red with the Start call removed (overlay), green restored;
+explicit-file-restart, drain-restart-kind, filter-irr green. bgp/config TestClusterIDSync red
+from another session's `update-received` grammar work (comment-only edit there).
+
+Commit B, code done, NOT prepared: `internal/test/runner/record_dut_store.go` (+`_test.go`,
+green), `record.go` (DUTStore), `record_parse_vocabulary.go` (`storage` arm), `runner_exec.go`
+(env in runTest and runOrchestrated, before option=env); `docs/functional-tests.md` "The DUT's
+store" (the file also carries the route-injection session's 3 grammar lines: B must land after
+that commit, or carry them by decision). `option=storage:value=disk` inserted in 125 .ci by a
+structural grep (`ze init|data|config <offline verb>|show config|data`, 2+ ze daemon launches,
+zefs/restart-kind/history-observer/rollback/repaired-store names); none were dirty files.
+Suite run with B (private launcher): plugin 32 failed, reload 9 failed. Sampled cause:
+`config edit` over SSH opens the store BY PATH ("no configuration store: database; run ze
+init"), not the daemon's handle, so every session-editor-*, *-live reload and SSH-editor test
+breaks on memory. DECISION OWED: give those the disk option (about 40 files; rerun
+`./le --name boot2 test bgp plugin --all` and `reload --all -p 1` to list them), or make the
+editor use the daemon's store. Also check rfc7999-blackhole-readvertise-agreement and
+rpki-decorator-merge (may be the grammar session's reds). Then: spec list of disk tests, rerun,
+prepare `test(runner): functional DUTs run on an in-memory store`.
+
+Commit C, verified, not coded: (1) installBytes' final `syncFile(stage)` is redundant when
+stage is parent (the import.go and open.go callers) and, when distinct (treeStore's write),
+only makes the temp name's removal durable; storage-backends.md "Tree writes stage" and
+`ownershipPrivate` say leftover `.ze-storage-*` files are ignored, so it can go. (2)
+`lockStoreFile`: flock state is not on disk; make `openLockNode` report whether O_EXCL created
+the file and sync the folder only then. (3) PromoteCandidate's `file/active/<name>` mirror: NOT
+safe yet; bare-name reads resolve to the mirror (`resolveKey`) and `ReadRestoreSource` reads it
+when no pointer exists; audit every ReadKey/ReadFile of a bare config name first. Step 4
+(stall measurement) not run. `bin/le-boot2` deleted.

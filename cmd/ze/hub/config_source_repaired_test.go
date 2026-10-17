@@ -153,13 +153,24 @@ func requirePointers(t *testing.T, store storage.Storage, active, candidate, rol
 // refusal and the slog lines run writes are readable after it returns.
 func runCapturingStderr(t *testing.T, store storage.Storage, configPath string) (int, string) {
 	t.Helper()
+	var code int
+	logged := captureStderrFile(t, func() {
+		code = run(store, configPath, nil, 0, 0, false, "", false, "", "", false, nil)
+	})
+	return code, logged
+}
+
+// captureStderrFile runs step with os.Stderr on a file and returns what it
+// wrote. A file, not captureStderr's pipe: run writes more than a pipe holds.
+func captureStderrFile(t *testing.T, step func()) string {
+	t.Helper()
 	capture, err := os.Create(filepath.Join(t.TempDir(), "stderr"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	saved := os.Stderr
 	os.Stderr = capture
-	code := run(store, configPath, nil, 0, 0, false, "", false, "", "", false, nil)
+	step()
 	os.Stderr = saved
 	if err := capture.Close(); err != nil {
 		t.Fatal(err)
@@ -168,7 +179,7 @@ func runCapturingStderr(t *testing.T, store storage.Storage, configPath string) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	return code, string(logged)
+	return string(logged)
 }
 
 // AC-15 and R-10, stored source: `ze start` without a file reads the active
@@ -201,8 +212,9 @@ func TestRunRepairedStoreStoredSource(t *testing.T) {
 // rebuild is logged naming S and the active pointer, and rollback R still
 // names the version it named and still reads its bytes.
 //
-// run stops after initializeConfigSource on an unparsable looking-glass
-// listen address, so the test proves the startup path without serving.
+// run stops on an unparsable looking-glass listen address, before it starts
+// the boot record, so the test then runs the record itself on a fresh binding,
+// as the next start would, and proves the startup path without serving.
 func TestRunRepairedStoreExplicitSource(t *testing.T) {
 	scenario := buildRepairedStore(t)
 	path := filepath.Join(scenario.dir, repairedName)
@@ -227,20 +239,40 @@ func TestRunRepairedStoreExplicitSource(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	code, logged := runCapturingStderr(t, bound, path)
+	// A daemon that stopped before it served never recorded F: the boot
+	// record runs once the listeners serve (storage.BootRecord). The active
+	// pointer stays where repair left it, which is the state a crash between
+	// serving and the record leaves; the record then run is what the next
+	// start runs. One capture holds both, because run binds the log writer.
+	var code int
+	var unrecorded []byte
+	var pointerErr, recordErr error
+	logged := captureStderrFile(t, func() {
+		code = run(bound, path, nil, 0, 0, false, "", false, "", "", false, nil)
+		unrecorded, pointerErr = store.ReadKey(zefs.KeyConfigActive.Key(repairedName))
+		// A fresh binding, as the next start makes: run's handle still holds
+		// its unstarted record, which answers F from memory.
+		recordErr = recordBootConfig(storage.BindConfigSource(store, path, storage.ConfigSourceFile), path, fileF)
+	})
 	if code != 1 || !strings.Contains(logged, listenKey) {
-		t.Fatalf("run = %d, want the injected stop after initialization:\n%s", code, logged)
+		t.Fatalf("run = %d, want the injected stop before serving:\n%s", code, logged)
+	}
+	if pointerErr != nil || strings.TrimSpace(string(unrecorded)) != scenario.active {
+		t.Fatalf("active pointer after a stop before serving = %q, %v; want %s", unrecorded, pointerErr, scenario.active)
+	}
+	if recordErr != nil {
+		t.Fatalf("boot record: %v", recordErr)
 	}
 	for _, want := range []string{"rebuilt active config from explicit file", zefs.KeyConfigActive.Key(repairedName), scenario.active, path} {
 		if !strings.Contains(logged, want) {
 			t.Fatalf("recovery log does not name %q:\n%s", want, logged)
 		}
 	}
-	active, err := storage.ReadActiveConfig(bound, path)
+	active, err := storage.ReadActiveConfig(store, path)
 	if err != nil || !bytes.Equal(active, fileF) {
 		t.Fatalf("active = %q, %v; want F", active, err)
 	}
-	if _, _, present, err := storage.ReadCandidateConfig(bound, path); present || err != nil {
+	if _, _, present, err := storage.ReadCandidateConfig(store, path); present || err != nil {
 		t.Fatalf("candidate after startup: present=%v err=%v", present, err)
 	}
 	rollback, err := bound.ReadKey(zefs.KeyConfigRollback.Key(repairedName))

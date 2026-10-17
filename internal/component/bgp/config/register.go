@@ -114,8 +114,10 @@ func createReactorFromCoordinator(coord registry.CoordinatorAccessor) (registry.
 	cliPlugins := bs.CLIPlugins
 	configData := bs.ConfigData
 
-	// The hub records the selected source in stored history before startup.
-	// A newly enabled BGP plugin uses the staged reload candidate; a restarted
+	// The hub records the selected source in stored history beside startup
+	// (storage.BootRecord); until the record lands, the bound handle answers
+	// the boot bytes as active and no candidate, so this reads the same bytes
+	// either way. A newly enabled BGP plugin uses the staged reload candidate; a restarted
 	// plugin uses the accepted version. Neither reopens a mutable loose file.
 	// Captured bytes remain authoritative for stdin and storeless startup.
 	store := bs.Store

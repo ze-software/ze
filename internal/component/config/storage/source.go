@@ -5,6 +5,7 @@ package storage
 import (
 	"errors"
 	"os"
+	"sync/atomic"
 )
 
 // ConfigSource states which input remains authoritative throughout a daemon run.
@@ -23,6 +24,21 @@ type configStore struct {
 	Storage
 	path string
 	mode ConfigSource
+	// boot is the pending boot record (boot_record.go), nil when none is armed.
+	boot atomic.Pointer[BootRecord]
+}
+
+// AcquireLock waits for the boot record before it hands out the lock of the
+// bound configuration name: every config write takes that lock, so none can
+// land before the boot configuration is durable, or race the record's own
+// candidate. Other keys (runtime state, the SSH host key) never wait.
+func (c *configStore) AcquireLock(path string) (WriteGuard, error) {
+	if record := c.boot.Load(); record != nil && record.covers(path) {
+		if err := record.await(); err != nil {
+			return nil, err
+		}
+	}
+	return c.Storage.AcquireLock(path)
 }
 
 // BindConfigSource records the launch decision without opening another store.
