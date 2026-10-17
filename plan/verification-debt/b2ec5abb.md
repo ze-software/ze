@@ -47,3 +47,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-10-17 | b2ec5abb | test(rfc): prove four FlowSpec and BGP-LS MUSTs at the live originators | native structural checks (red) | test and RFC-data change; no structural gate is red over this tree | open |
 | 2026-10-17 | b2ec5abb | test(cli): headless restart test drops its fsync-bound wall clock | native structural checks (red) | test-harness change; no structural gate is red over this tree | open |
 | 2026-10-17 | b2ec5abb | ci: prepare the runner kernel, split the race pass, stream lab progress | native structural checks (red) | no structural gate is red over this tree | open |
+| 2026-10-17 | b2ec5abb | rules: fix known reds by targeted reruns; full verify last | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-17T10:46:25Z) | open |
+| 2026-10-17 | b2ec5abb | rules: fix known reds by targeted reruns; full verify last | native structural checks (red) | rule text only | open |
