@@ -36,7 +36,13 @@ func validateNativeEPE(snapshot *linkstateevents.Snapshot) error {
 			}
 			var total uint64
 			for value := attr.Value[2:]; len(value) != 0; {
-				if len(value) < 10 || binary.BigEndian.Uint16(value[3:5]) != bgpls.TLVSIDLabel || binary.BigEndian.Uint16(value[5:7]) != 3 {
+				if len(value) < 10 {
+					return errors.New("native EPE SRGB requires complete label ranges")
+				}
+				if binary.BigEndian.Uint16(value[3:5]) != bgpls.TLVSIDLabel {
+					return errors.New("native EPE SRGB requires complete label ranges")
+				}
+				if binary.BigEndian.Uint16(value[5:7]) != 3 {
 					return errors.New("native EPE SRGB requires complete label ranges")
 				}
 				size := uint32(value[0])<<16 | uint32(value[1])<<8 | uint32(value[2])
