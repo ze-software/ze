@@ -301,9 +301,9 @@ func TestApplyFilterDelta(t *testing.T) {
 		},
 		{
 			name:    "modify nlri",
-			current: "origin igp nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24",
-			delta:   "nlri ipv4/unicast add 10.0.0.0/24",
-			want:    "origin igp nlri ipv4/unicast add 10.0.0.0/24",
+			current: "origin igp nlri add 10.0.0.0/24 10.0.1.0/24",
+			delta:   "nlri add 10.0.0.0/24",
+			want:    "origin igp nlri add 10.0.0.0/24",
 		},
 	}
 
@@ -352,13 +352,13 @@ func TestValidateModifyDelta(t *testing.T) {
 		},
 		{
 			name:     "nlri modification when declared",
-			delta:    "nlri ipv4/unicast add 10.0.0.0/24",
+			delta:    "nlri add 10.0.0.0/24",
 			declared: []string{"nlri"},
 			wantViol: "",
 		},
 		{
 			name:     "nlri modification when not declared",
-			delta:    "nlri ipv4/unicast add 10.0.0.0/24",
+			delta:    "nlri add 10.0.0.0/24",
 			declared: []string{"local-preference"},
 			wantViol: "nlri",
 		},
@@ -454,7 +454,7 @@ func filterSubjectFixture(t *testing.T) string {
 	wireUpdate := wireu.NewWireUpdate(body, attrs.SourceContext())
 	subject := string(AppendUpdateForFilter(nil, attrs, wireUpdate, nil))
 
-	require.Equal(t, attrsFixtureSubject+" nlri ipv4/unicast add 10.0.0.0/24", subject,
+	require.Equal(t, attrsFixtureSubject+" nlri add 10.0.0.0/24", subject,
 		"the fixture must render the whole subject, or every test reading it proves nothing")
 	return subject
 }
@@ -512,7 +512,7 @@ func TestParseFilterAttrsStruct(t *testing.T) {
 			"large-community-remove 65000:7:8 extended-community-add target:65000:9 " +
 			"extended-community-remove target:65000:10 med-remove " +
 			"as-path-prepend 2 remove-private strip " +
-			"nlri ipv4/unicast add 10.0.0.0/24 10.1.0.0/24"
+			"nlri add 10.0.0.0/24 10.1.0.0/24"
 
 		attrs := parseFilterAttrs(text)
 
@@ -527,7 +527,7 @@ func TestParseFilterAttrsStruct(t *testing.T) {
 			faLargeCommunityRemove: "65000:7:8", faExtendedCommunityAdd: "target:65000:9",
 			faExtendedCommunityRemove: "target:65000:10", faMEDRemove: "",
 			faASPathPrepend: "2", faRemovePrivate: "strip",
-			faNLRI: "nlri ipv4/unicast add 10.0.0.0/24 10.1.0.0/24",
+			faNLRI: "nlri add 10.0.0.0/24 10.1.0.0/24",
 		}
 		for id := filterAttrID(0); id < faCount; id++ { //nolint:modernize // matches the enum walk in textDeltaToModOps
 			value, present := attrs.get(id)
@@ -590,7 +590,7 @@ func TestParseFilterAttrsStruct(t *testing.T) {
 	})
 
 	t.Run("into_caller_storage_answers_the_same", func(t *testing.T) {
-		text := "origin igp community 65000:1 65000:2 nlri ipv4/unicast add 10.0.0.0/24"
+		text := "origin igp community 65000:1 65000:2 nlri add 10.0.0.0/24"
 
 		var reused filterAttrs
 		parseFilterAttrsInto(&reused, "med 50 large-community 1:2:3")

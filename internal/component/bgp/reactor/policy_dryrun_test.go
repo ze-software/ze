@@ -392,7 +392,7 @@ func TestPolicyDryRunSubjectNamesEveryAttribute(t *testing.T) {
 	}
 	assert.Equal(t, "origin incomplete as-path [65001 65002] next-hop 10.0.0.1 med 100 "+
 		"local-preference 150 atomic-aggregate cluster-list 1.1.1.1 2.2.2.2 "+
-		"nlri ipv4/unicast add 10.0.0.0/24", result.TextBefore)
+		"nlri add 10.0.0.0/24", result.TextBefore)
 
 	rendered, err := json.Marshal(result)
 	require.NoError(t, err)

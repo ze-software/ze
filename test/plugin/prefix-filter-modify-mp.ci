@@ -1,0 +1,137 @@
+# Test: prefix-list import filter partial modify on an MP_REACH_NLRI UPDATE
+# VALIDATES: a modify answer that refuses one IPv6 prefix of an MP_REACH_NLRI
+#            removes it from the UPDATE: the relayed UPDATE carries only the
+#            accepted prefix, with the MP_REACH_NLRI rebuilt (AFI, SAFI and
+#            next hop kept, lengths recomputed), asserted as wire hex.
+# PREVENTS: the MP_REACH_NLRI copied verbatim after a modify, so the refused
+#           prefix reached the RIB and every peer
+#           (plan/journal/guard-added-to-one-half-of-a-pair.md, 2026-10-17).
+#
+# Flow:
+# 1. source-peer sends one UPDATE whose MP_REACH_NLRI (ipv6/unicast) carries
+#    2001:db8:1::/48 (accepted) and 2001:db9::/48 (refused).
+# 2. bgp-filter-prefix answers modify with "mp ipv6/unicast add
+#    2001:db8:1::/48"; the engine rewrites the MP_REACH_NLRI from that block.
+# 3. bgp-rs relays the filtered route to dest-peer, which expects it byte for byte.
+
+option=env:var=ze.log.bgp.filter.prefix:value=info
+
+# MP_REACH_NLRI value: AFI 0002, SAFI 01, NH length 10, NH 2001:db8::1,
+# reserved 00, NLRI 30 20010db80001 (2001:db8:1::/48), 30 20010db90000 (2001:db9::/48).
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004A02000000334001010040020602010000FDE9800E230002011020010DB8000000000000000000000001003020010DB800013020010DB90000
+EOF_SOURCE
+
+# The relayed UPDATE: AS_PATH [65000 65001], MP_REACH_NLRI with 2001:db8:1::/48 only
+# (value length 1C, attribute section length 30).
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=20s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004702000000304001010040020A02020000FDE80000FDE9800E1C0002011020010DB8000000000000000000000001003020010DB80001
+EOF_DEST
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	# The relay observer: it waits until dest-peer was sent the route.
+	external test-strip {
+		run "le test fixture plugin/prefix-filter-modify-mp"
+		encoder json
+	}
+}
+bgp {
+	policy {
+		prefix-list V6CUSTOMERS {
+			entry 2001:db8::/32 {
+				ge 32
+				le 48
+				action accept
+			}
+		}
+	}
+
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+		}
+		filter {
+			import [ bgp-filter-prefix:V6CUSTOMERS ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+
+	peer dest-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+		}
+		# bgp-rs asks adj-rib-in to replay the stored route here when this
+		# session establishes, so adj-rib-in needs the send permission.
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-prefix -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+expect=stderr:pattern=prefix-list modify
+expect=stderr:pattern=accepted=1
+expect=stderr:pattern=rejected=1
+expect=stderr:pattern=INFO: adj-rib-in total=1
+reject=stderr:pattern=modify answer cannot be applied
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

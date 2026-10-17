@@ -18,101 +18,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
-// TestExtractLegacyNLRIOverride covers the per-prefix modify path helper: the
-// engine, not the filter plugin, re-encodes the accepted prefix subset, so the
-// plugin side of a per-prefix deny stays pure text. The helper compares the "nlri
-// ipv4/unicast add ..." block in two filter-text strings and returns
-// wire-encoded NLRI bytes for the modified prefix list, or nil when no
-// IPv4-unicast rewrite is needed.
-//
-// VALIDATES: per-prefix partition path emits the correct wire NLRI bytes so
-//
-//	buildModifiedPayload can splice them into the payload tail.
-//
-// PREVENTS:  regression where a filter plugin returns action=modify with a
-//
-//	smaller prefix list but the engine still forwards the original
-//	full prefix list on the wire.
-func TestExtractLegacyNLRIOverride(t *testing.T) {
-	tests := []struct {
-		name     string
-		original string
-		modified string
-		want     []byte // nil means "override should be nil"; [] means "empty override"
-	}{
-		{
-			name:     "unchanged nlri returns nil override",
-			original: "origin igp nlri ipv4/unicast add 10.0.0.0/24",
-			modified: "origin igp nlri ipv4/unicast add 10.0.0.0/24",
-			want:     nil,
-		},
-		{
-			name:     "subset rewrite encodes accepted prefixes",
-			original: "origin igp nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24 192.168.1.0/24",
-			modified: "origin igp nlri ipv4/unicast add 10.0.0.0/24 192.168.1.0/24",
-			want:     []byte{0x18, 0x0A, 0x00, 0x00, 0x18, 0xC0, 0xA8, 0x01},
-		},
-		{
-			name:     "all denied yields empty non-nil override",
-			original: "origin igp nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24",
-			modified: "origin igp",
-			want:     []byte{},
-		},
-		{
-			name:     "zero-length prefix encodes length byte only",
-			original: "origin igp nlri ipv4/unicast add 10.0.0.0/24",
-			modified: "origin igp nlri ipv4/unicast add 0.0.0.0/0",
-			want:     []byte{0x00},
-		},
-		{
-			name:     "sub-byte prefix length rounds up",
-			original: "origin igp nlri ipv4/unicast add 10.0.0.0/24",
-			modified: "origin igp nlri ipv4/unicast add 10.0.0.0/20",
-			want:     []byte{0x14, 0x0A, 0x00, 0x00},
-		},
-		{
-			name:     "ipv6 unicast rewrite is ignored (MP_REACH out of scope)",
-			original: "origin igp nlri ipv6/unicast add 2001:db8::/32 2001:db8:1::/48",
-			modified: "origin igp nlri ipv6/unicast add 2001:db8::/32",
-			want:     nil,
-		},
-		{
-			name:     "mixed families: only ipv4 unicast subset triggers override",
-			original: "origin igp nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24 nlri ipv6/unicast add 2001:db8::/32",
-			modified: "origin igp nlri ipv4/unicast add 10.0.0.0/24 nlri ipv6/unicast add 2001:db8::/32",
-			want:     []byte{0x18, 0x0A, 0x00, 0x00},
-		},
-		{
-			name:     "no nlri field in either returns nil",
-			original: "origin igp",
-			modified: "origin igp local-preference 200",
-			want:     nil,
-		},
-		{
-			name:     "malformed prefix token returns nil fail-closed",
-			original: "origin igp nlri ipv4/unicast add 10.0.0.0/24",
-			modified: "origin igp nlri ipv4/unicast add not-a-prefix",
-			want:     nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := extractLegacyNLRIOverride(newTestScratch(t), tt.original, tt.modified)
-			if tt.want == nil {
-				assert.Nil(t, got, "expected nil override")
-				return
-			}
-			if len(tt.want) == 0 {
-				assert.NotNil(t, got, "expected empty non-nil override")
-				assert.Equal(t, 0, len(got))
-				return
-			}
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
 // TestTextDeltaToModOps verifies that text delta comparison produces correct AttrModSet ops.
 //
 // VALIDATES: Wire-level dirty tracking -- text delta converted to ModAccumulator ops.
@@ -169,8 +74,8 @@ func TestTextDeltaToModOps(t *testing.T) {
 		},
 		{
 			name:     "nlri changes ignored",
-			original: "origin igp nlri ipv4/unicast add 10.0.0.0/24",
-			modified: "origin igp nlri ipv4/unicast add 10.0.1.0/24",
+			original: "origin igp nlri add 10.0.0.0/24",
+			modified: "origin igp nlri add 10.0.1.0/24",
 			wantOps:  0,
 		},
 		{
@@ -653,7 +558,7 @@ func TestApplySendCommunityFilter(t *testing.T) {
 func TestExtractASPathPrependOps(t *testing.T) {
 	t.Run("prepend_3", func(t *testing.T) {
 		var mods filterapi.ModAccumulator
-		ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("origin igp as-path-prepend 3 nlri ipv4/unicast add 10.0.0.0/24"), nil, true, 65000, &mods)
+		ExtractASPathPrependOps(newTestScratch(t), parseFilterAttrs("origin igp as-path-prepend 3 nlri add 10.0.0.0/24"), nil, true, 65000, &mods)
 		require.Equal(t, 1, mods.Len())
 		op := mods.Ops()[0]
 		assert.Equal(t, byte(attribute.AttrASPath), op.Code)
@@ -1288,8 +1193,8 @@ func TestFilterDeltaParseOnceEquivalence(t *testing.T) {
 		},
 		{
 			name:     "nlri-only change emits no attr ops",
-			original: "origin igp nlri ipv4/unicast add 10.0.0.0/24 10.1.0.0/24",
-			modified: "origin igp nlri ipv4/unicast add 10.0.0.0/24",
+			original: "origin igp nlri add 10.0.0.0/24 10.1.0.0/24",
+			modified: "origin igp nlri add 10.0.0.0/24",
 			want:     []string{},
 		},
 		{
@@ -1384,8 +1289,8 @@ func TestFilterDeltaParseCallCount(t *testing.T) {
 // invoked per modified UPDATE on the egress hot path (AC-6 evidence).
 func BenchmarkFilterModifyEgress(b *testing.B) {
 	attrsWire := filterDeltaPrivateASFixture()
-	original := "origin igp local-preference 100 community 65001:100 65001:200 nlri ipv4/unicast add 10.0.0.0/24"
-	modified := "origin igp local-preference 200 community 65001:100 65001:200 as-path-prepend 2 remove-private strip nlri ipv4/unicast add 10.0.0.0/24"
+	original := "origin igp local-preference 100 community 65001:100 65001:200 nlri add 10.0.0.0/24"
+	modified := "origin igp local-preference 200 community 65001:100 65001:200 as-path-prepend 2 remove-private strip nlri add 10.0.0.0/24"
 	b.ReportAllocs()
 	for b.Loop() {
 		// One modify block, in the shape filter_ordered.go runs it: the arena
@@ -1543,7 +1448,9 @@ func TestTextDeltaRecordsNothingForAnUnchangedSubject(t *testing.T) {
 		textDeltaToModOps(newTestScratch(t), parseFilterAttrs(subject), parseFilterAttrs(text), &mods)
 		assert.Equal(t, 0, mods.Len(), "no attribute value changed, so no wire operation is owed: %v",
 			goldenOps(mods.Ops()))
-		assert.Nil(t, extractLegacyNLRIOverride(newTestScratch(t), subject, text), "the NLRI block is unchanged too")
+		override, _, ok := sectionNLRIDelta(newTestScratch(t), subject, text, nil, &mods)
+		assert.True(t, ok)
+		assert.Nil(t, override, "the NLRI block is unchanged too")
 	}
 
 	t.Run("every filter accepts", func(t *testing.T) {
@@ -1804,7 +1711,7 @@ func TestPrependEncodesAtTheNegotiatedASNWidth(t *testing.T) {
 			name:    "four_octet_mappable",
 			asn4:    true,
 			localAS: 65000,
-			text:    "origin igp as-path-prepend 3 nlri ipv4/unicast add 10.0.0.0/24",
+			text:    "origin igp as-path-prepend 3 nlri add 10.0.0.0/24",
 			want: []byte{
 				byte(attribute.ASSequence), 3,
 				0, 0, 0xFD, 0xE8,
@@ -1816,7 +1723,7 @@ func TestPrependEncodesAtTheNegotiatedASNWidth(t *testing.T) {
 			name:    "two_octet_mappable",
 			asn4:    false,
 			localAS: 65000,
-			text:    "origin igp as-path-prepend 3 nlri ipv4/unicast add 10.0.0.0/24",
+			text:    "origin igp as-path-prepend 3 nlri add 10.0.0.0/24",
 			want: []byte{
 				byte(attribute.ASSequence), 3,
 				0xFD, 0xE8,
@@ -2011,7 +1918,7 @@ func TestPrependAS4PathDoesNotUndoRemovePrivateAS(t *testing.T) {
 		[]byte{byte(attribute.ASSequence), 2, 0xFB, 0xF0, 0xFC, 0x00},
 		[]byte{byte(attribute.ASSequence), 2, 0, 0, 0xFC, 0x00, 0x00, 0x02, 0x00, 0x01},
 	)
-	modAttrs := parseFilterAttrs("origin igp remove-private strip as-path-prepend 1 nlri ipv4/unicast add 10.0.0.0/24")
+	modAttrs := parseFilterAttrs("origin igp remove-private strip as-path-prepend 1 nlri add 10.0.0.0/24")
 
 	scratch := newTestScratch(t)
 	var mods filterapi.ModAccumulator
@@ -2052,7 +1959,7 @@ func TestImportPrependEncodesAtTheSourceASNWidth(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			attrs, payload := prependFixture(asPathValue, nil)
-			modAttrs := parseFilterAttrs("origin igp as-path-prepend 2 nlri ipv4/unicast add 10.0.0.0/24")
+			modAttrs := parseFilterAttrs("origin igp as-path-prepend 2 nlri add 10.0.0.0/24")
 
 			scratch := newTestScratch(t)
 			var mods filterapi.ModAccumulator
@@ -2096,7 +2003,7 @@ func TestExportPrependEncodesAtTheDestinationASNWidth(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			attrs, payload := prependFixture(asPathValue, nil)
-			modAttrs := parseFilterAttrs("origin igp as-path-prepend 1 nlri ipv4/unicast add 10.0.0.0/24")
+			modAttrs := parseFilterAttrs("origin igp as-path-prepend 1 nlri add 10.0.0.0/24")
 
 			scratch := newTestScratch(t)
 			var mods filterapi.ModAccumulator

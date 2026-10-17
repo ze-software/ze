@@ -91,13 +91,13 @@ func TestEvaluateNLRI(t *testing.T) {
 		nlri   string
 		accept bool
 	}{
-		{"matching prefix", "ipv4/unicast add 10.0.0.0/24", true},
-		{"non-matching prefix", "ipv4/unicast add 192.168.0.0/24", false},
+		{"matching prefix", "nlri add 10.0.0.0/24", true},
+		{"non-matching prefix", "nlri add 192.168.0.0/24", false},
 		{"empty nlri", "", true},
 		{"short nlri", "ipv4/unicast", true},
-		{"malformed prefix", "ipv4/unicast add not-a-prefix", false},
-		{"multiple all match", "ipv4/unicast add 10.0.0.0/24 10.0.1.0/24", true},
-		{"multiple one no match", "ipv4/unicast add 10.0.0.0/24 192.168.0.0/24", false},
+		{"malformed prefix", "nlri add not-a-prefix", false},
+		{"multiple all match", "nlri add 10.0.0.0/24 10.0.1.0/24", true},
+		{"multiple one no match", "nlri add 10.0.0.0/24 192.168.0.0/24", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -114,7 +114,7 @@ func TestExtractNLRIField(t *testing.T) {
 		input string
 		want  string
 	}{
-		{"origin igp as-path [65001] next-hop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24", "ipv4/unicast add 10.0.0.0/24"},
+		{"origin igp as-path [65001] next-hop 1.1.1.1 nlri add 10.0.0.0/24", "nlri add 10.0.0.0/24"},
 		{"origin igp as-path [65001] next-hop 1.1.1.1", ""},
 		{"", ""},
 	}

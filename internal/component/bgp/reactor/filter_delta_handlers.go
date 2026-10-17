@@ -223,6 +223,10 @@ func clusterListHandler() filterapi.AttrModHandler {
 // expressed via ModAccumulator.SetWithdraw(), not via this handler.
 // A Set with an empty buffer is a real rewrite for a family without next hops,
 // not an absent operation. Such a family cannot acquire a next hop from any Set.
+//
+// An AttrModReplaceNLRI op replaces the NLRI field and keeps AFI, SAFI and the
+// next hop (or the next hop a Set writes). An empty replacement drops the
+// attribute, because every NLRI it carried was refused.
 func mpReachNextHopHandler() filterapi.AttrModHandler {
 	return func(p *filterapi.AttrPlan) {
 		val := p.Value()
@@ -231,7 +235,7 @@ func mpReachNextHopHandler() filterapi.AttrModHandler {
 			fam := family.Family{AFI: family.AFI(uint16(val[0])<<8 | uint16(val[1])), SAFI: family.SAFI(val[2])}
 			noNextHop = !fam.NeedsNextHop()
 		}
-		// Pick the last Set op.
+		// Pick the last Set op, and the last NLRI replacement.
 		setIdx := -1
 		ops := p.Ops()
 		for i := range ops {
@@ -239,10 +243,17 @@ func mpReachNextHopHandler() filterapi.AttrModHandler {
 				setIdx = i
 			}
 		}
+		nlriIdx := lastReplaceNLRI(ops)
 
 		// No rewrite requested: keep the source unchanged.
-		if setIdx < 0 {
+		if setIdx < 0 && nlriIdx < 0 {
 			keepOrDrop(p)
+			return
+		}
+		// Every NLRI of the attribute was dropped. An MP_REACH_NLRI announcing
+		// nothing is never written, so the attribute goes.
+		if nlriIdx >= 0 && len(ops[nlriIdx].Buf) == 0 {
+			p.Drop()
 			return
 		}
 
@@ -274,30 +285,106 @@ func mpReachNextHopHandler() filterapi.AttrModHandler {
 		//   - 32 bytes: IPv6 global + link-local per RFC 2545 Section 3.
 		// A mismatched op length is a caller bug; the route is left unchanged
 		// (the caller should have produced a valid op).
-		newNHLen := len(ops[setIdx].Buf)
-		if noNextHop {
+		nextHopKept := setIdx < 0
+		newNHLen := nhLen
+		if !nextHopKept {
+			newNHLen = len(ops[setIdx].Buf)
+		}
+		switch {
+		case nextHopKept:
+		case noNextHop:
 			if nhLen == 0 {
-				p.KeepAll()
-				return
+				nextHopKept = true
+				break
 			}
 			newNHLen = 0
-		} else if newNHLen != 4 && newNHLen != 16 && newNHLen != 24 && newNHLen != 32 {
+		case newNHLen != 4 && newNHLen != 16 && newNHLen != 24 && newNHLen != 32:
+			nextHopKept = true
+		}
+		if nextHopKept && nlriIdx < 0 {
 			p.KeepAll()
 			return
 		}
 
-		p.Keep(0, 3)              // AFI + SAFI, already on the wire
-		p.NewByte(byte(newNHLen)) // the one byte that exists nowhere else
-		if newNHLen != 0 {
-			p.Op(setIdx) // the new next-hop
+		// RFC 4760 Section 3: "Address Family Identifier (2 octets)", then
+		// "Subsequent Address Family Identifier (1 octet)", "Length of Next Hop
+		// Network Address (1 octet)", "Network Address of Next Hop (variable)",
+		// "Reserved (1 octet)" and "Network Layer Reachability Information
+		// (variable)".
+		//
+		//	+0 AFI(2) +2 SAFI(1) +3 NHLen(1) +4 NH(NHLen) +nhEnd Reserved(1) +nhEnd+1 NLRI
+		if nextHopKept {
+			p.Keep(0, nhEnd) // AFI + SAFI + length + next hop, already on the wire
+		} else {
+			p.Keep(0, 3)              // AFI + SAFI, already on the wire
+			p.NewByte(byte(newNHLen)) // the one byte that exists nowhere else
+			if newNHLen != 0 {
+				p.Op(setIdx) // the new next-hop
+			}
 		}
-		p.Keep(nhEnd, len(val)-nhEnd)
+		if nlriIdx < 0 {
+			p.Keep(nhEnd, len(val)-nhEnd)
+		} else {
+			p.Keep(nhEnd, 1) // Reserved
+			p.Op(nlriIdx)    // the NLRI the filter kept
+		}
 
 		// The source flags carry the attribute's optional/transitive bits; Emit
 		// decides the Extended Length bit from the FINAL value length, which is
 		// what a next-hop that grows or shrinks across the 255-octet boundary
 		// needs (RFC 4271 Section 4.3).
 		p.Emit(src[0], byte(attribute.AttrMPReachNLRI))
+	}
+}
+
+// lastReplaceNLRI returns the index of the last AttrModReplaceNLRI op, or -1.
+func lastReplaceNLRI(ops []filterapi.AttrOp) int {
+	idx := -1
+	for i := range ops {
+		if ops[i].Action == filterapi.AttrModReplaceNLRI {
+			idx = i
+		}
+	}
+	return idx
+}
+
+// mpUnreachNLRIHandler rewrites the Withdrawn Routes field of MP_UNREACH_NLRI
+// (type 15) from an AttrModReplaceNLRI op, keeping AFI and SAFI.
+//
+// An empty replacement drops the attribute rather than writing one with no
+// withdrawn routes. RFC 4724 Section 2: "For any other address family, it is an
+// UPDATE message that contains only the MP_UNREACH_NLRI attribute [BGP-MP] with
+// no withdrawn routes for that <AFI, SAFI>." That is the End-of-RIB marker, which
+// the source never sent.
+func mpUnreachNLRIHandler() filterapi.AttrModHandler {
+	return func(p *filterapi.AttrPlan) {
+		ops := p.Ops()
+		idx := lastReplaceNLRI(ops)
+		if idx < 0 {
+			keepOrDrop(p)
+			return
+		}
+		src := p.Source()
+		if src == nil {
+			p.Drop()
+			return
+		}
+		if len(p.Value()) < 3 {
+			p.Drop()
+			return
+		}
+		if len(ops[idx].Buf) == 0 {
+			p.Drop()
+			return
+		}
+		// RFC 4760 Section 4: "Address Family Identifier (2 octets)",
+		// "Subsequent Address Family Identifier (1 octet)", "Withdrawn Routes
+		// (variable)".
+		//
+		//	+0 AFI(2) +2 SAFI(1) +3 Withdrawn Routes
+		p.Keep(0, 3)
+		p.Op(idx)
+		p.Emit(src[0], byte(attribute.AttrMPUnreachNLRI))
 	}
 }
 
@@ -451,6 +538,8 @@ func attrModHandlersWithDefaults() map[uint8]filterapi.AttrModHandler {
 	handlers[byte(attribute.AttrClusterList)] = clusterListHandler()
 	// MP_REACH_NLRI next-hop rewriting (RFC 4760 §3, RFC 2545 §3).
 	handlers[byte(attribute.AttrMPReachNLRI)] = mpReachNextHopHandler()
+	// MP_UNREACH_NLRI withdrawn-routes rewriting (RFC 4760 Section 4).
+	handlers[byte(attribute.AttrMPUnreachNLRI)] = mpUnreachNLRIHandler()
 	// ATTR_TOMBSTONE, whose flags are derived from the attributes it records
 	// rather than from its own code (draft-mangin-idr-attr-tombstone-00).
 	handlers[byte(attribute.AttrTombstone)] = tombstoneHandler()

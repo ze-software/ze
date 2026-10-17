@@ -20,9 +20,9 @@ func TestFlowSpecUpdateExposesDestinationToPrefixPolicy(t *testing.T) {
 		nlri []byte
 		want string
 	}{
-		{"destination", []byte{8, 1, 24, 10, 1, 0, 5, 0x81, 80}, "nlri ipv4/flow add 10.1.0.0/24"},
-		{"no-destination", []byte{3, 5, 0x81, 80}, "nlri ipv4/flow add invalid"},
-		{"truncated", []byte{5, 1, 24, 10}, "nlri ipv4/flow add invalid"},
+		{"destination", []byte{8, 1, 24, 10, 1, 0, 5, 0x81, 80}, "mp ipv4/flow add 10.1.0.0/24"},
+		{"no-destination", []byte{3, 5, 0x81, 80}, "mp ipv4/flow add invalid"},
+		{"truncated", []byte{5, 1, 24, 10}, "mp ipv4/flow add invalid"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			update := builder.BuildFlowSpec(message.FlowSpecParams{NLRI: tc.nlri})
@@ -42,11 +42,11 @@ func TestFlowSpecPrefixPolicyUsesNativeAddPathFraming(t *testing.T) {
 		nlri   []byte
 		want   string
 	}{
-		{"ipv4-extended", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}, []byte{0xf0, 5, 1, 24, 10, 1, 0}, "nlri ipv4/flow add 10.1.0.0/24"},
-		{"vpn4", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpecVPN}, []byte{13, 0, 0, 0xfd, 0xe9, 0, 0, 0, 1, 1, 24, 10, 1, 0}, "nlri ipv4/flow-vpn add 10.1.0.0/24"},
-		{"ipv6", family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpec}, []byte{7, 1, 32, 0, 0x20, 1, 0x0d, 0xb8}, "nlri ipv6/flow add 2001:db8::/32"},
-		{"ipv6-offset", family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpec}, []byte{5, 1, 32, 16, 0x0d, 0xb8}, "nlri ipv6/flow add invalid"},
-		{"truncated-destination", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}, []byte{4, 1, 24, 10, 1}, "nlri ipv4/flow add invalid"},
+		{"ipv4-extended", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}, []byte{0xf0, 5, 1, 24, 10, 1, 0}, "mp ipv4/flow add 10.1.0.0/24"},
+		{"vpn4", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpecVPN}, []byte{13, 0, 0, 0xfd, 0xe9, 0, 0, 0, 1, 1, 24, 10, 1, 0}, "mp ipv4/flow-vpn add 10.1.0.0/24"},
+		{"ipv6", family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpec}, []byte{7, 1, 32, 0, 0x20, 1, 0x0d, 0xb8}, "mp ipv6/flow add 2001:db8::/32"},
+		{"ipv6-offset", family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpec}, []byte{5, 1, 32, 16, 0x0d, 0xb8}, "mp ipv6/flow add invalid"},
+		{"truncated-destination", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}, []byte{4, 1, 24, 10, 1}, "mp ipv4/flow add invalid"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{tc.family: true})

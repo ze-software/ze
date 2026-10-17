@@ -19,7 +19,7 @@ func isFlowSpecFamily(fam family.Family) bool {
 // prefix/ge/le rules without discarding the rest of an accepted FlowSpec NLRI.
 // An absent or nonzero-offset destination has no CIDR equivalent and is denied.
 func appendFlowSpecFilterBlock(buf []byte, fam family.Family, op string, raw []byte, addPath, empty bool) []byte {
-	buf = appendMPBlock(buf, fam, op, nil, empty)
+	buf = appendMPBlock(buf, fam, op, nil, addPath, empty)
 	_, err := nlrisplit.SplitFlowSpec(raw, addPath, func(one []byte) bool {
 		if addPath {
 			one = one[4:]

@@ -24,6 +24,8 @@ import (
 	"net"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/bgp/filtertext"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -118,19 +120,23 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
 	}
 
-	// FlowSpec exposes its destination component, not a replacement NLRI.
-	// A mixed decision rejects the complete UPDATE instead of dropping the
-	// other components or emitting unicast bytes under SAFI 133/134.
-	switch partition.family {
-	case "ipv4/flow", "ipv6/flow", "ipv4/flow-vpn", "ipv6/flow-vpn":
-		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
+	// The engine rewrites only the block of a CIDR family (filtertext.CIDRFamily)
+	// and refuses a changed block of any other family (reactor
+	// filter_nlri_delta.go). FlowSpec, for one, exposes its destination
+	// component, not a replacement NLRI. A rejected prefix in such a block, or
+	// in a block whose family this process does not know, rejects the complete
+	// UPDATE: fail closed.
+	for i := range partition.blocks {
+		if !rewritableBlock(&partition.blocks[i]) {
+			return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
+		}
 	}
 
-	// Mixed: modify. Emit a delta whose nlri block contains only the
-	// accepted subset. The engine picks this up in applyFilterDelta (which
-	// replaces the nlri key verbatim) and in extractNLRIOverride (which
-	// reencodes the accepted prefixes into wire bytes for the IPv4 legacy
-	// NLRI section).
+	// Mixed: modify. Emit a delta whose nlri blocks contain only the accepted
+	// subset of each block. The engine replaces the nlri value verbatim
+	// (applyFilterDelta) and rewrites each section from its own block: the
+	// legacy NLRI and Withdrawn Routes, and each MP_REACH_NLRI and
+	// MP_UNREACH_NLRI (reactor filter_nlri_delta.go).
 	delta := buildModifyDelta(partition)
 	logger().Info(
 		"prefix-list modify",
@@ -141,14 +147,35 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Update: delta}
 }
 
+// rewritableBlock reports whether a modify delta can drop the rejected prefixes
+// of blk. A block with no rejected prefix is echoed and needs no rewrite.
+func rewritableBlock(blk *prefixBlock) bool {
+	if len(blk.rejected) == 0 {
+		return true
+	}
+	fam, known := family.LookupFamily(blk.family)
+	if !known {
+		return false
+	}
+	return filtertext.CIDRFamily(fam)
+}
+
 // buildModifyDelta renders the modify delta returned to the engine when some
 // prefixes pass and some don't. The delta is intentionally minimal -- it
-// only carries the new nlri block so applyFilterDelta in the engine leaves
-// every other attribute untouched.
+// only carries the nlri blocks, so applyFilterDelta in the engine leaves every
+// other attribute untouched. A block whose every prefix was refused is left
+// out, which the engine reads as "keep none" for that section; a block that
+// carried no prefix (a non-CIDR family marker) is echoed as it was.
 func buildModifyDelta(partition partitionResult) string {
-	parts := make([]string, 0, 3+len(partition.accepted))
-	parts = append(parts, "nlri", partition.family, partition.op)
-	parts = append(parts, partition.accepted...)
+	parts := make([]string, 0, 4*len(partition.blocks)+len(partition.accepted))
+	for i := range partition.blocks {
+		blk := &partition.blocks[i]
+		if len(blk.accepted) == 0 && len(blk.rejected) > 0 {
+			continue
+		}
+		parts = append(parts, blk.head...)
+		parts = append(parts, blk.accepted...)
+	}
 	return joinWords(parts)
 }
 

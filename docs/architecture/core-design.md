@@ -2618,7 +2618,7 @@ Nobody edits a read view directly. A change goes to the source, and the builder 
 
 Ze applies the same pattern to the data that it pulls from the network. The configuration is the source that the operator edits. Data that Ze fetches, for example an IRR prefix list resolved through WHOIS, is a local read view of an external source. A background service keeps that read view current.
 
-The IRR filter follows this pattern. A refresh runs at `refresh-interval`, or when the operator runs `update bgp irr`. A refresh that fails, or that returns no prefixes, keeps the last known good list. The list is persisted, so a restart does not need the source.
+The IRR filter follows this pattern. A refresh runs at `refresh-interval`, or when the operator runs `update bgp irr`. A refresh that fails, or that returns no prefixes, keeps the last known good list. The list is persisted, so a restart does not need the source. A route that the filter rejected before a list arrived, or that the old list did not hold, is evaluated again when a new list authorizes it: the filter asks the peer for the route with a ROUTE-REFRESH. The peer must allow it with `attach process bgp-filter-irr { send [ refresh ] }`. The page [IRR filtering](../guide/irr-filtering.md) describes how.
 <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- refreshLoop, refreshASNCtx -->
 <!-- source: internal/component/resolve/irr/store/store.go -- atomic refresh and last-known-good persistence -->
 

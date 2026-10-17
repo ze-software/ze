@@ -15,7 +15,7 @@ instead of BGP prefix-list matching.
 Both consumers read `meta/irr/{name}` through the daemon's owned store.
 The plugin binds state RPCs after `OnStarted` and reloads persisted prefixes
 before it starts refresh workers.
-<!-- source: internal/component/resolve/irr/store/store.go -- Open, persist -->
+<!-- source: internal/component/resolve/irr/store/store.go -- Open, Persist -->
 
 ### A separate plugin, not an engine extension
 
@@ -128,8 +128,11 @@ lost its rules the same way, on a commit that changed something else.
 
 `Open` still runs on each configure. The zefs file is shared with the BGP IRR
 filter, so reading it again picks up what that consumer has fetched since. It
-only adds: an entry held in both places is the same entry, because every store
-mutation persists before it returns.
+only adds: an entry held in both places is the same entry, because this plugin
+mutates its store only through `Refresh` and `Purge`, and both write the durable
+copy before they return. The BGP IRR filter calls `RefreshLive` instead and
+writes its copy afterwards through `Persist`, so this plugin sees that
+filter's answer only once its write lands.
 
 ### A crash starts the plugin again
 

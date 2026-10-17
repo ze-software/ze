@@ -343,10 +343,10 @@ func TestPrefixListFromIRRAcceptReject(t *testing.T) {
 	entries := prefixListFromIRR(pl)
 	list := &irrPrefixList{entries: entries}
 
-	if !list.evaluateUpdate("ipv4/unicast add 10.0.0.0/24") {
+	if !list.evaluateUpdate("nlri add 10.0.0.0/24") {
 		t.Error("matching prefix should be accepted")
 	}
-	if list.evaluateUpdate("ipv4/unicast add 192.168.0.0/24") {
+	if list.evaluateUpdate("nlri add 192.168.0.0/24") {
 		t.Error("non-matching prefix should be rejected")
 	}
 }
@@ -356,7 +356,7 @@ func TestPrefixListFromIRREmpty(t *testing.T) {
 	entries := prefixListFromIRR(irr.PrefixList{})
 	list := &irrPrefixList{entries: entries}
 
-	if list.evaluateUpdate("ipv4/unicast add 10.0.0.0/24") {
+	if list.evaluateUpdate("nlri add 10.0.0.0/24") {
 		t.Error("empty IRR result should reject all")
 	}
 }
@@ -447,15 +447,15 @@ func TestPartitionUpdateMixed(t *testing.T) {
 	list := &irrPrefixList{entries: prefixListFromIRR(irr.PrefixList{
 		IPv4: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
 	})}
-	p := list.partitionUpdate("ipv4/unicast add 10.0.0.0/24 192.168.0.0/24")
+	p := list.partitionUpdate("nlri add 10.0.0.0/24 192.168.0.0/24")
 	if len(p.accepted) != 1 || p.accepted[0] != "10.0.0.0/24" {
 		t.Errorf("accepted = %v, want [10.0.0.0/24]", p.accepted)
 	}
 	if len(p.rejected) != 1 || p.rejected[0] != "192.168.0.0/24" {
 		t.Errorf("rejected = %v, want [192.168.0.0/24]", p.rejected)
 	}
-	if got := buildModifyDelta(p); got != "nlri ipv4/unicast add 10.0.0.0/24" {
-		t.Errorf("delta = %q, want %q", got, "nlri ipv4/unicast add 10.0.0.0/24")
+	if got := buildModifyDelta(p); got != "nlri add 10.0.0.0/24" {
+		t.Errorf("delta = %q, want %q", got, "nlri add 10.0.0.0/24")
 	}
 }
 
@@ -466,11 +466,11 @@ func TestPartitionUpdateAllOrNone(t *testing.T) {
 	list := &irrPrefixList{entries: prefixListFromIRR(irr.PrefixList{
 		IPv4: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
 	})}
-	allBad := list.partitionUpdate("ipv4/unicast add 192.168.0.0/24 203.0.113.0/24")
+	allBad := list.partitionUpdate("nlri add 192.168.0.0/24 203.0.113.0/24")
 	if len(allBad.accepted) != 0 || len(allBad.rejected) != 2 {
 		t.Errorf("all-out-of-list: accepted=%v rejected=%v, want 0 accepted / 2 rejected", allBad.accepted, allBad.rejected)
 	}
-	allGood := list.partitionUpdate("ipv4/unicast add 10.0.0.0/24")
+	allGood := list.partitionUpdate("nlri add 10.0.0.0/24")
 	if len(allGood.accepted) != 1 || len(allGood.rejected) != 0 {
 		t.Errorf("all-in-list: accepted=%v rejected=%v, want 1 accepted / 0 rejected", allGood.accepted, allGood.rejected)
 	}
@@ -574,7 +574,7 @@ func TestFilterWaitsForFirstResolution(t *testing.T) {
 	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 		Filter: "bgp-filter-irr:65001",
 		Peer:   "127.0.0.1",
-		Update: "ipv4/unicast announce nlri ipv4/unicast add 10.0.0.0/24",
+		Update: "ipv4/unicast announce nlri add 10.0.0.0/24",
 	})
 	if out.Action == sdk.FilterReject {
 		st := plug.byASN[65001]
@@ -640,7 +640,7 @@ func TestFirstResolutionNotGatedOnPersistence(t *testing.T) {
 	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 		Filter: "bgp-filter-irr:65001",
 		Peer:   "127.0.0.1",
-		Update: "ipv4/unicast announce nlri ipv4/unicast add 10.0.0.0/24",
+		Update: "ipv4/unicast announce nlri add 10.0.0.0/24",
 	})
 	waited := time.Since(start)
 	close(keys.release)
@@ -698,7 +698,7 @@ func TestRefreshEmptyAnswerKeepsFilterList(t *testing.T) {
 	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 		Filter: "bgp-filter-irr:65001",
 		Peer:   "127.0.0.1",
-		Update: "ipv4/unicast announce nlri ipv4/unicast add 10.0.0.0/24",
+		Update: "ipv4/unicast announce nlri add 10.0.0.0/24",
 	})
 	if out.Action != sdk.FilterAccept {
 		t.Errorf("action = %v, want FilterAccept: the peer's prefix is still in the last-known-good list", out.Action)
@@ -727,7 +727,7 @@ func TestFilterFailClosedAfterEmptyResolution(t *testing.T) {
 	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 		Filter: "bgp-filter-irr:65002",
 		Peer:   "127.0.0.1",
-		Update: "ipv4/unicast announce nlri ipv4/unicast add 10.0.0.0/24",
+		Update: "ipv4/unicast announce nlri add 10.0.0.0/24",
 	})
 	if out.Action != sdk.FilterReject {
 		t.Errorf("action = %v, want FilterReject (fail-closed on empty list)", out.Action)
@@ -760,7 +760,7 @@ func TestFilterWaitIsBounded(t *testing.T) {
 		done <- plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 			Filter: "bgp-filter-irr:65003",
 			Peer:   "127.0.0.1",
-			Update: "ipv4/unicast announce nlri ipv4/unicast add 10.0.0.0/24",
+			Update: "ipv4/unicast announce nlri add 10.0.0.0/24",
 		})
 	}()
 

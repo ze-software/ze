@@ -6,6 +6,8 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/netip"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -130,6 +132,11 @@ type irrPlugin struct {
 	stopCh      chan struct{}
 	refreshStop chan struct{}
 	refreshing  atomic.Bool
+
+	// readmit holds the prefixes the filter rejected because the list did not
+	// authorize them yet (readmit.go). Nil in tests that build the plugin as a
+	// literal, where nothing is held.
+	readmit *readmitter
 }
 
 func runFilterIRR(conn net.Conn) int {
@@ -141,6 +148,7 @@ func runFilterIRR(conn net.Conn) int {
 		byASN:  make(map[uint32]*asnState),
 		stopCh: make(chan struct{}),
 	}
+	plug.readmit = newReadmitter(dispatchEngine{plugin: p}, plug, readmitRetryInterval)
 
 	// A plugin holding OnConfigure alone answers every config-apply OK and
 	// changes nothing, so a live IRR edit was accepted and ignored. The reload
@@ -165,6 +173,9 @@ func runFilterIRR(conn net.Conn) int {
 		cfg := plug.config
 		refreshStop := plug.refreshStop
 		plug.mu.Unlock()
+		// The re-admission worker lives as long as the plugin, across every
+		// configure cycle, and stops with stopCh.
+		go plug.readmit.run(plug.stopCh)
 		if ps == nil {
 			return nil
 		}
@@ -296,6 +307,29 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 
 	plug.loadFromStore()
 
+	// A prefix held for a peer this config no longer filters under that ASN
+	// has no list to be re-evaluated against, and no peer to ask.
+	if plug.readmit != nil {
+		owners := make(map[heldOwner]struct{}, len(cfg.Peers))
+		for i := range cfg.Peers {
+			peer := &cfg.Peers[i]
+			if peer.enrolled() && peer.RemoteIP.IsValid() {
+				owners[heldOwner{peer: peer.RemoteIP, asn: peer.RemoteASN}] = struct{}{}
+			}
+		}
+		plug.readmit.retain(owners)
+	}
+	for _, name := range peersMissingRefreshGrant(cfg) {
+		logger().Warn("irr: a route this peer sends before its IRR list authorizes it stays rejected until the peer sends it again: the peer does not let bgp-filter-irr ask it for its routes",
+			"peer", name,
+			"action", "add `attach process bgp-filter-irr { send [ refresh ] }` to this peer, or to its group")
+	}
+	for _, name := range peersMissingRouteRefresh(cfg) {
+		logger().Warn("irr: a route this peer sends before its IRR list authorizes it stays rejected until the peer sends it again: ze does not advertise Route Refresh to this peer, so the capability is never negotiated and bgp-filter-irr cannot ask the peer for its routes",
+			"peer", name,
+			"action", "add `capability { route-refresh enable }` to this peer, or to its group, and enable Route Refresh on the peer's side too; the capability is negotiated when the session next comes up")
+	}
+
 	// Resolve every enrolled ASN ONCE in the background, NOT inline. configure
 	// runs inside the plugin startup handshake, gated by the engine's stage
 	// barrier. A synchronous first resolution here would make ze's startup
@@ -394,14 +428,39 @@ func (plug *irrPlugin) handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.Filter
 		plug.mu.RUnlock()
 	}
 
-	if list == nil || len(list.entries) == 0 {
-		logger().Info("irr filter reject", "filter", in.Filter, "peer", in.Peer, "reason", "no-prefix-list")
-		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
-	}
-
 	nlriField := extractNLRIField(in.Update)
-	partition := list.partitionUpdate(nlriField)
+	var partition partitionResult
+	var out *sdk.FilterUpdateOutput
+	if list == nil || len(list.entries) == 0 {
+		// Every announced prefix is rejected: the list that may authorize it
+		// is not here yet. The worker holds each one for when it arrives.
+		var none irrPrefixList
+		partition = none.partitionUpdate(nlriField)
+		out = judgeUnlisted(in, nlriField, &partition)
+	} else {
+		partition = list.partitionUpdate(nlriField)
+		out = judgeListed(in, nlriField, &partition)
+	}
+	// A whole reject drops every announced prefix, the admitted ones too, so
+	// every one is held for the next pass to ask for again.
+	plug.trackVerdict(in.Peer, asn, st != nil, &partition, out.Action == sdk.FilterReject)
+	return out
+}
 
+// judgeUnlisted decides an UPDATE for an ASN that has no list yet: every
+// announced prefix is rejected, and the withdrawals still go through.
+func judgeUnlisted(in *sdk.FilterUpdateInput, nlriField string, partition *partitionResult) *sdk.FilterUpdateOutput {
+	if out, kept := keepWithdrawals(partition); kept {
+		logger().Info("irr filter keeps the withdrawals", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField,
+			"verdict", out.Action, "reason", "no-prefix-list")
+		return out
+	}
+	logger().Info("irr filter reject", "filter", in.Filter, "peer", in.Peer, "reason", "no-prefix-list")
+	return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
+}
+
+// judgeListed decides an UPDATE against the ASN's list.
+func judgeListed(in *sdk.FilterUpdateInput, nlriField string, partition *partitionResult) *sdk.FilterUpdateOutput {
 	// No prefixes (attrs-only update): accept -- nothing reachable to filter.
 	if len(partition.accepted) == 0 && len(partition.rejected) == 0 && !partition.hadParseError {
 		logger().Info("irr filter accept", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField)
@@ -414,8 +473,14 @@ func (plug *irrPlugin) handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.Filter
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 
-	// Every prefix out of list: reject the whole update.
+	// Every announced prefix out of list: drop the announcements, keep the
+	// withdrawals when the engine can, else reject the whole update.
 	if len(partition.accepted) == 0 {
+		if out, kept := keepWithdrawals(partition); kept {
+			logger().Info("irr filter keeps the withdrawals", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField,
+				"verdict", out.Action, "rejected", len(partition.rejected))
+			return out
+		}
 		logger().Info("irr filter reject", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField)
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
@@ -426,12 +491,104 @@ func (plug *irrPlugin) handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.Filter
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
 	}
 
+	// Mixed, with a rejected prefix the engine cannot drop: it rewrites the
+	// legacy NLRI and the MP_REACH_NLRI of a CIDR family, and refuses a changed
+	// block of any other family, so a rejected FlowSpec destination, say, has no
+	// modify that drops it. Fail closed.
+	if !partition.rewritable() {
+		logger().Info("irr filter reject", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField,
+			"reason", "rejected-prefix-in-unrewritable-block")
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
+	}
+
 	// Mixed: keep the in-list prefixes, drop the unauthorized ones via a modify
 	// delta carrying only the accepted subset.
-	delta := buildModifyDelta(partition)
+	delta := buildModifyDelta(*partition)
 	logger().Info("irr filter modify", "filter", in.Filter, "peer", in.Peer,
 		"accepted", len(partition.accepted), "rejected", len(partition.rejected), "nlri", nlriField)
 	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Update: delta}
+}
+
+// RFC 4271 Section 9: "If the UPDATE message contains a non-empty WITHDRAWN
+// ROUTES field, the previously advertised routes, whose destinations
+// (expressed as IP prefixes) are contained in this field, SHALL be removed
+// from the Adj-RIB-In."
+//
+// keepWithdrawals answers an UPDATE that announces no prefix the filter
+// accepts, and reports false when it carries no withdrawal to keep or the
+// engine cannot keep it. The engine drops a rejected UPDATE whole, its
+// withdrawals with it. A withdrawal alone is accepted. Beside rejected
+// announcements it is kept by a modify whose delta holds the withdraw blocks
+// alone, which the engine reads as an empty legacy NLRI section and an
+// MP_REACH_NLRI with no prefix left, which it removes (reactor
+// filter_nlri_delta.go, sectionNLRIDelta). A rejected prefix in a block the
+// engine cannot rewrite, an MP_REACH_NLRI of a non-CIDR family (rewritable),
+// keeps the UPDATE a whole reject. Callers MUST have ruled out a parse error
+// and an accepted prefix first.
+func keepWithdrawals(partition *partitionResult) (*sdk.FilterUpdateOutput, bool) {
+	if partition.hadParseError {
+		return nil, false
+	}
+	if !slices.ContainsFunc(partition.blocks, func(block nlriBlock) bool { return block.withdraws() }) {
+		return nil, false
+	}
+	if len(partition.rejected) == 0 {
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}, true
+	}
+	if !partition.rewritable() {
+		return nil, false
+	}
+	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Update: buildModifyDelta(*partition)}, true
+}
+
+// trackVerdict tells the re-admission worker what one UPDATE's verdict did to
+// the prefixes it holds. A withdrawal drops them, an accepted prefix is no
+// longer held, and a rejected one is held until its ASN's list authorizes it.
+// rejectWhole marks an UPDATE the filter rejected whole, whose admitted
+// prefixes were dropped too and are held with the rest. Only an ASN this
+// config enrolls holds anything: no refresh of any other ASN ever runs, so its
+// hold could only leak. An UPDATE the filter could not parse holds nothing,
+// because nothing in it can be evaluated again.
+func (plug *irrPlugin) trackVerdict(peerAddr string, asn uint32, enrolled bool, partition *partitionResult, rejectWhole bool) {
+	if plug.readmit == nil {
+		return
+	}
+	if partition.hadParseError {
+		return
+	}
+	// The path almost every UPDATE takes: nothing to hold and nothing held. The
+	// count is atomic, so this path takes no lock.
+	holds := enrolled && (len(partition.rejected) > 0 || rejectWhole && len(partition.accepted) > 0)
+	if !holds && plug.readmit.heldCount() == 0 {
+		return
+	}
+	peer, err := netip.ParseAddr(peerAddr)
+	if err != nil {
+		// The engine names the peer by its address; a name that is not one
+		// identifies nothing the worker could ask a ROUTE-REFRESH of.
+		logger().Debug("irr: filter UPDATE names no peer address, nothing held", "peer", peerAddr)
+		return
+	}
+	for i := range partition.blocks {
+		plug.readmit.track(peer, asn, enrolled, &partition.blocks[i], rejectWhole)
+	}
+}
+
+// heldList serves the re-admission worker the ASN's current list
+// (readmitSource).
+func (plug *irrPlugin) heldList(asn uint32) (*irrPrefixList, bool) {
+	plug.mu.RLock()
+	defer plug.mu.RUnlock()
+	st := plug.byASN[asn]
+	if st == nil {
+		return nil, false
+	}
+	return st.list, st.list == nil || st.lastErr != ""
+}
+
+// resolveHeld resolves the ASN for the re-admission worker (readmitSource).
+func (plug *irrPlugin) resolveHeld(asn uint32) {
+	plug.refreshASN(asn)
 }
 
 func extractASNFromFilter(filter string) uint32 {
@@ -573,6 +730,12 @@ func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 	st.signalFirstResolved()
 	plug.lastRefresh = now
 	plug.mu.Unlock()
+
+	// A list that arrived or changed may now authorize a prefix the filter
+	// rejected, so the re-admission worker checks what it holds.
+	if plug.readmit != nil {
+		plug.readmit.notify()
+	}
 
 	logger().Info("irr: refreshed", "asn", asn, "as-set", entry.ASSet, "v4", len(pl.IPv4), "v6", len(pl.IPv6))
 	incRefreshOutcome("success")

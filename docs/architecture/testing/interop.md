@@ -1794,6 +1794,13 @@ ICMPv6 error ze's kernel generates about the session, and its TCPMinTTLDrop coun
 what goes red when ze's host-route metric is absent), AS112, the RFC 7454 Section 9 transit leak
 (`bgp-path-asn-leak-frr` gives FRR two prefixes that differ only in their AS_PATH, and requires
 ze to drop the one reached through a listed transit ASN, keep the other, and keep the session),
+an import prefix-list over multiprotocol UPDATEs (`bgp-policy-modify-mp-frr`: the raw injector
+sends each case as one UPDATE, an IPv6 MP_REACH_NLRI with one prefix kept and one refused, IPv4
+unicast inside MP_REACH_NLRI, an all-refused MP_REACH_NLRI, and thirty kept /64s with one refused
+so the rebuilt attribute is 291 octets, then an MP_UNREACH_NLRI for the kept /48; FRR, behind
+the OPEN-only relay at .11, must hold exactly the kept prefixes and lose the withdrawn one, and
+the relay's capture of Ze's frames must show the extended-length MP_REACH_NLRI and no
+MP_REACH_NLRI without NLRI),
 next-hop self under `local ip auto` (`bgp-nexthop-self-local-auto-frr` configures no local
 address toward FRR, and requires FRR to hold both ze's own route and a route relayed from a raw
 injector with NEXT_HOP 172.30.0.2, ze's connected endpoint, never the injector's 172.30.0.9),

@@ -160,10 +160,21 @@ One gate rather than one guard per rule, for four reasons:
 - One producer lives in a plugin package that cannot see a reactor-local flag.
 - The question must be asked of the body the rebuild WRITES. An export chain that
   denies every prefix passes an empty `nlriOverride`, so a source-only reading
-  calls an emptying body an advertisement.
+  calls an emptying body an advertisement. The same holds for MP_REACH_NLRI: an
+  `AttrModReplaceNLRI` op that empties its NLRI drops the attribute, so a body
+  whose only advertisement was that MP_REACH_NLRI counts as not advertising
+  (`advertiseGate.mpReachWritten`).
 
-`wireu.PayloadAdvertisesNLRI` is the single definition of the question. It is
-asked lazily, so a rebuild that only rewrites existing attributes never asks.
+The question has two implementations, and a test holds them together.
+`wireu.PayloadAdvertisesNLRI` answers it for a payload in hand, for callers that
+hold nothing else (`ASPathEdit.Record`, the RFC 9234 OTC gate).
+`advertiseGate.advertises` answers it inside the rebuild from values
+`buildModifiedPayload` already computed (the attribute end, the span index), and
+applies the legacy NLRI override and the `AttrModReplaceNLRI` ops on top, because
+the body it asks about is not written yet.
+`TestAdvertiseGateAgreesWithPayloadAdvertisesNLRI` runs both over every source
+shape with no override and no op. The gate is asked lazily, so a rebuild that
+only rewrites existing attributes never asks.
 When every code is refused the rebuild reports "nothing to apply". A relayed
 withdrawal therefore keeps the zero-copy forward path.
 
@@ -175,8 +186,9 @@ already carries, so it is a MODIFY and the gate passes it. The ATTR_TOMBSTONE th
 records the discard is a CREATE, so on a body with no reachable NLRI the gate refuses
 it. A withdrawal loses the record of the discard, never the discard.
 
-<!-- source: internal/component/bgp/wireu/advertise.go -- PayloadAdvertisesNLRI, the one definition -->
-<!-- source: internal/component/bgp/reactor/forward_build.go -- advertiseGate, planAttr create-versus-modify gate -->
+<!-- source: internal/component/bgp/wireu/advertise.go -- PayloadAdvertisesNLRI, the payload-only implementation -->
+<!-- source: internal/component/bgp/reactor/forward_build.go -- advertiseGate, advertiseGate.mpReachWritten, planAttr create-versus-modify gate -->
+<!-- source: internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go -- TestAdvertiseGateAgreesWithPayloadAdvertisesNLRI -->
 <!-- source: internal/component/bgp/wireu/aspath_slot.go -- ASPathEdit.Record, recordAggregatorDiscard, the AS_PATH half -->
 <!-- source: test/interop/scenarios/bgp-relay-withdraw-nexthop-self-frr -- FRR accepts the withdrawal with next-hop-self on -->
 <!-- source: test/interop/scenarios/bgp-relay-withdraw-reflector-frr -- FRR accepts the reflected withdrawal -->

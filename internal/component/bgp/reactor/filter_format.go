@@ -5,24 +5,38 @@
 package reactor
 
 import (
-	"net/netip"
 	"reflect"
 
+	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
+// The tokens of an NLRI block in the filter text. A block is
+// "nlri add|del [<prefix>...]" for the legacy NLRI and Withdrawn Routes of
+// RFC 4271, always IPv4 unicast and so with no family token, or
+// "mp <family> add|del [<prefix>...]" for an MP_REACH_NLRI or MP_UNREACH_NLRI
+// attribute of RFC 4760, whatever its family, IPv4 unicast included. The
+// keyword ("nlri", policyAttrNLRI, or "mp", policyAttrMP) names the section a
+// block came from, so a modify answer rewrites that section alone
+// (filter_nlri_delta.go). nlriOpAdd announces and nlriOpDel withdraws.
+const (
+	nlriOpAdd = "add"
+	nlriOpDel = "del"
+)
+
 // AppendUpdateForFilter appends the filter-text rendering of an UPDATE
 // (attributes + NLRI) into buf and returns the extended slice. The format is:
 //
-//	"<attr> <val> ... nlri <family> <op> [<prefix>...]"
+//	"<attr> <val> ... [nlri add <prefix>...] [nlri del <prefix>...] [mp <family> add|del [<prefix>...]]..."
 //
-// Legacy IPv4-unicast NLRI (from the UPDATE's NLRI and Withdrawn-Routes
-// sections) is emitted as "nlri ipv4/unicast add|del <prefix>...". MP_REACH_NLRI
-// and MP_UNREACH_NLRI attributes (RFC 4760) are emitted with their own family
-// tokens. Each family is a separate "nlri <family> <op> ..." block.
+// The legacy NLRI section is emitted as "nlri add <prefix>..." and the legacy
+// Withdrawn Routes as "nlri del <prefix>...". MP_REACH_NLRI and MP_UNREACH_NLRI
+// attributes (RFC 4760) are emitted as "mp <family> add|del ...", so IPv4
+// unicast carried in MP_REACH_NLRI is told apart from the legacy NLRI field.
+// Each section is a block of its own.
 //
 // For families whose NLRI is a plain CIDR prefix (unicast, multicast,
 // mpls-label in AFI IPv4/IPv6), the prefix list is emitted inline so text-
@@ -53,106 +67,75 @@ func AppendUpdateForFilter(buf []byte, attrs *attribute.AttributesWire, wireUpda
 	}
 	ctx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
 
-	// Legacy IPv4 unicast NLRI (RFC 4271 Section 4.3).
+	v4AddPath := ctx != nil && ctx.AddPath(family.IPv4Unicast)
+	// RFC 4271 Section 4.3: the legacy Network Layer Reachability Information.
 	if raw, err := wireUpdate.NLRI(); err == nil && len(raw) > 0 {
-		if prefixes := wireu.ParseIPv4Prefixes(raw); len(prefixes) > 0 {
-			if len(buf) > start {
-				buf = append(buf, ' ')
-			}
-			buf = appendNLRIBlock(buf, "ipv4/unicast", "add", prefixes)
-		}
+		buf = appendLegacyBlock(buf, nlriOpAdd, raw, v4AddPath, false, len(buf) == start)
 	}
-	// Legacy IPv4 unicast withdrawn (RFC 4271 Section 4.3 Withdrawn Routes).
+	// RFC 4271 Section 4.3: the legacy Withdrawn Routes.
 	if raw, err := wireUpdate.Withdrawn(); err == nil && len(raw) > 0 {
-		if prefixes := wireu.ParseIPv4Prefixes(raw); len(prefixes) > 0 {
-			if len(buf) > start {
-				buf = append(buf, ' ')
-			}
-			buf = appendNLRIBlock(buf, "ipv4/unicast", "del", prefixes)
-		}
+		buf = appendLegacyBlock(buf, nlriOpDel, raw, v4AddPath, true, len(buf) == start)
 	}
 
 	// MP_REACH_NLRI and MP_UNREACH_NLRI (RFC 4760).
 	if mp, err := wireUpdate.MPReach(); err == nil && mp != nil {
 		if isFlowSpecFamily(mp.Family()) {
-			buf = appendFlowSpecFilterBlock(buf, mp.Family(), "add", mp.NLRIBytes(), ctx != nil && ctx.AddPath(mp.Family()), len(buf) == start)
+			buf = appendFlowSpecFilterBlock(buf, mp.Family(), nlriOpAdd, mp.NLRIBytes(), ctx != nil && ctx.AddPath(mp.Family()), len(buf) == start)
 		} else {
-			buf = appendMPBlock(buf, mp.Family(), "add", mp.Prefixes(), len(buf) == start)
+			buf = appendMPBlock(buf, mp.Family(), nlriOpAdd, mp.NLRIBytes(), ctx != nil && ctx.AddPath(mp.Family()), len(buf) == start)
 		}
 	}
 	if mpu, err := wireUpdate.MPUnreach(); err == nil && mpu != nil {
 		if isFlowSpecFamily(mpu.Family()) {
-			buf = appendFlowSpecFilterBlock(buf, mpu.Family(), "del", mpu.WithdrawnBytes(), ctx != nil && ctx.AddPath(mpu.Family()), len(buf) == start)
+			buf = appendFlowSpecFilterBlock(buf, mpu.Family(), nlriOpDel, mpu.WithdrawnBytes(), ctx != nil && ctx.AddPath(mpu.Family()), len(buf) == start)
 		} else {
-			buf = appendMPBlock(buf, mpu.Family(), "del", mpu.Prefixes(), len(buf) == start)
+			buf = appendMPBlock(buf, mpu.Family(), nlriOpDel, mpu.WithdrawnBytes(), ctx != nil && ctx.AddPath(mpu.Family()), len(buf) == start)
 		}
 	}
 
 	return buf
 }
 
-// appendMPBlock appends one MP_REACH / MP_UNREACH NLRI section. For CIDR-prefix
-// families (unicast/multicast/mpls-label in IPv4/IPv6) the prefixes are
-// included inline. For non-CIDR families a marker block with no prefixes is
-// emitted so text-mode filters still learn that the family is present;
-// filters needing per-NLRI decisions must declare raw=true. bufEmpty is true
-// when buf currently has no appended content since the outer call began; no
-// leading space separator is emitted in that case.
-func appendMPBlock(buf []byte, fam family.Family, op string, prefixes []netip.Prefix, bufEmpty bool) []byte {
-	if isCIDRFamily(fam) {
-		if len(prefixes) == 0 {
-			return buf
-		}
-		if !bufEmpty {
-			buf = append(buf, ' ')
-		}
-		return appendNLRIBlock(buf, fam.String(), op, prefixes)
-	}
-	// Non-CIDR: marker block, prefixes intentionally omitted.
+// appendLegacyBlock appends the "nlri add|del <prefix>..." block of the legacy
+// NLRI (op add) or Withdrawn Routes (op del) section. bufEmpty is true when buf
+// has no content appended since the outer call began; no leading space
+// separator is emitted then.
+func appendLegacyBlock(buf []byte, op string, section []byte, addPath, withdraw, bufEmpty bool) []byte {
 	if !bufEmpty {
 		buf = append(buf, ' ')
 	}
-	buf = append(buf, "nlri "...)
+	buf = append(buf, policyAttrNLRI...)
+	buf = append(buf, ' ')
+	buf = append(buf, op...)
+	return appendCIDRPrefixes(buf, family.IPv4Unicast, section, addPath, withdraw)
+}
+
+// appendMPBlock appends one MP_REACH_NLRI (op add) or MP_UNREACH_NLRI (op del)
+// section, whose NLRI or Withdrawn Routes field is section, as an
+// "mp <family> <op>" block. For CIDR-prefix families (unicast, multicast,
+// mpls-label in IPv4/IPv6) the prefixes are included inline, and a section with
+// none (an End-of-RIB MP_UNREACH_NLRI) emits no block. For non-CIDR families a
+// marker block with no prefixes is emitted so text-mode filters still learn
+// that the family is present; filters needing per-NLRI decisions must declare
+// raw=true. bufEmpty is true when buf has no content appended since the outer
+// call began; no leading space separator is emitted then.
+func appendMPBlock(buf []byte, fam family.Family, op string, section []byte, addPath, bufEmpty bool) []byte {
+	cidr := filtertext.CIDRFamily(fam)
+	if cidr && len(section) == 0 {
+		return buf
+	}
+	if !bufEmpty {
+		buf = append(buf, ' ')
+	}
+	buf = append(buf, policyAttrMP...)
+	buf = append(buf, ' ')
 	buf = append(buf, fam.String()...)
 	buf = append(buf, ' ')
 	buf = append(buf, op...)
-	return buf
-}
-
-// cidrSAFIs is the set of SAFIs whose NLRI wire format is a plain CIDR
-// prefix parseable by `wireu.ParsePrefixes`. Declared as a map so the
-// exhaustive linter does not flag the bounded check in isCIDRFamily.
-var cidrSAFIs = map[family.SAFI]struct{}{
-	family.SAFIUnicast:   {},
-	family.SAFIMulticast: {},
-	family.SAFIMPLSLabel: {},
-}
-
-// isCIDRFamily reports whether `fam` is an address family whose NLRI wire
-// format is a plain CIDR prefix. Covers IPv4/IPv6 unicast, multicast, and
-// mpls-label (RFC 8277). Everything else (EVPN, Flowspec, VPN, BGP-LS,
-// MVPN, MUP, RTC, ...) has a family-specific NLRI encoding and is therefore
-// marker-only in the filter text protocol.
-func isCIDRFamily(fam family.Family) bool {
-	if fam.AFI != family.AFIIPv4 && fam.AFI != family.AFIIPv6 {
-		return false
+	if !cidr {
+		return buf // Non-CIDR: marker block, prefixes intentionally omitted.
 	}
-	_, ok := cidrSAFIs[fam.SAFI]
-	return ok
-}
-
-// appendNLRIBlock appends one "nlri <family> <op> <prefix>..." block to buf.
-// prefixes are rendered via netip.Prefix.AppendTo (zero-alloc on warm buf).
-func appendNLRIBlock(buf []byte, fam, op string, prefixes []netip.Prefix) []byte {
-	buf = append(buf, "nlri "...)
-	buf = append(buf, fam...)
-	buf = append(buf, ' ')
-	buf = append(buf, op...)
-	for _, p := range prefixes {
-		buf = append(buf, ' ')
-		buf = p.AppendTo(buf)
-	}
-	return buf
+	return appendCIDRPrefixes(buf, fam, section, addPath, op == nlriOpDel)
 }
 
 // attrNameToCode maps filter text attribute names to wire codes.

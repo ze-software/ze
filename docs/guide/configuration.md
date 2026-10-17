@@ -1628,6 +1628,14 @@ data in zefs (not in the config tree) and survive restarts.
 | `update bgp irr asn <asn>` | Refresh a specific ASN |
 | `update bgp irr as-set <as-set>` | Refresh peers using a specific AS-SET |
 
+A route that the filter rejected before its list arrived, or that the old list did not hold, is evaluated again when a new list authorizes it. The filter asks the peer for the route with a ROUTE-REFRESH, so each IRR-filtered peer needs this line in its block:
+
+```text
+attach process bgp-filter-irr { send [ refresh ] }
+```
+
+The page [IRR filtering](irr-filtering.md) describes how this works.
+
 <!-- source: internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang -- IRR filter YANG schema -->
 <!-- source: internal/component/bgp/plugins/filter_irr/config.go -- parseIRRConfig -->
 <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- runFilterIRR, handleFilterUpdate, handleConfigure -->

@@ -11,9 +11,9 @@
 # 1. ze-peer sends UPDATE with three prefixes: 10.0.1.0/24 (accept),
 #    10.0.2.0/24 (accept), 192.168.1.0/24 (reject).
 # 2. bgp-filter-prefix partitions into accepted/rejected and returns
-#    action=modify with delta nlri = "ipv4/unicast add 10.0.1.0/24 10.0.2.0/24".
-# 3. Engine's extractLegacyNLRIOverride computes the wire NLRI bytes for the
-#    accepted subset and passes them to buildModifiedPayload.
+#    action=modify with delta "nlri add 10.0.1.0/24 10.0.2.0/24".
+# 3. Engine's sectionNLRIDelta takes the accepted subset from the source NLRI
+#    bytes and passes it to buildModifiedPayload as the override.
 # 4. The resulting UPDATE carries only the accepted prefixes.
 # 5. Assertions on stderr logs: the "prefix-list modify" decision line with
 #    accepted=2 / rejected=1 counts.

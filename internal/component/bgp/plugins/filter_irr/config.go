@@ -3,11 +3,14 @@
 package filter_irr
 
 import (
+	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/resolve/irr"
+	"github.com/ze-software/ze/internal/core/events"
 )
 
 // pluginName is the registered plugin name (register.go). It is also the
@@ -38,6 +41,22 @@ type peerIRRConfig struct {
 	RemoteASN uint32
 	ASSet     string
 	Disabled  bool
+
+	// RemoteIP is the peer's address (connection > remote > ip), the key the
+	// engine names the peer by in a filter UPDATE. PeerAddr is the config
+	// list key, which is the peer's NAME. Invalid when the config states none.
+	RemoteIP netip.Addr
+
+	// RefreshGrant reports whether the peer, or its group, attaches this
+	// plugin with `send [ refresh ]`, without which the engine refuses the
+	// ROUTE-REFRESH the re-admission worker asks for (readmit.go).
+	RefreshGrant bool
+
+	// RouteRefresh reports whether ze advertises the Route Refresh capability
+	// to the peer: its `capability > route-refresh`, or its group's, is enable
+	// or require (reactor config_capabilities.go). Without it the capability
+	// is never negotiated and the re-admission worker cannot ask the peer.
+	RouteRefresh bool
 
 	// UsesIRR reports whether this peer actually opted into IRR filtering,
 	// either by naming a bgp-filter-irr entry in a filter chain that applies to
@@ -94,10 +113,126 @@ func parseIRRConfig(bgpCfg map[string]any) *irrConfig {
 			chainReferencesIRR(groupMap) ||
 			chainReferencesIRR(peerMap) ||
 			p.ASSet != ""
+		if ip, err := netip.ParseAddr(configjson.PeerRemoteIP(peerMap, groupMap)); err == nil {
+			p.RemoteIP = ip
+		}
+		p.RefreshGrant = grantsRefresh(peerMap, groupMap)
+		p.RouteRefresh = advertisesRouteRefresh(peerMap, groupMap)
 		cfg.Peers = append(cfg.Peers, p)
 	})
 
 	return cfg
+}
+
+// enrolled reports whether configure enrolls the peer for IRR filtering.
+func (p *peerIRRConfig) enrolled() bool {
+	if p.Disabled {
+		return false
+	}
+	return p.UsesIRR
+}
+
+// sendRefresh is the `send` list word that lets a process ask the engine for a
+// ROUTE-REFRESH (reactor send_permission.go).
+const sendRefresh = "refresh"
+
+// grantsRefresh reports whether the peer's binding of this plugin carries
+// `send [ refresh ]` or `send [ * ]`, the wildcard that grants every type
+// (reactor parseOneSendFlag). ResolveBGPTree merges the peer over its group
+// key by key, and `send` is not cumulative (bgp/config/resolve.go
+// cumulativePaths), so the peer's own `send` list replaces the group's: the
+// group decides only when the peer's binding states none.
+func grantsRefresh(peerMap, groupMap map[string]any) bool {
+	if send, stated := bindingSend(peerMap); stated {
+		return grantsRefreshWord(send)
+	}
+	if send, stated := bindingSend(groupMap); stated {
+		return grantsRefreshWord(send)
+	}
+	return false
+}
+
+// bindingSend returns the `send` list of this plugin's binding at one config
+// level, and whether that level states one.
+func bindingSend(m map[string]any) ([]string, bool) {
+	attach, ok := m["attach"].(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	processes, ok := attach["process"].(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	binding, ok := processes[pluginName].(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	raw, stated := binding["send"]
+	if !stated {
+		return nil, false
+	}
+	return toStringList(raw), true
+}
+
+func grantsRefreshWord(send []string) bool {
+	if slices.Contains(send, events.TokenWildcard) {
+		return true
+	}
+	return slices.Contains(send, sendRefresh)
+}
+
+// advertisesRouteRefresh reports whether ze advertises Route Refresh to the
+// peer. The peer's `capability > route-refresh` decides when it is set, and
+// its group's otherwise, as ResolveBGPTree merges the capability container key
+// by key. Absent means disabled (reactor config_capabilities.go).
+func advertisesRouteRefresh(peerMap, groupMap map[string]any) bool {
+	for _, level := range []map[string]any{peerMap, groupMap} {
+		capabilities, ok := level["capability"].(map[string]any)
+		if !ok {
+			continue
+		}
+		mode, stated := capabilities["route-refresh"].(string)
+		if !stated {
+			continue
+		}
+		// The two modes that advertise; disable and refuse do not.
+		return mode == "enable" || mode == "require"
+	}
+	return false
+}
+
+// peersMissingRouteRefresh names every enrolled peer to which ze does not
+// advertise Route Refresh, so the filter can never ask it for its routes again.
+func peersMissingRouteRefresh(cfg *irrConfig) []string {
+	var names []string
+	for i := range cfg.Peers {
+		peer := &cfg.Peers[i]
+		if !peer.enrolled() {
+			continue
+		}
+		if peer.RouteRefresh {
+			continue
+		}
+		names = append(names, peer.PeerAddr)
+	}
+	return names
+}
+
+// peersMissingRefreshGrant names every enrolled peer that does not let this
+// plugin ask it for its routes again.
+func peersMissingRefreshGrant(cfg *irrConfig) []string {
+	var names []string
+	for i := range cfg.Peers {
+		peer := &cfg.Peers[i]
+		if !peer.enrolled() {
+			continue
+		}
+		if peer.RefreshGrant {
+			continue
+		}
+		names = append(names, peer.PeerAddr)
+	}
+	return names
 }
 
 // chainReferencesIRR reports whether the import or export filter chain at one

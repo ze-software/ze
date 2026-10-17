@@ -535,8 +535,8 @@ func TestAdvertiseGateAgreesWithPayloadAdvertisesNLRI(t *testing.T) {
 //
 // PREVENTS: the hole an independent review found on 2026-08-04. The first
 // version corrected only the emptying direction, so a filter whose
-// `nlri ipv4/unicast add` block is not a subset of the source (which
-// extractLegacyNLRIOverride never proves, filter_delta.go) produced a body that
+// legacy announce block is not a subset of the source (which its producer then,
+// extractLegacyNLRIOverride, never proved) produced a body that
 // advertised NLRI with the policy's attribute silently missing, and reported
 // modifyFailureNone while doing it.
 func TestRelayCreatesTheAttributeWhenAnOverrideAddsNLRI(t *testing.T) {

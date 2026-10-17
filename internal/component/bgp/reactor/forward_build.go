@@ -81,18 +81,35 @@ type advertiseGate struct {
 	attrEnd      int
 	nlriOverride []byte
 	spans        *attribute.SpanIndex
+	ops          []filterapi.AttrOp
 	known        bool
 	value        bool
+}
+
+// mpReachWritten reports whether the body this rebuild writes keeps an
+// MP_REACH_NLRI: the source carries one and no AttrModReplaceNLRI op empties it
+// (mpReachNextHopHandler drops an MP_REACH_NLRI whose every NLRI was refused).
+func (g *advertiseGate) mpReachWritten() bool {
+	if _, found := g.spans.Find(attribute.AttrMPReachNLRI); !found {
+		return false
+	}
+	idx := -1
+	for i := range g.ops {
+		if g.ops[i].Code == uint8(attribute.AttrMPReachNLRI) && g.ops[i].Action == filterapi.AttrModReplaceNLRI {
+			idx = i
+		}
+	}
+	return idx < 0 || len(g.ops[idx].Buf) > 0
 }
 
 // advertises reports whether the body this rebuild WRITES carries reachable
 // NLRI.
 //
 // The legacy NLRI section it asks about is the one being written, which is the
-// override when the caller supplies one. A filter's `nlri ipv4/unicast add`
-// block is never proven a subset of the source (extractLegacyNLRIOverride,
-// filter_delta.go), so BOTH directions matter: an override can empty a body that
-// advertised, and it can fill one that did not.
+// override when the caller supplies one. sectionNLRIDelta (filter_nlri_delta.go)
+// proves a filter's `nlri add` override a subset of the source, but this
+// function takes an override from any caller, so BOTH directions matter: an
+// override can empty a body that advertised, and it can fill one that did not.
 func (g *advertiseGate) advertises() bool {
 	if g.known {
 		return g.value
@@ -107,7 +124,7 @@ func (g *advertiseGate) advertises() bool {
 			return g.value
 		}
 		// Every legacy prefix dropped. Only MP_REACH_NLRI can still advertise.
-		_, g.value = g.spans.Find(attribute.AttrMPReachNLRI)
+		g.value = g.mpReachWritten()
 		return g.value
 	}
 
@@ -118,7 +135,7 @@ func (g *advertiseGate) advertises() bool {
 	}
 	// No native NLRI, but an advertisement can still ride in MP_REACH_NLRI
 	// (RFC 4760 Section 3).
-	_, g.value = g.spans.Find(attribute.AttrMPReachNLRI)
+	g.value = g.mpReachWritten()
 	return g.value
 }
 
@@ -164,10 +181,10 @@ func (g *advertiseGate) advertises() bool {
 // slice means "drop every legacy NLRI prefix"; callers use this for the
 // per-prefix filter modify path when every prefix in the UPDATE was denied
 // but attributes remained intact. A nil slice preserves the original NLRI
-// copy. nlriOverride affects ONLY the legacy IPv4 NLRI section; MP_REACH /
-// MP_UNREACH rewriting is out of scope for this function (filter plugins
-// that need per-NLRI decisions on non-CIDR families must declare raw=true
-// and return a full payload rewrite themselves).
+// copy. nlriOverride affects ONLY the legacy IPv4 NLRI section. The NLRI of
+// MP_REACH_NLRI and MP_UNREACH_NLRI is rewritten by an AttrModReplaceNLRI op on
+// mods, applied by the registered handler of code 14 or 15 like any other
+// attribute edit (sectionNLRIDelta, filter_nlri_delta.go).
 //
 // Returns (modified payload, peerBufIdx, failure). peerBufIdx > 0 means the
 // returned slice is backed by pp and MUST be returned via pp.Return(peerBufIdx).
@@ -291,7 +308,7 @@ func buildModifiedPayloadWithLimit(
 	// advertises nothing. It is read from planAttr, the single place a handler
 	// runs, so a producer recording the operation cannot forget it and a plugin
 	// handler in another package inherits it.
-	gate := advertiseGate{payload: payload, attrEnd: attrEnd, nlriOverride: nlriOverride, spans: spans}
+	gate := advertiseGate{payload: payload, attrEnd: attrEnd, nlriOverride: nlriOverride, spans: spans, ops: ops}
 
 	// PLAN. One slot per touched code, in ascending code order because the
 	// operations are now sorted that way.

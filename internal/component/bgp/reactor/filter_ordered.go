@@ -232,8 +232,16 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 		if medRemoveHasWork(&modAttrs) {
 			ExtractMEDRemoveOps(&modAttrs, &importMods)
 		}
-		nlriOverride := extractLegacyNLRIOverride(values, updateText, res.Text)
-		if importMods.Len() > 0 || nlriOverride != nil {
+		nlriOverride, refusal, ok := sectionNLRIDelta(values, updateText, res.Text, wireUpdate, &importMods)
+		if !ok {
+			// A guard MISS, not an accept: the answer drops NLRI the engine
+			// cannot drop for it, so accepting would install the very
+			// prefixes the import policy refused.
+			fwdLogger().Warn("import filter: modify answer cannot be applied to the NLRI -- route dropped",
+				"peer", peerAddr.String(), "family", refusal.family, "reason", refusal.reason)
+			return ingressStepResult{} // accept == false: drop the route
+		}
+		if importMods.Len() > 0 || nlriOverride != nil || importMods.WithdrawnRewrite() != nil {
 			modPayload, _, modFail := buildModifiedPayload(payload, &importMods, r.attrModHandlers, nil, nlriOverride)
 			// recordModifyFailure counts AND says it: one rate-limited line
 			// through the bgp.reactor.forward subsystem logger, so this site
@@ -388,8 +396,15 @@ func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, 
 			ExtractRemovePrivateASOps(values, &modAttrs, attrsWire, asn4, destPeerAS, &exportMods)
 			ExtractASPathPrependOps(values, &modAttrs, attrsWire, asn4, destLocalAS, &exportMods)
 		}
-		nlriOverride := extractLegacyNLRIOverride(values, updateText, res.Text)
-		if exportMods.Len() > 0 || nlriOverride != nil {
+		nlriOverride, refusal, ok := sectionNLRIDelta(values, updateText, res.Text, wireUpdate, &exportMods)
+		if !ok {
+			// A guard MISS, not a policy decision: sending the route would
+			// advertise the prefixes the export policy refused.
+			fwdLogger().Warn("export filter: modify answer cannot be applied to the NLRI -- route suppressed",
+				"peer", destAddrStr, "family", refusal.family, "reason", refusal.reason)
+			return egressStepResult{failed: true} // accept == false: suppress for this peer
+		}
+		if exportMods.Len() > 0 || nlriOverride != nil || exportMods.WithdrawnRewrite() != nil {
 			modPayload, _, modFail := buildModifiedPayload(wireUpdate.Payload(), &exportMods, r.attrModHandlers, nil, nlriOverride)
 			// One rate-limited line, through the subsystem logger; see the
 			// matching call on the ingress chain above.

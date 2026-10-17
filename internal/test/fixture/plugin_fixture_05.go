@@ -27,6 +27,8 @@ func init() {
 	Register("plugin/community-relation-tag", p05CommunityRelationTag)
 	Register("plugin/community-scrub-own-ga", p05CommunityScrubOwnGA)
 	Register("plugin/community-strip", p05CommunityStrip)
+	// The same relay observer: it waits until dest-peer was sent the route.
+	Register("plugin/prefix-filter-modify-mp", p05CommunityStrip)
 	Register("plugin/community-tag", p05CommunityTag)
 	Register("plugin/concurrent-config-commit", p05ConcurrentConfigCommit)
 	Register("plugin/config-addpath-mode", p05ConfigAddpathMode)

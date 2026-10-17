@@ -1283,7 +1283,7 @@ registry after every phase completes, so the dispatch is guaranteed to resolve.
 ### The Attribute Names in the Filter Text Protocol
 
 `FilterUpdateInput.Update` is a space-separated list of `<name> <value>` pairs,
-followed by the `nlri` block. The engine renders one subject for the whole
+followed by the NLRI blocks (`nlri ...` and `mp ...`). The engine renders one subject for the whole
 chain, so every filter on a peer reads the same text.
 
 Thirteen attribute names can appear. An attribute the UPDATE does not carry
@@ -1350,12 +1350,12 @@ Flowspec, VPN, BGP-LS, MVPN, MUP, RTC, and any future family with a
 specialised NLRI encoding -- is classified non-CIDR.
 
 For non-CIDR families the engine emits a marker block of the form
-`nlri mp <family> <op>` (for example `nlri mp l2vpn/evpn add`) with NO prefixes.
+`mp <family> <op>` (for example `mp l2vpn/evpn add`) with NO prefixes.
 The marker tells a text-mode filter plugin that the family is present in
 the update without forcing the engine to generate a family-specific text
 format.
-<!-- source: internal/component/bgp/reactor/filter_format.go — AppendUpdateForFilter, appendNLRIBlock -->
-<!-- source: internal/component/bgp/reactor/filter_format.go — isCIDRFamily -->
+<!-- source: internal/component/bgp/reactor/filter_format.go — AppendUpdateForFilter, appendMPBlock -->
+<!-- source: internal/component/bgp/filtertext/cidr.go — CIDRFamily -->
 
 A filter plugin that needs per-NLRI decisions on a non-CIDR family MUST
 declare `raw=true` in its `FilterRegistration` and parse the wire payload
@@ -1367,8 +1367,8 @@ destinations within the family.
 
 | Family set | Filter text protocol emits | Filter requirement |
 |------------|----------------------------|---------------------|
-| CIDR (ipv4/ipv6 unicast / multicast / mpls-label) | `nlri mp <family> <op> <prefix>...` (prefixes inline) | `raw=false` works for text-mode per-prefix decisions |
-| Non-CIDR (EVPN, Flowspec, VPN, BGP-LS, MVPN, MUP, RTC, ...) | `nlri mp <family> <op>` (marker only; FlowSpec inlines its destination prefix) | `raw=true` required for per-NLRI decisions; text-only is advisory |
+| CIDR (ipv4/ipv6 unicast / multicast / mpls-label) | `mp <family> <op> <prefix>...` (prefixes inline) | `raw=false` works for text-mode per-prefix decisions |
+| Non-CIDR (EVPN, Flowspec, VPN, BGP-LS, MVPN, MUP, RTC, ...) | `mp <family> <op>` (marker only; FlowSpec inlines its destination prefix) | `raw=true` required for per-NLRI decisions; text-only is advisory |
 
 ### NLRI Blocks and the Modify Answer
 
@@ -1377,33 +1377,45 @@ attribute pair:
 
 | UPDATE section | Block |
 |----------------|-------|
-| NLRI field (RFC 4271 Section 4.3) | `nlri ipv4/unicast add <prefix>...` |
-| Withdrawn Routes field (RFC 4271 Section 4.3) | `nlri ipv4/unicast del <prefix>...` |
-| MP_REACH_NLRI (RFC 4760 Section 3) | `nlri mp <family> add ...` |
-| MP_UNREACH_NLRI (RFC 4760 Section 4) | `nlri mp <family> del ...` |
+| NLRI field (RFC 4271 Section 4.3) | `nlri add <prefix>...` |
+| Withdrawn Routes field (RFC 4271 Section 4.3) | `nlri del <prefix>...` |
+| MP_REACH_NLRI (RFC 4760 Section 3) | `mp <family> add ...` |
+| MP_UNREACH_NLRI (RFC 4760 Section 4) | `mp <family> del ...` |
 
-The `mp` marker names the section a block came from. IPv4 unicast can arrive
-in the NLRI field or in an MP_REACH_NLRI, and without the marker the two blocks
-read the same. A plugin MUST split the value at each `nlri` token and read
-`mp` before the family.
-<!-- source: internal/component/bgp/reactor/filter_format.go -- AppendUpdateForFilter, appendMPBlock, nlriMPMarker -->
+The keyword names the section a block came from. The legacy fields of RFC 4271
+carry only IPv4 unicast, so an `nlri` block has no family token. An `mp` block
+always names its family, IPv4 unicast included: IPv4 unicast can arrive in the
+NLRI field or in an MP_REACH_NLRI, and the keyword tells the two apart. A
+plugin MUST split the value at each `nlri` and `mp` token. An example subject:
+`origin igp nlri add 10.0.0.0/24 nlri del 10.9.0.0/24 mp ipv6/unicast add 2001:db8::/32`.
 
-A `modify` answer that carries `nlri` replaces the whole NLRI value, so it
-carries every block it keeps. The engine rewrites each section from its own
-block:
+Each CIDR prefix is the prefix alone. An ADD-PATH path identifier and an
+RFC 8277 label stack are not rendered, and the engine keeps them when it
+rewrites the section. A section that does not parse ends its block with the
+token `invalid`.
+<!-- source: internal/component/bgp/reactor/filter_format.go -- AppendUpdateForFilter, appendLegacyBlock, appendMPBlock -->
+<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- appendCIDRPrefixes, cidrEntry -->
+
+A `modify` answer that carries an NLRI block replaces the whole NLRI value, so
+it carries every block it keeps, with the same keywords. The engine rewrites
+each section from its own block:
 
 - A block may only remove prefixes, keeping the order the subject gave them.
   An added or reordered prefix makes the engine drop the route.
 - A block left out of the answer keeps no prefix. An MP_REACH_NLRI or
   MP_UNREACH_NLRI with no prefix left is removed, never written empty.
+- A marker block of a non-CIDR family (`mp <family> add` with no prefixes)
+  MUST be echoed unchanged. Left out, it reads as a changed block of a
+  non-CIDR family, and the engine drops the route.
 - An MP block keeps its AFI, SAFI and next hop, and each NLRI kept is copied
   whole, with its path identifier and label stack.
-- A changed block of a non-CIDR family, or an MP block for a section the
-  UPDATE does not carry, makes the engine drop the route and log the family
-  and the reason under `ze.log.bgp.reactor.forward`. Such a filter declares
+- A changed block of a non-CIDR family, an `mp` block for a section the
+  UPDATE does not carry, two blocks for one section, or a block that is neither
+  `nlri add|del` nor `mp <family> add|del`, makes the engine drop the route and
+  log the family and the reason under `ze.log.bgp.reactor.forward`. Such a
+  filter declares
   `raw=true` and returns the rewritten body, or rejects the whole UPDATE.
-<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- sectionNLRIDelta, subsetNLRI -->
-<!-- source: internal/component/bgp/reactor/filter_delta.go -- extractLegacyNLRIOverride -->
+<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- sectionNLRIDelta, mpSectionDelta, subsetNLRI -->
 <!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- mpReachNextHopHandler, mpUnreachNLRIHandler -->
 
 **Subscription fields:**

@@ -135,7 +135,7 @@ type PluginRegistration struct {
 // distinguish individual destinations within the family. See
 // `docs/architecture/api/process-protocol.md` "Non-CIDR Families in the
 // Filter Text Protocol" and
-// `internal/component/bgp/reactor/filter_format.go` (`isCIDRFamily`) for
+// `internal/component/bgp/filtertext/cidr.go` (`CIDRFamily`) for
 // the full contract.
 type FilterRegistration struct {
 	Name       string              // Filter name (referenced in filter { import/export } blocks)

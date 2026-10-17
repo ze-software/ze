@@ -186,6 +186,27 @@ The entry disappears from memory and from ZeFS, and the firewall tables are re-a
 
 At first enrollment, do not place the session into service until `show bgp irr` reports `status: ok`. A peer without loaded prefix data has no list from which to make a useful allow decision.
 
+### A rejected route is evaluated again when the list changes
+
+A route rejected because its ASN had no list yet, or because the list did not hold it, is kept for another evaluation. When a list arrives or a refresh changes it, the filter checks what it kept, and for each peer with a route the new list authorizes it sends a ROUTE-REFRESH for that family. The peer sends its routes again and the filter decides them against the new list. While an ASN that holds a rejected route has no list, or its last lookup failed, the filter retries the lookup every minute.
+
+The ROUTE-REFRESH needs two things. Route Refresh must be negotiated with the peer: Ze advertises it only when the peer's `capability` block, or its group's, says `route-refresh enable`, and the peer must advertise it too. The peer must also give the filter the permission to send it, with `refresh` or `*` in the `send` list:
+
+```text
+capability {
+    route-refresh enable
+}
+attach process bgp-filter-irr {
+    send [ refresh ]
+}
+```
+
+A `send` list on the peer replaces the group's, so a peer that states its own `send` list for the filter needs `refresh` in that list. Without either piece, the route stays rejected until the peer sends it again, and the filter logs one warning for the peer that names the missing piece. When a configuration is applied, the filter also logs one warning for each IRR-filtered peer that lacks the permission, and one for each to which Ze does not advertise Route Refresh. If the ROUTE-REFRESH fails for another reason, for example a timeout, the filter asks again on its next pass. At most 100 000 rejected prefixes are kept; past that a rejected prefix is evaluated again only when its peer sends it again, and the filter logs one warning. A withdrawal, an accepted announcement and a session that goes down each drop what was kept for that route or peer.
+
+An UPDATE that announces some routes the list authorizes and some it does not keeps the authorized ones and drops the rest, in the IPv4 NLRI field and in a multiprotocol block of IPv4 or IPv6 unicast, multicast or labeled unicast alike. An UPDATE that withdraws routes keeps its withdrawals even when the filter rejects every route it announces, and even before the ASN has a list. The exception is a rejected route in a multiprotocol block of another family, a FlowSpec rule for example, which Ze cannot remove from the UPDATE: that UPDATE is rejected whole, its authorized routes and its withdrawals included. The filter then asks the peer for the authorized routes again every minute, and the peer answers with the same UPDATE, so those routes stay rejected until the peer stops announcing the refused one.
+
+<!-- source: internal/component/bgp/plugins/filter_irr/readmit.go -- readmitter, heldPrefixMax, readmitRetryInterval -->
+
 <!-- source: internal/component/bgp/plugins/filter_irr/command.go -- show, check, and manual refresh commands -->
 <!-- source: internal/component/resolve/irr/store/store.go -- atomic refresh and last-known-good persistence -->
 <!-- source: internal/component/resolve/irr/client.go -- RPSL reply classification (parseReply) -->

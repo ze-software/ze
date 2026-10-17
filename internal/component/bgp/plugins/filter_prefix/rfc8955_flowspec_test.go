@@ -28,7 +28,7 @@ func TestPrefixPolicyFiltersFlowSpecDestination(t *testing.T) {
 		{"ipv4/flow-vpn add 10.1.0.0/24", sdk.FilterAccept},
 	} {
 		t.Run(tc.nlri, func(t *testing.T) {
-			out := handleFilterUpdate(&sdk.FilterUpdateInput{Filter: "protected", Update: "nlri " + tc.nlri})
+			out := handleFilterUpdate(&sdk.FilterUpdateInput{Filter: "protected", Update: "mp " + tc.nlri})
 			require.Equal(t, tc.action, out.Action)
 			require.Empty(t, out.Update, "FlowSpec components are never replaced by a destination projection")
 		})

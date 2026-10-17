@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 func Run(args []string) int {
@@ -18,10 +19,14 @@ func Run(args []string) int {
 
 	var port int
 	var emptyAfterFirst bool
+	var failFirst int
 
 	fs.IntVar(&port, "port", 0, "TCP listen port (0 = auto)")
 	fs.BoolVar(&emptyAfterFirst, "empty-after-first", false,
 		"answer each query with its data once, then with \"D\" (key not found) forever after")
+
+	fs.IntVar(&failFirst, "fail-first", 0,
+		"answer the first N queries with \"F\" (query failed), then normally")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: le test irr [flags]
@@ -45,6 +50,11 @@ With -empty-after-first, every query is answered once with its data and then
 with "D" (key not found) forever after. It models an IRR server that has a bad
 minute after a good refresh, which is the case ze must not let empty a live
 filter.
+
+With -fail-first N, the first N queries are answered "F" (query failed) and
+every later one normally. It models an IRR server that is down when ze starts
+and recovers, which is the case where a route rejected for a missing list must
+be evaluated again once the list arrives.
 
 Flags:
 `)
@@ -71,12 +81,15 @@ Flags:
 		answered = &servedQueries{seen: make(map[string]bool)}
 	}
 
+	failing := &failBudget{}
+	failing.left.Store(int64(failFirst))
+
 	for {
 		conn, acceptErr := ln.Accept()
 		if acceptErr != nil {
 			return 0
 		}
-		go handleIRRConn(conn, answered)
+		go handleIRRConn(conn, answered, failing)
 	}
 }
 
@@ -113,7 +126,17 @@ func (s *servedQueries) firstTime(query string) bool {
 	return true
 }
 
-func handleIRRConn(conn net.Conn, answered *servedQueries) {
+// failBudget counts the queries -fail-first still answers "F".
+type failBudget struct {
+	left atomic.Int64
+}
+
+// take reports whether this query is one of the failing ones.
+func (b *failBudget) take() bool {
+	return b.left.Add(-1) >= 0
+}
+
+func handleIRRConn(conn net.Conn, answered *servedQueries, failing *failBudget) {
 	defer func() { _ = conn.Close() }()
 
 	buf := make([]byte, 4096)
@@ -127,6 +150,9 @@ func handleIRRConn(conn net.Conn, answered *servedQueries) {
 	response, ok := irrResponses[query]
 	if !ok || (answered != nil && !answered.firstTime(query)) {
 		response = "D\n"
+	}
+	if failing.take() {
+		response = "F mock IRR server failing on purpose (-fail-first)\n"
 	}
 
 	if _, writeErr := fmt.Fprint(conn, response); writeErr != nil {

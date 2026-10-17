@@ -126,4 +126,4 @@ expect=stderr:contains=session established
 # another filter would not satisfy it, and it names both counts, so a chain that
 # accepted everything or rejected everything would not either.
 expect=stderr:pattern=prefix-list modify.*filter=CUSTOMERS.*accepted=1 rejected=1
-expect=stderr:pattern=nlri="ipv4/unicast add 10\.0\.0\.0/24 192\.0\.2\.0/24"
+expect=stderr:pattern=nlri="nlri add 10\.0\.0\.0/24 192\.0\.2\.0/24"

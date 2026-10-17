@@ -146,12 +146,23 @@ func forwardUpdateIRRAll(ctx *pluginserver.CommandContext, validated command.Val
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAll, args, ctx.PeerSelector())
 }
 
+// The YANG leaves of `update bgp irr asn <asn>` and `update bgp irr as-set
+// <as-set>` (ze-filter-irr-cmd.yang). Each is spelled like the command's last
+// keyword, so matchCommandTokens binds the value as a typed selector and hands
+// the forwarder empty args (internal/component/plugin/server/command.go). A
+// forwarder reading args alone sent the plugin nothing, and it answered every
+// such command with its usage line.
+const (
+	leafASN   = "asn"
+	leafASSet = "as-set"
+)
+
 func forwardUpdateIRRAsn(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	args := validated.Tokens()
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsn, args, ctx.PeerSelector())
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsn, ctx.ArgsOrSelector(args, leafASN), ctx.PeerSelector())
 }
 
 func forwardUpdateIRRAsSet(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	args := validated.Tokens()
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsSet, args, ctx.PeerSelector())
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsSet, ctx.ArgsOrSelector(args, leafASSet), ctx.PeerSelector())
 }

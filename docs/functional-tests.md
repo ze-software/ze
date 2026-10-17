@@ -3093,7 +3093,12 @@ one known AS-SET, `AS-TEST`, and answers `D` (key not found) for everything else
 forever after. It models an IRR server that has a bad minute after a good
 refresh, which is the case ze must not let empty a live filter.
 
-Usage: `le test irr --port 4343 [--empty-after-first]`
+`--fail-first N` answers the first N queries with `F` (query failed) and every
+later one normally. It models an IRR server that is down when ze starts and
+then recovers, which is how `test/plugin/filter-irr-readmit.ci` gets a route
+rejected for a missing list.
+
+Usage: `le test irr --port 4343 [--empty-after-first] [--fail-first N]`
 
 <!-- source: internal/test/mock/irr/irr.go -- IRR mock whois subcommand -->
 
@@ -3263,7 +3268,7 @@ Editor tests run through `./le test functional editor`; select one with `./le jo
 | `option=file:path=` | `option=file:path=test.conf` | Config file to load |
 | `option=mode:value=` | `option=mode:value=command` | Command-only mode (no editor) |
 | `option=history:store` | `option=history:store` | Persist history in the same tree as config |
-| `option=storage:value=` | `option=storage:value=blob` | `tree` (default) or `blob`, a backup artifact edited as `ze config edit --backup` does; other values are refused |
+| `option=storage:value=` | `option=storage:value=blob` | `tree` (default), the live store's contract held in memory (`storage.CreateMemory`), or `blob`, an on-disk backup artifact edited as `ze config edit --backup` does; other values are refused |
 | `input=type:text=` | `input=type:text=show` | Type text |
 | `input=enter/up/down/tab` | `input=enter` | Press named key |
 | `expect=input:value=` | `expect=input:value=show` | Assert input buffer content |
@@ -3275,7 +3280,16 @@ Editor tests run through `./le test functional editor`; select one with `./le jo
 Config fixtures are seeded once, and session drafts, versions and history use
 the same lifetime store owner. File expectations still inspect loose fixtures
 and exports; persistent assertions use `expect=key`, which rejects unreadable
-or corrupt values rather than treating them as absent.
+or corrupt values rather than treating them as absent. A tree-mode store is in
+memory and closes with the test, so `expect=key` is the only way to see what a
+commit stored; nothing remains on disk to reopen. The memory store runs the
+storage package's own name mapping, guards, versions and observers over a map,
+and passes the same conformance table the tree and the blob pass. It exists
+because the suite runs tests in parallel and an on-disk tree syncs every frame
+and directory a commit writes: on a loaded machine (2026-10-17) tests timed out
+with their workers in `fsync`.
+<!-- source: internal/component/cli/testing/runner_store.go -- createRunnerStore -->
+<!-- source: internal/component/config/storage/memory.go -- CreateMemory -->
 
 Discrimination runs retain the compatible runner while reverting or mutating
 product behaviour. An older runner rejecting `expect=key` is a setup failure,

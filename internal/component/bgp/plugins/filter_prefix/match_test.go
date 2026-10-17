@@ -158,27 +158,27 @@ func TestEvaluateUpdateStrict(t *testing.T) {
 	}{
 		{
 			name:      "single_matching_accepted",
-			nlriField: "ipv4/unicast add 10.1.0.0/20",
+			nlriField: "nlri add 10.1.0.0/20",
 			wantAllow: true,
 		},
 		{
 			name:      "single_non_matching_rejected",
-			nlriField: "ipv4/unicast add 192.168.1.0/24",
+			nlriField: "nlri add 192.168.1.0/24",
 			wantAllow: false,
 		},
 		{
 			name:      "two_matching_accepted",
-			nlriField: "ipv4/unicast add 10.1.0.0/20 10.2.0.0/22",
+			nlriField: "nlri add 10.1.0.0/20 10.2.0.0/22",
 			wantAllow: true,
 		},
 		{
 			name:      "mixed_one_denied_rejected",
-			nlriField: "ipv4/unicast add 10.1.0.0/20 192.168.1.0/24",
+			nlriField: "nlri add 10.1.0.0/20 192.168.1.0/24",
 			wantAllow: false,
 		},
 		{
 			name:      "del_op_treated_as_match_targets",
-			nlriField: "ipv4/unicast del 10.1.0.0/20",
+			nlriField: "nlri del 10.1.0.0/20",
 			wantAllow: true,
 		},
 		{
@@ -230,21 +230,21 @@ func TestPartitionUpdate(t *testing.T) {
 	}{
 		{
 			name:     "all_accepted",
-			nlri:     "ipv4/unicast add 10.0.0.0/24 10.0.1.0/24",
+			nlri:     "nlri add 10.0.0.0/24 10.0.1.0/24",
 			accepted: []string{"10.0.0.0/24", "10.0.1.0/24"},
 			family:   "ipv4/unicast",
 			op:       "add",
 		},
 		{
 			name:     "all_rejected",
-			nlri:     "ipv4/unicast add 192.168.1.0/24 172.16.0.0/24",
+			nlri:     "nlri add 192.168.1.0/24 172.16.0.0/24",
 			rejected: []string{"192.168.1.0/24", "172.16.0.0/24"},
 			family:   "ipv4/unicast",
 			op:       "add",
 		},
 		{
 			name:     "mixed_preserves_order",
-			nlri:     "ipv4/unicast add 10.0.0.0/24 192.168.1.0/24 10.0.5.0/24",
+			nlri:     "nlri add 10.0.0.0/24 192.168.1.0/24 10.0.5.0/24",
 			accepted: []string{"10.0.0.0/24", "10.0.5.0/24"},
 			rejected: []string{"192.168.1.0/24"},
 			family:   "ipv4/unicast",
@@ -258,13 +258,13 @@ func TestPartitionUpdate(t *testing.T) {
 		},
 		{
 			name:   "header_only_no_prefixes",
-			nlri:   "ipv4/unicast add",
+			nlri:   "nlri add",
 			family: "ipv4/unicast",
 			op:     "add",
 		},
 		{
 			name:     "malformed_prefix_sets_parse_error",
-			nlri:     "ipv4/unicast add 10.0.0.0/24 not-a-prefix 10.0.1.0/24",
+			nlri:     "nlri add 10.0.0.0/24 not-a-prefix 10.0.1.0/24",
 			accepted: []string{"10.0.0.0/24", "10.0.1.0/24"},
 			family:   "ipv4/unicast",
 			op:       "add",
@@ -275,11 +275,15 @@ func TestPartitionUpdate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := list.partitionUpdate(tt.nlri)
-			if got.family != tt.family {
-				t.Errorf("family = %q, want %q", got.family, tt.family)
+			var family, op string
+			if len(got.blocks) > 0 {
+				family, op = got.blocks[0].family, got.blocks[0].op
 			}
-			if got.op != tt.op {
-				t.Errorf("op = %q, want %q", got.op, tt.op)
+			if family != tt.family {
+				t.Errorf("family = %q, want %q", family, tt.family)
+			}
+			if op != tt.op {
+				t.Errorf("op = %q, want %q", op, tt.op)
 			}
 			if got.hadParseError != tt.parseErr {
 				t.Errorf("hadParseError = %v, want %v", got.hadParseError, tt.parseErr)
@@ -316,18 +320,18 @@ func TestExtractNLRIField(t *testing.T) {
 	}{
 		{
 			name:   "nlri_only",
-			update: "nlri ipv4/unicast add 10.0.0.0/24",
-			want:   "ipv4/unicast add 10.0.0.0/24",
+			update: "nlri add 10.0.0.0/24",
+			want:   "nlri add 10.0.0.0/24",
 		},
 		{
 			name:   "with_attrs_before",
-			update: "origin igp as-path 65001 next-hop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-			want:   "ipv4/unicast add 10.0.0.0/24",
+			update: "origin igp as-path 65001 next-hop 1.2.3.4 nlri add 10.0.0.0/24",
+			want:   "nlri add 10.0.0.0/24",
 		},
 		{
 			name:   "multi_prefix",
-			update: "nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24",
-			want:   "ipv4/unicast add 10.0.0.0/24 10.0.1.0/24",
+			update: "nlri add 10.0.0.0/24 10.0.1.0/24",
+			want:   "nlri add 10.0.0.0/24 10.0.1.0/24",
 		},
 		{
 			name:   "no_nlri",

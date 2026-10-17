@@ -70,6 +70,87 @@ func filterIRRDecision07(ctx context.Context, _ []string) error {
 	return observeConfigured(ctx, name, &sdk.Registration{}, setup, scenario)
 }
 
+// filterIRRReadmit07 observes test/plugin/filter-irr-readmit.ci. Its goal is
+// to prove that a route rejected because its ASN's IRR list could not be
+// resolved is accepted once the list arrives, with no action by the peer's
+// operator. Method: the mock IRR fails the first query, so the first
+// resolution fails and the peer's UPDATE is rejected as no-prefix-list. Once
+// the ASN shows the error and the peer's UPDATE has been counted, the observer
+// refreshes the ASN the way an operator does; the filter must then send a
+// ROUTE-REFRESH (the peer's script answers it by sending the route again), and
+// the reactor must deliver that route here, which it does only after the
+// import chain accepted it (reactor_notify.go).
+func filterIRRReadmit07(ctx context.Context, _ []string) error {
+	const name = "plugin/filter-irr-readmit"
+	updates := make(chan string, 4)
+	setup := func(p *sdk.Plugin) error {
+		p.OnEvent(func(event string) error {
+			var decoded map[string]any
+			if json.Unmarshal([]byte(event), &decoded) != nil {
+				return nil //nolint:nilerr // a malformed event is skipped, and failing the handler would end the session
+			}
+			bgp, _ := decoded["bgp"].(map[string]any)
+			message, _ := bgp["message"].(map[string]any)
+			if message["direction"] != directionReceived {
+				return nil
+			}
+			update, _ := bgp["update"].(map[string]any)
+			if _, hasNLRI := update["nlri"]; !hasNLRI {
+				return nil
+			}
+			select {
+			case updates <- text07(update):
+			default:
+			}
+			return nil
+		})
+		p.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
+		return nil
+	}
+	scenario := func(ctx context.Context, p *sdk.Plugin) error {
+		failed := until07(ctx, p, "show bgp irr", 40, 250*time.Millisecond, func(result commandResult07) bool {
+			for _, row := range array07(object07(result.data)["entries"]) {
+				entry := object07(row)
+				if number07(entry["asn"]) == 65001 && entry["status"] == statusError {
+					return true
+				}
+			}
+			return false
+		})
+		if failed.status != statusDone {
+			return fmt.Errorf("show bgp irr status=%s error=%w", failed.status, failed.err)
+		}
+		received := until07(ctx, p, "show bgp peer 127.0.0.1 detail", 40, 250*time.Millisecond, func(result commandResult07) bool {
+			peer := object07(object07(object07(result.data)["peers"])["127.0.0.1"])
+			return number07(peer["updates-received"]) >= 1
+		})
+		if received.status != statusDone {
+			return fmt.Errorf("show bgp peer detail status=%s error=%w", received.status, received.err)
+		}
+		select {
+		case update := <-updates:
+			return fmt.Errorf("the IRR filter accepted a route before its list resolved: update=%s", update)
+		default:
+		}
+		if result := done07(ctx, p, "update bgp irr all"); result.status != statusDone {
+			return fmt.Errorf("update bgp irr all status=%s error=%w", result.status, result.err)
+		}
+		wait := WaitBudget(50, 10*time.Second)
+		select {
+		case update := <-updates:
+			if !strings.Contains(update, "10.0.0.0/24") {
+				return fmt.Errorf("the route sent again is not 10.0.0.0/24: update=%s", update)
+			}
+			return nil
+		case <-time.After(wait):
+			return fmt.Errorf("the route rejected while the IRR list was missing was not accepted within %s of the list arriving", wait)
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return observeConfigured(ctx, name, &sdk.Registration{}, setup, scenario)
+}
+
 func filterIRRFail07(ctx context.Context, p *sdk.Plugin) error {
 	until07(ctx, p, "show bgp irr", 20, 500*time.Millisecond, func(result commandResult07) bool {
 		for _, row := range array07(object07(result.data)["entries"]) {
@@ -80,9 +161,18 @@ func filterIRRFail07(ctx context.Context, p *sdk.Plugin) error {
 		}
 		return false
 	})
+	// The refresh must fail on the IRR lookup itself (updateASN, command.go).
+	// A status alone was also satisfied by the usage error the plugin answered
+	// when the forwarder dropped the ASN argument.
 	result := command07(ctx, p, "update bgp irr asn 65100")
 	if result.status != statusError {
 		return fmt.Errorf("update bgp irr asn 65100 status=%s, want error", result.status)
+	}
+	if result.err == nil {
+		return errors.New("update bgp irr asn 65100 returned no error, want the failed refresh of ASN 65100")
+	}
+	if !strings.Contains(result.err.Error(), "ASN 65100 refresh failed") {
+		return fmt.Errorf("update bgp irr asn 65100 error=%w, want the failed refresh of ASN 65100", result.err)
 	}
 	result = command07(ctx, p, "show bgp irr")
 	if result.status != statusDone {

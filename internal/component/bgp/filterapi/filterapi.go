@@ -432,6 +432,11 @@ const (
 	AttrModRemove                // Remove value from attribute's list (e.g., COMMUNITY)
 	AttrModPrepend               // Prepend value to attribute's sequence (e.g., AS_PATH)
 	AttrModSuppress              // Remove entire attribute from UPDATE (handler writes nothing)
+	// AttrModReplaceNLRI replaces the NLRI field of MP_REACH_NLRI, or the
+	// Withdrawn Routes field of MP_UNREACH_NLRI, with Buf (RFC 4760 Sections 3
+	// and 4), keeping AFI, SAFI and the next hop. An empty Buf removes the
+	// attribute: an MP_REACH_NLRI announcing nothing is never written.
+	AttrModReplaceNLRI
 )
 
 // LastSetOrSuppress returns the index of the last AttrModSet or AttrModSuppress

@@ -46,6 +46,10 @@ const (
 	policyAttrASPathPrepend           = "as-path-prepend"
 	policyAttrRemovePrivate           = "remove-private"
 	policyAttrNLRI                    = "nlri"
+	// policyAttrMP opens an NLRI block rendered from MP_REACH_NLRI or
+	// MP_UNREACH_NLRI ("mp <family> add|del"). It is a second name of the one
+	// NLRI value, never an attribute of its own (filter_nlri_delta.go).
+	policyAttrMP = "mp"
 )
 
 // Policy filter chain direction tokens (the `direction` argument passed to
@@ -106,6 +110,9 @@ func init() {
 	for id := filterAttrID(0); id < faCount; id++ { //nolint:modernize // prealloc linter crashes on range-over-int
 		filterAttrNameToID[filterAttrNames[id]] = id
 	}
+	// The NLRI value opens with "mp" when the UPDATE has no legacy NLRI or
+	// Withdrawn Routes, so both keywords start it.
+	filterAttrNameToID[policyAttrMP] = faNLRI
 }
 
 type filterAttrs struct {
@@ -285,7 +292,7 @@ func PolicyFilterChain(filterRefs []filterapi.FilterRef, direction, peer string,
 //
 // Both current and delta use the same text format:
 //
-//	"<attr-name> <value> [<attr-name> <value> ...] [nlri <family> <op> <prefix>...]"
+//	"<attr-name> <value> [<attr-name> <value> ...] [nlri add|del <prefix>...] [mp <family> add|del <prefix>...]"
 //
 // Delta fields overwrite corresponding fields in current.
 func applyFilterDelta(current, delta string) string {
@@ -358,11 +365,14 @@ func parseFilterAttrsInto(attrs *filterAttrs, text string) {
 		}
 
 		switch name {
-		case policyAttrNLRI:
-			// The NLRI value carries the "nlri" keyword itself, so its run
-			// starts at the name rather than after it.
+		case policyAttrNLRI, policyAttrMP:
+			// The NLRI value carries its "nlri" or "mp" keyword itself, so its
+			// run starts at the name rather than after it. It also spans every
+			// later block: one UPDATE renders one block per section
+			// (filter_format.go), and a run ending at the next keyword kept
+			// only the last block, so a merged answer lost the others.
 			var value string
-			value, more = parseFilterAttrRun(&scan, nameStart, nameEnd, more)
+			value, more = parseFilterAttrRun(&scan, nameStart, nameEnd, more, true)
 			attrs.set(id, value)
 
 		case policyAttrAtomicAggregate, policyAttrMEDRemove:
@@ -391,7 +401,7 @@ func parseFilterAttrsInto(attrs *filterAttrs, text string) {
 			start, end := scan.start, scan.end
 			more = scan.next()
 			var value string
-			value, more = parseFilterAttrRun(&scan, start, end, more)
+			value, more = parseFilterAttrRun(&scan, start, end, more, false)
 			attrs.set(id, value)
 		}
 
@@ -406,15 +416,17 @@ func parseFilterAttrsInto(attrs *filterAttrs, text string) {
 // whether a token is still loaded in scan.
 //
 // The run ends at the next known attribute name, which is the rule the text
-// format has always used: a value cannot contain a keyword.
-func parseFilterAttrRun(scan *filterTokens, start, end int, more bool) (string, bool) {
+// format has always used: a value cannot contain a keyword. The one exception is
+// nlri: when nlri is true the run continues across "nlri" and "mp", which
+// introduce the next block of the same NLRI value.
+func parseFilterAttrRun(scan *filterTokens, start, end int, more, nlri bool) (string, bool) {
 	text := scan.text
 
 	// A run is CLEAN when one space separates every pair of tokens, which is
 	// what every machine-written filter text produces. A clean run needs no
 	// rewrite, so the value is the window the tokens already sit in.
 	clean := true
-	for more && !isPolicyAttrName(text[scan.start:scan.end]) {
+	for more && runContinues(text[scan.start:scan.end], nlri) {
 		if !oneSpaceApart(text, end, scan.start) {
 			clean = false
 		}
@@ -427,6 +439,16 @@ func parseFilterAttrRun(scan *filterTokens, start, end int, more bool) (string, 
 		value = joinFilterTokens(value)
 	}
 	return value, more
+}
+
+// runContinues reports whether token belongs to the multi-token value being
+// read: any token but an attribute name, and for an NLRI value also the "nlri"
+// or "mp" keyword of its next block.
+func runContinues(token string, nlri bool) bool {
+	if !isPolicyAttrName(token) {
+		return true
+	}
+	return nlri && isNLRIKeyword(token)
 }
 
 // oneSpaceApart reports whether exactly one space separates a token ending at
@@ -525,7 +547,7 @@ func isPolicyAttrName(s string) bool {
 	switch s {
 	case policyAttrOrigin, policyAttrASPath, policyAttrNextHop, policyAttrMED, policyAttrLocalPreference,
 		policyAttrAtomicAggregate, policyAttrAggregator, policyAttrCommunity, policyAttrOriginatorID,
-		policyAttrClusterList, policyAttrExtendedCommunity, policyAttrAIGP, policyAttrLargeCommunity, policyAttrNLRI,
+		policyAttrClusterList, policyAttrExtendedCommunity, policyAttrAIGP, policyAttrLargeCommunity, policyAttrNLRI, policyAttrMP,
 		policyAttrASPathPrepend, policyAttrRemovePrivate, policyAttrMEDRemove,
 		policyAttrCommunityAdd, policyAttrCommunityRemove,
 		policyAttrLargeCommunityAdd, policyAttrLargeCommunityRemove,

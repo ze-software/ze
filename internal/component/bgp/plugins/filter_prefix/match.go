@@ -87,103 +87,140 @@ func evaluatePrefix(entries []prefixEntry, route netip.Prefix) action {
 	return actionReject
 }
 
-// evaluateUpdate walks the prefixes in an nlri text field and returns true
-// (accept the whole UPDATE) only if every prefix is accepted by the list.
-// The nlri field is the text after the "nlri " keyword in the filter update
-// text format, e.g. "ipv4/unicast add 10.0.0.0/24 10.0.1.0/24".
+// evaluateUpdate returns true (accept the whole UPDATE) only if every prefix of
+// every NLRI block is accepted by the list. The nlri field starts at the first
+// "nlri" or "mp" keyword of the filter update text, keyword included, e.g.
+// "nlri add 10.0.0.0/24 mp ipv6/unicast add 2001:db8::/32".
 //
-// Strict mode: any denied prefix rejects the whole UPDATE. An empty nlri
-// field is accepted (no prefixes to evaluate). Retained for callers that
-// only need the whole-update accept/reject decision; partitionUpdate below
-// is used by the modify path.
+// Strict mode: any denied prefix, or any token that is not a prefix, rejects
+// the whole UPDATE. An empty nlri field is accepted (no prefixes to evaluate).
+// partitionUpdate below is the per-prefix form the modify path uses.
 func (l *prefixList) evaluateUpdate(nlriField string) bool {
-	if nlriField == "" {
-		return true
+	p := l.partitionUpdate(nlriField)
+	if p.hadParseError {
+		return false
 	}
-	tokens := strings.Fields(nlriField)
-	// First two tokens are <family> <op>. Remaining tokens are prefixes.
-	if len(tokens) < 2 {
-		return true
-	}
-	for _, tok := range tokens[2:] {
-		route, err := netip.ParsePrefix(tok)
-		if err != nil {
-			// Malformed prefix in the text protocol -- fail-closed.
-			return false
-		}
-		if evaluatePrefix(l.entries, route) != actionAccept {
-			return false
-		}
-	}
-	return true
+	return len(p.rejected) == 0
+}
+
+// The keywords that open an NLRI block of the filter text (reactor
+// filter_format.go): "nlri add|del <prefix>..." for the legacy NLRI and
+// Withdrawn Routes, always IPv4 unicast, and "mp <family> add|del <prefix>..."
+// for an MP_REACH_NLRI or MP_UNREACH_NLRI attribute.
+const (
+	nlriKeyword = "nlri"
+	mpKeyword   = "mp"
+	// legacyFamily is the family of every "nlri" block.
+	legacyFamily = "ipv4/unicast"
+)
+
+// prefixBlock is one NLRI block of the filter text, split into its head
+// ("nlri <op>" or "mp <family> <op>") and its prefixes classified by the list.
+type prefixBlock struct {
+	head     []string
+	family   string
+	op       string
+	accepted []string
+	rejected []string
 }
 
 // partitionResult carries the outcome of the per-prefix partition walk used
-// by the modify path. accepted holds the prefix text tokens that passed the
-// prefix-list evaluation; rejected holds the ones that did not; family and op
-// echo the NLRI block header so callers can rebuild "nlri <family> <op>
-// <accepted>...". hadParseError is set when any prefix token failed
-// ParsePrefix; the strict evaluator is fail-closed, so callers should reject
-// the whole update in that case.
+// by the modify path, block by block. One UPDATE renders a block per section:
+// the legacy NLRI and Withdrawn Routes, and each MP_REACH_NLRI and
+// MP_UNREACH_NLRI attribute. accepted and rejected hold the prefix tokens
+// across every block. hadParseError is set when any prefix token failed
+// ParsePrefix; the strict evaluator is fail-closed, so callers reject the
+// whole update in that case.
 type partitionResult struct {
-	family        string
-	op            string
+	blocks        []prefixBlock
 	accepted      []string
 	rejected      []string
 	hadParseError bool
 }
 
-// partitionUpdate walks every prefix in an nlri text field, classifies it as
+// partitionUpdate walks every prefix of every NLRI block, classifies it as
 // accepted or rejected by the prefix-list, and returns the partition. Unlike
-// evaluateUpdate which short-circuits on the first rejection, partitionUpdate
-// always consumes the whole list so the modify path can emit the accepted
-// subset. An empty nlri or a nlri without prefix tokens produces an empty
-// partition with family/op still populated when present.
+// a strict walk it consumes the whole field, so the modify path can emit the
+// accepted subset of each block, in the order it was given.
 //
-// The family and op parsed here are purely echoed back -- the classifier does
-// not gate on them. cmd-4 rewrites only the IPv4 unicast legacy NLRI section;
-// that family filter happens at the engine boundary, not inside the match
-// algorithm.
+// The engine rewrites each section from its own block and refuses an answer
+// that changes a block of a family it cannot rewrite, so the classifier does
+// not gate on the family. The loop is bounded by the token count of the field.
 func (l *prefixList) partitionUpdate(nlriField string) partitionResult {
 	var out partitionResult
-	if nlriField == "" {
-		return out
-	}
 	tokens := strings.Fields(nlriField)
-	if len(tokens) < 2 {
-		return out
-	}
-	out.family = tokens[0]
-	out.op = tokens[1]
-	for _, tok := range tokens[2:] {
-		route, err := netip.ParsePrefix(tok)
-		if err != nil {
-			out.hadParseError = true
-			// Keep walking: the caller decides whether to reject the whole
-			// update on parse failure; we still want a complete picture for
-			// telemetry and for callers that choose to treat parse errors as
-			// non-fatal in non-strict mode.
-			continue
+	for start := 0; start < len(tokens); {
+		end := start + 1
+		for end < len(tokens) && !isNLRIKeyword(tokens[end]) {
+			end++
 		}
-		if evaluatePrefix(l.entries, route) == actionAccept {
-			out.accepted = append(out.accepted, tok)
-		} else {
-			out.rejected = append(out.rejected, tok)
-		}
+		out.addBlock(l, tokens[start:end])
+		start = end
 	}
 	return out
 }
 
-// extractNLRIField pulls the text after "nlri " out of an update text string.
-// Returns "" if no nlri field is present.
-//
-// The filter update text format places "nlri" followed by family, op, and
-// prefixes; nlri is the LAST field, so everything from "nlri " to end of
-// string is the value.
-func extractNLRIField(updateText string) string {
-	_, after, ok := strings.Cut(updateText, "nlri ")
-	if !ok {
-		return ""
+// isNLRIKeyword reports whether token opens an NLRI block.
+func isNLRIKeyword(token string) bool {
+	return token == nlriKeyword || token == mpKeyword
+}
+
+// addBlock classifies the prefixes of one block's tokens, keyword first. A
+// block with a malformed head is a parse error: the caller fails closed.
+func (out *partitionResult) addBlock(l *prefixList, tokens []string) {
+	headLen, fam := 2, legacyFamily
+	if tokens[0] == mpKeyword {
+		headLen = 3
 	}
-	return after
+	if len(tokens) < headLen {
+		out.hadParseError = true
+		return
+	}
+	if !isNLRIKeyword(tokens[0]) {
+		out.hadParseError = true
+		return
+	}
+	if headLen == 3 {
+		fam = tokens[1]
+	}
+	block := prefixBlock{head: tokens[:headLen], family: fam, op: tokens[headLen-1]}
+	for _, tok := range tokens[headLen:] {
+		route, err := netip.ParsePrefix(tok)
+		if err != nil {
+			out.hadParseError = true
+			// Keep walking: the caller rejects the whole update on a parse
+			// failure, and the complete picture still serves telemetry.
+			continue
+		}
+		if evaluatePrefix(l.entries, route) == actionAccept {
+			block.accepted = append(block.accepted, tok)
+			out.accepted = append(out.accepted, tok)
+		} else {
+			block.rejected = append(block.rejected, tok)
+			out.rejected = append(out.rejected, tok)
+		}
+	}
+	out.blocks = append(out.blocks, block)
+}
+
+// extractNLRIField returns the NLRI value of an update text: everything from
+// its first "nlri" or "mp" keyword, keyword included, or "" when it has none.
+//
+// The filter update text format places the NLRI blocks LAST, so everything
+// from the first keyword to the end of the string is the value.
+func extractNLRIField(updateText string) string {
+	for i := 0; i < len(updateText); {
+		for i < len(updateText) && updateText[i] == ' ' {
+			i++
+		}
+		end := strings.IndexByte(updateText[i:], ' ')
+		if end < 0 {
+			end = len(updateText) - i
+		}
+		if isNLRIKeyword(updateText[i : i+end]) {
+			return updateText[i:]
+		}
+		i += end
+	}
+	return ""
 }

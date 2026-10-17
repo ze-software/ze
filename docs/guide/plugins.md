@@ -812,15 +812,15 @@ resolves to the same plugin via the filter-type registration, and a bare
 | Multi-prefix, all denied | `reject` (update dropped) |
 | Multi-prefix, mixed | `modify` -- rewrites the UPDATE NLRI section to carry only the accepted prefixes, denied prefixes are silently removed. cmd-4 phase 2. |
 
-The mixed case supports only IPv4 unicast legacy NLRI in v1. For
-multiprotocol families (MP_REACH_NLRI), the plugin falls back to whole-
-update accept when any prefix passes -- implementing per-NLRI rewriting for
-MP_REACH requires declaring `raw=true` on the filter registration and
-rewriting the attribute value directly.
+The mixed case is judged block by block: the legacy NLRI and Withdrawn Routes,
+and each MP_REACH_NLRI and MP_UNREACH_NLRI, so an IPv6 UPDATE or IPv4 unicast
+carried in MP_REACH_NLRI loses its denied prefixes the same way. A FlowSpec
+UPDATE with a denied destination is rejected whole, because the engine does
+not rewrite a FlowSpec NLRI.
 
-<!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- handleFilterUpdate, cmd-4 phase 1 & 2 -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- handleFilterUpdate, buildModifyDelta -->
 <!-- source: internal/component/bgp/plugins/filter_prefix/match.go -- partitionUpdate -->
-<!-- source: internal/component/bgp/reactor/filter_delta.go -- extractLegacyNLRIOverride -->
+<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- sectionNLRIDelta -->
 
 ### AS-Path Filter (`bgp-filter-aspath`)
 
