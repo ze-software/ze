@@ -456,3 +456,25 @@ also offers unsetting `ze.mtu.reference-address`. Owed:
   is promoted".
 - Re-run mtu, config/system, hub tests, scoped lint, tier check; then the QEMU
   `show-mtu-*` runs and the `mtu-nat-installed-endpoint` scenario.
+
+### 2026-10-17 functional-test daemon store in memory (agent stopped at its call budget)
+Uncommitted. A daemon that creates its store (none beside the config) uses
+`createLiveStore`: shipped build always on disk; `zetest` build reads the
+private `ze.test.store` (memory|disk, unset = disk, other refused). The runner
+gives every child `ze_test_store=memory`; a test opts out with
+`option=env:var=ze_test_store:value=disk`. Unit tests pass both builds. Suites
+in memory: parse 344/344; 38 plugin and 13 reload tests fail because a second
+process opens the store (`ze config edit`, commit, restore, restart) and pass
+on disk. Owed:
+- Opt-outs in those .ci files (plugin: commit/reject/transactional, data
+  backup/restore, explicit-file-restart, login-on-tree, session-editor-commit-*,
+  -copy*, -load-*, -deactivate-activate, start-auto-creates, statestore-on-tree,
+  storage-*-restart; reload: bfd/rpki/ipsec/ospf/traffic-usage added-live,
+  filter-irr/route-refresh over ssh, commit-transactional, commit-verify-reject,
+  request-reload-promotes-operator-file). Re-check plugin-announce and
+  drain-budget-over-ceiling-refused in memory mode first: no store cause seen.
+- ui and editor suites in memory mode; opt out their store users.
+- fsync-load proof: red on disk, green in memory, for filter-irr,
+  drain-restart-kind, role-otc-export-unknown.
+- Journal rows fixed in `startup-wait-expires-under-load.md` (fsync and
+  drain-restart-kind rows).
