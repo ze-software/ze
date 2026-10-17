@@ -316,3 +316,14 @@ Re-review then found 1 ISSUE + 1 NOTE, NOT yet applied, so that script is STALE:
 - NOTE: docs/architecture/storage-backends.md lines 23-24: move the two `<!-- source -->` anchors
   from mid-paragraph to below the paragraph, beside the existing anchors.
 Then re-prepare with `./le commit create replace tag boot-b ...` (same body; add the new file).
+
+COMMIT B THIRD CONTINUATION (2026-10-17): ISSUE and NOTE applied. The cmd-less population is
+not exabgp-compat (that suite has its own runner, internal/test/cli/cmd_exabgp.go) but every
+generic .ci with only `cmd=api` lines, such as test/encode. New test/encode/dut-store-memory-config.ci
+(`expect=file:glob=database:absent=true`) and dut-store-disk-config.ci (`exists=true`). Reds by
+go -overlay, one append removed each: runTest-only removal reddened memory-config ("expected absent,
+matched 1") and left memory-default green; runOrchestrated-only removal reddened memory-default
+(await never held) and left memory-config green. Overlay builds deleted. The iface agent rewrote
+the VPP row in plan/journal/transient-failure-treated-as-fatal.md as `fixed:` (its uncommitted
+fix), so B no longer carries that file. B prepared as `tmp/commit-9871b957-boot-b-15611a.sh`
+(96 paths); `tmp/commit-cbab57ff-boot-b-952da8.sh` is STALE, do not run it.
