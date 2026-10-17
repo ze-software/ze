@@ -14,19 +14,19 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8955-3-1": {
-      "note": "Both halves now tagged both ways. Community half: TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute (ipv4/flow and ipv4/flow-vpn with 65001:100 accepted) and TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute (denied community first-match and implicit deny reject a FlowSpec route); revert records on evaluateCommunities. Prefix half: filter_prefix flowspec_test.go pair (accept, reject, missing, mixed), no record. Both at the plugin entry point: no .ci drives a FlowSpec UPDATE through a configured community filter in the running daemon.",
+      "note": "Both halves now tagged both ways. Community half: TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute (ipv4/flow and ipv4/flow-vpn with 65001:100 accepted) and TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute (denied community first-match and implicit deny reject a FlowSpec route); revert records on evaluateCommunities. Prefix half: filter_prefix flowspec_test.go pair (accept, reject, missing, mixed), no record. Both at the plugin entry point: no .ci drives a FlowSpec UPDATE through a configured community filter in the running daemon. Rejudged 2026-10-17 (independent reader) after the owner-approved 6019dd0675 change to TestPrefixPolicyFiltersFlowSpecDestination: the filter input prefix changed from nlri to mp, the section keyword the filter text now uses for MP_REACH families. The cases are unchanged: ipv4/flow and ipv4/flow-vpn destinations inside 10.0.0.0/8 ge 16 le 24 must be accepted, and /25, out-of-range, invalid and mixed destinations rejected, with no unicast rewrite. A parser that stopped reading the mp form would fail the accept cases, and a policy that stopped applying would fail the reject cases. Package re-run green 2026-10-17. RFC 8955 Section 3: \"Standard BGP policy mechanisms, such as UPDATE filtering by NLRI prefix as well as community matching, must apply to the Flow specification defined NLRI-type.\" The community units are unchanged. Verdict stands.",
       "requirement_sha": "fbdee418c968fb93",
       "tests": {
         "internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go::TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute": "b9ec59934296330d",
         "internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go::TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute": "b9ec59934296330d",
-        "internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination": "2398e19751309ce3",
-        "internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination#2": "2398e19751309ce3"
+        "internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination": "a0ebe8600dc0ad2f",
+        "internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination#2": "a0ebe8600dc0ad2f"
       },
       "units": {
         "internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go::TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute": "47f004a0fcf48297",
         "internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go::TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute": "1e85edbbd0b7a765",
-        "internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination": "c03d8c74ac155178",
-        "internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination#2": "c03d8c74ac155178"
+        "internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination": "3088b20eae0fb619",
+        "internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination#2": "3088b20eae0fb619"
       },
       "verdict": "enforced"
     },

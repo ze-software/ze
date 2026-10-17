@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-17",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -282,9 +282,9 @@
     "RFC2661-5.8-8": {
       "code": {
         "internal/component/l2tp/reactor.go::locateTunnelLocked": "533ac0d9e621fbfc",
-        "internal/component/l2tp/reactor_dial.go::handleDial": "36542dfb6ee2ec79"
+        "internal/component/l2tp/reactor_dial.go::handleDial": "bf9dc9aa7c83b1ce"
       },
-      "note": "The retransmit count is fixed at DefaultMaxRetransmit (5): ReliableConfig.MaxRetransmit exists, but both tunnel constructors, reactor.go::locateTunnelLocked and reactor_dial.go::handleDial, pass ReliableConfig{RecvWindow} only, and the l2tp YANG carries no leaf for it. The recommended default of 5 is met; 'SHOULD be configurable' is not. {gap} annotation on the row agrees.",
+      "note": "The retransmit count is fixed at DefaultMaxRetransmit (5): ReliableConfig.MaxRetransmit exists, but both tunnel constructors, reactor.go::locateTunnelLocked and reactor_dial.go::handleDial, pass ReliableConfig{RecvWindow} only, and the l2tp YANG carries no leaf for it. The recommended default of 5 is met; 'SHOULD be configurable' is not. {gap} annotation on the row agrees. Rejudged 2026-10-17 (independent reader) after 7f59cfe2ad changed reactor_dial.go::handleDial: the edit adds a loopback-listener refusal before the tunnel is built (RFC 2661 Section 8.1) and does not touch the tunnel construction, which still passes ReliableConfig{RecvWindow: r.params.Defaults.RecvWindow} alone, as reactor.go::locateTunnelLocked does; MaxRetransmit stays zero, so DefaultMaxRetransmit (5) applies, and no l2tp YANG leaf configures it. RFC 2661 Section 5.8: \"If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable), the tunnel and all sessions within MUST be cleared.\" The default is met; configurability is not. The gap stands.",
       "requirement_sha": "31ed4fbaf5ba0708",
       "verdict": "unimplemented"
     },

@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-14",
+  "audited": "2026-10-17",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -427,7 +427,7 @@
       "verdict": "enforced"
     },
     "RFC4271-5.1.4-1": {
-      "note": "forward_med_test and med-not-propagated-across-as.ci assert attribute 4 stripped toward a plain eBGP peer; negatives keep it toward iBGP, RS clients and for a locally originated metric (med-locally-set-reaches-peer.ci)",
+      "note": "forward_med_test and med-not-propagated-across-as.ci assert attribute 4 stripped toward a plain eBGP peer; negatives keep it toward iBGP, RS clients and for a locally originated metric (med-locally-set-reaches-peer.ci) Rejudged 2026-10-17 (independent reader, not the author of 3f6bb1965e) after the owner-approved command-text change in 3f6bb1965e (injection grammar: nlri <family> became mp <family> for MP families and bare nlri for IPv4 unicast): test/plugin/med-locally-set-reaches-peer.ci changed its one cmd=api line from nlri ipv4/unicast add to nlri add; the expected UPDATE (ORIGIN, AS_PATH, NEXT_HOP, MULTI_EXIT_DISC 100, NLRI 1.0.0.1/32) is byte-identical, so the negative still requires a locally set MED to reach the eBGP peer and the received-MED positives are untouched. Re-run green 2026-10-17 (./le test bgp plugin med-locally-set-reaches-peer). RFC 4271 Section 5.1.4: \"The MULTI_EXIT_DISC attribute received from a neighboring AS MUST NOT be propagated to other neighboring ASes.\" Verdict stands.",
       "requirement_sha": "5d956ce89d316bad",
       "tests": {
         "internal/component/bgp/reactor/forward_med_test.go::TestForwardKeepsFilterSetMED": "d216c0c86115d31f",
@@ -437,7 +437,7 @@
         "internal/component/bgp/reactor/forward_med_test.go::TestMEDPropagationAllowedTo": "d216c0c86115d31f",
         "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS": "61f490e8785136a2",
         "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS#2": "61f490e8785136a2",
-        "test/plugin/med-locally-set-reaches-peer.ci": "1b8b6dc94487cd73",
+        "test/plugin/med-locally-set-reaches-peer.ci": "54e8dc11e57bcfab",
         "test/plugin/med-not-propagated-across-as.ci": "7ddd56d72dc48f9a",
         "test/plugin/med-not-propagated-across-as.ci#2": "7ddd56d72dc48f9a"
       },
@@ -449,7 +449,7 @@
         "internal/component/bgp/reactor/forward_med_test.go::TestMEDPropagationAllowedTo": "fe9f75d432bbc528",
         "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS": "f416657dfdc77c0d",
         "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS#2": "f416657dfdc77c0d",
-        "test/plugin/med-locally-set-reaches-peer.ci": "1b8b6dc94487cd73",
+        "test/plugin/med-locally-set-reaches-peer.ci": "54e8dc11e57bcfab",
         "test/plugin/med-not-propagated-across-as.ci": "7ddd56d72dc48f9a",
         "test/plugin/med-not-propagated-across-as.ci#2": "7ddd56d72dc48f9a"
       },
