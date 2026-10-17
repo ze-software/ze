@@ -1,6 +1,6 @@
 # Evidence and Guards
 
-**When:** stating what code does, acting on recorded claims, writing or reviewing a guard, or writing any string that enumerates data a registry already holds
+**When:** stating what code does or a measured number means, acting on recorded claims, writing or reviewing a guard, or writing a string listing data a registry holds
 **Severity:** blocking
 **Related:** writing, planning, protocol
 
@@ -12,6 +12,8 @@
 - **A pending result is not a result.** You MUST NOT record, act on, or report a verdict before the thing that produces it has reported. Being right by luck leaves the same false record, and the pressure is strongest at the last step before a commit.
 - **The named example is the worst sample.** The instance a document names is the one its author already looked at, so it is the member most likely to satisfy the claim and the least informative to check. You MUST derive the set the claim covers and count how many members hold.
 - **A guard is judged at the function that turns data into a verdict, never at the producer of the data it reads.** Reading a parser and a renderer tells you what a value looks like, not what is decided from it, and the two answer different questions. You MUST read the consumer before you call a guard blind, weak, or failing open.
+
+**A number you measured is a claim about what ran, and before you report it, act on it, or pick a winner from it, you MUST name the resource that bounds it and rule out that it measured something else.** Ask why it is not twice as good: the answer is a core, a lock, the disk, the network, the load generator or a setting, read from a profile or system counters taken during a run, never guessed from the code. Then rule out the usual substitutes: errors or lost routes, work that never ran inside the timed region, a side left on default settings, noise larger than the gap, and a piece too small to move the end-to-end path. A number reported without its run count, its spread and its limiter MUST be labelled inconclusive. The procedure for a `./le perf` comparison is `docs/guide/benchmarking.md`, "Before you report a number".
 
 ## No Fabrication
 

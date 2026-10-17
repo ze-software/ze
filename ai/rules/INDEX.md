@@ -15,7 +15,7 @@ full before acting on a topic it covers.
 | Configuration and YANG | adding or changing a config option, YANG module, env var, listener endpoint, or code that reads config values | blocking | `ai/rules/config.md` |
 | Context Economy | spawning an agent, looking up a Go symbol, or deciding how much of a file to read | blocking | `ai/rules/context-economy.md` |
 | Documentation First | before you spawn an agent or open a search to learn how a surface works, and whenever an edit changes behavior a page describes | blocking | `ai/rules/documentation.md` |
-| Evidence and Guards | stating what code does, acting on recorded claims, writing or reviewing a guard, or writing any string that enumerates data a registry already holds | blocking | `ai/rules/evidence.md` |
+| Evidence and Guards | stating what code does or a measured number means, acting on recorded claims, writing or reviewing a guard, or writing a string listing data a registry holds | blocking | `ai/rules/evidence.md` |
 | Git Safety | before any git operation, and when writing or running a commit script | blocking | `ai/rules/git-safety.md` |
 | Go Standards | writing Go in Ze: constructors, invariants, state types, naming, env access, logging, imports, typed-vs-string choices, external commands, or a compatibility shim | blocking | `ai/rules/go-standards.md` |
 | Goroutine Lifecycle | before writing `go func()` anywhere | blocking | `ai/rules/goroutine-lifecycle.md` |
