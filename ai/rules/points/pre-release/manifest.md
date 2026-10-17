@@ -10,6 +10,7 @@ directives ## Directives
   a-red-test-during-development-is-normal
   ask-whether-the-red-says-the-product-is-wrong
   never-re-run-a-check-to-reconfirm-a-result
+  fix-known-reds-by-targeted-reruns-and-verify-once
   stop-before-the-third-scaffolding-repair
   the-gate-is-owed-before-a-push-not-before-a-commit
 never ## What This Never Relaxes

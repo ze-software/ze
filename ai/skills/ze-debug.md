@@ -50,11 +50,11 @@ You do not need to ask permission to spawn them
    - Produce a Diagnosis: **symptom**, **root cause traced to the exact function** where behavior diverges from intent (cite it — no guessing), the **owning layer**, **two candidate fixes labeled `[workaround]` vs `[source]`**, and one line on **why the workaround is wrong**.
    - If the failure is a check/validation rejecting the input, answer the three-way question: is the check wrong, is the input wrong, or is the check's data/config incomplete?
    - **Only then** implement the `[source]` fix at the owning layer.
-   - Run `go test ./...` to verify the specific fix.
+   - Rerun only the failing test to verify the fix: the one Go test with `-run` over its package, or the one `.ci` selection (`ai/rules/pre-release.md`).
 6. **Confirm the fix is at the source, not the symptom:** before accepting any fix, re-read its Diagnosis. If the change makes the test pass by editing the test, renaming a symbol, or special-casing the failing input rather than correcting the traced root cause, reject it and return to step 5. Changing a test to match broken code is never the fix (`ai/rules/testing.md`).
 7. **Update the pages the fix made wrong, in this diff (BLOCKING, `ai/rules/documentation.md`):** the pages are the ones step 3 read. Two things get repaired here. A page the fix made wrong, and a page step 3 found wrong about the code. Neither waits for closure.
-8. **Run full verification:** `./le go lint run && ./le test unit all && ./le test functional gating` -- the fix must not break anything else
-9. **Report back** on each fixed failure. Give the Diagnosis (symptom, root-cause function, owning layer). Give the correct hypothesis, the `[source]` fix chosen over the `[workaround]`, the page updated, and the full suite green
+8. **Widen one step, then stop:** once the failing test passes alone, run its package or its suite. Do not run the full verification after each fix. Run `./le go lint run && ./le test unit all && ./le test functional gating` once, when every failure on the list passes its targeted rerun (`ai/rules/pre-release.md`)
+9. **Report back** on each fixed failure. Give the Diagnosis (symptom, root-cause function, owning layer). Give the correct hypothesis, the `[source]` fix chosen over the `[workaround]`, the page updated, the targeted rerun that went green, and whether the full verification has run or is still owed
 
 ## Fallback
 
