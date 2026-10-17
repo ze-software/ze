@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"net"
 	"net/netip"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -180,7 +180,8 @@ func TestHandleConfigureDoesNotEnrollPeerWithoutIRR(t *testing.T) {
 	plug := &irrPlugin{
 		byASN:  make(map[uint32]*asnState),
 		stopCh: make(chan struct{}),
-		state:  seedStore(t),
+		// Past OnStarted, so handleConfigure starts the resolution itself.
+		started: true,
 	}
 	t.Cleanup(func() { close(plug.stopCh) })
 
@@ -217,7 +218,8 @@ func TestHandleConfigureEnrollsIRRFilteredPeer(t *testing.T) {
 	plug := &irrPlugin{
 		byASN:  make(map[uint32]*asnState),
 		stopCh: make(chan struct{}),
-		state:  seedStore(t),
+		// Past OnStarted, so handleConfigure starts the resolution itself.
+		started: true,
 	}
 	t.Cleanup(func() { close(plug.stopCh) })
 
@@ -480,6 +482,14 @@ func TestPartitionUpdateAllOrNone(t *testing.T) {
 // given per-name prefix table.
 func fakeIRRv4(t *testing.T, v4 map[string]string) string {
 	t.Helper()
+	return fakeIRRv4Hook(t, v4, nil)
+}
+
+// fakeIRRv4Hook is fakeIRRv4 with onQuery, when non-nil, called with each
+// query before it is answered, so a test can count the queries or act while a
+// lookup is in flight.
+func fakeIRRv4Hook(t *testing.T, v4 map[string]string, onQuery func(query string)) string {
+	t.Helper()
 	lc := net.ListenConfig{}
 	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
@@ -500,6 +510,9 @@ func fakeIRRv4(t *testing.T, v4 map[string]string) string {
 					return
 				}
 				query := strings.TrimSpace(string(buf[:n]))
+				if onQuery != nil {
+					onQuery(query)
+				}
 				if prefixes, ok := v4[strings.TrimPrefix(query, "!a4")]; ok && strings.HasPrefix(query, "!a4") && prefixes != "" {
 					if _, err := fmt.Fprintf(c, "A1\n%s\nC\n", prefixes); err != nil {
 						return
@@ -515,8 +528,8 @@ func fakeIRRv4(t *testing.T, v4 map[string]string) string {
 	return ln.Addr().String()
 }
 
-// VALIDATES: TestFilterIRRUsesStore -- refreshASN delegates resolution and
-// persistence to the shared PrefixStore; the resolved prefixes land in the
+// VALIDATES: TestFilterIRRUsesStore -- refreshASN delegates resolution to the
+// shared in-memory PrefixStore; the resolved prefixes land in the
 // plugin's per-ASN state and in the store under the ASN identity.
 func TestFilterIRRUsesStore(t *testing.T) {
 	addr := fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"})
@@ -583,79 +596,6 @@ func TestFilterWaitsForFirstResolution(t *testing.T) {
 	}
 	if out.Action != sdk.FilterAccept {
 		t.Errorf("action = %v, want FilterAccept", out.Action)
-	}
-}
-
-// stalledKeyStore is a KeyStore whose WriteKey blocks until release is closed,
-// the shape a daemon state write takes when its fsync queues behind other disk
-// traffic. Reads find nothing, so the store starts cold. Safe for concurrent use.
-type stalledKeyStore struct {
-	release chan struct{}
-	mu      sync.Mutex
-	written map[string][]byte
-}
-
-func (s *stalledKeyStore) ReadKey(string) ([]byte, error) { return nil, errNotFoundForTest }
-
-func (s *stalledKeyStore) WriteKey(key string, data []byte) error {
-	<-s.release
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.written[key] = data
-	return nil
-}
-
-func (s *stalledKeyStore) RemoveKey(string) error            { return nil }
-func (s *stalledKeyStore) ListKeys(string) ([]string, error) { return nil, nil }
-
-var errNotFoundForTest = fmt.Errorf("stalledKeyStore: %w", fs.ErrNotExist)
-
-// VALIDATES: the first resolution publishes the prefix-list to the filter as
-// soon as the IRR answers, before its durable copy is written, and the durable
-// copy is still written once the write completes.
-// PREVENTS: the filter-irr.ci flake of the full verify (2026-10-17): the daemon
-// state write that persists the list took the SDK's full 5 s under disk load,
-// refreshASNCtx published the list only after it, so the UPDATE's first-
-// resolution wait expired and the in-list prefix was rejected "no-prefix-list"
-// although the IRR had answered in under a second.
-// Method: a KeyStore whose WriteKey blocks until the filter has decided; with
-// the list gated on persistence the filter waits out firstResolveWait and
-// rejects, with it published first the filter accepts at once.
-func TestFirstResolutionNotGatedOnPersistence(t *testing.T) {
-	addr := fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"})
-	keys := &stalledKeyStore{release: make(chan struct{}), written: map[string][]byte{}}
-	plug := &irrPlugin{
-		byASN:       map[uint32]*asnState{65001: newASNState(65001, "AS-TEST")},
-		prefixStore: store.New(irr.NewIRR(addr), nil, keys),
-		stopCh:      make(chan struct{}),
-	}
-
-	resolved := make(chan struct{})
-	go func() {
-		plug.initialResolve()
-		close(resolved)
-	}()
-
-	start := time.Now()
-	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
-		Filter: "bgp-filter-irr:65001",
-		Peer:   "127.0.0.1",
-		Update: "ipv4/unicast announce nlri add 10.0.0.0/24",
-	})
-	waited := time.Since(start)
-	close(keys.release)
-	<-resolved
-
-	if out.Action != sdk.FilterAccept {
-		t.Fatalf("action = %v after %s, want FilterAccept: the list waited for its durable write", out.Action, waited)
-	}
-	if waited >= firstResolveWait {
-		t.Errorf("the filter decided after %s, the full first-resolution wait: the list was not published before persistence", waited)
-	}
-	keys.mu.Lock()
-	defer keys.mu.Unlock()
-	if len(keys.written) != 1 {
-		t.Errorf("durable writes = %d, want 1: the resolved list must still be persisted", len(keys.written))
 	}
 }
 
@@ -872,5 +812,155 @@ func TestShowIRRServerEscaped(t *testing.T) {
 	}
 	if parsed["server"] != `whois.example","injected":"x` {
 		t.Errorf("server = %v, want the raw value preserved as one string", parsed["server"])
+	}
+}
+
+// irrConfigFor builds the bgp subtree handleConfigure reads: one peer of AS
+// 65001 importing bgp-filter-irr:65001 with the given as-set, resolved against
+// server, or, with an empty asn, a config that enrolls nothing.
+func irrConfigFor(server, asn, asSet string) map[string]any {
+	policy := map[string]any{"irr": map[string]any{"server": server, "peeringdb-url": "http://127.0.0.1:1"}}
+	if asn == "" {
+		return map[string]any{"policy": policy}
+	}
+	return map[string]any{
+		"policy": policy,
+		"peer": map[string]any{
+			"10.0.0.1": map[string]any{
+				"session": map[string]any{
+					"asn": map[string]any{"remote": asn},
+					"irr": map[string]any{"as-set": asSet},
+				},
+				"filter": map[string]any{"import": []any{"bgp-filter-irr:" + asn}},
+			},
+		},
+	}
+}
+
+// seedEntry resolves AS65001 for asSet through the store's own Refresh, so the
+// entry carries the as-set the store recorded rather than one a test wrote.
+func seedEntry(t *testing.T, plug *irrPlugin, asSet string) {
+	t.Helper()
+	if _, err := plug.prefixStore.Refresh(context.Background(), "AS65001", asSet); err != nil {
+		t.Fatalf("seed %s: %v", asSet, err)
+	}
+	if plug.prefixStore.Get("AS65001") == nil {
+		t.Fatalf("seed %s: no entry", asSet)
+	}
+}
+
+// VALIDATES: the prefix store is created once and kept across every later
+// configure, so an entry resolved before a reload is still the base the
+// store's per-family last-known-good merges the next refresh into.
+// PREVENTS: a reload emptying the in-memory store. With the disk copy gone,
+// a store built per configure would hold nothing after each reload, and the
+// next refresh that answered one family only would drop the other.
+// Method: configure, resolve an entry, reconfigure with the same as-set, and
+// check the store is the same one and still holds the entry.
+func TestHandleConfigureKeepsStoreAcrossReload(t *testing.T) {
+	addr := fakeIRRv4(t, map[string]string{"AS-ONE": "10.0.0.0/24"})
+	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
+	t.Cleanup(func() { close(plug.stopCh) })
+
+	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-ONE"))
+	first := plug.prefixStore
+	if first == nil {
+		t.Fatal("configure built no prefix store")
+	}
+	seedEntry(t, plug, "AS-ONE")
+
+	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-ONE"))
+	if plug.prefixStore != first {
+		t.Fatal("reconfigure replaced the prefix store: the resolved entries were lost")
+	}
+	if first.Get("AS65001") == nil {
+		t.Error("reconfigure with the same as-set dropped the resolved entry")
+	}
+}
+
+// VALIDATES: a reconfigure drops from the store the entry of an ASN whose
+// configured as-set changed, and the entry of an ASN no longer enrolled.
+// PREVENTS: the store merging the new as-set's first answer into prefixes
+// resolved for the old one (store.commit keeps a family the answer carried
+// nothing for), and an unenrolled ASN's prefixes living in memory forever.
+func TestHandleConfigureForgetsUnconfiguredEntries(t *testing.T) {
+	addr := fakeIRRv4(t, map[string]string{"AS-ONE": "10.0.0.0/24"})
+	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
+	t.Cleanup(func() { close(plug.stopCh) })
+
+	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-ONE"))
+	seedEntry(t, plug, "AS-ONE")
+	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-TWO"))
+	if plug.prefixStore.Get("AS65001") != nil {
+		t.Error("as-set changed from AS-ONE to AS-TWO and the AS-ONE entry is still in the store")
+	}
+
+	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-ONE"))
+	seedEntry(t, plug, "AS-ONE")
+	plug.handleConfigure(irrConfigFor(addr, "", ""))
+	if plug.prefixStore.Get("AS65001") != nil {
+		t.Error("AS65001 is no longer enrolled and its entry is still in the store")
+	}
+}
+
+// VALIDATES: a lookup a reload superseded by changing the ASN's as-set is
+// dropped: the live state keeps the new as-set and no list, and the store
+// holds no entry for the old set.
+// PREVENTS: the in-flight refresh applying the old set's answer to the new
+// state (the filter then enforces a set the config no longer names, with
+// firstDone closed) and leaving its committed entry to seed the new set's
+// per-family merge, after forgetUnconfigured had already run.
+// Method: the fake IRR reconfigures to AS-NEW while it is answering the
+// AS-OLD query, so the reload lands between the lookup and its apply.
+func TestRefreshDropsLookupAReloadSuperseded(t *testing.T) {
+	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
+	t.Cleanup(func() { close(plug.stopCh) })
+	var addr string
+	var once sync.Once
+	addr = fakeIRRv4Hook(t, map[string]string{"AS-OLD": "10.0.0.0/24"}, func(query string) {
+		if query != "!a4AS-OLD" {
+			return
+		}
+		once.Do(func() { plug.handleConfigure(irrConfigFor(addr, "65001", "AS-NEW")) })
+	})
+	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-OLD"))
+
+	plug.refreshASN(65001)
+
+	plug.mu.RLock()
+	st := plug.byASN[65001]
+	asSet, list := st.asSet, st.list
+	plug.mu.RUnlock()
+	if asSet != "AS-NEW" {
+		t.Errorf("live as-set = %q, want AS-NEW: the superseded lookup overwrote it", asSet)
+	}
+	if list != nil {
+		t.Errorf("live list = %v, want none: the AS-OLD answer was applied to the AS-NEW state", list.entries)
+	}
+	if entry := plug.prefixStore.Get("AS65001"); entry != nil {
+		t.Errorf("store holds %s's entry for AS65001: it would seed AS-NEW's merge", entry.ASSet)
+	}
+}
+
+// VALIDATES: a configure that runs before OnStarted, inside the startup
+// handshake, sends no query to the IRR server.
+// PREVENTS: startup depending on IRR reachability, which the started gate
+// exists to stop: the first configure leaves resolution to OnStarted.
+// Method: count the queries the fake IRR server receives, then give any
+// stray resolution goroutine time to reach it.
+func TestConfigureBeforeStartedQueriesNothing(t *testing.T) {
+	var queries atomic.Int32
+	addr := fakeIRRv4Hook(t, map[string]string{"AS-ONE": "10.0.0.0/24"}, func(string) { queries.Add(1) })
+	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
+	t.Cleanup(func() { close(plug.stopCh) })
+
+	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-ONE"))
+	time.Sleep(200 * time.Millisecond)
+
+	if n := queries.Load(); n != 0 {
+		t.Errorf("IRR queries = %d before OnStarted, want 0", n)
+	}
+	if plug.byASN[65001] == nil {
+		t.Error("ASN 65001 was not enrolled: the test would pass with nothing to resolve")
 	}
 }

@@ -42,8 +42,7 @@ const (
 	// enough that a genuinely-unreachable IRR server fails the UPDATE closed
 	// promptly rather than hanging the route's processing. It sits one second
 	// below rpc.FilterUpdateTimeout, the reactor's deadline for this call: the
-	// verdict given when the wait expires, the cached list or the fail-closed
-	// reject, only counts if it reaches the reactor before that deadline rejects
+	// verdict given when the wait expires, the fail-closed reject, only counts if it reaches the reactor before that deadline rejects
 	// the UPDATE on its own.
 	firstResolveWait = rpc.FilterUpdateTimeout - time.Second
 )
@@ -119,9 +118,17 @@ func isClosed(ch chan struct{}) bool {
 }
 
 type irrPlugin struct {
-	plugin      *sdk.Plugin
+	plugin *sdk.Plugin
+	// prefixStore holds the resolved lists in memory only, and lives as long as
+	// the plugin: the first configure creates it and every later one points it
+	// at the configured servers (UseClients). It is never written to disk, so a
+	// restart starts with no list and resolves every enrolled ASN again.
 	prefixStore *store.PrefixStore
-	state       store.KeyStore // Bound only after the startup handshake.
+	// started is set by OnStarted, after the startup handshake. Configure runs
+	// inside that handshake, so the first configure leaves resolution to
+	// OnStarted, and only a reload configure, which arrives after it, starts
+	// resolution itself. Guarded by mu.
+	started bool
 
 	mu          sync.RWMutex
 	byASN       map[uint32]*asnState
@@ -166,9 +173,9 @@ func runFilterIRR(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	defer close(plug.stopCh)
-	p.OnStarted(func(ctx context.Context) error {
+	p.OnStarted(func(_ context.Context) error {
 		plug.mu.Lock()
-		plug.state = p.StateKeys(ctx)
+		plug.started = true
 		ps := plug.prefixStore
 		cfg := plug.config
 		refreshStop := plug.refreshStop
@@ -179,11 +186,6 @@ func runFilterIRR(conn net.Conn) int {
 		if ps == nil {
 			return nil
 		}
-		ps.UsePersistence(plug.state)
-		if err := ps.Open(); err != nil {
-			logger().Warn("irr: persisted cache unavailable", "error", err)
-		}
-		plug.loadFromStore()
 		go plug.initialResolve()
 		go plug.refreshLoop(cfg.RefreshInterval, refreshStop)
 		return nil
@@ -228,12 +230,18 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 	if cfg.SourceAddress != "" {
 		irrClient.SetSourceAddress(cfg.SourceAddress)
 	}
+	pdb := peeringdb.NewPeeringDB(cfg.PeeringDBURL)
 	plug.mu.RLock()
-	state := plug.state
+	ps := plug.prefixStore
+	started := plug.started
 	plug.mu.RUnlock()
-	ps := store.New(irrClient, peeringdb.NewPeeringDB(cfg.PeeringDBURL), state)
-	if err := ps.Open(); err != nil {
-		logger().Warn("irr: prefix store open failed", "error", err)
+	// One store for the plugin's life, never one per configure: the store's
+	// per-family last-known-good (store.commit) merges a refresh into the entry
+	// it already holds, and a fresh store would hold none after every reload.
+	if ps == nil {
+		ps = store.New(irrClient, pdb, nil)
+	} else {
+		ps.UseClients(irrClient, pdb)
 	}
 
 	newByASN := make(map[uint32]*asnState)
@@ -295,6 +303,7 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 			newSt.signalFirstResolved()
 		}
 	}
+	oldByASN := plug.byASN
 	plug.byASN = newByASN
 	plug.prefixStore = ps
 	plug.config = cfg
@@ -305,7 +314,7 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 	refreshStop := plug.refreshStop
 	plug.mu.Unlock()
 
-	plug.loadFromStore()
+	forgetUnconfigured(ps, oldByASN, newByASN)
 
 	// A prefix held for a peer this config no longer filters under that ASN
 	// has no list to be re-evaluated against, and no peer to ask.
@@ -342,7 +351,7 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 	// handleFilterUpdate waits (bounded) on each ASN's firstDone signal, which
 	// refreshAll closes per ASN below. The periodic refreshLoop keeps the list
 	// fresh thereafter.
-	if state != nil {
+	if started {
 		go plug.initialResolve()
 		go plug.refreshLoop(cfg.RefreshInterval, refreshStop)
 	}
@@ -355,6 +364,33 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 		enrolledPeers += len(st.peerAddrs)
 	}
 	logger().Debug("configured", "peers", enrolledPeers, "asns", len(newByASN), "server", cfg.Server)
+}
+
+// forgetUnconfigured drops from the store every entry the new config no longer
+// asks for: an ASN no longer enrolled, and an ASN whose configured as-set is not
+// the one its entry was resolved for. The store merges a refresh into the entry
+// it holds, keeping a family the answer carried nothing for (store.commit), so
+// an entry resolved for the old as-set would hand its prefixes to the new one.
+// This is the store's half of "a changed as-set starts from no list";
+// handleConfigure's carry-over rule is the plugin's half.
+func forgetUnconfigured(ps *store.PrefixStore, oldByASN, newByASN map[uint32]*asnState) {
+	for asn := range oldByASN {
+		if _, kept := newByASN[asn]; !kept {
+			ps.Purge(asnName(asn))
+		}
+	}
+	for asn, st := range newByASN {
+		if st.asSet == "" {
+			continue // the as-set is discovered, so no configured one to differ from
+		}
+		entry := ps.Get(asnName(asn))
+		if entry == nil {
+			continue
+		}
+		if entry.ASSet != st.asSet {
+			ps.Purge(asnName(asn))
+		}
+	}
 }
 
 // initialResolve performs the first background resolution of every enrolled
@@ -407,14 +443,15 @@ func (plug *irrPlugin) handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.Filter
 	// Startup-resolution race: the first IRR resolution runs in the background
 	// (configure never blocks on IRR network I/O), so the first UPDATE for an
 	// IRR-filtered peer can arrive before that resolution has produced a
-	// prefix-list -- or while only a stale cached list (loaded from the store) is
-	// present. Until the first NETWORK resolution completes (firstDone closed),
-	// wait (bounded) for it instead of evaluating against nothing or against stale
-	// data; the background refresh closes firstDone on completion and re-reads the
-	// now-fresh list below. On timeout (IRR slow/unreachable) we fall through with
-	// whatever list we have -- the cached fallback if any, else the unchanged
-	// fail-closed reject. This blocks only this one IRR-filtered UPDATE; peers
-	// without an IRR import never reach here, and startup is never gated.
+	// prefix-list. The list is held in memory only, so after a restart every
+	// enrolled ASN starts here with no list. Until the first resolution completes
+	// (firstDone closed), wait (bounded) for it instead of evaluating against
+	// nothing; the background refresh closes firstDone on completion and the
+	// now-resolved list is re-read below. On timeout (IRR slow/unreachable) we
+	// fall through with no list, and the fail-closed reject holds each announced
+	// prefix for re-admission by ROUTE-REFRESH once the list arrives. This blocks
+	// only this one IRR-filtered UPDATE; peers without an IRR import never reach
+	// here, and startup is never gated.
 	if firstDone != nil && !isClosed(firstDone) {
 		select {
 		case <-firstDone:
@@ -671,13 +708,12 @@ func (plug *irrPlugin) refreshASN(asn uint32) {
 // path signals the live ASN state's firstDone so handleFilterUpdate's bounded
 // wait is released as soon as the first resolution attempt finishes -- whether
 // it succeeded, failed, or could not run (no store). periodic and manual
-// refreshes use the per-ASN timeout via refreshASN. The list is published
-// before its durable copy is written (RefreshLive, then the deferred Persist):
-// a daemon state write can take the SDK's full 5 s on a busy disk, and an
-// UPDATE waiting on firstDone must not spend its wait on the cache.
+// refreshes use the per-ASN timeout via refreshASN. The list lives in memory
+// only: an UPDATE waiting on firstDone waits on the IRR answer and nothing else.
 func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 	plug.mu.RLock()
 	st := plug.byASN[asn]
+	captured := st
 	ps := plug.prefixStore
 	asSet := ""
 	if st != nil {
@@ -691,11 +727,13 @@ func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 		return
 	}
 
-	// The shared store owns AS-SET discovery (PeeringDB), the IRR query, and
-	// zefs persistence. The ASN is the stable identity/key; the configured (or
-	// previously-discovered) AS-SET is passed as a hint.
-	defer ps.Persist()
-	entry, err := ps.RefreshLive(ctx, asnName(asn), asSet)
+	// The store owns AS-SET discovery (PeeringDB), the IRR query, and the
+	// in-memory last-known-good. The ASN is the stable identity/key; the
+	// configured (or previously-discovered) AS-SET is passed as a hint.
+	// The store was built with no persistence (handleConfigure), so Refresh
+	// writes nothing durable and nothing between the IRR answer and the
+	// published list waits on a disk.
+	entry, err := ps.Refresh(ctx, asnName(asn), asSet)
 	now := time.Now()
 
 	plug.mu.Lock()
@@ -705,6 +743,24 @@ func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 	st = plug.byASN[asn]
 	if st == nil {
 		plug.mu.Unlock()
+		return
+	}
+	if st != captured && st.asSet != asSet {
+		// A reload changed this ASN's as-set while the lookup ran, so the answer
+		// is for a set the config no longer names. Applying it would filter
+		// against the old set, and the entry the store just committed would seed
+		// the new set's per-family merge (store.commit): drop both. The reload's
+		// own resolution answers for the new set. A reload that kept the as-set
+		// also replaces st, and its answer is still the right one, so the as-set
+		// decides, not the pointer alone. The entry is purged only when it names
+		// a set the live state does not, so a concurrent refresh's valid entry
+		// stays.
+		liveASSet := st.asSet
+		plug.mu.Unlock()
+		if entry != nil && entry.ASSet != liveASSet {
+			ps.Purge(asnName(asn))
+		}
+		logger().Debug("irr: dropped a lookup a reload superseded", "asn", asn, "as-set", asSet, "live-as-set", liveASSet)
 		return
 	}
 	if entry != nil {

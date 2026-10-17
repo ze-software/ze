@@ -8,7 +8,6 @@ filters, and refreshes on its own.
 <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- plugin entry point, refreshASN -->
 <!-- source: internal/component/bgp/plugins/filter_irr/config.go -- config parsing from OnConfigure JSON -->
 <!-- source: internal/component/bgp/plugins/filter_irr/match.go -- prefix matching -->
-<!-- source: internal/component/bgp/plugins/filter_irr/cache.go -- PrefixStore wiring -->
 <!-- source: internal/component/bgp/plugins/filter_irr/readmit.go -- re-evaluating a route rejected for a list reason -->
 
 ## The decisions
@@ -89,21 +88,38 @@ the replaced config; the filter supplies only the parse of the bgp subtree and
 
 **A changed as-set starts from no list.** `handleConfigure` carries a resolved
 list over a reconfigure only while the ASN's as-set is the same, and
-`loadFromStore` skips a cached entry resolved for another as-set. The first
-UPDATE after the edit waits, bounded, for the new set's resolution rather than
-being judged against the old one.
+`forgetUnconfigured` purges the store's entry for it, because the store merges
+a refresh into the entry it holds and keeps a family the answer carried
+nothing for (`store.commit`). The first UPDATE after the edit waits, bounded,
+for the new set's resolution rather than being judged against the old one.
+The same pass purges the entry of an ASN the new config no longer enrolls.
 
-**The first resolution publishes the list before it persists it.** An UPDATE
-that arrives before an ASN's first resolution waits for it, for at most
+**The prefix-lists live in memory only.** The owner decided it on 2026-10-17.
+The plugin builds its `PrefixStore` with no persistence, never asks the SDK for
+its state store, and writes nothing to disk. The disk copy it used to keep cost
+more than it gave: the daemon state write took the SDK's full 5 s under disk
+load, which made an UPDATE's first-resolution wait expire
+(`plan/journal/startup-wait-expires-under-load.md`). The store is created by the
+first configure and kept for the plugin's life; a later configure points it at
+the configured servers with `UseClients`, so a reload loses no resolved entry
+and the per-family last-known-good still has the entry to merge into.
+
+A restart therefore starts from no list. `OnStarted` sets `started` and runs
+`initialResolve`, which resolves every enrolled ASN from the IRR server. An
+UPDATE that arrives before an ASN's first resolution waits for it, for at most
 `firstResolveWait`. That bound sits one second below `rpc.FilterUpdateTimeout`,
 the reactor's deadline for a filter-update call, so the verdict given when it
-expires still reaches the reactor. `refreshASNCtx` calls the store's
-`RefreshLive` and publishes the list, then `Persist` writes the durable copy. A
-daemon state write can take the SDK's full 5 s on a busy disk, and publishing
-before persisting keeps a slow write from consuming the wait.
-<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- firstResolveWait, refreshASNCtx -->
+expires still reaches the reactor. An UPDATE still without a list then has its
+announcements rejected and held, and the re-admission path below asks the peer
+for them by ROUTE-REFRESH once the list arrives. An IRR server unreachable at
+startup has no cached list to fall back to: the announcements stay rejected,
+and the worker retries the lookup every `readmitRetryInterval`.
+
+A configure that runs before `OnStarted`, inside the startup handshake, starts
+no resolution, because startup must not depend on the IRR server; only a
+reload configure, after `started` is set, starts it itself.
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- firstResolveWait, handleConfigure, forgetUnconfigured, refreshASNCtx -->
 <!-- source: pkg/plugin/rpc/types.go -- FilterUpdateTimeout -->
-<!-- source: internal/component/resolve/irr/store/store.go -- RefreshLive, Persist -->
 
 **A route rejected for a list reason is asked for again, by ROUTE-REFRESH.** The
 owner asked for it on 2026-10-17. No RFC obliges it: RFC 2918 Section 1 says
@@ -187,16 +203,21 @@ plugin self-containment test proves it.
 standalone peer, a grouped peer, and the group-level session.
 
 **`handleConfigure` publishes every mutable plugin field under `plug.mu`
-together**: `byASN`, `prefixStore`, `config` and `refreshStop`. A worker that
+together**: `byASN`, `prefixStore`, `config` and `refreshStop`, and `started`
+is read and written under the same lock. A worker that
 captured `st := byASN[asn]` under an RLock must re-read `st = byASN[asn]` under
 the later write lock before it mutates. A reconfigure can swap `byASN` in
 between, which orphans the captured pointer and loses the refresh result in
-silence. This is one bug class, not four separate races.
+silence. This is one bug class, not four separate races. `refreshASNCtx` also
+drops a result when the live state is not the one it captured and names
+another as-set: the reload asked for a different set, so the answer is
+discarded and the store entry it committed is purged, or it would seed the new
+set's per-family merge.
 
-**The shared prefix store holds entries this plugin never enrolled**, because
-other consumers write to the same file. `loadFromStore` keeps the enrollment
-gate and applies only the configured ASNs. See `docs/architecture/resolve.md`
-for the store itself.
+**The prefix store is this plugin's own**, in memory, and holds only entries
+for ASNs it enrolled: nothing else writes to it, and `forgetUnconfigured` drops
+an ASN the config no longer enrolls. The firewall IRR plugin builds its own
+store and persists it. See `docs/architecture/resolve.md` for the store itself.
 
 **On a lookup error, `Refresh` returns a non-nil `CachedEntry` alongside the
 error**, carrying the resolved AS-SET and no prefixes, so this plugin can still

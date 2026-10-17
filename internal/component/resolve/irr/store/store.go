@@ -108,7 +108,7 @@ type PrefixStore struct {
 	entries   map[string]*CachedEntry
 
 	// unpersisted names the entries installed in memory whose durable copy
-	// Persist has not written yet. Guarded by mu. It holds at most one key per
+	// persist has not written yet. Guarded by mu. It holds at most one key per
 	// cached entry, so it is bounded by entries.
 	unpersisted map[string]struct{}
 }
@@ -174,20 +174,16 @@ func (s *PrefixStore) Put(name string, ipv4, ipv6 []netip.Prefix) {
 }
 
 // Refresh resolves prefixes for name and persists the result: it is
-// RefreshLive followed by Persist, and returns only after the durable write.
+// refreshLive followed by persist, and returns only after the durable write.
 func (s *PrefixStore) Refresh(ctx context.Context, name, asSet string) (*CachedEntry, error) {
-	entry, err := s.RefreshLive(ctx, name, asSet)
-	s.Persist()
+	entry, err := s.refreshLive(ctx, name, asSet)
+	s.persist()
 	return entry, err
 }
 
-// RefreshLive resolves prefixes for name and installs the result in memory. It
-// returns without writing the durable copy, so a consumer can enforce the
-// answer before persistence completes; the caller MUST call Persist afterwards.
-// The durable write can take seconds when the disk is busy, and a consumer that
-// waits on a deadline for the answer must not spend it on the cache: the BGP
-// filter's first resolution waits on firstResolveWait, which is bounded by the
-// reactor's filter-update deadline (rpc.FilterUpdateTimeout).
+// refreshLive resolves prefixes for name and installs the result in memory,
+// marking the entry for the next persist; the caller MUST call persist
+// afterwards. Refresh is its only caller.
 //
 // name is the identity and the storage key (e.g. "AS13335" or "AS-CLOUDFLARE").
 // asSet, when non-empty, is the AS-SET to query. When asSet is empty, the store
@@ -206,9 +202,9 @@ func (s *PrefixStore) Refresh(ctx context.Context, name, asSet string) (*CachedE
 // nothing, marks the entry stale, and reports no error: it did learn prefixes.
 //
 // On success the in-memory cache is updated and the entry is marked for the
-// next Persist.
+// next persist.
 // StaleSince is cleared when both families answered.
-func (s *PrefixStore) RefreshLive(ctx context.Context, name, asSet string) (*CachedEntry, error) {
+func (s *PrefixStore) refreshLive(ctx context.Context, name, asSet string) (*CachedEntry, error) {
 	entry, err := s.resolve(ctx, name, asSet)
 	if err != nil {
 		return s.markStale(name, entry), err
@@ -362,7 +358,7 @@ func (s *PrefixStore) removePersisted(name string) {
 	}
 	err := s.persistence.RemoveKey(zefs.KeyIRRPrefixCache.Key(name))
 	if errors.Is(err, fs.ErrNotExist) {
-		return // never persisted: Purge ran before the first Persist wrote it
+		return // never persisted: Purge ran before the first persist wrote it
 	}
 	if err != nil {
 		logger().Warn("irr/store: purge removal failed", "name", name, "error", err)
@@ -519,12 +515,12 @@ func (s *PrefixStore) migrate(bs KeyStore) error {
 	return nil
 }
 
-// Persist writes the durable copy of every entry RefreshLive installed since
-// the last Persist, through the existing owner, never a second store handle. It
-// MUST be called after RefreshLive. A write that fails leaves its entry
-// unpersisted, so the next Persist retries it. Safe for concurrent use: fileMu
+// persist writes the durable copy of every entry refreshLive installed since
+// the last persist, through the existing owner, never a second store handle. It
+// MUST be called after refreshLive. A write that fails leaves its entry
+// unpersisted, so the next persist retries it. Safe for concurrent use: fileMu
 // orders it with Purge, which removes the durable copy under the same lock.
-func (s *PrefixStore) Persist() {
+func (s *PrefixStore) persist() {
 	s.fileMu.Lock()
 	defer s.fileMu.Unlock()
 
@@ -546,7 +542,7 @@ func (s *PrefixStore) Persist() {
 			continue
 		}
 		if err := s.persistence.WriteKey(zefs.KeyIRRPrefixCache.Key(e.Name), data); err != nil {
-			logger().Warn("irr/store: persist write failed; retried by the next Persist, lost if the daemon stops first (the cache is re-resolved on start)", "name", e.Name, "error", err)
+			logger().Warn("irr/store: persist write failed; retried by the next persist, lost if the daemon stops first (the cache is re-resolved on start)", "name", e.Name, "error", err)
 			s.retryPersist(e)
 		}
 	}

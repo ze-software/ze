@@ -8,14 +8,16 @@ instead of BGP prefix-list matching.
 
 ## Decisions
 
-### The PrefixStore is shared with BGP
+### The PrefixStore code is shared with BGP, the cache is not
 
 <!-- source: internal/component/firewall/plugins/irr/irr.go -- runFirewallIRR, configureStore -->
 
-Both consumers read `meta/irr/{name}` through the daemon's owned store.
-The plugin binds state RPCs after `OnStarted` and reloads persisted prefixes
+This plugin and the BGP IRR filter build their caches from the same
+`PrefixStore` type. Only this plugin persists its cache: it reads and writes
+`meta/irr/{name}` through the daemon's owned store, while the BGP filter keeps
+its lists in memory only (`docs/architecture/bgp/filter-irr.md`). The plugin binds state RPCs after `OnStarted` and reloads persisted prefixes
 before it starts refresh workers.
-<!-- source: internal/component/resolve/irr/store/store.go -- Open, Persist -->
+<!-- source: internal/component/resolve/irr/store/store.go -- Open, Refresh -->
 
 ### A separate plugin, not an engine extension
 
@@ -126,13 +128,11 @@ the store the apply then discarded, which made the verify-time refusal a
 statement about a store nothing would use. A table that was already filtering
 lost its rules the same way, on a commit that changed something else.
 
-`Open` still runs on each configure. The zefs file is shared with the BGP IRR
-filter, so reading it again picks up what that consumer has fetched since. It
-only adds: an entry held in both places is the same entry, because this plugin
-mutates its store only through `Refresh` and `Purge`, and both write the durable
-copy before they return. The BGP IRR filter calls `RefreshLive` instead and
-writes its copy afterwards through `Persist`, so this plugin sees that
-filter's answer only once its write lands.
+`Open` still runs on each configure. It only adds: an entry held in both
+places is the same entry, because this plugin mutates its store only through
+`Refresh` and `Purge`, and both write the durable copy before they return. The
+BGP IRR filter writes nothing to `meta/irr/`, so this plugin never picks up a
+list that filter fetched: each consumer resolves the names it uses.
 
 ### A crash starts the plugin again
 

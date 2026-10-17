@@ -96,19 +96,18 @@ to the literal `AS<asn>` name when PeeringDB has no answer), the IRR prefix
 lookup, and persistence under per-entry keys `meta/irr/{name}`.
 
 The BGP `filter_irr` and `firewall-irr` plugins each keep a `PrefixStore`.
-Their persistence handles send state RPCs to the daemon, which owns the single
-writable store for its lifetime. Cache loading and refresh workers begin after
-`OnStarted`, when those RPCs are available. Reload keeps using the same owner.
-Doctor supplies a read-only `Storage` handle and never creates a store.
+The BGP filter's is memory only: it is built with no persistence, so it writes
+nothing and a restart resolves every list again
+(`docs/architecture/bgp/filter-irr.md`). The firewall plugin's persistence
+handle sends state RPCs to the daemon, which owns the single writable store for
+its lifetime. Its cache loading and refresh workers begin after `OnStarted`,
+when those RPCs are available, and reload keeps using the same owner. Doctor
+supplies a read-only `Storage` handle and never creates a store.
 
-`Refresh` returns only after the durable write. It is `RefreshLive`, which
-installs the answer in memory, followed by `Persist`, which writes every entry
-installed since the last `Persist`. A write that fails stays pending, and the
-next `Persist` retries it. A consumer that must enforce an answer before a
-deadline calls `RefreshLive`, publishes the answer, and then calls `Persist`.
-The BGP filter does this, because a state write can take seconds on a busy
-disk.
-<!-- source: internal/component/resolve/irr/store/store.go -- Refresh, RefreshLive, Persist -->
+`Refresh` installs the answer in memory and returns only after the durable
+write, when the store has persistence. A write that fails stays pending, and
+the next `Refresh` retries it. A store built with no persistence writes nothing.
+<!-- source: internal/component/resolve/irr/store/store.go -- Refresh, refreshLive, persist -->
 
 On `Open`, a legacy cache (`meta/bgp/irr-cache`, keyed by ASN) is copied
 into per-entry keys. Its source key is removed only after every new key is

@@ -19,4 +19,4 @@
 
 ## Description
 
-`bgp-filter-irr` builds per-ASN import prefix-lists from explicit or PeeringDB-discovered IRR AS-SETs, refreshes and persists the lists, and rejects received prefixes outside the selected list. Includes status, prefix inspection, dry-run checks, and manual refresh commands. <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- IRR import filter --> <!-- source: internal/component/resolve/irr/store/store.go -- shared persisted prefix store -->
+`bgp-filter-irr` builds per-ASN import prefix-lists from explicit or PeeringDB-discovered IRR AS-SETs, refreshes the lists and keeps them in memory only (a restart resolves them again), and rejects received prefixes outside the selected list. Includes status, prefix inspection, dry-run checks, and manual refresh commands. <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- IRR import filter --> <!-- source: internal/component/resolve/irr/store/store.go -- shared prefix store -->

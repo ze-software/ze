@@ -8,8 +8,8 @@ import (
 )
 
 // irrSection builds a bgp config delivery naming one IRR-filtered peer of AS
-// 65001 with the given as-set. No IRR server is reachable and the plugin holds
-// no state store, so handleConfigure enrolls the ASN and starts no resolution.
+// 65001 with the given as-set. No IRR server is reachable and the plugin has
+// not started, so handleConfigure enrolls the ASN and starts no resolution.
 func irrSection(asSet string) []sdk.ConfigSection {
 	data := `{"bgp":{"peer":{"10.0.0.1":{` +
 		`"session":{"asn":{"remote":"65001"},"irr":{"as-set":"` + asSet + `"}},` +
