@@ -448,10 +448,12 @@ An editor `.et` test's `option=timeout:value=<duration>` is its wall-clock
 budget, 30s when the file declares none. `le test editor` and
 `TestFunctionalETFiles` run the tests concurrently, so both multiply the budget
 by `ParallelTimeoutHeadroom` (x3). A run past its budget fails with
-`timed out after <budget>` and writes the goroutine stacks to `hang-stacks.txt`
-in the test's temp directory, so a hung command fails its test instead of
-holding the suite. A timeout the runner cannot parse fails the test rather than
-falling back to the default.
+`timed out after <budget>` and writes the goroutine stacks to a
+`ze-editor-hang-stacks-*.txt` file in the system temp directory, whose path the
+error names, so a hung command fails its test instead of holding the suite. The
+file sits outside the test's temp directory because the run still removes that
+directory when a late run ends, and nothing removes it. A timeout the runner
+cannot parse fails the test rather than falling back to the default.
 <!-- source: internal/component/cli/testing/runner.go -- testBudget, runTestCase, timedOutError -->
 <!-- source: internal/test/cli/cmd_editor.go -- runner.ParallelTimeoutHeadroom -->
 

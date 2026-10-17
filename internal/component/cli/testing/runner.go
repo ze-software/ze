@@ -138,7 +138,7 @@ func runTestCase(tc *testCase, headroom int) *TestResult {
 	case result := <-done:
 		return result
 	case <-deadline.C:
-		return &TestResult{Error: timedOutError(budget, tmpDir), TempDir: tmpDir}
+		return &TestResult{Error: timedOutError(budget), TempDir: tmpDir}
 	}
 }
 
@@ -150,14 +150,18 @@ func runTestCaseWorker(tc *testCase, tmpDir string, done chan<- *TestResult) {
 	done <- runTestCaseIn(tc, tmpDir)
 }
 
-// timedOutError names the budget and writes every goroutine's stack to
-// hang-stacks.txt beside the test's files, so the blocked call survives the
-// run rather than being lost with it.
-func timedOutError(budget time.Duration, tmpDir string) string {
+// timedOutError names the budget and writes every goroutine's stack to a
+// ze-editor-hang-stacks-*.txt file in the system temp directory, so the
+// blocked call survives the run rather than being lost with it.
+//
+// The file is NOT written inside the test's temp dir: the worker removes that
+// directory when a slow run finally ends, which deleted the stacks of every
+// run that was late rather than hung, in a process that outlives the run.
+// Nothing removes the file: it is left for post-mortem.
+func timedOutError(budget time.Duration) string {
 	var tb textbuf.Buffer
 	tb.Str("timed out after ").Str(budget.String())
-	stacks := filepath.Join(tmpDir, "hang-stacks.txt")
-	f, err := os.Create(stacks) //nolint:gosec // path under the test's own temp dir
+	f, err := os.CreateTemp("", "ze-editor-hang-stacks-*.txt")
 	if err != nil {
 		return tb.Str(" (stacks not written: ").Err(err).Str(")").String()
 	}
@@ -165,7 +169,7 @@ func timedOutError(budget time.Duration, tmpDir string) string {
 	if err := pprof.Lookup("goroutine").WriteTo(f, 2); err != nil {
 		return tb.Str(" (stacks not written: ").Err(err).Str(")").String()
 	}
-	return tb.Str("; goroutine stacks: ").Str(stacks).String()
+	return tb.Str("; goroutine stacks: ").Str(f.Name()).String()
 }
 
 // runTestCaseIn executes a parsed test case with tmpDir as its working

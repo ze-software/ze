@@ -1,6 +1,9 @@
 package testing
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -40,6 +43,40 @@ func TestRunnerEnforcesDeclaredTimeout(t *testing.T) {
 	require.NotNil(t, result)
 	assert.False(t, result.Passed, "a run past its timeout must fail")
 	assert.Contains(t, result.Error, "timed out after 1ns")
+	removeHangStacks(t, result.Error)
+}
+
+// removeHangStacks answers the stacks file a timed-out run's error names and
+// removes it when t ends. The runner leaves a real timeout's file for
+// post-mortem, so a test that times out on purpose MUST clean up its own.
+func removeHangStacks(t *testing.T, runError string) string {
+	t.Helper()
+	_, stacks, found := strings.Cut(runError, "goroutine stacks: ")
+	require.True(t, found, "a timed-out run must name its stacks file: %s", runError)
+	t.Cleanup(func() { os.Remove(stacks) }) //nolint:errcheck // test cleanup
+	return stacks
+}
+
+// TestRunnerHangStacksLieOutsideTempDir proves the goroutine stacks a
+// timed-out run names are written outside the run's temp dir.
+//
+// VALIDATES: the stacks file the error names exists, holds the worker's
+// stack, and lies directly in the system temp dir, outside the run's temp
+// dir, which the worker removes when the late run ends.
+// PREVENTS: the stacks of a run that was late rather than hung being deleted
+// with its temp dir, so the path a red test prints points at nothing.
+// Method: a 1ns budget, which every real run exceeds.
+func TestRunnerHangStacksLieOutsideTempDir(t *testing.T) {
+	result := runETTest(timeoutCase("option=timeout:value=1ns"))
+	require.NotNil(t, result)
+	stacks := removeHangStacks(t, result.Error)
+
+	// The run's temp dir is a child of the system temp dir, so a stacks file
+	// directly in the system temp dir lies outside it.
+	assert.Equal(t, filepath.Clean(os.TempDir()), filepath.Dir(stacks), "stacks %s must lie outside the run's temp dir", stacks)
+	content, err := os.ReadFile(stacks) //nolint:gosec // path the runner just named
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "runTestCaseWorker")
 }
 
 // TestRunnerRefusesInvalidTimeout proves a timeout the runner cannot parse

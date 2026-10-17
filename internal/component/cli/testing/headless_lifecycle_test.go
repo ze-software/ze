@@ -36,12 +36,18 @@ func TestHeadlessRestartFuncPropagation(t *testing.T) {
 
 // TestHeadlessRestartFuncViaRunTestCase runs an actual .et test case
 // through the runner to reproduce the exact failure path.
+//
+// It calls runTestCaseIn, the runner's whole wiring (option=lifecycle:wired
+// included), in t.TempDir(), and not runTestCase, whose only addition is the
+// wall-clock budget runner_timeout_test.go already proves. This test is about
+// the restart callback, not time: the store it opens fsyncs, and under a
+// loaded -race verify one fsync on the TMPDIR disk outlasted the 5s budget it
+// used to declare. `go test -timeout` stays the bound on a run that hangs.
 func TestHeadlessRestartFuncViaRunTestCase(t *testing.T) {
 	tc := &testCase{
 		Options: []Option{
 			{Type: "mode", Values: map[string]string{"value": "command"}},
 			{Type: "lifecycle", Values: map[string]string{"mode": "wired"}},
-			{Type: "timeout", Values: map[string]string{"value": "5s"}},
 		},
 		Steps: []Step{
 			{Type: StepInput, InputIndex: 0},
@@ -57,9 +63,9 @@ func TestHeadlessRestartFuncViaRunTestCase(t *testing.T) {
 		},
 	}
 
-	result := runTestCase(tc, 1)
+	result := runTestCaseIn(tc, t.TempDir())
 	if result.Error != "" {
-		t.Errorf("runTestCase failed: %s", result.Error)
+		t.Errorf("runTestCaseIn failed: %s", result.Error)
 	}
 	if !result.Passed {
 		t.Error("test did not pass")
