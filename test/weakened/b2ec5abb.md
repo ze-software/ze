@@ -7,7 +7,6 @@ unguarded.
 
 | Test | Reason |
 |------|--------|
-| TestExtractLegacyNLRIOverride | Replaced, not lost: extractLegacyNLRIOverride is deleted (no-layering) and the legacy announce block now goes through sectionNLRIDelta/subsetNLRI. Its nine cases are covered, stricter, by TestSectionNLRIDeltaLegacyAnnounce in filter_nlri_delta_test.go (subset, emptied, added, widened, reordered, not-a-prefix, ipv6, duplicate, retired form, no section, more blocks than the table). |
-| filter_delta_test | Three assertions left with TestExtractLegacyNLRIOverride, whose behaviour is now judged in filter_nlri_delta_test.go. |
-| TestIsCIDRFamily | Renamed, not lost: the table moved verbatim to internal/component/bgp/filtertext/cidr_test.go as TestCIDRFamily, beside the predicate itself. |
-| filter_format_test | Assertions 4 to 3: the one that left is TestIsCIDRFamily's, now in filtertext as TestCIDRFamily. |
+| awaitChainEvaluated | Replaced by awaitTermMatched (owner-approved GTSM fix): commit 7278126c3f moved each nft rule counter after its matches, so the first rule's counter no longer moves for a packet that rule does not match; the helper now waits until any rule's counter moves. |
+| lastTermReached | Replaced by termsMatched (owner-approved): with counters after the matches, every rule whose counter moved is a rule that matched, so the drop test asserts exactly the quoted-destination term matched. |
+| assertWholeChainEvaluated | Replaced by assertNoTermMatched (owner-approved): a non-matching packet leaves no counter trace now, so the proof that the chain evaluated it is gone; the ICMP receive counter and the installed-table check remain, and the delivery tests assert no term matched. |
