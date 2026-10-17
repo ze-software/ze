@@ -9,6 +9,7 @@ directives ## Directives
   undone-work-leads-the-answer-about-it
   a-symbol-with-only-test-callers-is-dead-code
   fix-a-defect-that-blocks-your-goal
+  two-failed-fixes-on-one-premise-test-the-premise
   spec-a-found-problem-close-then-ask
   pre-existing-says-when-a-defect-started-not-whose-it-is
   load-is-never-an-explanation-it-is-the-bug

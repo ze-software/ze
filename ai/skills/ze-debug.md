@@ -58,6 +58,10 @@ You do not need to ask permission to spawn them
 
 ## Fallback
 
+When two fixes have failed the same test and both rested on one belief about
+the cause, write that belief down and test it before a third fix
+(`ai/rules/completion.md`). The failed fixes are evidence against it.
+
 If all 4 hypotheses fail to explain the failure, report:
 - What each hypothesis investigated
 - What was ruled out
