@@ -957,8 +957,23 @@ func (e *RouteEntry) ToWireBytes() ([]byte, error) {
 		codes = append(codes, code)
 	}
 	sortBytes(codes)
+	// RFC 8092 Section 3: "The BGP Large Communities attribute is an optional
+	// transitive path attribute of variable length." It has its own pooled
+	// field, so it is written in its type-code place among the others.
+	large := b.hasLargeCommunities()
 	for _, code := range codes {
+		if large && code > byte(attribute.AttrLargeCommunity) {
+			if err := writeAttr(attribute.AttrLargeCommunity, 0xC0, pool.LargeCommunities, b.LargeCommunities); err != nil {
+				return nil, err
+			}
+			large = false
+		}
 		result = append(result, otherByType[code]...)
+	}
+	if large {
+		if err := writeAttr(attribute.AttrLargeCommunity, 0xC0, pool.LargeCommunities, b.LargeCommunities); err != nil {
+			return nil, err
+		}
 	}
 
 	return result, nil
