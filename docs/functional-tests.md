@@ -279,7 +279,7 @@ repo-wide gate:
 ```bash
 $EDITOR test/draft/plugin/my-test.ci        # 1. write
 le test bgp plugin --draft -a               # 2. run only drafts
-./le test stress-repro run suite "bgp plugin --draft" test 1 any-failure
+./le test stress-repro run suite "plugin --draft" test 1 any-failure
 mv test/draft/plugin/my-test.ci test/plugin/  # 3. promote when green
 le test bgp plugin -a                       # 4. now it is real
 ```
@@ -298,11 +298,16 @@ rather than "not reproduced": nothing passed, so nothing was tested. Pass
 every suite sits under `bgp`: `plugin`, `encode`, `decode`, `parse` and `reload`
 do, and `ui`, `editor`, `web` and the protocol suites are typed bare, as
 `le test ui -a`. `internal/le/test/functional/suites.go` carries the argv for each
-one, and it is the only place that answers this. A runner given a verb it does
-not know prints its usage and **exits 0**, so `le test bgp ui --draft` reads as a
-pass and runs nothing (`ai/rules/commands.md`; the defect is recorded in
+one, and it is the only place that answers this. `./le test stress-repro run`
+takes the suite's NAME from that table (`suite plugin`, `suite ui`) and runs the
+argv the table gives it, so `suite plugin` launches `le test bgp plugin`; words
+after the name, such as `--draft`, follow that argv, and a name the table does
+not hold is refused with the list of valid ones before any load starts.
+A runner given a verb it does not know prints its usage and **exits 0**, so
+`le test bgp ui --draft` reads as a pass and runs nothing (`ai/rules/commands.md`; the defect is recorded in
 `plan/journal/silent-fall-through.md`). The check is a `--- PASS` or
 `VERIFY STEP` line naming your test.
+<!-- source: internal/le/test/stressrepro/run.go -- harnessArgs -->
 
 **A `.ci` whose fixture is compiled into `le test` needs `le test` rebuilt, not
 just `ze`.** `le test fixture <name>` resolves the name in the binary's own
@@ -3228,6 +3233,73 @@ migration must also turn an omitted or empty family block into the families
 registered in the running binary, while preserving an explicit restricted set.
 <!-- source: internal/exabgp/migration/migrate_family.go -- convertFamilyToList -->
 <!-- source: internal/exabgp/migration/migrate_family_registry_test.go -- TestMigrateImplicitFamilies -->
+
+### How an ExaBGP Compatibility Case Passes
+
+The mock BGP server judges a case, and it reads the `.ci` the way upstream's
+own mock (`test/exabgp-compat/bin/bgp`, `Checker.group_messages`) reads it.
+A case passes only when every frame its script names has arrived, in order;
+the mock prints `successful` after the last step of the last session, and the
+runner accepts nothing else.
+
+| Line | Meaning |
+|------|---------|
+| `<n>:raw:<hex>` | A frame ze owes, as hex, with or without colons between the header fields |
+| `<L><n>:raw:<hex>` | The same, on session `L` (`A` is the first, `B` the next one ze opens) |
+| `<n>:json:<doc>` | The ExaBGP document the raw UPDATE above it owes; its number is not read |
+| `<n>:signal:<NAME>` | The runner signals ze (a reload) once every earlier group has matched |
+| `<n>:notification:<text>` | The mock closes the session with a Cease NOTIFICATION carrying `<text>` as an RFC 9003 Shutdown Communication |
+| `<n>:cmd:`, `<n>:jsv4:`, `<n>:jsv6:` | Documentation: the API line a frame was generated from, and documents for other ExaBGP versions |
+
+A bare number `<n>` is a sequence number of session A, never a session: `1:`
+then `2:` are two groups on one wire. Steps with the same sequence form one
+group, whose frames may arrive in any order; groups run in numeric order, and a
+frame that arrives before its group is a failure. A signal or notification is
+alone in its group. The mock accepts as many sessions as the script names, and
+the sessions run from `A` with none missing. ze binds each letter to its own
+connection and refuses an action inside a frame group, where upstream is
+looser: its checker keeps one list of groups across every session, so a letter
+only orders the groups, and it performs an action whenever the action reaches
+the head of its group. A group whose frames never arrive fails with its
+sequence and the first frame it still owed, once ze has sent nothing for the
+case's `option=timeout:` seconds or the session's 60 seconds have passed.
+
+When a matched frame is a ROUTE-REFRESH, the mock sends back every UPDATE ze
+sent on that session, End-of-RIB markers excepted, then a KEEPALIVE, as
+upstream's mock does; `api-rr` reads them back. The replay is per session,
+where upstream's list spans every session of the run.
+
+| Option | Read by | Meaning |
+|--------|---------|---------|
+| `file:`, `tcp_connections:`, `serial` | the runner | The configs ze runs, how many sessions ze opens, and that the case runs alone |
+| `asn:<n>` | the mock | The AS the mock opens with, instead of the config's `peer-as` |
+| `update:send-default-route` | the mock | The mock announces 0.0.0.0/32 once the session is up |
+| `open:send-unknown-capability` | the mock | The mock's OPEN carries capability 66, which ze does not implement |
+| `open:inspect-open-message` | the mock | Each session's first step is ze's OPEN, compared byte for byte; an OPEN step is refused without it |
+| `bind:ipv6` | the mock | The mock listens on IPv6 alone, on every IPv6 address where upstream binds `::1`, because `conf-llnh-update` and `conf-llnh-lla-only` connect to `fd00::3`; without it, on every address, where upstream listens on 127.0.0.1 |
+| `timeout:<seconds>` | the mock | How long ze may send nothing, at most the session's 60 seconds |
+| `frames:none` | the mock | The case asserts no frame from ze (below) |
+
+Any other option is refused, naming it, because an option nobody reads makes the
+case run as if it were absent.
+
+The mock refuses a case before it listens when the script could pass without
+asserting anything: no step at all, no `raw:` frame, a session letter skipped,
+or a line of an unknown kind or shape. A case that genuinely asserts no frame
+states `option=frames:none`, with a comment saying why; `api-notification` is
+the one that does, because the route its script announces may or may not cross
+before the mock's NOTIFICATION. The runner then reports that the mock exited
+before listening and prints the mock's stderr, which says why: it names the
+line when one line is the cause, and the session or option when the whole
+script is.
+
+Until 2026-10-17 the mock skipped a `raw:` line written without colons, read a
+bare number as a session it never served, and passed a script with no frame on
+the OPEN exchange alone, so a case could go green with ze sending nothing it
+expected (`plan/journal/green-that-could-not-have-been-red.md`).
+<!-- source: internal/le/interoplab/bgp/exabgp_case.go -- readExaBGPCase, readExaBGPOption, readExaBGPStep, orderExaBGPCase, exabgpCasePosition, exabgpEndOfRIB -->
+<!-- source: internal/le/interoplab/bgp/exabgp_server.go -- runExaBGPServer, serveExaBGPConnection, matchExaBGPFrames, exabgpReplay, addExaBGPUnknownCapability -->
+<!-- test: internal/le/interoplab/bgp/exabgp_case_test.go TestExaBGPCaseRefusesAScriptThatAssertsNothing, TestExaBGPCaseRefusesAFrameAGroupEarly, TestExaBGPCaseSendsTheUnknownCapability, TestExaBGPCaseNamesTheStalledFrame -->
 
 ### ExaBGP Verify Output
 

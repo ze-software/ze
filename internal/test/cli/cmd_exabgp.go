@@ -42,6 +42,11 @@ const predecessorTestDir = predecessorPrefix + "compat"
 var (
 	errExaBGPPortTimeout = errors.New("timed out waiting for mock BGP port")
 	errExaBGPMissingPort = errors.New("mock BGP server did not report a port")
+	// errExaBGPServerExited is the mock ending before it listens, which is
+	// where it refuses a case it cannot judge: one whose script names no frame,
+	// a session gap, an option or a step of no known kind. Its stderr says
+	// which, naming the line when one line is the cause.
+	errExaBGPServerExited = errors.New("the mock BGP server exited before listening, most often because it refused the case file: its stderr below says why")
 )
 
 type exabgpCLI struct {
@@ -642,7 +647,7 @@ func waitExaBGPPort(ctx context.Context, portCh <-chan int, server *exaProcess) 
 		}
 		return port, nil
 	case <-server.done:
-		return 0, errExaBGPMissingPort
+		return 0, errExaBGPServerExited
 	case <-timer.C:
 		return 0, errExaBGPPortTimeout
 	case <-ctx.Done():

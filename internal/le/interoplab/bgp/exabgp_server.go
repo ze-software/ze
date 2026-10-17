@@ -1,5 +1,7 @@
 // Design: docs/architecture/testing/interop.md -- the mock ExaBGP speaker
 // Related: exabgp_server_nobgp.go -- what the personality answers without the gate
+// Related: exabgp_case_test.go -- the case reader's refusals and its sequence order
+// RFC: rfc/short/rfc9003.md Section 2
 //
 // The personality renders each UPDATE it receives as ExaBGP JSON, through
 // bridge.WireUpdateToExabgpJSON, which reads the message with the BGP engine's
@@ -15,7 +17,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -25,6 +26,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -65,12 +67,28 @@ func runExaBGPServer(args []string, output io.Writer) error {
 			spec.asn = configured
 		}
 	}
-	connections := 1
-	if value, conversionErr := strconv.Atoi(os.Getenv("exabgp_tcp_connections")); conversionErr == nil && value > 0 {
-		connections = value
+	// The script names the sessions it owes, so the script is what says how
+	// many to accept. The count used to come from `exabgp_tcp_connections`,
+	// which the runner sets for ze and never for this process, so every case
+	// was served one session: api-teardown's B and C scripts were never read.
+	connections := spec.connections
+	// `option=bind:ipv6` makes the mock listen on IPv6 alone, so the case
+	// passes only when the speaker reached it over IPv6. Upstream's mock binds
+	// ::1, but conf-llnh-update and conf-llnh-lla-only name fd00::3 as their
+	// neighbor, which a ::1 bind never accepts, so this one takes every IPv6
+	// address. Without the option upstream listens on 127.0.0.1 alone, and this
+	// mock on every address, which admits a speaker upstream's would refuse:
+	// it is the looser of the two on that point.
+	const (
+		networkEveryFamily = "tcp"
+		networkIPv6        = "tcp6"
+	)
+	network, host := networkEveryFamily, ""
+	if spec.bindIPv6 {
+		network, host = networkIPv6, "::"
 	}
 	var config net.ListenConfig
-	listener, err := config.Listen(context.Background(), "tcp", fmt.Sprintf(":%d", *port))
+	listener, err := config.Listen(context.Background(), network, net.JoinHostPort(host, strconv.Itoa(*port)))
 	if err != nil {
 		return err
 	}
@@ -102,240 +120,94 @@ func runExaBGPServer(args []string, output io.Writer) error {
 	return err
 }
 
-// readExaBGPCase reads a `.ci` fixture: the script each connection owes, the AS
-// this mock presents, and whether the fixture STATED that AS or took the default.
-//
-// The caller needs the third answer because the default is a guess. Upstream's
-// own runner never opened a session at all, so no fixture states an AS unless
-// its author had a reason to, and 65000 is right for none of them until the
-// config happens to name it.
-func readExaBGPCase(path string) (exabgpCase, error) {
-	file, err := os.Open(path) //nolint:gosec // the case file is the .ci fixture this helper is pointed at by the tracked lab runner
-	if err != nil {
-		return exabgpCase{}, err
-	}
-	defer func() { _ = file.Close() }()
-	spec := exabgpCase{steps: make(map[int][]exabgpStep), asn: 65000}
-	// The connection whose last frame a `json:` line attaches to. Zero means no
-	// frame has been read yet, which makes a leading `json:` line an error.
-	lastDocumentable := 0
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		if value, ok := strings.CutPrefix(line, "option=asn:"); ok {
-			parsed, err := strconv.ParseUint(value, 10, 32)
-			if err != nil {
-				return exabgpCase{}, err
-			}
-			spec.asn = uint32(parsed)
-			spec.asnStated = true
-			continue
-		}
-		// `option=update:` names an UPDATE this mock sends to the speaker once
-		// the session is up. It was read as nothing until 2026-09-06, so a case
-		// whose script waits for that route waited for ever.
-		if value, ok := strings.CutPrefix(line, "option=update:"); ok {
-			if value != "send-default-route" {
-				return exabgpCase{}, fmt.Errorf("unknown option=update: %q", value)
-			}
-			spec.sendDefaultRoute = true
-			continue
-		}
-		parts := strings.Split(line, ":")
-		if len(parts) < 3 {
-			continue
-		}
-		// `<prefix>:signal:<NAME>` names a point in the script where the RUNNER
-		// must signal the speaker. It was read as nothing until 2026-09-06, so
-		// api-reload's reload never happened and its post-reload frames never
-		// arrived.
-		if parts[1] == "signal" {
-			connection, err := exabgpCaseConnection(parts[0])
-			if err != nil {
-				return exabgpCase{}, fmt.Errorf("invalid signal connection in %q: %w", line, err)
-			}
-			name := strings.TrimSpace(parts[2])
-			if name == "" {
-				return exabgpCase{}, fmt.Errorf("signal directive names no signal: %q", line)
-			}
-			spec.steps[connection] = append(spec.steps[connection], exabgpStep{kind: exabgpStepSignal, signal: name})
-			continue
-		}
-		// A `json:` line states the ExaBGP document the frame ABOVE it owes, so
-		// it is attached to that frame rather than being a step of its own.
-		// Until 2026-09-20 this loop dropped every one of them, which is why
-		// two defects in ze's own ExaBGP rendering reached a verification sweep
-		// unseen (plan/journal/gate-excludes-part-of-its-population.md).
-		//
-		// The leading number is NOT the connection, and reading it as one broke
-		// conf-watchdog, whose `1:raw:` frame is followed by a `5:json:` line.
-		// Upstream's own reader (parse_ci_file, qa/bin/test_json) attaches an
-		// expectation to "the immediately preceding non-EOR raw UPDATE message"
-		// and never looks at the digits, which are the step the line was
-		// GENERATED at. Three of that fixture's blocks repeat one route, so all
-		// three carry the step-5 number the generator last wrote.
-		if len(parts) >= 3 && parts[1] == "json" {
-			if lastDocumentable == 0 {
-				return exabgpCase{}, fmt.Errorf("json expectation names no frame above it: %q", line)
-			}
-			steps := spec.steps[lastDocumentable]
-			// The document itself may hold colons, so it is everything after
-			// the second field rather than parts[2] alone.
-			steps[len(steps)-1].wantJSON = strings.TrimSpace(strings.SplitN(line, ":", 3)[2])
-			continue
-		}
-		if len(parts) < 4 || parts[1] != "raw" {
-			continue
-		}
-		connection, err := exabgpCaseConnection(parts[0])
-		if err != nil {
-			return exabgpCase{}, fmt.Errorf("invalid raw connection in %q: %w", line, err)
-		}
-		wire, err := hex.DecodeString(strings.Join(parts[2:], ""))
-		if err != nil {
-			return exabgpCase{}, fmt.Errorf("decode raw directive: %w", err)
-		}
-		spec.steps[connection] = append(spec.steps[connection], exabgpStep{kind: exabgpStepFrame, frame: wire})
-		// An EOR and a KEEPALIVE carry no document, so a `json:` line below one
-		// belongs to the UPDATE before it. Upstream skips both when it decides
-		// which frame an expectation attaches to.
-		if documentableFrame(wire) {
-			lastDocumentable = connection
-		}
-	}
-	return spec, scanner.Err()
-}
-
-// documentableFrame answers whether a frame is one an ExaBGP JSON document is
-// written for: an UPDATE that is not an End-of-RIB marker.
-//
-// RFC 4271 Section 4.1 puts the type octet at offset 18, after the 16-octet
-// marker and the 2-octet length. RFC 4724 Section 2 makes the End-of-RIB an
-// UPDATE "with no reachable NLRI and empty withdrawn NLRI", which is a 23-octet
-// message whose four body octets are zero.
-func documentableFrame(wire []byte) bool {
-	const (
-		headerLength = 19
-		typeOffset   = 18
-		typeUpdate   = 2
-	)
-	if len(wire) <= typeOffset || wire[typeOffset] != typeUpdate {
-		return false
-	}
-	body := wire[headerLength:]
-	if len(body) != 4 {
-		return true
-	}
-	return body[0]|body[1]|body[2]|body[3] != 0
-}
-
-// exabgpStepKind says what one entry of a connection's script is. Zero is
-// Unspecified, so a step nobody wrote is never read as a frame the speaker owes.
-type exabgpStepKind uint8
-
-const (
-	exabgpStepUnspecified exabgpStepKind = iota
-	exabgpStepFrame
-	exabgpStepSignal
-)
-
-// exabgpStep is one entry of a connection's script, in the order the fixture
-// wrote it.
-//
-// A frame step is an expectation the speaker owes. A signal step is an
-// instruction to the RUNNER, which owns the ze process this mock cannot reach,
-// and it divides the script into ordered segments: every frame before it must
-// match before the signal is reported, and the frames after it are matched only
-// once it has been.
-type exabgpStep struct {
-	kind   exabgpStepKind
-	frame  []byte
-	signal string
-	// wantJSON is the ExaBGP document this frame owes, as the fixture's `json:`
-	// line states it. Empty when the fixture states none, which is every frame
-	// that is not an UPDATE and most that are.
-	wantJSON string
-}
-
 // exabgpSignalMarker opens the line this mock writes on its stdout when a
 // script reaches a signal step. It follows the shape of the `PORT <n>` line the
 // runner already reads off that same stream, and a frame dump is unspaced
 // uppercase hex, so neither line can be read as the other.
 const exabgpSignalMarker = "SIGNAL"
 
-// exabgpCase is what one `.ci` fixture states: the script each connection owes,
-// the AS this mock presents and whether the fixture named it, and the UPDATEs
-// the mock sends of its own accord.
-type exabgpCase struct {
-	steps map[int][]exabgpStep
-	asn   uint32
-	// asnStated says the fixture named the AS. The caller needs it because the
-	// default is a guess: upstream's runner opened no session at all, so no
-	// fixture states an AS unless its author had a reason to.
-	asnStated bool
-	// sendDefaultRoute is `option=update:send-default-route`, which makes this
-	// mock announce 0.0.0.0/32 once the session is up.
-	sendDefaultRoute bool
+// exabgpSessionLength bounds one session from its accept to its last step. A
+// case that `option=timeout:` gives a per-message limit is still bounded by it.
+const exabgpSessionLength = 60 * time.Second
+
+// exabgpWire reads one session's messages, each under the earlier of the
+// session's end and the case's per-message limit, so a speaker that sends
+// keepalives and never the frame it owes still fails on the limit.
+// Not safe for concurrent use: one session's walk owns it.
+type exabgpWire struct {
+	connection     net.Conn
+	sessionEnd     time.Time
+	messageTimeout time.Duration
 }
 
-// exabgpCaseConnection reads the connection a `.ci` expectation belongs to.
+// read reads the next whole message off the session.
+func (w exabgpWire) read() (byte, []byte, error) {
+	deadline := time.Now().Add(w.messageTimeout)
+	if w.sessionEnd.Before(deadline) {
+		deadline = w.sessionEnd
+	}
+	if err := w.connection.SetReadDeadline(deadline); err != nil {
+		return 0, nil, err
+	}
+	return readBGPWireMessage(w.connection)
+}
+
+// addExaBGPUnknownCapability is upstream's _add_capa66: it appends to the
+// mock's OPEN a Capabilities Optional Parameter carrying capability 66, whose
+// value is the ten octets of "loremipsum", so the case proves the speaker
+// keeps the session when its peer advertises a capability it does not know.
 //
-// The prefix comes in two shapes and both are upstream's. A NUMBER is the
-// connection itself, so `1:raw:` is the first session. A LETTER names the
-// connection and the digits after it are the sequence within that connection,
-// so `A1:raw:` and `A2:raw:` are the first and second frames of connection A,
-// and `B1:raw:` opens connection B. The lettered shape is what the multi-session
-// cases use: api-teardown, api-reload, api-peer-lifecycle and api-notification.
+// RFC 4271 Section 4.2: "Optional Parameters Length: This 1-octet unsigned
+// integer indicates the total length of the Optional Parameters field in
+// octets." The body is Version (1), My AS (2), Hold Time (2), BGP Identifier
+// (4), so that length is octet 9 and the parameters follow it.
 //
-// A parser that read the whole prefix as an integer refused every lettered case
-// by name, which is how it was found, and one that read only the leading digits
-// would silently merge two connections into one and assert their frames in the
-// wrong order.
-func exabgpCaseConnection(prefix string) (int, error) {
-	if prefix == "" {
-		return 0, errors.New("empty connection prefix")
+//	+---------+----------+--------+-------------+------------------+
+//	| type 2  | length 12| code 66| length 10   | "loremipsum"     |
+//	+---------+----------+--------+-------------+------------------+
+func addExaBGPUnknownCapability(openBody []byte) ([]byte, error) {
+	const (
+		parametersLengthOffset = 9
+		parameterCapabilities  = 2
+		capabilityUnknown      = 66
+		parametersOctetsMax    = 255
+	)
+	value := []byte("loremipsum")
+	parameter := append([]byte{parameterCapabilities, byte(2 + len(value)), capabilityUnknown, byte(len(value))}, value...)
+	// RFC 9072 Section 2 marks the extended form with a length of 255, and
+	// adding to a one-octet length past 255 would wrap it.
+	length := int(openBody[parametersLengthOffset])
+	if length+len(parameter) >= parametersOctetsMax {
+		return nil, fmt.Errorf("the speaker's OPEN carries %d octets of optional parameters, and capability 66 would take "+
+			"them to %d, past the one-octet length upstream's mock rewrites: shorten the case's config or drop "+
+			"option=open:send-unknown-capability", length, length+len(parameter))
 	}
-	first := prefix[0]
-	if first >= 'A' && first <= 'Z' {
-		return int(first-'A') + 1, nil
-	}
-	if first >= 'a' && first <= 'z' {
-		return int(first-'a') + 1, nil
-	}
-	connection, err := strconv.Atoi(prefix)
-	if err != nil {
-		return 0, err
-	}
-	if connection < 0 {
-		return 0, fmt.Errorf("connection %d is not a session", connection)
-	}
-	// Zero is the FIRST session, not an absent one. Upstream's own runner never
-	// reads this number -- `_read_expected_messages` in exabgp's qa/bin/functional
-	// splits the line on ':' and keeps only the `raw` payload -- so its fixtures
-	// number from zero and from one interchangeably, and api-broken-flow.ci uses
-	// BOTH for the same session: `0:` for the End-of-RIB and `1:` for the routes
-	// that follow it on that same wire.
-	if connection == 0 {
-		return 1, nil
-	}
-	return connection, nil
+	rewritten := append(slices.Clone(openBody), parameter...)
+	rewritten[parametersLengthOffset] = byte(length + len(parameter))
+	return rewritten, nil
 }
 
 func serveExaBGPConnection(connection net.Conn, spec exabgpCase, connectionIndex int, recorder *frameRecorder, output io.Writer) error {
 	steps := spec.steps[connectionIndex]
-	_ = connection.SetDeadline(time.Now().Add(60 * time.Second))
-	messageType, body, err := readBGPWireMessage(connection)
-	if err != nil {
+	wire := exabgpWire{
+		connection:     connection,
+		sessionEnd:     time.Now().Add(exabgpSessionLength),
+		messageTimeout: spec.messageTimeout,
+	}
+	if err := connection.SetWriteDeadline(wire.sessionEnd); err != nil {
 		return err
+	}
+	messageType, body, err := wire.read()
+	if err != nil {
+		return fmt.Errorf("the speaker sent no OPEN: %w", err)
 	}
 	if messageType != bgpOpen {
 		return fmt.Errorf("first message type = %d, want OPEN", messageType)
 	}
+	// orderExaBGPCase made the speaker's OPEN the first step of every session
+	// under `option=open:inspect-open-message`, and refused it anywhere else.
 	matched := 0
-	if len(steps) > 0 && steps[0].kind == exabgpStepFrame && len(steps[0].frame) >= bgpHeaderLength && steps[0].frame[18] == bgpOpen {
+	if spec.inspectOpen {
 		actualOpen := speakerMessage(bgpOpen, body)
 		if !bytes.Equal(actualOpen, steps[0].frame) {
 			return fmt.Errorf("OPEN = %X, want %X", actualOpen, steps[0].frame)
@@ -363,6 +235,12 @@ func serveExaBGPConnection(connection net.Conn, spec exabgpCase, connectionIndex
 	}
 	copy(openBody[5:9], routerID)
 	rewriteAS4Capability(openBody, spec.asn)
+	if spec.sendUnknownCapability {
+		openBody, err = addExaBGPUnknownCapability(openBody)
+		if err != nil {
+			return err
+		}
+	}
 	if _, err := connection.Write(speakerMessage(bgpOpen, openBody)); err != nil {
 		return err
 	}
@@ -374,31 +252,23 @@ func serveExaBGPConnection(connection net.Conn, spec exabgpCase, connectionIndex
 			return err
 		}
 	}
-	// The script is walked one segment at a time, a segment being the frames
-	// that stand between two signal steps. A fixture naming no signal has one
-	// segment, which is the whole script and the behavior every case had before
-	// signal steps existed.
+	// The script is walked one sequence group at a time, in the order the
+	// fixture's sequence numbers give, which is how upstream's own mock walks
+	// it (Checker.group_messages, test/exabgp-compat/bin/bgp). Every group must
+	// complete before the next starts, so a frame that arrives a group early is
+	// refused, and a frame that never arrives leaves the read to fail on the
+	// message timeout, the session's deadline or its close: none ends in success.
+	replay := &exabgpReplay{}
 	position := matched
 	for position < len(steps) {
-		end := position
-		for end < len(steps) && steps[end].kind == exabgpStepFrame {
+		end := position + 1
+		for end < len(steps) && steps[end].sequence == steps[position].sequence {
 			end++
 		}
-		if err := matchExaBGPFrames(connection, steps[position:end], recorder, facts); err != nil {
+		if err := runExaBGPGroup(wire, steps[position:end], recorder, facts, output, replay); err != nil {
 			return err
 		}
 		position = end
-		if position == len(steps) {
-			break
-		}
-		// Every frame the fixture wrote before this step has matched, so the
-		// runner can act on it now. This mock runs in a separate process from
-		// the speaker and holds only the TCP session, so reporting the step is
-		// all it can do about it.
-		if _, err := fmt.Fprintf(output, "%s %s\n", exabgpSignalMarker, steps[position].signal); err != nil {
-			return err
-		}
-		position++
 	}
 	if count := recorder.mismatches(); count > 0 {
 		return fmt.Errorf("%d frame(s) the speaker sent match no expectation", count)
@@ -406,16 +276,73 @@ func serveExaBGPConnection(connection net.Conn, spec exabgpCase, connectionIndex
 	return nil
 }
 
-// matchExaBGPFrames reads from the speaker until every frame of one segment has
-// matched. Inside a segment the frames match in any order, because a fixture
+// runExaBGPGroup performs one sequence group of a session's script.
+// orderExaBGPCase made an action the only step of its group, so a group is
+// either frames or one action.
+func runExaBGPGroup(wire exabgpWire, group []exabgpStep, recorder *frameRecorder, facts bridge.SessionFacts, output io.Writer, replay *exabgpReplay) error {
+	switch group[0].kind {
+	case exabgpStepFrame:
+		return matchExaBGPFrames(wire, group, recorder, facts, replay)
+	case exabgpStepSignal:
+		// Every frame the fixture wrote before this step has matched, so the
+		// runner can act on it now. This mock runs in a separate process from
+		// the speaker and holds only the TCP session, so reporting the step is
+		// all it can do about it.
+		_, err := fmt.Fprintln(output, exabgpSignalMarker, group[0].signal)
+		return err
+	case exabgpStepNotification:
+		_, err := wire.connection.Write(exabgpShutdownNotification(group[0].notification))
+		return err
+	case exabgpStepUnspecified:
+	}
+	panic("BUG: the case reader built a step of no kind")
+}
+
+// exabgpShutdownNotification builds the Cease NOTIFICATION a notification step
+// sends, carrying its text as a Shutdown Communication. readExaBGPStep refused
+// a text longer than exabgpShutdownCommunicationOctetsMax.
+//
+// RFC 9003 Section 2: "The Cease NOTIFICATION message with a Shutdown
+// Communication is encoded as below":
+//
+//	 0                   1                   2                   3
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	| Error Code 6  |    Subcode    |    Length     |     ...       \
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+               /
+//	/                 ... Shutdown Communication ...                /
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// Octet 0 is the code, octet 1 the subcode, octet 2 the length, and the text
+// starts at octet 3.
+func exabgpShutdownNotification(communication string) []byte {
+	const (
+		errorCodeCease = 6
+		// RFC 9003 Section 2: "The Error Subcode value MUST be one of the
+		// following values: 2 ("Administrative Shutdown") or 4 ("Administrative
+		// Reset")."
+		subcodeAdministrativeShutdown = 2
+	)
+	body := make([]byte, 3+len(communication))
+	body[0] = errorCodeCease
+	body[1] = subcodeAdministrativeShutdown
+	body[2] = byte(len(communication))
+	copy(body[3:], communication)
+	return speakerMessage(bgpNotification, body)
+}
+
+// matchExaBGPFrames reads from the speaker until every frame of one group has
+// matched. Inside a group the frames match in any order, because a fixture
 // states what the speaker owes rather than the order its encoder picks.
-func matchExaBGPFrames(connection net.Conn, segment []exabgpStep, recorder *frameRecorder, facts bridge.SessionFacts) error {
+func matchExaBGPFrames(wire exabgpWire, segment []exabgpStep, recorder *frameRecorder, facts bridge.SessionFacts, replay *exabgpReplay) error {
 	remaining := make([]exabgpStep, 0, len(segment))
 	remaining = append(remaining, segment...)
 	for len(remaining) > 0 {
-		messageType, body, err := readBGPWireMessage(connection)
+		messageType, body, err := wire.read()
+		// A read that fails here is a group the speaker stalled on, so the
+		// error says what it still owed, not only that the socket ended.
 		if err != nil {
-			return err
+			return fmt.Errorf("sequence %d: %d expected frame(s) never arrived (first: %X): %w",
+				segment[0].sequence, len(remaining), remaining[0].frame, err)
 		}
 		if messageType == bgpKeepalive {
 			continue
@@ -449,8 +376,52 @@ func matchExaBGPFrames(connection net.Conn, segment []exabgpStep, recorder *fram
 			return fmt.Errorf("unexpected message = %X; %d expected frames remain", actual, len(remaining))
 		}
 		remaining = append(remaining[:found], remaining[found+1:]...)
+		if err := replay.matched(wire.connection, messageType, actual); err != nil {
+			return err
+		}
 	}
 	return nil
+}
+
+// bgpRouteRefresh is the ROUTE-REFRESH message type (RFC 2918 Section 3).
+const bgpRouteRefresh = 5
+
+// exabgpReplay is upstream's answer to a ROUTE-REFRESH from the speaker: the
+// mock sends back every UPDATE the speaker sent it, then a KEEPALIVE
+// (Checker._send_rr_if_required, test/exabgp-compat/bin/bgp). api-rr's script
+// reads those routes back and announces its next route only when both arrive,
+// so a mock without the replay can never complete that case.
+//
+// The replay is per session: serveExaBGPConnection makes one for each
+// connection, where upstream's updates_seen lives on the checker and so
+// spans every session of the run. No fixture sends a ROUTE-REFRESH on a
+// second session, so the two agree on every case today. An End-of-RIB, in
+// either RFC 4724 form, is no route and is not replayed, as upstream's
+// is_eor excludes it.
+//
+// It holds the matched UPDATEs of one session, which the fixture bounds.
+// Not safe for concurrent use: one session's walk owns it.
+type exabgpReplay struct {
+	updates [][]byte
+}
+
+// matched records one matched frame, and answers a ROUTE-REFRESH with the
+// replay.
+func (r *exabgpReplay) matched(connection net.Conn, messageType byte, frame []byte) error {
+	if messageType == bgpUpdate && documentableFrame(frame) {
+		r.updates = append(r.updates, frame)
+		return nil
+	}
+	if messageType != bgpRouteRefresh {
+		return nil
+	}
+	for _, update := range r.updates {
+		if _, err := connection.Write(update); err != nil {
+			return err
+		}
+	}
+	_, err := connection.Write(speakerKeepalive())
+	return err
 }
 
 // matchExaBGPDocument compares the ExaBGP document one UPDATE renders to

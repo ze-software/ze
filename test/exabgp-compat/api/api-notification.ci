@@ -1,2 +1,7 @@
 option=file:api-notification.conf
+# The mock closes the session with a Cease NOTIFICATION carrying this Shutdown
+# Communication (RFC 9003 Section 2). The case asserts no frame from ze: the
+# route its script announces may or may not cross before the close, which is
+# why upstream's fixture names none.
+option=frames:none
 A1:notification:closing session because we can
