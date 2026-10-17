@@ -81,6 +81,13 @@ is running.
   golangci-lint from vendor and the gh-pages seed.
 - Then a full `./le verify worktree` on a quiet machine, and ask Thomas to push.
 
+## 4b. TODO for the next session (on the Mac, owner 2026-10-17)
+- PPPoE IPv6CP (pppoe-interop `ipv6cp-missing-option`, `ipv6cp-zero-identifier`):
+  Ze sends no IPv6CP frame; build it under `plan/spec-l2tp-ipv6-subscriber.md`.
+- Owner decisions taken 2026-10-17: startup stall → B (functional-test daemon
+  store in memory); fastpath enable must replay installed routes (fix);
+  IPsec readiness timeouts → investigate; owner pushed for a CI run.
+
 ## 5. Spec claimed
 `plan/pre-release/spec-plugin-ownership-imports.md`: D1 and D2 landed (69b67933a2,
 82591173b6), arch tier green. Remaining: route J (AC-17 health RPCs) and closure.
