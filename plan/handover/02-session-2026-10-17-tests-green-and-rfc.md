@@ -8,58 +8,31 @@ full verify last on a quiet machine) and `.claude/rules/handover-in-repo.md`
 Agents test through a private launcher `./le --name <x> ...` (the shared
 `bin/le` is often older than the tree) and delete `bin/le-<x>` after.
 
-## 1. Commit pending (do first)
-Uncommitted and reviewed four times: the filter modify now applies per NLRI
-section, and bgp-filter-irr re-admits held routes by ROUTE-REFRESH.
-- Filter text format (owner decision): `nlri add|del <prefixes>` = legacy NLRI
-  and Withdrawn Routes; `mp <family> add|del <prefixes>` = MP_REACH/MP_UNREACH,
-  any family. No shim. Reactor: `filter_nlri_delta.go` (subset per section,
-  path-ids and labels kept, refuses additions, reorder, duplicates and
-  unrewritable families), `AttrModReplaceNLRI`, and the subject rendered from
-  route keys (ADD-PATH and labeled NLRI no longer reach a filter as junk).
-  Interop scenario `bgp-policy-modify-mp-frr` (raw injector to FRR) is green,
-  and red with the fix stubbed.
-- Commit subject: `fix(bgp): filter modify applies per NLRI section; IRR re-admits routes`.
-  The file set is every uncommitted path under `internal/component/bgp/`, the
-  fixtures `plugin_fixture_05.go` and `plugin_fixture_07*.go`, `internal/test/mock/irr`,
-  the `.ci` files `filter-irr-readmit`, `prefix-filter-modify-mp`,
-  `prefix-filter-modify-partial` and `dynamic-peer-applies-group-filters`, the
-  scenario directory `test/interop/scenarios/bgp-policy-modify-mp-frr/`,
-  `internal/le/interoplab/bgp/register_policy_modify_mp.go`, the touched docs and
-  `plan/journal` rows, and `test/weakened/b2ec5abb.md`.
-- **Blocked on the owner:** RFC-tagged `filter_prefix.TestPrefixPolicyFiltersFlowSpecDestination`
-  (`rfc8955_flowspec_test.go`): its only change is the subject prefix `"nlri "` → `"mp "`.
-  Needs Thomas's explicit words, then `./le rfc approve unit filter_prefix.TestPrefixPolicyFiltersFlowSpecDestination reason "<his words>"`.
-- IRR items #6 (rewritable widens to MP CIDR blocks incl. mpls-label, ending
-  the refresh loop for them) and #7 (marker blocks echoed) are done and
-  reviewed; the final review items are applied (compound guards split,
-  filter_prefix reads filtertext.CIDRFamily, marker-echo rule in
-  process-protocol.md, filter-irr-modify-mp.ci proven red/green). New file
-  set additions: `internal/component/bgp/filtertext/cidr*.go`,
-  `filter_irr/testmain_test.go`, `test/plugin/filter-irr-modify-mp.ci`, two
-  journal rows. Gates green: race tests, irr 6/6, filter 35/35, scoped lint,
-  compound-guard. Only `./le doc wiring check` stays red on the five claims
-  below, which need the post-commit rows.
-- After the commit: add six reviewed-claim rows to `plan/doc-reviewed/b2ec5abb.md`
-  naming the new SHA, one symbol each: `runIngressPolicyChain` and
-  `runEgressPolicyChainASN4` (api/commands.md), `buildModifiedPayloadWithLimit`
-  (edge-cases/extended-message.md), `parseFilterAttrsInto` (perf-round-3.md),
-  `mpReachNextHopHandler` (update-building.md), `runEgressPolicyChainASN4`
-  (wire/attributes.md). Then `./le doc wiring check` and commit.
+## 1. Landed
+Filter modify per NLRI section + IRR re-admit (6019dd0675), its reviewed-claim
+rows (bc1567a4ce), GTSM RFC 5082 test fix and repaired RFC records (aa68152f6a,
+`./le rfc check` green). Owner approved the FlowSpec and GTSM test changes.
 
-## 2. Waiting on the owner
-- GTSM RFC 5082-tagged tests (nightly integration): the fault is the TEST.
-  Commit 7278126c3f moved nft rule counters after the matches, and the test
-  helpers still assume a counter at the front of each rule. Proposed: helpers
-  `awaitTermMatched`, `termsMatched` and `assertNoTermMatched`; the drop test
-  asserts exactly the quoted-destination term matched; one assertion is lost
-  (proof the chain evaluated a non-matching packet; the ICMP receive counter
-  and the installed-table check remain). Proven green, and red under a mutant
-  of the drop terms. Needs owner approval, then re-record RFC5082-3-2 and -3-4.
-- Startup stall under disk load: about 36 fsyncs before the first listener.
-  Options A (record the boot config after the listeners), B (functional DUT
-  store in memory), C both (recommended).
-- Fastpath enable ignores best routes already installed (journal row): fix or not.
+## 2. In flight 2026-10-17 (uncommitted; each needs independent review, then commit)
+- Fastpath enable replays the best routes already installed (owner: fix).
+  Rebuilds each UPDATE from the Adj-RIB-In winner under the best-path shard
+  lock: `rib/forward_replay.go` + test, `test/plugin/bgp-rs-fastpath-late.ci`.
+- Functional-test daemon store in memory (owner: option B for the startup
+  stall under disk load).
+- IPsec readiness timeouts (owner: investigate): scenario frr.conf
+  `no bgp ebgp-requires-policy`, `mobike=no` in the port-translated swanctl.conf,
+  IKE endpoint-refusal debug log, conntrack flush fails loud with log tails.
+- MTU probe target (owner: "it should prompt a configured IP which could be
+  the DNS by default"): drop the 1.1.1.1 default, use the first configured
+  DNS server, refuse with the fix when neither exists.
+- CI: the hosted azure kernel lacks the l2tp modules (run 39047813355), so
+  verify.yml now installs `linux-modules-extra-$(uname -r)`.
+
+## 3. Waiting on the owner
+- IKE `responder-eap-tls12`: recast as a refusal scenario (recommended), or
+  find a TLS 1.2 EMS client.
+- Leftover docker network `ze-ipsec-2323022` (not ours) blocks local IPsec runs.
+- Delete the superseded root `RESUME-1b0ec3e6.md`.
 - Route-injection grammar (`update text ... nlri <family> add`): adopt the
   `nlri` / `mp <family>` keywords too, or keep it.
 - IRR cache: keep its disk copy, or memory only.
@@ -68,25 +41,21 @@ section, and bgp-filter-irr re-admits held routes by ROUTE-REFRESH.
 - Commit 7f59cfe2ad (L2TP) message lost one example phrase to shell quoting:
   amend only if Thomas asks.
 
-## 3. Done since this handover was first written
-PPPoE `pppoe-padr-replay` fixed in the checker (8dce48dd9d); L2TP interop
-`02-ppp-bgp-redistribute-frr` fixed in its frr.conf (b3a5960dc7). No agent
-is running.
+Also landed: PPPoE `pppoe-padr-replay` fixed in the checker (8dce48dd9d);
+L2TP interop `02-ppp-bgp-redistribute-frr` fixed in its frr.conf (b3a5960dc7).
 
 ## 4. Remaining known reds (not started)
 - Nightly: ipsec readiness timeouts (5 scenarios); BGP interop 90-minute ssh
   deadline (suites now print per-scenario progress, so read the next CI run);
   PPPoE IPv6CP gap waits on `plan/spec-l2tp-ipv6-subscriber.md`.
-- CI: the next push proves userns, the l2tp modprobe step, the race split in 3,
-  golangci-lint from vendor and the gh-pages seed.
+- CI: run 39047813355 stopped every shard at the l2tp modprobe step (fix in
+  section 2), so the race split in 3, golangci-lint from vendor and the
+  gh-pages seed are still unproven; the next push proves them.
 - Then a full `./le verify worktree` on a quiet machine, and ask Thomas to push.
 
 ## 4b. TODO for the next session (on the Mac, owner 2026-10-17)
 - PPPoE IPv6CP (pppoe-interop `ipv6cp-missing-option`, `ipv6cp-zero-identifier`):
   Ze sends no IPv6CP frame; build it under `plan/spec-l2tp-ipv6-subscriber.md`.
-- Owner decisions taken 2026-10-17: startup stall → B (functional-test daemon
-  store in memory); fastpath enable must replay installed routes (fix);
-  IPsec readiness timeouts → investigate; owner pushed for a CI run.
 
 ## 5. Spec claimed
 `plan/pre-release/spec-plugin-ownership-imports.md`: D1 and D2 landed (69b67933a2,
