@@ -8,7 +8,9 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -1476,6 +1478,125 @@ func TestConfigFormIgnoresEmptyUnconfiguredLeaves(t *testing.T) {
 	value, ok := sys.Get("host")
 	require.True(t, ok)
 	assert.Equal(t, "web-host-1", value)
+}
+
+// TestConfigFormSaveIsOneEdit verifies that a form save reaches the working
+// tree as one edit, never field by field.
+//
+// VALIDATES: a reader of the review diff sees a save whole or not at all, and two
+// overlapping saves of one form leave the fields of one save, never a mix.
+// PREVENTS: the handler taking the session lock once per field. The diff modal
+// then rendered between two fields of one save, which is what
+// workbench-form-save.wb read in the 2026-10-17 verify (the host present, the
+// domain missing), and two saves that interleaved left one save's host beside
+// the other's domain.
+//
+// Method: writers post host=<v> and domain=<v>.example together, many times
+// over, while a reader parses the diff. Every diff that names both leaves must
+// pair them, and after each round the tree must hold one save's pair.
+func TestConfigFormSaveIsOneEdit(t *testing.T) {
+	const (
+		writers = 4
+		rounds  = 12
+	)
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "test.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(""), 0o600))
+
+	store := testConfigStore(t, configPath)
+	schema, schemaErr := config.YANGSchema()
+	require.NoError(t, schemaErr)
+	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
+	renderer, renderErr := NewRenderer()
+	require.NoError(t, renderErr)
+	handler := HandleConfigFormWithAuthorizer(mgr, schema, renderer, nil)
+
+	save := func(value string) int {
+		req := postConfigRequest(t, "/config/form/", url.Values{
+			"field:system/host":   {value},
+			"field:system/domain": {value + ".example"},
+		}, "alice")
+		req.Header.Set("HX-Request", "true")
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	require.Equal(t, http.StatusOK, save("seed"))
+
+	// diffPair answers the host and the domain the diff names, "" for one it
+	// does not name.
+	diffPair := func() (host, domain string) {
+		for line := range strings.SplitSeq(mgr.Diff("alice"), "\n") {
+			if v, ok := strings.CutPrefix(line, "+ system host "); ok {
+				host = v
+			}
+			if v, ok := strings.CutPrefix(line, "+ system domain "); ok {
+				domain = v
+			}
+		}
+		return host, domain
+	}
+
+	var torn []string
+	for round := range rounds {
+		var (
+			wg    sync.WaitGroup
+			codes [writers]int
+		)
+		for w := range writers {
+			wg.Go(func() {
+				codes[w] = save("save-" + strconv.Itoa(round) + "-" + strconv.Itoa(w))
+			})
+		}
+		wg.Go(func() {
+			for range writers * 4 {
+				host, domain := diffPair()
+				if host != "" && domain != host+".example" {
+					torn = append(torn, "read host "+host+" beside domain "+domain)
+				}
+			}
+		})
+		wg.Wait()
+
+		for w, code := range codes {
+			require.Equal(t, http.StatusOK, code, "round %d writer %d", round, w)
+		}
+		host, domain := diffPair()
+		if domain != host+".example" {
+			torn = append(torn, "kept host "+host+" beside domain "+domain)
+		}
+	}
+	if len(torn) > 0 {
+		t.Fatalf("a form save must reach the tree as one edit: %d torn states, first: %s", len(torn), torn[0])
+	}
+}
+
+// TestConfigFormFieldsApplyInPathOrder verifies that a parsed form has one
+// order, whatever order the map handed the fields over in.
+//
+// VALIDATES: parseConfigFormFields sorts by path, then leaf, so a field the
+// editor refuses stops ApplyFormEdits at the same place on every save.
+// PREVENTS: the partial-apply prefix and the reported field following Go's
+// randomized map order. Parsed many times, an unsorted result differs.
+func TestConfigFormFieldsApplyInPathOrder(t *testing.T) {
+	schema, schemaErr := config.YANGSchema()
+	require.NoError(t, schemaErr)
+	form := url.Values{
+		"field:system/host":        {"h"},
+		"field:system/domain":      {"d.example"},
+		"field:bgp/router-id":      {"10.0.0.1"},
+		"field:system/dns/timeout": {"7"},
+	}
+	for range 50 {
+		fields, err := parseConfigFormFields(form, nil, schema)
+		require.NoError(t, err)
+		got := make([]string, 0, len(fields))
+		for _, f := range fields {
+			got = append(got, strings.Join(append(append([]string{}, f.path...), f.leaf), "/"))
+		}
+		require.Equal(t, []string{"bgp/router-id", "system/domain", "system/host", "system/dns/timeout"}, got)
+	}
 }
 
 // TestConfigFormKeepsASecretTheOperatorDidNotTouch verifies the two halves of

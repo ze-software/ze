@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/aaa"
@@ -225,31 +226,19 @@ func HandleConfigFormWithAuthorizer(mgr *EditorManager, schema *config.Schema, r
 			}
 			return
 		}
-		currentTree := mgr.Tree(username)
-
-		// Cleared fields delete. DeleteValue (not the schema-aware DeleteByPath)
-		// is correct here: parseConfigFormFields resolves every entry through
-		// findLeafNode, so f.leaf is provably a leaf.
-		for _, f := range fields {
-			var setErr error
-			if f.delete {
-				var pathbuf textbuf.Buffer
-				if currentTree == nil || getConfigValue(currentTree, pathbuf.Join(append(append([]string{}, f.path...), f.leaf), "/").String()) == "" {
-					continue
-				}
-				setErr = mgr.DeleteValue(username, f.path, f.leaf)
+		// One save is one edit: ApplyFormEdits holds the session lock across
+		// every field, so the review diff never renders half a save. Cleared
+		// fields delete through DeleteValue (not the schema-aware DeleteByPath),
+		// which is correct here: parseConfigFormFields resolves every entry
+		// through findLeafNode, so f.leaf is provably a leaf.
+		if refused, setErr := mgr.ApplyFormEdits(username, fields); setErr != nil {
+			errPath := textbuf.Join(append(refused.path, refused.leaf), "/")
+			if renderer != nil {
+				WriteOOBError(w, renderer, errPath, setErr.Error(), http.StatusBadRequest)
 			} else {
-				setErr = mgr.SetValue(username, f.path, f.leaf, f.value)
+				http.Error(w, setErr.Error(), http.StatusBadRequest)
 			}
-			if setErr != nil {
-				errPath := textbuf.Join(append(f.path, f.leaf), "/")
-				if renderer != nil {
-					WriteOOBError(w, renderer, errPath, setErr.Error(), http.StatusBadRequest)
-				} else {
-					http.Error(w, setErr.Error(), http.StatusBadRequest)
-				}
-				return
-			}
+			return
 		}
 
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
@@ -285,8 +274,8 @@ func parseConfigFormFields(form map[string][]string, basePath []string, schema *
 		// (workbench_pages.go) hands a purpose-built page. Posting it back
 		// means the operator did not touch the field. It is neither an edit nor
 		// a delete. Without this the stored secret would be overwritten with
-		// the placeholder text. EditorManager.SetValue guards the same value on
-		// the other write path, and the two must stay in step.
+		// the placeholder text. EditorManager.untouchedSecret guards the same
+		// value again where the edit is applied, and the two must stay in step.
 		if value == config.SecretDataPlaceholder {
 			continue
 		}
@@ -306,7 +295,19 @@ func parseConfigFormFields(form map[string][]string, basePath []string, schema *
 		}
 		fields = append(fields, configFormField{path: path, leaf: leaf, value: value})
 	}
+	// The form arrives as a map, whose order Go randomizes. Sorting by path
+	// gives the fields one order, so a field the editor refuses stops the save
+	// at the same place every time and the fields before it are a known set.
+	slices.SortFunc(fields, compareConfigFormFields)
 	return fields, nil
+}
+
+// compareConfigFormFields orders two form fields by their path, then by leaf.
+func compareConfigFormFields(a, b configFormField) int {
+	if c := slices.Compare(a.path, b.path); c != 0 {
+		return c
+	}
+	return strings.Compare(a.leaf, b.leaf)
 }
 
 func resolveConfigFormField(schema *config.Schema, basePath []string, fieldPath string) ([]string, string, *config.LeafNode, error) {

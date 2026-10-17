@@ -118,7 +118,12 @@ The `EditorManager` creates independent `cli.Editor` instances per authenticated
 
 <!-- source: internal/component/web/editor.go -- EditorManager, GetOrCreate -->
 
-Each session has an isolated working tree, change tracking, and serialized access via per-user mutex. Operations: `SetValue`, `DeleteValue`, `Commit`, `Discard`, `Diff`, `ChangeCount`, `Tree`.
+Each session has an isolated working tree, change tracking, and serialized access via per-user mutex. Operations: `SetValue`, `DeleteValue`, `ApplyFormEdits`, `Commit`, `Discard`, `Diff`, `ChangeCount`, `Tree`.
+
+A workbench form save (`/config/form/`) is one edit: `ApplyFormEdits` holds the per-user mutex across every field the form posts, so the review diff and a commit see the whole save or none of it, and two overlapping saves never leave one save's value beside the other's. The fields apply in path order (`parseConfigFormFields` sorts them). A field the editor refuses stops the save there, and the fields sorted before it stay applied, because the editor holds no rollback.
+
+<!-- source: internal/component/web/editor.go -- ApplyFormEdits -->
+<!-- source: internal/component/web/handler_config_form.go -- HandleConfigFormWithAuthorizer, parseConfigFormFields -->
 
 `Commit` detects conflicts when two users modify the same leaf and returns `CommitResult` with conflict details. Limits: 50 concurrent sessions, 1 hour idle timeout.
 

@@ -163,10 +163,8 @@ func (m *EditorManager) SetValue(username string, path []string, key, value stri
 	// bcrypt password is set through the plaintext-<name> sibling instead. The
 	// commit-time guard (config.RejectMaskedSecretLeaves) is the backstop, and
 	// it covers every secret leaf this one does.
-	if value == config.SecretDataPlaceholder && m.schema != nil {
-		if config.LeafHoldsSecret(findLeafNode(m.schema, path, key)) {
-			return nil
-		}
+	if m.untouchedSecret(path, key, value) {
+		return nil
 	}
 
 	us, err := m.GetOrCreate(username)
@@ -178,6 +176,67 @@ func (m *EditorManager) SetValue(username string, path []string, key, value stri
 	defer us.mu.Unlock()
 
 	return us.editor.SetValue(path, key, value)
+}
+
+// untouchedSecret reports whether value is the display placeholder posted back
+// onto a secret leaf, which is the operator leaving the field alone.
+func (m *EditorManager) untouchedSecret(path []string, key, value string) bool {
+	if value != config.SecretDataPlaceholder {
+		return false
+	}
+	if m.schema == nil {
+		return false
+	}
+	return config.LeafHoldsSecret(findLeafNode(m.schema, path, key))
+}
+
+// ApplyFormEdits applies one form save to the user's working tree as one edit.
+// The session lock is held across every field, so no reader (the review diff,
+// a commit) sees part of a save, and two overlapping saves cannot interleave
+// field by field and leave one save's value beside the other's. A cleared field
+// deletes its leaf, and one the tree does not hold is skipped.
+//
+// The edits apply in the order given, which parseConfigFormFields sorts by
+// path. On a refused field it returns that field and the error. The fields
+// before it stay applied, because the editor holds no rollback. Safe for concurrent use.
+func (m *EditorManager) ApplyFormEdits(username string, edits []configFormField) (configFormField, error) {
+	us, err := m.GetOrCreate(username)
+	if err != nil {
+		return configFormField{}, err
+	}
+
+	us.mu.Lock()
+	defer us.mu.Unlock()
+
+	// A cleared field is skipped only on the tree's own answer that the leaf is
+	// absent, so a tree this editor cannot read refuses the save rather than
+	// reading as one that holds nothing.
+	tree, ok := us.editor.Tree().(*config.Tree)
+	if !ok {
+		return configFormField{}, fmt.Errorf("BUG: the working config of %s is not a config tree, so the save cannot tell which cleared fields to delete; reload the page, and if it persists report it with the server log", username)
+	}
+	if tree == nil {
+		return configFormField{}, fmt.Errorf("BUG: %s has an editor with no working config, so the save cannot tell which cleared fields to delete; reload the page, and if it persists report it with the server log", username)
+	}
+	for _, f := range edits {
+		var editErr error
+		if f.delete {
+			var pathbuf textbuf.Buffer
+			if getConfigValue(tree, pathbuf.Join(append(append([]string{}, f.path...), f.leaf), "/").String()) == "" {
+				continue
+			}
+			editErr = us.editor.DeleteValue(f.path, f.leaf)
+		} else {
+			if m.untouchedSecret(f.path, f.leaf, f.value) {
+				continue
+			}
+			editErr = us.editor.SetValue(f.path, f.leaf, f.value)
+		}
+		if editErr != nil {
+			return f, editErr
+		}
+	}
+	return configFormField{}, nil
 }
 
 // DeleteValue removes a leaf value at the given path in the user's working tree.

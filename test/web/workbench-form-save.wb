@@ -1,6 +1,11 @@
 # Test: Workbench singleton Save button persists form changes through /config/form/
 # VALIDATES: /show/system/identity/ -> click Save -> /config/form/ merges with existing pending config
 # PREVENTS: Save button no-op when other pending changes already exist
+#
+# No step sleeps. Each terminal command waits for its own request
+# (action=wait). The save is judged on the server: the review diff is re-read
+# until it counts all four changes, so it never renders while the save is still
+# in flight, and the lines after it say which four they are.
 
 option=timeout:value=60s
 
@@ -8,10 +13,10 @@ action=open:path=/cli
 expect=element:id=terminal-input
 action=fill:id=terminal-input:value=set bgp router-id 10.0.0.1
 action=press:id=terminal-input:key=Enter
-action=wait:ms=1200
+action=wait
 action=fill:id=terminal-input:value=set system dns timeout 7
 action=press:id=terminal-input:key=Enter
-action=wait:ms=1200
+action=wait
 
 action=open:path=/show/system/identity/
 expect=element:id=workbench-shell
@@ -23,9 +28,7 @@ expect=html:not-contains=/admin/system/identity/save
 action=fill:id=field-hostname:value=web-form-save-host
 action=fill:id=field-domain:value=wb-form-save.example
 action=click:id=workbench-form-save
-action=wait
-
-action=open:path=/config/diff
+action=wait-until:path=/config/diff:contains=Review changes (4)
 expect=html:contains=bgp router-id 10.0.0.1
 expect=html:contains=system dns timeout 7
 expect=html:contains=system host web-form-save-host
