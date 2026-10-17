@@ -880,9 +880,8 @@ func TestHandleConfigureKeepsStoreAcrossReload(t *testing.T) {
 
 // VALIDATES: a reconfigure drops from the store the entry of an ASN whose
 // configured as-set changed, and the entry of an ASN no longer enrolled.
-// PREVENTS: the store merging the new as-set's first answer into prefixes
-// resolved for the old one (store.commit keeps a family the answer carried
-// nothing for), and an unenrolled ASN's prefixes living in memory forever.
+// PREVENTS: an entry resolved for a set the config no longer names, or for an
+// unenrolled ASN, living in memory forever.
 func TestHandleConfigureForgetsUnconfiguredEntries(t *testing.T) {
 	addr := fakeIRRv4(t, map[string]string{"AS-ONE": "10.0.0.0/24"})
 	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
@@ -904,14 +903,18 @@ func TestHandleConfigureForgetsUnconfiguredEntries(t *testing.T) {
 }
 
 // VALIDATES: a lookup a reload superseded by changing the ASN's as-set is
-// dropped: the live state keeps the new as-set and no list, and the store
-// holds no entry for the old set.
+// dropped: the live state keeps the new as-set and no list. The old-set entry
+// the lookup committed stays in the store, labeled AS-OLD, and the new set's
+// next refresh, which learns nothing, neither relabels it nor hands its set
+// back to the live state.
 // PREVENTS: the in-flight refresh applying the old set's answer to the new
 // state (the filter then enforces a set the config no longer names, with
-// firstDone closed) and leaving its committed entry to seed the new set's
-// per-family merge, after forgetUnconfigured had already run.
+// firstDone closed), and a failed AS-NEW refresh relabeling the AS-OLD entry
+// (store.markStale), which would let AS-NEW's next one-family answer keep
+// AS-OLD's other family, or reverting the live as-set to AS-OLD.
 // Method: the fake IRR reconfigures to AS-NEW while it is answering the
-// AS-OLD query, so the reload lands between the lookup and its apply.
+// AS-OLD query, so the reload lands between the lookup and its apply. A second
+// refresh then queries AS-NEW, which the fake IRR holds nothing for.
 func TestRefreshDropsLookupAReloadSuperseded(t *testing.T) {
 	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
 	t.Cleanup(func() { close(plug.stopCh) })
@@ -937,8 +940,62 @@ func TestRefreshDropsLookupAReloadSuperseded(t *testing.T) {
 	if list != nil {
 		t.Errorf("live list = %v, want none: the AS-OLD answer was applied to the AS-NEW state", list.entries)
 	}
-	if entry := plug.prefixStore.Get("AS65001"); entry != nil {
-		t.Errorf("store holds %s's entry for AS65001: it would seed AS-NEW's merge", entry.ASSet)
+
+	plug.refreshASN(65001)
+
+	plug.mu.RLock()
+	asSet, list = st.asSet, st.list
+	plug.mu.RUnlock()
+	if asSet != "AS-NEW" {
+		t.Errorf("live as-set = %q after a failed AS-NEW refresh, want AS-NEW", asSet)
+	}
+	if list != nil {
+		t.Errorf("live list = %v after a failed AS-NEW refresh, want none", list.entries)
+	}
+	if entry := plug.prefixStore.Get("AS65001"); entry == nil || entry.ASSet != "AS-OLD" {
+		t.Errorf("store entry = %+v, want the AS-OLD entry still labeled AS-OLD", entry)
+	}
+}
+
+// VALIDATES: a lookup whose state a reload replaced while keeping the ASN's
+// as-set is applied: the live state carries the answer, and the store keeps
+// the entry.
+// PREVENTS: refreshASN dropping a lookup because the state pointer changed.
+// Every reload replaces the state, so a pointer-only drop would discard every
+// answer that races a reconfigure, even one for the set the config still names.
+// Method: as TestRefreshDropsLookupAReloadSuperseded, but the hook reconfigures
+// with the same as-set, AS-OLD.
+func TestRefreshAppliesLookupAReloadKeptItsASSet(t *testing.T) {
+	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
+	t.Cleanup(func() { close(plug.stopCh) })
+	var addr string
+	var once sync.Once
+	addr = fakeIRRv4Hook(t, map[string]string{"AS-OLD": "10.0.0.0/24"}, func(query string) {
+		if query != "!a4AS-OLD" {
+			return
+		}
+		once.Do(func() { plug.handleConfigure(irrConfigFor(addr, "65001", "AS-OLD")) })
+	})
+	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-OLD"))
+	captured := plug.byASN[65001]
+
+	plug.refreshASN(65001)
+
+	plug.mu.RLock()
+	st := plug.byASN[65001]
+	asSet, list := st.asSet, st.list
+	plug.mu.RUnlock()
+	if st == captured {
+		t.Fatal("the reload did not replace the state, so the test cannot tell a pointer-only drop apart")
+	}
+	if asSet != "AS-OLD" {
+		t.Errorf("live as-set = %q, want AS-OLD", asSet)
+	}
+	if list == nil || len(list.entries) != 1 {
+		t.Fatalf("live list = %v, want the AS-OLD answer applied: a reload that kept the as-set dropped it", list)
+	}
+	if entry := plug.prefixStore.Get("AS65001"); entry == nil || entry.ASSet != "AS-OLD" {
+		t.Errorf("store entry = %+v, want the AS-OLD entry kept", entry)
 	}
 }
 

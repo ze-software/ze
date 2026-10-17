@@ -231,11 +231,17 @@ func (s *PrefixStore) refreshLive(ctx context.Context, name, asSet string) (*Cac
 //
 // Removing prefixes stays an operator action, Purge, for the same reason it is
 // one when both families answer nothing.
+//
+// Only an entry resolved for the same AS-SET is merged. A cached family of
+// another AS-SET answers a question nobody asked any more, and keeping it would
+// enforce the old set's prefixes under the new set's name. A lookup that a
+// reload superseded can commit its old-set entry before the reload's lookup
+// commits the new one, so the store cannot rely on its callers to purge first.
 func (s *PrefixStore) commit(name string, fresh *CachedEntry) *CachedEntry {
 	keptV4, keptV6 := false, false
 
 	s.mu.Lock()
-	if cached := s.entries[name]; cached != nil {
+	if cached := s.entries[name]; cached != nil && cached.ASSet == fresh.ASSet {
 		fresh.IPv4, keptV4 = enforcedFamily(fresh.IPv4, cached.IPv4)
 		fresh.IPv6, keptV6 = enforcedFamily(fresh.IPv6, cached.IPv6)
 		if keptV4 || keptV6 {
@@ -304,24 +310,28 @@ func (s *PrefixStore) markStale(name string, fresh *CachedEntry) *CachedEntry {
 		fresh.StaleSince = time.Now()
 		return fresh
 	}
-	updated := *kept
-	changed := false
-	if fresh.ASSet != "" && fresh.ASSet != updated.ASSet {
-		updated.ASSet = fresh.ASSet
-		changed = true
-	}
-	if updated.StaleSince.IsZero() {
+	// The stored entry keeps the AS-SET its prefixes were resolved for, even
+	// when this lookup queried another one. Relabeling it would let the next
+	// answer for the queried set pass commit's same-AS-SET check and keep the
+	// old set's family.
+	if kept.StaleSince.IsZero() {
+		updated := *kept
 		updated.StaleSince = time.Now()
-		changed = true
-	}
-	if !changed {
-		s.mu.Unlock()
-		return kept // already recorded; a long outage must not rewrite zefs per tick
-	}
-	s.entries[name] = &updated
-	s.unpersisted[name] = struct{}{}
+		s.entries[name] = &updated
+		s.unpersisted[name] = struct{}{}
+		kept = &updated
+	} // else already recorded: a long outage must not rewrite zefs per tick
 	s.mu.Unlock()
-	return &updated
+
+	// The caller gets the prefixes still enforced for name under the AS-SET it
+	// queried, so a consumer records the set the config or PeeringDB now names
+	// (bgp-filter-irr refreshASN) and reports what stays enforced (firewall-irr
+	// keptDataError). This copy is never stored.
+	answer := *kept
+	if fresh.ASSet != "" {
+		answer.ASSet = fresh.ASSet
+	}
+	return &answer
 }
 
 // Purge removes name from the in-memory cache and from the persisted cache, and
@@ -381,7 +391,7 @@ func (s *PrefixStore) resolve(ctx context.Context, name, asSet string) (*CachedE
 	effective := asSet
 	if effective == "" {
 		if asn, ok := parseBareASN(name); ok {
-			effective = discoverASSet(ctx, pdb, asn)
+			effective = s.discoverASSet(ctx, pdb, name, asn)
 		} else {
 			effective = name
 		}
@@ -400,17 +410,53 @@ func (s *PrefixStore) resolve(ctx context.Context, name, asSet string) (*CachedE
 	}, nil
 }
 
-// discoverASSet returns the AS-SET for a bare ASN via PeeringDB, falling back to
-// the literal "AS<asn>" name when PeeringDB is unavailable or has no AS-SET.
+// discoverASSet returns the AS-SET to query for the bare ASN name.
+//
+// A PeeringDB answer decides it: its first AS-SET, or the literal "AS<asn>"
+// when PeeringDB holds none for the ASN. A PeeringDB failure decides nothing,
+// so the AS-SET name's cached entry was resolved for is kept, and the literal is
+// used only when nothing is cached. Falling back to the literal on a failure
+// would flip the queried set on every PeeringDB outage, and commit merges a
+// family only for the same AS-SET: an answer carrying one family would then
+// drop the other, and firewall-irr would keep its drop term without that
+// family's accept term (internal/component/firewall/plugins/irr/sets.go).
+// With no PeeringDB client the literal is the configured answer.
+//
 // pdb is passed in rather than read from the store, so the whole lookup runs on
-// the client resolve took, and no state is read outside the lock.
-func discoverASSet(ctx context.Context, pdb *peeringdb.PeeringDB, asn uint32) string {
-	if pdb != nil {
-		if sets, err := pdb.LookupASSet(ctx, asn); err == nil && len(sets) > 0 {
-			return sets[0]
-		}
+// the client resolve took.
+func (s *PrefixStore) discoverASSet(ctx context.Context, pdb *peeringdb.PeeringDB, name string, asn uint32) string {
+	if pdb == nil {
+		return asnName(asn)
 	}
-	return asnName(asn)
+	set, err := lookupASSet(ctx, pdb, asn)
+	if err == nil {
+		return set
+	}
+
+	s.mu.RLock()
+	cached := s.entries[name]
+	s.mu.RUnlock()
+	if cached == nil || cached.ASSet == "" {
+		logger().Warn("irr/store: PeeringDB lookup failed and nothing is cached, querying the ASN itself",
+			"name", name, "as-set", asnName(asn), "error", err)
+		return asnName(asn)
+	}
+	logger().Warn("irr/store: PeeringDB lookup failed, keeping the cached AS-SET",
+		"name", name, "as-set", cached.ASSet, "error", err)
+	return cached.ASSet
+}
+
+// lookupASSet answers with the AS-SET PeeringDB holds for asn, the literal
+// "AS<asn>" when it holds none, or the error when PeeringDB did not answer.
+func lookupASSet(ctx context.Context, pdb *peeringdb.PeeringDB, asn uint32) (string, error) {
+	sets, err := pdb.LookupASSet(ctx, asn)
+	if err != nil {
+		return "", err
+	}
+	if len(sets) == 0 {
+		return asnName(asn), nil
+	}
+	return sets[0], nil
 }
 
 // Open loads persisted entries and migrates the legacy cache when writable.

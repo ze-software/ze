@@ -769,6 +769,166 @@ func TestRefreshKeepsLastGoodPerFamily(t *testing.T) {
 	}
 }
 
+// VALIDATES: the per-family merge keeps a cached family only when the cached
+// entry was resolved for the AS-SET the answer is for.
+// PREVENTS: a lookup for a reload's new AS-SET that answers one family keeping
+// the old AS-SET's other family, which then reads as the new set's prefixes. A
+// lookup a reload superseded can commit the old set's entry just before the
+// reload's lookup commits, so the caller's Purge cannot be relied on to run
+// first (internal/component/bgp/plugins/filter_irr, refreshASN).
+// Method: cache both families for AS-OLD under one name, then refresh the same
+// name for AS-NEW from a server holding only AS-NEW's IPv4 prefix.
+func TestRefreshNeverMergesAnotherASSet(t *testing.T) {
+	addr := fakeIRR(t,
+		map[string]string{"AS-OLD": "10.0.0.0/24", "AS-NEW": "192.0.2.0/24"},
+		map[string]string{"AS-OLD": "2001:db8::/32"},
+	)
+	s := New(irr.NewIRR(addr), nil, nil)
+	if _, err := s.Refresh(context.Background(), "AS65001", "AS-OLD"); err != nil {
+		t.Fatalf("seed Refresh: %v", err)
+	}
+	if seeded := s.Get("AS65001"); seeded == nil || len(seeded.IPv6) != 1 {
+		t.Fatalf("seeded entry lacks the AS-OLD IPv6 prefix, so the test proves nothing: %+v", seeded)
+	}
+
+	entry, err := s.Refresh(context.Background(), "AS65001", "AS-NEW")
+	if err != nil {
+		t.Fatalf("Refresh AS-NEW: %v", err)
+	}
+	if entry.ASSet != "AS-NEW" {
+		t.Errorf("entry.ASSet = %q, want AS-NEW", entry.ASSet)
+	}
+	if len(entry.IPv4) != 1 || entry.IPv4[0] != netip.MustParsePrefix("192.0.2.0/24") {
+		t.Errorf("entry IPv4 = %v, want only AS-NEW's 192.0.2.0/24", entry.IPv4)
+	}
+	if len(entry.IPv6) != 0 {
+		t.Errorf("entry IPv6 = %v, want none: AS-OLD's IPv6 prefixes were kept under AS-NEW", entry.IPv6)
+	}
+	if entry.Stale() {
+		t.Error("an entry holding only what AS-NEW answered must not report itself stale")
+	}
+	if got := s.Get("AS65001"); got != entry {
+		t.Errorf("store holds %+v, want the returned AS-NEW entry", got)
+	}
+}
+
+// failingPeeringDB returns the URL of a PeeringDB that answers every request
+// with a server error, so a lookup through it fails rather than answering.
+func failingPeeringDB(t *testing.T) string {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "unavailable", http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(srv.Close)
+	return srv.URL
+}
+
+// seedDiscovered caches both families of AS-X for the bare ASN AS65001, with
+// the AS-SET discovered through PeeringDB, and returns the store.
+func seedDiscovered(t *testing.T) *PrefixStore {
+	t.Helper()
+	addr := fakeIRR(t, map[string]string{"AS-X": "10.0.0.0/24"}, map[string]string{"AS-X": "2001:db8::/32"})
+	s := New(irr.NewIRR(addr), peeringdb.NewPeeringDB(fakePeeringDB(t, map[string]string{"65001": "AS-X"})), nil)
+	seeded, err := s.Refresh(context.Background(), "AS65001", "")
+	if err != nil {
+		t.Fatalf("seed Refresh: %v", err)
+	}
+	if seeded.ASSet != "AS-X" || len(seeded.IPv4) != 1 || len(seeded.IPv6) != 1 {
+		t.Fatalf("seed entry = %+v, want AS-X with both families", seeded)
+	}
+	return s
+}
+
+// VALIDATES: a PeeringDB failure for a bare ASN with a cached entry keeps
+// querying the AS-SET the entry was resolved for, so the per-family merge
+// still applies to a one-family answer.
+// PREVENTS: a PeeringDB outage flipping the queried set to the literal ASN,
+// which makes commit treat the answer as another AS-SET and drop the family it
+// carried nothing for: firewall-irr then keeps its drop term and loses that
+// family's accept term (internal/component/firewall/plugins/irr/sets.go).
+// Method: seed AS-X through PeeringDB, then refresh with a PeeringDB that
+// fails and an IRR holding AS-X's IPv4 only (and nothing for AS65001).
+func TestRefreshKeepsCachedASSetWhenPeeringDBFails(t *testing.T) {
+	s := seedDiscovered(t)
+	addr := fakeIRR(t, map[string]string{"AS-X": "10.0.0.0/24"}, nil)
+	s.UseClients(irr.NewIRR(addr), peeringdb.NewPeeringDB(failingPeeringDB(t)))
+
+	entry, err := s.Refresh(context.Background(), "AS65001", "")
+	if err != nil {
+		t.Fatalf("a refresh that learned AS-X's IPv4 must not report a failure: %v", err)
+	}
+	if entry.ASSet != "AS-X" {
+		t.Errorf("entry.ASSet = %q, want AS-X: a PeeringDB failure changed the queried set", entry.ASSet)
+	}
+	if len(entry.IPv6) != 1 {
+		t.Errorf("entry IPv6 = %v, want AS-X's cached 2001:db8::/32 kept", entry.IPv6)
+	}
+	if !entry.Stale() {
+		t.Error("an entry enforcing a family nobody confirmed must report itself stale")
+	}
+}
+
+// VALIDATES: a PeeringDB that answers with another AS-SET changes the queried
+// set, and the old set's family is not kept for a one-family answer.
+// PREVENTS: the PeeringDB-failure rule above being widened into ignoring a
+// genuine change of the ASN's registered AS-SET.
+// Method: seed AS-X through PeeringDB, then refresh with a PeeringDB naming
+// AS-Y and an IRR holding AS-Y's IPv4 only.
+func TestRefreshFollowsPeeringDBASSetChange(t *testing.T) {
+	s := seedDiscovered(t)
+	addr := fakeIRR(t, map[string]string{"AS-Y": "192.0.2.0/24"}, nil)
+	s.UseClients(irr.NewIRR(addr), peeringdb.NewPeeringDB(fakePeeringDB(t, map[string]string{"65001": "AS-Y"})))
+
+	entry, err := s.Refresh(context.Background(), "AS65001", "")
+	if err != nil {
+		t.Fatalf("Refresh: %v", err)
+	}
+	if entry.ASSet != "AS-Y" {
+		t.Errorf("entry.ASSet = %q, want AS-Y from PeeringDB", entry.ASSet)
+	}
+	if len(entry.IPv6) != 0 {
+		t.Errorf("entry IPv6 = %v, want none: AS-X's IPv6 prefixes were kept under AS-Y", entry.IPv6)
+	}
+}
+
+// VALIDATES: a refresh for another AS-SET that learns nothing leaves the
+// stored entry labeled with the set its prefixes were resolved for, while the
+// returned entry names the queried set.
+// PREVENTS: markStale relabeling an AS-ONE entry as AS-TWO, which lets the
+// next one-family AS-TWO answer pass commit's same-AS-SET check and keep
+// AS-ONE's other family.
+// Method: cache both families for AS-ONE, refresh for AS-TWO from a server
+// holding nothing for it, then refresh for AS-TWO from a server holding its
+// IPv4 only.
+func TestFailedRefreshNeverRelabelsTheEntry(t *testing.T) {
+	addr := fakeIRR(t, map[string]string{"AS-ONE": "10.0.0.0/24"}, map[string]string{"AS-ONE": "2001:db8::/32"})
+	s := New(irr.NewIRR(addr), nil, nil)
+	if _, err := s.Refresh(context.Background(), "AS65001", "AS-ONE"); err != nil {
+		t.Fatalf("seed Refresh: %v", err)
+	}
+
+	failed, err := s.Refresh(context.Background(), "AS65001", "AS-TWO")
+	if !errors.Is(err, ErrNoPrefixes) {
+		t.Fatalf("Refresh AS-TWO error = %v, want ErrNoPrefixes", err)
+	}
+	if failed == nil || failed.ASSet != "AS-TWO" {
+		t.Errorf("returned entry = %+v, want it to name the queried AS-TWO", failed)
+	}
+	if got := s.Get("AS65001"); got == nil || got.ASSet != "AS-ONE" {
+		t.Fatalf("stored entry = %+v, want it still labeled AS-ONE", got)
+	}
+
+	addr = fakeIRR(t, map[string]string{"AS-TWO": "192.0.2.0/24"}, nil)
+	s.UseClients(irr.NewIRR(addr), nil)
+	entry, err := s.Refresh(context.Background(), "AS65001", "AS-TWO")
+	if err != nil {
+		t.Fatalf("Refresh AS-TWO: %v", err)
+	}
+	if len(entry.IPv6) != 0 {
+		t.Errorf("entry IPv6 = %v, want none: AS-ONE's IPv6 prefixes were kept under AS-TWO", entry.IPv6)
+	}
+}
+
 // VALIDATES: AC-1 -- an empty answer for a name that was never cached stores
 // nothing, so no consumer sees an entry that exists and holds no prefixes.
 // PREVENTS: a zero-prefix entry reading as a valid answer (ai/rules/evidence.md).

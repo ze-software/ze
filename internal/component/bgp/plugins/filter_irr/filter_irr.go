@@ -368,9 +368,9 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 
 // forgetUnconfigured drops from the store every entry the new config no longer
 // asks for: an ASN no longer enrolled, and an ASN whose configured as-set is not
-// the one its entry was resolved for. The store merges a refresh into the entry
-// it holds, keeping a family the answer carried nothing for (store.commit), so
-// an entry resolved for the old as-set would hand its prefixes to the new one.
+// the one its entry was resolved for. store.commit keeps a cached family only
+// for the same AS-SET, so an old-set entry cannot hand its prefixes to the new
+// set; purging it keeps the store to the sets the config names.
 // This is the store's half of "a changed as-set starts from no list";
 // handleConfigure's carry-over rule is the plugin's half.
 func forgetUnconfigured(ps *store.PrefixStore, oldByASN, newByASN map[uint32]*asnState) {
@@ -748,18 +748,16 @@ func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 	if st != captured && st.asSet != asSet {
 		// A reload changed this ASN's as-set while the lookup ran, so the answer
 		// is for a set the config no longer names. Applying it would filter
-		// against the old set, and the entry the store just committed would seed
-		// the new set's per-family merge (store.commit): drop both. The reload's
-		// own resolution answers for the new set. A reload that kept the as-set
-		// also replaces st, and its answer is still the right one, so the as-set
-		// decides, not the pointer alone. The entry is purged only when it names
-		// a set the live state does not, so a concurrent refresh's valid entry
-		// stays.
+		// against the old set, so drop it. The reload's own resolution answers
+		// for the new set. A reload that kept the as-set also replaces st, and
+		// its answer is still the right one, so the as-set decides, not the
+		// pointer alone. The entry this lookup committed stays in the store
+		// until the new set's first answer replaces it: store.commit never
+		// merges another AS-SET's family, so it cannot leak into that answer,
+		// and purging it here could delete the new set's entry when the
+		// reload's lookup committed first.
 		liveASSet := st.asSet
 		plug.mu.Unlock()
-		if entry != nil && entry.ASSet != liveASSet {
-			ps.Purge(asnName(asn))
-		}
 		logger().Debug("irr: dropped a lookup a reload superseded", "asn", asn, "as-set", asSet, "live-as-set", liveASSet)
 		return
 	}

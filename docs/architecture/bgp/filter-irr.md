@@ -88,9 +88,9 @@ the replaced config; the filter supplies only the parse of the bgp subtree and
 
 **A changed as-set starts from no list.** `handleConfigure` carries a resolved
 list over a reconfigure only while the ASN's as-set is the same, and
-`forgetUnconfigured` purges the store's entry for it, because the store merges
-a refresh into the entry it holds and keeps a family the answer carried
-nothing for (`store.commit`). The first UPDATE after the edit waits, bounded,
+`forgetUnconfigured` purges the store's entry for it, so the store holds only
+the sets the config names (`store.commit` already refuses to merge another
+AS-SET's family into an answer). The first UPDATE after the edit waits, bounded,
 for the new set's resolution rather than being judged against the old one.
 The same pass purges the entry of an ASN the new config no longer enrolls.
 
@@ -210,9 +210,12 @@ the later write lock before it mutates. A reconfigure can swap `byASN` in
 between, which orphans the captured pointer and loses the refresh result in
 silence. This is one bug class, not four separate races. `refreshASNCtx` also
 drops a result when the live state is not the one it captured and names
-another as-set: the reload asked for a different set, so the answer is
-discarded and the store entry it committed is purged, or it would seed the new
-set's per-family merge.
+another as-set: a lookup a reload superseded with another as-set is dropped.
+The entry it committed stays in the store until the new set's first answer
+replaces it, and it never leaks into that answer, because `store.commit` keeps
+a cached family only for the same AS-SET. It is not purged: the reload's own
+lookup may have committed the new set's entry first, and a purge would delete
+that one.
 
 **The prefix store is this plugin's own**, in memory, and holds only entries
 for ASNs it enrolled: nothing else writes to it, and `forgetUnconfigured` drops

@@ -91,9 +91,14 @@ it cannot import the reactor package.
 
 `resolve/irr/store` is a shared cache of IRR-resolved prefix lists keyed by name
 (an ASN like `AS13335` or an AS-SET like `AS-CLOUDFLARE`). It owns the full
-resolution pipeline: AS-SET discovery for bare ASNs via PeeringDB (falling back
-to the literal `AS<asn>` name when PeeringDB has no answer), the IRR prefix
-lookup, and persistence under per-entry keys `meta/irr/{name}`.
+resolution pipeline: AS-SET discovery for bare ASNs via PeeringDB, the IRR
+prefix lookup, and persistence under per-entry keys `meta/irr/{name}`. Discovery
+uses the literal `AS<asn>` name when PeeringDB answers with no AS-SET, when no
+PeeringDB client is configured, or when PeeringDB fails and nothing is cached.
+A PeeringDB failure for a cached name keeps the AS-SET the entry was resolved
+for, so an outage never changes the queried set (`discoverASSet`). PeeringDB
+reports an ASN it does not know as an error, so that case also keeps the
+cached set.
 
 The BGP `filter_irr` and `firewall-irr` plugins each keep a `PrefixStore`.
 The BGP filter's is memory only: it is built with no persistence, so it writes
@@ -136,6 +141,16 @@ an AS-SET that answered for IPv4 and not for IPv6 replaced the entry wholesale,
 and the interface binding that lost its IPv6 accept term dropped every IPv6
 packet arriving on the port: `buildIfaceTables` emits one accept term per family
 that has prefixes and one drop term that names no family.
+
+The merge applies only to an entry resolved for the same AS-SET as the answer.
+A cached family of another AS-SET says nothing about the set now queried, so an
+answer for a new set replaces the entry whole, and the family it carried nothing
+for is empty.
+A refresh for another AS-SET that learns nothing leaves the stored entry
+labeled with the set its prefixes were resolved for (`markStale`), so the next
+answer for the new set is not merged either. The entry `Refresh` returns on that
+path names the queried set and carries the prefixes still enforced.
+<!-- source: internal/component/resolve/irr/store/store.go -- commit -->
 
 `CachedEntry.Stale` reports the condition, and `Purge` is the deliberate way to
 remove prefixes for a name that is gone upstream.
