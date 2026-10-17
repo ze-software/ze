@@ -59,6 +59,36 @@ its own `OnChange` handler with matching `AddRef` and `Release` calls.
 <!-- source: internal/component/bgp/plugins/rib/forward_observer.go -- debug subscriber -->
 <!-- source: internal/component/bgp/plugins/rib/forward_tracker.go -- first production consumer -->
 
+## The fast-path tracker
+
+`request bgp rib fastpath enable|disable|status` drives that production
+consumer. Its state is the set of prefixes whose Loc-RIB best is the BGP path.
+A BGP best is recorded with the length of its UPDATE when the change carries
+`Change.Forward`, and without bytes when it does not. A removal, or a best that
+moves to another protocol, prunes the prefix.
+
+**Enable rebuilds the state from the Loc-RIB before it answers.** The Loc-RIB
+keeps no handle once `InsertForward` returns, so no later event would carry a
+best route installed before enable, or while the tracker was off. Enable
+clears the state and walks the Loc-RIB, recording every BGP best. `replayed`
+in the status counts those routes, and `forwarded` and `bytes` count only
+UPDATE bytes read through a handle. Enabling an enabled tracker changes
+nothing. Disable stops tracking and leaves the last state readable.
+
+**The walk and the live changes agree without a second queue.** Enable sets
+the tracker on before it walks, so a change the walk misses is delivered.
+The walk reads each shard under its read lock, which excludes that shard's
+writers, so a change queued before the walk read a prefix leaves that prefix
+in the state the walk saw, and a later change is queued after it. Each queued
+item carries the enable period it belongs to, and the worker discards an item
+from an earlier period, which a re-enable has already rebuilt. A queue that
+overflows still drops the item and counts it in `dropped`.
+
+**A disabled tracker costs one atomic load per change.** The walk runs only
+on enable, on the control plane, and takes the tracker's lock one prefix at a
+time, so the worker and status run between prefixes.
+<!-- source: internal/component/bgp/plugins/rib/forward_tracker.go -- Enable, replay, onChange, process -->
+
 SDK `Run` fences and drains admitted events before `runRIBPlugin` detaches the
 mirror with `SetLocRIB(nil)`. Each mirror operation loads one atomically
 published Loc-RIB pointer. `SetLocRIB` replaces publication and subscriber
