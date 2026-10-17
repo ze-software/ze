@@ -294,3 +294,25 @@ COMMIT B CONTINUATION (agent stopped at its 100-call budget, 2026-10-17). Script
   uncommitted work). The two VPP tests stay red in B, named in the body.
 - Already in B and done: spec 139->125 plus the parse-suite note, the VPP cause (journal row in
   transient-failure-treated-as-fatal.md), 4 store-reading tests regrouped, `bin/le-bootB` deleted.
+
+COMMIT B SECOND CONTINUATION (2026-10-17, agent at budget). Issues 1, 2, 4, 5 done; B prepared as
+`tmp/commit-cbab57ff-boot-b-952da8.sh` (95 paths, list in session scratch boot-b-files.txt):
+45 files dropped back to HEAD, 80 carry the disk option, new dut-store-memory-default.ci and
+dut-store-disk-option.ci, new journal class listener-refuses-the-peer-its-config-names.md.
+Re-review then found 1 ISSUE + 1 NOTE, NOT yet applied, so that script is STALE:
+- ISSUE: dut-store-memory-default.ci uses `cmd=`, so it covers only runOrchestrated's append
+  (runner_exec.go ~926). runTest's append (~346) serves the cmd-less `option=file` tests, which
+  exist only in test/exabgp-compat (84). Findings so far: runTest has no `expect=stderr`
+  (reject=stderr is held on RunCommands, `rejectsRunStderr`), and the client's stderr only goes
+  through validateLogging (observer sentinel, syslog). runTest DOES run validateFileChecks, and
+  its client is `ze start <WorkDir>/<file>` with Dir=WorkDir, so the observable is the on-disk
+  store: with memory no `database` appears in the work dir. Next: read the `expect=file` arm keys
+  (record_parse_vocabulary.go expect arms; check for an absent/exists key) and write one
+  exabgp-compat `option=file` test asserting the store directory is absent; prove it red with ONLY
+  the runTest append removed (go -overlay, build recipe: `le` script build_le, tags
+  ze_le+feature_tags, GOROOT from `./le go stdpatch goroot`, `-o bin/le-<name>/le ./cmd/ze`), and
+  re-record dut-store-memory-default's red with ONLY the runOrchestrated append removed. If no
+  observable exists, say so in the spec. Update the test header, spec Functional Tests, body.
+- NOTE: docs/architecture/storage-backends.md lines 23-24: move the two `<!-- source -->` anchors
+  from mid-paragraph to below the paragraph, beside the existing anchors.
+Then re-prepare with `./le commit create replace tag boot-b ...` (same body; add the new file).
