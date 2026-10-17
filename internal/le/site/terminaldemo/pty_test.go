@@ -73,18 +73,42 @@ func TestTapeParserRefusesDefinitionsItCannotDrive(t *testing.T) {
 	}
 }
 
+// hermeticShell returns the shell a recorder test drives: bash reading no
+// startup file, under a HOME that is the test's own temporary directory.
+//
+// A plain "bash" on a pty is an interactive shell, so it reads the developer's
+// /etc/bash.bashrc and ~/.bashrc before it prints its first prompt. That rc can
+// spawn programs, contact gpg-agent, cd and activate a virtualenv, so the time
+// to the first byte, and what the screen shows, belonged to the machine rather
+// than to the recorder: under a loaded verify run the first prompt missed the
+// tape's WaitTimeout. The temporary HOME also keeps the shell's history file
+// out of the developer's home.
+func hermeticShell(t *testing.T) string {
+	t.Helper()
+	t.Setenv("HOME", t.TempDir())
+	return "bash --norc --noprofile"
+}
+
+// shellWaitTimeout bounds every wait a recorder test makes on its shell. It is
+// a deadline, never a sleep: each wait returns as soon as its condition holds,
+// so the bound costs a passing run nothing. A verify run under load executes
+// this package an order of magnitude slower than an idle run.
+const shellWaitTimeout = 20 * time.Second
+
 func TestNativeRecorderDrivesARealPTYAndWritesAsciicastV2(t *testing.T) {
 	root := t.TempDir()
 	output := filepath.Join(root, "session.gif")
 	path := filepath.Join(root, "demo.tape")
+	// The wait anchors READY at the start of a line, so it matches what printf
+	// wrote and never the echo of the typed command, which also holds READY.
 	mustWrite(t, path, strings.Join([]string{
-		`Set Shell "bash"`,
+		`Set Shell "` + hermeticShell(t) + `"`,
 		"Set TypingSpeed 1ms",
-		"Set WaitTimeout 2s",
+		"Set WaitTimeout " + shellWaitTimeout.String(),
 		"Output " + output,
 		`Type "printf 'READY\\n'; exit"`,
 		"Enter",
-		"Wait+Screen /READY/",
+		"Wait+Screen /(?m)^READY/",
 	}, "\n"))
 
 	var stdout bytes.Buffer

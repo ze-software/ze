@@ -102,9 +102,9 @@ func TestCardRefusesAnUnpairedEnd(t *testing.T) {
 func TestRecorderShowsACardOverARunningProgram(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "card.cast")
 	settings := defaultTapeSettings()
-	settings.shell = "bash"
+	settings.shell = hermeticShell(t)
 	settings.typing = time.Millisecond
-	settings.wait = 2 * time.Second
+	settings.wait = shellWaitTimeout
 	tape := terminalTape{settings: settings, actions: []tapeAction{
 		{name: tapeTypeCommand, text: "echo $((40+2))", where: "t:1"},
 		{name: "Enter", where: "t:2"},
