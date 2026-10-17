@@ -124,20 +124,20 @@ func checkClusterListLengthTieBreak(ctx context.Context, check *interoplab.Check
 	// the tie-break has no input to act on.
 	lists := strings.Count(birdRoutes, clusterListAttributeLabel)
 	if lists != 1 {
-		return fail(8, fmt.Errorf(
-			"BIRD reports %d CLUSTER_LIST attributes for %s, expected exactly one: the tie-break needs one path with a list and one without\n%s",
-			lists, clusterListPrefix, birdRoutes))
+		return fail(8, interoplab.WithSearchedOutput(fmt.Errorf(
+			"BIRD reports %d CLUSTER_LIST attributes for %s, expected exactly one: the tie-break needs one path with a list and one without",
+			lists, clusterListPrefix), birdRoutes))
 	}
 	if !strings.Contains(birdRoutes, clusterListAttributeLabel+reflectorAddress) {
-		return fail(8, fmt.Errorf(
-			"BIRD reports no CLUSTER_LIST carrying the reflector's CLUSTER_ID %s for %s\n%s",
-			reflectorAddress, clusterListPrefix, birdRoutes))
+		return fail(8, interoplab.WithSearchedOutput(fmt.Errorf(
+			"BIRD reports no CLUSTER_LIST carrying the reflector's CLUSTER_ID %s for %s",
+			reflectorAddress, clusterListPrefix), birdRoutes))
 	}
 
 	// Assertion 9. BIRD's verdict.
 	primary, err := birdPrimaryProtocol(birdRoutes)
 	if err != nil {
-		return fail(9, fmt.Errorf("%w\n%s", err, birdRoutes))
+		return fail(9, interoplab.WithSearchedOutput(err, birdRoutes))
 	}
 	var birdWinner string
 	switch primary {
@@ -146,7 +146,7 @@ func checkClusterListLengthTieBreak(ctx context.Context, check *interoplab.Check
 	case clusterListReflectedProtocol:
 		birdWinner = reflectorAddress
 	default:
-		return fail(9, fmt.Errorf("BIRD selected a route from protocol %q, which is neither session of this lab\n%s", primary, birdRoutes))
+		return fail(9, interoplab.WithSearchedOutput(fmt.Errorf("BIRD selected a route from protocol %q, which is neither session of this lab", primary), birdRoutes))
 	}
 
 	// Assertion 10. Ze's verdict, and the step it reached it at. The predicate

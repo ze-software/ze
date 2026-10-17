@@ -54,7 +54,7 @@ func checkOpenExtendedParamsBoundaryFRR(ctx context.Context, check *interoplab.C
 	hostname, ok := frrReceivedHostname(answer)
 	if !ok {
 		return fmt.Errorf("RFC 9072 boundary: FRR reached Established but reports no hostname from ze at %s, "+
-			"so the capability parameter was not read as ze framed it:\n%s", zeAddress, strings.TrimSpace(answer))
+			"so the capability parameter was not read as ze framed it:\n%s", zeAddress, interoplab.OutputExcerpt(answer))
 	}
 	// FRR keeps at most BGP_MAX_HOSTNAME (64) octets of a received hostname
 	// (bgpd/bgp_open.c, bgp_capability_hostname), so it holds a prefix of ours.

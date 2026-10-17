@@ -130,7 +130,7 @@ func checkResponderEAPTLS12(ctx context.Context, lab *scenarioLab) error {
 		return err
 	}
 	if !strings.Contains(logs, "negotiated TLS 1.2") {
-		return fmt.Errorf("strongSwan never logged negotiated TLS 1.2")
+		return interoplab.WithSearchedOutput(fmt.Errorf("strongSwan never logged negotiated TLS 1.2"), logs)
 	}
 	if _, err := lab.waitXFRM(ctx, swanPeer); err != nil {
 		return err
@@ -194,7 +194,7 @@ func (l *scenarioLab) waitRebindLine(ctx context.Context, want, attribute string
 	}
 	for _, other := range []string{rebindLineMigrated, rebindLineRekeyed, rebindLineRefused, rebindLineLost} {
 		if other != want && strings.Contains(logs, other) {
-			return fmt.Errorf("ze took another rebind branch: %q", other)
+			return interoplab.WithSearchedOutput(fmt.Errorf("ze took another rebind branch: %q", other), logs)
 		}
 	}
 	if attribute == "" {

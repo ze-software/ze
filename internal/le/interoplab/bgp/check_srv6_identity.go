@@ -111,7 +111,7 @@ func checkSRv6Identity(ctx context.Context, check *interoplab.CheckContext) (res
 		}, func(output string) bool { return requireSRv6IdentityZeSession(output, address) == nil })
 		evidence["initial-ze-"+address] = last
 		if err != nil {
-			return withLastOutput(err, last)
+			return err
 		}
 	}
 	var initial [2]aigpRecipientFence
@@ -127,7 +127,7 @@ func checkSRv6Identity(ctx context.Context, check *interoplab.CheckContext) (res
 		})
 		evidence["initial-"+peer] = last
 		if err != nil {
-			return withLastOutput(err, last)
+			return err
 		}
 		initial[index], err = readFRRAIGPRecipientFence(last, address)
 		if err != nil {
@@ -165,7 +165,7 @@ func checkSRv6Identity(ctx context.Context, check *interoplab.CheckContext) (res
 			})
 			evidence[peer+"-route-"+strconv.Itoa(number)] = last
 			if err != nil {
-				return fmt.Errorf("route acceptance, not selective semantics: %w", withLastOutput(err, last))
+				return fmt.Errorf("route acceptance, not selective semantics: %w", err)
 			}
 		}
 	}
@@ -225,7 +225,7 @@ func checkSRv6Identity(ctx context.Context, check *interoplab.CheckContext) (res
 	})
 	evidence["policy-receipts"] = output
 	if err != nil {
-		return fmt.Errorf("terminal SDK callback receipt, not selective semantics: %w", withLastOutput(err, output))
+		return fmt.Errorf("terminal SDK callback receipt, not selective semantics: %w", err)
 	}
 	// Readiness is not validity. Judge the exact terminal snapshot with the
 	// complete byte/action/population oracle, including failures and extras.

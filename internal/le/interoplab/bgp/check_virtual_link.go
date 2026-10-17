@@ -301,6 +301,7 @@ func virtualLinkMetric(family *dto.MetricFamily, labels map[string]string) (floa
 func waitVirtualLinkRoute(ctx context.Context, lab interoplab.CheckerLab, v6, present bool) error {
 	const prefix = "192.0.2.1/32"
 	const command = "show ip route 192.0.2.1/32 json"
+	var lastAnswer string
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 90 * time.Second, Interval: time.Second, Description: "independent endpoint backbone prefix through the virtual link"},
 		func(ctx context.Context) (bool, error) {
 			if v6 {
@@ -308,12 +309,14 @@ func waitVirtualLinkRoute(ctx context.Context, lab interoplab.CheckerLab, v6, pr
 				if err != nil {
 					return false, err
 				}
+				lastAnswer = answer
 				return virtualLinkBIRDRoutePresent(answer), nil
 			}
 			answer, err := lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", command}, nil)
 			if err != nil {
 				return false, err
 			}
+			lastAnswer = answer
 			var routes map[string][]struct {
 				Protocol string `json:"protocol"`
 			}
@@ -330,6 +333,7 @@ func waitVirtualLinkRoute(ctx context.Context, lab interoplab.CheckerLab, v6, pr
 			}
 			return false, nil
 		}, func(found bool) bool { return found == present })
+	err = interoplab.WithLastAnswer(err, lastAnswer)
 	return err
 }
 

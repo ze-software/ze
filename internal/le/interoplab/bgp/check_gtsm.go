@@ -118,7 +118,7 @@ func checkGTSMRelatedICMPTTL(ctx context.Context, check *interoplab.CheckContext
 		return parseErr == nil && gtsmErrorArrived(before, after)
 	})
 	if err != nil {
-		return fail(5, withLastOutput(err, afterText))
+		return fail(5, err)
 	}
 	after, err := parseGTSMPeerCounters(afterText)
 	if err != nil {

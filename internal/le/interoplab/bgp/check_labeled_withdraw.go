@@ -169,7 +169,7 @@ func frrWithdrawalDecodes(log, neighbor, prefix string) int {
 func waitFRRLabeledRoute(ctx context.Context, lab interoplab.CheckerLab, prefix string, label int) error {
 	var command textbuf.Buffer
 	show := []string{cmdVtysh, "-c", command.Str("show bgp ").Str(frrFamilyIPv4Labeled).Byte(' ').Str(prefix).Str(" json").String()}
-	answer, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     180 * time.Second,
 		Interval:    2 * time.Second,
 		Description: "FRR labeled-unicast route " + prefix,
@@ -179,7 +179,7 @@ func waitFRRLabeledRoute(ctx context.Context, lab interoplab.CheckerLab, prefix 
 		return frrRemoteLabel(output) == label
 	})
 	if err != nil {
-		return fmt.Errorf("FRR never held %s with remote label %d: %w\n%s", prefix, label, err, strings.TrimSpace(answer))
+		return fmt.Errorf("FRR never held %s with remote label %d: %w", prefix, label, err)
 	}
 	return nil
 }

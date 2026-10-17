@@ -422,11 +422,20 @@ func llgrQueryRoute(ctx context.Context, check *interoplab.CheckContext, prefix,
 }
 
 func llgrWaitRoute(ctx context.Context, check *interoplab.CheckContext, prefix, family, path, marker string, present, stale bool, timeout time.Duration) error {
-	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: timeout, Interval: 200 * time.Millisecond, Description: "FRR LLGR route " + prefix}, func(probe context.Context) (bool, error) {
+	// The probe returns what FRR showed, not whether it matched, so a timeout
+	// names the presence and staleness FRR held instead.
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: timeout, Interval: 200 * time.Millisecond, Description: "FRR LLGR route " + prefix}, func(probe context.Context) (llgrRouteReading, error) {
 		gotPresent, gotStale, err := llgrQueryRoute(probe, check, prefix, family, path, marker)
-		return gotPresent == present && gotStale == stale, err
-	}, func(matches bool) bool { return matches })
+		return llgrRouteReading{Present: gotPresent, Stale: gotStale}, err
+	}, func(got llgrRouteReading) bool { return got == llgrRouteReading{Present: present, Stale: stale} })
 	return err
+}
+
+// llgrRouteReading is one FRR reading of an LLGR route. Its %v form, {Present:true
+// Stale:false} style, is what a timed-out wait quotes.
+type llgrRouteReading struct {
+	Present bool
+	Stale   bool
 }
 
 // llgrObserveExpiry samples continuously, with explicit uncertainty only around

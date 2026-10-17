@@ -1485,6 +1485,7 @@ func requireDataplaneGauges(got, want dataplaneGauges) error {
 }
 
 func (l *scenarioLab) waitDataplaneGauges(ctx context.Context, want dataplaneGauges) error {
+	var lastAnswer string
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: probeWaitTimeout, Interval: time.Second, Description: "live Prometheus dataplane gauge transition",
 	}, func(probe context.Context) (bool, error) {
@@ -1493,6 +1494,7 @@ func (l *scenarioLab) waitDataplaneGauges(ctx context.Context, want dataplaneGau
 		if err != nil {
 			return false, err
 		}
+		lastAnswer = answer
 		got, err := decodeDataplaneGauges(answer)
 		if err != nil {
 			return false, err
@@ -1502,6 +1504,7 @@ func (l *scenarioLab) waitDataplaneGauges(ctx context.Context, want dataplaneGau
 		}
 		return true, nil
 	}, func(ready bool) bool { return ready })
+	err = interoplab.WithLastAnswer(err, lastAnswer)
 	return err
 }
 
@@ -2112,10 +2115,10 @@ func requireProbeFailedSA(row map[string]any, size, icmpFigure int) error {
 // was read and the padded requests reached the parser (A-2, R-1).
 func requireCharonParsedProbes(logs string) error {
 	if !strings.Contains(logs, "parsed INFORMATIONAL request") {
-		return errors.New("charon's log shows no INFORMATIONAL request parsed")
+		return interoplab.WithSearchedOutput(errors.New("charon's log shows no INFORMATIONAL request parsed"), logs)
 	}
 	if strings.Contains(logs, "INVALID_SYNTAX") {
-		return errors.New("charon answered INVALID_SYNTAX")
+		return interoplab.WithSearchedOutput(errors.New("charon answered INVALID_SYNTAX"), logs)
 	}
 	for line := range strings.SplitSeq(logs, "\n") {
 		if strings.Contains(line, "pars") && strings.Contains(line, "failed") {

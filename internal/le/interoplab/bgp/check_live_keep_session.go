@@ -72,9 +72,10 @@ func checkAttachReceiveOnlyLive(ctx context.Context, check *interoplab.CheckCont
 	}
 	if _, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 30 * time.Second, Interval: time.Second, Description: "adj-rib-in holding FRR's re-sent route",
-	}, func(probeCtx context.Context) (bool, error) {
-		return zeAdjRIBInHolds(probeCtx, check.Lab, source, attachLiveRouteKey)
-	}, func(found bool) bool { return found }); err != nil {
+	}, func(probeCtx context.Context) ([]rpkiReloadRoute, error) {
+		// The routes, not a bool, so a timeout names what adj-rib-in held instead.
+		return zeAdjRIBInRoutes(probeCtx, check.Lab, source)
+	}, func(routes []rpkiReloadRoute) bool { return adjRIBInHolds(routes, attachLiveRouteKey) }); err != nil {
 		return checkerFailure(ctx, check.Lab, scenario, 6, fmt.Errorf("the attached adj-rib-in never received %s: %w", attachLivePrefix, err))
 	}
 	after, err := readFRRSessionCounters(ctx, check.Lab, neighbor)
@@ -220,7 +221,7 @@ func (l bfdLiveLab) removeAndSignalAdminDown(ctx context.Context) error {
 	if err := applyZeReload(ctx, l.check.Lab, zeMountedConfig); err != nil {
 		return fmt.Errorf("reload removing the opt-in: %w", err)
 	}
-	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 30 * time.Second, Interval: time.Second, Description: "FRR BFD session Down on ze's AdminDown",
 	}, func(probeCtx context.Context) (string, error) {
 		return l.check.Lab.Query(probeCtx, peerFRR, l.peer, nil)
@@ -229,7 +230,7 @@ func (l bfdLiveLab) removeAndSignalAdminDown(ctx context.Context) error {
 		return readErr == nil && reading.adminDownFromRemote()
 	})
 	if err != nil {
-		return withLastOutput(fmt.Errorf("FRR's BFD peer never read Down with remote diagnostic %q after ze removed the opt-in: %w", frrDiagAdminDown, err), last)
+		return fmt.Errorf("FRR's BFD peer never read Down with remote diagnostic %q after ze removed the opt-in: %w", frrDiagAdminDown, err)
 	}
 	return nil
 }
@@ -353,13 +354,22 @@ func requireOneRefreshSameSession(before, after frrSessionCounters) error {
 
 // zeAdjRIBInHolds reports whether ze's adj-rib-in holds key for source.
 func zeAdjRIBInHolds(ctx context.Context, lab interoplab.CheckerLab, source, key string) (bool, error) {
+	routes, err := zeAdjRIBInRoutes(ctx, lab, source)
+	if err != nil {
+		return false, err
+	}
+	return adjRIBInHolds(routes, key), nil
+}
+
+// zeAdjRIBInRoutes reads the routes ze's adj-rib-in holds for source.
+func zeAdjRIBInRoutes(ctx context.Context, lab interoplab.CheckerLab, source string) ([]rpkiReloadRoute, error) {
 	var received struct {
 		Peers map[string][]rpkiReloadRoute `json:"adj-rib-in"`
 	}
 	if err := queryRPKIReloadJSON(ctx, lab, "show bgp adj-rib-in", &received); err != nil {
-		return false, err
+		return nil, err
 	}
-	return adjRIBInHolds(received.Peers[source], key), nil
+	return received.Peers[source], nil
 }
 
 // adjRIBInHolds reports whether routes carries key.

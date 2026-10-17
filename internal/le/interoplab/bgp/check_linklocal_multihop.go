@@ -105,7 +105,7 @@ func checkLinkLocalOnlyMultihopWithdraw(ctx context.Context, check *interoplab.C
 	// withdrawn decode. Its attribute decode, which prints the next hop, is what
 	// tells the two apart.
 	if strings.Contains(frrLog, linkLocalNextHop) {
-		return fail(5, fmt.Errorf("FRR decoded the Link-Local next hop %s, which Ze relayed to an off-link session address", linkLocalNextHop))
+		return fail(5, interoplab.WithSearchedOutput(fmt.Errorf("FRR decoded the Link-Local next hop %s, which Ze relayed to an off-link session address", linkLocalNextHop), frrLog))
 	}
 
 	// Assertion 6. FRR's table holds no path for the subject.

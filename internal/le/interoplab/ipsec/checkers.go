@@ -104,9 +104,12 @@ func establish(ctx context.Context, lab *scenarioLab) error {
 	return lab.waitChild(ctx, "")
 }
 
+// requireContains fails with message when text lacks needle, and the failure names
+// the needle and carries the text it searched, bounded by interoplab.OutputExcerpt,
+// so a red says what the peer printed and not only what the checker expected.
 func requireContains(text, needle, message string) error {
 	if !strings.Contains(text, needle) {
-		return fmt.Errorf("%s", message)
+		return fmt.Errorf("%s: %q not found; searched output:\n%s", message, needle, interoplab.OutputExcerpt(text))
 	}
 	return nil
 }
@@ -333,7 +336,7 @@ func checkEAPTLS(ctx context.Context, lab *scenarioLab) error {
 	}
 	for _, fact := range eapTLSRefusalFacts {
 		if !strings.Contains(logs, fact) {
-			return fmt.Errorf("ze's EAP-TLS refusal does not state: %s", fact)
+			return interoplab.WithSearchedOutput(fmt.Errorf("ze's EAP-TLS refusal does not state: %s", fact), logs)
 		}
 	}
 	if err := lab.checkXFRMCount(ctx, zePeer, 0); err != nil {
@@ -354,7 +357,7 @@ func checkEAPTLS13(ctx context.Context, lab *scenarioLab) error {
 		return err
 	}
 	if strings.Contains(logs, "negotiated TLS 1.2") {
-		return fmt.Errorf("strongSwan logged negotiated TLS 1.2; the version pin did not hold")
+		return interoplab.WithSearchedOutput(fmt.Errorf("strongSwan logged negotiated TLS 1.2; the version pin did not hold"), logs)
 	}
 	if err := requireContains(logs, "sending TLS cert request", "strongSwan's certificate_authorities list was empty"); err != nil {
 		return err
@@ -412,16 +415,16 @@ func checkResponderEAPTLS13(ctx context.Context, lab *scenarioLab) error {
 		return err
 	}
 	if !strings.Contains(logs, "negotiated TLS 1.3") {
-		return fmt.Errorf("strongSwan never logged negotiated TLS 1.3")
+		return interoplab.WithSearchedOutput(fmt.Errorf("strongSwan never logged negotiated TLS 1.3"), logs)
 	}
 	if strings.Contains(logs, "negotiated TLS 1.2") {
-		return fmt.Errorf("strongSwan logged negotiated TLS 1.2")
+		return interoplab.WithSearchedOutput(fmt.Errorf("strongSwan logged negotiated TLS 1.2"), logs)
 	}
 	if !strings.Contains(logs, "received protected success indication via TLS") {
-		return fmt.Errorf("strongSwan never accepted the RFC 9190 Section 2.5 protected success indication")
+		return interoplab.WithSearchedOutput(fmt.Errorf("strongSwan never accepted the RFC 9190 Section 2.5 protected success indication"), logs)
 	}
 	if strings.Contains(logs, "missing protected success indication") {
-		return fmt.Errorf("strongSwan reports a missing protected success indication")
+		return interoplab.WithSearchedOutput(fmt.Errorf("strongSwan reports a missing protected success indication"), logs)
 	}
 	if _, err := lab.waitXFRM(ctx, swanPeer); err != nil {
 		return err
@@ -496,23 +499,23 @@ func checkResponderEAPTLS13RevokedClient(ctx context.Context, lab *scenarioLab) 
 	// Assertion 3. Section 5.4's obligation opens "When EAP-TLS is used with TLS
 	// 1.3", so a run that fell back to TLS 1.2 would prove nothing about it.
 	if !strings.Contains(logs, "negotiated TLS 1.3") {
-		return fail(3, errors.New("charon never logged negotiated TLS 1.3, so this run does not exercise the TLS 1.3 obligation"))
+		return fail(3, interoplab.WithSearchedOutput(errors.New("charon never logged negotiated TLS 1.3, so this run does not exercise the TLS 1.3 obligation"), logs))
 	}
 	// Assertion 4. The exchange reached the certificate. Without this, an earlier
 	// failure carrying the same alert would pass for a revocation refusal.
 	if !strings.Contains(logs, "sending TLS client certificate") {
-		return fail(4, errors.New("charon never sent its client certificate, so ze refused something earlier than the chain"))
+		return fail(4, interoplab.WithSearchedOutput(errors.New("charon never sent its client certificate, so ze refused something earlier than the chain"), logs))
 	}
 	// Assertion 5. The method failed rather than the SA failing later for an
 	// unrelated reason.
 	if !strings.Contains(logs, "EAP_TLS method failed") {
-		return fail(5, errors.New("charon did not report the EAP-TLS method failing"))
+		return fail(5, interoplab.WithSearchedOutput(errors.New("charon did not report the EAP-TLS method failing"), logs))
 	}
 	// Assertion 6. Its sibling's success marker is absent. responder-eap-tls13
 	// asserts charon logs it, so this is the one observable that flips between
 	// the two scenarios on the strength of the CRL alone.
 	if strings.Contains(logs, "received protected success indication via TLS") {
-		return fail(6, errors.New("charon received the protected success indication, so ze concluded an exchange it had to refuse"))
+		return fail(6, interoplab.WithSearchedOutput(errors.New("charon received the protected success indication, so ze concluded an exchange it had to refuse"), logs))
 	}
 	sas, err := lab.listSAs(ctx)
 	if err != nil {
@@ -545,7 +548,7 @@ func checkResponderEAPTLS13RevokedClient(ctx context.Context, lab *scenarioLab) 
 	// obligation ze refused.
 	for _, fragment := range []string{"was revoked", "(serial ", "revoked by", "RFC 9190 Section 5.4"} {
 		if !strings.Contains(zeLogs, fragment) {
-			return fail(13, fmt.Errorf("ze's account of the refusal does not carry %q", fragment))
+			return fail(13, interoplab.WithSearchedOutput(fmt.Errorf("ze's account of the refusal does not carry %q", fragment), zeLogs))
 		}
 	}
 	return nil
@@ -592,7 +595,7 @@ func checkResponderEAPMSCHAPv2(ctx context.Context, lab *scenarioLab) error {
 		return err
 	}
 	if strings.Count(zeLogs, "EAP round missing EAP payload") > reprocessedBefore {
-		return fmt.Errorf("ze re-processed retransmitted IKE_AUTH instead of replaying its cached response")
+		return interoplab.WithSearchedOutput(fmt.Errorf("ze re-processed retransmitted IKE_AUTH instead of replaying its cached response"), zeLogs)
 	}
 	if err := lab.waitSA(ctx, 60*time.Second); err != nil {
 		return err
@@ -605,7 +608,7 @@ func checkResponderEAPMSCHAPv2(ctx context.Context, lab *scenarioLab) error {
 		return err
 	}
 	if strings.Count(swanLogs, "retransmit 1 of request") <= retransmitsBefore {
-		return fmt.Errorf("strongSwan retransmitted nothing during the blackout; duplicate replay assertion is vacuous")
+		return interoplab.WithSearchedOutput(fmt.Errorf("strongSwan retransmitted nothing during the blackout; duplicate replay assertion is vacuous"), swanLogs)
 	}
 	return nil
 }
@@ -676,6 +679,7 @@ func waitRekeyAndDelete(ctx context.Context, lab *scenarioLab, timeout time.Dura
 		return rejected || completed
 	})
 	if err != nil {
+		// err already carries the wait's last logs, bounded by OutputExcerpt.
 		if !strings.Contains(logs, "parsed CREATE_CHILD_SA request") || !strings.Contains(logs, "REKEY_SA") {
 			return fmt.Errorf("strongSwan never parsed a CREATE_CHILD_SA REKEY_SA request from Ze: %w", err)
 		}
@@ -709,7 +713,7 @@ func checkResponderIKERekey(ctx context.Context, lab *scenarioLab) error {
 		return err
 	}
 	if strings.Contains(logs, "INVALID_SYNTAX") || strings.Contains(logs, "no IKE config found") {
-		return fmt.Errorf("strongSwan reported an error during IKE rekey")
+		return interoplab.WithSearchedOutput(fmt.Errorf("strongSwan reported an error during IKE rekey"), logs)
 	}
 	sas, err := lab.listSAs(ctx)
 	if err != nil {
@@ -801,14 +805,14 @@ func checkInvalidKERetry(ctx context.Context, lab *scenarioLab) error {
 		return err
 	}
 	if !strings.Contains(zeLogs, "cause=invalid-ke-payload") {
-		return fmt.Errorf("ze retried IKE_SA_INIT for another cause")
+		return interoplab.WithSearchedOutput(fmt.Errorf("ze retried IKE_SA_INIT for another cause"), zeLogs)
 	}
 	swanLogs, err := lab.logs(ctx, swanPeer)
 	if err != nil {
 		return err
 	}
 	if !strings.Contains(swanLogs, "generating IKE_SA_INIT response 0 [ N(INVAL_KE) ]") {
-		return fmt.Errorf("strongSwan never sent INVALID_KE_PAYLOAD; retry assertion is vacuous")
+		return interoplab.WithSearchedOutput(fmt.Errorf("strongSwan never sent INVALID_KE_PAYLOAD; retry assertion is vacuous"), swanLogs)
 	}
 	if err := establish(ctx, lab); err != nil {
 		return err
@@ -854,7 +858,7 @@ func checkChildRekeyNarrowing(ctx context.Context, lab *scenarioLab) error {
 		return err
 	}
 	if !strings.Contains(loaded, "loaded connection 'ze'") {
-		return fmt.Errorf("strongSwan did not load narrowed connection")
+		return interoplab.WithSearchedOutput(fmt.Errorf("strongSwan did not load narrowed connection"), loaded)
 	}
 	if err := lab.waitLog(ctx, swanPeer, "deleting IKE_SA ze[", lab.timeout); err != nil {
 		return err
@@ -1011,7 +1015,7 @@ func checkDeleteWhileWindowHeld(ctx context.Context, lab *scenarioLab) error {
 			return readErr
 		}
 		if strings.Count(current, "CREATE_CHILD_SA request") > rekeysBefore {
-			return fmt.Errorf("ze sent CREATE_CHILD_SA while its liveness probe was unanswered")
+			return interoplab.WithSearchedOutput(fmt.Errorf("ze sent CREATE_CHILD_SA while its liveness probe was unanswered"), current)
 		}
 		if err := waitDuration(ctx, time.Second); err != nil {
 			return err
@@ -1110,7 +1114,7 @@ func checkChildRekeyRefusedKeepsTheSA(ctx context.Context, lab *scenarioLab) err
 		return err
 	}
 	if strings.Contains(zeLogs, "missing Nr") {
-		return errors.New("ze read strongSwan's NO_PROPOSAL_CHOSEN as a malformed response")
+		return interoplab.WithSearchedOutput(errors.New("ze read strongSwan's NO_PROPOSAL_CHOSEN as a malformed response"), zeLogs)
 	}
 	return requireContains(zeLogs, "rekey refused for every configured proposal",
 		"ze did not log strongSwan's answer as a refused rekey")
@@ -1189,10 +1193,10 @@ func checkIKERekeyRetriesInTheNamedGroup(ctx context.Context, lab *scenarioLab) 
 		return fmt.Errorf("ze's IKE SA rekey did not complete after strongSwan named group 19: %w", err)
 	}
 	if swanIKERekeyed.FindStringIndex(logs)[0] < refusal[0] {
-		return errors.New("the IKE SA was rekeyed before strongSwan refused group 14, so the retry was not exercised")
+		return interoplab.WithSearchedOutput(errors.New("the IKE SA was rekeyed before strongSwan refused group 14, so the retry was not exercised"), logs)
 	}
 	if strings.Count(logs, "parsed IKE_SA_INIT request") != inits {
-		return errors.New("ze set up a new IKE SA instead of rekeying the current one")
+		return interoplab.WithSearchedOutput(errors.New("ze set up a new IKE SA instead of rekeying the current one"), logs)
 	}
 	sas, err := lab.listSAs(ctx)
 	if err != nil {
@@ -1298,14 +1302,14 @@ func checkESPFormChange(ctx context.Context, lab *scenarioLab) error {
 		return nil
 	}
 	if !strings.Contains(zeState, "encap type espinudp") {
-		return fmt.Errorf("ze inbound state carries no ESP-in-UDP template; forms do not disagree")
+		return interoplab.WithSearchedOutput(fmt.Errorf("ze inbound state carries no ESP-in-UDP template; forms do not disagree"), zeState)
 	}
 	sas, err := lab.listSAs(ctx)
 	if err != nil {
 		return err
 	}
 	if strings.Contains(sas, "TUNNEL-in-UDP") {
-		return fmt.Errorf("strongSwan sends UDP-encapsulated ESP; forms agree")
+		return interoplab.WithSearchedOutput(fmt.Errorf("strongSwan sends UDP-encapsulated ESP; forms agree"), sas)
 	}
 	dropsBefore, err := rawESPDrops(ctx, lab)
 	if err != nil {
@@ -1366,10 +1370,10 @@ func checkESPFormChange(ctx context.Context, lab *scenarioLab) error {
 		return err
 	}
 	if strings.Contains(logs, "received DELETE for ESP CHILD_SA") {
-		return fmt.Errorf("ze deleted or rekeyed Child SA rather than serving both ESP forms")
+		return interoplab.WithSearchedOutput(fmt.Errorf("ze deleted or rekeyed Child SA rather than serving both ESP forms"), logs)
 	}
 	if strings.Contains(logs, "REKEY_SA") {
-		return fmt.Errorf("ze deleted or rekeyed Child SA rather than serving both ESP forms")
+		return interoplab.WithSearchedOutput(fmt.Errorf("ze deleted or rekeyed Child SA rather than serving both ESP forms"), logs)
 	}
 	return nil
 }
@@ -2077,6 +2081,7 @@ func checkDataplaneMonitoring(ctx context.Context, lab *scenarioLab) error {
 	if err := lab.reloadZe(ctx, filepath.Join(lab.check.Source.Directory, "ze-no-peers.conf")); err != nil {
 		return err
 	}
+	var lastAnswer string
 	_, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: xfrmWaitTimeout, Interval: time.Second, Description: "peer removal deleting kernel ESP labels",
 	}, func(probe context.Context) (bool, error) {
@@ -2092,6 +2097,7 @@ func checkDataplaneMonitoring(ctx context.Context, lab *scenarioLab) error {
 		if err != nil {
 			return false, err
 		}
+		lastAnswer = answer
 		var status struct {
 			ConfiguredPeers *int `json:"configured-peers"`
 		}
@@ -2100,6 +2106,7 @@ func checkDataplaneMonitoring(ctx context.Context, lab *scenarioLab) error {
 		}
 		return len(kernel) == 0 && len(reported) == 0 && status.ConfiguredPeers != nil && *status.ConfiguredPeers == 0, nil
 	}, func(removed bool) bool { return removed })
+	err = interoplab.WithLastAnswer(err, lastAnswer)
 	if err != nil {
 		return err
 	}
@@ -2568,7 +2575,7 @@ func checkChildlessIKESAZeResponder(ctx context.Context, lab *scenarioLab) error
 		return fmt.Errorf("strongSwan never sent a CREATE_CHILD_SA request with KE for a new Child SA; its CREATE_CHILD_SA requests: %q", requests)
 	}
 	if strings.Contains(swanLogs, "deleting IKE_SA ze[") {
-		return errors.New("strongSwan deleted the IKE SA during the scenario")
+		return interoplab.WithSearchedOutput(errors.New("strongSwan deleted the IKE SA during the scenario"), swanLogs)
 	}
 	if _, err := lab.waitXFRM(ctx, zePeer); err != nil {
 		return err
@@ -2644,7 +2651,7 @@ func checkChildlessIKESAZeInitiator(ctx context.Context, lab *scenarioLab) error
 		return err
 	}
 	if strings.Contains(swanLogs, "deleting IKE_SA ze[") {
-		return errors.New("strongSwan deleted the IKE SA during the scenario")
+		return interoplab.WithSearchedOutput(errors.New("strongSwan deleted the IKE SA during the scenario"), swanLogs)
 	}
 	// Ze's esp-group runs pfs. RFC 7296 Section 1.3.1: "The initiator sends SA offer(s)
 	// in the SA payload, a nonce in the Ni payload, optionally a Diffie-Hellman value in

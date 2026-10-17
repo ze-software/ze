@@ -21,13 +21,13 @@ func releaseSynchronizedAIGPSource(ctx context.Context, check *interoplab.CheckC
 	for _, host := range []uint8{3, 5, 9, 10} {
 		address := networkHostAddress(check.Network, host)
 		command := zeCommand("show bgp peer " + address + " detail")
-		last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 			Timeout: 45 * time.Second, Interval: time.Second, Description: "AIGP initial EOR for " + address,
 		}, func(probe context.Context) (string, error) {
 			return check.Lab.Query(probe, "ze", command, queryEnvironment("ze", command))
 		}, func(output string) bool { return aigpPeerSynchronized(output, address) })
 		if err != nil {
-			return withLastOutput(err, last)
+			return err
 		}
 	}
 	command := zeCommand(aigpReleaseCommand + " " + networkHostAddress(check.Network, 9) + " " + networkHostAddress(check.Network, 2))
@@ -65,14 +65,14 @@ func aigpPeerSynchronized(output, address string) bool {
 }
 
 func waitAIGPWire(ctx context.Context, check *interoplab.CheckContext, transitions int) error {
-	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 45 * time.Second, Interval: time.Second, Description: "exact AIGP recipient wire transition",
 	}, func(probe context.Context) (string, error) {
 		return check.Lab.Query(probe, peerSpeaker, []string{cmdCat, aigpWireCapture}, nil)
 	}, func(output string) bool {
 		return requireAIGPWire(output, networkHostAddress(check.Network, 2), transitions) == nil
 	})
-	return withLastOutput(err, last)
+	return err
 }
 
 // requireAIGPWire checks the same connection's full history. No table-only

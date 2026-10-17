@@ -153,6 +153,19 @@ cancellation is observed. Failure retains the last measured state or probe
 error and does not start dependent peers or the scenario checker.
 <!-- source: internal/le/interoplab/wait.go -- Wait -->
 
+A failed check names what the peer printed, not only what the checker
+expected. A wait that measured the peer but timed out ends its error with
+`last output:` and the last value its probe returned: text as the peer printed
+it, any other value in Go's `%v` form. A wait whose value is a verdict, such as
+a bool or a count, also ends with `last answer:` and the text its probe last
+read. A one-shot assertion over an answer it read ends with `searched output:`
+and that answer. Every quoted answer is trimmed and cut to its last 40 lines and
+its last 4096 bytes, with a note on its first line saying how much was cut, so
+a full routing table cannot flood the report. An empty answer is named as
+empty.
+<!-- source: internal/le/interoplab/output.go -- OutputExcerpt, WithSearchedOutput, WithLastAnswer -->
+<!-- source: internal/le/interoplab/wait.go -- waitNotReadyError, waitValueExcerpt -->
+
 The FRR readiness producers are
 [`peer_unshut_after_cfg`](https://github.com/FRRouting/frr/blob/frr-10.3.1/bgpd/bgpd.c),
 [`bgp_start`](https://github.com/FRRouting/frr/blob/frr-10.3.1/bgpd/bgp_fsm.c), and

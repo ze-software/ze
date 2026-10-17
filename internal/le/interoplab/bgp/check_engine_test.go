@@ -1,7 +1,6 @@
 package bgp
 
 import (
-	"errors"
 	"net/netip"
 	"strings"
 	"testing"
@@ -9,29 +8,49 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
-// TestWithLastOutputCarriesThePeersAnswer proves a timed-out wait names the state the
-// peer was in, and that a wait that succeeded or a peer that said nothing is passed
-// through unchanged.
+// TestFailedCheckShowsThePeerOutputItSearched proves every one-shot assertion that
+// read the peer's answer carries that answer when it fails, so a red names what the
+// peer printed beside what the checker expected.
 //
-// VALIDATES: withLastOutput appends the trimmed last output to a non-nil error.
-// PREVENTS: a red interop scenario that says only "timed out" while the peer's answer
-// (ExStart, in the run that found this) was in hand and dropped.
-func TestWithLastOutputCarriesThePeersAnswer(t *testing.T) {
-	timedOut := errors.New("wait for frr output timed out")
+// VALIDATES: requireContains, requireAbsentWithProof and requireJSONFields wrap
+// their verdict with the searched output; a pass stays nil.
+// PREVENTS: bgp-addpath-frr's red, where FRR 10.3 printed "Paths: (2 available"
+// and the checker said only that "2 paths" was missing, so reading the answer took
+// a temporary code edit.
+func TestFailedCheckShowsThePeerOutputItSearched(t *testing.T) {
+	t.Parallel()
+	frr := "BGP routing table entry for 10.0.0.0/24\nPaths: (2 available, best #1, table default)"
 
-	got := withLastOutput(timedOut, "  10.0.0.1  1  ExStart/PointToPoint  eth0\n")
-	if !errors.Is(got, timedOut) {
-		t.Fatalf("the original error is no longer reachable through %v", got)
+	err := requireContains(frr, "BGP routing table", "2 paths")
+	if err == nil {
+		t.Fatal("a missing needle must fail")
 	}
-	if !strings.Contains(got.Error(), "last output:\n10.0.0.1  1  ExStart/PointToPoint  eth0") {
-		t.Errorf("the peer's last answer is missing from %q", got.Error())
+	for _, want := range []string{`peer output is missing "2 paths"`, "searched output:\n", "Paths: (2 available"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("requireContains error lacks %q: %q", want, err.Error())
+		}
+	}
+	if err := requireContains(frr, "Paths:"); err != nil {
+		t.Errorf("a present needle must pass, got %v", err)
 	}
 
-	if err := withLastOutput(nil, "anything"); err != nil {
-		t.Errorf("a wait that succeeded must stay nil, got %v", err)
+	err = requireAbsentWithProof(frr, []string{"best #1"}, []string{"Paths:"})
+	if err == nil || !strings.Contains(err.Error(), `unexpectedly contains "best #1"`) || !strings.Contains(err.Error(), "Paths: (2 available") {
+		t.Errorf("an absence failure must name the needle and the searched output, got %v", err)
 	}
-	if got := withLastOutput(timedOut, "  \n"); got.Error() != timedOut.Error() {
-		t.Errorf("a peer that said nothing must leave the error untouched, got %v", got)
+	err = requireAbsentWithProof("session Idle", []string{"x"}, []string{"Established"})
+	if err == nil || !strings.Contains(err.Error(), "searched output:\nsession Idle") {
+		t.Errorf("an unexercised absence must carry the searched output, got %v", err)
+	}
+
+	err = requireJSONFields(`{"state":"Idle"}`, map[string]string{"state": "Established"}, nil)
+	if err == nil || !strings.Contains(err.Error(), "searched output:\n"+`{"state":"Idle"}`) {
+		t.Errorf("a JSON failure must carry the searched output, got %v", err)
+	}
+
+	err = requireContains("", "Established")
+	if err == nil || !strings.Contains(err.Error(), "(the peer printed nothing)") {
+		t.Errorf("an empty answer must be named as empty, got %v", err)
 	}
 }
 

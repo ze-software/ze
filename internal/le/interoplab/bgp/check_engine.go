@@ -191,7 +191,7 @@ func runOperation(ctx context.Context, network interoplab.Network, lab interopla
 		if strings.Contains(output, current.contains[0]) || strings.Contains(output, comma) {
 			return nil
 		}
-		return fmt.Errorf("FRR route %s is missing community %s", current.argument, current.contains[0])
+		return interoplab.WithSearchedOutput(fmt.Errorf("FRR route %s is missing community %s", current.argument, current.contains[0]), output)
 	case opFRRNoAS:
 		return requireASAbsent(
 			ctx,
@@ -230,14 +230,14 @@ func runOperation(ctx context.Context, network interoplab.Network, lab interopla
 	case opWaitJSONFields:
 		return waitJSONFields(ctx, lab, current.peer, current.command, current.timeout, current.fields, current.minimum)
 	case opWaitRPKI:
-		last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 			Timeout: current.timeout, Interval: time.Second, Description: "RPKI route retention and eligibility",
 		}, func(probeCtx context.Context) (string, error) {
 			return lab.Query(probeCtx, current.peer, current.command, nil)
 		}, func(output string) bool {
 			return requireRPKIResult(output) == nil
 		})
-		return withLastOutput(err, last)
+		return err
 	case opExec:
 		_, err := lab.Exec(ctx, current.peer, current.command, queryEnvironment(current.peer, current.command))
 		return err
@@ -310,7 +310,7 @@ func waitContains(ctx context.Context, lab interoplab.CheckerLab, peer string, c
 		timeout = 90 * time.Second
 	}
 	var description textbuf.Buffer
-	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     timeout,
 		Interval:    2 * time.Second,
 		Description: description.Str(peer).Str(" output").String(),
@@ -319,22 +319,7 @@ func waitContains(ctx context.Context, lab interoplab.CheckerLab, peer string, c
 	}, func(output string) bool {
 		return containsAll(output, needles)
 	})
-	return withLastOutput(err, last)
-}
-
-// withLastOutput carries the peer's last answer on a wait that timed out, so a red
-// names the state the peer was in rather than only that it never reached the wanted
-// one (plan/journal/failing-gate-prints-no-cause.md). A nil err and an empty answer
-// pass through.
-func withLastOutput(err error, last string) error {
-	if err == nil {
-		return nil
-	}
-	last = strings.TrimSpace(last)
-	if last == "" {
-		return err
-	}
-	return fmt.Errorf("%w; last output:\n%s", err, last)
+	return err
 }
 
 func waitContainsFold(ctx context.Context, lab interoplab.CheckerLab, peer string, command []string, timeout time.Duration, needles ...string) error {
@@ -346,7 +331,7 @@ func waitContainsFold(ctx context.Context, lab interoplab.CheckerLab, peer strin
 		timeout = 90 * time.Second
 	}
 	var description textbuf.Buffer
-	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     timeout,
 		Interval:    2 * time.Second,
 		Description: description.Str(peer).Str(" output").String(),
@@ -355,7 +340,7 @@ func waitContainsFold(ctx context.Context, lab interoplab.CheckerLab, peer strin
 	}, func(output string) bool {
 		return containsAll(strings.ToLower(output), lower)
 	})
-	return withLastOutput(err, last)
+	return err
 }
 
 func waitContainsAny(ctx context.Context, lab interoplab.CheckerLab, peer string, command []string, timeout time.Duration, needles ...string) error {
@@ -363,7 +348,7 @@ func waitContainsAny(ctx context.Context, lab interoplab.CheckerLab, peer string
 		timeout = 90 * time.Second
 	}
 	var description textbuf.Buffer
-	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     timeout,
 		Interval:    2 * time.Second,
 		Description: description.Str(peer).Str(" output alternatives").String(),
@@ -377,7 +362,7 @@ func waitContainsAny(ctx context.Context, lab interoplab.CheckerLab, peer string
 		}
 		return false
 	})
-	return withLastOutput(err, last)
+	return err
 }
 
 func delayRequireContains(ctx context.Context, lab interoplab.CheckerLab, peer string, command []string, delay time.Duration, needles ...string) error {
@@ -410,7 +395,7 @@ func waitAbsent(ctx context.Context, lab interoplab.CheckerLab, peer string, com
 	}, func(probeCtx context.Context) (string, error) {
 		return lab.Query(probeCtx, peer, command, queryEnvironment(peer, command))
 	}, func(output string) bool {
-		return requireAbsentWithProof(output, absent, proof) == nil
+		return absenceVerdict(output, absent, proof) == nil
 	})
 	return err
 }
@@ -426,16 +411,16 @@ func waitJSONFields(ctx context.Context, lab interoplab.CheckerLab, peer string,
 		timeout = 90 * time.Second
 	}
 	var description textbuf.Buffer
-	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     timeout,
 		Interval:    2 * time.Second,
 		Description: description.Str(peer).Str(" JSON state").String(),
 	}, func(probeCtx context.Context) (string, error) {
 		return lab.Query(probeCtx, peer, command, queryEnvironment(peer, command))
 	}, func(output string) bool {
-		return requireJSONFields(output, fields, minimum) == nil
+		return jsonFieldsVerdict(output, fields, minimum) == nil
 	})
-	return withLastOutput(err, last)
+	return err
 }
 
 func waitFRRRoute(ctx context.Context, lab interoplab.CheckerLab, prefix, family string, timeout time.Duration, present bool) error {
@@ -492,7 +477,19 @@ func nestedRoute(value any) bool {
 	}
 	return false
 }
+
+// requireJSONFields is the one-shot JSON assertion; its failure carries the answer
+// it searched.
 func requireJSONFields(output string, fields map[string]string, minimum map[string]int) error {
+	if err := jsonFieldsVerdict(output, fields, minimum); err != nil {
+		return interoplab.WithSearchedOutput(err, output)
+	}
+	return nil
+}
+
+// jsonFieldsVerdict judges a JSON answer without quoting it, so a wait can poll it
+// and quote only the last answer, once, on timeout.
+func jsonFieldsVerdict(output string, fields map[string]string, minimum map[string]int) error {
 	var document any
 	if err := json.Unmarshal([]byte(output), &document); err != nil {
 		return fmt.Errorf("peer output is not JSON: %w", err)
@@ -540,7 +537,17 @@ func findJSONField(value any, key string) (any, bool) {
 	return nil, false
 }
 
+// requireContains is the one-shot assertion that output holds every needle; its
+// failure names the first missing needle and carries the answer it searched.
 func requireContains(output string, needles ...string) error {
+	if err := missingNeedle(output, needles); err != nil {
+		return interoplab.WithSearchedOutput(err, output)
+	}
+	return nil
+}
+
+// missingNeedle names the first needle output lacks, without quoting output.
+func missingNeedle(output string, needles []string) error {
 	for _, needle := range needles {
 		if !strings.Contains(output, needle) {
 			return fmt.Errorf("peer output is missing %q", needle)
@@ -550,14 +557,24 @@ func requireContains(output string, needles ...string) error {
 }
 
 func containsAll(output string, needles []string) bool {
-	return requireContains(output, needles...) == nil
+	return missingNeedle(output, needles) == nil
 }
 
+// requireAbsentWithProof is the one-shot absence assertion; a failure over an
+// answer it read carries that answer.
 func requireAbsentWithProof(output string, absent, proof []string) error {
+	if err := absenceVerdict(output, absent, proof); err != nil {
+		return interoplab.WithSearchedOutput(err, output)
+	}
+	return nil
+}
+
+// absenceVerdict judges an absence without quoting the answer, so a wait can poll it.
+func absenceVerdict(output string, absent, proof []string) error {
 	if len(proof) == 0 {
 		return errors.New("absence assertion names no positive state proving the mechanism ran")
 	}
-	if err := requireContains(output, proof...); err != nil {
+	if err := missingNeedle(output, proof); err != nil {
 		return fmt.Errorf("absence assertion was not exercised: %w", err)
 	}
 	for _, needle := range absent {
@@ -574,7 +591,7 @@ func requireASAbsent(ctx context.Context, lab interoplab.CheckerLab, peer string
 		return err
 	}
 	if !strings.Contains(output, prefix) {
-		return fmt.Errorf("route %s was not present to prove AS_PATH filtering ran", prefix)
+		return interoplab.WithSearchedOutput(fmt.Errorf("route %s was not present to prove AS_PATH filtering ran", prefix), output)
 	}
 	var expression textbuf.Buffer
 	pattern := regexp.MustCompile(
@@ -582,7 +599,7 @@ func requireASAbsent(ctx context.Context, lab interoplab.CheckerLab, peer string
 			Str(`($|[ {}\[\],])`).String(),
 	)
 	if pattern.FindStringIndex(output) != nil {
-		return fmt.Errorf("route %s AS_PATH contains AS %s", prefix, asn)
+		return interoplab.WithSearchedOutput(fmt.Errorf("route %s AS_PATH contains AS %s", prefix, asn), output)
 	}
 	return nil
 }

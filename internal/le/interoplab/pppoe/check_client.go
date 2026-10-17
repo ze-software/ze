@@ -200,13 +200,13 @@ func checkZeClientPAP(ctx context.Context, check *interoplab.CheckContext) error
 // exchange at all.
 func accelPAPEvidence(trace string) error {
 	if !strings.Contains(trace, "recv [PAP AuthReq") {
-		return errors.New("auth: accel-ppp received no PAP Authenticate-Request from Ze")
+		return interoplab.WithSearchedOutput(errors.New("auth: accel-ppp received no PAP Authenticate-Request from Ze"), trace)
 	}
 	if !strings.Contains(trace, "send [PAP AuthAck") {
-		return errors.New("auth: accel-ppp did not acknowledge Ze's PAP Authenticate-Request")
+		return interoplab.WithSearchedOutput(errors.New("auth: accel-ppp did not acknowledge Ze's PAP Authenticate-Request"), trace)
 	}
 	if strings.Contains(trace, "CHAP") {
-		return errors.New("auth: CHAP appeared in a session accel-ppp restricted to PAP")
+		return interoplab.WithSearchedOutput(errors.New("auth: CHAP appeared in a session accel-ppp restricted to PAP"), trace)
 	}
 	return nil
 }

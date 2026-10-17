@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 const (
@@ -107,7 +109,7 @@ func requireGoBGPAIGPControl(output, sourceHop, thirdPartyHop string) error {
 		}
 		line := strings.Join(decoded.fields, " ")
 		if strings.Count(line, "{Aigp:") != 1 {
-			return fmt.Errorf("GoBGP route %s has no single AIGP attribute", route.prefix)
+			return interoplab.WithSearchedOutput(fmt.Errorf("GoBGP route %s has no single AIGP attribute", route.prefix), line)
 		}
 		if !strings.Contains(line, "{Aigp: [{Metric: 100}]}") {
 			return fmt.Errorf("GoBGP route %s changed received AIGP100: %s", route.prefix, line)

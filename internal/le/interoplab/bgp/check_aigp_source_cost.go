@@ -73,13 +73,13 @@ func checkAIGPSourceCostFRR(ctx context.Context, check *interoplab.CheckContext)
 				return fail(err)
 			}
 		}
-		last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 			Timeout: 45 * time.Second, Interval: time.Second, Description: "FRR whole-route AIGP metric transition",
 		}, func(probe context.Context) (string, error) {
 			return check.Lab.Query(probe, peerFRR, []string{cmdVtysh, "-c", showTableJSON}, nil)
 		}, func(output string) bool { return requireFRRAIGPInventory(output, metric != 0) == nil })
 		if err != nil {
-			return fail(withLastOutput(err, last))
+			return fail(err)
 		}
 		if err := waitAIGPControl(ctx, check, sourceHop, thirdPartyHop); err != nil {
 			return fail(err)
@@ -109,21 +109,21 @@ func checkAIGPSourceCostFRR(ctx context.Context, check *interoplab.CheckContext)
 }
 
 func waitFRRAIGPRoute(ctx context.Context, check *interoplab.CheckContext, prefix, zeAddress string, metric uint64) error {
-	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 45 * time.Second, Interval: time.Second, Description: "FRR decoded accumulated AIGP with next-hop self for " + prefix,
 	}, func(probe context.Context) (string, error) {
 		return check.Lab.Query(probe, peerFRR, []string{cmdVtysh, "-c", "show bgp ipv4 unicast " + prefix + " json"}, nil)
 	}, func(output string) bool { return requireFRRAIGPRoute(output, prefix, zeAddress, metric) == nil })
-	return withLastOutput(err, last)
+	return err
 }
 
 func waitAIGPControl(ctx context.Context, check *interoplab.CheckContext, sourceHop, thirdPartyHop string) error {
-	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 45 * time.Second, Interval: time.Second, Description: "GoBGP unchanged-next-hop AIGP100 controls",
 	}, func(probe context.Context) (string, error) {
 		return check.Lab.Query(probe, peerGoBGP, []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4}, nil)
 	}, func(output string) bool { return requireGoBGPAIGPControl(output, sourceHop, thirdPartyHop) == nil })
-	return withLastOutput(err, last)
+	return err
 }
 
 func installAIGPDistance(ctx context.Context, check *interoplab.CheckContext, hop string, metric uint64) error {
@@ -173,7 +173,7 @@ func waitAIGPSourceFence(ctx context.Context, check *interoplab.CheckContext, so
 		return check.Lab.Query(probe, "ze", command, queryEnvironment("ze", command))
 	}, func(output string) bool { _, err := readAIGPSourceFence(output, source); return err == nil })
 	if err != nil {
-		return aigpSourceFence{}, withLastOutput(err, last)
+		return aigpSourceFence{}, err
 	}
 	return readAIGPSourceFence(last, source)
 }

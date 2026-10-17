@@ -213,6 +213,7 @@ func checkExtendedReceiveRejection(ctx context.Context, check *interoplab.CheckC
 		return err
 	}
 	neighbor := networkHostAddress(check.Network, 10)
+	var lastAnswer string
 	_, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 30 * time.Second, Interval: time.Second, Description: "FRR observes fatal extended length teardown",
 	}, func(probeCtx context.Context) (bool, error) {
@@ -221,8 +222,10 @@ func checkExtendedReceiveRejection(ctx context.Context, check *interoplab.CheckC
 		if err != nil {
 			return false, err
 		}
+		lastAnswer = output
 		return extendedFRRSessionClosed(output, neighbor)
 	}, func(closed bool) bool { return closed })
+	err = interoplab.WithLastAnswer(err, lastAnswer)
 	return err
 }
 
@@ -242,6 +245,7 @@ func waitExtendedTranscript(ctx context.Context, lab interoplab.CheckerLab, peer
 }
 
 func waitExtendedFRRRoute(ctx context.Context, check *interoplab.CheckContext, prefix string, large bool) error {
+	var lastAnswer string
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 45 * time.Second, Interval: time.Second, Description: "FRR installs Ze-forwarded route",
 	}, func(probeCtx context.Context) (bool, error) {
@@ -250,11 +254,13 @@ func waitExtendedFRRRoute(ctx context.Context, check *interoplab.CheckContext, p
 		if err != nil {
 			return false, err
 		}
+		lastAnswer = output
 		if err := requireExtendedFRRRoute(output, prefix, networkHostAddress(check.Network, 11), large); err != nil {
 			return false, err
 		}
 		return true, nil
 	}, func(installed bool) bool { return installed })
+	err = interoplab.WithLastAnswer(err, lastAnswer)
 	return err
 }
 

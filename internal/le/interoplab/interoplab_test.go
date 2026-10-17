@@ -802,7 +802,7 @@ func TestWaitCancellationPreservesEvidence(t *testing.T) {
 		{
 			name: "measured then failed", measured: true, wantAttempts: 2, wantFailures: 1,
 			wantValue: "last measured state",
-			wantError: "wait for cancellation boundary timed out before the peer became ready",
+			wantError: "wait for cancellation boundary timed out before the peer became ready; last output:\nlast measured state",
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {

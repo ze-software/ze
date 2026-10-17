@@ -41,7 +41,7 @@ func newMEDWholeSetCandidate(network [4]byte, host byte, asn uint32, identifier 
 func waitMEDWholeSetInput(ctx context.Context, lab interoplab.CheckerLab, want *medWholeSetCandidate) error {
 	var description textbuf.Buffer
 	var mismatch error
-	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 60 * time.Second, Interval: 2 * time.Second,
 		Description: description.Str("pmacct route and Peer Up epoch for ").Addr(want.peer).String(),
 	}, func(probeCtx context.Context) (string, error) {
@@ -57,7 +57,7 @@ func waitMEDWholeSetInput(ctx context.Context, lab interoplab.CheckerLab, want *
 			err = fmt.Errorf("%w: %w", err, mismatch)
 		}
 	}
-	return withLastOutput(err, last)
+	return err
 }
 
 // medWholeSetCollectorRow is pmacct's decoded output, not a synthetic UPDATE.

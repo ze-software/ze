@@ -107,11 +107,7 @@ func checkBFDFailover(ctx context.Context, check *interoplab.CheckContext) (resu
 	var jsonCommand textbuf.Buffer
 	operating := []string{cmdVtysh, "-c", jsonCommand.Str("show bfd peer ").Str(neighbor).Str(" json").String()}
 	if err := waitJSONFields(ctx, check.Lab, peerFRR, operating, 30*time.Second, bfdOperatingTimers, nil); err != nil {
-		last, queryErr := check.Lab.Query(ctx, peerFRR, operating, nil)
-		if queryErr != nil {
-			return fmt.Errorf("BFD never left the slow-start intervals: %w; the last read failed: %w", err, queryErr)
-		}
-		return fmt.Errorf("BFD never left the slow-start intervals: %w; FRR last answered:\n%s", err, strings.TrimSpace(last))
+		return fmt.Errorf("BFD never left the slow-start intervals: %w", err)
 	}
 
 	// The timers both ends negotiated, read before the break, so a teardown
@@ -338,7 +334,7 @@ func checkReflectorWithdrawal(ctx context.Context, check *interoplab.CheckContex
 		return err
 	}
 	if !strings.Contains(output, "BGP state = Established") {
-		return errors.New("FRR session dropped during the reflected withdrawal")
+		return interoplab.WithSearchedOutput(errors.New("FRR session dropped during the reflected withdrawal"), output)
 	}
 	return nil
 }
@@ -353,7 +349,7 @@ func reflectorAttributeTokens(network interoplab.Network) (originator, cluster s
 
 func requireNoEarlyReflectorWithdrawal(logs string) error {
 	if strings.Contains(strings.ToUpper(logs), ":02:0004180A14000000") {
-		return errors.New("withdraw-shaped UPDATE reached the peer before FRR was asked to withdraw")
+		return interoplab.WithSearchedOutput(errors.New("withdraw-shaped UPDATE reached the peer before FRR was asked to withdraw"), logs)
 	}
 	return nil
 }
@@ -394,7 +390,7 @@ func checkWireEditAPIOriginBIRD(ctx context.Context, check *interoplab.CheckCont
 	}
 	const established = "ze_peer: State changed to up"
 	if count := strings.Count(logs.Text, established); count != 1 {
-		return fmt.Errorf("BIRD session reached up %d times, expected exactly one", count)
+		return interoplab.WithSearchedOutput(fmt.Errorf("BIRD session reached up %d times, expected exactly one", count), logs.Text)
 	}
 	return nil
 }
@@ -451,7 +447,7 @@ func checkBIRDAPICommunities(ctx context.Context, lab interoplab.CheckerLab, pre
 		return err
 	}
 	if !strings.Contains(output, prefix) {
-		return fmt.Errorf("BIRD has no route dump for %s", prefix)
+		return interoplab.WithSearchedOutput(fmt.Errorf("BIRD has no route dump for %s", prefix), output)
 	}
 	standard, standardOK := birdAttributeLine(output, "BGP.community:")
 	if !standardOK {
@@ -524,7 +520,7 @@ func checkMaxPrefixPerFamily(ctx context.Context, check *interoplab.CheckContext
 			return err
 		}
 		if !strings.Contains(output, "BGP state = Established") {
-			return errors.New("warn-only ipv4/unicast prefix limit tore the session down")
+			return interoplab.WithSearchedOutput(errors.New("warn-only ipv4/unicast prefix limit tore the session down"), output)
 		}
 		select {
 		case <-ctx.Done():
@@ -694,7 +690,7 @@ func checkISISOwnLSPPurgeWith(ctx context.Context, check *interoplab.CheckContex
 		return err
 	}
 	if !strings.Contains(output, "Up") {
-		return errors.New("the IS-IS adjacency dropped while answering the purge")
+		return interoplab.WithSearchedOutput(errors.New("the IS-IS adjacency dropped while answering the purge"), output)
 	}
 	return nil
 }

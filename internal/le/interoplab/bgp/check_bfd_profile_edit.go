@@ -94,14 +94,14 @@ func checkBFDProfileEditLive(ctx context.Context, check *interoplab.CheckContext
 // waitBFDRemoteTimers waits until FRR reports the BFD session up with want as
 // ze's intervals and multiplier, and names FRR's last answer when it never does.
 func waitBFDRemoteTimers(ctx context.Context, lab interoplab.CheckerLab, peer []string, want bfdRemoteTimers) error {
-	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 30 * time.Second, Interval: time.Second, Description: "FRR BFD remote timers",
 	}, func(probeCtx context.Context) (string, error) {
 		return lab.Query(probeCtx, peerFRR, peer, nil)
 	}, func(output string) bool {
 		return bfdRemoteTimersMatch(output, want) == nil
 	})
-	return withLastOutput(err, last)
+	return err
 }
 
 // readBFDPeerIdentity reads FRR's BFD session (status up required) and BGP

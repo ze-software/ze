@@ -343,7 +343,7 @@ func requirePeerLog(ctx context.Context, lab labOperations, peer, needle string)
 		return fmt.Errorf("%s logs unavailable", peer)
 	}
 	if !strings.Contains(result.Text, needle) {
-		return fmt.Errorf("%s log missing %q", peer, needle)
+		return interoplab.WithSearchedOutput(fmt.Errorf("%s log missing %q", peer, needle), result.Text)
 	}
 	return nil
 }
@@ -453,7 +453,7 @@ func requireFRRSession(ctx context.Context, lab labOperations, neighbor string) 
 		return err
 	}
 	if !strings.Contains(output, "BGP state = Established") {
-		return errors.New("BGP session dropped after withdrawal")
+		return interoplab.WithSearchedOutput(errors.New("BGP session dropped after withdrawal"), output)
 	}
 	return nil
 }

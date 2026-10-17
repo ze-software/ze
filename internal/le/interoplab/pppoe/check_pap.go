@@ -272,16 +272,16 @@ func checkPAPReanswer(
 // appearing proves the method was PAP and not a CHAP fallback.
 func papAuthEvidence(log string) error {
 	if !logLineWith(log, "rcvd [LCP ConfReq", "<auth pap>") {
-		return errors.New("LCP: Ze's Configure-Request did not demand PAP")
+		return interoplab.WithSearchedOutput(errors.New("LCP: Ze's Configure-Request did not demand PAP"), log)
 	}
 	if !logLineWith(log, "sent [PAP AuthReq", pppdUsername) {
-		return errors.New("auth: the client sent no named PAP Authenticate-Request")
+		return interoplab.WithSearchedOutput(errors.New("auth: the client sent no named PAP Authenticate-Request"), log)
 	}
 	if !strings.Contains(log, "rcvd [PAP AuthAck") {
-		return errors.New("auth: Ze did not acknowledge the PAP Authenticate-Request")
+		return interoplab.WithSearchedOutput(errors.New("auth: Ze did not acknowledge the PAP Authenticate-Request"), log)
 	}
 	if strings.Contains(log, "CHAP") {
-		return errors.New("auth: CHAP appeared in a session the client restricted to PAP")
+		return interoplab.WithSearchedOutput(errors.New("auth: CHAP appeared in a session the client restricted to PAP"), log)
 	}
 	return nil
 }

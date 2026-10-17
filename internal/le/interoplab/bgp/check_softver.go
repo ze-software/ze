@@ -65,7 +65,7 @@ const notifyDirectionReceived = "received"
 func requireFRRRefusesDraftForm(ctx context.Context, lab interoplab.CheckerLab, frrAddress, zeAddress string) error {
 	var text textbuf.Buffer
 	peer := zeCommand(text.Str("show bgp peer ").Str(frrAddress).Str(" detail").String())
-	answer, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     90 * time.Second,
 		Interval:    2 * time.Second,
 		Description: "ze's record of FRR's NOTIFICATION to the draft form",
@@ -78,7 +78,7 @@ func requireFRRRefusesDraftForm(ctx context.Context, lab interoplab.CheckerLab, 
 	if err != nil {
 		return fmt.Errorf("draft form: FRR 10.3.1 reads the first octet of the Software Version "+
 			"capability as a length, so it must refuse ze's bare form with NOTIFICATION OPEN Message Error/Unspecific (2/0); "+
-			"ze never recorded one received from FRR at %s: %w\n%s", frrAddress, err, strings.TrimSpace(answer))
+			"ze never recorded one received from FRR at %s: %w", frrAddress, err)
 	}
 	neighbor := []string{cmdVtysh, "-c", text.Reset().Str("show bgp neighbor ").Str(zeAddress).Str(" json").String()}
 	state, err := lab.Query(ctx, peerFRR, neighbor, nil)
@@ -109,7 +109,7 @@ func requireZeWarnsOpenRefused(ctx context.Context, lab interoplab.CheckerLab, f
 	var text textbuf.Buffer
 	peerAttr := text.Str("peer=").Str(frrAddress).Str(" ").String()
 	const refusal = `code="OPEN Message Error" code-number=2 subcode=Unspecific subcode-number=0`
-	logs, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     60 * time.Second,
 		Interval:    2 * time.Second,
 		Description: "ze's WARN line for FRR's NOTIFICATION to the draft form",
@@ -133,7 +133,7 @@ func requireZeWarnsOpenRefused(ctx context.Context, lab interoplab.CheckerLab, f
 	})
 	if err != nil {
 		return fmt.Errorf("draft form: ze recorded FRR's 2/0 but its log carries no WARN "+
-			"`notification received` line for peer %s naming %s: %w\n%s", frrAddress, refusal, err, strings.TrimSpace(logs))
+			"`notification received` line for peer %s naming %s: %w", frrAddress, refusal, err)
 	}
 	return nil
 }
@@ -185,7 +185,7 @@ func requireFRRShowsZeVersion(ctx context.Context, lab interoplab.CheckerLab, ze
 	}
 	version, ok := frrReceivedSoftwareVersion(answer)
 	if !ok {
-		return fmt.Errorf("%s: FRR shows no software version received from ze at %s:\n%s", form, zeAddress, strings.TrimSpace(answer))
+		return fmt.Errorf("%s: FRR shows no software version received from ze at %s:\n%s", form, zeAddress, interoplab.OutputExcerpt(answer))
 	}
 	if version != zeSoftwareVersion {
 		return fmt.Errorf("%s: FRR shows ze's version as %q, want %q", form, version, zeSoftwareVersion)

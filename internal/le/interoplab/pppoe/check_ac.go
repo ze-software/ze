@@ -194,15 +194,19 @@ func checkLCPIPCPWithAuth(
 				logLineWith(log, "sent [LCP ConfReq", "<magic 0x"),
 			"LCP: both ends did not offer a magic number",
 		},
-		{
-			strings.Contains(address, firstPoolAddr) && strings.Contains(address, zeGateway),
-			"ipcp: the client did not install Ze's assigned point-to-point address",
-		},
 	}
 	for _, check := range checks {
 		if !check.condition {
-			return "", errors.New(check.message)
+			return "", interoplab.WithSearchedOutput(errors.New(check.message), log)
 		}
+	}
+	// The IPCP proof reads the interface address, not the trace, so it quotes that.
+	const ipcpMissing = "ipcp: the client did not install Ze's assigned point-to-point address"
+	if !strings.Contains(address, firstPoolAddr) {
+		return "", interoplab.WithSearchedOutput(errors.New(ipcpMissing), address)
+	}
+	if !strings.Contains(address, zeGateway) {
+		return "", interoplab.WithSearchedOutput(errors.New(ipcpMissing), address)
 	}
 	if err := auth(log); err != nil {
 		return "", err
@@ -230,7 +234,7 @@ func chapAuthEvidence(log string) error {
 	}
 	for _, check := range checks {
 		if !check.condition {
-			return errors.New(check.message)
+			return interoplab.WithSearchedOutput(errors.New(check.message), log)
 		}
 	}
 	return nil
@@ -253,7 +257,7 @@ func checkTeardown(ctx context.Context, lab interoplab.CheckerLab) error {
 		return err
 	}
 	if !strings.Contains(log, "Sent PADT") {
-		return errors.New("teardown: the client did not send PADT")
+		return interoplab.WithSearchedOutput(errors.New("teardown: the client did not send PADT"), log)
 	}
 	if _, err := waitZeSessionsGone(ctx, lab, 30*time.Second); err != nil {
 		return fmt.Errorf("teardown: Ze's session table did not become empty: %w", err)
@@ -285,13 +289,13 @@ func checkRejectedCredential(ctx context.Context, lab interoplab.CheckerLab) err
 		return err
 	}
 	if !strings.Contains(log, "rcvd [CHAP Challenge") {
-		return errors.New("auth-reject: Ze did not challenge the refused dial")
+		return interoplab.WithSearchedOutput(errors.New("auth-reject: Ze did not challenge the refused dial"), log)
 	}
 	if !strings.Contains(log, "rcvd [CHAP Failure") {
-		return errors.New("auth-reject: Ze did not refuse the wrong CHAP secret")
+		return interoplab.WithSearchedOutput(errors.New("auth-reject: Ze did not refuse the wrong CHAP secret"), log)
 	}
 	if strings.Contains(log, "rcvd [IPCP ConfAck") {
-		return errors.New("auth-reject: the refused session reached IPCP")
+		return interoplab.WithSearchedOutput(errors.New("auth-reject: the refused session reached IPCP"), log)
 	}
 	links, err := pppLinks(ctx, lab, clientImageName)
 	if err != nil {

@@ -79,7 +79,7 @@ func checkBFDLinkLocalTwoLinks(ctx context.Context, check *interoplab.CheckConte
 	frrAddress := linkLocalAt(check.Network, frrHostNumber)
 	sessions := zeCommand(zeShowBFDSessions)
 	var links []string
-	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 30 * time.Second, Interval: time.Second, Description: "ze BFD sessions to FRR's link-local on two links",
 	}, func(probeCtx context.Context) (string, error) {
 		return check.Lab.Query(probeCtx, "ze", sessions, queryEnvironment("ze", sessions))
@@ -92,7 +92,7 @@ func checkBFDLinkLocalTwoLinks(ctx context.Context, check *interoplab.CheckConte
 		return len(links) >= 2
 	})
 	if err != nil {
-		return checkerFailure(ctx, check.Lab, bfdLinkLocalTwoLinksScenario, 2, withLastOutput(err, last))
+		return checkerFailure(ctx, check.Lab, bfdLinkLocalTwoLinksScenario, 2, err)
 	}
 	for _, link := range links {
 		if err := checkBFDLinkLocalOn(ctx, check, bfdLinkLocalTwoLinksScenario, link); err != nil {
@@ -121,7 +121,7 @@ func checkBFDLinkLocalOn(ctx context.Context, check *interoplab.CheckContext, sc
 		return decodeErr == nil
 	})
 	if err != nil {
-		return checkerFailure(ctx, check.Lab, scenario, 2, withLastOutput(err, last))
+		return checkerFailure(ctx, check.Lab, scenario, 2, err)
 	}
 	frr, err := decodeFRRBFDPeer(last)
 	if err != nil {
@@ -149,7 +149,7 @@ func checkBFDLinkLocalOn(ctx context.Context, check *interoplab.CheckContext, sc
 		return true
 	})
 	if err != nil {
-		return checkerFailure(ctx, check.Lab, scenario, 4, withLastOutput(err, last))
+		return checkerFailure(ctx, check.Lab, scenario, 4, err)
 	}
 	if err := requireCrossedDiscriminators(*frr.ID, *frr.RemoteID, ze); err != nil {
 		return checkerFailure(ctx, check.Lab, scenario, 5, err)

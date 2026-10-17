@@ -71,7 +71,11 @@ func waitVirtualLinkKernelRoute(ctx context.Context, lab interoplab.CheckerLab, 
 			}
 			return virtualLinkKernelRoutePresent(answer, prefix, gateway)
 		}, func(found bool) bool { return found == present })
-	return withLastOutput(err, last)
+	if err != nil {
+		// Wait's own excerpt is the bool verdict; the route dump is the evidence.
+		return fmt.Errorf("%w; ze last answered:\n%s", err, interoplab.OutputExcerpt(last))
+	}
+	return nil
 }
 
 func virtualLinkKernelRoutePresent(answer, prefix string, gateway netip.Addr) (bool, error) {

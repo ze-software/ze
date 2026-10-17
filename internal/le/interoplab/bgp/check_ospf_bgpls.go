@@ -156,16 +156,16 @@ type ospfBGPLSRoute struct {
 // Judge the final received inventory, not one matching historical advertisement.
 func ospfBGPLSRouterIDVerdict(logs, local, remote string, interAS bool) error {
 	if result, ok := logField(logs, "result"); !ok || result != speakerResultPass {
-		return errors.New("BGP-LS collector did not complete successfully")
+		return interoplab.WithSearchedOutput(errors.New("BGP-LS collector did not complete successfully"), logs)
 	}
 	if established, ok := logField(logs, fieldEstablished); !ok || established != logValueYes {
-		return errors.New("BGP-LS collector did not establish")
+		return interoplab.WithSearchedOutput(errors.New("BGP-LS collector did not establish"), logs)
 	}
 	if complete, ok := logField(logs, "capture-complete"); !ok || complete != logValueYes {
-		return errors.New("BGP-LS collector stopped before completing its capture")
+		return interoplab.WithSearchedOutput(errors.New("BGP-LS collector stopped before completing its capture"), logs)
 	}
 	if strings.Contains(logs, "received NOTIFICATION:") || strings.Contains(logs, "send failed, peer closed") {
-		return errors.New("BGP-LS collector session terminated during capture")
+		return interoplab.WithSearchedOutput(errors.New("BGP-LS collector session terminated during capture"), logs)
 	}
 	inventory := make(map[string]ospfBGPLSRoute)
 	for _, text := range speakerUpdateHexes(logs) {

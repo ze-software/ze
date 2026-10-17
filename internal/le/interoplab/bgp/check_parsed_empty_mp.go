@@ -89,6 +89,7 @@ func checkParsedEmptyMPFRR(ctx context.Context, check *interoplab.CheckContext) 
 			}
 		}
 		if phase >= 2 {
+			var lastAnswer string
 			_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 				Timeout: 30 * time.Second, Interval: time.Second, Description: "FRR removes previously seeded route",
 			}, func(probe context.Context) (bool, error) {
@@ -96,11 +97,13 @@ func checkParsedEmptyMPFRR(ctx context.Context, check *interoplab.CheckContext) 
 				if err != nil {
 					return false, err
 				}
+				lastAnswer = output
 				if err := requireRouteWithheld(output, "198.51.100.0/24", prefix); err != nil {
 					return false, err
 				}
 				return true, nil
 			}, func(done bool) bool { return done })
+			err = interoplab.WithLastAnswer(err, lastAnswer)
 			if err != nil {
 				return err
 			}
@@ -161,6 +164,7 @@ func parsedEmptyMPWaitHistory(ctx context.Context, check *interoplab.CheckContex
 	if source {
 		peer, path = peerSpeaker, parsedEmptyMPSourceCapture
 	}
+	var lastAnswer string
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 30 * time.Second, Interval: time.Second, Description: "complete parsed-empty-MP wire epoch",
 	}, func(probe context.Context) (bool, error) {
@@ -168,6 +172,7 @@ func parsedEmptyMPWaitHistory(ctx context.Context, check *interoplab.CheckContex
 		if err != nil {
 			return false, err
 		}
+		lastAnswer = text
 		bodies, err := parsedEmptyMPCapture(text, source)
 		if err != nil {
 			return false, err
@@ -178,10 +183,12 @@ func parsedEmptyMPWaitHistory(ctx context.Context, check *interoplab.CheckContex
 		}
 		return true, nil
 	}, func(done bool) bool { return done })
+	err = interoplab.WithLastAnswer(err, lastAnswer)
 	return err
 }
 
 func parsedEmptyMPWaitRoute(ctx context.Context, check *interoplab.CheckContext, prefix string) error {
+	var lastAnswer string
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 30 * time.Second, Interval: time.Second, Description: "FRR installs source-owned fence route",
 	}, func(probe context.Context) (bool, error) {
@@ -189,6 +196,7 @@ func parsedEmptyMPWaitRoute(ctx context.Context, check *interoplab.CheckContext,
 		if err != nil {
 			return false, err
 		}
+		lastAnswer = output
 		var route struct {
 			Prefix string `json:"prefix"`
 			Paths  []struct {
@@ -222,6 +230,7 @@ func parsedEmptyMPWaitRoute(ctx context.Context, check *interoplab.CheckContext,
 		}
 		return true, nil
 	}, func(done bool) bool { return done })
+	err = interoplab.WithLastAnswer(err, lastAnswer)
 	return err
 }
 

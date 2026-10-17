@@ -100,6 +100,7 @@ func checkFlowSpecBaseline(ctx context.Context, check *interoplab.CheckContext) 
 }
 
 func waitFlowSpecCover(ctx context.Context, check *interoplab.CheckContext) error {
+	var lastAnswer string
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 30 * time.Second, Interval: time.Second, Description: "foreign same-originator covering route",
 	}, func(probeCtx context.Context) (bool, error) {
@@ -108,10 +109,12 @@ func waitFlowSpecCover(ctx context.Context, check *interoplab.CheckContext) erro
 		if err != nil {
 			return false, err
 		}
+		lastAnswer = output
 		// RFC 8955 Section 6: the unicast cover precedes the FlowSpec input.
 		err = flowSpecForeignCover(output, networkHostAddress(check.Network, 10))
 		return err == nil, err
 	}, func(ready bool) bool { return ready })
+	err = interoplab.WithLastAnswer(err, lastAnswer)
 	return err
 }
 
@@ -160,12 +163,13 @@ func waitFlowSpecEvidence(ctx context.Context, check *interoplab.CheckContext, a
 		return wire.frame, nil
 	}, func(frame int) bool { return frame > after })
 	if err != nil {
-		return 0, fmt.Errorf("%w; GoBGP last answered: %s", err, last)
+		return 0, interoplab.WithLastAnswer(err, last)
 	}
 	return frame, nil
 }
 
 func waitFlowSpecSourceComplete(ctx context.Context, lab interoplab.CheckerLab) error {
+	var lastAnswer string
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 30 * time.Second, Interval: time.Second, Description: "one rule input and cover-only replay",
 	}, func(probeCtx context.Context) (bool, error) {
@@ -176,8 +180,10 @@ func waitFlowSpecSourceComplete(ctx context.Context, lab interoplab.CheckerLab) 
 		if !logs.Available {
 			return false, errors.New("injector transcript unavailable")
 		}
+		lastAnswer = logs.Text
 		err = flowSpecSourceComplete(logs.Text)
 		return err == nil, err
 	}, func(ready bool) bool { return ready })
+	err = interoplab.WithLastAnswer(err, lastAnswer)
 	return err
 }

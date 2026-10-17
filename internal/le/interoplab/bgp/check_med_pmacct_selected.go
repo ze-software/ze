@@ -30,7 +30,7 @@ const (
 func waitMEDWholeSetSelected(ctx context.Context, lab interoplab.CheckerLab, want *medWholeSetCandidate) error {
 	var description textbuf.Buffer
 	var mismatch error
-	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 60 * time.Second, Interval: 2 * time.Second,
 		Description: description.Str("pmacct current Loc-RIB winner from ").Addr(want.peer).String(),
 	}, func(probeCtx context.Context) (string, error) {
@@ -44,7 +44,7 @@ func waitMEDWholeSetSelected(ctx context.Context, lab interoplab.CheckerLab, wan
 			err = fmt.Errorf("%w: %w", err, mismatch)
 		}
 	}
-	return withLastOutput(err, last)
+	return err
 }
 
 type medWholeSetLocEpoch struct {
