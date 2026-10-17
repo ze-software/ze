@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md -- how an external plugin is started
-// Related: sysproc.go -- KillGroupOnCancel, the one caller, and the stop these attributes serve
+// Related: sysproc.go -- KillGroupOnCancel, the query's caller, and the stop these attributes serve
+// Related: process/exitwait_linux.go -- newPluginShell, the live start's caller
 
 //go:build linux
 
@@ -8,10 +9,10 @@ package plugin
 import "syscall"
 
 // NewSysProcAttr answers the attributes every forked plugin is started with,
-// the live start and the declaration query alike. Its one caller is
-// KillGroupOnCancel (sysproc.go), which both forks call, so a plugin started
-// two ways is stopped one way: these attributes and the kill that reads them
-// cannot be taken separately.
+// the live start and the declaration query alike. The query takes them through
+// KillGroupOnCancel (sysproc.go) and the live start through newPluginShell
+// (process/exitwait_linux.go), and each caller pairs them with the kill that
+// reads them: either half alone stops the shell and leaves the plugin.
 //
 // Setpgid puts the plugin and everything it starts into one process group, so
 // a stop can reach the whole tree. A run string is given to a shell, and a

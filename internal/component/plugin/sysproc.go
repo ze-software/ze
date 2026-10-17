@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/process-protocol.md -- how an external plugin is started
 // Related: sysproc_linux.go -- NewSysProcAttr, the Setpgid this signal relies on
 // Related: declarations.go -- runQuery, the declaration query that forks with this
-// Related: process/process.go -- (*Process).startExternal, the live start that forks with this
+// Related: process/exitwait_other.go -- newPluginShell, the live start that forks with this off Linux
 
 package plugin
 
@@ -10,10 +10,12 @@ import (
 	"syscall"
 )
 
-// KillGroupOnCancel gives cmd the stop every forked plugin is stopped by: the
-// fork puts the plugin in a process group of its own, and a canceled context
-// signals that whole group. The live start and the declaration query both call
-// it, which is what makes a plugin started two ways stopped one way.
+// KillGroupOnCancel gives cmd a group stop: the fork puts the plugin in a
+// process group of its own, and a canceled context signals that whole group.
+// The declaration query calls it, and so does the live start on every platform
+// but Linux. On Linux the live start forks with no context and signals the
+// same group itself, after the plugin's exit grace, because a Cancel run from
+// exec's own goroutine can fire after the reap (process/exitwait_linux.go).
 //
 // The two halves are one function because either half alone stops nothing
 // extra. Attributes with no Cancel leave exec.CommandContext's own Cancel in

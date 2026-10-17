@@ -1,8 +1,10 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process lifecycle
 // Detail: delivery.go — event delivery pipeline
 // Detail: manager.go — multi-process coordination and respawn
-// Detail: sysproc_linux.go — Linux-specific process isolation
-// Detail: sysproc_other.go — non-Linux process isolation
+// Detail: exitwait_linux.go — the Linux fork, and the unreaped exit wait the stop's group kill relies on
+// Detail: exitwait_other.go — the fork and stop on every other platform
+// Related: ../sysproc_linux.go — Linux-specific process isolation
+// Related: ../sysproc_other.go — non-Linux process isolation
 // Related: ../ipc/tls.go — PluginAcceptor used by startExternal (ExpectPlugin then Wait for TLS connect-back)
 // Related: ../../../../pkg/plugin/sdk/sdk.go — plugin-side SDK that connects back via TLS
 
@@ -618,8 +620,11 @@ func (p *Process) startExternal() error {
 		host = loopbackHost
 	}
 
-	// #nosec G204 - Run command is from trusted configuration, not user input
-	p.cmd = exec.CommandContext(p.ctx, plugin.Shell, "-c", p.config.Run)
+	// The fork is the platform's (newPluginShell, exitwait_*.go): on Linux it
+	// carries no context, because a stop owes the plugin its own exit first and
+	// superviseExit is what turns the end of p.ctx into the closed connection,
+	// then the kill. Elsewhere the end of p.ctx kills the group at once.
+	p.cmd = newPluginShell(p.ctx, p.config.Run)
 	if p.config.WorkDir != "" {
 		p.cmd.Dir = p.config.WorkDir
 	}
@@ -655,23 +660,23 @@ func (p *Process) startExternal() error {
 	}
 	p.stderr = stderrRead
 
-	// The plugin is started in its own process group and Stop signals that
+	// The plugin is started in its own process group and the stop signals that
 	// group, so the stop reaches the plugin and not only the shell that was
 	// given the run string. A shell keeps the plugin as its own child for every
 	// run string it does not exec-optimize, and a stop that reached the shell
 	// alone would leave the plugin running after the daemon stopped it. The
-	// declaration query takes the same stop from the same function
-	// (KillGroupOnCancel, ../sysproc.go).
+	// group is the plugin's (newPluginShell). On Linux pluginGroup below is the
+	// one place this start signals it from; elsewhere the end of p.ctx signals
+	// it too, through the fork's own Cancel.
 	//
 	// WaitDelay stays zero here, and it is set on the query's fork. WaitDelay
 	// bounds two waits: a child that outlives its canceled context, and a
 	// child that exits holding a pipe exec created. Neither reaches this fork.
-	// The cancel is SIGKILL to the group, which nothing catches, and the only
+	// The kill is SIGKILL to the group, which nothing catches, and the only
 	// stream this child is given is an *os.File, which os/exec hands to the
 	// child directly rather than through a pipe of its own. The relay reading
 	// that file is bounded by stderrDrainGrace once the child is reaped
 	// (stderrRelayReader).
-	plugin.KillGroupOnCancel(p.cmd)
 
 	// The waiter exists before the child does: a child that dials back and
 	// authenticates before this goroutine reaches Wait is held for it, where a
@@ -694,12 +699,17 @@ func (p *Process) startExternal() error {
 
 	cmd := p.cmd
 	relayDone := make(chan struct{})
+	reaped := make(chan struct{})
 	relayRead := newStderrRelayReader(stderrRead, stderrDrainGrace)
 	p.wg.Go(func() {
 		defer close(relayDone)
 		p.relayStderrFrom(relayRead)
 	})
-	p.wg.Go(func() { p.monitorCmd(cmd, relayDone, relayRead) })
+	group := &pluginGroup{name: p.config.Name, pid: cmd.Process.Pid}
+	p.wg.Go(func() { p.monitorCmd(cmd, relayDone, relayRead, reaped, group) })
+	if stopGivesExitGrace {
+		p.wg.Go(func() { p.superviseExit(reaped, group) })
+	}
 
 	// Wait for the child to connect back via TLS (bounded timeout).
 	waitCtx, waitCancel := context.WithTimeout(p.ctx, 30*time.Second)
@@ -707,14 +717,13 @@ func (p *Process) startExternal() error {
 
 	conn, waitErr := waiter.Wait(waitCtx)
 	if waitErr != nil {
-		// Stop the child, and everything it started, to prevent orphaning. The
-		// timeout is not a cancellation of p.ctx, so the Cancel above has not
-		// run: this path signals the group itself. Killing the direct child
+		// Stop the child, and everything it started, to prevent orphaning. A
+		// plugin that never connected has no connection to close and nothing
+		// to flush to a daemon that will not read it, so it gets no exit grace:
+		// the kill signals the whole group at once. Killing the direct child
 		// alone would leave the plugin behind whenever the shell did not
 		// exec-optimize the run string.
-		if p.cmd != nil && p.cmd.Process != nil {
-			plugin.KillProcessGroup(p.cmd.Process.Pid) //nolint:errcheck,gosec // cleanup on connect-back failure
-		}
+		group.kill()
 		// Stop delivery goroutine started by startDeliveryLocked to prevent leak.
 		p.stopEventChan()
 		return fmt.Errorf("plugin %s: TLS connect-back: %w", p.config.Name, waitErr)
@@ -738,6 +747,34 @@ func (p *Process) startExternal() error {
 // slow, or the machine is loaded -- still finds every byte the plugin wrote
 // waiting in the pipe, and reads it before the bound can fire.
 const stderrDrainGrace = 2 * time.Second
+
+// pluginExitGrace is how long a stopped external plugin is given to exit on its
+// own, once its connection is closed, before its process group is killed. Only
+// Linux gives it (stopGivesExitGrace, exitwait_*.go).
+//
+// A plugin's last lines are not in the daemon's pipe yet when the stop comes:
+// every ze process points os.Stderr at a pipe of its own that a goroutine
+// copies on (crashlog.Init), and only the plugin's orderly exit drains it
+// (crashlog.Flush). A plugin whose SDK Run returns on the closed connection
+// exits in milliseconds, so it never waits this long; only a plugin that goes
+// on running after its connection is closed pays it, and then it is killed.
+// ProcessManager.Stop and the respawn join wait past it (manager.go).
+const pluginExitGrace = time.Second
+
+// stopExitGrace is how long this process's goroutines can run on past a stop
+// before its plugin is gone: pluginExitGrace for an external plugin the stop
+// gives that grace, and nothing for an internal plugin, whose engine ends with
+// its closed connection, or where the stop kills at once (stopGivesExitGrace).
+// ProcessManager.Stop and the respawn join add it to their own waits.
+func (p *Process) stopExitGrace() time.Duration {
+	if p.config.Internal {
+		return 0
+	}
+	if !stopGivesExitGrace {
+		return 0
+	}
+	return pluginExitGrace
+}
 
 // stderrRelayReader is the read end of a plugin's stderr pipe, as the relay
 // reads it. Until the plugin is reaped a read waits as long as it must. After
@@ -929,7 +966,10 @@ func isPanicStart(line string) bool {
 }
 
 // Stop signals the process to terminate. Does not block.
-// For external plugins, canceling context kills the process via exec.CommandContext.
+// For external plugins, closing the connections ends the plugin's SDK Run so
+// the plugin exits on its own; on Linux superviseExit kills its process group
+// only if it is still running pluginExitGrace later, and elsewhere the canceled
+// context kills the group at once (newPluginShell).
 // For internal plugins, closing RPC connections unblocks the plugin's reads and causes it to exit.
 // Callers MUST call Wait after Stop to ensure all goroutines have exited.
 func (p *Process) Stop() {
@@ -996,14 +1036,114 @@ func (p *Process) Wait(ctx context.Context) error {
 	return syncutil.WaitGroupWait(ctx, &p.wg)
 }
 
+// superviseExit stops the external plugin when its process context ends:
+// Stop cancels it, and so does ProcessManager.Stop through the parent, before
+// any per-process Stop runs. The stop closes the plugin's connections, which
+// ends its SDK Run and lets it exit on its own, writing out what it already
+// wrote, and kills its process group only if it is still running
+// pluginExitGrace later (pluginExitGrace states why the exit comes first).
+//
+// One goroutine per external Process, started by startExternal where a stop
+// gives the plugin that grace (stopGivesExitGrace), and ended by reaped, which
+// monitorCmd closes once the plugin has been reaped. A grace that runs out as
+// the plugin exits is safe: group.kill sends nothing once monitorCmd has
+// recorded the exit.
+func (p *Process) superviseExit(reaped <-chan struct{}, group *pluginGroup) {
+	select {
+	case <-reaped:
+		return
+	case <-p.ctx.Done():
+	}
+	p.closeConns()
+
+	grace := time.NewTimer(pluginExitGrace)
+	defer grace.Stop()
+	select {
+	case <-reaped:
+	case <-grace.C:
+		group.kill()
+	}
+}
+
+// pluginGroup is the process group an external plugin heads, and the one place
+// the daemon signals it from on Linux (elsewhere the fork's own Cancel signals
+// it as well, newPluginShell). exited is set once the plugin has exited, and
+// no signal is sent after it: the reap frees the plugin's pid, and with it the
+// group number, for the next process the kernel starts, so a kill sent after
+// the reap can reach a stranger.
+//
+// Safe for concurrent use: superviseExit, startExternal's connect-back failure
+// and monitorCmd all reach it.
+type pluginGroup struct {
+	name string
+	pid  int
+
+	mu     sync.Mutex
+	exited bool
+}
+
+// kill SIGKILLs the plugin's group, unless the plugin has already exited.
+func (g *pluginGroup) kill() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.exited {
+		return
+	}
+	g.signalLocked()
+}
+
+// exit records that the plugin has exited, so no kill follows. stopped says
+// the daemon was stopping the plugin when it exited: the plugin then left on
+// its own, and the descendants still in its group get the signal a killed
+// plugin's group gets. The caller MUST pass stopped only with the plugin still
+// unreaped, while its pid and the group it heads are still its own.
+func (g *pluginGroup) exit(stopped bool) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.exited {
+		return
+	}
+	g.exited = true
+	if stopped {
+		g.signalLocked()
+	}
+}
+
+// signalLocked sends the group SIGKILL. The caller MUST hold mu.
+//
+// A pid that is not positive is a guard, not a value: KillProcessGroup(0)
+// signals the daemon's own process group, and a negative pid a group of the
+// kernel's choosing. startExternal builds the group from a started process
+// only, so no pid here is ever below one.
+func (g *pluginGroup) signalLocked() {
+	if g.pid < 1 {
+		panic("BUG: pluginGroup with no started process")
+	}
+	if err := plugin.KillProcessGroup(g.pid); err != nil {
+		logger().Debug("signal a plugin's process group", "plugin", g.name, "error", err)
+	}
+}
+
 // monitorCmd waits for the process to exit.
 // Takes cmd as a parameter to avoid racing on p.cmd with other goroutines.
 //
 // relayDone closes when relayStderrFrom returns, and stderr is the read end that
-// goroutine is reading. Both are parameters for the same reason cmd is.
-func (p *Process) monitorCmd(cmd *exec.Cmd, relayDone <-chan struct{}, stderr *stderrRelayReader) {
-	// Wait for process to exit
+// goroutine is reading. Both are parameters for the same reason cmd is. reaped
+// is closed once cmd.Wait has returned, which is what ends superviseExit, and
+// group is where the exit is recorded before the reap.
+func (p *Process) monitorCmd(cmd *exec.Cmd, relayDone <-chan struct{}, stderr *stderrRelayReader, reaped chan<- struct{}, group *pluginGroup) {
+	// The exit is recorded with the plugin still unreaped, so no kill can be
+	// sent past the reap (pluginGroup), and a stopped plugin that exited on its
+	// own has its descendants signaled while the group number is still its own.
+	if waitExitedUnreaped(cmd.Process.Pid) {
+		group.exit(p.ctx.Err() != nil)
+	}
+
 	_ = cmd.Wait()
+	// Where waitExitedUnreaped had no answer the exit is recorded only now, past
+	// the reap: a kill that raced it in between is the one this cannot exclude.
+	group.exit(false)
+	close(reaped)
 
 	p.running.Store(false)
 

@@ -2132,8 +2132,10 @@ func (r *Reactor) cleanup() {
 	//   - at daemon shutdown it closes a cycle. Server.Stop calls ProcessManager.Stop,
 	//     which waits for the bgp engine to return; that engine is blocked in
 	//     Reactor.Wait on the monitor goroutine running this cleanup. Only
-	//     pluginStopGrace (3s) plus the 500ms group wait break it, and the daemon
-	//     then warns that resources may have been left behind.
+	//     pluginStopGrace (3s) plus the group wait break it (500ms for an internal
+	//     plugin such as this engine, pluginExitGrace (1s) more for an external
+	//     one, process.stopExitGrace), and the daemon then warns that resources
+	//     may have been left behind.
 	//   - at reload it is worse. runBGPEngine (internal/component/bgp/plugin/register.go)
 	//     also returns when bgp is REMOVED at reload, and its tail calls Reactor.Stop,
 	//     so an unguarded stop here takes the hub's whole plugin server down while

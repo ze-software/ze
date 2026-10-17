@@ -227,8 +227,11 @@ func (pm *ProcessManager) startConfigs(configs []plugin.PluginConfig) error {
 // Stop stops all processes.
 // Cancels context and closes connections immediately, which unblocks plugin
 // reads on net.Pipe and causes prompt exit. No bye round-trip — closing the
-// connection is the shutdown signal for internal plugins, and context
-// cancellation kills external plugins via exec.CommandContext.
+// connection is the shutdown signal for internal plugins, and for external
+// plugins too: on Linux each external plugin's superviseExit closes its
+// connection when the context ends and kills its process group only if it is
+// still running pluginExitGrace later; elsewhere the canceled context kills the
+// group at once (newPluginShell, exitwait_*.go).
 func (pm *ProcessManager) Stop() {
 	// One entry owns the engine wait below. A second entry returns at once: the
 	// first has already canceled the context and closed every connection, which is
@@ -247,7 +250,10 @@ func (pm *ProcessManager) Stop() {
 	// Cancel context and close all connections immediately.
 	// For internal plugins: closing engine-side net.Pipe unblocks the plugin's
 	// ReadRequest, causing it to return an error and exit the event loop.
-	// For external plugins: context cancellation kills the subprocess.
+	// For external plugins: the same closed connection ends the plugin's SDK Run,
+	// and on Linux its superviseExit kills the process group only when the plugin is
+	// still running pluginExitGrace later (process.go); elsewhere this cancel kills
+	// the group at once.
 	if pm.cancel != nil {
 		pm.cancel()
 	}
@@ -315,20 +321,23 @@ func (pm *ProcessManager) Stop() {
 
 	// Then the goroutine-leak wait, unchanged: the group holds the delivery loop and
 	// the external-process monitor as well, and this is the "call Wait after Stop"
-	// half of the Process contract rather than a cleanup guarantee.
+	// half of the Process contract rather than a cleanup guarantee. Each process gets
+	// 500ms past its own exit grace: the monitor of an external plugin that ignores its
+	// closed connection returns only once pluginExitGrace has killed it, and an
+	// internal plugin has no such grace to wait out (stopExitGrace).
 	pm.mu.RLock()
-	waitCtx, waitCancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	var groupWg sync.WaitGroup
 	for _, proc := range pm.processes {
 		groupWg.Add(1)
 		go func(p *Process) {
 			defer groupWg.Done()
+			waitCtx, waitCancel := context.WithTimeout(context.Background(), p.stopExitGrace()+500*time.Millisecond)
+			defer waitCancel()
 			_ = p.Wait(waitCtx)
 		}(proc)
 	}
 	pm.mu.RUnlock()
 	groupWg.Wait()
-	waitCancel()
 
 	pm.mu.Lock()
 	pm.processes = make(map[string]*Process)
@@ -556,7 +565,9 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 		proc.onStageChange = nil
 		proc.deliveryInc = nil
 		proc.Stop()
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		// An external plugin that does not exit on its closed connection is killed
+		// only once pluginExitGrace has passed, so the join waits past its grace.
+		ctx, cancel := context.WithTimeout(context.Background(), proc.stopExitGrace()+time.Second)
 		_ = proc.Wait(ctx)
 		cancel()
 	}

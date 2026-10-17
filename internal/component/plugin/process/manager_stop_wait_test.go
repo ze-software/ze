@@ -22,11 +22,14 @@ import (
 // grace it runs for now, so the test discriminates the change rather than the clock.
 const slowReleaseDelay = 700 * time.Millisecond
 
-// registerRunEngine registers one internal plugin whose engine is fn. The name must be
-// unique for the life of the process, because the registry refuses a duplicate and has
-// no removal.
+// registerRunEngine registers one internal plugin whose engine is fn, for the test t
+// alone. The registry refuses a duplicate name and has no removal, so the test's
+// cleanup restores the registry it found: without that a second run of the same test
+// in one process (-count=2) failed on its own earlier registration.
 func registerRunEngine(t *testing.T, name string, fn func(net.Conn) int) {
 	t.Helper()
+	snapshot := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snapshot) })
 	err := registry.Register(registry.Registration{
 		Name:        name,
 		Description: "test plugin for ProcessManager.Stop cleanup waiting",

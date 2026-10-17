@@ -207,9 +207,11 @@ imports this package, so a call from here is an import cycle, and that path
 discards the child's exit status, which is the one fact separating a plugin that
 could not start from a plugin that ran and said nothing. What the two starts
 share is shared in one place each: the PATH they compose in `childenv.go`, and
-the stop they fork with in `KillGroupOnCancel`. That function sets the process
-group and the kill that signals it together, because either half alone stops
-the shell and leaves the plugin.
+the process group they fork into in `NewSysProcAttr`. The query takes its stop
+from `KillGroupOnCancel`, which sets the process group and the kill that
+signals it together, because either half alone stops the shell and leaves the
+plugin. The live start signals the same group, but on Linux only after the exit
+grace `process-protocol.md` describes, so its kill is its own (`pluginGroup`).
 
 The config file is read through a seam rather than a call. This package parses
 config and imports `internal/component/plugin` for `PluginConfig`, so the plugin
@@ -220,6 +222,7 @@ the file names no plugin.
 <!-- source: internal/component/plugin/declarations.go -- declarationRows, queriedDeclarationRow, runQuery -->
 <!-- source: internal/component/plugin/childenv.go -- ChildPathEnv, EngineBinDir -->
 <!-- source: internal/component/plugin/sysproc.go -- KillGroupOnCancel -->
+<!-- source: internal/component/plugin/process/exitwait_linux.go -- newPluginShell -->
 <!-- source: internal/core/env/env.go -- InNamespace -->
 <!-- source: internal/component/config/register_plugin_declarations.go -- readConfiguredPlugins -->
 

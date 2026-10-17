@@ -1350,7 +1350,7 @@ Flowspec, VPN, BGP-LS, MVPN, MUP, RTC, and any future family with a
 specialised NLRI encoding -- is classified non-CIDR.
 
 For non-CIDR families the engine emits a marker block of the form
-`nlri <family> <op>` (for example `nlri l2vpn/evpn add`) with NO prefixes.
+`nlri mp <family> <op>` (for example `nlri mp l2vpn/evpn add`) with NO prefixes.
 The marker tells a text-mode filter plugin that the family is present in
 the update without forcing the engine to generate a family-specific text
 format.
@@ -1367,8 +1367,44 @@ destinations within the family.
 
 | Family set | Filter text protocol emits | Filter requirement |
 |------------|----------------------------|---------------------|
-| CIDR (ipv4/ipv6 unicast / multicast / mpls-label) | `nlri <family> <op> <prefix>...` (prefixes inline) | `raw=false` works for text-mode per-prefix decisions |
-| Non-CIDR (EVPN, Flowspec, VPN, BGP-LS, MVPN, MUP, RTC, ...) | `nlri <family> <op>` (marker only) | `raw=true` required for per-NLRI decisions; text-only is advisory |
+| CIDR (ipv4/ipv6 unicast / multicast / mpls-label) | `nlri mp <family> <op> <prefix>...` (prefixes inline) | `raw=false` works for text-mode per-prefix decisions |
+| Non-CIDR (EVPN, Flowspec, VPN, BGP-LS, MVPN, MUP, RTC, ...) | `nlri mp <family> <op>` (marker only; FlowSpec inlines its destination prefix) | `raw=true` required for per-NLRI decisions; text-only is advisory |
+
+### NLRI Blocks and the Modify Answer
+
+The subject renders one block for each NLRI section of the UPDATE, after every
+attribute pair:
+
+| UPDATE section | Block |
+|----------------|-------|
+| NLRI field (RFC 4271 Section 4.3) | `nlri ipv4/unicast add <prefix>...` |
+| Withdrawn Routes field (RFC 4271 Section 4.3) | `nlri ipv4/unicast del <prefix>...` |
+| MP_REACH_NLRI (RFC 4760 Section 3) | `nlri mp <family> add ...` |
+| MP_UNREACH_NLRI (RFC 4760 Section 4) | `nlri mp <family> del ...` |
+
+The `mp` marker names the section a block came from. IPv4 unicast can arrive
+in the NLRI field or in an MP_REACH_NLRI, and without the marker the two blocks
+read the same. A plugin MUST split the value at each `nlri` token and read
+`mp` before the family.
+<!-- source: internal/component/bgp/reactor/filter_format.go -- AppendUpdateForFilter, appendMPBlock, nlriMPMarker -->
+
+A `modify` answer that carries `nlri` replaces the whole NLRI value, so it
+carries every block it keeps. The engine rewrites each section from its own
+block:
+
+- A block may only remove prefixes, keeping the order the subject gave them.
+  An added or reordered prefix makes the engine drop the route.
+- A block left out of the answer keeps no prefix. An MP_REACH_NLRI or
+  MP_UNREACH_NLRI with no prefix left is removed, never written empty.
+- An MP block keeps its AFI, SAFI and next hop, and each NLRI kept is copied
+  whole, with its path identifier and label stack.
+- A changed block of a non-CIDR family, or an MP block for a section the
+  UPDATE does not carry, makes the engine drop the route and log the family
+  and the reason under `ze.log.bgp.reactor.forward`. Such a filter declares
+  `raw=true` and returns the rewritten body, or rejects the whole UPDATE.
+<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- sectionNLRIDelta, subsetNLRI -->
+<!-- source: internal/component/bgp/reactor/filter_delta.go -- extractLegacyNLRIOverride -->
+<!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- mpReachNextHopHandler, mpUnreachNLRIHandler -->
 
 **Subscription fields:**
 <!-- source: pkg/plugin/rpc/types.go -- SubscribeEventsInput -->
@@ -2061,11 +2097,32 @@ as a gokrazy appliance image, the start names the absent shell rather than the
 plugin, and `ze doctor` reports the same fact before the daemon runs, under
 `doctor-plugin-shell-missing`.
 The child is started in a process group of its own, and the daemon's stop
-signals that whole group. The shell is the daemon's direct child, and a shell
+signals that whole group. On Linux it does so only after the plugin has had
+its chance to exit. The stop closes the plugin's connection first, which ends
+the SDK's `Run`, and the plugin's own exit then writes out the stderr it already
+wrote: every ze process points `os.Stderr` at a pipe a goroutine copies on
+(`crashlog.Init`), and only an orderly exit drains it, so a kill on the stop
+lost the plugin's last line. A plugin still running `pluginExitGrace` (1
+second) after its connection closed is SIGKILLed with its group; one that
+exited on its own is reaped only after its group is signaled, so its
+descendants get the same stop. A plugin that never connected back is killed at
+once. `ProcessManager.Stop` cancels the context every plugin process context
+derives from, and that cancellation is a stop too: it starts the same grace,
+never an immediate kill. The fork carries no context of its own there, and the
+daemon records the plugin's exit before it reaps it: a kill is sent only while
+the plugin is unreaped, because the reap hands its pid, and the group number,
+to the next process the kernel starts.
+
+On other platforms the stop kills the group at once, through the fork's
+context, and a plugin's last stderr line can be lost to it. No call there waits
+for a child's exit while leaving it unreaped (Linux's `waitid` with
+`WNOWAIT`), so a kill sent a grace later could reach a stranger that took the
+freed pid, and a stop that waits would have nothing safe to finish with.
+The shell is the daemon's direct child, and a shell
 that does not exec-optimize the `run` string stays alive with the plugin as its
 own child, so a stop aimed at the direct child leaves the plugin running with
-nothing to talk to. The declaration query stops its child the same way, through
-the same function, so a plugin started two ways is stopped one way. On Linux the
+nothing to talk to. The declaration query stops its child by the group too, the
+moment its context ends, through `KillGroupOnCancel`. On Linux the
 fork also carries `Pdeathsig`, which the kernel delivers to that direct child
 when ze dies. It reaches the plugin for a `run` string the shell
 exec-optimizes, and a `run` string the shell keeps a process for leaves the
@@ -2073,6 +2130,10 @@ plugin a grandchild, which no death signal reaches.
 <!-- source: internal/component/plugin/shell.go -- Shell, ShellAvailable -->
 <!-- source: internal/component/plugin/process/process.go -- startFailure -->
 <!-- source: internal/component/plugin/sysproc.go -- KillGroupOnCancel, KillProcessGroup -->
+<!-- source: internal/component/plugin/process/process.go -- pluginExitGrace, superviseExit, pluginGroup, monitorCmd -->
+<!-- source: internal/component/plugin/process/exitwait_linux.go -- stopGivesExitGrace, newPluginShell, waitExitedUnreaped -->
+<!-- source: internal/component/plugin/process/exitwait_other.go -- stopGivesExitGrace, newPluginShell -->
+<!-- source: internal/core/crashlog/stderr.go -- redirectStderr -->
 <!-- source: internal/component/plugin/sysproc_linux.go -- NewSysProcAttr -->
 
 1. Engine reads `plugin { hub { server <name> { ip ...; port ...; secret ...; } } }` from config
