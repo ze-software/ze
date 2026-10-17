@@ -62,7 +62,7 @@ func usage() {
 		},
 		Examples: []string{
 			"ze bgp decode update <hex>",
-			`ze bgp encode "nlri ipv4/unicast add 10.0.0.0/24"`,
+			`ze bgp encode "route 10.0.0.0/24 next-hop 192.168.1.1"`,
 		},
 		SeeAlso: []string{
 			"ze config validate   Validate configuration",
