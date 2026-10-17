@@ -439,10 +439,15 @@ blocked for an answer that never comes stops there.
 `encoder` is ExaBGP's leaf. Ze declares it in the same place, inside the process
 block, so one bridge can feed a text script and a JSON script at once.
 
-An absent leaf is `json`. The envelope ze declares is 6.0.0, and ExaBGP 6 answers
-every process in JSON whatever its leaf says. So JSON is what an unstated encoder
-means for a script written against that version. `ze exabgp migrate` writes the
-word only when the ExaBGP config carried one. `respawn` follows the same rule.
+An absent leaf is `json`, and the envelope ze declares is 6.0.0. This differs from
+ExaBGP main since e2142a435 (2026-10-01): ExaBGP detects each helper's API version
+from its first deciding command (`command_api_version`, `Processes.detect_api_version`),
+writes a v6 helper JSON only, writes a v4 helper v4 text or v4 JSON (envelope
+`4.0.1`), and writes a helper not yet decided in the format its `encoder` leaf
+names, which defaults to text. Ze has no detection, so a script that leaves the
+leaf out reads ze's JSON where ExaBGP would write it text. `ze exabgp migrate`
+writes the word only when the ExaBGP config carried one. `respawn` follows the
+same rule.
 
 A word that names neither format is REFUSED, by the config parser and by the
 migration. Each of them names the process and the word. Until 2026-09-06 the
