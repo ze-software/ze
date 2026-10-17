@@ -7,6 +7,7 @@ package interoplab
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -191,6 +192,10 @@ type Lab struct {
 }
 
 var _ CheckerLab = (*Lab)(nil)
+
+// ErrUnknownPeer is wrapped by every Lab call that names a peer the scenario did not
+// start, so a caller that walks a suite's whole peer set can skip the absent ones.
+var ErrUnknownPeer = errors.New("unknown peer")
 
 // Run probes Docker once, checks the daemon's kernel, prepares images once,
 // and runs every scenario.
@@ -663,6 +668,5 @@ func (l *Lab) peer(name string) (PeerConfig, error) {
 	if ok {
 		return peer, nil
 	}
-	var tb textbuf.Buffer
-	return PeerConfig{}, errors.New(tb.Str("unknown peer ").Str(name).String())
+	return PeerConfig{}, fmt.Errorf("%w %s", ErrUnknownPeer, name)
 }

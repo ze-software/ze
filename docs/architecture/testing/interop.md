@@ -1254,8 +1254,19 @@ The rebind step (`natRebind`) replaces the port rule with one to a second public
 port and deletes the box's UDP conntrack entries with `conntrack -D -p udp`
 (`conntrack-tools` in `Dockerfile.nat`). The flush is needed because a NAT rule
 applies to a flow's first packet only, and the peer's keepalives and DPD keep the
-old entry alive. The peer's next DPD then reaches Ze from the new port, Ze adopts
-it, and the checker waits for exactly one of Ze's four rebind log lines.
+old entry alive. The step fails when conntrack prints no deleted count, and when
+`conntrack -L` afterwards still holds a flow from strongSwan's UDP 4500 mapped to
+the first public port (`conntrackDeletedCount`, `conntrackStaleMapping`). A flush
+that did nothing then fails at once, rather than as a 90 s wait for a move that
+cannot come. The peer's next DPD then reaches Ze from the new port, Ze adopts it,
+and the checker waits for exactly one of Ze's four rebind log lines.
+
+The two rebind scenarios set `mobike = no` in `swanctl.conf`. strongSwan offers
+MOBIKE by default. When MOBIKE is negotiated, Ze correctly refuses to adopt the new
+source of an authenticated IKE packet, because RFC 4555 Section 3.8 says "The host
+not behind a NAT MUST NOT use these dynamic updates for IKEv2 packets". The peer
+must send UPDATE_SA_ADDRESSES instead. Ze logs that refusal at Debug, so a
+scenario that loses the setting shows the reason in Ze's log.
 
 | Scenario | Proves |
 |----------|--------|
@@ -1264,12 +1275,18 @@ it, and the checker waits for exactly one of Ze's four rebind log lines.
 | `real-nat-port-translated-eap-ze-responder` | the EAP-TLS responder's first Child SA encapsulates to dport 14500 |
 | `responder-eap-tls12` (no NAT) | a strongSwan EAP-TLS client pinned to TLS 1.2 authenticates and traffic crosses |
 
-None of the four has run yet: the Docker host kernel check refuses the host they
-were written on before any scenario starts, so each still owes its first run and
-its revert, rebuild and red walk.
+All four have run in the nightly ipsec-interop suite. In the 2026-10-17 run the
+two rebind scenarios and `responder-eap-tls12` were red, and
+`real-nat-port-translated-eap-ze-responder` passed, possibly vacuously (see the
+next sentence). On 2026-10-17 the two rebind scenarios got `mobike = no`. In the same change,
+`waitZeOutboundEncap` stopped accepting an outbound state at any port: it had
+read a drained `textbuf.Buffer` inside its poll and so matched "". No run since
+these fixes is recorded, and `responder-eap-tls12` waits on an owner decision.
+Each scenario still owes a green run and its revert, rebuild and red walk.
 
 <!-- source: internal/le/interoplab/ipsec/nat.go -- readNATConfig, natSetupScript, natPortRule -->
-<!-- source: internal/le/interoplab/ipsec/natport.go -- natPortEstablish, natRebind, waitRebindLine -->
+<!-- source: internal/le/interoplab/ipsec/natport.go -- natPortEstablish, natRebind, conntrackDeletedCount, conntrackStaleMapping, waitRebindLine, waitZeOutboundEncap -->
+<!-- source: internal/component/ike/engine/sa.go -- adoptAuthenticatedEndpoint, the MOBIKE refusal -->
 
 Two more scenarios reuse the tunnel-control topology to drive `show mtu` across a
 real NAT. `mtu-tunnel-sizing-strongswan` binds the tunnel to an xfrm interface,
@@ -2107,7 +2124,21 @@ suite takes roughly 5-10 minutes depending on session establishment times.
 
 ### Debugging Failures
 
-On failure, the orchestrator automatically dumps the last 20 lines of container logs.
+The shared orchestrator does not read container logs. Each suite's checker adds
+them to the failure it returns:
+
+| Suite | What a failed checker carries |
+|-------|-------------------------------|
+| BGP (`interop`) | the last 80 log lines of each peer the scenario started (`checkerFailure`, `internal/le/interoplab/bgp/check_engine.go`), and pmacct's message log |
+| IPsec (`interop-ipsec`) | the last 60 log lines of Ze, strongSwan, the NAT box and FRR, for each one the scenario started, read after the checker's own deadline has passed, all of them within one 20 s bound (`checkerFailure`, `internal/le/interoplab/ipsec/failure.go`) |
+| RSVP-TE (`interop-rsvpte`) | each peer's capture tail and the last 60 log lines (`diagnosticError`, `internal/le/interoplab/rsvpte/checkers.go`) |
+
+A `docker exec` that runs past its 30 s bound names the container, the command it
+ran there (cut at its first line and at 160 bytes), and the bound
+(`execOperation`, `internal/le/interoplab/docker.go`).
+<!-- source: internal/le/interoplab/ipsec/failure.go -- checkerFailure, checkerFailureReport -->
+<!-- source: internal/le/interoplab/docker.go -- execOperation, commandError -->
+
 For more detail:
 
 - `VERBOSE=1` enables debug output (polling status, container commands, raw CLI output)

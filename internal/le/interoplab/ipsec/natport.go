@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -171,15 +172,74 @@ func (l *scenarioLab) natPortEstablish(ctx context.Context, tunnel bool) error {
 // second public port, then flushes the box's UDP conntrack entries. NAT rules apply to
 // a flow's first packet only, and strongSwan's keepalives and DPD keep the old entry
 // alive, so without the flush the new rule never applies.
+//
+// The flush is checked twice, because a flush that silently did nothing leaves the
+// checker waiting for a move that cannot come. conntrack MUST answer with its deleted
+// count, and a listing afterwards MUST hold no flow from strongSwan's UDP 4500 still
+// mapped to the first public port. A flow a keepalive creates after the flush is
+// mapped by the new rule, so it never matches.
 func (l *scenarioLab) natRebind(ctx context.Context) error {
 	var script textbuf.Buffer
 	script.Str(natPortRule("-D", natPortTranslation, natFirstPort)).Str(" && ").
-		Str(natPortRule("-I", natPortTranslation, natSecondPort)).
-		Str(" && { conntrack -D -p udp || true; }")
+		Str(natPortRule("-I", natPortTranslation, natSecondPort))
 	if _, err := l.exec(ctx, natPeer, "sh", "-c", script.String()); err != nil {
 		return fmt.Errorf("remap strongSwan's UDP 4500 on the NAT box: %w", err)
 	}
+	// The shell reports conntrack's exit status in each answer rather than as the exec
+	// result: conntrack's exit status after a flush that matched nothing is not the
+	// evidence, the count and the listing below are.
+	flushed, err := l.exec(ctx, natPeer, "sh", "-c", "conntrack -D -p udp 2>&1; echo conntrack-exit=$?")
+	if err != nil {
+		return fmt.Errorf("flush the NAT box's UDP conntrack entries: %w", err)
+	}
+	if _, err := conntrackDeletedCount(flushed); err != nil {
+		return fmt.Errorf("flush the NAT box's UDP conntrack entries: %w", err)
+	}
+	var list textbuf.Buffer
+	list.Str("conntrack -L -p udp -s ").Str(swanIP).Str(" --sport 4500 2>&1; echo conntrack-exit=$?")
+	listing, err := l.exec(ctx, natPeer, "sh", "-c", list.String())
+	if err != nil {
+		return fmt.Errorf("list the NAT box's UDP conntrack entries after the flush: %w", err)
+	}
+	stale, err := conntrackStaleMapping(listing)
+	if err != nil {
+		return fmt.Errorf("list the NAT box's UDP conntrack entries after the flush: %w", err)
+	}
+	if stale != "" {
+		return fmt.Errorf("the NAT box still maps strongSwan's UDP 4500 to port %d after the flush, so the remap cannot take effect: %s", natFirstPort, stale)
+	}
 	return nil
+}
+
+// conntrackDeletedPattern reads the count conntrack prints after a delete.
+var conntrackDeletedPattern = regexp.MustCompile(`(\d+) flow entries have been deleted`)
+
+// conntrackDeletedCount answers the count from a `conntrack -D` answer, and an error
+// carrying the whole answer when it holds none: the flush did not run.
+func conntrackDeletedCount(answer string) (int, error) {
+	match := conntrackDeletedPattern.FindStringSubmatch(answer)
+	if match == nil {
+		return 0, fmt.Errorf("conntrack printed no deleted count, so the flush did not run: %q", strings.TrimSpace(answer))
+	}
+	return strconv.Atoi(match[1])
+}
+
+// conntrackStaleMapping answers the first line of a `conntrack -L` listing whose
+// reply tuple still targets natFirstPort, or "" when none does. A listing without
+// conntrack's closing summary is an error: the listing did not run.
+func conntrackStaleMapping(listing string) (string, error) {
+	if !strings.Contains(listing, "flow entries have been shown") {
+		return "", fmt.Errorf("conntrack printed no listing summary, so the listing did not run: %q", strings.TrimSpace(listing))
+	}
+	var tb textbuf.Buffer
+	// String drains the buffer, so it is read once, here.
+	want := tb.Str("dport=").Str(strconv.Itoa(int(natFirstPort))).Byte(' ').String()
+	for line := range strings.SplitSeq(listing, "\n") {
+		if strings.Contains(line+" ", want) {
+			return strings.TrimSpace(line), nil
+		}
+	}
+	return "", nil
 }
 
 // waitRebindLine waits for Ze's rebind log line want, carrying attribute when one is
@@ -211,15 +271,17 @@ func (l *scenarioLab) waitRebindLine(ctx context.Context, want, attribute string
 // waitZeOutboundEncap waits until Ze's outbound state toward strongSwan's public
 // address encapsulates from port 4500 to dport, and answers its SPI.
 func (l *scenarioLab) waitZeOutboundEncap(ctx context.Context, dport uint16) (string, error) {
-	var want textbuf.Buffer
-	want.Str("encap type espinudp sport 4500 dport ").Str(strconv.Itoa(int(dport)))
+	var tb textbuf.Buffer
+	// String drains the buffer, so it is read once, here. A second read inside the
+	// poll answered "", which every encapsulating state contains, whatever its port.
+	want := tb.Str("encap type espinudp sport 4500 dport ").Str(strconv.Itoa(int(dport))).String()
 	var spi string
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
-		Timeout: rebindWait, Interval: 2 * time.Second, Description: "ze outbound " + want.String(),
+		Timeout: rebindWait, Interval: 2 * time.Second, Description: "ze outbound " + want,
 	}, func(probe context.Context) (string, error) {
 		return l.xfrmState(probe, zePeer)
 	}, func(state string) bool {
-		spi = outboundEncapSPI(state, want.String())
+		spi = outboundEncapSPI(state, want)
 		return spi != ""
 	})
 	return spi, err

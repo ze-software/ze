@@ -1884,10 +1884,6 @@ const (
 	// that can each run 45 s on silence, the IKE descent and one full
 	// request-window timeout.
 	showMTUDetachedTimeout = 300 * time.Second
-	// detachedLogTail is how many log lines of each daemon a detached run that
-	// never finished names in its error, so the failure says what the daemons
-	// were doing rather than only that the marker never appeared.
-	detachedLogTail = 60
 	// rekeyRaceDelay is how long after the detached run starts that strongSwan is
 	// told to rekey the IKE SA. The ICMP search over an unclamped path answers in
 	// well under a second, and the IKE descent that follows spends several seconds
@@ -1996,7 +1992,8 @@ func (l *scenarioLab) zeShowMTUDetached(ctx context.Context, during func(context
 		return l.execQuiet(probe, zePeer, "cat", zeShowMTUDone), nil
 	}, func(marker string) bool { return strings.TrimSpace(marker) == "done" })
 	if err != nil {
-		return nil, "", fmt.Errorf("%w; ze log tail: %s; strongSwan log tail: %s", err, l.logTail(ctx, zePeer), l.logTail(ctx, swanPeer))
+		// The Ze and strongSwan log tails are attached once, by checkerFailure.
+		return nil, "", err
 	}
 	answer, err := l.exec(ctx, zePeer, "cat", zeShowMTUOutput)
 	if err != nil {
@@ -2141,18 +2138,4 @@ func (l *scenarioLab) requireZeIKEEstablished(ctx context.Context, peer string) 
 		}
 	}
 	return fmt.Errorf("ze lists no established IKE SA for %s; answer: %s", peer, answer)
-}
-
-// logTail answers the last detachedLogTail lines of one peer's log, or the read
-// error's text, for an error message about a run that never finished.
-func (l *scenarioLab) logTail(ctx context.Context, peer string) string {
-	logs, err := l.logs(ctx, peer)
-	if err != nil {
-		return "(unreadable: " + err.Error() + ")"
-	}
-	lines := strings.Split(strings.TrimSpace(logs), "\n")
-	if len(lines) > detachedLogTail {
-		lines = lines[len(lines)-detachedLogTail:]
-	}
-	return "\n" + strings.Join(lines, "\n")
 }

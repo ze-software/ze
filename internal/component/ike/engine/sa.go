@@ -650,9 +650,16 @@ func (sa *SA) adoptAuthenticatedEndpoint(observed *net.UDPAddr, arrivedOnNATT bo
 	if sameUDPEndpoint(sa.peerEndpoint, observed) {
 		return false
 	}
-	// RFC 4555 Section 3.8: "The host not behind a NAT MUST NOT use these dynamic
-	// updates for IKEv2 packets". MOBIKE updates the pair explicitly instead.
+	// RFC 4555 Section 3.8: "When MOBIKE is in use, the dynamic updates (specified in
+	// [IKEv2], Section 2.23), where the peer address and port are updated from the
+	// last valid authenticated packet, work in a slightly different fashion. The host
+	// not behind a NAT MUST NOT use these dynamic updates for IKEv2 packets, but MAY
+	// use them for ESP packets." MOBIKE updates the pair explicitly instead, with
+	// UPDATE_SA_ADDRESSES, so the refusal is logged: a peer that moved without
+	// sending one stays on the stored endpoint.
 	if sa.mobike.enabled {
+		log.Debug("ike: authenticated packet came from a new endpoint, not adopted because MOBIKE is in use and the peer must send UPDATE_SA_ADDRESSES (RFC 4555 Section 3.8)",
+			"peer", sa.PeerName, "stored", sa.peerEndpoint, "observed", observed)
 		return false
 	}
 	if sa.BehindNAT {

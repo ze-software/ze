@@ -183,11 +183,19 @@ type commandError struct {
 	ExitCode  int      `json:"exit-code"`
 	Stderr    string   `json:"stderr,omitempty"`
 	Cause     error    `json:"-"`
+	// Timeout is the bound the command ran under. The text names it when the
+	// bound is what ended the command, so the reader knows it hung, not failed.
+	Timeout time.Duration `json:"-"`
 }
 
 func (e *commandError) Error() string {
 	var tb textbuf.Buffer
-	tb.Str(e.Operation).Str(" failed")
+	tb.Str(e.Operation)
+	if errors.Is(e.Cause, context.DeadlineExceeded) {
+		tb.Str(" did not finish within ").Str(e.Timeout.String())
+	} else {
+		tb.Str(" failed")
+	}
 	if e.ExitCode != 0 {
 		tb.Str(" (exit ").Int(int64(e.ExitCode)).Byte(')')
 	}
@@ -566,7 +574,7 @@ func (d *Docker) Exec(ctx context.Context, name string, argv []string, environ [
 	if err != nil {
 		return CommandResult{}, err
 	}
-	result, err := d.command(ctx, dockerCommandTimeout, arguments...)
+	result, err := d.commandAs(ctx, dockerCommandTimeout, execOperation("docker exec", name, argv), arguments...)
 	return CommandResult(result), err
 }
 
@@ -576,8 +584,43 @@ func (d *Docker) ExecDetached(ctx context.Context, name string, argv []string, e
 	if err != nil {
 		return err
 	}
-	_, err = d.command(ctx, dockerCommandTimeout, arguments...)
+	_, err = d.commandAs(ctx, dockerCommandTimeout, execOperation("docker exec -d", name, argv), arguments...)
 	return err
+}
+
+// execOperationCommandMax bounds, in bytes, how much of the command run inside a
+// container an error names. A checker's shell script would otherwise fill the line.
+const execOperationCommandMax = 160
+
+// execOperation names an exec by its container and the command it ran inside it, so
+// a failure or a timeout says which of a checker's commands it was. Environment
+// flags stay out: they are not the command, and a value can be a secret. A command
+// is cut at its first newline and at execOperationCommandMax bytes, and " ..."
+// marks the cut.
+func execOperation(verb, container string, argv []string) string {
+	var command textbuf.Buffer
+	for i, word := range argv {
+		if i > 0 {
+			command.Byte(' ')
+		}
+		command.Str(word)
+	}
+	text := command.String()
+	cut := false
+	if line, _, found := strings.Cut(text, "\n"); found {
+		text = line
+		cut = true
+	}
+	if len(text) > execOperationCommandMax {
+		text = text[:execOperationCommandMax]
+		cut = true
+	}
+	var tb textbuf.Buffer
+	tb.Str(verb).Byte(' ').Str(container).Byte(' ').Str(text)
+	if cut {
+		tb.Str(" ...")
+	}
+	return tb.String()
 }
 
 func dockerExecArguments(arguments []string, name string, argv []string, environ []EnvironmentVariable) ([]string, error) {
@@ -629,22 +672,29 @@ func (d *Docker) containerPID(ctx context.Context, name string) (int, error) {
 }
 
 func (d *Docker) command(ctx context.Context, timeout time.Duration, argv ...string) (processResult, error) {
+	return d.commandAs(ctx, timeout, commandOperation(argv), argv...)
+}
+
+// commandAs runs argv and names it operation in any error it returns.
+func (d *Docker) commandAs(ctx context.Context, timeout time.Duration, operation string, argv ...string) (processResult, error) {
 	result, err := d.runner.Run(ctx, processCommand{Arguments: argv, Timeout: timeout})
 	if err != nil {
 		return result, &commandError{
-			Operation: commandOperation(argv),
+			Operation: operation,
 			Command:   argv,
 			ExitCode:  result.ExitCode,
 			Stderr:    strings.TrimSpace(result.Stderr),
 			Cause:     err,
+			Timeout:   timeout,
 		}
 	}
 	if result.ExitCode != 0 {
 		return result, &commandError{
-			Operation: commandOperation(argv),
+			Operation: operation,
 			Command:   argv,
 			ExitCode:  result.ExitCode,
 			Stderr:    strings.TrimSpace(result.Stderr),
+			Timeout:   timeout,
 		}
 	}
 	return result, nil

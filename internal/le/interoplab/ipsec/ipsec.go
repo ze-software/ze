@@ -154,7 +154,11 @@ func runAt(ctx context.Context, root string, environment interoplab.Environment,
 		state := &scenarioState{}
 		checker := scenarioCheckers[source.Name].run
 		source.Checker = func(ctx context.Context, checkContext *interoplab.CheckContext) error {
-			return checker(ctx, newScenarioLab(checkContext, environment.SessionTimeout, state))
+			err := checker(ctx, newScenarioLab(checkContext, environment.SessionTimeout, state))
+			if err == nil {
+				return nil
+			}
+			return checkerFailure(ctx, checkContext.Lab, err)
 		}
 		plan := scenarioPlan(root, environment, source, state)
 		plans = append(plans, plan)
