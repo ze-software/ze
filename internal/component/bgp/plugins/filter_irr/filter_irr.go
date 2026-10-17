@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -37,8 +38,12 @@ const (
 	// gating ze startup: configure returns immediately and only this one filtered
 	// UPDATE waits. It is comfortably above a typical IRR round-trip yet short
 	// enough that a genuinely-unreachable IRR server fails the UPDATE closed
-	// promptly rather than hanging the route's processing.
-	firstResolveWait = 5 * time.Second
+	// promptly rather than hanging the route's processing. It sits one second
+	// below rpc.FilterUpdateTimeout, the reactor's deadline for this call: the
+	// verdict given when the wait expires, the cached list or the fail-closed
+	// reject, only counts if it reaches the reactor before that deadline rejects
+	// the UPDATE on its own.
+	firstResolveWait = rpc.FilterUpdateTimeout - time.Second
 )
 
 var logger = slogutil.LazyLogger("bgp.filter.irr")
@@ -509,7 +514,10 @@ func (plug *irrPlugin) refreshASN(asn uint32) {
 // path signals the live ASN state's firstDone so handleFilterUpdate's bounded
 // wait is released as soon as the first resolution attempt finishes -- whether
 // it succeeded, failed, or could not run (no store). periodic and manual
-// refreshes use the per-ASN timeout via refreshASN.
+// refreshes use the per-ASN timeout via refreshASN. The list is published
+// before its durable copy is written (RefreshLive, then the deferred Persist):
+// a daemon state write can take the SDK's full 5 s on a busy disk, and an
+// UPDATE waiting on firstDone must not spend its wait on the cache.
 func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 	plug.mu.RLock()
 	st := plug.byASN[asn]
@@ -529,7 +537,8 @@ func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 	// The shared store owns AS-SET discovery (PeeringDB), the IRR query, and
 	// zefs persistence. The ASN is the stable identity/key; the configured (or
 	// previously-discovered) AS-SET is passed as a hint.
-	entry, err := ps.Refresh(ctx, asnName(asn), asSet)
+	defer ps.Persist()
+	entry, err := ps.RefreshLive(ctx, asnName(asn), asSet)
 	now := time.Now()
 
 	plug.mu.Lock()

@@ -56,6 +56,18 @@ list over a reconfigure only while the ASN's as-set is the same, and
 UPDATE after the edit waits, bounded, for the new set's resolution rather than
 being judged against the old one.
 
+**The first resolution publishes the list before it persists it.** An UPDATE
+that arrives before an ASN's first resolution waits for it, for at most
+`firstResolveWait`. That bound sits one second below `rpc.FilterUpdateTimeout`,
+the reactor's deadline for a filter-update call, so the verdict given when it
+expires still reaches the reactor. `refreshASNCtx` calls the store's
+`RefreshLive` and publishes the list, then `Persist` writes the durable copy. A
+daemon state write can take the SDK's full 5 s on a busy disk, and publishing
+before persisting keeps a slow write from consuming the wait.
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- firstResolveWait, refreshASNCtx -->
+<!-- source: pkg/plugin/rpc/types.go -- FilterUpdateTimeout -->
+<!-- source: internal/component/resolve/irr/store/store.go -- RefreshLive, Persist -->
+
 **Each configure cycle gets its own `refreshStop` channel.** `handleConfigure`
 runs at boot and on every applied or rolled-back reload, and without a stop
 channel per cycle the refresh goroutines accumulate.

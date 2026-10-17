@@ -138,6 +138,98 @@ func TestPrefixStoreRefresh(t *testing.T) {
 	}
 }
 
+// failingWrites is a KeyStore over a real storage whose WriteKey fails while
+// failing is set, the shape of a state write that hit its RPC deadline.
+type failingWrites struct {
+	storage.Storage
+	failing atomic.Bool
+}
+
+func (f *failingWrites) WriteKey(key string, data []byte) error {
+	if f.failing.Load() {
+		return context.DeadlineExceeded
+	}
+	return f.Storage.WriteKey(key, data)
+}
+
+// VALIDATES: RefreshLive installs the answer in memory and writes nothing
+// durable; Persist writes it; a failed write stays pending and the next Persist
+// writes it.
+// PREVENTS: a consumer that enforces the answer before persisting (the BGP IRR
+// filter's first resolution) losing the durable copy, and a write that failed
+// once never being retried.
+func TestRefreshLivePersistsOnPersist(t *testing.T) {
+	addr := fakeIRR(t, map[string]string{"AS-TEST": "10.0.0.0/24"}, nil)
+	keys := &failingWrites{Storage: tempStore(t)}
+	s := New(irr.NewIRR(addr), nil, keys)
+	key := zefs.KeyIRRPrefixCache.Key("AS-TEST")
+
+	if _, err := s.RefreshLive(context.Background(), "AS-TEST", ""); err != nil {
+		t.Fatalf("RefreshLive: %v", err)
+	}
+	if s.Get("AS-TEST") == nil {
+		t.Fatal("RefreshLive did not install the entry in memory")
+	}
+	if keys.Exists(key) {
+		t.Fatal("RefreshLive wrote the durable copy; it must leave that to Persist")
+	}
+
+	keys.failing.Store(true)
+	s.Persist()
+	if keys.Exists(key) {
+		t.Fatal("a failed write left a durable copy")
+	}
+
+	keys.failing.Store(false)
+	s.Persist()
+	if !keys.Exists(key) {
+		t.Fatal("Persist did not retry the write that failed")
+	}
+}
+
+// VALIDATES: an entry whose write failed and was then purged is not written by
+// the next Persist, and that Persist neither panics nor resurrects it.
+// PREVENTS: retryPersist re-marking an entry Purge removed.
+func TestPurgeAfterFailedPersist(t *testing.T) {
+	addr := fakeIRR(t, map[string]string{"AS-TEST": "10.0.0.0/24"}, nil)
+	keys := &failingWrites{Storage: tempStore(t)}
+	s := New(irr.NewIRR(addr), nil, keys)
+
+	if _, err := s.RefreshLive(context.Background(), "AS-TEST", ""); err != nil {
+		t.Fatalf("RefreshLive: %v", err)
+	}
+	keys.failing.Store(true)
+	s.Persist()
+	if !s.Purge("AS-TEST") {
+		t.Fatal("Purge found no entry")
+	}
+	keys.failing.Store(false)
+	s.Persist()
+	if keys.Exists(zefs.KeyIRRPrefixCache.Key("AS-TEST")) {
+		t.Error("Persist wrote an entry Purge had removed after its write failed")
+	}
+}
+
+// VALIDATES: an entry purged while its durable write is pending is not written
+// by the next Persist.
+// PREVENTS: Purge being undone by a Persist that ran after it.
+func TestPurgeDropsPendingPersist(t *testing.T) {
+	addr := fakeIRR(t, map[string]string{"AS-TEST": "10.0.0.0/24"}, nil)
+	path := tempStore(t)
+	s := New(irr.NewIRR(addr), nil, path)
+
+	if _, err := s.RefreshLive(context.Background(), "AS-TEST", ""); err != nil {
+		t.Fatalf("RefreshLive: %v", err)
+	}
+	if !s.Purge("AS-TEST") {
+		t.Fatal("Purge found no entry")
+	}
+	s.Persist()
+	if path.Exists(zefs.KeyIRRPrefixCache.Key("AS-TEST")) {
+		t.Error("Persist wrote an entry Purge had removed")
+	}
+}
+
 // VALIDATES: AC-4, AC-5 -- Get returns the cached entry, or nil when absent.
 func TestPrefixStoreGet(t *testing.T) {
 	addr := fakeIRR(t, map[string]string{"AS-TEST": "10.0.0.0/24"}, nil)

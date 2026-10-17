@@ -8,7 +8,6 @@ import (
 	"context"
 	"strings"
 	"sync/atomic"
-	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -577,9 +576,6 @@ func formatFilterAttrs(attrs *filterAttrs) string {
 	return string(buf)
 }
 
-// policyFilterTimeout is the per-filter IPC timeout (spec: 5 seconds).
-const policyFilterTimeout = 5 * time.Second
-
 // filterTransport is the plugin-server surface a policy filter's IPC body talks
 // to. *pluginserver.Server satisfies it, and is what production passes.
 //
@@ -657,7 +653,7 @@ func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 			rawBytes = rawPayload
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), policyFilterTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), rpc.FilterUpdateTimeout)
 		defer cancel()
 
 		input := &rpc.FilterUpdateInput{

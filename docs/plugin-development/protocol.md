@@ -495,7 +495,7 @@ each wire method to its registered handler.
 | `ze-plugin-callback:config-operation-rollback` | `OnConfigOperationRollback` | `ConfigOperationRollbackInput` | `ConfigOperationRollbackOutput` | Roll back config operations |
 | `ze-plugin-callback:config-operation-commit` | `OnConfigOperationCommit` | `ConfigOperationCommitInput` | `ConfigOperationCommitOutput` | Commit operation journals |
 | `ze-plugin-callback:validate-open` | `OnValidateOpen` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN message |
-| `ze-plugin-callback:filter-update` | `OnFilterUpdate` | `FilterUpdateInput` | `FilterUpdateOutput` | Filter a route update |
+| `ze-plugin-callback:filter-update` | `OnFilterUpdate` | `FilterUpdateInput` | `FilterUpdateOutput` | Filter a route update. The reactor waits `rpc.FilterUpdateTimeout` (5 s) for the answer, then applies the filter's `on-error` policy, so a handler that waits MUST bound the wait below it |
 | `ze-plugin-callback:doctor-check` | `OnDoctorCheck` | `DoctorCheckInput` | `DoctorCheckOutput` | Run a doctor check |
 | `ze-plugin-callback:enrich-show` | `OnEnrichShow` | `EnrichShowInput` | `EnrichShowOutput` | Add data to show output |
 | `ze-plugin-callback:post-startup` | `OnAllPluginsReady` | None | None | Signal that all plugins are ready |

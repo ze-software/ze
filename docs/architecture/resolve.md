@@ -101,6 +101,15 @@ writable store for its lifetime. Cache loading and refresh workers begin after
 `OnStarted`, when those RPCs are available. Reload keeps using the same owner.
 Doctor supplies a read-only `Storage` handle and never creates a store.
 
+`Refresh` returns only after the durable write. It is `RefreshLive`, which
+installs the answer in memory, followed by `Persist`, which writes every entry
+installed since the last `Persist`. A write that fails stays pending, and the
+next `Persist` retries it. A consumer that must enforce an answer before a
+deadline calls `RefreshLive`, publishes the answer, and then calls `Persist`.
+The BGP filter does this, because a state write can take seconds on a busy
+disk.
+<!-- source: internal/component/resolve/irr/store/store.go -- Refresh, RefreshLive, Persist -->
+
 On `Open`, a legacy cache (`meta/bgp/irr-cache`, keyed by ASN) is copied
 into per-entry keys. Its source key is removed only after every new key is
 written successfully. Read-only inspection loads legacy entries into memory

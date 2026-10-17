@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/netip"
 	"strings"
@@ -582,6 +583,79 @@ func TestFilterWaitsForFirstResolution(t *testing.T) {
 	}
 	if out.Action != sdk.FilterAccept {
 		t.Errorf("action = %v, want FilterAccept", out.Action)
+	}
+}
+
+// stalledKeyStore is a KeyStore whose WriteKey blocks until release is closed,
+// the shape a daemon state write takes when its fsync queues behind other disk
+// traffic. Reads find nothing, so the store starts cold. Safe for concurrent use.
+type stalledKeyStore struct {
+	release chan struct{}
+	mu      sync.Mutex
+	written map[string][]byte
+}
+
+func (s *stalledKeyStore) ReadKey(string) ([]byte, error) { return nil, errNotFoundForTest }
+
+func (s *stalledKeyStore) WriteKey(key string, data []byte) error {
+	<-s.release
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.written[key] = data
+	return nil
+}
+
+func (s *stalledKeyStore) RemoveKey(string) error            { return nil }
+func (s *stalledKeyStore) ListKeys(string) ([]string, error) { return nil, nil }
+
+var errNotFoundForTest = fmt.Errorf("stalledKeyStore: %w", fs.ErrNotExist)
+
+// VALIDATES: the first resolution publishes the prefix-list to the filter as
+// soon as the IRR answers, before its durable copy is written, and the durable
+// copy is still written once the write completes.
+// PREVENTS: the filter-irr.ci flake of the full verify (2026-10-17): the daemon
+// state write that persists the list took the SDK's full 5 s under disk load,
+// refreshASNCtx published the list only after it, so the UPDATE's first-
+// resolution wait expired and the in-list prefix was rejected "no-prefix-list"
+// although the IRR had answered in under a second.
+// Method: a KeyStore whose WriteKey blocks until the filter has decided; with
+// the list gated on persistence the filter waits out firstResolveWait and
+// rejects, with it published first the filter accepts at once.
+func TestFirstResolutionNotGatedOnPersistence(t *testing.T) {
+	addr := fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"})
+	keys := &stalledKeyStore{release: make(chan struct{}), written: map[string][]byte{}}
+	plug := &irrPlugin{
+		byASN:       map[uint32]*asnState{65001: newASNState(65001, "AS-TEST")},
+		prefixStore: store.New(irr.NewIRR(addr), nil, keys),
+		stopCh:      make(chan struct{}),
+	}
+
+	resolved := make(chan struct{})
+	go func() {
+		plug.initialResolve()
+		close(resolved)
+	}()
+
+	start := time.Now()
+	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
+		Filter: "bgp-filter-irr:65001",
+		Peer:   "127.0.0.1",
+		Update: "ipv4/unicast announce nlri ipv4/unicast add 10.0.0.0/24",
+	})
+	waited := time.Since(start)
+	close(keys.release)
+	<-resolved
+
+	if out.Action != sdk.FilterAccept {
+		t.Fatalf("action = %v after %s, want FilterAccept: the list waited for its durable write", out.Action, waited)
+	}
+	if waited >= firstResolveWait {
+		t.Errorf("the filter decided after %s, the full first-resolution wait: the list was not published before persistence", waited)
+	}
+	keys.mu.Lock()
+	defer keys.mu.Unlock()
+	if len(keys.written) != 1 {
+		t.Errorf("durable writes = %d, want 1: the resolved list must still be persisted", len(keys.written))
 	}
 }
 

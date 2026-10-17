@@ -18,6 +18,7 @@ package rpc
 import (
 	"encoding/json"
 	"iter"
+	"time"
 )
 
 // Status constants for plugin API responses.
@@ -539,6 +540,12 @@ type FilterDecl struct {
 	OnError    OnErrorPolicy   `json:"on-error,omitempty"`   // reject (fail-closed) or accept (fail-open)
 	Overrides  []string        `json:"overrides,omitempty"`  // Default filters this filter replaces
 }
+
+// FilterUpdateTimeout is the reactor's deadline for one filter-update call.
+// When it expires the reactor applies the filter's on-error policy without the
+// plugin's verdict, so a plugin that waits inside its handler MUST bound that
+// wait below this value for its own verdict to count.
+const FilterUpdateTimeout = 5 * time.Second
 
 // FilterUpdateInput is the input for ze-plugin-callback:filter-update (runtime).
 type FilterUpdateInput struct {

@@ -106,6 +106,11 @@ type PrefixStore struct {
 	irrClient *irr.IRR
 	pdb       *peeringdb.PeeringDB
 	entries   map[string]*CachedEntry
+
+	// unpersisted names the entries installed in memory whose durable copy
+	// Persist has not written yet. Guarded by mu. It holds at most one key per
+	// cached entry, so it is bounded by entries.
+	unpersisted map[string]struct{}
 }
 
 // New creates a PrefixStore. irrClient must be non-nil.
@@ -115,6 +120,7 @@ func New(irrClient *irr.IRR, pdb *peeringdb.PeeringDB, persistence KeyStore) *Pr
 		pdb:         pdb,
 		persistence: persistence,
 		entries:     make(map[string]*CachedEntry),
+		unpersisted: make(map[string]struct{}),
 	}
 }
 
@@ -167,7 +173,21 @@ func (s *PrefixStore) Put(name string, ipv4, ipv6 []netip.Prefix) {
 	s.entries[name] = &CachedEntry{Name: name, IPv4: ipv4, IPv6: ipv6}
 }
 
-// Refresh resolves prefixes for name and persists the result.
+// Refresh resolves prefixes for name and persists the result: it is
+// RefreshLive followed by Persist, and returns only after the durable write.
+func (s *PrefixStore) Refresh(ctx context.Context, name, asSet string) (*CachedEntry, error) {
+	entry, err := s.RefreshLive(ctx, name, asSet)
+	s.Persist()
+	return entry, err
+}
+
+// RefreshLive resolves prefixes for name and installs the result in memory. It
+// returns without writing the durable copy, so a consumer can enforce the
+// answer before persistence completes; the caller MUST call Persist afterwards.
+// The durable write can take seconds when the disk is busy, and a consumer that
+// waits on a deadline for the answer must not spend it on the cache: the BGP
+// filter's first resolution waits on firstResolveWait, which is bounded by the
+// reactor's filter-update deadline (rpc.FilterUpdateTimeout).
 //
 // name is the identity and the storage key (e.g. "AS13335" or "AS-CLOUDFLARE").
 // asSet, when non-empty, is the AS-SET to query. When asSet is empty, the store
@@ -185,9 +205,10 @@ func (s *PrefixStore) Put(name string, ipv4, ipv6 []netip.Prefix) {
 // and nothing for the other keeps what is cached for the family that answered
 // nothing, marks the entry stale, and reports no error: it did learn prefixes.
 //
-// On success the in-memory cache is updated and persistence is attempted.
+// On success the in-memory cache is updated and the entry is marked for the
+// next Persist.
 // StaleSince is cleared when both families answered.
-func (s *PrefixStore) Refresh(ctx context.Context, name, asSet string) (*CachedEntry, error) {
+func (s *PrefixStore) RefreshLive(ctx context.Context, name, asSet string) (*CachedEntry, error) {
 	entry, err := s.resolve(ctx, name, asSet)
 	if err != nil {
 		return s.markStale(name, entry), err
@@ -234,6 +255,7 @@ func (s *PrefixStore) commit(name string, fresh *CachedEntry) *CachedEntry {
 		}
 	}
 	s.entries[name] = fresh
+	s.unpersisted[name] = struct{}{}
 	s.mu.Unlock()
 
 	if keptV4 {
@@ -244,8 +266,6 @@ func (s *PrefixStore) commit(name string, fresh *CachedEntry) *CachedEntry {
 		logger().Warn("irr/store: refresh learned no IPv6 prefixes, keeping the cached ones",
 			"name", name, "kept-prefixes", len(fresh.IPv6))
 	}
-
-	s.persist([]*CachedEntry{fresh})
 	return fresh
 }
 
@@ -303,9 +323,8 @@ func (s *PrefixStore) markStale(name string, fresh *CachedEntry) *CachedEntry {
 		return kept // already recorded; a long outage must not rewrite zefs per tick
 	}
 	s.entries[name] = &updated
+	s.unpersisted[name] = struct{}{}
 	s.mu.Unlock()
-
-	s.persist([]*CachedEntry{&updated})
 	return &updated
 }
 
@@ -325,6 +344,7 @@ func (s *PrefixStore) Purge(name string) bool {
 	s.mu.Lock()
 	_, found := s.entries[name]
 	delete(s.entries, name)
+	delete(s.unpersisted, name)
 	s.mu.Unlock()
 
 	if found {
@@ -340,7 +360,11 @@ func (s *PrefixStore) removePersisted(name string) {
 	if s.persistence == nil {
 		return
 	}
-	if err := s.persistence.RemoveKey(zefs.KeyIRRPrefixCache.Key(name)); err != nil {
+	err := s.persistence.RemoveKey(zefs.KeyIRRPrefixCache.Key(name))
+	if errors.Is(err, fs.ErrNotExist) {
+		return // never persisted: Purge ran before the first Persist wrote it
+	}
+	if err != nil {
 		logger().Warn("irr/store: purge removal failed", "name", name, "error", err)
 	}
 }
@@ -495,22 +519,47 @@ func (s *PrefixStore) migrate(bs KeyStore) error {
 	return nil
 }
 
-// persist writes through the existing owner, never a second store handle.
-func (s *PrefixStore) persist(entries []*CachedEntry) {
+// Persist writes the durable copy of every entry RefreshLive installed since
+// the last Persist, through the existing owner, never a second store handle. It
+// MUST be called after RefreshLive. A write that fails leaves its entry
+// unpersisted, so the next Persist retries it. Safe for concurrent use: fileMu
+// orders it with Purge, which removes the durable copy under the same lock.
+func (s *PrefixStore) Persist() {
 	s.fileMu.Lock()
 	defer s.fileMu.Unlock()
+
+	s.mu.Lock()
+	pending := make([]*CachedEntry, 0, len(s.unpersisted))
+	for name := range s.unpersisted {
+		pending = append(pending, s.entries[name])
+	}
+	clear(s.unpersisted)
+	s.mu.Unlock()
+
 	if s.persistence == nil {
 		return
 	}
-	for _, e := range entries {
+	for _, e := range pending {
 		data, err := json.Marshal(e)
 		if err != nil {
 			logger().Warn("irr/store: encode cache failed", "name", e.Name, "error", err)
 			continue
 		}
 		if err := s.persistence.WriteKey(zefs.KeyIRRPrefixCache.Key(e.Name), data); err != nil {
-			logger().Warn("irr/store: persist write failed", "name", e.Name, "error", err)
+			logger().Warn("irr/store: persist write failed; retried by the next Persist, lost if the daemon stops first (the cache is re-resolved on start)", "name", e.Name, "error", err)
+			s.retryPersist(e)
 		}
+	}
+}
+
+// retryPersist marks e unpersisted again after a failed write, unless a later
+// refresh replaced it or Purge removed it meanwhile: then the newer state owns
+// the name and its own mark, or its absence, is the one that stands.
+func (s *PrefixStore) retryPersist(e *CachedEntry) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.entries[e.Name] == e {
+		s.unpersisted[e.Name] = struct{}{}
 	}
 }
 
