@@ -131,3 +131,38 @@ Left to do:
    self resolves to IPv6.
 7. plugin/server and reactor RFC8654 package failures seen in one run look unrelated
    (namespace `bgp` not registered); not investigated.
+
+### boot-record agent (spec `plan/spec-boot-record-after-listen.md`), stopped at budget
+
+Nothing committed: the owner asked for independent review before each commit.
+
+Commit A (boot record after listeners), code done, scoped tests green, NOT reviewed:
+`internal/component/config/storage/boot_record.go` (+`_test.go`, 5 tests), `source.go`
+(`configStore.AcquireLock` gate), `pointer.go` (pending reads), `cmd/ze/hub/main.go`
+(DeferBootRecord where the record was; Start before WaitForStartupComplete),
+`cmd/ze/hub/config_source.go` (`recordBootConfig` logs failure),
+`cmd/ze/hub/config_source_repaired_test.go` (record now follows serving),
+`docs/architecture/storage-backends.md` "The boot record", journal row, the spec.
+Early commits WAIT on the config lock up to 30s, then are refused naming the slow disk and
+the retry; a failed record refuses every later write with its error and the fix.
+Green: `go test ./cmd/ze/hub/ ./internal/component/config/storage/` (tags ze_core,ze_distro,ze_setup), vet.
+Owed: ze-read review, a `.ci` run (explicit-file-restart, any file-config DUT), commit A
+(carry the IRR refreshASNCtx journal hunk, say so in the body).
+
+Commit B (memory DUT store), selector done, runner NOT done:
+`cmd/ze/ze_core_start.go` (`createAbsentStore` hook), `cmd/ze/register_store_zetest.go`
+(zetest-only, env `ze.test.storage=memory`, Private; only an ABSENT store becomes memory, so a
+seeded store stays disk), `register_store_zetest_test.go` (4 tests green with tag zetest).
+Owed: runner sets `ze.test.storage=memory` for ze DUTs by default (runner_exec.go env build,
+near ZE_READY_FILE) plus a per-test opt-out option (`option=storage:value=disk` in
+record_parse_vocabulary.go); list every .ci that restarts ze in the same workdir or reads
+the store after the DUT (restart, rollback, history, zefs, `ze data`, `ze init`) and give
+each the option; docs/functional-tests.md.
+FINDING to verify first: stdin DUTs (`exec=ze ... -`, ~570 .ci incl. test/plugin/filter-irr.ci)
+open the store with StorageFor("-") and run STORELESS when none exists (hub/main.go run());
+the runner seeds no store. So filter-irr is not affected by A or B; the "created live store"
+line in the journal row comes only from openExplicitStore (file DUTs, ~270 .ci). Measure the
+stall with a file-config .ci, and re-check what filter-irr's stall was.
+
+Commit C (fsync trims): not started. Before/after load numbers: not measured.
+`bin/le-bootrec` deleted; rebuild with `./le --name bootrec`.
