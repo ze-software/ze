@@ -253,3 +253,44 @@ the file and sync the folder only then. (3) PromoteCandidate's `file/active/<nam
 safe yet; bare-name reads resolve to the mirror (`resolveKey`) and `ReadRestoreSource` reads it
 when no pointer exists; audit every ReadKey/ReadFile of a bare config name first. Step 4
 (stall measurement) not run. `bin/le-boot2` deleted.
+
+COMMIT B CONTINUATION (agent stopped at its 100-call budget, 2026-10-17). Script
+`tmp/commit-d1f5923b-boot-b-cbd804.sh` is STALE: do not run it; re-prepare with
+`./le commit create replace tag boot-b ...` once the items below are done. Review (0 BLOCKER,
+5 ISSUE) found:
+- DONE ISSUE 3: `docs/architecture/storage-backends.md` "The memory encoding" now says a
+  functional-test DUT's absent store uses `CreateMemory` under the zetest build, with source
+  anchors (`cmd/ze/register_store_zetest.go`, `internal/test/runner/record_dut_store.go`). Add it to B.
+- TODO ISSUE 1: about 36 files carry the disk option with no reason that holds (the selector is
+  read only in `createAbsentStore`, which only `ze start <file>` reaches): 17 ipsec files (two
+  concurrent `ze -` daemons, each in its own daemon-N/ dir, no restart); traffic-vpp-reject-hfsc,
+  -mark and -prio (offline `ze config validate` in cmd_validate.go opens no store); about 16
+  that start no daemon (help-lists-every-local-command, data-registered-object, ze-init-piped,
+  cli-completion-keyword-shorthand, cli-config-dump-sensitive, cli-config-dump-strip-private,
+  cli-zefs-blob-storage, cli-zefs-filesystem-override, config-fmt-write-stdout,
+  config-history-stdin-refused, dash-stdio, dash-stdio-path-scope, doctor-without-store,
+  doctor-store-refuses-legacy-blob, qemu-full, qemu-iso); and `ze init` before `ze start`, where
+  the seeded store is opened, never replaced (test-show-system-sockets-keyword-filters,
+  cli-argument-length-refused, web-tool-decode, mgmt-guard-web-*). Verify each, drop the option
+  (`sed -i '' '/^option=storage:value=disk$/d'` on the named file only; diffs are one inserted
+  line, so the file returns to HEAD and leaves B), regroup the spec section "## B: tests on the
+  disk store" and fix its count (125 now), rerun the darwin-runnable ones on memory, and name
+  ipsec and traffic as owing a targeted Linux rerun.
+- TODO ISSUE 2: carry `docs/functional-tests.md` in B (the grammar commit landed as 3f6bb1965e,
+  so its grammar hunks match HEAD; name them riding along), and delete the body sentence
+  "docs/functional-tests.md waits for the route-injection grammar commit."
+- TODO ISSUE 4: add two .ci files proving the runner hands the selector to the DUT: a default
+  `ze -` DUT asserting stderr contains `created memory store (test build)`
+  (`createTestStore`, cmd/ze/register_store_zetest.go), and one with `option=storage:value=disk`
+  asserting the line `createLiveStore` (cmd/ze/ze_core_start.go) prints; read it for the exact
+  text. Prove the first one red with the runner's env append removed (runner_exec.go, via
+  go -overlay).
+- TODO ISSUE 5: one journal row (600 chars max) for bgp-rib-maximum-paths-reload: it fails
+  alone, on memory and on disk, because the test peer's 30 s dial (`dialTarget`,
+  internal/test/peer/peer.go) is refused although the SIGHUP reload completes; the cause is
+  open. Grep plan/journal for the class first. listener-never-binds-a-resource-that-appears-later
+  does not fit.
+- Do NOT carry `internal/component/iface/config_apply.go` (the iface VPP fix agent's
+  uncommitted work). The two VPP tests stay red in B, named in the body.
+- Already in B and done: spec 139->125 plus the parse-suite note, the VPP cause (journal row in
+  transient-failure-treated-as-fatal.md), 4 store-reading tests regrouped, `bin/le-bootB` deleted.
