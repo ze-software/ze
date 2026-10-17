@@ -18,6 +18,7 @@ func TestIPsecCmdSchemaOwnsShowVPNIPsec(t *testing.T) {
 		`ze:command "ze-ike:show-vpn-ipsec-dataplane-drift"`,
 		`ze:command "ze-ike:monitor-vpn-ipsec"`,
 		`ze:command "ze-ike:clear-vpn-ipsec-sa"`,
+		`ze:command "ze-ike:clear-vpn-ipsec-sa-peer"`,
 		"container vpn",
 		"container ipsec",
 		"container dataplane",

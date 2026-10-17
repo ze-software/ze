@@ -1,4 +1,4 @@
-# Functional test: clear vpn ipsec sa re-establishes against a live responder
+# Functional test: clear vpn ipsec sa all re-establishes against a live responder
 # Spec: plan/spec-fixit-ipsec-clear-reestablish.md (AC-1). Copied from
 # ipsec-clear-sa.ci -- same two-unprivileged-daemon loopback setup, high-port seam
 # (ze.test.ike.port), and noop dataplane.
@@ -6,7 +6,7 @@
 # Two ze instances negotiate IKEv2 over loopback (responder binds 127.0.0.2,
 # initiator 127.0.0.1). After a REAL SA is established (aes-cbc + sha256 only
 # populate `show vpn ipsec sa | json` once IKE_AUTH completes), the initiator's
-# engine-steps executor runs `clear vpn ipsec sa` and then re-asserts that the
+# engine-steps executor runs `clear vpn ipsec sa all` and then re-asserts that the
 # tunnel re-establishes -- aes-cbc reappears -- within a BOUNDED window.
 #
 # Why the bound proves the fix: on unfixed code the responder still holds the
@@ -165,7 +165,7 @@ expect=output:contains=sha256:timeout=5
 # 2. Operator bounces the tunnel. The clear-all action is dispatched to the engine,
 #    which sends the peer an authenticated INFORMATIONAL Delete (Phase A) and
 #    re-initiates.
-command=clear vpn ipsec sa
+command=clear vpn ipsec sa all
 expect=output:contains=clear-all:timeout=5
 # 3. The tunnel re-establishes within the bound: aes-cbc reappears on the fresh SA.
 #    On unfixed code this would time out (the responder drops the re-init, ~150s).

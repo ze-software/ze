@@ -16,7 +16,7 @@ import (
 // resumptionStates holds one peering's EAP-TLS session-resumption state per
 // configured peer name, and the authentication config that state was built for.
 //
-// IT OUTLIVES THE PeerSession ON PURPOSE. `clear vpn ipsec sa` destroys every
+// IT OUTLIVES THE PeerSession ON PURPOSE. `clear vpn ipsec sa all` destroys every
 // session and rebuilds it (TerminateAllSAs, register.go, then reEstablishFn), so
 // a store held on the session alone would be discarded by the operator command
 // most likely to be followed by a second authentication, and no ticket ze issued

@@ -167,3 +167,63 @@ func TestValidateArgsMissingMandatoryReportsBinding(t *testing.T) {
 		t.Errorf("a refused call answered tokens %q", validated.Tokens())
 	}
 }
+
+// VALIDATES: Value answers a leaf the operator filled after its own keyword,
+// the lone positional token, and a value the token matcher bound, and answers
+// not-found when several positional tokens leave the binding a guess.
+// PREVENTS: `clear vpn ipsec sa peer name site-b` reaching its handler with
+// the leaf unbound, so the handler refused a command typed correctly.
+func TestValueAnswersEverySpellingOfALeaf(t *testing.T) {
+	defs := []ArgDef{mustArgDef(NewStringArg("name", nil, nil, ArgOptions{Mandatory: true}))}
+	for _, tc := range []struct {
+		label      string
+		tokens     []string
+		preMatched map[string]string
+		want       string
+		found      bool
+	}{
+		{label: "keyword", tokens: []string{"name", "site-b"}, want: "site-b", found: true},
+		{label: "positional", tokens: []string{"site-b"}, want: "site-b", found: true},
+		{label: "matcher", preMatched: map[string]string{"name": "site-b"}, want: "site-b", found: true},
+		{label: "two positional", tokens: []string{"site-b", "extra"}, found: false},
+	} {
+		t.Run(tc.label, func(t *testing.T) {
+			validated, err := ValidateArgs(tc.tokens, defs, tc.preMatched)
+			if err != nil {
+				t.Fatalf("refused %v: %v", tc.tokens, err)
+			}
+			value, found := validated.Value("name")
+			if found != tc.found || value != tc.want {
+				t.Errorf("Value(name) = %q, %v; want %q, %v", value, found, tc.want, tc.found)
+			}
+		})
+	}
+}
+
+// TestValidateArgsEmptyCallIsTheZeroValue proves the ValidatedArgs doc: a nil
+// token list against no definitions answers exactly the zero value, so a zero
+// literal and an empty validated call cannot be told apart by their content.
+// Method: validate a nil call and compare the result with ValidatedArgs{}.
+func TestValidateArgsEmptyCallIsTheZeroValue(t *testing.T) {
+	validated, err := ValidateArgs(nil, nil, nil)
+	if err != nil {
+		t.Fatalf("refused an empty call: %v", err)
+	}
+	if validated.tokens != nil || validated.bound != "" || validated.boundValue != "" || validated.keyed != nil {
+		t.Errorf("ValidateArgs(nil, nil, nil) = %+v; want the zero ValidatedArgs", validated)
+	}
+}
+
+// TestValueOfAFlagIsNotFound proves Value answers not-found for a flag leaf,
+// typed or not: a flag is its keyword alone and holds no value.
+// Method: validate a call that types the flag, then ask Value for it.
+func TestValueOfAFlagIsNotFound(t *testing.T) {
+	defs := []ArgDef{mustArgDef(NewFlagArg("force", ArgOptions{}))}
+	validated, err := ValidateArgs([]string{"force"}, defs, nil)
+	if err != nil {
+		t.Fatalf("refused the flag: %v", err)
+	}
+	if value, found := validated.Value("force"); found {
+		t.Errorf("Value(force) = %q, true; want not-found", value)
+	}
+}

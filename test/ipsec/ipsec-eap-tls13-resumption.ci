@@ -234,7 +234,7 @@ expect=stderr:pattern=EAP-TLS authenticated.*resumed=false
 
 # 2. The operator bounces the tunnel. The peer session is destroyed and rebuilt,
 #    which is what the resumption store has to outlive.
-command=clear vpn ipsec sa
+command=clear vpn ipsec sa all
 expect=output:contains=clear-all:timeout=5
 
 # 3. The second authentication RESUMES the first.

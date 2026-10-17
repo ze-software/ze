@@ -3,7 +3,7 @@
 #
 # VALIDATES: after a Child SA establishes on a real kernel, `show vpn ipsec
 #            dataplane sa` names the two ESP addresses and the ESP transform
-#            THIS test configured, and after `clear vpn ipsec sa` the same
+#            THIS test configured, and after `clear vpn ipsec sa all` the same
 #            command no longer names them.
 # PREVENTS: the vacuity a read-only dump invites. A dump command passes on an
 #           empty kernel with its whole body deleted, so this file asserts a
@@ -182,7 +182,7 @@ expect=output:json=sas.0.mode=tunnel:timeout=15
 # poll re-dispatches every 200ms, so the absence is observed inside that window.
 # Without the removal this step is the one that reds: the SAD still holds both
 # states and cbc(aes) is still in the dump.
-command=clear vpn ipsec sa
+command=clear vpn ipsec sa all
 expect=output:contains=clear-all:timeout=15
 command=show vpn ipsec dataplane sa
 expect=output:absent=cbc(aes):timeout=45

@@ -733,7 +733,7 @@ func checkClearReestablish(ctx context.Context, lab *scenarioLab) error {
 	if len(before) == 0 {
 		return fmt.Errorf("empty ESP SPI snapshot before clear")
 	}
-	if _, err := lab.zeCLI(ctx, "clear vpn ipsec sa"); err != nil {
+	if _, err := lab.zeCLI(ctx, "clear vpn ipsec sa all"); err != nil {
 		return err
 	}
 	_, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{

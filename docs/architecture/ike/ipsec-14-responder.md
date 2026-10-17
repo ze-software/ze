@@ -131,7 +131,7 @@ can ever redeem. The engine holds one `eap.Resumption` per configured peer,
 keyed by peer name, and `eapTLSServerConfig` REFUSES an SA that reached it
 without one rather than falling back to that dead key.
 
-The store outlives the peer session on purpose. `clear vpn ipsec sa` destroys
+The store outlives the peer session on purpose. `clear vpn ipsec sa all` destroys
 every session and rebuilds it, so a store held on the session alone would be
 discarded by the operator command most likely to be followed by a second
 authentication. It is discarded when the peer leaves the config, and rebuilt

@@ -16,36 +16,46 @@ const responseKeyAction = "action"
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-ike:clear-vpn-ipsec-sa", Handler: handleClearIPsecSA},
+		pluginserver.RPCRegistration{WireMethod: "ze-ike:clear-vpn-ipsec-sa", Handler: handleClearIPsecSAAll},
+		pluginserver.RPCRegistration{WireMethod: "ze-ike:clear-vpn-ipsec-sa-peer", Handler: handleClearIPsecSAPeer},
 	)
 }
 
-func handleClearIPsecSA(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	for i := range args {
-		if args[i] != "peer" {
-			continue
-		}
-		if i+1 >= len(args) {
-			return &plugin.Response{Status: plugin.StatusError, Error: "clear vpn ipsec sa peer: missing peer name"}, nil
-		}
-		name := args[i+1]
-		if name == "" || len(name) > 255 {
-			return &plugin.Response{Status: plugin.StatusError, Error: "clear vpn ipsec sa peer: name must be 1-255 characters"}, nil
-		}
-		ok := engine.TerminatePeerSA(name)
-		if !ok {
-			return &plugin.Response{Status: plugin.StatusError, Error: "peer not found: " + name}, nil
-		}
-		return &plugin.Response{
-			Status: plugin.StatusDone,
-			Data:   plugin.Map{responseKeyAction: "clear-peer", "peer": name},
-		}, nil
+// handleClearIPsecSAAll answers `clear vpn ipsec sa all`. The bare
+// `clear vpn ipsec sa` reaches no handler: the dispatcher refuses it as a
+// prefix, so every SA is terminated only when the operator types all.
+func handleClearIPsecSAAll(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	if len(validated.Tokens()) != 0 {
+		return &plugin.Response{Status: plugin.StatusError, Error: "clear vpn ipsec sa all: unexpected arguments; to clear one peer type clear vpn ipsec sa peer <name>"}, nil
 	}
-
 	count := engine.TerminateAllSAs()
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data:   plugin.Map{responseKeyAction: "clear-all", "terminated": count},
+	}, nil
+}
+
+// handleClearIPsecSAPeer answers `clear vpn ipsec sa peer <name>`, and the
+// same command with the leaf keyword typed, `clear vpn ipsec sa peer name
+// <name>`: the YANG leaf name carries the value either way.
+func handleClearIPsecSAPeer(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	name, found := validated.Value("name")
+	if !found {
+		return &plugin.Response{Status: plugin.StatusError, Error: "clear vpn ipsec sa peer: give exactly one peer name, as in clear vpn ipsec sa peer <name>"}, nil
+	}
+	// The value alone is one token and the keyword form two, so a third token
+	// is a word this command does not take.
+	if len(validated.Tokens()) > 2 {
+		return &plugin.Response{Status: plugin.StatusError, Error: "clear vpn ipsec sa peer: unexpected words after the peer name; type clear vpn ipsec sa peer <name>"}, nil
+	}
+	if name == "" || len(name) > 255 {
+		return &plugin.Response{Status: plugin.StatusError, Error: "clear vpn ipsec sa peer: name must be 1-255 characters"}, nil
+	}
+	if !engine.TerminatePeerSA(name) {
+		return &plugin.Response{Status: plugin.StatusError, Error: "clear vpn ipsec sa peer: peer not found: " + name + "; show vpn ipsec sa lists the peers"}, nil
+	}
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data:   plugin.Map{responseKeyAction: "clear-peer", "peer": name},
 	}, nil
 }

@@ -188,13 +188,13 @@ expect=output:contains=aes-cbc:timeout=40
 # recorded in plan/journal/ and is not what AC-5 is about.
 command=show vpn ipsec sa | json
 expect=output:contains="uptime-seconds":1:timeout=15
-command=clear vpn ipsec sa
+command=clear vpn ipsec sa all
 expect=output:contains=clear-all:timeout=10
 # The same teardown a second time, over the same peer, now that the first has already
 # taken its Child SA out of the kernel. It costs one dispatch and it is the shape of
 # the ordinary repeat: the engine tears down what it can still find and must leave
 # nothing extra behind either way.
-command=clear vpn ipsec sa
+command=clear vpn ipsec sa all
 expect=output:contains=clear-all:timeout=10
 expect=exit:code=0
 expect=stdout:contains=INSTALLED:

@@ -209,7 +209,7 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
   `newEAPSession`; `startResponderEAP`/`handleResponderEAP` mirror the initiator EAP flow.
   Interop-verified as responder vs strongSwan 5.9.14 (`scenarios/responder-psk`).
 - **Operator `clear` is a graceful, bounded bounce (spec-fixit-ipsec-clear-reestablish).**
-  `clear vpn ipsec sa[ peer <name>]` → `TerminateAllSAs`/`TerminatePeerSA` call
+  `clear vpn ipsec sa all` / `clear vpn ipsec sa peer <name>` (bare refused) → `TerminateAllSAs`/`TerminatePeerSA` call
   `ps.StopGraceful()` (not bare `Stop()`); the owner loop's stopCh case sends an
   authenticated INFORMATIONAL Delete (`sendDeleteIKE`, RFC 7296 Section 1.4) on the
   owner goroutine before `cleanupChild`, so the peer tears down at once instead of

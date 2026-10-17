@@ -1205,7 +1205,7 @@ and carries no traffic.
 | `show vpn ipsec dataplane sa [spi <spi>]` | The SAs the kernel holds. See Reading the kernel dataplane |
 | `show vpn ipsec dataplane policy` | The policies the kernel holds |
 | `show vpn ipsec dataplane drift` | Child SAs the engine expects that the kernel does not hold. Exits non-zero on drift |
-| `clear vpn ipsec sa [peer <name>]` | Tear down and re-establish SAs, optionally for one peer |
+| `clear vpn ipsec sa all`, `clear vpn ipsec sa peer <name>` | Tear down and re-establish every SA, or one peer's. The bare `clear vpn ipsec sa` is refused and names both forms |
 | `monitor vpn ipsec` | Stream `sa-up`, `sa-down`, `child-up`, `child-down`, and `child-rekey` lifecycle events |
 | `show pki certificates` | List loaded certificates with expiry information |
 
@@ -1230,7 +1230,7 @@ three, with the transform, are what size an ESP packet on the tunnel.
 
 <!-- source: internal/component/ike/cmd/show_ipsec.go -- saToMap -->
 
-`clear vpn ipsec sa` sends a best-effort encrypted IKE Delete before removing
+Both `clear vpn ipsec sa` forms send a best-effort encrypted IKE Delete before removing
 local state. Initiator peers then re-establish immediately. If the UDP Delete is
 lost, the normal DPD path still removes the stale remote SA.
 

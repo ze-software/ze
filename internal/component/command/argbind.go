@@ -24,8 +24,8 @@ import (
 // Only a successful ValidateArgs builds a non-zero value, because its fields
 // are private: a route outside this package that holds one has called the
 // validator. The zero value is legitimate and means "no tokens, no binding";
-// it is what ValidateArgs returns for an empty call against no definitions,
-// and a route that hands a handler a zero literal instead of calling the
+// it is what ValidateArgs returns for a nil token list against no
+// definitions, and a route that hands a handler a zero literal instead of calling the
 // validator is visible as that literal.
 //
 // The value owns its token slice: ValidateArgs copies its input, and Tokens
@@ -38,6 +38,12 @@ type ValidatedArgs struct {
 	// bound to a leaf. bound is empty when it bound none.
 	bound      string
 	boundValue string
+	// keyed holds the value each leaf took by name: typed after its keyword
+	// (`name site-b`) or bound by the token matcher. A leaf filled
+	// positionally is not in it; bound answers that one. It is nil when no
+	// leaf took a value by name, which keeps the zero value an empty call's
+	// answer; reading a nil map answers not-found.
+	keyed map[string]string
 }
 
 // Tokens answers a copy of the judged tokens, in the order they were typed. A
@@ -58,6 +64,19 @@ func (v ValidatedArgs) Positional(leaf string) (value string, found bool) {
 		return "", false
 	}
 	return v.boundValue, true
+}
+
+// Value answers the value leaf took, however the operator spelled it: after
+// the leaf's own keyword (`peer name site-b`), or as the lone spare positional
+// token (`peer site-b`). found is false when no token filled leaf, or when it
+// was one of several positional tokens, with the fence Positional states.
+// found is also false for a flag leaf: a flag is its keyword alone and carries
+// no value, so whether it was typed is not something Value answers.
+func (v ValidatedArgs) Value(leaf string) (value string, found bool) {
+	if value, found = v.keyed[leaf]; found {
+		return value, true
+	}
+	return v.Positional(leaf)
 }
 
 // MissingArgumentError is ValidateArgs's refusal of a call that left a
@@ -138,8 +157,14 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 	for i := range defs {
 		defByName[defs[i].name] = &defs[i]
 	}
-	for name := range preMatched {
+	// keyed stays nil until a leaf takes a value by name (see ValidatedArgs).
+	var keyed map[string]string
+	if len(preMatched) > 0 {
+		keyed = make(map[string]string, len(preMatched))
+	}
+	for name, value := range preMatched {
 		matched[name] = true
+		keyed[name] = value
 	}
 	// A value the token matcher bound by keyword or by anchor is judged here,
 	// with every other argument, and not by the matcher: a matcher that refused
@@ -180,6 +205,10 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 			return ValidatedArgs{}, err
 		}
 		matched[def.name] = true
+		if keyed == nil {
+			keyed = make(map[string]string)
+		}
+		keyed[def.name] = args[i]
 	}
 
 	spare := 0
@@ -237,7 +266,7 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 		return ValidatedArgs{}, positionalError(unplaced[0], defs, matched)
 	}
 
-	return ValidatedArgs{tokens: slices.Clone(args), bound: bound, boundValue: boundValue}, nil
+	return ValidatedArgs{tokens: slices.Clone(args), bound: bound, boundValue: boundValue, keyed: keyed}, nil
 }
 
 // positionalDef picks the ArgDef a positional token fills, or nil when none

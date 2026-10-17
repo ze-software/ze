@@ -733,7 +733,7 @@ func startPeerSession(
 		ikeGroup: ikeGroup,
 		espGroup: espGroup,
 		// The EAP-TLS resumption store is looked up rather than built, so a
-		// session the operator bounced with `clear vpn ipsec sa` still redeems
+		// session the operator bounced with `clear vpn ipsec sa all` still redeems
 		// the tickets its predecessor issued (resumptionFor, resumption.go).
 		resumption: resumptionFor(name, peer.Auth),
 		ike:        tr,

@@ -104,7 +104,7 @@ cipher file was deleted when `String()` landed.
 
 <!-- source: internal/component/ike/crypto/transform.go -- EncryptionID.String, IntegrityID.String, DHGroupID.String -->
 
-**`clear vpn ipsec sa` re-establishes.** The terminate functions call a stored
+**`clear vpn ipsec sa all` and `clear vpn ipsec sa peer <name>` re-establish.** The bare `clear vpn ipsec sa` is refused, because it names no target and Ze never acts on every SA unless the operator types `all`. The terminate functions call a stored
 reconcile closure, so clearing bounces the tunnel instead of requiring a config
 reload.
 

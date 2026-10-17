@@ -5,6 +5,7 @@ module ze-ipsec-cmd {
     // Removing the IPsec surface removes these command nodes together with the
     // handlers. See ai/rules/plugin-self-containment.md.
     description "The show, monitor, and clear vpn ipsec command tree, owned by the ike component.";
+    revision 2026-10-17 { description "clear vpn ipsec sa alone is refused: clear vpn ipsec sa all terminates every SA, and clear vpn ipsec sa peer <name> one peer's."; }
     revision 2026-08-03 { description "Added show vpn ipsec dataplane sa/policy/drift: the kernel read-back surface."; }
     revision 2026-06-03 { description "Relocated show + monitor + clear vpn ipsec out of central schemas (plugin self-containment)."; }
 
@@ -136,11 +137,34 @@ none is up.";
 
                 container sa {
                     config false;
-                    ze:command "ze-ike:clear-vpn-ipsec-sa";
-                    description "Without arguments, terminates all SAs. Use
-'peer <name>' to clear just one peer. The tunnel WILL renegotiate
-automatically if the config is still active.";
-                    ze:help "Tear down IKE Security Associations.";
+                    description "Clear vpn ipsec sa alone is refused: say all to terminate every
+SA, or peer followed by a name to terminate one peer's. Everything is never the default
+(ai/rules/cli.md). A tunnel whose config is still active WILL renegotiate.";
+                    ze:help "Tear down IKE Security Associations: all, or peer <name>.";
+
+                    container all {
+                        config false;
+                        ze:command "ze-ike:clear-vpn-ipsec-sa";
+                        description "Every IKE SA and its Child SAs are terminated, and the answer
+counts them. Each tunnel whose config is still active WILL renegotiate.";
+                        ze:help "Tear down every IKE Security Association.";
+                    }
+
+                    container peer {
+                        config false;
+                        ze:command "ze-ike:clear-vpn-ipsec-sa-peer";
+                        description "Only the named peer's SAs are terminated. A name that matches
+no configured peer is refused.";
+                        ze:help "Tear down one peer's IKE Security Associations.";
+                        leaf name {
+                            type string {
+                                length "1..255";
+                            }
+                            mandatory true;
+                            description "The peer name as configured under the IPsec connection.";
+                            ze:help "Peer name.";
+                        }
+                    }
                 }
             }
         }

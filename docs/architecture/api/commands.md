@@ -162,7 +162,8 @@ registers with `command.MustRegisterLocalData(path, handler, meta,
 command.RenderLocalAnswer)` and returns DATA, which is what lets `| json`,
 `| yaml` and `| table` be three renderings of one payload. The handler
 (`command.LocalDataHandler`) takes the `command.ValidatedArgs` the validator
-returned, never a token slice, and reads `Tokens()` or `Positional(leaf)`. The
+returned, never a token slice, and reads `Tokens()`, `Positional(leaf)`, or
+`Value(leaf)`. The
 data-handler and local-handler registries live in package `command` rather than
 in `command/registry`, because that package cannot import `command` and so
 cannot name the value.
@@ -1555,7 +1556,11 @@ and its rollback the value judged against the ancestor's definitions, R8 hands
 a streaming handler the value `GetStreamingHandlerForCommand` answered, R2
 hands a data handler the value it judged, R6 and R7 hand a local handler, and
 through it the plain form of a data handler (R3), the value `InvokeLocal`
-judged, and the handler reads `Tokens()` or `Positional(leaf)`. A handler that
+judged, and the handler reads `Tokens()`, `Positional(leaf)` or `Value(leaf)`.
+`Positional` answers only a leaf the lone spare token filled; `Value` also
+answers a leaf typed after its own keyword (`peer name site-b`) or bound by the
+token matcher, so a handler reading a leaf by name accepts both spellings the
+grammar allows. A handler that
 passes part of its tokens on (the `update` command hands the words after the
 encoding to that encoding's parser) passes a token slice to a helper that is
 not a handler type. A test that calls a handler directly builds its value with
