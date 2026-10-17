@@ -444,7 +444,7 @@ func TestBridgeIntegration_RealPlugin(t *testing.T) {
 	assert.True(t, strings.HasPrefix(line, "send bgp 10.0.0.1 update text"),
 		"expected '''send bgp 10.0.0.1 update text ...''', got: %s", line)
 	assert.Contains(t, line, "nhop 10.0.0.1") // Uses actual next-hop from JSON
-	assert.Contains(t, line, "nlri ipv4/unicast add 192.168.1.0/24")
+	assert.Contains(t, line, "nlri add 192.168.1.0/24")
 
 	// === Stage 7: Test withdraw ===
 	t.Log("Stage 7: Testing withdraw...")
@@ -473,7 +473,7 @@ func TestBridgeIntegration_RealPlugin(t *testing.T) {
 
 	assert.True(t, strings.HasPrefix(line, "send bgp 10.0.0.1 update text"),
 		"expected '''send bgp 10.0.0.1 update text ...''', got: %s", line)
-	assert.Contains(t, line, "nlri ipv4/unicast del 192.168.1.0/24")
+	assert.Contains(t, line, "nlri del 192.168.1.0/24")
 
 	t.Log("Integration test passed!")
 }
@@ -684,7 +684,7 @@ func TestBridgeIntegration_IPv6(t *testing.T) {
 
 	line := h.ReadResponse(3 * time.Second)
 	assert.Contains(t, line, "send bgp 2001:db8::1")
-	assert.Contains(t, line, "nlri ipv6/unicast add 2001:db8:1::/48")
+	assert.Contains(t, line, "mp ipv6/unicast add 2001:db8:1::/48")
 }
 
 // TestBridgeIntegration_MultipleNLRI verifies multiple prefixes in single update.

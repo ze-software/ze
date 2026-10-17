@@ -10,7 +10,7 @@ import (
 // PREVENTS: Panic on malformed commands, embedded NUL bytes, extreme whitespace.
 // SECURITY: Scanner input comes from plugin commands over Unix sockets.
 func FuzzScanner(f *testing.F) {
-	f.Add("update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24")
+	f.Add("update text origin set igp nhop set 1.1.1.1 nlri add 10.0.0.0/24")
 	f.Add("update hex attr set 400101 nlri ipv4/unicast add 180a00")
 	f.Add("")                         // Empty
 	f.Add("   ")                      // Only whitespace

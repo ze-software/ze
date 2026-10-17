@@ -202,7 +202,7 @@ func plugin01RouteUpdates(ctx context.Context, plugin *sdk.Plugin, peer string) 
 func plugin01AddRemove(ctx context.Context, plugin *sdk.Plugin) error {
 	commands := []string{
 		cmdAnnounceFirstPrefix,
-		"update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/25",
+		"update text nhop 101.1.101.1 nlri add 1.1.0.0/25",
 	}
 	for _, command := range commands {
 		if _, _, err := plugin.UpdateRoute(ctx, "*", command); err != nil {
@@ -213,8 +213,8 @@ func plugin01AddRemove(ctx context.Context, plugin *sdk.Plugin) error {
 		return err
 	}
 	for _, command := range []string{
-		"update text nlri ipv4/unicast del 1.1.0.0/24",
-		"update text nlri ipv4/unicast del 1.1.0.0/25",
+		"update text nlri del 1.1.0.0/24",
+		"update text nlri del 1.1.0.0/25",
 	} {
 		if _, _, err := plugin.UpdateRoute(ctx, "*", command); err != nil {
 			return err

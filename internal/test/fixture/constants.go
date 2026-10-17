@@ -214,7 +214,7 @@ const (
 	argQuiet                     = "--quiet"
 	argShow                      = "show"
 	argType                      = "type" // The command keyword.
-	cmdAnnounceFirstPrefix       = "update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24"
+	cmdAnnounceFirstPrefix       = "update text nhop 101.1.101.1 nlri add 1.1.0.0/24"
 	cmdDocIndex                  = "doc index"
 	cmdShowBGP                   = "show bgp"
 	cmdShowBGPPeerList           = "show bgp peer list"

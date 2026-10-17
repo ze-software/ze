@@ -650,8 +650,8 @@ pre-existing deviation is recorded in `plan/journal/gate-fires-outside-its-popul
 
 ### SR-Policy in `update text`
 
-`update text` has no SR-Policy parser of its own. An `nlri ipv4/sr-policy` or
-`nlri ipv6/sr-policy` section goes, like every family the `update` package does
+`update text` has no SR-Policy parser of its own. An `mp ipv4/sr-policy` or
+`mp ipv6/sr-policy` section goes, like every family the `update` package does
 not parse itself, to `parseRegistryNLRISection`, which hands the whole token
 run to the plugin's registered `EncodeNLRIHex`. The grammar is the plugin's:
 `add` or `del` right after the family, then `distinguisher`, `color` and

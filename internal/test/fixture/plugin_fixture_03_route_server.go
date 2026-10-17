@@ -88,7 +88,7 @@ func withdrawSeedReceipts03(ctx context.Context, p *sdk.Plugin) error {
 			return fmt.Errorf("withdrawal seed receipt missing: %s", path)
 		}
 	}
-	if _, _, err := p.UpdateRoute(ctx, "127.0.0.1", "update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.3.0/24"); err != nil {
+	if _, _, err := p.UpdateRoute(ctx, "127.0.0.1", "update text origin igp nhop 1.1.1.1 nlri add 192.0.3.0/24"); err != nil {
 		return fmt.Errorf("release mixed UPDATE after seed receipts: %w", err)
 	}
 	fmt.Fprintln(os.Stderr, "OK: both receivers acknowledged original withdrawal seed")
@@ -102,7 +102,7 @@ func withdrawSourceReady03(ctx context.Context, p *sdk.Plugin, peers int) error 
 	if !waitPeersEOR03(ctx, p, peers) {
 		return fmt.Errorf("withdrawal seed readiness: %d peers did not send EOR", peers)
 	}
-	if _, _, err := p.UpdateRoute(ctx, "127.0.0.1", "update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.4.0/24"); err != nil {
+	if _, _, err := p.UpdateRoute(ctx, "127.0.0.1", "update text origin igp nhop 1.1.1.1 nlri add 192.0.4.0/24"); err != nil {
 		return fmt.Errorf("release original withdrawal seed: %w", err)
 	}
 	return nil
@@ -112,11 +112,12 @@ func withdrawSourceReady03(ctx context.Context, p *sdk.Plugin, peers int) error 
 // tracker is on, and the file the .ci's peer holds its route behind
 // (option=await-file). It is relative for the reason dynamicGroupMarker02 is.
 //
-// The tracker counts only Loc-RIB changes that arrive while it is enabled, and
-// this observer runs from OnAllPluginsReady, which the engine does NOT order
-// before peer startup (sendPostStartupToAll, plugin/server/poststartup.go).
-// Under load the peer's UPDATE reached the Loc-RIB first, nothing replays it,
-// and status read forwarded=0 prefixes=0.
+// forwarded counts UPDATE bytes read through Change.Forward, which only a change
+// made while the tracker is enabled carries, and this observer runs from
+// OnAllPluginsReady, which the engine does NOT order before peer startup
+// (sendPostStartupToAll, plugin/server/poststartup.go). A route learned before
+// enable is recorded by the enable replay with no bytes (bgpRSFastpathReplay03),
+// so without the hold forwarded can stay 0 under load.
 const bgpRSFastpathEnabled03 = "bgp-rs-fastpath.enabled"
 
 func bgpRSFastpath03(ctx context.Context, p *sdk.Plugin) error {

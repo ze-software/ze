@@ -22,12 +22,12 @@ type plugin14EventScenario func(context.Context, *sdk.Plugin, <-chan plugin14Eve
 
 func init() {
 	Register("plugin/rib-reconnect", func(ctx context.Context, _ []string) error {
-		return plugin14RunUntilShutdown(ctx, "announce-routes", []plugin14Update{{"*", "update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24"}})
+		return plugin14RunUntilShutdown(ctx, "announce-routes", []plugin14Update{{"*", "update text nhop 10.0.0.1 nlri add 192.168.1.0/24"}})
 	})
 	Register("plugin/rib-withdrawal", func(ctx context.Context, _ []string) error {
 		return plugin14RunUntilShutdown(ctx, "announce-routes", []plugin14Update{
-			{"*", "update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24"},
-			{"*", "update text nlri ipv4/unicast del 192.168.1.0/24"},
+			{"*", "update text nhop 10.0.0.1 nlri add 192.168.1.0/24"},
+			{"*", "update text nlri del 192.168.1.0/24"},
 		})
 	})
 	Register("plugin/role-otc-egress-filter", plugin14Observer("test-egress", plugin14OTCEgressFilter))
@@ -457,7 +457,7 @@ func plugin14OTCForwardWithdrawal(ctx context.Context, plugin *sdk.Plugin) error
 	if err := plugin14WaitDestUpdates(ctx, plugin, 1, "the stamped advertisement"); err != nil {
 		return err
 	}
-	if _, _, err := plugin.UpdateRoute(ctx, "127.0.0.1", "update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.2.0/24"); err != nil {
+	if _, _, err := plugin.UpdateRoute(ctx, "127.0.0.1", "update text origin igp nhop 1.1.1.1 nlri add 192.0.2.0/24"); err != nil {
 		return err
 	}
 	return plugin14WaitDestUpdates(ctx, plugin, 2, "the forwarded withdrawal")
@@ -499,13 +499,13 @@ func plugin14OTCRSWithdrawEOR(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := plugin14WaitDestUpdates(ctx, plugin, 1, "the OTC-stamped advertisement"); err != nil {
 		return err
 	}
-	if _, _, err := plugin.UpdateRoute(ctx, "127.0.0.1", "update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.2.0/24"); err != nil {
+	if _, _, err := plugin.UpdateRoute(ctx, "127.0.0.1", "update text origin igp nhop 1.1.1.1 nlri add 192.0.2.0/24"); err != nil {
 		return err
 	}
 	if err := plugin14WaitDestUpdates(ctx, plugin, 2, "the forwarded withdrawal"); err != nil {
 		return err
 	}
-	if _, _, err := plugin.UpdateRoute(ctx, "127.0.0.1", "update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 198.51.100.0/24"); err != nil {
+	if _, _, err := plugin.UpdateRoute(ctx, "127.0.0.1", "update text origin igp nhop 1.1.1.1 nlri add 198.51.100.0/24"); err != nil {
 		return err
 	}
 	if err := plugin14WaitDestUpdates(ctx, plugin, 3, "the relayed End-of-RIB"); err != nil {

@@ -35,7 +35,7 @@ func llgrLifecycle(scenario string) Driver {
 				return nil
 			}
 			marker := func(peer string) error {
-				r := command13(ctx, p, "send bgp "+peer+" update text origin igp local-preference 100 nhop 1.1.1.1 nlri ipv4/unicast add 198.51.100.0/24")
+				r := command13(ctx, p, "send bgp "+peer+" update text origin igp local-preference 100 nhop 1.1.1.1 nlri add 198.51.100.0/24")
 				if !done13(r) {
 					return fmt.Errorf("release %s: %s", peer, r.text())
 				}
@@ -56,7 +56,7 @@ func llgrLifecycle(scenario string) Driver {
 					if err := fixture10WaitEOR(ctx, p, "control", 60); err != nil {
 						return err
 					}
-					r := command13(ctx, p, "send bgp control update text origin igp local-preference 100 nhop 1.1.1.1 nlri ipv4/unicast add 198.51.99.0/24")
+					r := command13(ctx, p, "send bgp control update text origin igp local-preference 100 nhop 1.1.1.1 nlri add 198.51.99.0/24")
 					if !done13(r) {
 						return fmt.Errorf("release long LLST source: %s", r.text())
 					}
@@ -80,7 +80,7 @@ func llgrLifecycle(scenario string) Driver {
 						return err
 					}
 				}
-				r := command13(ctx, p, "send bgp source update text origin igp local-preference 100 nhop 1.1.1.1 nlri ipv4/unicast add 198.51.99.0/24")
+				r := command13(ctx, p, "send bgp source update text origin igp local-preference 100 nhop 1.1.1.1 nlri add 198.51.99.0/24")
 				if !done13(r) {
 					return fmt.Errorf("release source after destination readiness: %s", r.text())
 				}
@@ -132,7 +132,7 @@ func llgrLifecycle(scenario string) Driver {
 				// The DOWN-release marker already replayed on this connection.
 				// EOR MUST wait for a distinct phase marker, not a duplicate that
 				// can be suppressed or mistaken for the earlier release.
-				r := command13(ctx, p, "send bgp source update text origin igp local-preference 100 nhop 1.1.1.1 nlri ipv4/unicast add 198.51.101.0/24")
+				r := command13(ctx, p, "send bgp source update text origin igp local-preference 100 nhop 1.1.1.1 nlri add 198.51.101.0/24")
 				if !done13(r) {
 					return fmt.Errorf("release source EOR: %s", r.text())
 				}

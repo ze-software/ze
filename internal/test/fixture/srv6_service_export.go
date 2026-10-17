@@ -21,7 +21,7 @@ func srv6ServiceExportControl(ctx context.Context, p *sdk.Plugin) error {
 		return err
 	}
 	for _, service := range []int{10, 20} {
-		command := fmt.Sprintf("update text extended-community [target:65000:%d] bgp-prefix-sid-srv6 ( l3-service 2001:db8:%d:: 0x13 ) nhop 2001:db8::1 rd 65000:%d label 100 nlri ipv4/mpls-vpn add 10.%d.0.0/24", service, service, service, service)
+		command := fmt.Sprintf("update text extended-community [target:65000:%d] bgp-prefix-sid-srv6 ( l3-service 2001:db8:%d:: 0x13 ) nhop 2001:db8::1 rd 65000:%d label 100 mp ipv4/mpls-vpn add 10.%d.0.0/24", service, service, service, service)
 		announced, withdrawn, err := p.UpdateRoute(ctx, "*", command)
 		if err != nil {
 			return fmt.Errorf("announce SRv6 service %d: %w", service, err)

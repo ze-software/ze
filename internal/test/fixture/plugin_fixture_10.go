@@ -473,7 +473,7 @@ func fixture10MPLSForwardingRefused(reply fixture10Reply, label string) error {
 	return nil
 }
 
-const fixture10MPLSAnnounce = "update text origin igp local-preference 100 nhop 10.0.0.2 nlri ipv4/mpls-label label 1000 add 10.1.0.0/24"
+const fixture10MPLSAnnounce = "update text origin igp local-preference 100 nhop 10.0.0.2 mp ipv4/mpls-label label 1000 add 10.1.0.0/24"
 
 func fixture10MPLSPush(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := fixture10WaitEOR(ctx, plugin, "peer1", 60); err != nil {
@@ -495,7 +495,7 @@ func fixture10MPLSWithdraw(ctx context.Context, plugin *sdk.Plugin) error {
 	}) {
 		return fmt.Errorf("labeled announce never reached the wire")
 	}
-	if err := fixture10Update(ctx, plugin, "*", "update text nlri ipv4/mpls-label label 1000 del 10.1.0.0/24"); err != nil {
+	if err := fixture10Update(ctx, plugin, "*", "update text mp ipv4/mpls-label label 1000 del 10.1.0.0/24"); err != nil {
 		return err
 	}
 	return fixture10Quiesce(ctx, plugin)
@@ -570,8 +570,8 @@ func fixture10MUPIPv4(ctx context.Context, plugin *sdk.Plugin) error {
 		return err
 	}
 	for _, command := range []string{
-		"update text origin igp local-preference 200 nhop 10.0.1.254 nlri ipv4/unicast add 10.0.1.0/24",
-		"update text nlri ipv4/unicast del 10.0.1.0/24",
+		"update text origin igp local-preference 200 nhop 10.0.1.254 nlri add 10.0.1.0/24",
+		"update text nlri del 10.0.1.0/24",
 	} {
 		if err := fixture10Update(ctx, plugin, "*", command); err != nil {
 			return err
@@ -588,8 +588,8 @@ func fixture10MUPIPv6(ctx context.Context, plugin *sdk.Plugin) error {
 		return err
 	}
 	for _, command := range []string{
-		"update text origin igp local-preference 200 nhop 2001::11 nlri ipv6/unicast add fc00:1::/64",
-		"update text nlri ipv6/unicast del fc00:1::/64",
+		"update text origin igp local-preference 200 nhop 2001::11 mp ipv6/unicast add fc00:1::/64",
+		"update text mp ipv6/unicast del fc00:1::/64",
 	} {
 		if err := fixture10Update(ctx, plugin, "*", command); err != nil {
 			return err
@@ -662,7 +662,7 @@ func fixture10OriginatedNextHop(ctx context.Context, plugin *sdk.Plugin) error {
 	}
 	before, _ := peerUpdates()
 	announce := func(nextHop, prefix string) error {
-		if err := fixture10Update(ctx, plugin, "127.0.0.1", "update text origin igp nhop "+nextHop+" nlri ipv4/unicast add "+prefix); err != nil {
+		if err := fixture10Update(ctx, plugin, "127.0.0.1", "update text origin igp nhop "+nextHop+" nlri add "+prefix); err != nil {
 			return err
 		}
 		return fixture10Quiesce(ctx, plugin)
@@ -713,20 +713,20 @@ func fixture10OpenInEstablished(ctx context.Context, plugin *sdk.Plugin) error {
 	return nil
 }
 func fixture10PeerSelectorASN(ctx context.Context, plugin *sdk.Plugin) error {
-	if err := fixture10Update(ctx, plugin, "as1", "update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24"); err != nil {
+	if err := fixture10Update(ctx, plugin, "as1", "update text nhop 101.1.101.1 nlri add 1.1.0.0/24"); err != nil {
 		return err
 	}
 	return fixture10Quiesce(ctx, plugin)
 }
 
 func fixture10PeerSelectorNameIP(ctx context.Context, plugin *sdk.Plugin) error {
-	if err := fixture10Update(ctx, plugin, "peer1", "update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24"); err != nil {
+	if err := fixture10Update(ctx, plugin, "peer1", "update text nhop 101.1.101.1 nlri add 1.1.0.0/24"); err != nil {
 		return err
 	}
 	if err := fixture10Quiesce(ctx, plugin); err != nil {
 		return err
 	}
-	if err := fixture10Update(ctx, plugin, "127.0.0.1", "update text nhop 101.1.101.1 nlri ipv4/unicast add 2.2.0.0/24"); err != nil {
+	if err := fixture10Update(ctx, plugin, "127.0.0.1", "update text nhop 101.1.101.1 nlri add 2.2.0.0/24"); err != nil {
 		return err
 	}
 	return fixture10Quiesce(ctx, plugin)
@@ -903,7 +903,7 @@ func fixture10PKICARootExport(ctx context.Context, plugin *sdk.Plugin) error {
 func fixture10PluginAnnounce(ctx context.Context, plugin *sdk.Plugin, initialReplay uint64) error {
 	for _, command := range []string{
 		cmdAnnounceFirstPrefix,
-		"update text nhop 101.1.101.1 nlri ipv4/unicast add 1.2.0.0/25",
+		"update text nhop 101.1.101.1 nlri add 1.2.0.0/25",
 	} {
 		if err := fixture10Update(ctx, plugin, "*", command); err != nil {
 			return err
@@ -928,10 +928,10 @@ func fixture10SessionReady(ctx context.Context, plugin *sdk.Plugin, initialRepla
 
 func fixture10PluginAttributes(ctx context.Context, plugin *sdk.Plugin, initialReplay uint64) error {
 	for _, command := range []string{
-		"update text origin igp local-preference 100 med 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.0.0.1/32",
-		"update text origin igp local-preference 100 med 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.0.0.2/32",
-		"update text origin igp as-path [1 2 3 4] local-preference 200 nhop 202.2.202.2 nlri ipv4/unicast add 2.0.0.1/32",
-		"update text origin igp as-path [1 2 3 4] local-preference 200 nhop 202.2.202.2 nlri ipv4/unicast add 2.0.0.2/32",
+		"update text origin igp local-preference 100 med 100 nhop 101.1.101.1 nlri add 1.0.0.1/32",
+		"update text origin igp local-preference 100 med 100 nhop 101.1.101.1 nlri add 1.0.0.2/32",
+		"update text origin igp as-path [1 2 3 4] local-preference 200 nhop 202.2.202.2 nlri add 2.0.0.1/32",
+		"update text origin igp as-path [1 2 3 4] local-preference 200 nhop 202.2.202.2 nlri add 2.0.0.2/32",
 	} {
 		if err := fixture10Update(ctx, plugin, "*", command); err != nil {
 			return err
@@ -1129,11 +1129,11 @@ func fixture10PluginCheck(ctx context.Context, _ []string) error {
 			scenarioErr := func() error {
 				select {
 				case <-matched:
-					if updateErr := fixture10Update(ctx, plugin, "127.0.0.1", "update text origin igp local-preference 100 nhop 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32"); updateErr != nil {
+					if updateErr := fixture10Update(ctx, plugin, "127.0.0.1", "update text origin igp local-preference 100 nhop 5.6.7.8 nlri add 1.2.3.4/32"); updateErr != nil {
 						return updateErr
 					}
 				case <-time.After(8 * time.Second):
-					if updateErr := fixture10Update(ctx, plugin, "127.0.0.1", "update text nhop 255.255.255.255 nlri ipv4/unicast add 0.0.0.0/0"); updateErr != nil {
+					if updateErr := fixture10Update(ctx, plugin, "127.0.0.1", "update text nhop 255.255.255.255 nlri add 0.0.0.0/0"); updateErr != nil {
 						return updateErr
 					}
 				}

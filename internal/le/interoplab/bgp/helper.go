@@ -132,8 +132,8 @@ func runAnnouncements(ctx context.Context, plugin *sdk.Plugin, scenario string, 
 
 func announcementPlan(scenario string) (processPlan, error) {
 	const (
-		v4 = "update text origin igp path 65001 nhop 172.30.0.2 nlri ipv4/unicast add "
-		v6 = "update text origin igp path 65001 nhop 2001:db8::2 nlri ipv6/unicast add "
+		v4 = "update text origin igp path 65001 nhop 172.30.0.2 nlri add "
+		v6 = "update text origin igp path 65001 nhop 2001:db8::2 mp ipv6/unicast add "
 	)
 	plan := processPlan{startup: time.Second, life: 120 * time.Second}
 	add := func(command string) {
@@ -151,7 +151,7 @@ func announcementPlan(scenario string) (processPlan, error) {
 		add(v4 + injectPrefixFirst)
 		addAfter(100*time.Millisecond, v4+injectPrefixSecond)
 		addAfter(100*time.Millisecond, v4+injectPrefixThird)
-		addAfter(5*time.Second, "update text nlri ipv4/unicast del 10.10.1.0/24")
+		addAfter(5*time.Second, "update text nlri del 10.10.1.0/24")
 	case "bgp-routes-gobgp", "bgp-multihop-ebgp-bird", "bgp-multihop-ebgp-frr", "bgp-multihop-ebgp-gobgp", scenarioGracefulRestartFRR:
 		add(v4 + injectPrefixFirst)
 		addAfter(100*time.Millisecond, v4+injectPrefixSecond)
@@ -166,19 +166,19 @@ func announcementPlan(scenario string) (processPlan, error) {
 		addAfter(100*time.Millisecond, v6+injectPrefixV6Second)
 		addAfter(100*time.Millisecond, v6+injectPrefixV6Third)
 	case scenarioAddPathFRR:
-		add("update text path-information 0.0.0.1 origin igp path 65001 65010 nhop 172.30.0.2 nlri ipv4/unicast add 10.10.0.0/24")
-		addAfter(100*time.Millisecond, "update text path-information 0.0.0.2 origin igp path 65001 65020 nhop 172.30.0.2 nlri ipv4/unicast add 10.10.0.0/24")
+		add("update text path-information 0.0.0.1 origin igp path 65001 65010 nhop 172.30.0.2 nlri add 10.10.0.0/24")
+		addAfter(100*time.Millisecond, "update text path-information 0.0.0.2 origin igp path 65001 65020 nhop 172.30.0.2 nlri add 10.10.0.0/24")
 	case "bgp-community-frr":
-		add("update text origin igp path 65001 nhop 172.30.0.2 community [65001:100 65001:200] nlri ipv4/unicast add 10.10.0.0/24")
-		addAfter(100*time.Millisecond, "update text origin igp path 65001 nhop 172.30.0.2 large-community [65001:0:1] nlri ipv4/unicast add 10.10.1.0/24")
+		add("update text origin igp path 65001 nhop 172.30.0.2 community [65001:100 65001:200] nlri add 10.10.0.0/24")
+		addAfter(100*time.Millisecond, "update text origin igp path 65001 nhop 172.30.0.2 large-community [65001:0:1] nlri add 10.10.1.0/24")
 	case "bgp-extended-community-frr":
-		add("update text origin igp path 65001 nhop 172.30.0.2 extended-community [target:65001:100] nlri ipv4/unicast add 10.10.0.0/24")
+		add("update text origin igp path 65001 nhop 172.30.0.2 extended-community [target:65001:100] nlri add 10.10.0.0/24")
 	case scenarioECMPFRR:
-		add("update text origin igp path 65001 nhop 172.30.0.2 nlri ipv4/unicast add 10.100.0.0/24")
+		add("update text origin igp path 65001 nhop 172.30.0.2 nlri add 10.100.0.0/24")
 	case scenarioFlowspecFRR:
 		plan.updates = []announcement{
-			{selector: "*", command: "update text extended-community [rate-limit:0] nhop 172.30.0.2 nlri ipv4/flow add destination-ipv4 10.99.0.0/24", quiesce: true},
-			{selector: "*", command: "update text extended-community [rate-limit:9600] nhop 172.30.0.2 nlri ipv4/flow add destination-ipv4 10.99.1.0/24 source-ipv4 10.0.0.0/8 protocol tcp", quiesce: true},
+			{selector: "*", command: "update text extended-community [rate-limit:0] nhop 172.30.0.2 mp ipv4/flow add destination-ipv4 10.99.0.0/24", quiesce: true},
+			{selector: "*", command: "update text extended-community [rate-limit:9600] nhop 172.30.0.2 mp ipv4/flow add destination-ipv4 10.99.1.0/24 source-ipv4 10.0.0.0/8 protocol tcp", quiesce: true},
 		}
 	case scenarioFlowspecGoBGP:
 		// The third rule is an OR of two AND groups on one component type. RFC 8955
@@ -187,30 +187,30 @@ func announcementPlan(scenario string) (processPlan, error) {
 		// flowspecOrOfAndRule; two Type 4 components render as two [port: ...] terms
 		// and do not match.
 		plan.updates = []announcement{
-			{selector: "*", command: "update text extended-community [rate-limit:0] nhop 172.30.0.2 nlri ipv4/flow add destination-ipv4 10.99.0.0/24"},
-			{selector: "*", command: "update text extended-community [rate-limit:9600] nhop 172.30.0.2 nlri ipv4/flow add destination-ipv4 10.99.1.0/24 source-ipv4 10.0.0.0/8 protocol tcp", delay: 100 * time.Millisecond, quiesce: true},
-			{selector: "*", command: "update text extended-community [rate-limit:0] nhop 172.30.0.2 nlri ipv4/flow add destination-ipv4 10.99.2.0/24 port >80 <100 port >443 <500", delay: 100 * time.Millisecond, quiesce: true},
+			{selector: "*", command: "update text extended-community [rate-limit:0] nhop 172.30.0.2 mp ipv4/flow add destination-ipv4 10.99.0.0/24"},
+			{selector: "*", command: "update text extended-community [rate-limit:9600] nhop 172.30.0.2 mp ipv4/flow add destination-ipv4 10.99.1.0/24 source-ipv4 10.0.0.0/8 protocol tcp", delay: 100 * time.Millisecond, quiesce: true},
+			{selector: "*", command: "update text extended-community [rate-limit:0] nhop 172.30.0.2 mp ipv4/flow add destination-ipv4 10.99.2.0/24 port >80 <100 port >443 <500", delay: 100 * time.Millisecond, quiesce: true},
 		}
 	case scenarioEVPNFRR, scenarioEVPNGoBGP:
 		plan.updates = []announcement{
-			{selector: "*", command: "update text origin igp nhop 172.30.0.2 nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 etag 0 label 100", quiesce: true},
-			{selector: "*", command: "update text origin igp nhop 172.30.0.2 nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:66 ip 192.168.1.1 etag 0 label 100", quiesce: true},
+			{selector: "*", command: "update text origin igp nhop 172.30.0.2 mp l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 etag 0 label 100", quiesce: true},
+			{selector: "*", command: "update text origin igp nhop 172.30.0.2 mp l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:66 ip 192.168.1.1 etag 0 label 100", quiesce: true},
 		}
 	case scenarioVPNFRR, scenarioVPNGoBGP:
 		plan.updates = []announcement{
-			{selector: "*", command: "update text origin igp nhop 172.30.0.2 nlri ipv4/mpls-vpn rd 65001:100 label 1000 add 10.99.0.0/24", quiesce: true},
-			{selector: "*", command: "update text origin igp nhop 172.30.0.2 nlri ipv4/mpls-vpn rd 65001:100 label 1001 add 10.99.1.0/24", quiesce: true},
+			{selector: "*", command: "update text origin igp nhop 172.30.0.2 mp ipv4/mpls-vpn rd 65001:100 label 1000 add 10.99.0.0/24", quiesce: true},
+			{selector: "*", command: "update text origin igp nhop 172.30.0.2 mp ipv4/mpls-vpn rd 65001:100 label 1001 add 10.99.1.0/24", quiesce: true},
 		}
 	case "as112-community-frr":
-		add("update text origin igp nhop 172.30.0.2 community [no-export] nlri ipv4/unicast add 192.175.48.0/24")
-		addAfter(100*time.Millisecond, "update text origin igp nhop 172.30.0.2 community [nopeer] nlri ipv4/unicast add 192.31.196.0/24")
+		add("update text origin igp nhop 172.30.0.2 community [no-export] nlri add 192.175.48.0/24")
+		addAfter(100*time.Millisecond, "update text origin igp nhop 172.30.0.2 community [nopeer] nlri add 192.31.196.0/24")
 	case scenarioAS112OriginASFRR:
-		add("update text origin igp nhop 172.30.0.2 nlri ipv4/unicast add 192.175.48.0/24")
-		addAfter(100*time.Millisecond, "update text origin igp nhop 172.30.0.2 nlri ipv4/unicast add 192.31.196.0/24")
+		add("update text origin igp nhop 172.30.0.2 nlri add 192.175.48.0/24")
+		addAfter(100*time.Millisecond, "update text origin igp nhop 172.30.0.2 nlri add 192.31.196.0/24")
 	case "bgp-med-across-as-gobgp":
 		plan.startup = 25 * time.Second
 		plan.life = 180 * time.Second
-		plan.updates = []announcement{{selector: "!172.30.0.9", command: "update text origin igp med 42 nhop 172.30.0.2 nlri ipv4/unicast add 10.60.9.0/24"}}
+		plan.updates = []announcement{{selector: "!172.30.0.9", command: "update text origin igp med 42 nhop 172.30.0.2 nlri add 10.60.9.0/24"}}
 	case scenarioShutdownCeaseFRR:
 		plan.life = 180 * time.Second
 		add(v4 + injectPrefixFirst)
@@ -241,7 +241,7 @@ func runWireEditAnnouncements(ctx context.Context, plugin *sdk.Plugin) error {
 			return fmt.Errorf("peer %s already established with eor-sent=%v; queue rail was not exercised", birdAddress, row["eor-sent"])
 		}
 	}
-	if _, _, err := plugin.UpdateRoute(ctx, "*", "update text "+attributes+" nlri ipv4/unicast add 10.55.0.0/24"); err != nil {
+	if _, _, err := plugin.UpdateRoute(ctx, "*", "update text "+attributes+" nlri add 10.55.0.0/24"); err != nil {
 		return err
 	}
 	budget := 90
@@ -267,7 +267,7 @@ func runWireEditAnnouncements(ctx context.Context, plugin *sdk.Plugin) error {
 	if err != nil || status != rpc.StatusDone {
 		return fmt.Errorf("quiesce barrier did not settle: status=%q: %w", status, err)
 	}
-	_, _, err = plugin.UpdateRoute(ctx, "*", "update text "+attributes+" nlri ipv4/unicast add 10.55.1.0/24")
+	_, _, err = plugin.UpdateRoute(ctx, "*", "update text "+attributes+" nlri add 10.55.1.0/24")
 	return err
 }
 

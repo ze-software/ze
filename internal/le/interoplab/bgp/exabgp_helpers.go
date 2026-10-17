@@ -203,7 +203,7 @@ func runExaBGPLineLog(input io.Reader, diagnostic io.Writer, args []string, syst
 func runExampleAPIProgram(input io.Reader, output io.Writer) error {
 	_ = exaLines(input)
 	for prefix := 1; prefix < 255; prefix++ {
-		if _, err := fmt.Fprintf(output, "update text nhop set 10.0.0.1 nlri ipv4/unicast add 192.0.2.%d\n", prefix); err != nil {
+		if _, err := fmt.Fprintf(output, "update text nhop set 10.0.0.1 nlri add 192.0.2.%d\n", prefix); err != nil {
 			return err
 		}
 	}

@@ -35,7 +35,7 @@ import (
 func TestExtendedCommunityRawHexReachesTheWire(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"extended-community", "0x0002FDE900000001",
-		"nlri", "ipv4/unicast", "add", "1.4.0.0/16",
+		"nlri", "add", "1.4.0.0/16",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -56,7 +56,7 @@ func TestExtendedCommunityRawHexRefusesAWrongWidth(t *testing.T) {
 	for _, value := range []string{"0x0002FDE9000000", "0x0002FDE90000000123", "0x"} {
 		_, err := ParseUpdateText([]string{
 			"extended-community", value,
-			"nlri", "ipv4/unicast", "add", "1.4.0.0/16",
+			"nlri", "add", "1.4.0.0/16",
 		})
 		require.Error(t, err, "value %s", value)
 		assert.Contains(t, err.Error(), value)
@@ -80,32 +80,32 @@ func TestMVPNSectionMatchesTheExaBGPWire(t *testing.T) {
 	}{
 		{
 			name: "ipv4 shared-join",
-			args: strings.Fields("nlri ipv4/mvpn add shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000"),
+			args: strings.Fields("mp ipv4/mvpn add shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000"),
 			want: "06160000FDE80001869F0000FDE8200A63C70120EFFBFFE4",
 		},
 		{
 			name: "ipv4 source-join",
-			args: strings.Fields("nlri ipv4/mvpn add source-join source 10.99.12.2 group 239.251.255.228 rd 65000:99999 source-as 65000"),
+			args: strings.Fields("mp ipv4/mvpn add source-join source 10.99.12.2 group 239.251.255.228 rd 65000:99999 source-as 65000"),
 			want: "07160000FDE80001869F0000FDE8200A630C0220EFFBFFE4",
 		},
 		{
 			name: "ipv4 source-ad",
-			args: strings.Fields("nlri ipv4/mvpn add source-ad source 10.99.12.4 group 239.251.255.228 rd 65000:99999"),
+			args: strings.Fields("mp ipv4/mvpn add source-ad source 10.99.12.4 group 239.251.255.228 rd 65000:99999"),
 			want: "05120000FDE80001869F200A630C0420EFFBFFE4",
 		},
 		{
 			name: "ipv6 shared-join",
-			args: strings.Fields("nlri ipv6/mvpn add shared-join rp fd00::1 group ff0e::1 rd 65000:99999 source-as 65000"),
+			args: strings.Fields("mp ipv6/mvpn add shared-join rp fd00::1 group ff0e::1 rd 65000:99999 source-as 65000"),
 			want: "062E0000FDE80001869F0000FDE880FD00000000000000000000000000000180FF0E0000000000000000000000000001",
 		},
 		{
 			name: "ipv6 source-join",
-			args: strings.Fields("nlri ipv6/mvpn add source-join source fd12::2 group ff0e::1 rd 65000:99999 source-as 65000"),
+			args: strings.Fields("mp ipv6/mvpn add source-join source fd12::2 group ff0e::1 rd 65000:99999 source-as 65000"),
 			want: "072E0000FDE80001869F0000FDE880FD12000000000000000000000000000280FF0E0000000000000000000000000001",
 		},
 		{
 			name: "ipv6 source-ad",
-			args: strings.Fields("nlri ipv6/mvpn add source-ad source fd12::4 group ff0e::1 rd 65000:99999"),
+			args: strings.Fields("mp ipv6/mvpn add source-ad source fd12::4 group ff0e::1 rd 65000:99999"),
 			want: "052A0000FDE80001869F80FD12000000000000000000000000000480FF0E0000000000000000000000000001",
 		},
 	}
@@ -130,7 +130,7 @@ func TestMVPNSectionMatchesTheExaBGPWire(t *testing.T) {
 // PREVENTS: a withdrawal that names a different route from the announcement.
 func TestMVPNSectionWithdrawsTheSameBytes(t *testing.T) {
 	result, err := ParseUpdateText(strings.Fields(
-		"nlri ipv4/mvpn del shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000"))
+		"mp ipv4/mvpn del shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000"))
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	require.Empty(t, result.Groups[0].Announce)
@@ -154,23 +154,23 @@ func TestMVPNSectionRefusesAnIncompleteRoute(t *testing.T) {
 		want string
 	}{
 		"missing source-as": {
-			args: strings.Fields("nlri ipv4/mvpn add shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999"),
+			args: strings.Fields("mp ipv4/mvpn add shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999"),
 			want: "source-as",
 		},
 		"missing rd": {
-			args: strings.Fields("nlri ipv4/mvpn add source-ad source 10.99.12.4 group 239.251.255.228"),
+			args: strings.Fields("mp ipv4/mvpn add source-ad source 10.99.12.4 group 239.251.255.228"),
 			want: "rd",
 		},
 		"ipv6 address under the ipv4 afi": {
-			args: strings.Fields("nlri ipv4/mvpn add source-ad source fd12::4 group 239.251.255.228 rd 65000:99999"),
+			args: strings.Fields("mp ipv4/mvpn add source-ad source fd12::4 group 239.251.255.228 rd 65000:99999"),
 			want: "IPv4",
 		},
 		"ipv4 address under the ipv6 afi": {
-			args: strings.Fields("nlri ipv6/mvpn add source-ad source 10.99.12.4 group ff0e::1 rd 65000:99999"),
+			args: strings.Fields("mp ipv6/mvpn add source-ad source 10.99.12.4 group ff0e::1 rd 65000:99999"),
 			want: "IPv6",
 		},
 		"unknown route type": {
-			args: strings.Fields("nlri ipv4/mvpn add leaf-ad source 10.99.12.4 group 239.251.255.228 rd 65000:99999"),
+			args: strings.Fields("mp ipv4/mvpn add leaf-ad source 10.99.12.4 group 239.251.255.228 rd 65000:99999"),
 			want: "leaf-ad",
 		},
 	}
@@ -213,7 +213,7 @@ func TestPrefixSIDSRv6MatchesTheExaBGPAttribute(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := ParseUpdateText([]string{
 				"bgp-prefix-sid-srv6", "(", "l3-service", "2001:db8:1:1::", tc.behavior, "[64,24,16,0,0,0]", ")",
-				"nlri", "ipv4/unicast", "add", "10.0.1.0/24",
+				"nlri", "add", "10.0.1.0/24",
 			})
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
@@ -242,7 +242,7 @@ func TestPrefixSIDSRv6RefusesAMalformedValue(t *testing.T) {
 	}
 	for name, args := range cases {
 		t.Run(name, func(t *testing.T) {
-			_, err := ParseUpdateText(append(args, "nlri", "ipv4/unicast", "add", "10.0.1.0/24"))
+			_, err := ParseUpdateText(append(args, "nlri", "add", "10.0.1.0/24"))
 			require.Error(t, err)
 		})
 	}
@@ -261,7 +261,7 @@ func TestPrefixSIDSRv6MatchesTheConfigPath(t *testing.T) {
 
 	result, err := ParseUpdateText([]string{
 		"bgp-prefix-sid-srv6", "(", "l3-service", "2001:db8:1:1::", "0x48", "[64,24,16,0,0,0]", ")",
-		"nlri", "ipv4/unicast", "add", "10.0.1.0/24",
+		"nlri", "add", "10.0.1.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -306,7 +306,7 @@ func TestPathInformationAtTheTopLevelReachesTheNLRI(t *testing.T) {
 			result, err := ParseUpdateText([]string{
 				"path-information", tc.id, "next-hop", "10.11.12.13",
 				"origin", "igp", "local-preference", "16", "community", "[14:15]",
-				"nlri", "ipv4/unicast", "add", "16.17.18.19/32", "20.21.22.23/32",
+				"nlri", "add", "16.17.18.19/32", "20.21.22.23/32",
 			})
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
@@ -330,7 +330,7 @@ func TestPathInformationRefusesAMalformedValue(t *testing.T) {
 	for _, value := range []string{"1.2.3.4", "4294967296", "-1"} {
 		_, err := ParseUpdateText([]string{
 			"path-information", value,
-			"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+			"nlri", "add", "10.0.0.0/24",
 		})
 		require.Error(t, err, "value %s", value)
 		assert.Contains(t, err.Error(), value)
@@ -380,7 +380,7 @@ func TestLabelTakesAStack(t *testing.T) {
 			args := []string{"rd", "63333:100"}
 			args = append(args, tc.label...)
 			args = append(args, "next-hop", "10.0.99.12",
-				"nlri", "ipv4/mpls-vpn", "add", "128.0.64.0/18")
+				"mp", "ipv4/mpls-vpn", "add", "128.0.64.0/18")
 
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err)
@@ -408,7 +408,7 @@ func TestLabelStackRefusesAMalformedValue(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			args := append([]string{"rd", "63333:100"}, label...)
 			args = append(args, "next-hop", "10.0.99.12",
-				"nlri", "ipv4/mpls-vpn", "add", "128.0.64.0/18")
+				"mp", "ipv4/mpls-vpn", "add", "128.0.64.0/18")
 			_, err := ParseUpdateText(args)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "label")
@@ -442,7 +442,7 @@ func testAddPathNLRIHex(t *testing.T, n nlri.NLRI) string {
 func TestPrefixSIDSRv6RefusesAnEmptyValue(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"bgp-prefix-sid-srv6", "(", ")",
-		"nlri", "ipv4/unicast", "add", "10.0.1.0/24",
+		"nlri", "add", "10.0.1.0/24",
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "srv6 prefix-sid requires")

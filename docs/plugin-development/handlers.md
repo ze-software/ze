@@ -493,7 +493,7 @@ These methods are available at runtime (after startup) to call the engine:
 Injects a route update to matching peers.
 
 ```go
-peers, routes, err := p.UpdateRoute(ctx, "192.168.1.1", "update text nhop set 10.0.0.1 nlri ipv4/unicast add 10.0.1.0/24")
+peers, routes, err := p.UpdateRoute(ctx, "192.168.1.1", "update text nhop set 10.0.0.1 nlri add 10.0.1.0/24")
 ```
 
 ### DispatchCommand

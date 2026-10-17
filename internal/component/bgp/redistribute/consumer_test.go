@@ -62,7 +62,7 @@ func TestBGPConsumerInjectRoute(t *testing.T) {
 	calls := disp.snapshot()
 	require.Len(t, calls, 1)
 	assert.Equal(t, "*", calls[0].selector)
-	assert.Equal(t, "update text origin incomplete nhop self nlri ipv4/unicast add 10.0.0.1/32", calls[0].command)
+	assert.Equal(t, "update text origin incomplete nhop self nlri add 10.0.0.1/32", calls[0].command)
 }
 
 // TestBGPConsumerInjectRouteExplicitNextHop verifies explicit next-hop is preserved.
@@ -80,7 +80,7 @@ func TestBGPConsumerInjectRouteExplicitNextHop(t *testing.T) {
 
 	calls := disp.snapshot()
 	require.Len(t, calls, 1)
-	assert.Equal(t, "update text origin incomplete nhop 192.0.2.1 nlri ipv4/unicast add 10.0.0.0/24", calls[0].command)
+	assert.Equal(t, "update text origin incomplete nhop 192.0.2.1 nlri add 10.0.0.0/24", calls[0].command)
 }
 
 // TestBGPConsumerInjectRouteIPv6 verifies IPv6 announce command.
@@ -98,7 +98,7 @@ func TestBGPConsumerInjectRouteIPv6(t *testing.T) {
 
 	calls := disp.snapshot()
 	require.Len(t, calls, 1)
-	assert.Equal(t, "update text origin incomplete nhop self nlri ipv6/unicast add 2001:db8::1/128", calls[0].command)
+	assert.Equal(t, "update text origin incomplete nhop self mp ipv6/unicast add 2001:db8::1/128", calls[0].command)
 }
 
 // TestBGPConsumerWithdrawRoute verifies WithdrawRoute produces the canonical withdraw command.
@@ -114,7 +114,7 @@ func TestBGPConsumerWithdrawRoute(t *testing.T) {
 	calls := disp.snapshot()
 	require.Len(t, calls, 1)
 	assert.Equal(t, "*", calls[0].selector)
-	assert.Equal(t, "update text nlri ipv4/unicast del 10.0.0.1/32", calls[0].command)
+	assert.Equal(t, "update text nlri del 10.0.0.1/32", calls[0].command)
 }
 
 // TestBGPConsumerInjectRouteOriginASN verifies a nonzero OriginASN turns the
@@ -137,7 +137,7 @@ func TestBGPConsumerInjectRouteOriginASN(t *testing.T) {
 
 	calls := disp.snapshot()
 	require.Len(t, calls, 1)
-	assert.Equal(t, "update text origin igp origin-as 112 nhop self nlri ipv4/unicast add 192.175.48.0/24", calls[0].command)
+	assert.Equal(t, "update text origin igp origin-as 112 nhop self nlri add 192.175.48.0/24", calls[0].command)
 }
 
 // TestBGPConsumerInjectRouteCommunity verifies a community list renders as
@@ -158,7 +158,7 @@ func TestBGPConsumerInjectRouteCommunity(t *testing.T) {
 
 	calls := disp.snapshot()
 	require.Len(t, calls, 1)
-	assert.Equal(t, "update text origin igp origin-as 112 community [65535:65281 1:2] nhop self nlri ipv4/unicast add 192.175.48.0/24", calls[0].command)
+	assert.Equal(t, "update text origin igp origin-as 112 community [65535:65281 1:2] nhop self nlri add 192.175.48.0/24", calls[0].command)
 }
 
 // TestBGPConsumerInjectRouteCommunityNoOrigin verifies a community with no
@@ -178,7 +178,7 @@ func TestBGPConsumerInjectRouteCommunityNoOrigin(t *testing.T) {
 
 	calls := disp.snapshot()
 	require.Len(t, calls, 1)
-	assert.Equal(t, "update text origin incomplete community [1:2] nhop self nlri ipv4/unicast add 10.0.0.0/24", calls[0].command)
+	assert.Equal(t, "update text origin incomplete community [1:2] nhop self nlri add 10.0.0.0/24", calls[0].command)
 }
 
 // TestBGPConsumerWithdrawRouteIPv6 verifies IPv6 withdraw command.
@@ -193,5 +193,5 @@ func TestBGPConsumerWithdrawRouteIPv6(t *testing.T) {
 
 	calls := disp.snapshot()
 	require.Len(t, calls, 1)
-	assert.Equal(t, "update text nlri ipv6/unicast del 2001:db8::/64", calls[0].command)
+	assert.Equal(t, "update text mp ipv6/unicast del 2001:db8::/64", calls[0].command)
 }

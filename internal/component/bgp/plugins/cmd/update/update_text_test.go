@@ -226,7 +226,7 @@ func TestParseUpdateText_FlatAttributes(t *testing.T) {
 		"med", "100",
 		"local-preference", "200",
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -251,7 +251,7 @@ func TestParseUpdateText_FlatListAttributes(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"as-path", "65001,65002",
 		"community", "65000:100,65000:200",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -269,7 +269,7 @@ func TestParseUpdateText_FlatListAttributes(t *testing.T) {
 func TestParseUpdateText_FlatNhopSelf(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "self",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -285,11 +285,11 @@ func TestParseUpdateText_RejectSetKeyword(t *testing.T) {
 		name string
 		args []string
 	}{
-		{"origin set", []string{"origin", "set", "igp", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
-		{"med set", []string{"med", "set", "100", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
-		{"as-path set", []string{"as-path", "set", "65001", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
-		{"community set", []string{"community", "set", "65000:100", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
-		{"nhop set", []string{"nhop", "set", "10.0.0.1", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
+		{"origin set", []string{"origin", "set", "igp", "nlri", "add", "10.0.0.0/24"}},
+		{"med set", []string{"med", "set", "100", "nlri", "add", "10.0.0.0/24"}},
+		{"as-path set", []string{"as-path", "set", "65001", "nlri", "add", "10.0.0.0/24"}},
+		{"community set", []string{"community", "set", "65000:100", "nlri", "add", "10.0.0.0/24"}},
+		{"nhop set", []string{"nhop", "set", "10.0.0.1", "nlri", "add", "10.0.0.0/24"}},
 	}
 
 	for _, tt := range tests {
@@ -308,9 +308,9 @@ func TestParseUpdateText_RejectSetKeyword(t *testing.T) {
 func TestParseUpdateText_RejectMidStreamAttrs(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"origin", "igp",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 		"origin", "egp",
-		"nlri", "ipv4/unicast", "add", "10.0.1.0/24",
+		"nlri", "add", "10.0.1.0/24",
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "attributes must precede all nlri sections")
@@ -325,7 +325,7 @@ func TestParseUpdateText_FlatRD(t *testing.T) {
 		"nhop", "10.0.0.1",
 		"rd", "65000:100",
 		"label", "100",
-		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
+		"mp", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -340,7 +340,7 @@ func TestParseUpdateText_FlatLabel(t *testing.T) {
 		"nhop", "10.0.0.1",
 		"label", "100",
 		"rd", "65000:200",
-		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
+		"mp", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -353,7 +353,7 @@ func TestParseUpdateText_FlatLabel(t *testing.T) {
 func TestParseUpdateText_FlatPathInfo(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/unicast", "path-information", "42", "add", "10.0.0.0/24",
+		"nlri", "path-information", "42", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -368,7 +368,7 @@ func TestParseUpdateText_FlatPathInfo(t *testing.T) {
 func TestParseUpdateText_ShortAlias_Next(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"next", "10.0.0.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -383,7 +383,7 @@ func TestParseUpdateText_ShortAlias_Pref(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"pref", "200",
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -397,7 +397,7 @@ func TestParseUpdateText_ShortAlias_Path(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"path", "65001,65002",
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -411,7 +411,7 @@ func TestParseUpdateText_ShortAlias_SCom(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"s-com", "65000:100",
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -425,7 +425,7 @@ func TestParseUpdateText_ShortAlias_LCom(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"l-com", "65000:100:200",
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -439,7 +439,7 @@ func TestParseUpdateText_ShortAlias_ECom(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"e-com", "origin:65000:1.2.3.4",
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -447,12 +447,12 @@ func TestParseUpdateText_ShortAlias_ECom(t *testing.T) {
 
 // TestParseUpdateText_PathIDModifier verifies info (path-information) inside nlri section.
 //
-// VALIDATES: AC-5 — "nlri ipv4/unicast info 42 add 10.0.0.0/24" parsed correctly.
+// VALIDATES: AC-5 — "nlri info 42 add 10.0.0.0/24" parsed correctly.
 // PREVENTS: info only accepted as top-level keyword.
 func TestParseUpdateText_PathIDModifier(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/unicast", "info", "42", "add", "10.0.0.0/24",
+		"nlri", "info", "42", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -475,7 +475,7 @@ func TestParseUpdateText_PathIDBothPositionsAgree(t *testing.T) {
 	topLevel, err := ParseUpdateText([]string{
 		"path-information", "42",
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, topLevel.Groups, 1)
@@ -483,7 +483,7 @@ func TestParseUpdateText_PathIDBothPositionsAgree(t *testing.T) {
 
 	inSection, err := ParseUpdateText([]string{
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/unicast", "path-information", "42", "add", "10.0.0.0/24",
+		"nlri", "path-information", "42", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, inSection.Groups, 1)
@@ -500,7 +500,7 @@ func TestParseUpdateText_PathIDBothPositionsAgree(t *testing.T) {
 func TestParseUpdateText_LongForm_NextHop(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"next-hop", "10.0.0.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -538,7 +538,7 @@ func TestParseUpdateText_OriginSet(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := ParseUpdateText([]string{
 				"origin", tt.origin,
-				"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+				"nlri", "add", "10.0.0.0/24",
 			})
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
@@ -557,7 +557,7 @@ func TestParseUpdateText_MultipleAttrs(t *testing.T) {
 		"origin", "igp",
 		"med", "100",
 		"local-preference", "200",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -576,7 +576,7 @@ func TestParseUpdateText_MultipleAttrs(t *testing.T) {
 func TestParseUpdateText_CommunitySet(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"community", "[65000:100", "65000:200]",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -620,7 +620,7 @@ func TestParseUpdateText_CommunityWellKnownNames(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := ParseUpdateText([]string{
 				"community", tc.name,
-				"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+				"nlri", "add", "10.0.0.0/24",
 			})
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
@@ -644,7 +644,7 @@ func TestParseUpdateText_CommunityWellKnownNames(t *testing.T) {
 func TestParseUpdateText_LargeCommunity(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"large-community", "[65000:1:2]",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -662,7 +662,7 @@ func TestParseUpdateText_ExtendedCommunity(t *testing.T) {
 	// Parser supports: origin:ASN:IP, redirect:ASN:target, rate-limit:bps
 	result, err := ParseUpdateText([]string{
 		"extended-community", "[origin:65000:1.2.3.4]",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -684,9 +684,9 @@ func TestParseUpdateText_RejectAddOnAttributes(t *testing.T) {
 		name string
 		args []string
 	}{
-		{"origin", []string{"origin", "add", "igp", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
-		{"med", []string{"med", "add", "100", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
-		{"local-preference", []string{"local-preference", "add", "100", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
+		{"origin", []string{"origin", "add", "igp", "nlri", "add", "10.0.0.0/24"}},
+		{"med", []string{"med", "add", "100", "nlri", "add", "10.0.0.0/24"}},
+		{"local-preference", []string{"local-preference", "add", "100", "nlri", "add", "10.0.0.0/24"}},
 	}
 
 	for _, tt := range tests {
@@ -708,7 +708,7 @@ func TestParseUpdateText_RejectAddOnAttributes(t *testing.T) {
 // PREVENTS: Basic NLRI parsing failures.
 func TestParseUpdateText_NLRISectionBasic(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -726,7 +726,7 @@ func TestParseUpdateText_NLRISectionBasic(t *testing.T) {
 // PREVENTS: Only first prefix being parsed.
 func TestParseUpdateText_NLRIMultiplePrefixes(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24", "10.0.1.0/24", "10.0.2.0/24",
+		"nlri", "add", "10.0.0.0/24", "10.0.1.0/24", "10.0.2.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -739,7 +739,7 @@ func TestParseUpdateText_NLRIMultiplePrefixes(t *testing.T) {
 // PREVENTS: add/del mode confusion.
 func TestParseUpdateText_NLRIMixedAddDel(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24", "del", "10.0.1.0/24",
+		"nlri", "add", "10.0.0.0/24", "del", "10.0.1.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -757,7 +757,7 @@ func TestParseUpdateText_NLRIMixedAddDel(t *testing.T) {
 // PREVENTS: Requiring add before del.
 func TestParseUpdateText_NLRIWithdrawOnly(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/unicast", "del", "10.0.0.0/24",
+		"nlri", "del", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -775,7 +775,7 @@ func TestParseUpdateText_NLRIWithdrawOnly(t *testing.T) {
 func TestParseUpdateText_NLRIPrefixKeyword(t *testing.T) {
 	// With prefix keyword (as generated by NLRI String() and bgp-rs withdrawals)
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/unicast", "add", "prefix", "10.0.0.0/24",
+		"nlri", "add", "prefix", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -784,7 +784,7 @@ func TestParseUpdateText_NLRIPrefixKeyword(t *testing.T) {
 
 	// Del with prefix keyword
 	result, err = ParseUpdateText([]string{
-		"nlri", "ipv4/unicast", "del", "prefix", "10.0.0.0/24",
+		"nlri", "del", "prefix", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -793,7 +793,7 @@ func TestParseUpdateText_NLRIPrefixKeyword(t *testing.T) {
 
 	// Mixed: add with prefix, del with prefix
 	result, err = ParseUpdateText([]string{
-		"nlri", "ipv4/unicast", "add", "prefix", "10.0.0.0/24", "del", "prefix", "10.0.1.0/24",
+		"nlri", "add", "prefix", "10.0.0.0/24", "del", "prefix", "10.0.1.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -807,7 +807,7 @@ func TestParseUpdateText_NLRIPrefixKeyword(t *testing.T) {
 // PREVENTS: Mode switching errors.
 func TestParseUpdateText_NLRIMultipleAddDel(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24", "10.0.1.0/24",
+		"nlri", "add", "10.0.0.0/24", "10.0.1.0/24",
 		"del", "10.0.2.0/24",
 		"add", "10.0.3.0/24",
 	})
@@ -825,7 +825,7 @@ func TestParseUpdateText_NLRIMultipleAddDel(t *testing.T) {
 // PREVENTS: Empty groups in result.
 func TestParseUpdateText_NLRIEmptyError(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nlri", "ipv4/unicast",
+		"nlri",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, route.ErrEmptyNLRISection)
@@ -837,7 +837,7 @@ func TestParseUpdateText_NLRIEmptyError(t *testing.T) {
 // PREVENTS: Silent default behavior.
 func TestParseUpdateText_NLRIMissingAddDel(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nlri", "ipv4/unicast", "10.0.0.0/24",
+		"nlri", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, route.ErrMissingAddDel)
@@ -851,7 +851,7 @@ func TestParseUpdateText_AttrAndNLRI(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"origin", "igp",
 		"nhop", "192.0.2.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -872,8 +872,8 @@ func TestParseUpdateText_MultipleGroups(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"origin", "igp",
 		"community", "[65000:100]",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-		"nlri", "ipv6/unicast", "add", "2001:db8::/32",
+		"nlri", "add", "10.0.0.0/24",
+		"mp", "ipv6/unicast", "add", "2001:db8::/32",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 2)
@@ -894,7 +894,7 @@ func TestParseUpdateText_MultipleGroups(t *testing.T) {
 // PREVENTS: IPv6 parsing failures.
 func TestParseUpdateText_IPv6(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv6/unicast", "add", "2001:db8::/32",
+		"mp", "ipv6/unicast", "add", "2001:db8::/32",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -911,7 +911,7 @@ func TestParseUpdateText_IPv6(t *testing.T) {
 // PREVENTS: Family/prefix mismatches.
 func TestParseUpdateText_FamilyMismatch(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nlri", "ipv6/unicast", "add", "10.0.0.0/24",
+		"mp", "ipv6/unicast", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, route.ErrFamilyMismatch)
@@ -924,7 +924,7 @@ func TestParseUpdateText_FamilyMismatch(t *testing.T) {
 func TestParseUpdateText_UnknownAttribute(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"unknown-attr", "value",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown-attr")
@@ -940,7 +940,7 @@ func TestParseUpdateText_UnsupportedFamily(t *testing.T) {
 	// path to reach. The example used to be MVPN, which is now writable
 	// (update_text_exabgp_test.go TestMVPNSectionMatchesTheExaBGPWire).
 	_, err := ParseUpdateText([]string{
-		"nlri", "ipv4/rtc", "add", "10.0.0.0/24",
+		"mp", "ipv4/rtc", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, route.ErrFamilyNotSupported)
@@ -952,7 +952,7 @@ func TestParseUpdateText_UnsupportedFamily(t *testing.T) {
 // PREVENTS: Panic on invalid family.
 func TestParseUpdateText_InvalidFamilyString(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nlri", "not-a-family", "add", "10.0.0.0/24",
+		"mp", "not-a-family", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, route.ErrInvalidFamily)
@@ -964,7 +964,7 @@ func TestParseUpdateText_InvalidFamilyString(t *testing.T) {
 // PREVENTS: Panic on invalid prefix.
 func TestParseUpdateText_InvalidPrefix(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nlri", "ipv4/unicast", "add", "not-a-prefix",
+		"nlri", "add", "not-a-prefix",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, route.ErrInvalidPrefix)
@@ -976,7 +976,7 @@ func TestParseUpdateText_InvalidPrefix(t *testing.T) {
 // PREVENTS: Empty announce list.
 func TestParseUpdateText_MissingPrefixAfterAdd(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nlri", "ipv4/unicast", "add",
+		"nlri", "add",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, route.ErrEmptyNLRISection)
@@ -988,7 +988,7 @@ func TestParseUpdateText_MissingPrefixAfterAdd(t *testing.T) {
 // PREVENTS: Watchdog name loss.
 func TestParseUpdateText_Watchdog(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24", "watchdog", "set", "my-watchdog",
+		"nlri", "add", "10.0.0.0/24", "watchdog", "set", "my-watchdog",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -1018,8 +1018,8 @@ func TestParseUpdateText_SpecExample(t *testing.T) {
 		"origin", "igp",
 		"nhop", "192.0.2.1",
 		"community", "65000:100,65000:200",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24", "10.0.1.0/24",
-		"nlri", "ipv6/unicast", "add", "2001:db8::/32",
+		"nlri", "add", "10.0.0.0/24", "10.0.1.0/24",
+		"mp", "ipv6/unicast", "add", "2001:db8::/32",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 2)
@@ -1089,8 +1089,8 @@ func TestParsedAttrs_Snapshot_DeepCopyPointers(t *testing.T) {
 // PREVENTS: Watchdog bleeding across sections.
 func TestParseUpdateText_MultipleWatchdog(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24", "watchdog", "set", "first",
-		"nlri", "ipv4/unicast", "add", "10.0.1.0/24", "watchdog", "set", "second",
+		"nlri", "add", "10.0.0.0/24", "watchdog", "set", "first",
+		"nlri", "add", "10.0.1.0/24", "watchdog", "set", "second",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 2)
@@ -1105,7 +1105,7 @@ func TestParseUpdateText_MultipleWatchdog(t *testing.T) {
 // PREVENTS: Wrong address family accepted.
 func TestParseUpdateText_IPv6InIPv4Family(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nlri", "ipv4/unicast", "add", "2001:db8::/32",
+		"nlri", "add", "2001:db8::/32",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, route.ErrFamilyMismatch)
@@ -1129,7 +1129,7 @@ func TestParseUpdateText_MulticastFamily(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := ParseUpdateText([]string{
-				"nlri", tt.family, "add", tt.prefix,
+				"mp", tt.family, "add", tt.prefix,
 			})
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
@@ -1144,7 +1144,7 @@ func TestParseUpdateText_MulticastFamily(t *testing.T) {
 // PREVENTS: Case-insensitive matching confusion.
 func TestParseUpdateText_FamilyCaseSensitive(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nlri", "IPV4/UNICAST", "add", "10.0.0.0/24",
+		"mp", "IPV4/UNICAST", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, route.ErrInvalidFamily)
@@ -1170,7 +1170,7 @@ func TestParseUpdateText_OnlyAttrs(t *testing.T) {
 func TestParseUpdateText_WatchdogBeforeNLRI(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"watchdog", "my-pool",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "my-pool", result.WatchdogName)
@@ -1344,7 +1344,7 @@ func TestHandleUpdateText_SimpleAnnounce(t *testing.T) {
 	args := []string{
 		"origin", "igp",
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	}
 
 	resp, err := handleUpdateText(ctx, args)
@@ -1372,7 +1372,7 @@ func TestHandleUpdateText_MultipleRoutes(t *testing.T) {
 
 	args := []string{
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24", "10.0.1.0/24", "10.0.2.0/24",
+		"nlri", "add", "10.0.0.0/24", "10.0.1.0/24", "10.0.2.0/24",
 	}
 
 	resp, err := handleUpdateText(ctx, args)
@@ -1397,7 +1397,7 @@ func TestHandleUpdateText_MixedAnnounceWithdraw(t *testing.T) {
 
 	args := []string{
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24", "del", "10.0.1.0/24",
+		"nlri", "add", "10.0.0.0/24", "del", "10.0.1.0/24",
 	}
 
 	resp, err := handleUpdateText(ctx, args)
@@ -1425,8 +1425,8 @@ func TestHandleUpdateText_MultipleGroups(t *testing.T) {
 	args := []string{
 		"nhop", "10.0.0.1",
 		"community", "[65000:100]",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-		"nlri", "ipv4/unicast", "add", "10.0.1.0/24",
+		"nlri", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.1.0/24",
 	}
 
 	resp, err := handleUpdateText(ctx, args)
@@ -1456,7 +1456,7 @@ func TestHandleUpdateText_WithdrawUnicast(t *testing.T) {
 	}
 
 	args := []string{
-		"nlri", "ipv4/unicast", "del", "10.0.0.0/24", "10.0.1.0/24",
+		"nlri", "del", "10.0.0.0/24", "10.0.1.0/24",
 	}
 
 	resp, err := handleUpdateText(ctx, args)
@@ -1503,7 +1503,7 @@ func TestHandleUpdateText_PeerNotFound(t *testing.T) {
 
 	args := []string{
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	}
 
 	resp, err := handleUpdateText(ctx, args)
@@ -1524,7 +1524,7 @@ func TestHandleUpdateText_WatchdogDeferred(t *testing.T) {
 
 	args := []string{
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 		"watchdog", "my-pool",
 	}
 
@@ -1569,7 +1569,7 @@ func TestHandleUpdateText_IPv6Announce(t *testing.T) {
 
 	args := []string{
 		"nhop", "2001:db8::1",
-		"nlri", "ipv6/unicast", "add", "2001:db8:1::/48",
+		"mp", "ipv6/unicast", "add", "2001:db8:1::/48",
 	}
 
 	resp, err := handleUpdateText(ctx, args)
@@ -1593,7 +1593,7 @@ func TestHandleUpdateText_NextHopSelf(t *testing.T) {
 
 	args := []string{
 		"nhop", "self",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	}
 
 	resp, err := handleUpdateText(ctx, args)
@@ -1617,7 +1617,7 @@ func TestHandleUpdateText_FamilyNotAccepted(t *testing.T) {
 
 	args := []string{
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	}
 
 	resp, err := handleUpdateText(ctx, args)
@@ -1643,8 +1643,8 @@ func TestHandleUpdateText_PartialFamilyAccepted(t *testing.T) {
 	// Single nhop shared across two nlri sections (ipv4 accepted, ipv6 not)
 	args := []string{
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-		"nlri", "ipv6/unicast", "add", "2001:db8:1::/48",
+		"nlri", "add", "10.0.0.0/24",
+		"mp", "ipv6/unicast", "add", "2001:db8:1::/48",
 	}
 
 	resp, err := handleUpdateText(ctx, args)
@@ -1672,7 +1672,7 @@ func TestHandleUpdate_TextSubcommand(t *testing.T) {
 	args := []string{
 		"text",
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	}
 
 	resp, err := handleUpdate(ctx, commandtest.Args(args...))
@@ -1710,7 +1710,7 @@ func TestHandleUpdate_UnknownEncoding(t *testing.T) {
 func TestParseUpdateText_NhopSet(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "192.0.2.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -1725,7 +1725,7 @@ func TestParseUpdateText_NhopSet(t *testing.T) {
 func TestParseUpdateText_NhopSetSelf(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "self",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -1752,7 +1752,7 @@ func TestParseUpdateText_RDSet(t *testing.T) {
 		"nhop", "192.0.2.1",
 		"rd", "65000:100",
 		"label", "1000",
-		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
+		"mp", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -1772,7 +1772,7 @@ func TestParseUpdateText_RDSetIPFormat(t *testing.T) {
 		"nhop", "192.0.2.1",
 		"rd", "192.0.2.1:100",
 		"label", "1000",
-		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
+		"mp", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -1794,7 +1794,7 @@ func TestParseUpdateText_LabelSet(t *testing.T) {
 		"nhop", "192.0.2.1",
 		"rd", "65000:100",
 		"label", "1000",
-		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
+		"mp", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -1813,7 +1813,7 @@ func TestParseUpdateText_LabelSetZero(t *testing.T) {
 		"nhop", "192.0.2.1",
 		"rd", "65000:100",
 		"label", "0",
-		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
+		"mp", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -1832,7 +1832,7 @@ func TestParseUpdateText_LabelSetMax(t *testing.T) {
 		"nhop", "192.0.2.1",
 		"rd", "65000:100",
 		"label", "1048575", // 0xFFFFF = max 20-bit
-		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
+		"mp", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -1851,7 +1851,7 @@ func TestParseUpdateText_LabelSetOverflow(t *testing.T) {
 		"nhop", "192.0.2.1",
 		"rd", "65000:100",
 		"label", "1048576", // > 20-bit max
-		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
+		"mp", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "label out of range")
@@ -1869,7 +1869,7 @@ func TestParseUpdateText_VPNMissingRD(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"nhop", "192.0.2.1",
 		"label", "1000", // label but no rd
-		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
+		"mp", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, route.ErrMissingRD)
@@ -1883,7 +1883,7 @@ func TestParseUpdateText_VPNMissingLabel(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"nhop", "192.0.2.1",
 		"rd", "65000:100", // rd but no label
-		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
+		"mp", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, route.ErrMissingLabel)
@@ -1897,7 +1897,7 @@ func TestParseUpdateText_LabeledUnicast(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "192.0.2.1",
 		"label", "1000",
-		"nlri", "ipv4/mpls-label", "add", "10.0.0.0/24",
+		"mp", "ipv4/mpls-label", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -1919,7 +1919,7 @@ func TestParseUpdateText_LabeledUnicastMissingLabel(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"nhop", "192.0.2.1",
 		// no label
-		"nlri", "ipv4/mpls-label", "add", "10.0.0.0/24",
+		"mp", "ipv4/mpls-label", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, route.ErrMissingLabel)
@@ -1934,7 +1934,7 @@ func TestParseUpdateText_IPv6VPN(t *testing.T) {
 		"nhop", "2001:db8::1",
 		"rd", "65000:100",
 		"label", "1000",
-		"nlri", "ipv6/mpls-vpn", "add", "2001:db8:1::/48",
+		"mp", "ipv6/mpls-vpn", "add", "2001:db8:1::/48",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -1952,7 +1952,7 @@ func TestParseUpdateText_IPv6LabeledUnicast(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "2001:db8::1",
 		"label", "1000",
-		"nlri", "ipv6/mpls-label", "add", "2001:db8:1::/48",
+		"mp", "ipv6/mpls-label", "add", "2001:db8:1::/48",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -1979,12 +1979,12 @@ func TestParseUpdateText_IPv6LabeledUnicast(t *testing.T) {
 
 // TestParseUpdateText_InNLRIModifierSyntax verifies rd/label inside nlri section.
 //
-// VALIDATES: nlri ipv4/mpls-vpn rd 65000:100 label 1000 add 10.0.0.0/24 works.
+// VALIDATES: mp ipv4/mpls-vpn rd 65000:100 label 1000 add 10.0.0.0/24 works.
 // PREVENTS: Requiring accumulator syntax for VPN routes.
 func TestParseUpdateText_InNLRIModifierSyntax(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "192.0.2.1",
-		"nlri", "ipv4/mpls-vpn", "rd", "65000:100", "label", "1000", "add", "10.0.0.0/24",
+		"mp", "ipv4/mpls-vpn", "rd", "65000:100", "label", "1000", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2002,7 +2002,7 @@ func TestParseUpdateText_InNLRIModifierSyntax(t *testing.T) {
 func TestParseUpdateText_InNLRIModifierMultiplePrefixes(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "192.0.2.1",
-		"nlri", "ipv4/mpls-vpn", "rd", "65000:100", "label", "1000",
+		"mp", "ipv4/mpls-vpn", "rd", "65000:100", "label", "1000",
 		"add", "10.0.0.0/24", "10.0.1.0/24", "10.0.2.0/24",
 	})
 	require.NoError(t, err)
@@ -2025,7 +2025,7 @@ func TestParseUpdateText_InNLRIModifierOverridesAccumulator(t *testing.T) {
 		"nhop", "192.0.2.1",
 		"rd", "65000:100", // Top-level RD
 		"label", "1000", // Top-level label
-		"nlri", "ipv4/mpls-vpn", "rd", "65000:200", "label", "2000", // Override in-section
+		"mp", "ipv4/mpls-vpn", "rd", "65000:200", "label", "2000", // Override in-section
 		"add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -2038,12 +2038,12 @@ func TestParseUpdateText_InNLRIModifierOverridesAccumulator(t *testing.T) {
 
 // TestParseUpdateText_InNLRIModifierIPv6VPN verifies IPv6 VPN with in-NLRI modifiers.
 //
-// VALIDATES: nlri ipv6/mpls-vpn rd ... label ... add ... works.
+// VALIDATES: mp ipv6/mpls-vpn rd ... label ... add ... works.
 // PREVENTS: IPv6 VPN not supporting in-NLRI modifier syntax.
 func TestParseUpdateText_InNLRIModifierIPv6VPN(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "2001:db8::1",
-		"nlri", "ipv6/mpls-vpn", "rd", "65000:100", "label", "1000", "add", "2001:db8:1::/48",
+		"mp", "ipv6/mpls-vpn", "rd", "65000:100", "label", "1000", "add", "2001:db8:1::/48",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2055,12 +2055,12 @@ func TestParseUpdateText_InNLRIModifierIPv6VPN(t *testing.T) {
 
 // TestParseUpdateText_InNLRIModifierLabelOnly verifies label-only in-NLRI modifier.
 //
-// VALIDATES: nlri ipv4/nlri-mpls label 1000 add ... works (labeled unicast).
+// VALIDATES: mp ipv4/nlri-mpls label 1000 add ... works (labeled unicast).
 // PREVENTS: Label-only modifier not working.
 func TestParseUpdateText_InNLRIModifierLabelOnly(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "192.0.2.1",
-		"nlri", "ipv4/mpls-label", "label", "1000", "add", "10.0.0.0/24",
+		"mp", "ipv4/mpls-label", "label", "1000", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2074,12 +2074,12 @@ func TestParseUpdateText_InNLRIModifierLabelOnly(t *testing.T) {
 
 // TestParseUpdateText_InNLRIModifierRDOnlyStillNeedsLabel verifies rd-only still requires label.
 //
-// VALIDATES: nlri ipv4/mpls-vpn rd ... add ... fails (missing label).
+// VALIDATES: mp ipv4/mpls-vpn rd ... add ... fails (missing label).
 // PREVENTS: VPN routes created without label.
 func TestParseUpdateText_InNLRIModifierRDOnlyStillNeedsLabel(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"nhop", "192.0.2.1",
-		"nlri", "ipv4/mpls-vpn", "rd", "65000:100", "add", "10.0.0.0/24",
+		"mp", "ipv4/mpls-vpn", "rd", "65000:100", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, route.ErrMissingLabel)
@@ -2087,12 +2087,12 @@ func TestParseUpdateText_InNLRIModifierRDOnlyStillNeedsLabel(t *testing.T) {
 
 // TestParseUpdateText_InNLRIModifierLabelOnlyStillNeedsRDForVPN verifies label-only still requires rd for VPN.
 //
-// VALIDATES: nlri ipv4/mpls-vpn label ... add ... fails (missing rd).
+// VALIDATES: mp ipv4/mpls-vpn label ... add ... fails (missing rd).
 // PREVENTS: VPN routes created without RD.
 func TestParseUpdateText_InNLRIModifierLabelOnlyStillNeedsRDForVPN(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"nhop", "192.0.2.1",
-		"nlri", "ipv4/mpls-vpn", "label", "1000", "add", "10.0.0.0/24",
+		"mp", "ipv4/mpls-vpn", "label", "1000", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, route.ErrMissingRD)
@@ -2105,8 +2105,8 @@ func TestParseUpdateText_InNLRIModifierLabelOnlyStillNeedsRDForVPN(t *testing.T)
 func TestParseUpdateText_InNLRIModifierScopeIsSectionOnly(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "192.0.2.1",
-		"nlri", "ipv4/mpls-vpn", "rd", "65000:100", "label", "1000", "add", "10.0.0.0/24",
-		"nlri", "ipv4/unicast", "add", "10.0.1.0/24", // unicast doesn't need rd/label
+		"mp", "ipv4/mpls-vpn", "rd", "65000:100", "label", "1000", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.1.0/24", // unicast doesn't need rd/label
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 2)
@@ -2129,7 +2129,7 @@ func TestParseUpdateText_InNLRIModifierScopeIsSectionOnly(t *testing.T) {
 // PREVENTS: FlowSpec family not being recognized.
 func TestParseUpdateText_FlowSpecBasic(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flow", "add", "destination-ipv4", "10.0.0.0/24",
+		"mp", "ipv4/flow", "add", "destination-ipv4", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2156,20 +2156,20 @@ func TestParseUpdateText_FlowSpecResponderGrammar(t *testing.T) {
 	}{
 		{
 			"v4 rate-limit full (protocol =6)",
-			[]string{"extended-community", "[rate-limit:9600]", "nlri", "ipv4/flow", "add",
+			[]string{"extended-community", "[rate-limit:9600]", "mp", "ipv4/flow", "add",
 				"destination-ipv4", "192.0.2.0/24", "protocol", "=6", "destination-port", "=80", "source-port", "=1024", "tcp-flags", "syn&ack"},
 		},
 		{
 			"v4 bare protocol parses same as =6",
-			[]string{"nlri", "ipv4/flow", "add", "destination-ipv4", "192.0.2.0/24", "protocol", "6"},
+			[]string{"mp", "ipv4/flow", "add", "destination-ipv4", "192.0.2.0/24", "protocol", "6"},
 		},
 		{
 			"v4 discard as rate 0",
-			[]string{"extended-community", "[rate-limit:0]", "nlri", "ipv4/flow", "add", "destination-ipv4", "203.0.113.5/32"},
+			[]string{"extended-community", "[rate-limit:0]", "mp", "ipv4/flow", "add", "destination-ipv4", "203.0.113.5/32"},
 		},
 		{
 			"v6 rate-limit uses destination-ipv6 keyword",
-			[]string{"extended-community", "[rate-limit:1000]", "nlri", "ipv6/flow", "add", "destination-ipv6", "2001:db8::/32", "protocol", "=17"},
+			[]string{"extended-community", "[rate-limit:1000]", "mp", "ipv6/flow", "add", "destination-ipv6", "2001:db8::/32", "protocol", "=17"},
 		},
 	}
 	for _, tt := range tests {
@@ -2205,7 +2205,7 @@ func TestParseUpdateText_FlowSpecProtocol(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := ParseUpdateText([]string{
-				"nlri", "ipv4/flow", "add", "protocol", tt.protocol,
+				"mp", "ipv4/flow", "add", "protocol", tt.protocol,
 			})
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
@@ -2240,7 +2240,7 @@ func TestParseUpdateText_FlowSpecPort(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := ParseUpdateText([]string{
-				"nlri", "ipv4/flow", "add", "destination-port", tt.port,
+				"mp", "ipv4/flow", "add", "destination-port", tt.port,
 			})
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
@@ -2258,7 +2258,7 @@ func TestParseUpdateText_FlowSpecPort(t *testing.T) {
 // PREVENTS: Port range not being parsed as AND condition.
 func TestParseUpdateText_FlowSpecPortRange(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flow", "add", "destination-port", ">=1", "<=1023",
+		"mp", "ipv4/flow", "add", "destination-port", ">=1", "<=1023",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2274,7 +2274,7 @@ func TestParseUpdateText_FlowSpecPortRange(t *testing.T) {
 // PREVENTS: Only first component being parsed.
 func TestParseUpdateText_FlowSpecMultipleComponents(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flow", "add",
+		"mp", "ipv4/flow", "add",
 		"destination-ipv4", "10.0.0.0/24",
 		"protocol", "tcp",
 		"destination-port", "=80",
@@ -2301,7 +2301,7 @@ func TestParseUpdateText_FlowSpecMultipleComponents(t *testing.T) {
 // PREVENTS: FlowSpec withdraw not working.
 func TestParseUpdateText_FlowSpecWithdraw(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flow", "del", "destination-ipv4", "10.0.0.0/24",
+		"mp", "ipv4/flow", "del", "destination-ipv4", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2318,7 +2318,7 @@ func TestParseUpdateText_FlowSpecWithdraw(t *testing.T) {
 // PREVENTS: FlowSpec VPN not parsing RD.
 func TestParseUpdateText_FlowSpecVPN(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flow-vpn", "add", "rd", "65000:100",
+		"mp", "ipv4/flow-vpn", "add", "rd", "65000:100",
 		"destination-ipv4", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -2335,7 +2335,7 @@ func TestParseUpdateText_FlowSpecVPN(t *testing.T) {
 // PREVENTS: IPv6 FlowSpec not being parsed.
 func TestParseUpdateText_FlowSpecIPv6(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv6/flow", "add", "destination-ipv6", "2001:db8::/32",
+		"mp", "ipv6/flow", "add", "destination-ipv6", "2001:db8::/32",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2350,7 +2350,7 @@ func TestParseUpdateText_FlowSpecIPv6(t *testing.T) {
 // PREVENTS: TCP flags not parsed.
 func TestParseUpdateText_FlowSpecTCPFlags(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flow", "add", "tcp-flags", "syn", "ack",
+		"mp", "ipv4/flow", "add", "tcp-flags", "syn", "ack",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2366,7 +2366,7 @@ func TestParseUpdateText_FlowSpecTCPFlags(t *testing.T) {
 // PREVENTS: Fragment component not parsed.
 func TestParseUpdateText_FlowSpecFragment(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flow", "add", "fragment", "dont-fragment",
+		"mp", "ipv4/flow", "add", "fragment", "dont-fragment",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2397,7 +2397,7 @@ func TestParseUpdateText_FlowSpecTCPFlagsOperators(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flow", "add", "tcp-flags"}, tt.flags...)
+			args := append([]string{"mp", "ipv4/flow", "add", "tcp-flags"}, tt.flags...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
@@ -2426,7 +2426,7 @@ func TestParseUpdateText_FlowSpecFragmentOperators(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flow", "add", "fragment"}, tt.flags...)
+			args := append([]string{"mp", "ipv4/flow", "add", "fragment"}, tt.flags...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
@@ -2444,7 +2444,7 @@ func TestParseUpdateText_FlowSpecFragmentOperators(t *testing.T) {
 // PREVENTS: Components parsed without mode.
 func TestParseUpdateText_FlowSpecMissingAdd(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flow", "destination-ipv4", "10.0.0.0/24",
+		"mp", "ipv4/flow", "destination-ipv4", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, route.ErrMissingAddDel)
@@ -2456,7 +2456,7 @@ func TestParseUpdateText_FlowSpecMissingAdd(t *testing.T) {
 // PREVENTS: FlowSpec VPN created without RD.
 func TestParseUpdateText_FlowSpecVPNMissingRD(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flow-vpn", "add", "destination-ipv4", "10.0.0.0/24",
+		"mp", "ipv4/flow-vpn", "add", "destination-ipv4", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, route.ErrMissingRD)
@@ -2473,7 +2473,7 @@ func TestParseUpdateText_FlowSpecVPNMissingRD(t *testing.T) {
 func TestParseUpdateText_ExtCommTrafficRate(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"extended-community", "traffic-rate", "65000", "1000000",
-		"nlri", "ipv4/flow", "add", "destination-ipv4", "10.0.0.0/24",
+		"mp", "ipv4/flow", "add", "destination-ipv4", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2487,7 +2487,7 @@ func TestParseUpdateText_ExtCommTrafficRate(t *testing.T) {
 func TestParseUpdateText_ExtCommTrafficRatePackets(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"extended-community", "traffic-rate", "65000", "1000", "packets",
-		"nlri", "ipv4/flow", "add", "destination-ipv4", "10.0.0.0/24",
+		"mp", "ipv4/flow", "add", "destination-ipv4", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2504,7 +2504,7 @@ func TestParseUpdateText_ExtCommTrafficRatePackets(t *testing.T) {
 func TestParseUpdateText_ExtCommDiscard(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"extended-community", "discard",
-		"nlri", "ipv4/flow", "add", "destination-ipv4", "10.0.0.0/24",
+		"mp", "ipv4/flow", "add", "destination-ipv4", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2518,7 +2518,7 @@ func TestParseUpdateText_ExtCommDiscard(t *testing.T) {
 func TestParseUpdateText_ExtCommRedirect(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"extended-community", "redirect", "65000", "100",
-		"nlri", "ipv4/flow", "add", "destination-ipv4", "10.0.0.0/24",
+		"mp", "ipv4/flow", "add", "destination-ipv4", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2532,7 +2532,7 @@ func TestParseUpdateText_ExtCommRedirect(t *testing.T) {
 func TestParseUpdateText_ExtCommTrafficMarking(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"extended-community", "traffic-marking", "46",
-		"nlri", "ipv4/flow", "add", "destination-ipv4", "10.0.0.0/24",
+		"mp", "ipv4/flow", "add", "destination-ipv4", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2546,7 +2546,7 @@ func TestParseUpdateText_ExtCommTrafficMarking(t *testing.T) {
 func TestParseUpdateText_ExtCommRateLimitPacketsList(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"extended-community", "[rate-limit:1000:packets]",
-		"nlri", "ipv4/flow", "add", "source-ipv4", "10.0.1.0/24", "protocol", "tcp", "destination-port", "=3128",
+		"mp", "ipv4/flow", "add", "source-ipv4", "10.0.1.0/24", "protocol", "tcp", "destination-port", "=3128",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2563,7 +2563,7 @@ func TestParseUpdateText_ExtCommRateLimitPacketsList(t *testing.T) {
 func TestParseUpdateText_ExtCommRateLimitPacketsLegacyList(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"extended-community", "[rate-limit-packets:1000]",
-		"nlri", "ipv4/flow", "add", "source-ipv4", "10.0.1.0/24", "protocol", "tcp", "destination-port", "=3128",
+		"mp", "ipv4/flow", "add", "source-ipv4", "10.0.1.0/24", "protocol", "tcp", "destination-port", "=3128",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2579,7 +2579,7 @@ func TestParseUpdateText_ExtCommRateLimitPacketsLegacyList(t *testing.T) {
 // PREVENTS: Only destination prefix working.
 func TestParseUpdateText_FlowSpecSourcePrefix(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flow", "add", "source-ipv4", "192.168.1.0/24",
+		"mp", "ipv4/flow", "add", "source-ipv4", "192.168.1.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2595,7 +2595,7 @@ func TestParseUpdateText_FlowSpecSourcePrefix(t *testing.T) {
 // PREVENTS: ICMP type not recognized.
 func TestParseUpdateText_FlowSpecICMPType(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flow", "add", "icmp-type", "8", // Echo request
+		"mp", "ipv4/flow", "add", "icmp-type", "8", // Echo request
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2611,7 +2611,7 @@ func TestParseUpdateText_FlowSpecICMPType(t *testing.T) {
 // PREVENTS: ICMP code not recognized.
 func TestParseUpdateText_FlowSpecICMPCode(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flow", "add", "icmp-code", "0",
+		"mp", "ipv4/flow", "add", "icmp-code", "0",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2627,7 +2627,7 @@ func TestParseUpdateText_FlowSpecICMPCode(t *testing.T) {
 // PREVENTS: DSCP not recognized.
 func TestParseUpdateText_FlowSpecDSCP(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flow", "add", "dscp", "46", // EF
+		"mp", "ipv4/flow", "add", "dscp", "46", // EF
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2643,7 +2643,7 @@ func TestParseUpdateText_FlowSpecDSCP(t *testing.T) {
 // PREVENTS: Packet length not recognized.
 func TestParseUpdateText_FlowSpecPacketLength(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flow", "add", "packet-length", ">=100", "<=1500",
+		"mp", "ipv4/flow", "add", "packet-length", ">=100", "<=1500",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2659,7 +2659,7 @@ func TestParseUpdateText_FlowSpecPacketLength(t *testing.T) {
 // PREVENTS: Source port not recognized.
 func TestParseUpdateText_FlowSpecSourcePort(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flow", "add", "source-port", "=443",
+		"mp", "ipv4/flow", "add", "source-port", "=443",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2675,7 +2675,7 @@ func TestParseUpdateText_FlowSpecSourcePort(t *testing.T) {
 // PREVENTS: Generic port component not recognized.
 func TestParseUpdateText_FlowSpecPortComponent(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flow", "add", "port", "=22",
+		"mp", "ipv4/flow", "add", "port", "=22",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2719,7 +2719,7 @@ func TestParseUpdateText_FlowSpecAllComponentTypes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flow", "add"}, tt.component...)
+			args := append([]string{"mp", "ipv4/flow", "add"}, tt.component...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err, "component %s failed", tt.name)
 			require.Len(t, result.Groups, 1)
@@ -2744,7 +2744,7 @@ func TestParseUpdateText_FlowSpecNumericOperators(t *testing.T) {
 		for _, op := range operators {
 			t.Run(comp+"_"+op, func(t *testing.T) {
 				result, err := ParseUpdateText([]string{
-					"nlri", "ipv4/flow", "add", comp, op,
+					"mp", "ipv4/flow", "add", comp, op,
 				})
 				require.NoError(t, err, "%s %s failed", comp, op)
 				require.Len(t, result.Groups, 1)
@@ -2836,7 +2836,7 @@ func TestParseUpdateText_FlowSpecBitmaskWireEncoding(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flow", "add", "tcp-flags"}, tt.flags...)
+			args := append([]string{"mp", "ipv4/flow", "add", "tcp-flags"}, tt.flags...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err)
 
@@ -2915,7 +2915,7 @@ func TestParseUpdateText_FlowSpecBitmaskWireBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flow", "add", "tcp-flags"}, tt.flags...)
+			args := append([]string{"mp", "ipv4/flow", "add", "tcp-flags"}, tt.flags...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err)
 
@@ -2984,7 +2984,7 @@ func TestParseUpdateText_FlowSpecTCPFlagsAllOperators(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flow", "add", "tcp-flags"}, tt.flags...)
+			args := append([]string{"mp", "ipv4/flow", "add", "tcp-flags"}, tt.flags...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err, "tcp-flags %v failed", tt.flags)
 			require.Len(t, result.Groups, 1)
@@ -3030,7 +3030,7 @@ func TestParseUpdateText_FlowSpecFragmentAllOperators(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flow", "add", "fragment"}, tt.flags...)
+			args := append([]string{"mp", "ipv4/flow", "add", "fragment"}, tt.flags...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err, "fragment %v failed", tt.flags)
 			require.Len(t, result.Groups, 1)
@@ -3102,7 +3102,7 @@ func TestParseUpdateText_FlowSpecMultiComponent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flow", "add"}, tt.components...)
+			args := append([]string{"mp", "ipv4/flow", "add"}, tt.components...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err, "components %v failed", tt.components)
 			require.Len(t, result.Groups, 1)
@@ -3133,7 +3133,7 @@ func TestParseUpdateText_FlowSpecIPv6Variants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			args := append([]string{"nlri", tt.family, "add"}, tt.components...)
+			args := append([]string{"mp", tt.family, "add"}, tt.components...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err, "IPv6 %s failed", tt.name)
 			require.Len(t, result.Groups, 1)
@@ -3165,7 +3165,7 @@ func TestParseUpdateText_FlowSpecVPNVariants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			args := append([]string{"nlri", tt.family, "add", "rd", tt.rdInput}, tt.components...)
+			args := append([]string{"mp", tt.family, "add", "rd", tt.rdInput}, tt.components...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err, "VPN %s failed", tt.name)
 			require.Len(t, result.Groups, 1)
@@ -3194,7 +3194,7 @@ func TestParseUpdateText_FlowSpecWithdrawVariants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flow", "del"}, tt.components...)
+			args := append([]string{"mp", "ipv4/flow", "del"}, tt.components...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err, "withdraw %s failed", tt.name)
 			require.Len(t, result.Groups, 1)
@@ -3219,92 +3219,92 @@ func TestParseUpdateText_FlowSpecErrors(t *testing.T) {
 	}{
 		{
 			name:    "missing_add_del",
-			args:    []string{"nlri", "ipv4/flow", "destination-ipv4", "10.0.0.0/24"},
+			args:    []string{"mp", "ipv4/flow", "destination-ipv4", "10.0.0.0/24"},
 			wantErr: "add' or 'del",
 		},
 		{
 			name:    "vpn_missing_rd",
-			args:    []string{"nlri", "ipv4/flow-vpn", "add", "destination-ipv4", "10.0.0.0/24"},
+			args:    []string{"mp", "ipv4/flow-vpn", "add", "destination-ipv4", "10.0.0.0/24"},
 			wantErr: "rd required",
 		},
 		{
 			name:    "invalid_prefix",
-			args:    []string{"nlri", "ipv4/flow", "add", "destination-ipv4", "not-a-prefix"},
+			args:    []string{"mp", "ipv4/flow", "add", "destination-ipv4", "not-a-prefix"},
 			wantErr: "invalid",
 		},
 		{
 			name:    "ipv4_prefix_for_ipv6",
-			args:    []string{"nlri", "ipv6/flow", "add", "destination-ipv6", "10.0.0.0/24"},
+			args:    []string{"mp", "ipv6/flow", "add", "destination-ipv6", "10.0.0.0/24"},
 			wantErr: "IPv4",
 		},
 		{
 			name:    "ipv6_prefix_for_ipv4",
-			args:    []string{"nlri", "ipv4/flow", "add", "destination-ipv4", "2001:db8::/32"},
+			args:    []string{"mp", "ipv4/flow", "add", "destination-ipv4", "2001:db8::/32"},
 			wantErr: "IPv6",
 		},
 		{
 			name:    "unknown_protocol",
-			args:    []string{"nlri", "ipv4/flow", "add", "protocol", "unknown"},
+			args:    []string{"mp", "ipv4/flow", "add", "protocol", "unknown"},
 			wantErr: "invalid protocol",
 		},
 		{
 			name:    "invalid_tcp_flag",
-			args:    []string{"nlri", "ipv4/flow", "add", "tcp-flags", "unknown"},
+			args:    []string{"mp", "ipv4/flow", "add", "tcp-flags", "unknown"},
 			wantErr: "unknown flag",
 		},
 		{
 			name:    "invalid_fragment_type",
-			args:    []string{"nlri", "ipv4/flow", "add", "fragment", "unknown"},
+			args:    []string{"mp", "ipv4/flow", "add", "fragment", "unknown"},
 			wantErr: "unknown flag",
 		},
 		{
 			name:    "missing_destination_value",
-			args:    []string{"nlri", "ipv4/flow", "add", "destination-ipv4"},
+			args:    []string{"mp", "ipv4/flow", "add", "destination-ipv4"},
 			wantErr: "requires prefix",
 		},
 		{
 			name:    "missing_protocol_value",
-			args:    []string{"nlri", "ipv4/flow", "add", "protocol"},
+			args:    []string{"mp", "ipv4/flow", "add", "protocol"},
 			wantErr: "requires",
 		},
 		{
 			name:    "empty_flowspec",
-			args:    []string{"nlri", "ipv4/flow", "add"},
+			args:    []string{"mp", "ipv4/flow", "add"},
 			wantErr: "no prefixes", // FlowSpec requires at least one component
 		},
 		{
 			name:    "port_value_overflow",
-			args:    []string{"nlri", "ipv4/flow", "add", "destination-port", "99999"},
+			args:    []string{"mp", "ipv4/flow", "add", "destination-port", "99999"},
 			wantErr: "exceeds max",
 		},
 		{
 			name:    "dscp_value_overflow",
-			args:    []string{"nlri", "ipv4/flow", "add", "dscp", "64"},
+			args:    []string{"mp", "ipv4/flow", "add", "dscp", "64"},
 			wantErr: "exceeds max",
 		},
 		{
 			name:    "protocol_value_overflow",
-			args:    []string{"nlri", "ipv4/flow", "add", "protocol", "256"},
+			args:    []string{"mp", "ipv4/flow", "add", "protocol", "256"},
 			wantErr: "invalid protocol", // ParseUint with 8-bit limit catches this
 		},
 		{
 			name:    "icmp_type_overflow",
-			args:    []string{"nlri", "ipv4/flow", "add", "icmp-type", "256"},
+			args:    []string{"mp", "ipv4/flow", "add", "icmp-type", "256"},
 			wantErr: "exceeds max",
 		},
 		{
 			name:    "icmp_code_overflow",
-			args:    []string{"nlri", "ipv4/flow", "add", "icmp-code", "256"},
+			args:    []string{"mp", "ipv4/flow", "add", "icmp-code", "256"},
 			wantErr: "exceeds max",
 		},
 		{
 			name:    "source_port_overflow",
-			args:    []string{"nlri", "ipv4/flow", "add", "source-port", "65536"},
+			args:    []string{"mp", "ipv4/flow", "add", "source-port", "65536"},
 			wantErr: "exceeds max",
 		},
 		{
 			name:    "packet_length_overflow",
-			args:    []string{"nlri", "ipv4/flow", "add", "packet-length", "65536"},
+			args:    []string{"mp", "ipv4/flow", "add", "packet-length", "65536"},
 			wantErr: "exceeds max",
 		},
 	}
@@ -3342,7 +3342,7 @@ func TestParseUpdateText_FlowSpecBoundaryValues(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := ParseUpdateText([]string{
-				"nlri", "ipv4/flow", "add", tt.component, tt.value,
+				"mp", "ipv4/flow", "add", tt.component, tt.value,
 			})
 			require.NoError(t, err, "%s=%s should be valid", tt.component, tt.value)
 			require.Len(t, result.Groups, 1)
@@ -3390,7 +3390,7 @@ func TestParseUpdateText_FlowSpecWithExtComm(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			nlriPart := append([]string{"nlri", "ipv4/flow", "add"}, tt.components...)
+			nlriPart := append([]string{"mp", "ipv4/flow", "add"}, tt.components...)
 			args := append(tt.extcomm, nlriPart...) //nolint:gocritic // appendAssign: intentional
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err, "extcomm+flowspec %s failed", tt.name)
@@ -3406,11 +3406,11 @@ func TestParseUpdateText_FlowSpecWithExtComm(t *testing.T) {
 
 // TestParseUpdateText_EORIPv4Unicast verifies EOR parsing for IPv4 unicast.
 //
-// VALIDATES: "nlri ipv4/unicast eor" produces EORFamilies with correct family.
+// VALIDATES: "nlri eor" produces EORFamilies with correct family.
 // PREVENTS: EOR command being rejected or parsed incorrectly.
 // RFC 4724 Section 2: End-of-RIB marker.
 func TestParseUpdateText_EORIPv4Unicast(t *testing.T) {
-	result, err := ParseUpdateText([]string{"nlri", "ipv4/unicast", "eor"})
+	result, err := ParseUpdateText([]string{"nlri", "eor"})
 	require.NoError(t, err)
 	require.Len(t, result.EORFamilies, 1)
 	assert.Equal(t, family.IPv4Unicast, result.EORFamilies[0])
@@ -3419,11 +3419,11 @@ func TestParseUpdateText_EORIPv4Unicast(t *testing.T) {
 
 // TestParseUpdateText_EORIPv6Unicast verifies EOR parsing for IPv6 unicast.
 //
-// VALIDATES: "nlri ipv6/unicast eor" produces EORFamilies with correct family.
+// VALIDATES: "mp ipv6/unicast eor" produces EORFamilies with correct family.
 // PREVENTS: IPv6 family being rejected.
 // RFC 4724 Section 2: End-of-RIB marker.
 func TestParseUpdateText_EORIPv6Unicast(t *testing.T) {
-	result, err := ParseUpdateText([]string{"nlri", "ipv6/unicast", "eor"})
+	result, err := ParseUpdateText([]string{"mp", "ipv6/unicast", "eor"})
 	require.NoError(t, err)
 	require.Len(t, result.EORFamilies, 1)
 	assert.Equal(t, family.IPv6Unicast, result.EORFamilies[0])
@@ -3431,11 +3431,11 @@ func TestParseUpdateText_EORIPv6Unicast(t *testing.T) {
 
 // TestParseUpdateText_EORL2VPNEVPN verifies EOR parsing for L2VPN/EVPN.
 //
-// VALIDATES: "nlri l2vpn/evpn eor" produces EORFamilies with correct family.
+// VALIDATES: "mp l2vpn/evpn eor" produces EORFamilies with correct family.
 // PREVENTS: EVPN EOR being rejected.
 // RFC 4724 Section 2: End-of-RIB marker.
 func TestParseUpdateText_EORL2VPNEVPN(t *testing.T) {
-	result, err := ParseUpdateText([]string{"nlri", "l2vpn/evpn", "eor"})
+	result, err := ParseUpdateText([]string{"mp", "l2vpn/evpn", "eor"})
 	require.NoError(t, err)
 	require.Len(t, result.EORFamilies, 1)
 	assert.Equal(t, family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}, result.EORFamilies[0])
@@ -3443,11 +3443,11 @@ func TestParseUpdateText_EORL2VPNEVPN(t *testing.T) {
 
 // TestParseUpdateText_EORL2VPNVPLS verifies EOR parsing for L2VPN/VPLS.
 //
-// VALIDATES: "nlri l2vpn/vpls eor" produces EORFamilies with correct family.
+// VALIDATES: "mp l2vpn/vpls eor" produces EORFamilies with correct family.
 // PREVENTS: VPLS EOR being rejected.
 // RFC 4724 Section 2: End-of-RIB marker.
 func TestParseUpdateText_EORL2VPNVPLS(t *testing.T) {
-	result, err := ParseUpdateText([]string{"nlri", "l2vpn/vpls", "eor"})
+	result, err := ParseUpdateText([]string{"mp", "l2vpn/vpls", "eor"})
 	require.NoError(t, err)
 	require.Len(t, result.EORFamilies, 1)
 	assert.Equal(t, family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIVPLS}, result.EORFamilies[0])
@@ -3459,8 +3459,8 @@ func TestParseUpdateText_EORL2VPNVPLS(t *testing.T) {
 // PREVENTS: Only first EOR being parsed.
 func TestParseUpdateText_EORMultipleFamilies(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/unicast", "eor",
-		"nlri", "ipv6/unicast", "eor",
+		"nlri", "eor",
+		"mp", "ipv6/unicast", "eor",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.EORFamilies, 2)
@@ -3475,8 +3475,8 @@ func TestParseUpdateText_EORMultipleFamilies(t *testing.T) {
 func TestParseUpdateText_EORWithNLRI(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"origin", "igp",
-		"nlri", "ipv6/unicast", "eor",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"mp", "ipv6/unicast", "eor",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.EORFamilies, 1)
@@ -3487,12 +3487,12 @@ func TestParseUpdateText_EORWithNLRI(t *testing.T) {
 
 // TestParseUpdateText_VPLSBasic verifies basic VPLS parsing.
 //
-// VALIDATES: "nlri l2vpn/vpls add rd ... ve-id ... label ..." produces correct VPLS NLRI.
+// VALIDATES: "mp l2vpn/vpls add rd ... ve-id ... label ..." produces correct VPLS NLRI.
 // PREVENTS: VPLS family being rejected.
 // RFC 4761 Section 3.2.2: VPLS BGP NLRI format.
 func TestParseUpdateText_VPLSBasic(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "l2vpn/vpls", "add",
+		"mp", "l2vpn/vpls", "add",
 		"rd", "1:1",
 		"ve-id", "1",
 		"ve-block-offset", "0",
@@ -3517,11 +3517,11 @@ func TestParseUpdateText_VPLSBasic(t *testing.T) {
 
 // TestParseUpdateText_VPLSWithdraw verifies VPLS withdrawal parsing.
 //
-// VALIDATES: "nlri l2vpn/vpls del rd ..." produces correct withdrawal.
+// VALIDATES: "mp l2vpn/vpls del rd ..." produces correct withdrawal.
 // PREVENTS: VPLS withdrawals being rejected.
 func TestParseUpdateText_VPLSWithdraw(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "l2vpn/vpls", "del",
+		"mp", "l2vpn/vpls", "del",
 		"rd", "1:1",
 		"ve-id", "1",
 		"ve-block-offset", "0",
@@ -3540,7 +3540,7 @@ func TestParseUpdateText_VPLSWithdraw(t *testing.T) {
 // PREVENTS: Silent failures on missing required fields.
 func TestParseUpdateText_VPLSMissingRD(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nlri", "l2vpn/vpls", "add",
+		"mp", "l2vpn/vpls", "add",
 		"ve-id", "1",
 		"ve-block-offset", "0",
 		"ve-block-size", "10",
@@ -3552,12 +3552,12 @@ func TestParseUpdateText_VPLSMissingRD(t *testing.T) {
 
 // TestParseUpdateText_EVPNType2Basic verifies EVPN Type 2 (MAC/IP) parsing.
 //
-// VALIDATES: "nlri l2vpn/evpn add mac-ip rd ... mac ... label ..." produces correct EVPN NLRI.
+// VALIDATES: "mp l2vpn/evpn add mac-ip rd ... mac ... label ..." produces correct EVPN NLRI.
 // PREVENTS: EVPN family being rejected.
 // RFC 7432 Section 7.2: MAC/IP Advertisement Route.
 func TestParseUpdateText_EVPNType2Basic(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "l2vpn/evpn", "add", "mac-ip",
+		"mp", "l2vpn/evpn", "add", "mac-ip",
 		"rd", "1:1",
 		"mac", "00:11:22:33:44:55",
 		"label", "100",
@@ -3573,12 +3573,12 @@ func TestParseUpdateText_EVPNType2Basic(t *testing.T) {
 
 // TestParseUpdateText_EVPNType2WithIP verifies EVPN Type 2 with IP parsing.
 //
-// VALIDATES: "nlri l2vpn/evpn add mac-ip rd ... mac ... ip ... label ..." works.
+// VALIDATES: "mp l2vpn/evpn add mac-ip rd ... mac ... ip ... label ..." works.
 // PREVENTS: EVPN MAC/IP with IP being rejected.
 // RFC 7432 Section 7.2: IP Address Length can be 0, 32, or 128.
 func TestParseUpdateText_EVPNType2WithIP(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "l2vpn/evpn", "add", "mac-ip",
+		"mp", "l2vpn/evpn", "add", "mac-ip",
 		"rd", "1:1",
 		"mac", "00:11:22:33:44:55",
 		"ip", "192.168.1.1",
@@ -3594,12 +3594,12 @@ func TestParseUpdateText_EVPNType2WithIP(t *testing.T) {
 
 // TestParseUpdateText_EVPNType5Basic verifies EVPN Type 5 (IP Prefix) parsing.
 //
-// VALIDATES: "nlri l2vpn/evpn add ip-prefix rd ... prefix ... label ..." works.
+// VALIDATES: "mp l2vpn/evpn add ip-prefix rd ... prefix ... label ..." works.
 // PREVENTS: EVPN IP Prefix routes being rejected.
 // RFC 9136 Section 3: IP Prefix Route.
 func TestParseUpdateText_EVPNType5Basic(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "l2vpn/evpn", "add", "ip-prefix",
+		"mp", "l2vpn/evpn", "add", "ip-prefix",
 		"rd", "1:1",
 		"prefix", "10.0.0.0/24",
 		"label", "100",
@@ -3619,7 +3619,7 @@ func TestParseUpdateText_EVPNType5Basic(t *testing.T) {
 // PREVENTS: Silent failures on missing required fields.
 func TestParseUpdateText_EVPNMissingType(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nlri", "l2vpn/evpn", "add",
+		"mp", "l2vpn/evpn", "add",
 		"rd", "1:1",
 	})
 	require.Error(t, err)
@@ -3632,7 +3632,7 @@ func TestParseUpdateText_EVPNMissingType(t *testing.T) {
 func TestParseUpdateText_EVPNType3Multicast(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"extended-community", "target:65000:1",
-		"nlri", "l2vpn/evpn", "add", "multicast",
+		"mp", "l2vpn/evpn", "add", "multicast",
 		"rd", "1:1",
 		"ip", "192.168.1.1",
 	})
@@ -3651,7 +3651,7 @@ func TestParseUpdateText_EVPNType3Multicast(t *testing.T) {
 // PREVENTS: Gateway field not being parsed.
 func TestParseUpdateText_EVPNType5WithGateway(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "l2vpn/evpn", "add", "ip-prefix",
+		"mp", "l2vpn/evpn", "add", "ip-prefix",
 		"rd", "1:1",
 		"prefix", "10.0.0.0/24",
 		"gateway", "192.168.1.254",
@@ -3672,7 +3672,7 @@ func TestParseUpdateText_EVPNType5WithGateway(t *testing.T) {
 // PREVENTS: Invalid routes being created that violate the RFC.
 func TestParseUpdateText_EVPNType5ESIGatewayMutualExclusion(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nlri", "l2vpn/evpn", "add", "ip-prefix",
+		"mp", "l2vpn/evpn", "add", "ip-prefix",
 		"rd", "1:1",
 		"prefix", "10.0.0.0/24",
 		"esi", "00:01:02:03:04:05:06:07:08:09",
@@ -3690,7 +3690,7 @@ func TestParseUpdateText_EVPNType5ESIGatewayMutualExclusion(t *testing.T) {
 func TestParseUpdateText_EVPNType5GatewayFamilyMismatch(t *testing.T) {
 	// IPv4 prefix with IPv6 gateway - invalid
 	_, err := ParseUpdateText([]string{
-		"nlri", "l2vpn/evpn", "add", "ip-prefix",
+		"mp", "l2vpn/evpn", "add", "ip-prefix",
 		"rd", "1:1",
 		"prefix", "10.0.0.0/24",
 		"gateway", "2001:db8::1",
@@ -3701,7 +3701,7 @@ func TestParseUpdateText_EVPNType5GatewayFamilyMismatch(t *testing.T) {
 
 	// IPv6 prefix with IPv4 gateway - invalid
 	_, err = ParseUpdateText([]string{
-		"nlri", "l2vpn/evpn", "add", "ip-prefix",
+		"mp", "l2vpn/evpn", "add", "ip-prefix",
 		"rd", "1:1",
 		"prefix", "2001:db8::/32",
 		"gateway", "192.168.1.1",
@@ -3760,7 +3760,7 @@ func TestUpdateText_OriginValidation_YANG(t *testing.T) {
 	// Parse valid origin
 	_, err := ParseUpdateText([]string{
 		"origin", "igp",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 
@@ -3776,7 +3776,7 @@ func TestUpdateText_OriginValidation_YANG(t *testing.T) {
 
 	_, err = ParseUpdateText([]string{
 		"origin", "bad",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "origin")
@@ -3794,7 +3794,7 @@ func TestUpdateText_MEDRange_YANG(t *testing.T) {
 	// Parse valid MED
 	_, err := ParseUpdateText([]string{
 		"med", "50",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 
@@ -3810,7 +3810,7 @@ func TestUpdateText_MEDRange_YANG(t *testing.T) {
 
 	_, err = ParseUpdateText([]string{
 		"med", "100",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "med")
@@ -3828,7 +3828,7 @@ func TestUpdateText_LocalPrefRange_YANG(t *testing.T) {
 	// Parse valid local-preference
 	_, err := ParseUpdateText([]string{
 		"local-preference", "100",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 
@@ -3844,7 +3844,7 @@ func TestUpdateText_LocalPrefRange_YANG(t *testing.T) {
 
 	_, err = ParseUpdateText([]string{
 		"local-preference", "200",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "local-preference")
@@ -3857,7 +3857,7 @@ func TestUpdateText_LocalPrefRange_YANG(t *testing.T) {
 func TestParseUpdateText_SRPolicyBasic(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "192.0.2.1",
-		"nlri", "ipv4/sr-policy", "add",
+		"mp", "ipv4/sr-policy", "add",
 		"distinguisher", "0", "color", "100", "endpoint", "10.0.0.1",
 	})
 	require.NoError(t, err)
@@ -3883,7 +3883,7 @@ func TestParseUpdateText_SRPolicyBasic(t *testing.T) {
 // PREVENTS: Withdraw path broken for SR-Policy.
 func TestParseUpdateText_SRPolicyWithdraw(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/sr-policy", "del",
+		"mp", "ipv4/sr-policy", "del",
 		"distinguisher", "0", "color", "100", "endpoint", "10.0.0.1",
 	})
 	require.NoError(t, err)
@@ -3899,7 +3899,7 @@ func TestParseUpdateText_SRPolicyWithdraw(t *testing.T) {
 func TestParseUpdateText_SRPolicyIPv6(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "2001:db8::2",
-		"nlri", "ipv6/sr-policy", "add",
+		"mp", "ipv6/sr-policy", "add",
 		"distinguisher", "1", "color", "200", "endpoint", "2001:db8::1",
 	})
 	require.NoError(t, err)
@@ -3916,7 +3916,7 @@ func TestParseUpdateText_SRPolicyIPv6(t *testing.T) {
 func TestParseUpdateText_SRPolicyMissingField(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"nhop", "1.2.3.4",
-		"nlri", "ipv4/sr-policy", "add",
+		"mp", "ipv4/sr-policy", "add",
 		"distinguisher", "0", "color", "100",
 	})
 	require.Error(t, err)
@@ -3929,7 +3929,7 @@ func TestParseUpdateText_SRPolicyMissingField(t *testing.T) {
 // PREVENTS: SR-Policy EOR rejected.
 func TestParseUpdateText_SRPolicyEOR(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/sr-policy", "eor",
+		"mp", "ipv4/sr-policy", "eor",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.EORFamilies, 1)
@@ -3943,7 +3943,7 @@ func TestParseUpdateText_SRPolicyEOR(t *testing.T) {
 func TestParseUpdateText_SRPolicyUnknownKeyword(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"nhop", "1.2.3.4",
-		"nlri", "ipv4/sr-policy", "add",
+		"mp", "ipv4/sr-policy", "add",
 		"distingisher", "0", "color", "100", "endpoint", "10.0.0.1",
 	})
 	require.Error(t, err)
@@ -4004,10 +4004,10 @@ func TestSRPolicyTextMatchesPluginGrammar(t *testing.T) {
 		del  bool
 		want []byte
 	}{
-		{"ipv4 add", "nhop 192.0.2.1 nlri ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1", false, srPolicyWire(family.AFIIPv4, 0, 100, "10.0.0.1")},
-		{"ipv6 add", "nhop 2001:db8::2 nlri ipv6/sr-policy add distinguisher 0 color 100 endpoint 2001:db8::1", false, srPolicyWire(family.AFIIPv6, 0, 100, "2001:db8::1")},
-		{"ipv4 del", "nlri ipv4/sr-policy del " + tail, true, srPolicyWire(family.AFIIPv4, 1, 2, "10.0.0.1")},
-		{"max fields", "nhop 192.0.2.1 nlri ipv4/sr-policy add distinguisher 4294967295 color 4294967295 endpoint 10.0.0.1", false, srPolicyWire(family.AFIIPv4, 4294967295, 4294967295, "10.0.0.1")},
+		{"ipv4 add", "nhop 192.0.2.1 mp ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1", false, srPolicyWire(family.AFIIPv4, 0, 100, "10.0.0.1")},
+		{"ipv6 add", "nhop 2001:db8::2 mp ipv6/sr-policy add distinguisher 0 color 100 endpoint 2001:db8::1", false, srPolicyWire(family.AFIIPv6, 0, 100, "2001:db8::1")},
+		{"ipv4 del", "mp ipv4/sr-policy del " + tail, true, srPolicyWire(family.AFIIPv4, 1, 2, "10.0.0.1")},
+		{"max fields", "nhop 192.0.2.1 mp ipv4/sr-policy add distinguisher 4294967295 color 4294967295 endpoint 10.0.0.1", false, srPolicyWire(family.AFIIPv4, 4294967295, 4294967295, "10.0.0.1")},
 	}
 	for _, tc := range accepted {
 		t.Run("accept/"+tc.name, func(t *testing.T) {
@@ -4029,15 +4029,15 @@ func TestSRPolicyTextMatchesPluginGrammar(t *testing.T) {
 		is      error  // nil when the row is judged by message alone
 		message string // a fragment the operator must read
 	}{
-		{"AC-11b later del", "nhop 192.0.2.1 nlri ipv4/sr-policy add distinguisher 1 del color 2 endpoint 10.0.0.1", errLaterAddDel, "right after the family"},
-		{"AC-11c field before add", "nhop 192.0.2.1 nlri ipv4/sr-policy " + tail, route.ErrMissingAddDel, ""},
-		{"AC-11d top level", "nhop 192.0.2.1 path-information 5 nlri ipv4/sr-policy add " + tail, errFamilyRefusesAddPath, "without an ADD-PATH path identifier"},
-		{"AC-11d top level mixed", "nhop 192.0.2.1 path-information 5 nlri ipv4/unicast add 10.0.0.0/24 nlri ipv4/sr-policy add " + tail, errFamilyRefusesAddPath, "own command"},
-		{"AC-11d before add", "nhop 192.0.2.1 nlri ipv4/sr-policy path-information 5 add " + tail, errFamilyRefusesAddPath, "without an ADD-PATH path identifier"},
-		{"AC-11d inside run", "nhop 192.0.2.1 nlri ipv4/sr-policy add distinguisher 1 path-information 5 color 2 endpoint 10.0.0.1", errFamilyRefusesAddPath, "without an ADD-PATH path identifier"},
-		{"AC-11e rd", "nhop 192.0.2.1 nlri ipv4/sr-policy add distinguisher 1 rd 100:1 color 2 endpoint 10.0.0.1", nil, `"rd"`},
-		{"AC-11e label", "nhop 192.0.2.1 nlri ipv4/sr-policy add distinguisher 1 label 100 color 2 endpoint 10.0.0.1", nil, `"label"`},
-		{"AC-11f endpoint family", "nhop 192.0.2.1 nlri ipv4/sr-policy add distinguisher 1 color 2 endpoint 2001:db8::1", nil, "not IPv4"},
+		{"AC-11b later del", "nhop 192.0.2.1 mp ipv4/sr-policy add distinguisher 1 del color 2 endpoint 10.0.0.1", errLaterAddDel, "right after the family"},
+		{"AC-11c field before add", "nhop 192.0.2.1 mp ipv4/sr-policy " + tail, route.ErrMissingAddDel, ""},
+		{"AC-11d top level", "nhop 192.0.2.1 path-information 5 mp ipv4/sr-policy add " + tail, errFamilyRefusesAddPath, "without an ADD-PATH path identifier"},
+		{"AC-11d top level mixed", "nhop 192.0.2.1 path-information 5 nlri add 10.0.0.0/24 mp ipv4/sr-policy add " + tail, errFamilyRefusesAddPath, "own command"},
+		{"AC-11d before add", "nhop 192.0.2.1 mp ipv4/sr-policy path-information 5 add " + tail, errFamilyRefusesAddPath, "without an ADD-PATH path identifier"},
+		{"AC-11d inside run", "nhop 192.0.2.1 mp ipv4/sr-policy add distinguisher 1 path-information 5 color 2 endpoint 10.0.0.1", errFamilyRefusesAddPath, "without an ADD-PATH path identifier"},
+		{"AC-11e rd", "nhop 192.0.2.1 mp ipv4/sr-policy add distinguisher 1 rd 100:1 color 2 endpoint 10.0.0.1", nil, `"rd"`},
+		{"AC-11e label", "nhop 192.0.2.1 mp ipv4/sr-policy add distinguisher 1 label 100 color 2 endpoint 10.0.0.1", nil, `"label"`},
+		{"AC-11f endpoint family", "nhop 192.0.2.1 mp ipv4/sr-policy add distinguisher 1 color 2 endpoint 2001:db8::1", nil, "not IPv4"},
 	}
 	for _, tc := range refused {
 		t.Run("refuse/"+tc.name, func(t *testing.T) {
@@ -4054,7 +4054,7 @@ func TestSRPolicyTextMatchesPluginGrammar(t *testing.T) {
 		})
 	}
 	for _, token := range []string{"rd", "label"} {
-		_, err := ParseUpdateText(strings.Fields("nhop 192.0.2.1 nlri ipv4/sr-policy add distinguisher 1 " + token + " 1 color 2 endpoint 10.0.0.1"))
+		_, err := ParseUpdateText(strings.Fields("nhop 192.0.2.1 mp ipv4/sr-policy add distinguisher 1 " + token + " 1 color 2 endpoint 10.0.0.1"))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "distinguisher, color, endpoint", "AC-11e names the three fields")
 	}
@@ -4062,7 +4062,7 @@ func TestSRPolicyTextMatchesPluginGrammar(t *testing.T) {
 	// Q-A control row: a path-information inside ANOTHER family's section stays
 	// with that section; the SR-Policy NLRI carries none.
 	result, err := ParseUpdateText(strings.Fields(
-		"nhop 192.0.2.1 nlri ipv4/unicast path-information 5 add 10.0.0.0/24 nlri ipv4/sr-policy add " + tail))
+		"nhop 192.0.2.1 nlri path-information 5 add 10.0.0.0/24 mp ipv4/sr-policy add " + tail))
 	require.NoError(t, err)
 	var sawUnicast, sawSRPolicy bool
 	for _, g := range result.Groups {
@@ -4089,9 +4089,9 @@ func TestSRPolicyTextMatchesPluginGrammar(t *testing.T) {
 // family being routed through the registry parser.
 func TestRegistrySectionRefusesLaterAddDel(t *testing.T) {
 	for _, tc := range []struct{ name, args string }{
-		{"mup", "nhop 192.0.2.1 nlri ipv4/mup add route-type mup-isd rd 100:100 del prefix 10.0.0.0/24"},
-		{"mvpn", "nhop 192.0.2.1 nlri ipv4/mvpn add source-ad source 10.99.12.4 del group 239.251.255.228 rd 65000:99999"},
-		{"sr-policy", "nhop 192.0.2.1 nlri ipv4/sr-policy add distinguisher 1 del color 2 endpoint 10.0.0.1"},
+		{"mup", "nhop 192.0.2.1 mp ipv4/mup add route-type mup-isd rd 100:100 del prefix 10.0.0.0/24"},
+		{"mvpn", "nhop 192.0.2.1 mp ipv4/mvpn add source-ad source 10.99.12.4 del group 239.251.255.228 rd 65000:99999"},
+		{"sr-policy", "nhop 192.0.2.1 mp ipv4/sr-policy add distinguisher 1 del color 2 endpoint 10.0.0.1"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := ParseUpdateText(strings.Fields(tc.args))
@@ -4101,14 +4101,14 @@ func TestRegistrySectionRefusesLaterAddDel(t *testing.T) {
 	}
 
 	t.Run("native unicast switches mode", func(t *testing.T) {
-		result, err := ParseUpdateText(strings.Fields("nhop 192.0.2.1 nlri ipv4/unicast add 10.0.0.0/24 del 10.0.1.0/24"))
+		result, err := ParseUpdateText(strings.Fields("nhop 192.0.2.1 nlri add 10.0.0.0/24 del 10.0.1.0/24"))
 		require.NoError(t, err)
 		require.Len(t, result.Groups, 1)
 		assert.Len(t, result.Groups[0].Announce, 1)
 		assert.Len(t, result.Groups[0].Withdraw, 1)
 	})
 	t.Run("native vpn with rd and label switches mode", func(t *testing.T) {
-		result, err := ParseUpdateText(strings.Fields("nhop 192.0.2.1 nlri ipv4/mpls-vpn rd 100:1 label 100 add 10.0.0.0/24 del 10.0.1.0/24"))
+		result, err := ParseUpdateText(strings.Fields("nhop 192.0.2.1 mp ipv4/mpls-vpn rd 100:1 label 100 add 10.0.0.0/24 del 10.0.1.0/24"))
 		require.NoError(t, err)
 		require.Len(t, result.Groups, 1)
 		assert.Len(t, result.Groups[0].Announce, 1)

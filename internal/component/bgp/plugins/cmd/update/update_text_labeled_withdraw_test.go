@@ -29,12 +29,12 @@ func TestTextWithdrawalOneCompatibilityField(t *testing.T) {
 	}{
 		{
 			name: "ipv4/mpls-label",
-			cmd:  []string{"nlri", "ipv4/mpls-label", "label", "[", "100", "200", "]", "del", "10.0.0.0/24"},
+			cmd:  []string{"mp", "ipv4/mpls-label", "label", "[", "100", "200", "]", "del", "10.0.0.0/24"},
 			want: "30" + "000641" + "0a0000",
 		},
 		{
 			name: "ipv4/mpls-vpn",
-			cmd:  []string{"nlri", "ipv4/mpls-vpn", "rd", "65000:1", "label", "[", "100", "200", "]", "del", "1.4.0.0/16"},
+			cmd:  []string{"mp", "ipv4/mpls-vpn", "rd", "65000:1", "label", "[", "100", "200", "]", "del", "1.4.0.0/16"},
 			want: "68" + "000641" + "0000fde800000001" + "0104",
 		},
 	}

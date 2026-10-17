@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/route"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
@@ -22,13 +23,118 @@ import (
 
 var errFlowspecParsingRequiresParseflowspecsection = errors.New("flowspec parsing requires parseFlowSpecSection")
 
-// parseNLRISection parses nlri <family> [path-information <id>] [rd <value>] [label <value>] <nlri-op>+
-// <nlri-op> := add <prefix>+ [watchdog set <name>] | del <prefix>+
-// accum contains NLRI accumulators: pathID, RD, labels.
-// In-NLRI modifiers (path-information/rd/label) set per-section values.
-// Returns family, announce list, withdraw list, watchdog name, consumed token count, and any error.
-func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
-	// args[0] = "nlri"
+// parseNLRISection parses one NLRI section of the update text grammar. The
+// keyword names the UPDATE section the prefixes travel in, the same two
+// keywords the filter text protocol uses:
+//
+//	nlri [modifier]* <nlri-op>+            NLRI and Withdrawn Routes fields, IPv4 unicast
+//	nlri eor                               IPv4 unicast End-of-RIB
+//	mp <family> [modifier]* <nlri-op>+     MP_REACH_NLRI and MP_UNREACH_NLRI
+//	mp <family> eor                        End-of-RIB for that family
+//
+// <modifier> := path-information <id> | rd <value> | label <value>
+// <nlri-op>  := add <prefix>+ [watchdog set <name>] | del <prefix>+
+//
+// args[0] is kwNLRI or kwMP. accum carries the path-id, RD and label
+// accumulators; nextHop is the section's next hop, which decides whether an
+// IPv4 unicast announcement can use the section it names.
+func parseNLRISection(args []string, accum nlriAccum, nextHop bgptypes.RouteNextHop) (nlriParseResult, error) {
+	if args[0] == kwMP {
+		return parseMPSection(args, accum, nextHop)
+	}
+	return parseLegacySection(args, accum, nextHop)
+}
+
+// parseLegacySection parses `nlri ...`: IPv4 unicast in the UPDATE's own NLRI
+// and Withdrawn Routes fields.
+//
+// RFC 4271 Section 4.3: "This variable length field contains a list of IP
+// address prefixes." The field has no AFI or SAFI, so the section takes no
+// family token, and `nlri <family>` is refused with the form that replaced it.
+func parseLegacySection(args []string, accum nlriAccum, nextHop bgptypes.RouteNextHop) (nlriParseResult, error) {
+	if len(args) > 1 {
+		if fam, isFamily := family.LookupFamily(args[1]); isFamily {
+			return nlriParseResult{}, removedFamilyFormError(fam)
+		}
+		// RFC 4724 Section 2: "For the IPv4 unicast address family, the
+		// End-of-RIB marker is an UPDATE message with the minimum length".
+		if args[1] == kwEOR {
+			return nlriParseResult{Family: family.IPv4Unicast, Consumed: 2}, nil
+		}
+	}
+	result, err := parseINETSection(args, 1, family.IPv4Unicast, accum)
+	if err != nil {
+		return nlriParseResult{}, err
+	}
+	// RFC 4271 Section 5.1.3: the NEXT_HOP attribute of the NLRI field holds an
+	// IPv4 address. An IPv6 next hop for IPv4 unicast travels in MP_REACH_NLRI
+	// (RFC 8950 Section 3), which is the mp section.
+	if len(result.Announce) > 0 && isExplicitIPv6(nextHop) {
+		return nlriParseResult{}, fmt.Errorf("nlri add cannot carry next-hop %s: the NLRI field takes its next hop from the NEXT_HOP attribute, which holds an IPv4 address (RFC 4271 Section 5.1.3); an IPv6 next hop for IPv4 unicast travels in MP_REACH_NLRI (RFC 8950 Section 3), so write: mp ipv4/unicast add <prefix>", nextHop.Addr)
+	}
+	return result, nil
+}
+
+// removedFamilyFormError refuses `nlri <family>`, the form the two section
+// keywords replaced, and names the form to write instead.
+func removedFamilyFormError(fam family.Family) error {
+	if fam == family.IPv4Unicast {
+		return fmt.Errorf("nlri %s is no longer accepted: nlri takes no family and always means IPv4 unicast in the NLRI and Withdrawn Routes fields, so write: nlri add|del <prefix>, or nlri eor (mp %s add carries an IPv6 next hop in MP_REACH_NLRI)", fam, fam)
+	}
+	return fmt.Errorf("nlri %s is no longer accepted: nlri means IPv4 unicast in the NLRI and Withdrawn Routes fields, and %s travels in MP_REACH_NLRI and MP_UNREACH_NLRI, so write: mp %s add|del ..., or mp %s eor", fam, fam, fam, fam)
+}
+
+// isExplicitIPv6 reports whether the section names an IPv6 next-hop address.
+// next-hop self resolves per destination peer, so the parser cannot judge it.
+func isExplicitIPv6(nextHop bgptypes.RouteNextHop) bool {
+	return nextHop.Policy == bgptypes.NextHopExplicit && nextHop.Addr.Is6()
+}
+
+// parseMPSection parses `mp <family> ...`: the family's NLRI in MP_REACH_NLRI
+// and MP_UNREACH_NLRI.
+//
+// RFC 4760 Section 2: "The first one (MP_REACH_NLRI) is used to carry the set
+// of reachable destinations together with the next hop information to be used
+// for forwarding to these destinations. The second one (MP_UNREACH_NLRI) is
+// used to carry the set of unreachable destinations." Every family takes this
+// section, IPv4 unicast only where checkMPIPv4Unicast admits it.
+func parseMPSection(args []string, accum nlriAccum, nextHop bgptypes.RouteNextHop) (nlriParseResult, error) {
+	result, err := parseMPFamilySection(args, accum)
+	if err != nil {
+		return nlriParseResult{}, err
+	}
+	if result.Family == family.IPv4Unicast {
+		if err := checkMPIPv4Unicast(result, nextHop); err != nil {
+			return nlriParseResult{}, err
+		}
+	}
+	return result, nil
+}
+
+// checkMPIPv4Unicast refuses an `mp ipv4/unicast` section the encoder would
+// not write in MP_REACH_NLRI or MP_UNREACH_NLRI. The reactor places IPv4
+// unicast in MP_REACH_NLRI only for an IPv6 next hop (RFC 8950 Section 3,
+// reactor inlineIPv4Unicast) and withdraws it in the Withdrawn Routes field,
+// so any other `mp ipv4/unicast` section would name a section the wire does
+// not carry.
+func checkMPIPv4Unicast(result nlriParseResult, nextHop bgptypes.RouteNextHop) error {
+	if len(result.Announce) == 0 && len(result.Withdraw) == 0 {
+		return errors.New("mp ipv4/unicast eor is refused: the IPv4 unicast End-of-RIB is an UPDATE with no NLRI and no attributes (RFC 4724 Section 2), not an MP_UNREACH_NLRI, so write: nlri eor")
+	}
+	if len(result.Withdraw) > 0 {
+		return errors.New("mp ipv4/unicast del is refused: ze withdraws IPv4 unicast in the Withdrawn Routes field (RFC 4271 Section 4.3), so write: nlri del <prefix>")
+	}
+	if !isExplicitIPv6(nextHop) {
+		return errors.New("mp ipv4/unicast add needs an explicit IPv6 next hop: ze sends IPv4 unicast with any other next hop in the NLRI field (RFC 4271 Section 4.3), so write: nlri add <prefix>, or give next-hop <ipv6-address> (RFC 8950 Section 3)")
+	}
+	return nil
+}
+
+// parseMPFamilySection parses `mp <family> [modifier]* <nlri-op>+` and
+// `mp <family> eor`, dispatching each family to the parser that owns its NLRI
+// text.
+func parseMPFamilySection(args []string, accum nlriAccum) (nlriParseResult, error) {
+	// args[0] = "mp"
 	if len(args) < 2 {
 		return nlriParseResult{}, route.ErrInvalidFamily
 	}
@@ -45,7 +151,7 @@ func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
 	}
 
 	// RFC 4724: End-of-RIB marker
-	// Syntax: nlri <family> eor
+	// Syntax: mp <family> eor
 	if isEOR {
 		return nlriParseResult{Family: fam, Consumed: 3}, nil // Return empty lists with family set - signals EOR
 	}
@@ -70,14 +176,21 @@ func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
 
 	// A family this package does not parse itself reaches its registered plugin
 	// encoder, which takes the WHOLE token run rather than one prefix per
-	// token: `nlri ipv4/mup add route-type mup-isd rd 100:100 prefix 10.0.0.0/24`
+	// token: `mp ipv4/mup add route-type mup-isd rd 100:100 prefix 10.0.0.0/24`
 	// is one NLRI written as eight tokens.
 	if !nativeTextFamily(fam) {
 		return parseRegistryNLRISection(args, fam, accum)
 	}
 
-	consumed := 2 // "nlri" + family
-	i := 2
+	return parseINETSection(args, 2, fam, accum)
+}
+
+// parseINETSection parses the modifiers and add/del runs of a section whose
+// family this package parses one prefix per token. start is the index of the
+// first token after the section header (`nlri`, or `mp <family>`).
+func parseINETSection(args []string, start int, fam family.Family, accum nlriAccum) (nlriParseResult, error) {
+	consumed := start
+	i := start
 
 	// Parse in-NLRI modifiers: path-information <id>, rd <value>, label <value>
 	// These set per-section values (info/path-information is per-NLRI-section, not top-level).
@@ -149,7 +262,7 @@ func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
 			break
 		}
 
-		// Watchdog inside nlri section: watchdog set <name>
+		// Watchdog inside an NLRI section: watchdog set <name>
 		if token == kwWatchdog {
 			if mode != kwAdd {
 				return nlriParseResult{}, errors.New("watchdog only valid after 'add' in nlri section")
@@ -479,7 +592,7 @@ var errFamilyRefusesAddPath = errors.New("path-information not supported")
 // one inside the run. A path-information inside another family's section lives
 // in that section's own accumulator copy, so it never reaches this parser.
 func parseRegistryNLRISection(args []string, fam family.Family, accum nlriAccum) (nlriParseResult, error) {
-	// args[0] = "nlri", args[1] = family; the caller has consumed neither.
+	// args[0] = "mp", args[1] = family; the caller has consumed neither.
 	refusal, refusesAddPath := registry.NLRIAddPathRefusalFor(fam.String())
 	if refusesAddPath && accum.HasPathID {
 		return nlriParseResult{}, refuseAddPath(fam, refusal)

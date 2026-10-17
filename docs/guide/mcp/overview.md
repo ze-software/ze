@@ -533,7 +533,7 @@ ze --mcp 8080 config.conf &
 
 # Send commands
 echo 'wait-established
-send bgp * update text origin igp next-hop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24' | le test mcp --port 8080
+send bgp * update text origin igp next-hop 1.1.1.1 nlri add 10.0.0.0/24' | le test mcp --port 8080
 ```
 
 Every message it sends is its own POST to `/mcp`, with the required headers and

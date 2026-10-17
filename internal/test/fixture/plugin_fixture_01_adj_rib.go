@@ -63,7 +63,7 @@ func plugin01ReplayAddPath(ctx context.Context, plugin *sdk.Plugin) error {
 	const source = "127.0.0.1"
 	destinations := []string{addrLoopbackSecond, addrLoopbackThird}
 	if err := plugin01ReplaySetup(ctx, plugin, 3, source,
-		"update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.2.0/24", 40); err != nil {
+		"update text origin igp nhop 1.1.1.1 nlri add 192.0.2.0/24", 40); err != nil {
 		return err
 	}
 	for _, peer := range destinations {
@@ -89,7 +89,7 @@ func plugin01ReplayAddPath(ctx context.Context, plugin *sdk.Plugin) error {
 func plugin01ReplayOnPeerUp(ctx context.Context, plugin *sdk.Plugin) error {
 	const source, destination = "127.0.0.1", "127.0.0.2"
 	if err := plugin01ReplaySetup(ctx, plugin, 2, source,
-		"update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.2.0/24", 32); err != nil {
+		"update text origin igp nhop 1.1.1.1 nlri add 192.0.2.0/24", 32); err != nil {
 		return err
 	}
 	if !Poll(ctx, 16, plugin01PollDelay, func() bool { return plugin01RouteUpdates(ctx, plugin, destination) >= 1 }) {
@@ -109,7 +109,7 @@ func plugin01ReplayOnPeerUp(ctx context.Context, plugin *sdk.Plugin) error {
 func plugin01ReplayRFC2545(ctx context.Context, plugin *sdk.Plugin) error {
 	const source, destination = "2001:db8::1", "2001:db8::2"
 	if err := plugin01ReplaySetup(ctx, plugin, 2, source,
-		"update text origin igp nhop 2001:db8:ffff::1 nlri ipv6/unicast add 2001:db8:ffff::/48", 40); err != nil {
+		"update text origin igp nhop 2001:db8:ffff::1 mp ipv6/unicast add 2001:db8:ffff::/48", 40); err != nil {
 		return err
 	}
 	if !Poll(ctx, 20, plugin01PollDelay, func() bool { return plugin01RouteUpdates(ctx, plugin, destination) >= 1 }) {
@@ -137,7 +137,7 @@ func plugin01ReplayUnownedPeer(ctx context.Context, plugin *sdk.Plugin) error {
 	if !plugin01WaitCounter(ctx, plugin, "*", "eor-sent", 2, 20) {
 		return errors.New("ze never sent its initial-sync EOR to both peers")
 	}
-	if _, _, err := plugin.UpdateRoute(ctx, source, "update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.2.0/24"); err != nil {
+	if _, _, err := plugin.UpdateRoute(ctx, source, "update text origin igp nhop 1.1.1.1 nlri add 192.0.2.0/24"); err != nil {
 		return err
 	}
 	if err := plugin01Quiesce(ctx, plugin); err != nil {
@@ -148,7 +148,7 @@ func plugin01ReplayUnownedPeer(ctx context.Context, plugin *sdk.Plugin) error {
 	}
 	fmt.Fprintln(os.Stderr, "OK: the source route is stored")
 	sessions := plugin01PeerCounter(ctx, plugin, destination, "connections-established")
-	if _, _, err := plugin.UpdateRoute(ctx, destination, "update text origin igp nhop 2.2.2.2 nlri ipv4/unicast add 203.0.113.0/24"); err != nil {
+	if _, _, err := plugin.UpdateRoute(ctx, destination, "update text origin igp nhop 2.2.2.2 nlri add 203.0.113.0/24"); err != nil {
 		return err
 	}
 	if err := plugin01Quiesce(ctx, plugin); err != nil {

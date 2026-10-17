@@ -1,7 +1,7 @@
 # Test: bgp-redistribute -- accepted add event from fakeredist becomes a BGP UPDATE.
 # VALIDATES: AC-2 -- batch with `add` action and matching import rule produces an
 #            UPDATE on the wire whose attributes / NLRI match the canonical
-#            `update text origin incomplete nhop self nlri ipv4/unicast add 10.0.0.1/32` shape.
+#            `update text origin incomplete nhop self nlri add 10.0.0.1/32` shape.
 # VALIDATES: auto-load via ConfigRoots -- this scenario deliberately omits an
 #            explicit `internal redistribute-orchestrator { use redistribute-orchestrator }`
 #            block, so the only way the orchestrator runs is via the auto-load

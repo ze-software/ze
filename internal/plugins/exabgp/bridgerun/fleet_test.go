@@ -123,8 +123,8 @@ func TestFleetRunsEveryScript(t *testing.T) {
 		t.Fatalf("Start: %v", err)
 	}
 
-	wantFirst := "send bgp * update text nhop 11.11.11.11 nlri ipv4/unicast add 1.1.1.1/32"
-	wantSecond := "send bgp * update text nhop 22.22.22.22 nlri ipv4/unicast add 2.2.2.2/32"
+	wantFirst := "send bgp * update text nhop 11.11.11.11 nlri add 1.1.1.1/32"
+	wantSecond := "send bgp * update text nhop 22.22.22.22 nlri add 2.2.2.2/32"
 	waitFor(t, "both scripts to reach the engine", func() bool {
 		return rec.held(wantFirst) && rec.held(wantSecond)
 	})
@@ -300,8 +300,8 @@ func TestFleetExpandsABareEOROverTheDeclaredFamilies(t *testing.T) {
 		t.Fatalf("Start: %v", err)
 	}
 
-	wantV4 := "send bgp * update text nlri ipv4/unicast eor"
-	wantV6 := "send bgp * update text nlri ipv6/unicast eor"
+	wantV4 := "send bgp * update text nlri eor"
+	wantV6 := "send bgp * update text mp ipv6/unicast eor"
 	waitFor(t, "both End-of-RIB markers to reach the engine", func() bool {
 		return rec.held(wantV4) && rec.held(wantV6)
 	})
@@ -398,7 +398,7 @@ func TestFleetSendsAnUnaddressedCommandToTheScriptsOwnPeers(t *testing.T) {
 		t.Fatalf("Start: %v", err)
 	}
 
-	want := "send bgp 192.168.0.1 update text nhop 127.0.0.1 nlri ipv4/unicast add 2.2.2.2/32"
+	want := "send bgp 192.168.0.1 update text nhop 127.0.0.1 nlri add 2.2.2.2/32"
 	waitFor(t, "the route to reach the engine addressed to this script's peer", func() bool {
 		return rec.held(want)
 	})

@@ -19,7 +19,8 @@ Unified syntax for API commands and config files to send/receive BGP UPDATE mess
 ## Core Syntax
 
 ```
-update <encoding> [<attr-sections>]... [nlri <family> add <nlri>... [del <nlri>...]]...
+update text [<attribute>]... (nlri | mp <family>) add <nlri>... [del <nlri>...]...
+update <hex|b64> [<wire-attr>]... nlri <family> add <nlri>... [del <nlri>...]...
 ```
 
 ## Encodings
@@ -37,7 +38,7 @@ update <encoding> [<attr-sections>]... [nlri <family> add <nlri>... [del <nlri>.
 In text mode, each attribute uses its own keyword with `set`/`add`/`del`:
 
 ```
-update text <attr> <op> <value> [<attr> <op> <value>]... nhop set <addr> nlri <family> add prefix <prefix>...
+update text <attr> <op> <value> [<attr> <op> <value>]... nhop set <addr> (nlri | mp <family>) add prefix <prefix>...
 ```
 
 ### Scalar Attributes (set/del only)
@@ -93,8 +94,8 @@ When `nhop set self` is used:
 
 **Input format**: `nhop` is a separate accumulator, can appear anywhere before `nlri`:
 ```bash
-send bgp upstream1 update text nhop set self origin set igp nlri ipv4/unicast add prefix 1.0.0.0/24
-send bgp upstream1 update text origin set igp nhop set self nlri ipv4/unicast add prefix 1.0.0.0/24
+send bgp upstream1 update text nhop set self origin set igp nlri add prefix 1.0.0.0/24
+send bgp upstream1 update text origin set igp nhop set self nlri add prefix 1.0.0.0/24
 # Both equivalent - nhop accumulates
 ```
 
@@ -109,8 +110,8 @@ peer 10.0.0.1 remote as 65001 received update 123 origin igp next 192.168.1.1 nl
 **Multiple nlri groups** - each gets its own next-hop in output:
 ```bash
 # Input:
-send bgp * update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 \
-                  nhop set 10.0.0.2 nlri ipv4/unicast add prefix 2.0.0.0/24
+send bgp * update text nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24 \
+                  nhop set 10.0.0.2 nlri add prefix 2.0.0.0/24
 
 # Output:
 peer 10.0.0.1 remote as 65001 received update 123 next 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24 next 10.0.0.2 nlri ipv4/unicast add 2.0.0.0/24
@@ -126,11 +127,11 @@ This ensures output is self-contained per nlri group.
 
 ```bash
 # nhop overwritten - 10.0.0.2 used for both prefixes
-update text nhop set 10.0.0.1 nhop set 10.0.0.2 nlri ipv4/unicast add prefix 1.0.0.0/24,2.0.0.0/24
+update text nhop set 10.0.0.1 nhop set 10.0.0.2 nlri add prefix 1.0.0.0/24,2.0.0.0/24
 
 # Different nhop per nlri section
-update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 \
-            nhop set 10.0.0.2 nlri ipv4/unicast add prefix 2.0.0.0/24
+update text nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24 \
+            nhop set 10.0.0.2 nlri add prefix 2.0.0.0/24
 # → 1.0.0.0/24 gets nhop 10.0.0.1
 # → 2.0.0.0/24 gets nhop 10.0.0.2
 ```
@@ -140,31 +141,31 @@ update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 \
 
 | Operation | nhop required |
 |-----------|---------------|
-| `nlri <family> add ...` | ✅ Yes |
-| `nlri <family> del ...` | ❌ No (ignored if present) |
+| `nlri add ...`, `mp <family> add ...` | ✅ Yes |
+| `nlri del ...`, `mp <family> del ...` | ❌ No (ignored if present) |
 
 ```bash
 # Withdraw - nhop not needed
-update text nlri ipv4/unicast del prefix 1.0.0.0/24
+update text nlri del prefix 1.0.0.0/24
 
 # Mixed - nhop required for add, ignored for del
-update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 del prefix 2.0.0.0/24
+update text nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24 del prefix 2.0.0.0/24
 ```
 
 ### Text Mode Examples
 
 ```bash
 # Simple announce
-send bgp upstream1 update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+send bgp upstream1 update text nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
 
 # With attributes
-send bgp upstream1 update text origin set igp med set 100 nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+send bgp upstream1 update text origin set igp med set 100 nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
 
 # Multiple attributes
-send bgp upstream1 update text origin set igp local-preference set 200 community set [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24,2.0.0.0/24
+send bgp upstream1 update text origin set igp local-preference set 200 community set [ 65000:1 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24,2.0.0.0/24
 
 # Withdraw (no nhop needed)
-send bgp upstream1 update text nlri ipv4/unicast del prefix 1.0.0.0/24
+send bgp upstream1 update text nlri del prefix 1.0.0.0/24
 ```
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- handleUpdateText -->
 
@@ -230,19 +231,19 @@ send bgp upstream1 update b64 attr set QAEBQAIGAgEAAAH5 nhop set CgAAAQ== nlri i
 
 ```bash
 # Single add - starts empty, adds [65000:1]
-update text community add [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+update text community add [ 65000:1 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
 # → community = [65000:1]
 
 # Multiple adds - prepends (newest first)
-update text community add [ 65000:1 ] community add [ 65000:2 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+update text community add [ 65000:1 ] community add [ 65000:2 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
 # → community = [65000:2, 65000:1]  (65000:2 prepended to [65000:1])
 
 # set then add - set replaces, add prepends
-update text community set [ 65000:1 ] community add [ 65000:2 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+update text community set [ 65000:1 ] community add [ 65000:2 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
 # → community = [65000:2, 65000:1]
 
 # add then set - add is lost (set replaces everything)
-update text community add [ 65000:1 ] community set [ 65000:2 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+update text community add [ 65000:1 ] community set [ 65000:2 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
 # → community = [65000:2]  (add was overwritten by set)
 ```
 
@@ -253,27 +254,27 @@ update text community add [ 65000:1 ] community set [ 65000:2 ] nhop set 10.0.0.
 
 ```bash
 # set then del - removes first occurrence
-update text community set [ 65000:1 65000:2 ] community del [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+update text community set [ 65000:1 65000:2 ] community del [ 65000:1 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
 # → community = [65000:2]
 
 # del with duplicates - removes only FIRST occurrence
-update text community set [ 65000:1 65000:2 65000:1 ] community del [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+update text community set [ 65000:1 65000:2 65000:1 ] community del [ 65000:1 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
 # → community = [65000:2, 65000:1]  (only first 65000:1 removed)
 
 # ERROR: del from empty list
-update text community del [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+update text community del [ 65000:1 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
 # → error: "community del: 65000:1 not present"
 
 # ERROR: del non-existent value
-update text community set [ 65000:1 ] community del [ 65000:99 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+update text community set [ 65000:1 ] community del [ 65000:99 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
 # → error: "community del: 65000:99 not present"
 
 # del without value - removes entire attribute (always succeeds)
-update text community set [ 65000:1 65000:2 ] community del nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+update text community set [ 65000:1 65000:2 ] community del nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
 # → community removed entirely
 
 # del without value on unset attribute - no-op, no error
-update text community del nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+update text community del nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
 # → no change (community was not set)
 ```
 
@@ -284,11 +285,11 @@ Attributes accumulate across `nlri` sections - each section captures a **snapsho
 ```bash
 update text \
     community set [ 65000:1 ] nhop set 10.0.0.1 \
-    nlri ipv4/unicast add prefix 1.0.0.0/24 \
+    nlri add prefix 1.0.0.0/24 \
     community add [ 65000:2 ] \
-    nlri ipv4/unicast add prefix 2.0.0.0/24 \
+    nlri add prefix 2.0.0.0/24 \
     community add [ 65000:3 ] \
-    nlri ipv4/unicast add prefix 3.0.0.0/24
+    nlri add prefix 3.0.0.0/24
 
 # Result (add prepends):
 # 1.0.0.0/24 → community = [65000:1]                     (snapshot after set)
@@ -321,7 +322,7 @@ update text origin add igp ...
 # → "origin: add not supported on scalar attribute"
 
 # ERROR: missing next-hop for announce
-update text nlri ipv4/unicast add prefix 1.0.0.0/24
+update text nlri add prefix 1.0.0.0/24
 # → "missing next-hop"
 
 # ERROR: nhop without set/del keyword
@@ -341,15 +342,15 @@ update text community set [ 65000:1 ] community del [ 65000:99 ] ...
 
 ```bash
 # VALID but wasteful: set overwrites previous set
-update text med set 100 med set 200 nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+update text med set 100 med set 200 nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
 # → Works, med=200 (first set is lost)
 
 # VALID but wasteful: add then set (add is lost)
-update text community add [ 65000:1 ] community set [ 65000:2 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+update text community add [ 65000:1 ] community set [ 65000:2 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
 # → Works, community=[65000:2] (add is lost)
 
 # VALID: del (no value) before set - clears nothing, then sets
-update text community del community set [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+update text community del community set [ 65000:1 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
 # → Works, community=[65000:1]
 ```
 
@@ -360,11 +361,11 @@ Multiple attribute and nlri sections can be chained. Attributes accumulate:
 ```bash
 send bgp upstream1 update text \
     origin set igp community set [ 65000:1 65000:2 ] nhop set 10.0.0.1 \
-    nlri ipv4/unicast add prefix 1.0.0.0/24,2.0.0.0/24 \
+    nlri add prefix 1.0.0.0/24,2.0.0.0/24 \
     community add [ 65000:3 ] \
-    nlri ipv4/unicast add prefix 3.0.0.0/24 \
+    nlri add prefix 3.0.0.0/24 \
     community del [ 65000:1 ] \
-    nlri ipv4/unicast add prefix 4.0.0.0/24 del prefix 5.0.0.0/24
+    nlri add prefix 4.0.0.0/24 del prefix 5.0.0.0/24
 ```
 
 Result (add prepends, del removes first occurrence):
@@ -377,7 +378,7 @@ Result (add prepends, del removes first occurrence):
 
 **Text mode:**
 ```
-send bgp <selector> update text [<attr> <set|add|del> <value>]... nhop set <addr> nlri <family> add prefix <prefix>... [del prefix <prefix>...]
+send bgp <selector> update text [<attr> <set|add|del> <value>]... nhop set <addr> (nlri | mp <family>) add prefix <prefix>... [del prefix <prefix>...]
 ```
 
 **Wire mode:**
@@ -390,7 +391,7 @@ Each API command line = clean state.
 **Examples:**
 ```bash
 # Text mode - per-attribute keywords
-send bgp upstream1 update text med set 100 nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+send bgp upstream1 update text med set 100 nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
 
 # Wire mode - attr set <bytes>
 send bgp upstream1 update hex attr set 400101400206020100001f94 nlri ipv4/unicast add 18010a00 18020b00
@@ -524,8 +525,10 @@ keyword and answers with the flat form to use.
                   aggregator | originator-id | cluster-list | aigp |
                   bgp-prefix-sid-srv6 | next-hop | path-information | rd | label
 
-<nlri-section> := nlri <family> <nlri-op>+
-<nlri-op>      := add <prefix>+ [watchdog <name>] | del <prefix>+ | eor
+<nlri-section> := nlri [<modifier>]* <nlri-op>+ | nlri eor
+               | mp <family> [<modifier>]* <nlri-op>+ | mp <family> eor
+<modifier>     := path-information <id> | rd <value> | label <value>
+<nlri-op>      := add <prefix>+ [watchdog set <name>] | del <prefix>+
 
 <wire-attr>    := attr set <bytes>                     # hex/b64 mode only
 
@@ -616,7 +619,7 @@ statement, so the two spellings produce identical attribute bytes.
 ```bash
 send bgp edge1 update text \
   bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] ) \
-  next-hop 2001::1 nlri ipv4/mup add route-type mup-isd rd 100:100 prefix 10.0.1.0/24
+  next-hop 2001::1 mp ipv4/mup add route-type mup-isd rd 100:100 prefix 10.0.1.0/24
 ```
 <!-- source: internal/core/bgp/attribute/prefixsid.go -- EncodePrefixSIDSRv6 -->
 
@@ -624,7 +627,7 @@ send bgp edge1 update text \
 send bgp rr1 update text \
   originator-id 10.0.99.12 cluster-list [ 3.3.3.3 192.168.201.1 ] \
   atomic-aggregate aggregator 65000:10.0.0.1 aigp 100 \
-  nlri ipv4/unicast add 10.0.0.0/24
+  nlri add 10.0.0.0/24
 ```
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- parseCommonAttributeText -->
 
@@ -675,7 +678,7 @@ A section of a family a plugin encodes (mup, mvpn, sr-policy) is one NLRI, so
 its `add` or `del` comes once, right after the family. A second `add` or `del`
 later in the section is refused. The families Ze parses itself (unicast,
 multicast, vpn, labeled, flowspec, vpls, evpn) keep switching mode on a later
-`add` or `del`: `nlri ipv4/unicast add 10.0.0.0/24 del 10.0.1.0/24`.
+`add` or `del`: `nlri add 10.0.0.0/24 del 10.0.1.0/24`.
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseRegistryNLRISection -->
 
 All three are accepted in TWO positions, before the first `nlri` section and
@@ -691,7 +694,7 @@ Label field.
 
 ```bash
 send bgp * update text rd 63333:100 label [ 110 200 ] next-hop 10.0.99.12 \
-  nlri ipv4/mpls-vpn add 128.0.64.0/18
+  mp ipv4/mpls-vpn add 128.0.64.0/18
 ```
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- parseLabelStack, parsePathInfoFlat -->
 <!-- source: internal/component/bgp/types/types.go -- UpdateTextResult, NLRIGroup -->
@@ -724,7 +727,7 @@ plugin. MCAST-VPN and MUP are both written that way:
 
 ```bash
 send bgp edge1 update text next-hop 10.10.6.3 extended-community [ target:192.168.94.12:5 ] \
-  nlri ipv4/mvpn add shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000
+  mp ipv4/mvpn add shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000
 ```
 
 | Field | Route types | Meaning |
@@ -746,25 +749,27 @@ cannot be told from an AS the operator chose.
 - **Excluded:** MP_REACH_NLRI (type 14), MP_UNREACH_NLRI (type 15)
 - NLRI extracted and encoded separately by family
 
-## Per-NLRI Overrides
+## Per-Section Modifiers
 
-Within `nlri` section, attrs/nhop can be overridden for that section only:
+An `nlri` or `mp <family>` section takes three modifiers before its first `add`
+or `del`. Each applies to every prefix of that section, never to one prefix:
+
+| Modifier | Syntax | Sets |
+|----------|--------|------|
+| `path-information` | `path-information <id>` (alias `info`) | the ADD-PATH path identifier (RFC 7911) |
+| `rd` | `rd <asn>:<num>` or `rd <ip>:<num>` | the route distinguisher of a VPN family |
+| `label` | `label <num>` or `label [ <num>... ]` | the label stack, read by the parser the top-level `label` uses |
 
 ```bash
-# Override nhop inside nlri (all modes)
 send bgp upstream1 update text origin set igp nhop set 10.0.0.1 \
-    nlri ipv4/unicast nhop set 10.0.0.2 add prefix 1.0.0.0/24,2.0.0.0/24
-
-# Override attr inside nlri (text mode only)
-send bgp upstream1 update text community set [ 65000:1 ] nhop set 10.0.0.1 \
-    nlri ipv4/unicast community add [ 65000:2 ] add prefix 1.0.0.0/24
+    nlri path-information 7 add prefix 1.0.0.0/24,2.0.0.0/24
 ```
 
-**Rules:**
-- Overrides apply to ALL NLRIs in that section (not per-prefix)
-- `nhop set/del` inside nlri works in all modes
-- `<attr> set/add/del` inside nlri works in text mode only
-<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- per-NLRI attribute overrides -->
+After `add`, a section also takes `watchdog set <name>`, which places its routes
+under that watchdog. A section takes no path attribute and no `nhop`: those are
+written before the section, and a section that follows a new `nhop set` or
+attribute keyword uses the new value (see "Chained Sections").
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseINETSection -->
 
 ## VPN Modifiers
 
@@ -773,10 +778,10 @@ NLRI modifiers for VPN families (not path attributes):
 ```bash
 # L3VPN with RD and label
 send bgp upstream1 update text extended-community set [ target:65000:100 ] nhop set 10.0.0.1 \
-    nlri ipv4/mpls-vpn rd 65000:100 label 1000 add prefix 10.0.0.0/24
+    mp ipv4/mpls-vpn rd 65000:100 label 1000 add prefix 10.0.0.0/24
 
 # Multiple prefixes same RD/label
-nlri ipv4/mpls-vpn rd 65000:100 label 1000 add prefix 10.0.0.0/24,10.0.1.0/24
+mp ipv4/mpls-vpn rd 65000:100 label 1000 add prefix 10.0.0.0/24,10.0.1.0/24
 ```
 
 | Modifier | Syntax | Example |
@@ -792,23 +797,24 @@ RFC 4724 End-of-RIB marker signals completion of initial routing table exchange.
 ### Syntax
 
 ```bash
-update text nlri <family> eor
+update text nlri eor             # IPv4 unicast: an UPDATE with no NLRI and no attributes
+update text mp <family> eor     # any other family: an empty MP_UNREACH_NLRI
 ```
 
 ### Examples
 
 ```bash
 # IPv4 unicast EOR
-send bgp upstream1 update text nlri ipv4/unicast eor
+send bgp upstream1 update text nlri eor
 
 # IPv6 unicast EOR
-send bgp upstream1 update text nlri ipv6/unicast eor
+send bgp upstream1 update text mp ipv6/unicast eor
 
 # Multiple families in one command
-send bgp upstream1 update text nlri ipv4/unicast eor nlri ipv6/unicast eor
+send bgp upstream1 update text nlri eor mp ipv6/unicast eor
 
 # EOR with NLRI in same command
-send bgp upstream1 update text nlri ipv6/unicast eor nhop set 10.0.0.1 nlri ipv4/unicast add prefix 10.0.0.0/24
+send bgp upstream1 update text mp ipv6/unicast eor nhop set 10.0.0.1 nlri add prefix 10.0.0.0/24
 ```
 
 ### Wire Format
@@ -826,8 +832,8 @@ RFC 4761 Virtual Private LAN Service.
 ### Syntax
 
 ```bash
-update text nlri l2vpn/vpls add rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>
-update text nlri l2vpn/vpls del rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>
+update text mp l2vpn/vpls add rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>
+update text mp l2vpn/vpls del rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>
 ```
 
 ### Fields
@@ -844,13 +850,13 @@ update text nlri l2vpn/vpls del rd <rd> ve-id <n> ve-block-offset <n> ve-block-s
 
 ```bash
 # Announce VPLS
-send bgp upstream1 update text nlri l2vpn/vpls add rd 1:1 ve-id 1 ve-block-offset 0 ve-block-size 10 label-base 1000
+send bgp upstream1 update text mp l2vpn/vpls add rd 1:1 ve-id 1 ve-block-offset 0 ve-block-size 10 label-base 1000
 
 # Withdraw VPLS
-send bgp upstream1 update text nlri l2vpn/vpls del rd 1:1 ve-id 1 ve-block-offset 0 ve-block-size 10 label-base 1000
+send bgp upstream1 update text mp l2vpn/vpls del rd 1:1 ve-id 1 ve-block-offset 0 ve-block-size 10 label-base 1000
 
 # EOR for VPLS
-send bgp upstream1 update text nlri l2vpn/vpls eor
+send bgp upstream1 update text mp l2vpn/vpls eor
 ```
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- VPLS NLRI parsing -->
 
@@ -878,7 +884,7 @@ RFC 7432 Ethernet VPN.
 ### Type 2: MAC/IP Advertisement
 
 ```bash
-update text nlri l2vpn/evpn add mac-ip rd <rd> mac <mac> [ip <ip>] label <n>
+update text mp l2vpn/evpn add mac-ip rd <rd> mac <mac> [ip <ip>] label <n>
 ```
 
 | Field | Type | Description |
@@ -890,22 +896,22 @@ update text nlri l2vpn/evpn add mac-ip rd <rd> mac <mac> [ip <ip>] label <n>
 
 ```bash
 # MAC only
-send bgp upstream1 update text nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 label 100
+send bgp upstream1 update text mp l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 label 100
 
 # MAC with IPv4
-send bgp upstream1 update text nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 ip 192.168.1.1 label 100
+send bgp upstream1 update text mp l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 ip 192.168.1.1 label 100
 
 # MAC with IPv6
-send bgp upstream1 update text nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 ip 2001:db8::1 label 100
+send bgp upstream1 update text mp l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 ip 2001:db8::1 label 100
 
 # With ESI and Ethernet Tag
-send bgp upstream1 update text nlri l2vpn/evpn add mac-ip rd 1:1 esi 00:01:02:03:04:05:06:07:08:09 etag 100 mac 00:11:22:33:44:55 label 100
+send bgp upstream1 update text mp l2vpn/evpn add mac-ip rd 1:1 esi 00:01:02:03:04:05:06:07:08:09 etag 100 mac 00:11:22:33:44:55 label 100
 ```
 
 ### Type 3: Inclusive Multicast Ethernet Tag
 
 ```bash
-update text nlri l2vpn/evpn add multicast rd <rd> ip <originator-ip>
+update text mp l2vpn/evpn add multicast rd <rd> ip <originator-ip>
 ```
 
 | Field | Type | Description |
@@ -915,13 +921,13 @@ update text nlri l2vpn/evpn add multicast rd <rd> ip <originator-ip>
 **Example:**
 
 ```bash
-send bgp upstream1 update text nlri l2vpn/evpn add multicast rd 1:1 ip 192.168.1.1
+send bgp upstream1 update text mp l2vpn/evpn add multicast rd 1:1 ip 192.168.1.1
 ```
 
 ### Type 5: IP Prefix Route
 
 ```bash
-update text nlri l2vpn/evpn add ip-prefix rd <rd> prefix <prefix> [gateway <ip>] label <n>
+update text mp l2vpn/evpn add ip-prefix rd <rd> prefix <prefix> [gateway <ip>] label <n>
 ```
 
 | Field | Type | Description |
@@ -936,22 +942,22 @@ If neither is specified, direct forwarding via label is used.
 
 ```bash
 # IPv4 prefix (direct forwarding)
-send bgp upstream1 update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 label 100
+send bgp upstream1 update text mp l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 label 100
 
 # IPv6 prefix
-send bgp upstream1 update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 2001:db8::/32 label 100
+send bgp upstream1 update text mp l2vpn/evpn add ip-prefix rd 1:1 prefix 2001:db8::/32 label 100
 
 # With GW IP Overlay Index (recursive resolution via RT-2)
-send bgp upstream1 update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 gateway 192.168.1.254 label 100
+send bgp upstream1 update text mp l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 gateway 192.168.1.254 label 100
 
 # With ESI Overlay Index (recursive resolution via RT-1)
-send bgp upstream1 update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 esi 00:01:02:03:04:05:06:07:08:09 label 100
+send bgp upstream1 update text mp l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 esi 00:01:02:03:04:05:06:07:08:09 label 100
 ```
 
 ### EVPN EOR
 
 ```bash
-send bgp upstream1 update text nlri l2vpn/evpn eor
+send bgp upstream1 update text mp l2vpn/evpn eor
 ```
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- EVPN NLRI parsing -->
 
@@ -961,16 +967,16 @@ send bgp upstream1 update text nlri l2vpn/evpn eor
 
 ```bash
 send bgp upstream1 update text nhop set 10.0.0.1 \
-    nlri ipv4/unicast add prefix 1.0.0.0/24 \
+    nlri add prefix 1.0.0.0/24 \
     nhop del 10.0.0.1 \
     nhop set 10.0.0.2 \
-    nlri ipv4/unicast add prefix 2.0.0.0/24
+    nlri add prefix 2.0.0.0/24
 # → 1.0.0.0/24 nhop 10.0.0.1
 # → 2.0.0.0/24 nhop 10.0.0.2 (del matched, then set)
 
 send bgp upstream1 update text nhop set 10.0.0.1 \
     nhop del 10.0.0.99 \
-    nlri ipv4/unicast add prefix 1.0.0.0/24
+    nlri add prefix 1.0.0.0/24
 # → nhop del 10.0.0.99 is no-op (doesn't match 10.0.0.1)
 # → 1.0.0.0/24 nhop 10.0.0.1
 ```
@@ -1057,9 +1063,9 @@ operation cannot retire a replacement connection.
 
 | Old | New |
 |-----|-----|
-| `announce route <p> next-hop <nh>` | `update text nhop set <nh> nlri ipv4/unicast add prefix <p>` |
+| `announce route <p> next-hop <nh>` | `update text nhop set <nh> nlri add prefix <p>` |
 | `announce attributes ... nlri ...` | `update text ... nhop set <nh> nlri ... add prefix ...` |
-| `withdraw route <p>` | `update text nlri ipv4/unicast del prefix <p>` |
+| `withdraw route <p>` | `update text nlri del prefix <p>` |
 | `announce watchdog <name>` | `request bgp watchdog announce <name>` |
 | `withdraw watchdog <name>` | `request bgp watchdog withdraw <name>` |
 
@@ -1072,7 +1078,7 @@ operation cannot retire a replacement connection.
 
 Routes are tagged with a pool when announced:
 ```bash
-update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 watchdog set mypool
+update text nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24 watchdog set mypool
 ```
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- watchdog parsing -->
 

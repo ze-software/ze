@@ -249,7 +249,7 @@ text was never executed.
 
 **Single-line text:**
 ```
-stdin=cmd:text=update text nhop set 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24
+stdin=cmd:text=update text nhop set 10.0.0.1 nlri add 10.0.0.0/24
 ```
 
 ### Where the block goes
@@ -745,7 +745,7 @@ cmd=api:conn=<N>:seq=<N>:text=<command>
 ### Example
 
 ```
-cmd=api:conn=1:seq=1:text=update text origin set igp nhop set 10.0.1.1 nlri ipv4/unicast add 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=update text origin set igp nhop set 10.0.1.1 nlri add 10.0.0.0/24
 ```
 
 ### Process Commands (Foreground/Background)
@@ -2178,7 +2178,7 @@ option=file:path=test.conf
 option=asn:value=65000
 
 # Expected API command and wire output
-cmd=api:conn=1:seq=1:text=update text origin set igp nhop set 10.0.1.254 nlri ipv4/unicast add 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=update text origin set igp nhop set 10.0.1.254 nlri add 10.0.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FFFD4003040A0001FE180A0000
 
 # EOR

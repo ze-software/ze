@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/retention"
+	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -200,8 +201,9 @@ type withdrawalGroup struct {
 
 // sendBatchedWithdrawals groups withdrawal entries by family and command form
 // and sends them in batched RPCs. Each batch packs up to withdrawalBatchSize
-// NLRIs into a single "update text nlri <family> del <p1> del <p2> ..."
-// command, reducing the number of RPC roundtrips by ~500x compared to
+// NLRIs into a single "update text nlri del <p1> del <p2> ..." command for
+// IPv4 unicast, or "update text mp <family> del <p1> del <p2> ..." for any
+// other family, reducing the number of RPC roundtrips by ~500x compared to
 // one-prefix-per-RPC.
 //
 // A family ze holds only as opaque wire bytes has no text NLRI spelling, so its
@@ -260,7 +262,14 @@ func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 					buf.Str(" addpath")
 				}
 			} else {
-				buf.Str("update text nlri ").Str(g.fam)
+				// RFC 4271 Section 4.3: IPv4 unicast is withdrawn in the Withdrawn Routes
+				// field, ze's `nlri` section; every other family in MP_UNREACH_NLRI (`mp`).
+				buf.Str("update text")
+				if textparse.LegacyNLRISection(g.fam, false) {
+					buf.Str(" nlri")
+				} else {
+					buf.Str(" mp ").Str(g.fam)
+				}
 			}
 			for _, p := range batch {
 				buf.Str(" del ").Str(p)
@@ -544,7 +553,13 @@ func (rs *routeServer) sendEOR(peerAddr string, gen, initialReplay uint64) {
 	slices.Sort(families)
 
 	for _, fam := range families {
-		rs.updateRoute(peerAddr, "update text nlri "+fam+" eor")
+		// RFC 4724 Section 2: IPv4 unicast's End-of-RIB is `nlri eor`, every
+		// other family's `mp <family> eor`.
+		eor := "update text mp " + fam + " eor"
+		if textparse.LegacyNLRISection(fam, false) {
+			eor = "update text nlri eor"
+		}
+		rs.updateRoute(peerAddr, eor)
 	}
 	if len(families) > 0 {
 		logger().Info("sent EOR", "peer", peerAddr, "families", families)

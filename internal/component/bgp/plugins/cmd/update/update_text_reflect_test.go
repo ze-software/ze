@@ -38,7 +38,7 @@ func testAttributeHex(t *testing.T, args ...string) string {
 }
 
 // testAnnounceIPv4 is the shortest NLRI section that makes a command complete.
-var testAnnounceIPv4 = []string{"nlri", "ipv4/unicast", "add", "10.0.0.0/24"}
+var testAnnounceIPv4 = []string{"nlri", "add", "10.0.0.0/24"}
 
 func testCommand(attrs ...string) []string {
 	return append(attrs, testAnnounceIPv4...)
@@ -304,7 +304,7 @@ func TestParseUpdateText_ReflectionAttributesTogether(t *testing.T) {
 		"atomic-aggregate",
 		"aggregator", "65000:10.0.0.1",
 		"aigp", "100",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nlri", "add", "10.0.0.0/24",
 	)
 
 	want := "400600" + // ATOMIC_AGGREGATE: flags 40, code 06, length 00

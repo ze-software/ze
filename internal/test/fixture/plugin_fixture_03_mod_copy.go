@@ -30,7 +30,7 @@ func bgpRSModCopy03(ctx context.Context, p *sdk.Plugin) error {
 
 	// This fence is addressed only to the source, never to either counted
 	// recipient. The peer sends the subjects only after receiving this route.
-	if _, _, err := p.UpdateRoute(ctx, "127.0.0.1", "update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.2.0/24"); err != nil {
+	if _, _, err := p.UpdateRoute(ctx, "127.0.0.1", "update text origin igp nhop 1.1.1.1 nlri add 192.0.2.0/24"); err != nil {
 		return fmt.Errorf("mod-copy: release source after initial sync: %w", err)
 	}
 	if !Poll(ctx, 32, 200*time.Millisecond, func() bool {
@@ -48,7 +48,7 @@ func bgpRSModCopy03(ctx context.Context, p *sdk.Plugin) error {
 	}) {
 		return fmt.Errorf("mod-copy: edited recipient and internal control must each receive both non-EOR UPDATEs")
 	}
-	if _, _, err := p.UpdateRoute(ctx, "127.0.0.1", "update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.3.0/24"); err != nil {
+	if _, _, err := p.UpdateRoute(ctx, "127.0.0.1", "update text origin igp nhop 1.1.1.1 nlri add 192.0.3.0/24"); err != nil {
 		return fmt.Errorf("mod-copy: complete source after recipient delivery: %w", err)
 	}
 	return nil

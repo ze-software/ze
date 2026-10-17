@@ -417,7 +417,7 @@ func fixture06EORPerFamily(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func fixture06ExplicitPluginConfig(ctx context.Context, p *sdk.Plugin) error {
-	announced, _, err := p.UpdateRoute(ctx, "*", "update text origin igp local-preference 100 nhop 1.2.3.4 nlri ipv4/unicast add 99.99.99.0/24")
+	announced, _, err := p.UpdateRoute(ctx, "*", "update text origin igp local-preference 100 nhop 1.2.3.4 nlri add 99.99.99.0/24")
 	if err != nil {
 		return err
 	}

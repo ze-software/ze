@@ -15,6 +15,7 @@ import (
 	"net/netip"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -74,7 +75,15 @@ func convertEOR(selector, rest string, families []string) ([]Command, bool, erro
 // cancels nothing in a batch and nothing in a batch cancels it.
 func eorCommand(selector, family string) Command {
 	var tb textbuf.Buffer
-	return Command{Text: tb.Str("send bgp ").Str(selector).Str(" update text nlri ").Str(family).Str(" eor").String()}
+	// RFC 4724 Section 2: IPv4 unicast's End-of-RIB is ze's `nlri eor`, every
+	// other family's `mp <family> eor`.
+	tb.Str("send bgp ").Str(selector).Str(" update text")
+	if textparse.LegacyNLRISection(family, false) {
+		tb.Str(" nlri")
+	} else {
+		tb.Str(" mp ").Str(family)
+	}
+	return Command{Text: tb.Str(" eor").String()}
 }
 
 // bridgeAFI is the address family set ExaBGP names in a family-qualified line.

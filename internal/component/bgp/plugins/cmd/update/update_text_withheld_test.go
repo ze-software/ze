@@ -49,7 +49,7 @@ func TestHandleUpdateTextWithheldWithdrawalIsDoneAndNamed(t *testing.T) {
 		Peer:   "10.0.0.2",
 	}
 
-	resp, err := handleUpdateText(ctx, []string{"nlri", "ipv4/unicast", "del", "1.1.0.0/24"})
+	resp, err := handleUpdateText(ctx, []string{"nlri", "del", "1.1.0.0/24"})
 
 	require.NoError(t, err, "a withheld withdrawal is not a command failure")
 	require.NotNil(t, resp)

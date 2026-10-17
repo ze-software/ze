@@ -20,8 +20,8 @@ import (
 
 func init() {
 	Register("plugin/interface-type-show", interfaceTypeShow09)
-	Register("plugin/ipv4-announce-withdraw", announceWithdraw09("ipv4/unicast", "origin igp local-preference 200 nhop 10.0.1.254 nlri ipv4/unicast add 10.0.1.0/24", "nlri ipv4/unicast del 10.0.1.0/24"))
-	Register("plugin/ipv6-announce-withdraw", announceWithdraw09("ipv6/unicast", "origin igp local-preference 200 nhop 2001::11 nlri ipv6/unicast add fc00:1::/64", "nlri ipv6/unicast del fc00:1::/64"))
+	Register("plugin/ipv4-announce-withdraw", announceWithdraw09("ipv4/unicast", "origin igp local-preference 200 nhop 10.0.1.254 nlri add 10.0.1.0/24", "nlri del 10.0.1.0/24"))
+	Register("plugin/ipv6-announce-withdraw", announceWithdraw09("ipv6/unicast", "origin igp local-preference 200 nhop 2001::11 mp ipv6/unicast add fc00:1::/64", "mp ipv6/unicast del fc00:1::/64"))
 	Register("plugin/l2tp-config-show", l2tpConfigShow09)
 	Register("plugin/l2tp-empty-show", l2tpEmptyShow09)
 	Register("plugin/l2tp-health-show", l2tpHealthShow09)

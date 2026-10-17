@@ -24,7 +24,7 @@ Peer selector supports: `*` (all), exact IP, peer name, ASN (`as65001`), glob pa
 
 | Command | Description |
 |---------|-------------|
-| `send bgp * update text <attrs> nlri <family> <op> <prefix>` | Text-format UPDATE |
+| `send bgp * update text <attrs> (nlri | mp <family>) <op> <prefix>` | Text-format UPDATE |
 | `send bgp * update hex <hex>` | Hex-format UPDATE |
 
 Text attribute syntax: `origin set igp`, `nhop set 1.1.1.1`, `local-preference set 100`, `med set 50`, `as-path set [65000 65001]`, `community set [no-export]`, `large-community set [65000:1:1]`.

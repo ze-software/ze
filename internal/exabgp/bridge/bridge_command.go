@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -203,12 +204,12 @@ const bridgePassthrough = "help"
 // it, and names the peers that command addresses.
 //
 // ExaBGP: neighbor <ip> announce route <prefix> next-hop <nh> [origin <o>] ...
-// ZeBGP:  send bgp <ip> update text nhop <nh> origin <o> nlri ipv4/unicast add <prefix>.
+// ZeBGP:  send bgp <ip> update text nhop <nh> origin <o> nlri add <prefix>.
 //
 // A line that names no neighbor names no destination, and ExaBGP sends such a
 // line to the peers that attach the process that wrote it. This package
 // function carries no process, so it sends to every peer: `announce route
-// <prefix>` becomes `send bgp * update text nlri ipv4/unicast add <prefix>`.
+// <prefix>` becomes `send bgp * update text nlri add <prefix>`.
 // Translator.Peers is how a script narrows that.
 //
 // Every other line is REFUSED by name. The passthrough that forwarded it used to
@@ -383,7 +384,7 @@ func (t Translator) convertRoute(selector, rest string) ([]Command, bool, error)
 		// ExaBGP writes a flowspec route with no family word, `flow route
 		// ...`, as well as the family-qualified `ipv4 flow ...` that
 		// convertFamilyRoute reads below.
-		if command, matched, err := ConvertFlowRoute(selector, flowFamilyDefault, verb, body); matched {
+		if command, matched, err := convertFlowRoute(selector, flowFamilyDefault, verb, body); matched {
 			if err != nil {
 				return nil, true, err
 			}
@@ -465,7 +466,13 @@ func oneCommandPerNLRI(selector, family, verb string, attrs routeAttributes, nlr
 		if command := attrs.Command(); command != "" {
 			tb.Byte(' ').Str(command)
 		}
-		tb.Str(" nlri ").Str(family).Byte(' ').Str(verb)
+		// ze names the UPDATE section with its keyword: `nlri` for IPv4 unicast
+		// in the legacy fields (RFC 4271 Section 4.3), `mp <family>` otherwise.
+		if textparse.LegacyNLRISection(family, verb == nlriAdd && attrs.nextHopIPv6()) {
+			tb.Str(" nlri ").Str(verb)
+		} else {
+			tb.Str(" mp ").Str(family).Byte(' ').Str(verb)
+		}
 		for _, token := range tokens {
 			tb.Byte(' ').Str(token)
 		}
@@ -496,7 +503,7 @@ const (
 
 // flowFamilyDefault is the family a family-less `flow route ...` starts in.
 // ExaBGP's own grammar states no family on that form and reads the AFI off the
-// first address in the body, which ConvertFlowRoute does too: it promotes to
+// first address in the body, which convertFlowRoute does too: it promotes to
 // ipv6 on an IPv6 match component and to flow-vpn on a route distinguisher.
 const flowFamilyDefault = "ipv4/" + bridgeFlowSAFI
 
@@ -597,7 +604,7 @@ func familyOfRoute(routeStr string) string {
 // convertAnnounceSRPolicy translates ExaBGP SR-Policy announce to Ze's update text format.
 //
 // ExaBGP: announce ipv4 sr-policy distinguisher 0 color 100 endpoint 10.0.0.1 next-hop 1.2.3.4 preference 100 ...
-// Ze:     send bgp <ip> update text nhop 1.2.3.4 nlri ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 100 ...
+// Ze:     send bgp <ip> update text nhop 1.2.3.4 mp ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 100 ...
 //
 // Extracts next-hop and the three NLRI fields (distinguisher, color, endpoint),
 // then appends all remaining tunnel-encap tokens verbatim.
@@ -635,7 +642,8 @@ func convertAnnounceSRPolicy(selector, afi, rest string) Command {
 	if nhop != "" {
 		tb.Str(" nhop ").Str(nhop)
 	}
-	tb.Str(" nlri ").Str(afi).Str("/sr-policy add")
+	// RFC 9830: SR Policy NLRI travels in MP_REACH_NLRI, ze's `mp` section.
+	tb.Str(" mp ").Str(afi).Str("/sr-policy add")
 	tb.Byte(' ').Str(srPolicyDistinguisher).Byte(' ').Str(distinguisher)
 	tb.Byte(' ').Str(srPolicyColor).Byte(' ').Str(color)
 	tb.Byte(' ').Str(srPolicyEndpoint).Byte(' ').Str(endpoint)
@@ -666,7 +674,7 @@ func convertWithdrawSRPolicy(selector, afi, rest string) Command {
 	rest = strings.TrimSpace(rest)
 
 	var tb textbuf.Buffer
-	tb.Str("send bgp ").Str(selector).Str(" update text nlri ").Str(afi).Str("/sr-policy del ").Str(rest)
+	tb.Str("send bgp ").Str(selector).Str(" update text mp ").Str(afi).Str("/sr-policy del ").Str(rest)
 
 	// The withdraw form writes the policy fields through unchanged, so the key
 	// is read off the same three keywords convertAnnounceSRPolicy writes. A
@@ -713,7 +721,8 @@ func convertFlowSpec(selector, family, routeStr, verb string) Command {
 	cmdParts = append(cmdParts, attrs...)
 
 	var nlriPart textbuf.Buffer
-	nlriPart.Str("nlri ").Str(fam).Byte(' ').Str(verb)
+	// RFC 8955 Section 4: FlowSpec NLRI travels in MP_REACH_NLRI, ze's `mp` section.
+	nlriPart.Str("mp ").Str(fam).Byte(' ').Str(verb)
 	if rd != "" {
 		nlriPart.Str(" rd ").Str(rd)
 	}

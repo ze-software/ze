@@ -1101,16 +1101,8 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Famil
 	if defaultOriginateRejectsRawFilter(p.reactor.api, filterName, p.settings.Address.String()) {
 		return false
 	}
-	// Synthesize the update text the filter would see for this default route.
-	// Format matches the ingress/egress policy text contract:
-	//   "origin igp next-hop <ip> nlri <family> add <prefix>"
 	var scratchArr [256]byte
-	scratch := append(scratchArr[:0], "origin igp next-hop "...)
-	scratch = nextHop.AppendTo(scratch)
-	scratch = append(scratch, " nlri "...)
-	scratch = append(scratch, fam.String()...)
-	scratch = append(scratch, " add "...)
-	scratch = prefix.AppendTo(scratch)
+	scratch := appendDefaultOriginateFilterText(scratchArr[:0], fam, prefix, nextHop)
 	updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
 
 	res := PolicyFilterChain(
@@ -1124,6 +1116,28 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Famil
 		p.reactor.policyFilterFunc(nil), // nil payload -- synthetic update
 	)
 	return res.Action != PolicyReject
+}
+
+// appendDefaultOriginateFilterText appends the update text a filter sees for a
+// synthetic default route. Its format matches the ingress/egress policy text
+// contract, whose keyword names the UPDATE section
+// (docs/architecture/api/process-protocol.md):
+//
+//	"origin igp next-hop <ip> nlri add <prefix>"         IPv4 unicast, IPv4 next hop
+//	"origin igp next-hop <ip> mp <family> add <prefix>"  every other route
+func appendDefaultOriginateFilterText(dst []byte, fam family.Family, prefix netip.Prefix, nextHop netip.Addr) []byte {
+	dst = append(dst, "origin igp next-hop "...)
+	dst = nextHop.AppendTo(dst)
+	// RFC 4271 Section 4.3 and RFC 8950 Section 3: IPv4 unicast travels in the
+	// NLRI field unless its next hop is IPv6 (inlineIPv4Unicast).
+	if inlineIPv4Unicast(fam, nextHop) {
+		dst = append(dst, " nlri add "...)
+	} else {
+		dst = append(dst, " mp "...)
+		dst = append(dst, fam.String()...)
+		dst = append(dst, " add "...)
+	}
+	return prefix.AppendTo(dst)
 }
 
 // sendEORFamilies answers the families the initial sync sends an End-of-RIB

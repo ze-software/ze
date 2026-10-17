@@ -2287,7 +2287,7 @@ RUNTIME: Command request
 RUNTIME: Plugin sends route update to engine
                        <--- #4 ze-plugin-engine:update-route
                             {"peer-selector":"192.168.1.1",
-                             "command":"update text nhop set 10.0.0.1 nlri ipv4/unicast add 10.0.1.0/24"}
+                             "command":"update text nhop set 10.0.0.1 nlri add 10.0.1.0/24"}
 #4 ok {"peers-affected":1,"routes-sent":1}  --->
 
 SHUTDOWN

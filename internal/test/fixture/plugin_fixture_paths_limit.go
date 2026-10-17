@@ -43,29 +43,29 @@ func pathsLimitLive(ctx context.Context, args []string) error {
 		fence string
 	}{
 		// IPv4's remote limit is one, despite our own advertised limit of nine.
-		{"send bgp * update text origin igp next-hop 10.0.0.1 nlri ipv4/unicast path-information 1 add 192.0.2.0/24", ""},
-		{"send bgp * update text origin igp next-hop 10.0.0.1 nlri ipv4/unicast path-information 2 add 192.0.2.0/24", ""},
-		{"send bgp * update text origin igp next-hop 10.0.0.1 nlri ipv4/unicast path-information 99 add 198.51.100.0/24", "4003040A0000010000006318C63364"},
+		{"send bgp * update text origin igp next-hop 10.0.0.1 nlri path-information 1 add 192.0.2.0/24", ""},
+		{"send bgp * update text origin igp next-hop 10.0.0.1 nlri path-information 2 add 192.0.2.0/24", ""},
+		{"send bgp * update text origin igp next-hop 10.0.0.1 nlri path-information 99 add 198.51.100.0/24", "4003040A0000010000006318C63364"},
 		// Same identity, changed attributes: replacement must pass at the limit.
-		{"send bgp * update text origin igp next-hop 10.0.0.2 nlri ipv4/unicast path-information 1 add 192.0.2.0/24", ""},
-		{"send bgp * update text nlri ipv4/unicast path-information 1 del 192.0.2.0/24", ""},
+		{"send bgp * update text origin igp next-hop 10.0.0.2 nlri path-information 1 add 192.0.2.0/24", ""},
+		{"send bgp * update text nlri path-information 1 del 192.0.2.0/24", ""},
 		// A withdrawal does not drain a hidden suppressed-path queue.
-		{"send bgp * update text origin igp next-hop 10.0.0.5 nlri ipv4/unicast path-information 99 add 198.51.100.0/24", "4003040A0000050000006318C63364"},
-		{"send bgp * update text origin igp next-hop 10.0.0.1 nlri ipv4/unicast path-information 2 add 192.0.2.0/24", ""},
-		{"send bgp * update text origin igp next-hop 10.0.0.1 nlri ipv4/unicast path-information 3 add 192.0.2.0/24", ""},
-		{"send bgp * update text origin igp next-hop 10.0.0.2 nlri ipv4/unicast path-information 99 add 198.51.100.0/24", "4003040A0000020000006318C63364"},
+		{"send bgp * update text origin igp next-hop 10.0.0.5 nlri path-information 99 add 198.51.100.0/24", "4003040A0000050000006318C63364"},
+		{"send bgp * update text origin igp next-hop 10.0.0.1 nlri path-information 2 add 192.0.2.0/24", ""},
+		{"send bgp * update text origin igp next-hop 10.0.0.1 nlri path-information 3 add 192.0.2.0/24", ""},
+		{"send bgp * update text origin igp next-hop 10.0.0.2 nlri path-information 99 add 198.51.100.0/24", "4003040A0000020000006318C63364"},
 		// IPv6 independently admits two identities while IPv4 is already full.
-		{"send bgp * update text origin igp next-hop 2001:db8::1 nlri ipv6/unicast path-information 1 add 2001:db8:1::/64", ""},
-		{"send bgp * update text origin igp next-hop 2001:db8::1 nlri ipv6/unicast path-information 2 add 2001:db8:1::/64", ""},
-		{"send bgp * update text origin igp next-hop 2001:db8::1 nlri ipv6/unicast path-information 3 add 2001:db8:1::/64", ""},
-		{"send bgp * update text origin igp next-hop 10.0.0.3 nlri ipv4/unicast path-information 99 add 198.51.100.0/24", "4003040A0000030000006318C63364"},
-		{"send bgp * update text origin igp next-hop 2001:db8::2 nlri ipv6/unicast path-information 2 add 2001:db8:1::/64", ""},
-		{"send bgp * update text nlri ipv6/unicast path-information 1 del 2001:db8:1::/64", ""},
-		{"send bgp * update text origin igp next-hop 10.0.0.6 nlri ipv4/unicast path-information 99 add 198.51.100.0/24", "4003040A0000060000006318C63364"},
-		{"send bgp * update text origin igp next-hop 2001:db8::1 nlri ipv6/unicast path-information 3 add 2001:db8:1::/64", ""},
+		{"send bgp * update text origin igp next-hop 2001:db8::1 mp ipv6/unicast path-information 1 add 2001:db8:1::/64", ""},
+		{"send bgp * update text origin igp next-hop 2001:db8::1 mp ipv6/unicast path-information 2 add 2001:db8:1::/64", ""},
+		{"send bgp * update text origin igp next-hop 2001:db8::1 mp ipv6/unicast path-information 3 add 2001:db8:1::/64", ""},
+		{"send bgp * update text origin igp next-hop 10.0.0.3 nlri path-information 99 add 198.51.100.0/24", "4003040A0000030000006318C63364"},
+		{"send bgp * update text origin igp next-hop 2001:db8::2 mp ipv6/unicast path-information 2 add 2001:db8:1::/64", ""},
+		{"send bgp * update text mp ipv6/unicast path-information 1 del 2001:db8:1::/64", ""},
+		{"send bgp * update text origin igp next-hop 10.0.0.6 nlri path-information 99 add 198.51.100.0/24", "4003040A0000060000006318C63364"},
+		{"send bgp * update text origin igp next-hop 2001:db8::1 mp ipv6/unicast path-information 3 add 2001:db8:1::/64", ""},
 		// Freeing IPv6 capacity must not free IPv4's occupied slot.
-		{"send bgp * update text origin igp next-hop 10.0.0.1 nlri ipv4/unicast path-information 3 add 192.0.2.0/24", ""},
-		{"send bgp * update text origin igp next-hop 10.0.0.4 nlri ipv4/unicast path-information 99 add 198.51.100.0/24", "4003040A0000040000006318C63364"},
+		{"send bgp * update text origin igp next-hop 10.0.0.1 nlri path-information 3 add 192.0.2.0/24", ""},
+		{"send bgp * update text origin igp next-hop 10.0.0.4 nlri path-information 99 add 198.51.100.0/24", "4003040A0000040000006318C63364"},
 	}
 	for _, command := range commands {
 		result := session.run(ctx, strings.Fields(command.line)...)

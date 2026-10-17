@@ -151,10 +151,10 @@ func peerDetailReady(ctx context.Context, plugin *sdk.Plugin, attempts int, fiel
 
 func fastRoutes(ctx context.Context, _ []string) error {
 	commands := []string{
-		"update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/25",
-		"update text nlri ipv4/unicast del 2.2.0.0/25",
-		"update text nhop 101.1.101.1 nlri ipv4/unicast add 2.2.0.0/24",
-		"update text nhop 1.101.1.101 nlri ipv4/unicast add 0.0.0.0/0",
+		"update text nhop 101.1.101.1 nlri add 1.1.0.0/25",
+		"update text nlri del 2.2.0.0/25",
+		"update text nhop 101.1.101.1 nlri add 2.2.0.0/24",
+		"update text nhop 1.101.1.101 nlri add 0.0.0.0/0",
 	}
 	return runPlugin11(ctx, "announce-routes", nil, func(ctx context.Context, p *sdk.Plugin) error {
 		for index, command := range commands {
@@ -171,13 +171,13 @@ func fastRoutes(ctx context.Context, _ []string) error {
 
 func notificationRoute(ctx context.Context, _ []string) error {
 	return runPlugin11(ctx, "announce-routes", nil, func(ctx context.Context, p *sdk.Plugin) error {
-		return update11(ctx, p, "update text nhop 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32")
+		return update11(ctx, p, "update text nhop 5.6.7.8 nlri add 1.2.3.4/32")
 	})
 }
 
 func reconnectRoute(ctx context.Context, _ []string) error {
 	return runPlugin11(ctx, "announce-routes", nil, func(ctx context.Context, p *sdk.Plugin) error {
-		if err := update11(ctx, p, "update text nhop 1.1.1.1 nlri ipv4/unicast add 1.1.0.0/16"); err != nil {
+		if err := update11(ctx, p, "update text nhop 1.1.1.1 nlri add 1.1.0.0/16"); err != nil {
 			return err
 		}
 		return quiesce11(ctx, p)
@@ -186,9 +186,9 @@ func reconnectRoute(ctx context.Context, _ []string) error {
 
 func nexthopRoutes(ctx context.Context, _ []string) error {
 	commands := []string{
-		"update text origin igp local-preference 500 nhop 2001::1 nlri ipv6/unicast add 2605::2/128",
-		"update text origin igp local-preference 500 nhop 2001::2 nlri ipv6/unicast add 2605::2/128",
-		"update text origin igp local-preference 500 nhop 2001::1 nlri ipv6/unicast add 2605::2/128",
+		"update text origin igp local-preference 500 nhop 2001::1 mp ipv6/unicast add 2605::2/128",
+		"update text origin igp local-preference 500 nhop 2001::2 mp ipv6/unicast add 2605::2/128",
+		"update text origin igp local-preference 500 nhop 2001::1 mp ipv6/unicast add 2605::2/128",
 	}
 	return runPlugin11(ctx, "announce-routes", nil, func(ctx context.Context, p *sdk.Plugin) error {
 		if err := update11(ctx, p, commands[0]); err != nil {
@@ -240,7 +240,7 @@ func refreshRoute(ctx context.Context, _ []string) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-		return update11(ctx, p, "update text origin igp local-preference 100 nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24")
+		return update11(ctx, p, "update text origin igp local-preference 100 nhop 10.0.0.1 nlri add 192.168.1.0/24")
 	})
 }
 
@@ -274,7 +274,7 @@ func registrationObserver(ctx context.Context, _ []string) error {
 		if err := quiesce11(ctx, p); err != nil {
 			return fmt.Errorf("finish initial sync before plugin End-of-RIB: %w", err)
 		}
-		if err := update11(ctx, p, "update text nlri ipv4/unicast eor"); err != nil {
+		if err := update11(ctx, p, "update text nlri eor"); err != nil {
 			return err
 		}
 		if !peerDetailReady(ctx, p, WaitAttempts(40, 250*time.Millisecond, 60), "eor-sent", func(v any) bool { n, _ := v.(float64); return n >= 1 }) {

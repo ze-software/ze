@@ -44,9 +44,9 @@ func isEVPNBoundary(token string) bool {
 
 // parseEVPNSection parses EVPN NLRI section.
 // RFC 7432: EVPN route types.
-// Syntax: nlri l2vpn/evpn add <route-type> rd <rd> ...
+// Syntax: mp l2vpn/evpn add <route-type> rd <rd> ...
 func parseEVPNSection(args []string, fam family.Family, _ nlriAccum) (nlriParseResult, error) {
-	// args[0] = "nlri", args[1] = "l2vpn/evpn"
+	// args[0] = "mp", args[1] = "l2vpn/evpn"
 	consumed := 2
 	i := 2
 

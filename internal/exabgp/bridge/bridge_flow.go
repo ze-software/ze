@@ -49,7 +49,7 @@ var (
 	errFlowRouteUnterminated = errors.New("exabgp flow route: a value list opens with '[' and never closes with ']'")
 )
 
-// ConvertFlowRoute translates one ExaBGP `flow route ...` body, in either the
+// convertFlowRoute translates one ExaBGP `flow route ...` body, in either the
 // braced or the flat form, into the ze update-text command for the family.
 // It reports false when the body is not a flow route at all.
 //
@@ -65,7 +65,7 @@ var (
 // prefix in a bare `source` or `destination` makes it an IPv6 route. ExaBGP
 // reads the AFI off the prefix the same way, because `flow route` states none
 // (src/exabgp/configuration/flow/parser.py, source and destination).
-func ConvertFlowRoute(selector, family, verb, body string) (Command, bool, error) {
+func convertFlowRoute(selector, family, verb, body string) (Command, bool, error) {
 	tokens, ok := flowRouteBody(body)
 	if !ok {
 		return Command{}, false, nil
@@ -430,7 +430,8 @@ func (r *flowRoute) command(selector, verb string) Command {
 	parts = r.appendAttributes(parts)
 
 	var nlri textbuf.Buffer
-	nlri.Str("nlri ").Str(r.family).Byte(' ').Str(verb)
+	// RFC 8955 Section 4: FlowSpec NLRI travels in MP_REACH_NLRI, ze's `mp` section.
+	nlri.Str("mp ").Str(r.family).Byte(' ').Str(verb)
 	if r.rd != "" {
 		nlri.Str(" rd ").Str(r.rd)
 	}

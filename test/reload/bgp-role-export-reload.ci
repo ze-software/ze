@@ -91,10 +91,10 @@ EOF_MARKER
 tmpfs=stages.script:terminator=EOF_SCRIPT
 has show metrics values => ze_role_route_suppressions_total{reason=\"export-set\"} 1
 reload config2.conf
-route 127.0.0.1 update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24
+route 127.0.0.1 update text nhop 10.0.0.1 nlri add 192.168.1.0/24
 await-file b-first
 reload config3.conf
-route 127.0.0.1 update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.2.0/24
+route 127.0.0.1 update text nhop 10.0.0.1 nlri add 192.168.2.0/24
 await-file b-second
 say ROLE-EXPORT-RELOAD: the UPDATE after the reload went out under the edited export set
 EOF_SCRIPT

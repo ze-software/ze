@@ -39,8 +39,8 @@ func TestCommandAnnounce(t *testing.T) {
 	// Simulate config delivery: one peer, one pool "dnsr", one route
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	entry := newPoolEntry("10.0.0.0/24#0",
-		"update text origin igp nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-		"update text nlri ipv4/unicast del 10.0.0.0/24")
+		"update text origin igp nhop 1.2.3.4 nlri add 10.0.0.0/24",
+		"update text nlri del 10.0.0.0/24")
 	if err := mgr.peerPools["10.0.0.1"].AddRoute("dnsr", entry); err != nil {
 		t.Fatal(err)
 	}
@@ -85,8 +85,8 @@ func TestCommandWithdraw(t *testing.T) {
 
 	mgr.peerPools["10.0.0.2"] = newPoolSet()
 	entry := newPoolEntry("10.0.0.0/24#0",
-		"update text origin igp nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-		"update text nlri ipv4/unicast del 10.0.0.0/24")
+		"update text origin igp nhop 1.2.3.4 nlri add 10.0.0.0/24",
+		"update text nlri del 10.0.0.0/24")
 	if err := mgr.peerPools["10.0.0.2"].AddRoute("dnsr", entry); err != nil {
 		t.Fatal(err)
 	}
@@ -145,8 +145,8 @@ func TestReconnectResend(t *testing.T) {
 	// Setup: peer has one route, already announced
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	entry := newPoolEntry("10.0.0.0/24#0",
-		"update text origin igp nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-		"update text nlri ipv4/unicast del 10.0.0.0/24")
+		"update text origin igp nhop 1.2.3.4 nlri add 10.0.0.0/24",
+		"update text nlri del 10.0.0.0/24")
 	entry.initiallyAnnounced = true
 	if err := mgr.peerPools["10.0.0.1"].AddRoute("dnsr", entry); err != nil {
 		t.Fatal(err)
@@ -185,8 +185,8 @@ func TestDisconnectedStateUpdate(t *testing.T) {
 	// Setup: peer with route, initially withdrawn (withdraw=true)
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	entry := newPoolEntry("10.0.0.0/24#0",
-		"update text origin igp nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-		"update text nlri ipv4/unicast del 10.0.0.0/24")
+		"update text origin igp nhop 1.2.3.4 nlri add 10.0.0.0/24",
+		"update text nlri del 10.0.0.0/24")
 	if err := mgr.peerPools["10.0.0.1"].AddRoute("dnsr", entry); err != nil {
 		t.Fatal(err)
 	}
@@ -230,8 +230,8 @@ func TestInitiallyAnnouncedRoutes(t *testing.T) {
 
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	entry := newPoolEntry("10.0.0.0/24#0",
-		"update text origin igp nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-		"update text nlri ipv4/unicast del 10.0.0.0/24")
+		"update text origin igp nhop 1.2.3.4 nlri add 10.0.0.0/24",
+		"update text nlri del 10.0.0.0/24")
 	entry.initiallyAnnounced = true
 	if err := mgr.peerPools["10.0.0.1"].AddRoute("dnsr", entry); err != nil {
 		t.Fatal(err)
@@ -261,8 +261,8 @@ func TestInitiallyWithdrawnRoutes(t *testing.T) {
 
 	mgr.peerPools["10.0.0.3"] = newPoolSet()
 	entry := newPoolEntry("10.0.0.0/24#0",
-		"update text origin igp nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-		"update text nlri ipv4/unicast del 10.0.0.0/24")
+		"update text origin igp nhop 1.2.3.4 nlri add 10.0.0.0/24",
+		"update text nlri del 10.0.0.0/24")
 	// initiallyAnnounced defaults to false — route starts withdrawn
 	if err := mgr.peerPools["10.0.0.3"].AddRoute("dnsr", entry); err != nil {
 		t.Fatal(err)
@@ -292,8 +292,8 @@ func TestStateDownPreventsRoutesSending(t *testing.T) {
 
 	mgr.peerPools["10.0.0.4"] = newPoolSet()
 	entry := newPoolEntry("10.0.0.0/24#0",
-		"update text origin igp nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-		"update text nlri ipv4/unicast del 10.0.0.0/24")
+		"update text origin igp nhop 1.2.3.4 nlri add 10.0.0.0/24",
+		"update text nlri del 10.0.0.0/24")
 	if err := mgr.peerPools["10.0.0.4"].AddRoute("dnsr", entry); err != nil {
 		t.Fatal(err)
 	}
@@ -336,8 +336,8 @@ func TestStateUpMixedInitialState(t *testing.T) {
 
 	// Route A: initially announced (default config route)
 	routeA := newPoolEntry("10.0.0.0/24#0",
-		"update text origin igp nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-		"update text nlri ipv4/unicast del 10.0.0.0/24")
+		"update text origin igp nhop 1.2.3.4 nlri add 10.0.0.0/24",
+		"update text nlri del 10.0.0.0/24")
 	routeA.initiallyAnnounced = true
 	if err := mgr.peerPools["10.0.0.5"].AddRoute("dnsr", routeA); err != nil {
 		t.Fatal(err)
@@ -345,8 +345,8 @@ func TestStateUpMixedInitialState(t *testing.T) {
 
 	// Route B: initially withdrawn (withdraw=true in config)
 	routeB := newPoolEntry("10.0.1.0/24#0",
-		"update text origin igp nhop 1.2.3.4 nlri ipv4/unicast add 10.0.1.0/24",
-		"update text nlri ipv4/unicast del 10.0.1.0/24")
+		"update text origin igp nhop 1.2.3.4 nlri add 10.0.1.0/24",
+		"update text nlri del 10.0.1.0/24")
 	// initiallyAnnounced defaults to false
 	if err := mgr.peerPools["10.0.0.5"].AddRoute("dnsr", routeB); err != nil {
 		t.Fatal(err)
@@ -381,8 +381,8 @@ func TestRapidFlap(t *testing.T) {
 
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	entry := newPoolEntry("10.0.0.0/24#0",
-		"update text origin igp nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-		"update text nlri ipv4/unicast del 10.0.0.0/24")
+		"update text origin igp nhop 1.2.3.4 nlri add 10.0.0.0/24",
+		"update text nlri del 10.0.0.0/24")
 	entry.initiallyAnnounced = true
 	if err := mgr.peerPools["10.0.0.1"].AddRoute("dnsr", entry); err != nil {
 		t.Fatal(err)
@@ -563,8 +563,8 @@ func TestExplicitWithdrawSurvivesReconnect(t *testing.T) {
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	// Route is NOT initiallyAnnounced — requires explicit command
 	entry := newPoolEntry("10.0.0.0/24#0",
-		"update text origin igp nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-		"update text nlri ipv4/unicast del 10.0.0.0/24")
+		"update text origin igp nhop 1.2.3.4 nlri add 10.0.0.0/24",
+		"update text nlri del 10.0.0.0/24")
 	if err := mgr.peerPools["10.0.0.1"].AddRoute("dnsr", entry); err != nil {
 		t.Fatal(err)
 	}
@@ -619,8 +619,8 @@ func TestInitiallyAnnouncedRestoredOnReconnect(t *testing.T) {
 
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	entry := newPoolEntry("10.0.0.0/24#0",
-		"update text origin igp nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-		"update text nlri ipv4/unicast del 10.0.0.0/24")
+		"update text origin igp nhop 1.2.3.4 nlri add 10.0.0.0/24",
+		"update text nlri del 10.0.0.0/24")
 	entry.initiallyAnnounced = true
 	if err := mgr.peerPools["10.0.0.1"].AddRoute("dnsr", entry); err != nil {
 		t.Fatal(err)
@@ -775,8 +775,8 @@ func TestMEDOverrideProducesOneOffCommand(t *testing.T) {
 	configMED := uint32(100)
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	entry := newTestEntryWithRoute(
-		"update text origin igp med 100 nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-		"update text nlri ipv4/unicast del 10.0.0.0/24",
+		"update text origin igp med 100 nhop 1.2.3.4 nlri add 10.0.0.0/24",
+		"update text nlri del 10.0.0.0/24",
 		&configMED)
 	if err := mgr.peerPools["10.0.0.1"].AddRoute("dns", entry); err != nil {
 		t.Fatal(err)
@@ -829,8 +829,8 @@ func TestMEDOverrideBypassesDedup(t *testing.T) {
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	if err := mgr.peerPools["10.0.0.1"].AddRoute("dns",
 		newTestEntryWithRoute(
-			"update text origin igp med 100 nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-			"update text nlri ipv4/unicast del 10.0.0.0/24",
+			"update text origin igp med 100 nhop 1.2.3.4 nlri add 10.0.0.0/24",
+			"update text nlri del 10.0.0.0/24",
 			&configMED)); err != nil {
 		t.Fatal(err)
 	}
@@ -913,8 +913,8 @@ func TestMEDOverrideFromWithdrawn(t *testing.T) {
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	if err := mgr.peerPools["10.0.0.1"].AddRoute("dns",
 		newTestEntryWithRoute(
-			"update text origin igp med 100 nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-			"update text nlri ipv4/unicast del 10.0.0.0/24",
+			"update text origin igp med 100 nhop 1.2.3.4 nlri add 10.0.0.0/24",
+			"update text nlri del 10.0.0.0/24",
 			&configMED)); err != nil {
 		t.Fatal(err)
 	}
@@ -956,8 +956,8 @@ func TestMEDOverrideWildcard(t *testing.T) {
 		mgr.peerPools[peer] = newPoolSet()
 		if err := mgr.peerPools[peer].AddRoute("dns",
 			newTestEntryWithRoute(
-				"update text origin igp med 100 nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-				"update text nlri ipv4/unicast del 10.0.0.0/24",
+				"update text origin igp med 100 nhop 1.2.3.4 nlri add 10.0.0.0/24",
+				"update text nlri del 10.0.0.0/24",
 				&configMED)); err != nil {
 			t.Fatal(err)
 		}
@@ -998,8 +998,8 @@ func TestMEDOverrideWithExplicitPeer(t *testing.T) {
 		mgr.peerPools[peer] = newPoolSet()
 		if err := mgr.peerPools[peer].AddRoute("dns",
 			newTestEntryWithRoute(
-				"update text origin igp med 100 nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-				"update text nlri ipv4/unicast del 10.0.0.0/24",
+				"update text origin igp med 100 nhop 1.2.3.4 nlri add 10.0.0.0/24",
+				"update text nlri del 10.0.0.0/24",
 				&configMED)); err != nil {
 			t.Fatal(err)
 		}
@@ -1095,8 +1095,8 @@ func TestNoMEDAfterMEDOverride(t *testing.T) {
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	if err := mgr.peerPools["10.0.0.1"].AddRoute("dns",
 		newTestEntryWithRoute(
-			"update text origin igp med 100 nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-			"update text nlri ipv4/unicast del 10.0.0.0/24",
+			"update text origin igp med 100 nhop 1.2.3.4 nlri add 10.0.0.0/24",
+			"update text nlri del 10.0.0.0/24",
 			&configMED)); err != nil {
 		t.Fatal(err)
 	}
@@ -1130,8 +1130,8 @@ func TestWithdrawAfterMEDOverride(t *testing.T) {
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	if err := mgr.peerPools["10.0.0.1"].AddRoute("dns",
 		newTestEntryWithRoute(
-			"update text origin igp med 100 nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-			"update text nlri ipv4/unicast del 10.0.0.0/24",
+			"update text origin igp med 100 nhop 1.2.3.4 nlri add 10.0.0.0/24",
+			"update text nlri del 10.0.0.0/24",
 			&configMED)); err != nil {
 		t.Fatal(err)
 	}
@@ -1170,8 +1170,8 @@ func TestReconnectUsesStoredNotOverride(t *testing.T) {
 	configMED := uint32(100)
 	mgr.peerPools["10.0.0.1"] = newPoolSet()
 	entry := newTestEntryWithRoute(
-		"update text origin igp med 100 nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-		"update text nlri ipv4/unicast del 10.0.0.0/24",
+		"update text origin igp med 100 nhop 1.2.3.4 nlri add 10.0.0.0/24",
+		"update text nlri del 10.0.0.0/24",
 		&configMED)
 	entry.initiallyAnnounced = true
 	if err := mgr.peerPools["10.0.0.1"].AddRoute("dns", entry); err != nil {

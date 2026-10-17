@@ -80,7 +80,8 @@ func renderFlowspecCommand(m flowspecMatch, action string, rateBytes uint64, mod
 		fam = "ipv6/flow"
 		destKeyword = "destination-ipv6"
 	}
-	b.Str(" nlri ").Str(fam).Byte(' ').Str(mode)
+	// RFC 8955 Section 4: FlowSpec NLRI travels in MP_REACH_NLRI/MP_UNREACH_NLRI.
+	b.Str(" mp ").Str(fam).Byte(' ').Str(mode)
 	b.Byte(' ').Str(destKeyword).Byte(' ').Str(m.DstPrefix.String())
 	if m.Proto != 0 {
 		b.Str(" protocol =").Uint(uint64(m.Proto))

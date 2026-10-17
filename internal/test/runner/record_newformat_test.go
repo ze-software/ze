@@ -296,7 +296,7 @@ func TestParseCICmdAPI(t *testing.T) {
 	confFile := filepath.Join(tmpDir, "test.conf")
 
 	ciContent := `option=file:path=test.conf
-cmd=api:conn=1:seq=1:text=update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=update text nhop set 1.2.3.4 nlri add 10.0.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
 
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
@@ -311,7 +311,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
 
 	msg := rec.getMessage(101)
 	require.NotNil(t, msg)
-	assert.Equal(t, "update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24", msg.Cmd)
+	assert.Equal(t, "update text nhop set 1.2.3.4 nlri add 10.0.0.0/24", msg.Cmd)
 }
 
 // TestParseCIRejectSyslog verifies parsing of reject:syslog lines.

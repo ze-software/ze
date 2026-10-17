@@ -144,7 +144,7 @@ func TestPeerUpReplaysExistingFlowSpecBeforeEOR(t *testing.T) {
 					return nil, err
 				}
 				if method != rpc.MethodUpdateRoute || input.PeerSelector != target ||
-					input.Command != "update text nlri "+fam.String()+" eor" {
+					input.Command != "update text mp "+fam.String()+" eor" {
 					t.Errorf("unexpected route RPC %q: %+v", method, input)
 				}
 				delivered = append(delivered, "eor")

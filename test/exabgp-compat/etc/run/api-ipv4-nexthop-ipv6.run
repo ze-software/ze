@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+
+from exabgp_api import send, wait_for_ack, wait_for_shutdown
+
+
+def main() -> None:
+    # RFC 8950 Section 3: IPv4 unicast with an IPv6 next hop travels in
+    # MP_REACH_NLRI; its withdrawal needs no next hop and stays in the
+    # Withdrawn Routes field (RFC 4271 Section 4.3).
+    messages = [
+        'announce route 10.0.0.0/24 next-hop 2001:db8::1',
+        'withdraw route 10.0.0.0/24 next-hop 2001:db8::1',
+    ]
+
+    # One command per flush: the bridge nets an announce and a withdrawal of
+    # the same route that share a flush, and this case asserts both.
+    for message in messages:
+        send(message)
+        wait_for_ack(expected_count=1)
+
+    wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()

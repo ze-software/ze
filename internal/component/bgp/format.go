@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"net/netip"
 
+	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/rib/store"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -134,7 +135,13 @@ func formatAnnounceText(route *Route) string {
 	sb.Str(" nhop ").Str(route.NextHop)
 
 	// NLRI with family and optional modifiers (RFC 7911, RFC 4364).
-	sb.Str(" nlri ").Str(route.Family.String())
+	// RFC 4271 Section 4.3, RFC 4760 Section 2: the section keyword names the
+	// UPDATE section the route travels in.
+	if textparse.LegacyNLRISection(route.Family.String(), textparse.IPv6NextHopText(route.NextHop)) {
+		sb.Str(" nlri")
+	} else {
+		sb.Str(" mp ").Str(route.Family.String())
+	}
 	writeNLRIModifiers(&sb, route)
 	sb.Str(" add ").Str(route.Prefix)
 
@@ -153,7 +160,14 @@ func FormatWithdrawCommand(route *Route) string {
 		return b.Str(" del ").Str(route.RawNLRI).String()
 	}
 	var sb textbuf.Buffer
-	sb.Str("update text nlri ").Str(route.Family.String())
+	// RFC 4271 Section 4.3: IPv4 unicast is withdrawn in the Withdrawn Routes
+	// field, ze's `nlri` section; every other family in MP_UNREACH_NLRI.
+	sb.Str("update text")
+	if textparse.LegacyNLRISection(route.Family.String(), false) {
+		sb.Str(" nlri")
+	} else {
+		sb.Str(" mp ").Str(route.Family.String())
+	}
 	writeNLRIModifiers(&sb, route)
 	sb.Str(" del ").Str(route.Prefix)
 

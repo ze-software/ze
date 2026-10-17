@@ -95,7 +95,7 @@ func releaseAIGPSource(plugin *sdk.Plugin, args []string) (string, any, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	announced, withdrawn, err := plugin.UpdateRoute(ctx, args[0],
-		"update text origin igp nhop "+args[1]+" nlri ipv4/unicast add 10.255.233.0/24")
+		"update text origin igp nhop "+args[1]+" nlri add 10.255.233.0/24")
 	if err != nil {
 		return rpc.StatusError, nil, err
 	}

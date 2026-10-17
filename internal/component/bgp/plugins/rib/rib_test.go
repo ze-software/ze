@@ -593,16 +593,16 @@ func TestReplayRoutesWithPathID(t *testing.T) {
 
 	// Route without path-id should NOT have path-information in command
 	cmd0 := formatRouteCommand(routeNoPathID)
-	assert.Contains(t, cmd0, "nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24")
+	assert.Contains(t, cmd0, "nhop 1.1.1.1 nlri add 10.0.0.0/24")
 	assert.NotContains(t, cmd0, "path-information")
 
 	// Routes with path-id MUST have path-information in command (per-NLRI modifier)
 	cmd1 := formatRouteCommand(routePathID1)
-	assert.Contains(t, cmd1, "nlri ipv4/unicast path-information 1 add 10.0.0.0/24")
+	assert.Contains(t, cmd1, "nlri path-information 1 add 10.0.0.0/24")
 	assert.Contains(t, cmd1, "nhop 1.1.1.1")
 
 	cmd2 := formatRouteCommand(routePathID2)
-	assert.Contains(t, cmd2, "nlri ipv4/unicast path-information 2 add 10.0.0.0/24")
+	assert.Contains(t, cmd2, "nlri path-information 2 add 10.0.0.0/24")
 	assert.Contains(t, cmd2, "nhop 2.2.2.2")
 }
 

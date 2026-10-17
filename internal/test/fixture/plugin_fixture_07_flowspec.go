@@ -17,7 +17,7 @@ func filterFamilyExportFlowSpec07(ctx context.Context, p *sdk.Plugin) error {
 	if err := waitEOR07(ctx, p, 2); err != nil {
 		return err
 	}
-	command := "update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow add destination-ipv4 10.1.0.0/24 protocol tcp destination-port 80"
+	command := "update text extended-community [copy-to-nexthop] nhop 1.2.3.4 mp ipv4/flow add destination-ipv4 10.1.0.0/24 protocol tcp destination-port 80"
 	announced, withdrawn, err := p.UpdateRoute(ctx, "*", command)
 	if err != nil {
 		return fmt.Errorf("announce FlowSpec route: %w", err)
@@ -49,7 +49,7 @@ func flowSpecAnnounce07(ctx context.Context, p *sdk.Plugin) error {
 	if err := waitEOR07(ctx, p, 1); err != nil {
 		return err
 	}
-	command := "update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow add source-ipv4 10.0.0.2/32"
+	command := "update text extended-community [copy-to-nexthop] nhop 1.2.3.4 mp ipv4/flow add source-ipv4 10.0.0.2/32"
 	announced, withdrawn, err := p.UpdateRoute(ctx, "*", command)
 	if err != nil {
 		return err
@@ -68,8 +68,8 @@ func flowSpecWithdraw07(ctx context.Context, p *sdk.Plugin) error {
 		command              string
 		announced, withdrawn uint32
 	}{
-		{"update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow add destination-ipv4 10.1.0.0/24", 1, 0},
-		{"update text nlri ipv4/flow del destination-ipv4 10.1.0.0/24", 0, 1},
+		{"update text extended-community [copy-to-nexthop] nhop 1.2.3.4 mp ipv4/flow add destination-ipv4 10.1.0.0/24", 1, 0},
+		{"update text mp ipv4/flow del destination-ipv4 10.1.0.0/24", 0, 1},
 	}
 	for _, step := range commands {
 		announced, withdrawn, err := p.UpdateRoute(ctx, "*", step.command)

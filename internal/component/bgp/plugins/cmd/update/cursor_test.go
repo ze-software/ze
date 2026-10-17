@@ -48,7 +48,7 @@ func loadCursorAttrs(t *testing.T, peer string) *parsedAttrs {
 func TestCursorSetup(t *testing.T) {
 	ctx := cursorTestCtx(t)
 
-	args := strings.Fields("origin igp as-path [65001 65002] med 100 next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24")
+	args := strings.Fields("origin igp as-path [65001 65002] med 100 next-hop 10.0.0.1 nlri add 10.0.0.0/24")
 	resp, err := handleUpdateCursor(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -72,12 +72,12 @@ func TestCursorDelta(t *testing.T) {
 	ctx := cursorTestCtx(t)
 
 	// First: establish full state
-	args := strings.Fields("origin igp as-path [65001 65002] med 100 next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24")
+	args := strings.Fields("origin igp as-path [65001 65002] med 100 next-hop 10.0.0.1 nlri add 10.0.0.0/24")
 	_, err := handleUpdateCursor(ctx, args)
 	require.NoError(t, err)
 
 	// Second: only change as-path
-	args = strings.Fields("as-path [65001 65003] nlri ipv4/unicast add 10.1.0.0/24")
+	args = strings.Fields("as-path [65001 65003] nlri add 10.1.0.0/24")
 	resp, err := handleUpdateCursor(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -98,12 +98,12 @@ func TestCursorDel(t *testing.T) {
 	ctx := cursorTestCtx(t)
 
 	// First: establish state with MED
-	args := strings.Fields("origin igp med 100 next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24")
+	args := strings.Fields("origin igp med 100 next-hop 10.0.0.1 nlri add 10.0.0.0/24")
 	_, err := handleUpdateCursor(ctx, args)
 	require.NoError(t, err)
 
 	// Second: del med
-	args = strings.Fields("del med nlri ipv4/unicast add 10.1.0.0/24")
+	args = strings.Fields("del med nlri add 10.1.0.0/24")
 	resp, err := handleUpdateCursor(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -118,12 +118,12 @@ func TestCursorDelAbsent(t *testing.T) {
 	ctx := cursorTestCtx(t)
 
 	// Establish without MED
-	args := strings.Fields("origin igp next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24")
+	args := strings.Fields("origin igp next-hop 10.0.0.1 nlri add 10.0.0.0/24")
 	_, err := handleUpdateCursor(ctx, args)
 	require.NoError(t, err)
 
 	// Del MED that does not exist: should succeed
-	args = strings.Fields("del med nlri ipv4/unicast add 10.1.0.0/24")
+	args = strings.Fields("del med nlri add 10.1.0.0/24")
 	resp, err := handleUpdateCursor(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -134,11 +134,11 @@ func TestCursorDelAbsent(t *testing.T) {
 func TestCursorMultipleDel(t *testing.T) {
 	ctx := cursorTestCtx(t)
 
-	args := strings.Fields("origin igp med 100 community [65000:1] next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24")
+	args := strings.Fields("origin igp med 100 community [65000:1] next-hop 10.0.0.1 nlri add 10.0.0.0/24")
 	_, err := handleUpdateCursor(ctx, args)
 	require.NoError(t, err)
 
-	args = strings.Fields("del med del community nlri ipv4/unicast add 10.1.0.0/24")
+	args = strings.Fields("del med del community nlri add 10.1.0.0/24")
 	resp, err := handleUpdateCursor(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -153,12 +153,12 @@ func TestCursorInherit(t *testing.T) {
 	ctx := cursorTestCtx(t)
 
 	// Establish full state
-	args := strings.Fields("origin igp as-path [65001] med 100 next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24")
+	args := strings.Fields("origin igp as-path [65001] med 100 next-hop 10.0.0.1 nlri add 10.0.0.0/24")
 	_, err := handleUpdateCursor(ctx, args)
 	require.NoError(t, err)
 
 	// NLRIs only, no attr changes
-	args = strings.Fields("nlri ipv4/unicast add 10.1.0.0/24 10.2.0.0/24")
+	args = strings.Fields("nlri add 10.1.0.0/24 10.2.0.0/24")
 	resp, err := handleUpdateCursor(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -178,7 +178,7 @@ func TestCursorDone(t *testing.T) {
 	ctx := cursorTestCtx(t)
 
 	// Establish state
-	args := strings.Fields("origin igp next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24")
+	args := strings.Fields("origin igp next-hop 10.0.0.1 nlri add 10.0.0.0/24")
 	_, err := handleUpdateCursor(ctx, args)
 	require.NoError(t, err)
 
@@ -202,12 +202,12 @@ func TestCursorReplace(t *testing.T) {
 	ctx := cursorTestCtx(t)
 
 	// First init
-	args := strings.Fields("origin igp med 100 next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24")
+	args := strings.Fields("origin igp med 100 next-hop 10.0.0.1 nlri add 10.0.0.0/24")
 	_, err := handleUpdateCursor(ctx, args)
 	require.NoError(t, err)
 
 	// New init without done (peer flap scenario): new attributes replace old
-	args = strings.Fields("origin egp med 200 next-hop 10.0.0.2 nlri ipv4/unicast add 10.1.0.0/24")
+	args = strings.Fields("origin egp med 200 next-hop 10.0.0.2 nlri add 10.1.0.0/24")
 	resp, err := handleUpdateCursor(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -228,11 +228,11 @@ func TestCursorStaleAttrPersistsWithoutDone(t *testing.T) {
 	ctx := cursorTestCtx(t)
 
 	// Prior replay left a cursor carrying MED=100.
-	_, err := handleUpdateCursor(ctx, strings.Fields("origin igp med 100 next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24"))
+	_, err := handleUpdateCursor(ctx, strings.Fields("origin igp med 100 next-hop 10.0.0.1 nlri add 10.0.0.0/24"))
 	require.NoError(t, err)
 
 	// New init WITHOUT done and WITHOUT med: the stale MED is inherited.
-	_, err = handleUpdateCursor(ctx, strings.Fields("origin igp next-hop 10.0.0.2 nlri ipv4/unicast add 10.1.0.0/24"))
+	_, err = handleUpdateCursor(ctx, strings.Fields("origin igp next-hop 10.0.0.2 nlri add 10.1.0.0/24"))
 	require.NoError(t, err)
 
 	attrs := loadCursorAttrs(t, ctx.PeerSelector())
@@ -249,7 +249,7 @@ func TestCursorDoneClearsStaleAttr(t *testing.T) {
 	ctx := cursorTestCtx(t)
 
 	// Prior replay left a cursor carrying MED=100 (its terminating done never arrived).
-	_, err := handleUpdateCursor(ctx, strings.Fields("origin igp med 100 next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24"))
+	_, err := handleUpdateCursor(ctx, strings.Fields("origin igp med 100 next-hop 10.0.0.1 nlri add 10.0.0.0/24"))
 	require.NoError(t, err)
 
 	// New replay starts by resetting the cursor.
@@ -257,7 +257,7 @@ func TestCursorDoneClearsStaleAttr(t *testing.T) {
 	require.NoError(t, err)
 
 	// First group of the new replay: a route WITHOUT MED.
-	resp, err := handleUpdateCursor(ctx, strings.Fields("origin igp next-hop 10.0.0.2 nlri ipv4/unicast add 10.1.0.0/24"))
+	resp, err := handleUpdateCursor(ctx, strings.Fields("origin igp next-hop 10.0.0.2 nlri add 10.1.0.0/24"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
@@ -265,7 +265,7 @@ func TestCursorDoneClearsStaleAttr(t *testing.T) {
 	assert.Nil(t, attrs.MED, "MED from the prior replay must not survive the done reset")
 }
 
-// TestCursorClearProcess verifies ClearProcessCursors frees all cursors for a process.
+// TestCursorClearProcess verifies clearProcessCursors frees all cursors for a process.
 func TestCursorClearProcess(t *testing.T) {
 	// Manually set up cursor state for a specific process
 	processName := "test-plugin-clear"
@@ -284,7 +284,7 @@ func TestCursorClearProcess(t *testing.T) {
 		cursors.Delete(otherKey)
 	})
 
-	ClearProcessCursors(processName)
+	clearProcessCursors(processName)
 
 	_, ok1 := cursors.Load(key1)
 	_, ok2 := cursors.Load(key2)
@@ -298,7 +298,7 @@ func TestCursorClearProcess(t *testing.T) {
 func TestCursorNoCursorState(t *testing.T) {
 	ctx := cursorTestCtx(t)
 
-	args := strings.Fields("nlri ipv4/unicast add 10.0.0.0/24")
+	args := strings.Fields("nlri add 10.0.0.0/24")
 	_, err := handleUpdateCursor(ctx, args)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, errCursorNoCursorState)
@@ -319,7 +319,7 @@ func TestCursorDelMissingKeyword(t *testing.T) {
 	ctx := cursorTestCtx(t)
 
 	// Establish cursor first
-	args := strings.Fields("origin igp next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24")
+	args := strings.Fields("origin igp next-hop 10.0.0.1 nlri add 10.0.0.0/24")
 	_, err := handleUpdateCursor(ctx, args)
 	require.NoError(t, err)
 
@@ -334,7 +334,7 @@ func TestCursorAliasResolution(t *testing.T) {
 	ctx := cursorTestCtx(t)
 
 	// Use aliases: "next" for "next-hop", "pref" for "local-preference", "path" for "as-path"
-	args := strings.Fields("origin igp path [65001] pref 200 next 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24")
+	args := strings.Fields("origin igp path [65001] pref 200 next 10.0.0.1 nlri add 10.0.0.0/24")
 	resp, err := handleUpdateCursor(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -356,7 +356,7 @@ func TestHandleUpdateCursorViaSwitch(t *testing.T) {
 		cursors.Delete(cursorKey("", ctx.PeerSelector()))
 	})
 
-	args := []string{"cursor", "origin", "igp", "next-hop", "10.0.0.1", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}
+	args := []string{"cursor", "origin", "igp", "next-hop", "10.0.0.1", "nlri", "add", "10.0.0.0/24"}
 	resp, err := handleUpdate(ctx, commandtest.Args(args...))
 	require.NoError(t, err)
 	require.NotNil(t, resp)

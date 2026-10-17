@@ -69,7 +69,7 @@ runtime request, see the gotcha below.
 7. **Builtin path.** On a match: authorization (`isAuthorized`, `internal/component/plugin/server/command.go`, checked at
    `:565`), then two-phase YANG arg validation (`command.ValidateArgs`, `internal/component/command/argbind.go`, called
    at `:574`), then `matchedCmd.Handler(ctx, args)` (`internal/component/plugin/server/command.go`). Example: `peer <sel>
-   update text nhop set ... nlri ipv4/unicast add ...` resolves to `handleUpdate`
+   update text nhop set ... nlri add ...` resolves to `handleUpdate`
    (`internal/component/bgp/plugins/cmd/update/update_text.go`, registered with
    `WireMethod: "ze-bgp:peer-update"` at `internal/component/bgp/plugins/cmd/update/update_text.go`), which dispatches by encoding
    to `handleUpdateText` (`internal/component/bgp/plugins/cmd/update/update_text.go`) → `ParseUpdateText` → reactor

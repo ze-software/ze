@@ -32,8 +32,8 @@ func TestWatchdogSkipsResendOnAttachedUp(t *testing.T) {
 			)
 			mgr.peerPools[peer] = newPoolSet()
 			entry := newPoolEntry("10.0.0.0/24#0",
-				"update text origin igp nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-				"update text nlri ipv4/unicast del 10.0.0.0/24")
+				"update text origin igp nhop 1.2.3.4 nlri add 10.0.0.0/24",
+				"update text nlri del 10.0.0.0/24")
 			entry.initiallyAnnounced = true
 			if err := mgr.peerPools[peer].AddRoute("dnsr", entry); err != nil {
 				t.Fatal(err)

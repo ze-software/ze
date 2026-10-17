@@ -68,12 +68,12 @@ func TestParseConfigBasic(t *testing.T) {
 	}
 
 	// Verify announce command contains expected attributes (long-form keywords via shared.FormatAnnounceCommand)
-	wantAnnounce := "update text origin igp local-preference 100 nhop 1.2.3.4 nlri ipv4/unicast add 77.77.77.77/32"
+	wantAnnounce := "update text origin igp local-preference 100 nhop 1.2.3.4 nlri add 77.77.77.77/32"
 	if entry.AnnounceCmd != wantAnnounce {
 		t.Errorf("AnnounceCmd:\n  got  %q\n  want %q", entry.AnnounceCmd, wantAnnounce)
 	}
 
-	wantWithdraw := "update text nlri ipv4/unicast del 77.77.77.77/32"
+	wantWithdraw := "update text nlri del 77.77.77.77/32"
 	if entry.WithdrawCmd != wantWithdraw {
 		t.Errorf("WithdrawCmd:\n  got  %q\n  want %q", entry.WithdrawCmd, wantWithdraw)
 	}
@@ -280,7 +280,7 @@ func TestParseConfigNhopSelf(t *testing.T) {
 	pool := peerPools["10.0.0.1"].getPool("dns")
 	route := pool.Routes()[0]
 
-	if route.AnnounceCmd != "update text origin igp nhop self nlri ipv4/unicast add 10.0.0.0/24" {
+	if route.AnnounceCmd != "update text origin igp nhop self nlri add 10.0.0.0/24" {
 		t.Errorf("AnnounceCmd = %q, expected nhop self", route.AnnounceCmd)
 	}
 }
@@ -319,12 +319,12 @@ func TestParseConfigBareIPNormalized(t *testing.T) {
 		t.Errorf("Key = %q, want 77.77.77.77/32#0", route.Key)
 	}
 
-	wantAnnounce := "update text origin igp nhop 1.2.3.4 nlri ipv4/unicast add 77.77.77.77/32"
+	wantAnnounce := "update text origin igp nhop 1.2.3.4 nlri add 77.77.77.77/32"
 	if route.AnnounceCmd != wantAnnounce {
 		t.Errorf("AnnounceCmd:\n  got  %q\n  want %q", route.AnnounceCmd, wantAnnounce)
 	}
 
-	wantWithdraw := "update text nlri ipv4/unicast del 77.77.77.77/32"
+	wantWithdraw := "update text nlri del 77.77.77.77/32"
 	if route.WithdrawCmd != wantWithdraw {
 		t.Errorf("WithdrawCmd:\n  got  %q\n  want %q", route.WithdrawCmd, wantWithdraw)
 	}
@@ -402,7 +402,7 @@ func TestParseConfigAllAttributes(t *testing.T) {
 	pool := peerPools["10.0.0.1"].getPool("dns")
 	route := pool.Routes()[0]
 
-	want := "update text origin igp as-path [65001 65002] med 50 local-preference 200 community [65000:100 65000:200] large-community [65000:1:2] extended-community [0002fde800000064] nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24"
+	want := "update text origin igp as-path [65001 65002] med 50 local-preference 200 community [65000:100 65000:200] large-community [65000:1:2] extended-community [0002fde800000064] nhop 10.0.0.1 nlri add 10.0.0.0/24"
 	if route.AnnounceCmd != want {
 		t.Errorf("AnnounceCmd:\n  got  %q\n  want %q", route.AnnounceCmd, want)
 	}

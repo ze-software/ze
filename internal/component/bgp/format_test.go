@@ -31,7 +31,7 @@ func TestFormatAnnounceCommand_MinimalRoute(t *testing.T) {
 	}
 
 	cmd := FormatAnnounceCommand(route)
-	assert.Equal(t, "update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24", cmd)
+	assert.Equal(t, "update text nhop 10.0.0.1 nlri add 10.0.0.0/24", cmd)
 }
 
 // TestFormatAnnounceCommand_FullAttributes verifies all attribute fields in command.
@@ -59,7 +59,7 @@ func TestFormatAnnounceCommand_FullAttributes(t *testing.T) {
 	assert.Contains(t, cmd, "local-preference 200")
 	assert.Contains(t, cmd, "community [65001:100]")
 	assert.Contains(t, cmd, "nhop 10.0.0.1")
-	assert.Contains(t, cmd, "nlri ipv4/unicast add 10.0.0.0/24")
+	assert.Contains(t, cmd, "nlri add 10.0.0.0/24")
 }
 
 // TestFormatAnnounceCommand_WithPathID verifies RFC 7911 path-id in command.
@@ -75,7 +75,7 @@ func TestFormatAnnounceCommand_WithPathID(t *testing.T) {
 	}
 
 	cmd := FormatAnnounceCommand(route)
-	assert.Contains(t, cmd, "nlri ipv4/unicast path-information 42 add 10.0.0.0/24")
+	assert.Contains(t, cmd, "nlri path-information 42 add 10.0.0.0/24")
 }
 
 // TestFormatAnnounceCommand_IPv6 verifies IPv6 route formatting.
@@ -91,7 +91,7 @@ func TestFormatAnnounceCommand_IPv6(t *testing.T) {
 	}
 
 	cmd := FormatAnnounceCommand(route)
-	assert.Equal(t, "update text origin igp nhop ::1 nlri ipv6/unicast add 2001:db8::/32", cmd)
+	assert.Equal(t, "update text origin igp nhop ::1 mp ipv6/unicast add 2001:db8::/32", cmd)
 }
 
 // TestFormatAnnounceCommand_ExtendedCommunities verifies extended and large community output.
@@ -127,7 +127,7 @@ func TestFormatAnnounceCommand_VPN(t *testing.T) {
 	}
 
 	cmd := FormatAnnounceCommand(route)
-	assert.Equal(t, "update text origin igp nhop 10.0.0.1 nlri ipv4/mpls-vpn rd 65000:100 label 1000 add 10.0.0.0/24", cmd)
+	assert.Equal(t, "update text origin igp nhop 10.0.0.1 mp ipv4/mpls-vpn rd 65000:100 label 1000 add 10.0.0.0/24", cmd)
 }
 
 // TestFormatAnnounceCommand_NhopSelf verifies nhop self keyword.
@@ -143,7 +143,7 @@ func TestFormatAnnounceCommand_NhopSelf(t *testing.T) {
 	}
 
 	cmd := FormatAnnounceCommand(route)
-	assert.Equal(t, "update text origin igp nhop self nlri ipv4/unicast add 10.0.0.0/24", cmd)
+	assert.Equal(t, "update text origin igp nhop self nlri add 10.0.0.0/24", cmd)
 }
 
 // TestFormatWithdrawCommand verifies withdrawal command generation.
@@ -159,22 +159,22 @@ func TestFormatWithdrawCommand(t *testing.T) {
 		{
 			name:  "basic ipv4",
 			route: &Route{Family: family.IPv4Unicast, Prefix: "10.0.0.0/24"},
-			want:  "update text nlri ipv4/unicast del 10.0.0.0/24",
+			want:  "update text nlri del 10.0.0.0/24",
 		},
 		{
 			name:  "ipv6",
 			route: &Route{Family: family.IPv6Unicast, Prefix: "2001:db8:1::/48"},
-			want:  "update text nlri ipv6/unicast del 2001:db8:1::/48",
+			want:  "update text mp ipv6/unicast del 2001:db8:1::/48",
 		},
 		{
 			name:  "with path-id",
 			route: &Route{Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", PathID: 42},
-			want:  "update text nlri ipv4/unicast path-information 42 del 10.0.0.0/24",
+			want:  "update text nlri path-information 42 del 10.0.0.0/24",
 		},
 		{
 			name:  "vpn with rd and label",
 			route: &Route{Family: mustFamily(t, "ipv4/mpls-vpn"), Prefix: "10.0.0.0/24", RD: "65000:100", Labels: []uint32{1000}},
-			want:  "update text nlri ipv4/mpls-vpn rd 65000:100 label 1000 del 10.0.0.0/24",
+			want:  "update text mp ipv4/mpls-vpn rd 65000:100 label 1000 del 10.0.0.0/24",
 		},
 	}
 

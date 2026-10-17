@@ -212,7 +212,7 @@ func TestPeerBlockAcceptsPeerDirective(t *testing.T) {
 		"action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304",
 		"reject=bgp:conn=1:pattern=180A0100",
 		"# a comment is not a directive",
-		"cmd=api:conn=1:seq=1:text=send bgp * update text nlri ipv4/unicast eor",
+		"cmd=api:conn=1:seq=1:text=send bgp * update text nlri eor",
 	)
 	require.NoError(t, err)
 }

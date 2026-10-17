@@ -35,9 +35,9 @@ func isVPLSBoundary(token string) bool {
 
 // parseVPLSSection parses VPLS NLRI section.
 // RFC 4761 Section 3.2.2: VPLS BGP NLRI format.
-// Syntax: nlri l2vpn/vpls add rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>.
+// Syntax: mp l2vpn/vpls add rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>.
 func parseVPLSSection(args []string, fam family.Family, _ nlriAccum) (nlriParseResult, error) {
-	// args[0] = "nlri", args[1] = "l2vpn/vpls"
+	// args[0] = "mp", args[1] = "l2vpn/vpls"
 	consumed := 2
 	i := 2
 

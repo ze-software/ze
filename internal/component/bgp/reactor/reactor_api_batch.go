@@ -1653,9 +1653,10 @@ func announceASPathASNs(dst []uint32, isIBGP bool, prepend localASPrepend, origi
 // conformant and the family decides which one this speaker sends.
 //
 // Until 2026-09-06 every withdrawal took the bare shape, so
-// `send bgp <selector> update text <attributes> nlri <family> del <nlri>`
-// acknowledged attributes that never reached the wire, and an operator could not
-// tell that from having asked for none (ai/rules/principles.md).
+// `send bgp <selector> update text <attributes> mp <family> del <nlri>` (then
+// spelled `nlri <family> del`) acknowledged attributes that never reached the
+// wire, and an operator could not tell that from having asked for none
+// (ai/rules/principles.md).
 //
 // Unicast is bare because RFC 4271 Section 4.3 gives the Withdrawn Routes field
 // no attributes, and the IPv6 unicast withdrawal is the SAME withdrawal in the

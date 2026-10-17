@@ -33,7 +33,7 @@ func encodeOneNLRI(t *testing.T, cmd []string, addPath bool) (nlri.NLRI, []byte)
 // octets: RFC 8277 Section 2.2 <length><label><prefix>.
 var labeledNoPathID = []string{
 	"nhop", "10.0.0.1",
-	"nlri", "ipv4/mpls-label", "label", "100", "add", "10.0.0.0/24",
+	"mp", "ipv4/mpls-label", "label", "100", "add", "10.0.0.0/24",
 }
 
 // TestPathInformationZeroIsAnIdentifierOnTheWire pins that `path-information 0`
@@ -64,7 +64,7 @@ func TestPathInformationZeroIsAnIdentifierOnTheWire(t *testing.T) {
 
 	n, wire := encodeOneNLRI(t, []string{
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/mpls-label", "path-information", "0", "label", "100",
+		"mp", "ipv4/mpls-label", "path-information", "0", "label", "100",
 		"add", "10.0.0.0/24",
 	}, true)
 
@@ -101,7 +101,7 @@ func TestPathInformationIsNotWrittenWithoutTheNegotiation(t *testing.T) {
 
 	_, wire := encodeOneNLRI(t, []string{
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/mpls-label", "path-information", "0", "label", "100",
+		"mp", "ipv4/mpls-label", "path-information", "0", "label", "100",
 		"add", "10.0.0.0/24",
 	}, false)
 
@@ -126,7 +126,7 @@ func TestPathInformationKeepsTheWholeNLRI(t *testing.T) {
 
 	n, wire := encodeOneNLRI(t, []string{
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/mpls-label", "path-information", "42", "label", "100",
+		"mp", "ipv4/mpls-label", "path-information", "42", "label", "100",
 		"add", "10.0.0.0/24",
 	}, true)
 
@@ -146,13 +146,13 @@ func TestPathInformationKeepsTheWholeNLRI(t *testing.T) {
 func TestPathInformationZeroReachesTheVPNWire(t *testing.T) {
 	_, payload := encodeOneNLRI(t, []string{
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/mpls-vpn", "rd", "100:100", "label", "100",
+		"mp", "ipv4/mpls-vpn", "rd", "100:100", "label", "100",
 		"add", "10.0.0.0/24",
 	}, false)
 
 	n, wire := encodeOneNLRI(t, []string{
 		"nhop", "10.0.0.1",
-		"nlri", "ipv4/mpls-vpn", "path-information", "0", "rd", "100:100",
+		"mp", "ipv4/mpls-vpn", "path-information", "0", "rd", "100:100",
 		"label", "100", "add", "10.0.0.0/24",
 	}, true)
 

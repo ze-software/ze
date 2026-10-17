@@ -768,7 +768,7 @@ Ze engine communicates with plugins via newline-framed YANG RPC over a single bi
 **Mode A: Text (human readable, attributes parsed)**
 ```
 "update text origin set igp as-path set [65001] community set [65000:100]
-        nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24"
+        nhop set 1.1.1.1 nlri add 10.0.0.0/24"
                     │
                     ▼
              Parser → family NLRI builder → builds wire
@@ -831,14 +831,14 @@ Engine is stateless for routes. It forwards wire bytes to plugins and caches for
 
 ### Unified Parser with Family Dispatch
 
-One parser handles all families. Family is determined by `nlri <family>` keyword:
+One parser handles all families. Family is determined by the section keyword: `nlri` is IPv4 unicast, `mp <family>` names any other family:
 
 ```go
 // Single entry point
 func ParseUpdate(cmd string, ctx *PackContext) (*WireUpdate, error) {
     // 1. Tokenize command
     // 2. Parse attributes (origin, as-path, community, nhop, etc.)
-    // 3. On "nlri <family>", dispatch to family-specific NLRI builder
+    // 3. On "nlri" or "mp <family>", dispatch to family-specific NLRI builder
     // 4. Build wire bytes
     // 5. Return WireUpdate
 }
@@ -849,7 +849,7 @@ func ParseUpdate(cmd string, ctx *PackContext) (*WireUpdate, error) {
 Each family has different NLRI wire format:
 
 ```go
-// NLRI builders - called by parser when it sees "nlri <family>"
+// NLRI builders - called by parser when it sees "nlri" or "mp <family>"
 func buildIPv4UnicastNLRI(prefixes []string, ctx *PackContext) ([]byte, error)
 func buildFlowSpecNLRI(rules []FlowSpecRule, ctx *PackContext) ([]byte, error)
 func buildL3VPNNLRI(rd string, labels []uint32, prefix string, ctx *PackContext) ([]byte, error)

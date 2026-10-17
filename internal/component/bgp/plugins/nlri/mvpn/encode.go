@@ -147,7 +147,7 @@ func mvpnAddr(text string, isIPv6 bool) (netip.Addr, error) {
 
 // EncodeNLRIHex encodes one MCAST-VPN NLRI from CLI-style tokens and returns
 // uppercase hex. It implements the InProcessNLRIEncoder signature for the plugin
-// registry, which is how `send bgp <peer> update text ... nlri ipv4/mvpn add
+// registry, which is how `send bgp <peer> update text ... mp ipv4/mvpn add
 // shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as
 // 65000` reaches this package (update/update_text_nlri.go
 // parseRegistryNLRISection).

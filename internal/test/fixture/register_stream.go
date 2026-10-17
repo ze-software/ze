@@ -72,13 +72,13 @@ func streamDynamic(ctx context.Context, out io.Writer, pause waiter) error {
 		if !pause(ctx, 10*time.Second) {
 			return nil
 		}
-		if err := writeLine(out, "update text nhop set 10.0.0.1 nlri ipv4/unicast add 192.0.2.1/32"); err != nil {
+		if err := writeLine(out, "update text nhop set 10.0.0.1 nlri add 192.0.2.1/32"); err != nil {
 			return err
 		}
 		if !pause(ctx, 10*time.Second) {
 			return nil
 		}
-		if err := writeLine(out, "update text nlri ipv4/unicast del 192.0.2.1/32"); err != nil {
+		if err := writeLine(out, "update text nlri del 192.0.2.1/32"); err != nil {
 			return err
 		}
 		if !pause(ctx, 10*time.Second) {

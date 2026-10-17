@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	"github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -101,12 +102,26 @@ func formatAnnounce(fam, nextHop, prefix string, originASN uint32, community []u
 	} else {
 		b.Str(nextHop)
 	}
-	b.Str(" nlri ").Str(fam).Str(" add ").Str(prefix)
+	// RFC 4271 Section 4.3, RFC 4760 Section 2: the section keyword names the
+	// UPDATE section the route travels in.
+	if textparse.LegacyNLRISection(fam, textparse.IPv6NextHopText(nextHop)) {
+		b.Str(" nlri")
+	} else {
+		b.Str(" mp ").Str(fam)
+	}
+	b.Str(" add ").Str(prefix)
 	return b.String()
 }
 
 func formatWithdraw(fam, prefix string) string {
 	var b textbuf.Buffer
-	b.Reset().Str("update text nlri ").Str(fam).Str(" del ").Str(prefix)
+	// RFC 4271 Section 4.3: IPv4 unicast is withdrawn in the Withdrawn Routes field.
+	b.Reset().Str("update text")
+	if textparse.LegacyNLRISection(fam, false) {
+		b.Str(" nlri")
+	} else {
+		b.Str(" mp ").Str(fam)
+	}
+	b.Str(" del ").Str(prefix)
 	return b.String()
 }

@@ -335,7 +335,7 @@ func FormatUpdateEventJSON(u *WireUpdate, addPath bool, w io.Writer) error {
 
 ```go
 func FormatUpdateText(u *WireUpdate, addPath bool, w io.Writer) error {
-    // "update text as-path set [65001 65002] nhop set 192.168.1.1 nlri ipv4/unicast add 10.0.0.0/24"
+    // "update text as-path set [65001 65002] nhop set 192.168.1.1 nlri add 10.0.0.0/24"
     // Format directly from buffer bytes
 }
 ```

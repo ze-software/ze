@@ -24,16 +24,23 @@
 //	                  large-community | extended-community | aggregator |
 //	                  originator-id | cluster-list | aigp | bgp-prefix-sid-srv6 |
 //	                  nhop | path-information | rd | label
-//	<nlri-section> := nlri <family> <nlri-op>+
-//	<nlri-op>      := add <prefix>+ [watchdog <name>] | del <prefix>+
+//	<nlri-section> := nlri [<modifier>]* <nlri-op>+ | nlri eor
+//	                | mp <family> [<modifier>]* <nlri-op>+ | mp <family> eor
+//	<modifier>     := path-information <id> | rd <value> | label <value>
+//	<nlri-op>      := add <prefix>+ [watchdog set <name>] | del <prefix>+
+//
+// The section keyword names the UPDATE section, as in the filter text protocol:
+// nlri is IPv4 unicast in the NLRI and Withdrawn Routes fields (RFC 4271
+// Section 4.3) and takes no family; mp is MP_REACH_NLRI and MP_UNREACH_NLRI
+// (RFC 4760). The removed form `nlri <family>` is refused by name.
 //
 // atomic-aggregate is the one attribute that takes no value: RFC 4271 Section
 // 4.3 f) makes it "a well-known discretionary attribute of length 0", so its
 // presence in the command is the whole value.
 //
 // Attributes are flat declarations (keyword + value). No set/add/del on attributes.
-// add/del are NLRI-only keywords (MP_REACH vs MP_UNREACH).
-// Attributes must precede all nlri sections (no interleaving).
+// add/del are NLRI-only keywords (announce vs withdraw).
+// Attributes must precede all nlri and mp sections (no interleaving).
 //
 // Note: rd and label are ignored for families that don't support them.
 package update
@@ -101,7 +108,8 @@ const (
 // UpdateText command keywords.
 const (
 	kwAttr     = "attr"
-	kwNLRI     = "nlri"
+	kwNLRI     = textparse.KWNLRISection // NLRI and Withdrawn Routes fields (RFC 4271 Section 4.3)
+	kwMP       = textparse.KWMPSection   // MP_REACH_NLRI and MP_UNREACH_NLRI (RFC 4760)
 	kwWatchdog = "watchdog"
 	kwNhop     = "nhop"             // Top-level next-hop keyword.
 	kwPathInfo = "path-information" // ADD-PATH path-id keyword.
@@ -155,7 +163,7 @@ func isAttributeKeyword(token string) bool {
 // Tokens are already alias-resolved (nhop→next-hop, path-id→path-information).
 func isBoundaryKeyword(token string) bool {
 	switch token {
-	case kwAttr, kwNLRI, kwWatchdog, textparse.KWNextHop, kwPathInfo, kwRD, kwLabel:
+	case kwAttr, kwNLRI, kwMP, kwWatchdog, textparse.KWNextHop, kwPathInfo, kwRD, kwLabel:
 		return true
 	}
 	return isAttributeKeyword(token)
@@ -707,7 +715,7 @@ func resolveAliases(args []string) []string {
 
 // ParseUpdateText parses the "update text" command format.
 // Flat grammar: attributes are keyword-value pairs (no set/add/del).
-// Attributes must all precede the nlri sections.
+// Attributes must all precede the NLRI sections (nlri and mp).
 // All keyword aliases are resolved before parsing (next→next-hop, pref→local-preference, etc.).
 func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 	args = resolveAliases(args)
@@ -723,10 +731,10 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 		token := args[i] //nolint:gosec // G602 false positive: loop condition guards access
 
 		switch token {
-		case kwNLRI:
+		case kwNLRI, kwMP:
 			seenNLRI = true
 			wire, nh, nlriAcc := attrs.snapshot()
-			result, err := parseNLRISection(args[i:], nlriAcc)
+			result, err := parseNLRISection(args[i:], nlriAcc, nh)
 			if err != nil {
 				return nil, err
 			}
@@ -841,7 +849,7 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 				i += 1 + extra
 				continue
 			}
-			return nil, fmt.Errorf("unexpected token '%s'; valid: origin, med, local-preference (pref), as-path (path), community (s-com), large-community (l-com), extended-community (x-com), atomic-aggregate, aggregator, originator-id, cluster-list, aigp, bgp-prefix-sid-srv6, next-hop (next), path-information (info), rd, label, nlri, watchdog", token)
+			return nil, fmt.Errorf("unexpected token '%s'; valid: origin, med, local-preference (pref), as-path (path), community (s-com), large-community (l-com), extended-community (x-com), atomic-aggregate, aggregator, originator-id, cluster-list, aigp, bgp-prefix-sid-srv6, next-hop (next), path-information (info), rd, label, nlri, mp, watchdog", token)
 		}
 	}
 
@@ -976,7 +984,7 @@ func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-update", Handler: handleUpdate, RequiresSelector: true},
 	)
-	pluginserver.RegisterProcessCleanup(ClearProcessCursors)
+	pluginserver.RegisterProcessCleanup(clearProcessCursors)
 }
 
 // handleUpdate dispatches update subcommands by encoding.
@@ -1151,9 +1159,9 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 			announced += len(group.Announce)
 		}
 		if len(group.Withdraw) > 0 {
-			// The withdrawal carries what the operator wrote in front of `nlri`, the
+			// The withdrawal carries what the operator wrote in front of its section, the
 			// same block the announce above carries. Dropping Wire and NextHop here
-			// is how `send bgp <selector> update text <attributes> nlri <family> del
+			// is how `send bgp <selector> update text <attributes> mp <family> del
 			// <nlri>` acknowledged attributes that never reached the wire: the
 			// reactor received a batch that named none, so it could not tell the
 			// command apart from one that asked for none (ai/rules/principles.md).

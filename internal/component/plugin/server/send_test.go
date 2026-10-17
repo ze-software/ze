@@ -255,7 +255,7 @@ var movedSendPaths = []struct {
 	},
 	{
 		path:  "peer update",
-		typed: "peer 192.0.2.1 update text nlri ipv4/unicast add 10.0.0.0/24",
+		typed: "peer 192.0.2.1 update text nlri add 10.0.0.0/24",
 		nowAt: "send bgp update",
 	},
 	{
@@ -376,7 +376,7 @@ var sendFormsAtTheirNewPath = []struct {
 }{
 	{line: "send bgp 192.0.2.1 raw hex DEADBEEF", says: "reactor"},
 	{line: "send bgp 192.0.2.1 raw hex DEADBEEF type update", says: "reactor"},
-	{line: "send bgp 192.0.2.1 update text nlri ipv4/unicast add 10.0.0.0/24", says: "reactor"},
+	{line: "send bgp 192.0.2.1 update text nlri add 10.0.0.0/24", says: "reactor"},
 	{line: "send bgp 192.0.2.1 unicast 10.0.0.0/24 next-hop 10.0.0.1", says: "reactor"},
 	{line: "send bgp 192.0.2.1 blackhole 10.0.0.0/24", says: "reactor"},
 	{line: "send bgp 192.0.2.1 flowspec destination-ipv4 10.0.0.0/24 discard", says: "reactor"},

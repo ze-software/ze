@@ -13,6 +13,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -31,7 +32,7 @@ func fixture06DecodeMPReach(ctx context.Context, p *sdk.Plugin) error {
 	if len(nlri) != 1 || nlri[0] != "10.0.0.0/24" {
 		return fmt.Errorf("expected exactly [10.0.0.0/24], got %v", nlri)
 	}
-	announced, _, err := p.UpdateRoute(ctx, "*", fmt.Sprintf("update text nhop %s nlri %s add %s", result.NextHop, result.Family, nlri[0]))
+	announced, _, err := p.UpdateRoute(ctx, "*", fmt.Sprintf("update text nhop %s %s add %s", result.NextHop, nlriSectionText(result.Family, result.NextHop), nlri[0]))
 	if err != nil {
 		return err
 	}
@@ -56,7 +57,7 @@ func fixture06DecodeMPUnreach(ctx context.Context, p *sdk.Plugin) error {
 	if len(nlri) != 1 || nlri[0] != "192.168.0.0/24" {
 		return fmt.Errorf("expected exactly [192.168.0.0/24], got %v", nlri)
 	}
-	announced, _, err := p.UpdateRoute(ctx, "*", fmt.Sprintf("update text nhop 10.0.0.1 nlri %s add %s", result.Family, nlri[0]))
+	announced, _, err := p.UpdateRoute(ctx, "*", fmt.Sprintf("update text nhop 10.0.0.1 %s add %s", nlriSectionText(result.Family, "10.0.0.1"), nlri[0]))
 	if err != nil {
 		return err
 	}
@@ -114,7 +115,7 @@ func fixture06DecodeUpdate(ctx context.Context, p *sdk.Plugin) error {
 	if !ok || len(nlri) != 1 || nlri[0] != "10.0.0.0/24" {
 		return fmt.Errorf("expected exactly [10.0.0.0/24], got %v", entry["nlri"])
 	}
-	announced, _, err := p.UpdateRoute(ctx, "*", fmt.Sprintf("update text nhop %s nlri %s add %s", nextHopValue, family, nlri[0]))
+	announced, _, err := p.UpdateRoute(ctx, "*", fmt.Sprintf("update text nhop %s %s add %s", nextHopValue, nlriSectionText(family, nextHopValue), nlri[0]))
 	if err != nil {
 		return err
 	}
@@ -439,4 +440,14 @@ func fixture06FrameCheck(_ context.Context, args []string) error {
 		fmt.Fprintf(os.Stderr, "     beside it, for a person: %s\n", text)
 	}
 	return nil
+}
+
+// nlriSectionText is the update text section header that re-announces a
+// decoded route of family: `nlri` for IPv4 unicast with an IPv4 next hop,
+// `mp <family>` otherwise (textparse.LegacyNLRISection).
+func nlriSectionText(family, nextHop string) string {
+	if textparse.LegacyNLRISection(family, textparse.IPv6NextHopText(nextHop)) {
+		return textparse.KWNLRISection
+	}
+	return textparse.KWMPSection + " " + family
 }

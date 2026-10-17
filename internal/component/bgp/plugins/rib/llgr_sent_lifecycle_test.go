@@ -148,8 +148,14 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 				wantWithdraw := "update hex nlri " + tc.fam.String() + " addpath del " + hex.EncodeToString(out)
 				wantFreshWithdraw := "update hex nlri " + tc.fam.String() + " addpath del " + hex.EncodeToString(freshOut)
 				if key.Prefix.IsValid() {
-					wantWithdraw = "update text nlri " + tc.fam.String() + " path-information 0 del " + key.Prefix.String()
-					wantFreshWithdraw = "update text nlri " + tc.fam.String() + " path-information 99 del " + key.Prefix.String()
+					// IPv4 unicast is withdrawn in the Withdrawn Routes field
+					// (`nlri`), every other family in MP_UNREACH_NLRI (`mp <family>`).
+					section := "update text mp " + tc.fam.String()
+					if tc.fam == family.IPv4Unicast {
+						section = "update text nlri"
+					}
+					wantWithdraw = section + " path-information 0 del " + key.Prefix.String()
+					wantFreshWithdraw = section + " path-information 99 del " + key.Prefix.String()
 				}
 				if withdrawals[wantWithdraw] != 1 {
 					t.Fatalf("owned withdrawal %q dispatched %d times: %#v", wantWithdraw, withdrawals[wantWithdraw], withdrawals)
@@ -276,7 +282,7 @@ func testRetainRoutesSentOwnership(t *testing.T, onDown bool) {
 			if !onDown {
 				want := "update hex nlri " + tc.fam.String() + " del " + hex.EncodeToString(tc.wire)
 				if tc.fam == family.IPv6Unicast {
-					want = "update text nlri ipv6/unicast del 2001:db8::/32"
+					want = "update text mp ipv6/unicast del 2001:db8::/32"
 				}
 				if len(commands) != 1 || commands[0] != want {
 					t.Fatalf("public retain-routes must withdraw pruned live family exactly once: got %v, want %q", commands, want)
@@ -396,7 +402,7 @@ func TestLLGRLifecycleScopeKeepsFreshProjection(t *testing.T) {
 				t.Fatal("lifecycle changed the old sent projection of a freshly received path")
 			}
 			wantWrites := 1
-			wantCommand := "update text nlri ipv4/unicast path-information 42 del 192.0.2.0/24"
+			wantCommand := "update text nlri path-information 42 del 192.0.2.0/24"
 			if operation == "attach" {
 				wantWrites = 0
 				decorated := r.ribOut[dest][fam][staleKey]
@@ -406,7 +412,7 @@ func TestLLGRLifecycleScopeKeepsFreshProjection(t *testing.T) {
 				}
 			}
 			if operation == "retain" {
-				wantCommand = "update text nlri ipv6/unicast del 2001:db8::/32"
+				wantCommand = "update text mp ipv6/unicast del 2001:db8::/32"
 			}
 			if len(writes) != wantWrites {
 				t.Fatalf("lifecycle writes = %v, want %d", writes, wantWrites)

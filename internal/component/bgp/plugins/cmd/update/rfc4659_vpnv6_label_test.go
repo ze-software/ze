@@ -28,7 +28,7 @@ func TestRFC4659VPNv6AnnouncementCarriesItsLabel(t *testing.T) {
 		"nhop", "2001:db8::1",
 		"rd", "65000:100",
 		"label", "1000",
-		"nlri", "ipv6/mpls-vpn", "add", "2001:db8:1::/48",
+		"mp", "ipv6/mpls-vpn", "add", "2001:db8:1::/48",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -54,7 +54,7 @@ func TestRFC4659VPNv6AnnouncementWithoutLabelRefused(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "2001:db8::1",
 		"rd", "65000:100",
-		"nlri", "ipv6/mpls-vpn", "add", "2001:db8:1::/48",
+		"mp", "ipv6/mpls-vpn", "add", "2001:db8:1::/48",
 	})
 	require.ErrorIs(t, err, route.ErrMissingLabel)
 	assert.Nil(t, result, "a refused announcement produces nothing to advertise")

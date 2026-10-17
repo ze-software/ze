@@ -13,7 +13,7 @@ option=tcp_connections:value=1
 option=timeout:value=15s
 # The observer asserts that 10.1.0.0/24 -- learned from THIS peer over the wire --
 # is in the RIB. That route exists only while this session is up: when the peer
-# goes away ze correctly withdraws it (seen as `update text nlri ipv4/unicast del
+# goes away ze correctly withdraws it (seen as `update text nlri del
 # prefix 10.1.0.0/24` from bgp.rs). Without linger the peer exits the instant it
 # receives ze's End-of-RIB, so the route is withdrawn out from under the observer
 # and the test only passed by winning a ~500ms race (ze holds the EOR behind the

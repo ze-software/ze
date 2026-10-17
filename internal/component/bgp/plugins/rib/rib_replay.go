@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp"
 	"github.com/ze-software/ze/internal/component/bgp/attrpool"
+	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
@@ -487,7 +488,13 @@ func formatCursorCommands(g *replayGroup, prev *Route) []string {
 	}
 
 	var tb textbuf.Buffer
-	tb.Str("nlri ").Str(g.Family.String())
+	// RFC 4271 Section 4.3, RFC 4760 Section 2: the section keyword names the
+	// UPDATE section the route travels in.
+	if textparse.LegacyNLRISection(g.Family.String(), textparse.IPv6NextHopText(g.Route.NextHop)) {
+		tb.Str("nlri")
+	} else {
+		tb.Str("mp ").Str(g.Family.String())
+	}
 	if g.Route.AddPath || g.PathID != 0 {
 		tb.Str(" path-information ").Uint32(g.PathID)
 	}

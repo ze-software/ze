@@ -8,13 +8,13 @@ import (
 
 func TestEVPNTextIMETRequiresRouteTargetOnlyOnAnnouncement(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nlri", "l2vpn/evpn", "add", "multicast",
+		"mp", "l2vpn/evpn", "add", "multicast",
 		"rd", "65000:7", "ip", "192.0.2.1",
 	})
 	require.Error(t, err)
 
 	withdrawal, err := ParseUpdateText([]string{
-		"nlri", "l2vpn/evpn", "del", "multicast",
+		"mp", "l2vpn/evpn", "del", "multicast",
 		"rd", "65000:7", "ip", "192.0.2.1",
 	})
 	require.NoError(t, err)

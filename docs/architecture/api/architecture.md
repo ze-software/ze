@@ -210,7 +210,7 @@ Three properties keep them from surprising a reader:
 | Keyword | `neighbor {` | `peer {` |
 | Binding | `api { processes [foo]; }` | `attach process foo { ... }` in the peer |
 | Direction | `receive { parsed; packets; }` | part of the type name: `update-received` |
-| Output syntax | `neighbor X announce route ...` | `update text nlri <family> ...` |
+| Output syntax | `neighbor X announce route ...` | `update text nlri ...` or `update text mp <family> ...` |
 
 ### Data Flow: Config to Delivery
 
@@ -708,7 +708,7 @@ signals across reactor startup under the race detector.
 
 ```
 API Client
-    │ "update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24"
+    │ "update text nhop set 1.2.3.4 nlri add 10.0.0.0/24"
     ▼
 Dispatcher.handleUpdate()
     │ Parse attributes, validate keywords
@@ -878,7 +878,8 @@ The `ParseUpdateText` function parses the "update text" command format for batch
 <list-attr>   := <list-name> (set <list> | add <list> | del [<list>])
 <list-name>   := as-path | community | large-community | extended-community
 
-<nlri-section> := nlri <family> <nlri-op>+
+<nlri-section> := nlri <nlri-op>+ | nlri eor                # IPv4 unicast, NLRI and Withdrawn Routes fields
+               | mp <family> <nlri-op>+ | mp <family> eor  # MP_REACH_NLRI and MP_UNREACH_NLRI
 <nlri-op>      := add <prefix>+ [watchdog set <name>] | del <prefix>+
 
 <wire-attr>    := attr (set <bytes> | del [<bytes>])   # hex/b64 mode only
@@ -934,9 +935,9 @@ The CLI decode path (`ze bgp decode --nlri`) also validates family strings again
 origin set igp
 nhop set 192.0.2.1
 community set [65000:100]
-nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24 del 10.0.2.0/24
+nlri add 10.0.0.0/24 10.0.1.0/24 del 10.0.2.0/24
 community add [65000:200]
-nlri ipv6/unicast add 2001:db8::/32
+mp ipv6/unicast add 2001:db8::/32
 watchdog pool1
 ```
 
@@ -951,7 +952,7 @@ it uses match components that describe traffic flows.
 
 **Grammar:**
 ```
-<nlri-section>     := nlri <flowspec-family> [rd <value>] <flowspec-op>+
+<nlri-section>     := mp <flowspec-family> [rd <value>] <flowspec-op>+
 <flowspec-op>      := add <component>+ | del <component>+
 
 <flowspec-family>  := ipv4/flowspec | ipv6/flowspec
@@ -1000,29 +1001,29 @@ it uses match components that describe traffic flows.
 **Examples:**
 ```
 # Basic FlowSpec: match TCP port 80 to destination
-nlri ipv4/flowspec add destination-ipv4 10.0.0.0/24 protocol tcp destination-port =80
+mp ipv4/flowspec add destination-ipv4 10.0.0.0/24 protocol tcp destination-port =80
 
 # Multiple components (AND logic)
-nlri ipv4/flowspec add destination-ipv4 10.0.0.0/24 source 192.168.0.0/16 protocol tcp
+mp ipv4/flowspec add destination-ipv4 10.0.0.0/24 source 192.168.0.0/16 protocol tcp
 
 # FlowSpec VPN with RD
-nlri ipv4/flowspec-vpn rd 65000:100 add destination-ipv4 10.0.0.0/24
+mp ipv4/flowspec-vpn rd 65000:100 add destination-ipv4 10.0.0.0/24
 
 # Port range (>=1024 AND <=65535)
-nlri ipv4/flowspec add destination-port >=1024 <=65535
+mp ipv4/flowspec add destination-port >=1024 <=65535
 
 # TCP flags with operators
-nlri ipv4/flowspec add tcp-flags syn          # SYN is set (any)
-nlri ipv4/flowspec add tcp-flags =syn         # ONLY SYN is set (exact)
-nlri ipv4/flowspec add tcp-flags !rst         # RST is NOT set
-nlri ipv4/flowspec add tcp-flags =syn&ack     # exactly SYN+ACK
+mp ipv4/flowspec add tcp-flags syn          # SYN is set (any)
+mp ipv4/flowspec add tcp-flags =syn         # ONLY SYN is set (exact)
+mp ipv4/flowspec add tcp-flags !rst         # RST is NOT set
+mp ipv4/flowspec add tcp-flags =syn&ack     # exactly SYN+ACK
 
 # Fragment matching
-nlri ipv4/flowspec add fragment !is-fragment  # NOT a fragment
-nlri ipv4/flowspec add fragment dont-fragment # DF bit set
+mp ipv4/flowspec add fragment !is-fragment  # NOT a fragment
+mp ipv4/flowspec add fragment dont-fragment # DF bit set
 
 # Withdraw
-nlri ipv4/flowspec del destination 10.0.0.0/24 protocol tcp
+mp ipv4/flowspec del destination 10.0.0.0/24 protocol tcp
 ```
 
 **FlowSpec Extended Community Actions (RFC 5575 Section 7):**
@@ -1039,7 +1040,7 @@ extended-community set traffic-marking <dscp>       # Set DSCP value
 **Complete FlowSpec Rule Example:**
 ```
 extended-community set traffic-rate 65000 1000000
-nlri ipv4/flowspec add destination-ipv4 10.0.0.0/24 protocol tcp destination-port =80
+mp ipv4/flowspec add destination-ipv4 10.0.0.0/24 protocol tcp destination-port =80
 ```
 
 ## Transaction Support
@@ -1225,10 +1226,10 @@ ACK is controlled by serial prefix, not session commands:
 
 ```
 # No serial = fire-and-forget (no response)
-update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24
+update text nhop set 1.2.3.4 nlri add 10.0.0.0/24
 
 # With serial = get response
-#1 update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24
+#1 update text nhop set 1.2.3.4 nlri add 10.0.0.0/24
 → {"serial":"1","status":"done"}
 
 # Error response
@@ -1584,7 +1585,7 @@ RIB stores: ribOut[peerAddr][prefix] = route1
 RIB receives "state up"
     │ Looks up ribOut[peerAddr]
     ▼
-RIB replays: "send bgp <selector> update text nhop set <nh> nlri <family> add <prefix>"
+RIB replays: "send bgp <selector> update text nhop set <nh> (nlri | mp <family>) add <prefix>"
     │
     ▼
 RIB signals: "request peer <addr> plugin session ready session <captured-token>"

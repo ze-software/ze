@@ -24,7 +24,7 @@ import (
 // PREVENTS: a 16-octet Next Hop field whose only address is link-local.
 func TestParseUpdateTextRejectsLinkLocalNextHop(t *testing.T) {
 	_, err := ParseUpdateText(strings.Fields(
-		"origin igp next-hop fe80::cafe nlri ipv6/unicast add 2001:db8:1::1/128"))
+		"origin igp next-hop fe80::cafe mp ipv6/unicast add 2001:db8:1::1/128"))
 
 	require.Error(t, err)
 	assert.ErrorIs(t, err, attribute.ErrLinkLocalNextHop)
@@ -40,7 +40,7 @@ func TestParseUpdateTextAcceptsGlobalNextHop(t *testing.T) {
 		t.Run(nextHop, func(t *testing.T) {
 			_, err := ParseUpdateText(strings.Fields(
 				"origin igp next-hop " + nextHop +
-					" nlri ipv6/unicast add 2001:db8:1::1/128"))
+					" mp ipv6/unicast add 2001:db8:1::1/128"))
 			assert.NoError(t, err)
 		})
 	}

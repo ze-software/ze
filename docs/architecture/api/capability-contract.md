@@ -185,7 +185,7 @@ peer peer-east refresh ipv4/unicast
 **API → Router:** ✅ Done (`refresh.go`, `reactor.go`)
 ```
 peer peer-east borr ipv4/unicast
-update text nhop set self nlri ipv4/unicast add 10.0.0.0/24
+update text nhop set self nlri add 10.0.0.0/24
 peer peer-east eorr ipv4/unicast
 ```
 **RFC 7313 compliance:**

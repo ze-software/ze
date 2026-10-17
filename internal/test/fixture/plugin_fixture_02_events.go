@@ -634,7 +634,7 @@ func peerCounter02(ctx context.Context, plugin *sdk.Plugin, peer, field string) 
 func sendPermission02(ctx context.Context, plugin *sdk.Plugin, events <-chan string, shutdown <-chan struct{}) error {
 	const permitted = "127.0.0.1"
 	const unattached = "127.0.0.2"
-	const route = "nhop 101.1.101.1 nlri ipv4/unicast add 203.0.113.0/24"
+	const route = "nhop 101.1.101.1 nlri add 203.0.113.0/24"
 	if !eorSent02(ctx, plugin, "*", 2, 60) {
 		return fmt.Errorf("SEND-PERMISSION: both peers must send their End-of-RIB first")
 	}

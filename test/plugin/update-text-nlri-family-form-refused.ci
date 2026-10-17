@@ -1,0 +1,94 @@
+# Test: the removed `nlri <family>` form of update text is refused by name, and
+#       the error names the section keyword to write instead.
+#
+# VALIDATES: `send bgp * update text ... nlri ipv4/unicast add` and
+#            `... nlri ipv6/unicast add` are refused with the `nlri add` and
+#            `mp ipv6/unicast add` forms named, and the two other refusals the
+#            section keywords carry (`mp ipv4/unicast eor`, `nlri add` with an
+#            IPv6 next hop) name the form to write. The new forms `nlri add`,
+#            `mp ipv6/unicast add`, `nlri eor` and `mp ipv6/unicast eor` are
+#            accepted through the same entry point.
+# PREVENTS:  the old spelling surviving as an alias. Every producer in the tree
+#            now writes `nlri` or `mp <family>`, so a surviving alias would be
+#            reachable and unreached. removedFamilyFormError
+#            (internal/component/bgp/plugins/cmd/update/update_text_nlri.go)
+#            answers both old commands: accept the old form again and the
+#            preceding command succeeds, which fails expect=command-error.
+#
+# The peer never connects (accept false). The command is parsed before any
+# peer is selected, so the answer depends on the grammar and nothing else, and
+# an accepted command dispatches to no session.
+
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external engine-steps {
+		run "le test engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		attach process engine-steps {
+			send [ update ]
+		}
+	}
+}
+EOF_CONFIG
+
+cmd=foreground:seq=1:exec=ze -:stdin=config:timeout=30s
+
+# The new forms are accepted. An announcement refused here fails the run,
+# because no expect=command-error consumes it. An End-of-RIB is parsed and then
+# refused only at dispatch, because no session is established to carry it.
+command=send bgp * update text origin igp next-hop 10.0.0.1 nlri add 10.0.0.0/24
+command=send bgp * update text origin igp next-hop 2001:db8::1 mp ipv6/unicast add 2001:db8:1::/48
+command=send bgp * update text nlri eor
+expect=command-error:contains=no established peers to send to
+command=send bgp * update text mp ipv6/unicast eor
+expect=command-error:contains=no established peers to send to
+
+# The removed forms are refused by name, and the error names the new form.
+command=send bgp * update text origin igp next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24
+expect=command-error:contains=nlri ipv4/unicast is no longer accepted
+command=send bgp * update text origin igp next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24
+expect=command-error:contains=so write: nlri add|del <prefix>, or nlri eor
+command=send bgp * update text origin igp next-hop 2001:db8::1 nlri ipv6/unicast add 2001:db8:1::/48
+expect=command-error:contains=so write: mp ipv6/unicast add|del ..., or mp ipv6/unicast eor
+command=send bgp * update text nlri ipv6/unicast eor
+expect=command-error:contains=nlri ipv6/unicast is no longer accepted
+
+# The section keyword names the UPDATE section, so a family in the wrong one is
+# refused with the right one named.
+command=send bgp * update text mp ipv4/unicast eor
+expect=command-error:contains=so write: nlri eor
+command=send bgp * update text origin igp next-hop 2001:db8::1 nlri add 10.0.0.0/24
+expect=command-error:contains=so write: mp ipv4/unicast add <prefix>
+
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

@@ -25,7 +25,7 @@ func isFlowSpecBoundary(token string) bool {
 // RFC 8955 Section 4: FlowSpec NLRI = ordered list of match components.
 // For flow-vpn families, rd is required after add/del. For flow families, rd is invalid.
 func parseFlowSpecSection(args []string, fam family.Family) (nlriParseResult, error) {
-	// args[0] = "nlri", args[1] = family string
+	// args[0] = "mp", args[1] = family string
 	consumed := 2
 	i := 2
 

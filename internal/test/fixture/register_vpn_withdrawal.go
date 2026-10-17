@@ -60,7 +60,7 @@ func vpnWithdrawalInventory(ctx context.Context, args []string) error {
 					return fmt.Errorf("receiver was not sent VPN UPDATE %d", index)
 				}
 			}
-			command := "update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add " + prefix
+			command := "update text origin igp nhop 1.1.1.1 nlri add " + prefix
 			if _, _, err := plugin.UpdateRoute(ctx, "127.0.0.1", command); err != nil {
 				return err
 			}

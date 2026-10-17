@@ -2708,7 +2708,7 @@ declares that `delete bgp peer` removed is taken out of it.
 ### Route Injection
 
 ```
-send bgp <sel> update text <attrs> nlri <family> <op> <prefixes>
+send bgp <sel> update text <attrs> (nlri | mp <family>) <op> <prefixes>
 send bgp <sel> update hex <hex-data>
 send bgp <sel> update b64 <b64-data>
 send bgp <sel> raw <hex|b64> <data> [type <type>]
@@ -2744,8 +2744,9 @@ Text format attributes:
 | `large-community` | `large-community set [ 65000:1:1 ]` |
 | `extended-community` | `extended-community set [ rt:65000:100 ]` |
 
-NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
-`nlri <family> eor`.
+NLRI operations: `nlri add <prefixes>`, `nlri del <prefixes>` and `nlri eor` for IPv4
+unicast; `mp <family> add <prefixes>`, `mp <family> del <prefixes>` and
+`mp <family> eor` for every other family.
 <!-- source: internal/component/bgp/plugins/cmd/update/ -- update text/hex/b64 parsing; internal/component/bgp/plugins/cmd/raw/ -- raw message injection -->
 
 ### RIB Commands

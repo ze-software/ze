@@ -138,7 +138,7 @@ func mcpHiddenCommand09(ctx context.Context, _ []string) error {
 
 func medLocallySet09(ctx context.Context, _ []string) error {
 	return passiveObserve09(ctx, "med-local", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
-		announced, withdrawn, err := p.UpdateRoute(ctx, "*", "update text origin igp med 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.0.0.1/32")
+		announced, withdrawn, err := p.UpdateRoute(ctx, "*", "update text origin igp med 100 nhop 101.1.101.1 nlri add 1.0.0.1/32")
 		if err != nil {
 			return err
 		}

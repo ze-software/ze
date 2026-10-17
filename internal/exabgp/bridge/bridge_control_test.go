@@ -128,7 +128,12 @@ func TestBridgeSAFIListIsOneDeclaration(t *testing.T) {
 			line := "neighbor 10.0.0.1 announce ipv4 " + exabgpName + " 10.0.0.0/24 next-hop 1.2.3.4"
 			translation, err := TranslateLine(line)
 			require.NoError(t, err, "a family the map knows must be a family the regexp matches")
-			assert.Contains(t, onlyCommand(translation), "ipv4/"+zeName,
+			// ze's `nlri` section is IPv4 unicast and takes no family token.
+			want := "mp ipv4/" + zeName
+			if zeName == "unicast" {
+				want = "nlri add"
+			}
+			assert.Contains(t, onlyCommand(translation), want,
 				"the command must name the family ze declares, not the one ExaBGP wrote")
 		})
 	}
@@ -158,27 +163,27 @@ func TestBareAddressBecomesAHostRoute(t *testing.T) {
 		{
 			name: "ipv4 host route",
 			line: "neighbor 127.0.0.1 announce route 1.2.3.4 next-hop 5.6.7.8",
-			want: "send bgp 127.0.0.1 update text nhop 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32",
+			want: "send bgp 127.0.0.1 update text nhop 5.6.7.8 nlri add 1.2.3.4/32",
 		},
 		{
 			name: "ipv6 host route",
 			line: "announce route 2001:db8::1 next-hop 2001:db8::2",
-			want: "send bgp * update text nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8::1/128",
+			want: "send bgp * update text nhop 2001:db8::2 mp ipv6/unicast add 2001:db8::1/128",
 		},
 		{
 			name: "a stated length is left alone",
 			line: "announce route 10.0.0.0/24 next-hop 1.1.1.1",
-			want: "send bgp * update text nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24",
+			want: "send bgp * update text nhop 1.1.1.1 nlri add 10.0.0.0/24",
 		},
 		{
 			name: "the attributes form completes every prefix it names",
 			line: "announce attributes next-hop 1.1.1.1 nlri 1.2.3.4 5.6.7.8/32",
-			want: "send bgp * update text nhop 1.1.1.1 nlri ipv4/unicast add 1.2.3.4/32 5.6.7.8/32",
+			want: "send bgp * update text nhop 1.1.1.1 nlri add 1.2.3.4/32 5.6.7.8/32",
 		},
 		{
 			name: "a withdraw completes it too",
 			line: "neighbor 127.0.0.1 withdraw route 1.2.3.4 next-hop 5.6.7.8",
-			want: "send bgp 127.0.0.1 update text nhop 5.6.7.8 nlri ipv4/unicast del 1.2.3.4/32",
+			want: "send bgp 127.0.0.1 update text nhop 5.6.7.8 nlri del 1.2.3.4/32",
 		},
 	}
 
@@ -246,17 +251,17 @@ func TestFamilyAllowedInOpenReachesNoSession(t *testing.T) {
 		{
 			name: "a named family still reaches the address",
 			line: "neighbor 127.0.0.1 local-as 1 family-allowed ipv4-unicast announce route 1.2.0.0/24 next-hop 101.1.101.1",
-			want: "send bgp 127.0.0.1 update text nhop 101.1.101.1 nlri ipv4/unicast add 1.2.0.0/24",
+			want: "send bgp 127.0.0.1 update text nhop 101.1.101.1 nlri add 1.2.0.0/24",
 		},
 		{
 			name: "the other qualifiers still reach the address",
 			line: "neighbor 127.0.0.1 local-as 1 peer-as 1 local-ip 127.0.0.1 router-id 1.2.3.4 announce route 1.3.0.0/24 next-hop 101.1.101.1",
-			want: "send bgp 127.0.0.1 update text nhop 101.1.101.1 nlri ipv4/unicast add 1.3.0.0/24",
+			want: "send bgp 127.0.0.1 update text nhop 101.1.101.1 nlri add 1.3.0.0/24",
 		},
 		{
 			name: "one excluded neighbor leaves the other addressed",
 			line: "neighbor 127.0.0.1 family-allowed in-open, neighbor 127.0.0.2 announce route 1.4.0.0/24 next-hop 101.1.101.1",
-			want: "send bgp 127.0.0.2 update text nhop 101.1.101.1 nlri ipv4/unicast add 1.4.0.0/24",
+			want: "send bgp 127.0.0.2 update text nhop 101.1.101.1 nlri add 1.4.0.0/24",
 		},
 	}
 
@@ -331,7 +336,7 @@ func TestThePeerKeywordNamesTheSameSessionsAsNeighbor(t *testing.T) {
 			line:     "peer 127.0.0.1 announce route 1.2.3.4 next-hop 5.6.7.8",
 			same:     "neighbor 127.0.0.1 announce route 1.2.3.4 next-hop 5.6.7.8",
 			selector: "127.0.0.1",
-			want:     "send bgp 127.0.0.1 update text nhop 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32",
+			want:     "send bgp 127.0.0.1 update text nhop 5.6.7.8 nlri add 1.2.3.4/32",
 		},
 		{
 			name:     "one qualified address",

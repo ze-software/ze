@@ -26,7 +26,7 @@ cmd=foreground:seq=1:exec=ze peer 192.0.2.1 raw hex DEADBEEF
 expect=exit:code=1
 expect=stderr:contains=unknown command
 
-cmd=foreground:seq=2:exec=ze peer 192.0.2.1 update text nlri ipv4/unicast add 10.0.0.0/24
+cmd=foreground:seq=2:exec=ze peer 192.0.2.1 update text nlri add 10.0.0.0/24
 expect=exit:code=1
 expect=stderr:contains=unknown command
 

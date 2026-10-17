@@ -63,7 +63,7 @@ what `show | blame` reports for the changes the console commits.
 
 | Command | Description |
 |---------|-------------|
-| `send bgp <sel> update text <attrs> nlri <family> <op> <prefix>` | Text-format UPDATE |
+| `send bgp <sel> update text <attrs> (nlri | mp <family>) <op> <prefix>` | Text-format UPDATE |
 | `send bgp <sel> update hex <hex>` | Hex-format UPDATE |
 | `show bgp rib received [peer <selector>] [family <family>]` | Show Adj-RIB-In |
 | `show bgp rib advertised [peer <selector>] [family <family>]` | Show Adj-RIB-Out |

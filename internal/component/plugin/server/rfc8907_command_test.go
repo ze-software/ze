@@ -296,7 +296,7 @@ func TestDispatcherTokenize(t *testing.T) {
 		{"alpha  show", []string{"alpha", "show"}},
 		{"  alpha show  ", []string{"alpha", "show"}},
 		{"alpha\tshow", []string{"alpha", "show"}},
-		{"update text nlri ipv4/unicast add 10.0.0.0/24", []string{"update", "text", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
+		{"update text nlri add 10.0.0.0/24", []string{"update", "text", "nlri", "add", "10.0.0.0/24"}},
 		// Quoted strings
 		{`myapp check "hello world"`, []string{"myapp", "check", "hello world"}},
 		{`register command "myapp status" description "Show status"`, []string{"register", "command", "myapp status", "description", "Show status"}},

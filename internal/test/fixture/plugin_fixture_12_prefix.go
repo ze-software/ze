@@ -214,7 +214,7 @@ func mustJSONP12(value any) []byte {
 func p12QuiesceBarrier(ctx context.Context, plugin *sdk.Plugin) error {
 	for _, command := range []string{
 		cmdAnnounceFirstPrefix,
-		"update text nhop 101.1.101.1 nlri ipv4/unicast add 1.2.0.0/25",
+		"update text nhop 101.1.101.1 nlri add 1.2.0.0/25",
 	} {
 		if _, _, err := plugin.UpdateRoute(ctx, "*", command); err != nil {
 			return fmt.Errorf("send %q: %w", command, err)

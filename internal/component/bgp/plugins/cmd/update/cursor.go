@@ -1,6 +1,6 @@
 // Design: docs/architecture/bgp/replay-cursor.md -- stateful cursor for replay batching
 // Overview: update_text.go — handleUpdate dispatch, parsedAttrs, snapshot, parseCommonAttributeText
-// Related: update_text_nlri.go — parseNLRISection (reused unchanged)
+// Related: update_text_nlri.go — parseNLRISection (nlri and mp sections)
 package update
 
 import (
@@ -19,7 +19,7 @@ import (
 
 var (
 	errCursorNoCursorState = errors.New("no cursor state; first update cursor must include attributes")
-	errCursorMissingNLRI   = errors.New("update cursor requires nlri section (or done)")
+	errCursorMissingNLRI   = errors.New("update cursor requires an nlri or mp section (or done)")
 	errCursorDelMissingKW  = errors.New("del requires attribute keyword")
 )
 
@@ -31,9 +31,9 @@ func cursorKey(processName, peer string) string {
 	return processName + ":" + peer
 }
 
-// ClearProcessCursors removes all cursor entries for a given process name.
+// clearProcessCursors removes all cursor entries for a given process name.
 // Called from cleanupProcess when a plugin exits without sending "done".
-func ClearProcessCursors(processName string) {
+func clearProcessCursors(processName string) {
 	prefix := processName + ":"
 	cursors.Range(func(key, _ any) bool {
 		if k, ok := key.(string); ok && strings.HasPrefix(k, prefix) {
@@ -88,7 +88,7 @@ func handleUpdateCursor(ctx *pluginserver.CommandContext, args []string) (*plugi
 	for i < len(args) {
 		token := args[i]
 
-		if token == kwNLRI {
+		if token == kwNLRI || token == kwMP {
 			break
 		}
 
@@ -132,7 +132,7 @@ func handleUpdateCursor(ctx *pluginserver.CommandContext, args []string) (*plugi
 		return nil, fmt.Errorf("unexpected token in cursor command: %s", token)
 	}
 
-	if i >= len(args) || args[i] != kwNLRI {
+	if i >= len(args) || !isNLRISectionKeyword(args[i]) {
 		return nil, errCursorMissingNLRI
 	}
 
@@ -147,8 +147,8 @@ func handleUpdateCursor(ctx *pluginserver.CommandContext, args []string) (*plugi
 	wire, nh, nlriAcc := attrs.snapshot()
 
 	var groups []bgptypes.NLRIGroup
-	for i < len(args) && args[i] == kwNLRI {
-		result, parseErr := parseNLRISection(args[i:], nlriAcc)
+	for i < len(args) && isNLRISectionKeyword(args[i]) {
+		result, parseErr := parseNLRISection(args[i:], nlriAcc, nh)
 		if parseErr != nil {
 			return nil, parseErr
 		}
@@ -220,4 +220,10 @@ func clearAttr(attrs *parsedAttrs, keyword string) {
 		attrs.NextHop = netip.Addr{}
 		attrs.NextHopSelf = false
 	}
+}
+
+// isNLRISectionKeyword reports whether token opens an NLRI section: nlri for
+// the legacy fields, mp for MP_REACH_NLRI and MP_UNREACH_NLRI.
+func isNLRISectionKeyword(token string) bool {
+	return token == kwNLRI || token == kwMP
 }

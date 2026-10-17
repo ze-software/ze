@@ -7,7 +7,7 @@ peer holding 100K routes blocked for about 10 seconds. The dominant cost was per
 call, not attribute encoding, so the goal was to cut the call COUNT from
 O(routes) to O(distinct attribute sets).
 
-<!-- source: internal/component/bgp/plugins/cmd/update/cursor.go -- cursor handler, cursor state, ClearProcessCursors -->
+<!-- source: internal/component/bgp/plugins/cmd/update/cursor.go -- cursor handler, cursor state, clearProcessCursors -->
 <!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- grouped collection, delta formatting, sorted replay -->
 
 ## The decisions

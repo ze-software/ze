@@ -777,7 +777,7 @@ Two modes for route updates, both producing the same WireUpdate:
 **Text mode** (human-readable):
 ```
 update text origin set igp nhop set 1.1.1.1 as-path set [65001]
-    community set [no-export] nlri ipv4/unicast add 10.0.0.0/24
+    community set [no-export] nlri add 10.0.0.0/24
 ```
 
 **Binary mode** (raw wire bytes):

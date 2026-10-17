@@ -16,7 +16,7 @@ is deliberate: the verb exists for DDoS mitigation and maintenance, where the
 operator states what a peer must hear.
 
 Every other rail that reaches a peer works the same way.
-`(*BGPConsumer).InjectRoute` formats `update text ... nlri <family> add <prefix>`
+`(*BGPConsumer).InjectRoute` formats `update text ... nlri add <prefix>` (`mp <family> add` for any other family, and for IPv4 unicast with an IPv6 next hop)
 and dispatches it, so a redistributed static or OSPF route re-enters through this
 same announce rail. Export policy still applies: `exportFilterForBody` runs the
 destination peer's export chain at the session write gate for every originated

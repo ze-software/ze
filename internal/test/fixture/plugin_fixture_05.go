@@ -620,10 +620,10 @@ func p05CursorReplay(ctx context.Context, args []string) error {
 			return errors.New("peer1 never sent its initial-sync End-of-RIB")
 		}
 		commands := []string{
-			"update cursor origin igp as-path [65001 65002] med 100 local-preference 200 next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24",
-			"update cursor as-path [65001 65003] nlri ipv4/unicast add 10.1.0.0/24",
-			"update cursor nlri ipv4/unicast add 10.2.0.0/24 10.2.1.0/24",
-			"update cursor del med nlri ipv4/unicast add 10.3.0.0/24",
+			"update cursor origin igp as-path [65001 65002] med 100 local-preference 200 next-hop 10.0.0.1 nlri add 10.0.0.0/24 10.0.1.0/24",
+			"update cursor as-path [65001 65003] nlri add 10.1.0.0/24",
+			"update cursor nlri add 10.2.0.0/24 10.2.1.0/24",
+			"update cursor del med nlri add 10.3.0.0/24",
 			"update cursor done",
 		}
 		for index, command := range commands {
@@ -672,7 +672,7 @@ func p05CustomFlowspecPlugin(ctx context.Context, args []string) error {
 		{Name: familyIPv4Unicast, Mode: modeBoth, AFI: 1, SAFI: 1},
 	}}
 	return p05RunActivePlugin(ctx, "acme-traffic-filter", &registration, func(ctx context.Context, plugin *sdk.Plugin) error {
-		if _, _, err := plugin.UpdateRoute(ctx, "*", "update text origin igp local-preference 100 nhop 1.2.3.4 nlri ipv4/unicast add 77.77.77.0/24"); err != nil {
+		if _, _, err := plugin.UpdateRoute(ctx, "*", "update text origin igp local-preference 100 nhop 1.2.3.4 nlri add 77.77.77.0/24"); err != nil {
 			return err
 		}
 		_, _, err := plugin.DispatchCommand(ctx, "request quiesce")
@@ -707,7 +707,7 @@ func p05DDoSFlowspecAnnounce(ctx context.Context, args []string) error {
 	return p05RunActivePlugin(ctx, "ddos-flowspec-announce", &sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
 		commands := []string{
 			cmdAnnounceFirstPrefix,
-			"update text extended-community [rate-limit:9600] nhop self nlri ipv4/flow add destination-ipv4 192.0.2.0/24 protocol =6 destination-port =80",
+			"update text extended-community [rate-limit:9600] nhop self mp ipv4/flow add destination-ipv4 192.0.2.0/24 protocol =6 destination-port =80",
 		}
 		for _, command := range commands {
 			if _, _, err := plugin.UpdateRoute(ctx, "*", command); err != nil {

@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -133,6 +134,22 @@ type routeAttributes struct {
 
 // Command renders the attributes as the ze text that precedes the nlri section.
 func (a routeAttributes) Command() string { return textbuf.Join(a.Tokens, " ") }
+
+// nextHopIPv6 reports whether the line names an IPv6 next hop, which moves an
+// IPv4 unicast announcement from ze's `nlri` section to `mp ipv4/unicast`
+// (RFC 8950 Section 3).
+func (a routeAttributes) nextHopIPv6() bool {
+	for i := 0; i+1 < len(a.Tokens); i++ {
+		if a.Tokens[i] == a.nextHopKeyword() {
+			return textparse.IPv6NextHopText(a.Tokens[i+1])
+		}
+	}
+	return false
+}
+
+// nextHopKeyword is the ze spelling the attribute table writes for ExaBGP's
+// next-hop, read from the table rather than restated.
+func (a routeAttributes) nextHopKeyword() string { return bridgeRouteAttrs[bridgeAttrNextHop].Ze }
 
 // Has reports whether the ze keyword was written. It reads the ze spelling
 // rather than the ExaBGP one, so `rd` answers for `route-distinguisher` too.
@@ -258,7 +275,7 @@ func splitRouteBody(parts []string) (nlri, attrs []string) {
 // ze reads them in both positions for a family it parses itself, so cutting the
 // NLRI at them costs nothing there. For mup and mvpn it costs everything: the
 // plugin encoder is handed the whole token run and reads the route
-// distinguisher out of it, so `nlri ipv4/mup add route-type mup-isd rd 100:100
+// distinguisher out of it, so `mp ipv4/mup add route-type mup-isd rd 100:100
 // prefix 10.0.1.0/24` arrived at the encoder with no RD at all.
 var bridgeNLRIOwnedAttrs = map[string]bool{
 	"rd": true, bridgeAttrRouteDist: true, bridgeAttrLabel: true, bridgeAttrPathInformation: true,

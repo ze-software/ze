@@ -20,7 +20,7 @@
 
 stdin=peer:terminator=EOF_PEER
 # Route announced by the plugin script
-cmd=api:conn=1:seq=1:text=send bgp * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow add destination-ipv4 10.1.0.0/24
+cmd=api:conn=1:seq=1:text=send bgp * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 mp ipv4/flow add destination-ipv4 10.1.0.0/24
 # RFC 8955 Section 4: "When advertising Flow Specifications, the Length of the
 # Next-Hop Network Address MUST be set to 0.  The Network Address of the
 # Next-Hop field MUST be ignored." The expectation below therefore carries
@@ -35,7 +35,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E0200000027400101
 # multiprotocol withdrawal packs its attributes (5def98e623, 2026-09-06, the
 # ExaBGP contract api-flow records). This line asserted the pre-2026-09-06
 # shape and was never reached: the announce above failed first.
-cmd=api:conn=1:seq=2:text=send bgp * update text nlri ipv4/flow del destination-ipv4 10.1.0.0/24
+cmd=api:conn=1:seq=2:text=send bgp * update text mp ipv4/flow del destination-ipv4 10.1.0.0/24
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0031020000001A4001010040020040050400000064800F090001850501180A0100
 EOF_PEER
 

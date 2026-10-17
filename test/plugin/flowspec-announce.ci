@@ -4,7 +4,7 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 # Route sent by plugin script
-cmd=api:conn=1:seq=1:text=send bgp * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow add source-ipv4 10.0.0.2/32
+cmd=api:conn=1:seq=1:text=send bgp * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 mp ipv4/flow add source-ipv4 10.0.0.2/32
 # RFC 8955 Section 4: "When advertising Flow Specifications, the Length of the
 # Next-Hop Network Address MUST be set to 0.  The Network Address of the
 # Next-Hop field MUST be ignored." The expectation below therefore carries
@@ -19,7 +19,7 @@ expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"mes
 # test sends an EOR: the marker is peer1's OWN initial-sync one
 # (reactor/peer_initial_sync.go sendInitialRoutes, one per negotiated family), and
 # RFC 4724 Section 2 allows exactly one per family per session, so an explicit
-# `update text nlri ipv4/flow eor` could never put a second on the wire. It only
+# `update text mp ipv4/flow eor` could never put a second on the wire. It only
 # appeared to work while a static config route rode the initial sync AHEAD of the
 # marker; with the plugin as the producer the route necessarily follows it.
 # The frame is still proven: the observer takes wait_peer_eor_sent below, which

@@ -73,7 +73,7 @@ Ze aims for **easy migration from ExaBGP**, not 100% compatibility.
 
 ### Why Changed
 1. **Correct semantics:** One UPDATE can have multiple next-hops for same family (IPv4 traditional + MP_REACH)
-2. **Matches command syntax:** `nlri ipv4/unicast add ... del ...`
+2. **Matches the text event syntax:** `nlri ipv4/unicast add ... del ...`
 3. **Simpler parsing:** Family value is always an array
 4. **Explicit action:** `add`/`del` instead of `announce`/`withdraw` keys
 

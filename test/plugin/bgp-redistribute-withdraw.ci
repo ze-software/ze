@@ -1,5 +1,5 @@
 # Test: bgp-redistribute -- remove event becomes a BGP WITHDRAWN_ROUTES message.
-# VALIDATES: AC-8 -- accepted remove batch dispatches `update text nlri ipv4/unicast del 10.0.0.1/32`.
+# VALIDATES: AC-8 -- accepted remove batch dispatches `update text nlri del 10.0.0.1/32`.
 # PREVENTS: Withdraw path missing or building wrong NLRI.
 
 stdin=peer:terminator=EOF_PEER

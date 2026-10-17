@@ -1353,7 +1353,7 @@ func TestRSSoftDepSkipsReplay(t *testing.T) {
 	defer mu.Unlock()
 	gotEOR := false
 	for _, cmd := range updateCmds {
-		if strings.Contains(cmd, "10.0.0.1:") && strings.Contains(cmd, "ipv4/unicast eor") {
+		if strings.Contains(cmd, "10.0.0.1:") && strings.Contains(cmd, "nlri eor") {
 			gotEOR = true
 			break
 		}
@@ -1908,11 +1908,14 @@ func TestReplayForPeer_SendsEOR(t *testing.T) {
 	}
 
 	// Verify both families got EOR.
+	// RFC 4724 Section 2: the IPv4 unicast End-of-RIB is the minimum-length
+	// UPDATE (`nlri eor`); any other family's is an empty MP_UNREACH_NLRI
+	// (`mp <family> eor`).
 	hasIPv4 := slices.ContainsFunc(eorCmds, func(s string) bool {
-		return strings.Contains(s, "ipv4/unicast")
+		return strings.HasSuffix(s, "\tupdate text nlri eor")
 	})
 	hasIPv6 := slices.ContainsFunc(eorCmds, func(s string) bool {
-		return strings.Contains(s, "ipv6/unicast")
+		return strings.HasSuffix(s, "\tupdate text mp ipv6/unicast eor")
 	})
 	if !hasIPv4 {
 		t.Error("missing EOR for ipv4/unicast")
@@ -1921,12 +1924,12 @@ func TestReplayForPeer_SendsEOR(t *testing.T) {
 		t.Error("missing EOR for ipv6/unicast")
 	}
 
-	// Verify command format: peer selector is the peer address, command contains "update text nlri <family> eor".
+	// Verify command format: peer selector is the peer address, command is an "update text" EOR.
 	for _, cmd := range eorCmds {
 		if !strings.HasPrefix(cmd, "10.0.0.1\t") {
 			t.Errorf("EOR command should target peer 10.0.0.1, got: %s", cmd)
 		}
-		if !strings.Contains(cmd, "update text nlri") {
+		if !strings.HasPrefix(cmd, "10.0.0.1\tupdate text ") || !strings.HasSuffix(cmd, " eor") {
 			t.Errorf("EOR command has wrong format: %s", cmd)
 		}
 	}
@@ -2027,7 +2030,7 @@ func TestReplayForPeer_FailedReplay_SendsEOR(t *testing.T) {
 	defer mu.Unlock()
 	gotEOR := false
 	for _, cmd := range commands {
-		if strings.Contains(cmd, "ipv4/unicast eor") {
+		if strings.Contains(cmd, "nlri eor") {
 			gotEOR = true
 			break
 		}

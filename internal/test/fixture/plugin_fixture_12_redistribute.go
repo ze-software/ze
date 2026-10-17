@@ -198,7 +198,7 @@ func p12RelayWithdraw(reflector bool) p12Scenario {
 			fmt.Fprintln(os.Stderr, "OK: dest was sent the advertisement")
 		}
 
-		if _, _, err := plugin.UpdateRoute(ctx, "127.0.0.1", "update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.2.0/24"); err != nil {
+		if _, _, err := plugin.UpdateRoute(ctx, "127.0.0.1", "update text origin igp nhop 1.1.1.1 nlri add 192.0.2.0/24"); err != nil {
 			return err
 		}
 		if !Poll(ctx, 40, 250*time.Millisecond, func() bool {

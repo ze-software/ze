@@ -759,27 +759,46 @@ All route operations use unified `update text` syntax with flat attribute declar
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- ParseUpdateText -->
 
 ```bash
-# Announce routes (flat attributes, no 'set')
-send bgp <selector> update text next <ip> [attributes...] nlri <family> add prefix <prefix>...
+# Announce IPv4 unicast routes (flat attributes, no 'set')
+send bgp <selector> update text next <ip> [attributes...] nlri add prefix <prefix>...
+
+# Announce routes of any other family
+send bgp <selector> update text next <ip> [attributes...] mp <family> add prefix <prefix>...
 
 # Withdraw routes
-send bgp <selector> update text nlri <family> del prefix <prefix>...
+send bgp <selector> update text nlri del prefix <prefix>...
+send bgp <selector> update text mp <family> del prefix <prefix>...
 
 # End-of-RIB marker (RFC 4724)
-send bgp <selector> update text nlri <family> eor
+send bgp <selector> update text nlri eor
+send bgp <selector> update text mp <family> eor
 
 # VPLS (L2VPN/VPLS)
-send bgp <selector> update text nlri l2vpn/vpls add rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>
+send bgp <selector> update text mp l2vpn/vpls add rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>
 
 # EVPN (L2VPN/EVPN)
-send bgp <selector> update text nlri l2vpn/evpn add mac-ip rd <rd> mac <mac> [ip <ip>] label <n>
-send bgp <selector> update text nlri l2vpn/evpn add ip-prefix rd <rd> prefix <prefix> label <n>
-send bgp <selector> update text nlri l2vpn/evpn add multicast rd <rd> ip <ip>
+send bgp <selector> update text mp l2vpn/evpn add mac-ip rd <rd> mac <mac> [ip <ip>] label <n>
+send bgp <selector> update text mp l2vpn/evpn add ip-prefix rd <rd> prefix <prefix> label <n>
+send bgp <selector> update text mp l2vpn/evpn add multicast rd <rd> ip <ip>
 ```
+
+The section keyword names the UPDATE section the routes travel in, the same two
+keywords the filter text protocol uses. `nlri` takes no family: it is IPv4
+unicast in the NLRI and Withdrawn Routes fields (RFC 4271 Section 4.3). `mp
+<family>` is MP_REACH_NLRI and MP_UNREACH_NLRI (RFC 4760). IPv4 unicast takes
+`mp ipv4/unicast add` only with an explicit IPv6 next hop (RFC 8950 Section 3);
+its `del`, its `eor` and any other next hop are refused with the `nlri` form to
+write. The removed form `nlri <family>` is refused by name, with the form to
+write instead:
+
+```
+nlri ipv6/unicast is no longer accepted: nlri means IPv4 unicast in the NLRI and Withdrawn Routes fields, and ipv6/unicast travels in MP_REACH_NLRI and MP_UNREACH_NLRI, so write: mp ipv6/unicast add|del ..., or mp ipv6/unicast eor
+```
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseNLRISection, removedFamilyFormError, checkMPIPv4Unicast -->
 
 #### A withdrawal can be answered with the peers it was withheld from
 
-`send bgp <selector> update text ... nlri <family> del ...` names no route to a
+`send bgp <selector> update text ... mp <family> del ...` (or `nlri del`) names no route to a
 peer whose session has advertised nothing, because RFC 4271 Section 4.3
 identifies a withdrawn route in the context of the connection it was previously
 advertised on. Such a peer is written the withdrawal's path attributes with no
@@ -808,23 +827,23 @@ changed attributes (delta encoding), reducing per-call overhead.
 ```bash
 # First command: establish full attribute state + announce NLRIs
 send bgp <selector> update cursor origin igp as-path [65001] med 100 \
-  next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24
+  next-hop 10.0.0.1 nlri add 10.0.0.0/24 10.0.1.0/24
 
 # Delta: only changed attributes, rest inherited from cursor
 send bgp <selector> update cursor as-path [65001 65003] \
-  nlri ipv4/unicast add 10.1.0.0/24
+  nlri add 10.1.0.0/24
 
 # NLRIs only (all attributes inherited)
-send bgp <selector> update cursor nlri ipv4/unicast add 10.2.0.0/24
+send bgp <selector> update cursor nlri add 10.2.0.0/24
 
 # Remove an attribute from cursor
-send bgp <selector> update cursor del med nlri ipv4/unicast add 10.3.0.0/24
+send bgp <selector> update cursor del med nlri add 10.3.0.0/24
 
 # Clear cursor state (call after replay completes)
 send bgp <selector> update cursor done
 ```
 
-Cursor mode supports announce-only (`nlri <family> add`). Withdrawals are not
+Cursor mode supports announce-only (`nlri add`, `mp <family> add`). Withdrawals are not
 supported because replay re-sends stored routes, never withdrawals.
 
 ### Removed Commands (use update text instead)
@@ -833,15 +852,15 @@ The following legacy commands have been removed:
 
 | Old Command | Replacement |
 |-------------|-------------|
-| `announce ipv4/unicast <p> next-hop <nh>` | `update text next <nh> nlri ipv4/unicast add prefix <p>` |
-| `announce ipv6/unicast <p> next-hop <nh>` | `update text next <nh> nlri ipv6/unicast add prefix <p>` |
-| `announce eor <afi> <safi>` | `update text nlri <family> eor` |
-| `announce vpls ...` | `update text nlri l2vpn/vpls add ...` |
-| `announce l2vpn ...` | `update text nlri l2vpn/evpn add ...` |
-| `withdraw ipv4/unicast <p>` | `update text nlri ipv4/unicast del prefix <p>` |
-| `withdraw ipv6/unicast <p>` | `update text nlri ipv6/unicast del prefix <p>` |
-| `withdraw vpls ...` | `update text nlri l2vpn/vpls del ...` |
-| `withdraw l2vpn ...` | `update text nlri l2vpn/evpn del ...` |
+| `announce ipv4/unicast <p> next-hop <nh>` | `update text next <nh> nlri add prefix <p>` |
+| `announce ipv6/unicast <p> next-hop <nh>` | `update text next <nh> mp ipv6/unicast add prefix <p>` |
+| `announce eor <afi> <safi>` | `update text mp <family> eor` (`update text nlri eor` for IPv4 unicast) |
+| `announce vpls ...` | `update text mp l2vpn/vpls add ...` |
+| `announce l2vpn ...` | `update text mp l2vpn/evpn add ...` |
+| `withdraw ipv4/unicast <p>` | `update text nlri del prefix <p>` |
+| `withdraw ipv6/unicast <p>` | `update text mp ipv6/unicast del prefix <p>` |
+| `withdraw vpls ...` | `update text mp l2vpn/vpls del ...` |
+| `withdraw l2vpn ...` | `update text mp l2vpn/evpn del ...` |
 
 ### Watchdog Commands
 
@@ -852,7 +871,7 @@ request bgp watchdog withdraw <name> [peer]            # Withdraw all routes in 
 
 Routes are tagged with a pool when announced:
 ```bash
-update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 watchdog set mypool
+update text nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24 watchdog set mypool
 ```
 
 > **Note:** `watchdog set` in wire-mode updates is parsed but not yet
@@ -975,9 +994,12 @@ show adj-rib out [<afi> <safi>]
 All route operations now use `update text` syntax:
 
 ```bash
-update text next <ip> [attributes...] nlri <family> add prefix <prefix>
-update text nlri <family> del prefix <prefix>
-update text nlri <family> eor
+update text next <ip> [attributes...] nlri add prefix <prefix>
+update text next <ip> [attributes...] mp <family> add prefix <prefix>
+update text nlri del prefix <prefix>
+update text mp <family> del prefix <prefix>
+update text nlri eor
+update text mp <family> eor
 ```
 
 > **Note:** Legacy `announce`/`withdraw` commands have been removed.
@@ -1118,19 +1140,19 @@ split /<target-length>
 
 ```
 # Announce 2 prefixes with one command
-update text next 1.2.3.4 nlri ipv4/unicast add prefix 10.0.0.0/23 split /24
+update text next 1.2.3.4 nlri add prefix 10.0.0.0/23 split /24
 # → 10.0.0.0/24 next-hop 1.2.3.4
 # → 10.0.1.0/24 next-hop 1.2.3.4
 
 # With MPLS label - label applies to each prefix
-update text next 1.2.3.4 nlri ipv4/nlri-mpls label 100 add prefix 10.0.0.0/22 split /24
+update text next 1.2.3.4 mp ipv4/nlri-mpls label 100 add prefix 10.0.0.0/22 split /24
 # → 10.0.0.0/24 label 100
 # → 10.0.1.0/24 label 100
 # → 10.0.2.0/24 label 100
 # → 10.0.3.0/24 label 100
 
 # With L3VPN - RD and label apply to each prefix
-update text next 1.2.3.4 nlri ipv4/mpls-vpn rd 100:1 label 200 add prefix 10.0.0.0/23 split /24
+update text next 1.2.3.4 mp ipv4/mpls-vpn rd 100:1 label 200 add prefix 10.0.0.0/23 split /24
 # → 10.0.0.0/24 rd 100:1 label 200
 # → 10.0.1.0/24 rd 100:1 label 200
 ```
@@ -1155,20 +1177,20 @@ update text next 1.2.3.4 nlri ipv4/mpls-vpn rd 100:1 label 200 add prefix 10.0.0
 ## FlowSpec Commands
 
 FlowSpec rules use the unified `update text` syntax. The match components are
-the FlowSpec NLRI (`nlri ipv4/flow add <components>`); the action is carried as
+the FlowSpec NLRI (`mp ipv4/flow add <components>`); the action is carried as
 a FlowSpec extended community declared with the `extended-community` attribute
-before the `nlri` section (`discard` is sugar for `traffic-rate 0`).
+before the `mp` section (`discard` is sugar for `traffic-rate 0`).
 
 ```
 # Match TCP traffic to 10.0.0.0/8 port 80 and drop it
 update text extended-community discard \
-  nlri ipv4/flow add \
+  mp ipv4/flow add \
   destination 10.0.0.0/8 \
   protocol tcp \
   destination-port =80
 
 # Withdraw the same FlowSpec rule (match components identify it)
-update text nlri ipv4/flow del \
+update text mp ipv4/flow del \
   destination 10.0.0.0/8 \
   protocol tcp \
   destination-port =80

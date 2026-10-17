@@ -97,11 +97,11 @@ func pathsLimitPhaseUpdates(phase int, nextHop string) ([]string, error) {
 		return nil, fmt.Errorf("unknown PATHS-LIMIT phase %d", phase)
 	}
 	announce := func(pathID, med int, prefix string) string {
-		return fmt.Sprintf("update text path-information %d origin igp path 65001 med %d nhop %s nlri ipv4/unicast add %s", pathID, med, nextHop, prefix)
+		return fmt.Sprintf("update text path-information %d origin igp path 65001 med %d nhop %s nlri add %s", pathID, med, nextHop, prefix)
 	}
 	update := announce(id, metric, injectPrefixFirst)
 	if withdraw {
-		update = fmt.Sprintf("update text path-information %d nlri ipv4/unicast del %s", id, injectPrefixFirst)
+		update = fmt.Sprintf("update text path-information %d nlri del %s", id, injectPrefixFirst)
 	}
 	return []string{update, announce(100+phase, phase, pathsLimitSentinel(phase))}, nil
 }

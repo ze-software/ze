@@ -33,8 +33,8 @@ func TestPeerDownRetainedFamilies(t *testing.T) {
 	v6 := withdrawalKey{fam: family.IPv6Unicast, prefix: netip.MustParsePrefix("2001:db8::/48")}
 	opaque := withdrawalKey{fam: linkState, nlriStr: bgplsNLRIUnknown, wireForm: true}
 	opaquePath := withdrawalKey{fam: linkState, nlriStr: "00000007" + bgplsNLRIUnknown, wireForm: true, addPath: true}
-	v4Command := "update text nlri ipv4/unicast del prefix 10.0.0.0/24 del prefix 10.0.1.0/24"
-	v6Command := "update text nlri ipv6/unicast del prefix 2001:db8::/48"
+	v4Command := "update text nlri del prefix 10.0.0.0/24 del prefix 10.0.1.0/24"
+	v6Command := "update text mp ipv6/unicast del prefix 2001:db8::/48"
 	opaqueCommand := "update hex nlri bgp-ls/bgp-ls del " + bgplsNLRIUnknown
 	opaquePathCommand := "update hex nlri bgp-ls/bgp-ls addpath del 00000007" + bgplsNLRIUnknown
 

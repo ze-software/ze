@@ -355,7 +355,7 @@ func TestReplayLargeGroupSplit(t *testing.T) {
 
 	for _, cmd := range cmds {
 		assert.True(t, strings.HasPrefix(cmd, "update cursor "), "each split should be a cursor command: %s", cmd)
-		assert.Contains(t, cmd, "nlri ipv4/unicast add", "each split should contain nlri section")
+		assert.Contains(t, cmd, "nlri add", "each split should contain nlri section")
 	}
 
 	totalPrefixes := 0

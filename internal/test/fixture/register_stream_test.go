@@ -45,8 +45,8 @@ func TestStreamDynamicPreservesProtocolSequence(t *testing.T) {
 	}
 
 	want := "announce flow route {\\n match {\\n source 10.0.0.1/32;\\n destination 1.2.3.4/32;\\n }\\n then {\\n discard;\\n }\\n }\\n\n" +
-		"update text nhop set 10.0.0.1 nlri ipv4/unicast add 192.0.2.1/32\n" +
-		"update text nlri ipv4/unicast del 192.0.2.1/32\n" +
+		"update text nhop set 10.0.0.1 nlri add 192.0.2.1/32\n" +
+		"update text nlri del 192.0.2.1/32\n" +
 		"withdraw flow route {\\n match {\\n source 10.0.0.1/32;\\n destination 1.2.3.4/32;\\n }\\n then {\\n discard;\\n }\\n }\\n\n"
 	if got := out.String(); got != want {
 		t.Fatalf("dynamic output:\n got %q\nwant %q", got, want)

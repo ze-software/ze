@@ -114,8 +114,8 @@ func BenchmarkTokenize(b *testing.B) {
 	}{
 		{"simple", "peer list"},
 		{"with_selector", "peer 10.0.0.1 show"},
-		{"quoted", `bgp peer 10.0.0.1 update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24`},
-		{"long_update", `update text origin set igp as-path set [ 65001 65002 65003 ] nhop set 192.168.1.1 nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24 10.0.2.0/24`},
+		{"quoted", `bgp peer 10.0.0.1 update text origin set igp nhop set 1.1.1.1 nlri add 10.0.0.0/24`},
+		{"long_update", `update text origin set igp as-path set [ 65001 65002 65003 ] nhop set 192.168.1.1 nlri add 10.0.0.0/24 10.0.1.0/24 10.0.2.0/24`},
 	}
 
 	for _, tt := range inputs {

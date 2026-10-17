@@ -16,7 +16,7 @@ script. Each direction has its own translator.
 
 Down, `TranslateLine` reads one ExaBGP line and writes one ze CLI command.
 `neighbor <address> announce route <prefix> next-hop <nh>` becomes
-`send bgp <address> update text nhop <nh> nlri ipv4/unicast add <prefix>`.
+`send bgp <address> update text nhop <nh> nlri add <prefix>`.
 Twelve sites in `bridge_command.go` build a command of the shape
 `send bgp <selector> update text ...`, where the selector is one address or `*`.
 
@@ -106,7 +106,7 @@ whose `api { processes [ ... ] }` list names the process that wrote it
 (`Reactor.peers(service)`, `src/exabgp/reactor/loop.py`). The bridge reads it the
 same way. `Translator.Peers` carries those addresses, so `announce route
 <prefix>` becomes
-`send bgp 127.0.0.1,192.0.2.1 update text nlri ipv4/unicast add <prefix>`.
+`send bgp 127.0.0.1,192.0.2.1 update text nlri add <prefix>`.
 
 A translator with no peers sends to every peer, `send bgp * ...`. That is what
 one script and one neighbor means, and it is what the bridge did for every

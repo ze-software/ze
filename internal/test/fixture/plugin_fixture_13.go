@@ -310,7 +310,7 @@ func reloadSharedSecret13(ctx context.Context, args []string) error {
 func originatedPrivateAS13(name string) Driver {
 	return func(ctx context.Context, args []string) error {
 		return runPlugin13(ctx, name, nil, func(ctx context.Context, plugin *sdk.Plugin) error {
-			if _, _, err := plugin.UpdateRoute(ctx, "*", "update text origin igp as-path [64496 64512 64497] nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24"); err != nil {
+			if _, _, err := plugin.UpdateRoute(ctx, "*", "update text origin igp as-path [64496 64512 64497] nhop 1.1.1.1 nlri add 10.0.0.0/24"); err != nil {
 				return err
 			}
 			if err := requireStatus13("wait for update acknowledgement", command13(ctx, plugin, "request quiesce"), "done"); err != nil {
@@ -483,7 +483,7 @@ func rfc7606Withdraw13(ctx context.Context, args []string) error {
 			state, _ := peerField13(result, "state")
 			return state == stateEstablished
 		})
-		if _, _, err := plugin.UpdateRoute(ctx, "*", "update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24"); err != nil {
+		if _, _, err := plugin.UpdateRoute(ctx, "*", "update text nhop 10.0.0.1 nlri add 10.0.0.0/24"); err != nil {
 			return err
 		}
 		result := pollCommand13(ctx, plugin, "show bgp peer peer1 detail", 100, 100*time.Millisecond, func(result commandResult13) bool {
@@ -492,7 +492,7 @@ func rfc7606Withdraw13(ctx context.Context, args []string) error {
 		if peerCounter13(result, "updates-received") < 1 {
 			return errors.New("ze never counted the post-malformed EOR fence")
 		}
-		_, _, err := plugin.UpdateRoute(ctx, "*", "update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.1.0/24")
+		_, _, err := plugin.UpdateRoute(ctx, "*", "update text nhop 10.0.0.1 nlri add 10.0.1.0/24")
 		return err
 	}, false)
 }
@@ -526,7 +526,7 @@ func opaqueWithdraw13(ctx context.Context, args []string) error {
 		if !both {
 			return errors.New("route server never reported both clients up")
 		}
-		if _, _, err := plugin.UpdateRoute(ctx, source, "update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.2.0/24"); err != nil {
+		if _, _, err := plugin.UpdateRoute(ctx, source, "update text origin igp nhop 1.1.1.1 nlri add 192.0.2.0/24"); err != nil {
 			return err
 		}
 		if err := requireStatus13("wait for BGP-LS announcement", command13(ctx, plugin, "request quiesce"), "done"); err != nil {
@@ -538,7 +538,7 @@ func opaqueWithdraw13(ctx context.Context, args []string) error {
 			return errors.New("receiver was never sent the BGP-LS announcement")
 		}
 		before := receiverUpdates()
-		if _, _, err := plugin.UpdateRoute(ctx, source, "update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 198.51.100.0/24"); err != nil {
+		if _, _, err := plugin.UpdateRoute(ctx, source, "update text origin igp nhop 1.1.1.1 nlri add 198.51.100.0/24"); err != nil {
 			return err
 		}
 		withdrawn := false

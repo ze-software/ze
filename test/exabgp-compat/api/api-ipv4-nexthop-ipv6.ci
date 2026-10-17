@@ -1,0 +1,10 @@
+option=file:api-ipv4-nexthop-ipv6.conf
+# RFC 8950 Section 3: IPv4 unicast with an IPv6 next hop goes in MPREACHNLRI
+# (AFI 1, SAFI 1, next-hop length 16) and the legacy NLRI field stays empty.
+1:cmd:announce route 10.0.0.0/24 next-hop 2001:db8::1
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0041:02:0000002A4001010040020040050400000064800E190001011020010DB800000000000000000000000100180A0000
+1:cmd:announce eor ipv4 unicast
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000
+# RFC 4271 Section 4.3: the withdrawal is the Withdrawn Routes field.
+1:cmd:withdraw route 10.0.0.0/24
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:001B:02:0004180A00000000

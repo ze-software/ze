@@ -32,7 +32,7 @@ func TestPoolSetAddRemove(t *testing.T) {
 			name:     "add single route",
 			poolName: "dns",
 			entries: []*PoolEntry{
-				newPoolEntry("10.0.0.0/24#0", "update text origin set igp nlri ipv4/unicast add 10.0.0.0/24", "update text nlri ipv4/unicast del 10.0.0.0/24"),
+				newPoolEntry("10.0.0.0/24#0", "update text origin set igp nlri add 10.0.0.0/24", "update text nlri del 10.0.0.0/24"),
 			},
 			wantPools:  1,
 			wantRoutes: 1,

@@ -90,9 +90,9 @@ EOF_MARKER
 tmpfs=stages.script:terminator=EOF_SCRIPT
 await-file b-first
 reload config2.conf
-route 127.0.0.1 update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24
+route 127.0.0.1 update text nhop 10.0.0.1 nlri add 192.168.1.0/24
 await-file b-second
-route 127.0.0.1 update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.2.0/24
+route 127.0.0.1 update text nhop 10.0.0.1 nlri add 192.168.2.0/24
 await-file b-third
 say EXPORT-RELOAD: the next UPDATE carries the edited tag, the earlier route is not re-sent
 EOF_SCRIPT

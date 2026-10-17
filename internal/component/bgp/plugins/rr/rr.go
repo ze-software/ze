@@ -30,6 +30,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/family"
@@ -699,12 +700,28 @@ func parseReplayResponse(data json.RawMessage) (lastIndex uint64, replayed int) 
 
 func nlriDelCmd(fam, prefixes string) string {
 	var b textbuf.Buffer
-	return b.Reset().Str("update text nlri ").Str(fam).Str(" del ").Str(prefixes).String()
+	// RFC 4271 Section 4.3: IPv4 unicast is withdrawn in the Withdrawn Routes
+	// field, ze's `nlri` section; every other family in MP_UNREACH_NLRI (`mp`).
+	b.Reset().Str("update text")
+	if textparse.LegacyNLRISection(fam, false) {
+		b.Str(" nlri")
+	} else {
+		b.Str(" mp ").Str(fam)
+	}
+	return b.Str(" del ").Str(prefixes).String()
 }
 
 func rrEORCmd(fam string) string {
 	var b textbuf.Buffer
-	return b.Reset().Str("update text nlri ").Str(fam).Str(" eor").String()
+	// RFC 4724 Section 2: the IPv4 unicast End-of-RIB is an UPDATE of minimum
+	// length (`nlri eor`); any other family's is an empty MP_UNREACH_NLRI.
+	b.Reset().Str("update text")
+	if textparse.LegacyNLRISection(fam, false) {
+		b.Str(" nlri")
+	} else {
+		b.Str(" mp ").Str(fam)
+	}
+	return b.Str(" eor").String()
 }
 
 // commandDecls names the commands this plugin serves and states what each

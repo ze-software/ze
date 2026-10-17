@@ -34,7 +34,7 @@ func llgrImportNoLLGR(ctx context.Context, _ []string) error {
 		// only AFTER the policy-mutated RIB state was observed. No timer or
 		// sleep stands in for delivery of the original UPDATEs.
 		for _, peer := range []string{"marked", "plain"} {
-			r := command13(ctx, p, "send bgp "+peer+" update text origin igp local-preference 100 nhop 1.1.1.1 nlri ipv4/unicast add 198.51.100.0/24")
+			r := command13(ctx, p, "send bgp "+peer+" update text origin igp local-preference 100 nhop 1.1.1.1 nlri add 198.51.100.0/24")
 			if !done13(r) {
 				return fmt.Errorf("release source %s: %s", peer, r.text())
 			}

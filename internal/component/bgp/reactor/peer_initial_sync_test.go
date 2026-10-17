@@ -947,3 +947,34 @@ func TestQuiesceWaitsForAPeerStillInItsHandshake(t *testing.T) {
 		"at Established the handshake arm stands down, and the three initial-sync facts "+
 			"setState publishes are what answer from here on")
 }
+
+// TestDefaultOriginateFilterTextNamesTheSection pins the update text a
+// default-originate filter is handed.
+//
+// VALIDATES: the synthetic default route reaches the filter in the policy text
+// contract: "nlri add <prefix>" for IPv4 unicast with an IPv4 next hop, and
+// "mp <family> add <prefix>" for every other route.
+// PREVENTS: the old "nlri <family> add <prefix>" text, which the filter
+// parsers read as a block whose operation is the family, so a prefix filter
+// failed closed on "add" and an accepted default was never originated.
+func TestDefaultOriginateFilterTextNamesTheSection(t *testing.T) {
+	ipv4 := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}
+	ipv6 := family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}
+	cases := []struct {
+		name    string
+		fam     family.Family
+		prefix  string
+		nextHop string
+		want    string
+	}{
+		{"ipv4 unicast", ipv4, "0.0.0.0/0", "10.0.0.1", "origin igp next-hop 10.0.0.1 nlri add 0.0.0.0/0"},
+		{"ipv6 unicast", ipv6, "::/0", "2001:db8::1", "origin igp next-hop 2001:db8::1 mp ipv6/unicast add ::/0"},
+		{"ipv4 unicast, ipv6 next hop", ipv4, "0.0.0.0/0", "2001:db8::1", "origin igp next-hop 2001:db8::1 mp ipv4/unicast add 0.0.0.0/0"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := appendDefaultOriginateFilterText(nil, tc.fam, netip.MustParsePrefix(tc.prefix), netip.MustParseAddr(tc.nextHop))
+			assert.Equal(t, tc.want, string(got))
+		})
+	}
+}
