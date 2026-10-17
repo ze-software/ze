@@ -424,3 +424,35 @@ YANG enable text, journal row. Review: 0 BLOCKER, 2 ISSUE.
   overstates (the purge elects with a nil handle, so onChange drops it): state
   the gap, journal it if the live path has it; `rib_bestchange.go` lock-order
   comment says peerMu then shard, the code takes shard first.
+
+### 2026-10-17 IPsec readiness fixes, review round 1 (agent stopped at its call budget)
+Uncommitted; review 0 BLOCKER (mobike=no restores the rebind premise, RFC 4555
+quote verbatim, textbuf double-read bug real). Owed:
+- Delete the now-unused `scenarioLab.logTail` in `interoplab/ipsec/helpers.go`.
+- Journal rows over 600 chars: keep the 2026-10-17 note only in the 2026-09-04
+  row of `test-against-broken-path.md`; one-line pointers in its 2026-08-23
+  row, `unwired-feature.md` 2026-08-22, `claim-outlives-the-evidence-it-cites.md`
+  2026-09-04.
+- Move `TestCheckerFailureAttachesPeerLogs` into `ipsec/failure_test.go`.
+- Then package tests and scoped lint over interoplab, ipsec, ike/engine.
+Nightly 39015310430: `real-nat-port-translated-eap-ze-responder` passed, but
+vacuously (its port check had the textbuf bug); `child-rekey-refused-keeps-the-sa`
+red at 14.86 ms (that run predates 53e1470d8b); `mtu-nat-installed-endpoint`
+red on a docker exec timeout.
+
+### 2026-10-17 MTU reference default, review round 1 (agent stopped at its call budget)
+Uncommitted. Review fixes applied, untested: name servers now publish from
+the loaded tree before plugins start (`publishNameServers`, hub main.go) and
+on reload only after the candidate is promoted (main_reload.go); the
+never-published refusal reads as an internal fault; the malformed-value error
+also offers unsetting `ze.mtu.reference-address`. Owed:
+- `cmd/ze/hub/nameservers_publish_test.go`: startup publication, and a reload
+  sequence (accepted, failed promotion keeps the old list, accepted with no
+  name-server clears it), modelled on
+  `TestRunReloadListenerRollbackFailureStaysFailClosed`; red with the publish
+  moved back before promotion.
+- `docs/architecture/diagnostics/path-mtu.md`: its source anchor still names
+  `applyResolvConf`; it must name `publishNameServers` and "after the candidate
+  is promoted".
+- Re-run mtu, config/system, hub tests, scoped lint, tier check; then the QEMU
+  `show-mtu-*` runs and the `mtu-nat-installed-endpoint` scenario.
