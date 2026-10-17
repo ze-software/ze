@@ -41,7 +41,7 @@ import (
 
 const (
 	// exitChildModeEnv selects the fake plugin's behavior when the test binary
-	// runs as the child. Unset, TestExitGraceChild is a no-op.
+	// runs as the child. Unset, TestMain runs the tests.
 	exitChildModeEnv = "ZE_TEST_EXIT_GRACE_CHILD"
 	// exitChildPidEnv names the file the fake plugin writes its pid to.
 	exitChildPidEnv = "ZE_TEST_EXIT_GRACE_PID"
@@ -184,15 +184,16 @@ func processRunning(pid int, budget time.Duration) bool {
 	}
 }
 
-// TestExitGraceChild is the fake plugin the three tests above start. It runs
-// only when the parent test set exitChildModeEnv, and it never returns then:
-// it exits the process the way a plugin's main does.
-func TestExitGraceChild(t *testing.T) {
-	mode := os.Getenv(exitChildModeEnv)
-	if mode == "" {
-		t.Skip("runs only as the fake plugin of the exit grace tests")
+// TestMain turns the test binary into the fake plugin the three tests above
+// start, when the parent test set exitChildModeEnv: it then runs no test and
+// exits the process the way a plugin's main does. The dispatch lives here, not
+// in a Test function, because a Test that only re-enters the binary asserts
+// nothing and the parent's assertions are the check.
+func TestMain(m *testing.M) {
+	if mode := os.Getenv(exitChildModeEnv); mode != "" {
+		os.Exit(runExitGraceChild(mode))
 	}
-	os.Exit(runExitGraceChild(mode))
+	os.Exit(m.Run())
 }
 
 // runExitGraceChild is the fake plugin's main. It answers the exit code.
@@ -250,7 +251,7 @@ func runExitGraceChild(mode string) int {
 // the plugin's open.
 func startExitGraceDescendant() error {
 	// #nosec G204 - the test binary re-running itself
-	descendant := exec.Command(os.Args[0], "-test.run=^TestExitGraceChild$") //nolint:noctx // it must outlive the plugin, which is the point
+	descendant := exec.Command(os.Args[0], "-test.run=^$") //nolint:noctx // it must outlive the plugin, which is the point
 	descendant.Env = append(os.Environ(), exitChildModeEnv+"="+exitChildDescendant)
 	if err := descendant.Start(); err != nil {
 		return err
@@ -297,7 +298,7 @@ func startExitGraceChild(t *testing.T, mode string) (*Process, int) {
 	// The variable is read at a binary's start, so it reaches the child alone.
 	t.Setenv("GORACE", "atexit_sleep_ms=0")
 
-	run := "exec '" + os.Args[0] + "' -test.run='^TestExitGraceChild$'"
+	run := "exec '" + os.Args[0] + "' -test.run='^$'"
 	proc := NewProcess(plugin.PluginConfig{Name: "exit-grace-plugin", Run: run, Encoder: "json"})
 	proc.SetAcceptor(acceptor)
 
