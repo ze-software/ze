@@ -158,11 +158,12 @@ near ZE_READY_FILE) plus a per-test opt-out option (`option=storage:value=disk` 
 record_parse_vocabulary.go); list every .ci that restarts ze in the same workdir or reads
 the store after the DUT (restart, rollback, history, zefs, `ze data`, `ze init`) and give
 each the option; docs/functional-tests.md.
-FINDING to verify first: stdin DUTs (`exec=ze ... -`, ~570 .ci incl. test/plugin/filter-irr.ci)
-open the store with StorageFor("-") and run STORELESS when none exists (hub/main.go run());
-the runner seeds no store. So filter-irr is not affected by A or B; the "created live store"
-line in the journal row comes only from openExplicitStore (file DUTs, ~270 .ci). Measure the
-stall with a file-config .ci, and re-check what filter-irr's stall was.
+CORRECTED (continuation agent, 2026-10-17): the earlier finding that stdin DUTs run storeless
+was FALSE. The runner rewrites every `ze ... -` daemon that has a stdin block into
+`ze start <WorkDir>/stdin-<name>.conf` (`internal/test/runner/parsing.go`, the `daemonCfgIdx`
+branch; `runner_exec_util.go` `stdinRouteDaemonConfig`), so those DUTs open a live store
+through openExplicitStore and pay the boot record. test/plugin/filter-irr.ci is one of them,
+and its "created live store" stall is the one A and B address.
 
 Commit C (fsync trims): not started. Before/after load numbers: not measured.
 `bin/le-bootrec` deleted; rebuild with `./le --name bootrec`.
@@ -197,3 +198,23 @@ is grammar only.
 (f) Owner questions pending: mp ipv4/unicast, hex/b64, config form, event text, next-hop self.
 (g) Independent review, then commit. test/fixture/plugin_fixture_03_route_server.go also
 carries the fastpath comment from 430a3de516: commit it whole and name it in the body.
+
+### Route-injection grammar, third agent (2026-10-17, budget hit, nothing committed)
+Done: (a) clearProcessCursors, convertFlowRoute and nextHopIPv6 unexported (ui
+le-placement-answers and le-checks-answers pass). (b) The +1 assert-nothing test is not the
+grammar: TestExitGraceChild (plugin/process/process_exit_grace_test.go, from 3e8a71b905) is a
+fake-plugin re-entry; its dispatch moved to TestMain and the re-exec passes `-test.run=^$`
+(linux-only file, vetted with GOOS=linux, not run on Linux): its own commit. (c) bin/le-inject2
+deleted; bin/le-inject3 is this agent's, delete it. (d) exabgp suite 39/40 (api-healthcheck-module:
+the sibling ExaBGP checkout's healthcheck.py fails on Python 3.11 Popen `process_group`, journal
+row added to gate-verdict-depends-on-the-machine.md, its own commit). Interop NOT run: on darwin
+the labs need the QEMU guest, whose runtime kernel cache is missing (`./le build host-driver`, then
+`./ze-host appliance kernel --target runtime --arch arm64`). (e) update-syntax.md "Per-NLRI
+Overrides" is now "Per-Section Modifiers", matching parseINETSection; the mvpn hunk is one comment.
+Race tests green: update, textparse, exabgp bridge, rr, rs, rib, interoplab/bgp.
+File list: tmp scratch clean.txt (198 paths) plus the two untracked files. Leave out:
+docs/functional-tests.md (it mixes 3 grammar hunks with the DUT-store section of commit B),
+bgp/config/register.go and storage-backends.md (boot record), and every .ci hunk that only adds
+`option=storage:value=disk` (commit B).
+Left: lint; three scripts (grammar with exabgp, the TestMain fix, the journal row); interop in
+the guest; owner questions (f); independent review.
