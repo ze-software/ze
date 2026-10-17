@@ -7,7 +7,10 @@ package interoplab
 import (
 	"context"
 	"errors"
+	"io"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -82,6 +85,27 @@ type Suite struct {
 	// against the checkout rather than against the process working directory,
 	// which `go test` sets to the package directory inside the source tree.
 	Checkout string
+	// Progress receives one line as each phase starts and as each scenario
+	// ends, WHILE the suite runs. The report prints only after the last
+	// scenario, so without these lines a suite that hangs is silent until its
+	// caller's deadline kills it: the BGP lab in evidence-nightly ran 89
+	// minutes with no output before `command ssh exceeded its deadline`, and
+	// the log could not say which scenario held it. Nil writes to stderr,
+	// which is the job log in CI and the ssh stream under docker-lab.
+	Progress io.Writer
+}
+
+// progress writes one progress line. A failed write is not a suite failure:
+// the line is a narration of the run, and the report still carries every
+// verdict.
+func (s Suite) progress(line *textbuf.Buffer) {
+	sink := s.Progress
+	if sink == nil {
+		sink = os.Stderr
+	}
+	line.Byte('\n')
+	//nolint:errcheck // progress narration; the report carries every verdict
+	sink.Write(line.Bytes())
 }
 
 // SuiteReport is the structured result for one gate invocation.
@@ -202,6 +226,9 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 		return report
 	}
 
+	var line textbuf.Buffer
+	s.progress(line.Str("interop: preparing ").Int(int64(len(s.Images))).Str(" image(s)"))
+	preparing := time.Now()
 	images, references, err := s.prepareImages(ctx)
 	report.Images = images
 	defer func() {
@@ -219,13 +246,23 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 		report.Code = 1
 		return report
 	}
-	for _, plan := range s.Scenarios {
+	line.Reset()
+	s.progress(line.Str("interop: images ready (").Str(time.Since(preparing).Round(time.Second).String()).Byte(')'))
+	for index, plan := range s.Scenarios {
+		line.Reset()
+		s.progress(scenarioLine(&line, index, len(s.Scenarios), plan.Source.Name).Str(": running"))
+		started := time.Now()
 		result := s.runScenario(ctx, plan, references)
 		report.Scenarios = append(report.Scenarios, result)
+		line.Reset()
+		scenarioLine(&line, index, len(s.Scenarios), result.Name)
+		elapsed := time.Since(started).Round(time.Second).String()
 		if result.Passed {
+			s.progress(line.Str(": pass (").Str(elapsed).Byte(')'))
 			report.Passed++
 			continue
 		}
+		s.progress(line.Str(": FAIL (").Str(elapsed).Str("): ").Str(result.Error))
 		report.Failed++
 		report.FailedNames = append(report.FailedNames, result.Name)
 		if ctx.Err() != nil {
@@ -285,6 +322,11 @@ func (s Suite) prepareImages(ctx context.Context) ([]ImageResult, map[string]str
 		references[build.Name] = build.Tag
 	}
 	return results, references, nil
+}
+
+// scenarioLine starts the progress line of scenario index of total.
+func scenarioLine(line *textbuf.Buffer, index, total int, name string) *textbuf.Buffer {
+	return line.Str("interop: [").Int(int64(index + 1)).Byte('/').Int(int64(total)).Str("] ").Str(name)
 }
 
 func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references map[string]string) (result ScenarioResult) {

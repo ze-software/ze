@@ -779,6 +779,22 @@ func (t Toolchain) GoTest(opts TestOptions, args ...string) []string {
 	return append(argv, args...)
 }
 
+// GoList answers the argv for `go list -e` printing one import path per
+// line, over the same tag set and race constraint GoTest builds with, so a
+// caller that cuts a test population into pieces lists exactly the packages
+// the test command would build. A package whose every file carries a feature
+// tag, or the race build constraint, is invisible to a list without it. The -e
+// keeps a package that fails to load in the answer, so the test command
+// reports it as a normal FAIL rather than the list refusing every package.
+func (t Toolchain) GoList(opts TestOptions, args ...string) []string {
+	argv := make([]string, 0, 8+len(args))
+	argv = append(argv, "go", "list", "-e", "-f", "{{.ImportPath}}", "-tags", t.tags(opts))
+	if opts.Race {
+		argv = append(argv, "-race")
+	}
+	return append(argv, args...)
+}
+
 // GoVet answers the argv for `go vet` over the same tag set.
 //
 // Vet type-checks a package's _test.go files without running them, and unlike

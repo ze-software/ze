@@ -24,6 +24,26 @@ need.
 | `./le verify deps vulnerability` | `govulncheck.yml` | schedule `37 5 * * *` | advisory |
 | CodeQL | `codeql.yml` | push, pull_request, schedule `21 16 * * 3` | as configured by the action |
 
+## What every verify shard prepares
+
+Any stage can land on any shard, so each of the six `verify` jobs prepares the
+runner the same way before it reads its stage list:
+
+| Step | Why |
+|------|-----|
+| `sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0`, when the kernel has the key | Ubuntu 24.04 lets AppArmor restrict unprivileged user namespaces, and the unit tests that build their own network namespace (bfd, ike/engine, ospf, internal/test/userns) then fail `lo up: operation not permitted`. Owner decision, 2026-10-17 |
+| `sudo modprobe` of `l2tp_core`, `l2tp_netlink`, `pppox` and `l2tp_ppp` | The l2tp kernel capability probes the l2tp generic netlink family (`CONFIG_L2TP`) and the PPPoL2TP socket (`CONFIG_PPPOL2TP`); the hosted kernel ships both as modules it has not loaded. A module the image lacks fails the job with its name and the package that carries it |
+| `go install -mod=vendor` of golangci-lint and staticcheck | Both build from `vendor/`, so CI runs the release `go.mod` requires. An `@version` pin is a second copy of that fact, and it drifted: v2.13.1 against `go.mod`'s v2.14.0 cannot read Go 1.27 export data |
+
+The race pass is three stages rather than one (`verify-freshness-scope.md`),
+because on a CI clone it races the whole tree, and the undivided stage outran
+the 120-minute job bound.
+
+A Docker lab prints one progress line as each scenario starts and ends
+(`Suite.Progress`), and `docker-lab` streams the guest's output over ssh as it
+arrives, so a lab that hangs names its scenario in the job log before the
+deadline kills it.
+
 A nightly is advisory because no merge waits on it, not because its jobs hide a
 failure. The jobs of `evidence-nightly.yml` and `perf-nightly.yml` state their
 own verdict: a red suite marks the run failed. The three jobs of
@@ -84,16 +104,19 @@ Each nightly therefore also declares `workflow_dispatch`, which is the re-arm.
 
 `internal/le/workflowcheck/workflowcheck_test.go` pins the shape of these files.
 It asserts that `verify.yml` stays a push and pull_request gate whose only
-direct native action is `verify list`, that each nightly is scheduled-only with
-every job advisory, that each nightly invokes the native actions it is supposed
-to, that the four Docker lab jobs reach their labs through `docker-lab` on the
-cached runtime kernel, that every `./le` action a workflow names is registered
+direct native action is `verify list`, that every verify shard lifts the
+user-namespace restriction and loads the L2TP modules before its first stage,
+that each nightly is scheduled-only with every job advisory, that each nightly
+invokes the native actions it is supposed to, that the four Docker lab jobs
+reach their labs through `docker-lab` on the cached runtime kernel, that every `./le` action a workflow names is registered
 in the Go action tables, and that a capability-gated `.ci` test has a VM home.
 
 <!-- source: .github/workflows/verify.yml -- the merge gate -->
-<!-- source: internal/le/interoplab/lab.go -- Suite.Run -->
+<!-- source: internal/le/interoplab/lab.go -- Suite.Run, Suite.progress, scenarioLine -->
+<!-- source: internal/le/test/qemu/run_exec.go -- Run.sshRun -->
+<!-- source: internal/component/l2tp/kernelcap_linux.go -- l2tpKernelCapabilities -->
 <!-- source: .github/workflows/evidence-nightly.yml -- fuzz, integration, interop, ipsec-interop, radius-interop, l2tp-interop, pppoe-interop -->
 <!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere -->
 <!-- source: internal/le/rfc/carriers.go -- workflowNestedLe, nestedLeWords -->
 <!-- source: .github/workflows/qemu-nightly.yml -- needs-linux, protocol-labs, runtime-kernel-labs -->
-<!-- source: internal/le/workflowcheck/workflowcheck_test.go -- TestVerifyWorkflowIsTheFastMergeGate, TestEvidenceNightlyScheduleActionsAndPrivileges, TestQEMUNightlyScheduleActionsCachesAndBudgets, TestEveryWorkflowNativeActionExists, TestCapabilityGatedTestsHaveANativeVMHome -->
+<!-- source: internal/le/workflowcheck/workflowcheck_test.go -- TestVerifyWorkflowIsTheFastMergeGate, TestVerifyPreparesTheRunnerKernelBeforeReadingStages, TestVerifyInstallsPinnedNativeTools, TestEvidenceNightlyScheduleActionsAndPrivileges, TestQEMUNightlyScheduleActionsCachesAndBudgets, TestEveryWorkflowNativeActionExists, TestCapabilityGatedTestsHaveANativeVMHome -->

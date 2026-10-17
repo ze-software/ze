@@ -47,6 +47,31 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential curl git iproute2 iptables nftables util-linux
 
+      # Ubuntu 24.04 lets AppArmor restrict unprivileged user namespaces, so
+      # every unit test that builds its own network namespace (bfd, bfd/engine,
+      # bfd/transport, ike/engine, ospf, internal/test/userns) fails with
+      # "lo up: operation not permitted". Owner decision, 2026-10-17: allow them.
+      - name: Allow unprivileged user namespaces
+        run: |
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+
+      # The l2tp kernel capability (internal/component/l2tp/kernelcap_linux.go)
+      # probes the l2tp generic netlink family (CONFIG_L2TP: l2tp_core,
+      # l2tp_netlink) and the PPPoL2TP socket (CONFIG_PPPOL2TP: pppox, l2tp_ppp).
+      # The hosted kernel ships them as modules it has not loaded, and without
+      # them every L2TP functional group and the RADIUS late-bind unit test are
+      # refused. A module the image lacks stops the job here, by name.
+      - name: Load the L2TP and PPPoL2TP kernel modules
+        run: |
+          for module in l2tp_core l2tp_netlink pppox l2tp_ppp; do
+            if ! sudo modprobe "$module"; then
+              echo "::error::kernel module $module is missing from this runner's kernel $(uname -r), so ze's l2tp capability (CONFIG_L2TP and CONFIG_PPPOL2TP) cannot be met and every L2TP test would be refused. Fix: install linux-modules-extra-$(uname -r) in the system packages step of .github/workflows/verify.yml." >&2
+              exit 1
+            fi
+          done
+
       # RFC2545's positive fixture needs ONE prefix for speaker/next-hop ::2 and
       # peer ::3, plus an assigned link-local belonging to the next-hop owner.
       # Provision explicitly before all shards; test runners never alter the host.
@@ -61,9 +86,13 @@ jobs:
         with:
           node-version: "lts/*"
 
+      # golangci-lint and staticcheck build from vendor/, so the release CI runs
+      # is the one go.mod requires and cannot drift from it. A pinned @version
+      # here drifted once: v2.13.1 against go.mod's v2.14.0 cannot read Go 1.27
+      # export data and reported every package as a typecheck failure.
       - name: Install Go verification tools
         run: |
-          CGO_ENABLED=0 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1
+          CGO_ENABLED=0 go install -mod=vendor github.com/golangci/golangci-lint/v2/cmd/golangci-lint
           CGO_ENABLED=0 go install -mod=vendor honnef.co/go/tools/cmd/staticcheck
           CGO_ENABLED=0 go install golang.org/x/vuln/cmd/govulncheck@v1.4.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"

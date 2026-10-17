@@ -26,6 +26,21 @@ import (
 // does.
 const staticcheckParts = 6
 
+// raceParts is the number of pieces the race pass over the changed packages
+// is cut into, one stage per piece.
+//
+// With no green baseline, which is every CI clone, the changed population is
+// the whole tree, and the undivided `verify deps unit-race-changed` reached the
+// 120-minute job bound of `.github/workflows/verify.yml` on shard 2 of run
+// 2026-10-17 before it finished. The packages are dealt by a hash of their
+// import path (verifydeps.dealRacePackages), so three pieces each race about a
+// third of the tree. The three stages are consecutive and follow unit-cached,
+// so a six-shard round robin puts each on a shard of its own, none beside the
+// cached pass. The tail after them is ordered exabgp-test, gating, alloc so the
+// short alloc stage, not a functional suite, is the one that wraps onto
+// unit-cached's shard. Coverage does not depend on any of this, only balance.
+const raceParts = 3
+
 // Identity names one native root/action invocation.
 type Identity struct {
 	Name    string   `json:"name"`
@@ -66,6 +81,18 @@ func staticcheckStages() []Stage {
 	for part := 1; part <= staticcheckParts; part++ {
 		stages = append(stages, structural("go staticcheck", "check",
 			"part", strconv.Itoa(part), "of", strconv.Itoa(staticcheckParts)))
+	}
+	return stages
+}
+
+// raceStages returns one stage per piece of the race pass. Each piece lists
+// the changed population itself and runs its share, so a package added to the
+// tree needs nothing here.
+func raceStages() []Stage {
+	stages := make([]Stage, 0, raceParts)
+	for part := 1; part <= raceParts; part++ {
+		stages = append(stages, stage("verify deps", "unit-race-changed",
+			"part", strconv.Itoa(part), "of", strconv.Itoa(raceParts)))
 	}
 	return stages
 }
@@ -133,10 +160,10 @@ func fullStages() []Stage {
 		stage("ai hooks", "unit"),
 		stage("verify deps", "vulnerability"),
 		stage("verify deps", "unit-cached"),
-		stage("verify deps", "unit-race-changed"),
-		stage("verify deps", "alloc"),
-		stage(FunctionalCommand, "gating"),
+	}, raceStages(), []Stage{
 		stage(FunctionalCommand, "exabgp-test"),
+		stage(FunctionalCommand, "gating"),
+		stage("verify deps", "alloc"),
 	})
 	return stages
 }
@@ -145,8 +172,8 @@ func fullStages() []Stage {
 // three whose subject is the whole tree rather than the edit. Evidence vetting
 // and the allocation benchmarks read populations no edit narrows, and the
 // cached unit pass covers every package, so what an edit still owes is the
-// race pass over its own groups, which `verify deps/unit-race-changed` runs in
-// both modes.
+// race pass over its own groups, which the `verify deps/unit-race-changed`
+// pieces run in both modes.
 //
 // Every other stage keeps the identity it holds in full mode, and that is not
 // a naming detail. A stage narrows itself or it does not: the Staticcheck

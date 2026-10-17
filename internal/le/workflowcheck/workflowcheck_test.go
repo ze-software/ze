@@ -483,10 +483,47 @@ func TestVerifyProvisionsLoopbackBeforeReadingStages(t *testing.T) {
 	}
 }
 
+// TestVerifyPreparesTheRunnerKernelBeforeReadingStages pins the two host
+// preparations every shard owes before its first stage, because any stage can
+// land on any shard. VALIDATES: the AppArmor user-namespace restriction is
+// lifted, and each L2TP module is loaded by a step that exits non-zero when
+// one is missing. PREVENTS: the netns unit tests failing "lo up: operation not
+// permitted", and the L2TP functional groups being refused for a kernel
+// capability the hosted kernel can load (owner decision, 2026-10-17).
+func TestVerifyPreparesTheRunnerKernelBeforeReadingStages(t *testing.T) {
+	source := stripComments(workflowSource(t, "verify.yml"))
+	stages := strings.Index(source, "./le verify list mode full")
+	if stages < 0 {
+		t.Fatal("verify.yml no longer reads its stage list")
+	}
+	for _, required := range []string{
+		"if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then",
+		"sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0",
+		"for module in l2tp_core l2tp_netlink pppox l2tp_ppp; do",
+		`if ! sudo modprobe "$module"; then`,
+	} {
+		index := strings.Index(source, required)
+		if index < 0 {
+			t.Errorf("verify.yml lacks %q", required)
+			continue
+		}
+		if index > stages {
+			t.Errorf("verify.yml runs %q after it reads the stage list", required)
+		}
+	}
+	start := strings.Index(source, "for module in l2tp_core")
+	if start < 0 || start > stages {
+		return
+	}
+	if !strings.Contains(source[start:stages], "exit 1") {
+		t.Error("the module step must fail the job when a module is missing, not continue")
+	}
+}
+
 func TestVerifyInstallsPinnedNativeTools(t *testing.T) {
 	source := stripComments(workflowSource(t, "verify.yml"))
 	for _, command := range []string{
-		"github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1",
+		"go install -mod=vendor github.com/golangci/golangci-lint/v2/cmd/golangci-lint\n",
 		"go install -mod=vendor honnef.co/go/tools/cmd/staticcheck\n",
 		"golang.org/x/vuln/cmd/govulncheck@v1.4.0",
 	} {

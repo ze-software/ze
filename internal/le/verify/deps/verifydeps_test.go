@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/le/gaterun"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
+	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 const testModulePath = "github.com/ze-software/ze"
@@ -49,7 +50,7 @@ func TestEvidenceVetPlanPreservesItsExactPopulation(t *testing.T) {
 	for _, directory := range []string{"internal/le/verify/evidence", "internal/le/test/deployment", "internal/le/test/qemu"} {
 		mkdir(t, root, directory)
 	}
-	plan, _, code, err := planFor(context.Background(), root, VerbEvidenceVet, fakeDependencies(root))
+	plan, _, code, err := planFor(context.Background(), root, VerbEvidenceVet, verifyengine.Uncut(), fakeDependencies(root))
 	if err != nil || code != 0 {
 		t.Fatalf("plan failed with code %d: %v", code, err)
 	}
@@ -78,7 +79,7 @@ func TestVulnerabilityPlanUsesTheInstalledToolDirectly(t *testing.T) {
 		}
 		return "/tools/govulncheck", nil
 	}
-	plan, _, code, err := planFor(context.Background(), root, VerbVulnerability, deps)
+	plan, _, code, err := planFor(context.Background(), root, VerbVulnerability, verifyengine.Uncut(), deps)
 	if err != nil || code != 0 {
 		t.Fatalf("plan failed with code %d: %v", code, err)
 	}
@@ -101,7 +102,7 @@ func TestVulnerabilityPlanFailsClosedWhenTheToolIsMissing(t *testing.T) {
 	root := t.TempDir()
 	deps := fakeDependencies(root)
 	deps.lookPath = func(string) (string, error) { return "", errors.New("not installed") }
-	_, children, code, err := planFor(context.Background(), root, VerbVulnerability, deps)
+	_, children, code, err := planFor(context.Background(), root, VerbVulnerability, verifyengine.Uncut(), deps)
 	if err == nil || code != gaterun.CannotStart {
 		t.Fatalf("missing tool answered code %d and error %v", code, err)
 	}
@@ -120,7 +121,7 @@ func TestUnitCachedPlanPreservesPackageAndTagPopulations(t *testing.T) {
 	deps.execute = scriptedExecutor(map[string]scriptedResult{
 		"go list ./...": {output: testModulePath + "\n" + testModulePath + "/cmd/ze\n" + testModulePath + "/internal/core/x\n"},
 	})
-	plan, children, code, err := planFor(context.Background(), root, VerbUnitCached, deps)
+	plan, children, code, err := planFor(context.Background(), root, VerbUnitCached, verifyengine.Uncut(), deps)
 	if err != nil || code != 0 {
 		t.Fatalf("plan failed with code %d: %v", code, err)
 	}
@@ -158,7 +159,7 @@ func TestUnitCachedPreservesTheFirstFailureCode(t *testing.T) {
 		}
 		return output, childFrom(plan, code)
 	}
-	report, code := run(context.Background(), root, VerbUnitCached, deps)
+	report, code := run(context.Background(), root, VerbUnitCached, verifyengine.Uncut(), deps)
 	if code != 23 || report.Code != 23 {
 		t.Fatalf("stage answered %d / report %d, want 23", code, report.Code)
 	}
@@ -185,7 +186,7 @@ func TestRaceChangedDerivesTheExactPopulationAndEnvironment(t *testing.T) {
 		"git ls-files --others --exclude-standard -- *.go":                         {},
 		"go list -e -f {{if not .Error}}{{.Dir}}{{end}} ./internal/le/verify/deps": {output: unmapped + "\n"},
 	})
-	plan, _, code, err := planFor(context.Background(), root, VerbUnitRaceChanged, deps)
+	plan, _, code, err := planFor(context.Background(), root, VerbUnitRaceChanged, verifyengine.Uncut(), deps)
 	if err != nil || code != 0 {
 		t.Fatalf("plan failed with code %d: %v", code, err)
 	}
@@ -217,7 +218,7 @@ func TestRaceChangedFailsClosedOnPopulationFailure(t *testing.T) {
 		}
 		return "", childFrom(plan, 7)
 	}
-	report, code := run(context.Background(), root, VerbUnitRaceChanged, deps)
+	report, code := run(context.Background(), root, VerbUnitRaceChanged, verifyengine.Uncut(), deps)
 	if code != 7 || report.Error == "" {
 		t.Fatalf("stage answered code %d and error %q", code, report.Error)
 	}
@@ -241,7 +242,7 @@ func TestRaceChangedEmptyPopulationRunsNoTests(t *testing.T) {
 		"git diff --cached --name-only -- *.go":            {},
 		"git ls-files --others --exclude-standard -- *.go": {},
 	})
-	report, code := run(context.Background(), root, VerbUnitRaceChanged, deps)
+	report, code := run(context.Background(), root, VerbUnitRaceChanged, verifyengine.Uncut(), deps)
 	if code != 0 || report.Code != 0 {
 		t.Fatalf("empty population answered %d / %d", code, report.Code)
 	}
@@ -268,7 +269,7 @@ func TestARaceChangedSkipIsNotReadableAsAPassOverTests(t *testing.T) {
 		"git diff --cached --name-only -- *.go":            {},
 		"git ls-files --others --exclude-standard -- *.go": {},
 	})
-	skipped, skippedCode := run(context.Background(), root, VerbUnitRaceChanged, quiet)
+	skipped, skippedCode := run(context.Background(), root, VerbUnitRaceChanged, verifyengine.Uncut(), quiet)
 
 	busy := fakeDependencies(root)
 	busy.execute = scriptedExecutor(map[string]scriptedResult{
@@ -276,7 +277,7 @@ func TestARaceChangedSkipIsNotReadableAsAPassOverTests(t *testing.T) {
 		"git diff --cached --name-only -- *.go":            {},
 		"git ls-files --others --exclude-standard -- *.go": {},
 	})
-	executed, executedCode := run(context.Background(), root, VerbUnitRaceChanged, busy)
+	executed, executedCode := run(context.Background(), root, VerbUnitRaceChanged, verifyengine.Uncut(), busy)
 
 	if skippedCode != 0 || executedCode != 0 {
 		t.Fatalf("codes are %d and %d, want both 0", skippedCode, executedCode)
@@ -311,7 +312,7 @@ func TestRaceChangedRefusesAChangeSetThatResolvedToNoPackage(t *testing.T) {
 		"git ls-files --others --exclude-standard -- *.go":                  {},
 		"go list -e -f {{if not .Error}}{{.Dir}}{{end}} ./internal/le/gone": {},
 	})
-	report, code := run(context.Background(), root, VerbUnitRaceChanged, deps)
+	report, code := run(context.Background(), root, VerbUnitRaceChanged, verifyengine.Uncut(), deps)
 	if code == 0 || report.Code == 0 {
 		t.Fatalf("a change set covering no package answered %d / %d, want non-zero", code, report.Code)
 	}
@@ -398,7 +399,7 @@ func TestAllocPlanPreservesBenchmarkContract(t *testing.T) {
 		}
 		return ""
 	}
-	plan, _, code, err := planFor(context.Background(), root, VerbAlloc, deps)
+	plan, _, code, err := planFor(context.Background(), root, VerbAlloc, verifyengine.Uncut(), deps)
 	if err != nil || code != 0 {
 		t.Fatalf("plan failed with code %d: %v", code, err)
 	}
@@ -467,7 +468,7 @@ func TestAllocRunLogsAndEnforcesTheSameOutput(t *testing.T) {
 		}
 		return benchmark, childFrom(plan, 0)
 	}
-	report, code := run(context.Background(), root, VerbAlloc, deps)
+	report, code := run(context.Background(), root, VerbAlloc, verifyengine.Uncut(), deps)
 	if code != 1 || len(report.Allocations) != 1 || report.Allocations[0].Passed {
 		t.Fatalf("allocation regression report is %+v, code %d", report, code)
 	}
@@ -485,7 +486,7 @@ func TestAllocRunLogsAndEnforcesTheSameOutput(t *testing.T) {
 // PREVENTS: a registered root whose action table cannot invoke its runners.
 func TestEveryActionDispatches(t *testing.T) {
 	seen := make(map[string]bool)
-	area := actionTable(func(_ context.Context, _ string, verb string) (Report, int) {
+	area := actionTable(func(_ context.Context, _ string, verb string, _ verifyengine.Part) (Report, int) {
 		seen[verb] = true
 		return Report{Verb: verb}, 0
 	})

@@ -13,6 +13,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"maps"
 	"os"
@@ -27,6 +28,7 @@ import (
 	"github.com/ze-software/ze/internal/le/gaterun"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
+	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 	"github.com/ze-software/ze/internal/le/verify/failuregroup"
 	"github.com/ze-software/ze/internal/perf"
 )
@@ -77,13 +79,16 @@ type CommandPlan struct {
 
 // Plan is the complete command and population contract for one action.
 type Plan struct {
-	Verb         string                 `json:"verb"`
-	Action       string                 `json:"action"`
-	Packages     []string               `json:"packages,omitempty"`
-	Changed      *repochanged.Selection `json:"changed,omitempty"`
-	Benchtime    string                 `json:"benchtime,omitempty"`
-	BenchmarkLog string                 `json:"benchmark-log,omitempty"`
-	Commands     []CommandPlan          `json:"commands,omitempty"`
+	Verb     string                 `json:"verb"`
+	Action   string                 `json:"action"`
+	Packages []string               `json:"packages,omitempty"`
+	Changed  *repochanged.Selection `json:"changed,omitempty"`
+	// Part is the piece of the population this invocation runs. Only
+	// unit-race-changed accepts a cut; every other verb runs part 1 of 1.
+	Part         verifyengine.Part `json:"part"`
+	Benchtime    string            `json:"benchtime,omitempty"`
+	BenchmarkLog string            `json:"benchmark-log,omitempty"`
+	Commands     []CommandPlan     `json:"commands,omitempty"`
 }
 
 // ChildReport records one external process in execution order.
@@ -113,14 +118,17 @@ type AllocationVerdict struct {
 // Report is the structured answer for one stage. Children remain ordered, and
 // Code is the first child failure or the native allocation verdict.
 type Report struct {
-	Verb         string                 `json:"verb"`
-	Action       string                 `json:"action"`
-	Packages     []string               `json:"packages,omitempty"`
-	Changed      *repochanged.Selection `json:"changed,omitempty"`
-	Benchtime    string                 `json:"benchtime,omitempty"`
-	BenchmarkLog string                 `json:"benchmark-log,omitempty"`
-	Children     []ChildReport          `json:"children,omitempty"`
-	Allocations  []AllocationVerdict    `json:"allocations,omitempty"`
+	Verb     string                 `json:"verb"`
+	Action   string                 `json:"action"`
+	Packages []string               `json:"packages,omitempty"`
+	Changed  *repochanged.Selection `json:"changed,omitempty"`
+	// Part is the piece of the population this report judged. A cut piece
+	// is never a pass over the whole population on its own.
+	Part         verifyengine.Part   `json:"part"`
+	Benchtime    string              `json:"benchtime,omitempty"`
+	BenchmarkLog string              `json:"benchmark-log,omitempty"`
+	Children     []ChildReport       `json:"children,omitempty"`
+	Allocations  []AllocationVerdict `json:"allocations,omitempty"`
 	// FailedPackages are the checkout-relative directories `go test` named as
 	// failing. A stage that answers a red and names nothing is charged to
 	// EVERY commit in the checkout rather than to the one that caused it
@@ -194,12 +202,12 @@ func productionDependencies() dependencies {
 }
 
 // Run executes one action and returns its structured report and exact verdict.
-func Run(ctx context.Context, root, verb string) (Report, int) {
-	return run(ctx, root, verb, productionDependencies())
+func Run(ctx context.Context, root, verb string, part verifyengine.Part) (Report, int) {
+	return run(ctx, root, verb, part, productionDependencies())
 }
 
-func run(ctx context.Context, root, verb string, deps dependencies) (Report, int) {
-	report, code := dispatch(ctx, root, verb, deps)
+func run(ctx context.Context, root, verb string, part verifyengine.Part, deps dependencies) (Report, int) {
+	report, code := dispatch(ctx, root, verb, part, deps)
 	if code != 0 {
 		report.FailedPackages = failingPackages(root, report, deps.module)
 	}
@@ -225,8 +233,8 @@ func failingPackages(root string, report Report, module func(string) (string, er
 	return packages
 }
 
-func dispatch(ctx context.Context, root, verb string, deps dependencies) (Report, int) {
-	plan, discovery, code, err := planFor(ctx, root, verb, deps)
+func dispatch(ctx context.Context, root, verb string, part verifyengine.Part, deps dependencies) (Report, int) {
+	plan, discovery, code, err := planFor(ctx, root, verb, part, deps)
 	report := reportFromPlan(plan)
 	report.Children = append(report.Children, discovery...)
 	if err != nil {
@@ -287,23 +295,31 @@ func runUnitRaceChanged(ctx context.Context, plan Plan, report Report, execute c
 	if plan.Changed.Empty() {
 		return skipUnitRaceChanged(plan, report)
 	}
-	report, ok := requireCommands(plan, report, 2)
+	want := raceCommandCount(plan.Part, len(plan.Packages))
+	if want == 0 {
+		return skipEmptyRacePiece(plan, report)
+	}
+	report, ok := requireCommands(plan, report, want)
 	if !ok {
 		return report, report.Code
 	}
 
-	var text textbuf.Buffer
-	gaterun.Note(text.Str("Unit tests: changed groups (race-instrumented): ").
-		Join(plan.Packages, " ").Slice())
-	_, child := execute(ctx, plan.Commands[0], os.Stdout)
-	report.Children = append(report.Children, child)
-	report.Code = child.Code
-
-	gaterun.Note("Unit tests: bare ze_core compile-out checks (race-instrumented)...")
-	_, child = execute(ctx, plan.Commands[1], os.Stdout)
-	report.Children = append(report.Children, child)
-	if report.Code == 0 {
-		report.Code = child.Code
+	for _, command := range plan.Commands {
+		if command.Name == planName(actionUnitRaceChanged, "core") {
+			gaterun.Note("Unit tests: bare ze_core compile-out checks (race-instrumented)...")
+		} else {
+			var text textbuf.Buffer
+			text.Str("Unit tests: changed groups (race-instrumented)")
+			if plan.Part.Cut() {
+				text.Str(", part ").Int(int64(plan.Part.Index)).Str(" of ").Int(int64(plan.Part.Of))
+			}
+			gaterun.Note(text.Str(": ").Join(plan.Packages, " ").Slice())
+		}
+		_, child := execute(ctx, command, os.Stdout)
+		report.Children = append(report.Children, child)
+		if report.Code == 0 {
+			report.Code = child.Code
+		}
 	}
 	return report, report.Code
 }
@@ -325,6 +341,36 @@ func skipUnitRaceChanged(plan Plan, report Report) (Report, int) {
 	report.Reason = "no changed .go file since the green baseline, so no group carries a test to race"
 	gaterun.Note("No changed .go files since the green baseline -- skipping changed-group pass")
 	return report, 0
+}
+
+// skipEmptyRacePiece answers a piece other than piece 1 that the hash deal
+// left with no package, which any small population can produce. The piece
+// ran nothing and says so: the other pieces over the same tree carry every
+// package, and piece 1 always runs the core check even when its own share is
+// empty, so an empty piece is never the only evidence for the population.
+func skipEmptyRacePiece(plan Plan, report Report) (Report, int) {
+	var text textbuf.Buffer
+	report.Skipped = true
+	report.Reason = text.Str("part ").Int(int64(plan.Part.Index)).Str(" of ").Int(int64(plan.Part.Of)).
+		Str(" holds no package: the hash deal gave every changed package to another piece").String()
+	gaterun.Note(report.Reason)
+	return report, 0
+}
+
+// raceCommandCount answers how many commands a piece of the race pass runs:
+// one over its share of packages when the share holds any, plus the bare
+// ze_core check in piece 1. That check is one command over one package, so it
+// runs once, in piece 1, rather than once per piece, and it runs there even
+// when the hash deal gave piece 1 no package, because no other piece owes it.
+func raceCommandCount(part verifyengine.Part, packages int) int {
+	count := 0
+	if packages > 0 {
+		count++
+	}
+	if part.Index == 1 {
+		count++
+	}
+	return count
 }
 
 func runAlloc(ctx context.Context, plan Plan, report Report, deps dependencies) (Report, int) {
@@ -421,16 +467,25 @@ func reportFromPlan(plan Plan) Report {
 		Action:       plan.Action,
 		Packages:     slices.Clone(plan.Packages),
 		Changed:      cloneSelection(plan.Changed),
+		Part:         plan.Part,
 		Benchtime:    plan.Benchtime,
 		BenchmarkLog: plan.BenchmarkLog,
 	}
 }
 
-func planFor(ctx context.Context, root, verb string, deps dependencies) (Plan, []ChildReport, int, error) {
+func planFor(ctx context.Context, root, verb string, part verifyengine.Part, deps dependencies) (Plan, []ChildReport, int, error) {
 	action, err := actionForVerb(verb)
-	plan := Plan{Verb: verb, Action: action}
+	plan := Plan{Verb: verb, Action: action, Part: part}
 	if err != nil {
 		return plan, nil, 2, err
+	}
+	if err := part.Valid(); err != nil {
+		return plan, nil, 2, err
+	}
+	// Only the race pass has a population a deal can cut; a cut of any other
+	// verb would judge a subset while its report named the whole stage.
+	if part.Cut() && verb != VerbUnitRaceChanged {
+		return plan, nil, 2, fmt.Errorf("%s %s runs whole and takes no part <index> of <count>", Area, verb)
 	}
 	if root == "" {
 		return plan, nil, 1, errors.New("verify dependency checkout root is empty")
@@ -518,12 +573,89 @@ func planUnitRaceChanged(ctx context.Context, root string, chain gotoolchain.Too
 	if selection.Empty() {
 		return plan, children, 0, nil
 	}
+	if plan.Part.Cut() {
+		packages, code, err := dealRacePackages(ctx, chain, plan.Packages, plan.Part, deps.execute, &children)
+		if err != nil {
+			return plan, children, code, err
+		}
+		plan.Packages = packages
+	}
 	options := gotoolchain.EnvOptions{Test: true, CGO: true, Procs: true}
-	plan.Commands = []CommandPlan{
-		commandPlan(planName(actionUnitRaceChanged, "changed"), chain.GoTest(gotoolchain.TestOptions{Race: true}, plan.Packages...), chain, options),
-		commandPlan(planName(actionUnitRaceChanged, "core"), chain.GoTest(gotoolchain.TestOptions{Core: true, Race: true}, "./cmd/ze/hub"), chain, options),
+	if len(plan.Packages) > 0 {
+		plan.Commands = append(plan.Commands,
+			commandPlan(planName(actionUnitRaceChanged, "changed"), chain.GoTest(gotoolchain.TestOptions{Race: true}, plan.Packages...), chain, options))
+	}
+	if plan.Part.Index == 1 {
+		plan.Commands = append(plan.Commands,
+			commandPlan(planName(actionUnitRaceChanged, "core"), chain.GoTest(gotoolchain.TestOptions{Core: true, Race: true}, "./cmd/ze/hub"), chain, options))
 	}
 	return plan, children, 0, nil
+}
+
+// dealRacePackages answers the packages one piece of a cut race pass runs.
+//
+// The selection is a list of PATTERNS, and with no green baseline it is the
+// single pattern ./..., so a deal over the patterns would hand the whole tree
+// to piece 1. The patterns are therefore expanded by `go list -e` under the
+// same tag set and race constraint the race command builds with.
+//
+// Each package is dealt by a hash of its import path (racePieceOf), never by
+// its position in the list. Each piece derives the selection itself, at its
+// own moment, and another session can change the tree between two pieces: a
+// positional deal then shifts every later package by one, so a package can be
+// raced by no piece or by two. A hashed package lands in the same piece
+// whatever else the list holds, so every package both pieces saw is raced
+// exactly once. A list that cannot be read is a refusal, never an empty piece.
+func dealRacePackages(ctx context.Context, chain gotoolchain.Toolchain, patterns []string, part verifyengine.Part, execute commandExecutor, children *[]ChildReport) ([]string, int, error) {
+	listing := chain.GoList(gotoolchain.TestOptions{Race: true}, patterns...)
+	step := commandPlan("race-package-population", listing, chain, gotoolchain.EnvOptions{Test: true, CGO: true})
+	output, child := execute(ctx, step, nil)
+	*children = append(*children, child)
+	rerun := racePieceRerun(part)
+	if child.Code != 0 {
+		return nil, child.Code, fmt.Errorf("could not list the packages of the race population %s: `%s` exited %d, so this piece cannot know its share; "+
+			"its stderr above names the cause. Fix it, then rerun: %s",
+			strings.Join(patterns, " "), strings.Join(listing, " "), child.Code, rerun)
+	}
+	var dealt []string
+	listed := 0
+	for line := range strings.SplitSeq(output, "\n") {
+		pkg := strings.TrimSpace(line)
+		if pkg == "" {
+			continue
+		}
+		listed++
+		if racePieceOf(pkg, part.Of) == part.Index {
+			dealt = append(dealt, pkg)
+		}
+	}
+	if listed == 0 {
+		return nil, 1, fmt.Errorf("the race population %s names no package: `%s` printed nothing, so a pattern matches no directory of this module; "+
+			"check that the changed directories still exist, then rerun: %s",
+			strings.Join(patterns, " "), strings.Join(listing, " "), rerun)
+	}
+	return dealt, 0, nil
+}
+
+// racePieceOf answers the piece, counted from one, that races pkg when the
+// population is cut into count pieces: the FNV-1a hash of the import path
+// modulo count. It depends on nothing but the path, so the answer cannot move
+// when the rest of the list does.
+func racePieceOf(pkg string, count int) int {
+	hash := fnv.New32a()
+	//nolint:errcheck // hash.Hash.Write is documented never to return an error
+	hash.Write([]byte(pkg))
+	return int(hash.Sum32()%uint32(count)) + 1 //nolint:gosec // count is a validated piece count of 1 or more
+}
+
+// racePieceRerun answers the command that reruns this piece.
+func racePieceRerun(part verifyengine.Part) string {
+	var text textbuf.Buffer
+	text.Str("./le verify deps unit-race-changed")
+	if part.Cut() {
+		text.Str(" part ").Int(int64(part.Index)).Str(" of ").Int(int64(part.Of))
+	}
+	return text.String()
 }
 
 func planAlloc(root string, chain gotoolchain.Toolchain, plan Plan, getenv func(string) string) (Plan, []ChildReport, int, error) {

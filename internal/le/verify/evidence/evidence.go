@@ -84,9 +84,11 @@ var platformEntry = env.MustRegister(env.EnvEntry{
 //
 // It installs what the gate needs, clones the read-only mount into a writable
 // path, checks that the CLONE is clean too, and runs the gate there.
-// Staticcheck is built from the clone's vendor tree after that check, so it
-// links the x/tools go.mod requires; an @version install would link its own
-// older x/tools, which cannot read the toolchain's export data. The clone
+// Golangci-lint and Staticcheck are built from the clone's vendor tree after
+// that check, so each is the release go.mod requires and links the x/tools
+// go.mod requires; an @version install names a second copy of the version,
+// which drifted (golangci-lint v2.13.1 against go.mod's v2.14.0), and links its
+// own older x/tools, which cannot read the toolchain's export data. The clone
 // is what makes the evidence about the commit rather than about the mount: a
 // build in place would write into the developer's tree, and a gate reading its
 // own artifacts is not a gate.
@@ -102,7 +104,6 @@ rm -f /etc/apt/apt.conf.d/docker-clean
 apt-get update
 apt-get install -y --no-install-recommends build-essential git iputils-ping iproute2 iptables nftables util-linux
 export PATH="/go/bin:/usr/local/go/bin:$PATH"
-CGO_ENABLED=0 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1
 
 git config --global --add safe.directory /host
 git clone --no-local /host /work/src
@@ -112,6 +113,7 @@ if [ -n "$(git status --porcelain)" ]; then
     git status --short >&2
     exit 1
 fi
+CGO_ENABLED=0 go install -mod=vendor github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 CGO_ENABLED=0 go install -mod=vendor honnef.co/go/tools/cmd/staticcheck
 
 ./le verify current mode full

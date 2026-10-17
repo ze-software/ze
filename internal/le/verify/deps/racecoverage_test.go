@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 // TestRaceChangedExecutesTheWholeTreeWithoutGreenEvidence drives the stage's
@@ -41,7 +43,7 @@ func TestRaceChangedExecutesTheWholeTreeWithoutGreenEvidence(t *testing.T) {
 				}
 				return "", childFrom(plan, 0)
 			}
-			report, code := run(context.Background(), root, VerbUnitRaceChanged, deps)
+			report, code := run(context.Background(), root, VerbUnitRaceChanged, verifyengine.Uncut(), deps)
 			if code != 0 || report.Skipped {
 				t.Fatalf("cold tree answered code=%d skipped=%v: %+v", code, report.Skipped, report)
 			}
@@ -77,7 +79,7 @@ func TestRaceChangedExecutesGoCommittedBeforeClosure(t *testing.T) {
 		}
 		return "", childFrom(plan, 0)
 	}
-	report, code := run(context.Background(), root, VerbUnitRaceChanged, deps)
+	report, code := run(context.Background(), root, VerbUnitRaceChanged, verifyengine.Uncut(), deps)
 	if code != 0 || report.Skipped || len(executed) != 2 {
 		t.Fatalf("closure answered code=%d, report=%+v, executions=%v", code, report, executed)
 	}
@@ -110,7 +112,7 @@ func TestRaceChangedRunsCompileOutAfterFailure(t *testing.T) {
 		}
 		return "", childFrom(plan, code)
 	}
-	report, code := run(context.Background(), root, VerbUnitRaceChanged, deps)
+	report, code := run(context.Background(), root, VerbUnitRaceChanged, verifyengine.Uncut(), deps)
 	if code != 23 || report.Code != 23 || calls != 2 {
 		t.Fatalf("failure answered code=%d report=%+v calls=%d", code, report, calls)
 	}
@@ -134,7 +136,7 @@ func TestRaceChangedRefusesPartiallyUnresolvedPopulation(t *testing.T) {
 		}
 		return "", childFrom(plan, 0)
 	}
-	report, code := run(context.Background(), root, VerbUnitRaceChanged, deps)
+	report, code := run(context.Background(), root, VerbUnitRaceChanged, verifyengine.Uncut(), deps)
 	if code == 0 || report.Skipped || !strings.Contains(report.Error, "./internal/le/gone") {
 		t.Fatalf("partial population answered code=%d report=%+v", code, report)
 	}
@@ -158,7 +160,7 @@ func TestRaceChangedRefusesAnUnreadableCommittedRange(t *testing.T) {
 		}
 		return "", childFrom(plan, 0)
 	}
-	report, code := run(context.Background(), root, VerbUnitRaceChanged, deps)
+	report, code := run(context.Background(), root, VerbUnitRaceChanged, verifyengine.Uncut(), deps)
 	if code != 7 || report.Skipped || report.Error == "" {
 		t.Fatalf("unreadable history answered code=%d report=%+v", code, report)
 	}

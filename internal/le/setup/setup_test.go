@@ -253,6 +253,18 @@ func TestTheStaticcheckPinIsCarriedIntoTheInstall(t *testing.T) {
 	}
 }
 
+// TestGoModRequiresThePinnedGolangCI proves GolangCIVersion, the release
+// `./le setup` installs with @version, is the release go.mod requires, which
+// is the one CI builds from vendor/. VALIDATES: the two copies agree.
+// PREVENTS: a host linting with a release CI does not run (CI once ran
+// v2.13.1 against go.mod's v2.14.0, which cannot read Go 1.27 export data).
+func TestGoModRequiresThePinnedGolangCI(t *testing.T) {
+	repo := &Setup{Root: filepath.Join("..", "..", "..")}
+	if got := repo.goModRequire("github.com/golangci/golangci-lint/v2"); got != GolangCIVersion {
+		t.Errorf("go.mod requires golangci-lint %q, but GolangCIVersion is %q; change them together", got, GolangCIVersion)
+	}
+}
+
 // staticcheckModuleVersion is the honnef.co/go/tools module version that
 // prints StaticcheckVersion. go.mod requires exactly this version, and the
 // install builds it from the vendor tree.
