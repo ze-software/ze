@@ -40,7 +40,7 @@ implementation (the in-progress WIP cap is full).
 
 ## Measured Gap (2026-10-17)
 
-How it was measured, so the phase 1 tool can reproduce it:
+How it was measured, so the phase 2 coverage report can reproduce it (AC-15):
 
 1. `./le doc index write` regenerated `ai/CODE-TO-DOCS.md` and
    `ai/DOCS-TO-CODE.md` (it reported 340 design docs, 3215 code paths, 672
@@ -331,7 +331,7 @@ Every row below took the recommended option. None is open.
 - → Decision: D-2 (a). Only declared pages are required; anchor pages are listed in the verdict, never required
 - → Decision: D-3 (c). A brief passes only when the spawner read every required page AND the prompt names each one
 - → Decision: D-4 (a). A NEW undocumented file is refused at commit from day one by `./le doc coverage check` over the shrink-only baseline; existing undocumented files are listed in the baseline and only warn until the switch
-- → Decision: D-5 (a). A file whose only page is `core-design.md`, an `ai/` page or an `rfc/short/` page counts as documented for the switch and stays out of the baseline; the Audit B phase retargets every one, and AC-20 still requires 0 core-design-only files
+- → Decision: D-5 (a). A file whose only page is `core-design.md`, an `ai/` page or an `rfc/short/` page counts as documented for the switch and stays out of the baseline; phase 9 (Audit B) retargets every one, and AC-20 still requires 0 core-design-only files
 - → Decision: D-6 (a). The switch is global: every hook verdict warns while the baseline lists any path, and every one blocks once it is empty
 
 | ID | Question | Options | Decided (2026-10-17) | Rationale |
@@ -340,7 +340,7 @@ Every row below took the recommended option. None is open.
 | D-2 | Which pages are required? | (a) declared pages only, anchors listed; (b) declared plus every anchor page | (a) | `internal/le/hookruntime/writeedit.go` has 1 declared page and 9 anchor pages |
 | D-3 | Brief gate: what is required? | (a) the spawner read the pages (your words); (b) the brief names the pages; (c) both | (c) | (a) alone puts every page into the main thread, against the delegation rule; (b) alone lets the main thread brief without reading. Both are path checks, so the 2026-09-26 "no wording gates" decision holds |
 | D-4 | Is a NEW undocumented file refused at commit from day one? | (a) yes, by `./le doc coverage check`; (b) no, warn only until the baseline is empty | (a) | A new file already owes a `// Design:` header under the go-standards rule; without the ratchet the list can grow while the audit shrinks it |
-| D-5 | Does a file whose only page is `core-design.md` (786 files), or only an `ai/` or `rfc/short/` page, count as documented for the switch? | (a) yes, the audit retargets them later; (b) no, they join the baseline (786 more entries) | (a) | counts for the switch, with the Audit B phase retargeting every one; (b) puts the block months away |
+| D-5 | Does a file whose only page is `core-design.md` (786 files), or only an `ai/` or `rfc/short/` page, count as documented for the switch? | (a) yes, the audit retargets them later; (b) no, they join the baseline (786 more entries) | (a) | counts for the switch, with phase 9 (Audit B) retargeting every one; (b) puts the block months away |
 | D-6 | Global switch or per-file? | (a) global: all verdicts warn until the baseline is empty (your words); (b) per-file: block at once for files not in the baseline | (a) | the owner's own words; (b) would start blocking the read gate on covered code on day one |
 
 ## Audit
@@ -396,13 +396,13 @@ the claim tables show every claim with a verdict.
 | A-2 | The in-process coverage walk fits the hook's 5 s timeout with margin | `./le doc index check` 0.96 s wall | edits get slow or the harness kills the hook | `BenchmarkCoveragePath`, budget 300 ms on this machine | unvalidated |
 | A-3 | `hookSourceRead` sees the path of every Read of a `.md` file | `PostToolUse Read` is wired with no matcher limit | reads go unrecorded and the gate refuses after a real read | `TestDocReadLedgerRecordsReadTool` | unvalidated |
 | A-4 | `bashGovernedWrite` stops shell writes into `plan/`, so a plan write cannot skip the Write/Edit hook | its doc comment and `bash_governed_taint.go` | specs bypass the gate | observed 2026-10-17 while writing this spec: a `python3` rewrite of this file was refused with "shell write to plan/ or ai/rules/" | confirmed |
-| A-5 | The 86 files whose header names missing pages are mostly parse artifacts (`(RFC`, `DST`, `register.go`) rather than deleted pages | the missing-target list printed by the measurement | the header parser needs a fix before the count is trusted | phase 1 lists them by cause | unvalidated |
+| A-5 | The 86 files whose header names missing pages are mostly parse artifacts (`(RFC`, `DST`, `register.go`) rather than deleted pages | the missing-target list printed by the measurement | the header parser needs a fix before the count is trusted | phase 2 (coverage producer) lists them by cause | unvalidated |
 | A-6 | Every `// Design:` line counts, not only the first | `designRefs` reads all, `declaredDesignDocument` reads the first | required sets differ between tools | `TestCoverageReadsEveryDesignLine` | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Main-thread context grows from reading pages before briefs | `./le ai tokens` per-session cost rises | D-3 (c): the brief names the pages and the agent's own writes are gated; phase 8 retargets catch-all headers to small pages |
+| R-1 | Main-thread context grows from reading pages before briefs | `./le ai tokens` per-session cost rises | D-3 (c): the brief names the pages and the agent's own writes are gated; phase 9 (Audit B) retargets catch-all headers to small pages |
 | R-2 | Path extraction from prose picks up a path in a quoted command or a removed file | a refusal naming a path the author did not mean | only existing paths count; `remove` lines are skipped; the verdict names the path and the text that named it |
 | R-3 | An Edit to a large spec judges the whole spec | refusals on pages unrelated to the edit | an Edit judges `new_string` only |
 | R-4 | Agents learn to Read a page and ignore it | wrong claims keep appearing in specs | the audit makes pages right and anchored; `checkDocDrift` keeps them right; the gate only guarantees the page was opened |
@@ -457,8 +457,8 @@ the claim tables show every claim with a verdict.
 | AC-16 | `./le doc coverage check` with a covered path still listed, an unlisted new uncovered path, or a listed path absent at `HEAD` | each is a finding and the check fails |
 | AC-17 | `./le spec citation anchors` on a file with two `// Design:` lines | both pages are reported (one parser) |
 | AC-18 | Every message above with `NO_COLOR` set or stderr not a terminal | no escape codes |
-| AC-19 | Phase 7 complete | the six units of this week have Audit Record rows meeting the Phase proof |
-| AC-20 | Phase 8 complete | `./le doc coverage report` shows 0 hard-uncovered, 0 nominal and 0 core-design-only files tree-wide, and the baseline is empty |
+| AC-19 | Phase 8 (Audit A) complete | the six units of this week have Audit Record rows meeting the Phase proof |
+| AC-20 | Phase 9 (Audit B) complete | `./le doc coverage report` shows 0 hard-uncovered, 0 nominal and 0 core-design-only files tree-wide, and the baseline is empty |
 | AC-21 | The baseline becomes empty | the next unread-page edit is refused with exit 2, with no code change |
 
 ## 🧪 TDD Test Plan
@@ -528,7 +528,7 @@ N-A: tooling, no protocol peer.
 - `docs/contributing/spec-workflow.md` - a spec write needs its pages read
 - `docs/contributing/running-commands.md` - the ledger file in "what each agent owns"
 - `ai/INDEX.md` - keyword row: page read gate, doc coverage, undocumented file
-- Phase 7 and 8: the pages and `// Design:` headers each unit's audit names
+- Phases 8 and 9 (Audit A and B): the pages and `// Design:` headers each unit's audit names
 
 ## Files to Create
 - `internal/le/doc/index/coverage.go` - the coverage producer, the report and the baseline check
