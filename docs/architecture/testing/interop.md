@@ -584,6 +584,15 @@ nothing else, and judges the verdict against the rows it read. On colima's
 <!-- source: internal/le/test/deployment/vppiface.go -- vppIface.prepareDaemon -->
 <!-- source: internal/le/site/terminaldemo/render.go -- Engine.preflightContainers, Engine.validationCheckAll, Engine.validateAndRender, Engine.checkKernel -->
 
+The report prints only after the last scenario, so `Suite.Run` also writes
+progress lines while it runs: one as image preparation starts, one when the
+images are ready with the time it took, and two for each scenario, `interop: [i/n] name:
+running` and then `pass` or `FAIL` with its elapsed time and error. They go to
+`Suite.Progress`, or to stderr when that is nil, which is the job log in CI. A
+suite that hangs then names the scenario that holds it. A failed progress write
+does not fail the suite.
+<!-- source: internal/le/interoplab/lab.go -- Suite.Run, Suite.progress, scenarioLine -->
+
 Each local image build also creates a unique, run-owned tag. This keeps its
 image ID available when another build replaces the shared cache tag.
 The suite removes its tags after the scenarios, including after setup failure.

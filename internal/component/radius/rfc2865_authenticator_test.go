@@ -432,8 +432,13 @@ func TestRadiusAdminChapAttributes(t *testing.T) {
 // TestRadiusAdminChapChallengeIsFreshPerLogin proves the challenge is drawn per
 // login rather than once per authenticator.
 //
+// The authenticator's random source is replaced by two known seeds in sequence,
+// so each login must carry exactly the seed it drew: the first login the first
+// seed, the second login the second. Comparing two crypto/rand draws instead
+// failed whenever the one-octet CHAP Identifiers collided, one run in 256.
+//
 // VALIDATES: AC-6 -- two successive logins carry a different challenge and a
-// different identifier.
+// different identifier, each the next draw from the random source.
 // PREVENTS: a challenge cached in the authenticator, which makes every login
 // produce the same CHAP-Password and turns a captured request into a replayable
 // credential.
@@ -445,6 +450,7 @@ func TestRadiusAdminChapChallengeIsFreshPerLogin(t *testing.T) {
 	a := testAuthenticator(t, srv.addr, key, ExtractedConfig{
 		ProfileAttr: AttrFilterID, AuthMethod: AuthMethodCHAP,
 	})
+	a.random = io.MultiReader(fixedRandom(0x01, 0xA1), fixedRandom(0x02, 0xB2))
 	_, err := a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "Hello"})
 	require.NoError(t, err)
 	first := srv.captured(t)
@@ -459,10 +465,12 @@ func TestRadiusAdminChapChallengeIsFreshPerLogin(t *testing.T) {
 	require.Len(t, firstPassword, 17)
 	require.Len(t, secondPassword, 17)
 
-	assert.NotEqual(t, first.FindAttr(AttrCHAPChallenge), second.FindAttr(AttrCHAPChallenge),
-		"each login draws its own challenge")
-	assert.NotEqual(t, firstPassword[0], secondPassword[0],
-		"each login draws its own CHAP Identifier")
+	assert.Equal(t, bytes.Repeat([]byte{0xA1}, chapChallengeLen), first.FindAttr(AttrCHAPChallenge),
+		"the first login carries the first draw's challenge")
+	assert.Equal(t, bytes.Repeat([]byte{0xB2}, chapChallengeLen), second.FindAttr(AttrCHAPChallenge),
+		"the second login draws its own challenge")
+	assert.Equal(t, byte(0x01), firstPassword[0], "the first login carries the first draw's CHAP Identifier")
+	assert.Equal(t, byte(0x02), secondPassword[0], "the second login draws its own CHAP Identifier")
 }
 
 // TestRadiusAdminChapProfileMapping checks that selecting CHAP changes the

@@ -52,30 +52,81 @@ func exchange(t *testing.T, addr, name string, qtype uint16) *dns.Msg {
 	return resp
 }
 
-// VALIDATES: AC-2 -- a real wire query for a name within a Direct-Delegation
-// reverse zone gets NOERROR, empty Answer, zone SOA in Authority.
+// wantZoneSOA fails unless resp carries an empty Answer and exactly the SOA of
+// zone in Authority. RFC 2308 Section 3: "Name servers authoritative for a zone
+// MUST include the SOA record of the zone in the authority section of the
+// response when reporting an NXDOMAIN or indicating that no data of the
+// requested type exists." The helper checks
+// both halves.
+func wantZoneSOA(t *testing.T, resp *dns.Msg, zone string) {
+	t.Helper()
+	if len(resp.Answer) != 0 || len(resp.Ns) != 1 {
+		t.Fatalf("Answer=%v Ns=%v, want empty Answer and exactly the %s SOA in Ns", resp.Answer, resp.Ns, zone)
+	}
+	soa, ok := resp.Ns[0].(*dns.SOA)
+	if !ok || soa.Hdr.Name != zone {
+		t.Fatalf("Ns[0] = %v, want the SOA of %s", resp.Ns[0], zone)
+	}
+}
+
+// VALIDATES: AC-2 -- a real wire PTR query at the apex of a Direct-Delegation
+// reverse zone gets NODATA: NOERROR, empty Answer, the zone SOA in Authority.
+// The apex is the one node the zone holds (RFC 7534 Section 3.5 db.dd-empty),
+// and it holds no PTR.
 func TestIntegration_ReverseZoneNoData(t *testing.T) {
 	addr, cleanup := bindLoopback53(t, as112Config{Enabled: true})
 	defer cleanup()
 
-	resp := exchange(t, addr, "1.0.10.in-addr.arpa.", dns.TypePTR)
-	if resp.Rcode != dns.RcodeSuccess || len(resp.Answer) != 0 || len(resp.Ns) != 1 {
-		t.Fatalf("response = %+v, want NOERROR, empty Answer, 1 Ns (SOA)", resp)
+	resp := exchange(t, addr, "10.in-addr.arpa.", dns.TypePTR)
+	if resp.Rcode != dns.RcodeSuccess {
+		t.Fatalf("Rcode = %v, want NOERROR (NODATA at the apex)", dns.RcodeToString[resp.Rcode])
 	}
+	wantZoneSOA(t, resp, "10.in-addr.arpa.")
 	if resp.RecursionAvailable {
 		t.Fatal("RecursionAvailable = true, want false (AC-6)")
 	}
 }
 
-// VALIDATES: AC-3 -- a real wire query within empty.as112.arpa.
+// VALIDATES: a real wire query for a private address's reverse name below the
+// apex of a Direct-Delegation zone gets NXDOMAIN with the zone SOA in Authority,
+// authoritatively. The zone holds nothing below its apex, so the name does not
+// exist: RFC 1035 Section 4.1.1, "Name Error - Meaningful only for responses
+// from an authoritative name server, this code signifies that the domain name
+// referenced in the query does not exist." The test asks for a name
+// below a served apex.
+func TestIntegration_ReverseZoneNameError(t *testing.T) {
+	addr, cleanup := bindLoopback53(t, as112Config{Enabled: true})
+	defer cleanup()
+
+	resp := exchange(t, addr, "1.0.10.in-addr.arpa.", dns.TypePTR)
+	if resp.Rcode != dns.RcodeNameError {
+		t.Fatalf("Rcode = %v, want NXDOMAIN", dns.RcodeToString[resp.Rcode])
+	}
+	if !resp.Authoritative {
+		t.Fatal("AA clear on a name inside a served zone, want an authoritative NXDOMAIN")
+	}
+	wantZoneSOA(t, resp, "10.in-addr.arpa.")
+	if resp.RecursionAvailable {
+		t.Fatal("RecursionAvailable = true, want false (AC-6)")
+	}
+}
+
+// VALIDATES: AC-3 -- a real wire query for a name within empty.as112.arpa.
+// gets NXDOMAIN with the zone SOA in Authority. The zone holds its SOA and NS
+// at the apex and nothing below it (RFC 7534 Section 3.5 db.dr-empty), so a
+// redirected name does not exist, and the SOA is what lets the resolver cache
+// that: RFC 7535 Section 6, "The negative caching [RFC2308] of the CNAME
+// target follows the parameters defined in the target zone, EMPTY.AS112.ARPA." The
+// answer carries that zone's SOA.
 func TestIntegration_EmptyAS112Arpa(t *testing.T) {
 	addr, cleanup := bindLoopback53(t, as112Config{Enabled: true})
 	defer cleanup()
 
 	resp := exchange(t, addr, "foo.empty.as112.arpa.", dns.TypeA)
-	if resp.Rcode != dns.RcodeSuccess || len(resp.Answer) != 0 || len(resp.Ns) != 1 {
-		t.Fatalf("response = %+v, want NOERROR, empty Answer, 1 Ns (SOA)", resp)
+	if resp.Rcode != dns.RcodeNameError {
+		t.Fatalf("Rcode = %v, want NXDOMAIN", dns.RcodeToString[resp.Rcode])
 	}
+	wantZoneSOA(t, resp, "empty.as112.arpa.")
 }
 
 // VALIDATES: AC-4 / M3 -- HOSTNAME.AS112.NET TXT over the real wire, with
@@ -99,14 +150,24 @@ func TestIntegration_HostnameTXTUnder512(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-5 -- a real wire query outside every served zone is NXDOMAIN.
-func TestIntegration_OutOfZoneNXDOMAIN(t *testing.T) {
+// VALIDATES: AC-5 -- a real wire query outside every served zone is REFUSED
+// with AA clear and nothing in Answer or Authority. The node holds no data for
+// the name, so it makes no claim about it: RFC 1035 Section 4.1.1, "Refused -
+// The name server refuses to perform the specified operation for policy
+// reasons." A name outside every served zone gets that answer.
+func TestIntegration_OutOfZoneRefused(t *testing.T) {
 	addr, cleanup := bindLoopback53(t, as112Config{Enabled: true})
 	defer cleanup()
 
 	resp := exchange(t, addr, "example.com.", dns.TypeA)
-	if resp.Rcode != dns.RcodeNameError {
-		t.Fatalf("Rcode = %v, want NXDOMAIN", dns.RcodeToString[resp.Rcode])
+	if resp.Rcode != dns.RcodeRefused {
+		t.Fatalf("Rcode = %v, want REFUSED", dns.RcodeToString[resp.Rcode])
+	}
+	if resp.Authoritative {
+		t.Fatal("AA set on a name under no served zone; the node claims authority it does not have")
+	}
+	if len(resp.Answer) != 0 || len(resp.Ns) != 0 {
+		t.Fatalf("Answer=%v Ns=%v, want both empty for a refused name", resp.Answer, resp.Ns)
 	}
 }
 
@@ -137,8 +198,12 @@ func TestIntegration_LoopbackAlwaysPermittedOverWire(t *testing.T) {
 	addr, cleanup := bindLoopback53(t, cfg)
 	defer cleanup()
 
+	// A dropped query never gets a reply, so exchange fails on its timeout;
+	// an answered one carries the zone's own verdict on the name, which for a
+	// name below the apex is NXDOMAIN with the zone SOA.
 	resp := exchange(t, addr, "1.0.10.in-addr.arpa.", dns.TypePTR)
-	if resp.Rcode != dns.RcodeSuccess {
-		t.Fatalf("loopback query Rcode = %v, want NOERROR (H1/M4 carve-out)", dns.RcodeToString[resp.Rcode])
+	if resp.Rcode != dns.RcodeNameError {
+		t.Fatalf("loopback query Rcode = %v, want NXDOMAIN answered from the zone (H1/M4 carve-out)", dns.RcodeToString[resp.Rcode])
 	}
+	wantZoneSOA(t, resp, "10.in-addr.arpa.")
 }

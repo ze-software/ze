@@ -31,6 +31,7 @@ runner the same way before it reads its stage list:
 
 | Step | Why |
 |------|-----|
+| `git archive` of `origin/gh-pages` into `../gh-pages` | A site build seeds itself from the last published artifact beside the main checkout, and the recorded terminal demos exist only there: a render needs the recorder image, which is built locally and published to no registry. Without the tree, `TestBuildRendersEveryPublishedRoute` refuses with "this checkout holds no rendered terminal demonstrations" |
 | `sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0`, when the kernel has the key | Ubuntu 24.04 lets AppArmor restrict unprivileged user namespaces, and the unit tests that build their own network namespace (bfd, ike/engine, ospf, internal/test/userns) then fail `lo up: operation not permitted`. Owner decision, 2026-10-17 |
 | `sudo modprobe` of `l2tp_core`, `l2tp_netlink`, `pppox` and `l2tp_ppp` | The l2tp kernel capability probes the l2tp generic netlink family (`CONFIG_L2TP`) and the PPPoL2TP socket (`CONFIG_PPPOL2TP`); the hosted kernel ships both as modules it has not loaded. A module the image lacks fails the job with its name and the package that carries it |
 | `go install -mod=vendor` of golangci-lint and staticcheck | Both build from `vendor/`, so CI runs the release `go.mod` requires. An `@version` pin is a second copy of that fact, and it drifted: v2.13.1 against `go.mod`'s v2.14.0 cannot read Go 1.27 export data |

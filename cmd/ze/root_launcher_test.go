@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/mod/modfile"
+
 	"github.com/ze-software/ze/internal/core/env"
 )
 
@@ -80,7 +82,7 @@ func TestRootLaunchersBuildMissingBinary(t *testing.T) {
 					"GOCACHE=" + filepath.Join(fixture, "cache", "go-cache"),
 					"GOLANGCI_LINT_CACHE=" + filepath.Join(fixture, "tmp", "golangci-lint-cache"),
 					"CGO_ENABLED=0",
-					"GOTOOLCHAIN=go1.27.0",
+					"GOTOOLCHAIN=" + checkoutToolchain(t, root),
 					"arg=build",
 					"arg=-tags",
 					"arg=" + tt.wantTags,
@@ -703,7 +705,8 @@ func launcherFixture(t *testing.T, root, launcher string) string {
 		t.Fatalf("write feature-tags: %v", err)
 	}
 	writeFakeStdpatchGoroot(t, fixture)
-	if err := os.WriteFile(filepath.Join(fixture, "go.mod"), []byte("module launcher.test/fixture\n\ngo 1.27\ntoolchain go1.27.0\n"), 0o600); err != nil {
+	gomod := "module launcher.test/fixture\n\ngo 1.27\ntoolchain " + checkoutToolchain(t, root) + "\n"
+	if err := os.WriteFile(filepath.Join(fixture, "go.mod"), []byte(gomod), 0o600); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
 	manifest := "# fixture feature gates\nze_alpha internal/alpha\nze_beta internal/beta\nze_alpha internal/alpha/sidecar\n"
@@ -711,6 +714,33 @@ func launcherFixture(t *testing.T, root, launcher string) string {
 		t.Fatalf("write feature-gates.txt: %v", err)
 	}
 	return fixture
+}
+
+// checkoutToolchain answers the toolchain the checkout's go.mod selects: its
+// toolchain line, else the go directive. The fixture pins this one so that the
+// launcher's GOTOOLCHAIN pin names a Go the machine already holds. Every
+// workflow installs that version through actions/setup-go, so a fixture pinned
+// to any other release made the go command fetch it on a fresh runner, and its
+// "go: downloading go1.27.0 (linux/amd64)" line landed in the probe output the
+// preparation tests compare exactly.
+func checkoutToolchain(t *testing.T, root string) string {
+	t.Helper()
+	path := filepath.Join(root, "go.mod")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read checkout go.mod: %v", err)
+	}
+	file, err := modfile.ParseLax(path, data, nil)
+	if err != nil {
+		t.Fatalf("parse checkout go.mod: %v", err)
+	}
+	if file.Toolchain != nil {
+		return file.Toolchain.Name
+	}
+	if file.Go == nil {
+		t.Fatalf("checkout go.mod %s has neither a toolchain line nor a go directive", path)
+	}
+	return "go" + file.Go.Version
 }
 
 // writeFakeStdpatchGoroot gives the fixture module the program le's build_le

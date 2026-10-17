@@ -7,4 +7,4 @@ unguarded.
 
 | Test | Reason |
 |------|--------|
-| TestTheGateSnapshotAgreesWithItself | Moved, not lost: the error check on collectRFCCompliance moved into complianceOfThisCheckout (internal/le/site/checkout_test.go), which calls t.Fatal on the same error; the test now reads the snapshot the build test shares instead of deriving its own, to fit the race stage. |
+| TestIntegration_OutOfZoneNXDOMAIN | Renamed, not lost: now TestIntegration_OutOfZoneRefused in the same file. A name outside every served zone is answered REFUSED (RFC 1035 Section 4.1.1, as zones.go answerQuestions does), so the old NXDOMAIN expectation was wrong; the renamed test asserts REFUSED with AA clear and empty sections. |

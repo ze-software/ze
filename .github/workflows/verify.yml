@@ -35,6 +35,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      # A site build seeds itself from the last published artifact, the
+      # gh-pages tree beside the main checkout (internal/le/site lastPublished),
+      # and the recorded terminal demos live nowhere else: a render needs the
+      # recorder image, which this repository builds locally and publishes to
+      # no registry. TestBuildRendersEveryPublishedRoute builds the real
+      # checkout the way a publish does, so it needs that tree. An export, not
+      # a clone: no second repository, and the full clone above stays unshallow.
+      - name: Lay the published site down beside the checkout
+        run: |
+          git fetch --no-tags origin gh-pages
+          mkdir ../gh-pages
+          git archive FETCH_HEAD | tar -x -C ../gh-pages
+
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
