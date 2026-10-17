@@ -20,6 +20,7 @@ func llmsPaths(t *testing.T) Paths {
 	t.Helper()
 	paths := commandSurfacePaths(t)
 	root := repositoryRoot(t)
+	shareCheckoutDerivations(t)
 	for _, name := range []string{featuresFile, dependencyFile, navFile} {
 		copyFixture(t, filepath.Join(root, "website", filepath.FromSlash(name)),
 			filepath.Join(paths.Output, filepath.FromSlash(name)))

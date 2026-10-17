@@ -24,6 +24,7 @@ import (
 // failure on a page that shows no demonstration, is a defect.
 func TestDocsProducerPublishesEveryPage(t *testing.T) {
 	root := repositoryRoot(t)
+	shareCheckoutDerivations(t)
 	output := t.TempDir()
 	paths := Paths{Repository: root, Source: filepath.Join(root, "website"), Output: output}
 	renderer, err := newDocsRenderer(paths)

@@ -20,11 +20,37 @@ import (
 // liveCommandCatalog lets a test state a command catalog.
 var buildClock = time.Now
 
-// footerBlock matches the whole footer element of an authored page, from the
-// indentation of its opening tag to its closing tag. Footer markup never nests
-// a second footer, so the first closing tag ends the first opening one and no
-// balanced-tag count is needed.
-var footerBlock = regexp.MustCompile(`(?s)[ \t]*<footer>.*?</footer>`)
+// footerOpen and footerClose are the tags that bound the footer element of an
+// authored page.
+const (
+	footerOpen  = "<footer>"
+	footerClose = "</footer>"
+)
+
+// footerBlock answers where the whole footer element of an authored page lies,
+// from the indentation of its opening tag to the end of its closing tag, and
+// false when the page carries none. Footer markup never nests a second footer,
+// so the first closing tag ends the first opening one and no balanced-tag
+// count is needed.
+//
+// It answers what `(?s)[ \t]*<footer>.*?</footer>` matched first, found by
+// searching for the tags: the leading indentation gave that pattern no literal
+// to seek to, so it walked every byte of every page up to the footer.
+func footerBlock(page []byte) (start, end int, found bool) {
+	open := bytes.Index(page, []byte(footerOpen))
+	if open < 0 {
+		return 0, 0, false
+	}
+	closing := bytes.Index(page[open+len(footerOpen):], []byte(footerClose))
+	if closing < 0 {
+		return 0, 0, false
+	}
+	start = open
+	for start > 0 && (page[start-1] == ' ' || page[start-1] == '\t') {
+		start--
+	}
+	return start, open + len(footerOpen) + closing + len(footerClose), true
+}
 
 // publicationStamp matches the one span a page carries the stamp in.
 // carryPublicationStamps finds the stamp by this markup, so footerHTML must
@@ -68,15 +94,15 @@ func footerHTML(root string, published time.Time) string {
 // built one. It reports whether the page carried a footer to replace: a page
 // without one is left as it is, and stampArtifact counts it.
 func patchFooter(page []byte, root string, published time.Time) ([]byte, bool) {
-	location := footerBlock.FindIndex(page)
-	if location == nil {
+	start, end, found := footerBlock(page)
+	if !found {
 		return page, false
 	}
 	replacement := footerHTML(root, published)
-	patched := make([]byte, 0, len(page)-(location[1]-location[0])+len(replacement))
-	patched = append(patched, page[:location[0]]...)
+	patched := make([]byte, 0, len(page)-(end-start)+len(replacement))
+	patched = append(patched, page[:start]...)
 	patched = append(patched, replacement...)
-	patched = append(patched, page[location[1]:]...)
+	patched = append(patched, page[end:]...)
 	return patched, true
 }
 

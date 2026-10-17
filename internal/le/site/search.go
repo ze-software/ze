@@ -368,22 +368,56 @@ var (
 	searchFence       = regexp.MustCompile("(?m)^```.*$")
 	searchLinkText    = regexp.MustCompile(`!?\[([^\]]*)\]\([^)]*\)`)
 	searchHeadingMark = regexp.MustCompile(`(?m)^\s{0,3}#{1,6}\s*`)
-	searchMarkup      = regexp.MustCompile("[*`_>]+")
-	searchSpaceRuns   = regexp.MustCompile(`\s+`)
 )
 
 // stripMarkdown answers one Markdown text as the words a reader would search
 // for: no comments, no fences, link text without its target, no heading marks,
 // no emphasis, and one space between words.
+//
+// Each pattern runs only over a text holding the literal it cannot match
+// without, and the last three passes are one hand loop: the build strips every
+// published page, and each regexp pass walked every byte of it.
 func stripMarkdown(text string) string {
-	text = searchComment.ReplaceAllString(text, " ")
-	text = searchFence.ReplaceAllString(text, " ")
-	text = searchLinkText.ReplaceAllString(text, "$1")
-	text = searchHeadingMark.ReplaceAllString(text, "")
-	text = strings.ReplaceAll(text, "|", " ")
-	text = searchMarkup.ReplaceAllString(text, " ")
-	text = searchSpaceRuns.ReplaceAllString(text, " ")
-	return strings.TrimSpace(text)
+	if strings.Contains(text, "<!--") {
+		text = searchComment.ReplaceAllString(text, " ")
+	}
+	if strings.Contains(text, "```") {
+		text = searchFence.ReplaceAllString(text, " ")
+	}
+	if strings.Contains(text, "](") {
+		text = searchLinkText.ReplaceAllString(text, "$1")
+	}
+	if strings.Contains(text, "#") {
+		text = searchHeadingMark.ReplaceAllString(text, "")
+	}
+	return strings.TrimSpace(collapseSearchSeparators(text))
+}
+
+// collapseSearchSeparators turns each run of separator bytes into one space. A
+// separator is a table pipe, an inline markup byte from "*`_>", or a byte RE2's
+// `\s` matches (tab, newline, form feed, carriage return, space).
+//
+// It is the three passes that ran in this order, in one: every pipe became a
+// space, every run of markup bytes one space, then every run of whitespace one
+// space. A run mixing the three ends as one space either way, and every byte is
+// ASCII, so no multi-byte character is split.
+func collapseSearchSeparators(text string) string {
+	var collapsed strings.Builder
+	collapsed.Grow(len(text))
+	inRun := false
+	for index := range len(text) {
+		char := text[index]
+		if strings.IndexByte("|*`_>\t\n\f\r ", char) >= 0 {
+			if !inRun {
+				collapsed.WriteByte(' ')
+			}
+			inRun = true
+			continue
+		}
+		inRun = false
+		collapsed.WriteByte(char)
+	}
+	return collapsed.String()
 }
 
 // capRunes answers the first cap characters of a text.

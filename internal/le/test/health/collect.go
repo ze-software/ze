@@ -146,9 +146,9 @@ func collectInventory(t *tree) (Metric, error) {
 				return Metric{}, readErr
 			}
 			testFiles++
-			testFuncs += len(testFunc.FindAllStringIndex(body, -1))
-			fuzzFuncs += len(fuzzFunc.FindAllStringIndex(body, -1))
-			benchFuncs += len(benchFunc.FindAllStringIndex(body, -1))
+			testFuncs += declaredFuncs(body, "Test")
+			fuzzFuncs += declaredFuncs(body, "Fuzz")
+			benchFuncs += declaredFuncs(body, "Benchmark")
 		}
 	}
 	if testFuncs == 0 {
@@ -268,6 +268,153 @@ func collectSleepRatchet(t *tree) (Metric, error) {
 	}, nil
 }
 
+// declaredFuncs counts the top-level `func <kind><Name>(` declarations in a Go
+// body, the lines the script's `(?m)^func (Test[A-Z_][A-Za-z0-9_]*)\(` matches
+// for kind Test, and likewise for Fuzz and Benchmark.
+//
+// It reads by hand rather than through that pattern: the line anchor leaves the
+// regexp engine no literal to seek to, so it walked every byte of every test
+// file in the repository, three times. Only a line that opens "func " is read.
+func declaredFuncs(body, kind string) int {
+	declared := 0
+	for rest := body; ; {
+		if declaresFunc(rest, kind) {
+			declared++
+		}
+		next := strings.IndexByte(rest, '\n')
+		if next < 0 {
+			return declared
+		}
+		rest = rest[next+1:]
+	}
+}
+
+// declaresFunc reports whether text opens with `func <kind><Name>(`, where the
+// name's first byte is from [A-Z_] and the rest from [A-Za-z0-9_]. The name is
+// read greedily and must end at the bracket, which is the only reading the
+// pattern admits: a shorter name would end on a name byte, not on "(".
+func declaresFunc(text, kind string) bool {
+	rest, opens := strings.CutPrefix(text, "func ")
+	if !opens {
+		return false
+	}
+	rest, opens = strings.CutPrefix(rest, kind)
+	if !opens {
+		return false
+	}
+	if rest == "" {
+		return false
+	}
+	if rest[0] != '_' && (rest[0] < 'A' || rest[0] > 'Z') {
+		return false
+	}
+	end := 1
+	for end < len(rest) && isNameByte(rest[end]) {
+		end++
+	}
+	return end < len(rest) && rest[end] == '('
+}
+
+// isNameByte reports whether a byte is in [A-Za-z0-9_].
+func isNameByte(char byte) bool {
+	switch {
+	case char == '_':
+		return true
+	case 'a' <= char && char <= 'z':
+		return true
+	case 'A' <= char && char <= 'Z':
+		return true
+	default:
+		return '0' <= char && char <= '9'
+	}
+}
+
+// assertsAnError reports whether comment-free test code holds a token that
+// expects an error: a negative word, a negative call, or an errNilGuard.
+func assertsAnError(code string) bool {
+	for _, word := range negativeWords {
+		if containsWord(code, word) {
+			return true
+		}
+	}
+	for _, call := range negativeCalls {
+		if strings.Contains(code, call) {
+			return true
+		}
+	}
+	return errNilGuard.MatchString(code)
+}
+
+// containsWord reports whether word occurs in text with no name byte directly
+// before or after it. Every word opens and closes on a name byte, so that is
+// the whole of RE2's `\b` on both sides.
+func containsWord(text, word string) bool {
+	for at := 0; ; {
+		found := strings.Index(text[at:], word)
+		if found < 0 {
+			return false
+		}
+		begin := at + found
+		end := begin + len(word)
+		before := begin == 0 || !isNameByte(text[begin-1])
+		after := end == len(text) || !isNameByte(text[end])
+		if before && after {
+			return true
+		}
+		at = begin + 1
+	}
+}
+
+// dropLineComments removes every `//` and the rest of its line, keeping the
+// newline: what the script's `//[^\n]*` replaced with nothing. It runs before
+// dropBlockComments, so a `/*` inside a line comment opens nothing, as it did.
+func dropLineComments(text string) string {
+	if !strings.Contains(text, "//") {
+		return text
+	}
+	var kept strings.Builder
+	kept.Grow(len(text))
+	for {
+		at := strings.Index(text, "//")
+		if at < 0 {
+			kept.WriteString(text)
+			return kept.String()
+		}
+		kept.WriteString(text[:at])
+		end := strings.IndexByte(text[at:], '\n')
+		if end < 0 {
+			return kept.String()
+		}
+		text = text[at+end:]
+	}
+}
+
+// dropBlockComments removes every `/*` through the first `*/` after it: what
+// the script's `(?s)/\*.*?\*/` replaced with nothing. A `/*` with no close
+// stays, and so does everything after it, because no later `/*` can find a
+// close the first one could not.
+func dropBlockComments(text string) string {
+	if !strings.Contains(text, "/*") {
+		return text
+	}
+	var kept strings.Builder
+	kept.Grow(len(text))
+	for {
+		at := strings.Index(text, "/*")
+		if at < 0 {
+			kept.WriteString(text)
+			return kept.String()
+		}
+		end := strings.Index(text[at+2:], "*/")
+		if end < 0 {
+			kept.WriteString(text)
+			return kept.String()
+		}
+		kept.WriteString(text[:at])
+		text = text[at+2+end+2:]
+	}
+}
+
 // areaCount is one subsystem's share of the negative-test ratio.
 type areaCount struct {
 	name     string
@@ -299,8 +446,8 @@ func collectNegativeTests(t *tree, floors qualityFloors) (Metric, error) {
 				order = append(order, name)
 			}
 			area.files++
-			code := goBlockComment.ReplaceAllString(goLineComment.ReplaceAllString(body, ""), "")
-			if negativeAssert.MatchString(code) {
+			code := dropBlockComments(dropLineComments(body))
+			if assertsAnError(code) {
 				area.negative++
 			}
 		}
@@ -477,7 +624,7 @@ func collectAdoption(t *tree) (Metric, error) {
 			if readErr != nil {
 				return Metric{}, readErr
 			}
-			if !slot.fuzzSeen[directory] && fuzzFunc.MatchString(body) {
+			if !slot.fuzzSeen[directory] && declaredFuncs(body, "Fuzz") > 0 {
 				slot.withFuzz++
 				slot.fuzzSeen[directory] = true
 			}

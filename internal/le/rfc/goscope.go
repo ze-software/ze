@@ -165,12 +165,75 @@ func goFuncSpans(content string) []span {
 // so the declaration line is already inside the text the caller holds. Both Go
 // shapes are read, and a generic `func Name[T any](` too, because the name is
 // taken before the parameter list rather than after it.
+//
+// It answers exactly what goFuncDeclRE's first match captures, read by hand:
+// that pattern opens on a line anchor, so the regexp engine has no literal to
+// seek to and walks every byte of the span, body included, and a site build
+// asks once per tag. The declaration is on a line that starts with "func", so
+// only those lines are tried.
 func funcNameIn(text string) string {
-	match := goFuncDeclRE.FindStringSubmatch(text)
-	if match == nil {
-		return ""
+	for start := 0; start < len(text); {
+		if name, declared := funcDeclName(text[start:]); declared {
+			return name
+		}
+		next := strings.IndexByte(text[start:], '\n')
+		if next < 0 {
+			return ""
+		}
+		start += next + 1
 	}
-	return match[1]
+	return ""
+}
+
+// funcDeclName answers the name goFuncDeclRE captures when its match starts at
+// the first byte of text, and false when no match starts there.
+//
+// Every step is forced, so no backtracking is owed: the receiver group ends at
+// the first ')' because its body admits none, and neither '(' nor a name byte
+// is whitespace, so a shorter `\s+` or a skipped receiver cannot match where the
+// longer one failed.
+func funcDeclName(text string) (string, bool) {
+	rest, declared := strings.CutPrefix(text, "func")
+	if !declared {
+		return "", false
+	}
+	spaced := trimRE2Space(rest)
+	if len(spaced) == len(rest) {
+		return "", false
+	}
+	rest = spaced
+	if strings.HasPrefix(rest, "(") {
+		closing := strings.IndexByte(rest, ')')
+		if closing < 0 {
+			return "", false
+		}
+		rest = trimRE2Space(rest[closing+1:])
+	}
+	if rest == "" || !goNameStart(rest[0]) {
+		return "", false
+	}
+	end := 1
+	for end < len(rest) && goNameByte(rest[end]) {
+		end++
+	}
+	return rest[:end], true
+}
+
+// trimRE2Space drops the leading bytes RE2's `\s` matches: tab, newline, form
+// feed, carriage return and space. Not unicode.IsSpace, which also takes the
+// vertical tab and the non-ASCII spaces the pattern never did.
+func trimRE2Space(text string) string {
+	return strings.TrimLeft(text, "\t\n\f\r ")
+}
+
+// goNameStart reports whether a byte is in `[A-Za-z_]`.
+func goNameStart(char byte) bool {
+	return char == '_' || ('a' <= char && char <= 'z') || ('A' <= char && char <= 'Z')
+}
+
+// goNameByte reports whether a byte is in `[A-Za-z0-9_]`.
+func goNameByte(char byte) bool {
+	return goNameStart(char) || ('0' <= char && char <= '9')
 }
 
 // scopeIndex memoizes source structure for one command run.

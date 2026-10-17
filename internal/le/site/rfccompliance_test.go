@@ -595,10 +595,7 @@ func TestEveryAnnotationKindHasABucket(t *testing.T) {
 // the buckets have to account for every gated requirement, the gap count has to
 // be the gap bucket, and a verdict is either counted or missing.
 func TestTheGateSnapshotAgreesWithItself(t *testing.T) {
-	snapshot, err := collectRFCCompliance(repositoryRoot(t))
-	if err != nil {
-		t.Fatal(err)
-	}
+	snapshot := complianceOfThisCheckout(t)
 
 	counted := 0
 	gaps := 0

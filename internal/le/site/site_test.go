@@ -777,13 +777,17 @@ func TestASecondBuildChangesNothing(t *testing.T) {
 // Method: `Build` runs over this checkout into a scratch output, seeded from
 // the sibling gh-pages the way a publish is, with every live input real except
 // the star count, which reaches the network and is stated failing so the build
-// takes its no-network path. The coverage the build reports is the end-user
-// answer `./le site build` prints. It takes minutes, as a publish does.
+// takes its no-network path. The RFC gate snapshot and the test-health render
+// are the live derivations the other real-checkout tests share
+// (checkout_test.go), computed once for the process rather than again here.
+// The coverage the build reports is the end-user answer `./le site build`
+// prints. It takes minutes, as a publish does.
 func TestBuildRendersEveryPublishedRoute(t *testing.T) {
 	root := repositoryRoot(t)
 	previous := liveGitHubStars
 	t.Cleanup(func() { liveGitHubStars = previous })
 	liveGitHubStars = func() (int, error) { return 0, errors.New("this test reaches no network") }
+	shareCheckoutDerivations(t)
 	output := filepath.Join(t.TempDir(), "artifact")
 
 	report, err := Build(BuildOptions{Repository: root, Output: output})

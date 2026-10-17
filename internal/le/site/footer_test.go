@@ -3,9 +3,11 @@ package site
 
 import (
 	"bytes"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -204,5 +206,48 @@ func TestBuildStampsEveryPublishedPage(t *testing.T) {
 	}
 	if !strings.Contains(string(page), `<a href="../../license/">Ze is AGPLv3 open source.</a>`) {
 		t.Fatalf("the published page lost its license line: %s", page)
+	}
+}
+
+// VALIDATES: footerBlock answers the span `(?s)[ \t]*<footer>.*?</footer>`
+// matched first, the pattern it replaced.
+// METHOD: differential, over written-out shapes (indentation of spaces and
+// tabs, a newline before the indentation, two footers, an opening tag with no
+// close, a close before any opening) and every page under website/.
+// PREVENTS: a stamp written over the wrong bytes of a published page.
+func TestFooterBlockAnswersWhatTheFooterPatternMatched(t *testing.T) {
+	pattern := regexp.MustCompile(`(?s)[ \t]*<footer>.*?</footer>`)
+	pages := []string{
+		"", "<footer></footer>", "x\n \t <footer>a</footer>\n<footer>b</footer>", "<footer>open",
+		"</footer><footer>x", "a\t<footer>\n</footer>", "<footer><footer></footer></footer>", " \n <footer></footer>",
+	}
+	root := repositoryRoot(t)
+	err := filepath.WalkDir(filepath.Join(root, "website"), func(name string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || !strings.HasSuffix(name, ".html") {
+			return nil
+		}
+		content, readErr := os.ReadFile(name)
+		if readErr != nil {
+			return readErr
+		}
+		pages = append(pages, string(content))
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, page := range pages {
+		want := pattern.FindStringIndex(page)
+		start, end, found := footerBlock([]byte(page))
+		if found != (want != nil) {
+			t.Errorf("footerBlock(%.60q) found=%v, the pattern matched %v", page, found, want)
+			continue
+		}
+		if found && (start != want[0] || end != want[1]) {
+			t.Errorf("footerBlock(%.60q) = [%d,%d], the pattern matched %v", page, start, end, want)
+		}
 	}
 }

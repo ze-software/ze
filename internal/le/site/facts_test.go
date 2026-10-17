@@ -698,7 +698,8 @@ func publishedFactsOfThisCheckout(t *testing.T) siteFacts {
 		stubGitHubStars(t, 50, nil)
 		stubRFCLedger(t, collectedRFCsOfThisCheckout(t))
 		checkoutFactsSnapshot.facts, checkoutFactsSnapshot.err = deriveSiteFacts(Paths{
-			Repository: root, Source: filepath.Join(root, "website"), Output: output})
+			Repository: root, Source: filepath.Join(root, "website"), Output: output,
+			testHealth: func() (testhealth.Rendered, error) { return sharedTestHealth(root) }})
 	})
 	if checkoutFactsSnapshot.root != root {
 		t.Fatalf("site facts belong to %s, not %s", checkoutFactsSnapshot.root, root)

@@ -3,6 +3,7 @@ package rfc
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -177,6 +178,83 @@ func TestScopeIndexKeepsAmbiguityAndEditedContent(t *testing.T) {
 	for _, tc := range cases {
 		if got := index.funcTexts(tc.content, tc.name); !slices.Equal(got, tc.want) {
 			t.Errorf("%s in %q = %q, want %q", tc.name, tc.content, got, tc.want)
+		}
+	}
+}
+
+// VALIDATES: funcNameIn answers exactly what goFuncDeclRE's first match
+// captures, the pattern it replaced on the tag path.
+// METHOD: differential. The shapes the pattern admits and refuses are written
+// out (a receiver over two lines, whitespace RE2's `\s` takes and the vertical
+// tab it does not, a receiver with no closing bracket, a name after a line that
+// starts "func" and declares nothing), then every span of every Go file in this
+// package is held against the pattern too.
+// PREVENTS: a hand reader that drifts from the pattern and mints a key naming
+// another function, which a discrimination record would then fingerprint.
+func TestFuncNameInAnswersWhatTheDeclarationPatternCaptures(t *testing.T) {
+	texts := []string{
+		"", "func", "func ", "func\n", "func f", "func f(", "funcf()",
+		"// Doc.\nfunc Name() {}\n", "// x\nfunc (r *T) Method(a int) {}",
+		"func (r *T)Method()", "func (r\n*T)\n\tMethod()", "func\t\f\r\nName()",
+		"func\vName()", "func (r *T Method()", "func (r *T) 9x()\nfunc Later()",
+		"func Generic[T any](t T) {}", "func _under()", "func 日本()",
+		"  func Indented()\nfunc Next()", "funcs := 1\nfunc Real()", "func ()\nfunc Two()",
+		"x\nfunc A_9b()", "func (a, b) ()", "func (r T) _",
+	}
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		if !strings.HasSuffix(entry.Name(), ".go") {
+			continue
+		}
+		content, readErr := os.ReadFile(entry.Name())
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		texts = append(texts, string(content))
+		for _, unit := range FunctionUnits(string(content)) {
+			texts = append(texts, unit.Text)
+		}
+	}
+	for _, text := range texts {
+		want := ""
+		if match := goFuncDeclRE.FindStringSubmatch(text); match != nil {
+			want = match[1]
+		}
+		if got := funcNameIn(text); got != want {
+			t.Errorf("funcNameIn(%.60q) = %q, the pattern captures %q", text, got, want)
+		}
+	}
+}
+
+// VALIDATES: dropGoLineComments removes exactly what `(?m)//.*$` removed.
+// METHOD: differential, over written-out shapes (a comment at end of text, a
+// carriage return before the newline, three slashes, invalid UTF-8 inside the
+// comment) and over every Go file in this package.
+// PREVENTS: a behavior fingerprint that moves because the reader changed, which
+// would stale every discrimination record at once.
+func TestDropGoLineCommentsRemovesWhatTheCommentPatternDid(t *testing.T) {
+	pattern := regexp.MustCompile(`(?m)//.*$`)
+	texts := []string{"", "a", "a // b", "a // b\r\nc", "///\n//", "x\xff // \xfe y\nz", "a/b/c", "a ///b\n// c\n"}
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		if !strings.HasSuffix(entry.Name(), ".go") {
+			continue
+		}
+		content, readErr := os.ReadFile(entry.Name())
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		texts = append(texts, string(content))
+	}
+	for _, text := range texts {
+		if got, want := dropGoLineComments(text), pattern.ReplaceAllString(text, ""); got != want {
+			t.Errorf("dropGoLineComments(%.60q) = %.60q, the pattern leaves %.60q", text, got, want)
 		}
 	}
 }

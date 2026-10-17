@@ -16,6 +16,7 @@ package testhealth
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -866,5 +867,66 @@ func TestTheCollectorStillRefusesACorpusWithNoGatedRFC(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "no gate-carrying RFC") {
 		t.Errorf("the refusal does not say what was missing: %v", err)
+	}
+}
+
+// VALIDATES: the hand scanners behind the inventory, the negative-test ratio and
+// the fuzz adoption answer exactly what the script's patterns answered, and
+// so does the token check behind the negative-test ratio.
+// METHOD: differential. Each pattern the scanners replaced is compiled here and
+// held against them over written-out shapes (a name opening on a digit, a name
+// with no bracket, an unclosed block comment, a block opener inside a line
+// comment, a comment at end of text) and over every Go file in this package.
+// PREVENTS: a count on docs/features/test-health.md that moves because the
+// reader changed rather than the tests.
+func TestTheHandScannersAnswerWhatTheScriptPatternsDid(t *testing.T) {
+	patterns := map[string]*regexp.Regexp{
+		"Test":      regexp.MustCompile(`(?m)^func (Test[A-Z_][A-Za-z0-9_]*)\(`),
+		"Fuzz":      regexp.MustCompile(`(?m)^func (Fuzz[A-Z_][A-Za-z0-9_]*)\(`),
+		"Benchmark": regexp.MustCompile(`(?m)^func (Benchmark[A-Z_][A-Za-z0-9_]*)\(`),
+	}
+	negative := regexp.MustCompile(
+		`\b(wantErr|wantError|expectErr|expectError|ErrorIs|ErrorAs|ErrorContains|` +
+			`EqualError|ErrorAssertionFunc)\b|\b(assert|require)\.Error\b` +
+			`|err[ \t\n\r\f\v]*==[ \t\n\r\f\v]*nil[ \t\n\r\f\v]*\{|!errors\.Is\(|!errors\.As\(`)
+	lineComment := regexp.MustCompile(`//[^\n]*`)
+	blockComment := regexp.MustCompile(`(?s)/\*.*?\*/`)
+	texts := []string{
+		"", "func TestA(", "func Test(", "func Testa(", "func Test_x(t)", "func TestA9 (",
+		"func TestA", " func TestA(", "x\nfunc TestB(\nfunc FuzzC(\nfunc BenchmarkD(",
+		"func  TestA(", "func Fuzz_(", "func Benchmark9(", "func TestAB(\r\n",
+		"a // b /* c\n d */ e", "a /* b // c */ d", "a /* open", "a // end", "/*/ x */ y",
+		"/**/", "a /* b */ c /* d */ e /* f", "//\n//\n", "x */ y /* z",
+		"wantErr", "wantErrors", "xwantErr", "_ErrorIs", "ErrorIs9", "a.ErrorAs(b)", "assert.Errorf",
+		"require.Error(t", "srequire.Error", "err == nil {", "err\n==\tnil\v{", "err==nil", "!errors.Is(",
+		"!errors.As", "wantErr日", "日wantErr", "xwantErr wantError",
+	}
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		if !strings.HasSuffix(entry.Name(), ".go") {
+			continue
+		}
+		content, readErr := os.ReadFile(entry.Name())
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		texts = append(texts, string(content))
+	}
+	for _, text := range texts {
+		for kind, pattern := range patterns {
+			if got, want := declaredFuncs(text, kind), len(pattern.FindAllStringIndex(text, -1)); got != want {
+				t.Errorf("declaredFuncs(%.60q, %s) = %d, the pattern counts %d", text, kind, got, want)
+			}
+		}
+		if got, want := assertsAnError(text), negative.MatchString(text); got != want {
+			t.Errorf("assertsAnError(%.60q) = %v, the pattern answers %v", text, got, want)
+		}
+		want := blockComment.ReplaceAllString(lineComment.ReplaceAllString(text, ""), "")
+		if got := dropBlockComments(dropLineComments(text)); got != want {
+			t.Errorf("stripping %.60q left %.60q, the patterns leave %.60q", text, got, want)
+		}
 	}
 }

@@ -98,12 +98,9 @@ var (
 	// "- [ ] [RFC1234-1-1] [MUST] text {gap: ...}".
 	rfcLevel = regexp.MustCompile(`^- \[[ x]\] \[[^\]]+\] \[([A-Z ]+)\]`)
 
-	testFunc  = regexp.MustCompile(`(?m)^func (Test[A-Z_][A-Za-z0-9_]*)\(`)
-	fuzzFunc  = regexp.MustCompile(`(?m)^func (Fuzz[A-Z_][A-Za-z0-9_]*)\(`)
-	benchFunc = regexp.MustCompile(`(?m)^func (Benchmark[A-Z_][A-Za-z0-9_]*)\(`)
-
-	// negativeAssert are the tokens that EXPECT an error, i.e. the test states
-	// that a specific failure must occur. Deliberately narrow.
+	// errNilGuard, negativeWords and negativeCalls are the tokens that EXPECT
+	// an error, i.e. the test states that a specific failure must occur.
+	// Deliberately narrow.
 	//
 	// An earlier version also matched `err != nil.*t\.(Fatal|Error)`, which
 	// measured nearly the opposite of what it claimed: with no DOTALL it could
@@ -117,14 +114,24 @@ var (
 	// `\s` over a str counts the vertical tab and U+001C to U+001F, and Go's
 	// does not. The corpus is gofmt'd Go, so only the space and the tab occur,
 	// but the two halves must agree by construction rather than by luck.
-	negativeAssert = regexp.MustCompile(
-		`\b(wantErr|wantError|expectErr|expectError|ErrorIs|ErrorAs|ErrorContains|` +
-			`EqualError|ErrorAssertionFunc)\b|\b(assert|require)\.Error\b` +
-			`|err[ \t\n\r\f\v]*==[ \t\n\r\f\v]*nil[ \t\n\r\f\v]*\{|!errors\.Is\(|!errors\.As\(`)
-
-	goLineComment  = regexp.MustCompile(`//[^\n]*`)
-	goBlockComment = regexp.MustCompile(`(?s)/\*.*?\*/`)
+	//
+	// The tokens are four shapes, each read the cheap way (assertsAnError):
+	// whole words, two literal calls, and one pattern that opens on a literal
+	// the regexp engine can seek to. One pattern holding all of them opened on
+	// `\b`, which left it nothing to seek to, so it walked every byte of every
+	// test file.
+	errNilGuard = regexp.MustCompile(`err[ \t\n\r\f\v]*==[ \t\n\r\f\v]*nil[ \t\n\r\f\v]*\{`)
 )
+
+// negativeWords match only as whole words: no byte of [A-Za-z0-9_] on either
+// side, which is what `\b` means in RE2.
+var negativeWords = [...]string{
+	"wantErr", "wantError", "expectErr", "expectError", "ErrorIs", "ErrorAs", "ErrorContains",
+	"EqualError", "ErrorAssertionFunc", "assert.Error", "require.Error",
+}
+
+// negativeCalls match anywhere.
+var negativeCalls = [...]string{"!errors.Is(", "!errors.As("}
 
 // minSamples is how many samples a series needs before it is drawn as a trend.
 // Three points make a convincing line out of noise; saying "insufficient data"

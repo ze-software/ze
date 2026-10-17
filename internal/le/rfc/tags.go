@@ -27,7 +27,6 @@ var (
 	ciTagRE           = regexp.MustCompile(`^#\s*RFC requirement:\s*(?P<rest>.*)$`)
 	terminatorRE      = regexp.MustCompile(`terminator=(?P<name>[A-Za-z0-9_]+)`)
 	changedTagRE      = regexp.MustCompile(`RFC requirement:\s*[A-Za-z0-9][A-Za-z0-9.-]*-\d+`)
-	goLineCommentRE   = regexp.MustCompile(`(?m)//.*$`)
 	hashLineCommentRE = regexp.MustCompile(`(?m)^[ \t]*#.*$`)
 	goImportLineRE    = regexp.MustCompile(`^(?:import\s*\(|\)|import\s+)?(?:[A-Za-z_.][A-Za-z0-9_.]*\s+)?"[^"]+"$`)
 	goImportDelimRE   = regexp.MustCompile(`^(?:import\s*\(|\))$`)
@@ -278,7 +277,7 @@ func importOnlyGoEdit(path, oldText, newText string) bool {
 	}
 	seen := false
 	for _, side := range []string{oldText, newText} {
-		for line := range strings.SplitSeq(goLineCommentRE.ReplaceAllString(side, ""), "\n") {
+		for line := range strings.SplitSeq(dropGoLineComments(side), "\n") {
 			line = strings.TrimSpace(line)
 			if line == "" {
 				continue
@@ -335,13 +334,38 @@ func dropCarrierBlocks(text string) string {
 	return strings.Join(kept, "\n")
 }
 
+// dropGoLineComments removes every `//` and the rest of its line, keeping the
+// newline: what `(?m)//.*$` replaced with nothing. It is read by hand because
+// that pattern runs over the whole text of every tagged unit on each check,
+// and a plain search for the two slashes skips what the regexp engine walked.
+func dropGoLineComments(text string) string {
+	if !strings.Contains(text, "//") {
+		return text
+	}
+	var kept strings.Builder
+	kept.Grow(len(text))
+	for {
+		at := strings.Index(text, "//")
+		if at < 0 {
+			kept.WriteString(text)
+			return kept.String()
+		}
+		kept.WriteString(text[:at])
+		end := strings.IndexByte(text[at:], '\n')
+		if end < 0 {
+			return kept.String()
+		}
+		text = text[at+end:]
+	}
+}
+
 func behaviorBytes(path, text string) string {
 	if strings.HasSuffix(path, ciSuffix) || strings.HasSuffix(path, etSuffix) ||
 		strings.HasSuffix(path, ".py") {
 		text = dropCarrierBlocks(text)
 		text = hashLineCommentRE.ReplaceAllString(text, "")
 	} else {
-		text = goLineCommentRE.ReplaceAllString(text, "")
+		text = dropGoLineComments(text)
 	}
 	return strings.Map(func(char rune) rune {
 		if unicode.IsSpace(char) {

@@ -3,6 +3,10 @@ package site
 
 import (
 	"encoding/json"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -211,5 +215,54 @@ func TestTheSearchIndexIsOnePublishedRecordPerLine(t *testing.T) {
 	}
 	if strings.Contains(published, `\u003c`) {
 		t.Error("the index escapes HTML; it is a data file the page reads, not markup")
+	}
+}
+
+// VALIDATES: stripMarkdown answers what its seven regexp passes answered.
+// METHOD: differential. The passes it shortened are run here in their old
+// order over written-out shapes (a mixed run of pipes, markup and whitespace,
+// the vertical tab RE2's `\s` does not take, invalid UTF-8, a heading with no
+// space, a link with no target) and over every Markdown page under docs/.
+// PREVENTS: a search index whose words move because the stripper changed.
+func TestStripMarkdownAnswersWhatItsRegexpPassesDid(t *testing.T) {
+	markup := regexp.MustCompile("[*`_>]+")
+	spaceRuns := regexp.MustCompile(`\s+`)
+	previous := func(text string) string {
+		text = searchComment.ReplaceAllString(text, " ")
+		text = searchFence.ReplaceAllString(text, " ")
+		text = searchLinkText.ReplaceAllString(text, "$1")
+		text = searchHeadingMark.ReplaceAllString(text, "")
+		text = strings.ReplaceAll(text, "|", " ")
+		text = markup.ReplaceAllString(text, " ")
+		text = spaceRuns.ReplaceAllString(text, " ")
+		return strings.TrimSpace(text)
+	}
+	texts := []string{
+		"", " ", "a", "| a | *b* |\n|---|", "x \v y", "a\xff_b", "#Title", "  ## T ##\n\ntext",
+		"[a](b) ![c](d) [e]", "<!-- x -->y<!-- open", "```go\ncode\n```\ntext", "a\t\f\r\n b",
+		"> quote **bold** `code` __u__", "日本 | 語",
+	}
+	root := repositoryRoot(t)
+	err := filepath.WalkDir(filepath.Join(root, "docs"), func(name string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || !strings.HasSuffix(name, ".md") {
+			return nil
+		}
+		content, readErr := os.ReadFile(name)
+		if readErr != nil {
+			return readErr
+		}
+		texts = append(texts, string(content))
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, text := range texts {
+		if got, want := stripMarkdown(text), previous(text); got != want {
+			t.Errorf("stripMarkdown(%.60q) = %.60q, the passes answer %.60q", text, got, want)
+		}
 	}
 }

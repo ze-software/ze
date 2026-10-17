@@ -1004,9 +1004,9 @@ func TestEveryUntestedMustOfThisCheckoutIsNamedOnItsPage(t *testing.T) {
 		}
 		pages++
 		untested += len(owed)
-		mirror := rfcDetailMirror(entry)
-		body := rfcDetailBody(entry)
 		all := rfcAllRIDs(entry)
+		mirror := newRFCDisclosure(rfcDetailMirror(entry), all)
+		body := newRFCDisclosure(rfcDetailBody(entry), all)
 		for _, requirement := range owed {
 			rid := requirement.RID
 			// A gap demonstration is real evidence, but not conformance proof.
@@ -1015,11 +1015,11 @@ func TestEveryUntestedMustOfThisCheckoutIsNamedOnItsPage(t *testing.T) {
 			if evidence == "" {
 				evidence = "no test"
 			}
-			if !strings.Contains(rfcDisclosureUnit(mirror, rid, all), evidence) {
+			if !strings.Contains(mirror.unit(rid), evidence) {
 				t.Errorf("%s lacks conformance proof for %s and its mirror omits its evidence state",
 					entry.Stem, rid)
 			}
-			if !strings.Contains(rfcDisclosureUnit(body, rid, all), evidence) {
+			if !strings.Contains(body.unit(rid), evidence) {
 				t.Errorf("%s lacks conformance proof for %s and its page omits its evidence state",
 					entry.Stem, rid)
 			}
@@ -1041,17 +1041,18 @@ func TestNoBadStateOfThisCheckoutIsPublishedOnlyAsACount(t *testing.T) {
 	for index := range ledger.Stems {
 		entry := &ledger.Stems[index]
 		all := rfcAllRIDs(entry)
-		mirror := ""
+		var mirror *rfcDisclosure
 		for position := range entry.Requirements {
 			requirement := &entry.Requirements[position]
 			states := rfcBadStates(requirement)
 			if len(states) == 0 {
 				continue
 			}
-			if mirror == "" {
-				mirror = rfcDetailMirror(entry)
+			if mirror == nil {
+				rendered := newRFCDisclosure(rfcDetailMirror(entry), all)
+				mirror = &rendered
 			}
-			unit := rfcDisclosureUnit(mirror, requirement.RID, all)
+			unit := mirror.unit(requirement.RID)
 			for _, state := range states {
 				named[state.family]++
 				if !strings.Contains(unit, state.word) {
@@ -2303,25 +2304,45 @@ func rfcMarkerStarts(rendering string, all []string) []int {
 // from "the word appears somewhere else on the page", so a whole section could
 // be deleted and a test written that way would stay green (independent review,
 // 2026-09-01).
+//
+// A caller asking for every requirement of one rendering holds an
+// rfcDisclosure instead, so the subject offsets are found once per rendering
+// rather than once per requirement.
 func rfcDisclosureUnit(rendering, rid string, all []string) string {
-	starts := rfcMarkerStarts(rendering, all)
+	return newRFCDisclosure(rendering, all).unit(rid)
+}
+
+// rfcDisclosure is one rendering with the offsets where it declares a subject,
+// for any requirement of the summary it renders.
+type rfcDisclosure struct {
+	rendering string
+	starts    []int
+}
+
+// newRFCDisclosure finds every subject offset of a rendering once.
+func newRFCDisclosure(rendering string, all []string) rfcDisclosure {
+	return rfcDisclosure{rendering: rendering, starts: rfcMarkerStarts(rendering, all)}
+}
+
+// unit answers what rfcDisclosureUnit answers for one requirement.
+func (d rfcDisclosure) unit(rid string) string {
 	var out strings.Builder
 	for _, marker := range rfcRefMarkers(rid) {
 		for at := 0; ; {
-			found := strings.Index(rendering[at:], marker)
+			found := strings.Index(d.rendering[at:], marker)
 			if found < 0 {
 				break
 			}
 			found += at
 			at = found + 1
-			end := len(rendering)
-			for _, start := range starts {
-				if start > found {
-					end = start
-					break
-				}
+			end := len(d.rendering)
+			// The first start past the marker closes the stretch: the starts
+			// are sorted, so the search lands on it.
+			next, _ := slices.BinarySearch(d.starts, found+1)
+			if next < len(d.starts) {
+				end = d.starts[next]
 			}
-			out.WriteString(rendering[found:end])
+			out.WriteString(d.rendering[found:end])
 		}
 	}
 	return out.String()
