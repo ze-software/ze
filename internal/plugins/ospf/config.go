@@ -316,7 +316,7 @@ type virtualLinkConfig struct {
 }
 
 // interfaceConfig is copied by value in many `for _, ic := range ...Interfaces` loops, so
-// its size is held under the gocritic rangeValCopy budget (see zz_size_test.go). Fields are
+// its size is held under the gocritic rangeValCopy budget (see config_copy_budget_test.go). Fields are
 // grouped by alignment (8-byte, then 4-byte, then 2-byte, then 1-byte) so the scalar tail
 // packs without interleaved padding and a new field does not silently inflate the copy cost;
 // large/optional fields stay behind pointers (IPsec/TE/NBMA).

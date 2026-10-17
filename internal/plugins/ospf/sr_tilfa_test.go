@@ -4,7 +4,7 @@
 // (point-to-point, matched by the Extended Link TLV's Link ID) and §6.2 LAN-Adj-SID
 // (transit, matched by the sub-TLV's Neighbor ID), returning the advertising router's
 // absolute local label verbatim. This is the reachable Adj-SID Q-segment: every
-// reachable TI-LFA Adj-SID repair is a remote-node Adj-SID (see zz_empirical_test.go
+// reachable TI-LFA Adj-SID repair is a remote-node Adj-SID (see spf/tilfa_adj_segment_test.go
 // finding), so this is the case AC-9 actually exercises.
 // PREVENTS: returning false for a remote P-node (the old gap that left the repair
 // unresolved), matching the wrong link's Adj-SID (a forwarding bug), or emitting an
