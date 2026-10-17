@@ -714,7 +714,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 		owedApply = deferredApply{cfg: cfg, previous: previous}
 		// Info, not Debug: the commit reports success while nothing has
 		// reached the dataplane, and this line is what tells the operator so.
-		loggerPtr.Load().Info("iface config: apply deferred, the vpp backend has not connected yet",
+		loggerPtr.Load().Info("iface config: apply deferred, the vpp backend has not connected yet, so the committed interface config is not in the dataplane yet",
 			"next", "the apply runs on its own when vpp connects; if it never does, the vpp log names the connect failure and `ze doctor` checks the host")
 		return nil
 	}
@@ -752,7 +752,8 @@ type deferredApply struct {
 // owed apply when a commit fails: the pass rolled back, so the dataplane is
 // still at pending.previous. Clearing it would make the next commit measure
 // its changes against pending.cfg, a config that never reached the dataplane.
-// The next vpp event or commit retries or replaces it.
+// A VPP restart (vppevents.EventReconnected) retries it, and the next commit
+// replaces it.
 //
 // Safe for concurrent use with applyConfig.
 func applyOwedConfig(b Backend) (errs []error, owed bool) {
@@ -2011,9 +2012,16 @@ func reconcileOnVPPEvent(activeCfg *atomic.Pointer[ifaceConfig], reloadBackend b
 	// The owed apply is the whole config, its address reconcile included, so
 	// it replaces the reconcile rather than preceding it.
 	if errs, owed := applyOwedConfig(b); owed {
-		for _, e := range errs {
-			log.Warn("iface deferred config apply on vpp ready", "err", e)
+		if len(errs) > 0 {
+			// The commit that asked for this config already reported
+			// success, so this line is the only place the operator learns
+			// the dataplane never received it.
+			log.Warn("iface config: the interface config committed before vpp connected could not be applied, the dataplane still runs the earlier interface config",
+				"err", errors.Join(errs...),
+				"fix", "correct the interface config and commit it again; ze retries this apply when vpp reconnects")
+			return
 		}
+		log.Info("iface config: deferred apply performed, vpp connected; interface config applied")
 		return
 	}
 

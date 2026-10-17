@@ -1,9 +1,12 @@
 package iface
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -25,6 +28,20 @@ func clearOwedApply(t *testing.T) {
 	})
 }
 
+// logFrom returns every record the package logger was given while fn ran, as
+// slog text lines. The package logger discards by default, so what a deferred
+// apply tells the operator is not observable any other way.
+func logFrom(t *testing.T, fn func()) string {
+	t.Helper()
+	var out bytes.Buffer
+	previous := loggerPtr.Load()
+	loggerPtr.Store(slog.New(slog.NewTextHandler(&out, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	defer loggerPtr.Store(previous)
+
+	fn()
+	return out.String()
+}
+
 // TestDummyCreatedBeforeVPPConnectsWaitsForTheConnection verifies that a
 // dummy whose create the backend refuses as not ready is created once vpp
 // connects, instead of failing the apply.
@@ -42,9 +59,13 @@ func TestDummyCreatedBeforeVPPConnectsWaitsForTheConnection(t *testing.T) {
 	fb.createDummyErr = map[string]error{"dum0": errFakeNotReady}
 	cfg := testConfigWithAddresses()
 
-	errs := applyConfig(cfg, nil, fb)
+	var errs []error
+	deferLog := logFrom(t, func() { errs = applyConfig(cfg, nil, fb) })
 
 	require.Empty(t, errs, "a backend that is not ready yet must not fail the apply")
+	require.Contains(t, deferLog, "level=INFO",
+		"the operator must learn the commit did not reach the dataplane yet")
+	require.Contains(t, deferLog, "the committed interface config is not in the dataplane yet")
 	require.False(t, fb.created["dum0"], "nothing can be created before the backend connects")
 	require.True(t, applyIsOwed(), "the refused apply must be owed to the connection")
 
@@ -52,9 +73,12 @@ func TestDummyCreatedBeforeVPPConnectsWaitsForTheConnection(t *testing.T) {
 	fb.createDummyErr = nil
 	var activeCfg atomic.Pointer[ifaceConfig]
 	activeCfg.Store(cfg)
-	reconcileOnVPPConnected(&activeCfg)
+	performedLog := logFrom(t, func() { reconcileOnVPPConnected(&activeCfg) })
 
 	require.True(t, fb.created["dum0"], "the deferred dummy must be created when vpp connects")
+	require.Contains(t, performedLog, `level=INFO msg="iface config: deferred apply performed`,
+		"the operator must learn the deferred apply landed")
+	require.NotContains(t, performedLog, "level=WARN")
 	require.Equal(t, "dum0", fb.lcpPairs["dum0"], "the loopback must get its LCP pair")
 	require.Equal(t, "up", fb.adminSet["dum0"], "the loopback must be brought up")
 	require.ElementsMatch(t, []string{"10.0.0.1/24", "10.0.0.2/24"}, fb.addrs["dum0"])
@@ -192,9 +216,20 @@ func TestOwedApplyThatFailsStaysOwed(t *testing.T) {
 	fb.createDummyErr = map[string]error{"dum0": realErr}
 	var activeCfg atomic.Pointer[ifaceConfig]
 	activeCfg.Store(first)
-	reconcileOnVPPConnected(&activeCfg)
+	failedLog := logFrom(t, func() { reconcileOnVPPConnected(&activeCfg) })
 
 	require.False(t, fb.created["dum0"])
+	var verdicts []string
+	for line := range strings.SplitSeq(failedLog, "\n") {
+		if strings.Contains(line, "the dataplane still runs the earlier interface config") {
+			verdicts = append(verdicts, line)
+		}
+	}
+	require.Len(t, verdicts, 1, "one warning carries every error of the failed apply")
+	require.Contains(t, verdicts[0], "level=WARN")
+	require.Contains(t, verdicts[0], "VNET_API_ERROR_INVALID_VALUE", "the warning must name the error")
+	require.Contains(t, verdicts[0], "fix=", "the warning must name the fix")
+	require.NotContains(t, failedLog, "deferred apply performed")
 	require.True(t, applyIsOwed(), "an owed apply that failed never reached the dataplane, so it is still owed")
 
 	fb.createDummyErr = nil
