@@ -13,20 +13,19 @@ Filter modify per NLRI section + IRR re-admit (6019dd0675), its reviewed-claim
 rows (bc1567a4ce), GTSM RFC 5082 test fix and repaired RFC records (aa68152f6a,
 `./le rfc check` green). Owner approved the FlowSpec and GTSM test changes.
 
-## 2. In flight 2026-10-17 (uncommitted; each needs independent review, then commit)
-- Fastpath enable replays the best routes already installed (owner: fix).
-  Rebuilds each UPDATE from the Adj-RIB-In winner under the best-path shard
-  lock: `rib/forward_replay.go` + test, `test/plugin/bgp-rs-fastpath-late.ci`.
-- Functional-test daemon store in memory (owner: option B for the startup
-  stall under disk load).
-- IPsec readiness timeouts (owner: investigate): scenario frr.conf
-  `no bgp ebgp-requires-policy`, `mobike=no` in the port-translated swanctl.conf,
-  IKE endpoint-refusal debug log, conntrack flush fails loud with log tails.
-- MTU probe target (owner: "it should prompt a configured IP which could be
-  the DNS by default"): drop the 1.1.1.1 default, use the first configured
-  DNS server, refuse with the fix when neither exists.
-- CI: the hosted azure kernel lacks the l2tp modules (run 39047813355), so
-  verify.yml now installs `linux-modules-extra-$(uname -r)`.
+## 2. Landed 2026-10-17 evening (local, unpushed), and what each still owes
+- 19e7e2f22c CI installs linux-modules-extra (azure kernel lacks l2tp): a push proves it.
+- 60fa70828e IPsec readiness causes + port-check false green; 357da19fcf
+  re-recorded the 7 IKE RFC records it staled. Owes: a Docker run of the five
+  scenarios (blocked by network `ze-ipsec-2323022`).
+- 91cf16bb7a show mtu reference = leaf, else first name-server, else refused.
+  Owes: QEMU `show-mtu-*` .ci and `mtu-nat-installed-endpoint`.
+- 71623db895 RIB re-encodes large communities; af9ae20aa5 fastpath enable
+  replays installed best routes (open journal gap: peer-down purge elects with
+  no handle).
+- Doc rows: b145690796, 291f776fbb.
+- Still in flight: functional-test daemon store in memory (owner option B), see
+  its agent handoff below. The handoffs above it are resolved by these commits.
 
 ## 3. Waiting on the owner
 - IKE `responder-eap-tls12`: recast as a refusal scenario (recommended), or
