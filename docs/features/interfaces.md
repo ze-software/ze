@@ -1097,8 +1097,21 @@ Selected by the `backend vpp` leaf. 17 methods drive the VPP binary API
 through GoVPP; 16 return `errNotSupported` with a string naming the
 missing GoVPP call or the plugin gap. The channel to VPP is acquired
 lazily on first method call; before the first successful acquire, every
-method returns `iface.ErrBackendNotReady` so the reconciliation phase can
-retry.
+method returns `iface.ErrBackendNotReady`.
+
+Nothing makes the interface plugin wait for the GoVPP handshake, so its first
+apply can run before VPP answers. An apply whose step meets that answer is
+deferred whole rather than failed: it creates nothing, reports no error, logs
+`iface config: apply deferred, the vpp backend has not connected yet` at info
+level, and the plugin performs it in full (loopbacks and their LCP pairs, MTU,
+admin state, addresses) when `vppevents.EventConnected` fires. A commit that
+arrives first replaces the deferred apply. Any other error still fails the
+apply. A deferred apply that then fails is logged as a warning and stays
+deferred, so the next commit is measured against what the dataplane was last
+told, and the next vpp event retries it. `vppevents.EventReconnected`, after a VPP restart, reloads the backend
+to drop the dead channel and its name map, then reconciles the addresses.
+
+<!-- source: internal/component/iface/config_apply.go -- applyConfig, applyOwedConfig, reconcileOnVPPConnected, reconcileOnVPPReady -->
 
 Use the VPP backend when VPP owns the dataplane. Use netlink elsewhere.
 Routes, stats, counter reset, neighbour table, mirrors, and STP are the

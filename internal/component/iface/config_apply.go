@@ -679,21 +679,154 @@ func applyAndPublish(cfg, previous *ifaceConfig, b Backend) []error {
 //
 // Returns collected errors. The first mutating failure aborts the apply and
 // rolls back successful steps that have an exact inverse.
+//
+// A step the backend answers with ErrBackendNotReady is not a failure: the vpp
+// backend answers it for every call until the GoVPP handshake completes, and
+// nothing makes this plugin wait for that handshake. The apply then becomes
+// owed (owedApply) and returns no error, and applyOwedConfig performs it in
+// full when vppevents.EventConnected fires. The whole apply is owed, not the
+// one step, because every later step of the same apply would get the same
+// answer: the bridge member, MTU and admin-up steps all name a device the
+// deferred create has not made. Any other error still fails the apply.
+//
+// An owed apply that a later apply supersedes is dropped, since the later one
+// carries the operator's current intent. The later apply measures its changes
+// against the config the owed one was measured against, because the owed
+// config never reached the dataplane: a tunnel it names does not exist, so it
+// cannot be skipped as unchanged.
 func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
+	applyMu.Lock()
+	defer applyMu.Unlock()
+
+	owed := owedApply
+	owedApply = deferredApply{}
+	if owed.cfg != nil {
+		if owed.cfg == previous {
+			previous = owed.previous
+		}
+		if owed.cfg == cfg {
+			// The rollback of a reload that failed re-applies the owed config.
+			previous = owed.previous
+		}
+	}
+	errs, deferred := applyConfigPass(cfg, previous, b)
+	if deferred {
+		owedApply = deferredApply{cfg: cfg, previous: previous}
+		// Info, not Debug: the commit reports success while nothing has
+		// reached the dataplane, and this line is what tells the operator so.
+		loggerPtr.Load().Info("iface config: apply deferred, the vpp backend has not connected yet",
+			"next", "the apply runs on its own when vpp connects; if it never does, the vpp log names the connect failure and `ze doctor` checks the host")
+		return nil
+	}
+	if len(errs) > 0 {
+		// A failed apply changed nothing, so whatever was owed still is.
+		owedApply = owed
+	}
+	return errs
+}
+
+// applyMu serializes applyConfig with applyOwedConfig, which runs on the vpp
+// connect worker while a commit can be applying on the SDK goroutine. Both
+// read and write owedApply and drive the same backend.
+var applyMu sync.Mutex
+
+// owedApply is the apply a backend that was not ready deferred. A zero value
+// means no apply is owed. Guarded by applyMu.
+var owedApply deferredApply
+
+// deferredApply names an apply that has not reached the dataplane: cfg is the
+// config to apply, and previous is the config the dataplane was last told,
+// which is what the apply measures its changes against.
+type deferredApply struct {
+	cfg      *ifaceConfig
+	previous *ifaceConfig
+}
+
+// applyOwedConfig performs the apply a not-ready backend deferred, against b.
+// It answers owed=false when no apply is owed, so the caller runs the address
+// reconcile instead; the owed apply runs that reconcile itself. An apply the
+// backend still refuses as not ready stays owed. Errors are returned for the
+// caller to log: the commit that asked for this config has already succeeded.
+//
+// An apply that fails stays owed too, for the reason applyConfig keeps the
+// owed apply when a commit fails: the pass rolled back, so the dataplane is
+// still at pending.previous. Clearing it would make the next commit measure
+// its changes against pending.cfg, a config that never reached the dataplane.
+// The next vpp event or commit retries or replaces it.
+//
+// Safe for concurrent use with applyConfig.
+func applyOwedConfig(b Backend) (errs []error, owed bool) {
+	applyMu.Lock()
+	defer applyMu.Unlock()
+
+	pending := owedApply
+	if pending.cfg == nil {
+		return nil, false
+	}
+	owedApply = deferredApply{}
+	errs, deferred := applyConfigPass(pending.cfg, pending.previous, b)
+	if deferred {
+		owedApply = pending
+		return nil, true
+	}
+	if len(errs) > 0 {
+		owedApply = pending
+	}
+	return errs, true
+}
+
+// applyIsOwed reports whether a not-ready backend deferred an apply that has
+// not run yet. Safe for concurrent use.
+func applyIsOwed() bool {
+	applyMu.Lock()
+	defer applyMu.Unlock()
+	return owedApply.cfg != nil
+}
+
+// applyConfigPass is one pass of applyConfig over the backend. deferred is true
+// when a step answered ErrBackendNotReady: the pass then rolled back what it
+// had done and returned no error, and the caller owes the apply. MUST be
+// called with applyMu held.
+func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, deferred bool) {
 	log := loggerPtr.Load()
-	var errs []error
 	journal := sdk.NewJournal()
 
-	rollbackPartial := func() []error {
+	rollbackPartial := func() ([]error, bool) {
 		for _, err := range journal.Rollback() {
 			log.Warn("iface config: rollback partial apply", "err", err)
 			errs = append(errs, fmt.Errorf("rollback partial apply: %w", err))
 		}
-		return errs
+		return errs, false
 	}
-	record := func(msg string, err error) []error {
+	// deferPass answers a step the backend refused as not ready. The pass
+	// stops, because every later step would get the same answer. Nothing the
+	// pass did can have reached the dataplane, since the backend that just
+	// refused this step refused every earlier one that needed it, so the
+	// rollback only undoes steps that touched nothing. A rollback that fails
+	// is a real failure and is reported as one.
+	deferPass := func(msg string, err error) ([]error, bool) {
+		log.Debug(msg+": backend not ready, apply deferred until it connects", "err", err)
+		if rollbackErrs, _ := rollbackPartial(); len(rollbackErrs) > 0 {
+			return rollbackErrs, false
+		}
+		return nil, true
+	}
+	record := func(msg string, err error) ([]error, bool) {
+		if errors.Is(err, ErrBackendNotReady) {
+			return deferPass(msg, err)
+		}
 		log.Warn(msg, "err", err)
 		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+		return rollbackPartial()
+	}
+	// recordAll answers a step that reports several errors at once. It defers
+	// only when every one of them is the not-ready answer; a real failure
+	// among them fails the apply.
+	recordAll := func(msg string, stepErrs []error) ([]error, bool) {
+		if !slices.ContainsFunc(stepErrs, failsTheApply) {
+			return deferPass(msg, stepErrs[0])
+		}
+		errs = append(errs, stepErrs...)
 		return rollbackPartial()
 	}
 
@@ -1086,8 +1219,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	// below installs the ones it does ask for. tc filters are additive, so a
 	// changed destination has to be removed rather than overwritten.
 	if mirrorErrs := removeStaleMirrors(cfg, previous, devices, previousDevices, b, journal); len(mirrorErrs) > 0 {
-		errs = append(errs, mirrorErrs...)
-		return rollbackPartial()
+		return recordAll("remove stale mirrors", mirrorErrs)
 	}
 
 	// Physical (Ethernet) interfaces whose kernel device is absent are skipped,
@@ -1231,8 +1363,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			applySysctl(osName, *u)
 			applySysctlProfiles(osName, u.SysctlProfiles)
 			if mirrorErrs := applyMirror(b, osName, *u, devices, journal); len(mirrorErrs) > 0 {
-				errs = append(errs, mirrorErrs...)
-				return rollbackPartial()
+				return recordAll(osName+" mirror", mirrorErrs)
 			}
 		}
 	}
@@ -1284,14 +1415,20 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	if deferred {
 		log.Debug("iface reconcile deferred, backend not ready")
 		addDesiredAddresses(cfg, b, devices)
-		return errs
+		return errs, false
 	}
 	if len(reconcileErrs) > 0 {
 		errs = append(errs, reconcileErrs...)
 		return rollbackPartial()
 	}
 
-	return errs
+	return errs, false
+}
+
+// failsTheApply reports whether err is a real failure, rather than the
+// ErrBackendNotReady answer that defers the apply.
+func failsTheApply(err error) bool {
+	return !errors.Is(err, ErrBackendNotReady)
 }
 
 // reconcileOnReady runs Phase 3 (address reconcile), the mirror reconcile, and
@@ -1796,19 +1933,40 @@ func addDesiredAddresses(cfg *ifaceConfig, b Backend, devices map[string]string)
 	}
 }
 
-// reconcileOnVPPReady is invoked from the register.go EventBus handler when
-// vppevents.EventConnected or EventReconnected fires. It reloads the VPP
-// backend via LoadBackend to clear stale state (dead GoVPP channel, stale
-// name map, stale bridge domains) from the pre-crash instance, then runs
-// reconcileOnReady against the fresh backend. It also retries
-// b.StartMonitor so a monitor deferred at startup (backend not ready at
-// OnConfigure time) installs as soon as the backend becomes live. No-op
-// when no config has been applied yet, when the backend is still
-// unregistered, or when the active backend is not vpp.
+// reconcileOnVPPReady is invoked from the register.go worker when
+// vppevents.EventReconnected fires. It reloads the VPP backend via
+// LoadBackend to clear stale state (dead GoVPP channel, stale name map, stale
+// bridge domains) from the pre-crash instance, then does what
+// reconcileOnVPPConnected does against the fresh backend.
 //
 // Exposed at package level so the register-time handler is easy to test
 // without standing up the SDK event loop.
 func reconcileOnVPPReady(activeCfg *atomic.Pointer[ifaceConfig]) {
+	reconcileOnVPPEvent(activeCfg, true)
+}
+
+// reconcileOnVPPConnected is invoked from the register.go worker when
+// vppevents.EventConnected fires, and once after the vpp-ready subscription
+// when an apply is owed. It runs the apply a not-ready backend deferred
+// (applyOwedConfig), or reconcileOnReady when no apply is owed. It also
+// retries b.StartMonitor so a monitor deferred at startup (backend not ready
+// at OnConfigure time) installs as soon as the backend becomes live. No-op
+// when no config has been applied yet, when the backend is still
+// unregistered, or when the active backend is not vpp.
+//
+// It keeps the backend it finds. The first connection of the process leaves
+// nothing stale behind, and the backend may already hold the loopbacks this
+// connection's first apply made: the vpp backend knows a loopback by the
+// name ze gave it only through its own name map, so a fresh instance would
+// re-create every loopback on the next apply.
+func reconcileOnVPPConnected(activeCfg *atomic.Pointer[ifaceConfig]) {
+	reconcileOnVPPEvent(activeCfg, false)
+}
+
+// reconcileOnVPPEvent is the body of reconcileOnVPPReady and
+// reconcileOnVPPConnected. reloadBackend says whether the event means the
+// backend's channel belongs to a vpp instance that is gone.
+func reconcileOnVPPEvent(activeCfg *atomic.Pointer[ifaceConfig], reloadBackend bool) {
 	log := loggerPtr.Load()
 	cfg := activeCfg.Load()
 	if cfg == nil {
@@ -1826,8 +1984,10 @@ func reconcileOnVPPReady(activeCfg *atomic.Pointer[ifaceConfig]) {
 	// Reload the backend to clear stale state (dead GoVPP channel, stale
 	// name map, stale bridge domains) from the pre-crash VPP instance.
 	// LoadBackend creates a fresh vppBackendImpl; the old one is closed.
-	if err := LoadBackend(vppBackendName); err != nil {
-		log.Warn("iface: reload vpp backend on reconnect", "err", err)
+	if reloadBackend {
+		if err := LoadBackend(vppBackendName); err != nil {
+			log.Warn("iface: reload vpp backend on reconnect", "err", err)
+		}
 	}
 
 	b := GetBackend()
@@ -1846,6 +2006,15 @@ func reconcileOnVPPReady(activeCfg *atomic.Pointer[ifaceConfig]) {
 			}
 			log.Warn("iface monitor start on vpp ready", "err", err)
 		}
+	}
+
+	// The owed apply is the whole config, its address reconcile included, so
+	// it replaces the reconcile rather than preceding it.
+	if errs, owed := applyOwedConfig(b); owed {
+		for _, e := range errs {
+			log.Warn("iface deferred config apply on vpp ready", "err", e)
+		}
+		return
 	}
 
 	errs, deferred := reconcileOnReady(cfg, b)

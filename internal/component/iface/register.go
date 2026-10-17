@@ -306,23 +306,26 @@ func nonBlockingNotify(ch chan<- struct{}) {
 // subscribeReconcileOnReady registers the vpp lifecycle handlers that trigger
 // iface reconciliation once the vpp backend finishes its handshake. Subscribes
 // to EventConnected (first handshake after daemon start) and EventReconnected
-// (handshake after a vpp crash).
+// (handshake after a vpp crash). The two events get their own trigger because
+// only a reconnect leaves the backend holding state from a vpp that is gone
+// (reconcileOnVPPReady, reconcileOnVPPConnected).
 //
-// trigger is invoked synchronously inside the EventBus Emit goroutine. Per
-// pkg/ze/eventbus.go the handler MUST NOT block on I/O, so the production
+// Each trigger is invoked synchronously inside the EventBus Emit goroutine.
+// Per pkg/ze/eventbus.go the handler MUST NOT block on I/O, so the production
 // caller passes a non-blocking enqueue that hands the actual reconcile off
 // to a worker goroutine. Tests may pass a synchronous reconcile for
 // deterministic assertions.
 //
 // The returned unsubscribe funcs are appended by the caller to its shutdown
 // cleanup list.
-func subscribeReconcileOnReady(bus ze.EventBus, trigger func()) []func() {
-	handler := events.AsString(func(_ string) {
-		trigger()
-	})
+func subscribeReconcileOnReady(bus ze.EventBus, connected, reconnected func()) []func() {
 	return []func(){
-		bus.Subscribe(vppevents.Namespace, vppevents.EventConnected, handler),
-		bus.Subscribe(vppevents.Namespace, vppevents.EventReconnected, handler),
+		bus.Subscribe(vppevents.Namespace, vppevents.EventConnected, events.AsString(func(_ string) {
+			connected()
+		})),
+		bus.Subscribe(vppevents.Namespace, vppevents.EventReconnected, events.AsString(func(_ string) {
+			reconnected()
+		})),
 	}
 }
 
@@ -401,10 +404,19 @@ func runEngine(conn net.Conn) int {
 	// pkg/ze/eventbus.go "handler MUST NOT block on I/O" contract.
 	vppReconcileCh := make(chan struct{}, 1)
 	vppReconcileDone := make(chan struct{})
+	// vppReconnected records that an EventReconnected reached the coalescing
+	// channel, so the coalesced work item reloads the backend. A connect
+	// coalesced with a reconnect reloads too, which is what the reconnect
+	// needs and costs the connect nothing.
+	var vppReconnected atomic.Bool
 	go func() {
 		defer close(vppReconcileDone)
 		for range vppReconcileCh {
-			reconcileOnVPPReady(&activeCfg)
+			if vppReconnected.Swap(false) {
+				reconcileOnVPPReady(&activeCfg)
+				continue
+			}
+			reconcileOnVPPConnected(&activeCfg)
 		}
 	}()
 	// registryReconcileCh coalesces address_owner.go registry-change
@@ -506,7 +518,11 @@ func runEngine(conn net.Conn) int {
 			return joinApplyErrors("interface config", errs)
 		}
 		activeCfg.Store(cfg)
-		log.Info("interface config applied")
+		// A deferred apply logged its own line (applyConfig), so "applied"
+		// is said only of an apply that reached the dataplane.
+		if !applyIsOwed() {
+			log.Info("interface config applied")
+		}
 
 		eb := GetEventBus()
 		if eb == nil {
@@ -594,15 +610,27 @@ func runEngine(conn net.Conn) int {
 
 		// Subscribe once to vpp lifecycle events so reconciliation that was
 		// deferred during initial apply (vpp handshake still in flight) runs
-		// as soon as GoVPP is connected. The same handler fires on
-		// EventReconnected so post-crash recovery also re-reconciles.
+		// as soon as GoVPP is connected. EventReconnected also triggers it,
+		// marked so the worker reloads the backend for post-crash recovery.
 		// The handler itself does not touch the VPP backend -- it signals
 		// vppReconcileCh and vppReadyWorker does the GoVPP RPCs outside the
 		// Emit goroutine.
 		vppReadyOnce.Do(func() {
-			trigger := func() { nonBlockingNotify(vppReconcileCh) }
-			unsubscribers = append(unsubscribers, subscribeReconcileOnReady(eb, trigger)...)
+			connected := func() { nonBlockingNotify(vppReconcileCh) }
+			reconnected := func() {
+				vppReconnected.Store(true)
+				nonBlockingNotify(vppReconcileCh)
+			}
+			unsubscribers = append(unsubscribers, subscribeReconcileOnReady(eb, connected, reconnected)...)
 		})
+		// The handshake can complete between the apply above and this
+		// subscription, and EventConnected fires once per connection. An
+		// apply the backend deferred as not ready is therefore handed to the
+		// worker now, which performs it if the connection is up and leaves
+		// it owed for EventConnected otherwise.
+		if applyIsOwed() {
+			nonBlockingNotify(vppReconcileCh)
+		}
 
 		return nil
 	})
@@ -700,7 +728,9 @@ func runEngine(conn net.Conn) int {
 		}
 
 		activeCfg.Store(cfg)
-		log.Info("interface config reloaded via transaction")
+		if !applyIsOwed() {
+			log.Info("interface config reloaded via transaction")
+		}
 
 		// Reconcile PPPoE clients on reload.
 		pppoeMu.Lock()

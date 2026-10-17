@@ -157,7 +157,9 @@ func TestReconcileOnVPPReady_InvokedOnEventConnected(t *testing.T) {
 	// non-blocking enqueue onto vppReconcileCh. Both paths call
 	// reconcileOnVPPReady eventually; this test just verifies the
 	// subscribe/trigger wiring by forcing a direct reconcile.
-	unsubs := subscribeReconcileOnReady(bus, func() { reconcileOnVPPReady(&activeCfg) })
+	unsubs := subscribeReconcileOnReady(bus,
+		func() { reconcileOnVPPConnected(&activeCfg) },
+		func() { t.Error("EventConnected must not reach the reconnect trigger") })
 	t.Cleanup(func() {
 		for _, u := range unsubs {
 			u()
@@ -188,7 +190,9 @@ func TestReconcileOnVPPReady_InvokedOnEventReconnected(t *testing.T) {
 	activeCfg.Store(testConfigWithAddresses())
 
 	bus := newRecordingEventBus()
-	unsubs := subscribeReconcileOnReady(bus, func() { reconcileOnVPPReady(&activeCfg) })
+	unsubs := subscribeReconcileOnReady(bus,
+		func() { t.Error("EventReconnected must not reach the connect trigger") },
+		func() { reconcileOnVPPReady(&activeCfg) })
 	t.Cleanup(func() {
 		for _, u := range unsubs {
 			u()
@@ -218,7 +222,9 @@ func TestUnsubscribeOnShutdown(t *testing.T) {
 	activeCfg.Store(testConfigWithAddresses())
 
 	bus := newRecordingEventBus()
-	unsubs := subscribeReconcileOnReady(bus, func() { reconcileOnVPPReady(&activeCfg) })
+	unsubs := subscribeReconcileOnReady(bus,
+		func() { reconcileOnVPPConnected(&activeCfg) },
+		func() { reconcileOnVPPReady(&activeCfg) })
 
 	// Shutdown: call every unsubscribe.
 	for _, u := range unsubs {
