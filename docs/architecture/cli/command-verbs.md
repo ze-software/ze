@@ -356,6 +356,16 @@ selector-less invocation reaches the handler and the handler decides, which is
 where a wildcard becomes an action on every peer. 18 YANG nodes declare a
 mandatory selector leaf and 14 registrations carry the guard.
 
+### Everything is a selector the operator types
+
+A command that acts on a set never reads a missing selector as "all of them".
+The everything form is a word the operator types: `all`, or `*` where the
+family already uses a wildcard (`request peer * teardown`). The bare prefix is
+refused, and the refusal names the explicit forms. `clear dns cache` alone does
+nothing and answers with `clear dns cache all`. A typo, an early Enter or a tab
+completion that stops at the prefix therefore cannot empty a cache or reset
+every session. The owner's words and the rule are in `ai/rules/cli.md`.
+
 **Every argument a handler reads MUST be declared in the schema.** An undeclared
 argument reaches the handler and reaches nothing else. Completion cannot offer
 it, help cannot print it, and typed validation cannot refuse a bad value.

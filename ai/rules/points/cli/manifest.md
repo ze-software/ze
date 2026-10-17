@@ -11,6 +11,8 @@ cli-grammar-keywords-before-values ## CLI Grammar: Keywords Before Values
   the-first-token-after-the-noun-must-be-a-keyword
   the-verb-is-chosen-by-the-command-s-effect-on-live-state
   the-action-that-enumerates-a-set-is-spelled-list
+  acting-on-everything-needs-an-explicit-all
+  owner-words-on-the-explicit-all
   flags-belong-to-the-offline-tooling-only
   gnu-option-syntax-binds-every-ze-program
   the-r1-to-r9-ruleset-and-where-it-is-implemented
