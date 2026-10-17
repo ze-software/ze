@@ -493,6 +493,19 @@ var testTempOnce = sync.OnceValue(func() string {
 // function under test.
 var testTempDir = TestTempDir
 
+// SetTestTempDirForTest makes every later test-run Overrides answer
+// GOTMPDIR=dir, or no GOTMPDIR when dir is "", and returns the call that
+// restores the previous resolver. Test use only: a package in another
+// directory that pins a test run's exact environment calls it from TestMain,
+// so its answer depends neither on the developer's HOME nor on whether ~/.zt
+// is usable, and the run never creates the real ~/.zt. Not safe for
+// concurrent use with Overrides.
+func SetTestTempDirForTest(dir string) (restore func()) {
+	previous := testTempDir
+	testTempDir = func() string { return dir }
+	return func() { testTempDir = previous }
+}
+
 // testTempDirFor resolves, creates and probes the base under the directory
 // home answers.
 func testTempDirFor(home func() (string, error)) (string, error) {

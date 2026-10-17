@@ -24,6 +24,10 @@ import (
 
 const fixtureTags = "ze_core ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web"
 
+// fixtureTestTemp is the GOTMPDIR TestMain makes every test run answer. No
+// test creates it: the children that see it never call t.TempDir.
+const fixtureTestTemp = "/fixture/.zt"
+
 func fixtureToolchain() gotoolchain.Toolchain {
 	return gotoolchain.Toolchain{
 		Root:        "/checkout",
@@ -429,8 +433,11 @@ func TestNamedSweepPreservesSelectionOrder(t *testing.T) {
 }
 
 // TestEachActionPinsArgvAndEnvironment proves that every package pattern runs
-// with the full feature set, race detector, cgo, and concurrency cap, and that
-// the cross-targeted group carries its own tag, platform and command instead.
+// with the full feature set, race detector, cgo, test temp dir and concurrency
+// cap, and that the cross-targeted group carries its own tag, platform and
+// command instead. The overrides are the environment's tail, compared whole,
+// so an added or a lost entry (GOCACHE included) fails rather than shifting
+// the window.
 func TestEachActionPinsArgvAndEnvironment(t *testing.T) {
 	tc := fixtureToolchain()
 
@@ -440,6 +447,7 @@ func TestEachActionPinsArgvAndEnvironment(t *testing.T) {
 				"GOCACHE=" + filepath.Join(tc.Root, "cache", "go-cache"),
 				"GOLANGCI_LINT_CACHE=" + filepath.Join(tc.Root, "tmp", "golangci-lint-cache"),
 				"CGO_ENABLED=1",
+				"GOTMPDIR=" + fixtureTestTemp,
 				"GOMAXPROCS=8",
 			}
 			if group.GOOS != "" {
@@ -449,6 +457,7 @@ func TestEachActionPinsArgvAndEnvironment(t *testing.T) {
 					"GOCACHE=" + filepath.Join(tc.Root, "cache", "go-cache"),
 					"GOLANGCI_LINT_CACHE=" + filepath.Join(tc.Root, "tmp", "golangci-lint-cache"),
 					"CGO_ENABLED=0",
+					"GOTMPDIR=" + fixtureTestTemp,
 					"GOMAXPROCS=8",
 					"GOOS=" + group.GOOS,
 				}
@@ -681,6 +690,10 @@ func TestMain(m *testing.M) {
 	if os.Getenv("TESTUNIT_GO_FIXTURE") == "1" {
 		os.Exit(runGoFixture())
 	}
+	// Every test run's GOTMPDIR is the fixture's, so the pinned environment
+	// holds no developer HOME and no test creates the real ~/.zt. The process
+	// exits after the run, so nothing restores it.
+	_ = gotoolchain.SetTestTempDirForTest(fixtureTestTemp)
 	os.Exit(m.Run())
 }
 

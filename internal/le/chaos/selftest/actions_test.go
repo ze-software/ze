@@ -39,8 +39,16 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
+	// Every test run's GOTMPDIR is the fixture's, so the pinned environment
+	// holds no developer HOME and no test creates the real ~/.zt. The process
+	// exits after the run, so nothing restores it.
+	_ = gotoolchain.SetTestTempDirForTest(chaosFixtureTestTemp)
 	os.Exit(m.Run())
 }
+
+// chaosFixtureTestTemp is the GOTMPDIR TestMain makes every test run answer.
+// No test here starts a child that creates beneath it.
+const chaosFixtureTestTemp = "/fixture/.zt"
 
 func chaosFixtureToolchain(t *testing.T) gotoolchain.Toolchain {
 	t.Helper()
@@ -90,6 +98,7 @@ func TestChaosActionsKeepExactCommandsAndEnvironments(t *testing.T) {
 				"GOCACHE=" + cache,
 				"GOLANGCI_LINT_CACHE=" + lintCache,
 				"CGO_ENABLED=1",
+				"GOTMPDIR=" + chaosFixtureTestTemp,
 				"GOMAXPROCS=8",
 			},
 		},
@@ -104,6 +113,7 @@ func TestChaosActionsKeepExactCommandsAndEnvironments(t *testing.T) {
 				"GOCACHE=" + cache,
 				"GOLANGCI_LINT_CACHE=" + lintCache,
 				"CGO_ENABLED=0",
+				"GOTMPDIR=" + chaosFixtureTestTemp,
 				"GOMAXPROCS=8",
 			},
 		},
