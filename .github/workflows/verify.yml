@@ -54,11 +54,14 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
+      # linux-modules-extra carries the L2TP and PPPoL2TP modules: the hosted
+      # azure kernel image does not (run 39047813355, 6.17.0-1022-azure).
       - name: Install system packages
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential curl git iproute2 iptables nftables util-linux
+            build-essential curl git iproute2 iptables nftables util-linux \
+            "linux-modules-extra-$(uname -r)"
 
       # Ubuntu 24.04 lets AppArmor restrict unprivileged user namespaces, so
       # every unit test that builds its own network namespace (bfd, bfd/engine,
@@ -73,7 +76,8 @@ jobs:
       # The l2tp kernel capability (internal/component/l2tp/kernelcap_linux.go)
       # probes the l2tp generic netlink family (CONFIG_L2TP: l2tp_core,
       # l2tp_netlink) and the PPPoL2TP socket (CONFIG_PPPOL2TP: pppox, l2tp_ppp).
-      # The hosted kernel ships them as modules it has not loaded, and without
+      # The hosted kernel ships l2tp_core, l2tp_netlink and l2tp_ppp in
+      # linux-modules-extra (pppox is in the base modules package), unloaded, and without
       # them every L2TP functional group and the RADIUS late-bind unit test are
       # refused. A module the image lacks stops the job here, by name.
       - name: Load the L2TP and PPPoL2TP kernel modules
