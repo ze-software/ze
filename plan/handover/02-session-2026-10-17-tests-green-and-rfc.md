@@ -399,3 +399,28 @@ The reactor derives one `sessionClose` per down (`reactor/peer_close.go`, `sessi
 - Phase 1 still owes AC-4: port qa/old/4.2 (132 files) and qa/old/5.0 (258 files) as populations old-4.2 and old-5.0, green with ALLOWED reasons. A continuation agent takes it with the same package.
 - Owed gates: `./le go lint run`, `./le test unit all`, `./le test functional gating`, `./le test functional exabgp-test`.
 - Continuation (2026-10-18): commit 1 prepared, not run (tmp/commit-444e522f-a-57108b.sh); it was made before the AC-4 edits but stages the working tree, so it also carries AC-4 hunks in cmd_exabgp.go, docs/functional-tests.md and the spec. AC-4 runner support done (internal/test/cli/cmd_exabgp_old.go: per-population etc/, option=allowed with stale-allowance refusal; 4 tests); cases ported to test/exabgp-compat/old-5.0 (72) and old-4.2 (34). Against ze: old-5.0 51 pass / 1 allowed / 12 fail / 8 timeout; old-4.2 9 / 0 / 20 / 5. Remaining items (a)-(e) are in the spec under phase 1 "AC-4 remaining"; the largest is the Go mock (interoplab/bgp/exabgp_case.go) refusing 4.2 `announce:`/`withdraw:` steps (12 cases). Not yet in the exabgp-test stage. AC-41 (migrate refuses `shutdown true`) is assigned to phase 7. Two ci-format.md claims about runOneExaBGPTest are still true and need doc-reviewed rows once commit 1 has a SHA.
+
+### 2026-10-17 fastpath replay, review round 1 (agent stopped at its call budget)
+Pass 1 (uncommitted, green, red without the fix): `rib/forward_replay.go` + test,
+`forward_tracker.go`, `forward_handle.go`, fixture `bgpRSFastpathLate03`,
+`test/plugin/bgp-rs-fastpath-late.ci`, `docs/architecture/rib/forward-handle.md`,
+YANG enable text, journal row. Review: 0 BLOCKER, 2 ISSUE.
+- Separate commit, code written, untested: `rib/storage/familyrib.go`
+  `ToWireBytes` writes the pooled LARGE_COMMUNITIES (code 32), which it dropped
+  (also hits rib_recovery and rib_flowspec_validation). Owed: a test in
+  `storage/` that inserts an UPDATE with code 32 and asserts it in
+  `ToWireBytes`, red without the hunk; a journal row. Drop the hunk if attrparse
+  keeps code 32 in OtherAttrs.
+- ISSUE 1: the replay body copies the source UPDATE's MP_REACH/MP_UNREACH.
+  Strip 14/15 (as reactor `isRelayStrippedAttr`) and NEXT_HOP outside legacy
+  IPv4; rebuild MP_REACH for this one prefix from `recoveryCandidate`
+  (`rib_recovery.go`: per-prefix NLRI with labels, path-id, raw next hop); the
+  trailing NLRI only for legacy IPv4. The doc comment states what the body is.
+- ISSUE 2: unit cases, each red without the fix: IPv6 two-prefix MP_REACH plus
+  MP_UNREACH, mixed IPv4+IPv6, ADD-PATH path-id (may pass already: say so),
+  large community. Build with `PeerRIB.Insert` + `checkBestPathChange`.
+- NITs: `tracker.replay` doc says it blocks holding the shard lock and
+  deliveryMu; prefix slice capacity hint; `errReplayWinnerGone` comment
+  overstates (the purge elects with a nil handle, so onChange drops it): state
+  the gap, journal it if the live path has it; `rib_bestchange.go` lock-order
+  comment says peerMu then shard, the code takes shard first.

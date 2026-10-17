@@ -47,7 +47,7 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-10-17 | b2ec5abb | test(rfc): prove four FlowSpec and BGP-LS MUSTs at the live originators | native structural checks (red) | test and RFC-data change; no structural gate is red over this tree | open |
 | 2026-10-17 | b2ec5abb | test(cli): headless restart test drops its fsync-bound wall clock | native structural checks (red) | test-harness change; no structural gate is red over this tree | open |
 | 2026-10-17 | b2ec5abb | ci: prepare the runner kernel, split the race pass, stream lab progress (+3 more) | native structural checks (red) | no structural gate is red over this tree | open |
-| 2026-10-17 | b2ec5abb | rules: fix known reds by targeted reruns; full verify last (+18 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-17T10:46:25Z) | open |
+| 2026-10-17 | b2ec5abb | rules: fix known reds by targeted reruns; full verify last (+19 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-17T10:46:25Z) | open |
 | 2026-10-17 | b2ec5abb | rules: fix known reds by targeted reruns; full verify last | native structural checks (red) | rule text only | open |
 | 2026-10-17 | b2ec5abb | test: fix the CI-only reds of 30b722a32d | native structural checks (red) | test and CI changes; no structural gate is red over this tree | open |
 | 2026-10-17 | b2ec5abb | fix(le): one guard per fact in partNumber | native structural checks (red) | this commit clears compound-guard | open |
@@ -61,5 +61,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-10-17 | b2ec5abb | fix(bgp): filter modify applies per NLRI section; IRR re-admits routes | native structural checks (red) | doc wiring stays red on five reviewed-claim rows that can only name this commit; they land in the next commit | open |
 | 2026-10-17 | b2ec5abb | docs: record the reviewed claims behind 6019dd0675 | native structural checks (red) | ledger rows only; this commit clears doc wiring | open |
 | 2026-10-17 | b2ec5abb | test(gtsm): RFC 5082 tests judge the matched term; RFC records repaired | native structural checks (red) | test and RFC ledger data; rfc check green | open |
-| 2026-10-17 | b2ec5abb | handover: landed work, in-flight fixes and the CI l2tp module gap | native structural checks (red) | the commit carries one markdown handover file; the arch reds come from uncommitted Go of agents in flight in the shared tree | open |
+| 2026-10-17 | b2ec5abb | handover: landed work, in-flight fixes and the CI l2tp module gap (+1 more) | native structural checks (red) | the commit carries one markdown handover file; the arch reds come from uncommitted Go of agents in flight in the shared tree | open |
 | 2026-10-17 | b2ec5abb | ci: install linux-modules-extra so the l2tp modules load | native structural checks (red) | the commit carries a workflow file and one page; the arch reds come from uncommitted Go of agents in flight in the shared tree | open |
