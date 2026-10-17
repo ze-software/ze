@@ -239,7 +239,7 @@ func TestImportRecoveryRefusesChangedIdentityOrBytes(t *testing.T) {
 				// through the tree itself, as a crash-then-hand-edit would.
 				folder, err := openFolder(dir)
 				require.NoError(t, err)
-				s, err := openTree(folder, treeName, nil, false)
+				s, err := openTree(folder, treeName, treeName, nil, false)
 				require.NoError(t, err)
 				key := "file/active/router.conf"
 				if change == "destination keys" {
@@ -274,7 +274,7 @@ func TestImportRecoveryRefusesChangedIdentityOrBytes(t *testing.T) {
 				require.ErrorIs(t, err, ErrImportPending)
 				folder, err := openFolder(dir)
 				require.NoError(t, err)
-				s, err := openTree(folder, treeName, nil, true)
+				s, err := openTree(folder, treeName, treeName, nil, true)
 				require.NoError(t, err)
 				defer s.Close() //nolint:errcheck // read-only fixture cleanup.
 				got, err := s.ReadKey("meta/unrelated/key")

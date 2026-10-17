@@ -150,6 +150,28 @@ namespace and cannot appear in list, check or repair output. Newly created key
 ancestors are synced before publication can proceed. Sync failures are returned
 to the caller. Removing a key prunes empty key directories.
 
+A staged frame is named `.ze-storage-<tree>.<random>`, where `<tree>` is the
+tree whose owner lock covers the write: `database` for the live tree, for a
+stage built under its lock, and for a loose config the live owner publishes;
+the tree's own name for an offline tree opened writable. Every write that
+stages a frame holds such a lock, except a memory store's loose config write
+(described with `WriteConfigFile` below). The random part is base32 and holds no dot,
+so a name always says which lock it belongs to, even when one tree's name
+extends another's. A crash between the staging create and the rename leaves the
+frame behind. The next writable open of that tree removes every regular file
+named for it, after it takes the owner lock, so none of them can belong to a
+live write. The live owner also removes the older form `.ze-storage-<random>`,
+which no write produces any more. Frames named for another tree in the same
+folder, and every other entry, are left alone. A read-only open removes
+nothing. The removals are not synced: a crash that loses one brings back a name
+no reader lists, and the next owner open removes it again. The sweep is
+best-effort: a leftover it cannot inspect or remove is logged as a warning
+naming its path and the `rm` command that removes it, and the open proceeds,
+because a leftover holds no published data.
+<!-- source: internal/component/config/storage/tree.go -- stageName, stagedFor, stagedLegacy, sweepStages, warnLeftover -->
+<!-- source: internal/component/config/storage/open.go -- openLive, OpenTree, liveLeftover, WriteConfigFile -->
+
+
 Staging creation, publication and cleanup all use retained directory descriptors.
 Renaming or replacing the containing directory's pathname does not redirect
 these operations into the replacement directory.
@@ -368,7 +390,14 @@ Ze is pre-release, and a store written before this format is re-initialised.
 
 Explicit-file source selection is retained by the runtime. `WriteConfigFile`
 provides durable loose-file publication through a no-follow parent traversal;
-the caller owns conflict detection and the persistent file-commit intent.
+the caller owns conflict detection and the persistent file-commit intent. It
+refuses a store that is closed, a read-only tree, or a blob store, and, for a
+tree, a path whose folder is not the store's own folder, so a tree's staged
+frame is always one that owner sweeps.
+A memory store (the functional-test DUT without `option=storage:value=disk`)
+has no folder, no lock and no sweep, so it publishes the file under the
+reserved frame name `.ze-storage-.<random>`, which no sweep matches; a crash
+leftover of it stays until an operator removes it.
 Bare stored-config startup reads
 the active pointer, falling back to the active mirror only when no pointer exists.
 <!-- source: internal/component/config/storage/pointer.go -- PromoteCandidate, ClearCandidate, ReadActiveConfig, pointerPath, removeVersionLocked -->

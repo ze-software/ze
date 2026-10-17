@@ -483,7 +483,7 @@ func publishStage(folder *os.File, intent importIntent, progress importProgress,
 	if err != nil {
 		return err
 	}
-	stage, err := openTree(stageFolder, intent.Stage, nil, true)
+	stage, err := openTree(stageFolder, intent.Stage, treeName, nil, true)
 	if err != nil {
 		return errors.Join(err, stageFolder.Close())
 	}
@@ -533,7 +533,7 @@ func openImported(folder *os.File, intent importIntent) (*store, error) {
 	if err != nil {
 		return nil, err
 	}
-	result, err := openTree(treeFolder, treeName, nil, false)
+	result, err := openTree(treeFolder, treeName, treeName, nil, false)
 	if err != nil {
 		return nil, errors.Join(err, treeFolder.Close())
 	}

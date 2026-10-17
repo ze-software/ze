@@ -263,7 +263,9 @@ func TestWriteConfigFileRejectsSymlinkParent(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, []byte("retain"), 0o600))
 	link := filepath.Join(dir, "link")
 	require.NoError(t, os.Symlink(target, link))
-	require.Error(t, WriteConfigFile(filepath.Join(link, "router.conf"), []byte("replace")))
+	// The store is the target folder itself, so only the symlink refuses.
+	s := newTreeStorage(t, target)
+	require.Error(t, WriteConfigFile(s, filepath.Join(link, "router.conf"), []byte("replace")))
 	got, err := os.ReadFile(path)
 	require.NoError(t, err)
 	assert.Equal(t, "retain", string(got))

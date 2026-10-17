@@ -193,7 +193,7 @@ func startImport(path string, folder, owner *os.File, policy importPolicy, repla
 		return nil, err
 	}
 	recorded = true
-	if err := installBytes(folder, folder, importIntentName, encoded, func(f *os.File) error { return f.Sync() }); err != nil {
+	if err := installBytes(folder, folder, treeName, importIntentName, encoded, func(f *os.File) error { return f.Sync() }); err != nil {
 		return nil, err
 	}
 	return replayImport(folder, owner, intent)
@@ -227,7 +227,7 @@ func buildStage(folder *os.File, stage string, source *zefs.BlobStore) (nodeIden
 	if err != nil {
 		return nodeIdentity{}, err
 	}
-	result, err := openTree(stageFolder, stage, nil, false)
+	result, err := openTree(stageFolder, stage, treeName, nil, false)
 	if err != nil {
 		return nodeIdentity{}, errors.Join(err, stageFolder.Close())
 	}

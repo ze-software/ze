@@ -82,7 +82,7 @@ func TestExplicitCommitRecovery(t *testing.T) {
 				if phase == "external" {
 					value = []byte("external edit")
 				}
-				if err := storage.WriteConfigFile(path, value); err != nil {
+				if err := storage.WriteConfigFile(store, path, value); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -201,6 +201,38 @@ func TestExplicitRuntimeCommitPublishesBothAuthorities(t *testing.T) {
 	}
 	if !retained {
 		t.Fatal("prior accepted config disappeared from history")
+	}
+}
+
+// TestExplicitRuntimeCommitOnAMemoryStore is the functional-test DUT's commit
+// path: a daemon started on a file with a memory store (no
+// option=storage:value=disk) commits through commitRuntimeConfig, which
+// publishes the file through WriteConfigFile. A refusal there rolls the reload
+// back. Method: commit once over a memory store bound to the file, then read
+// the file and the stored active version.
+func TestExplicitRuntimeCommitOnAMemoryStore(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "router.conf")
+	store := storage.BindConfigSource(storage.CreateMemory(), path, storage.ConfigSourceFile)
+	before, after := []byte("accepted"), []byte("committed")
+	if err := os.WriteFile(path, before, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := initializeConfigSource(store, path, before); err != nil {
+		t.Fatal(err)
+	}
+	err := commitRuntimeConfig(store, path, path, before, after, func() error {
+		return promoteConfigCandidate(store, path)
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(file, after) {
+		t.Fatalf("explicit file = %q, %v", file, err)
+	}
+	active, err := storage.ReadActiveConfig(store, path)
+	if err != nil || !bytes.Equal(active, after) {
+		t.Fatalf("stored active = %q, %v", active, err)
 	}
 }
 

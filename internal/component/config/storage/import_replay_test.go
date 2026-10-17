@@ -216,7 +216,7 @@ func TestRestoreReplayRefusesBeforeMutation(t *testing.T) {
 				require.NoError(t, os.Mkdir(filepath.Join(dir, treeName), 0o700))
 				folder, err := openFolder(dir)
 				require.NoError(t, err)
-				unrelated, err := openTree(folder, treeName, nil, false)
+				unrelated, err := openTree(folder, treeName, treeName, nil, false)
 				require.NoError(t, err)
 				require.NoError(t, unrelated.WriteKey("meta/unrelated/key", []byte("keep")))
 				require.NoError(t, unrelated.Close())
@@ -268,7 +268,7 @@ func TestRestoreReplayRefusesBeforeMutation(t *testing.T) {
 			if change == "unrelated tree" {
 				folder, err := openFolder(dir)
 				require.NoError(t, err)
-				s, err := openTree(folder, treeName, nil, true)
+				s, err := openTree(folder, treeName, treeName, nil, true)
 				require.NoError(t, err)
 				defer s.Close() //nolint:errcheck // read-only fixture.
 				got, err := s.ReadKey("meta/unrelated/key")

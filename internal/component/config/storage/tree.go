@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -22,6 +23,10 @@ var ErrCorrupt = errors.New("corrupt storage value")
 type treeEncoding struct {
 	root   *os.File
 	folder *os.File
+	// lock is the tree whose owner lock covers this tree's writes. It names
+	// every frame a write stages in folder, so that owner can tell its own
+	// crash leftovers from another lock holder's live write (stageName).
+	lock string
 	// sync is instance-local so crash barriers can be exercised without global hooks.
 	sync func(*os.File) error
 }
@@ -207,11 +212,142 @@ func (t *treeEncoding) WriteFile(key string, data []byte, _ fs.FileMode) error {
 	if err != nil {
 		return err
 	}
-	return installBytes(t.folder, parent, leaf, frame, t.barrier)
+	return installBytes(t.folder, parent, t.lock, leaf, frame, t.barrier)
 }
 
-func installBytes(stage, parent *os.File, leaf string, data []byte, syncFile func(*os.File) error) (retErr error) {
-	name := ".ze-storage-" + rand.Text()
+// stagePrefix opens every name installBytes stages a frame under.
+const stagePrefix = ".ze-storage-"
+
+// stageName names a frame staged for a write that lock's owner lock covers:
+// stagePrefix, lock, a dot, then rand.Text. The random part is base32, so it
+// holds no dot, and the last dot of a name always ends its lock. Two trees in
+// one folder therefore never stage a name the other's sweep matches, even when
+// one tree's name extends the other's (`database`, `database.replaced-<stamp>`).
+// An empty lock is the one write that holds no owner lock: a loose config a
+// memory store publishes (WriteConfigFile). Its name, stagePrefix then a dot
+// then rand.Text, is reserved: stagedFor is never asked about an empty lock
+// and stagedLegacy refuses the dot, so no sweep ever removes it.
+func stageName(lock string) string {
+	return stagePrefix + lock + "." + rand.Text()
+}
+
+// stagedFor answers whether entry is a frame stageName produced for lock.
+func stagedFor(entry, lock string) bool {
+	random, ok := strings.CutPrefix(entry, stagePrefix+lock+".")
+	if !ok {
+		return false
+	}
+	return isRandomText(random)
+}
+
+// stagedLegacy answers whether entry is a frame in the form every write used
+// before frames named their lock: stagePrefix then rand.Text, with no dot.
+// Nothing produces that form any more, so only a crash before the change left
+// one, and the live owner removes it.
+func stagedLegacy(entry string) bool {
+	random, ok := strings.CutPrefix(entry, stagePrefix)
+	if !ok {
+		return false
+	}
+	return isRandomText(random)
+}
+
+// isRandomText answers whether text could be a rand.Text result: non-empty,
+// and every byte in the RFC 4648 base32 alphabet it draws from. The length is
+// not checked, because rand.Text documents that a later Go may return more.
+func isRandomText(text string) bool {
+	if text == "" {
+		return false
+	}
+	for i := range len(text) {
+		c := text[i]
+		if c >= 'A' && c <= 'Z' {
+			continue
+		}
+		if c >= '2' && c <= '7' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+// sweepStages removes the frames a crashed write left in folder, the entries
+// leftover matches: a crash between the staging create and the rename leaves
+// one, and the write's own cleanup never runs. The caller MUST hold the owner
+// lock whose frames leftover matches. Only a holder of that lock stages such a
+// name, so while the caller holds it none of them belongs to a live write.
+// Every other entry, including a frame another lock's holder may be writing
+// right now, is left alone, and so is any matching entry that is not a regular
+// file.
+//
+// The sweep is best-effort and never fails the open. A leftover holds no
+// published data and no reader lists it, so one that cannot be inspected or
+// removed is reported on log, with the command that removes it, and the sweep
+// moves on.
+//
+// The removals are not synced. A crash that loses one brings back a name
+// outside the key namespace, and the next owner open removes it again; a sync
+// would make nothing durable that matters (storage-backends.md, "Durable
+// publication").
+func sweepStages(folder *os.File, leftover func(string) bool, log *slog.Logger) {
+	listing, err := duplicateFolder(folder)
+	if err != nil {
+		warnLeftover(log, folder.Name(), "could not open the folder to look for leftover staged writes", folderFix(folder), err)
+		return
+	}
+	names, err := listing.Readdirnames(-1)
+	if err := errors.Join(err, listing.Close()); err != nil {
+		warnLeftover(log, folder.Name(), "could not list the folder for leftover staged writes", folderFix(folder), err)
+		return
+	}
+	for _, name := range names {
+		if !leftover(name) {
+			continue
+		}
+		path := filepath.Join(folder.Name(), name)
+		var st unix.Stat_t
+		err := unix.Fstatat(int(folder.Fd()), name, &st, unix.AT_SYMLINK_NOFOLLOW)
+		if errors.Is(err, unix.ENOENT) {
+			continue
+		}
+		if err != nil {
+			warnLeftover(log, path, "could not inspect a leftover staged write", "rm "+path, err)
+			continue
+		}
+		if st.Mode&unix.S_IFMT != unix.S_IFREG {
+			continue
+		}
+		err = unix.Unlinkat(int(folder.Fd()), name, 0)
+		if errors.Is(err, unix.ENOENT) {
+			continue
+		}
+		if err != nil {
+			warnLeftover(log, path, "could not remove a leftover staged write", "rm "+path, err)
+		}
+	}
+}
+
+// warnLeftover reports one sweep failure: what failed on which path, why the
+// open goes on regardless, and the command an operator runs instead.
+func warnLeftover(log *slog.Logger, path, problem, fix string, err error) {
+	log.Warn(problem,
+		"path", path,
+		"error", err,
+		"why", "a crashed write leaves a staged frame that holds no published data and that no reader lists, so the store opens anyway",
+		"fix", fix)
+}
+
+// folderFix is the operator's command when the folder itself cannot be read:
+// list its leftover frames, then remove them while ze is stopped.
+func folderFix(folder *os.File) string {
+	return "ls -la " + folder.Name() + " and, with ze stopped, rm its " + stagePrefix + "* files"
+}
+
+// installBytes publishes data as leaf in parent through a frame staged in
+// stage under stageName(lock).
+func installBytes(stage, parent *os.File, lock, leaf string, data []byte, syncFile func(*os.File) error) (retErr error) {
+	name := stageName(lock)
 	fd, err := unix.Openat(int(stage.Fd()), name, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0o600)
 	if err != nil {
 		return err
@@ -243,7 +379,8 @@ func installBytes(stage, parent *os.File, leaf string, data []byte, syncFile fun
 	// WriteConfigFile) that sync would repeat this one. When it is distinct
 	// (a tree key write) it would only make the temporary name's departure
 	// durable, and a `.ze-storage-*` name a crash leaves behind is outside the
-	// key namespace and ignored (storage-backends.md, "Durable publication").
+	// key namespace, ignored by readers, and removed by the next owner open
+	// (sweepStages; storage-backends.md, "Durable publication").
 	return syncFile(parent)
 }
 

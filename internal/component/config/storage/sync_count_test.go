@@ -43,7 +43,7 @@ func TestInstallBytesSyncsFrameThenDestination(t *testing.T) {
 			defer parent.Close() //nolint:errcheck // test cleanup.
 
 			var counter syncCounter
-			require.NoError(t, installBytes(stage, parent, "value", []byte("bytes"), counter.sync))
+			require.NoError(t, installBytes(stage, parent, treeName, "value", []byte("bytes"), counter.sync))
 
 			require.Len(t, counter.names, 2, "frame and destination only: %v", counter.names)
 			assert.Equal(t, ".ze-storage-", filepath.Base(counter.names[0])[:len(".ze-storage-")], "the frame first")

@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -67,8 +68,11 @@ func OpenTree(path string, writable bool) (Storage, error) {
 		if err != nil {
 			return nil, errors.Join(err, folder.Close())
 		}
+		// An offline tree sweeps only the frames named for itself. A legacy
+		// frame carries no lock name, so only the live owner sweeps it.
+		sweepStages(folder, func(entry string) bool { return stagedFor(entry, name) }, slogutil.Logger("storage"))
 	}
-	result, err := openTree(folder, name, owner, !writable)
+	result, err := openTree(folder, name, name, owner, !writable)
 	if err != nil {
 		if owner != nil {
 			err = errors.Join(err, owner.Close())
@@ -128,7 +132,7 @@ func openLive(dir string, readonly bool) (Storage, error) {
 		return nil, err
 	}
 	// Validation precedes the lock so a refused open creates no lock file.
-	result, err := openTree(folder, treeName, nil, readonly)
+	result, err := openTree(folder, treeName, treeName, nil, readonly)
 	if err != nil {
 		return nil, errors.Join(err, folder.Close())
 	}
@@ -144,16 +148,28 @@ func openLive(dir string, readonly bool) (Storage, error) {
 	if err := pendingImport(dir); err != nil {
 		return nil, errors.Join(err, owner.Close(), result.Close())
 	}
+	// Only the owner sweeps, and only once it holds the lock: a reader open
+	// beside a live owner would otherwise remove that owner's in-flight frames.
+	sweepStages(folder, liveLeftover, slogutil.Logger("storage"))
 	result.owner = owner
 	return result, nil
 }
 
-func openTree(folder *os.File, name string, owner *os.File, readonly bool) (*store, error) {
+// openTree opens tree name in folder. lock is the tree whose owner lock covers
+// its writes, which names the frames they stage (stageName): name itself for a
+// tree with its own lock, treeName for a stage built under the live lock.
+// liveLeftover matches the frames the live owner sweeps: those named for the
+// live tree, and the legacy form no write produces any more.
+func liveLeftover(entry string) bool {
+	return stagedFor(entry, treeName) || stagedLegacy(entry)
+}
+
+func openTree(folder *os.File, name, lock string, owner *os.File, readonly bool) (*store, error) {
 	root, err := openNode(folder, name, true)
 	if err != nil {
 		return nil, err
 	}
-	tree := &treeEncoding{root: root, folder: folder}
+	tree := &treeEncoding{root: root, folder: folder, lock: lock}
 	if _, err := tree.list(""); err != nil {
 		return nil, errors.Join(err, root.Close())
 	}
@@ -293,7 +309,7 @@ func populateOwned(folder, owner *os.File, populate func(Storage) error, replace
 				return nil, err
 			}
 			if name == treeName {
-				tree := &treeEncoding{root: node, folder: folder}
+				tree := &treeEncoding{root: node, folder: folder, lock: treeName}
 				if _, err := tree.list(""); err != nil {
 					return nil, errors.Join(err, node.Close())
 				}
@@ -317,7 +333,7 @@ func populateOwned(folder, owner *os.File, populate func(Storage) error, replace
 	if err != nil {
 		return nil, err
 	}
-	result, err := openTree(stageFolder, stage, nil, false)
+	result, err := openTree(stageFolder, stage, treeName, nil, false)
 	if err != nil {
 		return nil, errors.Join(err, stageFolder.Close())
 	}
@@ -365,9 +381,38 @@ func moveAside(folder *os.File, name string) error {
 	return folder.Sync()
 }
 
-// WriteConfigFile atomically publishes an explicitly selected loose config, not
-// a storage backend. Its caller owns source-conflict detection and commit intent.
-func WriteConfigFile(path string, data []byte) error {
+// WriteConfigFile atomically publishes the explicitly selected loose config at
+// path, not a storage backend, through s, the store that records it. Its
+// caller owns source-conflict detection and commit intent.
+//
+// For a live tree the frame is staged under the store's lock name, so the next
+// owner open sweeps a frame a crash leaves. That is only sound while s holds
+// the owner lock and path sits in the store's own folder, so both are refused
+// otherwise. A memory store has no folder, no lock and no sweep: its frame
+// takes the reserved name stageName gives an empty lock, which no sweep
+// matches, so a crash leftover of it stays (storage-backends.md).
+func WriteConfigFile(s Storage, path string, data []byte) error {
+	return writeConfigFile(s, path, data, func(file *os.File) error { return file.Sync() })
+}
+
+// writeConfigFile is WriteConfigFile with its barrier as a parameter, so a test
+// can see the frame it stages; every production caller passes (*os.File).Sync.
+func writeConfigFile(s Storage, path string, data []byte, syncFile func(*os.File) error) error {
+	owned, ok := ownedStore(s)
+	if !ok {
+		return notLiveTree(path)
+	}
+	// The read lock keeps Close from releasing the folder and the owner lock
+	// while the frame is staged under that lock's name.
+	owned.mu.RLock()
+	defer owned.mu.RUnlock()
+	if owned.closed {
+		return fmt.Errorf("publish config %s: its store is already closed: %w; publish before the daemon closes it", path, fs.ErrClosed)
+	}
+	lock, err := configStageLock(owned, path)
+	if err != nil {
+		return err
+	}
 	dir, name, err := splitStorePath(path)
 	if err != nil {
 		return err
@@ -377,5 +422,50 @@ func WriteConfigFile(path string, data []byte) error {
 		return err
 	}
 	defer parent.Close() //nolint:errcheck // sync reports publication errors.
-	return installBytes(parent, parent, name, data, func(file *os.File) error { return file.Sync() })
+	if owned.tree != nil {
+		same, err := sameNode(parent, owned.tree.folder)
+		if err != nil {
+			return fmt.Errorf("publish config %s: %w", path, err)
+		}
+		if !same {
+			return fmt.Errorf("publish config %s: it is not in the store folder %s, so the store's owner lock does not cover its staged write; start ze with the config file in %s", path, owned.tree.folder.Name(), owned.tree.folder.Name())
+		}
+	}
+	return installBytes(parent, parent, lock, name, data, syncFile)
+}
+
+// configStageLock answers the lock name a loose config's frame is staged
+// under: the live tree's lock, or "" for a memory store, which holds none. A
+// blob store and a read-only tree are refused. The caller MUST hold owned.mu.
+func configStageLock(owned *store, path string) (string, error) {
+	if owned.tree == nil {
+		if owned.blob != nil {
+			return "", notLiveTree(path)
+		}
+		return "", nil
+	}
+	if owned.owner == nil {
+		return "", fmt.Errorf("publish config %s: the store is open read-only, so it does not hold the owner lock; publish through the daemon that owns %s", path, owned.tree.folder.Name())
+	}
+	return owned.tree.lock, nil
+}
+
+// notLiveTree refuses a config publication whose store is no live tree.
+func notLiveTree(path string) error {
+	return fmt.Errorf("publish config %s: its store is not a live tree, so no owner lock covers the write; start ze with the config file in its store folder", path)
+}
+
+// sameNode answers whether two open descriptors name the same inode.
+func sameNode(a, b *os.File) (bool, error) {
+	var first, second unix.Stat_t
+	if err := unix.Fstat(int(a.Fd()), &first); err != nil {
+		return false, err
+	}
+	if err := unix.Fstat(int(b.Fd()), &second); err != nil {
+		return false, err
+	}
+	if first.Dev != second.Dev {
+		return false, nil
+	}
+	return first.Ino == second.Ino, nil
 }

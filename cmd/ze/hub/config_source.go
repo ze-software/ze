@@ -183,7 +183,7 @@ func recoverFileCommit(store storage.Storage, path string) error {
 		if !bytes.Equal(disk, intent.Expected) {
 			return fmt.Errorf("explicit config changed externally: %s; pending commit retained", intent.Path)
 		}
-		if err := storage.WriteConfigFile(intent.Path, intent.Content); err != nil {
+		if err := storage.WriteConfigFile(store, intent.Path, intent.Content); err != nil {
 			return fmt.Errorf("publish explicit config file: %w", err)
 		}
 	}

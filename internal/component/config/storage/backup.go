@@ -193,9 +193,15 @@ func CheckArtifactPath(path string) error {
 
 // ownedStore returns the store behind s, looking through the config-source
 // binding a daemon wraps its live handle in, so a live backup walks the same
-// handle and the same lock the daemon commits through.
+// handle and the same lock the daemon commits through. A binding may wrap
+// another binding (a test rebinds a bound store), so every layer is peeled;
+// the loop ends because each layer is a distinct, finitely nested value.
 func ownedStore(s Storage) (*store, bool) {
-	if bound, ok := s.(*configStore); ok {
+	for {
+		bound, ok := s.(*configStore)
+		if !ok {
+			break
+		}
 		s = bound.Storage
 	}
 	owned, ok := s.(*store)

@@ -128,7 +128,7 @@ func registerDaemonStore(t *testing.T, dir, path string) {
 		if err := storage.PromoteCandidate(store, commitPath); err != nil {
 			return err
 		}
-		return storage.WriteConfigFile(commitPath, content)
+		return storage.WriteConfigFile(store, commitPath, content)
 	})
 	t.Cleanup(func() {
 		registry.SetRuntimeConfigCommit(nil)

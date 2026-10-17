@@ -284,7 +284,8 @@ func awaitReloadWorker(done <-chan struct{}, grace time.Duration, cancel context
 //   - an operator could not tell a completed reload from a wedged one;
 //   - no functional test could fence on completion, so every reload .ci raced
 //     its own teardown. Under load the daemon was killed mid-reload, leaving a
-//     partial atomic write (a stray `.ze-storage-*` in rollback/) and no
+//     partial atomic write (a stray `.ze-storage-*` frame in the folder that
+//     holds the store, which the next owner open now removes) and no
 //     meta/config/rollback pointer, which is what made `commit-transactional`
 //     and its neighbors look like flaky "load-sensitive" tests rather than a
 //     missing signal.
