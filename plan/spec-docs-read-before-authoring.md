@@ -33,7 +33,7 @@ The owner approved four parts:
 | 1 | Enforcement | The native write hook refuses authoring until the pages that cover the subject were READ IN THIS SESSION. Authoring is: a code edit, every write under `plan/` (specs, handovers, journal rows, designs), and an agent brief (the `Agent` / `Task` tool's `prompt`). The covering pages of a file come from its `// Design:` header and the code-to-docs map. For a spec, a handover or a brief, the covered files are the paths it names |
 | 2 | No page | A file with NO covering page: the hook refuses the edit and names the page to write, so documenting comes before the work |
 | 3 | Audit | Every subsystem gets a page-against-code audit by an agent that reads the producing code, and wrong pages are fixed. This week's subsystems first (config storage and the boot record, IRR resolve with the BGP IRR filter and the firewall IRR plugin, the RIB fastpath, the route-injection grammar and update text with the ExaBGP bridge, GTSM), then the rest of the tree |
-| 4 | Rollout | The hook warns first, and blocks once the undocumented list is empty. Blocking on day one would stop every agent |
+| 4 | Rollout | The hook warns first on existing files, and blocks once the undocumented list is empty. Blocking on day one would stop every agent. A NEW undocumented file is the exception: it is refused at commit from day one by the shrink-only baseline (D-4) |
 
 This spec is design only. It sets status `design` and is not claimed for
 implementation (the in-progress WIP cap is full).
@@ -158,7 +158,8 @@ missing `// Design:` line, at warning severity only.
 - Code edits, `plan/` writes and agent briefs are judged against that ledger
 - A file with no covering page is refused with the page to write
 - `PreToolUse Task|Agent` is wired to a new `pretool-agent` action
-- A coverage report and a shrink-only baseline exist, and the baseline's emptiness switches warn to block
+- A coverage report and a shrink-only baseline exist, and the baseline's emptiness switches the hook verdicts from warn to block
+- From day one, `./le doc coverage check` refuses at commit any undocumented file that is not in the baseline at `HEAD` (D-4)
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -233,7 +234,7 @@ exact or own-directory anchor. An ancestor anchor never covers.
 | `writeDocsCovered` | `pretool-writeedit` | a code edit (classes above) | the path has no covering page |
 | `writeDocsRead` | `pretool-writeedit` | a code edit's own path; a `plan/` Write's `content` or Edit's `new_string`, every repository path it names | a required page that is not in the ledger |
 | `bashDocRead` | `pretool-bash` | the command | never refuses; records reads |
-| `agentDocsRead` | `pretool-agent` (new, `PreToolUse Task\|Agent`) | the `prompt`, every repository path it names | a required page not in the spawner's ledger, or not named in the prompt (see D-3) |
+| `agentDocsRead` | `pretool-agent` (new, `PreToolUse Task\|Agent`) | the `prompt`, every repository path it names | a required page not in the spawner's ledger, or not named in the prompt (D-3, decided (c): both) |
 
 Path extraction from text: a token is a subject when it matches the moved
 `isSourcePath` classes, or names a directory under one of `sourcePrefixes`, and
@@ -242,10 +243,23 @@ on a `remove` line of a commit plan is not a subject.
 
 ### Rollout switch
 
-| State | Severity of every verdict above |
-|-------|---------------------------------|
+The switch is global (D-6): one state governs every hook verdict above, for
+every file.
+
+| State | Severity of every hook verdict above |
+|-------|--------------------------------------|
 | `ai/doc-coverage-baseline.txt` lists at least one path | exit 1, message prefixed `WARN:` and ending with the switch line |
 | The baseline is empty or absent | exit 2, `BLOCKED:` |
+
+The switch governs the hooks only. The commit-time ratchet does not wait for
+it (D-4): from the phase that writes the first baseline, a new undocumented
+file is refused at commit, while an existing undocumented file stays in the
+baseline and only warns until the switch.
+
+| File | At edit (hook) | At commit (`./le doc coverage check`) |
+|------|----------------|---------------------------------------|
+| Existing undocumented file, listed in the baseline | `WARN:` until the baseline is empty | passes while listed; refused once covered and still listed |
+| New undocumented file, not listed at `HEAD` | `WARN:` until the baseline is empty | refused from day one |
 
 The baseline is written by `./le doc coverage baseline write` and judged by
 `./le doc coverage check`, which `./le doc index check` runs:
@@ -253,7 +267,7 @@ The baseline is written by `./le doc coverage baseline write` and judged by
 | Finding | Why it is refused |
 |---------|-------------------|
 | A listed path is now covered | the list must shrink as pages land; the entry is removed by rerunning the writer |
-| A hard-uncovered path is not listed and was not listed at `HEAD` | a new undocumented file (see D-4) |
+| A hard-uncovered path is not listed and was not listed at `HEAD` | a new undocumented file, refused from day one (D-4) |
 | A listed path was not listed at `HEAD` | the list can only shrink |
 
 ### Refusal texts (text samples, STE)
@@ -308,16 +322,26 @@ off wherever `slogutil.UseColor` turns it off.
 | `baseline write` | rewrites `ai/doc-coverage-baseline.txt` from the hard-uncovered list |
 | `check` | the baseline findings above |
 
-## Open Owner Decisions
+## Owner Decisions
 
-| ID | Question | Options | Recommendation |
-|----|----------|---------|----------------|
-| D-1 | Does a partial read count? | (a) any Read or print of the page; (b) whole page only, like the style guide | (a). `core-design.md` is 168 KB and `functional-tests.md` 216 KB; a whole-read rule makes every edit to the 791 files citing `core-design.md` cost about 47k tokens. Both motivating failures were "never opened", which (a) stops |
-| D-2 | Which pages are required? | (a) declared pages only, anchors listed; (b) declared plus every anchor page | (a). `internal/le/hookruntime/writeedit.go` has 1 declared page and 9 anchor pages |
-| D-3 | Brief gate: what is required? | (a) the spawner read the pages (your words); (b) the brief names the pages; (c) both | (c). (a) alone puts every page into the main thread, against the delegation rule; (b) alone lets the main thread brief without reading. Both are path checks, so the 2026-09-26 "no wording gates" decision holds |
-| D-4 | Is a NEW undocumented file refused at commit from day one? | (a) yes, by `./le doc coverage check`; (b) no, warn only until the baseline is empty | (a). A new file already owes a `// Design:` header under the go-standards rule; without the ratchet the list can grow while the audit shrinks it |
-| D-5 | Does a file whose only page is `core-design.md` (786 files), or only an `ai/` or `rfc/short/` page, count as documented for the switch? | (a) yes, the audit retargets them later; (b) no, they join the baseline (786 more entries) | (a) for the switch, with phase 8 retargeting every one. (b) puts the block months away |
-| D-6 | Global switch or per-file? | (a) global: all verdicts warn until the baseline is empty (your words); (b) per-file: block at once for files not in the baseline | (a), as you said; (b) would start blocking the read gate on covered code on day one |
+Decided by Thomas on 2026-10-17: "go with your recommendations on D-1 to D-6".
+Every row below took the recommended option. None is open.
+
+- → Decision: D-1 (a). Any Read or Bash print of a page counts as a read; a whole-page read is not required
+- → Decision: D-2 (a). Only declared pages are required; anchor pages are listed in the verdict, never required
+- → Decision: D-3 (c). A brief passes only when the spawner read every required page AND the prompt names each one
+- → Decision: D-4 (a). A NEW undocumented file is refused at commit from day one by `./le doc coverage check` over the shrink-only baseline; existing undocumented files are listed in the baseline and only warn until the switch
+- → Decision: D-5 (a). A file whose only page is `core-design.md`, an `ai/` page or an `rfc/short/` page counts as documented for the switch and stays out of the baseline; the Audit B phase retargets every one, and AC-20 still requires 0 core-design-only files
+- → Decision: D-6 (a). The switch is global: every hook verdict warns while the baseline lists any path, and every one blocks once it is empty
+
+| ID | Question | Options | Decided (2026-10-17) | Rationale |
+|----|----------|---------|----------------------|-----------|
+| D-1 | Does a partial read count? | (a) any Read or print of the page; (b) whole page only, like the style guide | (a) | `core-design.md` is 168 KB and `functional-tests.md` 216 KB; a whole-read rule makes every edit to the 791 files citing `core-design.md` cost about 47k tokens. Both motivating failures were "never opened", which (a) stops |
+| D-2 | Which pages are required? | (a) declared pages only, anchors listed; (b) declared plus every anchor page | (a) | `internal/le/hookruntime/writeedit.go` has 1 declared page and 9 anchor pages |
+| D-3 | Brief gate: what is required? | (a) the spawner read the pages (your words); (b) the brief names the pages; (c) both | (c) | (a) alone puts every page into the main thread, against the delegation rule; (b) alone lets the main thread brief without reading. Both are path checks, so the 2026-09-26 "no wording gates" decision holds |
+| D-4 | Is a NEW undocumented file refused at commit from day one? | (a) yes, by `./le doc coverage check`; (b) no, warn only until the baseline is empty | (a) | A new file already owes a `// Design:` header under the go-standards rule; without the ratchet the list can grow while the audit shrinks it |
+| D-5 | Does a file whose only page is `core-design.md` (786 files), or only an `ai/` or `rfc/short/` page, count as documented for the switch? | (a) yes, the audit retargets them later; (b) no, they join the baseline (786 more entries) | (a) | counts for the switch, with the Audit B phase retargeting every one; (b) puts the block months away |
+| D-6 | Global switch or per-file? | (a) global: all verdicts warn until the baseline is empty (your words); (b) per-file: block at once for files not in the baseline | (a) | the owner's own words; (b) would start blocking the read gate on covered code on day one |
 
 ## Audit
 
@@ -393,7 +417,7 @@ the claim tables show every claim with a verdict.
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | No product behavior. Agent edits, plan writes or spawns get refused or slowed; in the warning state nothing is refused |
+| What breaks if this is wrong? | No product behavior. Agent edits, plan writes or spawns get refused or slowed; in the warning state no hook refuses, and only a commit adding a new undocumented file is refused (D-4) |
 | How is it reverted? | single commit revert of the hook change; the settings entry is one block |
 | Who else touches this path? | every session's hooks; `internal/le/hookruntime` and `.claude/settings.json` are shared with all agents |
 
@@ -426,7 +450,7 @@ the claim tables show every claim with a verdict.
 | AC-9 | A spec Write naming three source paths, one page unread | one verdict listing that page under the path that needs it |
 | AC-10 | A spec Edit whose `new_string` names no path | passes, whatever the rest of the spec names |
 | AC-11 | A spec naming a path that does not exist yet | judged by the nearest existing directory |
-| AC-12 | An Agent spawn whose prompt names a path with an unread page, or does not name that page | refused under the switch (per D-3) |
+| AC-12 | An Agent spawn whose prompt names a path with an unread page, or does not name that page | refused under the switch (D-3 (c): both conditions are required) |
 | AC-13 | Writes under `plan/journal/`, `plan/handover/`, `plan/design/` | judged like a spec |
 | AC-14 | No usable session id, baseline empty | refused with the id message; baseline non-empty: warned |
 | AC-15 | `./le doc coverage report` on the tree of 2026-10-17 | reproduces the Measured Gap counts, or names each difference and its cause |
@@ -558,7 +582,7 @@ N-A: tooling, no protocol peer.
    - Verify: wiring tests fail on the stub verdicts; run the A-1 probe and record its result here
 2. **Phase: Coverage producer** - one header parser, the path classes, the report, the baseline writer and check; `citation` and `consistency` use it
    - Tests: the `TestCoverage*` and `TestBaseline*` rows, `BenchmarkCoveragePath`
-   - Verify: AC-15, AC-16, AC-17; write the first baseline; README and navigating page edited in this phase
+   - Verify: AC-15, AC-16, AC-17; write the first baseline, from which commit `./le doc index check` refuses every new undocumented file (D-4); README and navigating page edited in this phase
 3. **Phase: Read ledger** - `hookSourceRead` and `bashDocRead`
    - Tests: AC-1 to AC-3 rows
 4. **Phase: Code-edit gates** - `writeDocsCovered`, `writeDocsRead` for code, the switch, the messages
@@ -630,6 +654,12 @@ N-A: tooling, no protocol peer.
 | Shrink-only tracked baseline as the switch | a constant flipped by hand; computing the tree-wide count on every hook call | the count costs a full walk per call; a constant is a second declaration of the count |
 | Ancestor anchors do not cover | count them | `test/` -> `chaos-testing.md` would cover every test file |
 | Audit record in this spec | a new ledger directory | no new artifact; history keeps the table after closure |
+| Any Read or print counts as a read (D-1) | whole-page read only | whole reads of `core-design.md` cost about 47k tokens per edit; both motivating failures were "never opened" |
+| Declared pages required, anchors listed (D-2) | anchors required too | a file can carry many anchor pages (`writeedit.go` has 9) |
+| A brief needs both the spawner's read and the pages named (D-3) | read only; named only | read only pulls every page into the main thread; named only lets a brief be written unread |
+| New undocumented files refused at commit from day one (D-4) | warn until the baseline is empty | without the ratchet the list grows while the audit shrinks it |
+| `core-design.md`-only, `ai/` and `rfc/short/` files count for the switch (D-5) | list them in the baseline | 786 more entries would put the block months away; the audit retargets them |
+| One global switch (D-6) | per-file blocking | per-file would block the read gate on covered code on day one |
 
 ## Known Limitations
 - Go written through a Bash heredoc reaches no Write/Edit hook (R-6); the commit-time ratchet still sees a new uncovered file.
