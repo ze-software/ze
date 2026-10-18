@@ -34,6 +34,52 @@ the phase agent at its 100-call budget.
   `TestDHCPv6LeaseBindingsCapped`. Names use `RFC9915`, carry NO
   `RFC requirement:` tags (RFC 9915 not enrolled yet).
 
+## Continuation 2026-10-18 (second phase agent): written, green, NOT committed
+
+Commit blocked: `cmd/ze/hub/main.go` carries another session's hunk
+(`loadResult.StampRelease` in `runYANGConfig`, Phase 1b) whose field lives in
+the uncommitted `internal/component/config/loader.go`, so the file cannot land
+without it. Commit the list below once that hunk is in HEAD.
+
+- A-7 (owner, verbatim: "yes, track DNS servers per source"; spec Q8, Key
+  Design Decisions, A-7 confirmed). `internal/component/config/system/resolv.go`
+  (new): `Resolvers`, the only resolv.conf writer, `ProcessResolvers()`,
+  `Configure(path, static)`, `SetLease(source, servers)`; static alone when set
+  (RFC 3646 Section 6), else DHCPv4 then DHCPv6 sources by interface then unit,
+  deduplicated; `written` guard leaves a file ze never wrote alone.
+  `resolv_linux.go`/`resolv_other.go`: `writeResolvFile`; `WriteResolvConf`
+  deleted. `internal/plugins/iface/dhcp/resolv_linux.go`: `setV4Resolvers`,
+  `setV6Resolvers` (RFC 2132 3.8, RFC 3646 3, RFC 9915 18.2.10.5 quoted);
+  `writeResolvConfTo`, `clearResolvConfAt`, `v6Worker.writeDNS`,
+  `dHCPConfig.ResolvConfPath`/`HasStaticNameServers`,
+  `iface.SetDHCPSystemConfig` and two factory params deleted. Withdrawals in
+  `teardownV4`, `v6Worker.maintain` (lease empty), `v6Worker.shutdown`;
+  `v6Lease.apply` now replaces DNS with what each Reply carries. Hub:
+  `main.go`, `main_system.go` `applyResolvConf` (reload now also withdraws).
+  `internal/le/arch/fspersistence/fspersistence.go`: stale dhcp rule removed.
+  Docs: `docs/features/dns-resolver.md`, `docs/guide/configuration.md`,
+  `docs/features/interfaces.md`. `rfc/full/rfc3646.txt` fetched.
+  Tests: `internal/component/config/system/resolv_test.go` (5 tests),
+  `internal/plugins/iface/dhcp/resolv_linux_test.go`
+  (`TestRFC9915Section182105RenewWithoutDNSStopsUsingIt`,
+  `TestDHCPv6LeaseEndWithdrawsItsDNS`, `TestDHCPv4TeardownWithdrawsItsDNS`).
+  Forced red observed for all four behaviors (restore -> green).
+- Phase 5: `duid` pattern `[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){2,129}` (type code
+  + 1..128 octets, RFC 9915 Section 11.1; the old "2..130" note was wrong) in
+  `internal/component/iface/yang/ze-iface-conf.yang`;
+  `TestDHCPv6DUIDPatternRefusesMalformed` in `config_test.go`, red without the
+  pattern. Docs paragraph in `docs/features/interfaces.md`.
+- Journal: `registry-contamination.md` new open row (iface tests fail at
+  `-count=2`); status updates in `reconciler-claims-state-another-owner-installed.md`
+  and `silent-fall-through.md` (items 9 below done).
+- Green: `go test -race -count=1` over `iface/dhcp`, `config/system`,
+  `component/iface`, `component/config`, `cmd/ze/hub`; arch tier,
+  fs-persistence, iface-resolution all exit 0.
+
+Still owed from the list below: 1 (enrolment, tags, discrimination records,
+`// RFC:` headers), 3 (veth test), 4 (Kea interop), 6 for the phase-2..4 unit
+tests, 7 (gates), 8 (A-1, A-2, A-3, A-8, A-9).
+
 ## Remaining (nothing here is optional)
 
 1. Phase 1: enrol RFC 9915 per `/ze-rfc` (whole document; server/relay
