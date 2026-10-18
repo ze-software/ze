@@ -5,6 +5,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -428,14 +429,29 @@
       "verdict": "unimplemented"
     },
     "RFC7950-9.1-1": {
-      "note": "Re-judged 2026-10-18 (independent auditor, after 2e4be94ae3). Read at rfc/full/rfc7950.txt Section 9.1: \"Implementations MUST support all lexical representations specified in this document.\" The prior judgement's reason is gone: canonicalUnionDefault now checks each member with ValidateLeafType(leaf, ...), so a union default read by its leafref member loads; the new tag TestRFC7950UnionDefaultLeafrefMember discriminates it (overlay mutant passing nil for the leaf turned it red). The other units changed only from validateYangType to ValidateType, which is the same call (validateLeafValue with no leaf), and stand: hex and octal integer defaults (an overlay probe also confirmed default 010 is the value 8 in the reference walk), signed integer forms, decimal64, binary, bits, leafref lexical. Still weak on the whole sentence: Section 14 defines the instance-identifier leaf-list-predicate form \"leaf-list-predicate-expr = \".\" *WSP \"=\" *WSP quoted-string\", and no test in the suite asserts it is accepted: an overlay mutant disabling the '.' branch of readInstancePredicates (validator_reference.go) left the whole internal/component/config/yang package green. One accepted [.='value'] assertion, tagged here, would make the row enforceable.",
+      "code": {
+        "internal/component/config/yang/module_default.go::canonicalUnionDefault": "6cfa917e5b389c32",
+        "internal/component/config/yang/module_default.go::parseModuleInteger": "49846f62995b2104",
+        "internal/component/config/yang/validator.go::validateDecimal64": "b651924246aed6a1",
+        "internal/component/config/yang/validator.go::validateUnsigned": "182b1d095f9756b3",
+        "internal/component/config/yang/validator_instance.go::canonicalValue": "faf0388ce1d592e4",
+        "internal/component/config/yang/validator_instance.go::instanceExists": "72a523748710ddec",
+        "internal/component/config/yang/validator_lexical.go::validateBinary": "52ec8f679dbcc137",
+        "internal/component/config/yang/validator_lexical.go::validateBits": "0e5b7fe719af3155",
+        "internal/component/config/yang/validator_reference.go::readEqualsQuoted": "3e9ebc0a21b5ca70",
+        "internal/component/config/yang/validator_reference.go::readInstancePredicates": "548f4da19af2f28e",
+        "internal/component/config/yang/validator_reference.go::validateLeafref": "b1028ac7134c905f"
+      },
+      "note": "Re-judged 2026-10-18 (independent auditor, after 8a404499d5). Read at rfc/full/rfc7950.txt Section 9.1: \"Implementations MUST support all lexical representations specified in this document.\" The prior weak verdict's only reason was the unproven instance-identifier leaf-list-predicate form (Section 14: \"leaf-list-predicate-expr = \\\".\\\" *WSP \\\"=\\\" *WSP quoted-string\"; Section 9.13.4 example \"/ex:system/ex:services/ex:ssh/ex:cipher[.='blowfish-cbc']\"). TestRFC7950InstanceIdentifierLeafListPredicate now asserts [.='blue'] and the spaced double-quoted [ . = \"blue\" ] are accepted by validateLeafValue and by ValidateReferences (the call validate_sections.go makes on every config validate/commit), and TestRFC7950InstanceIdentifierLeafListPredicateAbsent asserts [.='green'] parses yet is refused as absent; both claims state exactly what the bodies assert. Targeted overlay mutants (tags ze_core ze_bgp), beyond the recorded whole-body halts: disabling the '.' branch of readInstancePredicates reddened both tests; dropping the *WSP skip in readEqualsQuoted reddened the positive (spaced form); making instanceExists answer true for any leaf-list predicate value reddened the negative. All 14 tagged units pass at HEAD in both packages. The units carried from the prior judgement (hex/octal and signed integers, decimal64, binary, bits, leafref lexical, union default via leafref member) still stand. Observed, not denying this row: a present leaf-list or list key is matched against the predicate value as raw text (instanceExists slices.Contains, instanceKeysMatch), while an absent default is matched canonically (absentLeafInUse canonicalValue), so for uint8 [.='+17'] matches a default 17 but not a configured 17 (overlay probe); one of the two paths is wrong and they should agree.",
       "requirement_sha": "75762b5ffc3b2a55",
       "tests": {
         "internal/component/config/rfc7950_yang_schema_integer_default_test.go::TestRFC7950IntegerModuleDefaultHexAndOctal": "cf3e89ed71ea75d8",
         "internal/component/config/rfc7950_yang_schema_integer_default_test.go::TestRFC7950IntegerModuleDefaultMalformedNotation": "cf3e89ed71ea75d8",
         "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950LeafrefLexical": "7a99f94316d0bbbd",
         "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950ReferenceTypesLoad": "7a99f94316d0bbbd",
-        "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950UnionDefaultLeafrefMember": "50ccb6bbabc8b5ac",
+        "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierLeafListPredicate": "3f6eac60c1ecbc0c",
+        "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierLeafListPredicateAbsent": "3f6eac60c1ecbc0c",
+        "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950UnionDefaultLeafrefMember": "3f6eac60c1ecbc0c",
         "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Accepted": "3642eefa967e28a1",
         "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Refused": "3642eefa967e28a1",
         "internal/component/config/yang/rfc7950_validator_integer_test.go::TestRFC7950IntegerSignedLexicalForms": "0c343a46c2157a6b",
@@ -449,6 +465,8 @@
         "internal/component/config/rfc7950_yang_schema_integer_default_test.go::TestRFC7950IntegerModuleDefaultMalformedNotation": "141712d043060a49",
         "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950LeafrefLexical": "5f38dab6aeaa1f46",
         "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950ReferenceTypesLoad": "bfc9c664887fc7ad",
+        "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierLeafListPredicate": "8b7613627b9c8501",
+        "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierLeafListPredicateAbsent": "93d4b0118fd1a752",
         "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950UnionDefaultLeafrefMember": "6af05ef9f484efa9",
         "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Accepted": "5ad825c9eb6695a9",
         "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Refused": "feca642954e7f5f0",
@@ -458,7 +476,7 @@
         "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BitsAccepted": "457cb8b030ff29aa",
         "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BitsRefused": "afb283aeba1e4ac5"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7950-9.1-2": {
       "note": "Re-judged 2026-10-18 (independent auditor, after 2e4be94ae3). Read at rfc/full/rfc7950.txt Section 9.1: \"If the data type does not have a canonical form, the format of the value MUST match the data type's lexical representation, but the exact format is implementation dependent.\" The types are identityref (Section 9.10.4) and instance-identifier (Section 9.13.3). Both prior findings are fixed. (1) Section 9.13.2 \"All node names in an instance-identifier value MUST be qualified with explicit namespace prefixes\": checkInstanceKeyPrefix now refuses an unprefixed or foreign key prefix; TestRFC7950InstanceIdentifierKeyPrefix (negative) asserts both messages and the accepted rf:name form, and overlay mutants dropping the empty-prefix branch and the entryPrefixed branch each turned it red. (2) Cascade confounding: TestRFC7950IdentityrefFormat now asserts the format check's own message, and TestRFC7950InstanceIdentifierLexical asserts 'not an instance-identifier' for rf:sys and the unprefixed-node message for /sys/mgmt; overlay mutants removing the identifierRefLength check and the leading-slash check turned each red. A probe of further malformed values (rf:1aes, rf:, :aes, trailing space, //rf:sys, an unquoted key value, [0], mismatched and embedded quotes, a space between steps) found each refused with ErrTypeType.",
@@ -466,7 +484,7 @@
       "tests": {
         "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950IdentityrefFormat": "7a99f94316d0bbbd",
         "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950InstanceIdentifierLexical": "7a99f94316d0bbbd",
-        "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierKeyPrefix": "50ccb6bbabc8b5ac"
+        "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierKeyPrefix": "3f6eac60c1ecbc0c"
       },
       "units": {
         "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950IdentityrefFormat": "4f5b5bf5fde7c377",
