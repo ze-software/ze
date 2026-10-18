@@ -549,7 +549,7 @@ Each route receives one of three ASPA states:
 
 1. The RTR session starts at v2. If the cache names supported v1 in an Unsupported Version response, Ze reconnects at v1; ASPA records are unavailable at that version.
 2. The cache sends ASPA PDUs alongside VRPs. An announcement replaces the provider list for one customer AS; a 12-byte withdrawal removes that customer's complete record. An AS0-only list means no authorized providers. AS0 mixed with other providers is an RTR error.
-3. The BGP receive path checks the first AS against the neighbor after AS4 reconstruction. A mismatch is treated as withdrawal, except on a local transparent route-server-client session. AS_SET handling follows the receive path's RFC 9774 policy; when an AS_SET reaches ASPA verification, its result is Invalid.
+3. The BGP receive path checks the first AS against the neighbor after AS4 reconstruction. A mismatch is treated as withdrawal, except on a local transparent route-server-client session. The receive path does not apply RFC 9774 yet, so a route whose AS_PATH holds an AS_SET is accepted; when it reaches ASPA verification, its result is Invalid.
 4. ASPA removes consecutive duplicate ASNs. Upstream verification checks authorization from origin toward neighbor; downstream verification compares the authorized and possible ramps from both ends of the path.
 5. The result appears as `"aspa-state"` in the RPKI event JSON.
 
