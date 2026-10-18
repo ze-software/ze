@@ -9,8 +9,10 @@ package ifacevpp
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
+	interfaces "go.fd.io/govpp/binapi/interface"
 	"go.fd.io/govpp/binapi/interface_types"
 
 	"github.com/ze-software/ze/internal/component/iface"
@@ -51,6 +53,12 @@ func TestCreateEmitsCreatedEvent(t *testing.T) {
 			name: "vlan",
 			create: func(b *vppBackendImpl) error {
 				b.names.Add("xe0", 3, "xe0")
+				parent := interfaces.SwInterfaceDetails{SwIfIndex: 3, SupSwIfIndex: 3, LinkMtu: 1500, Mtu: []uint32{1500, 0, 0, 0}}
+				ch, ok := b.ch.(*progChannel)
+				if !ok {
+					return fmt.Errorf("channel is %T, want *progChannel", b.ch)
+				}
+				ch.swDetails = []interfaces.SwInterfaceDetails{parent}
 				return b.CreateVLAN(iface.VLANSpec{Parent: "xe0", VLANID: 100})
 			},
 			wantName: "xe0.100",

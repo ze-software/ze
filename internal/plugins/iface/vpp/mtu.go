@@ -33,7 +33,9 @@ import (
 // and a larger one is refused naming the link MTU. A sub-interface has no link
 // of its own: VPP reports its parent's, which bounds it the same way. A link
 // MTU of 0 is an interface that states no frame limit, as VPP's GRE and
-// WireGuard interfaces do.
+// WireGuard interfaces do. A driver that changes the frame size of a stopped
+// port only answers busy to a raise; raiseStoppedLink retries it with the port
+// stopped.
 func (b *vppBackendImpl) SetMTU(ifaceName string, mtu int) error {
 	if mtu < 68 {
 		return fmt.Errorf("ifacevpp: MTU %d out of range (68-65535)", mtu)
@@ -60,6 +62,16 @@ func (b *vppBackendImpl) SetMTU(ifaceName string, mtu int) error {
 	if err == nil {
 		return b.setProtocolMTU(idx, mtu)
 	}
+	if errors.Is(err, api.BUSY) {
+		return b.raiseStoppedLink(ifaceName, details, mtu, err)
+	}
+	return b.serveRefusedLink(ifaceName, idx, mtu, linkMTU, err)
+}
+
+// serveRefusedLink answers a link MTU change VPP did not make. A failure to
+// reach VPP is returned as it is. A refusal fails an MTU above the link, and
+// an MTU the link already carries takes the protocol MTU alone.
+func (b *vppBackendImpl) serveRefusedLink(ifaceName string, idx interface_types.InterfaceIndex, mtu, linkMTU int, err error) error {
 	var refusal api.VPPApiError
 	if !errors.As(err, &refusal) {
 		return err
@@ -68,6 +80,72 @@ func (b *vppBackendImpl) SetMTU(ifaceName string, mtu int) error {
 		return linkRefusal(ifaceName, mtu, linkMTU, refusal)
 	}
 	return b.setProtocolMTU(idx, mtu)
+}
+
+// raiseStoppedLink retries a link MTU raise that the driver refused as busy,
+// with the port stopped. Some DPDK drivers change the frame size of a stopped
+// port only: i40e_dev_mtu_set (DPDK 24.11) answers -EBUSY while
+// dev->data->dev_started is set, and VPP 25.10's dpdk_set_max_frame_size
+// returns that as VNET_ERR_BUSY ("port is running"). VPP stops the DPDK port
+// when the interface goes admin down (dpdk_interface_admin_up_down calls
+// dpdk_device_stop) and starts it again on admin up, so the retry sets the
+// interface down, raises the link, and sets it up again whatever the raise
+// answered. A port left down is reported as such, never as a refusal.
+//
+// The stop interrupts the link, so it happens only when it is needed: an MTU
+// the link already carries is served by the protocol MTU alone, as for any
+// other refusal, and a port that is already down is not touched.
+func (b *vppBackendImpl) raiseStoppedLink(ifaceName string, details *interfaces.SwInterfaceDetails, mtu int, busy error) error {
+	idx, linkMTU := details.SwIfIndex, int(details.LinkMtu)
+	if !exceedsLink(mtu, linkMTU) {
+		return b.serveRefusedLink(ifaceName, idx, mtu, linkMTU, busy)
+	}
+	if details.Flags&interface_types.IF_STATUS_API_FLAG_ADMIN_UP == 0 {
+		return b.serveRefusedLink(ifaceName, idx, mtu, linkMTU, busy)
+	}
+	loggerPtr.Load().Info("ifacevpp: driver changes the frame size of a stopped port only, setting it down to raise its link MTU",
+		"interface", ifaceName, "mtu", mtu, "link-mtu", details.LinkMtu)
+	if err := b.SetAdminDown(ifaceName); err != nil {
+		return fmt.Errorf("ifacevpp: interface %s: the driver raises its link MTU only on a stopped port, "+
+			"and setting it down failed: %w", ifaceName, err)
+	}
+	raised := b.setLinkMTU(idx, mtu)
+	if err := b.SetAdminUp(ifaceName); err != nil {
+		return fmt.Errorf("ifacevpp: interface %s is left admin down: it was set down to raise its link MTU to %d, "+
+			"and setting it up again failed: %w; commit again to bring it up", ifaceName, mtu, err)
+	}
+	if raised != nil {
+		return b.serveRefusedLink(ifaceName, idx, mtu, linkMTU, raised)
+	}
+	return b.setProtocolMTU(idx, mtu)
+}
+
+// inheritParentMTU gives a sub-interface VPP has just created its parent's
+// MTU. CreateVlanSubif builds the sub-interface from a zeroed template
+// (vl_api_create_vlan_subif_t_handler, VPP 25.10), so its L3 MTU is 0, and
+// vnet_sw_interface_get_mtu reads 0 as 9000: over a 1500 parent it would send
+// frames the parent cannot carry. Linux gives a new VLAN its parent's MTU, and
+// this does the same, so a parent with no mtu leaf still bounds its VLANs.
+// VPP's own hardware MTU walk keeps the value in step when the parent's link
+// MTU later changes.
+//
+// The parent's L3 MTU is the MTU it carries; a parent whose L3 MTU is unset
+// carries its link MTU. A parent that states neither is read as 9000 by VPP,
+// the same answer the sub-interface gets, so it is left as it is: that zero is
+// a guard, the one case with no MTU to inherit.
+func (b *vppBackendImpl) inheritParentMTU(parentIdx, subIdx interface_types.InterfaceIndex) error {
+	parent, err := b.dumpByIndex(parentIdx)
+	if err != nil {
+		return err
+	}
+	mtu := int(parent.LinkMtu)
+	if len(parent.Mtu) > 0 && parent.Mtu[0] > 0 {
+		mtu = int(parent.Mtu[0])
+	}
+	if mtu == 0 {
+		return nil
+	}
+	return b.setProtocolMTU(subIdx, mtu)
 }
 
 // exceedsLink reports whether mtu is larger than a link that states a limit.

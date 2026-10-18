@@ -310,8 +310,10 @@ device appears, and a config is validated on machines that will never run it.
   commit sets each VLAN sub-interface of an ethernet entry with an `mtu` to that
   MTU, and a VLAN already at it gets no call. Neither backend does it alone: Linux
   gives a VLAN its parent's MTU when it is created and keeps it when the parent's
-  later rises (it caps it when the parent's falls), and VPP creates a sub-interface
-  with no MTU of its own. An entry with no `mtu` leaf leaves its VLANs alone.
+  later rises (it caps it when the parent's falls), and VPP rewrites a
+  sub-interface's MTU only when its parent's link MTU changes, not when the
+  parent takes a protocol MTU alone. An entry with no `mtu` leaf leaves its VLANs
+  alone; each backend still creates a VLAN at its parent's MTU.
 - **An omitted `mtu` leaves the device's MTU alone.** The schema declares no MTU
   default, because each kind has its own: a device ze creates keeps the kernel's
   value, 1500 for a dummy, veth or bridge, 1420 for wireguard, and the underlay
@@ -1160,7 +1162,30 @@ interface whose frame size VPP cannot change (a loopback, a tunnel) takes the
 protocol MTU alone, up to the link MTU it reports, and a sub-interface is bounded
 by its parent's link MTU.
 
-<!-- source: internal/plugins/iface/vpp/mtu.go -- SetMTU, setLinkMTU, setProtocolMTU, linkRefusal -->
+Some DPDK drivers change the frame size of a stopped port only: i40e answers
+`EBUSY` while the port runs, and VPP relays it as `Busy`. A raise that meets that
+answer on an interface that is admin up is retried with the port stopped: Ze sets
+the interface down, raises the link, and sets it up again, which interrupts the
+link for that moment. An MTU the link already carries never stops the port, since
+the protocol MTU serves it, and an interface left down because VPP would not set
+it up again fails the commit saying so.
+
+A VLAN sub-interface Ze creates in VPP takes its parent's MTU: VPP creates it with
+an MTU of 0, which it reads as 9000, so without this a parent with no `mtu` leaf
+at 1500 would carry a 9000 VLAN. A sub-interface whose MTU VPP refuses is deleted
+and the create fails.
+
+Ze sets no MTU on a linux-cp tap itself. With `lcp sync` true, the default, VPP's
+linux-cp copies every MTU change of a paired interface to its tap, on the VPP
+side and on the Linux side, and gives a sub-interface with no MTU its parent's
+(`lcp_itf_mtu_change` and `lcp_itf_pair_sync_state` in
+`src/plugins/linux-cp/lcp_interface_sync.c`, VPP 25.10). With `lcp sync false`
+the tap keeps the MTU it was created with, which is the drift that leaf
+describes.
+
+<!-- source: internal/plugins/iface/vpp/mtu.go -- SetMTU, setLinkMTU, setProtocolMTU, linkRefusal, raiseStoppedLink, inheritParentMTU -->
+<!-- source: internal/plugins/iface/vpp/ifacevpp.go -- CreateVLAN -->
+<!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf -->
 
 Use the VPP backend when VPP owns the dataplane. Use netlink elsewhere.
 Routes, stats, counter reset, neighbour table, mirrors, and STP are the

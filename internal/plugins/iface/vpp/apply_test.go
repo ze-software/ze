@@ -62,6 +62,11 @@ type progChannel struct {
 	// then a final (last=true) terminates the dump.
 	wgIfaceDetails []wireguard.WireguardInterfaceDetails
 	wgPeerDetails  []wireguard.WireguardPeersDetails
+
+	// swDetails answers SwInterfaceDump, filtered by the requested index the
+	// way VPP filters it. CreateVLAN dumps the parent to give the new
+	// sub-interface its MTU, so a test that creates a VLAN lists the parent.
+	swDetails []interfaces.SwInterfaceDetails
 }
 
 var _ api.Channel = (*progChannel)(nil)
@@ -73,7 +78,7 @@ func (c *progChannel) SendRequest(msg api.Message) api.RequestCtx {
 
 func (c *progChannel) SendMultiRequest(msg api.Message) api.MultiRequestCtx {
 	c.requests = append(c.requests, msg)
-	switch msg.(type) {
+	switch dump := msg.(type) {
 	case *wireguard.WireguardInterfaceDump:
 		ctx := &progMultiCtx{}
 		for i := range c.wgIfaceDetails {
@@ -86,6 +91,15 @@ func (c *progChannel) SendMultiRequest(msg api.Message) api.MultiRequestCtx {
 		for i := range c.wgPeerDetails {
 			d := c.wgPeerDetails[i]
 			ctx.details = append(ctx.details, &d)
+		}
+		return ctx
+	case *interfaces.SwInterfaceDump:
+		ctx := &progMultiCtx{}
+		for i := range c.swDetails {
+			d := c.swDetails[i]
+			if d.SwIfIndex == dump.SwIfIndex {
+				ctx.details = append(ctx.details, &d)
+			}
 		}
 		return ctx
 	default:
@@ -165,6 +179,10 @@ func (m *progMultiCtx) ReceiveReply(msg api.Message) (bool, error) {
 		}
 	case *wireguard.WireguardPeersDetails:
 		if src, ok := m.details[m.idx].(*wireguard.WireguardPeersDetails); ok {
+			*dst = *src
+		}
+	case *interfaces.SwInterfaceDetails:
+		if src, ok := m.details[m.idx].(*interfaces.SwInterfaceDetails); ok {
 			*dst = *src
 		}
 	}

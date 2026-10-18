@@ -12,6 +12,7 @@
 package ifacevpp
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/netip"
@@ -354,6 +355,12 @@ func (b *vppBackendImpl) CreateVLAN(spec iface.VLANSpec) error {
 	var bSub textbuf.Buffer
 	subName := bSub.Reset().Str(spec.Parent).Byte('.').Int(int64(spec.VLANID)).String()
 	b.names.Add(subName, uint32(subIdx), subName)
+	if err := b.inheritParentMTU(parentIdx, subIdx); err != nil {
+		// The caller reads a failed create whose interface exists as one that
+		// already existed, so a sub-interface left behind here would keep the
+		// MTU VPP reads as 9000 with nothing recorded to remove it.
+		return errors.Join(fmt.Errorf("ifacevpp: %s mtu: %w", subName, err), b.DeleteInterface(subName))
+	}
 
 	if len(spec.IngressQoSMap) > 0 || len(spec.EgressQoSMap) > 0 {
 		if err := b.enableVLANQoS(subIdx, spec); err != nil {
