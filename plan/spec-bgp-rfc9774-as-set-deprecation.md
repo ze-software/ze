@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 1/5 |
 | Handoff | verify |
 | Updated | 2026-10-18 |
 
@@ -166,12 +166,12 @@ the recommendations put to him, with Q-4 answered (b) as recorded below.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Ze never originates an AS_SET itself | text/config AS_PATH parsers return flat `[]uint32`; no aggregation code under `internal/component/bgp` or `internal/plugins` (grep "aggregat" outside AGGREGATOR/ATOMIC) | send guard would also fire on Ze's own routes, which is still correct but changes the story | grep in phase 1, recorded in the summary | unvalidated |
-| A-2 | Every transmitted UPDATE, `raw` included, passes through `writeUpdateBody` | its comment and the AIGP guard placement; `writeRawUpdateBody` calls it | a producer bypassing it would advertise a set | `gopls call_hierarchy` on `writeUpdateBody` and grep for other `bufWriter` writers of type UPDATE | unvalidated |
-| A-3 | A withdrawal body re-entering `writeUpdateBody` keeps Adj-RIB-Out ownership consistent, and a withdrawal of a prefix the peer never held is suppressed | `ownership.filter` / "announce suppressed: peer holds the final wire advertisement" in `writeUpdateBody` | spurious withdrawals on the wire, or `show` adj-rib-out listing a route the peer never got | unit test AC-9 (no UPDATE for a never-held prefix) and AC-10 (withdrawal for a held one) | unvalidated |
+| A-2 | Every transmitted UPDATE, `raw` included, passes through `writeUpdateBody` | its comment and the AIGP guard placement; `writeRawUpdateBody` calls it | a producer bypassing it would advertise a set | `gopls call_hierarchy` on `writeUpdateBody` and grep for other `bufWriter` writers of type UPDATE | confirmed 2026-10-18: callers are `writeRawUpdateBody` (relay, `sendRawUpdateBody`), `writeOriginatedRawUpdate` (`writeMessageWithin` for every parsed UPDATE, `SendRawMessage` with raw=true) and the AIGP re-entry; the other `bufWriter.Write` sites carry non-UPDATE packets only (`SendRawMessage` full-packet branch routes UPDATE to `writeOriginatedRawUpdate`) |
+| A-3 | A withdrawal body re-entering `writeUpdateBody` keeps Adj-RIB-Out ownership consistent, and a withdrawal of a prefix the peer never held is suppressed | `ownership.filter` / "announce suppressed: peer holds the final wire advertisement" in `writeUpdateBody` | spurious withdrawals on the wire, or `show` adj-rib-out listing a route the peer never got | unit test AC-9 (no UPDATE for a never-held prefix) and AC-10 (withdrawal for a held one) | confirmed 2026-10-18: `TestRFC9774SendASSetWrittenAsWithdrawal` never-held (no announcement on the wire) and held-then-replaced (exactly the clean announcement then one withdrawal) |
 | A-4 | `SynthesizeWithdrawFamilies` can be driven with send-side predicates | its signature takes `accept` and `addPath` functions; receive passes `mpFamilyDispatchable`, `mpAddPathReceiveWire` | a send-side ADD-PATH body would be mis-framed | test with ADD-PATH negotiated for send | unvalidated |
 | A-5 | FRR 10.3.1 has `bgp reject-as-sets` and accepts an AS_SET when it is off | FRR command reference (not verified in this checkout) | scenario cannot use FRR as an accepting judge; fall back to GoBGP or BIRD | first scenario run; record FRR's `show bgp` with the knob off | unvalidated |
 | A-6 | The caller's note "FRR 10.5 rejects them by default" does not bind the pinned 10.3.1 image | `run.go` pins 10.3.1 | none, the scenario sets the knob explicitly either way | scenario config states the knob | unvalidated |
-| A-7 | Scanning a set in AS4_PATH is safe without a full RFC 6793 Section 6 structure check | `validateAS4PathAttr` comment; `asPathHoldsASZero` bounded walk | a misframed AS4_PATH could be misread | scan judges only a fully framed AS4_PATH; a misframed one is left as today (unit test) | unvalidated |
+| A-7 | Scanning a set in AS4_PATH is safe without a full RFC 6793 Section 6 structure check | `validateAS4PathAttr` comment; `asPathHoldsASZero` bounded walk | a misframed AS4_PATH could be misread | scan judges only a fully framed AS4_PATH; a misframed one is left as today (unit test) | confirmed 2026-10-18: `TestValidateAS4PathRejectsSetSegments` misframed case draws no verdict |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
