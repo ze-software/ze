@@ -294,6 +294,12 @@ type RIBManager struct {
 	// can land a concurrent election there. Production leaves it nil.
 	purgeRemoveHook func(fam family.Family, pfx netip.Prefix)
 
+	// removals is the recovery-removal dispatcher, nil until the run function
+	// starts it and after it stops it. recoveryPending holds the removals it
+	// has not sent yet (rib_sent_lifecycle.go, R-12). Both under peerMu.
+	removals        *recoveryRemovals
+	recoveryPending []sentLifecycleWrite
+
 	// ribInPool stores routes received FROM non-BGP protocols (e.g. BMP),
 	// keyed by source protocol then protocol-defined peer key. BMP keys are
 	// composite "router:peerIP" strings (see bmpCompositeKey and
@@ -750,6 +756,9 @@ func runRIBPlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
+	// Started before events flow; stopped after Run has drained delivery.
+	r.startRecoveryRemovals(ctx, r.sendRecoveryRemoval)
+	defer r.stopRecoveryRemovals()
 	err := p.Run(ctx, &sdk.Registration{
 		// WantsConfig: receive the bgp subtree at Stage 2 and on every reload
 		// that changes it, for the config transaction (config_tx.go).
@@ -792,11 +801,17 @@ func (r *RIBManager) updateRoute(peerSelector string) {
 // updateRouteWithMeta sends a route update command with metadata to matching peers.
 // Used by sendRoutes and resendRoutesWithCursor to carry stale level through to egress filters.
 func (r *RIBManager) updateRouteWithMeta(peerSelector, command string, meta map[string]any) error {
+	return r.updateRouteWithMetaContext(context.Background(), peerSelector, command, meta)
+}
+
+// updateRouteWithMetaContext is updateRouteWithMeta under a caller's context,
+// so a caller that owns a lifecycle can cancel the RPC in flight.
+func (r *RIBManager) updateRouteWithMetaContext(parent context.Context, peerSelector, command string, meta map[string]any) error {
 	if r.updateHook != nil {
 		r.updateHook(command, meta)
 		return nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(parent, 10*time.Second)
 	defer cancel()
 	_, _, err := r.plugin.UpdateRouteWithMeta(ctx, peerSelector, command, meta)
 	if err != nil {
@@ -907,6 +922,7 @@ func (r *RIBManager) handleSent(event *Event) {
 	sourceMessageID, _ := event.RouteMeta["source-message-id"].(float64)
 	_, configStatic := event.RouteMeta["config-static"]
 	_, replay := event.RouteMeta[metaKeyReplay]
+	_, recovery := event.RouteMeta[bgptypes.RecoveryWriteMeta]
 
 	r.peerMu.Lock()
 	defer r.peerMu.Unlock()
@@ -921,7 +937,7 @@ func (r *RIBManager) handleSent(event *Event) {
 		r.storeSentEntries(peerAddr, fam, event.GetRawNLRIBytes(fam), event.AddPath[fam],
 			ribOutEntry{MsgID: msgID, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: uint64(sourceMessageID),
 				NextHop: sentFamilyNextHop(event, fam), SourceID: sourceID, SourceOwner: sourceOwner,
-				LocalOrigin: localOrigin}, sourcePeer, replay, sourcePaths, 0)
+				LocalOrigin: localOrigin}, sourcePeer, replay, recovery, sourcePaths, 0)
 	}
 
 	for fam, ops := range event.FamilyOps {
@@ -973,6 +989,9 @@ func (r *RIBManager) handleSent(event *Event) {
 						_ = pool.RibOut.AddRef(attrHandle)
 					}
 					r.ribOut[peerAddr][fam][key] = stored
+					if recovery {
+						r.projectRecoveryWriteLocked(peerAddr, fam, key)
+					}
 				}
 			case routeaction.Del:
 				if len(event.GetRawWithdrawnBytes(fam)) > 0 {

@@ -89,3 +89,22 @@ order: Phase 2b (its own commit, the spec puts it before Phase 3), then
 Phase 3. `process.TestRecoveryQueuedDeliveryTransport` was red in setup
 ("invalid value for receive: update", a derived-binding refusal) with another
 session's uncommitted `plugin/registry/registry.go` in the tree; not this change.
+
+Update (2026-10-18, later): that process red is a missing build tag, not a
+code defect. The test runs green with `ze_bgp` (journal row in
+`plan/journal/feature-test-missing-build-tag.md`). R-12's RIB half landed
+(commit "rib: remove a recovery write's purged survivor at the sent
+projection"): `bgptypes.RecoveryWriteMeta`, the check at all three sent-store
+sites, and the lifecycle dispatcher (stop cancels, then joins). No producer
+sets the key yet. Phase 3 owes it, together with
+`TestOwedKeyPurgeBetweenLookupAndAdmission` and a rewrite of the "Phase 3"
+sentence in `rib-storage-design.md`. The owner approved changing
+`TestRFC8654FatalLengthReelectsAlternateBest` (RFC8654-5-4) to AC-10: no
+re-send to a destination that already holds the survivor. The approval is
+recorded under session 3f5fcb0a. Make that change in Phase 3 and re-record
+its discrimination. Phase 2b has NOT started, and it is the next package.
+Its first half (teardown on publication failure, down event after buffered
+deliveries, the FSM entered-Established bit, the `notifyPeerClosed` split,
+the `fsm.md` edit) needs nothing from D1. The second half
+(`ReasonAdjRIBInInvalid`, `ReasonForbidsRetention`) waits on D1. The
+per-spec state file lists the code sites already read.

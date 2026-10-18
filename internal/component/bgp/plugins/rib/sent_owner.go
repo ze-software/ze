@@ -118,20 +118,9 @@ func (r *RIBManager) sentSourceState(fam family.Family, key ribOutKey, sent ribO
 		return false, false
 	}
 	var inline [4]storage.PrefixPath
-	var paths []storage.PrefixPath
-	var addPath bool
-	if storage.IsCIDRFamily(fam) {
-		prefix := key.Prefix
-		if fam.SAFI == family.SAFIMPLSLabel {
-			_, parsed, valid := parsePrevKey(fam, []byte(key.Native), false)
-			if !valid {
-				return false, false
-			}
-			prefix = parsed
-		}
-		paths, addPath = received.AppendPrefixPathsRetained(fam, prefix, inline[:0])
-	} else {
-		paths, addPath = received.AppendKeyPathsRetained(fam, []byte(key.Native), inline[:0])
+	paths, addPath, valid := sentSourcePaths(received, fam, key, inline[:0])
+	if !valid {
+		return false, false
 	}
 	revisioned := sent.SourceOwner != 0 && sent.SourceMessageID != 0
 	for i := range paths {
@@ -143,6 +132,67 @@ func (r *RIBManager) sentSourceState(fam family.Family, key ribOutKey, sent ribO
 		path.Release()
 	}
 	return current, receivedLLGRStale
+}
+
+// sentSourcePaths appends the source's retained received paths for the key a
+// sent copy is stored under. valid is false when a labeled key does not parse.
+// The caller MUST Release every returned path. Caller holds peerMu.
+func sentSourcePaths(received *storage.PeerRIB, fam family.Family, key ribOutKey, buf []storage.PrefixPath) (paths []storage.PrefixPath, addPath, valid bool) {
+	if !storage.IsCIDRFamily(fam) {
+		paths, addPath = received.AppendKeyPathsRetained(fam, []byte(key.Native), buf)
+		return paths, addPath, true
+	}
+	prefix := key.Prefix
+	if fam.SAFI == family.SAFIMPLSLabel {
+		_, parsed, ok := parsePrevKey(fam, []byte(key.Native), false)
+		if !ok {
+			return nil, false, false
+		}
+		prefix = parsed
+	}
+	paths, addPath = received.AppendPrefixPathsRetained(fam, prefix, buf)
+	return paths, addPath, true
+}
+
+// recoveryCandidateGone answers R-12 for one projected recovery write: the
+// source's received inventory holds neither the candidate's received path nor
+// a newer revision of it. The candidate came out of bgp-rib's own recovery
+// lookup, so its path was applied before the write, and its absence now can
+// only mean a removal (a lifecycle purge) that landed between the lookup and
+// the projection. A newer revision answers false: the source's own later
+// UPDATE reaches the destination in source order. provenance is false when
+// the entry lacks the source, owner or received message a recovery write
+// carries, which is a defect in the write, so nothing is inferred from it.
+// Caller holds peerMu.
+func (r *RIBManager) recoveryCandidateGone(fam family.Family, key ribOutKey, sent ribOutEntry) (gone, provenance bool) {
+	if sent.SourceOwner == 0 {
+		return false, false
+	}
+	if sent.SourceMessageID == 0 {
+		return false, false
+	}
+	source, err := netip.ParseAddr(sent.SourcePeer)
+	if err != nil {
+		return false, false
+	}
+	received := r.bgpPeers[source]
+	if received == nil {
+		return true, true
+	}
+	var inline [4]storage.PrefixPath
+	paths, addPath, valid := sentSourcePaths(received, fam, key, inline[:0])
+	if !valid {
+		return false, false
+	}
+	gone = true
+	for i := range paths {
+		path := &paths[i]
+		if addPath == sent.SourceAddPath && path.PathID == sent.SourcePath && path.Entry.MsgID >= sent.SourceMessageID {
+			gone = false
+		}
+		path.Release()
+	}
+	return gone, true
 }
 
 // replayStaleLevel is the stale level a RIB rail hands the readvertise egress

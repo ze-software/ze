@@ -401,6 +401,7 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	// Config owns initial advertisement, but refresh needs its sent routes too.
 	_, configStatic := se.Meta["config-static"]
 	_, replay := se.Meta[metaKeyReplay]
+	_, recovery := se.Meta[bgptypes.RecoveryWriteMeta]
 
 	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
 	if !ok || msg == nil || msg.WireUpdate == nil {
@@ -465,7 +466,7 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 		addPath := ctx != nil && ctx.AddPath(ipv4Family)
 		ipv4Ordinal = r.storeSentEntries(peerAddr, ipv4Family, nlriData, addPath,
 			ribOutEntry{MsgID: msgID, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: msg.SourceMessageID,
-				SourceID: msg.SourceID, SourceOwner: sourceOwner, LocalOrigin: localOrigin}, sourcePeer, replay, sourcePaths, 0)
+				SourceID: msg.SourceID, SourceOwner: sourceOwner, LocalOrigin: localOrigin}, sourcePeer, replay, recovery, sourcePaths, 0)
 	}
 
 	// Process MP_REACH_NLRI announces.
@@ -481,7 +482,7 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 			}
 			r.storeSentEntries(peerAddr, fam, nlriBytes, addPath,
 				ribOutEntry{MsgID: msgID, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: msg.SourceMessageID,
-					SourceID: msg.SourceID, SourceOwner: sourceOwner, LocalOrigin: localOrigin}, sourcePeer, replay, sourcePaths, ordinal)
+					SourceID: msg.SourceID, SourceOwner: sourceOwner, LocalOrigin: localOrigin}, sourcePeer, replay, recovery, sourcePaths, ordinal)
 		}
 	}
 
@@ -492,9 +493,10 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 }
 
 // storeSentEntries walks NLRI bytes and stores ribOutEntry records in ribOut.
-// Caller must hold write lock.
+// recovery marks the sent event of a recovery write: each stored entry then
+// passes projectRecoveryWriteLocked. Caller must hold write lock.
 func (r *RIBManager) storeSentEntries(peerAddr netip.Addr, fam family.Family, nlriData []byte, addPath bool,
-	entry ribOutEntry, sourcePeer string, replay bool, sources []wireu.SentPathSource, ordinal uint32) uint32 {
+	entry ribOutEntry, sourcePeer string, replay, recovery bool, sources []wireu.SentPathSource, ordinal uint32) uint32 {
 
 	if replay {
 		return ordinal
@@ -537,6 +539,9 @@ func (r *RIBManager) storeSentEntries(peerAddr netip.Addr, fam family.Family, nl
 			_ = pool.RibOut.AddRef(stored.AttrHandle)
 		}
 		r.ribOut[peerAddr][fam][key] = stored
+		if recovery {
+			r.projectRecoveryWriteLocked(peerAddr, fam, key)
+		}
 		return true
 	})
 	if err != nil {

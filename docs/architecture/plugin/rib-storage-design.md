@@ -205,6 +205,34 @@ Entries learned after the DOWN cut are not candidates for removal.
 <!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoverySurvivorsLocked, recoverySentLocked, recoverySentAddPathLocked -->
 <!-- source: internal/component/bgp/reactor/relay_recovery.go -- queueRecoveryOutcome -->
 
+A lifecycle purge can remove the chosen survivor between the lookup and the
+write: B's retained stale path is elected for C, then B's End-of-RIB purges it.
+The purge emits a removal only where B already owns the sent entry, and at C it
+does not yet, so nothing would ever remove B's purged route from C. The sent
+event of a recovery write therefore carries the `recovery-write` meta key
+(`bgptypes.RecoveryWriteMeta`), and each of the three sent-store sites
+(`handleSentStructured`, `handleSent`'s raw NLRI loop and its `FamilyOps` add)
+checks the projected entry of such an event against the source's received
+inventory. When the source holds neither the candidate's received path nor a
+newer revision of it, the projection deletes the entry in the same `peerMu`
+section and queues the removal the purge would have emitted. Only a recovery
+write is checked: its candidate came out of bgp-rib's own lookup, so its path
+was applied before the write and its absence can only mean removal, while a
+forwarded write's own later withdrawal reaches the destination in source
+order. An entry without its candidate's provenance (source, owner, received
+message) is stored as before and logged. The queued removals leave through
+one long-lived dispatcher, never through an RPC on the event path, which would
+stop bgp-rib applying events while the RPC is in flight. The plugin's run
+function starts it before events flow and stops it after `Run` drains
+delivery: stop cancels the dispatcher's context, which cancels the send in
+flight, joins the worker, and drops what is still pending, because no recovery
+owner exists while bgp-rib is stopped. A late removal is safe: the writer
+admits it only when the entry still holds the same revision. The reactor sets
+the meta key on recovery writes in Phase 3 of the route-server replacement
+work; until then no sent event carries it.
+<!-- source: internal/component/bgp/plugins/rib/rib_sent_lifecycle.go -- projectRecoveryWriteLocked, recoveryRemovals, startRecoveryRemovals, stopRecoveryRemovals -->
+<!-- source: internal/component/bgp/plugins/rib/sent_owner.go -- recoveryCandidateGone -->
+
 Sent event callbacks enqueue delivery; they do not synchronously update the RIB.
 The engine first snapshots a destination's causal send sequence under its
 session `writeMu`, releases the lock, then captures each source's accepted

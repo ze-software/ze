@@ -272,6 +272,13 @@ const (
 	SourceLocalMeta        = "source-local"
 )
 
+// RecoveryWriteMeta marks the sent event of a recovery write: a survivor that
+// bgp-rib's own recovery lookup elected. bgp-rib's sent projection checks such
+// an entry against the source's received inventory, because a lifecycle purge
+// can remove the survivor between the lookup and the write
+// (docs/architecture/plugin/rib-storage-design.md). The value is ignored.
+const RecoveryWriteMeta = "recovery-write"
+
 // NLRIBatch represents a batch of NLRIs with shared attributes.
 // Used for efficient UPDATE message generation - reactor builds wire format
 // and splits into multiple messages if exceeding peer's max size.

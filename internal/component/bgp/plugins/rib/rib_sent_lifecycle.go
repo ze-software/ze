@@ -2,6 +2,7 @@
 package rib
 
 import (
+	"context"
 	"encoding/binary"
 	"net/netip"
 	"slices"
@@ -265,8 +266,139 @@ func attachSentCommunity(entry *ribOutEntry, community []byte) bool {
 
 func (r *RIBManager) dispatchSentLifecycle(writes []sentLifecycleWrite) {
 	for _, write := range writes {
-		meta := map[string]any{"rib-lifecycle": true, metaKeyReplay: true,
-			bgptypes.SentOwnerMessageMeta: strconv.FormatUint(write.message, 10)}
-		r.updateRouteWithMeta(write.peer, write.command, meta) //nolint:errcheck // updateRouteWithMeta logs the failure; each lifecycle write stands alone, so the rest still go
+		r.updateRouteWithMeta(write.peer, write.command, sentLifecycleMeta(write)) //nolint:errcheck // updateRouteWithMeta logs the failure; each lifecycle write stands alone, so the rest still go
 	}
+}
+
+// sentLifecycleMeta marks a lifecycle write as RIB feedback and carries the
+// sent receipt the writer admits it against, as a decimal string.
+func sentLifecycleMeta(write sentLifecycleWrite) map[string]any {
+	var digits [20]byte
+	return map[string]any{"rib-lifecycle": true, metaKeyReplay: true,
+		bgptypes.SentOwnerMessageMeta: string(strconv.AppendUint(digits[:0], write.message, 10))}
+}
+
+// projectRecoveryWriteLocked is R-12 at the sent projection. A recovery write
+// installs a survivor bgp-rib's own lookup elected; when a lifecycle purge
+// removed that survivor between the lookup and this projection, the purge
+// emitted no removal for this destination, because the entry was not yet
+// projected. The entry is then removed here, in the same peerMu section that
+// stored it, and the removal the purge would have emitted is queued for the
+// recovery-removal dispatcher, never sent on the event path. Caller MUST hold
+// peerMu.
+func (r *RIBManager) projectRecoveryWriteLocked(destination netip.Addr, fam family.Family, key ribOutKey) {
+	routes := r.ribOut[destination][fam]
+	entry, stored := routes[key]
+	if !stored {
+		return
+	}
+	gone, provenance := r.recoveryCandidateGone(fam, key, entry)
+	if !provenance {
+		logger().Warn("recovery write projected without its candidate's provenance (a Ze defect in the recovery write); "+
+			"stored without the purge check, so a survivor purged before this write stays at the destination until the next decision for the prefix",
+			"destination", destination, "family", fam, "source", entry.SourcePeer)
+		return
+	}
+	if !gone {
+		return
+	}
+	r.queueRecoveryRemovalLocked(sentRemoval(destination, fam, key, &entry))
+	// The family map stays even when empty: storeSentEntries is still
+	// writing into it for the rest of the UPDATE.
+	delete(routes, key)
+	entry.release()
+}
+
+// recoveryRemovals is the long-lived bgp-rib lifecycle dispatcher that sends
+// the removals projectRecoveryWriteLocked queues. A synchronous engine RPC on
+// the event path would stop bgp-rib applying events while it is in flight, so
+// every destination's drain would wait behind it.
+//
+// Lifecycle: startRecoveryRemovals creates the one-slot wake channel and
+// starts the one worker; queueRecoveryRemovalLocked appends under peerMu and
+// wakes it, send-or-skip; stopRecoveryRemovals cancels the worker's context,
+// which also cancels the send in flight, joins the worker, then drops what is
+// still pending. Start and stop are not safe for concurrent use with each
+// other: the plugin's run function owns both.
+type recoveryRemovals struct {
+	wake   chan struct{}
+	done   chan struct{}
+	cancel context.CancelFunc
+	send   func(context.Context, sentLifecycleWrite) error
+}
+
+// startRecoveryRemovals starts the dispatcher under a context derived from
+// parent. send performs one removal and MUST return when its context ends.
+// The caller MUST call stopRecoveryRemovals before it drops the manager.
+func (r *RIBManager) startRecoveryRemovals(parent context.Context, send func(context.Context, sentLifecycleWrite) error) {
+	ctx, cancel := context.WithCancel(parent)
+	d := &recoveryRemovals{wake: make(chan struct{}, 1), done: make(chan struct{}), cancel: cancel, send: send}
+	r.peerMu.Lock()
+	r.removals = d
+	r.peerMu.Unlock()
+	d.wake <- struct{}{} // Removals queued before the start go out now.
+	go r.runRecoveryRemovals(ctx, d)
+}
+
+// stopRecoveryRemovals cancels, then joins, then drops the pending removals.
+// It MUST be called after startRecoveryRemovals. Dropping is the fault window
+// of a stopped bgp-rib: no recovery owner exists then, and a destination still
+// holding a purged survivor keeps it until the next decision for its key.
+func (r *RIBManager) stopRecoveryRemovals() {
+	r.peerMu.Lock()
+	d := r.removals
+	r.removals = nil
+	r.peerMu.Unlock()
+	if d == nil {
+		return
+	}
+	d.cancel()
+	<-d.done
+	r.peerMu.Lock()
+	r.recoveryPending = nil
+	r.peerMu.Unlock()
+}
+
+// queueRecoveryRemovalLocked appends one removal and wakes the dispatcher
+// without blocking. The pending list is unbounded by design: it holds one
+// entry per recovery write whose survivor was purged, never one per event.
+// Caller MUST hold peerMu.
+func (r *RIBManager) queueRecoveryRemovalLocked(write sentLifecycleWrite) {
+	r.recoveryPending = append(r.recoveryPending, write)
+	if r.removals == nil {
+		return
+	}
+	select {
+	case r.removals.wake <- struct{}{}:
+	default: // A wake is already pending; the worker takes the whole list.
+	}
+}
+
+// runRecoveryRemovals is the dispatcher's worker. Its loop has no bound by
+// design: it runs until stopRecoveryRemovals cancels ctx.
+func (r *RIBManager) runRecoveryRemovals(ctx context.Context, d *recoveryRemovals) {
+	defer close(d.done)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-d.wake:
+		}
+		r.peerMu.Lock()
+		writes := r.recoveryPending
+		r.recoveryPending = nil
+		r.peerMu.Unlock()
+		for _, write := range writes {
+			if ctx.Err() != nil {
+				return
+			}
+			d.send(ctx, write) //nolint:errcheck // the send logs its failure; each removal stands alone, so the rest still go
+		}
+	}
+}
+
+// sendRecoveryRemoval is the dispatcher's production send: the lifecycle
+// write through the engine, under the dispatcher's context.
+func (r *RIBManager) sendRecoveryRemoval(ctx context.Context, write sentLifecycleWrite) error {
+	return r.updateRouteWithMetaContext(ctx, write.peer, write.command, sentLifecycleMeta(write))
 }
