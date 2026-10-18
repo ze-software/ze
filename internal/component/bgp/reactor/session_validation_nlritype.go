@@ -105,19 +105,22 @@ const (
 //
 // pathAttrs must be the attribute section of wu.Payload() as it stands after the
 // Section 3.g keep-first strip, and attrsOffset its start within that payload.
+// attrs is the view a family's UPDATE-level check reads (nlritype.UpdateCheck):
+// pathAttrs with the codes attribute-discard removes after this pass marked absent.
 func (s *Session) applyTypedNLRIDiscard(
 	wu *wireu.WireUpdate,
 	pathAttrs []byte,
 	attrsOffset int,
+	attrs *nlritype.UpdateAttrs,
 	mpReach, mpUnreach message.MPNLRILocation,
 	addPathFor func(afi uint16, safi uint8) bool,
 ) (out *wireu.WireUpdate, outAttrs []byte, outcome typedNLRIOutcome, withdrawBody []byte) {
 	edits := make([]mpNLRIEdit, 0, 2)
-	edits, ok := s.typedNLRIEdit(edits, uint8(attribute.AttrMPReachNLRI), mpReach, pathAttrs, addPathFor)
+	edits, ok := s.typedNLRIEdit(edits, uint8(attribute.AttrMPReachNLRI), mpReach, pathAttrs, attrs, addPathFor)
 	if !ok {
 		return wu, pathAttrs, typedNLRIUnparseable, nil
 	}
-	edits, ok = s.typedNLRIEdit(edits, uint8(attribute.AttrMPUnreachNLRI), mpUnreach, pathAttrs, addPathFor)
+	edits, ok = s.typedNLRIEdit(edits, uint8(attribute.AttrMPUnreachNLRI), mpUnreach, pathAttrs, attrs, addPathFor)
 	if !ok {
 		return wu, pathAttrs, typedNLRIUnparseable, nil
 	}
@@ -156,15 +159,35 @@ func (s *Session) applyTypedNLRIDiscard(
 	return rebuilt, newBody[attrsOffset : attrsOffset+len(newAttrs)], outcome, withdrawBody
 }
 
+// typedNLRIUpdateAttrs is the attribute view a family's UPDATE-level check reads.
+//
+// Attribute-discard rewrites the attribute section only after the typed NLRI pass,
+// so the codes it will remove are still in pathAttrs. They are marked absent here,
+// because the route is installed and relayed without them: a DSD route whose
+// Prefix-SID the RFC 8669 Section 4 EBGP rule discards arrives with no Prefix-SID,
+// and draft-ietf-bess-mup-safi Section 3.3.6 withdraws it.
+func typedNLRIUpdateAttrs(pathAttrs []byte, result *message.RFC7606ValidationResult) nlritype.UpdateAttrs {
+	attrs := nlritype.NewUpdateAttrs(pathAttrs)
+	if result.Action != message.RFC7606ActionAttributeDiscard {
+		return attrs
+	}
+	for _, entry := range result.DiscardEntries {
+		attrs.Discarding(attribute.AttributeCode(entry.Code))
+	}
+	return attrs
+}
+
 // typedNLRIEdit appends the edit for one MP attribute, or nothing when that
 // attribute is absent, its family has no ruling, or every route survives.
 //
-// Two rulings can remove a route here and a family may carry either or both.
+// Three rulings can remove a route here and a family may carry any of them.
 // RFC 7606 Section 5.4 removes a route whose NLRI TYPE ze does not implement, in
 // a family that has not overridden the rule; the same recognizer moves an
 // announced route with a malformed body to the edit's withdrawn NLRIs when its
 // family prescribes treat-as-withdraw, or discards it when its route key cannot
-// form. RFC 9552 Section 8.2.2 removes a
+// form. The family's UPDATE-level check does the same for an announced route its
+// specification withdraws because of the UPDATE carrying it (draft-ietf-bess-mup-safi
+// Section 3.3.6: a DSD route with no Prefix-SID). RFC 9552 Section 8.2.2 removes a
 // Link-State NLRI whose SYNTAX is malformed in a way that lets ze skip it and
 // keep processing the UPDATE. Both are per route and both keep the UPDATE, so one
 // pass applies them in that order and one rewrite carries the result.
@@ -190,6 +213,7 @@ func (s *Session) typedNLRIEdit(
 	code uint8,
 	loc message.MPNLRILocation,
 	pathAttrs []byte,
+	attrs *nlritype.UpdateAttrs,
 	addPathFor func(afi uint16, safi uint8) bool,
 ) ([]mpNLRIEdit, bool) {
 	if !loc.Present {
@@ -198,7 +222,7 @@ func (s *Session) typedNLRIEdit(
 	fam := family.Family{AFI: family.AFI(loc.AFI), SAFI: family.SAFI(loc.SAFI)}
 	// One registry read, not two: the answer is carried into Retain rather than looked up
 	// again there. This is the gate every MP-bearing UPDATE passes, IPv6 unicast included.
-	recognize := nlritype.Get(fam)
+	recognize, check := nlritype.Rulings(fam)
 	// A family's registered syntax rule (nlrisyntax) rules on the SYNTAX of an individual
 	// NLRI where Section 5.4 rules on its TYPE. Both remove the NLRI and keep the UPDATE,
 	// so one pass applies both and one rewrite carries them. A family with neither ruling
@@ -207,7 +231,7 @@ func (s *Session) typedNLRIEdit(
 	if syntax.Retain == nil {
 		syntaxRuled = false
 	}
-	if recognize == nil && !syntaxRuled {
+	if recognize == nil && check == nil && !syntaxRuled {
 		return edits, true
 	}
 
@@ -222,7 +246,7 @@ func (s *Session) typedNLRIEdit(
 
 	addPath := addPathFor != nil && addPathFor(loc.AFI, loc.SAFI)
 	announce := code == uint8(attribute.AttrMPReachNLRI)
-	retained, err := nlritype.Retain(recognize, fam, value[start:], addPath, announce, s.typedNLRIKeyScratch[:])
+	retained, err := nlritype.RetainUpdate(recognize, check, attrs, fam, value[start:], addPath, announce, s.typedNLRIKeyScratch[:])
 	kept, dropped := retained.Kept, retained.Discarded
 	if err != nil {
 		sessionLogger().Warn("RFC 7606 Section 5.3: MP NLRI framing overruns the attribute",

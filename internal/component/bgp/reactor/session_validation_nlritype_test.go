@@ -6,6 +6,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisyntax"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlritype"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -29,7 +30,9 @@ func TestTypedNLRIEditConsultsRegistry(t *testing.T) {
 	badLS := lsWireNLRI(1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0x01, 0x00, 0x00, 0x20)
 	edit := func(fam family.Family, nlri []byte) ([]mpNLRIEdit, bool) {
 		loc := message.MPNLRILocation{Present: true, AFI: uint16(fam.AFI), SAFI: uint8(fam.SAFI)}
-		return s.typedNLRIEdit(nil, code, loc, mpReachAttrs(fam, nlri), nil)
+		pathAttrs := mpReachAttrs(fam, nlri)
+		attrs := nlritype.NewUpdateAttrs(pathAttrs)
+		return s.typedNLRIEdit(nil, code, loc, pathAttrs, &attrs, nil)
 	}
 
 	if _, ok := edit(evpn, badEVPN); ok {

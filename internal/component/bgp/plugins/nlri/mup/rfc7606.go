@@ -1,5 +1,5 @@
 // Design: rfc/short/rfc7606.md -- Section 5.4, typed NLRI
-// RFC: rfc/short/rfc7606.md -- Section 5.4; rfc/short/draft-ietf-bess-mup-safi.md -- Section 3.1
+// RFC: rfc/short/rfc7606.md -- Section 5.4; rfc/short/draft-ietf-bess-mup-safi.md -- Sections 3.1 and 3.3.6
 // Related: types.go -- MUPRouteType and MUPArchType constants, the set this reports on
 //
 // RFC 7606 Section 5.4 binds BGP-MUP. The NLRI is typed in the sense Section 5.4
@@ -17,7 +17,10 @@
 
 package mup
 
-import "github.com/ze-software/ze/internal/core/bgp/nlri/nlritype"
+import (
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlritype"
+)
 
 // Implemented reports whether ze implements this MUP architecture and route type
 // pair.
@@ -95,4 +98,41 @@ func recognizerFor(afi AFI) nlritype.Recognizer {
 		}
 		return nlritype.Keep
 	}
+}
+
+// CheckDSDPrefixSID is the UPDATE-level check registered for both MUP families
+// (nlritype.UpdateCheck): it withdraws a Direct Segment Discovery route announced
+// in an UPDATE that carries no Prefix-SID attribute, and keeps every other route.
+//
+// The Prefix-SID's SRv6 SID is the DSD route's whole meaning: Section 3.3.6 has the
+// receiver create a forwarding entry for it in the routing instance, so a DSD route
+// without one can only be withdrawn. A Prefix-SID that RFC 7606 attribute-discard
+// removes, including the RFC 8669 Section 4 discard from an EBGP peer not configured
+// to accept it, is absent here (nlritype.UpdateAttrs.Has).
+//
+// nlritype.RetainUpdate calls this only for an announced NLRI RecognizeNLRI kept, so
+// the architecture and route type octets are present and implemented.
+func CheckDSDPrefixSID(nlriBytes []byte, addPath bool, attrs *nlritype.UpdateAttrs) nlritype.Verdict {
+	off := 0
+	if addPath {
+		off = 4
+	}
+	if off+3 > len(nlriBytes) {
+		// Unreachable through RetainUpdate: RecognizeNLRI discards a slice this short.
+		return nlritype.Keep
+	}
+	routeType := MUPRouteType(uint16(nlriBytes[off+1])<<8 | uint16(nlriBytes[off+2]))
+	if routeType != MUPDSD {
+		return nlritype.Keep
+	}
+	if attrs.Has(attribute.AttrPrefixSID) {
+		return nlritype.Keep
+	}
+	// draft-ietf-bess-mup-safi Section 3.3.6: "When a BGP speaker receives a
+	// MP_REACH_NLRI attribute update message with a Direct Segment Discovery route
+	// without a prefix SID attribute, than it MUST be treated as if it contained a
+	// malformed prefix SID attribute and the "Treat-as-withdraw procedure of
+	// [RFC7606] is applied.  A BGP speaker MUST skip such NLRIs and continue
+	// processing of rest of the Update message."
+	return nlritype.Withdraw
 }

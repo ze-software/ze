@@ -160,9 +160,26 @@ func (r Retained) Removed() bool { return r.Discarded+r.WithdrawnCount > 0 }
 // inventing one would rewrite the wire from a guess. Framing errors belong to
 // RFC 7606 Section 5.3, which runs before this.
 func Retain(fn Recognizer, fam family.Family, data []byte, addPath, announce bool, scratch []byte) (Retained, error) {
-	if len(data) == 0 || fn == nil {
+	return RetainUpdate(fn, nil, nil, fam, data, addPath, announce, scratch)
+}
+
+// RetainUpdate is Retain with the family's UPDATE-level check (update_check.go)
+// applied as well: an announced NLRI fn keeps is passed to check with attrs, the
+// path attributes of the UPDATE carrying it, and a Withdraw answer withdraws it
+// exactly as a Withdraw from fn does. check is never called for a withdrawal
+// section, nor for an NLRI fn discarded or withdrew. A nil fn with a non-nil check
+// keeps every type; nil for both changes nothing. attrs may be nil only when check is.
+func RetainUpdate(
+	fn Recognizer, check UpdateCheck, attrs *UpdateAttrs,
+	fam family.Family, data []byte, addPath, announce bool, scratch []byte,
+) (Retained, error) {
+	if len(data) == 0 {
 		return Retained{Kept: data}, nil
 	}
+	if fn == nil && check == nil {
+		return Retained{Kept: data}, nil
+	}
+	r := rulings{recognize: fn, check: check, attrs: attrs}
 
 	nlris, splitErr := nlrisplit.Split(fam, data, addPath)
 	if splitErr != nil {
@@ -183,7 +200,7 @@ func Retain(fn Recognizer, fam family.Family, data []byte, addPath, announce boo
 	var out Retained
 	keepBytes := 0
 	for _, one := range nlris {
-		switch judge(fn, key, one, addPath, scratch) {
+		switch judge(r, key, one, addPath, scratch) {
 		case Keep:
 			keepBytes += len(one)
 		case Withdraw:
@@ -203,7 +220,7 @@ func Retain(fn Recognizer, fam family.Family, data []byte, addPath, announce boo
 		out.Kept = make([]byte, 0, keepBytes)
 	}
 	for _, one := range nlris {
-		switch judge(fn, key, one, addPath, scratch) {
+		switch judge(r, key, one, addPath, scratch) {
 		case Keep:
 			out.Kept = append(out.Kept, one...)
 		case Withdraw:
@@ -216,10 +233,37 @@ func Retain(fn Recognizer, fam family.Family, data []byte, addPath, announce boo
 	return out, nil
 }
 
-// judge applies fn to one NLRI and, for an announcement (key non-nil), turns a
+// rulings is what one RetainUpdate call judges with: the family's recognizer, its
+// UPDATE-level check, and the attributes that check reads.
+type rulings struct {
+	recognize Recognizer
+	check     UpdateCheck
+	attrs     *UpdateAttrs
+}
+
+// verdict is r's answer for one NLRI. The check runs only for an announcement
+// (key non-nil) the recognizer kept: in a withdrawal the route is already leaving.
+func (r rulings) verdict(key nlrisplit.PrefixKeyFunc, one []byte, addPath bool) Verdict {
+	v := Keep
+	if r.recognize != nil {
+		v = r.recognize(one, addPath)
+	}
+	if v != Keep {
+		return v
+	}
+	if r.check == nil {
+		return Keep
+	}
+	if key == nil {
+		return Keep
+	}
+	return r.check(one, addPath, r.attrs)
+}
+
+// judge applies r to one NLRI and, for an announcement (key non-nil), turns a
 // Withdraw verdict whose route key cannot form into unkeyable.
-func judge(fn Recognizer, key nlrisplit.PrefixKeyFunc, one []byte, addPath bool, scratch []byte) Verdict {
-	v := fn(one, addPath)
+func judge(r rulings, key nlrisplit.PrefixKeyFunc, one []byte, addPath bool, scratch []byte) Verdict {
+	v := r.verdict(key, one, addPath)
 	if v != Withdraw {
 		return v
 	}
@@ -240,7 +284,7 @@ func judge(fn Recognizer, key nlrisplit.PrefixKeyFunc, one []byte, addPath bool,
 // whose route key cannot form. It never leaves this package.
 const unkeyable Verdict = Withdraw + 1
 
-// ResetForTest clears every registered recognizer. Tests call it to start from a
+// ResetForTest clears every registered recognizer and UPDATE-level check. Tests call it to start from a
 // clean slate. NOT for production use.
 //
 // Prefer SnapshotForTest in a package whose test binary links real NLRI plugins: this
@@ -251,6 +295,7 @@ func ResetForTest() {
 	mu.Lock()
 	defer mu.Unlock()
 	recognizers = map[family.Family]Recognizer{}
+	updateChecks = map[family.Family]UpdateCheck{}
 }
 
 // SnapshotForTest empties the registry and returns a function that puts back exactly what
@@ -271,10 +316,14 @@ func SnapshotForTest() func() {
 	defer mu.Unlock()
 	saved := make(map[family.Family]Recognizer, len(recognizers))
 	maps.Copy(saved, recognizers)
+	savedChecks := make(map[family.Family]UpdateCheck, len(updateChecks))
+	maps.Copy(savedChecks, updateChecks)
 	recognizers = map[family.Family]Recognizer{}
+	updateChecks = map[family.Family]UpdateCheck{}
 	return func() {
 		mu.Lock()
 		defer mu.Unlock()
 		recognizers = saved
+		updateChecks = savedChecks
 	}
 }

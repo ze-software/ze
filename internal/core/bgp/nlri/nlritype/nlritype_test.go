@@ -316,7 +316,7 @@ func TestRetainVerdictAllocatesNothing(t *testing.T) {
 	var scratch [nlrisplit.PrefixKeyScratchSize]byte
 	key := nlrisplit.GetPrefixKey(mupFamily)
 	if n := testing.AllocsPerRun(100, func() {
-		if judge(withdrawAll, key, one, false, scratch[:]) != Withdraw {
+		if judge(rulings{recognize: withdrawAll}, key, one, false, scratch[:]) != Withdraw {
 			t.Fatal("a keyable ISD must stay a withdrawal")
 		}
 	}); n != 0 {

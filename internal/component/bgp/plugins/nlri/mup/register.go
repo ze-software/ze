@@ -27,6 +27,12 @@ func init() {
 			fmt.Fprintf(os.Stderr, "mup: RFC 7606 Section 5.4 recognizer registration failed: %v\n", err)
 			os.Exit(1)
 		}
+		// draft-ietf-bess-mup-safi Section 3.3.6: a DSD route announced with no
+		// Prefix-SID attribute is treated as withdrawn (CheckDSDPrefixSID).
+		if err := nlritype.RegisterUpdateCheck(fam, CheckDSDPrefixSID); err != nil {
+			fmt.Fprintf(os.Stderr, "mup: draft-ietf-bess-mup-safi Section 3.3.6 check registration failed: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	reg := registry.Registration{
