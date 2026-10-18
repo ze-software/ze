@@ -77,7 +77,20 @@ func dhcpSeeds() [][]byte {
 		make([]byte, 100),       // truncated below minPacketLen (dropped)
 		make([]byte, 1500),      // oversized, all-zero (bad magic cookie, dropped)
 		malformedOptions(mac),   // valid header, cookie, then a garbage option stream
+		overloadedSeed(mac),     // option overload 3: options in file and sname
 	}
+}
+
+// overloadedSeed builds a DHCPDISCOVER whose options field carries option
+// overload value 3, a requested address (50) in the file field, and a server
+// identifier (54) in the sname field whose length octet runs past the field,
+// so the fuzzer starts from the overload walk and a boundary overrun.
+func overloadedSeed(mac net.HardwareAddr) []byte {
+	pkt := buildDiscover(mac, 0x52525252)
+	copy(pkt[243:], []byte{optOverload, 1, overloadBoth, optEnd})
+	copy(pkt[fileStart:], []byte{optRequestedIP, 4, 192, 168, 1, 150, optEnd})
+	copy(pkt[fileStart-2:], []byte{optServerID, 4})
+	return pkt
 }
 
 // malformedOptions builds a 300-byte packet with a valid fixed header and magic
@@ -98,4 +111,60 @@ func malformedOptions(mac net.HardwareAddr) []byte {
 	pkt[241] = 200
 	pkt[299] = 0xff
 	return pkt
+}
+
+// FuzzFindOption feeds arbitrary bytes and option codes into findOption, the one
+// walk every option reader uses, and checks where the answer came from.
+//
+// The returned slice aliases pkt, so its offset is cap(pkt) - cap(data). The
+// answer MUST lie entirely inside one field: the options field, or the file or
+// sname field when the options field's option overload (52) opens it. A walk
+// that reads across a field boundary, past the packet end, or into a field the
+// overload value did not open fails here.
+//
+// VALIDATES: RFC 2131 Section 4.1 field containment and overload gating under
+// adversarial input; no panic for any length octet.
+// PREVENTS: a hostile length octet carrying the walk from file into the magic
+// cookie, or from sname into file.
+func FuzzFindOption(f *testing.F) {
+	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66}
+	for _, seed := range dhcpSeeds() {
+		f.Add(seed, byte(optMessageType))
+	}
+	f.Add(overloadedSeed(mac), byte(optRequestedIP))
+	f.Add(overloadedSeed(mac), byte(optServerID))
+
+	f.Fuzz(func(t *testing.T, pkt []byte, code byte) {
+		data, ok := findOption(pkt, code)
+		if !ok {
+			if data != nil {
+				t.Fatalf("not found, yet data = %v", data)
+			}
+			return
+		}
+		offset := cap(pkt) - cap(data)
+		end := offset + len(data)
+		switch {
+		case offset >= optionsStart:
+			if end > len(pkt) {
+				t.Fatalf("option data [%d:%d] runs past the packet end %d", offset, end, len(pkt))
+			}
+		case offset >= fileStart:
+			if end > fileEnd {
+				t.Fatalf("option data [%d:%d] runs past the file field end %d", offset, end, fileEnd)
+			}
+			if v := overloadValue(pkt[optionsStart:]); v != overloadFile && v != overloadBoth {
+				t.Fatalf("option read from file under overload value %d", v)
+			}
+		case offset >= snameStart:
+			if end > fileStart {
+				t.Fatalf("option data [%d:%d] runs past the sname field end %d", offset, end, fileStart)
+			}
+			if v := overloadValue(pkt[optionsStart:]); v != overloadSname && v != overloadBoth {
+				t.Fatalf("option read from sname under overload value %d", v)
+			}
+		default:
+			t.Fatalf("option data at offset %d lies in the fixed header", offset)
+		}
+	})
 }

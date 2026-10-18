@@ -101,6 +101,39 @@
       "break": "body of handleV4Lease replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2131-4.1-15",
+      "polarity": "negative",
+      "unit": "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadAbsentFieldsIgnored",
+      "unit-sha": "43b53c93651a74b6",
+      "claim-sha": "748af02b0f43bfad",
+      "route": "revert",
+      "producer": "internal/plugins/dhcpserver/options.go::findOption",
+      "producer-sha": "3270a6fd59c1b619",
+      "break": "body of findOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2131-4.1-15",
+      "polarity": "positive",
+      "unit": "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadFieldsCarryOptions",
+      "unit-sha": "33b070c770d6b9fd",
+      "claim-sha": "69080f2be2498f83",
+      "route": "revert",
+      "producer": "internal/plugins/dhcpserver/options.go::findOption",
+      "producer-sha": "3270a6fd59c1b619",
+      "break": "body of findOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2131-4.1-15",
+      "polarity": "positive",
+      "unit": "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder",
+      "unit-sha": "5e5329387a0567d9",
+      "claim-sha": "f1ab283ec29eec6a",
+      "route": "revert",
+      "producer": "internal/plugins/dhcpserver/options.go::findOption",
+      "producer-sha": "3270a6fd59c1b619",
+      "break": "body of findOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2131-4.1-6",
       "polarity": "positive",
       "unit": "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131EveryReplyOptionContainedInItsField",
@@ -143,6 +176,28 @@
       "producer": "internal/plugins/dhcpserver/handler.go::safeAppendOption",
       "producer-sha": "6465741358bf025e",
       "break": "body of safeAppendOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2131-4.1-7",
+      "polarity": "positive",
+      "unit": "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadFieldsCarryOptions",
+      "unit-sha": "33b070c770d6b9fd",
+      "claim-sha": "c4fd49c53638f376",
+      "route": "revert",
+      "producer": "internal/plugins/dhcpserver/options.go::findOption",
+      "producer-sha": "3270a6fd59c1b619",
+      "break": "body of findOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2131-4.1-7",
+      "polarity": "negative",
+      "unit": "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder",
+      "unit-sha": "5e5329387a0567d9",
+      "claim-sha": "c09e67fb08bae47b",
+      "route": "revert",
+      "producer": "internal/plugins/dhcpserver/options.go::overloadValue",
+      "producer-sha": "e8f71b645c39e4e6",
+      "break": "body of overloadValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2131-4.2-2",

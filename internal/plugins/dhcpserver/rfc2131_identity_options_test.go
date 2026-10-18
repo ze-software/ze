@@ -12,15 +12,6 @@ import (
 )
 
 // BOOTP fixed fields that a server reply leaves unused (RFC 2131 Section 2).
-const (
-	snameStart = 44
-	fileStart  = 108
-	fileEnd    = 236
-	// optOverload is the RFC 2132 Section 9.3 option that moves options into
-	// the sname and file fields.
-	optOverload = 52
-)
-
 // TestRFC2131ChaddrContentsIdentifyTheClient proves a client that sends no
 // client identifier is identified by the contents of its chaddr field, and by
 // nothing else.

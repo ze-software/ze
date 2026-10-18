@@ -382,69 +382,41 @@ func safeAppendOption(buf []byte, off, limit int, code byte, data []byte) int {
 	return off + need
 }
 
+// parseMsgType returns the DHCP message type (option 53), or 0 when the
+// option is absent or is not one octet long. Zero is no message type RFC 2132
+// Section 9.6 defines, so handle drops the packet on it.
 func parseMsgType(pkt []byte) byte {
-	opts := pkt[240:]
-	for i := 0; i < len(opts)-2; {
-		if opts[i] == optEnd {
-			break
-		}
-		if opts[i] == optPad {
-			i++
-			continue
-		}
-		l := int(opts[i+1])
-		if opts[i] == optMessageType && l == 1 {
-			return opts[i+2]
-		}
-		i += 2 + l
+	data, ok := findOption(pkt, optMessageType)
+	if !ok {
+		return 0
 	}
-	return 0
+	if len(data) != 1 {
+		return 0
+	}
+	return data[0]
 }
 
+// parseOptionAddr returns an IPv4-valued option (50, 54, ...), or the invalid
+// netip.Addr when the option is absent or is not four octets long.
 func parseOptionAddr(pkt []byte, code byte) netip.Addr {
-	opts := pkt[240:]
-	for i := 0; i < len(opts)-1; {
-		if opts[i] == optEnd {
-			break
-		}
-		if opts[i] == optPad {
-			i++
-			continue
-		}
-		l := int(opts[i+1])
-		if opts[i] == code && l == 4 && i+6 <= len(opts) {
-			return netip.AddrFrom4([4]byte(opts[i+2 : i+6]))
-		}
-		i += 2 + l
+	data, ok := findOption(pkt, code)
+	if !ok {
+		return netip.Addr{}
 	}
-	return netip.Addr{}
+	if len(data) != 4 {
+		return netip.Addr{}
+	}
+	return netip.AddrFrom4([4]byte(data))
 }
 
 // parseOptionString returns a string-valued option (for example option 67
 // bootfile name) or "" when absent. Used for request/reply logging.
 func parseOptionString(pkt []byte, code byte) string {
-	if len(pkt) < 240 {
+	data, ok := findOption(pkt, code)
+	if !ok {
 		return ""
 	}
-	opts := pkt[240:]
-	for i := 0; i+1 < len(opts); {
-		if opts[i] == optEnd {
-			break
-		}
-		if opts[i] == optPad {
-			i++
-			continue
-		}
-		l := int(opts[i+1])
-		if i+2+l > len(opts) {
-			break
-		}
-		if opts[i] == code {
-			return string(opts[i+2 : i+2+l])
-		}
-		i += 2 + l
-	}
-	return ""
+	return string(data)
 }
 
 // msgTypeName maps a DHCP message-type value to its RFC 2132 name for logs.
@@ -486,26 +458,15 @@ func prefixToMask(p netip.Prefix) [4]byte {
 	return b
 }
 
+// parseOptionBytes returns the data of an option, aliasing pkt, or nil when the
+// option is absent. A present option of length zero returns an empty, non-nil
+// slice; every caller checks the length it needs.
 func parseOptionBytes(pkt []byte, code byte) []byte {
-	opts := pkt[240:]
-	for i := 0; i < len(opts)-1; {
-		if opts[i] == optEnd {
-			break
-		}
-		if opts[i] == optPad {
-			i++
-			continue
-		}
-		l := int(opts[i+1])
-		if i+2+l > len(opts) {
-			break
-		}
-		if opts[i] == code {
-			return opts[i+2 : i+2+l]
-		}
-		i += 2 + l
+	data, ok := findOption(pkt, code)
+	if !ok {
+		return nil
 	}
-	return nil
+	return data
 }
 
 func isPXEClient(pkt []byte) bool {

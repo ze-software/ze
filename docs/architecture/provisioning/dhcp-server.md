@@ -117,6 +117,23 @@ rejected at config parse time. At write time, `safeAppendOption` omits an
 option whose data is longer than 255 bytes or does not fit before the End
 option.
 
+**A received option can sit in the `file` or `sname` field.** RFC 2131 section
+4.1 lets a client overflow its options into those two fields, announced by the
+option overload option (52) in the options field. Every option reader
+(`parseMsgType`, `parseOptionAddr`, `parseOptionBytes`, `parseOptionString`)
+goes through one walk, `findOption`: the options field first, then `file` when
+option 52 says 1 or 3, then `sname` when it says 2 or 3, and the first match
+wins. Only the option 52 found in the options field counts, and it must be one
+octet long; one planted inside `file` opens nothing. Without option 52, `file`
+and `sname` hold a boot file name and a host name, so they are never read as
+options. Each field is walked within its own bounds: an option whose length
+octet runs past the end of its field ends the walk of that field, so a peer
+cannot make the reader take bytes from the next field or past the packet.
+`FuzzFindOption` checks that every answer lies inside a field the overload
+value opened. The server never emits option 52 in its own replies.
+
+<!-- source: internal/plugins/dhcpserver/options.go -- findOption -->
+
 **Every configured address must be refused unless it is IPv4.** This server
 speaks RFC 2131, and the reply builder narrows each address it sends to four
 bytes with `netip.Addr.As4`, which panics on an IPv6 address. The panic lands on

@@ -3487,7 +3487,7 @@ not evidence that a storage assertion detects a product regression.
 
 ## Fuzz Testing
 
-Ze includes 72 fuzz targets covering all wire parsers, NLRI codecs, config
+Ze includes 90 fuzz targets covering all wire parsers, NLRI codecs, config
 parsing, cryptographic operations, protocol state machines, IGP packet decoders
 (IS-IS, OSPF), and receiver/server-facing parsers (BMP, RADIUS, DHCP, VRRP).
 Fuzz tests catch crashes, panics, and memory corruption on malformed input.
@@ -3526,7 +3526,7 @@ in the traditional sense). Run them periodically or before releases.
 | BFD | 3 | `FuzzParseControl`, `FuzzParseAuth`, `FuzzAuthDigest` |
 | PPP | 7 | `FuzzParseLCPPacket`, `FuzzParseLCPOptions`, `FuzzParseCHAPResponse`, `FuzzParsePAPRequest`, `FuzzParseFrame` |
 | TACACS+ | 2 | `FuzzTacacsPacketUnmarshal`, `FuzzTacacsEncryptDecrypt` |
-| Receiver/server parsers | 4 | `FuzzDecodeBMPTLV`, `FuzzDecodeRADIUSVSA`, `FuzzDHCPHandle`, `FuzzDecode` (VRRP) |
+| Receiver/server parsers | 5 | `FuzzDecodeBMPTLV`, `FuzzDecodeRADIUSVSA`, `FuzzDHCPHandle`, `FuzzFindOption` (DHCP option overload), `FuzzDecode` (VRRP) |
 | Other | 6 | `FuzzHandleRoundTrip`, `FuzzInvalidHandle`, `FuzzParseAttributes`, `FuzzEncodeDecode`, `FuzzScanner`, `FuzzFSMEventSequence` |
 <!-- source: internal/plugins/isis/packet/fuzz_test.go -- IS-IS packet fuzz targets -->
 <!-- source: internal/plugins/ospf/packet/rfc7684_fuzz_test.go -- OSPF packet fuzz targets -->
@@ -3535,6 +3535,7 @@ in the traditional sense). Run them periodically or before releases.
 <!-- source: internal/component/bgp/plugins/bmp/fuzz_test.go -- FuzzDecodeBMPTLV -->
 <!-- source: internal/component/radius/fuzz_test.go -- FuzzDecodeRADIUSVSA -->
 <!-- source: internal/plugins/dhcpserver/fuzz_test.go -- FuzzDHCPHandle -->
+<!-- source: internal/plugins/dhcpserver/fuzz_test.go -- FuzzFindOption -->
 <!-- source: internal/core/bgp/attribute/builder_parse_fuzz_test.go -- attribute parser fuzz targets -->
 <!-- source: internal/component/bgp/wireu/prefix_fuzz_test.go -- NLRI prefix fuzz targets -->
 <!-- source: internal/component/config/fuzz_test.go -- config parser fuzz targets -->
