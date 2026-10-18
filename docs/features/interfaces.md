@@ -312,7 +312,12 @@ device appears, and a config is validated on machines that will never run it.
   gives a VLAN its parent's MTU when it is created and keeps it when the parent's
   later rises (it caps it when the parent's falls), and VPP creates a sub-interface
   with no MTU of its own. An entry with no `mtu` leaf leaves its VLANs alone.
+- **An omitted `mtu` leaves the device's MTU alone.** The schema declares no MTU
+  default, because each kind has its own: a device ze creates keeps the kernel's
+  value, 1500 for a dummy, veth or bridge, 1420 for wireguard, and the underlay
+  MTU less the encapsulation for a tunnel (1476 for gre).
 <!-- source: internal/component/iface/config_apply.go -- applyConfig, applyVLANMTU -->
+<!-- source: internal/component/iface/config.go -- parseIfaceEntry -->
 - **Make-before-break.** Migration adds new address, waits for BGP readiness, then removes old.
   Prevents session loss during address moves.
 - **Same-subnet renumbers keep working.** Because the new address is added first, a renumber

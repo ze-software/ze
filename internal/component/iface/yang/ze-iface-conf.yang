@@ -28,10 +28,13 @@ module ze-iface-conf {
             type uint16 {
                 range "68..16000";
             }
-            default 1500;
-            description "The range is 68 to 16000 bytes and the default is 1500. Ze applies the value
-                         with the netlink call LinkSetMTU after it creates the interface. Ze restores
-                         the previous value when a later step of the same apply fails.";
+            description "The range is 68 to 16000 bytes. Ze applies the value with the netlink call
+                         LinkSetMTU after it creates the interface. Ze restores the previous value
+                         when a later step of the same apply fails. When the leaf is omitted, ze makes
+                         no MTU call and the device keeps its current MTU. For a device ze creates
+                         that is the kernel's default for the kind: 1500 for a dummy, veth or bridge,
+                         1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel.
+                         Each kind has its own value, so the schema declares no single default.";
             ze:help "Maximum transmission unit";
         }
 
