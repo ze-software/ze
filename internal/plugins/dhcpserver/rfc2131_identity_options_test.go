@@ -11,7 +11,6 @@ import (
 	"testing"
 )
 
-// BOOTP fixed fields that a server reply leaves unused (RFC 2131 Section 2).
 // TestRFC2131ChaddrContentsIdentifyTheClient proves a client that sends no
 // client identifier is identified by the contents of its chaddr field, and by
 // nothing else.

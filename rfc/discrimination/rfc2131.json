@@ -97,15 +97,15 @@
       "claim-sha": "1128014dc76805d2",
       "route": "revert",
       "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::handleV4Lease",
-      "producer-sha": "79bfdcf454dea457",
+      "producer-sha": "674fe130dfcf9533",
       "break": "body of handleV4Lease replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2131-4.1-15",
       "polarity": "negative",
       "unit": "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadAbsentFieldsIgnored",
-      "unit-sha": "43b53c93651a74b6",
-      "claim-sha": "748af02b0f43bfad",
+      "unit-sha": "bd34abbee5b86bbc",
+      "claim-sha": "3bd1824f6fc19aa4",
       "route": "revert",
       "producer": "internal/plugins/dhcpserver/options.go::findOption",
       "producer-sha": "3270a6fd59c1b619",
@@ -157,17 +157,6 @@
     },
     {
       "rid": "RFC2131-4.1-6",
-      "polarity": "negative",
-      "unit": "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField",
-      "unit-sha": "84bf04b92e3761a7",
-      "claim-sha": "411e47c0d540e4ea",
-      "route": "revert",
-      "producer": "internal/plugins/dhcpserver/handler.go::parseOptionAddr",
-      "producer-sha": "ff6dc120891059f1",
-      "break": "body of parseOptionAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC2131-4.1-6",
       "polarity": "positive",
       "unit": "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField",
       "unit-sha": "84bf04b92e3761a7",
@@ -178,11 +167,33 @@
       "break": "body of safeAppendOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2131-4.1-6",
+      "polarity": "negative",
+      "unit": "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField",
+      "unit-sha": "84bf04b92e3761a7",
+      "claim-sha": "411e47c0d540e4ea",
+      "route": "revert",
+      "producer": "internal/plugins/dhcpserver/handler.go::parseOptionAddr",
+      "producer-sha": "9171636e93838148",
+      "break": "body of parseOptionAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2131-4.1-7",
       "polarity": "positive",
       "unit": "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadFieldsCarryOptions",
       "unit-sha": "33b070c770d6b9fd",
       "claim-sha": "c4fd49c53638f376",
+      "route": "revert",
+      "producer": "internal/plugins/dhcpserver/options.go::findOption",
+      "producer-sha": "3270a6fd59c1b619",
+      "break": "body of findOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2131-4.1-7",
+      "polarity": "positive",
+      "unit": "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder",
+      "unit-sha": "5e5329387a0567d9",
+      "claim-sha": "ebc2f7bd9ed68529",
       "route": "revert",
       "producer": "internal/plugins/dhcpserver/options.go::findOption",
       "producer-sha": "3270a6fd59c1b619",

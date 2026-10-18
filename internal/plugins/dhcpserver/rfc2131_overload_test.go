@@ -126,6 +126,7 @@ func TestOverloadInterpretationOrder(t *testing.T) {
 	first := overloadedMsg(t, mac, 0x5301,
 		cat(tlv(optMessageType, msgRequest), ipOpt(optRequestedIP, inOptions), tlv(optOverload, overloadBoth)),
 		ipOpt(optRequestedIP, inFile), ipOpt(optRequestedIP, inSname))
+	// RFC requirement: RFC2131-4.1-7 positive -- the options field is interpreted first: a requested address present in the options, file and sname fields under option 52 value 3 is taken from the options field.
 	if got := parseOptionAddr(first, optRequestedIP); got != inOptions {
 		t.Errorf("requested address = %v, want %v from the options field, interpreted first", got, inOptions)
 	}
@@ -182,6 +183,20 @@ func TestOverloadAbsentFieldsIgnored(t *testing.T) {
 		t.Errorf("requested address = %v read from sname under overload value 1 (file only)", got)
 	}
 	resp := h.handle(fileOnly)
+	if resp == nil {
+		t.Fatal("expected a DHCPNAK, got no reply")
+	}
+	if got := getResponseMsgType(resp); got != msgNak {
+		t.Errorf("reply message type = %d, want %d (NAK)", got, msgNak)
+	}
+
+	snameOnly := overloadedMsg(t, mac, 0x5403,
+		cat(tlv(optMessageType, msgRequest), tlv(optOverload, overloadSname)), ipOpt(optRequestedIP, addr), nil)
+	// RFC requirement: RFC2131-4.1-15 negative -- under option 52 value 2 the file field is not interpreted: its requested address is not read, and the request (no server identifier, no ciaddr) draws a DHCPNAK.
+	if got := parseOptionAddr(snameOnly, optRequestedIP); got.IsValid() {
+		t.Errorf("requested address = %v read from file under overload value 2 (sname only)", got)
+	}
+	resp = h.handle(snameOnly)
 	if resp == nil {
 		t.Fatal("expected a DHCPNAK, got no reply")
 	}

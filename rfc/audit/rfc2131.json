@@ -1,5 +1,8 @@
 {
   "audited": "2026-10-18",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2131-2-3": {
@@ -86,8 +89,8 @@
       "note": "positive: TestRFC2131EveryReplyOptionContainedInItsField walks OFFER, ACK and the separately built DHCPNAK by length octets to End inside the options field and requires sname/file all zero with no option 52; TestOptionsContainedWithinTheirField keeps the OFFER/ACK walk. negative: a 300-octet bootfile; judge overlay removing the 255 guard in safeAppendOption reddens it ('option code 98 at offset 555 declares length 98, overrunning the options field'). Receiver side: TestOptionsContainedWithinTheirField negative, an overrunning received option is not read past the field. Config refuses bootfile-bios/uefi over 255 (TestParsePXEConfigInvalid)",
       "requirement_sha": "8f5d3302ba626476",
       "tests": {
-        "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131EveryReplyOptionContainedInItsField": "32a95f20655840e2",
-        "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131EveryReplyOptionContainedInItsField#2": "32a95f20655840e2",
+        "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131EveryReplyOptionContainedInItsField": "b5a39ec9f84423c9",
+        "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131EveryReplyOptionContainedInItsField#2": "b5a39ec9f84423c9",
         "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField": "8365c04cdfc2a046",
         "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField#2": "8365c04cdfc2a046"
       },
@@ -253,8 +256,8 @@
       "note": "positive: requested subnet mask, router, DNS and domain name each equal the configured bytes exactly (DNS now byte for byte, closing the length-only gap); negative: a request suggesting other values for all four still gets the configured ones, so a server echoing client-suggested values goes red. {single-polarity} correctly removed from the row",
       "requirement_sha": "ad560228b493607d",
       "tests": {
-        "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ConfiguredParameterValuesReturned": "32a95f20655840e2",
-        "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ConfiguredParameterValuesReturned#2": "32a95f20655840e2",
+        "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ConfiguredParameterValuesReturned": "b5a39ec9f84423c9",
+        "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ConfiguredParameterValuesReturned#2": "b5a39ec9f84423c9",
         "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted": "8365c04cdfc2a046"
       },
       "units": {
