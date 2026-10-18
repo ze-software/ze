@@ -50,3 +50,36 @@ file if its referent is then in HEAD.
 8. Interop `test/interop/scenarios/bgp-rfc9774-as-set-frr/`, red with each half reverted, recorded.
 9. Owed gates: `./le go lint run`, `./le test unit all`, `./le test functional gating`. `rfc/audit/rfc7606.json` holds a body hash for `TestRFC7606ASPathValidSet`, which the R-1 correction changed.
 10. Handoff is `verify`: final commit at status `verification`, then `./le spec release`.
+
+## Continuation 2026-10-18 (second ze-implement agent, session 20123ea5, at budget)
+
+Still NOT committed: `git grep -n validateLinkLocalNextHopPair HEAD -- internal` was empty at
+the end of this run. The link-local hunks span more than the two message files:
+`reactor/session_validation_receive.go` calls the 6-argument `ValidateUpdateRFC7606AddPath`,
+so a HEAD-plus-mine build must keep the whole `internal/component/bgp` working tree.
+
+Done this run (working tree only):
+
+| Item | Result | Evidence |
+|------|--------|----------|
+| 2. Send-guard-only red | done | guard forced off by `go test -overlay`: only `TestRFC9774Send*` red (6 subtests + MP + ADD-PATH); every `TestRFC9774Receive*` green |
+| 3. A-1 | confirmed, with a finding | no aggregation code; but a configured raw `attribute "0x02 0x40 ..."` is written BESIDE the typed AS_PATH (two AS_PATH attributes). Journal row added to `plan/journal/wire-carries-both-arms-of-an-either-or.md` (uncommitted) |
+| 3. A-4 | confirmed | `TestRFC9774SendAddPathFraming` (IPv4, IPv6 unicast, IPv4 labeled unicast). Fix: `mpAddPathSend` in `session_rfc9774.go` reads `bgpctx.Registry.Get(s.sendCtxID).AddPath`, the context the splitter uses. Red: forced false, labeled case red only |
+| Send guard | changed | `transmittedPathHoldsSet` now walks every attribute with `attribute.NewAttrIterator` and judges every AS_PATH/AS4_PATH occurrence (the duplicate above otherwise slipped a set through). New case "AS_SET in a second AS_PATH". Bench still 0 B/op, 0 allocs/op |
+| 4. AC-9 counter | done | never-held subtests use `newSpyRegistry` + `initReactorMetrics`, two prefixes, assert `ze_bgp_as_set_withdrawn_total` == 2 |
+| 5a. `test/encode/rfc9774-as-set-not-advertised.ci` | written, green, red proven | expects clean UPDATE, then a withdrawal of 10.0.1.0/24 (static-route rail is not ownership-tracked, so a never-held withdrawal is written; it announces nothing), then EOR. Red with guard reverted: seq=2 receives the set announcement |
+| Spec | A-1, A-3, A-4 rows updated | |
+
+How the .ci was run (the tree does not build: another session's DHCP and iface work):
+build ze with `go build -overlay` mapping every dirty non-bgp `.go` file to its HEAD content
+and every untracked one to "" (`-o bin/rfc9774-20123ea5/ov/ze`, tags `ze_core ze_distro
+ze_setup zetest` + feature-gates), build le with tags `ze_le` + feature-gates, then
+`PATH=bin/rfc9774-20123ea5:$PATH LE_TEST_NO_BUILD=1 ZE_BIN=.../ov/ze bin/rfc9774-20123ea5/le
+test bgp encode --pattern rfc9774 -v`. `bin/rfc9774-20123ea5/` is scratch; delete it when done.
+
+Still open (nothing dropped): 5b `test/plugin/rfc9774-as-set-receive-treat-as-withdraw.ci`,
+5c `test/plugin/rfc9774-as-set-api-not-advertised.ci`, items 6, 7, 8, 9, 10 above, A-5/A-6,
+the page check for the "every occurrence" guard wording in `docs/architecture/wire/attributes.md`,
+and the commit. Owed scoped re-run after any edit: `go test -race -run RFC9774` over
+`./internal/component/bgp/message/` and `./internal/component/bgp/reactor/` (reactor green at
+the end of this run; message not re-run, unchanged since the first run).
