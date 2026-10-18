@@ -12,7 +12,7 @@ type clearResult struct {
 	Cleared int    `json:"cleared"`
 }
 
-// clearNeighbors tears down every adjacency (clear ospf neighbor); each re-forms from
+// clearNeighbors tears down every adjacency (clear ospf neighbor all); each re-forms from
 // the next Hello. Returns the number reset.
 func (e *engine) clearNeighbors() int {
 	if e.neighbors == nil {
@@ -29,7 +29,7 @@ func (e *engine) clearCounters() {
 	}
 }
 
-// clearProcess is a full reset (clear ospf process): every adjacency is torn down and
+// clearProcess is a full reset (clear ospf process all): every adjacency is torn down and
 // SPF is re-run across all areas. Returns the number of neighbors reset.
 func (e *engine) clearProcess() int {
 	n := e.clearNeighbors()

@@ -260,7 +260,7 @@ func (t *Table) interfaceDown(interfaceName string) []eventEmission {
 	return emits
 }
 
-// ResetAll tears down every neighbor (clear ospf neighbor / process): each drops to
+// ResetAll tears down every neighbor (clear ospf neighbor all / clear ospf process all): each drops to
 // Down and re-forms from the next Hello. Mirrors Expire's lock discipline (collect
 // emissions under the lock, emit outside it). Returns the number of neighbors reset.
 func (t *Table) ResetAll() int {

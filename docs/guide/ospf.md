@@ -609,7 +609,7 @@ show ospf border-routers
 <!-- source: internal/plugins/ospf/cmd_show.go -- ze-ospf:show-* RPC proxies -->
 <!-- source: internal/plugins/ospf/show_summary.go -- processSummary -->
 
-The runtime can be reset without reconfiguring via `clear ospf process` (tear down adjacencies and re-run SPF), `clear ospf neighbor` (re-form adjacencies), and `clear ospf counters` (reset the SPF-run log). The neighbor and database views are also available in the web UI at `/ospf` and `/ospf/database`, with live updates over SSE.
+The runtime can be reset without reconfiguring via `clear ospf process all` (tear down every adjacency and re-run SPF), `clear ospf neighbor all` (re-form every adjacency; `clear ospf neighbor` and `clear ospf process` alone are refused, because everything is never the default), and `clear ospf counters` (reset the SPF-run log). The neighbor and database views are also available in the web UI at `/ospf` and `/ospf/database`, with live updates over SSE.
 
 <!-- terminal-demo: ospf-adjacency -->
 <!-- source: internal/plugins/ospf/clear.go -- clearProcess/clearNeighbors/clearCounters -->

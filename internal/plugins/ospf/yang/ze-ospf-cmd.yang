@@ -11,6 +11,10 @@ module ze-ospf-cmd {
          object-rooted (no shared `ip` container); see
          docs/architecture/cli/command-namespacing.md and
          ai/rules/plugin-self-containment.md.";
+    revision 2026-10-17 {
+        description "clear ospf neighbor and clear ospf process alone are refused; clear ospf neighbor all
+             tears down every adjacency, and clear ospf process all also re-runs SPF.";
+    }
     revision 2026-07-02 {
         description "Add the `request ospf graceful-restart` operator action (RFC 3623 planned
              restart trigger, spec-ospf-ext-9); add `show ospf instance` for OSPFv2
@@ -451,16 +455,32 @@ not-synchronized after having been synchronized.";
 
             container process {
                 config false;
-                ze:command "ze-ospf:clear-process";
-                description "Adjacencies re-form from the next Hello; the configuration is unchanged.";
-                ze:help "Full OSPF reset: tear down every adjacency and re-run SPF.";
+                description "clear ospf process alone is refused: say all to reset the whole
+OSPF process. Everything is never the default.";
+                ze:help "Full OSPF reset: all.";
+
+                container all {
+                    config false;
+                    ze:command "ze-ospf:clear-process";
+                    description "Every adjacency, in every configured instance, is torn down and SPF
+re-runs over every area. Adjacencies re-form from the next Hello; the configuration is
+unchanged.";
+                    ze:help "Full OSPF reset: tear down every adjacency and re-run SPF.";
+                }
             }
 
             container neighbor {
                 config false;
-                ze:command "ze-ospf:clear-neighbor";
-                description "Adjacencies re-learn from the next Hello.";
-                ze:help "Tear down every OSPF adjacency so neighbors re-form.";
+                description "clear ospf neighbor alone is refused: say all to tear down every
+adjacency. Everything is never the default.";
+                ze:help "Tear down OSPF adjacencies: all.";
+
+                container all {
+                    config false;
+                    ze:command "ze-ospf:clear-neighbor";
+                    description "Adjacencies re-learn from the next Hello.";
+                    ze:help "Tear down every OSPF adjacency so neighbors re-form.";
+                }
             }
 
             container counters {

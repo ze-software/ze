@@ -598,7 +598,7 @@
       "category": "Interfaces",
       "intent": "Clear interface counters",
       "ze": [
-        "clear interface counters",
+        "clear interface counters all",
         "clear interface name counters"
       ],
       "vendors": {
@@ -781,9 +781,9 @@
       "category": "Routing protocols",
       "intent": "Clear OSPF process, counters, or neighbor state",
       "ze": [
-        "clear ospf process",
+        "clear ospf process all",
         "clear ospf counters",
-        "clear ospf neighbor"
+        "clear ospf neighbor all"
       ],
       "vendors": {
         "junos-mx": [],

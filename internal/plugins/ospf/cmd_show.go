@@ -44,8 +44,8 @@ const (
 	cmdShowIPv6GracefulRestart = "show ospf ipv6 graceful-restart"
 	cmdShowSegmentRouting      = "show ospf segment-routing"
 	cmdShowIPv6SegmentRouting  = "show ospf ipv6 segment-routing"
-	cmdClearProcess            = "clear ospf process"
-	cmdClearNeighbor           = "clear ospf neighbor"
+	cmdClearProcess            = "clear ospf process all"
+	cmdClearNeighbor           = "clear ospf neighbor all"
 	cmdClearCounters           = "clear ospf counters"
 	cmdGRPrepare               = "request ospf graceful-restart"
 
