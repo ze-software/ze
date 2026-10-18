@@ -327,3 +327,20 @@ matched 1") and left memory-default green; runOrchestrated-only removal reddened
 the VPP row in plan/journal/transient-failure-treated-as-fatal.md as `fixed:` (its uncommitted
 fix), so B no longer carries that file. B prepared as `tmp/commit-9871b957-boot-b-15611a.sh`
 (96 paths); `tmp/commit-cbab57ff-boot-b-952da8.sh` is STALE, do not run it.
+
+FULL VERIFY 2026-10-18 (at 0b037fd2fd): red at lint, doc wiring, tree-check, compound-guard,
+unit, race, exabgp-compat (9 known, ExaBGP 6 spec) and gating. Landed: 4a59a226da (lint,
+numberparse via asn.Parse, compound guards, ui 221), e389e62f2e (doc drift: 3 pages, 27 reviewed
+rows), wiki 61a5651 (command catalog). gh-pages regeneration is HELD uncommitted in ../gh-pages:
+a darwin `./le site build` drops linux-only iface-dhcp, iface-ra, memlock (journal row in
+gate-verdict-depends-on-the-machine.md); owner to choose Linux build or a producer fix.
+Test-red triage, UNCOMMITTED in the working tree (agent ran out of budget):
+- toolchain TestTheTestTempDirIsMadePrivateAndWritable: Linux PATH_MAX hard-coded; uses unix.PathMax.
+- scratch TestTrimSkipsLivenessWithoutSessions: load-only; go telemetry child writes under test HOME; telemetry off helper.
+- interop-l2tp TestNativeConfigBytesArePinned: b3a5960dc7 changed scenario 02 frr.conf without repin; repinned.
+- plugin 281 drain-over-ceiling: load-only race, fixture returns nil on the ceiling refusal. Unconfirmed: rerun 281 x3.
+- plugin 735 rfc7999: setup on macOS lacked 127.0.0.6; added in internal/le/setup/system.go + docs. Needs owner `sudo ./le setup install`.
+- plugin 871 storage-rir-restart: load-only, active/router.conf missing on read. Journal row owed.
+- reload 37: missing established-file await stage; added. appliance 1: fake go not a patched GOROOT bin/go; fixed.
+- runner 12: internal/appliance reaches ssh only via a linux test file; fixture expects 3 packages off Linux.
+Owed: fixture and l2tp -race tests, lint/compound-guard/doc checks over these, one commit per fix, then full verify.

@@ -9,4 +9,4 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 |------|---------|---------|-----------|--------|--------|
 | 2026-10-17 | edab2b99 | handover: route-injection grammar agent handoff (+20 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-15T13:34:00Z) | open |
 | 2026-10-17 | edab2b99 | test(gtsm): RFC 5082 proofs read the term that matched (+8 more) | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
-| 2026-10-18 | edab2b99 | journal: a darwin site build drops the linux-only plugins (+1 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-18T03:37:59Z) | open |
+| 2026-10-18 | edab2b99 | journal: a darwin site build drops the linux-only plugins (+2 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-18T03:37:59Z) | open |
