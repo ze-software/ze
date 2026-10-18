@@ -17,6 +17,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ze-software/ze/internal/appliance"
 	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 )
 
@@ -323,7 +324,22 @@ func applianceBuildARM64Fixture(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.Symlink(self, filepath.Join(fakebin, "go")); err != nil {
+	// The build refuses unless the go on PATH is $GOROOT/bin/go of a GOROOT
+	// holding the stdpatch marker, under GOTOOLCHAIN=local (requirePatchedTree,
+	// internal/appliance/cmd_build.go). So the stand-in go is the bin/go of a
+	// stand-in GOROOT that carries the marker, and the build reaches it.
+	goroot := filepath.Join(fakebin, "goroot")
+	if err := os.MkdirAll(filepath.Join(goroot, "bin"), 0o750); err != nil {
+		return err
+	}
+	if err := os.Symlink(self, filepath.Join(goroot, "bin", "go")); err != nil {
+		return err
+	}
+	marker := filepath.Join(goroot, filepath.FromSlash(appliance.StdpatchMarker))
+	if err := os.MkdirAll(filepath.Dir(marker), 0o750); err != nil {
+		return err
+	}
+	if err := os.WriteFile(marker, []byte("package tls\n"), 0o600); err != nil {
 		return err
 	}
 	logPath := filepath.Join(fakebin, "goarch.log")
@@ -332,7 +348,9 @@ func applianceBuildARM64Fixture(ctx context.Context, args []string) error {
 		return err
 	}
 	restores := []func(){
-		setFixtureEnv("PATH", fakebin+string(os.PathListSeparator)+os.Getenv("PATH")),
+		setFixtureEnv("PATH", filepath.Join(goroot, "bin")+string(os.PathListSeparator)+os.Getenv("PATH")),
+		setFixtureEnv("GOROOT", goroot),
+		setFixtureEnv("GOTOOLCHAIN", "local"),
 		setFixtureEnv("GOARCH", "amd64"),
 		setFixtureEnv("ZE_INSTALL_GOARCH", "arm64"),
 		setFixtureEnv("ZE_INSTALL_GOARCH_LOG", logPath),
