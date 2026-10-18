@@ -267,7 +267,14 @@ VPN route's `VPNParams.LinkLocalNextHop` carries the address
 48-octet field (zero RD, global, zero RD, link-local) instead of 24 octets. On
 the forwarding rails a 24-octet RD-plus-global field naming the speaker's own
 global is raised to that 48-octet pair for an on-link destination, and a
-received 48-octet pair is cut to 24 octets for an off-link one.
+received 48-octet pair is cut to 24 octets for an off-link one. A route the
+session writes through its egress gate, the API batch announce among them,
+reaches the same decision there (`normalizeVPNNextHop`), which asks
+`applyEgressNextHopScope` rather than decide again.
+An IPv4 next hop of a VPN-IPv6 route is written as 24 octets, zero RD and the
+IPv4-mapped IPv6 address (RFC 4659 Section 3.2.1.2), by the configured builder
+(`vpnNextHopOctets`) and by the attribute encoder the API batch announce uses
+(`MPReachNLRI.wireNextHop`); the 12-octet form is VPN-IPv4's alone.
 Under `next-hop self` or an explicit next hop, the forwarding rails write the
 SAFI 128 form of the configured address, never the plain one: 24 octets (zero
 RD, global), or 48 when the link-local decision holds; 12 octets (zero RD,
@@ -283,7 +290,12 @@ link-local in `LabeledUnicastParams.LinkLocalNextHop`, and
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- applyFactsNextHop, precomputeVPNNextHop -->
 <!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- mpReachNextHopHandler, familyAdmitsNextHopOctets -->
 <!-- source: internal/component/bgp/message/update_build_labeled.go -- buildMPReachLabeledUnicast -->
+<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- normalizeVPNNextHop -->
+<!-- source: internal/core/bgp/attribute/mpnlri.go -- MPReachNLRI.wireNextHop -->
 <!-- test: internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go TestRFC4659StaticVPNv6LinkLocalCommonSubnet -->
+<!-- test: internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go TestRFC4659APIVPNv6LinkLocalCommonSubnet -->
+<!-- test: internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go TestRFC4659StaticVPNv6IPv4NextHopIsMapped -->
+<!-- test: internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go TestMPReachNextHopHandlerRefusesOffTableWidth -->
 <!-- test: internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD -->
 The global-unicast requirement also covers unpaired ordinary IPv6 globals:
 loopback cannot bypass it. The explicit single mapped IPv6 unicast, multicast,

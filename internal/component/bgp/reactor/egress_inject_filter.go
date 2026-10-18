@@ -1,6 +1,8 @@
 // Design: docs/architecture/api/architecture.md -- egress filter for originated routes
 // Related: reactor_api_forward.go -- forwardUpdateCore runs export filters for FORWARDED routes
 // Related: session_write.go -- writeUpdate / SendAnnounce call this gate for originated routes
+// Related: forward_next_hop.go -- applyEgressNextHopScope, the VPN next-hop decision normalizeVPNNextHop reuses
+// RFC: rfc/short/rfc4659.md -- the VPN-IPv6 link-local next hop on a common subnet (Section 3.2.1.1)
 //
 // Forwarded (reflected) routes run their export filter chain in forwardUpdateCore
 // before the forward pool writes them via writeRawUpdateBody / writeUpdatePreFiltered.
@@ -23,12 +25,14 @@ import (
 	"encoding/binary"
 	"log/slog"
 	"net/netip"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // exportFilterForBody runs the destination peer's export filter chain on the wire
@@ -101,8 +105,8 @@ func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, o
 
 // normalizeOrdinaryNextHop applies RFC 2545 Section 3 to a valid effective plain
 // IPv6 field. Invalid roles/widths, mapped and standalone link-local forms remain
-// untouched for writeUpdateGated's existing final admission. VPN and independent
-// layouts are not plain fields and retain their own rules.
+// untouched for writeUpdateGated's existing final admission. A 24- or 48-octet
+// RD-prefixed VPN field goes to normalizeVPNNextHop (RFC 4659 Section 3.2.1.1).
 //
 // RFC 2545 Section 3: "The link-local address shall be included in the Next Hop
 // field if and only if the BGP speaker shares a common subnet with the entity
@@ -143,7 +147,20 @@ func (r *Reactor) normalizeOrdinaryNextHop(peer *Peer, facts *peerForwardFacts, 
 		return nil, modifyFailureNone
 	}
 	profile := attribute.MPNextHopProfile(attribute.AFI(binary.BigEndian.Uint16(value)), attribute.SAFI(value[2]))
-	if !profile.IPv6Roles || (octets != 16 && octets != 32) {
+	switch octets {
+	case 16, 32:
+	case 24, vpnNextHopPairOctets:
+		// SAFI 128 carries no plain IPv6 roles (attribute.MPNextHopProfile); a
+		// family whose table holds the 48-octet pair is an RD-prefixed one.
+		if !slices.Contains(profile.Lengths, vpnNextHopPairOctets) {
+			return nil, modifyFailureNone
+		}
+		fam := family.Family{AFI: family.AFI(binary.BigEndian.Uint16(value)), SAFI: family.SAFI(value[2])}
+		return r.normalizeVPNNextHop(peer, facts, body, value[4:4+octets], fam)
+	default:
+		return nil, modifyFailureNone
+	}
+	if !profile.IPv6Roles {
 		return nil, modifyFailureNone
 	}
 	field := value[4 : 4+octets]
@@ -202,5 +219,40 @@ func (r *Reactor) normalizeOrdinaryNextHop(peer *Peer, facts *peerForwardFacts, 
 	// Growth is one link-local address plus a possible extended length octet.
 	const nextHopGrowthMax = 16 + 1
 	out, _, fail := buildModifiedPayloadWithLimit(body, &mods, r.attrModHandlers, nil, nil, maxUpdateBody+nextHopGrowthMax)
+	return out, fail
+}
+
+// normalizeVPNNextHop applies RFC 4659 Section 3.2.1.1 to the 24- or 48-octet
+// RD-prefixed field of an originated or injected body, by the decision both
+// forwarding rails already ask (applyEgressNextHopScope), so the API rails and
+// the forwarding rails cannot answer the common-subnet question differently.
+//
+// RFC 4659 Section 3.2.1.1: "The link-local address shall be included in the
+// Next Hop field if and only if the advertising BGP speaker shares a common
+// subnet with the peer the route is being advertised to [BGP-IPv6]."
+//
+// field is the Next Hop field of body's MP_REACH_NLRI. A nil result with no
+// failure means identity, as in normalizeOrdinaryNextHop.
+func (r *Reactor) normalizeVPNNextHop(peer *Peer, facts *peerForwardFacts, body, field []byte, fam family.Family) ([]byte, modifyFailure) {
+	// Either slot naming the peer's own address stays, so the final RFC 4271
+	// Section 5.1.3 refusal still sees it; trimming must not hide it.
+	peerAddr := facts.addr.Unmap()
+	if netip.AddrFrom16([16]byte(field[8:24])).Unmap() == peerAddr {
+		return nil, modifyFailureNone
+	}
+	if len(field) == vpnNextHopPairOctets {
+		if netip.AddrFrom16([16]byte(field[32:48])).Unmap() == peerAddr {
+			return nil, modifyFailureNone
+		}
+	}
+	var mods filterapi.ModAccumulator
+	applyEgressNextHopScope(peer, facts, &mods, body, fam)
+	if len(mods.Ops()) == 0 {
+		return nil, modifyFailureNone
+	}
+	// RFC 4659 Section 3.2.1.1. Growth is one RD plus one link-local address
+	// plus a possible extended length octet.
+	const vpnNextHopGrowthMax = 8 + 16 + 1
+	out, _, fail := buildModifiedPayloadWithLimit(body, &mods, r.attrModHandlers, nil, nil, maxUpdateBody+vpnNextHopGrowthMax)
 	return out, fail
 }

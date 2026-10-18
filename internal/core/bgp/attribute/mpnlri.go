@@ -177,7 +177,7 @@ func (m *MPReachNLRI) nextHopLen() int {
 // encoded. This function only guarantees that a size query and a write can never
 // come to different answers about the same attribute.
 func (m *MPReachNLRI) nextHopOctets(nh netip.Addr) int {
-	n := len(nh.AsSlice())
+	n := len(m.wireNextHop(nh).AsSlice())
 	if n == 0 {
 		return 0
 	}
@@ -185,6 +185,29 @@ func (m *MPReachNLRI) nextHopOctets(nh netip.Addr) int {
 		return RDSize + n
 	}
 	return n
+}
+
+// wireNextHop returns the address form the Next Hop field carries for nh. Both
+// nextHopOctets and writeNextHops read it, so a size query and a write agree.
+//
+// RFC 4659 Section 3.2.1.2: the BGP speaker "SHALL advertise to its peer a Next
+// Hop Network Address field containing a VPN-IPv6 address: - whose 8-octet RD
+// is set to zero, and - whose 16-octet IPv6 address is encoded as an
+// IPv4-mapped IPv6 address [V6ADDR] containing the IPv4 address of the
+// advertising BGP speaker." So an IPv4 next hop of a VPN-IPv6 route is written
+// as ::ffff:a.b.c.d, 24 octets with its RD, never the 12-octet VPN-IPv4 form
+// that RFC 4659 Section 3.2.1.1's lengths (24 or 48) do not admit.
+func (m *MPReachNLRI) wireNextHop(nh netip.Addr) netip.Addr {
+	if m.AFI != AFIIPv6 {
+		return nh
+	}
+	if m.SAFI != SAFIVPN {
+		return nh
+	}
+	if !nh.Is4() {
+		return nh
+	}
+	return netip.AddrFrom16(nh.As16())
 }
 
 // ValidateNextHops reports whether every next hop of this attribute has a wire
@@ -246,6 +269,8 @@ func (m *MPReachNLRI) WriteTo(buf []byte, off int) int {
 //	non-VPN: [addr 4|16] [link-local 16]?
 //	VPN:     [RD 8 = 0] [addr 4|16] ([RD 8 = 0] [link-local 16])?
 //
+// A VPN-IPv6 IPv4 next hop is written mapped, 16 octets (wireNextHop).
+//
 // RFC 4364 Section 4.3.4: "The Route Distinguisher component of the Next Hop
 // field SHALL be set to all zeros."
 // RFC 8950 Section 3: "Next Hop Address = VPN-IPv6 address of a next hop with
@@ -254,7 +279,7 @@ func (m *MPReachNLRI) WriteTo(buf []byte, off int) int {
 // Both apply to every VPN next hop written here.
 func (m *MPReachNLRI) writeNextHops(buf []byte, pos int) int {
 	for _, nh := range m.NextHops.Slice() {
-		octets := nh.AsSlice()
+		octets := m.wireNextHop(nh).AsSlice()
 		if len(octets) == 0 {
 			// No wire form. ValidateNextHops refuses such an attribute, and the RD is
 			// skipped with the address so this write matches nextHopOctets exactly.

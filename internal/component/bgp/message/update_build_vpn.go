@@ -214,7 +214,9 @@ func (ub *UpdateBuilder) BuildVPN(p *VPNParams) *Update {
 //	+0      +8                    +24     +32                   +48
 //	| RD=0  | Global IPv6 (16 B)  | RD=0  | Link-Local IPv6 (16 B) |
 //
-// The global-only form ends at +24. An IPv4 next hop is RD(8) + IPv4(4), 12 octets.
+// The global-only form ends at +24. An IPv4 next hop is RD(8) + IPv4(4), 12
+// octets, for a VPN-IPv4 route, and RD(8) + ::ffff:IPv4(16), 24 octets, for a
+// VPN-IPv6 route (RFC 4659 Section 3.2.1.2).
 //
 // Returns a rawAttribute because VPN next-hop format (RD+IP) differs from
 // standard MPReachNLRI (which only supports plain IP addresses).
@@ -244,7 +246,14 @@ func (ub *UpdateBuilder) buildMPReachVPN(p *VPNParams) *rawAttribute {
 	// RFC 4659 Section 3.2.1.1: each VPN-IPv6 address of the Next Hop field
 	// has its "8-octet RD is set to zero".
 	clear(value[4 : 4+nhLen])
-	copy(value[4+8:], p.NextHop.AsSlice()) // Global (or IPv4) address
+	if nhLen == vpnIPv4NextHopOctets {
+		copy(value[4+8:], p.NextHop.AsSlice()) // IPv4 address
+	} else {
+		// RFC 4659 Section 3.2.1.2: an IPv4 next hop of a VPN-IPv6 route is
+		// "encoded as an IPv4-mapped IPv6 address"; As16 writes ::ffff:a.b.c.d.
+		global := p.NextHop.As16()
+		copy(value[4+8:4+24], global[:]) // Global (or IPv4-mapped) address
+	}
 	if nhLen == vpnNextHopPairOctets {
 		ll := p.LinkLocalNextHop.As16()
 		copy(value[4+32:4+48], ll[:]) // Link-Local address after the second zero RD
@@ -263,6 +272,10 @@ func (ub *UpdateBuilder) buildMPReachVPN(p *VPNParams) *rawAttribute {
 // Next Hop field: two VPN-IPv6 addresses of 24 octets each.
 const vpnNextHopPairOctets = 48
 
+// vpnIPv4NextHopOctets is the VPN-IPv4 Next Hop field of an IPv4 next hop:
+// 8-byte zero RD + 4-byte IPv4 (RFC 4364 Section 4.3.4).
+const vpnIPv4NextHopOctets = 12
+
 // vpnNextHopOctets returns the Next Hop field length buildMPReachVPN writes.
 //
 // The link-local second address is written only after an IPv6 next hop and only
@@ -271,7 +284,11 @@ const vpnNextHopPairOctets = 48
 // that slot would break the sentence the 48-octet form exists to satisfy.
 func vpnNextHopOctets(p *VPNParams) int {
 	if !p.NextHop.Is6() {
-		return 12 // 8-byte RD + 4-byte IPv4
+		if p.Prefix.Addr().Is6() {
+			// RFC 4659 Section 3.2.1.2: zero RD + IPv4-mapped IPv6 address.
+			return 24
+		}
+		return vpnIPv4NextHopOctets
 	}
 	if !p.LinkLocalNextHop.Is6() {
 		return 24 // 8-byte RD + 16-byte IPv6
