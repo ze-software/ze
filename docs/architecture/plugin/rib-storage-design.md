@@ -171,17 +171,39 @@ expiry and release encode their source-specific withdrawals here.
 ### Source-DOWN replacement and sent ordering
 
 RS drains the departed source's workers and submits its existing native/text
-withdrawal batches with the source address and a received-message cut. The RIB
-excludes that source from its existing whole-set election, without deleting any
-received state from a possibly reconnected session. A non-ADD-PATH destination
-receives the surviving candidate's own NLRI, attributes, next hop and received
-generation, or a withdrawal if its failed owner has no usable replacement.
-ADD-PATH destinations instead withdraw only the failed source's actual sent
-identifiers, including zero. The RIB normalizes the affected identities once per
-batch and scans that destination's sent family once, rather than restarting from
-the first route after every identifier. This remains the cold lookup's retained
+withdrawal batches with the source address and a received-message cut. The
+reactor asks the RIB about one destination at a time, and each requested key
+carries its own excluded-source set: a departure puts the departed source in
+it, and an empty set excludes nobody, so the withdrawing source's other
+received paths stay electable. There is no mode field; the two triggers differ
+only in data. The RIB skips every candidate of an excluded source, the
+destination's own candidates and those of down peers, without deleting any
+received state from a possibly reconnected session. Election needs no sent
+entry for the key.
+
+The answer holds exactly one outcome per requested key, in request order, and
+the reactor refuses an answer that misses a key (`ribevents.CheckRecoveryAnswer`)
+rather than reading the gap as "no survivor". The outcome is WITHDRAW when no
+candidate remains, otherwise SURVIVORS: every remaining candidate in election
+order, meaning `SelectBest` over the remainder, then over the rest, because the
+decision comparator is not transitive under MED and cannot sort. Each survivor
+carries its own NLRI, attributes, next hop, received message ID, received path
+identifier and received ADD-PATH flag. The outcome's `Sent` list names the
+destination's advertisement of the key when it is not newer than the DOWN cut,
+so a newer advertisement from the departed source's reconnected session is left
+alone; on WITHDRAW it is listed only when an excluded source owns it, because
+another source's route is never withdrawn on the departed source's behalf. The
+reactor writes the first survivor in place of the advertisement, or withdraws
+it on WITHDRAW, and writes nothing for a key with an empty `Sent`.
+ADD-PATH destinations run no election: the outcome is WITHDRAW and `Sent` lists
+the failed source's actual sent identifiers, including zero. The external
+command takes one argument per key in `ribevents.FormatRecoveryKey`'s form,
+`<nlri-hex>=<excluded>,<excluded>`. This remains the cold lookup's retained
 sent projection; final writer admission still requires its live owner receipt.
 Entries learned after the DOWN cut are not candidates for removal.
+<!-- source: internal/core/bgp/ribevents/recovery.go -- RecoveryRequest, RecoveryOutcome, CheckRecoveryAnswer, FormatRecoveryKey -->
+<!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoverySurvivorsLocked, recoverySentLocked, recoverySentAddPathLocked -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- queueRecoveryOutcome -->
 
 Sent event callbacks enqueue delivery; they do not synchronously update the RIB.
 The engine first snapshots a destination's causal send sequence under its

@@ -75,3 +75,17 @@ because each phase is about one agent's budget. Two facts constrain the order:
   until Phase 3, or land Phases 2 and 3 in one commit.
 - The second half of Phase 2b (the no-retention reason) waits on D1 of
   `spec-bgp-graceful-restart-rfc-defects.md`, which is still at `design`.
+
+Phase 2 core landed (commit "rib: answer recovery per key", 2026-10-18): the
+RIB answers one outcome per requested key (WITHDRAW, or SURVIVORS in repeated
+`SelectBest` order), each key carries its own excluded-source set, the
+destination's own candidates are skipped, and the election needs no sent entry.
+The cut was KEPT, folded into the outcome's `Sent` list with HEAD's owner rule,
+because the spec moves a guard to its carrier before deleting it; Phase 3
+deletes it end to end. Wire behavior is unchanged, so the three Phase 1 probes
+stay red. Still owed from Phase 2: R-12 (`TestRIBSentProjectionOfPurgedOwnerRemoves`,
+the `recovery-write` check and the bgp-rib lifecycle dispatcher). Next, in
+order: Phase 2b (its own commit, the spec puts it before Phase 3), then
+Phase 3. `process.TestRecoveryQueuedDeliveryTransport` was red in setup
+("invalid value for receive: update", a derived-binding refusal) with another
+session's uncommitted `plugin/registry/registry.go` in the tree; not this change.

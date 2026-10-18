@@ -372,19 +372,17 @@ func TestRecoveryRefusesFilteredCandidateWithdrawalAfterLookup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lookup := ribevents.PublishRecovery(func(ribevents.RecoveryRequest) ([]ribevents.RecoveryRoute, error) {
+	lookup := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
 		// C's removal reaches the actual direct writer after selection, while
 		// A still owns the destination. No withdrawal may reach the wire.
 		f.send(t, "direct", f.source, f.ctxID, syncOrderWithdrawBody)
-		return []ribevents.RecoveryRoute{{Source: f.source.Settings().Address,
-			NLRI: syncOrderPrefixWire, SentNLRI: syncOrderPrefixWire,
-			Attributes: candidate.PathAttributes, NextHop: []byte{10, 0, 0, 1}, MessageID: 81}}, nil
+		return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: f.source.Settings().Address,
+			NLRI: syncOrderPrefixWire, Attributes: candidate.PathAttributes, NextHop: []byte{10, 0, 0, 1}, MessageID: 81}), nil
 	})
 	t.Cleanup(lookup.Close)
-	retry, err := api.relayRecovery(t.Context(), ribevents.RecoveryRequest{
-		Source: f.other.Settings().Address, Destination: f.destination.Settings().Address,
-		Family: family.IPv4Unicast, NLRIs: [][]byte{syncOrderPrefixWire},
-	}, f.destination, session, sequence, plugin.OperatorSender(), sources)
+	retry, err := api.relayRecovery(t.Context(), recoveryDepartureRequest(f.other.Settings().Address,
+		f.destination.Settings().Address, family.IPv4Unicast, 0, syncOrderPrefixWire),
+		f.destination, session, sequence, plugin.OperatorSender(), sources)
 	if err != nil || !retry {
 		t.Fatalf("filtered source removal failed to invalidate cold selection: retry=%v err=%v", retry, err)
 	}

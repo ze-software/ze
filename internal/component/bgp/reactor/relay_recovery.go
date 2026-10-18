@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/netip"
 	"strconv"
-	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
@@ -145,8 +144,10 @@ func (a *reactorAPIAdapter) recoverNLRIBatch(ctx context.Context, batch bgptypes
 	if len(batch.NLRIs) == 0 {
 		return nil
 	}
-	request := ribevents.RecoveryRequest{Source: batch.RecoverySource, Family: batch.Family,
-		Cut: batch.RecoveryCut, NLRIs: make([][]byte, 0, len(batch.NLRIs))}
+	// RFC 4271 Section 6: every candidate of the departed source is invalid.
+	excluded := []netip.Addr{batch.RecoverySource}
+	request := ribevents.RecoveryRequest{Family: batch.Family,
+		Cut: batch.RecoveryCut, Keys: make([]ribevents.RecoveryKey, 0, len(batch.NLRIs))}
 	for i, route := range batch.NLRIs {
 		// RFC 7911 Section 3: "In order to carry the Path Identifier in an
 		// UPDATE message, the NLRI encoding MUST be extended by prepending
@@ -164,7 +165,7 @@ func (a *reactorAPIAdapter) recoverNLRIBatch(ctx context.Context, batch bgptypes
 		}
 		raw := make([]byte, nlri.LenWithContext(route, addPath))
 		nlri.WriteNLRI(route, raw, 0, addPath)
-		request.NLRIs = append(request.NLRIs, raw)
+		request.Keys = append(request.Keys, ribevents.RecoveryKey{NLRI: raw, Excluded: excluded})
 	}
 	for i, destination := range destinations {
 		for {
@@ -215,22 +216,22 @@ func (a *reactorAPIAdapter) recoverNLRIBatch(ctx context.Context, batch bgptypes
 // or the new best routes before the invalid routes are deleted from the system."
 // Selection and export therefore complete before source ownership is released.
 func (a *reactorAPIAdapter) relayRecovery(ctx context.Context, request ribevents.RecoveryRequest, destination *Peer, session *Session, sequence uint64, sender plugin.Sender, sources map[*Peer]recoverySourceReceipt) (bool, error) {
-	var routes []ribevents.RecoveryRoute
+	var outcomes []ribevents.RecoveryOutcome
 	var err error
 	if owner := ribevents.RecoveryProvider(); owner != nil {
 		// RFC 4271 Section 6: use the existing selection producer in-process.
-		routes, err = owner.Lookup(request)
+		outcomes, err = owner.Lookup(request)
 	} else {
 		if a.r.api == nil {
 			return false, errServerNotReady
 		}
-		identities := make([]string, len(request.NLRIs))
-		for i, raw := range request.NLRIs {
-			identities[i] = hex.EncodeToString(raw)
+		args := make([]string, 0, 6+len(request.Keys))
+		args = append(args, request.Destination.String(), request.Family.String(),
+			strconv.FormatBool(request.AddPath), strconv.FormatBool(request.PrefixOnly),
+			strconv.FormatBool(request.SentAddPath), strconv.FormatUint(request.Cut, 10))
+		for i := range request.Keys {
+			args = append(args, ribevents.FormatRecoveryKey(&request.Keys[i]))
 		}
-		args := []string{request.Source.String(), request.Destination.String(), request.Family.String(),
-			strings.Join(identities, ","), strconv.FormatBool(request.AddPath),
-			strconv.FormatBool(request.PrefixOnly), strconv.FormatBool(request.SentAddPath), strconv.FormatUint(request.Cut, 10)}
 		commandContext := &pluginserver.CommandContext{Server: a.r.api, RequestContext: ctx}
 		var response *plugin.Response
 		response, err = a.r.api.Dispatcher().ForwardToPlugin(commandContext, "request bgp rib recovery", args, "*")
@@ -243,12 +244,16 @@ func (a *reactorAPIAdapter) relayRecovery(ctx context.Context, request ribevents
 			default:
 				data, ok := response.Data.(plugin.RawJSON)
 				if ok {
-					err = json.Unmarshal([]byte(data), &routes)
+					err = json.Unmarshal([]byte(data), &outcomes)
 				} else {
 					err = fmt.Errorf("source-DOWN recovery returned an invalid RIB document")
 				}
 			}
 		}
+	}
+	if err == nil {
+		// A key with no outcome is a lookup failure, never "no survivor".
+		err = ribevents.CheckRecoveryAnswer(&request, outcomes)
 	}
 	if err != nil {
 		return false, err
@@ -267,21 +272,10 @@ func (a *reactorAPIAdapter) relayRecovery(ctx context.Context, request ribevents
 			a.r.fwdPool.releaseRecoveryItems(admission)
 		}
 	}()
-	for _, recovery := range routes {
-		admission.nlri = recovery.SentNLRI
-		stored := rpc.StoredRoute{SourcePeer: recovery.Source.String(), Family: request.Family.String(),
-			NLRIHex: hex.EncodeToString(recovery.NLRI), AttrHex: hex.EncodeToString(recovery.Attributes),
-			NextHopHex: hex.EncodeToString(recovery.NextHop), MsgID: recovery.MessageID,
-			NLRIFraming: rpc.NLRIFramingSourceWire, Withdraw: recovery.Withdraw}
-		// RFC 4271 Section 6: replacement and withdrawal have disjoint owners.
-		if err := a.queueRecovery(destination, &stored, request.Family, admission, sources, sender); err != nil {
-			if errors.Is(err, errRelayNoSource) {
-				return true, nil
-			}
-			if errors.Is(err, errForwardNoSource) {
-				return true, nil
-			}
-			return false, err
+	for i := range outcomes {
+		retry, err := a.queueRecoveryOutcome(destination, &outcomes[i], request.Family, admission, sources, sender)
+		if err != nil || retry {
+			return retry, err
 		}
 	}
 	if len(admission.items) == 0 {
@@ -302,16 +296,47 @@ func (a *reactorAPIAdapter) relayRecovery(ctx context.Context, request ribevents
 	}
 }
 
-// queueRecovery admits a replacement on its surviving source's ordinary rail,
-// or queues an already destination-framed withdrawal behind earlier forwards.
+// queueRecoveryOutcome stages one key's decision. The destination acts only on
+// the advertisements Sent names, and a key with an empty Sent writes nothing.
+// WITHDRAW withdraws each of them; SURVIVORS writes the first candidate in
+// election order in place of the advertisement.
+// RFC 4271 Section 6: replacement and withdrawal have disjoint owners.
+func (a *reactorAPIAdapter) queueRecoveryOutcome(destination *Peer, outcome *ribevents.RecoveryOutcome, fam family.Family, admission *recoveryAdmission, sources map[*Peer]recoverySourceReceipt, sender plugin.Sender) (bool, error) {
+	if outcome.Withdraw {
+		for _, sent := range outcome.Sent {
+			withdraw := rpc.StoredRoute{Family: fam.String(), NLRIHex: hex.EncodeToString(sent), Withdraw: true}
+			if err := a.queueRecoveryWithdrawal(destination, &withdraw, fam, admission); err != nil {
+				return false, err
+			}
+		}
+		return false, nil
+	}
+	if len(outcome.Sent) == 0 {
+		return false, nil
+	}
+	admission.nlri = outcome.Sent[0]
+	survivor := &outcome.Survivors[0]
+	stored := rpc.StoredRoute{SourcePeer: survivor.Source.String(), Family: fam.String(),
+		NLRIHex: hex.EncodeToString(survivor.NLRI), AttrHex: hex.EncodeToString(survivor.Attributes),
+		NextHopHex: hex.EncodeToString(survivor.NextHop), MsgID: survivor.MessageID,
+		NLRIFraming: rpc.NLRIFramingSourceWire}
+	err := a.queueRecovery(destination, &stored, fam, admission, sources, sender)
+	if errors.Is(err, errRelayNoSource) {
+		return true, nil
+	}
+	if errors.Is(err, errForwardNoSource) {
+		return true, nil
+	}
+	return false, err
+}
+
+// queueRecovery admits a replacement on its surviving source's ordinary rail;
+// an egress-denied replacement withdraws the destination's advertisement.
 // RFC 4271 Section 9.2: "All newly installed routes and all newly unfeasible
 // routes for which there is no replacement route SHALL be advertised to its
 // peers by means of an UPDATE message."
 // Queue order retains earlier forwards before this replacement or withdrawal.
 func (a *reactorAPIAdapter) queueRecovery(destination *Peer, route *rpc.StoredRoute, fam family.Family, admission *recoveryAdmission, sources map[*Peer]recoverySourceReceipt, sender plugin.Sender) error {
-	if route.Withdraw {
-		return a.queueRecoveryWithdrawal(destination, route, fam, admission)
-	}
 	sourceAddr, err := netip.ParseAddr(route.SourcePeer)
 	if err != nil {
 		return err

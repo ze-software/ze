@@ -4,11 +4,9 @@ package rib
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"net/netip"
 	"strconv"
-	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
@@ -19,64 +17,120 @@ import (
 	"github.com/ze-software/ze/internal/core/rib/store"
 )
 
-// recoveryRoutes reads the existing sent inventory and selection producer. The
-// departed source is excluded, never deleted here: an asynchronous old DOWN MUST
-// NOT remove a reconnected session. The received-message cut protects its output.
+// recoveryRoutes answers every requested key with exactly one outcome. An
+// excluded source is skipped, never deleted here: an asynchronous old DOWN
+// MUST NOT remove a reconnected session.
 // RFC 4271 Section 6: "The local system recalculates its best routes for the
 // destinations of the routes marked as invalid."
 // The existing election therefore supplies each surviving replacement.
-func (r *RIBManager) recoveryRoutes(request ribevents.RecoveryRequest) ([]ribevents.RecoveryRoute, error) {
-	identities := make(map[ribOutKey]struct{}, len(request.NLRIs))
-	for _, raw := range request.NLRIs {
-		identity, err := recoveryIdentity(request.Family, raw, request.AddPath, request.PrefixOnly)
+func (r *RIBManager) recoveryRoutes(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
+	identities := make([]ribOutKey, len(request.Keys))
+	for i := range request.Keys {
+		identity, err := recoveryIdentity(request.Family, request.Keys[i].NLRI, request.AddPath, request.PrefixOnly)
 		if err != nil {
 			return nil, err
 		}
-		identities[identity] = struct{}{}
+		identities[i] = identity
 	}
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
 
 	entries := r.ribOut[request.Destination][request.Family]
-	if request.SentAddPath {
-		// ADD-PATH already advertised the surviving paths. Remove only this
-		// source's sent identifiers, including zero; do not elect over them.
-		var result []ribevents.RecoveryRoute
-		source := request.Source.String()
-		for key, sent := range entries {
-			match := key
-			match.PathID = 0
-			if _, affected := identities[match]; !affected {
-				continue
-			}
-			if !sent.AddPath {
-				continue
-			}
-			if sent.SourcePeer != source {
-				continue
-			}
-			if sent.SourceMessageID > request.Cut {
-				continue
-			}
-			// RFC 7911 Section 3: withdrawal names the advertised identifier.
-			raw := recoverySentNLRI(request.Family, key, sent)
-			result = append(result, ribevents.RecoveryRoute{Source: request.Source, NLRI: raw, SentNLRI: raw, Withdraw: true})
-		}
-		return result, nil
+	outcomes := make([]ribevents.RecoveryOutcome, len(request.Keys))
+	for i := range request.Keys {
+		outcomes[i].NLRI = request.Keys[i].NLRI
 	}
-	var result []ribevents.RecoveryRoute
-	for identity := range identities {
-		entry, found := entries[identity]
-		if !found {
-			continue
-		}
-		routes, err := r.recoveryRouteLocked(request, identity, entry)
+	if request.SentAddPath {
+		// RFC 7911 Section 3: ADD-PATH already advertised the surviving paths,
+		// so no election runs; each excluded source's sent identifiers,
+		// including zero, are withdrawn.
+		recoverySentAddPathLocked(&request, identities, entries, outcomes)
+		return outcomes, nil
+	}
+	for i := range request.Keys {
+		key := &request.Keys[i]
+		outcome := &outcomes[i]
+		survivors, err := r.recoverySurvivorsLocked(&request, key, identities[i])
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, routes...)
+		outcome.Survivors = survivors
+		outcome.Withdraw = len(survivors) == 0
+		if entry, found := entries[identities[i]]; found {
+			outcome.Sent = recoverySentLocked(&request, key, identities[i], entry, outcome.Withdraw)
+		}
 	}
-	return result, nil
+	return outcomes, nil
+}
+
+// recoverySentAddPathLocked answers every key WITHDRAW with the sent
+// identifiers an excluded source owns at the destination for the key's prefix.
+// It scans the destination's sent family once for the whole request rather
+// than once per key. The caller MUST hold peerMu.
+func recoverySentAddPathLocked(request *ribevents.RecoveryRequest, identities []ribOutKey, entries map[ribOutKey]ribOutEntry, outcomes []ribevents.RecoveryOutcome) {
+	keysByIdentity := make(map[ribOutKey][]int, len(identities))
+	for i, identity := range identities {
+		outcomes[i].Withdraw = true
+		keysByIdentity[identity] = append(keysByIdentity[identity], i)
+	}
+	for sentKey, entry := range entries {
+		match := sentKey
+		match.PathID = 0
+		indexes, affected := keysByIdentity[match]
+		if !affected {
+			continue
+		}
+		if !entry.AddPath {
+			continue
+		}
+		if entry.SourceMessageID > request.Cut {
+			continue
+		}
+		var sent []byte
+		for _, i := range indexes {
+			if !recoveryExcludes(&request.Keys[i], entry.SourcePeer) {
+				continue
+			}
+			if sent == nil {
+				// RFC 7911 Section 3: withdrawal names the advertised identifier.
+				sent = recoverySentNLRI(request.Family, sentKey, entry)
+			}
+			outcomes[i].Sent = append(outcomes[i].Sent, sent)
+		}
+	}
+}
+
+// recoverySentLocked names the destination's advertisement of the key when it
+// is not newer than the cut. A withdrawal additionally needs an excluded source
+// to own it: another source's route is never withdrawn on this source's behalf.
+// The caller MUST hold peerMu.
+func recoverySentLocked(request *ribevents.RecoveryRequest, key *ribevents.RecoveryKey, identity ribOutKey, entry ribOutEntry, withdraw bool) [][]byte {
+	if entry.AddPath {
+		return nil
+	}
+	if entry.SourceMessageID > request.Cut {
+		return nil
+	}
+	if withdraw && !recoveryExcludes(key, entry.SourcePeer) {
+		return nil
+	}
+	// RFC 7911 Section 3: preserve the exact destination-framed withdrawal ID.
+	return [][]byte{recoverySentNLRI(request.Family, identity, entry)}
+}
+
+// recoveryExcludes reports whether the sent owner is in the key's excluded set.
+func recoveryExcludes(key *ribevents.RecoveryKey, sourcePeer string) bool {
+	owner, err := netip.ParseAddr(sourcePeer)
+	if err != nil {
+		// An entry without parsable provenance names no source to exclude.
+		return false
+	}
+	for _, excluded := range key.Excluded {
+		if owner == excluded {
+			return true
+		}
+	}
+	return false
 }
 
 // recoveryIdentity normalizes each affected native identity once per batch.
@@ -103,24 +157,19 @@ func recoveryIdentity(fam family.Family, raw []byte, addPath, prefixOnly bool) (
 	return identity, nil
 }
 
-// recoveryRouteLocked selects a non-ADD-PATH replacement from retained routes.
+// recoverySurvivorsLocked lists the key's candidates in election order. Each
+// excluded source's candidates, the destination's own, and those of down peers
+// are skipped before election. Election needs no sent entry for the key.
 // The caller MUST hold peerMu throughout selection and the byte snapshot.
-func (r *RIBManager) recoveryRouteLocked(request ribevents.RecoveryRequest, identity ribOutKey, entry ribOutEntry) ([]ribevents.RecoveryRoute, error) {
-	if entry.AddPath {
-		return nil, nil
-	}
-	if entry.SourceMessageID > request.Cut {
-		return nil, nil
-	}
-
+func (r *RIBManager) recoverySurvivorsLocked(request *ribevents.RecoveryRequest, key *ribevents.RecoveryKey, identity ribOutKey) ([]ribevents.RecoveryRoute, error) {
 	var candidates []*Candidate
 	var prefix netip.Prefix
 	var ok bool
 	if storage.IsCIDRFamily(request.Family) {
 		prefix = identity.Prefix
 		if request.Family.SAFI == family.SAFIMPLSLabel {
-			// The existing sent key already removed labels and normalized the
-			// CIDR. Reuse it instead of parsing the source's label stack again.
+			// The normalized key already removed labels and the CIDR is
+			// canonical. Reuse it instead of parsing the label stack again.
 			_, prefix, ok = parsePrevKey(request.Family, []byte(identity.Native), false)
 			if !ok {
 				return nil, fmt.Errorf("recovery: invalid CIDR NLRI")
@@ -133,32 +182,55 @@ func (r *RIBManager) recoveryRouteLocked(request ribevents.RecoveryRequest, iden
 	defer releaseCandidates(candidates)
 	eligible := 0
 	for i, candidate := range candidates {
-		if candidate.PeerIP == request.Source {
-			continue
-		}
-		if up, known := r.peerUp[candidate.PeerIP]; known && !up {
+		if !r.recoveryEligibleLocked(request, key, candidate) {
 			continue
 		}
 		candidates[eligible], candidates[i] = candidates[i], candidates[eligible]
 		eligible++
 	}
-	// RFC 4271 Section 9.1.2.2: the existing whole-set election chooses the path.
-	best := SelectBest(candidates[:eligible])
-	// RFC 7911 Section 3: preserve the exact destination-framed withdrawal ID.
-	sent := recoverySentNLRI(request.Family, identity, entry)
-	if best == nil || best.PeerIP == request.Destination {
-		if entry.SourcePeer != request.Source.String() {
-			return nil, nil
+	if eligible == 0 {
+		return nil, nil
+	}
+	remaining := candidates[:eligible]
+	survivors := make([]ribevents.RecoveryRoute, 0, len(remaining))
+	// Bounded by the key's candidate count: each pass removes one winner.
+	for len(remaining) > 0 {
+		// RFC 4271 Section 9.1.2.2: the existing whole-set election chooses
+		// the path; repeating it over the rest gives the next choice.
+		best := SelectBest(remaining)
+		// RFC 4271 Section 3.1: a replacement carries its own changed attributes.
+		survivor, err := recoveryCandidate(request.Family, prefix, best)
+		if err != nil {
+			return nil, err
 		}
-		return []ribevents.RecoveryRoute{{Source: request.Source, NLRI: sent, SentNLRI: sent, Withdraw: true}}, nil
+		survivors = append(survivors, survivor)
+		for i, candidate := range remaining {
+			if candidate == best {
+				last := len(remaining) - 1
+				remaining[i], remaining[last] = remaining[last], remaining[i]
+				remaining = remaining[:last]
+				break
+			}
+		}
 	}
-	// RFC 4271 Section 3.1: a replacement carries its own changed attributes.
-	replacement, err := recoveryCandidate(request.Family, prefix, best)
-	if err != nil {
-		return nil, err
+	return survivors, nil
+}
+
+// recoveryEligibleLocked keeps a candidate electable for the key. The
+// destination never receives its own path back (RFC 4271 Section 9.2).
+func (r *RIBManager) recoveryEligibleLocked(request *ribevents.RecoveryRequest, key *ribevents.RecoveryKey, candidate *Candidate) bool {
+	if candidate.PeerIP == request.Destination {
+		return false
 	}
-	replacement.SentNLRI = sent
-	return []ribevents.RecoveryRoute{replacement}, nil
+	for _, excluded := range key.Excluded {
+		if candidate.PeerIP == excluded {
+			return false
+		}
+	}
+	if up, known := r.peerUp[candidate.PeerIP]; known && !up {
+		return false
+	}
+	return true
 }
 
 // recoveryCandidate copies the winner's bytes before releasing its retained
@@ -194,7 +266,8 @@ func recoveryCandidate(fam family.Family, prefix netip.Prefix, best *Candidate) 
 	} else {
 		raw = framedRouteNLRI(nil, best.Route, best.PathID, best.AddPath)
 	}
-	route := ribevents.RecoveryRoute{Source: best.PeerIP, NLRI: raw, Attributes: attrs, MessageID: best.entry.MsgID}
+	route := ribevents.RecoveryRoute{Source: best.PeerIP, NLRI: raw, Attributes: attrs,
+		MessageID: best.entry.MsgID, PathID: best.PathID, AddPath: best.AddPath}
 	iter := attribute.NewAttrIterator(attrs)
 	for code, _, value, valid := iter.Next(); valid; code, _, value, valid = iter.Next() {
 		if code == attribute.AttrNextHop && fam == family.IPv4Unicast {
@@ -250,52 +323,48 @@ func recoverySentNLRI(fam family.Family, key ribOutKey, entry ribOutEntry) []byt
 
 // recoveryCommand exposes the same cold batched lookup to an external RIB. Its
 // caller MUST successfully drain applied sent deliveries first, outside writeMu.
+// Each key argument is ribevents.FormatRecoveryKey's form.
 func (r *RIBManager) recoveryCommand(_ string, args []string) (string, any, error) {
-	if len(args) != 8 {
-		return statusError, nil, fmt.Errorf("usage: request bgp rib recovery <source> <destination> <family> <nlri-hex,...> <add-path> <prefix-only> <sent-add-path> <cut>")
+	if len(args) < 7 {
+		return statusError, nil, fmt.Errorf("usage: request bgp rib recovery <destination> <family> <add-path> <prefix-only> <sent-add-path> <cut> <nlri-hex>=<excluded,...>...")
 	}
-	source, err := netip.ParseAddr(args[0])
-	if err != nil {
-		return statusError, nil, fmt.Errorf("recovery source: %w", err)
-	}
-	destination, err := netip.ParseAddr(args[1])
+	destination, err := netip.ParseAddr(args[0])
 	if err != nil {
 		return statusError, nil, fmt.Errorf("recovery destination: %w", err)
 	}
-	fam, known := family.LookupFamily(args[2])
+	fam, known := family.LookupFamily(args[1])
 	if !known {
-		return statusError, nil, fmt.Errorf("recovery: unknown family %q", args[2])
+		return statusError, nil, fmt.Errorf("recovery: unknown family %q", args[1])
 	}
-	encoded := strings.Split(args[3], ",")
-	nlris := make([][]byte, 0, len(encoded))
-	for _, identity := range encoded {
-		raw, err := hex.DecodeString(identity)
-		if err != nil {
-			return statusError, nil, fmt.Errorf("recovery NLRI: %w", err)
-		}
-		nlris = append(nlris, raw)
-	}
-	addPath, err := strconv.ParseBool(args[4])
+	addPath, err := strconv.ParseBool(args[2])
 	if err != nil {
 		return statusError, nil, fmt.Errorf("recovery ADD-PATH: %w", err)
 	}
-	prefixOnly, err := strconv.ParseBool(args[5])
+	prefixOnly, err := strconv.ParseBool(args[3])
 	if err != nil {
 		return statusError, nil, fmt.Errorf("recovery prefix-only: %w", err)
 	}
-	sentAddPath, err := strconv.ParseBool(args[6])
+	sentAddPath, err := strconv.ParseBool(args[4])
 	if err != nil {
 		return statusError, nil, fmt.Errorf("recovery sent ADD-PATH: %w", err)
 	}
-	cut, err := strconv.ParseUint(args[7], 10, 64)
+	cut, err := strconv.ParseUint(args[5], 10, 64)
 	if err != nil {
 		return statusError, nil, fmt.Errorf("recovery cut: %w", err)
 	}
-	// RFC 4271 Section 6: source removal selects withdrawal or replacement.
-	routes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Source: source, Destination: destination,
-		Family: fam, NLRIs: nlris, AddPath: addPath, PrefixOnly: prefixOnly, SentAddPath: sentAddPath, Cut: cut})
+	request := ribevents.RecoveryRequest{Destination: destination, Family: fam, AddPath: addPath,
+		PrefixOnly: prefixOnly, SentAddPath: sentAddPath, Cut: cut, Keys: make([]ribevents.RecoveryKey, 0, len(args)-6)}
+	for _, encoded := range args[6:] {
+		key, err := ribevents.ParseRecoveryKey(encoded)
+		if err != nil {
+			return statusError, nil, err
+		}
+		request.Keys = append(request.Keys, key)
+	}
+	// RFC 4271 Section 6: each key is answered with replacements or withdrawal.
+	outcomes, err := r.recoveryRoutes(request)
 	if err != nil {
 		return statusError, nil, err
 	}
-	return statusDone, routes, nil
+	return statusDone, outcomes, nil
 }

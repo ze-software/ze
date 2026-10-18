@@ -97,7 +97,7 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 			t.Fatal("direct fixture has no real structured RIB handler")
 		}
 		var queried sync.Once
-		observed := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryRoute, error) {
+		observed := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
 			queried.Do(func() { close(lookup) })
 			return owner.Lookup(request)
 		})

@@ -70,7 +70,7 @@ func TestRecoveryWaitsForFilteredReceivedPublication(t *testing.T) {
 				t.Fatal("registered selecting RIB has no recovery provider")
 			}
 			var lookups atomic.Int32
-			provider := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryRoute, error) {
+			provider := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
 				lookups.Add(1)
 				if len(extendedRecoveryStoredAttributes(b.peer.addrString, []byte{203, 0, 114})) != 0 {
 					return nil, fmt.Errorf("recovery lookup preceded actual RIB withdrawal application")
