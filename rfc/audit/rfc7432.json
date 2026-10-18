@@ -1,6 +1,7 @@
 {
-  "audited": "2026-10-09",
+  "audited": "2026-10-18",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -65,8 +66,8 @@
       "note": "update_build_evpn_rfc7432_test.go: TestRFC7432EthernetSegmentOriginationAccepted builds an ES route with a Type 1 RD; TestRFC7432EthernetSegmentOriginationRefused asserts ErrEVPNOrigination and no UPDATE for Type 0 and Type 2 RDs, isolated with a valid ES-Import RT",
       "requirement_sha": "b9fdd4b0f6155a4f",
       "tests": {
-        "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432EthernetSegmentOriginationAccepted": "e5f92edb6c106d39",
-        "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432EthernetSegmentOriginationRefused": "e5f92edb6c106d39"
+        "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432EthernetSegmentOriginationAccepted": "b846c7b1492f098e",
+        "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432EthernetSegmentOriginationRefused": "b846c7b1492f098e"
       },
       "units": {
         "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432EthernetSegmentOriginationAccepted": "fc3f7b1bc4882f41",
@@ -80,8 +81,8 @@
       "tests": {
         "internal/component/bgp/message/rfc7432_es_import_test.go::TestRFC7432EthernetSegmentRouteNeedsESImportNotESILabel": "5575480710fa2cd4",
         "internal/component/bgp/message/rfc7432_es_import_test.go::TestRFC7432EthernetSegmentRouteNeedsESImportNotESILabel#2": "5575480710fa2cd4",
-        "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432EthernetSegmentOriginationAccepted": "e5f92edb6c106d39",
-        "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432EthernetSegmentOriginationRefused": "e5f92edb6c106d39"
+        "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432EthernetSegmentOriginationAccepted": "b846c7b1492f098e",
+        "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432EthernetSegmentOriginationRefused": "b846c7b1492f098e"
       },
       "units": {
         "internal/component/bgp/message/rfc7432_es_import_test.go::TestRFC7432EthernetSegmentRouteNeedsESImportNotESILabel": "6b419d2abed497d7",
@@ -116,11 +117,12 @@
     },
     "RFC7432-8.2.1-2": {
       "code": {
-        "internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination": "dc8d03ac09d4d978",
-        "internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute": "c8122a695ccd58ef",
-        "internal/component/bgp/plugins/nlri/evpn/encode.go::EncodeRoute": "d091614f13d0caa2"
+        "internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination": "dec06a69e8bca5c5",
+        "internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOriginationMode": "0e02032c661f7e2e",
+        "internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute": "e78591a506c892ad",
+        "internal/component/bgp/plugins/nlri/evpn/encode.go::EncodeRoute": "d73184c4327f7302"
       },
-      "note": "RFC 7432 Section 8.2.1: The MPLS label in the NLRI MUST be set to 0. Independently read all four current config/command carriers. TestConfiguredEVPNPerESRoute compares the complete Type1 MAX-ET NLRI including three zero label octets; TestOriginEthernetADPerESUsesTypeOneRD checks the zero label in the NLRI carried by MP_REACH. TestConfiguredEVPNRefusesInvalidPerESRoute and TestOriginEthernetADPerESRefusesLabelStack reject a nonzero label with a Type1 RD, RT and ESI Label community already supplied. ValidateEVPNOrigination rejects any nonzero label octet for MAX-ET Type1 and is reached by both parseConfigRoute and EncodeRoute through BuildEVPN. The second-label subcase and malformed-width ingress cases remain framing calibration, not support-negative evidence. Four discrimination tuples exist in the canonical rfc/discrimination/rfc7432.json; this read-only judgment makes no new execution or native freshness claim.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 98415216e6). RFC 7432 Section 8.2.1: \"The MPLS label in the NLRI MUST be set to 0.\" Stale only because its producers moved: ValidateEVPNOrigination is now a wrapper calling ValidateEVPNOriginationMode with the mode unspecified, and parseConfigRoute/EncodeRoute now call or reach ValidateEVPNOriginationMode; the zero-label check (nlris[24]|nlris[25]|nlris[26] != 0 on MAX-ET Type 1) is unchanged and runs before the new ESI Label check, and all four tagged tests use ESI label 256 so the new reserved-label refusal cannot confound them. Overlay mutant removing the zero-label check turns TestConfiguredEVPNRefusesInvalidPerESRoute and TestOriginEthernetADPerESRefusesLabelStack red while the positives stay green; the positives compare the three zero NLRI label octets byte for byte. Unit shas of the four tests did not change.",
       "requirement_sha": "a29ed15edaf2387c",
       "tests": {
         "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute": "8605ce648899c68f",
@@ -138,11 +140,51 @@
     },
     "RFC7432-8.2.1-4": {
       "code": {
-        "internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination": "dc8d03ac09d4d978"
+        "internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOriginationMode": "0e02032c661f7e2e",
+        "internal/component/bgp/message/update_build_evpn.go::checkESILabelRedundancy": "d67c0464c5de3700",
+        "internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute": "e78591a506c892ad",
+        "internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams": "6701e7c4e1ca64d1",
+        "internal/component/bgp/plugins/nlri/evpn/encode.go::parseL2VPNArgs": "ed2aa5a77d2c0e28"
       },
-      "note": "RFC 7432 Section 8.2.1 states: \"If All-Active redundancy mode is desired, then the \"Single-Active\" bit in the flags of the ESI Label extended community MUST be set to 0 and the MPLS label in that Extended Community MUST be set to a valid MPLS label value.\" Both signaling conditions remain gaps. Registered configured/command originators carry supplied extended communities through l2vpnRouteToEVPNParams. ValidateEVPNOrigination recognizes ESI Label type/subtype and checks presence on MAX-ET Type1 advertisements, but inspects neither its flag nor embedded label against independent All-Active intent. NLRI label-width and zero-label guards constrain a different field. Missing autonomous multihoming does not make configured signaling conformant or excluded; no new PE feature is commissioned.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 98415216e6). RFC 7432 Section 8.2.1: \"If All-Active redundancy mode is desired, then the \"Single-Active\" bit in the flags of the ESI Label extended community MUST be set to 0 and the MPLS label in that Extended Community MUST be set to a valid MPLS label value.\" RFC 7432 Section 7.5: \"A value of 0 means that the multihomed site is operating in All-Active redundancy mode\". RFC 3032 Section 6: \"Label values 0-15 inclusive have special meaning\". Negatives isolate each clause on a per-ES NLRI that is otherwise valid (Type 1 RD, zero NLRI label, RT present): flag 1 under all-active, labels 0 and 15 under all-active, label 3 under flag-stated all-active, each with the exact refusal text; positives pin labels 16 and 1048575 and the EncodeRoute wire bytes. Producer: parseL2VPNArgs parses redundancy-mode all-active|single-active, l2vpnRouteToEVPNParams carries it into EVPNParams.RedundancyMode (refusing it on any route but ethernet-ad with MAX-ET, consistent with Sections 7.5/8.2.1/8.5 tying the mode to the per-ES route), and BuildEVPN and parseConfigRoute call ValidateEVPNOriginationMode, whose MAX-ET Type 1 branch calls checkESILabelRedundancy on every 0x06/0x01 community. With no keyword the flag itself states the mode (Section 7.5), so flag 0 still owes a label of 16..1048575. The label is read as the high-order 20 bits of octets 5-7 (Section 7.2 convention; Section 7.5 is silent), so a label above 2^20-1 is unrepresentable. Independent overlay mutants (tags ze_core ze_bgp), all red with assertion failures, none compile errors: flag test inverted (both packages), reserved-label check removed (both), label<15 off-by-one and raw 24-bit label read (message tests, label 15/3 cases), mode switch ignored (both), single-active branch removed (both), mode dropped in l2vpnRouteToEVPNParams and route-type/MAX-ET keyword guards removed (evpn tests). The recorded discrimination tuples break checkESILabelRedundancy with a panic, which proves reach only; the mutants above supply the deciding-logic proof. Open: dropping the mode on the config path (parseConfigRoute passing EVPNRedundancyUnspecified) leaves every evpn and EVPN config unit test green; the untagged test/encode/evpn-per-es-redundancy-mode.ci carries positives only, so the config entry point's refusal is implemented but unverified. The bgp-evpn-gobgp interop (GoBGP shows raw 24-bit 4096/8192 for labels 256/512) still owes its red proof.",
       "requirement_sha": "16947c2316921816",
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/component/bgp/message/rfc7432_esi_label_redundancy_test.go::TestRFC7432ESILabelRedundancyAccepted": "c2faeb244a8d8b6d",
+        "internal/component/bgp/message/rfc7432_esi_label_redundancy_test.go::TestRFC7432ESILabelRedundancyRefused": "c2faeb244a8d8b6d",
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go::TestOriginPerESRedundancyModeAccepted": "971248d98ad5b689",
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go::TestOriginPerESRedundancyModeRefused": "971248d98ad5b689"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7432_esi_label_redundancy_test.go::TestRFC7432ESILabelRedundancyAccepted": "c7872516565117d6",
+        "internal/component/bgp/message/rfc7432_esi_label_redundancy_test.go::TestRFC7432ESILabelRedundancyRefused": "e16a0eb5cefd0326",
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go::TestOriginPerESRedundancyModeAccepted": "71c820edee007e65",
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go::TestOriginPerESRedundancyModeRefused": "020fd3d064f44c69"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7432-8.2.1-7": {
+      "code": {
+        "internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOriginationMode": "0e02032c661f7e2e",
+        "internal/component/bgp/message/update_build_evpn.go::checkESILabelRedundancy": "d67c0464c5de3700",
+        "internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute": "e78591a506c892ad",
+        "internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams": "6701e7c4e1ca64d1",
+        "internal/component/bgp/plugins/nlri/evpn/encode.go::parseL2VPNArgs": "ed2aa5a77d2c0e28"
+      },
+      "note": "Re-judged 2026-10-18 (independent auditor, after 98415216e6). RFC 7432 Section 8.2.1: \"If Single-Active redundancy mode is desired, then the \"Single-Active\" bit in the flags of the ESI Label extended community MUST be set to 1 and the ESI label SHOULD be set to a valid MPLS label value.\" Only the MUST is the row; the SHOULD is deliberately not enforced. Negative: redundancy-mode single-active over flag 0 refused with exact text in both TestRFC7432ESILabelRedundancyRefused and TestOriginPerESRedundancyModeRefused; positives accept flag 1 with labels 256 and 0 and pin the flag-1 ESI Label on the wire. Producer: parseL2VPNArgs parses redundancy-mode all-active|single-active, l2vpnRouteToEVPNParams carries it into EVPNParams.RedundancyMode (refusing it on any route but ethernet-ad with MAX-ET, consistent with Sections 7.5/8.2.1/8.5 tying the mode to the per-ES route), and BuildEVPN and parseConfigRoute call ValidateEVPNOriginationMode, whose MAX-ET Type 1 branch calls checkESILabelRedundancy on every 0x06/0x01 community. With no keyword the flag itself states the mode (Section 7.5), so flag 0 still owes a label of 16..1048575. The label is read as the high-order 20 bits of octets 5-7 (Section 7.2 convention; Section 7.5 is silent), so a label above 2^20-1 is unrepresentable. Independent overlay mutants (tags ze_core ze_bgp), all red with assertion failures, none compile errors: flag test inverted (both packages), reserved-label check removed (both), label<15 off-by-one and raw 24-bit label read (message tests, label 15/3 cases), mode switch ignored (both), single-active branch removed (both), mode dropped in l2vpnRouteToEVPNParams and route-type/MAX-ET keyword guards removed (evpn tests). The recorded discrimination tuples break checkESILabelRedundancy with a panic, which proves reach only; the mutants above supply the deciding-logic proof. Open: dropping the mode on the config path (parseConfigRoute passing EVPNRedundancyUnspecified) leaves every evpn and EVPN config unit test green; the untagged test/encode/evpn-per-es-redundancy-mode.ci carries positives only, so the config entry point's refusal is implemented but unverified. The bgp-evpn-gobgp interop (GoBGP shows raw 24-bit 4096/8192 for labels 256/512) still owes its red proof.",
+      "requirement_sha": "162b83b898eb9070",
+      "tests": {
+        "internal/component/bgp/message/rfc7432_esi_label_redundancy_test.go::TestRFC7432ESILabelRedundancyAccepted": "c2faeb244a8d8b6d",
+        "internal/component/bgp/message/rfc7432_esi_label_redundancy_test.go::TestRFC7432ESILabelRedundancyRefused": "c2faeb244a8d8b6d",
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go::TestOriginPerESRedundancyModeAccepted": "971248d98ad5b689",
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go::TestOriginPerESRedundancyModeRefused": "971248d98ad5b689"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7432_esi_label_redundancy_test.go::TestRFC7432ESILabelRedundancyAccepted": "c7872516565117d6",
+        "internal/component/bgp/message/rfc7432_esi_label_redundancy_test.go::TestRFC7432ESILabelRedundancyRefused": "e16a0eb5cefd0326",
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go::TestOriginPerESRedundancyModeAccepted": "71c820edee007e65",
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go::TestOriginPerESRedundancyModeRefused": "020fd3d064f44c69"
+      },
+      "verdict": "enforced"
     },
     "RFC7432-8.2.1-9": {
       "note": "RFC 7432 \u00a78.2.1: \"This section describes the procedures used to construct the Ethernet A-D per ES route, which is used for fast convergence (as discussed above) and for advertising the ESI label used for split-horizon filtering (as discussed in Section 8.3). Support of this route is REQUIRED.\" Within the established explicit BGP control-plane role, current positive carriers demonstrate actual route support rather than only malformed-label rejection: internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute checks the entire MAX-ET Type-1 NLRI plus configured RT/ESI Label bytes; internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD checks the complete NLRI in an actual UPDATE MP_REACH and decodes it; internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go::TestEVPNIngressPreservesPerESZeroLabel requires exact unchanged ingress NLRI and action None. Producers evpn/config.go::parseConfigRoute, encode.go::EncodeRoute/l2vpnRouteToEVPNParams, message/update_build_evpn.go::BuildEVPN/ValidateEVPNOrigination and session_validation.go::enforceRFC7606 support those paths. Removing the route or changing its layout fails these assertions. Current single-polarity annotation is semantically justified: malformed label/RD cases are neighboring obligations, not a negative of route support. It does not waive any runtime proof, invent an owner exception, or claim PE fast-convergence, split-horizon, automatic ESI/label allocation or undisclosed whole EVPN support.",
@@ -163,8 +205,8 @@
       "note": "update_build_evpn_rfc7432_test.go::TestRFC7432PerESRouteDistributesESILabel: a per-ES A-D route with the ESI Label community (flags 0, All-Active) and an RT builds an UPDATE carrying both; without the ESI Label community it is refused with ErrEVPNOrigination while the RT is present, so the RT rule cannot trip first",
       "requirement_sha": "cf84d906eda4f62c",
       "tests": {
-        "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432PerESRouteDistributesESILabel": "e5f92edb6c106d39",
-        "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432PerESRouteDistributesESILabel#2": "e5f92edb6c106d39"
+        "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432PerESRouteDistributesESILabel": "b846c7b1492f098e",
+        "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432PerESRouteDistributesESILabel#2": "b846c7b1492f098e"
       },
       "units": {
         "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432PerESRouteDistributesESILabel": "7862a8c573638042",
