@@ -246,6 +246,17 @@
       "citation": "expect=stderr:contains=OK: import-added NO_LLGR removed on LLGR entry; unmarked control retained with LLGR_STALE"
     },
     {
+      "rid": "RFC9494-4.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc9494_llgr_least_preferred_test.go::TestRFC9494LLGRStaleLosesEveryLaterTieBreak",
+      "unit-sha": "e505899e6e7dd3ff",
+      "claim-sha": "65d327c739d9f632",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/bestpath.go::compareBeforeMED",
+      "producer-sha": "998e7a9aab5fe43c",
+      "break": "body of compareBeforeMED replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9494-4.3-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateWithdrawsEBGP",
