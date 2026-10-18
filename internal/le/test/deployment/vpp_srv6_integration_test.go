@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/le/interoplab"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -52,7 +53,11 @@ func TestVPPSRv6ServiceRoute(t *testing.T) {
 	if err := v.startContainer(container, work); err != nil {
 		t.Fatal(err)
 	}
-	defer removeContainer(container)
+	defer func() {
+		if removal := removeContainer(t.Context(), v.Docker, container); removal != "" {
+			t.Error("remove the SRv6 container:", removal)
+		}
+	}()
 	if err := v.startVPP(container, work); err != nil {
 		t.Fatal(err)
 	}
@@ -73,11 +78,12 @@ func TestVPPSRv6ServiceRoute(t *testing.T) {
 	defer cancel()
 	// The probe owns its BGP listener until exit. startWatched MUST be paired
 	// with stopVPPProcess, which also drains its collector after stopping it.
-	cmd := exec.CommandContext(ctx, "docker", dockerExec, container,
-		vppMount+"/srv6-probe", "-test.run", "^TestVPPSRv6(ServiceRouteProbe|StateOracle|PacketOracle)$", "-test.v",
-		"-test.timeout", "150s", "-vpp-srv6-port", strconv.Itoa(port))
 	seen := newCollector("srv6 peer listening", "srv6 ze restart requested", "srv6 forwarding proof passed")
-	peer, err := startWatched(cmd, "srv6> ", seen, os.Stderr)
+	peer, err := startWatchedExec(ctx, v.Docker, interoplab.ContainerExec{
+		Container: container,
+		Command: []string{vppMount + "/srv6-probe", "-test.run", "^TestVPPSRv6(ServiceRouteProbe|StateOracle|PacketOracle)$", "-test.v",
+			"-test.timeout", "150s", "-vpp-srv6-port", strconv.Itoa(port)},
+	}, "srv6> ", seen, os.Stderr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,8 +108,8 @@ func TestVPPSRv6ServiceRoute(t *testing.T) {
 	select {
 	case <-peer.done:
 		seen.wait()
-		if !cmd.ProcessState.Success() {
-			t.Fatal("SRv6 probe failed: ", cmd.ProcessState, " probe: ", seen.tailLines(), " daemon: ", daemonSeen.tailLines())
+		if peer.execErr != nil {
+			t.Fatal("SRv6 probe failed: ", peer.execErr, " probe: ", seen.tailLines(), " daemon: ", daemonSeen.tailLines())
 		}
 	case <-ctx.Done():
 		t.Fatal("SRv6 proof deadline: ", seen.tailLines(), " daemon: ", daemonSeen.tailLines())

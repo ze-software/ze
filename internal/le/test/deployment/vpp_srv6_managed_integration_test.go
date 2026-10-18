@@ -6,11 +6,9 @@
 package testdeployment
 
 import (
-	"context"
 	"errors"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -54,8 +52,7 @@ func vppSRv6Managed(t *testing.T, v *VPP, container, work string) {
 		}
 	}()
 	seen := newCollector("VPP ready, reinitializing backend")
-	cmd := exec.CommandContext(context.Background(), "docker", v.evidenceDaemonArgs(container, "srv6-managed", 0)...)
-	daemon, err := startWatched(cmd, "ze-managed> ", seen, io.MultiWriter(v.Progress, transcript))
+	daemon, err := startWatchedExec(v.ctx, v.Docker, v.evidenceDaemonExec(container, "srv6-managed", 0), "ze-managed> ", seen, io.MultiWriter(v.Progress, transcript))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +64,9 @@ func vppSRv6Managed(t *testing.T, v *VPP, container, work string) {
 			{"/var/log/vpp/vpp.log", "srv6-managed-vpp.log"},
 			{"/etc/vpp/startup.conf", "srv6-managed-startup.conf"},
 		} {
-			if output, ok := v.dockerText("cp", container+":"+artifact.source, filepath.Join(work, artifact.name)); !ok {
+			// The scratch directory is the container's vppMount, so a copy
+			// inside the container lands in work on the host.
+			if output, ok := v.containerText(container, "cp", artifact.source, vppMount+"/"+artifact.name); !ok {
 				t.Logf("retain managed VPP %s: %s", artifact.source, output)
 			}
 		}

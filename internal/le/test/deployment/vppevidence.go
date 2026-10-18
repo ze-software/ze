@@ -25,6 +25,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/linuxle"
 )
 
@@ -64,8 +65,12 @@ func newVPP(tree string) *VPP {
 // Run performs all eight scenarios and returns the completed report.
 // Operating failures return an error. A VPP answer that disproves a claim is a
 // failed report with a nil error.
-func (v *VPP) Run() (VPPReport, error) {
-	report := VPPReport{Image: v.Image}
+//
+// ctx is the verb's signal root: a SIGINT ends the run, and the container is
+// still removed.
+func (v *VPP) Run(ctx context.Context) (report VPPReport, err error) {
+	v.ctx = ctx
+	report = VPPReport{Image: v.Image}
 	if err := look("docker", "go"); err != nil {
 		return report, err
 	}
@@ -73,7 +78,7 @@ func (v *VPP) Run() (VPPReport, error) {
 	if err := buildCheckedDaemon(v.Tree, v.Goarch, v.buildBinaries); err != nil {
 		return report, err
 	}
-	if err := ensureImage(v.Image, v.Progress); err != nil {
+	if err := ensureImage(ctx, v.Docker, v.Image, v.Progress); err != nil {
 		return report, err
 	}
 
@@ -89,7 +94,7 @@ func (v *VPP) Run() (VPPReport, error) {
 	if err := v.startContainer(report.Container, work); err != nil {
 		return report, err
 	}
-	defer removeContainer(report.Container)
+	defer func() { report.ContainerRemoval = removeContainer(ctx, v.Docker, report.Container) }()
 
 	if err := v.startVPP(report.Container, work); err != nil {
 		return report, err
@@ -376,20 +381,21 @@ func (v *VPP) startEvidenceDaemon(container, configFile string, port int) (*runn
 		return nil, nil, err
 	}
 	seen := newCollector(vppTrafficLogLine, vppFirewallLine, vppDaemonReadyLine)
-	argv := v.evidenceDaemonArgs(container, configFile, port)
-	cmd := exec.CommandContext(context.Background(), "docker", argv...) //nolint:gosec // the argv is package data
-	daemon, err := startWatched(cmd, "ze> ", seen, v.Progress)
+	spec := v.evidenceDaemonExec(container, configFile, port)
+	daemon, err := startWatchedExec(v.ctx, v.Docker, spec, "ze> ", seen, v.Progress)
 	if err != nil {
 		return nil, nil, err
 	}
 	// docker exec is a client, not the daemon's signal owner. Stop the exact
 	// container command and let its exec client observe the real process exit.
-	pattern := "^" + regexp.QuoteMeta(strings.Join(argv[len(argv)-3:], " ")) + "$"
+	pattern := "^" + regexp.QuoteMeta(strings.Join(spec.Command, " ")) + "$"
 	daemon.signal = func(signal syscall.Signal) error {
-		ctx, cancel := context.WithTimeout(context.Background(), stopGrace)
-		defer cancel()
-		return exec.CommandContext(ctx, "docker", dockerExec, container, "pkill", //nolint:gosec // Generated container, internal signal, and anchored QuoteMeta pattern; no shell.
-			"-"+strconv.Itoa(int(signal)), "-f", pattern).Run()
+		_, err := v.Docker.ExecAttached(context.WithoutCancel(v.ctx), interoplab.ContainerExec{
+			Container: container,
+			Command:   []string{"pkill", "-" + strconv.Itoa(int(signal)), "-f", pattern},
+			Timeout:   stopGrace,
+		})
+		return err
 	}
 	// Existing VPP state cannot prove that a replacement Ze process started.
 	if !await(seen, vppDaemonReadyLine, daemon, v.vppApplyWait()) {
@@ -399,25 +405,29 @@ func (v *VPP) startEvidenceDaemon(container, configFile string, port int) (*runn
 	return daemon, seen, nil
 }
 
-func (v *VPP) evidenceDaemonArgs(container, configFile string, port int) []string {
+// evidenceDaemonExec answers ze started on one evidence configuration, with
+// the debug logging the scenario's verdict lines come from.
+func (v *VPP) evidenceDaemonExec(container, configFile string, port int) interoplab.ContainerExec {
 	var tb textbuf.Buffer
 	binary := tb.Str("/src/").Str(filepath.ToSlash(daemonRel(v.Goarch))).String()
 	config := filepath.Join(zeRunDir, configFile, "ze.conf")
-	argv := []string{
-		dockerExec, dockerInteractiveArg,
-		dockerEnv, "ZE_LOG_VPP=info",
-		dockerEnv, "ZE_LOG_FIB_VPP=debug",
-		dockerEnv, "ZE_LOG_TRAFFIC=debug",
-		dockerEnv, "ZE_LOG_TRAFFIC_VPP=debug",
-		dockerEnv, "ZE_LOG_FIREWALL=debug",
-		dockerEnv, "ZE_LOG_FIREWALL_VPP=debug",
-		dockerEnv, "ZE_LOG_BGP=info",
-		dockerEnv, tb.Reset().Str("ZE_CONFIG_DIR=").Str(filepath.Dir(config)).String(),
+	environ := []interoplab.EnvironmentVariable{
+		{Name: "ZE_LOG_VPP", Value: "info"},
+		{Name: "ZE_LOG_FIB_VPP", Value: "debug"},
+		{Name: "ZE_LOG_TRAFFIC", Value: "debug"},
+		{Name: "ZE_LOG_TRAFFIC_VPP", Value: "debug"},
+		{Name: "ZE_LOG_FIREWALL", Value: "debug"},
+		{Name: "ZE_LOG_FIREWALL_VPP", Value: "debug"},
+		{Name: "ZE_LOG_BGP", Value: "info"},
+		{Name: "ZE_CONFIG_DIR", Value: filepath.Dir(config)},
 	}
 	if port != 0 {
-		argv = append(argv, dockerEnv, tb.Reset().Str("ZE_TEST_BGP_PORT=").Int(int64(port)).String())
+		environ = append(environ, interoplab.EnvironmentVariable{Name: "ZE_TEST_BGP_PORT", Value: strconv.Itoa(port)})
 	}
-	return append(argv, container, binary, "start", config)
+	return interoplab.ContainerExec{
+		Container: container, Command: []string{binary, "start", config},
+		Environment: environ, Interactive: true,
+	}
 }
 
 func stopVPPProcess(proc *running, seen *collector) {

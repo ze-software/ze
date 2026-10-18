@@ -228,6 +228,15 @@ daemon therefore cannot make a failed replacement look like a successful restart
 <!-- source: internal/le/test/deployment/vppevidence.go -- startEvidenceDaemon -->
 <!-- source: internal/le/test/deployment/deployment.go -- running.stop -->
 
+`vpp-test` and `vpp-iface-test` start their container through the lab Docker
+wrapper, which labels it with the run that owns it. Ctrl-C or SIGTERM ends the
+run and still removes the container. When the removal fails, the report's
+`container-removal-error` names the reason and the verb exits 1; run
+`./le test integration cleanup` to remove it. A run killed outright leaves a
+labeled container that the next lab start or that cleanup removes.
+<!-- source: internal/le/test/deployment/actions.go -- signalRooted -->
+<!-- source: internal/le/test/deployment/deployment.go -- removeContainer -->
+
 ## Configuring VPP
 
 The `vpp { ... }` container lives in the main ze config. Minimal example:

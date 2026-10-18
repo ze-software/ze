@@ -29,12 +29,12 @@ import (
 	"errors"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 // The dot-notation spellings of ZE_VPP_DOCKER_IMAGE, ZE_VPP_DOCKER_PLATFORM
@@ -132,6 +132,12 @@ type vppIface struct {
 	// and a pipe operator must be able to carry it. It MUST be safe for
 	// concurrent use: os.Stderr and io.Discard both are.
 	Progress io.Writer
+	// Docker is the client every container, exec and removal goes through.
+	Docker *interoplab.Docker
+	// ctx is the verb's signal root, set by Run (or by an integration test
+	// that drives the steps itself): every docker call is bound to it, so a
+	// SIGINT ends the run and the deferred removal still runs.
+	ctx context.Context
 }
 
 // newVPPIface answers the run the command performs over tree, with every
@@ -145,10 +151,12 @@ func newVPPIface(tree string) *vppIface {
 		SocketWait:   VPPSocketWait,
 		ScenarioWait: VPPScenarioWait,
 		Progress:     os.Stderr,
+		Docker:       interoplab.NewDocker(),
+		ctx:          context.Background(),
 	}
 }
 
-// containerArgs answers the container VPP and the daemon both run in.
+// containerSpec answers the container VPP and the daemon both run in.
 //
 // It holds NET_ADMIN and the host's /dev/net/tun and /dev/vhost-net, never
 // --privileged: VPP's tap interfaces (the LCP pair) open a TUN device and a
@@ -159,54 +167,45 @@ func newVPPIface(tree string) *vppIface {
 // run's scratch directory at /run/vpp. The entry point is replaced by a sleep
 // so the image's own VPP is not started before its configuration has been
 // written.
-func (v *vppIface) containerArgs(name, work string) []string {
-	var tb textbuf.Buffer
-	src := tb.Str(v.Tree).Str(":/src").String()
-	tb.Reset()
-	scratch := tb.Str(work).Byte(':').Str(vppMount).String()
-
-	return []string{
-		"run", "--rm", dockerDetach,
-		dockerCapAdd, "NET_ADMIN",
-		dockerDevice, "/dev/net/tun",
-		dockerDevice, "/dev/vhost-net",
-		"--platform", v.Platform,
-		"--name", name,
-		"-v", src,
-		"-v", scratch,
-		"-w", "/src",
-		"--entrypoint", "sleep",
-		v.Image,
-		"infinity",
+func (v *vppIface) containerSpec(name, work string) interoplab.DetachedContainer {
+	return interoplab.DetachedContainer{
+		Name:             name,
+		Image:            v.Image,
+		Platform:         v.Platform,
+		Capabilities:     []string{"NET_ADMIN"},
+		Devices:          []string{"/dev/net/tun", "/dev/vhost-net"},
+		Mounts:           []interoplab.Mount{{Source: v.Tree, Target: srcMount}, {Source: work, Target: vppMount}},
+		WorkingDirectory: srcMount,
+		Entrypoint:       "sleep",
+		Command:          []string{"infinity"},
 	}
 }
 
-// vppArgs answers VPP itself, started detached inside the container so the run
+// vppDaemonCommand is VPP itself, started detached inside the container so the run
 // keeps the container's foreground for the queries that follow.
-func (v *vppIface) vppArgs(name string) []string {
-	return []string{dockerExec, dockerDetach, name, "vpp", "-c", "/run/vpp/startup.conf"}
-}
+var vppDaemonCommand = []string{"vpp", "-c", "/run/vpp/startup.conf"}
 
-// daemonArgs answers ze, started inside the container reading the named
+// daemonExec answers ze, started inside the container reading the named
 // configuration file out of a private container-owned directory.
 //
 // Each scenario stages its input from the scratch mount before launch.
 // The `start` keyword is explicit because the bare `ze <config>` launch form
 // was removed from the CLI (learned 1248).
-func (v *vppIface) daemonArgs(name, binaryRel, configFile string) []string {
+func (v *vppIface) daemonExec(name, binaryRel, configFile string) interoplab.ContainerExec {
 	var tb textbuf.Buffer
 	binary := tb.Str("/src/").Str(filepath.ToSlash(binaryRel)).String()
 	config := filepath.Join(zeRunDir, configFile, "ze.conf")
 
-	return []string{
-		dockerExec, dockerInteractiveArg,
-		dockerEnv, "ZE_LOG_VPP=info",
-		dockerEnv, "ZE_LOG_INTERFACE=debug",
-		dockerEnv, "ZE_LOG_BGP=info",
-		dockerEnv, tb.Reset().Str("ZE_CONFIG_DIR=").Str(filepath.Dir(config)).String(),
-		name,
-		binary,
-		"start", config,
+	return interoplab.ContainerExec{
+		Container: name,
+		Command:   []string{binary, "start", config},
+		Environment: []interoplab.EnvironmentVariable{
+			{Name: "ZE_LOG_VPP", Value: "info"},
+			{Name: "ZE_LOG_INTERFACE", Value: "debug"},
+			{Name: "ZE_LOG_BGP", Value: "info"},
+			{Name: "ZE_CONFIG_DIR", Value: filepath.Dir(config)},
+		},
+		Interactive: true,
 	}
 }
 
@@ -214,11 +213,11 @@ func (v *vppIface) daemonArgs(name, binaryRel, configFile string) []string {
 // The container's root daemon must own every ancestor of its database folder.
 func (v *vppIface) stageConfig(container, configFile string) error {
 	directory := filepath.Join(zeRunDir, configFile)
-	if output, ok := v.dockerText(dockerExec, container, "mkdir", "-p", directory); !ok {
+	if output, ok := v.containerText(container, "mkdir", "-p", directory); !ok {
 		return errors.New("create private ze config directory: " + output)
 	}
 	source := filepath.Join(vppMount, "ze", configFile, "ze.conf")
-	if output, ok := v.dockerText(dockerExec, container, "cp", source, filepath.Join(directory, "ze.conf")); !ok {
+	if output, ok := v.containerText(container, "cp", source, filepath.Join(directory, "ze.conf")); !ok {
 		return errors.New("stage explicit ze configuration: " + output)
 	}
 	return nil
@@ -265,7 +264,7 @@ func (v *vppIface) prepareDaemon() error {
 	if err := buildCheckedDaemon(v.Tree, v.Goarch, func() error { return buildDaemon(v.Tree, v.Goarch, v.Progress) }); err != nil {
 		return err
 	}
-	return ensureImage(v.Image, v.Progress)
+	return ensureImage(v.ctx, v.Docker, v.Image, v.Progress)
 }
 
 // Run performs the proof and answers what happened.
@@ -274,8 +273,12 @@ func (v *vppIface) prepareDaemon() error {
 // fix, and the run reached no verdict. A feature that did not appear is NOT an
 // error. It is the verdict. The report includes that verdict, the query's own
 // output and the daemon's last lines.
-func (v *vppIface) Run() (VPPIfaceReport, error) {
-	report := VPPIfaceReport{Image: v.Image}
+//
+// ctx is the verb's signal root: a SIGINT ends the run, and the container is
+// still removed.
+func (v *vppIface) Run(ctx context.Context) (report VPPIfaceReport, err error) {
+	v.ctx = ctx
+	report = VPPIfaceReport{Image: v.Image}
 
 	if err := look("docker", "go"); err != nil {
 		return report, err
@@ -296,7 +299,7 @@ func (v *vppIface) Run() (VPPIfaceReport, error) {
 	if err := v.startContainer(report.Container, work); err != nil {
 		return report, err
 	}
-	defer removeContainer(report.Container)
+	defer func() { report.ContainerRemoval = removeContainer(ctx, v.Docker, report.Container) }()
 
 	if err := v.startVPP(report.Container, work); err != nil {
 		return report, err
@@ -367,10 +370,7 @@ func (v *vppIface) proveOne(container string, one *vppScenario, loaded map[strin
 	// daemon's output to the operator, drains its pipe and retains the last lines
 	// that the daemon wrote for a failure report.
 	seen := newCollector()
-	daemon := exec.CommandContext(context.Background(), "docker", //nolint:gosec // the argv is built above, never by an operator
-		v.daemonArgs(container, daemonRel(v.Goarch), one.file)...)
-
-	ze, err := startWatched(daemon, "ze> ", seen, v.Progress)
+	ze, err := startWatchedExec(v.ctx, v.Docker, v.daemonExec(container, daemonRel(v.Goarch), one.file), "ze> ", seen, v.Progress)
 	if err != nil {
 		return result, err
 	}
@@ -466,31 +466,27 @@ func (v *vppIface) vppctl(container, query string) (string, bool) {
 // standard error and the answer to a known one on standard output. A reader of
 // a failure needs the stream that contains the reason.
 func (v *vppIface) containerText(container string, argv ...string) (string, bool) {
-	full := make([]string, 0, len(argv)+2)
-	full = append(full, dockerExec, container)
-	full = append(full, argv...)
-	return v.dockerText(full...)
+	return v.containerTextWith(container, nil, argv...)
 }
 
-// dockerText runs one complete docker argv and returns its combined output.
-// It exists because docker exec flags can appear before the container name.
-func (v *vppIface) dockerText(argv ...string) (string, bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), vppctlTimeout)
-	defer cancel()
-
-	out, err := exec.CommandContext(ctx, "docker", argv...).CombinedOutput() //nolint:gosec // the argv is built by this package, never by an operator
-	return string(out), err == nil
+// containerTextWith is containerText with an environment for the command.
+func (v *vppIface) containerTextWith(container string, environ []interoplab.EnvironmentVariable, argv ...string) (string, bool) {
+	var output textbuf.Buffer
+	_, err := v.Docker.ExecAttached(v.ctx, interoplab.ContainerExec{
+		Container: container, Command: argv, Environment: environ,
+		Stdout: &output, Stderr: &output, Timeout: vppctlTimeout,
+	})
+	if err != nil {
+		var tb textbuf.Buffer
+		return tb.Str(output.String()).Str(err.Error()).String(), false
+	}
+	return output.String(), true
 }
 
 // startContainer starts the container the proof runs in.
 func (v *vppIface) startContainer(name, work string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), dockerTimeout)
-	defer cancel()
-
-	start := exec.CommandContext(ctx, "docker", v.containerArgs(name, work)...) //nolint:gosec // the argv is built above, never by an operator
-	start.Stderr = v.Progress
-	if err := start.Run(); err != nil {
-		return errors.New("failed to start the VPP evidence container")
+	if err := v.Docker.RunDetached(v.ctx, v.containerSpec(name, work)); err != nil {
+		return errors.New("failed to start the VPP evidence container: " + err.Error())
 	}
 	return nil
 }
@@ -505,13 +501,8 @@ func (v *vppIface) startContainer(name, work string) error {
 // If VPP never creates its API socket, the container's own log is the only
 // evidence of the cause. Thus, the error includes the log.
 func (v *vppIface) startVPP(name, work string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), dockerTimeout)
-	defer cancel()
-
-	start := exec.CommandContext(ctx, "docker", v.vppArgs(name)...) //nolint:gosec // the argv is built above, never by an operator
-	start.Stderr = v.Progress
-	if err := start.Run(); err != nil {
-		return errors.New("failed to start VPP inside the evidence container")
+	if err := v.Docker.ExecDetached(v.ctx, name, vppDaemonCommand, nil); err != nil {
+		return errors.New("failed to start VPP inside the evidence container: " + err.Error())
 	}
 
 	if !waitForPath(filepath.Join(work, "api.sock"), v.SocketWait) {
@@ -525,18 +516,19 @@ func (v *vppIface) startVPP(name, work string) error {
 	return nil
 }
 
-// containerLog answers what the container has written for a failure with no
-// other evidence. If this process cannot read the log, containerLog answers
-// nothing. The caller already holds the failure that the report describes.
-func (v *vppIface) containerLog(name string) string {
-	ctx, cancel := context.WithTimeout(context.Background(), vppctlTimeout)
-	defer cancel()
+// containerLogLines bounds the container log a failed start reports.
+const containerLogLines = 200
 
-	out, err := exec.CommandContext(ctx, "docker", "logs", name).CombinedOutput() //nolint:gosec // the container name is this package's own
+// containerLog answers what the container has written for a failure with no
+// other evidence. If this process cannot read the log, containerLog says so
+// with the reason: the caller already holds the failure the report describes,
+// and an empty log would read as a container that wrote nothing.
+func (v *vppIface) containerLog(name string) string {
+	log, err := v.Docker.Logs(v.ctx, name, containerLogLines)
 	if err != nil {
-		return ""
+		return "(the container log could not be read: " + err.Error() + ")"
 	}
-	return string(out)
+	return log.Text
 }
 
 // note writes one line of narration to the progress stream. The report is the

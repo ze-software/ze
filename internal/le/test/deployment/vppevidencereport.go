@@ -66,12 +66,16 @@ type VPPReport struct {
 	Interface string              `json:"interface"`
 	Scenarios []VPPScenarioReport `json:"scenarios"`
 	Passed    bool                `json:"passed"`
+	// ContainerRemoval names why the proof's container could not be removed;
+	// empty when it was. A container left behind fails the verb.
+	ContainerRemoval string `json:"container-removal-error,omitempty"`
 }
 
 // Text renders the report in the producer's order. It writes each check from the
 // structured payload and never keeps a second list of scenario results.
 func (r VPPReport) Text() string {
 	var tb textbuf.Buffer
+	writeContainerRemoval(&tb, r.Container, r.ContainerRemoval)
 	if r.Interface != "" {
 		tb.Str("OK: created real VPP loopback interface ").Str(r.Interface).Byte('\n')
 	}

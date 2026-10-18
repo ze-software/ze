@@ -16,6 +16,9 @@ package testdeployment
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
 
 	interopl2tp "github.com/ze-software/ze/internal/le/interoplab/l2tp"
 	interoppppoe "github.com/ze-software/ze/internal/le/interoplab/pppoe"
@@ -30,7 +33,7 @@ const area = "test deployment"
 var actions = leaction.New(area,
 	leaction.Action{Verb: "l2tp-test", Why: "the L2TP control session against an external peer." +
 		" Needs Docker and the host's /dev/ppp",
-		Answer: runL2TPHere},
+		Answer: signalRooted(runL2TPAt)},
 	leaction.Action{Verb: "l2tp-ppp-test", Why: "the full L2TP PPP/NCP path on the host: LCP, IPCP, a kernel PPP" +
 		" interface at each end, a dataplane ping and a clean teardown." +
 		" Needs Linux root, xl2tpd, pppd, ping and PPPoL2TP kernel support",
@@ -45,10 +48,10 @@ var actions = leaction.New(area,
 		Answer: runGokrazyL2TPHere},
 	leaction.Action{Verb: "vpp-iface-test", Why: "the VPP interface features against a real daemon: tunnels, mirror," +
 		" wireguard, LCP. Needs Docker and the host's /dev/net/tun and /dev/vhost-net",
-		Answer: runVPPIfaceHere},
+		Answer: signalRooted(runVPPIfaceAt)},
 	leaction.Action{Verb: "vpp-test", Why: "ze driving a real VPP daemon, not a fake channel. Needs Docker and the" +
 		" host's /dev/net/tun and /dev/vhost-net",
-		Answer: runVPPHere},
+		Answer: signalRooted(runVPPAt)},
 	leaction.Action{
 		Verb:       l2tpPPPoXDiagnosticName,
 		Why:        "the native Linux netlink, PPPoX and PPP ioctl path. Leaves created L2TP objects for inspection",
@@ -63,10 +66,10 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{Verb: "docker-l2tp-ppp-test", Why: "the same L2TP PPP/NCP path in a peer-isolated Docker lab. Needs" +
 		" PPPoL2TP support in the Docker host kernel",
-		Answer: runDockerL2TPHere},
+		Answer: signalRooted(runDockerL2TPAt)},
 	leaction.Action{Verb: "docker-pppoe-accel-test", Why: "Ze's PPPoE client against a real accel-ppp access concentrator in a" +
 		" Docker lab. Needs PPPoE support in the Docker host kernel",
-		Answer: runDockerPPPoEHere},
+		Answer: signalRooted(runDockerPPPoEAt)},
 	leaction.Action{
 		Verb: "ipsec-mobike-test",
 		Why: "prove both MOBIKE initiator and responder address movement against packaged strongSwan" +
@@ -80,23 +83,29 @@ var actions = leaction.New(area,
 	},
 )
 
-func runDockerL2TPHere() (any, int) {
-	root, err := lepath.Root()
-	if err != nil {
-		leaction.ReportError(err)
-		return nil, 1
+// signalRooted is the entry root of every verb that starts a container: the
+// checkout this command was run in, and a context SIGINT or SIGTERM cancels,
+// so the verb's waits end and its deferred removals run before it exits.
+func signalRooted(run func(context.Context, string) (any, int)) func() (any, int) {
+	return func() (any, int) {
+		root, err := lepath.Root()
+		if err != nil {
+			leaction.ReportError(err)
+			return nil, 1
+		}
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		return run(ctx, root)
 	}
-	report := interopl2tp.RunAt(context.Background(), root, "")
+}
+
+func runDockerL2TPAt(ctx context.Context, root string) (any, int) {
+	report := interopl2tp.RunAt(ctx, root, "")
 	return report, report.Code
 }
 
-func runDockerPPPoEHere() (any, int) {
-	root, err := lepath.Root()
-	if err != nil {
-		leaction.ReportError(err)
-		return nil, 1
-	}
-	report := interoppppoe.RunAt(context.Background(), root, interoppppoe.Options{})
+func runDockerPPPoEAt(ctx context.Context, root string) (any, int) {
+	report := interoppppoe.RunAt(ctx, root, interoppppoe.Options{})
 	return report, report.Code
 }
 
@@ -110,29 +119,33 @@ func Subs() string { return actions.Subs() }
 // Answer is the `le test deployment` command.
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
-// runL2TPHere proves L2TP over the checkout this command was run in.
-func runL2TPHere() (any, int) {
-	root, err := lepath.Root()
-	if err != nil {
-		leaction.ReportError(err)
-		return nil, 1
-	}
-	return runL2TP(NewL2TP(root))
+// runL2TPAt proves L2TP over the checkout at root.
+func runL2TPAt(ctx context.Context, root string) (any, int) {
+	return runL2TP(ctx, NewL2TP(root))
 }
 
 // runL2TP answers the proof over one run. A step that could not be performed is
 // an error and answers 1 with no verdict; a session that did not establish is
-// the verdict, and it answers 1 with the daemon's last lines behind it.
-func runL2TP(run *L2TP) (L2TPReport, int) {
-	report, err := run.Run()
+// the verdict, and it answers 1 with the daemon's last lines behind it. A
+// container the run could not remove answers 1 whatever the verdict.
+func runL2TP(ctx context.Context, run *L2TP) (L2TPReport, int) {
+	report, err := run.Run(ctx)
 	if err != nil {
 		leaction.ReportError(err)
 		return report, 1
 	}
+	return report, l2tpExitCode(report)
+}
+
+// l2tpExitCode is the verdict of a run that reached one.
+func l2tpExitCode(report L2TPReport) int {
 	if !report.Established {
-		return report, 1
+		return 1
 	}
-	return report, 0
+	if report.ContainerRemoval != "" {
+		return 1
+	}
+	return 0
 }
 
 func runL2TPScaleHere() (any, int) {
@@ -192,22 +205,16 @@ func runGokrazyL2TP(run *gokrazyL2TP) (GokrazyL2TPReport, int) {
 	return report, 0
 }
 
-// runVPPIfaceHere proves the VPP interface features over the checkout this
-// command was run in.
-func runVPPIfaceHere() (any, int) {
-	root, err := lepath.Root()
-	if err != nil {
-		leaction.ReportError(err)
-		return nil, 1
-	}
-	return runVPPIface(newVPPIface(root))
+// runVPPIfaceAt proves the VPP interface features over the checkout at root.
+func runVPPIfaceAt(ctx context.Context, root string) (any, int) {
+	return runVPPIface(ctx, newVPPIface(root))
 }
 
 // runVPPIface answers the proof over one run. It uses the same terms as the L2TP
 // proof. A step that cannot be performed is an error. A feature that VPP never
 // showed is the verdict.
-func runVPPIface(run *vppIface) (VPPIfaceReport, int) {
-	report, err := run.Run()
+func runVPPIface(ctx context.Context, run *vppIface) (VPPIfaceReport, int) {
+	report, err := run.Run(ctx)
 	if err != nil {
 		leaction.ReportError(err)
 		return report, 1
@@ -215,26 +222,24 @@ func runVPPIface(run *vppIface) (VPPIfaceReport, int) {
 	if !report.Passed {
 		return report, 1
 	}
+	if report.ContainerRemoval != "" {
+		return report, 1
+	}
 	return report, 0
 }
 
-// runVPPHere proves all eight VPP deployment scenarios over this checkout.
-func runVPPHere() (any, int) {
-	root, err := lepath.Root()
-	if err != nil {
-		leaction.ReportError(err)
-		return nil, 1
-	}
-	return runVPP(newVPP(root))
+// runVPPAt proves all eight VPP deployment scenarios over the checkout at root.
+func runVPPAt(ctx context.Context, root string) (any, int) {
+	return runVPP(ctx, newVPP(root))
 }
 
 // runVPP maps the report and operating error onto the action exit code.
-func runVPP(run *VPP) (VPPReport, int) {
-	report, err := run.Run()
+func runVPP(ctx context.Context, run *VPP) (VPPReport, int) {
+	report, err := run.Run(ctx)
 	if err != nil {
 		leaction.ReportError(err)
 	}
-	return report, vppExitCode(report.Passed, err)
+	return report, vppExitCode(report.Passed && report.ContainerRemoval == "", err)
 }
 
 func vppExitCode(passed bool, err error) int {

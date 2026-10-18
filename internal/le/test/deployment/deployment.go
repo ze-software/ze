@@ -16,11 +16,13 @@
 // process's output for the lines that decide the verdict, and the stop path
 // that leaves no container behind.
 //
-// Every external command is reached through PATH rather than through an
-// injected seam. The proof IS the argv that reaches docker, so a test that
-// replaced docker with a function would be testing a different program; the
-// tests put a recording docker on PATH instead, and the Python original is
-// compared through the same recording (internal/le/test/deployment/l2tp_test.go).
+// Every docker command goes through interoplab.Docker, which labels each
+// container with its owner so a run killed before its own removal is reaped by
+// the next start or `./le test integration cleanup`. The proof is still the
+// argv that reaches docker: the tests record it through
+// interoplab.NewFixtureDocker rather than replacing the wrapper. The non-docker
+// processes (the cross-compile, the on-host daemons, QEMU) are reached through
+// PATH.
 package testdeployment
 
 import (
@@ -38,14 +40,17 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 const (
 	goBuildTagsArg         = "-tags"
-	dockerInteractiveArg   = "--interactive"
 	tunnelObjectName       = "tunnel"
 	reportValueUnspecified = "unspecified"
 )
+
+// srcMount is where every proof container holds the checkout.
+const srcMount = "/src"
 
 // LogTailLines is how many of a daemon's last output lines a failed run
 // reports.
@@ -66,14 +71,6 @@ const pollInterval = 200 * time.Millisecond
 // these processes is a docker client with nothing to flush, so the grace is
 // about letting it close its connection rather than about saving work.
 const stopGrace = 3 * time.Second
-
-// The two bounds on a docker query. An inspect or a remove talks to a local
-// daemon and answers in milliseconds, so a minute means the daemon is not
-// answering; a pull reaches a registry, so it gets the longer one.
-const (
-	inspectTimeout = time.Minute
-	pullTimeout    = 15 * time.Minute
-)
 
 // killGrace is how long a killed process gets to be reaped before the run stops
 // waiting for it. A process that survives SIGKILL is stuck in the kernel, and
@@ -233,10 +230,12 @@ func (c *collector) wait() { c.wg.Wait() }
 // stop MUST be called for every running a caller starts, and wait on the
 // collector MUST come after it.
 type running struct {
-	cmd    *exec.Cmd
 	done   chan struct{}
 	read   *os.File
 	signal func(syscall.Signal) error
+	// execErr is a watched exec's outcome (startWatchedExec): written before
+	// done closes, so it MUST be read only after done is closed.
+	execErr error
 }
 
 // startWatched starts cmd with BOTH its output streams going into seen, and
@@ -272,7 +271,7 @@ func startWatched(cmd *exec.Cmd, prefix string, seen *collector, progress io.Wri
 	seen.stream(prefix, read, progress)
 
 	proc := &running{
-		cmd: cmd, done: make(chan struct{}), read: read,
+		done: make(chan struct{}), read: read,
 		signal: func(signal syscall.Signal) error { return cmd.Process.Signal(signal) },
 	}
 	go func() {
@@ -401,41 +400,77 @@ func look(names ...string) error {
 //
 // The inspect comes first so that a run on a machine with no network still
 // works once the image is cached, which is what makes these proofs runnable on
-// a laptop.
-func ensureImage(image string, progress io.Writer) error {
-	ctx, cancel := context.WithTimeout(context.Background(), inspectTimeout)
-	defer cancel()
-
-	inspect := exec.CommandContext(ctx, "docker", "image", "inspect", image) //nolint:gosec // the image name is le's own setting
-	if err := inspect.Run(); err == nil {
+// a laptop. An inspect that cannot answer is an error rather than a reason to
+// pull: a daemon that does not answer would only fail the pull too.
+func ensureImage(ctx context.Context, docker *interoplab.Docker, image string, progress io.Writer) error {
+	present, err := docker.ImagePresent(ctx, image)
+	if err != nil {
+		return err
+	}
+	if present {
 		return nil
 	}
-
 	if progress != nil {
 		var tb textbuf.Buffer
 		io.WriteString(progress, tb.Str("pulling ").Str(image).Str("...\n").String()) //nolint:errcheck // progress output
 	}
-	pullCtx, pullCancel := context.WithTimeout(context.Background(), pullTimeout)
-	defer pullCancel()
-
-	pull := exec.CommandContext(pullCtx, "docker", "pull", image) //nolint:gosec // the image name is le's own setting
-	pull.Stdout = progress
-	pull.Stderr = progress
-	if err := pull.Run(); err != nil {
-		var tb textbuf.Buffer
-		return errors.New(tb.Str("docker pull ").Str(image).Str(" failed").String())
-	}
-	return nil
+	return docker.Pull(ctx, image)
 }
 
-// removeContainer takes the container down. Its failure is not reported: the
-// run is already over by the time this is called, and the reason the run ended
-// is what the caller must be told about.
-func removeContainer(name string) {
-	ctx, cancel := context.WithTimeout(context.Background(), inspectTimeout)
-	defer cancel()
+// removeContainer takes the proof's container down on a context the run's
+// cancellation does not reach, so a SIGINT still removes it. Its error is
+// answered as text for the report's container-removal field: the run's own
+// verdict stays what the caller reads first, and a container left behind is
+// named rather than discarded.
+func removeContainer(ctx context.Context, docker *interoplab.Docker, name string) string {
+	if err := docker.RemoveContainer(context.WithoutCancel(ctx), name); err != nil {
+		return err.Error()
+	}
+	return ""
+}
 
-	exec.CommandContext(ctx, "docker", "rm", "-f", name).Run() //nolint:errcheck,gosec // cleanup; the run's own verdict is what the caller reads
+// watchedExecTimeout bounds a daemon exec a proof watches. The proof's own
+// waits end it long before this; the bound only caps a client nobody stopped.
+const watchedExecTimeout = 30 * time.Minute
+
+// startWatchedExec runs spec inside a container with BOTH its output streams
+// going into seen, and answers the handle the caller stops. Stopping it
+// cancels the docker client; the command inside the container ends when it
+// exits or its container is removed, which is why a proof that must see the
+// command itself stop replaces signal (vppevidence.go).
+func startWatchedExec(ctx context.Context, docker *interoplab.Docker, spec interoplab.ContainerExec,
+	prefix string, seen *collector, progress io.Writer,
+) (*running, error) {
+	read, write, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	spec.Stdout = write
+	spec.Stderr = write
+	if spec.Timeout <= 0 {
+		spec.Timeout = watchedExecTimeout
+	}
+	execCtx, cancel := context.WithCancel(ctx)
+	proc := &running{
+		done: make(chan struct{}), read: read,
+		signal: func(syscall.Signal) error { cancel(); return nil },
+	}
+	seen.stream(prefix, read, progress)
+	go proc.execUntilDone(execCtx, cancel, docker, spec, write)
+	return proc, nil
+}
+
+// execUntilDone is the goroutine one watched exec runs in. Closing write after
+// the client exits is what lets the collector see the end of the stream; the
+// outcome is kept for a caller that judges the command's own exit.
+func (r *running) execUntilDone(ctx context.Context, cancel context.CancelFunc,
+	docker *interoplab.Docker, spec interoplab.ContainerExec, write *os.File,
+) {
+	defer close(r.done)
+	defer cancel()
+	defer write.Close() //nolint:errcheck // the stream is finished either way
+
+	_, r.execErr = docker.ExecAttached(ctx, spec)
 }
 
 // scratchDir answers a fresh directory under the tree for one run's files, and

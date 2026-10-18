@@ -24,6 +24,9 @@ type L2TPReport struct {
 	Container   string   `json:"container"`
 	Established bool     `json:"established"`
 	LogTail     []string `json:"log-tail"`
+	// ContainerRemoval names why the proof's container could not be removed;
+	// empty when it was. A container left behind fails the verb.
+	ContainerRemoval string `json:"container-removal-error,omitempty"`
 }
 
 // Text renders the run for a person, in the shape the Python original printed:
@@ -32,6 +35,7 @@ type L2TPReport struct {
 func (r L2TPReport) Text() string {
 	var tb textbuf.Buffer
 
+	writeContainerRemoval(&tb, r.Container, r.ContainerRemoval)
 	if r.Established {
 		tb.Str("OK: a real ").Str(r.Peer).Str(" peer established an L2TP session\n")
 		return tb.String()
@@ -45,4 +49,14 @@ func (r L2TPReport) Text() string {
 		}
 	}
 	return tb.String()
+}
+
+// writeContainerRemoval names a proof container the run could not remove, with
+// the command that removes it, ahead of the verdict a reader looks for.
+func writeContainerRemoval(tb *textbuf.Buffer, container, removal string) {
+	if removal == "" {
+		return
+	}
+	tb.Str("FAIL: container ").Str(container).Str(" was not removed: ").Str(removal).
+		Str("\nremove it with: ./le test integration cleanup\n")
 }

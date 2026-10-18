@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/interop.md -- the deployment proofs' containers
-// Related: l2tp.go -- L2TP.containerArgs
-// Related: vppiface.go -- vppIface.containerArgs
+// Related: l2tp.go -- L2TP.containerSpec
+// Related: vppiface.go -- vppIface.containerSpec
 //
 // No deployment proof container runs privileged
 // (spec-lab-containers-least-privilege, AC-6): it holds what its daemons need.
@@ -22,7 +22,7 @@ import (
 func TestL2TPDeploymentContainerRunsWithoutPrivilege(t *testing.T) {
 	run := fixtureL2TP(t)
 	evidence := filepath.Join(run.Tree, "tmp", "evidence", "l2tp-peer-1")
-	argv := run.containerArgs("ze-l2tp-evidence-1", evidence)
+	argv := detachedArgv(t, run.containerSpec("ze-l2tp-evidence-1", evidence))
 	// The checkout the proof builds in and its evidence directory are the
 	// only host paths it sees, both writable because the proof writes there.
 	want := grantcheck.Grants{
@@ -46,7 +46,7 @@ func TestL2TPDeploymentContainerRunsWithoutPrivilege(t *testing.T) {
 func TestVPPDeploymentContainerRunsWithoutPrivilege(t *testing.T) {
 	run := fixtureVPPIface(t)
 	evidence := filepath.Join(run.Tree, "tmp", "evidence", "vpp-iface-1")
-	argv := run.containerArgs("ze-vpp-iface-1", evidence)
+	argv := detachedArgv(t, run.containerSpec("ze-vpp-iface-1", evidence))
 	want := grantcheck.Grants{
 		Capabilities: []string{"NET_ADMIN"},
 		Devices:      []string{"/dev/net/tun", "/dev/vhost-net"},

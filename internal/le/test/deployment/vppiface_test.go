@@ -100,7 +100,7 @@ func TestOnlyTheGatedScenarioEnablesLCP(t *testing.T) {
 func TestTheVPPContainerMountsTheTreeAndTheScratch(t *testing.T) {
 	run := fixtureVPPIface(t)
 	work := filepath.Join(run.Tree, "tmp", "evidence", "vpp-iface-1")
-	line := strings.Join(run.containerArgs("ze-vpp-iface-1", work), " ")
+	line := strings.Join(detachedArgv(t, run.containerSpec("ze-vpp-iface-1", work)), " ")
 
 	for _, want := range []string{
 		"--device /dev/net/tun", "--platform linux/amd64", "--entrypoint sleep",
@@ -120,7 +120,7 @@ func TestTheVPPContainerMountsTheTreeAndTheScratch(t *testing.T) {
 // invocation.
 func TestTheDaemonIsStartedWithTheStartKeyword(t *testing.T) {
 	run := fixtureVPPIface(t)
-	argv := run.daemonArgs("ze-vpp-iface-1", daemonRel(run.Goarch), "tunnel.conf")
+	argv := execArgv(t, run.daemonExec("ze-vpp-iface-1", daemonRel(run.Goarch), "tunnel.conf"))
 
 	line := strings.Join(argv, " ")
 	if !strings.HasSuffix(line, "start /run/ze/tunnel.conf/ze.conf") {

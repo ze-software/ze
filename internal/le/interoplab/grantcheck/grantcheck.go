@@ -115,6 +115,7 @@ var nonGrantFlags = map[string]bool{
 	"--interactive": false,
 	"--ip":          true,
 	"--ip6":         true,
+	"--label":       true,
 	"--name":        true,
 	"--platform":    true,
 	"--rm":          false,

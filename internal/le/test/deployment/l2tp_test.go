@@ -94,11 +94,11 @@ func TestTheContainerMountsTheTreeAndTheScratch(t *testing.T) {
 	run := fixtureL2TP(t)
 	work := filepath.Join(run.Tree, "tmp", "evidence", "l2tp-peer-1")
 
-	line := strings.Join(run.containerArgs("ze-l2tp-evidence-1", work), " ")
+	line := strings.Join(detachedArgv(t, run.containerSpec("ze-l2tp-evidence-1", work)), " ")
 	for _, want := range []string{
-		"run --rm --detach --cap-add NET_ADMIN --device /dev/ppp",
+		"run -d --name ze-l2tp-evidence-1 --label ze.lab=",
+		"--cap-add NET_ADMIN --device /dev/ppp",
 		"--platform linux/amd64",
-		"--name ze-l2tp-evidence-1",
 		"-v " + run.Tree + ":/src",
 		"-v " + work + ":/run/l2tp",
 		"-w /src",
@@ -117,12 +117,12 @@ func TestTheContainerMountsTheTreeAndTheScratch(t *testing.T) {
 func TestTheDaemonRunsInTheContainerWithItsEnvironment(t *testing.T) {
 	run := fixtureL2TP(t)
 
-	line := strings.Join(run.daemonArgs("ze-l2tp-evidence-1", "tmp/evidence/bin/ze-linux-amd64"), " ")
+	line := strings.Join(execArgv(t, run.daemonExec("ze-l2tp-evidence-1", "tmp/evidence/bin/ze-linux-amd64")), " ")
 	for _, want := range []string{
 		"exec --interactive",
-		"--env ZE_LOG_L2TP=debug",
-		"--env ze.l2tp.skip-kernel-probe=true",
-		"--env ZE_CONFIG_DIR=/run/l2tp/ze",
+		"-e ZE_LOG_L2TP=debug",
+		"-e ze.l2tp.skip-kernel-probe=true",
+		"-e ZE_CONFIG_DIR=/run/l2tp/ze",
 		"/src/tmp/evidence/bin/ze-linux-amd64 -",
 	} {
 		if !strings.Contains(line, want) {

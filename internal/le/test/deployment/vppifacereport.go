@@ -90,6 +90,9 @@ type VPPIfaceReport struct {
 	Plugins   []PluginState    `json:"plugins"`
 	Scenarios []ScenarioResult `json:"scenarios"`
 	Passed    bool             `json:"passed"`
+	// ContainerRemoval names why the proof's container could not be removed;
+	// empty when it was. A container left behind fails the verb.
+	ContainerRemoval string `json:"container-removal-error,omitempty"`
 }
 
 // Text renders the run for a person in the shape that the Python original
@@ -97,6 +100,7 @@ type VPPIfaceReport struct {
 // a failure, it prints the query's own output and the daemon's last lines.
 func (r VPPIfaceReport) Text() string {
 	var tb textbuf.Buffer
+	writeContainerRemoval(&tb, r.Container, r.ContainerRemoval)
 
 	for _, plugin := range r.Plugins {
 		tb.Str("PLUGIN: ").Str(plugin.Name).Str(" loaded=").Bool(plugin.Loaded).Byte('\n')

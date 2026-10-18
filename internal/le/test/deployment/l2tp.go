@@ -20,13 +20,13 @@ import (
 	"errors"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 // The dot-notation spellings of ZE_L2TP_DOCKER_IMAGE, ZE_L2TP_DOCKER_PLATFORM
@@ -83,17 +83,6 @@ const PeerName = "xl2tpd"
 const (
 	DaemonPort = 1701
 	PeerPort   = 1702
-)
-
-// The docker words this file spells more than once. They are docker's own
-// grammar rather than this proof's, so they are named where a reader can see
-// that every use is the same word.
-const (
-	dockerExec   = "exec"
-	dockerEnv    = "--env"
-	dockerDetach = "--detach"
-	dockerCapAdd = "--cap-add"
-	dockerDevice = "--device"
 )
 
 // The daemon lines that decide the verdict. They are the collector's needles,
@@ -164,15 +153,11 @@ environment {
 }
 `
 
-// The two bounds on the steps that lead up to the proof. Each is generous
-// enough for a cold machine and short enough that a hung step is reported
-// rather than waited on: a container start, and an Alpine package install over
-// the network. The cross-compile is bounded by daemonbuild.go, which every
-// proof shares.
-const (
-	dockerTimeout  = 2 * time.Minute
-	installTimeout = 5 * time.Minute
-)
+// installTimeout bounds the Alpine package install over the network: generous
+// enough for a cold machine and short enough that a hung install is reported
+// rather than waited on. The container start is bounded by interoplab.Docker,
+// and the cross-compile by daemonbuild.go, which every proof shares.
+const installTimeout = 5 * time.Minute
 
 // The two waits the run is bounded by. Each is a real bound: a listener that
 // has not bound in twenty seconds is not going to, and a tunnel that has not
@@ -200,6 +185,8 @@ type L2TP struct {
 	// wait for the peer's session.
 	ListenerWait time.Duration
 	SessionWait  time.Duration
+	// Docker is the client every container, exec and removal goes through.
+	Docker *interoplab.Docker
 	// Progress receives each daemon's output line as it arrives. It MUST be
 	// safe for concurrent use: two daemons write to it at once, each from its
 	// own goroutine. os.Stderr and io.Discard both are.
@@ -216,6 +203,7 @@ func NewL2TP(tree string) *L2TP {
 		Goarch:       setting(l2tpGoarchEntry.Key, L2TPGoarch),
 		ListenerWait: L2TPListenerWait,
 		SessionWait:  L2TPSessionWait,
+		Docker:       interoplab.NewDocker(),
 		Progress:     os.Stderr,
 	}
 }
@@ -231,70 +219,72 @@ func setting(key, fallback string) string {
 	return fallback
 }
 
-// containerArgs answers the container the peer and the daemon both run in.
+// containerSpec answers the container the peer and the daemon both run in.
 //
 // It holds NET_ADMIN and the host's /dev/ppp, never --privileged, because
 // xl2tpd's pppd opens a PPP unit and configures it, and it holds the checkout
 // at /src and the run's scratch directory at /run/l2tp, which is where both
 // daemons read their configuration from.
-func (l *L2TP) containerArgs(name, work string) []string {
-	var tb textbuf.Buffer
-	src := tb.Str(l.Tree).Str(":/src").String()
-	tb.Reset()
-	scratch := tb.Str(work).Str(":/run/l2tp").String()
-
-	return []string{
-		"run", "--rm", dockerDetach,
-		dockerCapAdd, "NET_ADMIN",
-		dockerDevice, "/dev/ppp",
-		"--platform", l.Platform,
-		"--name", name,
-		"-v", src,
-		"-v", scratch,
-		"-w", "/src",
-		l.Image,
-		"sleep", "infinity",
+func (l *L2TP) containerSpec(name, work string) interoplab.DetachedContainer {
+	return interoplab.DetachedContainer{
+		Name:             name,
+		Image:            l.Image,
+		Platform:         l.Platform,
+		Capabilities:     []string{"NET_ADMIN"},
+		Devices:          []string{"/dev/ppp"},
+		Mounts:           []interoplab.Mount{{Source: l.Tree, Target: srcMount}, {Source: work, Target: "/run/l2tp"}},
+		WorkingDirectory: srcMount,
+		Command:          []string{"sleep", "infinity"},
 	}
 }
 
-// installArgs answers the peer's installation. Alpine's package index is read
+// installExec answers the peer's installation. Alpine's package index is read
 // at run time rather than baked into an image, so the proof needs no registry
 // of its own.
-func (l *L2TP) installArgs(name string) []string {
-	return []string{dockerExec, name, "apk", "add", "--no-cache", PeerName, "ppp"}
+func (l *L2TP) installExec(name string) interoplab.ContainerExec {
+	return interoplab.ContainerExec{
+		Container: name,
+		Command:   []string{"apk", "add", "--no-cache", PeerName, "ppp"},
+		Stdout:    l.Progress, Stderr: l.Progress,
+		Timeout: installTimeout,
+	}
 }
 
-// daemonArgs answers ze, started inside the container reading its configuration
-// from standard input.
+// daemonExec answers ze, started inside the container reading its
+// configuration from standard input.
 //
 // The kernel probe is skipped because the container's kernel is the host's and
 // the proof is about the control plane. The selected configuration directory
 // lives in the scratch mount, so the run leaves nothing in the checkout.
-func (l *L2TP) daemonArgs(name, binaryRel string) []string {
+func (l *L2TP) daemonExec(name, binaryRel string) interoplab.ContainerExec {
 	var tb textbuf.Buffer
 	binary := tb.Str("/src/").Str(filepath.ToSlash(binaryRel)).String()
 
-	return []string{
-		dockerExec, dockerInteractiveArg,
-		dockerEnv, "ZE_LOG_L2TP=debug",
-		dockerEnv, "ze.l2tp.skip-kernel-probe=true",
-		dockerEnv, "ZE_CONFIG_DIR=/run/l2tp/ze",
-		name,
-		binary,
-		"-",
+	return interoplab.ContainerExec{
+		Container: name,
+		Command:   []string{binary, "-"},
+		Environment: []interoplab.EnvironmentVariable{
+			{Name: "ZE_LOG_L2TP", Value: "debug"},
+			{Name: "ze.l2tp.skip-kernel-probe", Value: "true"},
+			{Name: "ZE_CONFIG_DIR", Value: "/run/l2tp/ze"},
+		},
+		Interactive: true,
+		Stdin:       strings.NewReader(DaemonConfig),
 	}
 }
 
-// peerArgs answers xl2tpd, run in the foreground so its output reaches this
+// peerExec answers xl2tpd, run in the foreground so its output reaches this
 // process rather than a log file inside the container.
-func (l *L2TP) peerArgs(name string) []string {
-	return []string{
-		dockerExec, name, PeerName,
-		"-D",
-		"-c", "/run/l2tp/xl2tpd.conf",
-		"-s", "/run/l2tp/l2tp-secrets",
-		"-p", "/run/l2tp/xl2tpd.pid",
-		"-C", "/run/l2tp/l2tp-control",
+func (l *L2TP) peerExec(name string) interoplab.ContainerExec {
+	return interoplab.ContainerExec{
+		Container: name,
+		Command: []string{
+			PeerName, "-D",
+			"-c", "/run/l2tp/xl2tpd.conf",
+			"-s", "/run/l2tp/l2tp-secrets",
+			"-p", "/run/l2tp/xl2tpd.pid",
+			"-C", "/run/l2tp/l2tp-control",
+		},
 	}
 }
 
@@ -323,8 +313,11 @@ func (l *L2TP) writeScratch(work string) error {
 // fix, and no verdict was reached. A session that did not establish is NOT an
 // error. It is the verdict, and it travels in the report with the daemon's last
 // lines behind it.
-func (l *L2TP) Run() (L2TPReport, error) {
-	report := L2TPReport{Peer: PeerName, Image: l.Image}
+//
+// ctx is the verb's signal root: a SIGINT ends the waits and the daemons, and
+// the container is still removed.
+func (l *L2TP) Run(ctx context.Context) (report L2TPReport, err error) {
+	report = L2TPReport{Peer: PeerName, Image: l.Image}
 
 	if err := look("docker", "go"); err != nil {
 		return report, err
@@ -333,7 +326,7 @@ func (l *L2TP) Run() (L2TPReport, error) {
 	if err := buildCheckedDaemon(l.Tree, l.Goarch, func() error { return buildDaemon(l.Tree, l.Goarch, l.Progress) }); err != nil {
 		return report, err
 	}
-	if err := ensureImage(l.Image, l.Progress); err != nil {
+	if err := ensureImage(ctx, l.Docker, l.Image, l.Progress); err != nil {
 		return report, err
 	}
 
@@ -346,16 +339,16 @@ func (l *L2TP) Run() (L2TPReport, error) {
 	}
 
 	report.Container = containerName()
-	if err := l.startContainer(report.Container, work); err != nil {
+	if err := l.Docker.RunDetached(ctx, l.containerSpec(report.Container, work)); err != nil {
 		return report, err
 	}
-	defer removeContainer(report.Container)
+	defer func() { report.ContainerRemoval = removeContainer(ctx, l.Docker, report.Container) }()
 
-	if err := l.installPeer(report.Container); err != nil {
+	if _, err := l.Docker.ExecAttached(ctx, l.installExec(report.Container)); err != nil {
 		return report, err
 	}
 
-	return l.observe(report)
+	return l.observe(ctx, report)
 }
 
 // observe starts both daemons, waits for the session, and answers the verdict.
@@ -363,16 +356,12 @@ func (l *L2TP) Run() (L2TPReport, error) {
 // It is separate from Run so one function owns the two process lifecycles and
 // their stop paths, rather than adding two more deferred stops to a function
 // that already owns the container's.
-func (l *L2TP) observe(report L2TPReport) (L2TPReport, error) {
+func (l *L2TP) observe(ctx context.Context, report L2TPReport) (L2TPReport, error) {
 	seen := newCollector(listenerLine, sessionLine)
 
-	// Background rather than a deadline: this daemon is stopped by the run's
-	// own stop path once a verdict is reached, and the two waits below are
-	// where the run is bounded in time.
-	daemon := exec.CommandContext(context.Background(), "docker", l.daemonArgs(report.Container, daemonRel(l.Goarch))...) //nolint:gosec // the argv is built above, never by an operator
-	daemon.Stdin = strings.NewReader(DaemonConfig)
-
-	ze, err := startWatched(daemon, "ze> ", seen, l.Progress)
+	// This daemon is stopped by the run's own stop path once a verdict is
+	// reached, and the two waits below are where the run is bounded in time.
+	ze, err := startWatchedExec(ctx, l.Docker, l.daemonExec(report.Container, daemonRel(l.Goarch)), "ze> ", seen, l.Progress)
 	if err != nil {
 		return report, err
 	}
@@ -384,13 +373,11 @@ func (l *L2TP) observe(report L2TPReport) (L2TPReport, error) {
 		return report, errors.New("the ze L2TP listener did not start")
 	}
 
-	peer := exec.CommandContext(context.Background(), "docker", l.peerArgs(report.Container)...) //nolint:gosec // the argv is built above, never by an operator
-
 	// The peer's own collector watches for nothing: what it says never decides
 	// the verdict, and the daemon is the side that reports a session. It exists
 	// so the peer's output reaches the operator and so its pipe is drained.
 	said := newCollector()
-	dialer, err := startWatched(peer, "xl2tpd> ", said, l.Progress)
+	dialer, err := startWatchedExec(ctx, l.Docker, l.peerExec(report.Container), "xl2tpd> ", said, l.Progress)
 	if err != nil {
 		return report, err
 	}
@@ -402,34 +389,6 @@ func (l *L2TP) observe(report L2TPReport) (L2TPReport, error) {
 		report.LogTail = seen.tailLines()
 	}
 	return report, nil
-}
-
-// startContainer starts the container the proof runs in.
-func (l *L2TP) startContainer(name, work string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), dockerTimeout)
-	defer cancel()
-
-	start := exec.CommandContext(ctx, "docker", l.containerArgs(name, work)...) //nolint:gosec // the argv is built above, never by an operator
-	start.Stderr = l.Progress
-	if err := start.Run(); err != nil {
-		return errors.New("failed to start the L2TP evidence container")
-	}
-	return nil
-}
-
-// installPeer installs xl2tpd and pppd in the running container.
-func (l *L2TP) installPeer(name string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), installTimeout)
-	defer cancel()
-
-	install := exec.CommandContext(ctx, "docker", l.installArgs(name)...) //nolint:gosec // the argv is built above, never by an operator
-	install.Stdout = l.Progress
-	install.Stderr = l.Progress
-	if err := install.Run(); err != nil {
-		var tb textbuf.Buffer
-		return errors.New(tb.Str("apk add ").Str(PeerName).Str(" ppp failed").String())
-	}
-	return nil
 }
 
 // containerName answers a name no other run of this tool on this machine will

@@ -1,6 +1,7 @@
 package testdeployment
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,15 +36,15 @@ type daemonProof struct {
 func daemonProofs() []daemonProof {
 	return []daemonProof{
 		{"l2tp-test", func(tree string) string { return NewL2TP(tree).Goarch }, func(tree string) error {
-			_, err := NewL2TP(tree).Run()
+			_, err := NewL2TP(tree).Run(context.Background())
 			return err
 		}},
 		{"vpp-test", func(tree string) string { return newVPP(tree).Goarch }, func(tree string) error {
-			_, err := newVPP(tree).Run()
+			_, err := newVPP(tree).Run(context.Background())
 			return err
 		}},
 		{"vpp-iface-test", func(tree string) string { return newVPPIface(tree).Goarch }, func(tree string) error {
-			_, err := newVPPIface(tree).Run()
+			_, err := newVPPIface(tree).Run(context.Background())
 			return err
 		}},
 		// TestVPPSRv6ServiceRoute (build tag integration) starts its VPP container
@@ -124,7 +125,7 @@ func TestDaemonProofNoBuildNeedsTheDaemon(t *testing.T) {
 	t.Setenv("NO_BUILD", "1")
 
 	tree := t.TempDir()
-	_, err := NewL2TP(tree).Run()
+	_, err := NewL2TP(tree).Run(t.Context())
 	if err == nil {
 		t.Fatal("l2tp-test proceeded under NO_BUILD with no daemon built")
 	}

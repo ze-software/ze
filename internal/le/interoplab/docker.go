@@ -27,6 +27,7 @@ const (
 	dockerInspectVerb   = "inspect"
 	dockerImageObject   = "image"
 	dockerNetworkObject = "network"
+	dockerExecVerb      = "exec"
 )
 
 // DockerExecutable is the program every lab Docker command runs. grantcheck
@@ -695,7 +696,7 @@ func (d *Docker) Signal(ctx context.Context, name, signal string) error {
 
 // Exec runs one command in a peer container. A non-zero exit always returns an error.
 func (d *Docker) Exec(ctx context.Context, name string, argv []string, environ []EnvironmentVariable) (CommandResult, error) {
-	arguments, err := dockerExecArguments([]string{DockerExecutable, "exec"}, name, argv, environ)
+	arguments, err := dockerExecArguments([]string{DockerExecutable, dockerExecVerb}, name, argv, environ)
 	if err != nil {
 		return CommandResult{}, err
 	}
@@ -705,7 +706,7 @@ func (d *Docker) Exec(ctx context.Context, name string, argv []string, environ [
 
 // ExecDetached starts one command in a peer container and returns after Docker accepts it.
 func (d *Docker) ExecDetached(ctx context.Context, name string, argv []string, environ []EnvironmentVariable) error {
-	arguments, err := dockerExecArguments([]string{DockerExecutable, "exec", "-d"}, name, argv, environ)
+	arguments, err := dockerExecArguments([]string{DockerExecutable, dockerExecVerb, "-d"}, name, argv, environ)
 	if err != nil {
 		return err
 	}

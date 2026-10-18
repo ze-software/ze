@@ -150,7 +150,7 @@ func TestVPPBuildErrorsStayOperatingErrors(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	run := newVPP(t.TempDir())
 	run.Progress = nil
-	report, err := run.Run()
+	report, err := run.Run(t.Context())
 	if err == nil {
 		t.Fatal("a run without docker returned no operating error")
 	}

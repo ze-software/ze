@@ -7,15 +7,15 @@
 package testdeployment
 
 import (
-	"context"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 type ipsecProbeIDs struct {
@@ -77,18 +77,11 @@ func (v *VPP) runIPsec(container, _ string) (VPPScenarioReport, error) {
 	}
 
 	var tb textbuf.Buffer
-	api := tb.Str("ZE_VPP_IPSEC_API_SOCKET=/run/vpp/api.sock").String()
-	swIndex := tb.Reset().Str("ZE_VPP_IPSEC_SW_IF_INDEX=").Int(int64(index)).String()
-	probe := tb.Reset().Str("/src/").Str(filepath.ToSlash(vppIPsecProbeRel(v.Goarch))).String()
-	output, ok := v.dockerText(
-		dockerExec,
-		dockerEnv, api,
-		dockerEnv, swIndex,
-		container,
-		probe,
-		"-test.run", "TestVPPRealDataplaneInstalls",
-		"-test.v",
-	)
+	probe := tb.Str("/src/").Str(filepath.ToSlash(vppIPsecProbeRel(v.Goarch))).String()
+	output, ok := v.containerTextWith(container, []interoplab.EnvironmentVariable{
+		{Name: "ZE_VPP_IPSEC_API_SOCKET", Value: "/run/vpp/api.sock"},
+		{Name: "ZE_VPP_IPSEC_SW_IF_INDEX", Value: strconv.Itoa(index)},
+	}, probe, "-test.run", "TestVPPRealDataplaneInstalls", "-test.v")
 	if !ok {
 		checks = append(checks, failVPPCheck("probe", "the IKE dataplane backend could not program a real VPP", output, nil))
 		return finishVPPScenario(VPPScenarioIPsec, checks), nil
@@ -261,14 +254,14 @@ func (v *VPP) runFIB(container, work string, mpls bool) (VPPScenarioReport, erro
 	}
 
 	peerSeen := newCollector(vppPeerReadyLine)
-	// #nosec G204 -- docker is fixed; the container, built binary, numeric port, and peer file are produced by this closed FIB scenario.
-	peerCmd := exec.CommandContext(context.Background(), "docker",
-		dockerExec, container,
-		tb.Reset().Str("/src/").Str(filepath.ToSlash(vppLeRel(v.Goarch))).String(),
-		"test", "peer", "--mode", "sink", "--port", tb.Reset().Int(int64(port)).String(),
-		tb.Reset().Str(vppMount).Byte('/').Str(peerFile).String(),
-	)
-	peer, err := startWatched(peerCmd, "peer> ", peerSeen, v.Progress)
+	peer, err := startWatchedExec(v.ctx, v.Docker, interoplab.ContainerExec{
+		Container: container,
+		Command: []string{
+			tb.Reset().Str("/src/").Str(filepath.ToSlash(vppLeRel(v.Goarch))).String(),
+			"test", "peer", "--mode", "sink", "--port", tb.Reset().Int(int64(port)).String(),
+			tb.Reset().Str(vppMount).Byte('/').Str(peerFile).String(),
+		},
+	}, "peer> ", peerSeen, v.Progress)
 	if err != nil {
 		return VPPScenarioReport{}, err
 	}
