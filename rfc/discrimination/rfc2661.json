@@ -1396,7 +1396,7 @@
       "polarity": "negative",
       "unit": "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661ConfiguredMaxRetransmitClearsTunnel",
       "unit-sha": "1fac29c1fba9cf17",
-      "claim-sha": "f26d0392f626dddb",
+      "claim-sha": "772eed75996502e6",
       "route": "revert",
       "producer": "internal/component/l2tp/reactor_setters.go::reliableConfig",
       "producer-sha": "39409276aa2ae909",

@@ -1,6 +1,7 @@
 {
-  "audited": "2026-10-17",
+  "audited": "2026-10-18",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -205,8 +206,8 @@
       "tests": {
         "internal/component/l2tp/rfc2661_reliable_test.go::TestTickMaxAttempts": "1da6320bfe08bd17",
         "internal/component/l2tp/rfc2661_reliable_test.go::TestTickMaxAttempts#2": "1da6320bfe08bd17",
-        "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661RetransmitExhaustionClearsTunnel": "10cb1cf5d9163844",
-        "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661RetransmitExhaustionClearsTunnel#2": "10cb1cf5d9163844"
+        "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661RetransmitExhaustionClearsTunnel": "7046da3338c57d75",
+        "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661RetransmitExhaustionClearsTunnel#2": "7046da3338c57d75"
       },
       "units": {
         "internal/component/l2tp/rfc2661_reliable_test.go::TestTickMaxAttempts": "d2849faf20501127",
@@ -282,12 +283,25 @@
     },
     "RFC2661-5.8-8": {
       "code": {
-        "internal/component/l2tp/reactor.go::locateTunnelLocked": "533ac0d9e621fbfc",
-        "internal/component/l2tp/reactor_dial.go::handleDial": "bf9dc9aa7c83b1ce"
+        "internal/component/l2tp/config.go::ExtractParameters": "1dc42bb71926de52",
+        "internal/component/l2tp/reactor.go::locateTunnelLocked": "5c28f70701fb2898",
+        "internal/component/l2tp/reactor_dial.go::handleDial": "bc9fb4d5a224dff9",
+        "internal/component/l2tp/reactor_setters.go::reliableConfig": "197015a9a6014813",
+        "internal/component/l2tp/reactor_setters.go::setMaxRetransmit": "c5df77b9812f8ccc",
+        "internal/component/l2tp/reliable.go::Tick": "3fcecb3ab8d2478c",
+        "internal/component/l2tp/subsystem.go::tunnelDefaults": "f9cf1535af2646f7"
       },
-      "note": "The retransmit count is fixed at DefaultMaxRetransmit (5): ReliableConfig.MaxRetransmit exists, but both tunnel constructors, reactor.go::locateTunnelLocked and reactor_dial.go::handleDial, pass ReliableConfig{RecvWindow} only, and the l2tp YANG carries no leaf for it. The recommended default of 5 is met; 'SHOULD be configurable' is not. {gap} annotation on the row agrees. Rejudged 2026-10-17 (independent reader) after 7f59cfe2ad changed reactor_dial.go::handleDial: the edit adds a loopback-listener refusal before the tunnel is built (RFC 2661 Section 8.1) and does not touch the tunnel construction, which still passes ReliableConfig{RecvWindow: r.params.Defaults.RecvWindow} alone, as reactor.go::locateTunnelLocked does; MaxRetransmit stays zero, so DefaultMaxRetransmit (5) applies, and no l2tp YANG leaf configures it. RFC 2661 Section 5.8: \"If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable), the tunnel and all sessions within MUST be cleared.\" The default is met; configurability is not. The gap stands.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after cb8e90f006). RFC 2661 Section 5.8: \"If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable), the tunnel and all sessions within MUST be cleared.\" The leaf l2tp max-retransmit (uint8, 1..255, default 5) is read by ExtractParameters and passes through Subsystem.tunnelDefaults and setMaxRetransmit into reliableConfig, which both tunnel constructors (locateTunnelLocked, handleDial) call; ReliableEngine.Tick tears the tunnel down once attempts exceed it. TestRFC2661ConfiguredMaxRetransmitClearsTunnel uses a budget of 2: the tunnel stays Established through both retransmissions and is Closed, with a StopCCN, on the next deadline. The auditor's overlay mutants of reliableConfig turned it red at the deciding assertions (MaxRetransmit dropped to 0 fails the Closed check; MaxRetransmit-1 fails the Established loop); the stored records use the revert route. Parse and reload are pinned by TestConfig_MaxRetransmit and TestReloadAppliesMaxRetransmit; the startup path reaches tunnelDefaults only through the reload test.",
       "requirement_sha": "31ed4fbaf5ba0708",
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661ConfiguredMaxRetransmitClearsTunnel": "7046da3338c57d75",
+        "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661ConfiguredMaxRetransmitClearsTunnel#2": "7046da3338c57d75"
+      },
+      "units": {
+        "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661ConfiguredMaxRetransmitClearsTunnel": "8bbb52aa68f01e11",
+        "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661ConfiguredMaxRetransmitClearsTunnel#2": "8bbb52aa68f01e11"
+      },
+      "verdict": "enforced"
     },
     "RFC2661-6.1-1": {
       "note": "Sender: TestRFC2661SCCRQCarriesSection61AVPs asserts all five AVPs in writeSCCRQBody with and without the optional AVPs. Receiver: one case per missing AVP answered with StopCCN and no tunnel (unit and .ci), positive with every AVP. The \u00a77.1 clearing now rows as RFC2661-7.1-1.",

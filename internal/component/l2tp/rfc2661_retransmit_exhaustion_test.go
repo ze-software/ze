@@ -79,8 +79,7 @@ func TestRFC2661RetransmitExhaustionClearsTunnel(t *testing.T) {
 // tunnel created after the setting clears on the tick that exhausts two
 // retransmissions of its unanswered HELLO, three fewer than the default 5.
 // RFC requirement: RFC2661-5.8-8 negative -- before those two retransmissions
-// run out the tunnel stays established, so the budget is the configured value
-// and not a fixed one.
+// run out the tunnel stays established.
 //
 // VALIDATES: the configured retransmit count reaches each new tunnel's
 // reliable-delivery engine.
