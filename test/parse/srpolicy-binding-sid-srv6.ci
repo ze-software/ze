@@ -1,0 +1,84 @@
+# Test: SR Policy Binding SID sub-TLV SRv6 form at config load
+# VALIDATES: a route naming 'binding-sid srv6 10.0.0.9' is refused at load, naming
+#            the token and the fix; the same route with an IPv6 SID validates.
+# PREVENTS: an IPv4 address written as the 16-octet SRv6 BSID of the type-13
+#           Binding SID sub-TLV.
+# RFC 9830 Section 2.4.2: "If the length is 18, then the BSID contains a 16-octet
+# SRv6 SID."
+
+stdin=ipv4:terminator=EOF_IPV4
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 192.0.2.1
+			family {
+				ipv4/sr-policy { prefix { maximum 10000; } }
+			}
+		}
+
+		update {
+			attribute {
+				next-hop 192.0.2.1
+			}
+			nlri {
+				ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 100 binding-sid srv6 10.0.0.9
+			}
+		}
+	}
+}
+EOF_IPV4
+
+stdin=ipv6:terminator=EOF_IPV6
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 192.0.2.1
+			family {
+				ipv4/sr-policy { prefix { maximum 10000; } }
+			}
+		}
+
+		update {
+			attribute {
+				next-hop 192.0.2.1
+			}
+			nlri {
+				ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 100 binding-sid srv6 2001:db8::b5
+			}
+		}
+	}
+}
+EOF_IPV6
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ipv4
+expect=exit:code=1
+expect=stdout:contains=invalid binding-sid srv6 "10.0.0.9": an SRv6 SID is an IPv6 address; give one such as 2001:db8::1
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ipv6
+expect=exit:code=0

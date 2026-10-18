@@ -54,7 +54,7 @@ var scenarioExtras = map[string][]operation{
 	// Binding SID label at the top of the 20-bit range and both Type A segment
 	// labels exactly as configured.
 	scenarioSRPolicyGoBGP: {
-		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4SRPolicy}, contains: []string{srPolicyOriginatedIPv4, srPolicyBindingSIDTop, srPolicySegmentLabel16, srPolicySegmentLabelTop}, timeout: 60 * time.Second},
+		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4SRPolicy}, contains: []string{srPolicyOriginatedIPv4, srPolicyBindingSIDTop, srPolicySegmentLabel16, srPolicySegmentLabelTop, srPolicyOriginatedBSIDSRv6, srPolicyBindingSIDSRv6}, timeout: 60 * time.Second},
 		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv6SRPolicy}, contains: []string{srPolicyOriginatedIPv6, srPolicyBindingSIDTop, srPolicySegmentLabel16, srPolicySegmentLabelTop}, timeout: 60 * time.Second},
 		{kind: opGoBGPSession, argument: zeLabAddress},
 	},

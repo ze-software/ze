@@ -28,6 +28,11 @@ const (
 	subTLVCandidatePathNam uint8 = 129
 	subTLVPolicyName       uint8 = 130
 
+	// Binding SID sub-TLV (type 13) value lengths, RFC 9830 Section 2.4.2.
+	bindingSIDLenNone uint8 = 2
+	bindingSIDLenMPLS uint8 = 6
+	bindingSIDLenSRv6 uint8 = 18
+
 	segSubTLVWeight   uint8 = 9
 	segSubTLVTypeA    uint8 = 1
 	segSubTLVTypeBSID uint8 = 13
@@ -59,6 +64,8 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 		bsidMPLS         uint32
 		hasBSID          bool
 		bsidNull         bool
+		bsidSRv6Compat   netip.Addr
+		hasBSIDSRv6      bool
 		bsidSRv6         netip.Addr
 		hasSRv6BSID      bool
 		segLists         []srpSegmentList
@@ -147,8 +154,21 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 			case "null":
 				bsidNull = true
 				i += 2
+			case "srv6":
+				// The backward-compatible type-13 form of an SRv6 BSID. The operator
+				// names it explicitly: srv6-binding-sid (type 20) stays the default.
+				if i+2 >= len(content) {
+					return registry.PluginRoute{}, fmt.Errorf("expected 'binding-sid srv6 <ipv6-address>'")
+				}
+				sid, err := parseBindingSIDSRv6(content[i+2])
+				if err != nil {
+					return registry.PluginRoute{}, err
+				}
+				bsidSRv6Compat = sid
+				hasBSIDSRv6 = true
+				i += 3
 			default:
-				return registry.PluginRoute{}, fmt.Errorf("expected 'binding-sid mpls <label>' or 'binding-sid null'")
+				return registry.PluginRoute{}, fmt.Errorf("expected 'binding-sid mpls <label>', 'binding-sid srv6 <ipv6-address>' or 'binding-sid null'")
 			}
 
 		case "srv6-binding-sid":
@@ -213,6 +233,7 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 		preference, hasPref,
 		priority, hasPriority,
 		bsidMPLS, hasBSID, bsidNull,
+		bsidSRv6Compat, hasBSIDSRv6,
 		bsidSRv6, hasSRv6BSID,
 		segLists,
 		policyName, candPathName,
@@ -371,6 +392,7 @@ func buildTunnelEncap(
 	preference uint32, hasPref bool,
 	priority uint8, hasPriority bool,
 	bsidMPLS uint32, hasBSID bool, bsidNull bool,
+	bsidSRv6Compat netip.Addr, hasBSIDSRv6 bool,
 	bsidSRv6 netip.Addr, hasSRv6BSID bool,
 	segLists []srpSegmentList,
 	policyName, candPathName string,
@@ -380,8 +402,12 @@ func buildTunnelEncap(
 	if hasPref {
 		subTLVs = append(subTLVs, buildPreferenceSubTLV(preference)...)
 	}
+	// RFC 9830 Section 2.4.2: "it MUST NOT appear more than once in the SR
+	// Policy encoding", so one form is written when the config names several.
 	if hasBSID {
 		subTLVs = append(subTLVs, buildBindingSIDSubTLV(bsidMPLS)...)
+	} else if hasBSIDSRv6 {
+		subTLVs = append(subTLVs, buildBindingSIDSRv6SubTLV(bsidSRv6Compat)...)
 	} else if bsidNull {
 		subTLVs = append(subTLVs, buildBindingSIDNullSubTLV()...)
 	}
@@ -442,6 +468,50 @@ func buildBindingSIDNullSubTLV() []byte {
 	buf[0] = subTLVBindingSID
 	buf[1] = 2
 	return buf
+}
+
+// RFC 9830 Section 2.4.2: "The value MUST be 18 when a SRv6 BSID is present,
+// 6 when an SR-MPLS BSID is present, or 2 when no BSID is present."
+// RFC 9830 Section 2.4.2: "If the length is 18, then the BSID contains a
+// 16-octet SRv6 SID."
+// The type-13 SRv6 form is the backward-compatible one; srv6-binding-sid
+// (type 20, Section 2.4.3) is the RECOMMENDED form and stays the default.
+// The zeroed buffer leaves Flags and RESERVED clear; no S/I behavior is requested.
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|   Type=13     |  Length=18    |   Flags=0     |  RESERVED=0   |  octets 0..3
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|              SRv6 Binding SID (16 octets)                     |  octets 4..19
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+func buildBindingSIDSRv6SubTLV(sid netip.Addr) []byte {
+	buf := make([]byte, 20)
+	buf[0] = subTLVBindingSID
+	buf[1] = bindingSIDLenSRv6
+	a := sid.As16()
+	copy(buf[4:20], a[:])
+	return buf
+}
+
+// parseBindingSIDSRv6 reads the address of 'binding-sid srv6 <address>'. An
+// SRv6 SID is a 128-bit IPv6 address, so an IPv4 or IPv4-mapped address is
+// refused rather than written as a 16-octet value nobody configured.
+func parseBindingSIDSRv6(token string) (netip.Addr, error) {
+	sid, err := netip.ParseAddr(token)
+	if err != nil {
+		return netip.Addr{}, fmt.Errorf("invalid binding-sid srv6 %q: %w; give an IPv6 address such as 2001:db8::1", token, err)
+	}
+	if !sid.Is6() {
+		return netip.Addr{}, fmt.Errorf("invalid binding-sid srv6 %q: an SRv6 SID is an IPv6 address; give one such as 2001:db8::1", token)
+	}
+	if sid.Is4In6() {
+		return netip.Addr{}, fmt.Errorf("invalid binding-sid srv6 %q: an IPv4-mapped address is not an SRv6 SID; give an IPv6 address such as 2001:db8::1", token)
+	}
+	if sid.Zone() != "" {
+		return netip.Addr{}, fmt.Errorf("invalid binding-sid srv6 %q: an SRv6 SID carries no zone; remove the %%%s suffix", token, sid.Zone())
+	}
+	return sid, nil
 }
 
 func buildPrioritySubTLV(p uint8) []byte {

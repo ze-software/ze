@@ -36,6 +36,30 @@ not add generic text/API BGP-LS encoding or SAFI 72 origination.
 SR-Policy route encoding leaves the Binding SID's unassigned flag bits clear
 (RFC 9830 Section 2.4.2). It does not request S-Flag or I-Flag behavior.
 
+An SR-Policy route carries an SRv6 Binding SID in one of two sub-TLVs, and the
+operator chooses which:
+
+| Route keyword | Sub-TLV written | Value |
+|---------------|-----------------|-------|
+| `srv6-binding-sid <ipv6-address>` | SRv6 Binding SID, type 20 (RFC 9830 Section 2.4.3) | Length 18: Flags, RESERVED, the 16-octet SID |
+| `binding-sid srv6 <ipv6-address>` | Binding SID, type 13 (RFC 9830 Section 2.4.2) | Length 18: Flags, RESERVED, the 16-octet SID |
+| `binding-sid mpls <label>` | Binding SID, type 13 | Length 6: Flags, RESERVED, the label entry |
+| `binding-sid null` | Binding SID, type 13 | Length 2: Flags, RESERVED, no BSID |
+
+RFC 9830 recommends type 20 for an SRv6 BSID and keeps the type-13 form for
+speakers that followed early drafts, so use `binding-sid srv6` only toward such a
+peer. `binding-sid srv6` takes an IPv6 address; an IPv4, IPv4-mapped or zoned
+address is refused at load with the token and the fix. One Binding SID
+sub-TLV is written per route: when a route names several `binding-sid` forms,
+`mpls` wins over `srv6`, which wins over `null`.
+
+`ze bgp decode --json` shows a received Tunnel Encapsulation attribute under
+`tunnel-encapsulation`, one entry per tunnel TLV. A Binding SID sub-TLV is shown
+with its `flags` and its `mpls-label` (Length 6), its `srv6-sid` (Length 18), or
+neither (Length 2); any other length is shown `malformed` with its value octets
+in hex. The SRv6 Binding SID sub-TLV (type 20) is shown the same way with its
+`srv6-sid`. Every other sub-TLV is shown as its `type` and its `value` in hex.
+
 An SR-Policy route configured in `nlri { ipv4/sr-policy add ... }` or encoded
 with `ze bgp encode -f ipv4/sr-policy` carries only labels it can send as
 written. `binding-sid mpls` accepts 16 to 1048575: 0 to 15 are the reserved

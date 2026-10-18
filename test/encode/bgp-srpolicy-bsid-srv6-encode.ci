@@ -1,0 +1,53 @@
+# Test: SR Policy Binding SID sub-TLV (type 13) carrying an SRv6 BSID
+# VALIDATES: 'binding-sid srv6 <address>' in the config route and in `update text`
+#            reaches the wire as Type 13, Length 18, Flags 0, RESERVED 0, 16-octet SID.
+# PREVENTS: the backward-compatible SRv6 form written with another length, or
+#           replaced by the type-20 SRv6 Binding SID sub-TLV the operator did not choose.
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+cmd=api:conn=1:seq=1:text=send bgp * update text nhop 192.0.2.1 mp ipv4/sr-policy distinguisher 0 color 100 endpoint 10.0.0.1 preference 100 binding-sid srv6 2001:db8::b5 segment-list weight 1 segment type-a mpls 16001
+# RFC 9830 Section 2.4.2: "The value MUST be 18 when a SRv6 BSID is present".
+# binding-sid srv6 selects the type-13 Binding SID sub-TLV for an SRv6 BSID:
+# 0D 12 00 00 then the 16 octets of 2001:db8::b5, and no type-20 sub-TLV.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0075020000005E4001010040020040050400000064800E1600014904C0000201006000000000000000640A000001C01734000F00300C060000000000640D12000020010DB80000000000000000000000B58000110009060000000000010106000003E81000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 192.0.2.1
+			family {
+				ipv4/sr-policy { prefix { maximum 10000; } }
+			}
+		}
+
+		update {
+			attribute {
+				next-hop 192.0.2.1
+			}
+			nlri {
+				ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 100 binding-sid srv6 2001:db8::b5 segment-list weight 1 segment type-a mpls 16001
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

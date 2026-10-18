@@ -696,7 +696,14 @@ const (
 	srPolicyBindingSIDTop   = "BSID: 1048575}"
 	srPolicySegmentLabel16  = "Label: 16 TC: 0"
 	srPolicySegmentLabelTop = "Label: 1048575 TC: 0"
-	srPolicyReceivedA       = "Color 100, Endpoint: 10.0.0.1 "
-	srPolicyReceivedB       = "Color 300, Endpoint: 10.0.0.3 "
-	srPolicyReceivedControl = "Color 400, Endpoint: 10.0.0.5 "
+	// The type-13 Binding SID sub-TLV carrying an SRv6 BSID (RFC 9830 Section
+	// 2.4.2, Length 18), as TunnelEncapSubTLVSRBSID.String prints it (read at
+	// GoBGP v3.31.0, the version test/interop/Dockerfile.gobgp installs). The
+	// type-20 sub-TLV prints a B-Flag between I-Flag and BSID, so this text
+	// matches only the type-13 form.
+	srPolicyOriginatedBSIDSRv6 = "Distinguisher: 0, Color 300, Endpoint: 10.0.0.3"
+	srPolicyBindingSIDSRv6     = "I-Flag: false, BSID: 2001:db8::b5}"
+	srPolicyReceivedA          = "Color 100, Endpoint: 10.0.0.1 "
+	srPolicyReceivedB          = "Color 300, Endpoint: 10.0.0.3 "
+	srPolicyReceivedControl    = "Color 400, Endpoint: 10.0.0.5 "
 )

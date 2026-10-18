@@ -3,6 +3,7 @@
 // Related: types.go -- SRPolicy NLRI type
 // Related: split.go -- NLRI splitter and receive syntax rule
 // Related: engine.go -- plugin engine the daemon starts for SR-Policy families
+// Related: attr_json.go -- Tunnel Encapsulation rendering for the offline decoder
 
 package srpolicy
 
@@ -52,8 +53,14 @@ func init() {
 		// and DecodeNLRIHex accepts a received path identifier (RFC 7911). The
 		// SR-Policy route Ze builds carries none (SRPolicy.SupportsAddPath), so
 		// `update text` refuses one rather than dropping it.
-		NLRIAddPathRefusal:         "Ze builds SR-Policy routes without an ADD-PATH path identifier",
-		InProcessRouteEncoder:      EncodeRoute,
+		NLRIAddPathRefusal:    "Ze builds SR-Policy routes without an ADD-PATH path identifier",
+		InProcessRouteEncoder: EncodeRoute,
+		// RFC 9830 Section 2.4.2 and Section 2.4.3: the Tunnel Encapsulation
+		// attribute (type 23) carries the SR Policy's Binding SID sub-TLVs, and
+		// this plugin renders them for the offline decoder, which names no plugin.
+		AttributeJSONDecoders: map[uint8]registry.AttributeJSONDecoder{
+			attrCodeTunnelEncap: {Key: "tunnel-encapsulation", Decode: TunnelEncapToJSON},
+		},
 		InProcessConfigRouteParser: parseConfigRoute,
 		RunEngine:                  runSRPolicyPlugin,
 		CLIHandler:                 func([]string) int { return 0 },

@@ -649,6 +649,20 @@ walkable malformed SR Policy NLRI in it stays treat-as-withdraw.
 <!-- source: internal/component/bgp/reactor/session_validation_nlritype.go -- typedNLRIEdit -->
 <!-- source: internal/component/bgp/plugins/nlri/srpolicy/split.go -- SplitSRPolicy, judgeSRPolicySection, retainSRPolicySection -->
 
+### SR-Policy Tunnel Encapsulation in `ze bgp decode`
+
+The SR-Policy plugin registers the JSON decoder of the Tunnel Encapsulation
+attribute (code 23) through `Registration.AttributeJSONDecoders`
+(`srpolicy/attr_json.go`, `TunnelEncapToJSON`), so `ze bgp decode` shows it
+under `tunnel-encapsulation` rather than as `attr-23` hex. Each tunnel TLV lists
+its sub-TLVs. The Binding SID sub-TLV (type 13) is read by its length, as
+RFC 9830 Section 2.4.2 defines it: 2 carries no BSID, 6 an MPLS label entry, 18
+a 16-octet SRv6 SID, and any other length is shown malformed. The SRv6 Binding
+SID sub-TLV (type 20) is read at length 18 or 26. A TLV whose sub-TLVs do not
+walk is shown as its value in hex, and an attribute whose TLVs do not walk
+falls back to `attr-23`. The live receive path still shows the attribute as
+`attr-23` hex.
+
 ### SR-Policy in `update text`
 
 `update text` has no SR-Policy parser of its own. An `mp ipv4/sr-policy` or

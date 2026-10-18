@@ -1,0 +1,15 @@
+# Test: ze bgp decode shows the Binding SID sub-TLV of a received SR Policy
+# VALIDATES: a type-13 Binding SID sub-TLV of Length 18 is shown as the SRv6 SID it
+#            carries; one of Length 20 holding the same SID is shown malformed.
+# PREVENTS: a received SRv6 BSID shown only as raw attribute hex, or a sub-TLV of a
+#           length RFC 9830 does not define read as an SRv6 SID.
+# RFC 9830 Section 2.4.2: "If the length is 18, then the BSID contains a 16-octet
+# SRv6 SID."
+stdin=good:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0075020000005E4001010040020040050400000064800E1600014904C0000201006000000000000000640A000001C01734000F00300C060000000000640D12000020010DB80000000000000000000000B58000110009060000000000010106000003E81000
+stdin=long:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF007702000000604001010040020040050400000064800E1600014904C0000201006000000000000000640A000001C01736000F00320C060000000000640D14000020010DB80000000000000000000000B500008000110009060000000000010106000003E81000
+cmd=foreground:seq=1:exec=ze bgp decode --json --family ipv4/sr-policy -:stdin=good
+expect=exit:code=0
+expect=stdout:contains={"flags":0,"name":"binding-sid","srv6-sid":"2001:db8::b5","type":13}
+cmd=foreground:seq=2:exec=ze bgp decode --json --family ipv4/sr-policy -:stdin=long
+expect=exit:code=0
+expect=stdout:contains={"malformed":true,"name":"binding-sid","type":13,"value":"000020010db80000000000000000000000b50000"}
