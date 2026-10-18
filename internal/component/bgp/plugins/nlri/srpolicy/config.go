@@ -404,11 +404,12 @@ func buildTunnelEncap(
 	}
 	// RFC 9830 Section 2.4.2: "it MUST NOT appear more than once in the SR
 	// Policy encoding", so one form is written when the config names several.
-	if hasBSID {
+	switch {
+	case hasBSID:
 		subTLVs = append(subTLVs, buildBindingSIDSubTLV(bsidMPLS)...)
-	} else if hasBSIDSRv6 {
+	case hasBSIDSRv6:
 		subTLVs = append(subTLVs, buildBindingSIDSRv6SubTLV(bsidSRv6Compat)...)
-	} else if bsidNull {
+	case bsidNull:
 		subTLVs = append(subTLVs, buildBindingSIDNullSubTLV()...)
 	}
 	if hasSRv6BSID {
