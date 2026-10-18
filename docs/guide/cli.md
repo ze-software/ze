@@ -207,13 +207,14 @@ one carries the summary.
 | `?`, on a config key in configuration mode | Shows that key's whole YANG description in the box. A description is often a paragraph, and the message line holds one row |
 | `?`, on a candidate that declares no text | The second message line reads `<command>: no explanation is declared` |
 | `?`, with no candidate highlighted | Completes, as Tab does |
+| `?`, inside a double-quoted value | Types a `?`. Quote any value that carries one, such as a URL with a query string: `description "https://example.net/a?b=1"` |
 | Enter, with the menu open | Puts the selected command in the input |
 | Enter, with the explanation on the screen | Runs the command as typed |
 | Escape, with the explanation on the screen | Removes the explanation. The typed command stays, and so does a menu under it |
 | Escape, with the menu open | Closes the menu |
 | Escape, with nothing revealed | Clears the typed command. An empty input asks to quit |
 | Any text key, or Backspace | Removes the menu or the explanation. The key still reaches the input |
-<!-- source: internal/component/cli/model_keys.go -- handleTab, revealExplanation, revealCandidateExplanation, handleEnter -->
+<!-- source: internal/component/cli/model_keys.go -- handleTab, revealExplanation, revealCandidateExplanation, handleEnter, cursorInQuote -->
 <!-- source: internal/component/cli/model_render.go -- warningText -->
 
 Escape removes one thing for each press. The explanation goes first, and the

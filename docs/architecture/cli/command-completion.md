@@ -113,9 +113,19 @@ because Tab cycles the selection. Enter runs the command on the press after
 that one, and what it runs is the input the menu completed.
 
 `?` is bound to help, as Tab is. It reveals rather than dismisses, and it does
-not reach the input. It writes nothing on message line 2 while an explanation is
-declared. `warningText` already reads the selected candidate's summary there, so
-a hint of its own would be a second copy of that sentence.
+not reach the input, except inside a double-quoted value. When the input before
+the cursor holds an open quote, under the tokenizer's rule that every `"`
+toggles and nothing escapes one, `?` is a character of the value and is
+inserted like any other rune. Only the text before the cursor counts, because
+that is where the character lands. The quote is the only escape at the
+keyboard, because the tokenizer has no escape character. A bracketed paste
+never reaches the key handler, so a pasted `?` arrives whether quoted or not.
+
+`?` writes nothing on message line 2 while an explanation is declared.
+`warningText` already reads the selected candidate's summary there, so a hint
+of its own would be a second copy of that sentence.
+<!-- source: internal/component/cli/model_keys.go -- handleKeyMsg, cursorInQuote -->
+<!-- source: internal/component/cli/model_commands.go -- quoteOpen, tokenizeCommand -->
 
 The explanation region is bounded at the render boundary, not at the
 declaration. `renderExplanationBox` wraps the text at the box width, reads no

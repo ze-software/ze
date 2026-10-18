@@ -398,6 +398,15 @@ func handleQuoteChar(current *textbuf.Buffer, tokens []string, inQuote bool) ([]
 	return tokens, true
 }
 
+// quoteOpen reports whether a double-quoted value is open at the end of
+// prefix, under the rule tokenizeCommand applies: every `"` toggles quoted
+// state, and no character escapes one. The key handler asks it of the input up
+// to the cursor, so a key typed there is read the way the tokenizer will read
+// it once the line runs.
+func quoteOpen(prefix string) bool {
+	return strings.Count(prefix, `"`)%2 == 1
+}
+
 // joinTokensWithQuotes joins tokens into a command string, quoting tokens that need it.
 // Tokens containing spaces, tabs, or empty strings are quoted.
 func joinTokensWithQuotes(tokens []string) string {

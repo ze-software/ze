@@ -3,26 +3,18 @@
 <!-- DESIGN-TIME template: everything that must exist BEFORE code is written.
      The closure half (Implementation Summary, Audit, Goal Validation, Review
      Gate, Pre-Commit Verification, Mistake Log) lives in
-     plan/TEMPLATE-CLOSURE.md and is APPENDED by /ze-close at step 1.
-     Do not copy it in advance: sections copied 300 lines ahead of their use
-     reach closure untouched, the ones created when needed get filled. -->
+     plan/TEMPLATE-CLOSURE.md and is APPENDED by /ze-close at step 1. -->
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | cli |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-03 |
+| Updated | 2026-10-18 |
 
 <!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later session reviews that commit and closes, on Opus when the model is an Anthropic one. `-` closes in the same session. -->
-
-<!-- Scope drives which optional blocks below apply. Say which one this is, so
-     an absent section reads as "inapplicable" rather than "skipped".
-     The file's DIRECTORY carries the release bucket: plan/immediate/ for a defect
-     an operator meets, plan/pre-release/ for work the release cannot go out
-     without, plan/ for everything else (plan/README.md). -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -53,243 +45,190 @@ quote still reveals help.
 
 ## Required Reading
 
-<!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress.
-     Capture what you learned as -> Decision: / -> Constraint: annotations, which
-     survive compaction; track reading progress in the session state file. -->
-
 ### Architecture Docs
-- [ ] `docs/architecture/<doc>.md` - [why relevant]
-  → Decision: [specific architectural decision that constrains this spec]
-  → Constraint: [specific rule from the doc that applies here]
+- [ ] `docs/architecture/cli/command-completion.md` - what Tab and `?` reveal, and the statement that `?` never reaches the input
+  → Decision: `?` stays bound to help everywhere outside an open quote; the reveal state machine is unchanged
+  → Constraint: the page says "`?` ... does not reach the input"; that sentence becomes wrong and is corrected in the same change
+- [ ] `docs/guide/cli.md` "Keys that reveal help" - the operator key table
+  → Constraint: a new row names what `?` does inside a quoted value
 
-### RFC Summaries (Scope: protocol)
-- [ ] `rfc/short/rfcNNNN.md` - [why relevant]
-  → Constraint: [specific RFC rule that applies here]
-
-**Key insights:** (minimal context to resume after compaction)
-- [insight from docs]
+**Key insights:**
+- The CLI tokenizer (`tokenizeCommand`) has one quote rule: every `"` toggles quoted state, a backslash is not an escape, and a single quote is an ordinary character.
+- Bracketed paste arrives as `tea.PasteMsg`, which `Model.Update` forwards to the text input without passing through `handleKeyMsg`, so a pasted `?` already reaches the input.
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:** (must read BEFORE you write this spec)
-- [ ] `path/to/file.go` - [what it currently does]
+**Source files read:**
+- [ ] `internal/component/cli/model_keys.go` - `handleKeyMsg` dispatches `key.Text == "?"` before the generic text arm; that arm reveals the selected candidate's explanation or calls `handleTab`, and never inserts
+- [ ] `internal/component/cli/model_commands.go` - `tokenizeCommand` / `handleQuoteChar`: a `"` toggles quoted state, no escape sequences
+- [ ] `internal/component/cli/model.go` - `Update` forwards unhandled messages, `tea.PasteMsg` included, to `textInput.Update`
 
-**Behavior to preserve:** (unless the user explicitly said to change it)
-- [output format, function signature, or `.ci` expectation callers depend on]
+**Behavior to preserve:**
+- `?` outside a quoted value: reveals the highlighted candidate's explanation, otherwise completes as Tab does
+- Paste delivers its content whole
 
-**Behavior to change:** (only what the user asked for)
-- [list, or "None - preserve all existing behavior"]
+**Behavior to change:**
+- `?` typed while the cursor sits inside an open double-quoted value is inserted as a character
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Where data enters: wire bytes, API command, config, plugin message]
-- [Format at entry]
+- A key press from the terminal, `tea.KeyPressMsg` with `Text == "?"`
 
 ### Transformation Path
-1. [Stage 1: for example "Wire parsing in internal/component/bgp/message/"]
-2. [Stage 2: ...]
+1. `Model.Update` hands the key to `handleKeyMsg`
+2. The `?` arm reads the input up to the cursor; when a quote is open there, the key falls through to the text arm and is inserted as any rune is
+3. Otherwise the existing reveal / Tab path runs
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Engine ↔ Plugin | [JSON format, command syntax] | No |
+| None: the change stays inside the CLI model | - | Yes |
 
 ### Integration Points
-- [Existing function/type this connects to] - [how it integrates]
+- `tokenizeCommand` quote rule - the cursor test applies the same toggle rule, so what the editor treats as inside a quote is what the tokenizer later reads as one token
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
-| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | the rune is inserted by the same `textInput.Update` call the generic text arm makes |
+| No unintended coupling (components stay isolated) | Yes | only `internal/component/cli` changes |
+| No duplicated functionality (extends existing, does not recreate) | Yes | the quote rule is stated once, in `quoteOpen` beside `handleQuoteChar` |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | interactive key path, not a wire path |
+| Registration over hardcoding, outbound | N-A | no command, view or handler is added |
+| Registration over hardcoding, inbound | N-A | no name is introduced that a list must learn |
 
 ## Risks & Assumptions
 
-<!-- LIVE: written during RESEARCH/DESIGN, statuses updated during implementation.
-     Gate answers from /ze-spec (assumption challenge, Failure Mode Analysis)
-     land HERE, not only in conversation. -->
-
 ### Assumptions
-<!-- Every row needs a validation method. `unvalidated` is not a valid final
-     status: closure re-checks each one. A broken assumption also gets a
-     Mistake Log row and a Deviations entry. -->
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | [what this design assumes] | [where the assumption comes from] | [impact on design] | [test/grep/user confirmation] | unvalidated |
+| A-1 | Double quote is the only quoting character and has no escape | `tokenizeCommand` comment and body | a `\"` or `'` case would need its own rule | reading `tokenizeCommand`, `handleQuoteChar` | confirmed |
+| A-2 | Bracketed paste does not pass through `handleKeyMsg` | `Model.Update` has no `tea.PasteMsg` arm and forwards to `textInput.Update` | a pasted `?` would be swallowed | `TestPastedQuestionMarkReachesTheInput` | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | [what goes wrong] | [how we notice it] | [what we do about it] |
+| R-1 | An operator who opens a quote loses `?` help until they close it | operator report | same trade VyOS made (T9077); Tab still completes inside the quote |
 
 ## Blast Radius
 
-<!-- What a wrong landing costs, and how to get out. A reviewer reads this first. -->
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | [live sessions dropped / routes mis-encoded / config rejected / nothing user-visible] |
-| How is it reverted? | [single commit revert / needs config migration / not revertible once peers see it] |
-| Who else touches this path? | [other plugins, components, or specs working the same files] |
+| What breaks if this is wrong? | `?` help inside a quoted value, or a `?` typed in one; nothing outside the interactive editor |
+| How is it reverted? | single commit revert |
+| Who else touches this path? | nobody in flight; `internal/component/cli` was clean at claim time |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
-<!-- BLOCKING: proves the feature is reachable from its intended entry point.
-     Without it the feature exists in isolation: unit tests pass, nothing calls it.
-     Every row needs a concrete test name. "Deferred"/"TODO"/empty is rejected
-     by `internal/le/hookruntime/lifecycle.go`, which is the point: an unedited row fails. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| [config/CLI/event that triggers it] | → | [function that actually runs] | [test name proving the chain] |
+| typed `?` key press | → | `handleKeyMsg` `?` arm, `quoteOpen` | `TestQuestionMarkInsideQuotesIsTyped` |
 
 ## Acceptance Criteria
 
-<!-- Define BEFORE implementation. Each row is a testable assertion, stated as
-     observable behavior, never as the mechanism used to reach it. -->
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | [what triggers the behavior] | [observable outcome] |
+| AC-1 | operator types `set bgp description "https://example.net/a?b=1&c=?"` key by key | the input holds exactly that line, and no help is revealed |
+| AC-2 | input ends in an unterminated quote, `?` pressed | `?` is appended |
+| AC-3 | cursor moved back between a closed pair of quotes, `?` pressed | `?` is inserted at the cursor |
+| AC-4 | cursor before an opening quote, or after a closing one, `?` pressed | nothing is inserted; help or completion runs as before |
+| AC-5 | a value carrying `?` is pasted | the paste arrives whole |
 
 ## End-to-End User Stories
 
-<!-- One row per user-facing operation the feature enables. ACs verify that
-     components work; stories verify the chain is connected. A broken link in a
-     path is a spec gap: add the missing component to ACs, Files, and Test Plan
-     before proceeding. Delete this section when Scope is tooling or docs. -->
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | [for example "receives SR-Policy UPDATE from peer"] | [wire -> mpnlri -> splitter -> Parse -> RIB] | [test name] |
+| 1 | types a quoted URL with a query string at the editor prompt | KeyPressMsg -> handleKeyMsg -> textInput | `TestQuestionMarkInsideQuotesIsTyped` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestXxx` | `internal/.../xxx_test.go` | [description] | |
+| `TestQuestionMarkInsideQuotesIsTyped` | `internal/component/cli/model_keys_quote_test.go` | AC-1 | |
+| `TestQuestionMarkInsideAnUnterminatedQuoteIsTyped` | same | AC-2 | |
+| `TestQuestionMarkFollowsTheCursorNotTheLine` | same | AC-3, AC-4 | |
+| `TestQuestionMarkOutsideQuotesStillRevealsHelp` | same | AC-4 control | |
+| `TestPastedQuestionMarkReachesTheInput` | same | AC-5 | |
 
 ### Boundary Tests (numeric inputs)
-| Field | Range | Last Valid | Invalid Below | Invalid Above |
-|-------|-------|------------|---------------|---------------|
-| [field] | [min-max] | [value] | [value or N/A] | [value or N/A] |
+N-A: the feature takes no numeric input.
 
 ### Functional Tests
-<!-- REQUIRED: a unit test proves the algorithm, a .ci proves the user can reach
-     the feature. New RPCs/APIs are never covered by unit tests alone.
-     Structure: ai/patterns/functional-test.md -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-xxx` | `test/.../*.ci` | [what the user expects to happen] | |
+| model tests above | `internal/component/cli/` | the model tests drive `handleKeyMsg`, the function a terminal key press reaches; the `.ci` harness sends whole command lines rather than key presses, so it cannot observe this arm | |
 
 ### Interop Tests (Scope: protocol)
-<!-- REQUIRED when wire-visible behavior changes. See
-     ai/rules/interop-and-goal-validation.md, including the vacuity traps: prove
-     the test FAILS when the behavior under test is reverted. -->
-| Scenario | Directory | Peer Daemon | What It Proves | Status |
-|----------|-----------|-------------|----------------|--------|
-| `NN-feature-peer` | `test/interop/scenarios/` | [FRR/BIRD/GoBGP/strongSwan] | [protocol behavior validated] | |
+N-A: Scope is cli, no wire behavior.
 
 ## Files to Modify
-<!-- MUST include feature code (internal/*, cmd/*), not only test files.
-     Check each file's // Design: annotation: if the change alters behavior the
-     referenced architecture doc describes, list that doc here too. -->
-- `internal/...` - [feature changes]
+- `internal/component/cli/model_keys.go` - the `?` arm falls through to text insertion inside an open quote
+- `internal/component/cli/model_commands.go` - `quoteOpen` beside the tokenizer quote rule
+- `docs/guide/cli.md`, `docs/architecture/cli/command-completion.md` - key table, and the "does not reach the input" sentence
 
 ## Files to Create
-- `internal/...` - [new feature file]
-- `test/.../*.ci` - [functional test for end-user behavior]
+- `internal/component/cli/model_keys_quote_test.go` - model tests
 
 ### Integration Checklist
-<!-- Answer every row Yes / No / N-A. Never leave a bare marker: an unanswered
-     row is indistinguishable from a forgotten one. N-A needs a reason. -->
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config.md` (YANG vs env var) and `ai/rules/config.md` (naming) |
-| YANG validation constraints | | Every leaf takes maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
-| YANG custom validators | | Where native constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for completion |
-| CLI commands/flags | | `cmd/ze/*/main.go` or subcommand files |
-| CLI grammar (keyword before value) | | `ai/rules/cli.md` |
-| Editor autocomplete | | Automatic for YANG enum/type leaves. Dynamic values need `CompleteFn` |
-| Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
-| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
-| Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
-| Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
-| BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
+| YANG schema (new RPCs/config) | N-A | no schema change |
+| YANG validation constraints | N-A | no leaf |
+| YANG custom validators | N-A | no leaf |
+| CLI commands/flags | N-A | no command |
+| CLI grammar (keyword before value) | N-A | no command |
+| Editor autocomplete | N-A | completion unchanged |
+| Functional test for new RPC/API | N-A | no RPC |
+| Pipe completeness | N-A | no output |
+| Env var registration | N-A | none |
+| Doctor check for runtime dependencies | N-A | none |
+| Prometheus counters/metrics | N-A | none |
+| BGP family surface (new SAFI / capability / attribute) | N-A | none |
 
 ### Documentation Update Checklist (BLOCKING)
-<!-- Answer every row Yes / No / N-A. A No must be backed by a source-aware
-     check, not a guess: at minimum grep docs/ for source anchors pointing at the
-     files you changed. Any factual doc change carries a source anchor. -->
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | | `docs/features.md` |
-| 2 | Config syntax changed? | | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` |
-| 3 | CLI command added/changed? | | `docs/guide/command-reference.md` |
-| 4 | API/RPC added/changed? | | `docs/architecture/api/commands.md` |
-| 5 | Plugin added/changed? | | `docs/guide/plugins.md` |
-| 6 | Has a user guide page? | | `docs/guide/<topic>.md` |
-| 7 | Wire format changed? | | `docs/architecture/wire/*.md` |
-| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` |
-| 9 | RFC behavior implemented, changed, or newly proven? | | `rfc/short/rfcNNNN.md` and the `docs/features/rfc-status.md` row, with source anchors |
-| 10 | Test infrastructure changed? | | `docs/functional-tests.md` |
-| 11 | Affects daemon comparison? | | `docs/comparison.md` |
-| 12 | Internal architecture changed? | | `docs/architecture/core-design.md` or subsystem doc |
-| 13 | Route metadata keys added/changed? | | `docs/architecture/meta/README.md`, `docs/architecture/meta/<plugin>.md` |
-| 14 | Prometheus counters added/changed? | | `docs/plugin-development/metrics.md` or subsystem telemetry doc |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | | `docs/plugin-overview.md`, `docs/features/plugins.md`, `docs/guide/status.md` |
-| 16 | Any changed source file referenced by existing doc source anchors? | | DERIVED, do not answer from memory: `./le spec citation anchors spec plan/<this-spec>.md` lists them. A doc DECLARED by a changed file's `// Design:` header BLOCKS until named here; a doc that only `<!-- source: -->` mentions it is advisory. Naming it as unaffected, with the reason, satisfies the check |
-| 17 | Existing docs show config/CLI/API examples for this area? | | Verify examples against YANG/parser/handler and update stale syntax |
+| 1 | New user-facing feature? | No | defect fix |
+| 2 | Config syntax changed? | No | |
+| 3 | CLI command added/changed? | No | |
+| 4 | API/RPC added/changed? | No | |
+| 5 | Plugin added/changed? | No | |
+| 6 | Has a user guide page? | Yes | `docs/guide/cli.md` key table |
+| 7 | Wire format changed? | No | |
+| 8 | Plugin SDK/protocol changed? | No | |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | |
+| 10 | Test infrastructure changed? | No | |
+| 11 | Affects daemon comparison? | No | |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/cli/command-completion.md` `?` paragraph |
+| 13 | Route metadata keys added/changed? | No | |
+| 14 | Prometheus counters added/changed? | No | |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/guide/config-editor.md` describes `?` on a highlighted key, still true outside a quote; `docs/features/formatting.md`, `docs/guide/command-reference.md` and `docs/architecture/config/yang-config-design.md` do not describe the `?` key |
+| 17 | Existing docs show config/CLI/API examples for this area? | No | |
 
 ## Implementation Steps
 
-<!-- Concrete phases of work, not a restatement of the /ze-implement stages
-     (those live in the skill). Phase 1 is ALWAYS wiring. Order by dependency:
-     schema before resolution, resolution before CLI. Each phase follows TDD
-     (write test -> fail -> implement -> pass) and ends with a self-critical
-     review; fix what it finds before starting the next phase. -->
-
-1. **Phase: Wiring (MANDATORY FIRST)** -- register entry points, write failing wiring tests
-   - Tests: [wiring test names from the Wiring Test table]
-   - Files: [register.go, handler skeleton, route registration]
-   - Verify: the entry point exists and is reachable. The wiring test fails because the feature is a stub
-2. **Phase: [name]** -- [what to implement]
-   - Tests: [test names from the TDD Plan]
-   - Files: [files from Files to Modify]
-   - Verify: tests fail → implement → tests pass → wiring test progresses
+1. **Phase: Wiring** -- model tests drive `handleKeyMsg`; red at HEAD
+2. **Phase: Fix** -- `quoteOpen`, the `?` arm guard, docs
 
 ### Critical Review Checklist
-
-<!-- Feature-SPECIFIC checks. The generic ones in ai/rules/quality.md always
-     apply and are not repeated here. A row that would read the same on any spec
-     is not worth a row. -->
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file:line |
-| Feature completeness | Every user story has a working path, no broken links |
-| Correctness | [feature-specific, for example "merge order correct", "error messages name the offending value"] |
-| Naming | [feature-specific, for example "JSON keys kebab-case", "YANG leaf matches env var leaf"] |
-| Data flow | [feature-specific, for example "resolution in X only, reactor unaware of Y"] |
-| Rule: [relevant rule] | [what to check] |
+| Correctness | the cursor position is a rune index, so the prefix is cut in runes, not bytes |
+| Rule: one declaration | the quote rule is stated once, beside the tokenizer |
 
 ### Deliverables Checklist
-
-<!-- Every deliverable with a command that proves it. "Looks done" is not a
-     verification method. -->
 | Deliverable | Verification method |
 |-------------|---------------------|
-| [concrete thing that must exist] | [grep/ls/test command] |
+| `?` inserted inside quotes | `./le test unit go -run QuestionMark ./internal/component/cli/` |
 
 ### Security Review Checklist
-
-<!-- Feature-specific: untrusted input, injection, resource exhaustion, error
-     leakage, authorization that could fail open. -->
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | [what inputs need validation and how] |
+| Input validation | the inserted rune follows the path every other rune takes; the schema validates the value at set time as before |
 
 ### Failure Routing
 
@@ -304,27 +243,17 @@ quote still reveals help.
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
-<!-- LIVE: write immediately when you learn something. Route each lesson to its
-     governing surface under ai/rules/planning.md. A problem-class journal row
-     is appropriate only when no surface governs the lesson yet; closure alone
-     requires no lesson artifact. -->
+- VyOS fixed the same defect (T9077, vyos-1x commits 1ec6e664a and 412dfb9e9) the same way: `?` inside a quoted value is literal, outside it is help.
 
 ## Key Design Decisions
-<!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| Read the quote state of the input up to the cursor | parity over the whole line | the character lands at the cursor, so the cursor's context decides |
+| No escape for an unquoted `?` | backslash escape, a literal-next key | the tokenizer has no escapes; quoting the value is the escape |
+| Derive the state from the input with the tokenizer's rule (each `"` toggles) | track quote state per keystroke | state derived from the input cannot drift from it after Backspace, history recall or paste |
 
 ## Known Limitations
-<!-- Deliberate scope boundaries. Anything here that is actually outstanding work
-     is not a limitation: write it as its own spec, in the bucket that item
-     belongs to, and name that spec here (ai/rules/planning.md). -->
-- [What was deliberately not done and why]
-
-## RFC Documentation (Scope: protocol)
-
-Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
-MUST document: validation rules, error conditions, state transitions, timer
-constraints, message ordering, and every MUST/MUST NOT.
+- Inside an open quote `?` no longer opens help; Tab still does.
 
 ## Checklist
 

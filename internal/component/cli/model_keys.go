@@ -210,7 +210,11 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Code == tea.KeyTab:
 		return m.handleTab()
 
-	case key.Text == "?":
+	case key.Text == "?" && !m.cursorInQuote():
+		// Inside an open quoted value ? is a character of the value, a URL
+		// query string being the common case, so that key skips this arm
+		// and the text arm below inserts it.
+		//
 		// ? reveals the long explanation of the candidate the operator has
 		// singled out, in the box Tab opens. The candidate's summary is
 		// already on message line 2, read from the selection (model_render.go
@@ -341,6 +345,16 @@ func (m Model) selectedCandidate() (Completion, bool) {
 		return m.completions[0], true
 	}
 	return Completion{}, false
+}
+
+// cursorInQuote reports whether the cursor sits inside an open double-quoted
+// value. Only the input before the cursor counts, because that is where a typed
+// character lands: a quote the operator opened later on the line, or closed
+// earlier, says nothing about the cursor. The text input counts its cursor in
+// runes, so the prefix is cut in runes.
+func (m Model) cursorInQuote() bool {
+	runes := []rune(m.textInput.Value())
+	return quoteOpen(string(runes[:min(m.textInput.Position(), len(runes))]))
 }
 
 // revealCandidateExplanation puts the long explanation of one CANDIDATE on the
