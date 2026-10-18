@@ -393,16 +393,26 @@ func (p *Peer) announceEstablished(r *Reactor, session *Session, neg *capability
 	p.markSessionUp(r, session, sessionUpDelivered)
 }
 
-// announceClosed tells the plugins that session left Established: the state
-// down, to the processes the delivery graph feeds when it is read. The session
-// is marked closing BEFORE that read, so a reload publishing an attached
-// process's edge sees the mark whenever the down could have missed the edge,
-// and tells that process down itself (applyHotSwappableSettings step 4). A
-// mark after the read would leave a window in which the down missed the
-// process and the reload still judged the session up.
+// announceClosed records that session left Established: it marks the session
+// closing and does the reactor's bookkeeping, in the FSM leave-Established
+// callback. The down itself, which reads the delivery graph, is announceDown,
+// run later by Peer.runOnce once the session's buffered UPDATEs are
+// published. The mark is set BEFORE that read, so a reload publishing an
+// attached process's edge sees the mark whenever the down could have missed
+// the edge, and tells that process down itself (applyHotSwappableSettings
+// step 4). A mark after the read would leave a window in which the down
+// missed the process and the reload still judged the session up.
 // The caller MUST hold neither r.mu nor p.mu.
-func (p *Peer) announceClosed(r *Reactor, session *Session, closed sessionClose) {
+func (p *Peer) announceClosed(r *Reactor, session *Session) {
 	p.markSessionUp(r, session, sessionUpClosing)
+	r.forgetClosedPeer(p)
+}
+
+// announceDown tells the plugins that the session is down: the state down, to
+// the processes the delivery graph feeds when it is read. announceClosed MUST
+// have marked the session closing first.
+// The caller MUST hold neither r.mu nor p.mu.
+func (p *Peer) announceDown(r *Reactor, closed sessionClose) {
 	r.notifyPeerClosed(p, closed)
 }
 

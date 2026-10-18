@@ -109,6 +109,39 @@ the `fsm.md` edit) needs nothing from D1. The second half
 (`ReasonAdjRIBInInvalid`, `ReasonForbidsRetention`) waits on D1. The
 per-spec state file lists the code sites already read.
 
+Update (2026-10-18, Phase 2b first half): the teardown on a failed receive
+publication and the down moved after the buffered deliveries landed in one
+commit ("bgp: announce a session's down after its buffered UPDATEs").
+`failReceivePublication` (new `reactor/peer_session_end.go`) tears the source
+down with Cease / Out of Resources on the first failure
+(`receivePublication.fail` now reports the first). The FSM gained the sticky
+`EnteredEstablished` bit. The leave arm is `leaveSession`: BFD
+`releaseBFDClient` with no wait, the closing mark plus `forgetClosedPeer`,
+Connecting, the history row recorded, the leave signal closed. `runOnce`'s
+deferred `sessionDown` fires Event 18 when still Established, drains, waits on
+the signal and the BFD subscriber, then raises session-dropped, announces the
+down, logs and appends the history row. Test seams: `Peer.sessionEndHooks`
+(atomic: leaveArm, beforeLeaveFire, drained, deliveryReceiver). Docs:
+`behavior/fsm.md` "Reactor Notification", `behavior/peer-lifecycle.md`.
+Green under -race: `TestSessionDownFollowsBufferedDeliveries` (remote-close
+case) and `TestOwedKeyPublicationFailureTearsDownSource` (panicking and nil
+receiver).
+
+STILL OWED in the Phase 2b first half, before Phase 3: the
+`TestSessionDownFollowsBufferedDeliveries` subcases (1) contended local
+teardown with the arm held by `leaveArm` until `drained` fires (trap:
+teardown's closeConn lets the read goroutine fire Event 18 first and drain the
+arm itself, so hold only off the runOnce goroutine, for example by pausing the
+read loop first), (2) hold-timer expiry, (3) Run returning Established
+(body-read error, `waitForResume` on cancel), (4) the read-goroutine panic
+seam after `reactorForwardRS`, (5) the `beforeLeaveFire` race to Idle, (6) BFD
+Down drained on the subscriber, (7) reactor stop with a paused session
+(`Reactor.Wait`, then `Peer.Wait`; record the red at HEAD), (8) GR congestion
+teardown drained on the forward-pool worker. Also owed: an FSM unit test for
+`EnteredEstablished`, and the red-at-HEAD record for the base case (not run
+here: reverting needs a hand edit of the down defer, destructive git is
+banned).
+
 ## spec-config-yang-reference-types (2026-10-18)
 
 Landed in commit bccd1e7cf5 ("config/yang: check leafref, identityref and

@@ -735,7 +735,8 @@ func TestAttachWhileSessionClosingIsToldDown(t *testing.T) {
 			session := peer.session
 			var successor *Session
 			rec.onBind = func() {
-				peer.announceClosed(peer.reactor, session, closeWithReason(rpc.ReasonTCPFailure))
+				peer.announceClosed(peer.reactor, session)
+				peer.announceDown(peer.reactor, closeWithReason(rpc.ReasonTCPFailure))
 				if !tc.gone {
 					return
 				}

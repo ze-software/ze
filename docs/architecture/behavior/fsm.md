@@ -468,7 +468,11 @@ const (
 
 ### Reactor Notification
 
-The FSM callback in `peer.go` notifies the reactor on Established transitions:
+The FSM callback in `peer_run.go` notifies the reactor on Established
+transitions. A callback runs on whichever goroutine drains the FSM's pending
+queue: the read goroutine, a teardown caller, the hold timer, the BFD
+subscriber or a forward-pool worker. So the leave arm waits on nothing, and the
+down is announced later, by `runOnce` itself:
 
 ```go
 session.fsm.SetCallback(func(from, to fsm.State, event fsm.Event) {
@@ -479,25 +483,45 @@ session.fsm.SetCallback(func(from, to fsm.State, event fsm.Event) {
         }
         p.startInitialRoutes()
     } else if from == fsm.StateEstablished {
-        // the event that made this transition, and whether a NOTIFICATION
-        // crossed the wire, decide the close once (peer_close.go)
-        closed := sessionCloseFor(p.notificationExchanged.Load(), event)
-        if reactor != nil {
-            p.announceClosed(reactor, session, closed) // marks the session closing, then notifyPeerClosed
-        }
-        // ... clear capabilities ...
+        // leaveSession: release BFD without waiting, derive the close once
+        // (peer_close.go), mark the session closing and forget it in the
+        // reactor (announceClosed), clear capabilities, setState(Connecting),
+        // record the history row, then close the leave signal.
+        p.leaveSession(session, leave, from, to, event)
     }
 })
+defer p.sessionDown(session, deliverChan, deliveryDone, leave)
+return session.Run(p.ctx)
 ```
+
+`sessionDown` runs on every exit from `runOnce`, a panic on the read goroutine
+included:
+
+| Step | What it does |
+|------|--------------|
+| 1 | When the FSM still reads Established (nothing else ended the session), fire `EventTCPConnectionFails`, so the leave arm runs |
+| 2 | Close the delivery channel and wait for the delivery worker, which publishes every buffered UPDATE first |
+| 3 | When the FSM's sticky entered-Established bit is set, wait on the leave signal, then on the BFD subscriber the arm released |
+| 4 | Raise session-dropped when no NOTIFICATION was exchanged, announce the down (`announceDown`, `notifyPeerClosed`), log "session closed" and append the leave-Established history row |
+
+So a plugin hears every UPDATE of a session before its down, and the down
+follows `PeerStateConnecting`. A delivery worker that cannot publish a batch
+(a recovered receiver panic, or no receiver) tears its session down with Cease
+/ Out of Resources (`failReceivePublication`), without waiting on itself.
+
 Every callback receives the event whose handling made its change: `Event`
 records it before dispatching, and `change` queues it with the transition, so a
-callback drained on another goroutine still reads its own cause.
+callback drained on another goroutine still reads its own cause. `change` sets
+the entered-Established bit, under the same lock as the state write, before it
+queues the enter transition's callback.
 
 <!-- source: internal/component/bgp/reactor/peer_run.go -- SetCallback on fsm -->
 <!-- source: internal/component/bgp/reactor/peer_close.go -- sessionCloseFor -->
 <!-- source: internal/component/bgp/fsm/fsm.go -- FSM.Event, FSM.change -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyPeerEstablished, notifyPeerClosed -->
-<!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- Peer.announceEstablished, Peer.announceClosed -->
+<!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- Peer.announceEstablished, Peer.announceClosed, Peer.announceDown -->
+<!-- source: internal/component/bgp/reactor/peer_session_end.go -- Peer.leaveSession, Peer.sessionDown, failReceivePublication -->
+<!-- source: internal/component/bgp/fsm/fsm.go -- FSM.EnteredEstablished -->
 
 ### Peer lifecycle observers
 
@@ -507,7 +531,7 @@ and its registration are both internal to the reactor package:
 ```go
 type peerLifecycleObserver interface {
     OnPeerEstablished(peer *Peer)
-    OnPeerClosed(peer *Peer, reason string)
+    OnPeerClosed(peer *Peer, closed sessionClose)
 }
 
 // Register an in-package observer

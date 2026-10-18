@@ -419,7 +419,7 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	// instead, after telling down the ones step 2 told up.
 	//
 	// A session closing or gone at the publish (Peer.announceClosed, then
-	// runOnce's defer) is going away on its own: its FSM down read the graph
+	// runOnce's down and defer) is going away on its own: its FSM down read the graph
 	// after the mark, on either side of the publish, so it may have missed
 	// the attached processes. The ones step 2 told up are told down here.
 	// When nothing holds the peer, or its successor's up has not started, no

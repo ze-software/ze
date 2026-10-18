@@ -78,10 +78,13 @@ func (publication *receivePublication) complete(messageID uint64) {
 }
 
 // fail is sticky for this worker lifetime: a later successful batch cannot hide
-// an earlier batch that never reached the plugin queues.
-func (publication *receivePublication) fail() {
-	publication.failed.Store(true)
+// an earlier batch that never reached the plugin queues. It reports whether
+// this call was the first failure, so the delivery worker tears the session
+// down once.
+func (publication *receivePublication) fail() bool {
+	first := !publication.failed.Swap(true)
 	publication.wake()
+	return first
 }
 
 // wake allocates nothing. With no cold waiter, completion is two atomic stores

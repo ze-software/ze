@@ -109,10 +109,12 @@ func (s *Session) handleOpen(body []byte) error {
 		// it also "deletes all routes associated with this connection",
 		// "releases all BGP resources" and "changes its state to Idle". In this
 		// reactor all three hang off the FSM transition, not off closeConn:
-		// peer_run.go's `from == fsm.StateEstablished` branch is what calls
-		// stopBFDClient, raiseSessionDropped and notifyPeerClosed, and
-		// notifyPeerClosed is the sole producer of the SessionStateDown that
-		// makes adj_rib_in drop the peer's stored routes and clear peerUp.
+		// peer_run.go's `from == fsm.StateEstablished` branch (leaveSession)
+		// releases BFD and closes the leave signal that runOnce's down
+		// (sessionDown) waits on before raiseSessionDropped and
+		// notifyPeerClosed, and notifyPeerClosed is the sole producer of the
+		// SessionStateDown that makes adj_rib_in drop the peer's stored
+		// routes and clear peerUp.
 		// Returning here without it would leave a dead peer marked up with its
 		// routes retained, and replay them on reconnect. EventBGPOpen lands in
 		// the Established/OpenConfirm default arm, which changes state to Idle

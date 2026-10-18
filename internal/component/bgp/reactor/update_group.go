@@ -43,7 +43,7 @@ type updateGroup struct {
 // (e.g., next-hop, isIBGP, extended message) that go beyond ContextID alone.
 //
 // Safe for concurrent use. Add/Remove are called from peer goroutines
-// (via notifyPeerEstablished/notifyPeerClosed), while GroupsForPeers
+// (via notifyPeerEstablished/forgetClosedPeer), while GroupsForPeers
 // is called from the reactor API path.
 type UpdateGroupIndex struct {
 	mu      sync.Mutex

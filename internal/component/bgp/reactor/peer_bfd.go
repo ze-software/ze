@@ -36,10 +36,11 @@
 //
 // Lifecycle: the subscriber goroutine is a per-session worker (not
 // per-event) per rules/goroutine-lifecycle.md. It exits when either
-// stopBFDClient closes the stop channel or the subscription channel
-// closes (handle released or loop torn down). stopBFDClient waits on
-// the done channel so the goroutine has exited by the time it
-// returns.
+// releaseBFDClient closes the stop channel or the subscription channel
+// closes (handle released or loop torn down). awaitBFDRelease waits on
+// the done channel, on a goroutine that is never the subscriber: the
+// down of Peer.runOnce after a session left Established, and
+// stopBFDClient everywhere else.
 package reactor
 
 import (
@@ -665,19 +666,37 @@ func (p *Peer) deliverBFDEvent(event fsm.Event) {
 	}
 }
 
+// bfdRelease is what releaseBFDClient gave up: whether a BFD session was
+// open, and the subscriber goroutine's exit channel, which awaitBFDRelease
+// waits on. The zero value is "nothing was open".
+type bfdRelease struct {
+	released bool
+	done     chan struct{}
+}
+
 // stopBFDClient releases the BFD handle, waits for the subscriber
 // goroutine to exit, and clears the per-peer state so a subsequent
 // startBFDClient is race-free. Idempotent: a no-op when no BFD session
 // is currently open.
 //
-// Called from the FSM callback on exit from StateEstablished for a
-// NON-strict peer, and from Peer.cleanup for a strict one:
+// Called from Peer.cleanup, which releases a strict peer's session:
 // draft-ietf-idr-bgp-bfd-strict-mode Section 7 says implementations
 // "SHOULD NOT immediately destroy BFD sessions when associated BGP
 // connections transition to Idle", and a strict peer that tore its BFD
 // session down on every failed attempt would restart the BFD handshake
-// on each retry and never converge.
+// on each retry and never converge. The FSM leave-Established arm does
+// NOT call it: the subscriber goroutine can be the one draining that
+// callback, and waiting there on its own exit would never return. The arm
+// calls releaseBFDClient and Peer.runOnce's down waits (peer_run.go).
 func (p *Peer) stopBFDClient() {
+	p.awaitBFDRelease(p.releaseBFDClient())
+}
+
+// releaseBFDClient is stopBFDClient's non-waiting half: it releases the
+// handle and clears the per-peer state, and returns the subscriber's exit
+// channel for awaitBFDRelease. Safe to call from any goroutine, the BFD
+// subscriber included, because it waits on nothing.
+func (p *Peer) releaseBFDClient() bfdRelease {
 	p.bfd.mu.Lock()
 	if p.bfd.starting {
 		// A start in flight has no handle to stop yet: it releases what it
@@ -698,7 +717,7 @@ func (p *Peer) stopBFDClient() {
 	p.bfd.mu.Unlock()
 
 	if handle == nil {
-		return
+		return bfdRelease{}
 	}
 	p.bfd.live.Store(false)
 	if stop != nil {
@@ -711,8 +730,18 @@ func (p *Peer) stopBFDClient() {
 				"peer", p.settings.Address, "err", err)
 		}
 	}
-	if done != nil {
-		<-done
+	return bfdRelease{released: true, done: done}
+}
+
+// awaitBFDRelease waits for the subscriber goroutine a release stopped to
+// exit. It MUST NOT run on that subscriber goroutine, which would wait on
+// its own exit.
+func (p *Peer) awaitBFDRelease(release bfdRelease) {
+	if !release.released {
+		return
+	}
+	if release.done != nil {
+		<-release.done
 	}
 	peerLogger().Info("bfd session closed for peer", "peer", p.settings.Address)
 }

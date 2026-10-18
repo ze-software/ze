@@ -243,8 +243,10 @@ func TestAIGPQueuedReplayCannotResurrectOldGeneration(t *testing.T) {
 			case "replacement":
 				next = f.receive(t, f.body(t, 200))
 			case "source-disconnect":
+				f.r.forgetClosedPeer(f.source)
 				f.r.notifyPeerClosed(f.source, closeWithReason("test disconnect"))
 			case "destination-disconnect":
+				f.r.forgetClosedPeer(f.destination)
 				f.r.notifyPeerClosed(f.destination, closeWithReason("test disconnect"))
 			}
 			close(release)

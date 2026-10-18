@@ -461,6 +461,10 @@ func (p *Peer) runOnce() error {
 		}
 	}
 
+	// The leave-Established arm fills this record and closes its signal; the
+	// down defer below waits on it (sessionDown).
+	leave := &sessionLeave{signal: make(chan struct{})}
+
 	// Monitor FSM state
 	session.fsm.SetCallback(func(from, to fsm.State, event fsm.Event) {
 		addr := p.settings.Address.String()
@@ -544,61 +548,10 @@ func (p *Peer) runOnce() error {
 			p.startInitialRoutes()
 			transitionReason = "established"
 		} else if from == fsm.StateEstablished {
-			// Release any BFD session opened on Established. Runs
-			// before clearEncodingContexts so the subscriber
-			// goroutine has observed the final StateChange
-			// (closed channel) before the handle is released.
-			//
-			// A strict peer keeps its session:
-			// draft-ietf-idr-bgp-bfd-strict-mode Section 7 says
-			// implementations "SHOULD NOT immediately destroy BFD
-			// sessions when associated BGP connections transition
-			// to Idle", and a peer that rebuilt the BFD handshake
-			// on every failed attempt would never converge. Its
-			// release is Peer.cleanup.
-			if !p.bfdStrict() {
-				p.stopBFDClient()
-			}
-
-			// Drop this peer out of the startup convergence hold. Without it
-			// the hold's release condition would read "has been Established",
-			// and a peer that came up and dropped again would keep counting
-			// toward convergence while its wire is gone (update_delay.go).
-			p.updateDelayPeerDown()
-
-			// The close is derived once, from the event that made this
-			// transition, from whether a NOTIFICATION crossed the wire, and
-			// from the close reason the session recorded, and every consumer
-			// reads it: Graceful Restart and BMP both decide on it
-			// (peer_close.go).
-			closed := sessionCloseFor(p.notificationExchanged.Load(), event, closeCause(session))
-			reason := closed.reason
-
-			// Raise session-dropped on the report bus only when no NOTIFICATION
-			// was exchanged during this session. If one was sent or received,
-			// the operator already sees that event in `ze show errors` and a
-			// duplicate session-dropped would be noise.
-			if !p.notificationExchanged.Load() {
-				raiseSessionDropped(p.peerAddrLabel(), reason)
-			}
-
-			// Notify reactor of peer closed
-			p.mu.RLock()
-			reactor := p.reactor
-			p.mu.RUnlock()
-			// announceClosed marks the session closing before the down reads
-			// the delivery graph, so a reload racing it can place that read
-			// (applyHotSwappableSettings).
-			if reactor != nil {
-				p.announceClosed(reactor, session, closed)
-			}
-
-			// Clear negotiated capabilities and encoding contexts on session teardown
-			p.negotiated.Store(nil)
-			p.clearEncodingContexts()
-			p.setState(PeerStateConnecting)
-			peerLogger().Info("session closed", "peer", addr, "reason", reason)
-			transitionReason = reason
+			p.leaveSession(session, leave, from, to, event)
+			// The down owes the history row, after the session's buffered
+			// UPDATEs were published (sessionDown).
+			return
 		}
 
 		p.history.append(FSMTransition{
@@ -622,13 +575,14 @@ func (p *Peer) runOnce() error {
 	// Long-lived delivery worker (channel + worker pattern, not per-event).
 	go func() { // goroutine-lifecycle: channel worker pattern: reads from p.deliverChan
 		defer close(deliveryDone)
-		// Recovery exits the loop — remaining buffered items are dropped.
-		// This is intentional: a panic indicates a bug, and the session will
-		// be torn down (runOnce waits on <-deliveryDone). The recovery ensures
-		// deliveryDone closes so shutdown isn't blocked, not continued processing.
+		// Recovery exits the loop, and the remaining buffered items are
+		// dropped: a panic indicates a bug. The failed publication tears the
+		// session down, so its UPDATEs that never reached the plugins end
+		// with it; the recovery ensures deliveryDone closes, which the down
+		// waits on.
 		defer func() {
 			if r := recover(); r != nil {
-				publication.fail()
+				failReceivePublication(session, publication)
 				buf := make([]byte, 4096)
 				n := runtime.Stack(buf, false)
 				peerLogger().Error("delivery goroutine panic recovered",
@@ -647,14 +601,15 @@ func (p *Peer) runOnce() error {
 			reactor := p.reactor
 			p.mu.RUnlock()
 			if reactor == nil {
-				publication.fail()
+				failReceivePublication(session, publication)
 				continue
 			}
 			reactor.mu.RLock()
 			receiver := reactor.messageReceiver
 			reactor.mu.RUnlock()
+			receiver = p.sessionEndHooks.Load().receiverFor(receiver)
 			if receiver == nil {
-				publication.fail()
+				failReceivePublication(session, publication)
 				continue
 			}
 
@@ -676,16 +631,14 @@ func (p *Peer) runOnce() error {
 		}
 	}()
 
+	// The down is a defer, registered after the delivery worker started, so
+	// every exit from here drains and announces it, a panic on the read
+	// goroutine included. It runs before the earlier defer that clears
+	// p.session.
+	defer p.sessionDown(session, deliverChan, deliveryDone, leave)
+
 	// Run session loop
-	err := session.Run(p.ctx)
-
-	// Drain delivery channel: close stops accepting new items, range loop in
-	// goroutine processes remaining buffered items before exiting.
-	close(deliverChan)
-	<-deliveryDone
-	p.deliverChan = nil
-
-	return err
+	return session.Run(p.ctx)
 }
 
 // cleanup runs when peer stops.

@@ -172,26 +172,35 @@ func (r *Reactor) notifyPeerNegotiated(peer *Peer, neg *capability.Negotiated) {
 	r.eventDispatcher.OnPeerNegotiated(&peerInfo, decoded)
 }
 
-// notifyPeerClosed calls all observers when peer leaves Established.
-func (r *Reactor) notifyPeerClosed(peer *Peer, closed sessionClose) {
+// forgetClosedPeer is the reactor bookkeeping for a peer whose session left
+// Established. It runs in the FSM leave-Established callback, before
+// clearEncodingContexts resets sendCtxID to 0, which the update group index
+// is keyed on.
+func (r *Reactor) forgetClosedPeer(peer *Peer) {
 	r.forgetAIGPPeer(peer)
-	// Remove peer from update group index before notifying observers.
-	// Must happen before clearEncodingContexts resets sendCtxID to 0.
 	if r.updateGroups != nil {
 		r.updateGroups.Remove(peer)
 	}
+}
 
-	// Schedule cleanup for dynamic peers after idle timeout.
-	if peer.Settings().IsDynamic {
-		r.scheduleDynamicPeerCleanup(peer)
-	}
-
+// notifyPeerClosed calls all observers when peer's session is down: after the
+// leave-Established callback ran and after every UPDATE the session buffered
+// was published, so a plugin hears a session's UPDATEs before its down. Only
+// Peer.runOnce's down calls it (peer_run.go). A dynamic peer's cleanup is
+// scheduled after the observers, so it never removes a peer they are still
+// being told about.
+func (r *Reactor) notifyPeerClosed(peer *Peer, closed sessionClose) {
 	r.observersMu.RLock()
 	observers := r.peerObservers
 	r.observersMu.RUnlock()
 
 	for _, obs := range observers {
 		obs.OnPeerClosed(peer, closed)
+	}
+
+	// Schedule cleanup for dynamic peers after idle timeout.
+	if peer.Settings().IsDynamic {
+		r.scheduleDynamicPeerCleanup(peer)
 	}
 }
 

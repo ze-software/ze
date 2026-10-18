@@ -274,7 +274,10 @@ sequence exactly as it reads above.
 
 <!-- source: internal/component/bgp/reactor/update_delay.go — updateDelayHold, Peer.startInitialRoutes -->
 
-**On transition *out of* `StateEstablished`:**
+**On transition *out of* `StateEstablished`:** the FSM callback runs the
+leave arm (`leaveSession`, `peer_session_end.go`) on whichever goroutine drains
+the FSM, and `runOnce`'s down (`sessionDown`) announces the down later, on the
+`runOnce` goroutine. The leave arm:
 
 1. Derive the close once with `sessionCloseFor` (`peer_close.go`), from the
    FSM event that made the transition, from `notificationExchanged`, and from
@@ -290,18 +293,38 @@ sequence exactly as it reads above.
    `rpc.ReasonNotification` (RFC 4724 Section 4), and BMP writes Peer Down
    reason 4 for `rpc.ReasonTCPFailure` and reason 2 with the event code for
    `rpc.ReasonLocalClose` (RFC 7854 Section 4.9).
-2. If no NOTIFICATION was exchanged (`notificationExchanged == false`),
+2. Release a non-strict peer's BFD session without waiting for its
+   subscriber goroutine, which may be the goroutine running the arm.
+3. `p.announceClosed(reactor, session)`: mark the session closing
+   under the reactor lock, so a reload attaching a process at the same moment
+   tells that process down itself (`docs/architecture/core-design.md`, section
+   18a), and forget the peer in the reactor (`forgetClosedPeer`: AIGP, update
+   groups).
+4. Clear negotiated capabilities and encoding contexts.
+5. `setState(PeerStateConnecting)`, record the history row, and close the
+   leave signal.
+
+The down, on every exit from `runOnce`:
+
+1. When the FSM still reads Established, fire Event 18 so the leave arm runs.
+2. Close the delivery channel and wait for the delivery worker, so every
+   UPDATE the session buffered is published before the down.
+3. When the FSM ever entered Established, wait on the leave signal, then on
+   the BFD subscriber goroutine.
+4. If no NOTIFICATION was exchanged (`notificationExchanged == false`),
    raise `session-dropped` on the report bus via
    `raiseSessionDropped`. The check avoids duplicating an event the
    operator already sees elsewhere when NOTIFICATION fired.
-3. `p.announceClosed(reactor, session, closed)`: mark the session closing
-   under the reactor lock, so a reload attaching a process at the same moment
-   tells that process down itself (`docs/architecture/core-design.md`, section
-   18a), then notify the reactor via `reactor.notifyPeerClosed(p, closed)`.
-4. Clear negotiated capabilities and encoding contexts.
-5. `setState(PeerStateConnecting)`.
-6. Log `session closed` with the reason.
+5. Notify the reactor via `reactor.notifyPeerClosed(p, closed)`, which tells
+   the observers and then schedules a dynamic peer's cleanup.
+6. Log `session closed` with the reason and append the history row.
 
+A delivery worker that cannot publish a batch (a recovered receiver panic, or
+no receiver) tears its session down with Cease / Out of Resources
+(`failReceivePublication`), so the session does not stay Established while its
+UPDATEs never reach the plugins.
+
+<!-- source: internal/component/bgp/reactor/peer_session_end.go — leaveSession, sessionDown, failReceivePublication -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — SetCallback Established and leave-Established branches -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — sendInitialRoutes spawn -->
 

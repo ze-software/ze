@@ -101,6 +101,13 @@ type FSM struct {
 	pending  []transition
 	draining bool
 
+	// enteredEstablished is sticky: change sets it, in the same f.mu hold as
+	// the state write, when it queues a transition into Established, and
+	// nothing clears it. A set bit therefore always means a queued enter
+	// callback, and so a leave callback that this FSM's owner can wait on
+	// (Peer.runOnce's down, reactor/peer_run.go).
+	enteredEstablished bool
+
 	// event is the event Event() is dispatching, written under mu before the
 	// handler runs. change() copies it into the transition it queues, so each
 	// callback learns the cause of its own change even when it runs after a
@@ -142,6 +149,15 @@ func (f *FSM) State() State {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return f.state
+}
+
+// EnteredEstablished reports whether this FSM ever queued a transition into
+// Established. It is sticky for the FSM's life: the owner reads it after the
+// session ended to learn whether a leave-Established callback is owed.
+func (f *FSM) EnteredEstablished() bool {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	return f.enteredEstablished
 }
 
 // setState changes the state (internal, no callback).
@@ -318,6 +334,11 @@ func (f *FSM) change(to State) {
 		return
 	}
 
+	// The entered-Established bit is set here, before the enter transition's
+	// callback is queued, so a set bit always means a queued enter callback.
+	if to == StateEstablished {
+		f.enteredEstablished = true
+	}
 	f.pending = append(f.pending, transition{from: from, to: to, event: f.event})
 	if f.draining {
 		// Another goroutine is draining; it will run this callback in order.

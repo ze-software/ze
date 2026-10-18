@@ -271,6 +271,9 @@ type Peer struct {
 	// One scalar publication frontier per delivery lifetime. Cold recovery
 	// waits until accepted receive IDs reach plugin queues, without a hot lock.
 	receivePublication atomic.Pointer[receivePublication]
+	// sessionEndHooks holds nil outside tests: test seams that runOnce, its
+	// delivery worker and its FSM callback read (peer_session_end.go).
+	sessionEndHooks atomic.Pointer[sessionEndHooks]
 
 	// validationForwardMu orders received and retained-route dispatch for this
 	// source. Callers MUST hold it from eligibility lookup through FIFO enqueue.
@@ -573,7 +576,7 @@ type Peer struct {
 	// bfd is the per-peer BFD client state. Zero value means no BFD
 	// session is currently open; startBFDClient populates it after
 	// the FSM reaches Established and the peer opted in via config.
-	// stopBFDClient clears it on session teardown. See peer_bfd.go.
+	// releaseBFDClient clears it on session teardown. See peer_bfd.go.
 	bfd bfdClient
 
 	health *sessionHealth
