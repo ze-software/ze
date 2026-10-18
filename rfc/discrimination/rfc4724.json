@@ -262,7 +262,7 @@
       "claim-sha": "a1e534ed89d0149c",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr.go::handleStateEvent",
-      "producer-sha": "340f775e69516d6f",
+      "producer-sha": "6f89f01fd929d3fe",
       "break": "body of handleStateEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -273,7 +273,7 @@
       "claim-sha": "c9f832ee1e2df9e3",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr.go::handleStateEvent",
-      "producer-sha": "340f775e69516d6f",
+      "producer-sha": "6f89f01fd929d3fe",
       "break": "body of handleStateEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -372,7 +372,7 @@
       "claim-sha": "cb0b653665d1c218",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionReestablished",
-      "producer-sha": "7b973cd7e34234b9",
+      "producer-sha": "6d6a59547a1817ac",
       "break": "body of onSessionReestablished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -416,7 +416,7 @@
       "claim-sha": "c0e1839ae4d92e79",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionReestablished",
-      "producer-sha": "7b973cd7e34234b9",
+      "producer-sha": "6d6a59547a1817ac",
       "break": "body of onSessionReestablished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

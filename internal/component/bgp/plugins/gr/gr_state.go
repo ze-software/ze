@@ -259,9 +259,14 @@ func (m *grStateManager) startRestartTimer(peerAddr string, state *grPeerState) 
 //   - F-bit=0 for AFI/SAFI -> purge stale for that family
 //   - F-bit=1 -> keep stale routes until EOR
 //
-// RFC 9494: During LLGR, also check new LLGR capability.
-//   - If both GR and LLGR caps missing -> delete all stale
-//   - If F-bit clear or family missing in new LLGR -> delete stale for that family
+// RFC 9494 Section 4.2: a family whose LLGR period has begun (it holds an LLST
+// timer) must ALSO pass the new LLGR capability: F bit clear, or the family
+// missing from it, purges the family. A family still in its conventional GR
+// period is judged by the RFC 4724 rule alone. The two rules combine with AND
+// (owner decision Q-1, 2026-10-14, spec-bgp-graceful-restart-rfc-defects),
+// because the same section says the RFC 4724 procedures apply "irrespective of
+// whether the stale routes are retained during the Restart Time period or the
+// Long-Lived Stale Time period".
 func (m *grStateManager) onSessionReestablished(peerAddr string, newCap *grPeerCap, newLLGRCap *llgrPeerCap) ([]family.Family, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -272,6 +277,13 @@ func (m *grStateManager) onSessionReestablished(peerAddr string, newCap *grPeerC
 	}
 
 	wasInLLGR := state.inLLGR
+	// The per-family "LLGR period has begun" set, captured before
+	// stopLLSTTimersLocked clears it. inLLGR is peer-wide and cannot say which
+	// family is in which period.
+	inLLGRPeriod := make(map[family.Family]bool, len(state.llgrFamilies))
+	for fam := range state.llgrFamilies {
+		inLLGRPeriod[fam] = true
+	}
 
 	// Cancel callbacks that already started and cannot be stopped by Timer.Stop.
 	state.restartDeadline = time.Time{}
@@ -291,30 +303,34 @@ func (m *grStateManager) onSessionReestablished(peerAddr string, newCap *grPeerC
 		return purged, wasInLLGR
 	}
 
-	// Build lookup: families with F-bit=1 in new GR capability
-	newForwarding := make(map[family.Family]bool, len(newCap.Families))
+	// RFC 4724 Section 4.2: the families the new GR capability lists with the
+	// "Forwarding State" bit set.
+	grForwarding := make(map[family.Family]bool, len(newCap.Families))
 	for _, f := range newCap.Families {
 		if f.ForwardState {
-			newForwarding[f.Family] = true
+			grForwarding[f.Family] = true
 		}
 	}
-
-	// RFC 9494: Also check LLGR capability F-bits during LLGR reconnect
-	if wasInLLGR && newLLGRCap != nil {
+	// RFC 9494 Section 4.2: the families the new LLGR capability lists with the
+	// F bit set. A nil capability lists none, so every LLGR-period family then
+	// fails the "not included" bullet.
+	llgrForwarding := make(map[family.Family]bool)
+	if newLLGRCap != nil {
 		for _, f := range newLLGRCap.Families {
 			if f.ForwardState {
-				newForwarding[f.Family] = true
+				llgrForwarding[f.Family] = true
 			}
 		}
 	}
 
-	// Check each stale family against new capabilities
 	var purged []family.Family
 	for fam := range state.staleFamilies {
-		if !newForwarding[fam] {
-			purged = append(purged, fam)
-			delete(state.staleFamilies, fam)
+		// RFC 4724 Section 4.2, RFC 9494 Section 4.2.
+		if reconnectKeepsFamily(fam, grForwarding, llgrForwarding, inLLGRPeriod) {
+			continue
 		}
+		purged = append(purged, fam)
+		delete(state.staleFamilies, fam)
 	}
 
 	// Update LLGR cap for potential future LLGR cycle
@@ -327,6 +343,30 @@ func (m *grStateManager) onSessionReestablished(peerAddr string, newCap *grPeerC
 	}
 
 	return purged, wasInLLGR
+}
+
+// reconnectKeepsFamily answers whether a stale family survives the re-established
+// session's capabilities. It is pure: the caller holds m.mu and owns the maps.
+func reconnectKeepsFamily(fam family.Family, grForwarding, llgrForwarding, inLLGRPeriod map[family.Family]bool) bool {
+	// RFC 4724 Section 4.2: "if the "Forwarding State" bit for a specific address
+	// family is not set in the newly received Graceful Restart Capability, or if a
+	// specific address family is not included in the newly received Graceful
+	// Restart Capability, ... the Receiving Speaker MUST immediately remove all
+	// the stale routes from the peer that it is retaining for that address family."
+	if !grForwarding[fam] {
+		return false
+	}
+	if !inLLGRPeriod[fam] {
+		return true
+	}
+	// RFC 9494 Section 4.2: "once the LLGR Period begins, the Helper MUST
+	// immediately remove all the stale routes from the peer that it is retaining
+	// for that address family if any of the following occur: * the F bit for a
+	// specific address family is not set in the newly received LLGR Capability,
+	// or * a specific address family is not included in the newly received LLGR
+	// Capability". A clear F bit and a missing family both leave fam out of
+	// llgrForwarding.
+	return llgrForwarding[fam]
 }
 
 // onEORReceived is called when End-of-RIB is received from a GR/LLGR-active peer.

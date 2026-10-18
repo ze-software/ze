@@ -834,8 +834,10 @@ func TestOnSessionReestablished_DuringLLGR_NoLLGRCap(t *testing.T) {
 	newCap := testCap(120, famIPv4)
 	purged, _ := mgr.onSessionReestablished(testPeer, newCap, nil)
 
-	// GR F-bit=1 for ipv4, so stale routes are kept until EOR
-	assert.Empty(t, purged, "GR F-bit=1, stale kept until EOR")
+	// ipv4 is in its LLGR period and the new session carries no LLGR capability,
+	// so RFC 9494 Section 4.2 ("a specific address family is not included in the
+	// newly received LLGR Capability") purges it whatever the GR F bit says.
+	assert.Equal(t, []family.Family{family.IPv4Unicast}, purged, "no LLGR cap: LLGR-period family purged")
 }
 
 // TestOnSessionReestablished_DuringLLGR_NoCaps verifies reconnect with no caps.
