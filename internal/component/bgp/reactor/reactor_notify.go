@@ -705,6 +705,10 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 		}
 	}
 
+	if hasPeer && msgType == msgtype.TypeUPDATE {
+		peer.sessionEndHooks.Load().runBeforeHandOff()
+	}
+
 	// Received UPDATE with per-peer delivery channel: enqueue for async delivery.
 	// The delivery goroutine (started by Peer.runOnce) drains a batch and calls
 	// OnMessageBatchReceived + Activate per message. This decouples the TCP read

@@ -142,6 +142,35 @@ teardown drained on the forward-pool worker. Also owed: an FSM unit test for
 here: reverting needs a hand edit of the down defer, destructive git is
 banned).
 
+Update (2026-10-18, Phase 2b first half closed): the owed tests landed in
+the commit "bgp: prove the down follows every way a session ends".
+`TestSessionDownFollowsBufferedDeliveries` holds the remote-close case and
+subcases (1) to (8). `fsm/entered_established_test.go` pins the
+entered-Established bit. Case (4) uses a new seam,
+`sessionEndHooks.beforeHandOff`, called in `notifyMessageReceiver`. The
+subcase-1 trap is closed by `parkReadLoop`: it pauses, then sends one
+KEEPALIVE so a loop blocked in its read reads once and stops at the gate.
+The red at the parent was recorded with a `-overlay` of the parent's
+ordering, and all ten subtests went red. The record is in the spec's Design
+Insights. The subtests passed ten times under `-race`. The reactor, fsm, rib
+and process packages pass under `-race` with the `ze_*` tags, except the
+three Phase 1 probes, which stay red until Phase 3. Scoped lint is clean.
+Next: Phase 3, split into three agent packages. (a) `adjOutWrite.allow`
+records owed keys and the owner's session generation, and the
+per-destination recovery worker starts before Established and is stopped
+and joined in runOnce's down. (b) Admission checks the record, the
+session, the epoch and the movers, and a departure owes a key only where a
+no-longer-current session owns it. (c) The cut is deleted end to end
+(`RecoveryRequest.Cut`, the `recovery-cut` meta, `types.RecoveryCut`,
+`cmd/update/recovery.go`, the cut read in the rs `server.go`, the IPC
+`<cut>` argument). Before that, each guard in the spec's "Guards of
+deleted code" moves to its carrier, and the cut's AC-18 guard becomes the
+session-generation check. Package (c) also adds the `recovery-write`
+producer and rewrites the "Phase 3" sentence in `rib-storage-design.md`.
+It changes `TestRFC8654FatalLengthReelectsAlternateBest` to AC-10 and
+re-records its discrimination; the owner approved that change. The second
+half of Phase 2b still waits on D1.
+
 ## spec-config-yang-reference-types (2026-10-18)
 
 Landed in commit bccd1e7cf5 ("config/yang: check leafref, identityref and
@@ -194,3 +223,29 @@ Still owed: fix `srpolicy.DecodeNLRIHex` (read and check the Length octet,
 walk a packed region, RFC 9830 Section 2.1 quote, unit test first; move the
 `--nlri` cases `bgp-srpolicy-1-decode.ci` and `-2-` to the wire form) so the
 two decode cases go green; then every rerun marked "not rerun" above.
+
+## Review fixes for bccd1e7cf5 landed as 2e4be94ae3 (2026-10-18)
+
+All findings of the review are fixed in 2e4be94ae3 (yang, config, cli, traffic
+tests green with the feature tags, scoped lint 0 issues,
+`./le test bgp parse yang-leafref-default-class` passes). Owed:
+- Discrimination records. A background run of 29 `./le rfc discriminate-record`
+  calls was started on Linux: the 21 rfc7950 records `./le rfc check` reported
+  "no longer verifies (producer-changed)", each re-taken with its stored route
+  and producer, and 8 for new or changed tags, all route revert:
+  rfc7950_reference_walk_test.go TestRFC7950LeafrefDefaultInUse (9.9-1 +,
+  validator_default.go::canonicalDefaults), TestRFC7950LeafrefDefaultNotInUse
+  (9.9-1 -, validator_default.go::caseInEffect),
+  TestRFC7950InstanceIdentifierDefaultInUse (9.13-1 +,
+  validator_instance.go::absentLeafInUse), TestRFC7950InstanceIdentifierKeyPrefix
+  (9.1-2 -, validator_reference.go::checkInstanceKeyPrefix),
+  TestRFC7950UnionDefaultLeafrefMember (9.1-1 +,
+  module_default.go::canonicalUnionDefault), TestRFC7950LeafrefUnionLoop (9.9-1 -,
+  loader_reference.go::checkLeafrefLoop); rfc7950_reference_test.go
+  TestRFC7950InstanceIdentifierLexical (9.1-2 +,
+  validator_reference.go::validateInstanceIdentifier) and
+  TestRFC7950IdentityrefFormat (9.1-2 -, validator_reference.go::validateIdentityref).
+  Check `git diff rfc/discrimination/rfc7950.json`, rerun any record missing,
+  then commit the json alone.
+- Independent re-review of 2e4be94ae3, and the audit re-judge of the rows
+  `./le rfc check` marks STALE (8.3.3-2, 9.1-1, 9.1-2, 9.3.1-1, 9.5.1-1).

@@ -34,6 +34,11 @@ type sessionEndHooks struct {
 	beforeLeaveFire func()
 	// drained runs in the down once the delivery worker has exited.
 	drained func()
+	// beforeHandOff runs on the read goroutine for each received UPDATE, in
+	// Reactor.notifyMessageReceiver after the route-server fast path returned
+	// and before the UPDATE is handed to the delivery worker. No lock is held,
+	// so a test can panic there the way a defect on the read path would.
+	beforeHandOff func()
 	// deliveryReceiver replaces the receiver the delivery worker read, so a
 	// test can hand it nil after the read goroutine enqueued an UPDATE, which
 	// the read goroutine's own nil check otherwise makes unreachable.
@@ -56,6 +61,12 @@ func (h *sessionEndHooks) runLeaveArm() {
 func (h *sessionEndHooks) runBeforeLeaveFire() {
 	if h != nil && h.beforeLeaveFire != nil {
 		h.beforeLeaveFire()
+	}
+}
+
+func (h *sessionEndHooks) runBeforeHandOff() {
+	if h != nil && h.beforeHandOff != nil {
+		h.beforeHandOff()
 	}
 }
 
