@@ -7,6 +7,7 @@ package fixture
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -145,7 +146,15 @@ func drainBudgetOverCeiling(ctx context.Context, _ []string) error {
 	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
 	plugin.OnDrain(func(context.Context, rpc.DrainInput) error { return nil })
-	return plugin.Run(ctx, &sdk.Registration{DrainBudget: rpc.DrainCeilingSeconds + 1})
+	err = plugin.Run(ctx, &sdk.Registration{DrainBudget: rpc.DrainCeilingSeconds + 1})
+	// The daemon refusing this registration is the outcome the .ci asserts on
+	// the daemon's stderr. Usually the daemon drops the plugin before the
+	// refusal reaches Run; on a loaded host the refusal arrives first, and
+	// returning it reported the expected answer as an observer failure.
+	if err != nil && strings.Contains(err.Error(), "above the daemon drain ceiling") {
+		return nil
+	}
+	return err
 }
 
 // drainNeverRepliesBudget is the budget drain-never-replies declares: short,
