@@ -28,6 +28,14 @@ type Evolution struct {
 	Description string
 	Detect      func(*config.Tree) bool
 	Apply       func(*config.Tree) (*config.Tree, error)
+	// StampedOnly limits the evolution to a file whose stamp names a dated
+	// release older than Release. An evolution that changes a shape is safe on
+	// any file, because Detect sees the old shape. An evolution that writes an
+	// old default into a file is not: an unset leaf looks the same under both
+	// defaults, so only the stamp says which one the file was written under. An
+	// unstamped file (written by hand, piped on stdin) or one a dev build
+	// stamped proves neither, and gets the current default.
+	StampedOnly bool
 }
 
 // EvolveResult holds the outcome of schema evolution.
@@ -99,7 +107,8 @@ func Evolve(tree *config.Tree, stampRelease string) (*EvolveResult, error) {
 }
 
 // applicableEvolutions returns evolutions newer than stampRelease, sorted.
-// When stampRelease is empty or unparseable (e.g. "dev"), all evolutions apply.
+// When stampRelease is empty or unparseable (e.g. "dev"), every evolution applies
+// except a StampedOnly one, which needs a dated stamp to know the file is old.
 func applicableEvolutions(stampRelease string) []Evolution {
 	evolutionMu.RLock()
 	defer evolutionMu.RUnlock()
@@ -108,9 +117,16 @@ func applicableEvolutions(stampRelease string) []Evolution {
 
 	var applicable []Evolution
 	for _, e := range evolutions {
-		if !stampValid || version.IsNewerRelease(e.Release, stampRelease) {
-			applicable = append(applicable, e)
+		if stampValid {
+			if version.IsNewerRelease(e.Release, stampRelease) {
+				applicable = append(applicable, e)
+			}
+			continue
 		}
+		if e.StampedOnly {
+			continue
+		}
+		applicable = append(applicable, e)
 	}
 
 	sortEvolutions(applicable)

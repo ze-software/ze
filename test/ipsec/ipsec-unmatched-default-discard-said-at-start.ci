@@ -8,8 +8,10 @@
 # VALIDATES: warnImplicitDiscardAtStart (internal/component/ike/engine/unmatched.go)
 #            reached through the real start: config on stdin, the ike plugin's first
 #            apply (applyConfig, applyStartup).
-# PREVENTS: a box booting a configuration saved before the default became discard
-#           losing its own BGP and SSH with nothing in the log saying why.
+# PREVENTS: a box booting an unstamped configuration (written by hand, piped on
+#           stdin) losing its own BGP and SSH with nothing in the log saying why. A
+#           configuration stamped before the default became discard keeps bypass
+#           instead: ipsec-unmatched-old-config-keeps-bypass.
 #
 # The noop dataplane holds the catch-all without CAP_NET_ADMIN
 # (internal/component/ike/dataplane/noop.go), so the test runs unprivileged.

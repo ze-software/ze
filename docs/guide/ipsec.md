@@ -972,21 +972,36 @@ fires only when the commit would turn the discard on: a written `unmatched`
 leaf, either value, always passes, and so does a commit to a box whose catch-all
 already discards.
 
-The check runs on commit only. A configuration the daemon starts with is applied
-as written, so a configuration saved before the default changed that holds `vpn
-ipsec` and no `unmatched` leaf now discards from the next start. Add `unmatched
-bypass` to it before upgrading to keep the old behavior. When such a start
-happens, the daemon logs it at error level, with the same facts and commands as
-the refusal, so the console says why BGP or SSH went quiet:
+The check runs on commit only. A configuration the daemon starts with is not
+verified, so start-up decides from the file's schema stamp (its first line,
+`# ze-schema: YY.MM.DD`, naming the release that saved it) which default the
+file was written under:
+
+| The file | At start |
+|---|---|
+| Stamped 26.10.18 or earlier, `vpn ipsec` present, `unmatched` unset | The schema evolution `ipsec-unmatched-keeps-bypass` writes `unmatched bypass` into it and saves it back, re-stamped. The router keeps the catch-all it ran with |
+| Stamped 26.10.19 or later, `unmatched` unset | Discard, the default, with the error log below |
+| No stamp (written by hand, piped on stdin), or a dev build's `dev` stamp | Discard, the default, with the error log below |
+| `unmatched` written, either value | As written |
+
+A file with no stamp proves no release, so it gets the RFC default rather than
+a guess: write `unmatched bypass` into it to keep passing unmatched traffic. The
+release is the build date, so a binary built on 2026-10-18 may hold either
+default; every file stamped that day is read as old. The cost falls on one
+case: a file a 26.10.18 build saved with the leaf unset while the discard was
+already in force also gains `unmatched bypass`, so write `unmatched discard` in
+it to keep the discard. The evolution runs at start only, never on a reload.
+
+When the daemon starts with the discard in force by default, it logs it at
+error level, with the same facts and commands as the refusal, so the console
+says why BGP or SSH went quiet:
 
 ```
 ike: the SPD catch-all DISCARD is in force because `vpn ipsec unmatched` is not set and its default is discard (RFC 4301 Section 4.4.1): ... bypass-entries=0
 ```
 
-Start-up does not swap in bypass: it cannot tell a file that relied on the old
-default from one that means the RFC default, and a swap would make the default
-dead at every start. A box with no `vpn
-ipsec` block keeps a `bypass` catch-all: it configured no IPsec boundary.
+A box with no `vpn ipsec` block keeps a `bypass` catch-all: it configured no
+IPsec boundary.
 
 The IKE control-plane bypass at order 100 is installed either way, so the
 tunnels can still be negotiated. The entry is re-asserted on every apply and
@@ -1023,6 +1038,7 @@ window.
 
 <!-- source: internal/component/ike/ipsec/config.go -- parseUnmatched -->
 <!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched, verifyUnmatchedEnforceable, refuseImplicitDiscard, warnImplicitDiscardAtStart -->
+<!-- source: internal/component/ike/ipsec/unmatched_evolution.go -- unmatchedBypassEvolution -->
 <!-- source: internal/component/ike/engine/apply.go -- applyConfig -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- CatchAllInstaller -->
 <!-- source: internal/component/ike/ipsec/spd_policy.go -- SPDPolicy, parseSPDPolicy, ValidateSPDPolicies -->

@@ -1,0 +1,42 @@
+# Test: a daemon that STARTS with a config stamped by a release from before the
+# `unmatched` default became discard, holding `vpn ipsec` and no `unmatched` leaf,
+# keeps the bypass catch-all that config ran with.
+# Config: stamped `# ze-schema: 26.10.01`, vpn ipsec with one leaf,
+#         cookie-threshold, the same block ipsec-unmatched-default-discard-said-at-start
+#         starts unstamped and gets the discard default.
+# Expected: the schema evolution ipsec-unmatched-keeps-bypass runs, the engine
+#           configures, and the start log never says the DISCARD is in force.
+#
+# VALIDATES: unmatchedBypassEvolution (internal/component/ike/ipsec/unmatched_evolution.go)
+#            reached through the real start: config on stdin, the hub's schema
+#            evolution (applyEvolutions, cmd/ze/hub/main_evolve.go), then the ike
+#            plugin's first apply (applyConfig, applyStartup), which would call
+#            warnImplicitDiscardAtStart on an unset leaf.
+# PREVENTS: a router upgraded across the discard default losing its own BGP and
+#           SSH at the next start.
+#
+# The noop dataplane holds the catch-all without CAP_NET_ADMIN
+# (internal/component/ike/dataplane/noop.go), so the test runs unprivileged.
+
+option=env:var=ze_test_ike_dataplane:value=noop
+option=env:var=ze_test_ike_port:value=$PORT2
+option=env:var=ze.log.ike:value=info
+option=env:var=ze.log.hub.evolve:value=info
+option=timeout:value=30s
+
+stdin=ze-bgp:terminator=EOF_CONF
+# ze-schema: 26.10.01
+vpn {
+	ipsec {
+		cookie-threshold 5
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=25s
+
+await=stderr:contains=ike engine configured:then=stop
+expect=stderr:contains=applied schema evolutions
+expect=stderr:contains=ipsec-unmatched-keeps-bypass
+reject=stderr:contains=the SPD catch-all DISCARD is in force
+reject=stderr:pattern=panic

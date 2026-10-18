@@ -206,12 +206,15 @@ const implicitDiscardICMPExample = "for ICMP: `set vpn ipsec policy icmp4 action
 
 // warnImplicitDiscardAtStart is the start-time half of refuseImplicitDiscard. The
 // configuration the daemon starts with is never verified, so a box booting a file
-// whose `vpn ipsec` block leaves `unmatched` unset (a file saved before the default
-// became discard, or one written by hand) installs the discard with no commit to
-// refuse. It is installed all the same: start-up cannot tell a file that relies on
-// the old default from one that means the RFC default, and installing bypass instead
-// would make the default dead at every boot. So the start says it, at Error level,
-// with the same facts and commands as the refusal.
+// whose `vpn ipsec` block leaves `unmatched` unset installs the discard with no
+// commit to refuse. A file stamped by a release from before the default became
+// discard never gets here: the schema evolution in ipsec/unmatched_evolution.go
+// writes `unmatched bypass` into it first. What remains is a file whose stamp
+// proves no older release: written by hand, piped on stdin, stamped by a dev build,
+// or saved by a release that already defaulted to discard. Each may mean the RFC
+// default, and installing bypass for them would make the default dead at every
+// boot. So the discard is installed, and the start says it, at Error level, with
+// the same facts and commands as the refusal.
 func warnImplicitDiscardAtStart(cfg *ipsec.IPsecConfig, log *slog.Logger) {
 	if !cfg.UnmatchedByDefault {
 		return

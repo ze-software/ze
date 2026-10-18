@@ -400,6 +400,27 @@ every dated one, so an unstamped file is never "newer" than the binary.
 <!-- source: internal/component/config/stamp.go -- FormatSchemaStamp, ScanStampRelease -->
 <!-- source: internal/core/version/version.go -- CompareReleases, IsNewerRelease -->
 
+#### Schema Evolution
+
+At start, after the config loads, the hub runs every registered
+`migration.Evolution` whose `Release` is newer than the file's stamp
+(`applyEvolutions`). Each one's `Detect` decides whether the tree needs it, and
+`Apply` changes the tree; when any applied, the result is re-stamped with this
+binary's release and saved back. An unstamped or `dev`-stamped file runs every
+evolution, except one marked `StampedOnly`.
+
+`StampedOnly` exists for an evolution that writes an old default into a file.
+A shape change is safe on any file, because `Detect` sees the old shape. An
+unset leaf looks the same under both defaults, so only a dated stamp says which
+one the file was written under, and a file without one keeps the current
+default. `ipsec-unmatched-keeps-bypass` is one: it writes `vpn ipsec unmatched
+bypass` into a file saved while bypass was the default
+([IPsec guide](../../guide/ipsec.md)).
+
+<!-- source: internal/component/config/migration/evolution.go -- Evolution, Evolve, applicableEvolutions -->
+<!-- source: cmd/ze/hub/main_evolve.go -- applyEvolutions -->
+<!-- source: internal/component/ike/ipsec/unmatched_evolution.go -- unmatchedBypassEvolution -->
+
 #### Downgrade Recovery
 
 When ze starts and `LoadConfig` fails on the active config, the hub calls

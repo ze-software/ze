@@ -1,6 +1,7 @@
 package migration
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -321,5 +322,63 @@ func TestEvolveChainOrder(t *testing.T) {
 	}
 	if len(order) != 2 || order[0] != "first" || order[1] != "second" {
 		t.Errorf("execution order = %v, want [first second]", order)
+	}
+}
+
+// TestEvolveStampedOnlyNeedsADatedStamp checks that an evolution marked StampedOnly
+// runs for a file stamped by an older dated release and never for an unstamped or
+// dev-stamped one, while an unmarked evolution beside it still runs for every stamp.
+// Method: register both, evolve under four stamps, read Applied.
+func TestEvolveStampedOnlyNeedsADatedStamp(t *testing.T) {
+	evolutionMu.Lock()
+	saved := evolutions
+	evolutions = nil
+	evolutionMu.Unlock()
+	defer func() {
+		evolutionMu.Lock()
+		evolutions = saved
+		evolutionMu.Unlock()
+	}()
+
+	mark := func(leaf string) func(*config.Tree) (*config.Tree, error) {
+		return func(t *config.Tree) (*config.Tree, error) {
+			t.Set(leaf, "yes")
+			return t, nil
+		}
+	}
+	if err := RegisterEvolution(Evolution{
+		Release: "26.06.01", Name: "old-default", StampedOnly: true,
+		Detect: func(*config.Tree) bool { return true }, Apply: mark("old-default"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := RegisterEvolution(Evolution{
+		Release: "26.06.01", Name: "shape",
+		Detect: func(*config.Tree) bool { return true }, Apply: mark("shape"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		stamp string
+		want  []string
+	}{
+		{"26.05.31", []string{"old-default", "shape"}},
+		{"26.06.01", nil},
+		{"", []string{"shape"}},
+		{"dev", []string{"shape"}},
+	}
+	for _, tc := range cases {
+		result, err := Evolve(config.NewTree(), tc.stamp)
+		if err != nil {
+			t.Fatalf("stamp %q: %v", tc.stamp, err)
+		}
+		var applied []string
+		if result != nil {
+			applied = result.Applied
+		}
+		if !slices.Equal(applied, tc.want) {
+			t.Errorf("stamp %q: applied %v, want %v", tc.stamp, applied, tc.want)
+		}
 	}
 }
