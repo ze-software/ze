@@ -1,0 +1,45 @@
+# An IP Prefix route from native configuration whose Overlay Index is its ESI.
+# RFC 9136 Section 3.1: "The Ethernet Segment Identifier MUST be a non-zero
+# 10-octet identifier if the ESI is used as an Overlay Index (see the definition
+# of "Overlay Index" in Section 3.2).  It MUST be all bytes zero otherwise."
+# VALIDATES: the overlay-index keyword is accepted through the config path and
+# the non-zero ESI reaches the wire at NLRI octets 8-17, with a zero GW IP.
+# PREVENTS: the overlay-index check refusing a conforming route, or the ESI
+# being zeroed on the way to the peer.
+#
+# MP_REACH NLRI: type 05 len 22 (34), RD 0000 FDE8 00000007 (65000:7),
+# ESI 00010203040506070809, Ethernet Tag 00000000, prefix length 18 (24),
+# prefix 0A4D0000 (10.77.0.0), GW IP 00000000, label 000001.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0055020000003E4001010040020040050400000064800E2D00194604C00002010005220000FDE8000000070001020304050607080900000000180A4D000000000000000001
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4
+			family { l2vpn/evpn { prefix { maximum 10000; } } }
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 192.0.2.1
+			}
+			nlri { l2vpn/evpn add ip-prefix rd 65000:7 esi 00:01:02:03:04:05:06:07:08:09 prefix 10.77.0.0/24 overlay-index esi; }
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-nlri-evpn -:stdin=ze-bgp:timeout=10s

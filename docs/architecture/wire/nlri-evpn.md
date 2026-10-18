@@ -244,6 +244,31 @@ is encoded as zero and an omitted label retains the mandatory zero-valued field.
 
 <!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPNType5 (IP Prefix) -->
 
+### Overlay Index
+
+RFC 9136 Section 3.2 makes a non-zero ESI or GW IP the route's Overlay Index,
+and Section 3.1 holds each field to zero unless it is the index. An originated
+IP Prefix route names its index with the route keyword `overlay-index`, and Ze
+checks the two fields against it before writing any byte:
+
+| `overlay-index` | ESI (octets 8-17) | GW IP |
+|-----------------|-------------------|-------|
+| `esi` | must be non-zero | must be zero or absent |
+| `gateway-ip` | must be zero or absent | must be a non-zero address |
+| `none` | must be zero or absent | must be zero or absent |
+| keyword omitted | must be zero or absent | must be zero or absent |
+
+The keyword is accepted on `ip-prefix` routes only, in the route command, in
+native configuration and in `update text`. Each refusal names the field, the
+reason and the keyword or field to change. The label is not checked: RFC 9136
+says it SHOULD be zero when an Overlay Index is used. Received routes are not
+judged against this table; the receive-side rules (both fields non-zero, a zero
+label without an index) are open gaps in `rfc/short/rfc9136.md`.
+
+<!-- source: internal/component/bgp/plugins/nlri/evpn/overlay_index.go -- checkOverlayIndex -->
+<!-- source: internal/component/bgp/plugins/nlri/evpn/encode.go -- parseL2VPNArgs -->
+<!-- source: internal/component/bgp/plugins/nlri/evpn/plugin.go -- buildEVPNFromParams -->
+
 ---
 
 ## ExaBGP Implementation

@@ -122,7 +122,7 @@ Each NLRI type plugin implements `String()`, which produces the text appended af
 | EVPN Type2 | `mac-ip rd X mac Y ip Z` | ip, etag, label | `nlri/evpn/types.go` |
 | EVPN Type3 | `multicast rd X ip Y` | etag | `nlri/evpn/types.go` |
 | EVPN Type4 | `ethernet-segment rd X esi Y ip Z` | none | `nlri/evpn/types.go` |
-| EVPN Type5 | `ip-prefix rd X prefix Y` | esi, etag, gateway, label | `nlri/evpn/types.go` |
+| EVPN Type5 | `ip-prefix rd X prefix Y` | esi, etag, gateway, overlay-index, label | `nlri/evpn/types.go` |
 | EVPN unknown | `evpn-type<N>` | none | `nlri/evpn/types.go` |
 | FlowSpec | `flow destination-ipv4 10.0.0.0/24 port ==80` | varies by components | `nlri/flowspec/types.go` |
 | VPLS | `rd X ve-id Y label Z` | none | `nlri/vpls/types.go` |

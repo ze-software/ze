@@ -950,16 +950,22 @@ send bgp upstream1 update text mp l2vpn/evpn add multicast rd 1:1 ip 192.168.1.1
 ### Type 5: IP Prefix Route
 
 ```bash
-update text mp l2vpn/evpn add ip-prefix rd <rd> prefix <prefix> [gateway <ip>] label <n>
+update text mp l2vpn/evpn add ip-prefix rd <rd> prefix <prefix> [esi <esi> | gateway <ip>] [overlay-index none|esi|gateway-ip] label <n>
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `prefix` | IP prefix | Required. IPv4 or IPv6 prefix |
-| `gateway` | IP address | Optional. GW IP Overlay Index (RFC 9136) |
+| `esi` | ESI | Optional. ESI Overlay Index; non-zero only with `overlay-index esi` |
+| `gateway` | IP address | Optional. GW IP Overlay Index; non-zero only with `overlay-index gateway-ip` |
+| `overlay-index` | `none`, `esi`, `gateway-ip` | Optional. The Overlay Index the route carries (RFC 9136 Section 3.2) |
 
-**Overlay Index (RFC 9136):** Either `esi` OR `gateway` can be specified, but not both.
-If neither is specified, direct forwarding via label is used.
+**Overlay Index (RFC 9136):** `overlay-index` names which field is the Overlay
+Index, and the encoder holds the other field to zero (RFC 9136 Section 3.1). A
+non-zero `esi` needs `overlay-index esi`, a non-zero `gateway` needs
+`overlay-index gateway-ip`, and without the keyword both must be zero, so the
+route has no Overlay Index and the BGP next hop forwards it. The refusal names
+the field, the reason and the keyword to add.
 
 **Examples:**
 
@@ -971,10 +977,10 @@ send bgp upstream1 update text mp l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.
 send bgp upstream1 update text mp l2vpn/evpn add ip-prefix rd 1:1 prefix 2001:db8::/32 label 100
 
 # With GW IP Overlay Index (recursive resolution via RT-2)
-send bgp upstream1 update text mp l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 gateway 192.168.1.254 label 100
+send bgp upstream1 update text mp l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 gateway 192.168.1.254 overlay-index gateway-ip label 100
 
 # With ESI Overlay Index (recursive resolution via RT-1)
-send bgp upstream1 update text mp l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 esi 00:01:02:03:04:05:06:07:08:09 label 100
+send bgp upstream1 update text mp l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 esi 00:01:02:03:04:05:06:07:08:09 overlay-index esi label 100
 ```
 
 ### EVPN EOR

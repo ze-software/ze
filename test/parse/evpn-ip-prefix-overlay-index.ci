@@ -1,0 +1,121 @@
+# Test: EVPN IP Prefix route overlay-index at config load
+# VALIDATES: an IP Prefix route whose ESI is non-zero is refused at load unless
+#            it names overlay-index esi, overlay-index esi is refused with an
+#            all-zero ESI, and each refusal names the field, the reason and the
+#            fix; the route with overlay-index esi and a non-zero ESI validates.
+# PREVENTS: originating a non-zero ESI that is not the Overlay Index, which a
+#           receiver reads as one (RFC 9136 Section 3.2).
+# RFC 9136 Section 3.1: "The Ethernet Segment Identifier MUST be a non-zero
+# 10-octet identifier if the ESI is used as an Overlay Index (see the definition
+# of "Overlay Index" in Section 3.2).  It MUST be all bytes zero otherwise."
+
+stdin=unnamed:terminator=EOF_UNNAMED
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			router-id 192.0.2.1
+			family { l2vpn/evpn { prefix { maximum 10000; } } }
+		}
+		update {
+			attribute {
+				next-hop 192.0.2.1
+			}
+			nlri {
+				l2vpn/evpn add ip-prefix rd 65000:7 esi 00:01:02:03:04:05:06:07:08:09 prefix 10.77.0.0/24
+			}
+		}
+	}
+}
+EOF_UNNAMED
+
+stdin=zeroesi:terminator=EOF_ZEROESI
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			router-id 192.0.2.1
+			family { l2vpn/evpn { prefix { maximum 10000; } } }
+		}
+		update {
+			attribute {
+				next-hop 192.0.2.1
+			}
+			nlri {
+				l2vpn/evpn add ip-prefix rd 65000:7 prefix 10.77.0.0/24 overlay-index esi
+			}
+		}
+	}
+}
+EOF_ZEROESI
+
+stdin=none:terminator=EOF_NONE
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			router-id 192.0.2.1
+			family { l2vpn/evpn { prefix { maximum 10000; } } }
+		}
+		update {
+			attribute {
+				next-hop 192.0.2.1
+			}
+			nlri {
+				l2vpn/evpn add ip-prefix rd 65000:7 esi 00:01:02:03:04:05:06:07:08:09 prefix 10.77.0.0/24 overlay-index none
+			}
+		}
+	}
+}
+EOF_NONE
+
+stdin=valid:terminator=EOF_VALID
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			router-id 192.0.2.1
+			family { l2vpn/evpn { prefix { maximum 10000; } } }
+		}
+		update {
+			attribute {
+				next-hop 192.0.2.1
+			}
+			nlri {
+				l2vpn/evpn add ip-prefix rd 65000:7 esi 00:01:02:03:04:05:06:07:08:09 prefix 10.77.0.0/24 overlay-index esi
+			}
+		}
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=unnamed
+expect=exit:code=1
+expect=stdout:contains=ip-prefix esi 00:01:02:03:04:05:06:07:08:09 is non-zero, which makes the ESI the route's Overlay Index (RFC 9136 Section 3.2), but no overlay-index was named; add overlay-index esi, or remove esi (RFC 9136 Section 3.1)
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=zeroesi
+expect=exit:code=1
+expect=stdout:contains=overlay-index esi needs a non-zero ESI, but esi is all zero (RFC 9136 Section 3.1); set esi to the Ethernet Segment the prefix resolves through, or remove overlay-index
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=none
+expect=exit:code=1
+expect=stdout:contains=overlay-index none needs an all-zero ESI, but esi is 00:01:02:03:04:05:06:07:08:09 (RFC 9136 Section 3.1); remove esi, or set overlay-index esi
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=valid
+expect=exit:code=0

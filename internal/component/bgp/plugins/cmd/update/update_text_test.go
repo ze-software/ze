@@ -3655,6 +3655,7 @@ func TestParseUpdateText_EVPNType5WithGateway(t *testing.T) {
 		"rd", "1:1",
 		"prefix", "10.0.0.0/24",
 		"gateway", "192.168.1.254",
+		"overlay-index", "gateway-ip",
 		"label", "100",
 	})
 	require.NoError(t, err)
@@ -3668,7 +3669,9 @@ func TestParseUpdateText_EVPNType5WithGateway(t *testing.T) {
 
 // TestParseUpdateText_EVPNType5ESIGatewayMutualExclusion verifies RFC 9136 constraint.
 //
-// VALIDATES: RFC 9136 Section 3.2 - ESI and GW IP MUST NOT both be non-zero.
+// VALIDATES: RFC 9136 Section 3.2 - ESI and GW IP MUST NOT both be non-zero:
+// the EVPN encoder refuses a gateway beside the ESI the route names as its
+// Overlay Index.
 // PREVENTS: Invalid routes being created that violate the RFC.
 func TestParseUpdateText_EVPNType5ESIGatewayMutualExclusion(t *testing.T) {
 	_, err := ParseUpdateText([]string{
@@ -3677,10 +3680,11 @@ func TestParseUpdateText_EVPNType5ESIGatewayMutualExclusion(t *testing.T) {
 		"prefix", "10.0.0.0/24",
 		"esi", "00:01:02:03:04:05:06:07:08:09",
 		"gateway", "192.168.1.254",
+		"overlay-index", "esi",
 		"label", "100",
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "mutually exclusive")
+	assert.Contains(t, err.Error(), "overlay-index esi needs an all-zero GW IP, but gateway is 192.168.1.254")
 }
 
 // TestParseUpdateText_EVPNType5GatewayFamilyMismatch verifies RFC 9136 family constraint.

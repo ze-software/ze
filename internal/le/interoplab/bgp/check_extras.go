@@ -8,6 +8,14 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// The RFC 9136 IP Prefix route the EVPN scenarios announce with the ESI as
+// its Overlay Index, and the fields FRR must show for it.
+const (
+	evpnOverlayESI           = "00:01:02:03:04:05:06:07:08:09"
+	evpnOverlayPrefixAddress = "10.77.0.0"
+	evpnOverlayPrefix        = evpnOverlayPrefixAddress + "/24"
+)
+
 var ospfAdjacencyContinuity = operation{
 	kind:    opRequireAbsent,
 	peer:    "ze",
@@ -46,6 +54,9 @@ var scenarioExtras = map[string][]operation{
 	scenarioEVPNFRR: {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON}, contains: []string{"l2VpnEvpn", frrCapabilityNegotiated}},
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp l2vpn evpn"}, contains: []string{"00:11:22:33:44:55", "00:11:22:33:44:66"}, timeout: 30 * time.Second},
+		// RFC 9136 Section 3.1: the IP Prefix route announced with
+		// overlay-index esi reaches FRR carrying the non-zero ESI.
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp l2vpn evpn route type prefix"}, contains: []string{evpnOverlayPrefixAddress, evpnOverlayESI}, timeout: 30 * time.Second},
 	},
 	// RFC 7432 Section 8.2.1: the two configured Ethernet A-D per ES routes
 	// reach GoBGP with the ESI Label each redundancy-mode requires. GoBGP

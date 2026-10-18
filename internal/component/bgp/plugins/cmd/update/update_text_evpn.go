@@ -28,13 +28,16 @@ const (
 	kwESI       = "esi"
 	kwEtag      = "etag"
 	kwGateway   = "gateway" // RFC 9136: GW IP Overlay Index for Type 5
+	// kwOverlayIndex selects the Type 5 Overlay Index (none, esi, gateway-ip).
+	// The EVPN encoder checks the esi and gateway fields against it.
+	kwOverlayIndex = "overlay-index"
 )
 
 // isEVPNBoundary returns true if token ends EVPN section (next section starts).
 // EVPN-specific keywords (rd, label, mac, ip, etc.) are NOT boundaries.
 func isEVPNBoundary(token string) bool {
 	switch token {
-	case kwRD, kwLabel, kwMAC, kwIP, kwPrefix, kwESI, kwEtag, kwGateway:
+	case kwRD, kwLabel, kwMAC, kwIP, kwPrefix, kwESI, kwEtag, kwGateway, kwOverlayIndex:
 		return false // These are valid within EVPN
 	case kwMACIP, kwIPPrefix, kwMulticast:
 		return false // Route type keywords
@@ -67,6 +70,7 @@ func parseEVPNSection(args []string, fam family.Family, _ nlriAccum) (nlriParseR
 	// Type 5 specific
 	var prefix netip.Prefix
 	var gateway netip.Addr
+	overlayIndex := ""
 
 	routeType := ""
 
@@ -211,6 +215,14 @@ func parseEVPNSection(args []string, fam family.Family, _ nlriAccum) (nlriParseR
 			i += 2
 			consumed += 2
 
+		case kwOverlayIndex:
+			if i+1 >= len(args) {
+				return nlriParseResult{}, errors.New("overlay-index requires value: none, esi or gateway-ip")
+			}
+			overlayIndex = args[i+1]
+			i += 2
+			consumed += 2
+
 		default: // unknown EVPN keyword — reject with error
 			return nlriParseResult{}, fmt.Errorf("unknown evpn keyword: %s", token)
 		}
@@ -251,11 +263,6 @@ func parseEVPNSection(args []string, fam family.Family, _ nlriAccum) (nlriParseR
 		if gateway.IsValid() && prefix.Addr().Is4() != gateway.Is4() {
 			return nlriParseResult{}, errors.New("ip-prefix route: gateway must be same IP family as prefix (RFC 9136)")
 		}
-		// RFC 9136 Section 3.2: ESI and GW IP MUST NOT both be non-zero
-		esiNonZero := esi != [10]byte{}
-		if esiNonZero && gateway.IsValid() {
-			return nlriParseResult{}, errors.New("ip-prefix route: esi and gateway are mutually exclusive (RFC 9136)")
-		}
 		encodeArgs = append(encodeArgs, "type5", "rd", rd.String(),
 			"esi", formatESIString(esi),
 			"ethernet-tag", strconv.FormatUint(uint64(ethernetTag), 10),
@@ -278,6 +285,12 @@ func parseEVPNSection(args []string, fam family.Family, _ nlriAccum) (nlriParseR
 			"ip", originatorIP.String())
 	}
 
+	// The EVPN encoder checks the esi and gateway fields against the Overlay
+	// Index, and refuses the keyword on a route type that has none
+	// (RFC 9136 Section 3.1).
+	if overlayIndex != "" {
+		encodeArgs = append(encodeArgs, kwOverlayIndex, overlayIndex)
+	}
 	evpnNLRI, err := encodeViaRegistry(fam, encodeArgs, 0, false)
 	if err != nil {
 		return nlriParseResult{}, err

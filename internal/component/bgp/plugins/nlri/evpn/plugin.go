@@ -103,7 +103,8 @@ func DecodeNLRIHex(family, hexStr string, addPath, _ bool) (any, error) {
 //
 //	"type2" "rd" <rd> "esi" <esi> "ethernet-tag" <tag> "mac" <mac> ["ip" <ip>] ["label" <l>]...
 //	"type3" "rd" <rd> "ethernet-tag" <tag> "ip" <ip>
-//	"type5" "rd" <rd> ["esi" <esi>] "ethernet-tag" <tag> "prefix" <pfx> ["gateway" <gw>] ["label" <l>]...
+//	"type5" "rd" <rd> ["esi" <esi>] "ethernet-tag" <tag> "prefix" <pfx> ["gateway" <gw>]
+//	        ["overlay-index" none|esi|gateway-ip] ["label" <l>]...
 //
 // This is the in-process fast path registered in the plugin registry.
 func EncodeNLRIHex(family string, args []string) (string, error) {
@@ -141,12 +142,15 @@ type evpnEncodeParams struct {
 	gateway     netip.Addr
 	labels      []uint32
 	hasRD       bool
+	// overlayIndex is the Overlay Index a type5 route was asked to carry.
+	overlayIndex overlayIndex
 }
 
 // evpnEncodeKeys is the set of valid keys for EVPN encoding.
 var evpnEncodeKeys = map[string]bool{
 	fieldRD: true, fieldESI: true, fieldEthernetTag: true, fieldMAC: true,
 	fieldIP: true, fieldPrefix: true, fieldGateway: true, fieldLabel: true,
+	fieldOverlayIndex: true,
 }
 
 // parseEVPNEncodeArgs parses key-value pairs for EVPN encoding.
@@ -224,6 +228,12 @@ func (p *evpnEncodeParams) setField(key, value string) error {
 			return fmt.Errorf("invalid label: %w", err)
 		}
 		p.labels = append(p.labels, uint32(v))
+	case fieldOverlayIndex:
+		index, err := parseOverlayIndex(value)
+		if err != nil {
+			return err
+		}
+		p.overlayIndex = index
 	}
 	return nil
 }
@@ -242,6 +252,12 @@ func buildEVPNFromParams(routeType string, p *evpnEncodeParams) (EVPN, error) {
 	for _, label := range p.labels {
 		if label > 0xfffff {
 			return nil, errors.New("EVPN label exceeds 20 bits")
+		}
+	}
+	if p.overlayIndex != overlayIndexUnspecified {
+		// The Overlay Index belongs to the IP Prefix route alone (RFC 9136 Section 3.2).
+		if routeType != routeTypeToken5 {
+			return nil, errors.New("overlay-index applies only to a type5 (ip-prefix) route; remove it")
 		}
 	}
 	switch routeType {
@@ -287,6 +303,10 @@ func buildEVPNFromParams(routeType string, p *evpnEncodeParams) (EVPN, error) {
 		}
 		if len(p.labels) == 0 {
 			p.labels = []uint32{0}
+		}
+		// RFC 9136 Section 3.1
+		if err := checkOverlayIndex(p.overlayIndex, p.esi, p.gateway); err != nil {
+			return nil, err
 		}
 		p.prefix = p.prefix.Masked()
 		return newEVPNType5(p.rd, p.esi, p.ethernetTag, p.prefix, p.gateway, p.labels), nil
