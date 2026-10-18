@@ -793,10 +793,9 @@ func TestOnSessionDown_ZeroGR_ZeroLLST(t *testing.T) {
 // VALIDATES: Reconnect during LLGR: stop LLST timers, validate new caps.
 // PREVENTS: LLST timers running after session re-established.
 //
-// RFC requirement: RFC9494-4.2-8 negative -- the immediate removal is conditional: when the
-// re-established session re-advertises the family with the F bit set in the GR and LLGR
-// capabilities, onSessionReestablished finds it in newForwarding and returns no family for purge
-// (internal/component/bgp/plugins/gr/gr_state.go:204-227), so the stale routes are kept until EOR.
+// RFC requirement: RFC9494-4.2-8 negative -- the immediate removal is conditional: when a family
+// in its LLGR period is listed with the F bit set in both the GR and the LLGR capability of the
+// re-established session, onSessionReestablished returns no family for purge.
 func TestOnSessionReestablished_DuringLLGR(t *testing.T) {
 	t.Parallel()
 
@@ -846,9 +845,8 @@ func TestOnSessionReestablished_DuringLLGR_NoLLGRCap(t *testing.T) {
 // PREVENTS: Stale routes persisting when peer has no GR/LLGR support.
 //
 // RFC requirement: RFC9494-4.2-8 positive -- when the re-established session carries neither the
-// GR nor the LLGR capability, onSessionReestablished returns every stale family for immediate
-// removal and drops the peer state (internal/component/bgp/plugins/gr/gr_state.go:196-201); the
-// plugin issues purge-stale per returned family (internal/component/bgp/plugins/gr/gr.go:375-378).
+// GR nor the LLGR capability, onSessionReestablished returns the one stale family in its LLGR
+// period for immediate removal, and the peer is no longer GR/LLGR active.
 func TestOnSessionReestablished_DuringLLGR_NoCaps(t *testing.T) {
 	t.Parallel()
 

@@ -248,6 +248,28 @@
     {
       "rid": "RFC9494-4.2-8",
       "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR",
+      "unit-sha": "237f602ac218d6d9",
+      "claim-sha": "223364245e7866fa",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionReestablished",
+      "producer-sha": "6d6a59547a1817ac",
+      "break": "body of onSessionReestablished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.2-8",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR_NoCaps",
+      "unit-sha": "912a39fd02a7fbba",
+      "claim-sha": "a354a51a1cd35d47",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionReestablished",
+      "producer-sha": "6d6a59547a1817ac",
+      "break": "body of onSessionReestablished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.2-8",
+      "polarity": "negative",
       "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_BothFBitsSetKeepsLLGRPeriodFamily",
       "unit-sha": "c4fe588108617fe9",
       "claim-sha": "546ac174bdff620e",
