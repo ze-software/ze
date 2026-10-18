@@ -108,8 +108,19 @@ closure candidate.
 ONLY signal. The same spec name removed from one release bucket and carried in
 another in the same commit is a RELOCATION, not a closure, and `relocatedSpecs`
 excludes it. It reads over every pair of buckets in both directions, because a
-triage sweep re-files work upward as often as downward. One commit closes one
-spec, and `oneStem` refuses a second.
+triage sweep re-files work upward as often as downward. A spec removed under one
+stem and added under another in the same commit is a RENAME, not a closure, and
+`renamedSpecs` excludes it, but only when the added spec is new (absent from the
+parent) and its text equals the removed spec's text at the parent with every
+occurrence of the old stem replaced by the new stem, and the pairing is one to
+one. Any other edit leaves the removal a closure, because the failure the rule
+guards is a real closure passing as a rename. A prepared commit reads HEAD and
+the working tree; a discharge reads the commit's parent and the commit, through
+the same `closedSpecStem`. One commit closes one spec, and `oneStem` refuses a
+second.
+<!-- source: internal/le/commit/review.go -- closedSpecStem, renamedSpecs -->
+<!-- source: internal/le/commit/discharge.go -- commitSides -->
+
 
 A journal row NEVER makes a commit a closure. A row names the spec a defect was
 found under and says nothing about whether that spec is closing, and CLAUDE.md

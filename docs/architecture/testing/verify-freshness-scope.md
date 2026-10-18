@@ -307,7 +307,7 @@ What that still admits is stated on `dischargeCommits` itself. The first arm adm
 
 | Kind | What it asserts | What re-derives it |
 |------|-----------------|--------------------|
-| `not-applicable` | the gate never bound this commit | today's `closedSpecStem` over the commit's file list for a review row, and the owner-approval gate's own tagged-unit reading for an RFC row |
+| `not-applicable` | the gate never bound this commit | today's `closedSpecStem` over the commit's file list, and over its parent's and its own blobs of the specs it removes and adds so a rename is told from a closure, for a review row, and the owner-approval gate's own tagged-unit reading for an RFC row |
 | `closed` | the spec the commit CLOSED recorded a review that ran | the removed spec's bytes at the closure commit's PARENT: its Status, then its `## Review Gate` rows |
 | `reviewed` | a review artifact covers the commit | the artifact's verdict and its hash for each code-bearing path AT that commit, falling back to the committed Review Gate when the artifact is gone |
 | `owner` | Thomas ordered or reviewed the commit himself | nothing. It is an ATTESTATION, and `debt-status` splits the discharged count by kind so an attested population is visible beside a derived one |

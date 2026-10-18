@@ -42,7 +42,8 @@ type ReviewResult struct {
 
 // relocatedSpecs answers the spec file names this commit MOVES between release
 // buckets rather than closes: the same name removed from one bucket directory
-// and carried in another in the same commit. A DIFFERENT name is a closure.
+// and carried in another in the same commit. A DIFFERENT name is a closure
+// unless renamedSpecs pairs it with the spec it was renamed to.
 //
 // The distinction is the whole of it. A closure retires a spec because its work
 // is done, and one commit may close one, so the review gate below refuses a
@@ -83,7 +84,8 @@ func relocatedSpecs(paths, removed []string) map[string]bool {
 // closureStem answers the one spec this commit closes, or the empty string.
 //
 // A REMOVED spec file is the closure, and it is the only signal. Removals still
-// refuse a second one: one commit closes one spec.
+// refuse a second one: one commit closes one spec. A removal that relocatedSpecs
+// or renamedSpecs explains is no closure.
 //
 // A journal row is evidence ABOUT a spec and never says the spec is closing.
 // Reading a row as a closure fired outside its own population for a year, in
@@ -135,23 +137,30 @@ func closureStem(root string, paths, removed []string) (string, error) {
 		}
 	}
 
-	return closedSpecStem(paths, removed)
+	return closedSpecStem(paths, removed, workingTreeSides(root))
 }
 
 // closedSpecStem answers the one spec a file population closes, from the
-// population alone.
+// population and the two sides of the commit that sides reads.
 //
 // It is split out of closureStem because a discharge re-derives the closure of
 // a commit made months ago, and closureStem's journal read judges the WORKING
 // TREE: a shard deleted since would refuse the discharge for a reason that has
 // nothing to do with whether the commit closed a spec. Both callers read this
-// one statement of the rule, so neither holds a copy of it.
-func closedSpecStem(paths, removed []string) (string, error) {
+// one statement of the rule, so neither holds a copy of it. Each supplies the
+// sides it can see: a prepared commit reads HEAD and the working tree
+// (workingTreeSides), a discharge reads the commit's parent and the commit
+// itself (commitSides), and the rename judgement is the same over either pair.
+func closedSpecStem(paths, removed []string, sides specSides) (string, error) {
 	moved := relocatedSpecs(paths, removed)
+	renamed, err := renamedSpecs(paths, removed, moved, sides)
+	if err != nil {
+		return "", err
+	}
 	stems := make(map[string]bool)
 	for _, path := range removed {
 		base := filepath.Base(path)
-		if specpath.IsSpec(path) && !moved[base] {
+		if specpath.IsSpec(path) && !moved[base] && !renamed[path] {
 			stems[specpath.Stem(base)] = true
 		}
 	}
@@ -161,6 +170,142 @@ func closedSpecStem(paths, removed []string) (string, error) {
 	// No spec removed: this commit closes nothing, so it owes no review
 	// artifact, and any journal rows it carries ride along.
 	return "", nil
+}
+
+// specSide answers a path's text on one side of a commit, whether that side
+// holds the path, and the reason the read failed. present is what tells an
+// absent path from an empty file.
+type specSide func(path string) (text string, present bool, problem string)
+
+// specSides is the pair of texts a rename is judged over: before is the commit
+// the change starts from, and after is the content the change carries.
+type specSides struct {
+	before specSide
+	after  specSide
+}
+
+// workingTreeSides judges a commit being PREPARED: HEAD is its parent, and the
+// working tree holds the content the snapshot is about to take.
+func workingTreeSides(root string) specSides {
+	return specSides{
+		before: func(path string) (string, bool, string) { return committedText(root, "HEAD", path) },
+		after:  func(path string) (string, bool, string) { return workingText(root, path) },
+	}
+}
+
+// workingText answers a path's bytes in the working tree, in the shape of
+// committedText.
+func workingText(root, path string) (text string, present bool, problem string) {
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path))) //nolint:gosec // the path is a spec the commit names, under the checkout root
+	if errors.Is(err, os.ErrNotExist) {
+		return "", false, ""
+	}
+	if err != nil {
+		return "", false, "read " + path + ": " + err.Error()
+	}
+	return string(content), true, ""
+}
+
+// renamedSpecs answers the removed spec paths this commit RENAMES rather than
+// closes (Thomas, 2026-10-18: a rename is allowed and is not a closure).
+//
+// A removed spec is renamed only when the commit adds exactly one NEW spec, one
+// its parent does not hold, whose text equals the removed spec's text at the
+// parent with every occurrence of the old stem replaced by the new stem, and
+// that new spec matches no other removal. The replacement covers the title and
+// every self-reference, which is all a rename rewrites. Any other edit, a
+// missing parent blob, an added spec that already existed, or a match that is
+// not one to one leaves the removal a closure, because the failure this guards
+// is a real closure passing as a rename: a closure deletes a spec and carries
+// its work elsewhere, never its text verbatim under a new name.
+//
+// A relocation (moved) is judged before this and is never a rename candidate
+// on either side.
+func renamedSpecs(paths, removed []string, moved map[string]bool, sides specSides) (map[string]bool, error) {
+	gone := make([]string, 0, len(removed))
+	removedSet := make(map[string]bool, len(removed))
+	for _, path := range removed {
+		removedSet[path] = true
+		if specpath.IsSpec(path) && !moved[filepath.Base(path)] {
+			gone = append(gone, path)
+		}
+	}
+	added, err := addedSpecTexts(paths, removedSet, moved, sides)
+	if err != nil {
+		return nil, err
+	}
+	renamed := make(map[string]bool)
+	if len(gone) == 0 {
+		return renamed, nil
+	}
+	if len(added) == 0 {
+		return renamed, nil
+	}
+
+	matches := make(map[string][]string, len(gone))
+	claims := make(map[string]int, len(added))
+	for _, path := range gone {
+		oldText, present, problem := sides.before(path)
+		if problem != "" {
+			return nil, errors.New(problem)
+		}
+		if !present {
+			continue
+		}
+		oldStem := specpath.Stem(path)
+		if oldStem == "" {
+			continue
+		}
+		for newPath, newText := range added {
+			if strings.ReplaceAll(oldText, oldStem, specpath.Stem(newPath)) == newText {
+				matches[path] = append(matches[path], newPath)
+				claims[newPath]++
+			}
+		}
+	}
+
+	for path, targets := range matches {
+		if len(targets) == 1 && claims[targets[0]] == 1 {
+			renamed[path] = true
+		}
+	}
+	return renamed, nil
+}
+
+// addedSpecTexts answers the text of every spec the commit ADDS: named in the
+// population, not removed, not a relocation's target, and absent from the
+// parent.
+func addedSpecTexts(paths []string, removed, moved map[string]bool, sides specSides) (map[string]string, error) {
+	added := make(map[string]string)
+	for _, path := range paths {
+		if !specpath.IsSpec(path) {
+			continue
+		}
+		if removed[path] {
+			continue
+		}
+		if moved[filepath.Base(path)] {
+			continue
+		}
+		if _, ok := added[path]; ok {
+			continue
+		}
+		_, existed, problem := sides.before(path)
+		if problem != "" {
+			return nil, errors.New(problem)
+		}
+		if existed {
+			continue
+		}
+		text, present, problem := sides.after(path)
+		if problem != "" {
+			return nil, errors.New(problem)
+		}
+		if present {
+			added[path] = text
+		}
+	}
+	return added, nil
 }
 
 // oneStem answers the single closure, and refuses a commit that closes two.

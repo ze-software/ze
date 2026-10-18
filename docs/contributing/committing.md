@@ -72,7 +72,14 @@ path before the script is written:
   pattern governs what is added under that path next.
 - A path that does not exist. Use `remove` for a tracked deletion. A rename is
   a plain `rm` of the old path plus the new file: name the old path with
-  `remove` and the new one with `file`, because `git mv` stages.
+  `remove` and the new one with `file`, because `git mv` stages. Renaming a
+  spec this way is not a closure, and owes no review artifact, only when the
+  new spec is the one spec the commit adds whose text equals the old spec's text
+  at HEAD with every occurrence of the old stem replaced by the new stem. Any
+  other edit in the same commit makes the removal a closure, so rename first
+  and edit in a later commit (`renamedSpecs`, `docs/contributing/spec-workflow.md`).
+<!-- source: internal/le/commit/review.go -- renamedSpecs -->
+
 - A directory. Scripts stage explicit files.
 
 `validateRemovePath` refuses a `remove` path that is not tracked, so you never

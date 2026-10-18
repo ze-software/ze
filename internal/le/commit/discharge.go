@@ -713,7 +713,7 @@ func commitCarriesSubject(subject string, facts commitFacts) bool {
 func verifyKindNotApplicable(root, gate string, facts commitFacts) error {
 	switch gate {
 	case gateReviewOverride:
-		stem, err := closedSpecStem(facts.Paths, facts.Removed)
+		stem, err := closedSpecStem(facts.Paths, facts.Removed, commitSides(root, facts))
 		if err != nil {
 			return err
 		}
@@ -772,7 +772,7 @@ func changedTaggedUnits(root string, facts commitFacts) ([]string, error) {
 // review that ran, read out of the spec's own bytes at the closure commit's
 // parent. Closure removes the spec, so the parent is where its text lives.
 func verifyKindClosed(root string, facts commitFacts) error {
-	spec, err := removedSpecPath(facts)
+	spec, err := removedSpecPath(root, facts)
 	if err != nil {
 		return err
 	}
@@ -832,9 +832,19 @@ func verifyKindReviewed(root string, record dischargeRecord, facts commitFacts) 
 	return nil
 }
 
+// commitSides judges a commit already made: its parent holds the removed
+// spec's text and the commit holds the added spec's, so the rename verdict is
+// read from the commit's own blobs and never from today's working tree.
+func commitSides(root string, facts commitFacts) specSides {
+	return specSides{
+		before: func(path string) (string, bool, string) { return committedText(root, facts.Parent, path) },
+		after:  func(path string) (string, bool, string) { return committedText(root, facts.SHA, path) },
+	}
+}
+
 // removedSpecPath answers the path of the spec the commit closes, or "".
-func removedSpecPath(facts commitFacts) (string, error) {
-	stem, err := closedSpecStem(facts.Paths, facts.Removed)
+func removedSpecPath(root string, facts commitFacts) (string, error) {
+	stem, err := closedSpecStem(facts.Paths, facts.Removed, commitSides(root, facts))
 	if err != nil || stem == "" {
 		return "", err
 	}
@@ -1076,8 +1086,8 @@ func (c *commitCache) load(root string, revisions []string) {
 // loadChunk reads at most commitLoadMax revisions: one cat-file resolves them,
 // one show reads each commit's subject, parent and file population, and one
 // show reads each commit's diff of the ledger directory. Rename detection is
-// OFF: a spec moved between release buckets is a removal and an addition,
-// which is the pair relocatedSpecs reads. `git show` over several commits
+// OFF: a spec moved between release buckets or renamed is a removal and an
+// addition, which is the pair relocatedSpecs and renamedSpecs read. `git show` over several commits
 // renders each one as `git show` over that commit alone, so a merge commit
 // keeps the combined diff it always had.
 func (c *commitCache) loadChunk(root string, revisions []string) {
