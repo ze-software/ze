@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-18",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -17,26 +17,26 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5798-5.1.1.3-1": {
-      "note": "single-polarity by annotation: TestSendAdvertV3IPv4HeaderTTLProtoDst asserts frame[8]==255 on the IPv4 header buildIPv4Header writes",
+      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 5.1.1.3 says \"The TTL MUST be set to 255.\" TestSendAdvertV3IPv4HeaderTTLProtoDst changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; it still requires frame[8] == 255. Single-polarity per the row annotation. Verdict unchanged.",
       "requirement_sha": "999a4ec6ab4a6fcf",
       "tests": {
-        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertV3IPv4HeaderTTLProtoDst": "74ad900f2e06c8d5"
+        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertV3IPv4HeaderTTLProtoDst": "3b5f911a78dbf13d"
       },
       "units": {
-        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertV3IPv4HeaderTTLProtoDst": "ed1d6c271e3fed5c"
+        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertV3IPv4HeaderTTLProtoDst": "f2e73285b8e772a2"
       },
       "verdict": "enforced"
     },
     "RFC5798-5.1.1.3-2": {
-      "note": "golden decode with TTL 255 passes; N4 with TTL 64 asserts ErrTTL, isolated from every other ladder row",
+      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 5.1.1.3 says \"A VRRP router receiving a packet with the TTL not equal to 255 MUST discard the packet.\" TestDecodeGoldenV3IPv4 now decodes the RFC 9568 message-only golden G2 under the default-mode lookup instead of the pseudo-header golden G2c, and lost only the removed MsgOnlyChecksum assertion; the subtests of TestNegativeReferenceBugs other than N1 gained only the FillChecksum mode argument. The positive is still a fully conforming advert, the checksum check precedes the checks this row names so a wrong form would fail with ErrChecksum and not pass silently, and each negative still asserts its exact sentinel. N4 with TTL 64 still requires ErrTTL. Verdict unchanged.",
       "requirement_sha": "f534414e0b49e9c9",
       "tests": {
-        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "19a4c15f930f948e",
-        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "19a4c15f930f948e"
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "5bbc8ddba98cd418",
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "5bbc8ddba98cd418"
       },
       "units": {
-        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "db69a59e983ad974",
-        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "a438a01f7d637e97"
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "5458632e7659d030",
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "5b7b91666d7d74bc"
       },
       "verdict": "enforced"
     },
@@ -65,14 +65,14 @@
       "verdict": "enforced"
     },
     "RFC5798-5.2.2-1": {
-      "note": "type 1 golden accepted; type 2 asserts ErrType, which precedes the VRID lookup",
+      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 5.2.2 says \"The only packet type defined in this version of the protocol is: 1 ADVERTISEMENT A packet with unknown type MUST be discarded.\" TestDecodeGoldenV3IPv4 now decodes the RFC 9568 message-only golden G2 under the default-mode lookup instead of the pseudo-header golden G2c, and lost only the removed MsgOnlyChecksum assertion; the subtests of TestNegativeReferenceBugs other than N1 gained only the FillChecksum mode argument. The positive is still a fully conforming advert, the checksum check precedes the checks this row names so a wrong form would fail with ErrChecksum and not pass silently, and each negative still asserts its exact sentinel. Type 2 still requires ErrType before the VRID lookup. Verdict unchanged.",
       "requirement_sha": "ffd4106e6e5f2393",
       "tests": {
-        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "19a4c15f930f948e",
-        "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "19a4c15f930f948e"
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "5bbc8ddba98cd418",
+        "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "5bbc8ddba98cd418"
       },
       "units": {
-        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "db69a59e983ad974",
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "5458632e7659d030",
         "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "e9e509cbd07a9bdc"
       },
       "verdict": "enforced"
@@ -106,51 +106,51 @@
       "verdict": "enforced"
     },
     "RFC5798-5.2.6-1": {
-      "note": "vrrp final judge 2026-09-29 (independent): re-read after the comment-only edit to TestEncodeGoldenV3IPv4 (body unchanged). TestEncodeV3ReserveZeroOverDirtyBuffer: WriteTo into an all-0xFF buffer writes the rsvd nibble 0 and the bytes equal the goldens; TestDecodeV3ReserveIgnoredOnReceive holds the reception half.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 5.2.6 says \"This field MUST be set to zero on transmission and ignored on reception.\" TestEncodeGoldenV3IPv4 now runs a subtest per checksum mode, and each still requires the rsvd nibble to be zero and the exact golden bytes; TestEncodeV3ReserveZeroOverDirtyBuffer encodes over an all-0xFF buffer against the default-mode golden G2. The reception half is TestDecodeV3ReserveIgnoredOnReceive, unchanged. Verdict unchanged.",
       "requirement_sha": "3b95c99b3ca55ebb",
       "tests": {
-        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "1bf84088a1c1b91f",
-        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestEncodeV3ReserveZeroOverDirtyBuffer": "ea8c73c193bdd188",
-        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3ReserveIgnoredOnReceive": "19a4c15f930f948e"
+        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "1a58859c2c8eb3f8",
+        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestEncodeV3ReserveZeroOverDirtyBuffer": "42ac89061f52b9ae",
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3ReserveIgnoredOnReceive": "5bbc8ddba98cd418"
       },
       "units": {
-        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "3de12a3108614ec7",
-        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestEncodeV3ReserveZeroOverDirtyBuffer": "0a06a8bd917f6335",
+        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "f665d3473b49bc02",
+        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestEncodeV3ReserveZeroOverDirtyBuffer": "d615bf51d7947bc0",
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3ReserveIgnoredOnReceive": "59d3ebc558c91ec2"
       },
       "verdict": "enforced"
     },
     "RFC5798-5.2.8-1": {
-      "note": "vrrp judge 2026-09-29 (independent): TestFillChecksumZeroesFieldAndCoversPseudoHeader: FillChecksum over a stale 0xABCD field reproduces the IPv4 and IPv6 goldens (field zeroed, pseudo-header covered); the IPv6 golden equals an independent RFC 1071 sum with next header 112; IPv6 adverts summed with next header 58 or without the pseudo-header are refused with ErrChecksum. Receive also accepts the IPv4 message-only form: RFC 9568 Section 5.2.8, which obsoletes this text, requires that form, so accepting it is owed under the forward lineage and is disclosed on the Support row.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 5.2.8 says \"The checksum is the 16-bit one's complement of the one's complement sum of the entire VRRP message starting with the version field and a \"pseudo-header\" as defined in Section 8.1 of [RFC2460]. The next header field in the ...\" Ze now computes this form for IPv4 only in a group configured checksum rfc5798-compatible, because RFC 9568 Section 5.2.8, which obsoletes this text, says the IPv4 checksum \"only includes the VRRP message\"; the default IPv4 group neither sends nor accepts it, and the earlier sentence about dual-accept is withdrawn. TestFillChecksumFamilies (v3v4 under rfc5798-compatible) and TestFillChecksumZeroesFieldAndCoversPseudoHeader pin the IPv4 pseudo-header sum 0xDEFB and the IPv6 one in every mode; an overlay mutant forcing verifyReceived to the message-only form reddened the compatible-mode decodes. The only proof that a compatible group carries the mode from instance.doSendAdvert to the wire is the keepalived interop scenario, which no tag names. Enforced for the compatible mode only.",
       "requirement_sha": "44ceb649acacb99e",
       "tests": {
-        "internal/plugins/vrrp/packet/checksum_test.go::TestFillChecksumFamilies": "4766c124e73a689a",
-        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestFillChecksumZeroesFieldAndCoversPseudoHeader": "ea8c73c193bdd188",
-        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestFillChecksumZeroesFieldAndCoversPseudoHeader#2": "ea8c73c193bdd188",
-        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit": "19a4c15f930f948e"
+        "internal/plugins/vrrp/packet/checksum_test.go::TestFillChecksumFamilies": "50d6babad947a56f",
+        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestFillChecksumZeroesFieldAndCoversPseudoHeader": "42ac89061f52b9ae",
+        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestFillChecksumZeroesFieldAndCoversPseudoHeader#2": "42ac89061f52b9ae",
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit": "5bbc8ddba98cd418"
       },
       "units": {
-        "internal/plugins/vrrp/packet/checksum_test.go::TestFillChecksumFamilies": "08e23254275adfb0",
-        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestFillChecksumZeroesFieldAndCoversPseudoHeader": "5a0a064afad3584a",
-        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestFillChecksumZeroesFieldAndCoversPseudoHeader#2": "5a0a064afad3584a",
+        "internal/plugins/vrrp/packet/checksum_test.go::TestFillChecksumFamilies": "87c5427f3acd88f1",
+        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestFillChecksumZeroesFieldAndCoversPseudoHeader": "91682b5dc1a39b6e",
+        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestFillChecksumZeroesFieldAndCoversPseudoHeader#2": "91682b5dc1a39b6e",
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit": "2e3e761c5e3df207"
       },
       "verdict": "enforced"
     },
     "RFC5798-5.2.9-1": {
-      "note": "vrrp judge 2026-09-29 (independent, continuation 3): Transmit order now proven. TestSendAdvertIPv6LeadsWithLinkLocal reads the sent frame: octets 8-24 are fe80::1 and 24-40 are 2001:db8::1, an order netip sorting would invert (record observed red on encodeLocked); TestAdvertParamsIPv6LeadWithLinkLocal asserts every AdvertParams an IPv6 Master hands updateAdvert lists fe80::1 first (record on doSendAdvert). Negative: TestValidateIPv6LinkLocal refuses a group listing the global address first and accepts the swapped order, so the config keeps and checks the configured order (records on validateGroup).",
+      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 5.2.9 says \"For IPv6, the first address must be the IPv6 link-local address associated with the virtual router.\" TestSendAdvertIPv6LeadsWithLinkLocal changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; octets 8-24 are still required to be fe80::1 ahead of 2001:db8::1. Verdict unchanged.",
       "requirement_sha": "eb1fb10a958a22dd",
       "tests": {
-        "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal": "a9cea999ab08a8a1",
-        "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal#2": "a9cea999ab08a8a1",
+        "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal": "30e27105e8a9f202",
+        "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal#2": "30e27105e8a9f202",
         "internal/plugins/vrrp/rfc5798_tx_order_test.go::TestAdvertParamsIPv6LeadWithLinkLocal": "b5407d538ad7522d",
-        "internal/plugins/vrrp/transport/rfc5798_linklocal_first_test.go::TestSendAdvertIPv6LeadsWithLinkLocal": "d3f0dd36f08d18c3"
+        "internal/plugins/vrrp/transport/rfc5798_linklocal_first_test.go::TestSendAdvertIPv6LeadsWithLinkLocal": "64d33d3ecaec2c17"
       },
       "units": {
         "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal": "a29abb886acdd502",
         "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal#2": "a29abb886acdd502",
         "internal/plugins/vrrp/rfc5798_tx_order_test.go::TestAdvertParamsIPv6LeadWithLinkLocal": "91e98dff7acc9deb",
-        "internal/plugins/vrrp/transport/rfc5798_linklocal_first_test.go::TestSendAdvertIPv6LeadsWithLinkLocal": "c9b473ae41cf7f2f"
+        "internal/plugins/vrrp/transport/rfc5798_linklocal_first_test.go::TestSendAdvertIPv6LeadsWithLinkLocal": "1f906bae2b4b9262"
       },
       "verdict": "enforced"
     },
@@ -495,47 +495,47 @@
       "verdict": "enforced"
     },
     "RFC5798-7.1-1": {
-      "note": "version 3 matching the group accepted; v2 at a v3 group asserts ErrVersion",
+      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 7.1 says \"MUST verify that the VRRP version is 3.\" TestDecodeGoldenV3IPv4 now decodes the RFC 9568 message-only golden G2 under the default-mode lookup instead of the pseudo-header golden G2c, and lost only the removed MsgOnlyChecksum assertion; the subtests of TestNegativeReferenceBugs other than N1 gained only the FillChecksum mode argument. The positive is still a fully conforming advert, the checksum check precedes the checks this row names so a wrong form would fail with ErrChecksum and not pass silently, and each negative still asserts its exact sentinel. N9 still requires ErrVersion for a v2 advert at a v3 group. Verdict unchanged.",
       "requirement_sha": "82b3102e0318281a",
       "tests": {
-        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "19a4c15f930f948e",
-        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "19a4c15f930f948e"
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "5bbc8ddba98cd418",
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "5bbc8ddba98cd418"
       },
       "units": {
-        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "db69a59e983ad974",
-        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "a438a01f7d637e97"
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "5458632e7659d030",
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "5b7b91666d7d74bc"
       },
       "verdict": "enforced"
     },
     "RFC5798-7.1-2": {
-      "note": "vrrp judge 2026-09-29 (independent): TestDecodeV3DiscardsIncompletePacket: IPv4 and IPv6 goldens accepted; 7 octets ErrTruncated; IPv4 Count 2 with one address, Count 3 over two, IPv6 with 1.5 addresses (checksums recomputed) each ErrLength. Residual: the older TestNegativeReferenceBugs N2 tag feeds a LONGER packet, which still contains the complete packet, so that tag's claim is mis-aimed; it does not weaken the new proof.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 7.1 says \"MUST verify that the received packet contains the complete VRRP packet (including fixed fields, and IPvX address).\" TestDecodeGoldenV3IPv4 now decodes the RFC 9568 message-only golden G2 under the default-mode lookup instead of the pseudo-header golden G2c, and lost only the removed MsgOnlyChecksum assertion; the subtests of TestNegativeReferenceBugs other than N1 gained only the FillChecksum mode argument. The positive is still a fully conforming advert, the checksum check precedes the checks this row names so a wrong form would fail with ErrChecksum and not pass silently, and each negative still asserts its exact sentinel. TestDecodeV3DiscardsIncompletePacket switched its IPv4 golden to G2 and recomputes in the default form, so the truncation and short-address cases still fail on ErrTruncated or ErrLength and not on ErrChecksum. The earlier residual about the mis-aimed N2 tag stands. Verdict unchanged.",
       "requirement_sha": "f6a5bb18b8c24528",
       "tests": {
-        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeV3DiscardsIncompletePacket": "ea8c73c193bdd188",
-        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeV3DiscardsIncompletePacket#2": "ea8c73c193bdd188",
-        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "19a4c15f930f948e",
-        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "19a4c15f930f948e"
+        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeV3DiscardsIncompletePacket": "42ac89061f52b9ae",
+        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeV3DiscardsIncompletePacket#2": "42ac89061f52b9ae",
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "5bbc8ddba98cd418",
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "5bbc8ddba98cd418"
       },
       "units": {
-        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeV3DiscardsIncompletePacket": "4748ad08afe559e7",
-        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeV3DiscardsIncompletePacket#2": "4748ad08afe559e7",
-        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "db69a59e983ad974",
-        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "a438a01f7d637e97"
+        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeV3DiscardsIncompletePacket": "1c4d905af85dc9c4",
+        "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeV3DiscardsIncompletePacket#2": "1c4d905af85dc9c4",
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "5458632e7659d030",
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "5b7b91666d7d74bc"
       },
       "verdict": "enforced"
     },
     "RFC5798-7.1-4": {
-      "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): TestInstanceRxFailedCheckIsDiscarded proves the discard for TTL, IPv6 Hop Limit, version, type, fixed fields short, address short, checksum and unconfigured VRID, each with its own buffer, exact reason, no FSM event, and a control reaching AdvertReceived (records: revert onPacket, observed red). The owner check of the RFC 5798 list is not a discard in ze's VRRPv3 by design: rfc/corrections/rfc5798.md records that RFC 9568, which obsoletes RFC 5798, carries Verified erratum 8298 making it a SHOULD-log (Corrected Text quoted verbatim, checked against rfc/errata/rfc9568/8298.txt); the tag disclaims that half.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 7.1 says \"If any one of the above checks fails, the receiver MUST discard the packet\". TestInstanceRxValidAdvertReachesFSM changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same. TestInstanceRxFailedCheckIsDiscarded is unchanged, and an overlay mutant giving instance.lookup the wrong checksum mode reddened both, so the discard path is still exercised end to end. The owner-check carve-out under erratum 8298 stands. Verdict unchanged.",
       "requirement_sha": "5382391a3b5b9394",
       "tests": {
-        "internal/plugins/vrrp/instance_test.go::TestInstanceRxDecodeErrorMapsReason": "b7108f927f669585",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceRxValidAdvertReachesFSM": "b7108f927f669585",
-        "internal/plugins/vrrp/rx_discard_test.go::TestInstanceRxFailedCheckIsDiscarded": "255033f28cfa55b1",
-        "internal/plugins/vrrp/rx_discard_test.go::TestInstanceRxFailedCheckIsDiscarded#2": "255033f28cfa55b1"
+        "internal/plugins/vrrp/instance_test.go::TestInstanceRxDecodeErrorMapsReason": "90d279832a92de75",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceRxValidAdvertReachesFSM": "90d279832a92de75",
+        "internal/plugins/vrrp/rx_discard_test.go::TestInstanceRxFailedCheckIsDiscarded": "c5ce868df163843b",
+        "internal/plugins/vrrp/rx_discard_test.go::TestInstanceRxFailedCheckIsDiscarded#2": "c5ce868df163843b"
       },
       "units": {
         "internal/plugins/vrrp/instance_test.go::TestInstanceRxDecodeErrorMapsReason": "7273926a6ce2e1df",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceRxValidAdvertReachesFSM": "6f0121fec4875be7",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceRxValidAdvertReachesFSM": "318973084d5842b9",
         "internal/plugins/vrrp/rx_discard_test.go::TestInstanceRxFailedCheckIsDiscarded": "3c21c5112840bac1",
         "internal/plugins/vrrp/rx_discard_test.go::TestInstanceRxFailedCheckIsDiscarded#2": "3c21c5112840bac1"
       },
@@ -543,105 +543,105 @@
     },
     "RFC5798-7.2-1": {
       "code": {
-        "internal/plugins/vrrp/instance.go::doSendAdvert": "c6745d0ab974fafc",
+        "internal/plugins/vrrp/instance.go::doSendAdvert": "bfd3bc0b7e18da21",
         "internal/plugins/vrrp/packet/packet.go::WriteTo": "7f6d7ed20d3ce54e"
       },
-      "note": "vrrp judge 2026-09-29 (independent, rejudge after the unit gained an ipv6 subtest): fill clause: TestTransmittedAdvertFilledFromInstanceState drives an IPv4 and an IPv6 instance to Active and requires the params doSendAdvert hands the transport to carry version 3, the effective priority (200, then 150 after a tracked interface fails), 1000 ms and both VIPs, and their WriteTo octets to match literals; each encoding then decodes with its checksum verified. Checksum clause through the production path: TestSendAdvertFillsFieldsAndChecksum requires the IPv4 frame encodeLocked sends to carry an RFC 1071 sum over the RFC 5798 Section 5.2.8 pseudo-header that the test computes itself. Negative: TestBoundaryInterval (Validate refuses out-of-range intervals). IPv6 checksum is the kernel's (IPV6_CHECKSUM), not claimed. Each tagged unit has an observed-red record.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 7.2 says \"The following operations MUST be performed when transmitting a VRRP packet: - Fill in the VRRP packet fields with the appropriate virtual router configuration state - Compute the VRRP checksum\". The cited producer doSendAdvert now passes in.spec.Checksum into AdvertParams, so it decides the checksum form. The fill clause is still proven by TestTransmittedAdvertFilledFromInstanceState, and the RFC 5798 checksum is pinned at encodeLocked by TestSendAdvertFillsFieldsAndChecksum and at FillChecksum by TestEncodeGoldenV3IPv4 under rfc5798-compatible. An overlay mutant hard-coding ChecksumRFC9568 in doSendAdvert passed every vrrp unit test; only the keepalived interop scenario in compatible mode would catch it, because keepalived refuses the message-only form. Enforced, and the unit gap is the one reported for RFC9568-7.2-5.",
       "requirement_sha": "fda7506724dfb32e",
       "tests": {
-        "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "fce8a1a5c87d6d49",
-        "internal/plugins/vrrp/packet/packet_test.go::TestBoundaryInterval": "1bf84088a1c1b91f",
-        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "1bf84088a1c1b91f",
-        "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "025e3148566bb3fe"
+        "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "f14fe54340c99bad",
+        "internal/plugins/vrrp/packet/packet_test.go::TestBoundaryInterval": "1a58859c2c8eb3f8",
+        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "1a58859c2c8eb3f8",
+        "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "4b5ce6713448d3aa"
       },
       "units": {
-        "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "989cf848454416be",
-        "internal/plugins/vrrp/packet/packet_test.go::TestBoundaryInterval": "806fdcb52c9b268c",
-        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "3de12a3108614ec7",
-        "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "e4f00dae4db9300c"
+        "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "6b90e7f164ced313",
+        "internal/plugins/vrrp/packet/packet_test.go::TestBoundaryInterval": "edf2c3f01a20da48",
+        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "f665d3473b49bc02",
+        "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "84111e91bd9a4e83"
       },
       "verdict": "enforced"
     },
     "RFC5798-7.2-2": {
-      "note": "vrrp final judge 2026-09-29 (independent): re-read after the comment-only edit to TestTxAdvertV4OnWire (body unchanged): it and TestTxAdvertV6OnWire (guest) compare the captured source MAC with the literals 00-00-5e-00-01-0a and 00-00-5e-00-02-0a. Single-polarity positive per the row annotation.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 7.2 says \"If the protected address is an IPv4 address, then: + Set the source MAC address to virtual router MAC Address + Set the source IPv4 address to interface primary IPv4 address - else // ipv6 + Set the source MAC address to virtual ...\" TestTxAdvertV4OnWire changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the captured source MAC is still compared with 00-00-5e-00-01-0a. Single-polarity per the row annotation. Verdict unchanged; the guest record is owed a re-record.",
       "requirement_sha": "447e1b9f4570d8b2",
       "tests": {
-        "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "1bf84088a1c1b91f",
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "268650204dbb2979",
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "268650204dbb2979"
+        "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "1a58859c2c8eb3f8",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "e6113ed83a42c0f9",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "e6113ed83a42c0f9"
       },
       "units": {
         "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "815ed7ee56089d0e",
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "67f2d740f3a8d572",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "7a4414ac139af987",
         "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "743f9108e7f1c010"
       },
       "verdict": "enforced"
     },
     "RFC5798-7.2-3": {
-      "note": "vrrp final judge 2026-09-29 (independent): IPv4 half now tagged: TestTxAdvertV4OnWire (guest) adds a lower secondary 192.0.2.5/24 after the primary 192.0.2.251/24 and requires the captured VRRPv3 source to be the primary (record: resolveParentPrimaryV4, observed red in guest). IPv6 half: TestTxAdvertV6OnWire source equals the macvlan link-local; TestSendAdvertNoLinkLocalSkipsAndCounts is the negative; the source MAC is RFC5798-7.2-2.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 7.2 says \"If the protected address is an IPv4 address, then: + Set the source MAC address to virtual router MAC Address + Set the source IPv4 address to interface primary IPv4 address - else // ipv6 + Set the source MAC address to virtual ...\" TestTxAdvertV4OnWire and TestSendAdvertNoLinkLocalSkipsAndCounts changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the IPv4 primary-source capture and the IPv6 no-link-local negative are unchanged. Verdict unchanged.",
       "requirement_sha": "db7cf7598283f5a8",
       "tests": {
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "268650204dbb2979",
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "268650204dbb2979",
-        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoLinkLocalSkipsAndCounts": "74ad900f2e06c8d5",
-        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoPrimaryV4SkipsAndCounts": "74ad900f2e06c8d5",
-        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertUsesParentPrimaryV4Source": "74ad900f2e06c8d5"
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "e6113ed83a42c0f9",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "e6113ed83a42c0f9",
+        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoLinkLocalSkipsAndCounts": "3b5f911a78dbf13d",
+        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoPrimaryV4SkipsAndCounts": "3b5f911a78dbf13d",
+        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertUsesParentPrimaryV4Source": "3b5f911a78dbf13d"
       },
       "units": {
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "67f2d740f3a8d572",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "7a4414ac139af987",
         "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "743f9108e7f1c010",
-        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoLinkLocalSkipsAndCounts": "a2a42810b4b4a5d6",
+        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoLinkLocalSkipsAndCounts": "cae31ad229b13b47",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoPrimaryV4SkipsAndCounts": "d010337619277e96",
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertUsesParentPrimaryV4Source": "71d8d585b800743e"
       },
       "verdict": "enforced"
     },
     "RFC5798-7.2-4": {
-      "note": "vrrp final judge 2026-09-29 (independent): re-read after the comment-only edit to TestTxAdvertV4OnWire (body unchanged): it and TestTxAdvertV6OnWire compare the captured protocol/next header and destination with the literals 112, 224.0.0.18 and ff02::12. Single-polarity positive per the row annotation.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 7.2 says \"Set the IPvX protocol to VRRP - Send the VRRP packet to the VRRP IPvX multicast group\". TestTxAdvertV4OnWire and TestSendAdvertV3IPv4HeaderTTLProtoDst changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; protocol 112 and 224.0.0.18 are still compared with literals. Single-polarity per the row annotation. Verdict unchanged.",
       "requirement_sha": "387a92c747fca0ee",
       "tests": {
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "268650204dbb2979",
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "268650204dbb2979",
-        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertV3IPv4HeaderTTLProtoDst": "74ad900f2e06c8d5"
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "e6113ed83a42c0f9",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "e6113ed83a42c0f9",
+        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertV3IPv4HeaderTTLProtoDst": "3b5f911a78dbf13d"
       },
       "units": {
-        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "67f2d740f3a8d572",
+        "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "7a4414ac139af987",
         "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "743f9108e7f1c010",
-        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertV3IPv4HeaderTTLProtoDst": "ed1d6c271e3fed5c"
+        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertV3IPv4HeaderTTLProtoDst": "f2e73285b8e772a2"
       },
       "verdict": "enforced"
     },
     "RFC5798-8.1.1-2": {
-      "note": "vrrp judge 2026-09-30 (independent) re-judged: the unit changed only by added tag comment lines for RFC9568-8.1.1-1/-2; body byte-identical, records current. TestVRRPRedirectSourceFollowsVirtualMAC (Linux guest integration, two non-owner virtual-MAC macvlans under the product sysctl recipe, icmp_errors_use_inbound_ifaddr reset to 0 before applyDataplaneSysctls) asserts the IPv4 redirect for a packet sent to a virtual MAC is sourced from that virtual router's VIP despite a reverse route via the real interface; the negative sends to the physical MAC and sees 192.0.2.254, so the capture separates the two. Both polarities recorded observed red on applyDataplaneSysctls.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 8.1.1 says \"If a VRRP router is acting as Master for virtual router(s) containing addresses it does not own, then it must determine which virtual router the packet was sent to when selecting the redirect source address.\" TestVRRPRedirectSourceFollowsVirtualMAC changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the redirect-source capture and its physical-MAC control are unchanged. Verdict unchanged; the guest record is owed a re-record.",
       "requirement_sha": "dbd957c29cc99d26",
       "tests": {
-        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC": "afef5030ea18066a",
-        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2": "afef5030ea18066a"
+        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC": "884442d33f8f172b",
+        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2": "884442d33f8f172b"
       },
       "units": {
-        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC": "5eeecb8e06c0769f",
-        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2": "5eeecb8e06c0769f"
+        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC": "126a0ea3bd1a7d9c",
+        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2": "126a0ea3bd1a7d9c"
       },
       "verdict": "enforced"
     },
     "RFC5798-8.1.2-1": {
-      "note": "vrrp closure judge 2026-09-30 (independent) re-judged: the tagged units changed only by added RFC requirement tag comment lines for the new rows (8.1.2-6 / 8.2.2-8 / 8.2-4 / 8.1.1-2); test bodies byte-identical, records current, verdict unchanged. Prior note: vrrp judge 2026-09-29 (independent, continuation 3): Both halves proven. Owner: TestOwnerFilterWiredOnPromotionForEveryFamily (ipv4-v3) drives an owner to setOwnerFilter with the parent and exactly the owned IPv4 address before install, and the same group as non-owner names none (records observed red on doInstallVIPs); TestVRRPOwnerAnswersWithVirtualMACOnly (QEMU guest) captures the parent's physical-MAC ARP reply without the filter and after withdrawal, and only the Virtual Router MAC with it (records on ownerARPReplyTerm, ownerFilterTables). Non-owner: TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly captures the physical MAC without applyDataplaneSysctls and only the virtual MAC with it.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 8.1.2 says \"The Virtual Router Master MUST NOT respond with its physical MAC address in the ARP response.\" TestVRRPOwnerAnswersWithVirtualMACOnly changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the ARP captures with and without the owner filter are unchanged. Verdict unchanged; the guest record is owed a re-record.",
       "requirement_sha": "02999f0375f75e14",
       "tests": {
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "a2a1d36eaea86500",
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "a2a1d36eaea86500",
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "68d1b42d022039f9",
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "68d1b42d022039f9",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "3fc09c91529cf075",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "3fc09c91529cf075",
         "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "9bbf08a19af0da85",
         "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "9bbf08a19af0da85",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "f9e1bb72cffca4dc",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "f9e1bb72cffca4dc"
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "44393888cc66696b",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "44393888cc66696b"
       },
       "units": {
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "8bbcb38638b03997",
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "9264454e88d221df",
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "1dc83cc933132bee",
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "1dc83cc933132bee",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "157f04cf834b3eeb",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "157f04cf834b3eeb",
         "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "ddef6ffca811100b",
         "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "ddef6ffca811100b",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "e394a1b59e5a96d5",
@@ -650,55 +650,55 @@
       "verdict": "enforced"
     },
     "RFC5798-8.1.2-6": {
-      "note": "vrrp closure judge 2026-09-30 (independent): TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly (Linux integration) captures on the wire that with the product recipe (applyDataplaneSysctls) a LAN host's ARP request for the non-owner VIP is answered with the virtual MAC only; the control (recipe absent) sees the physical MAC answer and, with the address removed, no answer, so the capture discriminates. TestVRRPOwnerAnswersWithVirtualMACOnly: with the owner filter (ownerARPReplyTerm) the owner's ARP replies carry the virtual MAC; without it (ownerFilterTables) the physical MAC is observed. Each tagged unit has an observed-red record.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 8.1.2 says \"When a host sends an ARP request for one of the virtual router IPv4 addresses, the Virtual Router Master MUST respond to the ARP request with an ARP response that indicates the virtual MAC address for the virtual router.\" TestVRRPOwnerAnswersWithVirtualMACOnly changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the ARP captures with and without the owner filter are unchanged. Verdict unchanged; the guest record is owed a re-record.",
       "requirement_sha": "7333324575826c9f",
       "tests": {
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "68d1b42d022039f9",
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "68d1b42d022039f9",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "f9e1bb72cffca4dc",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "f9e1bb72cffca4dc"
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "3fc09c91529cf075",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "3fc09c91529cf075",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "44393888cc66696b",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "44393888cc66696b"
       },
       "units": {
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "1dc83cc933132bee",
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "1dc83cc933132bee",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "157f04cf834b3eeb",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "157f04cf834b3eeb",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "e394a1b59e5a96d5",
         "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "e394a1b59e5a96d5"
       },
       "verdict": "enforced"
     },
     "RFC5798-8.2.1-2": {
-      "note": "vrrp judge 2026-09-30 (independent) re-judged: the {gap} is withdrawn; the earlier judge read only Ze's sysctl branch and not the kernel path. TestVRRPIPv6RedirectFollowsVirtualMAC (Linux guest integration, two non-owner Active Router dataplanes built with the product's CreateMacvlanDevice, VirtualMAC, vipCIDRs and IPv6 applyDataplaneSysctls) sends one datagram to each virtual MAC and one to the physical MAC, and asserts the single ICMPv6 redirect (type 137, checksum and target verified) is sourced from a link-local held by the macvlan whose virtual MAC was hit and by no other device; the negative sees the physical-MAC datagram redirected from a parent link-local held by neither macvlan. Stack-level: Ze supplies the per-VR virtual-MAC macvlan, and Linux ndisc_send_redirect sources the redirect from the ingress device's link-local, so the destination MAC selects the Virtual Router (the method \u00a78.2.1 names). Linux redirects only when the route leaves by the ingress device (ip6_forward), which the test arranges; otherwise no redirect is sent and none can be misattributed. Which macvlan link-local (VIP or VMAC-derived) is used is not pinned: that is the separate RFC9568-8.2.1-1 SHOULD, not judged here. Records: + on packet.VirtualMAC, - on applyDataplaneSysctls, both observed red (revert route).",
+      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 8.2.1 says \"If a VRRP router is acting as Master for virtual router(s) containing addresses it does not own, then it must determine which virtual router the packet was sent to when selecting the redirect source address.\" TestVRRPIPv6RedirectFollowsVirtualMAC changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the ICMPv6 redirect source capture and its physical-MAC control are unchanged. Verdict unchanged; the guest record is owed a re-record.",
       "requirement_sha": "03e0789e98048b49",
       "tests": {
-        "internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC": "05acf8d26f2ef330",
-        "internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC#2": "05acf8d26f2ef330"
+        "internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC": "f65ca45add512df3",
+        "internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC#2": "f65ca45add512df3"
       },
       "units": {
-        "internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC": "078f48d06e02b5ed",
-        "internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC#2": "078f48d06e02b5ed"
+        "internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC": "c3fd1b4921141124",
+        "internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC#2": "c3fd1b4921141124"
       },
       "verdict": "enforced"
     },
     "RFC5798-8.2.2-1": {
-      "note": "vrrp closure judge 2026-09-30 (independent) re-judged: the tagged units changed only by added RFC requirement tag comment lines for the new rows (8.1.2-6 / 8.2.2-8 / 8.2-4 / 8.1.1-2); test bodies byte-identical, records current, verdict unchanged. Prior note: vrrp judge 2026-09-29 (independent, continuation 3): Re-read: the owner units changed only by added RFC 8.1.2-1 tag comments; bodies unchanged. Verdict unchanged. Owner: TestOwnerFilterWiredOnPromotionForEveryFamily (ipv6) wiring, records on doInstallVIPs; TestVRRPOwnerAnswersWithVirtualMACOnly wire effect with a physical-MAC control. Non-owner: TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly (QEMU guest) captures a physical-MAC NA with the address on the parent, only the virtual MAC with it on the macvlan, and no NA once removed; TestInstanceIPv6VIPLivesOnVirtualMACDevice pins the install device.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 8.2.2 says \"The Virtual Router Master MUST NOT respond with its physical MAC address. This allows the client to always use the same MAC address regardless of the current Master router.\" TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly and TestVRRPOwnerAnswersWithVirtualMACOnly changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the Neighbor Advertisement captures and their physical-MAC controls are unchanged. Verdict unchanged; the guest records are owed a re-record.",
       "requirement_sha": "69bf23020edcd2f4",
       "tests": {
-        "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "b7108f927f669585",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice#2": "b7108f927f669585",
-        "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly": "220a911bc1fcf461",
-        "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly#2": "220a911bc1fcf461",
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "68d1b42d022039f9",
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "68d1b42d022039f9",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "90d279832a92de75",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice#2": "90d279832a92de75",
+        "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly": "6a808b402c2b1816",
+        "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly#2": "6a808b402c2b1816",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "3fc09c91529cf075",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "3fc09c91529cf075",
         "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "9bbf08a19af0da85",
         "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "9bbf08a19af0da85"
       },
       "units": {
         "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "bb1f308ff09eb61c",
         "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice#2": "bb1f308ff09eb61c",
-        "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly": "49dd1081686f6d15",
-        "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly#2": "49dd1081686f6d15",
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "1dc83cc933132bee",
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "1dc83cc933132bee",
+        "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly": "ae3eed96053bbf49",
+        "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly#2": "ae3eed96053bbf49",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "157f04cf834b3eeb",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "157f04cf834b3eeb",
         "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "ddef6ffca811100b",
         "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "ddef6ffca811100b"
       },
@@ -726,19 +726,19 @@
       "verdict": "enforced"
     },
     "RFC5798-8.2.2-8": {
-      "note": "vrrp closure judge 2026-09-30 (independent): TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly captures NAs whose Target Link-Layer Address option carries only the virtual MAC under the IPv6 recipe; control on the parent sees the physical MAC and, removed, no answer. TestVRRPOwnerAnswersWithVirtualMACOnly: with ownerNDAdvertTerm the owner's NA carries the virtual MAC; without the filter the physical MAC is observed. Each tagged unit has an observed-red record.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 8.2.2 says \"When a host sends an ND Neighbor Solicitation message for the virtual router IPv6 address, the Virtual Router Master MUST respond to the ND Neighbor Solicitation message with the virtual MAC address for the virtual router.\" TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly and TestVRRPOwnerAnswersWithVirtualMACOnly changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the Neighbor Advertisement captures and their physical-MAC controls are unchanged. Verdict unchanged; the guest records are owed a re-record.",
       "requirement_sha": "58542b6dc5658a11",
       "tests": {
-        "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly": "220a911bc1fcf461",
-        "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly#2": "220a911bc1fcf461",
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "68d1b42d022039f9",
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "68d1b42d022039f9"
+        "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly": "6a808b402c2b1816",
+        "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly#2": "6a808b402c2b1816",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "3fc09c91529cf075",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "3fc09c91529cf075"
       },
       "units": {
-        "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly": "49dd1081686f6d15",
-        "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly#2": "49dd1081686f6d15",
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "1dc83cc933132bee",
-        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "1dc83cc933132bee"
+        "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly": "ae3eed96053bbf49",
+        "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly#2": "ae3eed96053bbf49",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "157f04cf834b3eeb",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "157f04cf834b3eeb"
       },
       "verdict": "enforced"
     }
