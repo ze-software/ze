@@ -114,7 +114,7 @@ interact with #2's default), 14 a `scope` gate, and 1 sits outside Ze (#59). The
 | #2 RFC4301-4.4.1-3 | Follow the RFC: R27 reversed, `unmatched` defaults to discard |
 | #16, #17 RFC9568-7.2-5, 5.2.8-2 | Do the work (RFC 9568 checksum; keepalived compatibility as an opt-in) |
 | #31 RFC3101-3.1-4 | Fix it: the wedge-avoidance deviation is reversed |
-| #55 RFC2328-8.1-1 | Unnumbered P2P: the operator selects the interface whose IP is borrowed; shape to follow Junos/Cisco practice (research pending) |
+| #55 RFC2328-8.1-1 | Unnumbered P2P, approved shape: `interface <x> unit <u> ipv4 unnumbered <donor-iface>` in iface (Cisco `ip unnumbered`, Junos `unnumbered-address`), with an optional source-address choice when the donor holds several IPv4 addresses (Junos `preferred-source-address`), else its first. Ze installs the donor address as a /32 on the link (the FRR wire shape). Commit refuses `unnumbered` with `address`, a missing, unnumbered or address-less donor, a source address the donor does not hold, and OSPF on an unnumbered non-point-to-point interface; doctor warns when the donor is not in OSPF. Donor down or address lost takes the link out of OSPF. OSPF sends a 0.0.0.0 hello mask, ifIndex link data, no stub link (RFC 2328 9.5, 12.4.1.1) |
 | #7 RFC9830-2.4.2-12 | Bring up to date: the 2026-10-11 decline is reversed, implement the type-13 SRv6 form |
 | All other rows | Implement from easiest to hardest |
 
