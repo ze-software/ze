@@ -39,12 +39,36 @@
     },
     "RFC9136-3.1-4": {
       "code": {
-        "internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams": "6701e7c4e1ca64d1",
-        "internal/component/bgp/plugins/nlri/evpn/types.go::parseEVPNType5": "078ab02914cc8a1d"
+        "internal/component/bgp/plugins/cmd/update/update_text_evpn.go::parseEVPNSection": "7f98c518db6a5ea0",
+        "internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams": "b5c60e7daf3daf4e",
+        "internal/component/bgp/plugins/nlri/evpn/encode.go::parseL2VPNArgs": "518a11acdc713f4d",
+        "internal/component/bgp/plugins/nlri/evpn/overlay_index.go::checkOverlayIndex": "8a27bf811f7a630f",
+        "internal/component/bgp/plugins/nlri/evpn/overlay_index.go::parseOverlayIndex": "3dd9c1c035b8e2b0",
+        "internal/component/bgp/plugins/nlri/evpn/plugin.go::buildEVPNFromParams": "b46461e1e0ac382a"
       },
-      "note": "Re-judged 2026-10-18 (independent auditor, after 98415216e6). RFC 9136 Section 3.1: \"The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of \"Overlay Index\" in Section 3.2). It MUST be all bytes zero otherwise.\" Stale only because 98415216e6 added a redundancy-mode parameter to l2vpnRouteToEVPNParams; that new code refuses the mode on any non-ethernet-ad route and does not touch the ip-prefix branch, which still hands the operator-supplied ESI to newEVPNType5 with no Overlay Index selection, and parseEVPNType5 still copies the ten octets unchecked. No evpn code names an overlay index. The gap stands; recording it commissions no implementation.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 0411b53e91). Was unimplemented; now enforced on origination. RFC 9136 Section 3.1: \"The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of \"Overlay Index\" in Section 3.2).  It MUST be all bytes zero otherwise.\" Producers: every IP Prefix origination reaches checkOverlayIndex before newEVPNType5 writes a byte: route command (EncodeRoute -> l2vpnRouteToEVPNParams), native config (parseConfigRoute -> l2vpnRouteToEVPNParams), update text (parseEVPNSection -> encodeViaRegistry -> EncodeNLRIHex -> buildEVPNFromParams); newEVPNType5 has no other caller. RFC 9136 Section 3.2: \"The Overlay Index for a given IP prefix is set by local policy at the NVE that originates an RT-5 for that IP prefix\", which the overlay-index none|esi|gateway-ip keyword is; Table 1 (\"Non-Zero | Zero | ... | ESI\", \"Zero | Non-Zero | ... | GW IP\", \"Zero | Zero | Zero | Non-Zero | None\") matches the three selectors, and an omitted keyword is held to both-zero (stricter than the RFC, never non-conforming). update text's deleted esi/gateway exclusion loses nothing: with any selector at most one field may be non-zero, so every both-non-zero origination is still refused (asserted with exact text by TestParseUpdateText_EVPNType5ESIGatewayMutualExclusion); the old check also refused gateway 0.0.0.0 beside an ESI, which is all bytes zero and now correctly allowed. Scope: this is a sender encoding rule. parseEVPNType5 still accepts any received ESI/GW pair and a propagated RT-5 is re-sent as received; that receive side is RFC9136-3.2-1 and 3.1-7/3.1-9, which stay gaps. Owed and not judged here: INTEROP bgp-evpn-frr has not run, so FRR's reading of the emitted route is unproven; the route-command/config test TestRFC9136OverlayIndexRouteCommandAndConfig and test/encode/evpn-ip-prefix-overlay-index.ci are untagged reach evidence only. The recorded revert tuples panic checkOverlayIndex/parseOverlayIndex and prove reach only. Tests: positive TestRFC9136OverlayIndexESINonZeroOnlyAsIndex pins the full NLRI hex for overlay-index esi (ESI 00010203040506070809 at octets 8-17), gateway-ip, none and omitted (ten zero octets); negative TestRFC9136OverlayIndexESIRefusedOtherwise asserts the exact refusal and an empty encoding for a non-zero ESI with no keyword, with none, with gateway-ip, and for esi with an all-zero ESI. Independent overlay mutants on checkOverlayIndex (tags ze_core ze_bgp), each red on exactly its own subtest: unspecified-branch ESI refusal removed, none-branch ESI refusal removed, gateway-ip-branch ESI refusal removed, esi-branch non-zero requirement removed; esi selector always refused reddens the positive. Both clauses (non-zero when index, zero otherwise) are covered.",
       "requirement_sha": "3cf966565b9fd6a4",
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESINonZeroOnlyAsIndex": "adda1e8c5163b7c5",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESINonZeroOnlyAsIndex#2": "adda1e8c5163b7c5",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESINonZeroOnlyAsIndex#3": "adda1e8c5163b7c5",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESINonZeroOnlyAsIndex#4": "adda1e8c5163b7c5",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise": "adda1e8c5163b7c5",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise#2": "adda1e8c5163b7c5",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise#3": "adda1e8c5163b7c5",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise#4": "adda1e8c5163b7c5"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESINonZeroOnlyAsIndex": "6874b1e48e384d6f",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESINonZeroOnlyAsIndex#2": "6874b1e48e384d6f",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESINonZeroOnlyAsIndex#3": "6874b1e48e384d6f",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESINonZeroOnlyAsIndex#4": "6874b1e48e384d6f",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise": "0cbe036d30fe31f1",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise#2": "0cbe036d30fe31f1",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise#3": "0cbe036d30fe31f1",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise#4": "0cbe036d30fe31f1"
+      },
+      "verdict": "enforced"
     },
     "RFC9136-3.1-5": {
       "note": "(a) forbidden: accepting an IP Prefix Length above 128; (b) TestEVPNType5PrefixLengthTooLong/ipv6 require.ErrorIs(err, ErrEVPNInvalidPrefix) on length 129 goes red if parseEVPNType5 accepts it; positive TestEVPNType5IPv6 decodes 64. The send side cannot exceed 128 (netip.Prefix). The ipv4 subtest's tag (33 > 32) proves the non-normative 'can be set to a value between 0 and 32' sentence, not this MUST NOT: a misplaced tag, listed as a finding.",
@@ -60,6 +84,31 @@
         "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv6": "60cbb0884ac0e457",
         "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5PrefixLengthTooLong": "eee3027d638d1be7",
         "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5PrefixLengthTooLong#2": "eee3027d638d1be7"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9136-3.1-6": {
+      "code": {
+        "internal/component/bgp/plugins/cmd/update/update_text_evpn.go::parseEVPNSection": "7f98c518db6a5ea0",
+        "internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams": "b5c60e7daf3daf4e",
+        "internal/component/bgp/plugins/nlri/evpn/encode.go::parseL2VPNArgs": "518a11acdc713f4d",
+        "internal/component/bgp/plugins/nlri/evpn/overlay_index.go::checkOverlayIndex": "8a27bf811f7a630f",
+        "internal/component/bgp/plugins/nlri/evpn/overlay_index.go::parseOverlayIndex": "3dd9c1c035b8e2b0",
+        "internal/component/bgp/plugins/nlri/evpn/plugin.go::buildEVPNFromParams": "b46461e1e0ac382a"
+      },
+      "note": "Re-judged 2026-10-18 (independent auditor, after 0411b53e91). New verdict (none before). RFC 9136 Section 3.1: \"The GW IP field MUST be all bytes zero if it is not used as an Overlay Index.\" Producers: every IP Prefix origination reaches checkOverlayIndex before newEVPNType5 writes a byte: route command (EncodeRoute -> l2vpnRouteToEVPNParams), native config (parseConfigRoute -> l2vpnRouteToEVPNParams), update text (parseEVPNSection -> encodeViaRegistry -> EncodeNLRIHex -> buildEVPNFromParams); newEVPNType5 has no other caller. RFC 9136 Section 3.2: \"The Overlay Index for a given IP prefix is set by local policy at the NVE that originates an RT-5 for that IP prefix\", which the overlay-index none|esi|gateway-ip keyword is; Table 1 (\"Non-Zero | Zero | ... | ESI\", \"Zero | Non-Zero | ... | GW IP\", \"Zero | Zero | Zero | Non-Zero | None\") matches the three selectors, and an omitted keyword is held to both-zero (stricter than the RFC, never non-conforming). update text's deleted esi/gateway exclusion loses nothing: with any selector at most one field may be non-zero, so every both-non-zero origination is still refused (asserted with exact text by TestParseUpdateText_EVPNType5ESIGatewayMutualExclusion); the old check also refused gateway 0.0.0.0 beside an ESI, which is all bytes zero and now correctly allowed. Scope: this is a sender encoding rule. parseEVPNType5 still accepts any received ESI/GW pair and a propagated RT-5 is re-sent as received; that receive side is RFC9136-3.2-1 and 3.1-7/3.1-9, which stay gaps. Owed and not judged here: INTEROP bgp-evpn-frr has not run, so FRR's reading of the emitted route is unproven; the route-command/config test TestRFC9136OverlayIndexRouteCommandAndConfig and test/encode/evpn-ip-prefix-overlay-index.ci are untagged reach evidence only. The recorded revert tuples panic checkOverlayIndex/parseOverlayIndex and prove reach only. Tests: positive TestRFC9136OverlayIndexESINonZeroOnlyAsIndex pins GW IP 00000000 under overlay-index none and esi; negative TestRFC9136OverlayIndexESIRefusedOtherwise asserts the exact refusal and empty encoding for gateway 10.1.2.1 with overlay-index esi, none, and no keyword. Independent overlay mutants on checkOverlayIndex, each red on exactly its own subtest: unspecified-branch GW refusal removed, none-branch GW refusal removed, esi-branch GW refusal removed. The gateway-ip case needing a non-zero GW is untagged and is not this MUST (the RFC's \"will encode a valid IP address\" is not a MUST).",
+      "requirement_sha": "dd41e469cf996809",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESINonZeroOnlyAsIndex": "adda1e8c5163b7c5",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise": "adda1e8c5163b7c5",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise#2": "adda1e8c5163b7c5",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise#3": "adda1e8c5163b7c5"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESINonZeroOnlyAsIndex": "6874b1e48e384d6f",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise": "0cbe036d30fe31f1",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise#2": "0cbe036d30fe31f1",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise#3": "0cbe036d30fe31f1"
       },
       "verdict": "enforced"
     }
