@@ -261,6 +261,13 @@ func ValidateUpdateRFC7606AddPath(
 	var mpReachCount, mpUnreachCount int
 	hasReachableNLRI := hasNLRI
 
+	// RFC 7606 Section 5.2: "if an UPDATE message is encountered that does contain path
+	// attributes other than MP_UNREACH_NLRI and doesn't encode any reachable NLRI". The
+	// escalation below binds only that population, so the walk records whether any
+	// attribute other than MP_UNREACH_NLRI was framed. An UPDATE carrying MP_UNREACH_NLRI
+	// alone is a withdrawal, and its errors keep their own verdict.
+	var hasAttrOtherThanMPUnreach bool
+
 	// RFC 7606 Section 3.g: Track seen attribute codes to detect duplicates
 	var seenCodes [256]bool
 
@@ -318,6 +325,10 @@ func ValidateUpdateRFC7606AddPath(
 	//     completed walk escalates that below; these returns handed back treat-as-withdraw,
 	//     which synthesizes no withdrawal at all for such a body, so the peer got silence
 	//     where the RFC requires a NOTIFICATION.
+	//
+	// The Section 5.2 exemption for an UPDATE whose only attribute is MP_UNREACH_NLRI is
+	// not applied here. An abandoned walk has not read the rest of the attribute section,
+	// so it cannot know the UPDATE carries no other attribute.
 	//
 	// One helper rather than four literals is the point: the next exit added to this loop
 	// inherits both obligations instead of re-owing them.
@@ -397,6 +408,13 @@ func ValidateUpdateRFC7606AddPath(
 
 		attrData := pathAttrs[pos : pos+attrLen]
 		pos += attrLen
+
+		// RFC 7606 Section 5.2: counted after the bounds check and before every branch that
+		// can skip the iteration, so a flags conflict or a duplicate still counts as an
+		// attribute the UPDATE contains.
+		if attrCode != attrCodeMPUnreachNLRI {
+			hasAttrOtherThanMPUnreach = true
+		}
 
 		// RFC 4271 Section 6.3: "The Data field MUST contain the
 		// unrecognized attribute (type, length, and value)."
@@ -584,8 +602,11 @@ func ValidateUpdateRFC7606AddPath(
 	// encountered in such an UPDATE message and if any encountered error specifies
 	// an error-handling approach other than 'attribute discard', then the 'session
 	// reset' approach MUST be used."
-	// An empty MP_REACH has no reachable NLRI, just like an empty legacy field.
-	if !hasReachableNLRI && strongest > RFC7606ActionAttributeDiscard {
+	// An empty MP_REACH has no reachable NLRI, just like an empty legacy field. "Such an
+	// UPDATE message" is one that "does contain path attributes other than MP_UNREACH_NLRI",
+	// so an UPDATE whose only attribute is MP_UNREACH_NLRI is not escalated: a walkable
+	// malformed NLRI in it stays treat-as-withdraw (RFC 9830 Section 5).
+	if !hasReachableNLRI && hasAttrOtherThanMPUnreach && strongest > RFC7606ActionAttributeDiscard {
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionSessionReset,
 			AttrCode:    strongestCode,

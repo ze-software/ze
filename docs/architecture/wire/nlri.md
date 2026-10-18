@@ -639,9 +639,10 @@ direction applies to every multiprotocol family, SAFI 73 included).
 | a length of 0, a length not a multiple of 8, an NLRI overrunning the attribute, or a path identifier cut short | session reset, NOTIFICATION 3/1 (RFC 9830 Section 5: Ze has no AFI/SAFI disable) |
 
 A treat-as-withdraw verdict on an UPDATE with no reachable NLRI is escalated to
-session reset by the RFC 7606 Section 5.2 check in `ValidateUpdateRFC7606AddPath`,
-including the MP_UNREACH_NLRI-only shape that Section 5.2 exempts; that
-pre-existing deviation is recorded in `plan/journal/gate-fires-outside-its-population.md`.
+session reset by the RFC 7606 Section 5.2 check in `ValidateUpdateRFC7606AddPath`
+when the UPDATE carries any path attribute other than MP_UNREACH_NLRI. An UPDATE
+whose only attribute is MP_UNREACH_NLRI is the shape Section 5.2 exempts, so a
+walkable malformed SR Policy NLRI in it stays treat-as-withdraw.
 
 <!-- source: internal/core/bgp/nlri/nlrisyntax/nlrisyntax.go -- Rule, Register, Get -->
 <!-- source: internal/component/bgp/message/rfc7606.go -- validateMPNLRISyntax, mpNLRIJudgementResult -->

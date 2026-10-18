@@ -288,8 +288,12 @@ neither field; recorded offsets must not be reused after an attribute-section
 rewrite.
 
 When no reachable NLRI bytes exist in either the legacy field or MP_REACH_NLRI,
-an attribute error stronger than attribute discard escalates to session reset
-(RFC 7606 Section 5.2). An empty MP_REACH is not evidence of a reachable route,
+and the UPDATE carries a path attribute other than MP_UNREACH_NLRI, an attribute
+error stronger than attribute discard escalates to session reset (RFC 7606
+Section 5.2). An UPDATE whose only attribute is MP_UNREACH_NLRI is a withdrawal
+that Section 5.2 exempts, and its errors keep their own verdict. A framing error
+that abandons the walk still escalates, because the unread rest of the section
+may hold other attributes. An empty MP_REACH is not evidence of a reachable route,
 including when a later framing error abandons the attribute walk. This prevents
 treat-as-withdraw from turning an empty MP_REACH into a false End-of-RIB marker.
 Attribute-discard-only errors do not trigger this escalation.
