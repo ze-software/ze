@@ -16,9 +16,9 @@ func TestValidateEmptyAcceptsOnlyPresence(t *testing.T) {
 	v := &Validator{}
 	typ := lexicalLeafType(t, "flag")
 	require.Equal(t, gyang.Yempty, typ.Kind)
-	assert.NoError(t, v.validateYangType("flag", typ, "true"))
+	assert.NoError(t, v.ValidateType("flag", typ, "true"))
 	for _, value := range []any{"false", "", "yes", true} {
-		err := v.validateYangType("flag", typ, value)
+		err := v.ValidateType("flag", typ, value)
 		require.Error(t, err, "%v must be refused", value)
 	}
 }
@@ -30,13 +30,13 @@ func TestValidateEmptyAcceptsOnlyPresence(t *testing.T) {
 func TestValidateUncheckedKindsRefused(t *testing.T) {
 	v := &Validator{}
 	typ := &gyang.YangType{Kind: gyang.Ynone, Name: "none"}
-	requireValidationErrorType(t, v.validateYangType("x", typ, "anything"), ErrTypeType, "none")
+	requireValidationErrorType(t, v.ValidateType("x", typ, "anything"), ErrTypeType, "none")
 	union := &gyang.YangType{Kind: gyang.Yunion, Name: "u", Type: []*gyang.YangType{
 		{Kind: gyang.Ynone, Name: "none"},
 		{Kind: gyang.Yuint8, Name: "uint8"},
 	}}
-	assert.NoError(t, v.validateYangType("x", union, "7"), "the uint8 member must still answer")
-	assert.Error(t, v.validateYangType("x", union, "anything"), "an unchecked member must not accept every value")
+	assert.NoError(t, v.ValidateType("x", union, "7"), "the uint8 member must still answer")
+	assert.Error(t, v.ValidateType("x", union, "anything"), "an unchecked member must not accept every value")
 }
 
 // TestValidateLeafrefNeedsLeaf pins that a leafref value checked with no
@@ -44,7 +44,7 @@ func TestValidateUncheckedKindsRefused(t *testing.T) {
 func TestValidateLeafrefNeedsLeaf(t *testing.T) {
 	v := &Validator{}
 	typ := &gyang.YangType{Kind: gyang.Yleafref, Name: "leafref", Path: "../a"}
-	requireValidationErrorType(t, v.validateYangType("x", typ, "anything"), ErrTypeType, "leafref")
+	requireValidationErrorType(t, v.ValidateType("x", typ, "anything"), ErrTypeType, "leafref")
 }
 
 // TestValidateBitsRefusesRepeatedName pins Ze's own rule that a bits value
@@ -54,5 +54,5 @@ func TestValidateLeafrefNeedsLeaf(t *testing.T) {
 func TestValidateBitsRefusesRepeatedName(t *testing.T) {
 	v := &Validator{}
 	typ := lexicalLeafType(t, "flags")
-	requireValidationErrorType(t, v.validateYangType("flags", typ, "a a"), ErrTypeType, "a a")
+	requireValidationErrorType(t, v.ValidateType("flags", typ, "a a"), ErrTypeType, "a a")
 }

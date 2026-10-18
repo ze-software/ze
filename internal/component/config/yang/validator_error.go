@@ -17,6 +17,7 @@ const (
 	ErrTypeEnum                  // Invalid enum value
 	ErrTypeLength                // String length outside allowed range
 	ErrTypeCardinality           // List/leaf-list has too many or too few entries
+	ErrTypeReference             // A leafref or instance-identifier names no existing instance
 )
 
 func (e ErrorType) String() string {
@@ -35,6 +36,8 @@ func (e ErrorType) String() string {
 		return "length"
 	case ErrTypeCardinality:
 		return "cardinality"
+	case ErrTypeReference:
+		return "reference"
 	case ErrTypeUnknown:
 		return "unknown"
 	default:

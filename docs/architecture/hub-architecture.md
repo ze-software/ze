@@ -171,10 +171,20 @@ module (see section 2 for external plugins). This enables:
 
 Ze checks leafref, identityref and instance-identifier values: a leafref or
 instance-identifier with require-instance true must refer to an instance the
-whole config holds, checked in one walk over every section
-(`Validator.ValidateReferences`), and an identityref must name an identity
-derived from its base.
+whole config holds, or to a leaf whose default is in use (under an absent
+non-presence container, or in the case of a choice that is in effect, RFC 7950
+Section 7.6.1), and an identityref must name an identity derived from its base.
+The instance check is one walk over every section
+(`Validator.ValidateReferences`). It enters only the schema subtrees that hold
+a reference, resolves each leafref type once, and indexes the instances a path
+reaches once per start node, so its cost grows linearly with the config. A
+position predicate (`[2]`) counts entries in the order the config holds them.
+A failure is a `reference` error (diagnostic `config-yang-reference`) naming
+the value, the path, and what to configure, and the editor's commit reports it
+for every section, bgp included.
 <!-- source: internal/component/config/yang/validator_instance.go -- ValidateReferences -->
+<!-- source: internal/component/config/yang/validator_default.go -- defaultInUse -->
+<!-- source: internal/component/cli/validator.go -- editorReportsSectionFailure -->
 <!-- source: internal/component/config/yang/validator_reference.go -- validateIdentityref -->
 
 ### 4. Verify Before Apply

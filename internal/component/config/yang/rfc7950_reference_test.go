@@ -246,7 +246,7 @@ func TestRFC7950IdentityrefOtherModule(t *testing.T) {
 
 // TestRFC7950InstanceIdentifierLexical drives instance-identifier values.
 //
-// RFC requirement: RFC7950-9.1-2 positive -- target, an instance-identifier, accepts "/rf:sys/rf:interface[rf:name='eth0']/rf:mtu" and "/rf:sys/rf:mgmt", and refuses "/sys/mgmt" (no prefix, Section 9.13.2), "rf:sys" (no leading slash), "/rf:sys/rf:nope" and "/rf:sys/rf:interface[rf:name='eth0'" (unclosed predicate).
+// RFC requirement: RFC7950-9.1-2 positive -- target, an instance-identifier, accepts "/rf:sys/rf:interface[rf:name='eth0']/rf:mtu" and "/rf:sys/rf:mgmt", and refuses "/sys/mgmt" (no prefix, Section 9.13.2, with the message naming the unprefixed node), "rf:sys" (no leading slash, with the message saying it is not an instance-identifier), "/rf:sys/rf:nope" and "/rf:sys/rf:interface[rf:name='eth0'" (unclosed predicate).
 func TestRFC7950InstanceIdentifierLexical(t *testing.T) {
 	v := referenceValidator(t)
 	leaf := v.schema.GetEntry("ref-conf").Dir["sys"].Dir["target"]
@@ -256,6 +256,10 @@ func TestRFC7950InstanceIdentifierLexical(t *testing.T) {
 	for _, value := range []string{"/sys/mgmt", "rf:sys", "/rf:sys/rf:nope", "/rf:sys/rf:interface[rf:name='eth0'", ""} {
 		requireValidationErrorType(t, v.validateLeafValue("sys/target", leaf, leaf.Type, value), ErrTypeType, value)
 	}
+	// Each refusal is the one its own check makes, so no other check stands in
+	// for it: an unprefixed node, and a value that does not open with "/".
+	assert.Contains(t, v.validateLeafValue("sys/target", leaf, leaf.Type, "/sys/mgmt").Error(), `node "sys" has no module prefix`)
+	assert.Contains(t, v.validateLeafValue("sys/target", leaf, leaf.Type, "rf:sys").Error(), "not an instance-identifier")
 }
 
 // TestRFC7950InstanceIdentifierKeys requires one predicate per list key.
@@ -282,12 +286,15 @@ func TestRFC7950InstanceIdentifierExists(t *testing.T) {
 // TestRFC7950IdentityrefFormat pins that an identityref value matches its
 // lexical representation, the type having no canonical form.
 //
-// RFC requirement: RFC7950-9.1-2 negative -- crypto refuses "rf:aes:x" and "a es", which are no qualified name, while accepting "rf:aes".
+// RFC requirement: RFC7950-9.1-2 negative -- crypto refuses "rf:aes:x" and "a es", which are no qualified name, each with the message of the format check, while accepting "rf:aes".
 func TestRFC7950IdentityrefFormat(t *testing.T) {
 	v := referenceValidator(t)
 	leaf := v.schema.GetEntry("ref-conf").Dir["sys"].Dir["crypto"]
 	assert.NoError(t, v.validateLeafValue("sys/crypto", leaf, leaf.Type, "rf:aes"))
 	for _, value := range []string{"rf:aes:x", "a es"} {
-		requireValidationErrorType(t, v.validateLeafValue("sys/crypto", leaf, leaf.Type, value), ErrTypeType, value)
+		err := v.validateLeafValue("sys/crypto", leaf, leaf.Type, value)
+		requireValidationErrorType(t, err, ErrTypeType, value)
+		// The format check refuses it, not the identity lookup after it.
+		assert.Contains(t, err.Error(), "an identity is named as name or prefix:name", value)
 	}
 }

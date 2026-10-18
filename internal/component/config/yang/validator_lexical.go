@@ -1,5 +1,5 @@
 // Design: docs/architecture/config/yang-config-design.md — YANG schema handling
-// Related: validator.go — validateYangType dispatches the empty, binary and bits kinds here
+// Related: validator.go — validateLeafValue dispatches the empty, binary and bits kinds here
 // Related: validator_reference.go — the leafref, identityref and instance-identifier kinds
 // RFC: rfc/short/rfc7950.md
 

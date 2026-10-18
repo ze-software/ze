@@ -170,11 +170,6 @@ func (v *Validator) ValidateLeafType(path string, leaf *yang.Entry, yangType *ya
 	return v.validateLeafValue(path, leaf, yangType, value)
 }
 
-// validateYangType validates value against a type with no leaf to hold it.
-func (v *Validator) validateYangType(path string, yangType *yang.YangType, value any) error {
-	return v.validateLeafValue(path, nil, yangType, value)
-}
-
 // validateLeafValue validates against yang.YangType from processed schema.
 // leaf is the leaf (or leaf-list) holding the value, which a leafref's
 // relative path starts from.

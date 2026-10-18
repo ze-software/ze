@@ -57,6 +57,9 @@ func (v *Validator) checkEntryReferences(module string, e *yang.Entry, errs *[]e
 // referenceMembers answers the leafref types a type is or holds as a union
 // member, at any union depth.
 func referenceMembers(t *yang.YangType) []*yang.YangType {
+	if t == nil {
+		return nil
+	}
 	if t.Kind == yang.Yleafref {
 		return []*yang.YangType{t}
 	}
@@ -77,7 +80,7 @@ func referenceMembers(t *yang.YangType) []*yang.YangType {
 //
 // checkLeafrefSchema checks one leafref of leaf: its path names a leaf, a
 // config leaf requiring an instance refers to config, and following the
-// chain of leafrefs never comes back to a leaf already visited.
+// chain of leafrefs, through union members too, never comes back to leaf.
 func (v *Validator) checkLeafrefSchema(leaf *yang.Entry, typ *yang.YangType) error {
 	target, _, err := v.leafrefTarget(leaf, typ)
 	if err != nil {
@@ -87,22 +90,34 @@ func (v *Validator) checkLeafrefSchema(leaf *yang.Entry, typ *yang.YangType) err
 		return fmt.Errorf("the leaf is configuration and requires an instance, but %s is state: "+
 			"point the path at a config leaf, or add require-instance false", target.Path())
 	}
-	visited := map[*yang.Entry]bool{leaf: true}
-	node := target
-	// Each pass visits a new leaf or stops, so the loop is bounded by the
-	// number of leaves in the schema.
-	for {
+	return v.checkLeafrefLoop(leaf, target)
+}
+
+// checkLeafrefLoop refuses a chain of leafrefs that leads from target back to
+// leaf. A leaf whose type is a union follows every leafref member, so the
+// chain branches; a loop that does not pass through leaf is refused by the
+// check of a leaf on it. Each node is expanded once, so the walk is bounded by
+// the number of leaves in the schema.
+func (v *Validator) checkLeafrefLoop(leaf, target *yang.Entry) error {
+	visited := map[*yang.Entry]bool{}
+	pending := []*yang.Entry{target}
+	for len(pending) > 0 {
+		node := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if node == leaf {
+			return fmt.Errorf("the leafref chain through %s comes back to %s: break the loop", target.Path(), leaf.Path())
+		}
 		if visited[node] {
-			return fmt.Errorf("the leafref chain through %s comes back to %s: break the loop", target.Path(), node.Path())
+			continue
 		}
 		visited[node] = true
-		if node.Type == nil || node.Type.Kind != yang.Yleafref {
-			return nil
+		for _, member := range referenceMembers(node.Type) {
+			next, _, err := v.leafrefTarget(node, member)
+			if err != nil {
+				continue // that leafref's own check reports its path
+			}
+			pending = append(pending, next)
 		}
-		next, _, err := v.leafrefTarget(node, node.Type)
-		if err != nil {
-			return nil //nolint:nilerr // That leafref's own check reports its path, so the chain ends here.
-		}
-		node = next
 	}
+	return nil
 }

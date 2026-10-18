@@ -19,23 +19,23 @@ func decimal64Type(t *testing.T, fractionDigits uint8, rangeText string) *gyang.
 }
 
 // TestRFC7950Decimal64Accepted drives every lexical form of a decimal64 value
-// through validateYangType and expects each to pass with the value inside
+// through ValidateType and expects each to pass with the value inside
 // the range.
 //
-// RFC requirement: RFC7950-9.1-1 positive — a decimal64 value with a sign, without a sign, with a fraction and without one is each accepted by validateYangType.
-// RFC requirement: RFC7950-9.3.1-1 positive — decimal64 values with a "+" sign ("+1.5"), a "-" sign ("-1.5", "-10.5"), no sign ("1", "0.25"), digits with no period ("1") and digits, a period and digits ("0.0", "10.50") are each accepted by validateYangType.
+// RFC requirement: RFC7950-9.1-1 positive — a decimal64 value with a sign, without a sign, with a fraction and without one is each accepted by ValidateType.
+// RFC requirement: RFC7950-9.3.1-1 positive — decimal64 values with a "+" sign ("+1.5"), a "-" sign ("-1.5", "-10.5"), no sign ("1", "0.25"), digits with no period ("1") and digits, a period and digits ("0.0", "10.50") are each accepted by ValidateType.
 func TestRFC7950Decimal64Accepted(t *testing.T) {
 	v := &Validator{}
 	typ := decimal64Type(t, 2, "-10.5..10.5")
 	for _, value := range []string{"0.0", "1", "+1.5", "-1.5", "10.50", "-10.5", "0.25"} {
-		assert.NoError(t, v.validateYangType("x", typ, value), "%q must be accepted", value)
+		assert.NoError(t, v.ValidateType("x", typ, value), "%q must be accepted", value)
 	}
 }
 
 // TestRFC7950Decimal64Refused drives a decimal64 value with no digit on one
 // side of the point, a non-numeric value, a value with more fraction digits
 // than the type declares, and a value outside the range through
-// validateYangType and expects each refusal to name the fault.
+// ValidateType and expects each refusal to name the fault.
 //
 // RFC requirement: RFC7950-9.1-1 negative — a decimal64 value that is not in the lexical representation ("abc", "1.2.3", a bare sign) is refused with ErrTypeType, and a value beyond the type's fraction-digits or range is refused.
 // RFC requirement: RFC7950-9.3.1-1 negative — decimal64 values outside the lexical representation, no digit before the period (".5"), a period with no digit after it ("1."), a sign with no digit ("+", "-"), two periods ("1.2.3"), a non-digit ("abc") and the empty string, are each refused with ErrTypeType.
@@ -43,7 +43,7 @@ func TestRFC7950Decimal64Refused(t *testing.T) {
 	v := &Validator{}
 	typ := decimal64Type(t, 2, "-10.5..10.5")
 	for _, value := range []string{".5", "1.", "abc", "1.2.3", "+", "-", ""} {
-		err := v.validateYangType("x", typ, value)
+		err := v.ValidateType("x", typ, value)
 		require.Error(t, err, "%q must be refused", value)
 		var verr *ValidationError
 		require.ErrorAs(t, err, &verr)
@@ -51,17 +51,17 @@ func TestRFC7950Decimal64Refused(t *testing.T) {
 		assert.Contains(t, verr.Message, "expected decimal64")
 	}
 
-	err := v.validateYangType("x", typ, "1.234")
+	err := v.ValidateType("x", typ, "1.234")
 	require.Error(t, err, "three fraction digits against fraction-digits 2 must be refused")
 	assert.Contains(t, err.Error(), "at most 2 fraction digits")
 
-	err = v.validateYangType("x", typ, "10.51")
+	err = v.ValidateType("x", typ, "10.51")
 	require.Error(t, err, "a value above the range must be refused")
 	var verr *ValidationError
 	require.ErrorAs(t, err, &verr)
 	assert.Equal(t, ErrTypeRange, verr.Type)
 
-	err = v.validateYangType("x", typ, 1.5)
+	err = v.ValidateType("x", typ, 1.5)
 	require.Error(t, err, "a non-string value must be refused")
 }
 
@@ -72,7 +72,7 @@ func TestBooleanConfigSpellingRefused(t *testing.T) {
 	v := &Validator{}
 	typ := &gyang.YangType{Kind: gyang.Ybool, Name: "boolean"}
 	for _, value := range []string{"enable", "disable"} {
-		require.Error(t, v.validateYangType("x", typ, value), "%q must be refused", value)
+		require.Error(t, v.ValidateType("x", typ, value), "%q must be refused", value)
 	}
 }
 
@@ -87,14 +87,14 @@ func TestSignedRangeNegativeBound(t *testing.T) {
 	require.NoError(t, err)
 	typ := &gyang.YangType{Kind: gyang.Yint32, Name: "int32", Range: ranges}
 	for _, value := range []string{"0", "-10", "10", "-3"} {
-		assert.NoError(t, v.validateYangType("x", typ, value), "%q must be inside -10..10", value)
+		assert.NoError(t, v.ValidateType("x", typ, value), "%q must be inside -10..10", value)
 	}
 	for _, value := range []string{"-11", "11"} {
-		require.Error(t, v.validateYangType("x", typ, value), "%q must be outside -10..10", value)
+		require.Error(t, v.ValidateType("x", typ, value), "%q must be outside -10..10", value)
 	}
 	full, err := gyang.ParseRangesInt("-9223372036854775808..9223372036854775807")
 	require.NoError(t, err)
 	typ = &gyang.YangType{Kind: gyang.Yint64, Name: "int64", Range: full}
-	assert.NoError(t, v.validateYangType("x", typ, "-9223372036854775808"))
-	assert.NoError(t, v.validateYangType("x", typ, "9223372036854775807"))
+	assert.NoError(t, v.ValidateType("x", typ, "-9223372036854775808"))
+	assert.NoError(t, v.ValidateType("x", typ, "9223372036854775807"))
 }

@@ -304,7 +304,7 @@ func yangDefault(entry *gyang.Entry) string {
 	if len(defaults) == 0 {
 		return ""
 	}
-	canonical, err := yang.CanonicalModuleDefault(entry.Type, defaults[0])
+	canonical, err := yang.CanonicalModuleDefault(entry, entry.Type, defaults[0])
 	if err != nil {
 		return defaults[0]
 	}

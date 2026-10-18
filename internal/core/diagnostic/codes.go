@@ -35,6 +35,7 @@ const (
 	CodeConfigYANGLength                           = "config-yang-length"
 	CodeConfigYANGMissing                          = "config-yang-missing"
 	CodeConfigYANGPattern                          = "config-yang-pattern"
+	CodeConfigYANGReference                        = "config-yang-reference"
 	CodeConfigYANGRange                            = "config-yang-range"
 	CodeConfigYANGType                             = "config-yang-type"
 	CodeDoctorAS112GlobalOriginUncoordinated       = "doctor-as112-global-origin-uncoordinated"
@@ -168,6 +169,11 @@ var builtinCodes = []CodeMeta{
 		Code:        CodeConfigYANGCardinality,
 		Title:       "List cardinality violation",
 		Description: "A list or leaf-list in the config has too many or too few entries per the YANG schema.",
+	},
+	{
+		Code:        CodeConfigYANGReference,
+		Title:       "Reference names no instance",
+		Description: "A leafref or instance-identifier value names a node the config does not hold, and the YANG type requires the instance to exist (RFC 7950 Section 9.9.3). Configure the node the message names, or correct the value.",
 	},
 	{
 		Code:        CodeConfigPluginVerify,
@@ -1238,6 +1244,12 @@ var builtinCodes = []CodeMeta{
 		Title:       "Archive destination unreachable",
 		Description: "A configured HTTP/HTTPS config archive destination did not respond to an HTTP HEAD probe within the timeout.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-archive-unreachable"},
+	},
+	{
+		Code:        "doctor-archive-invalid",
+		Title:       "Archive entry invalid",
+		Description: "A system archive entry holds a value the uploader cannot use, such as a timeout that is not a positive Go duration, so no destination of the config was probed. Correct the entry the message names; `ze config validate` reports the same refusal.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-archive-invalid"},
 	},
 	{
 		Code:        CodeDoctorRandomSeed,

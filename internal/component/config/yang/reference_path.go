@@ -65,22 +65,21 @@ func isSchemaGroup(e *yang.Entry) bool {
 }
 
 // schemaChild answers the data node called name under parent, looking
-// through choice and case nodes, and whether it sits under one, where its
-// default is in use only when its case is. The recursion is bounded by the
-// nesting depth of the loaded modules, which Ze builds from its own sources.
-func schemaChild(parent *yang.Entry, name string) (*yang.Entry, bool) {
+// through choice and case nodes. The recursion is bounded by the nesting depth
+// of the loaded modules, which Ze builds from its own sources.
+func schemaChild(parent *yang.Entry, name string) *yang.Entry {
 	if child, ok := parent.Dir[name]; ok && !isSchemaGroup(child) {
-		return child, false
+		return child
 	}
 	for _, child := range parent.Dir {
 		if !isSchemaGroup(child) {
 			continue
 		}
-		if found, _ := schemaChild(child, name); found != nil {
-			return found, true
+		if found := schemaChild(child, name); found != nil {
+			return found
 		}
 	}
-	return nil, false
+	return nil
 }
 
 // dataParent answers the data node above e, past any choice or case, and nil
@@ -109,7 +108,7 @@ func moduleRoot(e *yang.Entry) *yang.Entry {
 func (v *Validator) topLevel(leaf *yang.Entry, name string) []*yang.Entry {
 	var found []*yang.Entry
 	if leaf != nil {
-		if child, _ := schemaChild(moduleRoot(leaf), name); child != nil {
+		if child := schemaChild(moduleRoot(leaf), name); child != nil {
 			found = append(found, child)
 		}
 	}
@@ -121,7 +120,7 @@ func (v *Validator) topLevel(leaf *yang.Entry, name string) []*yang.Entry {
 		if root == nil {
 			continue
 		}
-		child, _ := schemaChild(root, name)
+		child := schemaChild(root, name)
 		if child == nil {
 			continue
 		}
@@ -134,13 +133,13 @@ func (v *Validator) topLevel(leaf *yang.Entry, name string) []*yang.Entry {
 }
 
 // childOf answers the data node called name under any of parents.
-func childOf(parents []*yang.Entry, name string) (*yang.Entry, bool) {
+func childOf(parents []*yang.Entry, name string) *yang.Entry {
 	for _, parent := range parents {
-		if child, grouped := schemaChild(parent, name); child != nil {
-			return child, grouped
+		if child := schemaChild(parent, name); child != nil {
+			return child
 		}
 	}
-	return nil, false
+	return nil
 }
 
 // isLeafNode reports whether e is a leaf or a leaf-list.
@@ -178,7 +177,7 @@ func (v *Validator) leafrefTarget(leaf *yang.Entry, typ *yang.YangType) (*yang.E
 	}
 	var node *yang.Entry
 	for i, step := range path.steps {
-		node, _ = childOf(parents, localName(step.node))
+		node = childOf(parents, localName(step.node))
 		if node == nil {
 			return nil, path, refError(tb.Str("leafref path ").Quoted(typ.Path).Str(" names no node ").Quoted(step.node).Str(": correct the path to name an existing leaf"))
 		}
@@ -284,7 +283,7 @@ func (v *Validator) keyExprTarget(leaf *yang.Entry, key pathKey) (*yang.Entry, e
 	}
 	var target *yang.Entry
 	for _, nodeID := range key.nodes {
-		target, _ = childOf(parents, localName(nodeID))
+		target = childOf(parents, localName(nodeID))
 		if target == nil {
 			return nil, refError(tb.Str("current() expression names no node ").Quoted(nodeID))
 		}

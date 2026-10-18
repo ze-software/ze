@@ -198,9 +198,10 @@ func ValidateCustomSections(tree *Tree) ([]SectionValidationError, error) {
 // referenceFailures runs the require-instance check of every leafref and
 // instance-identifier over the whole tree in one walk, because a reference
 // may name a node in another section. Each failure is reported under the
-// section holding the referring leaf.
+// section holding the referring leaf. The tree is lowered with its list entry
+// order (ToPluginMap), which a positional instance-identifier counts in.
 func referenceFailures(validator *yang.Validator, tree *Tree) []SectionValidationError {
-	references := validator.ValidateReferences(tree.ToMap())
+	references := validator.ValidateReferences(tree.ToPluginMap())
 	found := make([]SectionValidationError, 0, len(references))
 	for _, ve := range references {
 		section, _, _ := strings.Cut(ve.Path, "/")

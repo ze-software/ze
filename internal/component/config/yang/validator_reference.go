@@ -1,6 +1,6 @@
 // Design: docs/architecture/config/yang-config-design.md — YANG schema handling
 // Related: reference_path.go — schema navigation of a leafref path
-// Related: validator.go — validateYangType dispatches the three reference kinds here
+// Related: validator.go — validateLeafValue dispatches the three reference kinds here
 // RFC: rfc/short/rfc7950.md -- Sections 9.9, 9.10 and 9.13
 
 package yang
@@ -278,7 +278,7 @@ func (v *Validator) instanceSchema(leaf *yang.Entry, steps []instanceStep) ([]*y
 		if prefix == "" {
 			return nil, refError(tb.Str("node ").Quoted(step.node).Str(" has no module prefix: write every node as prefix:name (RFC 7950 Section 9.13.2)"))
 		}
-		node, _ := childOf(parents, localName(step.node))
+		node := childOf(parents, localName(step.node))
 		if node == nil {
 			return nil, refError(tb.Str("names no node ").Quoted(step.node).Str(": correct the path to an existing node"))
 		}
@@ -367,11 +367,34 @@ func checkInstanceKeys(node *yang.Entry, keys []string, step instanceStep) error
 			return refError(tb.Str("key ").Quoted(name).Str(" of list ").Quoted(node.Name).Str(" is given twice: give it once"))
 		}
 		seen[name] = true
+		if err := checkInstanceKeyPrefix(node, name, nodePrefix(key.node)); err != nil {
+			return err
+		}
 	}
 	for _, key := range keys {
 		if !seen[key] {
 			return refError(tb.Str("key ").Quoted(key).Str(" of list ").Quoted(node.Name).Str(" has no predicate: every key needs one, as [prefix:").Str(key).Str("='value']"))
 		}
+	}
+	return nil
+}
+
+// RFC 7950 Section 9.13.2: "All node names in an instance-identifier value
+// MUST be qualified with explicit namespace prefixes".
+//
+// checkInstanceKeyPrefix checks the prefix of a key-predicate's node name:
+// present, and naming the module of the key leaf.
+func checkInstanceKeyPrefix(list *yang.Entry, name, prefix string) error {
+	var tb textbuf.Buffer
+	keyLeaf := schemaChild(list, name)
+	if keyLeaf == nil {
+		return refError(tb.Str("list ").Quoted(list.Name).Str(" declares key ").Quoted(name).Str(" but holds no such leaf: this is a defect of the module, report it"))
+	}
+	if prefix == "" {
+		return refError(tb.Str("key ").Quoted(name).Str(" has no module prefix: write it as ").Str(entryPrefix(keyLeaf)).Byte(':').Str(name).Str(" (RFC 7950 Section 9.13.2)"))
+	}
+	if !entryPrefixed(keyLeaf, prefix) {
+		return refError(tb.Str("prefix ").Quoted(prefix).Str(" is not the module of ").Quoted(name).Str(": write ").Str(entryPrefix(keyLeaf)).Byte(':').Str(name))
 	}
 	return nil
 }

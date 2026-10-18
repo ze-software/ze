@@ -124,9 +124,8 @@ func (v *ConfigValidator) ValidateTransition(previous, candidate string) ConfigV
 // The editor's own YANG pass covers the bgp section and ze:required, and
 // reached none of this, so `commit verify` called a config valid and a
 // file-mode `commit now` wrote it, and the daemon then refused to load it: a
-// TACACS+ server with no key, a mandatory choice left unset. The bgp global
-// failures are skipped because validateWithYANG reports them already, through
-// the same config.EverySessionCarries rule.
+// TACACS+ server with no key, a mandatory choice left unset. The bgp failures
+// other than a missing reference are skipped (editorReportsSectionFailure).
 //
 // The walk runs on a pruned clone, as LoadConfig prunes inactive nodes before
 // it walks, so an inactive subtree is not held to rules the daemon never
@@ -147,7 +146,7 @@ func (v *ConfigValidator) sectionErrors(tree *config.Tree) []ConfigValidationErr
 	}
 	var errs []ConfigValidationError
 	for _, f := range failures {
-		if f.Section == string(config.ConfigTypeBGP) {
+		if !editorReportsSectionFailure(f) {
 			continue
 		}
 		errs = append(errs, ConfigValidationError{
@@ -157,6 +156,18 @@ func (v *ConfigValidator) sectionErrors(tree *config.Tree) []ConfigValidationErr
 		})
 	}
 	return errs
+}
+
+// editorReportsSectionFailure reports whether a section failure is the
+// editor's to add. A bgp failure is skipped because validateWithYANG reports it
+// already, except a reference failure: validateWithYANG checks one value at a
+// time, and only the whole-tree walk knows whether the instance a leafref or an
+// instance-identifier names exists.
+func editorReportsSectionFailure(f config.SectionValidationError) bool {
+	if f.Section != string(config.ConfigTypeBGP) {
+		return true
+	}
+	return f.Err.Type == yang.ErrTypeReference
 }
 
 // bgpPeerErrors runs the BGP engine's own peer resolution, the gate the daemon

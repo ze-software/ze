@@ -34,7 +34,9 @@ var errModuleUnionNoMember = errors.New("no member type of the union accepts it;
 	"write a value one member type holds")
 
 // moduleDefaultValidator checks a union default against each member type. It
-// holds no loader: a type check reads the YangType alone.
+// holds no loader: a type check reads the YangType alone, and a leafref member
+// reads the leaf its path names from the leaf holding the default, in that
+// leaf's own module.
 var moduleDefaultValidator = NewValidator(nil)
 
 // CanonicalModuleDefault returns the canonical form of a default statement read
@@ -45,7 +47,8 @@ var moduleDefaultValidator = NewValidator(nil)
 //
 // A union default is read as the first member type that accepts it, so an integer
 // member reads it in the module notations only when no member before it accepts
-// the text as written.
+// the text as written. leaf is the leaf or leaf-list holding the default: a
+// leafref member checks the default against the leaf its path names from there.
 //
 // The caller MUST still check the returned value against the type: for an integer
 // type this reads the notation and nothing else, so a range or a sign the type
@@ -54,12 +57,12 @@ var moduleDefaultValidator = NewValidator(nil)
 // It implements RFC 7950 Section 9.1 for an integer default: "Implementations
 // MUST support all lexical representations specified in this document." The
 // module notations it reads are those of Section 9.2.1.
-func CanonicalModuleDefault(yangType *gyang.YangType, def string) (string, error) {
+func CanonicalModuleDefault(leaf *gyang.Entry, yangType *gyang.YangType, def string) (string, error) {
 	if yangType == nil {
 		return def, nil
 	}
 	if yangType.Kind == gyang.Yunion {
-		return canonicalUnionDefault(yangType, def)
+		return canonicalUnionDefault(leaf, yangType, def)
 	}
 	if !isIntegerKind(yangType.Kind) {
 		return def, nil
@@ -87,25 +90,35 @@ func CanonicalModuleDefault(yangType *gyang.YangType, def string) (string, error
 // type."
 // RFC 7950 Section 9.12.3: "The canonical form of a union value is the same as the
 // canonical form of the member type of the value."
-// So the matching member's canonical form is what it returns.
-func canonicalUnionDefault(union *gyang.YangType, def string) (string, error) {
-	var refusal error
+// So the matching member's canonical form is what it returns. A refusal names
+// each member type and why it refused, a leafref member by its path, so the
+// author sees which member to correct.
+func canonicalUnionDefault(leaf *gyang.Entry, union *gyang.YangType, def string) (string, error) {
+	var refusals []error
 	for _, member := range union.Type {
-		canonical, err := CanonicalModuleDefault(member, def)
+		canonical, err := CanonicalModuleDefault(leaf, member, def)
 		if err == nil {
-			err = moduleDefaultValidator.ValidateType("", member, canonical)
+			err = moduleDefaultValidator.ValidateLeafType("", leaf, member, canonical)
 		}
 		if err == nil {
 			return canonical, nil
 		}
-		if refusal == nil {
-			refusal = err
-		}
+		refusals = append(refusals, fmt.Errorf("member %s refused it: %w", unionMemberName(member), err))
 	}
-	if refusal == nil {
+	if len(refusals) == 0 {
 		return "", errModuleUnionNoMember
 	}
-	return "", fmt.Errorf("%w; the first member type refused it: %w", errModuleUnionNoMember, refusal)
+	return "", fmt.Errorf("%w; %w", errModuleUnionNoMember, errors.Join(refusals...))
+}
+
+// unionMemberName names a union member type in a refusal: a leafref by its
+// path, every other type by its name.
+func unionMemberName(member *gyang.YangType) string {
+	var tb textbuf.Buffer
+	if member.Kind == gyang.Yleafref {
+		return tb.Str("leafref ").Quoted(member.Path).String()
+	}
+	return tb.Str(member.Name).String()
 }
 
 // isIntegerKind reports whether kind is one of the eight built-in integer types.

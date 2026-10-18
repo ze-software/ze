@@ -84,7 +84,7 @@ func TestRFC7950MinElementsViolated(t *testing.T) {
 }
 
 // boolType is the goyang type a boolean leaf carries, so the test enters
-// validateBoolean through the validateYangType switch.
+// validateBoolean through the ValidateType switch.
 var boolType = &gyang.YangType{Kind: gyang.Ybool, Name: "boolean"}
 
 // TestRFC7950BooleanLowercaseAccepted feeds the two lexical forms the RFC
@@ -94,7 +94,7 @@ var boolType = &gyang.YangType{Kind: gyang.Ybool, Name: "boolean"}
 func TestRFC7950BooleanLowercaseAccepted(t *testing.T) {
 	v := &Validator{}
 	for _, value := range []string{"true", "false"} {
-		assert.NoError(t, v.validateYangType("root/flag", boolType, value), "lowercase %q must be accepted", value)
+		assert.NoError(t, v.ValidateType("root/flag", boolType, value), "lowercase %q must be accepted", value)
 	}
 }
 
@@ -105,7 +105,7 @@ func TestRFC7950BooleanLowercaseAccepted(t *testing.T) {
 func TestRFC7950BooleanNotLowercaseRefused(t *testing.T) {
 	v := &Validator{}
 	for _, value := range []string{"True", "FALSE", "TRUE", "yes", "1"} {
-		err := v.validateYangType("root/flag", boolType, value)
+		err := v.ValidateType("root/flag", boolType, value)
 		require.Error(t, err, "%q must be refused", value)
 		var valErr *ValidationError
 		require.ErrorAs(t, err, &valErr, "%q must produce a ValidationError", value)

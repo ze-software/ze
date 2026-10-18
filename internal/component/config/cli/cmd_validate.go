@@ -538,6 +538,8 @@ func yangRepair(t configyang.ErrorType) (*diagnostic.Repair, diagnostic.FixSafet
 		return &diagnostic.Repair{ID: "fix-range-value", Summary: "Adjust string length to fall within the allowed range"}, diagnostic.SafetySectionLocal
 	case configyang.ErrTypePattern:
 		return &diagnostic.Repair{ID: "fix-pattern-value", Summary: "Correct value to match the required pattern"}, diagnostic.SafetySectionLocal
+	case configyang.ErrTypeReference:
+		return &diagnostic.Repair{ID: "fix-reference", Summary: "Configure the node the reference names, or name one that exists"}, diagnostic.SafetySectionLocal
 	default:
 		return nil, ""
 	}
@@ -559,6 +561,8 @@ func yangErrorCode(t configyang.ErrorType) string {
 		return diagnostic.CodeConfigYANGLength
 	case configyang.ErrTypeCardinality:
 		return diagnostic.CodeConfigYANGCardinality
+	case configyang.ErrTypeReference:
+		return diagnostic.CodeConfigYANGReference
 	case configyang.ErrTypeUnknown:
 		return diagnostic.CodeConfigYANGType
 	default:

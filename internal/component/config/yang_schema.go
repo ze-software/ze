@@ -724,7 +724,7 @@ func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 		// accepts it (Section 9.12).
 		// A default whose notation is refused keeps its text, and
 		// validateLeafDefaults records the build error for it.
-		if canonical, err := yang.CanonicalModuleDefault(entry.Type, defaults[0]); err == nil {
+		if canonical, err := yang.CanonicalModuleDefault(entry, entry.Type, defaults[0]); err == nil {
 			node.Default = canonical
 		}
 	}
@@ -768,7 +768,7 @@ var defaultValidator = yang.NewValidator(nil)
 // specified in this document." Section 9.2.1 adds the hexadecimal and octal
 // notations for an integer default in a YANG module.
 func checkModuleDefault(path string, leaf *gyang.Entry, yangType *gyang.YangType, def string) error {
-	canonical, err := yang.CanonicalModuleDefault(yangType, def)
+	canonical, err := yang.CanonicalModuleDefault(leaf, yangType, def)
 	if err != nil {
 		return err
 	}
