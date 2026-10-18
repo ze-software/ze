@@ -1,5 +1,6 @@
 {
   "audited": "2026-10-08",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2205-2-1": {
       "note": "Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC2205ResvFollowsEachSendersReversePath: two senders of one session through two PHOPs each get their RESV at their own PHOP, and a transit relays the RESV on to the ingress. Negative TestRFC2205ResvNeverTakesAnotherSendersPath asserts neither sender's reservation leaves on the other's hop. Both records observed red (sendResv, handlePathEgress).",
@@ -145,8 +146,8 @@
       "requirement_sha": "ba592ac3d76f6cc7",
       "tests": {
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EmittedVersionIsOne": "8cea1a3ca4572fd1",
-        "internal/plugins/rsvpte/wire_test.go::TestRSVPDecodeHeaderBadVersion": "c1c346406058c0f1",
-        "internal/plugins/rsvpte/wire_test.go::TestRSVPHeaderRoundTrip": "c1c346406058c0f1"
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPDecodeHeaderBadVersion": "9e0ed20ca4d343e6",
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPHeaderRoundTrip": "9e0ed20ca4d343e6"
       },
       "units": {
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EmittedVersionIsOne": "4ea4647b508c6227",
@@ -160,7 +161,7 @@
       "requirement_sha": "f002ecbce4098c46",
       "tests": {
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205UnusedHeaderFieldsIgnoredOnReceipt": "8cea1a3ca4572fd1",
-        "internal/plugins/rsvpte/wire_test.go::TestRSVPReservedByteZeroOnSend": "c1c346406058c0f1"
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPReservedByteZeroOnSend": "9e0ed20ca4d343e6"
       },
       "units": {
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205UnusedHeaderFieldsIgnoredOnReceipt": "29173b4975b4c11f",
@@ -186,7 +187,7 @@
       "requirement_sha": "0a63901cb0272261",
       "tests": {
         "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected": "2bbb0ce4611ada21",
-        "internal/plugins/rsvpte/wire_test.go::TestRSVPObjectLengthMultipleOfFour": "c1c346406058c0f1"
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPObjectLengthMultipleOfFour": "9e0ed20ca4d343e6"
       },
       "units": {
         "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected": "036bf95de3773f12",
@@ -250,11 +251,11 @@
         "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithIgnorableObjectAccepted": "9e1595a34e264d7e",
         "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205UnknownClassPathRejectedWithError": "7bc063943de30e7b",
         "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205UnknownClassResvRejectedWithError": "7bc063943de30e7b",
-        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass": "c1c346406058c0f1",
-        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#2": "c1c346406058c0f1",
-        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#3": "c1c346406058c0f1",
-        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#4": "c1c346406058c0f1",
-        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#5": "c1c346406058c0f1"
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass": "9e0ed20ca4d343e6",
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#2": "9e0ed20ca4d343e6",
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#3": "9e0ed20ca4d343e6",
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#4": "9e0ed20ca4d343e6",
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#5": "9e0ed20ca4d343e6"
       },
       "units": {
         "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithIgnorableObjectAccepted": "0f8c51d8d33e47cf",

@@ -338,7 +338,6 @@ func TestRSVPLabelObject(t *testing.T) {
 // TestRSVPSessionObjectEncoding pins the SESSION object wire format RFC 3209 requires:
 // Class-Num SESSION, C-Type 7 (LSP_TUNNEL_IPv4), and a zeroed reserved field on send.
 func TestRSVPSessionObjectEncoding(t *testing.T) {
-	// RFC requirement: RFC3209-4.6.1-2 positive -- encodeSessionIPv4 stamps SESSION C-Type 7 (LSP_TUNNEL_IPv4) for RSVP-TE LSP tunnels (wire.go:240).
 	// RFC requirement: RFC3209-4.6.1-1 positive -- encodeSessionIPv4 writes the SESSION reserved field (body bytes 4-5) as zero on send (wire.go:243-244).
 	buf := make([]byte, 32)
 	// Nonzero endpoint/tunnel-id/ext-id so a stray write into the reserved field would show.

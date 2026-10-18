@@ -68,7 +68,6 @@ func boundaryPolicy(t *testing.T, mode uint8, dir SADir, port PortMatch) SPParam
 
 // RFC requirement: RFC4301-4-1 positive -- the SAD entry Ze installs carries the SPI, the destination address and the security protocol the kernel looks an inbound packet up by.
 // RFC requirement: RFC4301-4.1-9 positive -- two SAs with the same selector and different SPIs build two distinct SAD entries, each carrying its own SPI.
-// RFC requirement: RFC4301-4.4.2.1-3 positive -- the SAD entry carries the anti-replay window Ze negotiated, which is what lets the kernel accept a sequence number ahead of or behind its own counter.
 // RFC requirement: RFC4301-4.4.2.1-6 positive -- the SAD entry carries the anti-replay window Ze was given, 64.
 func TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp(t *testing.T) {
 	first, err := xfrmStateFromParams(boundarySA(0x1000))
@@ -111,7 +110,6 @@ func TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp(t *testing.T) {
 
 // RFC requirement: RFC4301-4-1 negative -- an SA whose mode the kernel cannot hold is refused and no SAD entry is built.
 // RFC requirement: RFC4301-4.1-9 negative -- an SA the kernel cannot hold builds no entry, so no second SA is ever shadowed by a malformed one.
-// RFC requirement: RFC4301-4.4.2.1-3 negative -- an SA that cannot be built carries no replay window, because no SAD entry is built at all.
 func TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong(t *testing.T) {
 	unknownMode := boundarySA(0x1000)
 	unknownMode.Mode = 9

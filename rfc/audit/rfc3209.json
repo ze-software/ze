@@ -1,5 +1,6 @@
 {
   "audited": "2026-10-08",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC3209-3-1": {
       "note": "Forbidden: LABEL or RECORD_ROUTE placed before its FILTER_SPEC or after a subsequent one. TestRFC3209ResvLabelFollowsFilterSpec asserts objs[filter+1]==LABEL and objs[filter+2]==RECORD_ROUTE; TestRFC3209LabelFollowsFilterSpec asserts exactly one FILTER_SPEC and label==filter+1; TestRFC3209ResvNeverCarriesSenderTemplate asserts no LABEL/RRO precedes the FILTER_SPEC. buildResv emits one sender per RESV, so both clauses are pinned.",
@@ -188,7 +189,7 @@
       "note": "Rejudged 2026-10-08 after the tagged units shifted byte-identical; re-read against rfc/full/rfc3209.txt and the current producers. Section 4.6.2.1 diagram: the field before LSP ID is \"MUST be zero\". TestRSVPSenderTemplateReservedZeroOnSend prefills 0xAA, asserts buf[8],buf[9]==0 and the whole 12-octet object, and that nothing past it was written, so an encodeSenderTemplate that skips or corrupts the reserved write goes red. Single polarity: the decoder does not read the field.",
       "requirement_sha": "129b494a432a9007",
       "tests": {
-        "internal/plugins/rsvpte/wire_test.go::TestRSVPSenderTemplateReservedZeroOnSend": "c1c346406058c0f1"
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPSenderTemplateReservedZeroOnSend": "9e0ed20ca4d343e6"
       },
       "units": {
         "internal/plugins/rsvpte/wire_test.go::TestRSVPSenderTemplateReservedZeroOnSend": "3a99a1f2ce24289c"
