@@ -2,8 +2,9 @@
 #
 # A developer edits `internal/component/ssh/ssh.go` and asks which packages must
 # be retested and which features the change can reach. The selector
-# (`internal/le/repo/changed/scope.go`) answers four packages and one
-# feature. This test drives the native action for real and pins both answers
+# (`internal/le/repo/changed/scope.go`) answers four packages on Linux, three
+# on Darwin (the graph is the host's, and `./internal/appliance` reaches ssh
+# only through a `_linux_test.go` file), and one feature. This test drives the native action for real and pins both answers
 # exactly, so it proves what the selector NAMES and also that it names nothing
 # more.
 #

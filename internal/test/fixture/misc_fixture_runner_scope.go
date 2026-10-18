@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -142,8 +143,15 @@ func verifyScopeSelectorDriver(ctx context.Context, args []string) error {
 		return fmt.Errorf("bad selector output: %s", out)
 	}
 	packages := strings.TrimSpace(strings.TrimPrefix(sections[0], "# packages\n"))
-	if packages != "./cmd/ze\n./cmd/ze/hub\n./internal/appliance\n./internal/component/ssh" {
-		return fmt.Errorf("SSH packages changed: %s", packages)
+	// The graph is the host's: ./internal/appliance reaches ssh only through
+	// kernelreq_enrolled_linux_test.go, which blank-imports cmd/ze/hub, so a
+	// Darwin host neither builds that test nor selects the package.
+	want := "./cmd/ze\n./cmd/ze/hub\n./internal/component/ssh"
+	if runtime.GOOS == "linux" {
+		want = "./cmd/ze\n./cmd/ze/hub\n./internal/appliance\n./internal/component/ssh"
+	}
+	if packages != want {
+		return fmt.Errorf("SSH packages changed: %s, want %s", packages, want)
 	}
 	if strings.TrimSpace(sections[1]) != "ze_ssh" {
 		return fmt.Errorf("SSH tags changed: %s", sections[1])
