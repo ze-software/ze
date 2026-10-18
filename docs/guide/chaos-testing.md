@@ -100,9 +100,9 @@ for i in $(seq 2 $((peers+1))); do
 done
 ```
 
-`./le setup install` adds 127.0.0.2 through 127.0.0.5 (and the IPv6 address the
+`./le setup install` adds 127.0.0.2 through 127.0.0.6 (and the IPv6 address the
 functional suite binds), so the loop above is needed only for a run with more
-than four peers. `./le setup check` reports which addresses are missing.
+than five peers. `./le setup check` reports which addresses are missing.
 Neither route survives a reboot; re-run `./le setup install` after one.
 
 <!-- source: internal/le/setup/actions.go -- Answer -->

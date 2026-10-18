@@ -293,11 +293,12 @@ const LoopbackIPv6 = "fd00::2"
 const loopbackPeerIPv6 = "fd00::3"
 const loopbackLinkLocalIPv6 = "fe80::1"
 
-// loopbackIPv4Darwin contains 127.0.0.2 through 127.0.0.5. Current multi-peer
-// fixtures bind these addresses. docs/guide/chaos-testing.md also instructs a
+// loopbackIPv4Darwin contains 127.0.0.2 through 127.0.0.6. Current multi-peer
+// fixtures bind these addresses: 127.0.0.6 is peer F of
+// test/plugin/rfc7999-blackhole-readvertise-agreement.ci. docs/guide/chaos-testing.md also instructs a
 // user to add them manually for FRR and BIRD chaos runs. Those daemons identify
 // peers by source address, not by port.
-var loopbackIPv4Darwin = []string{"127.0.0.2", "127.0.0.3", "127.0.0.4", "127.0.0.5"}
+var loopbackIPv4Darwin = []string{"127.0.0.2", "127.0.0.3", "127.0.0.4", "127.0.0.5", "127.0.0.6"}
 
 // loopbackAddresses answers the addresses this host must carry for the
 // functional suite to run.

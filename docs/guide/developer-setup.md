@@ -356,7 +356,7 @@ native QEMU actions select the Apple hypervisor (`hvf`) by platform.
 its own address: RFC 4271 Section 5.1.3 forbids a peer its own address as
 NEXT_HOP, so a session whose two ends share one address has every originated
 route withheld. IPv4 spends 127.0.0.0/8, which Linux already routes to `lo` and
-macOS does not, so setup adds 127.0.0.2 through 127.0.0.5 there. IPv6 gives a
+macOS does not, so setup adds 127.0.0.2 through 127.0.0.6 there. IPv6 gives a
 host exactly `::1` on every platform. Setup adds `fd00::2/128` for the speaker
 and next-hop owner, `fd00::3/127` for the recipient, and `fe80::1` as the
 next-hop owner's link-local. macOS already carries `fe80::1/64` on `lo0` from

@@ -892,7 +892,7 @@ func TestLoopbackIsIPv6OnlyOnLinuxAndBothOnDarwin(t *testing.T) {
 		t.Errorf("linux wants %v", linux.loopbackAddresses())
 	}
 	darwin := &Setup{GOOS: "darwin"}
-	want := []string{"127.0.0.2", "127.0.0.3", "127.0.0.4", "127.0.0.5", LoopbackIPv6, loopbackPeerIPv6, loopbackLinkLocalIPv6}
+	want := []string{"127.0.0.2", "127.0.0.3", "127.0.0.4", "127.0.0.5", "127.0.0.6", LoopbackIPv6, loopbackPeerIPv6, loopbackLinkLocalIPv6}
 	if !slices.Equal(darwin.loopbackAddresses(), want) {
 		t.Errorf("darwin wants %v", darwin.loopbackAddresses())
 	}
@@ -942,11 +942,11 @@ func TestOnlyTheMissingAddressesAreAdded(t *testing.T) {
 	}
 
 	missing := setup.missingLoopback()
-	if !slices.Equal(missing, []string{"127.0.0.4", "127.0.0.5"}) {
+	if !slices.Equal(missing, []string{"127.0.0.4", "127.0.0.5", "127.0.0.6"}) {
 		t.Fatalf("the missing set is %v", missing)
 	}
 	setup.applyLoopback(&Report{}, missing)
-	want := []string{"ifconfig lo0 alias 127.0.0.4", "ifconfig lo0 alias 127.0.0.5"}
+	want := []string{"ifconfig lo0 alias 127.0.0.4", "ifconfig lo0 alias 127.0.0.5", "ifconfig lo0 alias 127.0.0.6"}
 	if !slices.Equal(rec.ran(), want) {
 		t.Errorf("it ran %v, want %v", rec.ran(), want)
 	}
