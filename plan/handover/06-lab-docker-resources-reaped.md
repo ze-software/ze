@@ -1,6 +1,6 @@
 # Handover: lab Docker resources reaped, phases 1-2
 
-Spec: `plan/spec-lab-docker-resources-reaped-and-go-test-native.md`.
+Spec: `plan/spec-lab-docker-cleanup-and-go-test-containers.md`.
 Written 2026-10-18 by the agent that landed phases 1-2.
 
 ## Landed

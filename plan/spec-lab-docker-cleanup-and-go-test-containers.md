@@ -1,4 +1,4 @@
-# Spec: lab-docker-resources-reaped-and-go-test-native
+# Spec: lab-docker-cleanup-and-go-test-containers
 
 | Field | Value |
 |-------|-------|
@@ -484,7 +484,7 @@ Counts: MUST 8, SHOULD 6, NOT 11. S-2 (NTP) and S-4 (flow-export) packages are a
 | 13 | Route metadata keys added/changed? | N-A | none |
 | 14 | Prometheus counters added/changed? | N-A | none |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | N-A | a `./le` verb only |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | run `./le spec citation anchors spec plan/spec-lab-docker-resources-reaped-and-go-test-native.md` in phase 1; known: `interop.md` anchors `lab.go` and `docker.go`; `ci-workflows.md` and `features/interoperability-testing.md` anchor `lab.go` |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | run `./le spec citation anchors spec plan/spec-lab-docker-cleanup-and-go-test-containers.md` in phase 1; known: `interop.md` anchors `lab.go` and `docker.go`; `ci-workflows.md` and `features/interoperability-testing.md` anchor `lab.go` |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | the `interop.md` "Running" examples stay valid; add the `test integration cleanup` example |
 
 ## Implementation Steps
@@ -623,4 +623,4 @@ Every recommended answer below is therefore the decision.
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
-- [ ] **Commit B:** `remove plan/spec-lab-docker-resources-reaped-and-go-test-native.md` only, in the same `./le commit create` script
+- [ ] **Commit B:** `remove plan/spec-lab-docker-cleanup-and-go-test-containers.md` only, in the same `./le commit create` script
