@@ -376,6 +376,17 @@
       "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4301-4.4.1-3",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_final_entry_test.go::TestRFC4301DefaultFinalSPDEntryDiscards",
+      "unit-sha": "96df028fccd2bc55",
+      "claim-sha": "b72fa02e6b41be69",
+      "route": "revert",
+      "producer": "internal/component/ike/ipsec/config.go::parseUnmatched",
+      "producer-sha": "f46c4916d1feb5c5",
+      "break": "body of parseUnmatched replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4301-4.4.1-4",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdOperatorOrdersOverlappingPeers",
@@ -929,11 +940,11 @@
       "rid": "RFC4301-5-1",
       "polarity": "positive",
       "unit": "internal/component/ike/ipsec/rfc4301_unmatched_test.go::TestRFC4301UnmatchedLeafIsReadAsWritten",
-      "unit-sha": "1f5941124101eca2",
-      "claim-sha": "49c608f5885758f4",
+      "unit-sha": "8cd4b34950440f60",
+      "claim-sha": "49392eb499663437",
       "route": "revert",
       "producer": "internal/component/ike/ipsec/config.go::parseUnmatched",
-      "producer-sha": "be64b2a4917b044a",
+      "producer-sha": "f46c4916d1feb5c5",
       "break": "body of parseUnmatched replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

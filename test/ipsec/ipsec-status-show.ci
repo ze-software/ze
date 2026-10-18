@@ -52,6 +52,10 @@ bgp {
 
 vpn {
 	ipsec {
+		# The kernel dataplane runs unprivileged here, so the default discard catch-all
+		# cannot be installed and would fail the start (installUnmatched fails closed).
+		# A bypass that cannot be installed is tolerated, so this test keeps its subject.
+		unmatched bypass;
 		esp-group esp-default {
 			lifetime 3600
 			proposal 1 {

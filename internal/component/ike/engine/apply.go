@@ -185,6 +185,11 @@ type ikeEngineState struct {
 	// An early SDK startup failure must not remove policies it never managed.
 	unmatchedApplied bool
 
+	// discardInForce is true once an apply installed a DISCARD catch-all, and false
+	// after one installed a BYPASS. The commit check reads it on the SDK's verify path
+	// (refuseImplicitDiscard, unmatched.go), so it is atomic.
+	discardInForce atomic.Bool
+
 	// startupCfg carries the daemon's first configuration across to OnAllPluginsReady,
 	// which is where its peers start. It is nil once those peers run, and it stays nil
 	// for every reload.
@@ -287,6 +292,11 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	s.unmatchedApplied = true
 	if err := installUnmatched(dataplane.Get(), cfg.Unmatched, s.log); err != nil {
 		return err
+	}
+	s.discardInForce.Store(cfg.Unmatched == dataplane.SPActionDiscard)
+	if phase == applyStartup {
+		// The start is never verified, so refuseImplicitDiscard cannot run here.
+		warnImplicitDiscardAtStart(cfg, s.log)
 	}
 	installSPDPolicies(dataplane.Get(), s.installedSPD, cfg.Policies, s.log)
 	s.installedSPD = cfg.Policies

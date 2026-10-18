@@ -870,21 +870,64 @@ set vpn ipsec unmatched discard
 
 | Value | Meaning |
 |---|---|
-| `bypass` (default) | Traffic no entry matches crosses the boundary in the clear, which is what the kernel did before the entry existed |
-| `discard` | Traffic no entry matches is dropped, the disposition Section 5 names |
+| `discard` (default) | Traffic no entry matches is dropped, the disposition Section 5 names |
+| `bypass` | Traffic no entry matches crosses the boundary in the clear, which is what the kernel did before the entry existed |
 
-The default is `bypass` because a router's own control plane (BGP, SSH, DNS)
-crosses the IPsec boundary in the clear, and a default of `discard` would stop
-it the moment `vpn ipsec` was configured. That default deviates from RFC 4301
-Section 4.4.1: "Every SPD SHOULD have a nominal, final entry that matches
-anything that is otherwise unmatched, and discards it." With `bypass`, the
-final entry passes that traffic instead, so Ze does not meet the SHOULD out of
-the box and the RFC 4301 page lists it as a gap. `set vpn ipsec unmatched
-discard` gives the behavior the section asks for. With `discard`, write a `bypass`
-entry under `policy` for every flow that must still cross in the clear. The IKE
-control-plane bypass at order 100 is installed either way, so the tunnels can
-still be negotiated. The entry is re-asserted on every apply and removed when
-the engine stops.
+The default is `discard`, the entry RFC 4301 Section 4.4.1 asks for: "Every
+SPD SHOULD have a nominal, final entry that matches anything that is otherwise
+unmatched, and discards it." Until 2026-10-18 the default was `bypass`; the
+owner reversed that ruling (R27) to follow the RFC.
+
+The catch-all also drops the router's own control plane wherever it crosses in
+the clear: BGP sessions, SSH and web logins, DNS, NTP. Only IKE (UDP 500 and
+4500, the control-plane bypass at order 100), the negotiated tunnels and your
+`policy` entries stay open. So write a `bypass` entry under `policy` for every
+flow that must still cross in the clear, for example a BGP neighbor:
+
+```
+set vpn ipsec policy frr-bgp action bypass
+set vpn ipsec policy frr-bgp local prefix 172.28.0.2/32
+set vpn ipsec policy frr-bgp remote prefix 172.28.0.4/32
+```
+
+Or write `set vpn ipsec unmatched bypass` to pass all of that traffic.
+
+Ze cannot list those flows for you: they live in every other part of the
+configuration and in the routing table, and an exemption list that missed one
+would cut it with nobody told. Instead, a commit that would turn the discard on
+while `unmatched` is unset is refused, so nobody configuring `vpn ipsec` over
+SSH cuts their own session by default:
+
+```
+ike config: this commit turns on the SPD catch-all DISCARD without saying so: `vpn ipsec unmatched` is not set and its default is discard (RFC 4301 Section 4.4.1). ...
+```
+
+The refusal names what stays open, including how many `policy` bypass entries
+you have, and the two commands that settle it: add the `bypass` entries, then
+`set vpn ipsec unmatched discard`; or `set vpn ipsec unmatched bypass`. It
+fires only when the commit would turn the discard on: a written `unmatched`
+leaf, either value, always passes, and so does a commit to a box whose catch-all
+already discards.
+
+The check runs on commit only. A configuration the daemon starts with is applied
+as written, so a configuration saved before the default changed that holds `vpn
+ipsec` and no `unmatched` leaf now discards from the next start. Add `unmatched
+bypass` to it before upgrading to keep the old behavior. When such a start
+happens, the daemon logs it at error level, with the same facts and commands as
+the refusal, so the console says why BGP or SSH went quiet:
+
+```
+ike: the SPD catch-all DISCARD is in force because `vpn ipsec unmatched` is not set and its default is discard (RFC 4301 Section 4.4.1): ... bypass-entries=0
+```
+
+Start-up does not swap in bypass: it cannot tell a file that relied on the old
+default from one that means the RFC default, and a swap would make the default
+dead at every start. A box with no `vpn
+ipsec` block keeps a `bypass` catch-all: it configured no IPsec boundary.
+
+The IKE control-plane bypass at order 100 is installed either way, so the
+tunnels can still be negotiated. The entry is re-asserted on every apply and
+removed when the engine stops.
 
 #### When the entry is not there
 
@@ -894,7 +937,7 @@ applied:
 
 | Situation | `discard` | `bypass` |
 |---|---|---|
-| The dataplane cannot hold an entry bound to no interface: the VPP backend, a build off Linux, or a kernel without XFRM | Refused at commit | Accepted; no entry is installed, and the kernel passes the traffic |
+| The dataplane cannot hold an entry bound to no interface: the VPP backend, a build off Linux, or a kernel without XFRM | Refused at commit, so these platforms need `set vpn ipsec unmatched bypass` | Accepted; no entry is installed, and the kernel passes the traffic |
 | No dataplane loaded (the daemon logged that the load failed) | Refused at commit | Accepted; no entry is installed |
 | The install itself fails when the configuration is applied, which includes a daemon without `CAP_NET_ADMIN`: it can open the XFRM socket, so the commit check passes, and the kernel refuses the install | The apply fails with the error, and the configuration is not reported applied: a commit is refused, and at startup the configure step returns the error | Logged as a warning; the kernel passes the traffic |
 | Before the first configuration is applied, and after the engine stops | No entry exists, and the kernel passes the traffic in the clear | Same |
@@ -916,7 +959,7 @@ the entries are then already installed when the catch-all starts dropping. A
 window.
 
 <!-- source: internal/component/ike/ipsec/config.go -- parseUnmatched -->
-<!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched, verifyUnmatchedEnforceable -->
+<!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched, verifyUnmatchedEnforceable, refuseImplicitDiscard, warnImplicitDiscardAtStart -->
 <!-- source: internal/component/ike/engine/apply.go -- applyConfig -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- CatchAllInstaller -->
 <!-- source: internal/component/ike/ipsec/spd_policy.go -- SPDPolicy, parseSPDPolicy, ValidateSPDPolicies -->

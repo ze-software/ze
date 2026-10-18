@@ -1,0 +1,36 @@
+# Test: a daemon that STARTS with `vpn ipsec` and no `unmatched` leaf says, at
+# Error level, that the SPD catch-all DISCARD is in force by default.
+# Config: vpn ipsec with one leaf, cookie-threshold, so `unmatched` takes its YANG
+#         default, discard (RFC 4301 Section 4.4.1).
+# Expected: the start log names the leaf, what is cut, and the two commands that
+#           settle it. No commit runs at start, so refuseImplicitDiscard cannot.
+#
+# VALIDATES: warnImplicitDiscardAtStart (internal/component/ike/engine/unmatched.go)
+#            reached through the real start: config on stdin, the ike plugin's first
+#            apply (applyConfig, applyStartup).
+# PREVENTS: a box booting a configuration saved before the default became discard
+#           losing its own BGP and SSH with nothing in the log saying why.
+#
+# The noop dataplane holds the catch-all without CAP_NET_ADMIN
+# (internal/component/ike/dataplane/noop.go), so the test runs unprivileged.
+
+option=env:var=ze_test_ike_dataplane:value=noop
+option=env:var=ze_test_ike_port:value=$PORT2
+option=timeout:value=30s
+
+stdin=ze-bgp:terminator=EOF_CONF
+vpn {
+	ipsec {
+		cookie-threshold 5
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=25s
+
+await=stderr:contains=the SPD catch-all DISCARD is in force because `vpn ipsec unmatched` is not set:then=stop
+expect=stderr:contains=its default is discard (RFC 4301 Section 4.4.1)
+expect=stderr:contains=including this router's own BGP, SSH, DNS and NTP traffic outside a tunnel
+expect=stderr:contains=`set vpn ipsec unmatched bypass` to pass that traffic
+expect=stderr:contains=bypass-entries=0
+reject=stderr:pattern=panic

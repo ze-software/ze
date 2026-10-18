@@ -727,9 +727,19 @@ type IPsecConfig struct {
 	// SPD, so that a packet no other entry names still meets one (RFC 4301 Section
 	// 5: "If no policy is found in the SPD that matches a packet ... the packet MUST
 	// be discarded"). It is SPActionDiscard or SPActionBypass. The parser writes
-	// SPActionBypass for an absent leaf, so the SPAction zero value (PROTECT) never
-	// reads as a disposition the operator did not write (ai/rules/principles.md).
+	// SPActionDiscard for an absent leaf inside `vpn ipsec` (EmptyConfig writes
+	// SPActionBypass when there is no such block), so the SPAction zero value
+	// (PROTECT) never reads as a disposition the operator did not write
+	// (ai/rules/principles.md).
 	Unmatched dataplane.SPAction
+
+	// UnmatchedByDefault is true when `vpn ipsec` exists and its `unmatched` leaf
+	// does not, so Unmatched holds the YANG default rather than the operator's word.
+	// It is a GUARD: the commit check refuses a configuration that would turn the
+	// discard catch-all on while this is true (refuseImplicitDiscard,
+	// engine/unmatched.go). Its zero value, false, is what EmptyConfig and a written
+	// leaf carry, and both answer "nothing to refuse".
+	UnmatchedByDefault bool
 }
 
 // Changed returns the peer names whose configuration differs between

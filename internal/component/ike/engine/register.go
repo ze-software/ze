@@ -484,6 +484,11 @@ func runEngine(conn net.Conn) int {
 		if err := verifyUnmatchedEnforceable(dataplane.Get(), cfg.Unmatched); err != nil {
 			return fmt.Errorf("ike config: %w", err)
 		}
+		// RFC 4301 Section 4.4.1: a commit that turns the default discard catch-all on
+		// without the operator writing it is refused (refuseImplicitDiscard, unmatched.go).
+		if err := refuseImplicitDiscard(cfg, state.discardInForce.Load()); err != nil {
+			return fmt.Errorf("ike config: %w", err)
+		}
 		staging.stage(cfg)
 		return nil
 	})

@@ -68,10 +68,16 @@ func isNameChar(c rune) bool {
 }
 
 // EmptyConfig is the configuration of a box with no ipsec block: no groups, no
-// peers, and the YANG default catch-all disposition, bypass. Every parser that
-// answers "nothing configured" MUST answer this value, never an IPsecConfig
-// literal, because the SPAction zero value is PROTECT and installUnmatched refuses
-// it (a literal left an empty delivery failing the apply).
+// peers, and a bypass catch-all. Every parser that answers "nothing configured"
+// MUST answer this value, never an IPsecConfig literal, because the SPAction zero
+// value is PROTECT and installUnmatched refuses it (a literal left an empty
+// delivery failing the apply).
+//
+// Bypass, not the YANG default discard: the `unmatched` leaf lives inside `vpn
+// ipsec`, and a box without that block has configured no IPsec boundary at all. The
+// engine still runs there when only `pki` is configured, and a discard catch-all
+// would drop every packet of a router that asked for no IPsec. Bypass reproduces
+// what the kernel does with no entry.
 func EmptyConfig() *IPsecConfig {
 	return &IPsecConfig{
 		ESPGroups: make(map[string]ESPGroup),
@@ -83,13 +89,15 @@ func EmptyConfig() *IPsecConfig {
 
 // parseUnmatched reads the disposition of the SPD catch-all entry.
 //
-// An absent leaf is the YANG default, bypass, written here explicitly rather than
+// An absent leaf is the YANG default, discard, written here explicitly rather than
 // left to the SPAction zero value: that zero is PROTECT, and a catch-all PROTECT
 // would hand every unmatched packet to a transform that does not exist.
 func parseUnmatched(t *config.Tree) (dataplane.SPAction, error) {
 	v, ok := t.Get("unmatched")
 	if !ok {
-		return dataplane.SPActionBypass, nil
+		// RFC 4301 Section 4.4.1: "Every SPD SHOULD have a nominal, final entry
+		// that matches anything that is otherwise unmatched, and discards it."
+		return dataplane.SPActionDiscard, nil
 	}
 	switch v {
 	case "discard":
@@ -131,6 +139,8 @@ func ParseIPsecConfig(tree *config.Tree) (*IPsecConfig, error) {
 		return nil, err
 	}
 	cfg.Unmatched = unmatched
+	_, written := ipsecRoot.Get("unmatched")
+	cfg.UnmatchedByDefault = !written
 
 	if v, ok := ipsecRoot.Get("interface"); ok {
 		cfg.Interface = v

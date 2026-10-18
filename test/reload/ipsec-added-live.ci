@@ -32,6 +32,9 @@ option=timeout:value=90s
 stdin=responder:terminator=EOF_RESPONDER
 vpn {
 	ipsec {
+		# Written, because a commit that turns on the default discard catch-all with
+		# the leaf unset is refused (refuseImplicitDiscard); bypass keeps this test's subject.
+		unmatched bypass;
 		esp-group esp-default {
 			lifetime 3600
 			proposal 1 {
@@ -113,6 +116,9 @@ EOF_CONF
 tmpfs=ipsec-topic.conf:terminator=EOF_TOPIC
 vpn {
 	ipsec {
+		# Written, because a commit that turns on the default discard catch-all with
+		# the leaf unset is refused (refuseImplicitDiscard); bypass keeps this test's subject.
+		unmatched bypass;
 		esp-group esp-default {
 			lifetime 3600
 			proposal 1 {

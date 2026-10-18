@@ -1,0 +1,49 @@
+# Test: a reload that would turn the SPD catch-all DISCARD on by default is refused
+# Initial config: vpn ipsec with `unmatched bypass`, so the catch-all passes.
+# After SIGHUP:   the same block with the `unmatched` leaf removed, so the
+#                 YANG default, discard (RFC 4301 Section 4.4.1), would apply.
+# Expected: the ike plugin's verify refuses the reload with the message that names
+#           the leaf, what stays open, and the two commands that settle it; the
+#           reload is not reported complete.
+#
+# VALIDATES: refuseImplicitDiscard (internal/component/ike/engine/unmatched.go)
+#            reached through the real reload pipeline: config file, SIGHUP, the
+#            ike plugin's OnConfigVerify.
+# PREVENTS: an operator removing `unmatched bypass`, or configuring `vpn ipsec`
+#           for the first time, and cutting the router's own control plane
+#           (BGP, SSH, DNS) with a default nobody wrote.
+#
+# The noop dataplane holds the catch-all without CAP_NET_ADMIN
+# (internal/component/ike/dataplane/noop.go), so the test runs unprivileged.
+
+option=env:var=ze_test_ike_dataplane:value=noop
+option=env:var=ze_test_ike_port:value=$PORT2
+option=timeout:value=30s
+
+stdin=ze-bgp:terminator=EOF_CONF
+vpn {
+	ipsec {
+		cookie-threshold 5
+		unmatched bypass
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+vpn {
+	ipsec {
+		cookie-threshold 5
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le test fixture reload/tx-protocol-sighup-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
+
+await=stderr:contains=reload error:then=stop
+expect=stderr:contains=this commit turns on the SPD catch-all DISCARD without saying so
+expect=stderr:contains=`vpn ipsec unmatched` is not set and its default is discard (RFC 4301 Section 4.4.1)
+expect=stderr:contains=the 0 `vpn ipsec policy` bypass entries stay open
+expect=stderr:contains=`set vpn ipsec unmatched bypass` to keep passing that traffic
+reject=stderr:contains=sighup reload complete
+reject=stderr:pattern=panic

@@ -12,6 +12,7 @@ import (
 	"net"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
+	"github.com/ze-software/ze/internal/component/ike/ipsec"
 )
 
 // unmatchedDirections are the three halves of the database the catch-all joins.
@@ -117,7 +118,8 @@ func installUnmatched(dp dataplane.Dataplane, action dataplane.SPAction, log *sl
 // errUnmatchedDiscardNoDataplane is the refusal of a discard catch-all when no
 // dataplane is loaded: runEngine logs a failed dataplane.Load and carries on, and a
 // discard then has nothing to be installed into.
-var errUnmatchedDiscardNoDataplane = errors.New("ike: `unmatched discard` needs a dataplane to install the SPD catch-all entry, and none is loaded")
+var errUnmatchedDiscardNoDataplane = errors.New("ike: `unmatched discard` (written, or the default when the leaf is unset) needs a dataplane to install the SPD catch-all entry, and none is loaded: " +
+	"the daemon log names why the dataplane failed to load; fix that, or `set vpn ipsec unmatched bypass` to run without the entry")
 
 // verifyUnmatchedEnforceable is the config-verify half of installUnmatched: it refuses
 // `unmatched discard` when the loaded dataplane says, ahead of any install, that it
@@ -134,12 +136,86 @@ func verifyUnmatchedEnforceable(dp dataplane.Dataplane, action dataplane.SPActio
 	}
 	capable, ok := dp.(dataplane.CatchAllInstaller)
 	if !ok {
-		return fmt.Errorf("ike: `unmatched discard`: the dataplane backend %T does not say whether it can hold the SPD catch-all entry", dp)
+		return fmt.Errorf("ike: `unmatched discard` (written, or the default when the leaf is unset): the dataplane backend %T does not say whether it can hold the SPD catch-all entry; "+
+			"`set vpn ipsec unmatched bypass` to run without the entry", dp)
 	}
 	if err := capable.CatchAllSupported(); err != nil {
-		return fmt.Errorf("ike: `unmatched discard` cannot be enforced: %w", err)
+		return fmt.Errorf("ike: `unmatched discard` (written, or the default when the leaf is unset) cannot be enforced: %w; "+
+			"`set vpn ipsec unmatched bypass` to run without the entry", err)
 	}
 	return nil
+}
+
+// refuseImplicitDiscard is the commit check that guards the default disposition.
+//
+// RFC 4301 Section 4.4.1: "Every SPD SHOULD have a nominal, final entry that matches
+// anything that is otherwise unmatched, and discards it." So `unmatched` defaults to
+// discard, and that entry also drops the router's own control plane (BGP, SSH, DNS,
+// NTP) wherever it crosses in the clear. The flows Ze would have to exempt are spread
+// over every component's configuration and the kernel's routes, so an automatic
+// exemption list would be incomplete, and what it missed would be cut with nobody
+// told. Instead a commit that would turn the discard on WITHOUT the operator writing
+// it is refused, and the refusal names what stays open and the two ways forward.
+//
+// It refuses only that transition: the leaf absent (cfg.UnmatchedByDefault), the
+// result discard, and no discard in force already (discardInForce, set by the last
+// apply). A written leaf, either value, always passes, and so does a commit to a box
+// already discarding, which the operator has seen. A configuration the daemon STARTS
+// with is applied without this check, because the reload pipeline alone verifies;
+// warnImplicitDiscardAtStart says so at start instead.
+func refuseImplicitDiscard(cfg *ipsec.IPsecConfig, discardInForce bool) error {
+	if !cfg.UnmatchedByDefault {
+		return nil
+	}
+	if cfg.Unmatched != dataplane.SPActionDiscard {
+		return nil
+	}
+	if discardInForce {
+		return nil
+	}
+	return fmt.Errorf("this commit turns on the SPD catch-all DISCARD without saying so: "+
+		"`vpn ipsec unmatched` is not set and its default is discard (RFC 4301 Section 4.4.1). "+
+		"Once applied, every packet this router sends, receives or forwards that no SPD entry names is dropped, "+
+		"including its own BGP, SSH, DNS and NTP traffic outside a tunnel; "+
+		"only IKE (UDP 500 and 4500), the negotiated tunnels and the %d `vpn ipsec policy` bypass entries stay open. "+
+		"Fix: add a `vpn ipsec policy <name>` bypass entry for each flow that must stay in the clear, "+
+		"then `set vpn ipsec unmatched discard` to confirm; "+
+		"or `set vpn ipsec unmatched bypass` to keep passing that traffic", countBypassEntries(cfg))
+}
+
+// warnImplicitDiscardAtStart is the start-time half of refuseImplicitDiscard. The
+// configuration the daemon starts with is never verified, so a box booting a file
+// whose `vpn ipsec` block leaves `unmatched` unset (a file saved before the default
+// became discard, or one written by hand) installs the discard with no commit to
+// refuse. It is installed all the same: start-up cannot tell a file that relies on
+// the old default from one that means the RFC default, and installing bypass instead
+// would make the default dead at every boot. So the start says it, at Error level,
+// with the same facts and commands as the refusal.
+func warnImplicitDiscardAtStart(cfg *ipsec.IPsecConfig, log *slog.Logger) {
+	if !cfg.UnmatchedByDefault {
+		return
+	}
+	if cfg.Unmatched != dataplane.SPActionDiscard {
+		return
+	}
+	log.Error("ike: the SPD catch-all DISCARD is in force because `vpn ipsec unmatched` is not set "+
+		"and its default is discard (RFC 4301 Section 4.4.1): every packet no SPD entry names is dropped, "+
+		"including this router's own BGP, SSH, DNS and NTP traffic outside a tunnel; "+
+		"fix: add a `vpn ipsec policy <name>` bypass entry for each flow that must stay in the clear, "+
+		"then `set vpn ipsec unmatched discard` to confirm, or `set vpn ipsec unmatched bypass` to pass that traffic",
+		"bypass-entries", countBypassEntries(cfg))
+}
+
+// countBypassEntries counts the operator's `vpn ipsec policy` entries whose action
+// is bypass: the flows that stay open under the discard catch-all.
+func countBypassEntries(cfg *ipsec.IPsecConfig) int {
+	entries := 0
+	for name := range cfg.Policies {
+		if cfg.Policies[name].Action == dataplane.SPActionBypass {
+			entries++
+		}
+	}
+	return entries
 }
 
 // removeUnmatched releases the catch-all for every address family, on every exit

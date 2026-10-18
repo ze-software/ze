@@ -65,6 +65,10 @@ bgp {
 
 vpn {
 	ipsec {
+		# The kernel dataplane runs unprivileged here, so the default discard catch-all
+		# cannot be installed and would fail the apply (installUnmatched fails closed).
+		# A bypass that cannot be installed is tolerated, so this test keeps its subject.
+		unmatched bypass;
 		ike-group IKE-1 {
 			proposal 1 {
 				encryption aes256gcm
@@ -138,6 +142,10 @@ bgp {
 
 vpn {
 	ipsec {
+		# The kernel dataplane runs unprivileged here, so the default discard catch-all
+		# cannot be installed and would fail the apply (installUnmatched fails closed).
+		# A bypass that cannot be installed is tolerated, so this test keeps its subject.
+		unmatched bypass;
 		ike-group IKE-1 {
 			proposal 1 {
 				encryption aes256gcm

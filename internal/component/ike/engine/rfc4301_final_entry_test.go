@@ -1,11 +1,10 @@
 // VALIDATES: what Ze installs as the final entry of every SPD, from the `vpn ipsec
 // unmatched` leaf through ParseIPsecConfig to installUnmatched, the path apply.go runs.
-// With the leaf absent the final entry is a BYPASS, a disclosed deviation from the
-// RFC 4301 Section 4.4.1 SHOULD ("Every SPD SHOULD have a nominal, final entry that
-// matches anything that is otherwise unmatched, and discards it."); with `unmatched
-// discard` the final entry is the DISCARD the section asks for.
-// PREVENTS: the default silently changing in either direction, and the RFC route
-// (`unmatched discard`) installing anything but a final discard entry.
+// With the leaf absent the final entry is the DISCARD RFC 4301 Section 4.4.1 asks
+// for ("Every SPD SHOULD have a nominal, final entry that matches anything that is
+// otherwise unmatched, and discards it."); with `unmatched bypass` it is a BYPASS.
+// PREVENTS: the default silently changing in either direction, and a written
+// disposition installing anything but what was written.
 
 package engine
 
@@ -16,7 +15,6 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/internal/test/rfcgap"
 )
 
 // finalEntriesFor parses a configuration whose `unmatched` leaf holds value (absent
@@ -49,12 +47,12 @@ func finalEntriesFor(tb testing.TB, value string) []dataplane.SPParams {
 }
 
 // TestRFC4301FinalSPDEntryFollowsTheUnmatchedLeaf asserts both dispositions Ze can
-// install as the final entry: bypass when the leaf is absent (the default), discard
-// when the operator writes `unmatched discard`.
+// install as the final entry: bypass when the operator writes `unmatched bypass`,
+// discard when the operator writes `unmatched discard`.
 func TestRFC4301FinalSPDEntryFollowsTheUnmatchedLeaf(t *testing.T) {
-	for _, p := range finalEntriesFor(t, "") {
+	for _, p := range finalEntriesFor(t, "bypass") {
 		if p.Action != dataplane.SPActionBypass {
-			t.Errorf("default dir %d: final entry action %d, want bypass (%d)", p.Dir, p.Action, dataplane.SPActionBypass)
+			t.Errorf("unmatched bypass dir %d: final entry action %d, want bypass (%d)", p.Dir, p.Action, dataplane.SPActionBypass)
 		}
 	}
 	for _, p := range finalEntriesFor(t, "discard") {
@@ -64,13 +62,11 @@ func TestRFC4301FinalSPDEntryFollowsTheUnmatchedLeaf(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC4301-4.4.1-3 gap -- with the default configuration the final entry of every SPD discards what nothing else matched.
+// RFC requirement: RFC4301-4.4.1-3 positive -- with the `unmatched` leaf absent, the entry Ze installs last in every direction and family of the SPD discards.
 func TestRFC4301DefaultFinalSPDEntryDiscards(t *testing.T) {
-	rfcgap.Demonstrate(t, "RFC4301-4.4.1-3", func(tb testing.TB) {
-		for _, p := range finalEntriesFor(tb, "") {
-			if p.Action != dataplane.SPActionDiscard {
-				tb.Errorf("default dir %d: final entry action %d, want discard (%d)", p.Dir, p.Action, dataplane.SPActionDiscard)
-			}
+	for _, p := range finalEntriesFor(t, "") {
+		if p.Action != dataplane.SPActionDiscard {
+			t.Errorf("default dir %d: final entry action %d, want discard (%d)", p.Dir, p.Action, dataplane.SPActionDiscard)
 		}
-	})
+	}
 }

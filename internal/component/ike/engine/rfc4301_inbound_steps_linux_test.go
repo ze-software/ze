@@ -285,10 +285,11 @@ func TestRFC4301InboundClearPacketIsDiscardedByTheSPDIEntryItMatches(t *testing.
 
 // TestRFC4301InboundClearPacketMatchingNoEntryFollowsTheUnmatchedLeaf pins the step 3b
 // sentence "If there is no match, discard the traffic." to the `vpn ipsec unmatched` leaf.
-// It carries no RFC requirement tag: RFC4301-5.2-9 is a {gap}, because the leaf defaults to
-// bypass (the RFC4301-4.4.1-3 deviation). Method: a clear datagram to local port 7109,
-// which no operator entry names; with `unmatched discard` it must be counted as
-// XfrmInPolBlock and never delivered, and with the default bypass it is delivered.
+// It carries no RFC requirement tag: RFC4301-5.2-9 is a {gap} for the paths that install
+// no catch-all at all (VPP, before the first apply). Method: a clear datagram to local
+// port 7109, which no operator entry names; with `unmatched discard`, the default, it
+// must be counted as XfrmInPolBlock and never delivered, and with `unmatched bypass` it
+// is delivered.
 func TestRFC4301InboundClearPacketMatchingNoEntryFollowsTheUnmatchedLeaf(t *testing.T) {
 	if !sadSelOwnNamespace(t) {
 		return
@@ -306,12 +307,12 @@ func TestRFC4301InboundClearPacketMatchingNoEntryFollowsTheUnmatchedLeaf(t *test
 		t.Fatalf("with unmatched discard, %s rose by %d, want 1", inStepStatPolBlock, got)
 	}
 
-	// The default: installUnmatched replaces the catch-all under the same selector.
+	// `unmatched bypass`: installUnmatched replaces the catch-all under the same selector.
 	if err := installUnmatched(dataplane.Get(), dataplane.SPActionBypass, slogutil.DiscardLogger()); err != nil {
 		t.Fatalf("install the catch-all: %v", err)
 	}
 	inStepSendClear(t, inStepStrayPort)
 	if !sadSelDelivered(t, stray) {
-		t.Fatal("with the default unmatched bypass, a clear datagram no SPD-I entry names was not delivered")
+		t.Fatal("with unmatched bypass, a clear datagram no SPD-I entry names was not delivered")
 	}
 }
