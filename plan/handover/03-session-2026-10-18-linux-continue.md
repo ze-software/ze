@@ -314,3 +314,27 @@ test, stopped-source exclusion, `TestOwedKeyPurgeBetweenLookupAndAdmission`
 (needs package (c)'s recovery-write producer); update-building.md and
 rib-storage-design.md in the same commit. The MRT collision flake was not
 investigated. Full file list: the per-spec state file of session d75c882e.
+
+## VRRP checksum follow-up to a78870fd39 (agent, 2026-10-18): owed
+
+Landed: d2abad70ad (transmit test asserts `params.Checksum == spec.Checksum`
+in both modes, new RFC9568-7.2-5 positive tag and record; receive tag moved to
+RFC9568-5.2.8-2; 89 records re-taken; reseal), c8648e5a33 (rfc5798.md false
+claims), 3cbe8df66f (3 guest records).
+
+Owed: 39 QEMU-guest discrimination records in rfc/discrimination/rfc5798.json,
+rfc9568.json and rfc3768.json still fail `./le rfc check`. The guest build
+broke on other sessions' in-flight bgp/reactor, then iface work
+(`internal/plugins/iface/netlink/backend_linux.go` no longer implements
+`iface.Backend`; `internal/component/iface/address_owner.go` lacks
+`ownerConflictLocked`). Once main builds, re-take every row `./le rfc check`
+lists as "no longer verifies" for these units, with the route and producer
+stored in the record:
+`./le rfc discriminate-record id <ID> polarity <p> unit <unit> route revert producer <producer> kernel tmp/kernel/build/vmlinuz`.
+Units: TestVRRPOwnerAnswersWithVirtualMACOnly, TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly,
+TestVRRPRedirectSourceFollowsVirtualMAC, TestVRRPIPv6RedirectFollowsVirtualMAC,
+TestTxAdvertV4OnWire, TestRxAdvertScopedToReceivingInterface (RFC9568-7.1-4).
+Then `./le rfc reseal` and commit only rfc3768/rfc5798/rfc9568 files.
+
+Verdicts to re-judge (stale, reseal refuses): RFC5798-7.2-1, RFC9568-5.2.8-2,
+RFC9568-7.2-1, RFC9568-7.2-5.
