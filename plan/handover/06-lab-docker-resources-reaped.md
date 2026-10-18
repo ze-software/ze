@@ -18,7 +18,7 @@ result.
 
 | Item | State | Next step |
 |------|-------|-----------|
-| `docs/architecture/testing/interop.md` | This change's hunks (How It Works steps 1 and 5, "Crash-safe teardown", the Prerequisites row) are NOT committed. The file also holds another session's uncommitted dnsmasq row naming `test/interop/Dockerfile.dnsmasq` and two `dhcpv4-*-dnsmasq` scenarios that are not in HEAD, so it was held back (`ai/rules/git-safety.md`) | Commit it once the dhcpv4 work lands (`plan/immediate/spec-dhcpv4-client-drops-lease-every-period.md`, `plan/handover/05-dhcpv4-lease-maintenance.md`), or carry both together when that session's files are in HEAD |
+| `docs/architecture/testing/interop.md` | This change's hunks (How It Works steps 1 and 5, "Crash-safe teardown", the Prerequisites row) are NOT committed. The file also holds another session's uncommitted dnsmasq row naming `test/interop/Dockerfile.dnsmasq` and two `dhcpv4-*-dnsmasq` scenarios that are not in HEAD, so it was held back (`ai/rules/git-safety.md`) | Commit it once the dhcpv4 work lands (`spec-dhcpv4-client-drops-lease-every-period`, `plan/handover/05-dhcpv4-lease-maintenance.md`), or carry both together when that session's files are in HEAD |
 | `TestKilledLabRunIsCleanedByNextStart` | Proved the verdict on the real daemon in an earlier run; no clean pass under host load. The `*-dm8b7wc2wq89` leftovers of the ~23:20 failure are gone (the post-fix `cleanup dry` found none; spec, Functional Tests). Not rerun after `546f386a3c`: load average 72.8 at 23:31, 44.6 at 23:38 | Rerun when `uptime` is under ~16: `ZE_REQUIRE_DOCKER=1 ./le job run label kill quiet command go test -tags docker -count=1 -run TestKilledLabRunIsCleanedByNextStart ./internal/le/interoplab/`, then check `docker ps -a --filter label=ze.lab` holds no `ze-orphan-*` resource, which proves the new per-run `t.Cleanup` on the daemon. Paste both into the spec row |
 | ~~`cleanup` reports a client-side timeout as a failure~~ | DONE in `546f386a3c`: `Docker.confirmRemoval` re-observes after any failed removal (removed / failed / unknown), in `RemoveContainer`, `removeNetwork`, `releaseImage`, so `Lab.cleanup` and `claimName` share it. Four fake-runner tests, three red before the fix | none |
 | ~~`TestDockerTagNeverJoinsIntegration` red~~ | DONE in `546f386a3c`: an in-test fixture tree is the negative case; red shown by mutating the predicate, green restored | none |
@@ -138,3 +138,60 @@ The file is still blocked by another session's hunks. When it is free:
 (with the `docker` and `integration` tags too), `./le test unit all`,
 `./le test functional gating`. The debt rows are in
 `plan/verification-debt/d58beadc.md`.
+
+## Phase 3, second agent, 2026-10-19
+
+### Landed
+
+| Commit | Subject | Covers |
+|--------|---------|--------|
+| `30ce614efd` | deployment: proof containers run through interoplab.Docker | M-3, AC-11, AC-8 (deployment roots) |
+| the commit carrying this section | docs: interop teardown for removal, one-shots and detached runs | the interop.md text owed by phases 1-3 (now unblocked: the dnsmasq hunk landed in `cc69746db8`), and the stale `kernelProbeArgv` anchor |
+
+The wrapper extension, made once (`internal/le/interoplab/container.go`):
+`DetachedContainer` + `Docker.RunDetached` (name, image, platform, network and
+a `netip.Addr` address, capabilities, devices, mounts, environment, working
+directory, entrypoint, command; owner labels; `run -d` with no `--rm`, removal
+is explicit), `ContainerExec` + `Docker.ExecAttached` (attached Stdin, Stdout,
+Stderr, `Interactive`, environment, a positive own Timeout; a non-zero exit is
+an error) and `Docker.ImagePresent`. No raw argv field. `grantcheck`
+classifies `--label` as no grant.
+
+Deployment (`internal/le/test/deployment`): no `exec.Command*("docker")` is
+left in the package, tests included (`look("docker", "go")` is a PATH lookup).
+`startWatchedExec` runs a watched daemon through `ExecAttached` in a named
+goroutine (`running.execUntilDone`); stop cancels the client, and
+`running.execErr` keeps the outcome. `removeContainer(ctx, docker, name)` runs
+on `context.WithoutCancel` and answers the error text, which lands in
+`L2TPReport`, `VPPIfaceReport` and `VPPReport.ContainerRemoval`
+(`container-removal-error`), is printed by `writeContainerRemoval` with
+`./le test integration cleanup`, and makes the verb exit 1. `signalRooted` in
+`actions.go` roots l2tp-test, vpp-iface-test, vpp-test, docker-l2tp-ppp-test
+and docker-pppoe-accel-test. `vppIface` keeps its root as `ctx` (the terminal
+demo's `Engine.ctx` precedent), set by `Run(ctx)`. The pull bound is now the
+wrapper's 10 min (it was 15 min).
+
+### Evidence
+
+- `go test -race -count=1 ./internal/le/test/deployment/ ./internal/le/interoplab/...`: deployment, interoplab, grantcheck and every lab package ok, except foreign reds in untouched packages: `interoplab/bgp` `TestCheckerPopulationMatchesProducer` and `TestAnnouncementPlanOrderAndTimingFixture`; `interoplab/pppoe` `TestPPPoELabPeersRunWithoutPrivilege` ("scenario ipv6cp-missing-option has no Go checker"; that scenario directory is not tracked).
+- `go vet -tags integration ./internal/le/test/deployment/` clean. The SRv6 proofs now use `startWatchedExec`, and an in-container `cp` into the scratch mount replaces `docker cp`.
+- Red then green: `TestDeploymentVerbsCancelOnSignal` FAILED "payload not canceled code 0" for SIGINT and SIGTERM with `signalRooted` listening on SIGUSR1; `TestContainerRemovalSurvivesCancelAndIsReported` FAILED "removal under a canceled root failed" with the removal on the canceled context; both PASS restored. The test holds its own `signal.Notify`, so a broken root is a clean red, not a killed binary.
+- New wrapper tests `TestRunDetachedRendersALabeledContainer`, `TestRunDetachedRefusesAnIncompleteSpec`, `TestExecAttachedCarriesStreamsAndBound`, `TestImagePresentTellsAbsentFromUnknown` pass; not mutation-discriminated.
+- NOT run: the real `l2tp-test`, `vpp-test` and `vpp-iface-test` against a daemon (privileged VPP devices, `/dev/ppp`). Owed before the spec closes: it is the only proof that the streamed daemon exec, the `--interactive` stdin and the pkill stop behave as the raw execs did.
+
+### What remains of phase 3
+
+| Item | State | Next step |
+|------|-------|-----------|
+| M-5 `internal/le/verify/evidence/evidence.go` (AC-13, AC-8) | UNBLOCKED: the other session's verify rework landed in `839819ea2d`, and `internal/le/verify/evidence` is clean. Not started (budget) | The first agent's design above stands (`startDocker` and `Runner.dockerArgs` become one `RunOneShot`). `RunOneShot` refuses a non-positive timeout, so "unbounded as today" is a named constant of a century, never `math.MaxInt64` (`time.Now().Add` would overflow). **Owner decision owed: evidence container time limit.** Root the action on `signalContext` in `internal/le/verify/actions.go` |
+| M-4 `internal/test/perfrunner/run.go` (AC-12, AC-8) | Not started (budget) | FIRST check the tier rule: `internal/test/perfrunner` importing `internal/le/interoplab` may be refused by `./le arch tier check`. `Runner.startDUT` and the `sleep 3600` sender in `Runner.runPerf` become `RunDetached` (network and `Address`, NET_ADMIN plus SYS_ADMIN, NET_RAW or SYS_CHROOT per DUT, the `GODEBUG` variable, `Runner.volumeArgs` as typed read-only `Mount`s); the execs become `Exec` or `ExecAttached` (`perf send` with its computed timeout, the pprof `http-get` with its file as Stdout); `Runner.stop`, the defer and `Runner.cleanup` use `RemoveContainer` with errors reported. `network create --subnet` needs an exported labeled fixed-subnet create (the lab's `createNetwork` takes candidates) and its removal. Builds go through `Docker.Build` only if its retained-tag semantics keep `dut.Image` usable; otherwise an exported labeled build is the open design point. Fake-runner tests only: perf is never measured on this machine. `./le perf` needs a signal root and its test |
+| AC-16 gate `TestNoDockerExecOutsideInteroplab` | Not started | Unchanged from the row above; it lands only after M-4 and M-5. Deployment is clean for it now. The terminal demo's `docker build` and `image inspect` through its `Executor` is still the open call |
+| Real deployment runs | Owed | `./le test deployment vpp-iface-test`, `vpp-test`, `l2tp-test` on a host with Docker and the devices; then `docker ps -a --filter label=ze.lab` shows nothing of theirs, and a Ctrl-C mid-run leaves nothing either |
+
+### Gates owed (not run here: the five-minute rule)
+
+Scoped `./le go lint run` over `internal/le/interoplab`,
+`internal/le/interoplab/grantcheck` and `internal/le/test/deployment` (with
+the `integration` tag too: the post-write hook reported 23 issues in the
+package and printed one, fixed as `srcMount`), `./le test unit all`,
+`./le test functional gating`. Debt rows: `plan/verification-debt/85b2c17f.md`.

@@ -389,6 +389,37 @@ still attached to. An unlabeled resource, a volume and the shared cache tag
 that `NO_BUILD=1` reuses are never candidates.
 <!-- source: internal/le/interoplab/orphans.go -- Docker.CleanupOrphans, ownerJudge.judge -->
 
+A removal call that fails, or that outlasts the 30 s client bound while the
+daemon completes it, is not reported failed on its own say. The wrapper
+inspects that exact resource again under the same bound
+(`Docker.confirmRemoval`): gone is "removed", still present is "failed" with
+the removal's error, and an inspect that fails too is "unknown", naming both
+errors.
+<!-- source: internal/le/interoplab/docker.go -- Docker.confirmRemoval -->
+
+A one-shot container (`Docker.RunOneShot`: the kernel probe, a host
+preflight, a terminal-demo render) runs in the foreground with `--rm` and a
+`ze-oneshot-<random>` name. Killing the docker client stops nothing the
+daemon runs, so when the caller's context is canceled or the one-shot's bound
+ends, the wrapper removes the container by that name on a context the
+cancellation does not reach, and reports the removal's outcome with the
+run's error.
+<!-- source: internal/le/interoplab/docker.go -- Docker.RunOneShot -->
+
+A caller outside a lab Suite that needs a long-running container, such as the
+deployment proofs (`./le test deployment l2tp-test`, `vpp-iface-test`,
+`vpp-test`), starts it with `Docker.RunDetached`. Its typed spec
+(`DetachedContainer`: platform, network and address, capabilities, devices,
+mounts, environment, working directory, entrypoint, command) carries no raw
+docker flag, and the container carries the same owner labels, so a run killed
+before its own removal is reaped like a lab's. Commands inside it run through
+`Docker.ExecAttached`, with attached streams and their own bound. Those verbs
+root on SIGINT and SIGTERM, remove their container on a context the signal
+does not reach, and name a failed removal in the report's
+`container-removal-error`, exiting 1.
+<!-- source: internal/le/interoplab/container.go -- Docker.RunDetached, Docker.ExecAttached -->
+<!-- source: internal/le/test/deployment/deployment.go -- removeContainer -->
+
 `Suite.Run` runs the cleanup after the Docker probe and before Preflight, and
 prints each removal or skip as a progress line. A listing the daemon refuses is
 a setup error. Before a scenario creates its network and containers, its
@@ -451,7 +482,7 @@ options query that fails or prints no JSON refuses, because the argv depends on
 it. Ze's own kernel carries no AppArmor, so the QEMU guest's daemon lists none
 and the guest route is unchanged.
 
-<!-- source: internal/le/interoplab/kernelcheck.go -- dockerAppArmor, appArmorProfileMissing, appArmorProfileUnapplied, appArmorRefusal, kernelProbeArgv -->
+<!-- source: internal/le/interoplab/kernelcheck.go -- dockerAppArmor, appArmorProfileMissing, appArmorProfileUnapplied, appArmorRefusal, kernelProbeContainer -->
 
 The probe is the first container to run under a Ze profile, and the same rule
 holds for every lab container: one that needs more than docker-default grants
