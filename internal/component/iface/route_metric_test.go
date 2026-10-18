@@ -39,7 +39,7 @@ func (f *recordingDHCPFactory) install(t *testing.T) {
 	t.Helper()
 	f.metrics = make(map[string]int)
 	previous := dhcpClientFactory
-	SetDHCPClientFactory(func(ifaceName, unit string, _ ze.EventBus, _, _ bool, _, _ string, _ int, _, _ string, _ bool, routeMetric int) (DHCPStopper, error) {
+	SetDHCPClientFactory(func(ifaceName, unit string, _ ze.EventBus, _, _ bool, _, _ string, _ bool, _ int, _, _ string, _ bool, routeMetric int) (DHCPStopper, error) {
 		f.metrics[ifaceName+"/"+unit] = routeMetric
 		return noopStopper{}, nil
 	})

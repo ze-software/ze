@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"runtime/debug"
 	"sync"
 	"sync/atomic"
@@ -25,7 +26,8 @@ import (
 type dHCPConfig struct {
 	Hostname             string // DHCPv4 option 12
 	ClientID             string // DHCPv4 option 61
-	PDLength             int    // DHCPv6 requested prefix delegation length (0 = server decides)
+	PDRequested          bool   // DHCPv6 pd container configured: every message carries an IA_PD
+	PDLength             int    // DHCPv6 prefix-length hint of that IA_PD (0 = no hint, server decides)
 	DUID                 string // DHCPv6 DUID override
 	ResolvConfPath       string // path for DNS resolv.conf (empty = disabled)
 	HasStaticNameServers bool   // when true, DHCP does not write resolv.conf (static servers take priority)
@@ -56,6 +58,12 @@ type DHCPClient struct {
 	// v4Exchange sends the DHCPv4 messages and reads the answers. The
 	// production exchanger runs over nclient4; a test replaces it before Start.
 	v4Exchange v4Exchanger
+	// v6Dial opens the DHCPv6 socket of one exchange on a kernel device. The
+	// production dialer runs over nclient6; a test replaces it before Start.
+	v6Dial v6Dialer
+	// v6Random is the DHCPv6 retransmission random source, uniform in [0, 1).
+	// A test pins it before Start.
+	v6Random func() float64
 
 	// v4Owner names this client in the leased-address registry
 	// (iface.RegisterLeasedAddresses). One client serves one unit.
@@ -94,6 +102,8 @@ func newDHCPClient(ifaceName, unit string, eventBus ze.EventBus, v4, v6 bool, cf
 		v4Owner:    "iface-dhcp-v4 " + ifaceName + " unit " + unit,
 		clock:      clk,
 		v4Exchange: nclient4Exchanger{clock: clk},
+		v6Dial:     dialV6Link,
+		v6Random:   rand.Float64,
 	}, nil
 }
 

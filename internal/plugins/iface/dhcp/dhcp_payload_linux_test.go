@@ -1,9 +1,8 @@
 // VALIDATES: the DHCP option-to-payload translators — v4Payload (subnet-mask ->
 // prefix length with /24 fallback, router, full ordered DNS list, NTP servers,
-// lease time), v4LeaseTime (absent and zero refused), v6Timers (defaults vs IANA-supplied T1/T2 and
-// address ValidLifetime), publishV6Expired (one /128 expiry event per IA_NA
-// address, 16-address cap), and publishDHCP name/unit backfill + unknown-topic
-// no-emit.
+// lease time), v4LeaseTime (absent and zero refused), and publishDHCP
+// name/unit backfill + unknown-topic no-emit. The DHCPv6 lease record and its
+// events are tested in dhcp_v6_lease_linux_test.go.
 // PREVENTS: a lease being installed with the wrong prefix length, DNS/NTP servers
 // dropped or reordered, expiry events missing addresses, or an event leaking with
 // an empty interface name.
@@ -19,7 +18,6 @@ import (
 	"time"
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
-	"github.com/insomniacslk/dhcp/dhcpv6"
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/clock"
@@ -146,75 +144,6 @@ func TestV4AckWithoutLeaseTimeRefused(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("%s: lease time = %v, want %v", tc.name, got, tc.want)
 		}
-	}
-}
-
-func TestV6Timers(t *testing.T) {
-	c := newTestClient(t, &recordingBus{}, false, true)
-
-	// No IANA: all defaults.
-	empty := &dhcpv6.Message{MessageType: dhcpv6.MessageTypeReply}
-	t1, t2, valid := c.v6Timers(empty)
-	if t1 != 30*time.Minute || t2 != 50*time.Minute || valid != time.Hour {
-		t.Errorf("defaults = %v/%v/%v, want 30m/50m/1h", t1, t2, valid)
-	}
-
-	// IANA with T1/T2 and an address ValidLifetime overrides the defaults.
-	addr := &dhcpv6.OptIAAddress{IPv6Addr: net.ParseIP("2001:db8::1"), ValidLifetime: 900 * time.Second}
-	iana := &dhcpv6.OptIANA{IaId: [4]byte{1, 2, 3, 4}, T1: 100 * time.Second, T2: 200 * time.Second}
-	iana.Options.Add(addr)
-	msg := &dhcpv6.Message{MessageType: dhcpv6.MessageTypeReply}
-	msg.AddOption(iana)
-
-	t1, t2, valid = c.v6Timers(msg)
-	if t1 != 100*time.Second || t2 != 200*time.Second || valid != 900*time.Second {
-		t.Errorf("IANA timers = %v/%v/%v, want 100s/200s/900s", t1, t2, valid)
-	}
-}
-
-func TestPublishV6Expired(t *testing.T) {
-	bus := &recordingBus{}
-	c := newTestClient(t, bus, false, true)
-
-	addr1 := &dhcpv6.OptIAAddress{IPv6Addr: net.ParseIP("2001:db8::1")}
-	addr2 := &dhcpv6.OptIAAddress{IPv6Addr: net.ParseIP("2001:db8::2")}
-	iana := &dhcpv6.OptIANA{IaId: [4]byte{1, 2, 3, 4}}
-	iana.Options.Add(addr1)
-	iana.Options.Add(addr2)
-	msg := &dhcpv6.Message{MessageType: dhcpv6.MessageTypeReply}
-	msg.AddOption(iana)
-
-	c.publishV6Expired(msg)
-
-	events := bus.leases(t)
-	if len(events) != 2 {
-		t.Fatalf("expired events = %d, want 2", len(events))
-	}
-	for _, lease := range events {
-		if lease.PrefixLength != 128 {
-			t.Errorf("PrefixLength = %d, want 128", lease.PrefixLength)
-		}
-		if lease.LeaseTime != 0 {
-			t.Errorf("LeaseTime = %d, want 0 for expiry", lease.LeaseTime)
-		}
-	}
-}
-
-func TestPublishV6ExpiredCap(t *testing.T) {
-	bus := &recordingBus{}
-	c := newTestClient(t, bus, false, true)
-
-	iana := &dhcpv6.OptIANA{IaId: [4]byte{1, 2, 3, 4}}
-	for range 20 {
-		iana.Options.Add(&dhcpv6.OptIAAddress{IPv6Addr: net.ParseIP("2001:db8::").To16()})
-	}
-	msg := &dhcpv6.Message{MessageType: dhcpv6.MessageTypeReply}
-	msg.AddOption(iana)
-
-	c.publishV6Expired(msg)
-
-	if got := len(bus.leases(t)); got != 16 {
-		t.Errorf("expired events = %d, want 16 (cap)", got)
 	}
 }
 

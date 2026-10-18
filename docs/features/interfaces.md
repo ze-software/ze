@@ -53,7 +53,7 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | | DHCPv4 address lifetime equals the lease, refreshed by every renewal; an infinite lease (0xffffffff) installs as infinite and is not renewed | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- v4AddressLifetime, installV4Lease, holdV4 --> |
 | | DHCPv4 lease kept for as long as a server answers: RENEW unicast to the leasing server at every T1, REBIND broadcast to any server at T2, both retransmitted on the RFC 2131 Section 4.4.5 schedule (half the time left, at least 60 s); the address goes only when the lease expires. Deadlines count from the instant the REQUEST was sent | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- holdV4, extendV4, v4NextAttempt, v4LeaseFromAck --> |
 | | DHCPv4 T1 and T2 from the server (options 58 and 59) when T1 < T2 < lease, otherwise the defaults (half and seven eighths of the lease) | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- v4LeaseTimers --> |
-| | DHCPv4 DHCPNAK to a RENEW or REBIND removes the address and route and restarts DORA at once | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- extendV4 --> |
+| | DHCPv4 DHCPNAK to a RENEW or REBIND removes the address and route and restarts DORA at once. The RENEW is sent from the leased address but its answer is read from the device, so a DHCPNAK the server broadcasts is seen as well as a DHCPACK it unicasts | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- extendV4 --> <!-- source: internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go -- newV4UnicastClient, v4UnicastConn --> |
 | | DHCPv4 ACK without a lease time (option 51), or with 0, is refused: nothing is installed and DORA retries after 10 s; during a renewal it counts as no answer. The Warn names the server and says option 51 is missing | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- v4LeaseTime, logV4Refusal --> |
 | | DHCPv4 DORA, RENEW and REBIND open their sockets on the kernel device the interface name resolves to (`os-name`, `mac/match`) | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- acquireV4, sendV4Extend --> |
 | | DHCPv4 RENEW and REBIND carry the same client-id (option 61) and hostname (option 12) as the DORA REQUEST | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- v4ExtendRequest --> |
@@ -71,7 +71,7 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | | Client-ID in DHCPv4 (option 61) | have | |
 | | DHCPv4 flags bits 1 to 15 sent as zero, even when the server's OFFER or ACK sets them (RFC 2131 section 2) | have | |
 | | NTP servers from DHCP (option 42) | have | |
-| | DHCPv6 proper Renew (not re-solicit) | missing | medium |
+| | DHCPv6 proper Renew (not re-solicit) | have | |
 | | DHCP relay | missing | lower |
 | | DHCP server | missing | lower |
 | **Monitoring** | Netlink multicast (link + addr + neigh) | have | |
@@ -343,14 +343,37 @@ device appears, and a config is validated on machines that will never run it.
   0xffffffff) is installed with the kernel's infinite lifetime, which makes it permanent like
   a static address, so only the registration tells the two apart. The reconcile never
   installs a leased address and never changes its lifetime, so a lease its client removed
-  is not put back. An address with a finite valid lifetime stays: a SLAAC address, or a
-  DHCPv6 lease, which its client does not register. Its owner renews it and the kernel
-  expires it. An IPv6 link-local address the replaced config did not name stays, because the
+  is not put back. A DHCPv6 lease stays the same way: its client registers every leased
+  address, finite or infinite, and installs it with exactly the lifetimes the lease
+  carries. An address with a finite valid lifetime stays: a SLAAC address. Its owner renews
+  it and the kernel expires it. An IPv6 link-local address the replaced config did not name stays, because the
   kernel generates one on every IPv6 link (RFC 4291 Section 2.1). A link-local the operator
-  configured and then dropped is removed. A DHCPv6 lease with an infinite lifetime is
-  permanent in the kernel and unregistered, so the reconcile still removes it.
+  configured and then dropped is removed.
 <!-- source: internal/component/iface/config_apply.go -- reconcileOnReadyWithJournal, learnedAddrSet, addrLearned -->
 <!-- source: internal/component/iface/address_owner.go -- RegisterLeasedAddresses, leasedAddressSet -->
+
+The DHCPv6 client follows RFC 9915. It acquires a lease with Solicit, Advertise,
+Request and Reply, or with a Rapid Commit Reply. It extends the lease with Renew to
+the leasing server at the earliest T1 of its IAs and with Rebind to any server at
+the earliest T2, for as long as a server answers. When every valid lifetime has run
+out it removes the addresses, publishes one `dhcp-expired` per lease (a delegated
+prefix included) and solicits again. Each exchange retransmits on the RFC 9915
+Section 15 schedule, with Solicit backing off to SOL_MAX_RT (3600 s, or the value a
+server sends between 60 and 86400) and never stopping, and at most 20 messages in
+any 20 s per interface. One Warn reports an outage, and retransmissions log at
+Debug. A valid lifetime of 0 removes the lease; an address with a preferred lifetime
+above its valid lifetime, or an IA with T1 above T2, is discarded. With `pd` set,
+every message carries an IA_PD, with a prefix-length hint when `pd { length }` is
+set. Every message carries one stable DUID: the `duid` leaf when set, otherwise a
+DUID-LL built from the device MAC. A DUID-LL is a known deviation from RFC 9915
+Section 11.4, which advises against it when the client cannot tell the interface is
+permanently attached; set `duid` where that matters. Ze changed from a fresh
+time-stamped DUID per Solicit to this stable one, so a server hands out one new
+binding once after the upgrade. On stop the client removes its addresses, then sends
+a Release and waits at most 3 s for the answer.
+<!-- source: internal/plugins/iface/dhcp/dhcp_v6_linux.go -- runV6, v6Worker.maintain, v6Worker.extend, v6Worker.shutdown, v6Worker.identify -->
+<!-- source: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go -- v6Worker.runExchange, v6Worker.admitTransmission, v6AdvertiseCollector, v6Worker.emptyIAPD -->
+<!-- source: internal/plugins/iface/dhcp/dhcp_v6_lease_linux.go -- v6Lease.apply, v6Lease.renewTimes -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- installV4Lease, v4AddressLifetime, teardownV4 -->
 - **A VLAN unit carries its parent's MTU.** A unit has no `mtu` leaf, so every
   commit sets each VLAN sub-interface of an ethernet entry with an `mtu` to that

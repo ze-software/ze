@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 3/6 (phases 2, 3, 4 code landed; 1 enrolment, 5 duid pattern, 6 interop owed) |
 | Handoff | verify |
 | Updated | 2026-10-18 |
 
@@ -207,7 +207,7 @@ depends on that work for the infinite case (A-6).
 | A-3 | A matcher that returns false keeps `SendAndRead` waiting until RT, so it can collect Advertise messages | `SendAndRead` loop (vendored) | Advertise collection needs its own receive path | unit test over `NewWithConn` | unvalidated |
 | A-4 | The kernel performs DAD on addresses `ReplaceAddressWithLifetime` installs (no IFA_F_NODAD), satisfying the §18.2.10.1 DAD MUST | netlink backend sets no NODAD flag | §18.2.10.1 DAD unmet | read `manage_linux.go` flags; integration test sees `tentative` then clear | unvalidated |
 | A-5 | Re-creating the `nclient6.Client` per exchange is harmless (port 546 rebind succeeds immediately) | today's code already does it per solicit | EADDRINUSE between exchanges | integration test runs at least 3 exchanges back to back | unvalidated |
-| A-6 | An infinite-lifetime lease is protected from the reconcile by the owned-address work in another session | owner brief 2026-10-18; `learnedAddrSet` spares finite only | an infinite lease is stripped on commit | that session's test; this spec's AC-10 asserts only the installed lifetime | unvalidated |
+| A-6 | An infinite-lifetime lease is protected from the reconcile by the owned-address work in another session | owner brief 2026-10-18; `learnedAddrSet` spares finite only | an infinite lease is stripped on commit | that session's test; this spec's AC-10 asserts only the installed lifetime | superseded: the v6 worker registers every leased address itself through `iface.RegisterLeasedAddresses` (`v6Worker.registerLeased`), proven in `TestDHCPv6InstalledLifetimeEqualsLease` |
 | A-7 | No consumer outside resolv.conf uses DHCPv6-provided DNS, so "stop using" means rewriting resolv.conf without them | `handleV6Reply` is the only writer | other consumers keep stale servers | grep `DNSAll` consumers | unvalidated |
 | A-8 | `dhcp-expired` consumers accept a payload with PrefixLength other than 128 (D-12) | `DHCPPayload` already carries prefixes on acquired/renewed | a consumer mis-handles PD expiry | grep `EventDHCPExpired` subscribers | unvalidated |
 | A-9 | Kea (`kea-dhcp6`) runs in the interop container with valid lifetimes of tens of seconds and explicit T1/T2 | Kea config schema (`renew-timer`, `rebind-timer`, `valid-lifetime`) | the scenario needs minutes per cycle | build the Dockerfile, run the scenario | unvalidated |

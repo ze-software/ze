@@ -38,7 +38,7 @@ func newDHCPClientRecorder(t *testing.T) *dhcpClientRecorder {
 	r := &dhcpClientRecorder{clients: make(map[string]*stoppableDHCPClient)}
 	previous := dhcpClientFactory
 	t.Cleanup(func() { dhcpClientFactory = previous })
-	SetDHCPClientFactory(func(ifaceName, unit string, _ ze.EventBus, _, _ bool, _, _ string, _ int, _, _ string, _ bool, _ int) (DHCPStopper, error) {
+	SetDHCPClientFactory(func(ifaceName, unit string, _ ze.EventBus, _, _ bool, _, _ string, _ bool, _ int, _, _ string, _ bool, _ int) (DHCPStopper, error) {
 		key := ifaceName + "/" + unit
 		client := &stoppableDHCPClient{}
 		r.created = append(r.created, key)

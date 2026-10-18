@@ -269,9 +269,10 @@ type dhcpUnitConfig struct {
 // dhcpv6UnitConfig holds DHCPv6 client settings parsed from the YANG
 // "dhcpv6" container inside the ipv6 family container.
 type dhcpv6UnitConfig struct {
-	Enabled  bool
-	PDLength int // 0 = not set (server decides)
-	DUID     string
+	Enabled     bool
+	PDRequested bool // the pd container is configured: ze requests a delegated prefix
+	PDLength    int  // 0 = no length hint (server decides)
+	DUID        string
 }
 
 type rpfMode int
@@ -1467,6 +1468,7 @@ func parseDHCPv6Config(um map[string]any) *dhcpv6UnitConfig {
 		cfg.Enabled = v == yangTrue
 	}
 	if pd, ok := dm["pd"].(map[string]any); ok {
+		cfg.PDRequested = true
 		if v, ok := pd["length"].(string); ok {
 			cfg.PDLength, _ = strconv.Atoi(v)
 		}

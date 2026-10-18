@@ -482,22 +482,18 @@ module ze-iface-conf {
                     }
 
                     container pd {
-                        description "Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no
-                                     server for a delegated prefix. Ze does install a prefix that a
-                                     server sends on its own in the IA_PD option of a Reply. Ze
-                                     publishes that prefix as a lease on this unit. The length leaf
-                                     below reaches no message Ze sends.";
+                        description "Request a delegated prefix. Every Solicit, Request, Renew and
+                                     Rebind Ze sends carries an IA_PD option, and Ze publishes each
+                                     delegated prefix as a lease on this unit.";
                         ze:help "Prefix delegation";
 
                         leaf length {
                             type uint8 {
                                 range "48..64";
                             }
-                            description "The prefix length ze asks for, from 48 to 64. Ze reads the
-                                         leaf into the DHCP client configuration and then sends no
-                                         IA_PD option, so the value reaches no server and changes
-                                         nothing. A prefix that a server sends on its own keeps the
-                                         length that server assigned.";
+                            description "The prefix length ze asks for, from 48 to 64, sent as an IA
+                                         Prefix hint (::/length) in the IA_PD. Without it the IA_PD
+                                         carries no hint and the server chooses the length.";
                             ze:help "Requested prefix length";
                         }
                     }
@@ -507,7 +503,7 @@ module ze-iface-conf {
                         description "When the leaf is omitted, ze generates a DUID-LL from the interface
                                      MAC. Set the leaf when the DHCP server binds a lease to a specific
                                      DUID.";
-                        ze:help "Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).";
+                        ze:help "Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).";
                     }
                 }
 

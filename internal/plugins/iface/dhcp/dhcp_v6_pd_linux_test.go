@@ -63,7 +63,10 @@ func TestDHCPv6PDLeaseFlow(t *testing.T) {
 	msg := &dhcpv6.Message{MessageType: dhcpv6.MessageTypeReply}
 	msg.AddOption(iapd)
 
-	c.handleV6Reply(msg, iface.TopicDHCPLeaseAcquired)
+	w := &v6Worker{c: c, iaidPD: [4]byte{1, 2, 3, 4}}
+	if !w.takeLease(msg, time.Now()) {
+		t.Fatal("takeLease refused a Reply carrying one IA_PD prefix")
+	}
 
 	var payload string
 	found := 0
