@@ -10,22 +10,28 @@ Agents test through a private launcher `./le --name <x> ...` (the shared
 
 ## 1. Landed
 Filter modify per NLRI section + IRR re-admit (6019dd0675), its reviewed-claim
-rows (bc1567a4ce), GTSM RFC 5082 test fix and repaired RFC records (aa68152f6a,
-`./le rfc check` green). Owner approved the FlowSpec and GTSM test changes.
+rows (bc1567a4ce), GTSM RFC 5082 test fix and repaired RFC records (b5c970a12e,
+`./le rfc check` green; on the 2026-10-18 rebase its GTSM hunks gave way to
+upstream's 4af4c80883, which asserts the matched term by name). Owner approved the FlowSpec and GTSM test changes.
 
 ## 2. Landed 2026-10-17 evening (local, unpushed), and what each still owes
-- 19e7e2f22c CI installs linux-modules-extra (azure kernel lacks l2tp): a push proves it.
-- 60fa70828e IPsec readiness causes + port-check false green; 357da19fcf
+SHAs are the ones after the 2026-10-18 rebase onto 8ab0ff53a0.
+- a714ded189 CI installs linux-modules-extra (azure kernel lacks l2tp): a push proves it.
+- 15b9d43891 IPsec readiness causes + port-check false green; 6d21324b05
   re-recorded the 7 IKE RFC records it staled. Owes: a Docker run of the five
   scenarios (blocked by network `ze-ipsec-2323022`).
-- 91cf16bb7a show mtu reference = leaf, else first name-server, else refused.
+- 892b01fa35 show mtu reference = leaf, else first name-server, else refused.
   Owes: QEMU `show-mtu-*` .ci and `mtu-nat-installed-endpoint`.
-- 71623db895 RIB re-encodes large communities; af9ae20aa5 fastpath enable
-  replays installed best routes (open journal gap: peer-down purge elects with
-  no handle).
-- Doc rows: b145690796, 291f776fbb.
-- Still in flight: functional-test daemon store in memory (owner option B), see
-  its agent handoff below. The handoffs above it are resolved by these commits.
+- c516d342f3 RIB re-encodes large communities.
+- Doc rows: fd6377bc44, bd98c7790e.
+- Dropped on the rebase, because upstream had landed the same fix
+  independently (owner choice, 2026-10-18): the fastpath enable replay
+  (local design rebuilt each route's UPDATE; upstream 430a3de516 records
+  installed routes as unread and also covers the no-handle purge case), the
+  in-memory functional-test store (upstream dd3eaf7773, opt-out
+  `option=storage:value=disk`) with its reviewed-claim commit, and the drain
+  over-ceiling fixture (upstream 00801ad9e0). The fastpath replay and
+  in-memory store handoffs below describe the dropped local versions.
 
 ## 3. Waiting on the owner
 - IKE `responder-eap-tls12`: recast as a refusal scenario (recommended), or
@@ -400,6 +406,8 @@ The reactor derives one `sessionClose` per down (`reactor/peer_close.go`, `sessi
 - Continuation (2026-10-18): commit 1 prepared, not run (tmp/commit-444e522f-a-57108b.sh); it was made before the AC-4 edits but stages the working tree, so it also carries AC-4 hunks in cmd_exabgp.go, docs/functional-tests.md and the spec. AC-4 runner support done (internal/test/cli/cmd_exabgp_old.go: per-population etc/, option=allowed with stale-allowance refusal; 4 tests); cases ported to test/exabgp-compat/old-5.0 (72) and old-4.2 (34). Against ze: old-5.0 51 pass / 1 allowed / 12 fail / 8 timeout; old-4.2 9 / 0 / 20 / 5. Remaining items (a)-(e) are in the spec under phase 1 "AC-4 remaining"; the largest is the Go mock (interoplab/bgp/exabgp_case.go) refusing 4.2 `announce:`/`withdraw:` steps (12 cases). Not yet in the exabgp-test stage. AC-41 (migrate refuses `shutdown true`) is assigned to phase 7. Two ci-format.md claims about runOneExaBGPTest are still true and need doc-reviewed rows once commit 1 has a SHA.
 
 ### 2026-10-17 fastpath replay, review round 1 (agent stopped at its call budget)
+Superseded 2026-10-18: this design was dropped on the rebase for upstream's
+430a3de516; nothing below is owed except the large-communities item (c516d342f3).
 Pass 1 (uncommitted, green, red without the fix): `rib/forward_replay.go` + test,
 `forward_tracker.go`, `forward_handle.go`, fixture `bgpRSFastpathLate03`,
 `test/plugin/bgp-rs-fastpath-late.ci`, `docs/architecture/rib/forward-handle.md`,
@@ -457,6 +465,8 @@ also offers unsetting `ze.mtu.reference-address`. Owed:
   `show-mtu-*` runs and the `mtu-nat-installed-endpoint` scenario.
 
 ### 2026-10-17 functional-test daemon store in memory (agent stopped at its call budget)
+Superseded 2026-10-18: this design was dropped on the rebase for upstream's
+dd3eaf7773; nothing below is owed.
 Uncommitted. A daemon that creates its store (none beside the config) uses
 `createLiveStore`: shipped build always on disk; `zetest` build reads the
 private `ze.test.store` (memory|disk, unset = disk, other refused). The runner
