@@ -825,8 +825,11 @@ func TestSelectBest_OnlyLLGRStale(t *testing.T) {
 // (internal/component/bgp/plugins/rib/bestpath.go:308-322).
 func TestComparePair_LLGRStale(t *testing.T) {
 	t.Parallel()
-	normal := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100}
-	stale := &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100, StaleLevel: 2}
+	// The stale route holds every advantage the later steps read: the higher LOCAL_PREF and
+	// the lower peer address. Only the stale step can make it lose, so a comparePair that
+	// skipped that step would rank it first and redden both assertions below.
+	stale := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 200, StaleLevel: 2}
+	normal := &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100}
 
 	if got := ComparePair(normal, stale); got != -1 {
 		t.Errorf("normal vs LLGR-stale: want -1, got %d", got)
@@ -834,8 +837,9 @@ func TestComparePair_LLGRStale(t *testing.T) {
 	if got := ComparePair(stale, normal); got != 1 {
 		t.Errorf("LLGR-stale vs normal: want 1, got %d", got)
 	}
-	// Both LLGR-stale: falls through to normal comparison
-	stale2 := &Candidate{PeerAddr: "10.0.0.3", PeerIP: netip.MustParseAddr("10.0.0.3"), LocalPref: 100, StaleLevel: 2}
+	// Both LLGR-stale with equal LOCAL_PREF: the stale step ties and the normal comparison
+	// decides, down to the lower peer address.
+	stale2 := &Candidate{PeerAddr: "10.0.0.3", PeerIP: netip.MustParseAddr("10.0.0.3"), LocalPref: 200, StaleLevel: 2}
 	if got := ComparePair(stale, stale2); got != -1 {
 		t.Errorf("both LLGR-stale, lower peer addr: want -1, got %d", got)
 	}

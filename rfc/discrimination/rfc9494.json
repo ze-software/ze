@@ -337,7 +337,7 @@
       "rid": "RFC9494-4.3-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_LLGRStale",
-      "unit-sha": "e72d16396937b65c",
+      "unit-sha": "69c0c7e81914cb9e",
       "claim-sha": "2411e631109be598",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/bestpath.go::compareBeforeMED",
