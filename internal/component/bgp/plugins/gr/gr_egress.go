@@ -103,18 +103,26 @@ func setEgressState(s *egressFilterState) {
 // The exception is described in Section 4.6. Note that this requirement implies
 // that such routes should be withdrawn from any such neighbor."
 //
-// A route with no stale metadata returns true immediately. That check comes
+// A route below the LLGR stale level returns true immediately. That check comes
 // first because it needs no plugin state, so the state is read only for a route
 // the RFC governs. An unloaded state answers "not received" rather than
-// accepting -- see egressState.
+// accepting -- see egressState. Every rail reaches this one decision, and
+// advertisedStaleLevel says where each one carries the level.
 func LLGREgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta map[string]any, mods *filterapi.ModAccumulator) bool {
 	// The stale level on the ROUTE is the authoritative signal, not a peer-state
-	// counter: a route carries meta["stale"] both for an LLGR restart transition
-	// (onLLGREntryDone) and for an operator or GR-timer `request bgp rib
-	// mark-stale`, which marks routes stale with no LLGR restart at all.
-	staleLevel := staleFromMeta(meta)
-	if staleLevel == 0 {
-		return true // Non-stale route, pass through. This is the real fast path.
+	// counter: a route carries meta["stale"] for an LLGR restart transition
+	// (onLLGREntryDone), for an operator or GR-timer `request bgp rib
+	// mark-stale`, which marks routes stale with no LLGR restart at all, and for a
+	// route received with LLGR_STALE.
+	//
+	// RFC 9494 Section 4.3: "A BGP speaker that has advertised the Long-Lived
+	// Graceful Restart Capability to a neighbor MUST perform the following upon
+	// receiving a route from that neighbor with the LLGR_STALE community or upon
+	// attaching the LLGR_STALE community itself per Section 4.2". Those routes sit
+	// at llgrStaleLevel and above. Level 1, the conventional GR period, is neither,
+	// so it is advertised like any other route (Q-2, owner 2026-10-14).
+	if advertisedStaleLevel(src, payload, meta) < llgrStaleLevel {
+		return true // Fresh or GR-stale route, pass through. This is the real fast path.
 	}
 
 	// Route is stale. Resolve the destination peer's LLGR capability. Being wrong
@@ -180,5 +188,33 @@ func staleFromMeta(meta map[string]any) uint8 {
 		return uint8(level)
 	}
 	logger().Warn("unexpected stale metadata type", "type", v)
+	return 0
+}
+
+// advertisedStaleLevel returns the stale level LLGREgressFilter decides on, the
+// one answer for every rail that reaches it. A rail that carries the level puts
+// it in meta["stale"]: the live forward rails (the GR ingress step's level 2),
+// the RIB replay, resend and refresh rails (rib storage AdvertisedStaleLevel
+// over the copy and its source), and the LLGR re-advertise rail.
+//
+// A route rebuilt from storage (filterapi.MetaKeyRebuilt, the bgp-adj-rib-in
+// relay rails) carries no level, because no ingress step ran on that copy. The
+// level is recovered with the ingress step's own predicate, llgrStaleFromSource,
+// over the source and the stored bytes. The recovery is exact, not a guess: the
+// stored bytes are the post-ingress bytes, and the relay fills
+// src.LLGRAdvertised from the source session's own OPEN.
+func advertisedStaleLevel(src filterapi.PeerFilterInfo, payload []byte, meta map[string]any) uint8 {
+	if level := staleFromMeta(meta); level > 0 {
+		return level
+	}
+	rebuilt, _ := meta[filterapi.MetaKeyRebuilt].(bool)
+	if !rebuilt {
+		return 0 // A live route: the ingress step ran and wrote no level.
+	}
+	// RFC 9494 Section 4.3: "upon receiving a route from that neighbor with the
+	// LLGR_STALE community".
+	if llgrStaleFromSource(src, payload) {
+		return llgrStaleLevel
+	}
 	return 0
 }

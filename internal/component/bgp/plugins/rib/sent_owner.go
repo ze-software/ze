@@ -90,24 +90,32 @@ func setSentPathSource(entry *ribOutEntry, fam family.Family, ordinal uint32, pa
 	}
 }
 
-// sentSourceCurrent validates history against the mandatory receive inventory.
-// It performs no selection: the same source, identifier presence/value and
+// sentSourceState answers the two questions the RIB replay rails ask of the
+// received route an Adj-RIB-Out copy was sent from, with one by-key lookup of
+// the source's retained paths. Caller holds peerMu.
+//
+// current validates history against the mandatory receive inventory. It
+// performs no selection: the same source, identifier presence/value and
 // received revision must still exist. The short retained snapshot is released
-// before any plugin dispatch. Caller holds peerMu.
-func (r *RIBManager) sentSourceCurrent(fam family.Family, key ribOutKey, sent ribOutEntry) bool {
+// before any plugin dispatch.
+//
+// receivedLLGRStale is the ReceivedLLGRStale of the source's current path for
+// the copy's add-path mode and path identifier, whatever its MsgID: a source
+// that re-announced the route still LLGR_STALE makes the copy not current, and
+// the route is still LLGR-stale (design review r3, N-1). It is read here, from
+// the one holder of the fact, rather than copied onto ribOutEntry, so mark-stale
+// and attach-community, which write the copy's StaleLevel, never reach it.
+func (r *RIBManager) sentSourceState(fam family.Family, key ribOutKey, sent ribOutEntry) (current, receivedLLGRStale bool) {
 	if sent.LocalOrigin {
-		return sent.SourcePeer == "" && sent.SourceOwner == 0
-	}
-	if sent.SourceOwner == 0 || sent.SourceMessageID == 0 {
-		return false
+		return sent.SourcePeer == "" && sent.SourceOwner == 0, false
 	}
 	source, err := netip.ParseAddr(sent.SourcePeer)
 	if err != nil {
-		return false
+		return false, false
 	}
 	received := r.bgpPeers[source]
 	if received == nil {
-		return false
+		return false, false
 	}
 	var inline [4]storage.PrefixPath
 	var paths []storage.PrefixPath
@@ -117,7 +125,7 @@ func (r *RIBManager) sentSourceCurrent(fam family.Family, key ribOutKey, sent ri
 		if fam.SAFI == family.SAFIMPLSLabel {
 			_, parsed, valid := parsePrevKey(fam, []byte(key.Native), false)
 			if !valid {
-				return false
+				return false, false
 			}
 			prefix = parsed
 		}
@@ -125,12 +133,26 @@ func (r *RIBManager) sentSourceCurrent(fam family.Family, key ribOutKey, sent ri
 	} else {
 		paths, addPath = received.AppendKeyPathsRetained(fam, []byte(key.Native), inline[:0])
 	}
-	present := false
+	revisioned := sent.SourceOwner != 0 && sent.SourceMessageID != 0
 	for i := range paths {
 		path := &paths[i]
-		present = present || (addPath == sent.SourceAddPath && path.PathID == sent.SourcePath &&
-			path.Entry.MsgID == sent.SourceMessageID)
+		if addPath == sent.SourceAddPath && path.PathID == sent.SourcePath {
+			receivedLLGRStale = receivedLLGRStale || path.Entry.ReceivedLLGRStale
+			current = current || (revisioned && path.Entry.MsgID == sent.SourceMessageID)
+		}
 		path.Release()
 	}
-	return present
+	return current, receivedLLGRStale
+}
+
+// replayStaleLevel is the stale level a RIB rail hands the readvertise egress
+// filters for one Adj-RIB-Out copy (storage.AdvertisedStaleLevel). Caller holds
+// peerMu.
+//
+// RFC 9494 Section 4.3: the copy of a route received with LLGR_STALE travels at
+// the LLGR stale level, which LLGREgressFilter withholds from a neighbor without
+// LLGR.
+func (r *RIBManager) replayStaleLevel(fam family.Family, key ribOutKey, sent ribOutEntry) uint8 {
+	_, receivedLLGRStale := r.sentSourceState(fam, key, sent)
+	return storage.AdvertisedStaleLevel(sent.StaleLevel, receivedLLGRStale)
 }

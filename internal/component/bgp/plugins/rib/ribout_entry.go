@@ -246,7 +246,9 @@ func extractNextHopFromMPReach(value []byte) string {
 	return ""
 }
 
-// collectRibOutRoutes reconstructs Routes from ribOut entries for a peer+family.
+// collectRibOutRoutes reconstructs Routes from ribOut entries for a peer+family,
+// each at the stale level the refresh rail hands on (replayStaleLevel). Caller
+// holds peerMu.
 func (r *RIBManager) collectRibOutRoutes(peerAddr netip.Addr, fam family.Family) []*Route {
 	familyRoutes := r.ribOut[peerAddr][fam]
 	if familyRoutes == nil {
@@ -257,7 +259,11 @@ func (r *RIBManager) collectRibOutRoutes(peerAddr netip.Addr, fam family.Family)
 		if !replaySourceEligible(fam, key, entry.SourcePeer) {
 			continue
 		}
-		routes = append(routes, reconstructRoute(entry, fam, key))
+		route := reconstructRoute(entry, fam, key)
+		// RFC 9494 Section 4.3: the ROUTE-REFRESH rail sends a copy of a route
+		// received with LLGR_STALE at the LLGR stale level (replayStaleLevel).
+		route.StaleLevel = r.replayStaleLevel(fam, key, entry)
+		routes = append(routes, route)
 	}
 	return routes
 }

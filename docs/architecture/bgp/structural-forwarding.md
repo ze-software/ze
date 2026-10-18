@@ -90,7 +90,11 @@ for `replay-path`, which returns the current retained path or an explicit
 withdrawal for a removed path. This callback performs no RPC on the emitting
 Adj-RIB-In command handler. Recovery therefore uses the stored bytes without
 requiring another UPDATE, and an event overtaken by another change still queries
-the current route.
+the current route. Every rebuilt update carries the `rebuilt` route-metadata key
+(`docs/architecture/meta/README.md`), because no ingress step ran on it: the GR
+egress filter recovers a received LLGR_STALE route's stale level from the source
+session's OPEN and the stored COMMUNITIES rather than read the missing level as
+fresh.
 <!-- source: internal/component/bgp/plugins/rs/server_validation.go -- validationChanged, processValidation -->
 <!-- source: internal/component/bgp/reactor/forward_validation.go -- forwardUpdateCore, forwardValidationWire -->
 <!-- source: internal/component/bgp/reactor/reactor_api_relay.go -- buildRelayUpdate, buildRelayWithdrawal -->

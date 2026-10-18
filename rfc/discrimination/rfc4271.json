@@ -573,7 +573,7 @@
       "claim-sha": "0ae35a67018f4c06",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
-      "producer-sha": "f044d9c84cfd61bd",
+      "producer-sha": "f6cfa0fa7fd66260",
       "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -2258,7 +2258,7 @@
       "claim-sha": "bc0af3ed669da6ef",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_commands.go::extractCandidate",
-      "producer-sha": "ff7cb72b9f7e4720",
+      "producer-sha": "d74502a81e9803ad",
       "break": "body of extractCandidate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -2269,7 +2269,7 @@
       "claim-sha": "526cd38c39d24aa8",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_commands.go::extractCandidate",
-      "producer-sha": "ff7cb72b9f7e4720",
+      "producer-sha": "d74502a81e9803ad",
       "break": "body of extractCandidate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -2357,7 +2357,7 @@
       "claim-sha": "603abba3fd4b331d",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
-      "producer-sha": "f044d9c84cfd61bd",
+      "producer-sha": "f6cfa0fa7fd66260",
       "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

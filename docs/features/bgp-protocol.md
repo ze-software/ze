@@ -251,6 +251,11 @@ forwarding and RIB readvertisement. An LLGR-capable peer receives the stale
 route unchanged. A non-LLGR eBGP peer receives a withdrawal. A non-LLGR iBGP
 peer receives the route with `NO_EXPORT` and `LOCAL_PREF=0`, allowing partial
 deployments to retain reachability without preferring stale information.
+This applies to a route at the LLGR stale level, one Ze marked LLGR stale or one
+received with LLGR_STALE from a neighbor Ze sent LLGR to, on every path that
+advertises it: live forwarding, RIB replay and route refresh, and the
+`bgp-adj-rib-in` replay. A route in its conventional GR period carries no
+LLGR_STALE and is advertised like any other.
 
 Only the LLGR filter runs during stale readvertisement. Other export policy has
 already run on the original announcement and is not applied twice.

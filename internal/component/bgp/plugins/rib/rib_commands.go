@@ -1377,10 +1377,7 @@ func (r *RIBManager) extractCandidate(fam family.Family, peerAddr netip.Addr, pe
 	// never touch it. Best path sees the higher of the two. The received case
 	// binds only "A BGP speaker that has advertised the Long-Lived Graceful
 	// Restart Capability to a neighbor", which the GR ingress step checked.
-	c.StaleLevel = entry.StaleLevel
-	if entry.ReceivedLLGRStale && c.StaleLevel < storage.DepreferenceThreshold {
-		c.StaleLevel = storage.DepreferenceThreshold
-	}
+	c.StaleLevel = storage.AdvertisedStaleLevel(entry.StaleLevel, entry.ReceivedLLGRStale)
 
 	c.AIGP, c.HasAIGP = entryAIGP(entry)
 

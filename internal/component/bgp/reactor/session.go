@@ -300,11 +300,14 @@ type Session struct {
 	localRSClient bool
 
 	// localLLGR records that our OPEN carried the Long-Lived Graceful Restart
-	// Capability, set by retainAdvertisedLLGR from our own capabilities. Only the receive
-	// goroutine accesses it, after negotiation and so before the first UPDATE.
-	// The RFC 9494 Section 4.3 ingress step reads it through
-	// filterapi.PeerFilterInfo.LLGRAdvertised.
-	localLLGR bool
+	// Capability, stored by retainAdvertisedLLGR from our own capabilities
+	// (negotiateWith). It is an atomic so that no reader takes mu: the receive
+	// goroutine loads it after negotiation and so before the first UPDATE, and
+	// the relay rail loads it through advertisedLLGR under the reactor lock,
+	// where waiting on mu behind closeConn could stall the reactor. The RFC 9494
+	// Section 4.3 ingress step and the relay rail's egress recovery read it
+	// through filterapi.PeerFilterInfo.LLGRAdvertised.
+	localLLGR atomic.Bool
 
 	// writeMu serializes all access to writeBuf.
 	// Multiple goroutines send concurrently (keepalive timer, forward pool workers,

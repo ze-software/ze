@@ -389,18 +389,18 @@ best path treats the route as level 2. That mark is separate from the stale
 level above: `mark-stale` and `purge-stale` act on the stale level alone, so
 such a route is retained at a TCP loss and survives an EOR like a fresh route.
 A refresh without the community makes it a normal route again. When the route
-is forwarded as it arrives, the LLGR egress decision applies to it as to a
-route Ze marked itself: withdrawn toward an EBGP neighbor without LLGR, sent
-with NO_EXPORT and LOCAL_PREF 0 toward an IBGP one. The `show bgp rib` stale
-level, a RIB replay or route refresh, and an adj-rib-in relay still see only
-the stale level, so on those paths such a route is sent as a fresh one.
+is advertised, the LLGR egress decision applies to it as to a route Ze marked
+itself: withdrawn toward an EBGP neighbor without LLGR, sent with NO_EXPORT and
+LOCAL_PREF 0 toward an IBGP one. That holds on every path that advertises it,
+listed under "Readvertising a Stale Route" below. The `show bgp rib` stale
+level still shows only the retention mark.
 <!-- source: internal/component/bgp/plugins/gr/gr_ingress.go -- LLGRIngressFilter, llgrStaleFromSource -->
 <!-- source: internal/component/bgp/plugins/rib/rib_structured.go -- receivedLLGRStaleFromMeta -->
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- extractCandidate -->
 
 ### Readvertising a Stale Route
 
-RFC 9494 Section 4.3 governs a stale route that ze forwards on to a neighbor from which the LLGR Capability was not received. The stale level on the ROUTE decides, not the restart state, so a route staled by `request bgp rib mark-stale` takes the same treatment as one staled by a peer restart.
+RFC 9494 Section 4.3 governs a route at the LLGR stale level (2), whether Ze marked it or it arrived with LLGR_STALE, that ze forwards on to a neighbor from which the LLGR Capability was not received. The stale level on the ROUTE decides, not the restart state, so a route raised to level 2 by `request bgp rib mark-stale` takes the same treatment as one raised by a peer's LLGR period.
 
 | Destination | Action |
 |-------------|--------|
@@ -410,6 +410,26 @@ RFC 9494 Section 4.3 governs a stale route that ze forwards on to a neighbor fro
 
 The filter fails closed. When it cannot read the peer capability state, it answers "LLGR was not received" for every destination. It raises one warning per process and then withdraws or depreferences. An unread state used to accept, which put a long-lived stale route into a neighbor that never agreed to hold one.
 <!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter, egressState -->
+
+Only a route at the LLGR stale level takes this treatment: one Ze marked LLGR
+stale, or one received with LLGR_STALE as described above. A route in its
+conventional GR period (stale level 1) carries no LLGR_STALE, so it is
+advertised like any other route when the RIB replays it to a re-established
+neighbor or resends it on a route refresh.
+
+Every path that advertises a route reaches the same decision, and each carries
+the received LLGR_STALE fact its own way:
+
+| Path | How the fact arrives |
+|------|----------------------|
+| Live forward and route server forward | The GR plugin's ingress step marks the route as it arrives |
+| RIB replay to a re-established neighbor, `clear bgp rib out`, route refresh | The RIB reads the source route the copy was sent from, so a mark-stale on the copy does not hide it |
+| `bgp-adj-rib-in` replay and relay recovery | The rebuilt route is marked `rebuilt`, and the GR plugin re-runs its ingress test on the source session and the stored COMMUNITIES |
+| AIGP metric re-advertisement | The route keeps the mark it was given on arrival |
+<!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- advertisedStaleLevel -->
+<!-- source: internal/component/bgp/plugins/rib/sent_owner.go -- sentSourceState, replayStaleLevel -->
+<!-- source: internal/component/bgp/plugins/rib/storage/routeentry.go -- AdvertisedStaleLevel -->
+<!-- source: internal/component/bgp/reactor/reactor_api_relay.go -- buildRelayUpdate, resolveRelaySource -->
 
 The one arrangement that leaves the state permanently unread is `run "ze plugin bgp-gr"`. See [Keep the bgp-gr engine in the daemon process](#keep-the-bgp-gr-engine-in-the-daemon-process).
 

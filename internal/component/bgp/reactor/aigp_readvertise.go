@@ -408,6 +408,9 @@ func (r *Reactor) replayAIGP(ad *aigpAdvertisement, revision uint64) {
 		return
 	}
 	defer r.recentUpdates.Release(id)
+	// The ingress steps' own map from receipt (retainAIGPReceived), in place of
+	// relayRebuiltMeta: the ingress steps DID run on this route, so its
+	// meta["stale"] is the RFC 9494 Section 4.3 answer and needs no recovery.
 	update.Meta = ad.route.meta
 	update.aigpReplay = ad
 	src.info.sender = ad.sender

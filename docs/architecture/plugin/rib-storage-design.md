@@ -1392,11 +1392,17 @@ Level 0 means fresh (not stale). Plugins define non-zero levels and pass them vi
 `meta["stale"] = 2` for a route received carrying LLGR_STALE from a neighbor Ze sent
 the LLGR Capability to (RFC 9494 Section 4.3), the reactor puts that metadata on the
 received event, and `handleReceivedStructured` writes the flag on every insert of the
-route, the no-op branches included, so it follows the latest UPDATE. `extractCandidate`
-raises the candidate to `DepreferenceThreshold`. No stale operation below reads or
-writes it.
+route, the no-op branches included, so it follows the latest UPDATE. No stale
+operation below reads or writes it. `storage.AdvertisedStaleLevel` combines the two
+into the higher one, and both readers call it: `extractCandidate` for best path, and
+the Adj-RIB-Out rails (peer-up replay, resend, route refresh) for the `meta["stale"]`
+they send. An Adj-RIB-Out copy holds no received flag of its own. `sentSourceState`
+reads the flag from the source's current path by add-path mode and path identifier,
+whatever its MsgID, in the same lookup that tells the peer-up replay whether the
+copy is still current.
 
-<!-- source: internal/component/bgp/plugins/rib/storage/routeentry.go — StaleLevelFresh, DepreferenceThreshold -->
+<!-- source: internal/component/bgp/plugins/rib/storage/routeentry.go — StaleLevelFresh, DepreferenceThreshold, AdvertisedStaleLevel -->
+<!-- source: internal/component/bgp/plugins/rib/sent_owner.go — sentSourceState, replayStaleLevel -->
 
 | Operation | Method | Scope |
 |-----------|--------|-------|

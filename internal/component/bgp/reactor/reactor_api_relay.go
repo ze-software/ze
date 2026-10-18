@@ -141,6 +141,10 @@ func (a *reactorAPIAdapter) resolveRelaySource(srcAddr netip.Addr) relaySource {
 				LocalAS:   s.LocalAS,
 				Name:      s.Name,
 				GroupName: s.GroupName,
+				// RFC 9494 Section 4.3: a rebuilt route carries no stale level,
+				// so LLGREgressFilter recovers it from this flag and the stored
+				// bytes (filterapi.MetaKeyRebuilt).
+				LLGRAdvertised: srcPeer.sessionAdvertisedLLGR(),
 			}
 		}
 		out.ctxID = fwdContextIDWithASN4(srcPeer.recvContextID(), true)
@@ -396,6 +400,12 @@ func relayRunLen(routes []rpc.StoredRoute) int {
 	return n
 }
 
+// relayRebuiltMeta is the route metadata of every route buildRelayUpdate
+// rebuilds: filterapi.MetaKeyRebuilt, true. It is shared by every relayed route
+// and MUST NOT be written: egress filters and sent-event consumers only read
+// the map.
+var relayRebuiltMeta = map[string]any{filterapi.MetaKeyRebuilt: true}
+
 func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relaySource, spans *[]relayAttrSpan) (*ReceivedUpdate, uint64, int, error) {
 	// Every field read here outside the NLRI section is shared by the whole run,
 	// which is what relayRunLen guarantees, so the first route states them all.
@@ -583,24 +593,29 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relay
 		validationReplay: true,
 		validationMsgID:  route.MsgID,
 		ReceivedAt:       a.r.clock.Now(),
-		// Meta is deliberately nil: the ingress annotations a live UPDATE carries
-		// (meta["src-role"], meta["stale"]) are not stored alongside the route.
+		// Meta is the shared read-only relayRebuiltMeta: the ingress
+		// annotations a live UPDATE carries (meta["src-role"], meta["stale"]) are
+		// not stored alongside the route, so no ingress step's answer is here,
+		// and the filterapi.MetaKeyRebuilt key says so. An egress filter that
+		// needs one of those facts recovers it rather than reading the absence
+		// as "no".
 		//
-		// RFC 9494 staleness is genuinely false for a replay, so its absence is
-		// correct. RFC 9234 role handling still suppresses correctly here because
-		// the ingress filter stamps OTC into the WIRE bytes before the route is
-		// stored, so the wire-bytes egress rule (role/otc.go checkOTCEgress) sees
-		// it on the reconstruction without needing meta.
+		// RFC 9494 Section 4.3: a stored route received with LLGR_STALE is not
+		// fresh. LLGREgressFilter (gr_egress.go advertisedStaleLevel) recovers its
+		// stale level with the ingress step's own predicate over the source's
+		// LLGRAdvertised (resolveRelaySource) and these bytes.
 		//
-		// The meta-based Gao-Rexford safety net in OTCEgressFilter used to go
-		// unevaluated for a replayed route, because it read meta["src-role"] and
-		// treated the missing key as "no restriction". That is CLOSED: the filter
-		// now recovers our role for the source peer from config when meta lacks
-		// it (resolveSrcRole, role/otc.go), which is an exact recovery rather than
-		// a guess because the ingress filter only ever copied it out of the same
-		// config field. So a nil Meta here no longer weakens the leak guard.
-		// Proven by TestOTCEgressSuppressProviderLearnedWithoutMeta.
-		Meta: nil,
+		// RFC 9234 role handling suppresses correctly here because the ingress
+		// filter stamps OTC into the WIRE bytes before the route is stored, so
+		// the wire-bytes egress rule (role/otc.go checkOTCEgress) sees it on the
+		// reconstruction without needing meta. The meta-based Gao-Rexford
+		// safety net in OTCEgressFilter recovers our role for the source peer
+		// from config when meta lacks src-role (resolveSrcRole, role/otc.go),
+		// which is an exact recovery because the ingress filter only ever copied
+		// it out of the same config field. So a Meta without src-role does not
+		// weaken the leak guard. Proven by
+		// TestOTCEgressSuppressProviderLearnedWithoutMeta.
+		Meta: relayRebuiltMeta,
 	}
 	// The stored bytes carry the four-octet AS path the ingest reconciliation
 	// produced, so the wire must carry the relabeled context resolveRelaySource

@@ -28,6 +28,27 @@ const StaleLevelFresh uint8 = 0
 // Plugins that need depreference should use levels >= this value.
 const DepreferenceThreshold uint8 = 2
 
+// AdvertisedStaleLevel combines a route's two stale facts into the one level
+// best path ranks it at and every RIB rail hands the readvertise egress filters:
+// retention, the mark mark-stale and attach-community write (RouteEntry
+// StaleLevel, or an Adj-RIB-Out copy's StaleLevel), and receivedLLGRStale, the
+// route's ReceivedLLGRStale as the GR ingress step decided it. It is the higher
+// of the two, so a received LLGR_STALE route never ranks or travels below
+// DepreferenceThreshold, and a mark above it is kept.
+//
+// RFC 9494 Section 4.3: "upon receiving a route from that neighbor with the
+// LLGR_STALE community or upon attaching the LLGR_STALE community itself per
+// Section 4.2: * Treat the route as the least preferred in route selection
+// [...] * The route SHOULD NOT be advertised to any neighbor from which the
+// Long-Lived Graceful Restart Capability has not been received."
+// Both bullets therefore read this one level.
+func AdvertisedStaleLevel(retention uint8, receivedLLGRStale bool) uint8 {
+	if receivedLLGRStale && retention < DepreferenceThreshold {
+		return DepreferenceThreshold
+	}
+	return retention
+}
+
 type RouteEntry struct {
 	// StaleLevel tracks route freshness. 0 = fresh (not stale).
 	// Per-route metadata, not pooled -- each route has independent stale state.

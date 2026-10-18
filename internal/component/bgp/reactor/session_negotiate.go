@@ -30,13 +30,24 @@ const capabilityCodeLLGR capability.Code = 71
 // Graceful Restart Capability to a neighbor MUST perform the following upon
 // receiving a route from that neighbor with the LLGR_STALE community".
 func (s *Session) retainAdvertisedLLGR(localCaps []capability.Capability) {
-	s.localLLGR = false
+	advertised := false
 	for _, cap := range localCaps {
 		if cap.Code() == capabilityCodeLLGR {
-			s.localLLGR = true
-			return
+			advertised = true
+			break
 		}
 	}
+	s.localLLGR.Store(advertised)
+}
+
+// advertisedLLGR reports whether the OPEN this session sent carried the LLGR
+// Capability. Safe for concurrent use: localLLGR is an atomic, so it takes no
+// lock. The relay rail calls it for a source session from a goroutine that is
+// not that session's reader, while the reactor lock is held, so it MUST NOT take
+// s.mu: closeConn holds s.mu across a flush, a drain and Close, and a stuck
+// source would then stall the reactor.
+func (s *Session) advertisedLLGR() bool {
+	return s.localLLGR.Load()
 }
 
 // negotiateWith performs capability negotiation using pre-parsed capabilities.

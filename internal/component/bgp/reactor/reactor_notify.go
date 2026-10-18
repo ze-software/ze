@@ -257,8 +257,8 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 	// Build PeerInfo while holding lock to avoid race on state
 	var peerInfo plugin.PeerInfo
 	// llgrAdvertised is read from the session only on the received direction,
-	// which runs on that session's read goroutine, the one negotiateWith wrote
-	// localLLGR on, so program order orders the write before this read.
+	// which runs on that session's read goroutine, after negotiateWith stored
+	// localLLGR; the atomic load takes no session lock.
 	var llgrAdvertised bool
 	if hasPeer {
 		s := peer.Settings()
@@ -289,7 +289,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 		}
 		if session != nil {
 			if direction == rpc.DirectionReceived {
-				llgrAdvertised = session.localLLGR
+				llgrAdvertised = session.localLLGR.Load()
 			}
 			if endpoints := session.transport.Load(); endpoints != nil {
 				if endpoints.local.IsValid() {

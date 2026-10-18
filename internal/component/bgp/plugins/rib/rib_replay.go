@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp"
 	"github.com/ze-software/ze/internal/component/bgp/attrpool"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -135,17 +136,24 @@ func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr netip.Addr, fil
 			if peerUp && entry.ConfigStatic {
 				continue
 			}
-			if peerUp && !r.sentSourceCurrent(fam, key, entry) {
+			// One source lookup answers both: whether the copy is still current
+			// (peer-up only) and whether its source route arrived LLGR_STALE.
+			current, receivedLLGRStale := r.sentSourceState(fam, key, entry)
+			if peerUp && !current {
 				continue
 			}
 			if !replaySourceEligible(fam, key, entry.SourcePeer) {
 				continue
 			}
 			gk := groupKey{
-				Family:        fam,
-				AttrHandle:    entry.AttrHandle,
-				PathID:        key.PathID,
-				StaleLevel:    entry.StaleLevel,
+				Family:     fam,
+				AttrHandle: entry.AttrHandle,
+				PathID:     key.PathID,
+				// RFC 9494 Section 4.3: a copy of a route received with
+				// LLGR_STALE is replayed at the LLGR stale level, so the
+				// readvertise egress filters withhold it from a neighbor
+				// without LLGR (storage.AdvertisedStaleLevel).
+				StaleLevel:    storage.AdvertisedStaleLevel(entry.StaleLevel, receivedLLGRStale),
 				AddPath:       entry.AddPath,
 				NextHop:       entry.NextHop,
 				SourcePeer:    entry.SourcePeer,

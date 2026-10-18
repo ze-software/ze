@@ -57,7 +57,7 @@ func receiveThroughIngress(t *testing.T, localLLGR bool) (bgptypes.RawMessage, [
 	})
 	source.state.Store(int32(PeerStateEstablished))
 	session := NewSession(source.Settings())
-	session.localLLGR = localLLGR
+	session.localLLGR.Store(localLLGR)
 	source.session = session
 
 	var seen []bool
@@ -135,8 +135,8 @@ func TestRetainAdvertisedLLGR(t *testing.T) {
 	s := NewSession(&PeerSettings{LocalAS: 65000, PeerAS: 65001, Address: netip.MustParseAddr("203.0.113.72")})
 
 	s.retainAdvertisedLLGR(llgrCaps)
-	require.True(t, s.localLLGR, "an OPEN carrying code 71 advertised LLGR")
+	require.True(t, s.localLLGR.Load(), "an OPEN carrying code 71 advertised LLGR")
 
 	s.retainAdvertisedLLGR(nil)
-	require.False(t, s.localLLGR, "an OPEN without code 71 did not")
+	require.False(t, s.localLLGR.Load(), "an OPEN without code 71 did not")
 }

@@ -41,6 +41,15 @@ import (
 // spells a filter type, and the plugin never spells the rule.
 const ObligationTransitLeak = "transit-leak"
 
+// MetaKeyRebuilt is the route-metadata key the reactor sets, to true, on a
+// route it rebuilt from stored bytes (reactor buildRelayUpdate: the
+// bgp-adj-rib-in peer-up replay and relay recovery). It says no ingress step ran
+// on this copy, so a key an ingress step would have written is absent because
+// nobody computed it, not because its answer is "no". An egress filter that
+// needs such a fact recovers it from the source and the bytes; a live route
+// never carries the key. Documented in docs/architecture/meta/README.md.
+const MetaKeyRebuilt = "rebuilt"
+
 // PeerFilterInfo holds BGP peer metadata for filter decisions.
 // Passed by the reactor to registered filter functions.
 type PeerFilterInfo struct {
@@ -61,10 +70,13 @@ type PeerFilterInfo struct {
 	// with LocalAS, which gets the migration session wrong.
 	IsIBGP bool
 	// LLGRAdvertised reports that the OPEN Ze sent on this session carried the
-	// Long-Lived Graceful Restart Capability (RFC 9494 Section 3). Filled on the
-	// received path only, from the session's own OPEN on the goroutine that read
-	// the UPDATE, so it is settled before the session's first UPDATE is judged.
-	// False on every other rail: none of them reads it.
+	// Long-Lived Graceful Restart Capability (RFC 9494 Section 3). Filled on two
+	// rails. The received path fills it from the session's own OPEN on the
+	// goroutine that read the UPDATE, so it is settled before the session's first
+	// UPDATE is judged. The relay rail (reactor resolveRelaySource) fills the
+	// SOURCE of a route rebuilt from storage, so LLGREgressFilter can recover the
+	// RFC 9494 Section 4.3 fact for a route that carries MetaKeyRebuilt. False on
+	// every other rail: the live forward rails carry that fact in meta["stale"].
 	LLGRAdvertised bool
 }
 

@@ -47,6 +47,10 @@ func LLGRIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[st
 // event is delivered asynchronously, so a session's first UPDATEs could be judged
 // before the record existed. The flag is tested first because it is a field read,
 // so a route from a non-LLGR session costs nothing.
+//
+// Two callers, one predicate: LLGRIngressFilter on receipt, and
+// advertisedStaleLevel for a route the relay rebuilt from storage, whose src the
+// reactor fills from the source session's OPEN (resolveRelaySource).
 func llgrStaleFromSource(src filterapi.PeerFilterInfo, payload []byte) bool {
 	if !src.LLGRAdvertised {
 		return false
