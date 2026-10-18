@@ -97,7 +97,7 @@
       "claim-sha": "a829519826646ed5",
       "route": "revert",
       "producer": "internal/core/bgp/attribute/prefixsid.go::checkTranspositionNotApplicable",
-      "producer-sha": "12dad8f96e51a02a",
+      "producer-sha": "c81962661dbe8dcb",
       "break": "body of checkTranspositionNotApplicable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -108,7 +108,7 @@
       "claim-sha": "8ba2c94a28459e29",
       "route": "revert",
       "producer": "internal/core/bgp/attribute/prefixsid.go::checkTranspositionNotApplicable",
-      "producer-sha": "12dad8f96e51a02a",
+      "producer-sha": "c81962661dbe8dcb",
       "break": "body of checkTranspositionNotApplicable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -141,7 +141,7 @@
       "claim-sha": "e54762a08cfa1052",
       "route": "revert",
       "producer": "internal/core/bgp/attribute/prefixsid.go::checkTranspositionNotApplicable",
-      "producer-sha": "12dad8f96e51a02a",
+      "producer-sha": "c81962661dbe8dcb",
       "break": "body of checkTranspositionNotApplicable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -152,7 +152,7 @@
       "claim-sha": "cb23533a51df2f44",
       "route": "revert",
       "producer": "internal/core/bgp/attribute/prefixsid.go::checkTranspositionNotApplicable",
-      "producer-sha": "12dad8f96e51a02a",
+      "producer-sha": "c81962661dbe8dcb",
       "break": "body of checkTranspositionNotApplicable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

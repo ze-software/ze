@@ -108,7 +108,7 @@
       "claim-sha": "009b85381397a518",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyPeerClosed",
-      "producer-sha": "708c987d1f1c40b1",
+      "producer-sha": "9914d3c38c292fd4",
       "break": "body of notifyPeerClosed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

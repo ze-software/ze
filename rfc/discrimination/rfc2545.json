@@ -141,7 +141,7 @@
       "claim-sha": "f7e505e268ead67f",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_static_wire.go::sendStaticRoutesGrouped",
-      "producer-sha": "16288de14f00ac9d",
+      "producer-sha": "4807174964e9cb70",
       "break": "body of sendStaticRoutesGrouped replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -561,7 +561,7 @@
       "claim-sha": "7af403662e172fad",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_static_wire.go::sendStaticRoutesGrouped",
-      "producer-sha": "16288de14f00ac9d",
+      "producer-sha": "4807174964e9cb70",
       "break": "body of sendStaticRoutesGrouped replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

@@ -9,7 +9,7 @@
       "claim-sha": "7dc458d9047c38f8",
       "route": "revert",
       "producer": "internal/component/bgp/config/peers.go::patchStaticRoutes",
-      "producer-sha": "86c77deb5dded014",
+      "producer-sha": "1c7a1a1f915fd9c8",
       "break": "body of patchStaticRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -20,7 +20,7 @@
       "claim-sha": "d8fdd5bd391dac28",
       "route": "revert",
       "producer": "internal/component/bgp/config/peers.go::patchStaticRoutes",
-      "producer-sha": "86c77deb5dded014",
+      "producer-sha": "1c7a1a1f915fd9c8",
       "break": "body of patchStaticRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "354b0b7de4bd381a",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_static_wire.go::negotiatedStaticRoutes",
-      "producer-sha": "edc7119f4ce313e2",
+      "producer-sha": "4ccc60a0bfd631b1",
       "break": "body of negotiatedStaticRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "62ad7764c4f5958b",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_static_wire.go::negotiatedStaticRoutes",
-      "producer-sha": "edc7119f4ce313e2",
+      "producer-sha": "4ccc60a0bfd631b1",
       "break": "body of negotiatedStaticRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

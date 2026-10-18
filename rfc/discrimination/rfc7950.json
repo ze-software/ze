@@ -218,7 +218,7 @@
       "claim-sha": "323098f54add3a43",
       "route": "revert",
       "producer": "internal/component/config/yang_schema.go::yangToLeaf",
-      "producer-sha": "41985b5e3113e01f",
+      "producer-sha": "bd1d66e6bb8f2706",
       "break": "body of yangToLeaf replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -229,7 +229,7 @@
       "claim-sha": "b300bcd5045167e6",
       "route": "revert",
       "producer": "internal/component/config/yang_schema.go::validateTypedefDefault",
-      "producer-sha": "9fdeb6e880e54c30",
+      "producer-sha": "dc456a9ec6cfaa61",
       "break": "body of validateTypedefDefault replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -240,7 +240,7 @@
       "claim-sha": "a9ab34263426b0f0",
       "route": "revert",
       "producer": "internal/component/config/yang_schema.go::validateLeafDefaults",
-      "producer-sha": "ccb0364913f02eac",
+      "producer-sha": "bd23e17b2c347267",
       "break": "body of validateLeafDefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -251,7 +251,7 @@
       "claim-sha": "2b19d5acc37ccc2c",
       "route": "revert",
       "producer": "internal/component/config/yang_schema.go::validateLeafDefaults",
-      "producer-sha": "ccb0364913f02eac",
+      "producer-sha": "bd23e17b2c347267",
       "break": "body of validateLeafDefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -405,7 +405,7 @@
       "claim-sha": "79bd6b914b11091d",
       "route": "revert",
       "producer": "internal/component/config/yang_schema.go::validateLeafDefaults",
-      "producer-sha": "ccb0364913f02eac",
+      "producer-sha": "bd23e17b2c347267",
       "break": "body of validateLeafDefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -416,7 +416,7 @@
       "claim-sha": "1f3615f2fde27f23",
       "route": "revert",
       "producer": "internal/component/config/yang_schema.go::validateLeafDefaults",
-      "producer-sha": "ccb0364913f02eac",
+      "producer-sha": "bd23e17b2c347267",
       "break": "body of validateLeafDefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -548,7 +548,7 @@
       "claim-sha": "163b1dd69717cf54",
       "route": "revert",
       "producer": "internal/component/config/yang_schema.go::validateLeafDefaults",
-      "producer-sha": "ccb0364913f02eac",
+      "producer-sha": "bd23e17b2c347267",
       "break": "body of validateLeafDefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -559,7 +559,7 @@
       "claim-sha": "db1792a54b334d9c",
       "route": "revert",
       "producer": "internal/component/config/yang_schema.go::validateLeafDefaults",
-      "producer-sha": "ccb0364913f02eac",
+      "producer-sha": "bd23e17b2c347267",
       "break": "body of validateLeafDefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
