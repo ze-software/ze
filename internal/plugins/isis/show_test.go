@@ -3,7 +3,7 @@
 //
 // VALIDATES: `show isis hostname` maps System ID -> TLV 137 name (RFC 5301);
 // `show isis interface` reports per-circuit level/metric/passive/DIS; `show isis
-// spf-log` projects the SPF history; `clear isis adjacency` drops adjacencies;
+// spf-log` projects the SPF history; `clear isis adjacency all` drops adjacencies;
 // `clear isis counters` resets the SPF-log; the hostname sanitizer drops
 // non-printable bytes; auth-configured interfaces report Authenticated without
 // leaking keys.

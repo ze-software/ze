@@ -11,7 +11,10 @@ module ze-isis-cmd {
     // See ai/rules/plugin-self-containment.md.
     description "The show isis and clear isis command tree, owned by the isis component.";
     // show isis neighbor, database[ detail], route, interface, hostname and
-    // spf-log, and clear isis adjacency and counters.
+    // spf-log, and clear isis adjacency all and counters.
+    revision 2026-10-17 {
+        description "clear isis adjacency alone is refused; clear isis adjacency all tears down every adjacency.";
+    }
     revision 2026-06-18 {
         description "Initial revision: the show isis and clear isis commands (spec-isis-13).";
     }
@@ -105,10 +108,17 @@ duration, and node count.";
 
             container adjacency {
                 config false;
-                ze:command "ze-isis:clear-adjacency";
-                description "Adjacencies re-learn from the next Hello; the circuit is not closed and the
+                description "clear isis adjacency alone is refused: say all to tear down every
+adjacency. Everything is never the default.";
+                ze:help "Tear down IS-IS adjacencies: all.";
+
+                container all {
+                    config false;
+                    ze:command "ze-isis:clear-adjacency";
+                    description "Adjacencies re-learn from the next Hello; the circuit is not closed and the
 configuration is unchanged.";
-                ze:help "Tear down every IS-IS adjacency so neighbors re-form.";
+                    ze:help "Tear down every IS-IS adjacency so neighbors re-form.";
+                }
             }
 
             container counters {

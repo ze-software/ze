@@ -974,15 +974,17 @@ Runtime actions that reset IS-IS operational state without changing the
 configuration.
 
 ```
-ze clear isis adjacency                 # Tear down every adjacency; neighbors re-form from the next Hello
+ze clear isis adjacency all             # Tear down every adjacency; neighbors re-form from the next Hello
 ze clear isis counters                  # Reset the SPF-run log (observational state)
 ```
 
-`clear isis adjacency` drops the adjacency records so each neighbour re-learns
+`clear isis adjacency all` drops the adjacency records so each neighbour re-learns
 from the next Hello, triggering LSP re-origination and an SPF re-run; the
 circuit is not closed. `clear isis counters` clears the SPF-run history surfaced
 by `show isis spf-log`; the monotonic Prometheus series are process counters and
-are not reset (resetting them mid-process breaks `rate()`).
+are not reset (resetting them mid-process breaks `rate()`). The bare
+`clear isis adjacency` is refused and names the `all` form: a prefix typed by
+mistake never tears down every adjacency.
 
 <!-- source: internal/plugins/isis/cmd_show.go -- ze-isis:clear-* RPC proxies -->
 <!-- source: internal/plugins/isis/show.go -- clearAdjacencies/clearCounters -->

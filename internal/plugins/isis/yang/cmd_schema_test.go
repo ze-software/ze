@@ -48,6 +48,7 @@ func TestISISCmdSchemaOwnsClearISIS(t *testing.T) {
 		`ze:command "ze-isis:clear-counters"`,
 		"container clear",
 		"container adjacency",
+		"container all",
 		"container counters",
 	} {
 		if !strings.Contains(ZeIsisCmdYANG, want) {

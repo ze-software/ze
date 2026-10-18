@@ -133,7 +133,7 @@ func (t *Table) Reap(now time.Time) int {
 }
 
 // Clear removes every adjacency record from the table and returns how many were
-// dropped. It is the `clear isis adjacency` primitive (spec-isis-13 AC-8): the
+// dropped. It is the `clear isis adjacency all` primitive (spec-isis-13 AC-8): the
 // operator forces every neighbor to re-learn from the next Hello, without
 // reconfiguring or closing the circuit. Records simply vanish; the circuit
 // goroutine recreates them as Down on the next received IIH and walks the FSM

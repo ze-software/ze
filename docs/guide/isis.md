@@ -412,7 +412,8 @@ show isis interface           # circuits: type, metric, hello/hold, passive, DIS
 show isis hostname            # system-id -> dynamic hostname (TLV 137, RFC 5301)
 show isis spf-log             # recent SPF runs: time, level, trigger, duration, node count
 
-clear isis adjacency          # tear down all adjacencies; they re-form from the next Hello
+clear isis adjacency all      # tear down every adjacency; they re-form from the next Hello
+                              # (clear isis adjacency alone is refused: everything needs all)
 clear isis counters           # reset the SPF-run log
 ```
 
@@ -485,7 +486,7 @@ every own-LSP origination, refreshes and regenerations included.
 
 Every `show isis ...` command routes its JSON through the pipe machinery, so you
 can append `| json`, `| table`, `| text`, `| count`, `| match <pat>`,
-`| resolve`, or `| origin`. `clear isis adjacency` forces a full re-learn (LSP
+`| resolve`, or `| origin`. `clear isis adjacency all` forces a full re-learn (LSP
 re-origination + SPF re-run) without closing the circuit; `clear isis counters`
 clears only the observational SPF-run history (the Prometheus series are
 monotonic process counters and are intentionally not reset).

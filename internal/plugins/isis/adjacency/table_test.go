@@ -17,7 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
-// TestISISTableClear: `clear isis adjacency` drops every record and reports the
+// TestISISTableClear: `clear isis adjacency all` drops every record and reports the
 // count, so neighbors re-learn from the next Hello (spec-isis-13 AC-8).
 func TestISISTableClear(t *testing.T) {
 	tab := NewTable()

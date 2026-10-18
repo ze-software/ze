@@ -41,7 +41,7 @@ const (
 	cmdShowInterface      = "show isis interface"
 	cmdShowHostname       = "show isis hostname"
 	cmdShowSPFLog         = "show isis spf-log"
-	cmdClearAdjacency     = "clear isis adjacency"
+	cmdClearAdjacency     = "clear isis adjacency all"
 	cmdClearCounters      = "clear isis counters"
 )
 

@@ -1,5 +1,5 @@
 // Design: docs/architecture/isis/isis-13-cli-diag-interop.md -- engine-side render + clear for
-// `show isis hostname/interface/spf-log` and `clear isis adjacency/counters`.
+// `show isis hostname/interface/spf-log` and `clear isis adjacency all` / `clear isis counters`.
 // Related: register.go -- OnExecuteCommand dispatches these commands here
 // Related: lsdb_wiring.go -- databaseSnapshot/neighborSnapshot this complements
 // Related: spf_wiring.go -- spfLogSnapshot this exposes via `show isis spf-log`
@@ -238,7 +238,7 @@ func (e *engine) spfLogView() []any {
 }
 
 // clearAdjacencies tears down every adjacency on every live circuit (the `clear
-// isis adjacency` runtime action, spec-isis-13 AC-8). Neighbors re-form from the
+// isis adjacency all` runtime action, spec-isis-13 AC-8). Neighbors re-form from the
 // next Hello. It returns the number of adjacency records dropped. Losing an Up
 // adjacency triggers the circuit's down hook (LSP re-origination, SPF re-run),
 // so routes reconverge without a restart.

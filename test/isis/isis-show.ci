@@ -15,7 +15,8 @@
 #              - show isis interface     -> the passive interface row          (AC-4)
 #              - show isis hostname      -> the local System ID -> hostname    (AC-5)
 #              - show isis spf-log       -> JSON array (the SPF run history)   (AC-6)
-#              - clear isis adjacency    -> done, status payload               (AC-8)
+#              - clear isis adjacency    -> refused, the answer names the all form
+#              - clear isis adjacency all -> done, status payload              (AC-8)
 #              - clear isis counters     -> done, status payload               (AC-8)
 # PREVENTS:  regression where a show/clear wire method 404s at dispatch, the
 #            proxy recurses, or the engine never originates so the database is
