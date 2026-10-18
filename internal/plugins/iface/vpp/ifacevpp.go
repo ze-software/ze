@@ -4,6 +4,7 @@
 // Detail: monitor.go -- interface event delivery via WantInterfaceEvents
 // Detail: fib.go -- ListKernelRoutes via ip_route_v2_dump
 // Detail: neighbor.go -- ListNeighbors via ip_neighbor_dump
+// Detail: mtu.go -- SetMTU through the hardware link and protocol MTUs
 //
 // ifacevpp implements iface.Backend for VPP via GoVPP binary API.
 // Registered via iface.RegisterBackend("vpp", factory) in init().
@@ -691,27 +692,7 @@ func (b *vppBackendImpl) SetAdminDown(ifaceName string) error {
 
 // --- Interface properties ---
 
-func (b *vppBackendImpl) SetMTU(ifaceName string, mtu int) error {
-	if mtu < 68 || mtu > 65535 {
-		return fmt.Errorf("ifacevpp: MTU %d out of range (68-65535)", mtu)
-	}
-	idx, err := b.resolveIndex(ifaceName)
-	if err != nil {
-		return err
-	}
-	req := &interfaces.SwInterfaceSetMtu{
-		SwIfIndex: idx,
-		Mtu:       []uint32{uint32(mtu), uint32(mtu), uint32(mtu), uint32(mtu)},
-	}
-	reply := &interfaces.SwInterfaceSetMtuReply{}
-	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
-		return fmt.Errorf("ifacevpp: SetMTU: %w", err)
-	}
-	if reply.Retval != 0 {
-		return fmt.Errorf("ifacevpp: SetMTU retval=%d", reply.Retval)
-	}
-	return nil
-}
+// SetMTU lives in mtu.go.
 
 func (b *vppBackendImpl) GetStats(name string) (*iface.InterfaceStats, error) {
 	statsMap := readVPPIfaceStats()
