@@ -416,7 +416,8 @@ func (k resourceKind) String() string {
 // MarshalText renders the kind for `| json`.
 func (k resourceKind) MarshalText() ([]byte, error) { return []byte(k.String()), nil }
 
-// OrphanResource is one resource a cleanup removed, kept, or failed to remove.
+// OrphanResource is one resource a cleanup removed, kept, failed to remove,
+// or could not tell whether it removed.
 type OrphanResource struct {
 	Kind   resourceKind `json:"kind"`
 	ID     string       `json:"id"`
@@ -427,18 +428,25 @@ type OrphanResource struct {
 }
 
 // OrphanReport is what Docker.CleanupOrphans did. In a dry run Removed lists
-// what would be removed and nothing is.
+// what would be removed and nothing is. Unknown holds a resource whose removal
+// call failed and whose re-observation failed too, so the daemon said neither
+// that it is gone nor that it stays.
 type OrphanReport struct {
 	Dry       bool             `json:"dry"`
 	Removed   []OrphanResource `json:"removed"`
 	Skipped   []OrphanResource `json:"skipped"`
 	Failed    []OrphanResource `json:"failed"`
+	Unknown   []OrphanResource `json:"unknown"`
 	Unlabeled []OrphanResource `json:"unlabeled"`
 }
 
-// Code is 1 when a removal failed, else 0. A skip is never a failure.
+// Code is 1 when a removal failed or its outcome is unknown, else 0. A skip
+// is never a failure.
 func (r OrphanReport) Code() int {
 	if len(r.Failed) > 0 {
+		return 1
+	}
+	if len(r.Unknown) > 0 {
 		return 1
 	}
 	return 0
@@ -446,13 +454,13 @@ func (r OrphanReport) Code() int {
 
 // Empty reports that the cleanup met no Ze lab resource at all.
 func (r OrphanReport) Empty() bool {
-	return len(r.Removed)+len(r.Skipped)+len(r.Failed)+len(r.Unlabeled) == 0
+	return len(r.Removed)+len(r.Skipped)+len(r.Failed)+len(r.Unknown)+len(r.Unlabeled) == 0
 }
 
 // Lines answers one sentence per resource, for the text report and for a lab
 // run's progress output.
 func (r OrphanReport) Lines() []string {
-	lines := make([]string, 0, len(r.Removed)+len(r.Skipped)+len(r.Failed)+len(r.Unlabeled))
+	lines := make([]string, 0, len(r.Removed)+len(r.Skipped)+len(r.Failed)+len(r.Unknown)+len(r.Unlabeled))
 	var line textbuf.Buffer
 	removed := "cleanup: removed "
 	if r.Dry {
@@ -467,6 +475,10 @@ func (r OrphanReport) Lines() []string {
 	}
 	for _, resource := range r.Failed {
 		resourceLine(line.Reset().Str("cleanup: FAILED to remove "), resource).Str(" (").Str(resource.Reason)
+		lines = append(lines, line.Str("): ").Str(resource.Error).Str(". Fix: ").Str(resource.Fix).String())
+	}
+	for _, resource := range r.Unknown {
+		resourceLine(line.Reset().Str("cleanup: UNKNOWN whether this removed "), resource).Str(" (").Str(resource.Reason)
 		lines = append(lines, line.Str("): ").Str(resource.Error).Str(". Fix: ").Str(resource.Fix).String())
 	}
 	for _, resource := range r.Unlabeled {
@@ -507,7 +519,8 @@ func (r OrphanReport) Text() string {
 	} else {
 		text.Str(" removed, ")
 	}
-	text.Int(int64(len(r.Skipped))).Str(" kept, ").Int(int64(len(r.Failed))).Str(" failed\n")
+	text.Int(int64(len(r.Skipped))).Str(" kept, ").Int(int64(len(r.Failed))).Str(" failed, ").
+		Int(int64(len(r.Unknown))).Str(" unknown\n")
 	return text.String()
 }
 
@@ -525,7 +538,7 @@ type listedResource struct {
 // the report. dry lists and removes nothing.
 func (d *Docker) CleanupOrphans(ctx context.Context, dry bool) (OrphanReport, error) {
 	report := OrphanReport{Dry: dry, Removed: []OrphanResource{}, Skipped: []OrphanResource{},
-		Failed: []OrphanResource{}, Unlabeled: []OrphanResource{}}
+		Failed: []OrphanResource{}, Unknown: []OrphanResource{}, Unlabeled: []OrphanResource{}}
 	containers, err := d.listResources(ctx, resourceContainer, "label="+labelMarker)
 	if err != nil {
 		return report, err
@@ -609,6 +622,12 @@ func (d *Docker) sweepOne(ctx context.Context, report *OrphanReport, kind resour
 		report.Removed = append(report.Removed, resource)
 		return
 	}
+	if _, unknown := errors.AsType[*removalUnknownError](err); unknown {
+		resource.Error = err.Error()
+		resource.Fix = "run `" + cleanupCommand + "` again once the daemon answers, which removes it if it stays"
+		report.Unknown = append(report.Unknown, resource)
+		return
+	}
 	if kind == resourceNetwork && strings.Contains(err.Error(), "active endpoints") {
 		resource.Reason = "a container whose owner is not proven gone is still attached to it (active endpoints)"
 		resource.Fix = "run `" + cleanupCommand + "` again once that container's run ends"
@@ -622,7 +641,9 @@ func (d *Docker) sweepOne(ctx context.Context, report *OrphanReport, kind resour
 
 // removeResource removes one listed resource by id, or an image tag by tag.
 // Docker's name-specific absent answer is success (R-6): another sweep, or
-// the owner's own teardown, removed it first.
+// the owner's own teardown, removed it first. A failed call is re-observed
+// (confirmRemoval): gone is success, a failed observation a
+// removalUnknownError.
 func (d *Docker) removeResource(ctx context.Context, kind resourceKind, listed listedResource) error {
 	switch kind {
 	case resourceContainer:
@@ -712,27 +733,18 @@ func (d *Docker) listResources(ctx context.Context, kind resourceKind, filter st
 // answers that the resource no longer exists, which a concurrent sweep or the
 // owner's own teardown produces.
 func (d *Docker) resourceLabels(ctx context.Context, kind resourceKind, id string) (map[string]string, bool, error) {
-	var argv []string
-	switch kind {
-	case resourceContainer:
-		argv = []string{DockerExecutable, "container", dockerInspectVerb, dockerFormatFlag, "{{json .Config.Labels}}", id}
-	case resourceNetwork:
-		argv = []string{DockerExecutable, dockerNetworkObject, dockerInspectVerb, dockerFormatFlag, "{{json .Labels}}", id}
-	case resourceImageTag:
-		argv = []string{DockerExecutable, dockerImageObject, dockerInspectVerb, dockerFormatFlag, "{{json .Config.Labels}}", id}
-	case resourceUnspecified:
-		return nil, false, errors.New("BUG: resourceLabels called without a resource kind")
+	format := "{{json .Config.Labels}}"
+	if kind == resourceNetwork {
+		format = "{{json .Labels}}"
+	}
+	argv, err := inspectCommand(kind, format, id)
+	if err != nil {
+		return nil, false, err
 	}
 	result, err := d.command(ctx, dockerCommandTimeout, argv...)
 	if err != nil {
-		if commandErr, ok := errors.AsType[*commandError](err); ok {
-			lower := strings.ToLower(commandErr.Stderr)
-			if strings.Contains(lower, "no such") {
-				return nil, true, nil
-			}
-			if strings.Contains(lower, "not found") {
-				return nil, true, nil
-			}
+		if absentAnswer(err, id) {
+			return nil, true, nil
 		}
 		return nil, false, err
 	}
@@ -745,6 +757,64 @@ func (d *Docker) resourceLabels(ctx context.Context, kind resourceKind, id strin
 		}
 	}
 	return labels, false, nil
+}
+
+// resourcePresent observes one resource by id, name or tag, under the same
+// bound as every other daemon call. A failed observation is the error, never
+// an answer either way.
+func (d *Docker) resourcePresent(ctx context.Context, kind resourceKind, ref string) (bool, error) {
+	argv, err := inspectCommand(kind, "{{.Id}}", ref)
+	if err != nil {
+		return false, err
+	}
+	_, err = d.command(ctx, dockerCommandTimeout, argv...)
+	if err == nil {
+		return true, nil
+	}
+	if absentAnswer(err, ref) {
+		return false, nil
+	}
+	return false, err
+}
+
+// inspectCommand is the inspect argv that prints format for one resource.
+func inspectCommand(kind resourceKind, format, ref string) ([]string, error) {
+	switch kind {
+	case resourceContainer:
+		return []string{DockerExecutable, "container", dockerInspectVerb, dockerFormatFlag, format, ref}, nil
+	case resourceNetwork:
+		return []string{DockerExecutable, dockerNetworkObject, dockerInspectVerb, dockerFormatFlag, format, ref}, nil
+	case resourceImageTag:
+		return []string{DockerExecutable, dockerImageObject, dockerInspectVerb, dockerFormatFlag, format, ref}, nil
+	case resourceUnspecified:
+	}
+	return nil, errors.New("BUG: a Docker inspect was asked for without a resource kind")
+}
+
+// absentAnswer reports whether a failed inspect is the daemon saying that
+// exactly ref does not exist, rather than a daemon that did not answer or an
+// absence named for another resource.
+func absentAnswer(err error, ref string) bool {
+	commandErr, ok := errors.AsType[*commandError](err)
+	if !ok {
+		return false
+	}
+	if commandErr.Cause != nil {
+		return false
+	}
+	for line := range strings.SplitSeq(commandErr.Stderr, "\n") {
+		if !strings.Contains(line, ref) {
+			continue
+		}
+		lower := strings.ToLower(line)
+		if strings.Contains(lower, "no such") {
+			return true
+		}
+		if strings.Contains(lower, "not found") {
+			return true
+		}
+	}
+	return false
 }
 
 // claimName clears an existing resource of exactly this name before a

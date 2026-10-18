@@ -447,3 +447,129 @@ func TestCleanupOrphansListsUnlabeledRetainedTags(t *testing.T) {
 		}
 	}
 }
+
+// presenceAnswer is what the re-observation after a failed removal answers.
+type presenceAnswer int
+
+const (
+	presenceGone presenceAnswer = iota + 1
+	presenceStill
+	presenceNoAnswer
+)
+
+// timedOutRemovalDaemon answers the labeled listings and label reads like
+// orphanDaemon, with an owner pid that is absent, times out every removal the
+// way a loaded daemon outlasts the client bound, and answers the `{{.Id}}`
+// re-observation with presence.
+func timedOutRemovalDaemon(presence presenceAnswer) func(processCommand) (processResult, error) {
+	listings := orphanDaemon(fixtureLabels(nil), nil)
+	return func(command processCommand) (processResult, error) {
+		joined := strings.Join(command.Arguments, " ")
+		removal := strings.HasPrefix(joined, "docker rm -f") ||
+			strings.HasPrefix(joined, "docker network rm") ||
+			strings.HasPrefix(joined, "docker image rm")
+		if removal {
+			return processResult{ExitCode: -1}, context.DeadlineExceeded
+		}
+		if !strings.Contains(joined, dockerFormatFlag+" {{.Id}}") {
+			return listings(command)
+		}
+		switch presence {
+		case presenceGone:
+			return processResult{ExitCode: 1, Stderr: "Error response from daemon: No such object: " +
+				command.Arguments[len(command.Arguments)-1]}, nil
+		case presenceStill:
+			return processResult{Stdout: fixtureContainerID + "\n"}, nil
+		case presenceNoAnswer:
+			return processResult{ExitCode: -1}, context.DeadlineExceeded
+		}
+		return processResult{}, errors.New("BUG: timedOutRemovalDaemon without a presence answer")
+	}
+}
+
+// timedOutRemovalDocker is a Docker whose judge finds the fixture owner gone.
+func timedOutRemovalDocker(presence presenceAnswer) *Docker {
+	docker := newDocker(&recordingRunner{run: timedOutRemovalDaemon(presence)})
+	docker.judge.lookup = lookupAnswering("")
+	return docker
+}
+
+// VALIDATES: a removal whose call outlasts the client bound, while the daemon
+// completes it, is reported removed: the sweep re-observes the resource by id
+// and finds it gone.
+// PREVENTS: "1 removed, 3 failed" and exit 1 for four resources the daemon
+// removed (the 2026-10-18 run under load ~30).
+func TestCleanupOrphansTimedOutRemovalOfGoneResourceIsRemoved(t *testing.T) {
+	report, err := timedOutRemovalDocker(presenceGone).CleanupOrphans(t.Context(), false)
+	if err != nil {
+		t.Fatalf("CleanupOrphans: %v", err)
+	}
+	if len(report.Removed) != 3 || len(report.Failed) != 0 || len(report.Unknown) != 0 || report.Code() != 0 {
+		t.Fatalf("removed %d, failed %#v, unknown %#v, code %d; want 3 removed and code 0",
+			len(report.Removed), report.Failed, report.Unknown, report.Code())
+	}
+}
+
+// VALIDATES: a removal that timed out while the resource is still there is a
+// failure that carries the removal's own error.
+// PREVENTS: the re-observation turning a real failure into "removed".
+func TestCleanupOrphansTimedOutRemovalOfPresentResourceFails(t *testing.T) {
+	report, err := timedOutRemovalDocker(presenceStill).CleanupOrphans(t.Context(), false)
+	if err != nil {
+		t.Fatalf("CleanupOrphans: %v", err)
+	}
+	if len(report.Failed) != 3 || len(report.Removed) != 0 || report.Code() != 1 {
+		t.Fatalf("failed %d, removed %#v, code %d; want 3 failed and code 1", len(report.Failed), report.Removed, report.Code())
+	}
+	for _, resource := range report.Failed {
+		if !strings.Contains(resource.Error, "did not finish within") {
+			t.Errorf("%s %s: error %q does not carry the removal's timeout", resource.Kind, resource.Name, resource.Error)
+		}
+	}
+}
+
+// VALIDATES: when the removal and its re-observation both fail, the outcome is
+// unknown, named with both errors, and the command exits 1.
+// PREVENTS: a guess in either direction when the daemon answered neither.
+func TestCleanupOrphansRecheckFailureIsUnknown(t *testing.T) {
+	report, err := timedOutRemovalDocker(presenceNoAnswer).CleanupOrphans(t.Context(), false)
+	if err != nil {
+		t.Fatalf("CleanupOrphans: %v", err)
+	}
+	if len(report.Unknown) != 3 || len(report.Removed) != 0 || len(report.Failed) != 0 || report.Code() != 1 {
+		t.Fatalf("unknown %d, removed %#v, failed %#v, code %d; want 3 unknown and code 1",
+			len(report.Unknown), report.Removed, report.Failed, report.Code())
+	}
+	for _, resource := range report.Unknown {
+		if strings.Count(resource.Error, "did not finish within") != 2 {
+			t.Errorf("%s %s: error %q does not carry both the removal and the re-check error", resource.Kind, resource.Name, resource.Error)
+		}
+	}
+	if !strings.Contains(report.Text(), "0 failed, 3 unknown") {
+		t.Errorf("summary does not count the unknown outcomes:\n%s", report.Text())
+	}
+}
+
+// VALIDATES: RemoveContainer, which Lab.cleanup calls for every peer, answers
+// success for a timed-out removal whose container is gone, the removal's error
+// while it stays, and an error naming both failures when the re-check fails.
+// PREVENTS: a scenario teardown listing a removed container as a cleanup error.
+func TestRemoveContainerTimedOutReobservesPresence(t *testing.T) {
+	if err := timedOutRemovalDocker(presenceGone).RemoveContainer(t.Context(), "lab-peer"); err != nil {
+		t.Errorf("gone after a timed-out removal: %v, want nil", err)
+	}
+	err := timedOutRemovalDocker(presenceStill).RemoveContainer(t.Context(), "lab-peer")
+	if err == nil {
+		t.Fatal("still present after a timed-out removal: nil, want the removal's timeout")
+	}
+	if strings.Count(err.Error(), "did not finish within") != 1 {
+		t.Errorf("still present after a timed-out removal: %v, want the removal's timeout alone", err)
+	}
+	err = timedOutRemovalDocker(presenceNoAnswer).RemoveContainer(t.Context(), "lab-peer")
+	if err == nil {
+		t.Fatal("re-check failed: nil, want an error naming both failures")
+	}
+	if strings.Count(err.Error(), "did not finish within") != 2 {
+		t.Errorf("re-check failed: %v, want the removal and the re-check errors", err)
+	}
+}

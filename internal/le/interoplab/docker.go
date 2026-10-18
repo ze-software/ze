@@ -362,17 +362,16 @@ func (d *Docker) releaseImage(ctx context.Context, image ImageResult) error {
 		return nil
 	}
 	var commandErr *commandError
-	if !errors.As(err, &commandErr) {
-		return err
-	}
-	var tb textbuf.Buffer
-	absent := tb.Str("No such image: ").Str(image.retainedTag).String()
-	for line := range strings.SplitSeq(commandErr.Stderr, "\n") {
-		if strings.HasSuffix(strings.TrimSpace(line), absent) {
-			return nil
+	if errors.As(err, &commandErr) {
+		var tb textbuf.Buffer
+		absent := tb.Str("No such image: ").Str(image.retainedTag).String()
+		for line := range strings.SplitSeq(commandErr.Stderr, "\n") {
+			if strings.HasSuffix(strings.TrimSpace(line), absent) {
+				return nil
+			}
 		}
 	}
-	return err
+	return d.confirmRemoval(ctx, resourceImageTag, image.retainedTag, err)
 }
 
 // Pull makes one external image available before the scenarios start.
@@ -436,22 +435,22 @@ func (d *Docker) createNetwork(ctx context.Context, spec NetworkSpec) (Network, 
 	return Network{}, fmt.Errorf("docker network create exhausted %d candidates: %w", len(spec.Candidates), last)
 }
 
-// removeNetwork removes a network. A name-specific not-found answer is success.
+// removeNetwork removes a network. A name-specific not-found answer is
+// success, and any other failure is settled by confirmRemoval.
 func (d *Docker) removeNetwork(ctx context.Context, name string) error {
 	_, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, dockerNetworkObject, "rm", name)
 	if err == nil {
 		return nil
 	}
 	var commandErr *commandError
-	if !errors.As(err, &commandErr) {
-		return err
+	if errors.As(err, &commandErr) {
+		var tb textbuf.Buffer
+		absent := tb.Str("network ").Str(name).Str(" not found").String()
+		if strings.Contains(commandErr.Stderr, absent) {
+			return nil
+		}
 	}
-	var tb textbuf.Buffer
-	absent := tb.Str("network ").Str(name).Str(" not found").String()
-	if strings.Contains(commandErr.Stderr, absent) {
-		return nil
-	}
-	return err
+	return d.confirmRemoval(ctx, resourceNetwork, name, err)
 }
 
 // runContainer starts one peer at a deterministic address on the selected network.
@@ -533,26 +532,58 @@ func (d *Docker) runContainer(ctx context.Context, network Network, peer PeerCon
 	return err
 }
 
-// RemoveContainer force-removes one peer. It accepts only Docker's
-// name-specific absent-container answer as an empty pre-clean state.
+// RemoveContainer force-removes one peer. Docker's name-specific
+// absent-container answer is an empty pre-clean state, and any other failure
+// is settled by confirmRemoval.
 func (d *Docker) RemoveContainer(ctx context.Context, name string) error {
 	_, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, "rm", "-f", name)
 	if err == nil {
 		return nil
 	}
 	var commandErr *commandError
-	if !errors.As(err, &commandErr) {
-		return err
-	}
-	var tb textbuf.Buffer
-	absent := tb.Str("No such container: ").Str(name).String()
-	for line := range strings.SplitSeq(commandErr.Stderr, "\n") {
-		if strings.HasSuffix(strings.TrimSpace(line), absent) {
-			return nil
+	if errors.As(err, &commandErr) {
+		var tb textbuf.Buffer
+		absent := tb.Str("No such container: ").Str(name).String()
+		for line := range strings.SplitSeq(commandErr.Stderr, "\n") {
+			if strings.HasSuffix(strings.TrimSpace(line), absent) {
+				return nil
+			}
 		}
 	}
-	return err
+	return d.confirmRemoval(ctx, resourceContainer, name, err)
 }
+
+// confirmRemoval settles a removal call that failed by observing the resource
+// again. A removal can outlast the client bound while the daemon completes it
+// (the 2026-10-18 cleanup under load ~30 reported three removed resources as
+// failed), so the failed call alone does not say the resource stays. It answers
+// nil when the resource is gone, removeErr when it is still there, and a
+// removalUnknownError carrying both errors when the observation fails too.
+func (d *Docker) confirmRemoval(ctx context.Context, kind resourceKind, ref string, removeErr error) error {
+	present, checkErr := d.resourcePresent(ctx, kind, ref)
+	if checkErr != nil {
+		return &removalUnknownError{removal: removeErr, check: checkErr}
+	}
+	if present {
+		return removeErr
+	}
+	return nil
+}
+
+// removalUnknownError is a removal the daemon answered neither way: the
+// removal call failed and the observation that would settle it failed too.
+type removalUnknownError struct {
+	removal error
+	check   error
+}
+
+func (e *removalUnknownError) Error() string {
+	var tb textbuf.Buffer
+	return tb.Str("the removal failed (").Err(e.removal).
+		Str(") and the check for whether it took effect failed too (").Err(e.check).Str(")").String()
+}
+
+func (e *removalUnknownError) Unwrap() []error { return []error{e.removal, e.check} }
 
 // pauseContainer freezes every process in one peer's cgroup.
 func (d *Docker) pauseContainer(ctx context.Context, name string) error {

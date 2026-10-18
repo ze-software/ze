@@ -238,7 +238,11 @@ func TestNewDockerReadsTheMachineBudget(t *testing.T) {
 // PREVENTS: a clean host failing before network creation or a different removal error passing.
 func TestRemoveContainerAcceptsOnlyExactAbsence(t *testing.T) {
 	answer := "Error response from daemon: No such container: lab-peer"
-	runner := &recordingRunner{run: func(processCommand) (processResult, error) {
+	runner := &recordingRunner{run: func(command processCommand) (processResult, error) {
+		if command.Arguments[1] == "container" {
+			// The re-observation after a failed removal finds the container still there.
+			return processResult{Stdout: "c000000000000000000000000000000000000000000000000000000000000001\n"}, nil
+		}
 		return processResult{ExitCode: 1, Stderr: answer}, nil
 	}}
 	docker := newDocker(runner)
@@ -256,6 +260,9 @@ func TestRemoveContainerAcceptsOnlyExactAbsence(t *testing.T) {
 	}
 	want := []string{"docker", "rm", "-f", "lab-peer"}
 	for _, command := range runner.commands {
+		if command.Arguments[1] == "container" {
+			continue
+		}
 		if !reflect.DeepEqual(command.Arguments, want) {
 			t.Errorf("remove argv = %#v, want %#v", command.Arguments, want)
 		}

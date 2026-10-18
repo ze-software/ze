@@ -161,20 +161,56 @@ func TestEveryNamedIntegrationPackageExists(t *testing.T) {
 // which selects by the docker tag, would never build it without integration.
 // PREVENTS: a Docker test that compiles everywhere and runs nowhere.
 func TestDockerTagNeverJoinsIntegration(t *testing.T) {
-	root := treeRoot(t)
-
-	files, err := buildtag.TestFiles(root)
-	if err != nil {
-		t.Fatalf("scan the tagged tests: %v", err)
-	}
-	if len(files) == 0 {
+	refused, scanned := dockerIntegrationOverlap(t, treeRoot(t))
+	if scanned == 0 {
 		t.Fatal("no build-tagged test file was found, so this test asserted nothing")
 	}
-	for _, file := range files {
-		if file.Names("docker") && file.Names("integration") {
-			t.Errorf("%s names both the docker and the integration tag: the integration population runs in"+
-				" the QEMU guest, which has no Docker. Keep `//go:build docker` alone, so"+
-				" `./le test integration docker-peers` runs it", file.Path)
+	for _, path := range refused {
+		t.Errorf("%s names both the docker and the integration tag: the integration population runs in"+
+			" the QEMU guest, which has no Docker. Keep `//go:build docker` alone, so"+
+			" `./le test integration docker-peers` runs it", path)
+	}
+
+	// The negative case: a fixture tree holding one file tagged both ways, one
+	// docker-only and one integration-only file. The check MUST refuse exactly
+	// the first, or the scan above proves nothing.
+	fixture := t.TempDir()
+	for name, constraint := range map[string]string{
+		"both_test.go":        "docker && integration",
+		"docker_test.go":      "docker",
+		"integration_test.go": "integration",
+	} {
+		dir := filepath.Join(fixture, "internal", "fixture")
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			t.Fatal(err)
+		}
+		body := "//go:build " + constraint + "\n\npackage fixture\n"
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
 		}
 	}
+	refused, scanned = dockerIntegrationOverlap(t, fixture)
+	if scanned != 3 {
+		t.Fatalf("the fixture tree scanned %d tagged files, want 3", scanned)
+	}
+	if len(refused) != 1 || refused[0] != "internal/fixture/both_test.go" {
+		t.Errorf("the fixture tree refused %v, want exactly internal/fixture/both_test.go", refused)
+	}
+}
+
+// dockerIntegrationOverlap answers the tagged test files under root that name
+// both the docker and the integration tag, and how many tagged files it read.
+func dockerIntegrationOverlap(t *testing.T, root string) ([]string, int) {
+	t.Helper()
+	files, err := buildtag.TestFiles(root)
+	if err != nil {
+		t.Fatalf("scan the tagged tests under %s: %v", root, err)
+	}
+	var refused []string
+	for _, file := range files {
+		if file.Names("docker") && file.Names("integration") {
+			refused = append(refused, file.Path)
+		}
+	}
+	return refused, len(files)
 }
