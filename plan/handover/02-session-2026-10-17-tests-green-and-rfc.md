@@ -402,3 +402,7 @@ The reactor derives one `sessionClose` per down (`reactor/peer_close.go`, `sessi
 ./le rfc discriminate-record id RFC9494-4.3-1 polarity positive unit test/plugin/llgr-stale-received-depreferenced.ci route revert producer internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver
 ./le rfc discriminate-record id RFC9494-4.3-1 polarity negative unit test/plugin/llgr-stale-received-depreferenced.ci route revert producer internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver
 ```
+
+- Landed: 0b323594c4, 5252a8d5f7 (LLGR A and B), 7ca8d5215b (re-judge; `./le rfc check` 0 violations).
+- D4 rails 2 and 3 (RIB replay/resend/refresh, relay buildRelayUpdate) fixed, uncommitted, script tmp/commit-e4f711d4-a-b052a1.sh (24 files, not run, awaiting independent review and a reactor `-race -count=20`). One helper storage.AdvertisedStaleLevel; sentSourceState; filterapi.MetaKeyRebuilt; Session.advertisedLLGR under s.mu; LLGREgressFilter acts only at level 2 (AC-19, Q-2). 11 new RFC9494-4.3-3 records; RFC9494-4.3-3 verdict STALE (re-judge owed). Owed after `sudo ./le setup install`: re-record RFC2545-3-1 and 3-2 positive on test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci (producer reactor_api_relay.go::buildRelayUpdate changed). Still owed: test/plugin/llgr-stale-received-egress.ci (live and relay steps; draft in test/draft/plugin/ first).
+- ExaBGP 6 spec claim refused by the WIP cap (23 in progress, cap 12): owner to choose ZE_SPEC_WIP_CAP=24 or close a spec.
