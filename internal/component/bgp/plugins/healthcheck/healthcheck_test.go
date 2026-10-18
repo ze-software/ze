@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -210,5 +211,29 @@ func TestHealthcheckResetDoesNotHoldLockAcrossExit(t *testing.T) {
 	again := slices.Index(got[1:], cmdAnnounce+" hc-dns med 100") + 1
 	if withdraw < 0 || again <= withdraw {
 		t.Fatalf("dispatches = %q, want the old withdraw before the restarted probe's announce", got)
+	}
+}
+
+// TestClearHealthcheckNoProbeNamesTheFix proves a reset that names no probe is
+// refused with a message an operator can act on. Method: dispatch `clear bgp
+// healthcheck` with no argument to a manager holding no probe, and read the
+// refusal.
+//
+// VALIDATES: the refusal says nothing was reset and names both the form that
+// picks a probe and the command that lists the probe names.
+// PREVENTS: the bare "missing probe name", which named neither.
+func TestClearHealthcheckNoProbeNamesTheFix(t *testing.T) {
+	m := &probeManager{}
+	status, _, err := m.handleCommand("clear bgp healthcheck", nil)
+	if status != statusError {
+		t.Fatalf("status = %q, want %q", status, statusError)
+	}
+	if err == nil {
+		t.Fatal("a reset with no probe name was not refused")
+	}
+	for _, want := range []string{"no probe was reset", "clear bgp healthcheck <probe>", "show bgp healthcheck"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal %q does not name %q", err.Error(), want)
+		}
 	}
 }

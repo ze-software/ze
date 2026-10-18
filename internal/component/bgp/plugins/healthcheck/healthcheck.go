@@ -35,7 +35,11 @@ const configRootBGP = "bgp"
 // metric rather than as an error here.
 const watchdogMetricMED = "med"
 
-var errMissingProbeName = errors.New("missing probe name")
+// errMissingProbeName refuses a reset that names no probe. It resets nothing,
+// because a reset withdraws the probe's route, so the message names the form
+// that picks one probe and the command that lists the probe names.
+var errMissingProbeName = errors.New("clear bgp healthcheck names no probe, so no probe was reset; " +
+	"name the one to reset with: clear bgp healthcheck <probe> (show bgp healthcheck lists the probes)")
 
 const (
 	statusDone  = "done"
