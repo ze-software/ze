@@ -170,24 +170,23 @@
     },
     "RFC9568-5.2.8-2": {
       "code": {
-        "internal/plugins/vrrp/instance.go::doSendAdvert": "bfd3bc0b7e18da21",
-        "internal/plugins/vrrp/packet/checksum.go::FillChecksum": "de642d2d9057b003",
+        "internal/plugins/vrrp/packet/checksum.go::FillChecksum": "b0cc038e49f45b44",
         "internal/plugins/vrrp/packet/checksum.go::pseudoSumFor": "660f0af0c285da4b",
         "internal/plugins/vrrp/packet/checksum.go::verifyReceived": "de11e4070473a431"
       },
-      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 5.2.8 says \"For the IPv4 address family, the checksum calculation only includes the VRRP message starting with the Version field and ending after the last IPv4 address (refer to Section 5.2).\" The producers now hold the form: FillChecksum and verifyReceived take the group mode, pseudoSumFor returns no pseudo-header for ChecksumRFC9568, the parser defaults to it, and the dual-accept is gone. The tagged packet-level tests discriminate this (overlay mutants restoring dual-accept, or summing the pseudo-header in the default mode, each went red), and the receive hop through instance.lookup is covered by untagged instance tests. The transmit hop is not: overlay mutants making instance.doSendAdvert send ChecksumRFC5798Compatible, or leave Checksum unset (which panics in FillChecksum on a real transport), passed every vrrp unit test, because TestTransmittedAdvertFilledFromInstanceState never reads AdvertParams.Checksum. A default group can therefore regress to the pseudo-header form on the wire with every tagged test green.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after d2abad70ad). RFC 9568 Section 5.2.8 says \"For the IPv4 address family, the checksum calculation only includes the VRRP message starting with the Version field and ending after the last IPv4 address (refer to Section 5.2).\" Producers: pseudoSumFor returns no pseudo-header for ChecksumRFC9568, FillChecksum applies it on transmit and verifyReceived on receive in the one configured form. Positive TestEncodeGoldenV3IPv4 pins G2 0x828A (re-derived independently over the 16-octet message; the pseudo-header sum for 192.0.2.251 to 224.0.0.18 is 0xDEFB). Positive/negative TestDecodeV3IPv4ChecksumOnlyConfiguredForm: the default mode accepts G2 and refuses G2c with ErrChecksum, and each mode refuses the other form, in separate subtests, not one assertion wearing two hats. Overlay mutants run 2026-10-18 over the whole vrrp tree: restoring dual-accept in verifyReceived reds the two refusal subtests; summing the IPv4 pseudo-header under ChecksumRFC9568 reds the golden and the default accept and refuse subtests. The hop that previously made this weak is closed: doSendAdvert hard-coded to ChecksumRFC5798Compatible, or with Checksum dropped, now reds TestTransmittedAdvertFilledFromInstanceState, which is tagged RFC9568-7.2-5 rather than this row; the config default (groups.go struct literal) is caught only by the untagged TestLeafShapesFromTextConfig \"checksum absent is rfc9568\". Both are hops that choose the form, owned by the 7.2 transmit step and the parser, while this row's own obligation, what the computation covers, is pinned at its producers in both directions. Claims match assertions. No tagged unit is a QEMU-guest unit.",
       "requirement_sha": "ebb36bb1ffce07fa",
       "tests": {
-        "internal/plugins/vrrp/packet/packet_test.go::TestDecodeV3IPv4ChecksumOnlyConfiguredForm": "1a58859c2c8eb3f8",
-        "internal/plugins/vrrp/packet/packet_test.go::TestDecodeV3IPv4ChecksumOnlyConfiguredForm#2": "1a58859c2c8eb3f8",
-        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "1a58859c2c8eb3f8"
+        "internal/plugins/vrrp/packet/packet_test.go::TestDecodeV3IPv4ChecksumOnlyConfiguredForm": "15a7697300d1b17c",
+        "internal/plugins/vrrp/packet/packet_test.go::TestDecodeV3IPv4ChecksumOnlyConfiguredForm#2": "15a7697300d1b17c",
+        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "15a7697300d1b17c"
       },
       "units": {
-        "internal/plugins/vrrp/packet/packet_test.go::TestDecodeV3IPv4ChecksumOnlyConfiguredForm": "84c54e8287c71125",
-        "internal/plugins/vrrp/packet/packet_test.go::TestDecodeV3IPv4ChecksumOnlyConfiguredForm#2": "84c54e8287c71125",
+        "internal/plugins/vrrp/packet/packet_test.go::TestDecodeV3IPv4ChecksumOnlyConfiguredForm": "e99141598a089061",
+        "internal/plugins/vrrp/packet/packet_test.go::TestDecodeV3IPv4ChecksumOnlyConfiguredForm#2": "e99141598a089061",
         "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "f665d3473b49bc02"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9568-5.2.8-3": {
       "note": "vrrp closure judge 2026-09-30 (independent): TestDecodeV3IPv6ChecksumCoversPseudoHeader recomputes the IPv6 golden's checksum with refChecksum (independent of checksum.go): the RFC 8200 pseudo-header plus message sum is accepted, the message-only sum is refused with ErrChecksum, so a v6 verifier that dropped the pseudo-header or fell back to message-only (as the v4 path does) goes red. Producer verifyReceived family==V6 uses pseudoSumV6 only. Both polarities recorded observed red (pseudoSumV6, verifyReceived).",
@@ -647,18 +646,19 @@
     "RFC9568-7.2-1": {
       "code": {
         "internal/plugins/vrrp/instance.go::doSendAdvert": "bfd3bc0b7e18da21",
-        "internal/plugins/vrrp/packet/packet.go::WriteTo": "7f6d7ed20d3ce54e"
+        "internal/plugins/vrrp/packet/packet.go::WriteTo": "7f6d7ed20d3ce54e",
+        "internal/plugins/vrrp/transport/transport.go::encodeLocked": "f11ab57274c81c2c"
       },
-      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 7.2 says \"The following operations MUST be performed when transmitting a VRRP packet: * Fill in the VRRP packet fields with the appropriate Virtual Router configuration state\". The cited producer doSendAdvert gained only the Checksum field, which belongs to the checksum step RFC9568-7.2-5 and not to this fill step. TestTransmittedAdvertFilledFromInstanceState still requires version, effective priority, interval and VIPs in the params doSendAdvert hands the transport. Single-polarity per the row annotation. Verdict unchanged.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after d2abad70ad). RFC 9568 Section 7.2 says \"The following operations MUST be performed when transmitting a VRRP packet: * Fill in the VRRP packet fields with the appropriate Virtual Router configuration state\". TestTransmittedAdvertFilledFromInstanceState requires the params doSendAdvert hands the transport to carry version 3, the effective priority (200, then 150 after eth1 fails), 1000 ms and both VIPs in order, for IPv4 in both checksum modes and IPv6; TestSendAdvertFillsFieldsAndChecksum pins every field of the IPv4 and IPv6 frames encodeLocked produces; the v3 goldens pin WriteTo. Overlay mutants run 2026-10-18 over the whole vrrp tree: doSendAdvert filling the configured priority instead of the effective one reds all three subtests of TestTransmittedAdvertFilledFromInstanceState. The {single-polarity} argument holds for WriteTo, which refuses nothing; encodeLocked does refuse through Validate (ErrIntervalRange, ErrCountRange), a guard RFC5798-7.2-1 carries as its negative. Nit: the annotation line numbers are stale (encodeLocked is at transport.go:537, WriteTo at packet.go:246). No tagged unit is a QEMU-guest unit.",
       "requirement_sha": "bd1576a9dc0e171d",
       "tests": {
-        "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "f14fe54340c99bad",
-        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "1a58859c2c8eb3f8",
-        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv6": "1a58859c2c8eb3f8",
+        "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "e7d5de8bf303bc1f",
+        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "15a7697300d1b17c",
+        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv6": "15a7697300d1b17c",
         "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "4b5ce6713448d3aa"
       },
       "units": {
-        "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "6b90e7f164ced313",
+        "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "fcb838baf697dbc9",
         "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "f665d3473b49bc02",
         "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv6": "665b4f9e331eab21",
         "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "84111e91bd9a4e83"
@@ -717,19 +717,20 @@
     "RFC9568-7.2-5": {
       "code": {
         "internal/plugins/vrrp/instance.go::doSendAdvert": "bfd3bc0b7e18da21",
-        "internal/plugins/vrrp/packet/checksum.go::FillChecksum": "de642d2d9057b003",
+        "internal/plugins/vrrp/packet/checksum.go::FillChecksum": "b0cc038e49f45b44",
+        "internal/plugins/vrrp/transport/backend_linux.go::openV6": "12a28f73c0a2cae8",
         "internal/plugins/vrrp/transport/transport.go::encodeLocked": "f11ab57274c81c2c"
       },
-      "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 7.2 says \"Compute the VRRP checksum\". With RFC 9568 Section 5.2.8 defining the IPv4 form, TestEncodeGoldenV3IPv4 (FillChecksum) and TestSendAdvertFillsFieldsAndChecksum (encodeLocked, sum computed by the test) pin the message-only checksum for a default group, and overlay mutants on pseudoSumFor and on the mode argument in encodeLocked went red. The hop that picks the mode does not: instance.doSendAdvert hard-coded to ChecksumRFC5798Compatible, or with Checksum omitted, passed every vrrp unit test. The negative tag on TestDecodeV3IPv4ChecksumOnlyConfiguredForm is a receive-side refusal and so belongs to RFC9568-5.2.8-2, not to this transmit step. Fix: make TestTransmittedAdvertFilledFromInstanceState assert params.Checksum against spec.Checksum for both modes, then re-judge.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after d2abad70ad). RFC 9568 Section 7.2 says \"The following operations MUST be performed when transmitting a VRRP packet: ... * Compute the VRRP checksum\", in the Section 5.2.8 form: message-only for IPv4, and for IPv6 \"the checksum calculation also includes a prepended \\\"pseudo-header\\\", as defined in Section 8.1 of [RFC8200].\" IPv4: proven, and the previous finding is fixed. Overlay mutants run 2026-10-18 over the whole vrrp tree: doSendAdvert hard-coded to ChecksumRFC5798Compatible, to ChecksumRFC9568, or with Checksum dropped, each reds TestTransmittedAdvertFilledFromInstanceState, which now asserts p.Checksum == spec.Checksum; encodeLocked hard-coded to either mode, or skipping FillChecksum, reds TestSendAdvertFillsFieldsAndChecksum, whose expected sums the test computes itself. Both polarities stand: the negative is the compatible-mode subtest, a separate case from the default-mode positive, and is what reds when encodeLocked ignores the mode. IPv6: unproven by any tagged unit. The kernel computes the IPv6 checksum because openV6 (backend_linux.go) sets IPV6_CHECKSUM 6; the transport unit test runs on a fake backend and its IPv6 frame carries no checksum, and the IPv6 run of TestTransmittedAdvertFilledFromInstanceState computes FillChecksum in the test body. Removing that setsockopt would leave every tagged test green (reasoned from the test sources: only the integration-tagged QEMU units TestIntegrationOpenInstanceSocketOptions and TestIntegrationAdvertV6OnWire read it; the overlay run could not build because of another session's undefined applyVLANMTU in internal/component/iface/config_apply.go). Fix: tag one of those two units RFC9568-7.2-5 positive and take its QEMU discrimination record, which cannot be taken while the guest build fails. Claim nit: the TestTransmittedAdvertFilledFromInstanceState positive says \"a default IPv4 and IPv6 group\", but the test sets ChecksumRFC9568 on the spec; the parser default is proven only by the untagged TestLeafShapesFromTextConfig. Today no tagged unit of this row is a QEMU-guest unit.",
       "requirement_sha": "fdb9cfe570b6775e",
       "tests": {
-        "internal/plugins/vrrp/packet/packet_test.go::TestDecodeV3IPv4ChecksumOnlyConfiguredForm": "1a58859c2c8eb3f8",
-        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "1a58859c2c8eb3f8",
+        "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "e7d5de8bf303bc1f",
+        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "15a7697300d1b17c",
         "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "4b5ce6713448d3aa",
         "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum#2": "4b5ce6713448d3aa"
       },
       "units": {
-        "internal/plugins/vrrp/packet/packet_test.go::TestDecodeV3IPv4ChecksumOnlyConfiguredForm": "84c54e8287c71125",
+        "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "fcb838baf697dbc9",
         "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "f665d3473b49bc02",
         "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "84111e91bd9a4e83",
         "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum#2": "84111e91bd9a4e83"
