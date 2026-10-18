@@ -191,7 +191,9 @@ type BatchDispatch struct {
 // withdraw followed by an announce is sent as both
 // (src/exabgp/rib/outgoing.py, upstream exa-networks/exabgp). A batch of
 // `withdraw X` then `announce X` therefore puts both on the wire, and a batch of
-// `announce X` then `withdraw X` puts neither.
+// `announce X` then `withdraw X` dispatches the withdrawal alone: the announce
+// never reaches ze, and the withdrawal still does, because the route may stand
+// from an earlier batch.
 //
 // Withdrawals dispatch before announces, whatever order the script wrote them
 // in: "Generate Updates for pending withdraws before announces (preserves

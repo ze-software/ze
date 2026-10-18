@@ -29,12 +29,30 @@ import (
 
 const exabgpSuiteEncoding = "encoding"
 const exabgpSuiteAPI = "api"
+const exabgpSuiteOld42 = "old-4.2"
+const exabgpSuiteOld50 = "old-5.0"
 
 // exabgpSuites are the predecessor test populations, each a subdirectory of
 // test/exabgp-compat holding .ci fixtures. encoding drives ze from a migrated
 // config alone; api drives it through the ExaBGP bridge, which runs the script
-// the config's process block names.
-var exabgpSuites = []string{exabgpSuiteEncoding, exabgpSuiteAPI}
+// the config's process block names. old-4.2 and old-5.0 are ExaBGP's copies of
+// the 4.2 and 5.0 branches' encoding tests (ExaBGP qa/old), and they carry the
+// configurations and helpers those releases shipped in an etc directory of
+// their own (exabgpConfigDir).
+var exabgpSuites = []string{exabgpSuiteEncoding, exabgpSuiteAPI, exabgpSuiteOld42, exabgpSuiteOld50}
+
+// exabgpConfigDirName is the directory an `option=file:` line names a config in.
+const exabgpConfigDirName = "etc"
+
+// exabgpAllowedOption marks a case whose difference from the release is
+// deliberate; its value is the reason. ExaBGP keeps the same list as ALLOWED
+// in qa/bin/test_old_scripts.
+const exabgpAllowedOption = "option=allowed:"
+
+// exabgpAllowedErrorOption names the text an allowed case's failure must
+// carry. Without it, a timeout or a crash of an allowed case would read as the
+// deliberate difference and be recorded as a SKIP.
+const exabgpAllowedErrorOption = "option=allowed-error:"
 
 const predecessorPrefix = "exabgp-"
 const predecessorTestDir = predecessorPrefix + "compat"
@@ -65,6 +83,47 @@ type exabgpCLI struct {
 	port      int
 	testArgs  []string
 	zeBinary  string
+	dut       exabgpDUT
+}
+
+// exabgpDUT is the daemon a case drives. Ze is what the suite tests. ExaBGP is
+// the proof mode: the same case run against the ExaBGP the shell's PATH
+// carries, which the stage puts there through `uv run --with <pin>`, shows the
+// case expects what that ExaBGP does before ze is held to it.
+type exabgpDUT uint8
+
+const (
+	exabgpDUTUnspecified exabgpDUT = iota
+	exabgpDUTZe
+	exabgpDUTExaBGP
+)
+
+// exabgpDUTNames are the `--dut` spellings, ze first because it is the default.
+var exabgpDUTNames = []struct {
+	name string
+	dut  exabgpDUT
+}{
+	{name: "ze", dut: exabgpDUTZe},
+	{name: "exabgp", dut: exabgpDUTExaBGP},
+}
+
+// parseExaBGPDUT reads a `--dut` value, and refuses any other naming the ones
+// it takes.
+func parseExaBGPDUT(name string) (exabgpDUT, error) {
+	for _, known := range exabgpDUTNames {
+		if known.name == name {
+			return known.dut, nil
+		}
+	}
+	var tb textbuf.Buffer
+	tb.Str("--dut ").Str(name).Str(" is not a daemon this runner drives: use ")
+	for index, known := range exabgpDUTNames {
+		if index > 0 {
+			tb.Str(" or ")
+		}
+		tb.Str(known.name)
+	}
+	return exabgpDUTUnspecified, errors.New(tb.String())
 }
 
 type exabgpTestEntry struct {
@@ -73,6 +132,12 @@ type exabgpTestEntry struct {
 	ciFile         string
 	tcpConnections int
 	serial         bool
+	// allowed is the reason this case is held to differ from the release, or
+	// empty when it is held to pass (judgeExaBGPAllowed).
+	allowed string
+	// allowedError is the text the failure of an allowed case must carry. A
+	// case sets it exactly when it sets allowed (parseExaBGPCI).
+	allowedError string
 }
 
 type exabgpSuite struct {
@@ -187,6 +252,9 @@ func zeTestExabgpMain(args []string) error {
 		if cli.port <= 0 {
 			return errors.New("--client requires --port")
 		}
+		if cli.dut == exabgpDUTExaBGP {
+			return errors.New("--client starts ze alone, so it cannot prove a case against ExaBGP: drop --client to run the whole case with --dut exabgp")
+		}
 		return runExaBGPClientForeground(test, cli.port, cli.zeBinary)
 	}
 
@@ -238,19 +306,26 @@ func parseExaBGPCLI(args []string) (exabgpCLI, error) {
 	fs.StringVar(&cli.server, "server", "", "start the mock BGP server for one test id")
 	fs.StringVar(&cli.client, "client", "", "start the ExaBGP wrapper client for one test id")
 	fs.IntVar(&cli.port, "port", 0, "port for --server or --client")
+	dutName := fs.String("dut", "ze", "daemon each case drives: ze, or exabgp to prove the case against ExaBGP")
 	fs.Usage = printExaBGPUsage
 
 	if err := fs.Parse(args); err != nil {
 		return cli, err
 	}
+	dut, err := parseExaBGPDUT(*dutName)
+	if err != nil {
+		return cli, err
+	}
+	cli.dut = dut
 	cli.testArgs = fs.Args()
 	return cli, nil
 }
 
 func printExaBGPUsage() {
-	_, _ = os.Stderr.WriteString(`Usage: le test exabgp [encoding] [options] [test-ids...]
-
+	_, _ = os.Stderr.WriteString("Usage: le test exabgp [" + strings.Join(exabgpSuites, "|") + "] [options] [test-ids...]\n")
+	_, _ = os.Stderr.WriteString(`
 Run predecessor encoding tests using Ze's standard test selection and progress output.
+The suite defaults to encoding.
 
 Modes:
   -l, --list          List available tests with N/TOTAL and one-based id
@@ -268,6 +343,8 @@ Options:
   --server ID         Start mock BGP server for one test id
   --client ID         Start ExaBGP wrapper client for one test id
   --port N            Port for --server or --client
+  --dut ze|exabgp     Daemon each case drives (default ze). exabgp runs the
+                      ExaBGP on PATH, to prove a case expects what it does
 
 Examples:
   le test exabgp --list
@@ -276,6 +353,7 @@ Examples:
   le test exabgp 1 2 3
   le test exabgp --server 1 --port 17900
   le test exabgp --client 1 --port 17900
+  uv run --with exabgp==5.0.13 le test exabgp api --dut exabgp api-fast
 `)
 }
 
@@ -291,6 +369,10 @@ func discoverExaBGPSuite(baseDir, suiteName string) (*exabgpSuite, error) {
 		right := strings.TrimSuffix(filepath.Base(files[j]), filepath.Ext(files[j]))
 		return left < right
 	})
+	configDir, err := exabgpConfigDir(root, suiteName)
+	if err != nil {
+		return nil, err
+	}
 
 	runner.ResetNickCounter()
 	tests := runner.NewTests()
@@ -307,7 +389,7 @@ func discoverExaBGPSuite(baseDir, suiteName string) (*exabgpSuite, error) {
 		rec.CIFile = ciFile
 		rec.Files = append(rec.Files, ciFile)
 
-		compat, err := parseExaBGPCI(root, rec, ciFile)
+		compat, err := parseExaBGPCI(configDir, rec, ciFile)
 		if err != nil {
 			return nil, err
 		}
@@ -316,7 +398,9 @@ func discoverExaBGPSuite(baseDir, suiteName string) (*exabgpSuite, error) {
 	return suite, nil
 }
 
-func parseExaBGPCI(root string, rec *runner.Record, ciFile string) (*exabgpTestEntry, error) {
+// parseExaBGPCI reads one case. configDir is where its `option=file:` lines
+// name configs (exabgpConfigDir).
+func parseExaBGPCI(configDir string, rec *runner.Record, ciFile string) (*exabgpTestEntry, error) {
 	file, err := os.Open(ciFile) //nolint:gosec // ciFile comes from the discovered test predecessor fixture set.
 	if err != nil {
 		return nil, err
@@ -346,7 +430,7 @@ func parseExaBGPCI(root string, rec *runner.Record, ciFile string) (*exabgpTestE
 			continue
 		}
 		if after, ok := strings.CutPrefix(line, "option=file:"); ok {
-			configPath := filepath.Join(root, "etc", after)
+			configPath := filepath.Join(configDir, after)
 			test.configs = append(test.configs, configPath)
 			rec.Files = append(rec.Files, configPath)
 			continue
@@ -366,8 +450,29 @@ func parseExaBGPCI(root string, rec *runner.Record, ciFile string) (*exabgpTestE
 			test.serial = true
 			continue
 		}
+		if reason, ok := strings.CutPrefix(line, exabgpAllowedOption); ok {
+			if reason == "" {
+				var tb textbuf.Buffer
+				return nil, errors.New(tb.Str(ciFile).Str(": ").Str(exabgpAllowedOption).
+					Str(" names no reason: write why this case differs from the release, or delete the line").String())
+			}
+			test.allowed = reason
+			continue
+		}
+		if text, ok := strings.CutPrefix(line, exabgpAllowedErrorOption); ok {
+			if text == "" {
+				var tb textbuf.Buffer
+				return nil, errors.New(tb.Str(ciFile).Str(": ").Str(exabgpAllowedErrorOption).
+					Str(" names no text: write the words the allowed failure prints, or delete the line").String())
+			}
+			test.allowedError = text
+			continue
+		}
 	}
 	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	if err := checkExaBGPAllowedPair(ciFile, test); err != nil {
 		return nil, err
 	}
 	if len(test.configs) == 0 {
@@ -464,7 +569,7 @@ func runExaBGPSelected(ctx context.Context, suite *exabgpSuite, cli exabgpCLI) b
 				defer func() { <-sem }()
 
 				passed, detail := runOneExaBGPTest(ctx, t, cli)
-				if !passed {
+				if !judgeExaBGPAllowed(t, passed, detail, cli.dut) {
 					okMu.Lock()
 					allOK = false
 					okMu.Unlock()
@@ -555,7 +660,7 @@ func runOneExaBGPTest(ctx context.Context, test *exabgpTestEntry, cli exabgpCLI)
 	}
 	detail.port = port
 
-	client, configs, err := startExaBGPClient(testCtx, test, port, cli.zeBinary)
+	client, configs, err := startExaBGPClient(testCtx, test, port, cli.zeBinary, cli.dut)
 	if err != nil {
 		stopExaProcess(server)
 		detail.serverStdout = server.stdout.String()
@@ -566,7 +671,11 @@ func runOneExaBGPTest(ctx context.Context, test *exabgpTestEntry, cli exabgpCLI)
 		return false, detail
 	}
 	defer stopExaProcess(client)
-	go deliverExaBGPReloads(events.signal, client, configs)
+	if cli.dut == exabgpDUTExaBGP {
+		go deliverExaBGPDaemonSignals(events.signal, client)
+	} else {
+		go deliverExaBGPReloads(events.signal, client, configs)
+	}
 
 	serverDone := false
 	clientFailed := false
@@ -755,7 +864,16 @@ func startExaBGPServer(ctx context.Context, test *exabgpTestEntry, port int, sav
 	return proc, events, err
 }
 
-func startExaBGPClient(ctx context.Context, test *exabgpTestEntry, port int, zeBinary string) (*exaProcess, exabgpClientConfigs, error) {
+func startExaBGPClient(
+	ctx context.Context,
+	test *exabgpTestEntry,
+	port int,
+	zeBinary string,
+	dut exabgpDUT,
+) (*exaProcess, exabgpClientConfigs, error) {
+	if dut == exabgpDUTExaBGP {
+		return startExaBGPDaemon(ctx, test, port, zeBinary)
+	}
 	config, err := exaBGPClientConfig(ctx, test, zeBinary)
 	if err != nil {
 		return nil, exabgpClientConfigs{}, err
@@ -765,6 +883,38 @@ func startExaBGPClient(ctx context.Context, test *exabgpTestEntry, port int, zeB
 		return nil, exabgpClientConfigs{}, err
 	}
 	return client, config, nil
+}
+
+// startExaBGPDaemon runs the case's ExaBGP configs, unmigrated, under the
+// ExaBGP on PATH, the way ExaBGP's own functional runner starts it
+// (`exabgp server <conf>...`, with the same exabgp_* environment). The helper
+// the config names is resolved by ExaBGP from the config's own directory, so
+// the config is run where it lies rather than copied.
+//
+// A case that names several configs tests a reload. ExaBGP is handed every
+// config, in fixture order, as its runner hands them (`-d -p {confs}` in
+// qa/bin/functional): it starts on the first, and each reload takes the next
+// one from the list (Configuration.reload rotates them), so the runner only
+// passes on the signal (deliverExaBGPDaemonSignals). No config is rewritten.
+func startExaBGPDaemon(
+	ctx context.Context,
+	test *exabgpTestEntry,
+	port int,
+	zeBinary string,
+) (*exaProcess, exabgpClientConfigs, error) {
+	program, err := exec.LookPath("exabgp")
+	if err != nil {
+		return nil, exabgpClientConfigs{}, fmt.Errorf(
+			"--dut exabgp runs the exabgp on PATH and found none (%w): run the suite under uv run --with <exabgp pin>", err)
+	}
+	config := test.configs[0]
+	args := append([]string{"server"}, test.configs...)
+	client, err := startExaProcess(ctx, "client", program, args,
+		exaBGPClientEnv(test, port, zeBinary, config), nil)
+	if err != nil {
+		return nil, exabgpClientConfigs{}, err
+	}
+	return client, exabgpClientConfigs{path: config}, nil
 }
 
 func exaBGPServerArgs(test *exabgpTestEntry, port int, saveDir string) []string {
@@ -797,7 +947,6 @@ func exaBGPClientEnv(test *exabgpTestEntry, port int, zeBinary, configPath strin
 		"exabgp_debug_rotate=true",
 		"exabgp_debug_configuration=true",
 		"exabgp_api_socketname=exabgp-test-"+portText,
-		"exabgp_api_version=4",
 		// Each daemon gets its own store. Without it they share the one derived
 		// from the binary's location and corrupt each other's zefs and CA.
 		tb.Reset().Str("ze.config.dir=").Str(filepath.Dir(configPath)).String(),
@@ -990,6 +1139,12 @@ func migrateExaBGPConfig(ctx context.Context, zeBinary, source string) (string, 
 	command := exec.CommandContext(ctx, zeBinary, "exabgp", "migrate", source) //nolint:gosec // zeBinary is the ze under test, named on this runner's own command line
 	output, err := command.Output()
 	if err != nil {
+		// Output keeps the child's stderr on the exit error, and it is the only
+		// place the migration says WHICH statement it refused: without it the
+		// case failed on a bare `exit status 1`.
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok && len(exitErr.Stderr) > 0 {
+			return "", fmt.Errorf("migrate %s: %w: %s", source, err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
 		return "", fmt.Errorf("migrate %s: %w", source, err)
 	}
 	return absoluteBridgeRun(string(output), filepath.Dir(source)), nil

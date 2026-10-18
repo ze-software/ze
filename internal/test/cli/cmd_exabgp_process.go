@@ -17,6 +17,8 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -225,6 +227,34 @@ func deliverExaBGPReloads(signalCh <-chan string, client *exaProcess, configs ex
 			continue
 		}
 		if err := syscall.Kill(client.cmd.Process.Pid, syscall.SIGHUP); err != nil {
+			client.stdout.Append("runner: " + name + ": " + err.Error())
+		}
+	}
+}
+
+// deliverExaBGPDaemonSignals passes each signal step on to the ExaBGP under
+// proof, by the name the fixture gives it, as ExaBGP's own mock does
+// (qa/sbin/bgp kill()). ExaBGP was started on every config the case names
+// (startExaBGPDaemon), and a SIGUSR1 makes it load the next one, so there is
+// nothing to translate and nothing to rewrite.
+//
+// The signal goes to the daemon's own pid and NOT to the process group, for
+// the reason deliverExaBGPReloads gives: the group also holds its helpers.
+//
+// Lifecycle goroutine (one for each running case): it ends when the server
+// exits and reap closes signalCh.
+func deliverExaBGPDaemonSignals(signalCh <-chan string, client *exaProcess) {
+	for name := range signalCh {
+		number := unix.SignalNum(name)
+		if number == 0 {
+			client.stdout.Append("runner: " + name + " is not a signal name, so the reload this step asks for never happened: spell it as kill -l does, for example SIGUSR1")
+			continue
+		}
+		if client.cmd.Process == nil {
+			client.stdout.Append("runner: " + name + ": exabgp is not running")
+			continue
+		}
+		if err := syscall.Kill(client.cmd.Process.Pid, number); err != nil {
 			client.stdout.Append("runner: " + name + ": " + err.Error())
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -34,6 +35,10 @@ func (r *exaBGPRecorder) Run(ctx context.Context, command exaBGPCommand) exaBGPE
 		}
 		return exaBGPExecution{Stdout: command.Stage + " complete\n"}
 	}
+	// A version probe answers the version it resolved, as the real one does.
+	if strings.HasPrefix(command.Stage, "version-") {
+		return exaBGPExecution{Stdout: command.Pin + "\n"}
+	}
 	return exaBGPExecution{Stdout: "42/42 ExaBGP compatibility tests passed\n"}
 }
 
@@ -48,8 +53,12 @@ func TestRunExaBGPMatchesMakeProducer(t *testing.T) {
 	if code != 0 || report.Code != 0 {
 		t.Fatalf("exit = %d report code = %d error = %q", code, report.Code, report.Error)
 	}
-	if len(recorder.commands) != 4 {
-		t.Fatalf("commands = %d, want two builds and two subjects", len(recorder.commands))
+	// Two builds, then for each pin its version probe and one subject per
+	// predecessor population. Each subject names its suite, because
+	// `le test exabgp` alone runs encoding and nothing else.
+	wantCommands := 2 + len(exaBGPPins)*(1+len(exaBGPSuites))
+	if len(recorder.commands) != wantCommands {
+		t.Fatalf("commands = %d, want %d", len(recorder.commands), wantCommands)
 	}
 
 	ze := recorder.commands[0]
@@ -71,19 +80,34 @@ func TestRunExaBGPMatchesMakeProducer(t *testing.T) {
 		t.Fatalf("le tags = %q", got)
 	}
 
-	// Two subjects since 2026-09-05, one per predecessor population. Each names
-	// its suite, because `le test exabgp` alone runs encoding and nothing else.
-	for index, suite := range []string{"encoding", "api"} {
-		subject := recorder.commands[2+index]
-		wantSubject := []string{
-			"uv", "run", "--with", "paramiko", "--with", exaBGPPythonPackage, zeTest.Artifact, "test",
-			"exabgp", suite, "--all", "--timeout", "180s",
+	index := 2
+	for _, pin := range exaBGPPins {
+		probe := recorder.commands[index]
+		wantProbe := []string{
+			"uv", "run", "--no-project", "--python", exaBGPPython, "--with", "paramiko",
+			"--with", pin.Requirement, "python", "-c", exaBGPVersionProbe,
 		}
-		if !reflect.DeepEqual(subject.Arguments, wantSubject) {
-			t.Fatalf("subject %s = %#v, want %#v", suite, subject.Arguments, wantSubject)
+		if probe.Stage != "version-"+pin.Name || !reflect.DeepEqual(probe.Arguments, wantProbe) {
+			t.Fatalf("probe %s = %q %#v, want %#v", pin.Name, probe.Stage, probe.Arguments, wantProbe)
 		}
-		if subject.Directory != root {
-			t.Fatalf("subject %s directory = %q, want %q", suite, subject.Directory, root)
+		index++
+		for _, suite := range exaBGPSuites {
+			subject := recorder.commands[index]
+			index++
+			wantSubject := []string{
+				"uv", "run", "--no-project", "--python", exaBGPPython, "--with", "paramiko",
+				"--with", pin.Requirement, zeTest.Artifact, "test", "exabgp", suite, "--all",
+				"--timeout", "180s",
+			}
+			if subject.Stage != "exabgp-"+pin.Name+"-"+suite {
+				t.Fatalf("subject stage = %q, want exabgp-%s-%s", subject.Stage, pin.Name, suite)
+			}
+			if !reflect.DeepEqual(subject.Arguments, wantSubject) {
+				t.Fatalf("subject %s = %#v, want %#v", subject.Stage, subject.Arguments, wantSubject)
+			}
+			if subject.Directory != root {
+				t.Fatalf("subject %s directory = %q, want %q", subject.Stage, subject.Directory, root)
+			}
 		}
 	}
 	// The environment is the same for both subjects, so it is read from the
@@ -110,7 +134,7 @@ func TestRunExaBGPMatchesMakeProducer(t *testing.T) {
 	if len(report.Artifacts) != 2 {
 		t.Fatalf("artifacts = %#v, want ze and le", report.Artifacts)
 	}
-	if got := report.Children[2].Stdout; got != "42/42 ExaBGP compatibility tests passed\n" {
+	if got := report.Children[3].Stdout; got != "42/42 ExaBGP compatibility tests passed\n" {
 		t.Fatalf("reported subject stdout = %q", got)
 	}
 	if !report.Cleanup.Removed || report.Cleanup.Kept || report.Cleanup.Error != "" {
@@ -133,8 +157,10 @@ func TestRunExaBGPPreservesFirstFailureCodeAndCleanup(t *testing.T) {
 		{name: "ze build", stage: "build-ze", code: 37, wantCalls: 1},
 		{name: "le build", stage: "build-le", code: 38, wantCalls: 2},
 		// The encoding stage failing stops the run before the api stage, which is
-		// the point of the first-failure contract: three calls, not four.
-		{name: "compatibility subject", stage: "exabgp-encoding", code: 42, wantCalls: 3},
+		// the point of the first-failure contract: the builds, the first pin's
+		// probe and its encoding subject, and nothing after.
+		{name: "compatibility subject", stage: "exabgp-5.0.13-encoding", code: 42, wantCalls: 4},
+		{name: "pin install", stage: "version-main", code: 2, wantCalls: 6},
 	}
 	for _, one := range tests {
 		t.Run(one.name, func(t *testing.T) {
@@ -182,7 +208,7 @@ func TestRunExaBGPFailsClosedOnMissingArtifactAndOutput(t *testing.T) {
 	t.Run("suite output", func(t *testing.T) {
 		root := exaBGPFixture(t)
 		recorder := &exaBGPRecorder{failures: map[string]exaBGPExecution{
-			"exabgp-encoding": {},
+			"exabgp-5.0.13-encoding": {},
 		}}
 		report, code := runExaBGP(t.Context(), root, recorder)
 		if code != 1 || report.Code != 1 {
@@ -198,8 +224,35 @@ func TestRunExaBGPFailsClosedOnMissingArtifactAndOutput(t *testing.T) {
 				named = child.Stage
 			}
 		}
-		if named != "exabgp-encoding" {
+		if named != "exabgp-5.0.13-encoding" {
 			t.Fatalf("no child names the silent suite: %#v", report.Children)
+		}
+	})
+
+	// A silent version probe is named as the probe, with its command, and
+	// not as a suite: no suite has started when the probe runs.
+	t.Run("version output", func(t *testing.T) {
+		root := exaBGPFixture(t)
+		recorder := &exaBGPRecorder{failures: map[string]exaBGPExecution{
+			"version-5.0.13": {},
+		}}
+		report, code := runExaBGP(t.Context(), root, recorder)
+		if code != 1 || report.Code != 1 {
+			t.Fatalf("exit = %d report code = %d, want 1", code, report.Code)
+		}
+		var probe *ExaBGPChildResult
+		for index := range report.Children {
+			if report.Children[index].Stage == "version-5.0.13" {
+				probe = &report.Children[index]
+			}
+		}
+		if probe == nil {
+			t.Fatalf("no version-5.0.13 child: %#v", report.Children)
+		}
+		for _, want := range []string{"version probe version-5.0.13 printed nothing", "Run the probe by hand", exaBGPVersionProbe} {
+			if !strings.Contains(probe.Error, want) {
+				t.Errorf("probe error %q does not carry %q", probe.Error, want)
+			}
 		}
 	})
 }
@@ -221,7 +274,7 @@ func TestRunExaBGPUsesTimeoutAliasAndRetainsNamedArtifacts(t *testing.T) {
 	if report.Timeout != "27s" {
 		t.Fatalf("timeout = %q, want 27s", report.Timeout)
 	}
-	if got := recorder.commands[2].Arguments[len(recorder.commands[2].Arguments)-1]; got != "27s" {
+	if got := recorder.commands[3].Arguments[len(recorder.commands[3].Arguments)-1]; got != "27s" {
 		t.Fatalf("subject timeout = %q, want 27s", got)
 	}
 	if !report.Cleanup.Kept || report.Cleanup.Removed {
@@ -323,7 +376,8 @@ func exaBGPEffectiveEnvironment(entries []string) map[string]string {
 func TestExaBGPReportTextNamesTheChildThatCouldNotStart(t *testing.T) {
 	root := exaBGPFixture(t)
 	recorder := &exaBGPRecorder{failures: map[string]exaBGPExecution{
-		"exabgp-encoding": {
+		// The first uv child is the first pin's version probe.
+		"version-5.0.13": {
 			Error: `exec: "uv": executable file not found in $PATH`,
 			Code:  127,
 		},
@@ -335,7 +389,7 @@ func TestExaBGPReportTextNamesTheChildThatCouldNotStart(t *testing.T) {
 	}
 	text := report.Text()
 	for _, want := range []string{
-		"functional/exabgp-test: stage exabgp-encoding exited 127",
+		"functional/exabgp-test: stage version-5.0.13 exited 127",
 		`exec: "uv": executable file not found in $PATH`,
 	} {
 		if !strings.Contains(text, want) {
@@ -349,7 +403,8 @@ func TestExaBGPReportTextNamesTheChildThatCouldNotStart(t *testing.T) {
 
 // TestExaBGPReportTextSaysSomethingWhenEveryChildPassed pins the other half.
 // The Prose contract is that Text renders the whole answer, so a passing stage
-// says how many children ran rather than printing nothing at all.
+// names the ExaBGP each pin ran and how many children ran, rather than
+// printing nothing at all.
 func TestExaBGPReportTextSaysSomethingWhenEveryChildPassed(t *testing.T) {
 	root := exaBGPFixture(t)
 
@@ -357,7 +412,99 @@ func TestExaBGPReportTextSaysSomethingWhenEveryChildPassed(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit = %d, want 0", code)
 	}
-	if want := "functional/exabgp-test: 4 children passed\n"; report.Text() != want {
+	want := "functional/exabgp-test: pin 5.0.13 ran ExaBGP 5.0.13\n" +
+		"functional/exabgp-test: pin main ran ExaBGP main\n" +
+		"functional/exabgp-test: 8 children passed\n"
+	if report.Text() != want {
 		t.Errorf("text = %q, want %q", report.Text(), want)
+	}
+}
+
+// TestExaBGPMainPinCommands holds the stage to running every population under
+// both ExaBGP pins, 5.0.13 and a commit of ExaBGP main, each on the named
+// interpreter, and to the report naming the version each pin resolved. The
+// method is runExaBGP over a recorder that answers the probe with a version.
+// It exists because the stage named one pin, 5.0.13, so ExaBGP 6.0's API was
+// driven by nothing here.
+func TestExaBGPMainPinCommands(t *testing.T) {
+	root := exaBGPFixture(t)
+	recorder := &exaBGPRecorder{failures: map[string]exaBGPExecution{
+		"version-5.0.13": {Stdout: "5.0.13\n"},
+		"version-main":   {Stdout: "6.0.0-20261018+uncontrolled\n"},
+	}}
+
+	report, code := runExaBGP(t.Context(), root, recorder)
+	if code != 0 {
+		t.Fatalf("exit = %d error = %q", code, report.Error)
+	}
+	ran := make(map[string]bool)
+	for _, command := range recorder.commands {
+		if command.Pin == "" {
+			continue
+		}
+		if got := argumentAfter(command.Arguments, "--python"); got != exaBGPPython {
+			t.Fatalf("%s --python = %q, want %q", command.Stage, got, exaBGPPython)
+		}
+		if !slices.Contains(command.Arguments, "--no-project") {
+			t.Fatalf("%s argv %#v carries no --no-project", command.Stage, command.Arguments)
+		}
+		ran[command.Stage] = true
+	}
+	for _, stage := range []string{
+		"version-5.0.13", "exabgp-5.0.13-encoding", "exabgp-5.0.13-api",
+		"version-main", "exabgp-main-encoding", "exabgp-main-api",
+	} {
+		if !ran[stage] {
+			t.Fatalf("stage %s did not run; ran %v", stage, ran)
+		}
+	}
+	// The main pin is a commit, never a branch or a tag: forty hex digits.
+	main := exaBGPPins[1].Requirement
+	_, commit, found := strings.Cut(main, "@ git+https://github.com/Exa-Networks/exabgp@")
+	if !found || len(commit) != 40 || strings.Trim(commit, "0123456789abcdef") != "" {
+		t.Fatalf("main pin %q is not a commit of ExaBGP main", main)
+	}
+	text := report.Text()
+	for _, want := range []string{
+		"pin 5.0.13 ran ExaBGP 5.0.13\n",
+		"pin main ran ExaBGP 6.0.0-20261018+uncontrolled\n",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("report text %q does not carry %q", text, want)
+		}
+	}
+}
+
+// TestExaBGPStageClearsPythonPath sets PYTHONPATH in the stage's own process
+// and asserts that every uv child gets it empty, both in what runs and in what
+// the report records. A shell PYTHONPATH pointing at an ExaBGP checkout made
+// the stage drive that checkout instead of the pin
+// (plan/journal/gate-verdict-depends-on-the-machine.md, row 2026-09-13).
+func TestExaBGPStageClearsPythonPath(t *testing.T) {
+	root := exaBGPFixture(t)
+	t.Setenv("PYTHONPATH", "/somewhere/exabgp/src")
+	env.ResetCache()
+	recorder := &exaBGPRecorder{}
+
+	if _, code := runExaBGP(t.Context(), root, recorder); code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	children := 0
+	for _, command := range recorder.commands {
+		if command.Pin == "" {
+			continue
+		}
+		children++
+		value, present := exaBGPEffectiveEnvironment(command.Environment)["PYTHONPATH"]
+		if !present || value != "" {
+			t.Fatalf("%s runs with PYTHONPATH = %q (present %v), want it set empty", command.Stage, value, present)
+		}
+		reported, present := exaBGPEffectiveEnvironment(command.ReportEnvironment)["PYTHONPATH"]
+		if !present || reported != "" {
+			t.Fatalf("%s reports PYTHONPATH = %q (present %v), want it named empty", command.Stage, reported, present)
+		}
+	}
+	if children == 0 {
+		t.Fatal("no uv child ran, so nothing was checked")
 	}
 }

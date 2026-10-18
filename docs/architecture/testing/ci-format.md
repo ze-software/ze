@@ -476,7 +476,9 @@ The native derivation corpus gate rejects **every** native `.ci` parse failure,
 including failures before AS derivation. It does not feed other execution
 dialects into the native parser: `test/decode` uses `DecodingTests.parseCIFile`,
 and `test/exabgp-compat` uses `parseExaBGPCI`. The latter's
-`option=file:<name>` selects an `etc`-relative predecessor configuration; it is
+`option=file:<name>` selects a predecessor configuration relative to the
+population's own `etc/` when it has one (`old-4.2`, `old-5.0`), else the shared
+`test/exabgp-compat/etc/`; it is
 not the native `option=file:path=<name>` directive. Those populations are chosen
 by their execution owners, not by tolerating parser errors. Native scenarios
 that intentionally submit invalid Ze configuration remain in the gate: their

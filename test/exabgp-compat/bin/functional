@@ -5,7 +5,7 @@ cache.py
 
 Created by Thomas Mangin
 Copyright (c) 2013-2017 Exa Networks. All rights reserved.
-License: 3-clause BSD. (See the COPYRIGHT file)
+License: 3-clause BSD. (See test/exabgp-compat/LICENCE-ExaBGP.txt)
 """
 
 import argparse

@@ -476,7 +476,7 @@ and name, plus periodic progress while tests are still running.
 | OSPF | `le test ospf` | `test/ospf/*.ci` | Exercises release-gate OSPF config validation, interface ISM config leaves including passive and loopback records, NSM config leaves including `mtu-ignore`, LSDB flooding/retransmit/purge logic, SPF route installation via Loc-RIB/sysrib ECMP membership updates, inter-area ABR Type 3/4 summary origination, area ranges, summary withdraw, border-router snapshots, daemon route snapshot wiring, distance arbitration, and raw-socket doctor diagnostics, the RFC 3101 NSSA default route through the operator's `show ospf database nssa-external` subview (`ospf-nssa-abr-default.ci` for the border-router default with no `default-originate` leaf, `ospf-nssa-internal-default.ci` for the forwarding-address precondition on an internal router, and `test/ospfv3/ospfv3-nssa-abr-default.ci` for the OSPFv3 `0x2007` NSSA-LSA), plus the RFC 5250 opaque carrier, RFC 3630/5392 Traffic Engineering, the RFC 7770 Router Information LSA (`ospf-ri-*.ci`, and `test/ospfv3/ospfv3-ri-originate.ci` for the v3 engine), and the RFC 7684 Extended Prefix/Link Opaque LSAs (`ospf-ext-register.ci`, `ospf-ext-prefix-originate.ci`, `ospf-ext-link-originate.ci`, `ospf-ext-prefix-receive.ci`, `ospf-ext-subtlv-hook.ci`, `ospf-ext-decode.ci`), with FRR interop scenarios (`ospf-ri-frr`, `ospfv3-ri-frr`, `ospf-ext-prefix-link-frr`) run under QEMU. |
 | Chaos | `le test bgp chaos` | `test/chaos/*.ci` | Runs Ze plus chaos peers end-to-end through the BGP `.ci` runner. Each test execs `le chaos run`; the run compiles the le personality (`ze_le` and every gate `feature-gates.txt` declares) into its temp directory. The daemon `le chaos run` forks is the runner's own `ze`, found as `ze` on the child PATH. |
 | Chaos web | `le test bgp chaos-web` | `test/chaos-web/*.ci` | Runs chaos dashboard HTTP endpoint checks through the BGP `.ci` runner. Each test execs `le chaos run --in-process --web`, against the same le build as the chaos suite. |
-| ExaBGP compatibility | `le test exabgp` | `test/exabgp-compat/encoding/*.ci` | Runs the ExaBGP compatibility fixtures through the Go `le test` runner, starts the mock BGP peer, runs the ExaBGP wrapper client, and checks the expected wire output. |
+| ExaBGP compatibility | `le test exabgp` | `test/exabgp-compat/{encoding,api,old-4.2,old-5.0}/*.ci` | Runs the ExaBGP compatibility fixtures through the Go `le test` runner, starts the mock BGP peer, runs the ExaBGP wrapper client, and checks the expected wire output. |
 | Runner | `le test runner` | `test/runner/*.ci` | Exercises the `.ci` orchestration grammar and the native verify-freshness, structural-red attribution, verification-debt (`verify-scope-debt-clear` runs the gate a row names, `verify-scope-debt-discharge` records how an unrunnable row's obligation was met and then tampers with the record to see the row counted open again), in-flight failure-query, change-set-selection and derived-artifact fixtures (`le-derived-artifact-lifecycle` drives `le ai hooks` over a scratch checkout: a session start renders an artifact the tree does not hold, a write to one of its inputs removes it, and a command naming it rebuilds it before that command runs; `le-rfc-ledger-is-derived` walks the same loop for the five RFC outputs, and runs `./le rfc check` over a tree holding none of them to prove the gate judges the summaries rather than a page). The compiled Go fixtures use throwaway Git repositories and need no interpreter. |
 <!-- source: internal/test/cli/cmd_bgp.go -- BGP suite routing -->
 <!-- source: internal/test/cli/ci_runner.go -- shared .ci suites -->
@@ -3312,18 +3312,96 @@ summary format as the other functional suites. The public action is:
 ```
 <!-- source: internal/test/cli/cmd_exabgp.go -- native selection and progress output -->
 
-The stage runs the suite through `uv run --with paramiko --with exabgp==<pin>`,
+The stage runs the `encoding` and `api` populations, and only those, under two
+ExaBGP pins, `5.0.13` (the last 5.0 release) and `main` (a recorded commit of
+ExaBGP main, the unreleased 6.0),
+each through `uv run --no-project --python 3.12 --with paramiko --with <pin>`,
 so `uv` must be on PATH. `./le setup install` does not install it; the CI runner
 installs it in `.github/workflows/verify.yml`. Without it the stage exits 127,
 and the report names the child that could not start.
 
+| Child | Runs |
+|-------|------|
+| `version-<pin>` | prints the ExaBGP version the pin resolved; the report names it on a line `pin <pin> ran ExaBGP <version>`. A probe that prints nothing fails the stage, and its error names the probe and the command to run by hand |
+| `exabgp-<pin>-encoding`, `exabgp-<pin>-api` | `le test exabgp <suite> --all` under that pin |
+
 The `exabgp` distribution is the predecessor's own Python code, and one case
 runs it: `api-healthcheck-module` imports `exabgp.application.healthcheck` and
-drives ze through the API line protocol that module writes. The release is
-pinned in `exaBGPPythonPackage`, because a new release can change the
-healthcheck's option set or its announce line, which changes what the case
-drives.
-<!-- source: internal/le/test/functional/exabgp.go -- exaBGPCommands, exaBGPPythonPackage and exaBGPReport.Text -->
+drives ze through the API line protocol that module writes. Each pin is exact
+(`exaBGPPins`), because a new release can change the healthcheck's option set
+or its announce line, which changes what the case drives. The main pin is a
+commit, not the nightly zipapp: ExaBGP's workflow replaces the zipapp asset
+and moves the `nightly` tag each night main changes, so no recorded digest of
+it stays fetchable.
+
+Every uv child runs with `PYTHONPATH` set empty and `--python 3.12` named, so
+the shell that started the stage cannot change what it drives. Before
+2026-10-18 a `PYTHONPATH` pointing at an ExaBGP checkout replaced the pin with
+that checkout, and uv chose the interpreter itself, a CPython 3.8 on one
+workstation that the healthcheck cannot run on
+(`plan/journal/gate-verdict-depends-on-the-machine.md`).
+<!-- source: internal/le/test/functional/exabgp.go -- exaBGPPins, exaBGPPython, exaBGPCommands, exaBGPUVRun and exaBGPReport.Text -->
+
+`le test exabgp <suite> --dut exabgp` is the proof mode: it runs the selected
+cases with the ExaBGP on PATH as the daemon instead of ze, started as
+`exabgp server <conf>...` on the unmigrated configs, as ExaBGP's own functional
+runner starts it. A case that passes there expects what that ExaBGP does, so a
+case added for ExaBGP behaviour is proven under each pin before ze is held to
+it:
+
+```bash
+uv run --no-project --python 3.12 --with paramiko --with exabgp==5.0.13 \
+  ./le test exabgp api --dut exabgp api-fast
+```
+
+A case naming several configs tests a reload. Proof mode hands ExaBGP every
+config in fixture order, as ExaBGP's runner does, and passes each signal step
+on to the ExaBGP process by the name the fixture gives (`SIGUSR1`): ExaBGP then
+loads the next config from its list. Against ze the runner rewrites ze's config
+and sends `SIGHUP` instead. The stage does not run proof mode:
+the work that adds or changes a case proves it and records the run.
+<!-- source: internal/test/cli/cmd_exabgp.go -- exabgpDUT, parseExaBGPDUT, startExaBGPDaemon -->
+<!-- source: internal/test/cli/cmd_exabgp_process.go -- deliverExaBGPDaemonSignals, deliverExaBGPReloads -->
+<!-- test: internal/test/cli/cmd_exabgp_dut_test.go TestParseExaBGPCLIDUT, TestStartExaBGPDaemonHandsEveryConfig, TestDeliverExaBGPDaemonSignals -->
+<!-- test: internal/le/test/functional/exabgp_test.go TestExaBGPMainPinCommands, TestExaBGPStageClearsPythonPath -->
+
+The `old-4.2` and `old-5.0` populations are ExaBGP's copies of the 4.2 and 5.0
+branches' encoding tests (ExaBGP `qa/old/<branch>`, taken from the main pin's
+commit). They hold the configurations and helper programs a 4.2 or 5.0
+deployment runs, so they show those still announce and withdraw what they did
+when ze runs them. Each population keeps its configs and helpers in an `etc/`
+of its own, copied unchanged from the branch's `etc/exabgp/`, because their
+names collide with the `api` population's and their contents differ; a
+population with no `etc/` uses the shared `test/exabgp-compat/etc/`. Each case
+is the branch's `.ci` (the configs it loads) and `.msg` (what the peer must
+receive) joined into one file, with `option:` spelt `option=`.
+
+A case whose difference from the release is deliberate carries
+`option=allowed:<reason>`, as ExaBGP's `ALLOWED` table in
+`qa/bin/test_old_scripts` does, and `option=allowed-error:<text>`, the words
+its failure prints. The runner holds such a case to fail with that text: the
+failure is a SKIP line naming the reason. A green run of it fails the suite,
+because an allowance that outlives its difference would hide the next one. A
+failure without the text (a timeout, a crash) fails the suite too, because the
+allowance does not cover it. A case carrying only one of the two lines is
+refused. The allowance describes how ze differs, so under `--dut exabgp` it is
+not read and the case is judged on its own run.
+
+The two populations are run by hand and are not in the `exabgp-test` stage,
+because they are not green yet: against ze, `old-5.0` passes 51 of its 72
+cases and `old-4.2` 9 of its 34 (2026-10-18). The spec
+`plan/immediate/spec-exabgp-6-api-compatibility.md` carries what remains.
+
+```bash
+./le test exabgp old-5.0 --all
+```
+<!-- source: internal/test/cli/cmd_exabgp_old.go -- exabgpConfigDir, checkExaBGPAllowedPair, judgeExaBGPAllowed -->
+<!-- test: internal/test/cli/cmd_exabgp_old_test.go TestExaBGPConfigDirPrefersThePopulationsOwn, TestParseExaBGPCIAllowed, TestJudgeExaBGPAllowed, TestDiscoverExaBGPOldPopulations -->
+
+The `api` population carries ExaBGP's `exabgp_api.py` helper module from the
+main commit the pin names (`test/exabgp-compat/etc/run/`), since 2026-10-18,
+because `api-on-exit` and `api-disable`, ported from ExaBGP's `qa/api`, wait on
+its event barriers.
 
 ---
 

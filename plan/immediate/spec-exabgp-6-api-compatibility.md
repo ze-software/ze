@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 1/8 |
 | Handoff | - |
-| Updated | 2026-10-17 |
+| Updated | 2026-10-18 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -251,9 +251,9 @@ CHANGELOG sentence of that producer.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The nightly zipapp of ExaBGP main runs as a daemon on the stage's Python (3.12) and exposes `exabgp.application.healthcheck` when placed on `PYTHONPATH` | `zipapp.yml` builds and tests it on 3.12 and 3.14; `doc/user/zipapp.md` | the main pin needs a wheel built from the pinned commit instead | Phase 1 `TestExaBGPMainPinCommands` plus one manual run of `api-healthcheck-module` under the main pin | unvalidated |
-| A-2 | ExaBGP main's `qa/sbin/bgp` and Ze's `test/exabgp-compat/bin/bgp` read the same `.ci` grammar, so a case can be run against the ExaBGP daemon to prove its expectation | both come from ExaBGP's `qa/` lineage (`docs/architecture/exabgp-bridge.md`) | the proof run needs ExaBGP's own peer for the main pin | Phase 1: run three existing cases against the zipapp daemon | unvalidated |
-| A-3 | The suite's `.conf` files are ExaBGP format that ExaBGP 6.0's stricter configuration grammar accepts | `cmd_exabgp.go` migrates them; ExaBGP 6.0 CHANGELOG lists configuration refusals | a case's config needs editing to load in 6.0; each edit is named | Phase 1 proof run over the whole `api` population | unvalidated |
+| A-1 | The nightly zipapp of ExaBGP main runs as a daemon on the stage's Python (3.12) and exposes `exabgp.application.healthcheck` when placed on `PYTHONPATH` | `zipapp.yml` builds and tests it on 3.12 and 3.14; `doc/user/zipapp.md` | the main pin needs a wheel built from the pinned commit instead | Phase 1 `TestExaBGPMainPinCommands` plus one manual run of `api-healthcheck-module` under the main pin | broken (2026-10-18): the `nightly` release's asset is replaced and its tag moved each night main changes (`gh release view nightly -R Exa-Networks/exabgp`: built from b6bf80875, not the checkout's 685f772e4), so no zipapp digest stays fetchable. The main pin is `exabgp @ git+https://github.com/Exa-Networks/exabgp@685f772e4ede5c818d2ff5c84f4ae040afd37be6`, built and cached by uv; it resolves `6.0.0-20261018+uncontrolled` and imports `exabgp.application.healthcheck` on 3.12, and `api-healthcheck-module` is green against ze under it |
+| A-2 | ExaBGP main's `qa/sbin/bgp` and Ze's `test/exabgp-compat/bin/bgp` read the same `.ci` grammar, so a case can be run against the ExaBGP daemon to prove its expectation | both come from ExaBGP's `qa/` lineage (`docs/architecture/exabgp-bridge.md`) | the proof run needs ExaBGP's own peer for the main pin | Phase 1: run three existing cases against the zipapp daemon | confirmed (2026-10-18): `le test exabgp api --dut exabgp` passes api-fast, api-announce, api-check against ExaBGP main, and 37 of 42 existing cases against 5.0.13 |
+| A-3 | The suite's `.conf` files are ExaBGP format that ExaBGP 6.0's stricter configuration grammar accepts | `cmd_exabgp.go` migrates them; ExaBGP 6.0 CHANGELOG lists configuration refusals | a case's config needs editing to load in 6.0; each edit is named | Phase 1 proof run over the whole `api` population | broken in part (2026-10-18), proof mode over the 42 cases before the port: against 5.0.13, red api-health, api-sr-policy, api-vpnv4, api-peer-lifecycle (timeout), api-reload (refused: a reload); against main, red api-attributes-vpn, api-flow, api-flow-merge, api-ipv4-nexthop-ipv6, api-mvpn, api-peer-lifecycle, api-reload, api-sr-policy, api-teardown, api-vpnv4. Since proof mode runs reloads (2026-10-18, every config to `exabgp server`, SIGUSR1 to its pid): api-reload passes under main (PYTHONPATH cleared); under 5.0.13 the reload happens, then 5.0.13 respawns the helper five times ("Too many death for announce-routes (5)") and the mock never gets its sequence 3 withdrawal. Each is a case whose expectation is not that ExaBGP's; the phase owning its item rewrites it from that ExaBGP's output |
 | A-4 | Ze's reactor returns an error to the bridge when no selected peer carries the family, rather than dropping silently | `ErrFamilyNotNegotiated` in `session_validation.go` | the bridge must compute "carrying" itself from the peers' negotiated families | `TestFamilyNoSelectedPeerCarriesAnswersError` against the real engine | unvalidated |
 | A-5 | ze's update-text parser takes the LAST of a repeated `nhop`, so forwarding both tokens sends the second | not read | keep-first must still be done in the bridge either way; only the red test's expected failure changes | Phase 6 red run | unvalidated |
 | A-6 | `takeAttrValue` already refuses `path-information` with no value | `errMissingAttrValue` in `bridge_attribute.go` | Phase 6 adds the refusal | `TestPathInformationWithoutValueRefused` red run | unvalidated |
@@ -271,7 +271,7 @@ CHANGELOG sentence of that producer.
 | R-4 | The owner ledger grows unbounded with a script that announces many routes | memory in a long run | the ledger holds one entry per (selector, RouteKey), cleared by withdraw; bounded by the routes the script holds, as ExaBGP's RIB is |
 | R-5 | Exit withdrawals race the respawned child's first batch | a respawned child's announce withdrawn | ExaBGP queues an exit marker in the command queue (X-21); the fleet dispatches the withdrawals before reading the new child |
 | R-6 | Three formats triple render cost on every UPDATE | `./le perf` fan-out benchmark | render only formats some script currently uses (already the rule) |
-| R-7 | The main pin moves under the nightly tag | a green stage goes red with no ze change | pin a commit and the zipapp's sha256; bump deliberately |
+| R-7 | The main pin moves under the nightly tag | a green stage goes red with no ze change | pin a git commit of ExaBGP main (the zipapp's asset and tag move nightly, A-1); bump deliberately |
 | R-8 | `group` held lines interact with `Net` and per-line answers | a group's answers out of order | the group end line carries the group's answer; held lines answer `done` when held (ExaBGP answers each held line? verify in `group_add_command`: it answers done) |
 | R-9 | RTC origination emits a length ExaBGP and peers refuse | interop scenario red | boundary tests at 0, 32, 96 and refusals at 1, 31, 97 per RFC 4684 Section 4 |
 | R-10 | Routing SR Policy through `parseConfigRoute` changes what config and API accept together | `spec-bgp-sr-policy-rfc-defects` tests | that spec owns `parseConfigRoute`'s rules; this spec adds a caller and no rule |
@@ -309,8 +309,8 @@ CHANGELOG sentence of that producer.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `./le` exabgp stage | runs the `encoding` and `api` populations under the 5.0.13 pin AND the ExaBGP-main pin (a recorded commit and sha256 of the zipapp); each `uv run` child has `PYTHONPATH` set to exactly what the pin needs (empty, or the zipapp) and `--python` naming the interpreter; the report names both pins and the resolved ExaBGP version |
-| AC-2 | the main-pin proof mode | each case under `test/exabgp-compat/api/` that this spec adds or changes passes with ExaBGP main's zipapp as the daemon, so its expectation is 6.0's, before it is run against ze |
+| AC-1 | `./le` exabgp stage | runs the `encoding` and `api` populations under the 5.0.13 pin AND the ExaBGP-main pin (a recorded ExaBGP main git commit, installed by uv; A-1 change accepted by the main thread 2026-10-18); each `uv run` child has `PYTHONPATH` set empty and `--python` naming the interpreter; the report names both pins and the resolved ExaBGP version |
+| AC-2 | the main-pin proof mode | each case under `test/exabgp-compat/api/` that this spec adds or changes passes with the ExaBGP-main pin as the daemon, so its expectation is 6.0's, before it is run against ze |
 | AC-3 | `qa/api/api-on-exit.ci`, `qa/api/api-disable.ci` | ported to `test/exabgp-compat/api/` with their `.conf` and `.run` |
 | AC-4 | `qa/old/4.2` and `qa/old/5.0` encoding tests | ported as populations `old-4.2` and `old-5.0` run by `le test exabgp`, with ExaBGP's ALLOWED reasons carried and Ze's own differences each named with a reason; green |
 | AC-5 | first deciding line `announce route 10.0.0.0/24 next-hop 1.2.3.4` | the script is held to v4; a later `peer * announce ...` answers `error`; events reach it as v4 text (encoder text) or v4 JSON with `"exabgp": "4.0.1"` (encoder json) |
@@ -349,6 +349,7 @@ CHANGELOG sentence of that producer.
 | AC-38 | every event in `qa/old/responses-5.0.json.gz` and `responses-4.2.json.gz` | the v4 text line equals the recorded line; the v4 JSON line equals it parsed, ignoring time, host, pids, counter, and the version field reported once; each exception an ALLOWED row |
 | AC-39 | an ExaBGP 4.2/5.0 config with an IPv4 route and an IPv6 next hop and no `nexthop` block | `ze exabgp migrate` adds the extended next hop entry and capability, with a warning naming the route |
 | AC-40 | `bridge_batch.go` `Net` comment | states that `announce X` then `withdraw X` dispatches the withdrawal alone, matching the page table |
+| AC-41 | `test/exabgp-compat/api/api-disable.conf` (neighbor `shutdown true`) and its script's `neighbor <ip> enable` / `disable "<msg>"` lines | `ze exabgp migrate` accepts `shutdown true` (today it refuses: "unknown field in neighbor: shutdown") and carries it to a peer that starts administratively down; the enable and disable lines bring the session up and send the Cease with the message; `api-disable.ci` green against ze |
 
 ## End-to-End User Stories
 
@@ -493,12 +494,14 @@ Each phase is one commit, TDD (red pasted, then green), its page edits in the sa
    - Tests: `TestExaBGPMainPinCommands`, `TestExaBGPStageClearsPythonPath`; proof-mode run of three existing cases (A-2, A-3)
    - Files: `exabgp.go`, `cmd_exabgp.go`, `bridge_batch.go` (comment), journal status cells; port `api-on-exit`, `api-disable`, `qa/old/4.2`, `qa/old/5.0`
    - Verify: both pins run; a shell `PYTHONPATH` is ignored; the ported cases are named in the report with their verdicts (the ones items 2 to 6 turn green are listed as the known reds those phases own, `ai/rules/pre-release.md`)
+   - AC-4 state (2026-10-18, second package): ported and loading, NOT green. Runner: `exabgpConfigDir` (per-population `etc/`) and `option=allowed:<reason>` with `option=allowed-error:<text>` (the failure must carry the text, so a timeout or crash is a FAIL, never a SKIP; read only when the DUT is ze) judged by `judgeExaBGPAllowed` (`internal/test/cli/cmd_exabgp_old.go`). Proof mode now runs reload cases: `exabgp server` gets every config and the signal step goes to the ExaBGP pid (`deliverExaBGPDaemonSignals`). Cases: `test/exabgp-compat/old-5.0/` (72) and `old-4.2/` (34), each the branch's `.ci` and `.msg` joined, `etc/` copied unchanged from ExaBGP 685f772e4e `qa/old/<branch>/etc/exabgp`. Run against ze with `-t 60s`: old-5.0 51 pass, 1 allowed (conf-split, ExaBGP's reason verified against ze's migrate refusal), 12 fail, 8 timeout; old-4.2 9 pass, 20 fail, 5 timeout. Not yet in the `exabgp-test` stage (`exaBGPSuites` in `internal/le/test/functional/exabgp.go`): add them, once per run rather than once per pin (they import no ExaBGP), when green.
+   - AC-4 remaining, each to diagnose to its producer and then fix ze or carry an `option=allowed:` with the verified reason: (a) the Go mock (`internal/le/interoplab/bgp/exabgp_case.go`) refuses the 4.2 peer's `N:announce:<prefix>` / `N:withdraw:<prefix>` steps ("unknown step kind"), 12 old-4.2 cases; (b) it refuses `option=open:send-unknown-message` (old-5.0 unknown-message) and old-5.0 api-notification's options; (c) `ze exabgp migrate` refuses old-5.0 conf-extended-attributes.conf ("line 36: expected keyword, got RBRACE"); (d) wire differences reported as unexpected messages: old-5.0 api-check, api-flow, api-multiple-api, api-rr, api-rr-rib, api-vpnv4, conf-cap-software-version, conf-flow, conf-hostname; old-4.2 api-check, api-teardown, api-vpnv4, conf-flow, conf-flow-redirect, conf-new-v4, conf-vpn (ExaBGP carries ALLOWED rows for api-flow, conf-flow, conf-flow-redirect, api-teardown; each still to be checked against ze's bytes, and ExaBGP's runner compares decoded routes where ze's mock compares bytes); (e) timeouts at 60s: old-5.0 api-eor, api-flow-merge, api-nexthop-self, api-rib, api-vpls, conf-ipself4, conf-ipself6, extended-nexthop; old-4.2 api-eor, api-nexthop-self, api-reload, api-vpls, conf-ipself6 (rerun at the 180s default first; extended-nexthop and conf-ipself6 log "unicast next hop has an unusable address family or role", which is AC-39's migration)
 2. **Phase 2: API version detection and encoders** - X-1 to X-12; AC-5 to AC-13
 3. **Phase 3: Error answers** - X-13, X-14; AC-14 to AC-16
 4. **Phase 4: v6 vocabulary, group, on-exit, exit withdrawal** - X-15 to X-22; AC-17 to AC-25
 5. **Phase 5: Families** - rtc encoder and bridge row, mpls-vpn row, SR Policy through `parseConfigRoute`; adopt the untracked `api-sr-policy` case (A-9); interop scenarios; AC-26 to AC-28
 6. **Phase 6: Refusals and keep-first rules** - X-23 to X-30; AC-29 to AC-36
-7. **Phase 7: 4.2 and 5.0 corpora and migration** - X-35, X-37; AC-37 to AC-39
+7. **Phase 7: 4.2 and 5.0 corpora and migration** - X-35, X-37; AC-37 to AC-39, AC-41 (the `api-disable` red: `ze exabgp migrate` refuses `shutdown true`, a migration defect, main-thread decision 2026-10-18)
 8. **Phase 8: Docs consolidation check** - every page named above re-read against the code; `docs/exabgp/exabgp-differences.md` lists only differences that remain
 
 ### Critical Review Checklist
@@ -553,7 +556,7 @@ Each phase is one commit, TDD (red pasted, then green), its page edits in the sa
 | Version state per script in `bridgerun.script`, reset on respawn | per bridge; per Translator only | X-2 holds "until it restarts"; the script is what restarts |
 | Three render formats, rendered once each | render per script | keeps the fan-out cost per format (`docs/architecture/exabgp-bridge.md`) |
 | Unknown line: Ze writes the version's detail line and then `error`, where ExaBGP writes the marker alone | copy ExaBGP exactly | `ai/rules/user-facing-errors.md` requires the reason; every 5.x and 6.0 helper already reads a detail line before `error` (X-13), so the extra line breaks none; recorded in `docs/exabgp/exabgp-differences.md` |
-| Main pin = a recorded ExaBGP main commit's nightly zipapp with its sha256 | follow the moving `nightly` tag; build a wheel from the checkout | a pin that moves is no pin (journal 2026-09-13 row); the zipapp is ExaBGP's own published artifact (X-36) |
+| Main pin = a recorded ExaBGP main commit, installed by uv from `git+https://github.com/Exa-Networks/exabgp@<sha>` (changed 2026-10-18, A-1 broken) | the nightly zipapp with its sha256; follow the moving `nightly` tag | a pin that moves is no pin (journal 2026-09-13 row); the zipapp was the first choice, but its asset is replaced each night main changes, so its digest stops being fetchable |
 | The stage clears `PYTHONPATH` (option (a) of the 2026-09-13 journal row) | report the resolved version (option (b)) | the main pin now covers the newest ExaBGP, which was the only reason to let the shell's checkout through |
 | `encoder` YANG default becomes text | keep json | ExaBGP's default is text (`configuration.get('encoder', 'text')`); the order names it |
 | The API keeps 5.0's leniency (keep first, warn; short split sends whole) | refuse like a config | ExaBGP's own choice for the API (X-27, owner Thomas in 0f4da74a7) |

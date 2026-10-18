@@ -35,21 +35,76 @@ const (
 
 const exaBGPOutputMax = 8 << 20
 
-// exaBGPPythonPackage is the predecessor's own Python distribution, and it is
-// a SUBJECT of this stage rather than a convenience for it. api-healthcheck-module
+// exaBGPPin is one ExaBGP distribution the compatibility populations run
+// under. The distribution is the predecessor's own Python code, and it is a
+// SUBJECT of this stage rather than a convenience for it. api-healthcheck-module
 // runs ExaBGP's healthcheck application in process
 // (`from exabgp.application.healthcheck import main`, test/exabgp-compat/etc/run/),
 // so what that case proves is that ze answers the API line protocol ExaBGP's own
 // code writes. Without the distribution the script dies on ModuleNotFoundError,
 // and a stub in its place would leave the case green while proving nothing.
 //
-// Pinned for the reason StaticcheckVersion is pinned (internal/le/setup/tools.go):
-// a release that changes the healthcheck's option set, its announce line, or its
-// ack handling changes what the case drives, and an unpinned dependency makes
-// that a silent change on a machine that happened to resolve a newer release.
-// 5.0.13 supplies every option the fixture passes, `--no-ack` and
-// `--fast-interval` among them.
-const exaBGPPythonPackage = "exabgp==5.0.13"
+// Each pin is exact for the reason StaticcheckVersion is pinned
+// (internal/le/setup/tools.go): a release that changes the healthcheck's option
+// set, its announce line, or its ack handling changes what the case drives, and
+// an unpinned dependency makes that a silent change on a machine that happened
+// to resolve a newer release.
+type exaBGPPin struct {
+	// Name is the pin's part of each stage name, `exabgp-<Name>-<suite>`.
+	Name string
+	// Requirement is what `uv run --with` installs.
+	Requirement string
+}
+
+// exaBGPPython is the interpreter every pin runs on, passed to uv as
+// `--python`. Left to uv, the choice followed the machine: on the owner's
+// workstation it picked a managed CPython 3.8.20, which 5.0.13's healthcheck
+// cannot run on (plan/journal/gate-verdict-depends-on-the-machine.md, row
+// 2026-10-17). ExaBGP main declares `requires-python = ">=3.12"` in its
+// pyproject.toml, and 5.0.13 runs on it too, so one interpreter serves both.
+const exaBGPPython = "3.12"
+
+// exaBGPPins are the two ExaBGP versions ze answers.
+//
+// 5.0.13 is the last 5.0 release and supplies every option the healthcheck
+// fixture passes, `--no-ack` and `--fast-interval` among them.
+//
+// main is ExaBGP 6.0 before its release, pinned to a commit of
+// github.com/Exa-Networks/exabgp, which uv builds once and caches. The nightly
+// zipapp was the first choice and cannot be pinned: the release workflow
+// replaces the asset of the `nightly` pre-release and moves its tag each night
+// main changes (.github/workflows/zipapp.yml in that repository), so a recorded
+// sha256 stops matching anything that can be fetched. A commit is fetched as
+// long as the repository exists. Bump it deliberately, with the cases that the
+// new commit changes.
+var exaBGPPins = [...]exaBGPPin{
+	{Name: "5.0.13", Requirement: "exabgp==5.0.13"},
+	{
+		Name:        "main",
+		Requirement: "exabgp @ git+https://github.com/Exa-Networks/exabgp@685f772e4ede5c818d2ff5c84f4ae040afd37be6",
+	},
+}
+
+// exaBGPSuites are the predecessor populations each pin runs, in order.
+// `encoding` drives ze from a migrated config alone; `api` drives it through
+// the ExaBGP bridge, which runs the script the config's process block names.
+//
+// Until 2026-09-05 this stage ran `encoding` and nothing else, and
+// zeTestExabgpMain refused every other name with "only predecessor encoding
+// tests are available". So `exabgp-test` was 42 config-to-wire cases and the
+// ExaBGP API line protocol had no gate at all, which is how 46 run scripts
+// came to sit in the tree with no runner.
+var exaBGPSuites = [...]string{"encoding", "api"}
+
+// exaBGPVersionProbe prints the version of the distribution a pin resolved,
+// so the report names what ran rather than what was asked for.
+const exaBGPVersionProbe = "from exabgp.version import version; print(version)"
+
+// exaBGPPythonPathKey is cleared on every uv child. A shell that exports it
+// (an ExaBGP developer's does, pointing at a checkout) puts that checkout ahead
+// of the pinned distribution, and the stage then drives code it does not name
+// (plan/journal/gate-verdict-depends-on-the-machine.md, row 2026-09-13).
+const exaBGPPythonPathKey = "PYTHONPATH"
 
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         exaBGPTimeoutKey,
@@ -65,7 +120,9 @@ var _ = env.MustRegister(env.EnvEntry{
 // callers MUST NOT render it. ReportEnvironment is the safe subset recorded in
 // the stage report.
 type exaBGPCommand struct {
-	Stage             string
+	Stage string
+	// Pin names the exaBGPPins entry a uv child runs under, empty for a build.
+	Pin               string
 	Arguments         []string
 	Directory         string
 	Environment       []string
@@ -90,6 +147,7 @@ type exaBGPRunner interface {
 // ExaBGPChildResult records one build or compatibility-suite child.
 type ExaBGPChildResult struct {
 	Stage       string   `json:"stage"`
+	Pin         string   `json:"pin,omitempty"`
 	Command     []string `json:"command"`
 	Directory   string   `json:"directory"`
 	Environment []string `json:"environment,omitempty"`
@@ -135,7 +193,8 @@ func (r exaBGPReport) Text() string {
 	if r.Error != "" {
 		tb.Str(action).Str(": ").Str(r.Error).Byte('\n')
 	}
-	for _, child := range r.Children {
+	for index := range r.Children {
+		child := &r.Children[index]
 		if child.Code == 0 {
 			continue
 		}
@@ -149,7 +208,24 @@ func (r exaBGPReport) Text() string {
 		tb.Str(action).Str(": cleanup of ").Str(r.Cleanup.Path).Str(" failed: ").
 			Str(r.Cleanup.Error).Byte('\n')
 	}
-	if tb.Len() != 0 {
+	failed := tb.Len() != 0
+	// Each pin's probe names the ExaBGP that ran, pass or fail, because the
+	// requirement is what was asked for and the probe is what uv resolved.
+	for index := range r.Children {
+		child := &r.Children[index]
+		if child.Pin == "" {
+			continue
+		}
+		if child.Code != 0 {
+			continue
+		}
+		if !strings.HasPrefix(child.Stage, "version-") {
+			continue
+		}
+		tb.Str(action).Str(": pin ").Str(child.Pin).Str(" ran ExaBGP ").
+			Str(strings.TrimSpace(child.Stdout)).Byte('\n')
+	}
+	if failed {
 		return tb.String()
 	}
 	return tb.Str(action).Str(": ").Int(int64(len(r.Children))).
@@ -231,25 +307,40 @@ func runExaBGP(ctx context.Context, root string, runner exaBGPRunner) (
 	}
 
 	// A suite that says nothing has not passed: it did not run. The check reads
-	// EVERY subject rather than the last one, because this stage runs two suites
-	// since 2026-09-05 and a guard on the last child alone would let a silent
-	// encoding run through on the strength of the api run's output.
+	// EVERY subject rather than the last one, because this stage runs several
+	// suites since 2026-09-05 and a guard on the last child alone would let a
+	// silent encoding run through on the strength of the api run's output. A
+	// version probe that prints nothing named no version, so it is held to the
+	// same rule.
 	for index := range report.Children {
 		child := &report.Children[index]
-		if !strings.HasPrefix(child.Stage, "exabgp-") {
+		if child.Pin == "" {
 			continue
 		}
 		if child.Stdout != "" || child.Stderr != "" {
 			continue
 		}
 		child.Code = 1
-		child.Error = "ExaBGP suite produced no output"
+		child.Error = exaBGPSilentChild(child)
 		report.Code = 1
 		return report, 1
 	}
 
 	report.Code = 0
 	return report, 0
+}
+
+// exaBGPSilentChild names a child that printed nothing. A version probe is
+// named as one, with the command to run by hand, because "suite" sent the
+// reader to a suite that never started.
+func exaBGPSilentChild(child *ExaBGPChildResult) string {
+	if !strings.HasPrefix(child.Stage, "version-") {
+		return "ExaBGP suite produced no output"
+	}
+	var tb textbuf.Buffer
+	return tb.Str("ExaBGP version probe ").Str(child.Stage).
+		Str(" printed nothing, so the report cannot name the ExaBGP the pin ").Str(child.Pin).
+		Str(" ran. Run the probe by hand to see why: ").Str(strings.Join(child.Command, " ")).String()
 }
 
 func exaBGPTimeout() string {
@@ -332,35 +423,50 @@ func exaBGPCommands(
 		return nil, errors.New("functional artifact owner declared no le build")
 	}
 
-	runEnvironment := set.Environment(toolchain)
+	pythonPathCleared := exaBGPPythonPathKey + "="
+	runEnvironment := append(env.Without(set.Environment(toolchain), exaBGPPythonPathKey), pythonPathCleared)
 	runReportEnvironment := toolchain.Overrides(gotoolchain.EnvOptions{})
 	zePathEnvironment := tb.Reset().Str("ZE_BIN=").Str(filepath.Join(set.Dir, "ze")).String()
 	runReportEnvironment = append(runReportEnvironment,
 		runner.EnvNoBuild+"=1",
 		zePathEnvironment,
+		pythonPathCleared,
 	)
-	// The two predecessor populations, both of them. `encoding` drives ze from a
-	// migrated config alone; `api` drives it through the ExaBGP bridge, which
-	// runs the script the config's process block names.
-	//
-	// Until 2026-09-05 this stage ran `encoding` and nothing else, and
-	// zeTestExabgpMain refused every other name with "only predecessor encoding
-	// tests are available". So `exabgp-test` was 42 config-to-wire cases and the
-	// ExaBGP API line protocol had no gate at all, which is how 46 run scripts
-	// came to sit in the tree with no runner.
-	for _, suite := range []string{"encoding", "api"} {
+	for _, pin := range exaBGPPins {
+		// The probe runs first, so a pin that cannot be installed stops the
+		// stage before any population and its report names the install, not a
+		// case.
 		commands = append(commands, exaBGPCommand{
-			Stage: "exabgp-" + suite,
-			Arguments: []string{
-				"uv", "run", "--with", "paramiko", "--with", exaBGPPythonPackage, set.lePath(),
-				leTestWord, "exabgp", suite, "--all", "--timeout", timeout,
-			},
+			Stage:             tb.Reset().Str("version-").Str(pin.Name).String(),
+			Pin:               pin.Name,
+			Arguments:         exaBGPUVRun(pin, "python", "-c", exaBGPVersionProbe),
 			Directory:         toolchain.Root,
 			Environment:       runEnvironment,
 			ReportEnvironment: runReportEnvironment,
 		})
+		for _, suite := range exaBGPSuites {
+			commands = append(commands, exaBGPCommand{
+				Stage: tb.Reset().Str("exabgp-").Str(pin.Name).Byte('-').Str(suite).String(),
+				Pin:   pin.Name,
+				Arguments: exaBGPUVRun(pin, set.lePath(),
+					leTestWord, "exabgp", suite, "--all", "--timeout", timeout),
+				Directory:         toolchain.Root,
+				Environment:       runEnvironment,
+				ReportEnvironment: runReportEnvironment,
+			})
+		}
 	}
 	return commands, nil
+}
+
+// exaBGPUVRun is the argv that runs command under pin. Every option uv would
+// otherwise pick for itself is passed: the interpreter, and no project, so a
+// pyproject.toml above the checkout cannot add its own dependencies.
+func exaBGPUVRun(pin exaBGPPin, command ...string) []string {
+	return append([]string{
+		"uv", "run", "--no-project", "--python", exaBGPPython,
+		"--with", "paramiko", "--with", pin.Requirement,
+	}, command...)
 }
 
 func exaBGPBuildArtifact(arguments []string) (string, bool) {
@@ -381,6 +487,7 @@ func exaBGPRunChild(
 	execution := runner.Run(ctx, command)
 	return ExaBGPChildResult{
 		Stage:       command.Stage,
+		Pin:         command.Pin,
 		Command:     append([]string(nil), command.Arguments...),
 		Directory:   command.Directory,
 		Environment: append([]string(nil), command.ReportEnvironment...),
