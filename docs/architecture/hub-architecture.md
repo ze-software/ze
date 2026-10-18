@@ -169,13 +169,13 @@ module (see section 2 for external plugins). This enables:
 - Type validation (ranges, patterns, enums)
 - Semantic validation via verify/apply protocol
 
-Ze has no leafref check, so the schema loader refuses a module that declares
-a leafref, identityref or instance-identifier type (`ErrUncheckedType`), and
-the validator refuses any value of such a type rather than accept it
-unchecked. Cross-reference validation is planned
-(`plan/spec-config-yang-type-leafref.md`).
-<!-- source: internal/component/config/yang/loader_unchecked.go -- moduleUncheckedTypeErrors -->
-<!-- source: internal/component/config/yang/validator_lexical.go -- uncheckedKindError -->
+Ze checks leafref, identityref and instance-identifier values: a leafref or
+instance-identifier with require-instance true must refer to an instance the
+whole config holds, checked in one walk over every section
+(`Validator.ValidateReferences`), and an identityref must name an identity
+derived from its base.
+<!-- source: internal/component/config/yang/validator_instance.go -- ValidateReferences -->
+<!-- source: internal/component/config/yang/validator_reference.go -- validateIdentityref -->
 
 ### 4. Verify Before Apply
 

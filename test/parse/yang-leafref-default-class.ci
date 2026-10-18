@@ -1,0 +1,67 @@
+# The traffic-control default-class leaf is a YANG leafref to the class list of
+# its own qdisc (ze-traffic-control-conf.yang, path "../class/name"), the shape
+# of the RFC 7950 Section 9.9.6 example.
+#
+# VALIDATES: `ze config validate` refuses a default-class naming no class of
+#            its qdisc, naming the leaf and the classes that exist
+#            (Validator.ValidateReferences through config.ValidateCustomSections),
+#            and accepts one naming a configured class.
+# PREVENTS: a dangling default-class passing validation, which the netlink
+#           backend then ignored in silence, so unclassified traffic went to
+#           no class the operator chose.
+
+stdin=missing:terminator=EOF_MISSING
+traffic {
+	control {
+		backend tc
+		interface eth0 {
+			qdisc {
+				type htb
+				default-class bulk
+				class voice {
+					rate 10mbit
+					ceil 100mbit
+					priority 0
+				}
+				class data {
+					rate 90mbit
+					ceil 100mbit
+					priority 1
+				}
+			}
+		}
+	}
+}
+EOF_MISSING
+
+stdin=present:terminator=EOF_PRESENT
+traffic {
+	control {
+		backend tc
+		interface eth0 {
+			qdisc {
+				type htb
+				default-class data
+				class voice {
+					rate 10mbit
+					ceil 100mbit
+					priority 0
+				}
+				class data {
+					rate 90mbit
+					ceil 100mbit
+					priority 1
+				}
+			}
+		}
+	}
+}
+EOF_PRESENT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=missing
+expect=exit:code=1
+expect=stdout:contains=default-class
+expect=stdout:contains=no name "bulk" exists at "../class/name"
+cmd=foreground:seq=2:exec=ze config validate -:stdin=present
+expect=exit:code=0
+expect=stdout:contains=configuration valid

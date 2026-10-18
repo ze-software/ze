@@ -108,9 +108,11 @@ does not support.";
                     }
 
                     leaf default-class {
-                        type string;
+                        type leafref {
+                            path "../class/name";
+                        }
                         description "The value is the name of a class in the class list of this
-qdisc.";
+qdisc. The leafref refuses a name no class of this qdisc carries.";
                         ze:help "Name of the class that takes the unclassified traffic.";
                     }
 

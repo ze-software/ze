@@ -36,8 +36,7 @@ var ErrEnumValue = errors.New("YANG enum value invalid")
 // extension"), so it never reads these substatements.
 var ErrExtensionSubstatement = errors.New("invalid YANG statement under an extension")
 
-// checkStructure joins the structural checks goyang does not perform, and
-// the refusal of the types ze cannot check (moduleUncheckedTypeErrors), over
+// checkStructure joins the structural checks goyang does not perform over
 // every loaded module and submodule.
 func (l *Loader) checkStructure() error {
 	mods := l.modules.sourceModules()
@@ -45,7 +44,6 @@ func (l *Loader) checkStructure() error {
 	for _, mod := range mods {
 		errs = append(errs, moduleLengthErrors(mod)...)
 		errs = append(errs, moduleEnumErrors(mod)...)
-		errs = append(errs, moduleUncheckedTypeErrors(mod)...)
 		errs = append(errs, moduleExtensionSubstatementErrors(l.modules.source(mod))...)
 	}
 	return errors.Join(errs...)

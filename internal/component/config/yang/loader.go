@@ -297,9 +297,9 @@ func (l *Loader) AddModuleFromFile(path string) error {
 // and RFC 7950 forbids (checkStructure): length parts that overlap or descend
 // (ErrLengthOrder), an enum restriction that departs from its base type
 // (ErrEnumRestriction), a non-YANG statement under an extension
-// (ErrExtensionSubstatement), and a leafref, identityref or
-// instance-identifier type, whose values ze has no check for
-// (ErrUncheckedType).
+// (ErrExtensionSubstatement), and a leafref whose path names no leaf, whose
+// require-instance config leaf refers to state, or whose chain of leafrefs
+// loops (ErrLeafrefPath, checkReferences).
 //
 // It answers the Resolved only when every check passed, and no value
 // otherwise. It runs once: afterwards, successful or not, every load and every
@@ -316,7 +316,11 @@ func (l *Loader) Resolve() (*Resolved, error) {
 	if err := errors.Join(processErr, extensionErr, patternErr, structureErr); err != nil {
 		return nil, err
 	}
-	return &Resolved{modules: l.modules, patterns: patterns}, nil
+	resolved := &Resolved{modules: l.modules, patterns: patterns}
+	if err := checkReferences(resolved); err != nil {
+		return nil, err
+	}
+	return resolved, nil
 }
 
 // process runs goyang's import and type resolution over every loaded module.

@@ -1,5 +1,6 @@
 // Design: docs/architecture/config/yang-config-design.md — YANG schema handling
 // Related: validator.go — validateYangType dispatches the empty, binary and bits kinds here
+// Related: validator_reference.go — the leafref, identityref and instance-identifier kinds
 // RFC: rfc/short/rfc7950.md
 
 package yang
@@ -165,12 +166,10 @@ func bitNames(yangType *yang.YangType) string {
 }
 
 // uncheckedKindError is the refusal for a value whose type Ze has no lexical
-// check for. RFC 7950 Section 9.1: "Implementations MUST support all lexical
-// representations specified in this document." Accepting the value unread
-// would claim a check that never ran, so it is refused. The loader refuses a
-// module that declares leafref, identityref or instance-identifier
-// (ErrUncheckedType), so a value reaching here comes from a schema that did
-// not pass through Loader.Resolve.
+// check for: Ynone, which goyang leaves on a type it could not resolve, and
+// any kind goyang adds. RFC 7950 Section 9.1: "Implementations MUST support
+// all lexical representations specified in this document." Accepting the
+// value unread would claim a check that never ran, so it is refused.
 func uncheckedKindError(path string, yangType *yang.YangType, value any) error {
 	got := valueTypeName(value)
 	if str, ok := value.(string); ok {
@@ -180,7 +179,7 @@ func uncheckedKindError(path string, yangType *yang.YangType, value any) error {
 	return &ValidationError{
 		Path:     path,
 		Type:     ErrTypeType,
-		Message:  tb.Str("type ").Quoted(yangType.Name).Str(" (").Str(yangType.Kind.String()).Str(") has no value check in ze, so no value is accepted for it: declare the leaf in its module as a string with a pattern, or as an enumeration").String(),
+		Message:  tb.Str("type ").Quoted(yangType.Name).Str(" (").Str(yangType.Kind.String()).Str(") has no value check in ze, so no value is accepted for it: declare the leaf in its module with a built-in type of RFC 7950 Section 4.2.4").String(),
 		Expected: yangType.Name,
 		Got:      got,
 	}

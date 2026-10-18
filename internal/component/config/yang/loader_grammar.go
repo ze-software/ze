@@ -719,6 +719,14 @@ func isURIText(text, extra string) bool {
 // absolute-path opens with "/" and a relative-path with "../", so the first
 // byte decides which is read.
 func checkPathArg(argument string) error {
+	_, err := parsePathArg(argument)
+	return err
+}
+
+// parsePathArg reads a path-arg-str into the steps the validator walks. It is
+// the one reader of the rule: the load-time syntax check is this call with
+// the steps discarded.
+func parsePathArg(argument string) (leafrefPath, error) {
 	path := pathArg{text: argument}
 	var matched bool
 	if strings.HasPrefix(argument, "/") {
@@ -727,20 +735,23 @@ func checkPathArg(argument string) error {
 		matched = path.relative()
 	}
 	if !matched {
-		return fmt.Errorf("%q is not a path-arg", argument)
+		return leafrefPath{}, fmt.Errorf("%q is not a path-arg", argument)
 	}
 	if path.at != len(argument) {
-		return fmt.Errorf("%q is not a path-arg", argument)
+		return leafrefPath{}, fmt.Errorf("%q is not a path-arg", argument)
 	}
-	return nil
+	return path.out, nil
 }
 
 // pathArg is a reader of one Section 14 path-arg. No rule of path-arg
 // recurses into itself, so the reader is iterative and every loop consumes
-// at least one byte of text.
+// at least one byte of text. out collects what was read; last is the
+// node-identifier nodeIdentifier read most recently.
 type pathArg struct {
 	text string
 	at   int
+	out  leafrefPath
+	last string
 }
 
 // absolute reads "absolute-path = 1*("/" (node-identifier *path-predicate))".
@@ -751,6 +762,7 @@ func (p *pathArg) absolute() bool {
 		if !p.nodeIdentifier() {
 			return false
 		}
+		p.out.steps = append(p.out.steps, pathStep{node: p.last})
 		for p.peek('[') {
 			if !p.predicate() {
 				return false
@@ -772,9 +784,11 @@ func (p *pathArg) relative() bool {
 	if ups == 0 {
 		return false
 	}
+	p.out.up = ups
 	if !p.nodeIdentifier() {
 		return false
 	}
+	p.out.steps = append(p.out.steps, pathStep{node: p.last})
 	if !p.peek('[') && !p.peek('/') {
 		return true
 	}
@@ -796,6 +810,7 @@ func (p *pathArg) predicate() bool {
 	if !p.nodeIdentifier() {
 		return false
 	}
+	key := pathKey{node: p.last}
 	p.wsp()
 	if !p.byte('=') {
 		return false
@@ -820,16 +835,21 @@ func (p *pathArg) predicate() bool {
 		return false
 	}
 	p.wsp()
-	if !p.relativeKey() {
+	if !p.relativeKey(&key) {
 		return false
 	}
 	p.wsp()
-	return p.byte(']')
+	if !p.byte(']') {
+		return false
+	}
+	step := &p.out.steps[len(p.out.steps)-1]
+	step.keys = append(step.keys, key)
+	return true
 }
 
 // relativeKey reads "rel-path-keyexpr = 1*(".." *WSP "/" *WSP)
 // *(node-identifier *WSP "/" *WSP) node-identifier".
-func (p *pathArg) relativeKey() bool {
+func (p *pathArg) relativeKey(key *pathKey) bool {
 	ups := 0
 	for strings.HasPrefix(p.text[p.at:], "..") {
 		p.at += len("..")
@@ -843,10 +863,12 @@ func (p *pathArg) relativeKey() bool {
 	if ups == 0 {
 		return false
 	}
+	key.up = ups
 	for {
 		if !p.nodeIdentifier() {
 			return false
 		}
+		key.nodes = append(key.nodes, p.last)
 		mark := p.at
 		p.wsp()
 		if !p.byte('/') {
@@ -860,6 +882,7 @@ func (p *pathArg) relativeKey() bool {
 // nodeIdentifier reads "node-identifier = [prefix ":"] identifier".
 func (p *pathArg) nodeIdentifier() bool {
 	n := identifierRefLength(p.text[p.at:])
+	p.last = p.text[p.at : p.at+n]
 	p.at += n
 	return n > 0
 }

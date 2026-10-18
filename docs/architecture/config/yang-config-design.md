@@ -136,7 +136,8 @@ refusal names the module, the file location and the fault.
 | An enumeration whose values break Section 9.6.4.2: a value outside int32, a value assigned twice, an enum with no value after one holding 2147483647 | 9.6.4.2 | it checks only an enumeration it resolves, and it resolves none in a grouping no schema node uses | `ErrEnumValue` |
 | An `enum` in a restricted enumeration that the base type does not assign, or whose `value` differs from the base type's | 9.6.4, 9.6.4.2 | it builds the restricted values afresh and never compares them with the base | `ErrEnumRestriction` |
 | A statement under an extension statement that is not a YANG keyword, that the block holding it does not admit, whose argument breaks its Section 14 argument rule, whose substatements break the counts or the alternatives of its rule's block, or that omits a block its rule requires | 7.19 | it keeps an extension statement as raw text | `ErrExtensionSubstatement` |
-| A `type leafref`, `type identityref` or `type instance-identifier`, directly, as a typedef base or as a union member | 9.1 | goyang resolves the type; checking a value needs the data tree or the identity set, and the validator checks one value at a time, so a leaf of the type would accept nothing | `ErrUncheckedType` |
+| A leafref whose path names no node, ends at a node that is not a leaf or leaf-list, puts a predicate on a node that is not a list or on a leaf that is not one of its keys, or whose `current()` expression reaches no leaf | 9.9.2 | it keeps the path as text and resolves nothing | `ErrLeafrefPath` |
+| A config leafref with require-instance true whose referred leaf is state, and a chain of leafrefs that comes back to a leaf already in it | 9.9 | it never follows a path | `ErrLeafrefPath` |
 
 The grammar under an extension is the RFC's own: `rfc7950.abnf`, embedded in
 the package, is the Section 14 code component of `rfc/full/rfc7950.txt`, and
@@ -207,7 +208,8 @@ rather than checked against a guessed span.
 <!-- source: internal/component/config/yang/loader.go -- Resolve, checkExtensions, DefaultLoader -->
 <!-- source: internal/component/config/yang/enum_assignment.go -- parseEnumAssignment, assignEnumValues -->
 <!-- source: internal/component/config/yang/loader_structure.go -- checkStructure, restrictedLengthSpan, resolveProduction, extensionSubstatementError -->
-<!-- source: internal/component/config/yang/loader_unchecked.go -- moduleUncheckedTypeErrors, uncheckedTypeNames -->
+<!-- source: internal/component/config/yang/loader_reference.go -- checkReferences, checkLeafrefSchema -->
+<!-- source: internal/component/config/yang/reference_path.go -- leafrefTarget, checkPathKeys -->
 <!-- source: internal/component/config/yang/loader_abnf.go -- parseYANGGrammar, rfc7950Grammar -->
 <!-- source: internal/component/config/yang/loader_grammar.go -- argumentCheckers, checkURI, checkPathArg -->
 <!-- source: internal/component/config/yang/loader_source.go -- statementHasBlock -->
@@ -397,10 +399,25 @@ Each built-in type checks its value's lexical form (RFC 7950 Section 9):
 | `binary` | base64 with padding (RFC 4648 Section 4), no whitespace; `length` counts the decoded octets |
 | `bits` | the names of the set bits separated by one or more space characters, each a defined bit and none twice; the empty string sets no bit |
 | `empty` | only the presence value the config tree stores (`true`); the type has no lexical form of its own |
-| `leafref`, `identityref`, `instance-identifier`, and any kind goyang adds | nothing: the value is refused, never accepted unchecked. The loader refuses a module that declares one of the three (`ErrUncheckedType`) |
+| `leafref` | a value of the type of the leaf the path names (Section 9.9.4); with require-instance true (the default), a value equal to an instance of that leaf in the whole config, or to its default where the default is in use |
+| `identityref` | the name of an identity derived from the base, written `name`, `prefix:name` or `module:name` with the defining module's prefix or name; the base itself is refused, and an unprefixed name two modules define is refused naming the qualified forms. Config text carries no XML namespace, so the prefix is the module's, never a local declaration |
+| `instance-identifier` | the Section 14 rule, every node name prefixed (9.13.2) with its module's prefix or name, each step a data node, one quoted predicate per key of each keyed list, `[.='v']` on a leaf-list, `[n]` on a keyless list only; with require-instance true, the node must exist in the config or be a leaf whose default is in use |
+| any kind goyang adds, and an unresolved type | nothing: the value is refused, never accepted unchecked |
 
-<!-- source: internal/component/config/yang/validator.go -- ValidateTree, walkTree, validateYangType -->
+The instance checks of `leafref` and `instance-identifier` read the whole
+config at once, because a reference may cross sections:
+`Validator.ValidateReferences` runs over `Tree.ToMap()` inside
+`config.ValidateCustomSections`, which `ze config validate`, the daemon's load
+and the editor's commit share. A union value takes the instance rule of the
+first member type that accepts it (Section 9.12). The traffic-control
+`default-class` leaf is the first Ze leaf of these types: a leafref to
+`../class/name`.
+
+<!-- source: internal/component/config/yang/validator.go -- ValidateTree, walkTree, validateLeafValue -->
 <!-- source: internal/component/config/yang/validator_lexical.go -- validateEmpty, validateBinary, validateBits, uncheckedKindError -->
+<!-- source: internal/component/config/yang/validator_reference.go -- validateLeafref, validateIdentityref, validateInstanceIdentifier -->
+<!-- source: internal/component/config/yang/validator_instance.go -- ValidateReferences, checkLeafrefInstance, checkInstanceIdentifierInstance -->
+<!-- source: internal/component/config/validate_sections.go -- ValidateCustomSections, referenceFailures -->
 
 ### Layer 2: Custom Validators (`ze:validate`)
 

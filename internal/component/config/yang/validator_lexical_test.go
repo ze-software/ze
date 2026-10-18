@@ -23,44 +23,28 @@ func TestValidateEmptyAcceptsOnlyPresence(t *testing.T) {
 	}
 }
 
-// TestValidateUncheckedKindsRefused pins that a value of a type ze has no
-// lexical check for is refused rather than accepted unread, and that a union
-// holding such a member still answers by its other members.
+// TestValidateUncheckedKindsRefused pins that a value of a kind ze has no
+// lexical check for (Ynone, which goyang leaves on an unresolved type) is
+// refused rather than accepted unread, and that a union holding such a
+// member still answers by its other members.
 func TestValidateUncheckedKindsRefused(t *testing.T) {
 	v := &Validator{}
-	for _, kind := range []gyang.TypeKind{gyang.Yleafref, gyang.Yidentityref, gyang.YinstanceIdentifier, gyang.Ynone} {
-		typ := &gyang.YangType{Kind: kind, Name: kind.String()}
-		requireValidationErrorType(t, v.validateYangType("x", typ, "anything"), ErrTypeType, kind.String())
-	}
+	typ := &gyang.YangType{Kind: gyang.Ynone, Name: "none"}
+	requireValidationErrorType(t, v.validateYangType("x", typ, "anything"), ErrTypeType, "none")
 	union := &gyang.YangType{Kind: gyang.Yunion, Name: "u", Type: []*gyang.YangType{
-		{Kind: gyang.Yleafref, Name: "leafref"},
+		{Kind: gyang.Ynone, Name: "none"},
 		{Kind: gyang.Yuint8, Name: "uint8"},
 	}}
 	assert.NoError(t, v.validateYangType("x", union, "7"), "the uint8 member must still answer")
-	assert.Error(t, v.validateYangType("x", union, "anything"), "a leafref member must not accept every value")
+	assert.Error(t, v.validateYangType("x", union, "anything"), "an unchecked member must not accept every value")
 }
 
-// TestLoaderRefusesUncheckedTypes pins that Resolve refuses a module
-// declaring leafref, identityref or instance-identifier, including as a
-// typedef base and as a union member, naming the type, and loads the twin
-// module without them.
-func TestLoaderRefusesUncheckedTypes(t *testing.T) {
-	const head = `module unchecked { namespace "urn:ze:test:unchecked"; prefix uc; identity base1; leaf a { type string; } `
-	for name, body := range map[string]string{
-		"leafref":             `leaf b { type leafref { path "../a"; } }`,
-		"identityref":         `leaf b { type identityref { base base1; } }`,
-		"instance-identifier": `leaf b { type instance-identifier; }`,
-		"typedef base":        `typedef ref { type leafref { path "/uc:a"; } } leaf b { type ref; }`,
-		"union member":        `leaf b { type union { type uint8; type leafref { path "../a"; } } }`,
-	} {
-		t.Run(name, func(t *testing.T) {
-			err := loadModuleTexts(t, head+body+`}`)
-			require.Error(t, err)
-			assert.ErrorIs(t, err, ErrUncheckedType)
-			assert.Contains(t, err.Error(), "ze does not check")
-		})
-	}
-	require.NoError(t, loadModuleTexts(t, head+`leaf b { type string; } }`))
+// TestValidateLeafrefNeedsLeaf pins that a leafref value checked with no
+// leaf to start its path from is refused, never accepted unread.
+func TestValidateLeafrefNeedsLeaf(t *testing.T) {
+	v := &Validator{}
+	typ := &gyang.YangType{Kind: gyang.Yleafref, Name: "leafref", Path: "../a"}
+	requireValidationErrorType(t, v.validateYangType("x", typ, "anything"), ErrTypeType, "leafref")
 }
 
 // TestValidateBitsRefusesRepeatedName pins Ze's own rule that a bits value

@@ -171,6 +171,7 @@ func ValidateCustomSections(tree *Tree) ([]SectionValidationError, error) {
 	}
 	found = append(found, mandatoryFailures(validator, tree)...)
 	found = append(found, bgpMandatoryFailures(validator, tree)...)
+	found = append(found, referenceFailures(validator, tree)...)
 	if len(found) == 0 {
 		return nil, nil
 	}
@@ -189,6 +190,24 @@ func ValidateCustomSections(tree *Tree) ([]SectionValidationError, error) {
 		found[i].Sensitive = redactAll || isSensitiveLeaf(found[i].Err.Path, sensitiveKeys)
 	}
 	return found, nil
+}
+
+// RFC 7950 Section 9.9.3: "If "require-instance" is "true", it means that
+// the instance being referred to MUST exist for the data to be valid."
+//
+// referenceFailures runs the require-instance check of every leafref and
+// instance-identifier over the whole tree in one walk, because a reference
+// may name a node in another section. Each failure is reported under the
+// section holding the referring leaf.
+func referenceFailures(validator *yang.Validator, tree *Tree) []SectionValidationError {
+	references := validator.ValidateReferences(tree.ToMap())
+	found := make([]SectionValidationError, 0, len(references))
+	for _, ve := range references {
+		section, _, _ := strings.Cut(ve.Path, "/")
+		section, _, _ = strings.Cut(section, "[")
+		found = append(found, SectionValidationError{Section: section, Err: ve})
+	}
+	return found
 }
 
 // mandatoryFailures runs the RFC 7950 Section 7.6.5 mandatory check over every

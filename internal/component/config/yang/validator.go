@@ -152,18 +152,33 @@ func (v *Validator) validateEntry(path string, entry *yang.Entry, value any) err
 	if entry.Type == nil {
 		return nil
 	}
-	return v.validateYangType(path, entry.Type, value)
+	return v.validateLeafValue(path, entry, entry.Type, value)
 }
 
-// ValidateType validates value against a type of the processed schema. The
-// schema builder runs every default statement through it at load, so a
-// default that its own type refuses stops the schema build.
+// ValidateType validates value against a type of the processed schema, with
+// no leaf to hold it, so a leafref value is refused: use ValidateLeafType
+// where the leaf is known.
 func (v *Validator) ValidateType(path string, yangType *yang.YangType, value any) error {
-	return v.validateYangType(path, yangType, value)
+	return v.validateLeafValue(path, nil, yangType, value)
 }
 
-// validateYangType validates against yang.YangType from processed schema.
+// ValidateLeafType validates value against a type of leaf. The schema
+// builder runs every default statement through it at load, so a default that
+// its own type refuses stops the schema build. A leafref value is checked
+// against the leaf its path names from leaf.
+func (v *Validator) ValidateLeafType(path string, leaf *yang.Entry, yangType *yang.YangType, value any) error {
+	return v.validateLeafValue(path, leaf, yangType, value)
+}
+
+// validateYangType validates value against a type with no leaf to hold it.
 func (v *Validator) validateYangType(path string, yangType *yang.YangType, value any) error {
+	return v.validateLeafValue(path, nil, yangType, value)
+}
+
+// validateLeafValue validates against yang.YangType from processed schema.
+// leaf is the leaf (or leaf-list) holding the value, which a leafref's
+// relative path starts from.
+func (v *Validator) validateLeafValue(path string, leaf *yang.Entry, yangType *yang.YangType, value any) error {
 	switch yangType.Kind {
 	case yang.Ystring:
 		return v.validateString(path, yangType, value)
@@ -176,7 +191,7 @@ func (v *Validator) validateYangType(path string, yangType *yang.YangType, value
 	case yang.Ybool:
 		return v.validateBoolean(path, value)
 	case yang.Yunion:
-		return v.validateUnion(path, yangType, value)
+		return v.validateUnion(path, leaf, yangType, value)
 	case yang.Ydecimal64:
 		return v.validateDecimal64(path, yangType, value)
 	case yang.Yempty:
@@ -185,7 +200,13 @@ func (v *Validator) validateYangType(path string, yangType *yang.YangType, value
 		return v.validateBinary(path, yangType, value)
 	case yang.Ybits:
 		return v.validateBits(path, yangType, value)
-	case yang.Ynone, yang.Yidentityref, yang.YinstanceIdentifier, yang.Yleafref:
+	case yang.Yleafref:
+		return v.validateLeafref(path, leaf, yangType, value)
+	case yang.Yidentityref:
+		return v.validateIdentityref(path, yangType, value)
+	case yang.YinstanceIdentifier:
+		return v.validateInstanceIdentifier(path, leaf, yangType, value)
+	case yang.Ynone:
 		return uncheckedKindError(path, yangType, value)
 	default:
 		// Schema kinds are open (goyang owns the set): a kind Ze has no
@@ -537,10 +558,10 @@ func (v *Validator) validateBoolean(path string, value any) error {
 }
 
 // validateUnion validates value against union YangType.
-func (v *Validator) validateUnion(path string, yangType *yang.YangType, value any) error {
+func (v *Validator) validateUnion(path string, leaf *yang.Entry, yangType *yang.YangType, value any) error {
 	// Try each type in the union
 	for _, t := range yangType.Type {
-		if err := v.validateYangType(path, t, value); err == nil {
+		if err := v.validateLeafValue(path, leaf, t, value); err == nil {
 			return nil
 		}
 	}

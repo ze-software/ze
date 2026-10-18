@@ -211,23 +211,30 @@ leaf optional-field {
 }
 ```
 
-## References (no leafref)
+## References
 
-Ze does not check leafref, identityref or instance-identifier values, so the
-schema loader refuses a module that declares one of these types, naming the
-module, the location and the type (`ErrUncheckedType`). A leaf of such a type
-could accept no value. Declare a reference to another part of the config as a
-string, with a pattern where the name has a fixed shape, and check that the
-referenced entry exists in a `ze:validate` function. Checking leafref values is
-planned (`plan/spec-config-yang-type-leafref.md`).
+Ze checks the three YANG reference types. A `leafref` value must have the
+type of the leaf its path names and, unless the type says
+`require-instance false`, equal an instance of that leaf somewhere in the
+config, or its default where the default is in use. An `identityref` value
+must name an identity derived from the base, unprefixed or with the defining
+module's prefix. An `instance-identifier` value is a path with every node
+prefixed by its module's prefix, and must name a node the config holds. The
+loader refuses a leafref whose path names no leaf, a config leafref pointing
+at state, and a loop of leafrefs (`ErrLeafrefPath`).
 
 ```yang
-// In your module: a reference to a peer-group by name
-leaf group {
-    type string { length "1..64"; }
+// In your module: a reference to a class of the same qdisc
+leaf default-class {
+    type leafref { path "../class/name"; }
 }
 ```
-<!-- source: internal/component/config/yang/loader_unchecked.go -- moduleUncheckedTypeErrors, uncheckedTypeNames -->
+
+A reference no YANG path can express, such as one into state a plugin holds,
+stays a string checked by a `ze:validate` function.
+<!-- source: internal/component/config/yang/loader_reference.go -- checkReferences -->
+<!-- source: internal/component/config/yang/validator_reference.go -- validateLeafref, validateIdentityref, validateInstanceIdentifier -->
+<!-- source: internal/component/config/yang/validator_instance.go -- ValidateReferences -->
 
 ## Best Practices
 

@@ -767,12 +767,12 @@ var defaultValidator = yang.NewValidator(nil)
 // RFC 7950 Section 9.1: "Implementations MUST support all lexical representations
 // specified in this document." Section 9.2.1 adds the hexadecimal and octal
 // notations for an integer default in a YANG module.
-func checkModuleDefault(path string, yangType *gyang.YangType, def string) error {
+func checkModuleDefault(path string, leaf *gyang.Entry, yangType *gyang.YangType, def string) error {
 	canonical, err := yang.CanonicalModuleDefault(yangType, def)
 	if err != nil {
 		return err
 	}
-	return defaultValidator.ValidateType(path, yangType, canonical)
+	return defaultValidator.ValidateLeafType(path, leaf, yangType, canonical)
 }
 
 // validateLeafDefaults records a schema build error for a default statement
@@ -790,7 +790,7 @@ func validateLeafDefaults(entry *gyang.Entry, path string) {
 	// 7.3.4: "The value of the "default" statement MUST be valid according
 	// to the type specified in the "type" statement."
 	for _, def := range entry.Default {
-		if err := checkModuleDefault(path, entry.Type, def); err != nil {
+		if err := checkModuleDefault(path, entry, entry.Type, def); err != nil {
 			recordSchemaBuildError(fmt.Errorf("at %s: default %q is not valid for type %s: %w", path, def, entry.Type.Name, err))
 		}
 		validateDefaultNotIfFeature(entry, path, def)
@@ -823,7 +823,7 @@ func validateTypedefDefault(entry *gyang.Entry, path string) {
 	// RFC 7950 Section 7.3.4: "The value of the "default" statement MUST be
 	// valid according to the type specified in the "type" statement."
 	if base := entry.Type.Base; base != nil && base.YangType != nil {
-		if err := checkModuleDefault(path, base.YangType, def); err != nil {
+		if err := checkModuleDefault(path, entry, base.YangType, def); err != nil {
 			recordSchemaBuildError(fmt.Errorf("at %s: typedef default %q is not valid for type %s: %w", path, def, base.YangType.Name, err))
 			return
 		}
@@ -835,7 +835,7 @@ func validateTypedefDefault(entry *gyang.Entry, path string) {
 	// according to the new restrictions specified in a derived type or leaf
 	// definition, the derived type or leaf definition MUST specify a new
 	// default value compatible with the restrictions."
-	if err := checkModuleDefault(path, entry.Type, def); err != nil {
+	if err := checkModuleDefault(path, entry, entry.Type, def); err != nil {
 		recordSchemaBuildError(fmt.Errorf("at %s: inherited default %q is not valid for the restricted type %s, which must specify a new default: %w", path, def, entry.Type.Name, err))
 		return
 	}
