@@ -174,16 +174,23 @@ instance-identifier with require-instance true must refer to an instance the
 whole config holds, or to a leaf whose default is in use (under an absent
 non-presence container, or in the case of a choice that is in effect, RFC 7950
 Section 7.6.1), and an identityref must name an identity derived from its base.
+A case is in effect when it alone holds data, or when no case does and it is
+the default case; with data in two cases of one choice, no case's default is
+in use. Values compare in canonical form, so an integer `01` equals `1` and a
+decimal64 `1.50` equals `1.5`.
 The instance check is one walk over every section
 (`Validator.ValidateReferences`). It enters only the schema subtrees that hold
-a reference, resolves each leafref type once, and indexes the instances a path
-reaches once per start node, so its cost grows linearly with the config. A
+a reference, resolves each leafref type once, indexes the instances a path
+reaches once per start node, and reads a list a key predicate selects in
+through an index of its key values, built once per list and key, for a list of
+one key or of several. Its cost grows linearly with the config. A
 position predicate (`[2]`) counts entries in the order the config holds them.
 A failure is a `reference` error (diagnostic `config-yang-reference`) naming
 the value, the path, and what to configure, and the editor's commit reports it
-for every section, bgp included.
+for every section, bgp included. The failures are listed sorted by path, the
+same order on every run.
 <!-- source: internal/component/config/yang/validator_instance.go -- ValidateReferences -->
-<!-- source: internal/component/config/yang/validator_default.go -- defaultInUse -->
+<!-- source: internal/component/config/yang/validator_default.go -- defaultInUse, caseInEffect -->
 <!-- source: internal/component/cli/validator.go -- editorReportsSectionFailure -->
 <!-- source: internal/component/config/yang/validator_reference.go -- validateIdentityref -->
 

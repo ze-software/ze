@@ -9,6 +9,7 @@ package yang
 import (
 	"errors"
 	"maps"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -25,19 +26,39 @@ const referenceChoicesMax = 10
 // dataNode is one node of the config data tree during a reference walk: the
 // schema nodes it instantiates (several for a section that several modules
 // contribute to, one elsewhere, none for the root), its children, the map key
-// of a list entry, and, for a node the walk descended through, its config
-// path, which keys the instance index.
+// of a list entry, and, for a node the walk descended through, its number in
+// the walk, which keys the instance index. A node a path step reached has the
+// number zero, and is never a start node.
 type dataNode struct {
 	entries []*yang.Entry
 	data    map[string]any
 	key     string
-	path    string
+	id      int
 }
 
 // referenceKey names one reference type of one leaf.
 type referenceKey struct {
 	leaf     *yang.Entry
 	yangType *yang.YangType
+}
+
+// instancesKey names the instances a predicate-free leafref path reaches from
+// one start node: the start node's number in the walk, and the leaf and type
+// whose path it is. Every field is a value of its own, so no two starts or
+// paths can spell the same key, whatever their list keys hold.
+type instancesKey struct {
+	start    int
+	leaf     *yang.Entry
+	yangType *yang.YangType
+}
+
+// listIndexKey names the index of one key leaf over one list's entries: the
+// list's data map, by identity, and the key leaf's name. The map is the data
+// tree's own, which the caller of ValidateReferences holds for the whole walk,
+// so its address names one list for the walk.
+type listIndexKey struct {
+	list uintptr
+	name string
 }
 
 // referenceTarget is a leafref type resolved once per walk: the leaf it
@@ -51,14 +72,17 @@ type referenceTarget struct {
 // referenceWalk is the state of one ValidateReferences call. It caches what
 // does not change between the values it checks, so the walk is linear in the
 // size of the data: which schema subtrees hold a reference, each leafref
-// type's target, and the instances a predicate-free path reaches from one
-// data node. It is used by one goroutine for one call.
+// type's target, the instances a predicate-free path reaches from one data
+// node, and, for a list a key predicate selects in, its entries by key value.
+// It is used by one goroutine for one call.
 type referenceWalk struct {
 	v         *Validator
 	errs      []ValidationError
 	holds     map[*yang.Entry]bool
 	targets   map[referenceKey]referenceTarget
-	instances map[string]map[string]string // canonical value -> value as configured
+	instances map[instancesKey]map[string]string   // canonical value -> value as configured
+	lists     map[listIndexKey]map[string][]string // key value -> map keys of the entries holding it
+	nodes     int                                  // the data nodes the walk has numbered
 }
 
 // newReferenceWalk answers an empty walk over v's schema.
@@ -67,8 +91,15 @@ func newReferenceWalk(v *Validator) *referenceWalk {
 		v:         v,
 		holds:     make(map[*yang.Entry]bool),
 		targets:   make(map[referenceKey]referenceTarget),
-		instances: make(map[string]map[string]string),
+		instances: make(map[instancesKey]map[string]string),
+		lists:     make(map[listIndexKey]map[string][]string),
 	}
+}
+
+// nodeID numbers the next data node the walk descends through, from one.
+func (w *referenceWalk) nodeID() int {
+	w.nodes++
+	return w.nodes
 }
 
 // ValidateReferences checks, over the whole config data tree, that every
@@ -83,14 +114,22 @@ func newReferenceWalk(v *Validator) *referenceWalk {
 // positional instance-identifier predicate counts in. Every section is walked
 // against every conf module that defines it, because a reference may cross
 // sections.
+//
+// The errors are answered sorted by path, so `ze config validate` and the
+// editor list the failures of one config in one order: the walk reads Go
+// maps, whose order changes from run to run. The sort is stable, so the
+// values of one leaf-list keep their configured order.
 func (v *Validator) ValidateReferences(root map[string]any) []ValidationError {
 	w := newReferenceWalk(v)
-	frames := []dataNode{{data: root}}
+	frames := []dataNode{{data: root, id: w.nodeID()}}
 	for section, value := range root {
 		for _, entry := range v.topLevel(nil, section) {
 			w.walk(section, entry, value, frames)
 		}
 	}
+	slices.SortStableFunc(w.errs, func(a, b ValidationError) int {
+		return strings.Compare(a.Path, b.Path)
+	})
 	return w.errs
 }
 
@@ -150,8 +189,8 @@ func (w *referenceWalk) walk(path string, entry *yang.Entry, value any, frames [
 		return
 	}
 	if !entry.IsList() {
-		node := dataNode{entries: []*yang.Entry{entry}, data: children, path: path}
-		w.walkChildren(node, append(slices.Clip(frames), node))
+		node := dataNode{entries: []*yang.Entry{entry}, data: children, id: w.nodeID()}
+		w.walkChildren(path, node, append(slices.Clip(frames), node))
 		return
 	}
 	var tb textbuf.Buffer
@@ -162,12 +201,12 @@ func (w *referenceWalk) walk(path string, entry *yang.Entry, value any, frames [
 			continue
 		}
 		entryPath := tb.Reset().Str(path).Byte('[').Str(key).Byte(']').String()
-		node := dataNode{entries: []*yang.Entry{entry}, data: entryData, key: key, path: entryPath}
+		node := dataNode{entries: []*yang.Entry{entry}, data: entryData, key: key, id: w.nodeID()}
 		inner := append(slices.Clip(frames), node)
 		if len(keys) == 1 {
 			w.checkMapKey(entryPath, entry, keys[0], key, inner)
 		}
-		w.walkChildren(node, inner)
+		w.walkChildren(entryPath, node, inner)
 	}
 }
 
@@ -201,15 +240,16 @@ func (w *referenceWalk) checkMapKey(path string, list *yang.Entry, keyName, key 
 	}
 }
 
-// walkChildren walks the children of node, whose frame closes frames.
-func (w *referenceWalk) walkChildren(node dataNode, frames []dataNode) {
+// walkChildren walks the children of node, whose config path is path and
+// whose frame closes frames.
+func (w *referenceWalk) walkChildren(path string, node dataNode, frames []dataNode) {
 	var tb textbuf.Buffer
 	for name, child := range node.data {
 		childEntry := childOf(node.entries, name)
 		if childEntry == nil {
 			continue // a node the schema does not describe is the parser's to refuse
 		}
-		w.walk(tb.Reset().Str(node.path).Byte('/').Str(name).String(), childEntry, child, frames)
+		w.walk(tb.Reset().Str(path).Byte('/').Str(name).String(), childEntry, child, frames)
 	}
 }
 
@@ -292,14 +332,13 @@ func (w *referenceWalk) instancesAt(leaf *yang.Entry, resolved referenceTarget, 
 		return nil
 	}
 	if resolved.path.hasPredicate() {
-		return instanceSet(resolved.target.Type, w.v.pathValues(leaf, start, resolved.path.steps, frames))
+		return instanceSet(resolved.target.Type, w.pathValues(leaf, start, resolved.path.steps, frames))
 	}
-	var tb textbuf.Buffer
-	key := tb.Str(start[0].path).Byte(0).Str(yangType.Path).String()
+	key := instancesKey{start: start[0].id, leaf: leaf, yangType: yangType}
 	if set, ok := w.instances[key]; ok {
 		return set
 	}
-	set := instanceSet(resolved.target.Type, w.v.pathValues(leaf, start, resolved.path.steps, frames))
+	set := instanceSet(resolved.target.Type, w.pathValues(leaf, start, resolved.path.steps, frames))
 	w.instances[key] = set
 	return set
 }
@@ -380,14 +419,14 @@ func pathStartNodes(up int, frames []dataNode) []dataNode {
 // pathValues evaluates steps from start and answers the values of the leaf
 // the last step names. A predicate's current() is the referring leaf, whose
 // parent closes frames.
-func (v *Validator) pathValues(leaf *yang.Entry, start []dataNode, steps []pathStep, frames []dataNode) []string {
+func (w *referenceWalk) pathValues(leaf *yang.Entry, start []dataNode, steps []pathStep, frames []dataNode) []string {
 	nodes := start
 	for i, step := range steps {
 		name := localName(step.node)
 		if i == len(steps)-1 {
 			return leafValues(nodes, name)
 		}
-		nodes = v.stepNodes(leaf, nodes, name, step.keys, frames)
+		nodes = w.stepNodes(leaf, nodes, name, step.keys, frames)
 	}
 	return nil
 }
@@ -397,10 +436,10 @@ func (v *Validator) pathValues(leaf *yang.Entry, start []dataNode, steps []pathS
 // whose schema nodes are every module contributing to it. An absent
 // non-presence container is answered as an empty node, because the defaults
 // of the leaves below it are in use (RFC 7950 Section 7.6.1).
-func (v *Validator) stepNodes(leaf *yang.Entry, nodes []dataNode, name string, keys []pathKey, frames []dataNode) []dataNode {
+func (w *referenceWalk) stepNodes(leaf *yang.Entry, nodes []dataNode, name string, keys []pathKey, frames []dataNode) []dataNode {
 	var next []dataNode
 	for _, node := range nodes {
-		entries := v.childEntries(leaf, node, name)
+		entries := w.v.childEntries(leaf, node, name)
 		if len(entries) == 0 {
 			continue
 		}
@@ -415,7 +454,7 @@ func (v *Validator) stepNodes(leaf *yang.Entry, nodes []dataNode, name string, k
 		if !ok {
 			continue
 		}
-		next = append(next, v.childNodes(leaf, entries, data, keys, frames)...)
+		next = append(next, w.childNodes(leaf, entries, data, keys, frames)...)
 	}
 	return next
 }
@@ -432,75 +471,110 @@ func (v *Validator) childEntries(leaf *yang.Entry, node dataNode, name string) [
 }
 
 // childNodes answers the data nodes a container or a list holds, filtered by
-// the key predicates. A predicate on the single key of a list names the
-// entries it selects, which are read by their map key rather than by a scan
-// of the list.
-func (v *Validator) childNodes(leaf *yang.Entry, entries []*yang.Entry, data map[string]any, keys []pathKey, frames []dataNode) []dataNode {
+// the key predicates. A list with predicates is read through the index of
+// one predicated key leaf (keyIndex), the one naming the fewest entries, and
+// each entry it names is kept when it satisfies every predicate. The work of
+// one step is then the entries the index names, never the whole list, for a
+// list of one key or of several: the reason a predicated path stays linear
+// in the referred list.
+func (w *referenceWalk) childNodes(leaf *yang.Entry, entries []*yang.Entry, data map[string]any, keys []pathKey, frames []dataNode) []dataNode {
 	if !entries[0].IsList() {
 		return []dataNode{{entries: entries, data: data}}
 	}
+	if len(keys) == 0 {
+		return listEntryNodes(entries, data)
+	}
+	wanted := make([][]string, len(keys))
+	for i, key := range keys {
+		wanted[i] = w.keyValues(leaf, key, frames)
+	}
+	selected, mapKeys := -1, 0
+	for i, key := range keys {
+		index := w.keyIndex(entries, data, localName(key.node))
+		named := 0
+		for _, value := range wanted[i] {
+			named += len(index[value])
+		}
+		if selected < 0 || named < mapKeys {
+			selected, mapKeys = i, named
+		}
+	}
+	index := w.keyIndex(entries, data, localName(keys[selected].node))
+	values := slices.Compact(slices.Sorted(slices.Values(wanted[selected])))
 	var out []dataNode
-	candidates, keyed := v.keyCandidates(leaf, entries[0], keys, frames)
-	if keyed {
-		for _, key := range candidates {
-			entryData, ok := data[key].(map[string]any)
+	for _, value := range values {
+		for _, mapKey := range index[value] {
+			entryData, ok := data[mapKey].(map[string]any)
 			if !ok {
 				continue
 			}
-			node := dataNode{entries: entries, data: entryData, key: key}
-			if v.keysMatch(leaf, node, keys, frames) {
+			node := dataNode{entries: entries, data: entryData, key: mapKey}
+			if keysMatch(node, keys, wanted) {
 				out = append(out, node)
 			}
-		}
-		return out
-	}
-	for key, raw := range data {
-		entryData, ok := raw.(map[string]any)
-		if !ok {
-			continue
-		}
-		node := dataNode{entries: entries, data: entryData, key: key}
-		if v.keysMatch(leaf, node, keys, frames) {
-			out = append(out, node)
 		}
 	}
 	return out
 }
 
-// keyCandidates answers the values a predicate on the single key of list
-// allows, and whether there is such a predicate.
-func (v *Validator) keyCandidates(leaf, list *yang.Entry, keys []pathKey, frames []dataNode) ([]string, bool) {
-	names := listKeys(list)
-	if len(names) != 1 {
-		return nil, false
-	}
-	for _, key := range keys {
-		if localName(key.node) == names[0] {
-			return v.keyValues(leaf, key, frames), true
+// listEntryNodes answers every entry of a list, for a step with no predicate.
+func listEntryNodes(entries []*yang.Entry, data map[string]any) []dataNode {
+	out := make([]dataNode, 0, len(data))
+	for key, raw := range data {
+		entryData, ok := raw.(map[string]any)
+		if !ok {
+			continue
 		}
+		out = append(out, dataNode{entries: entries, data: entryData, key: key})
 	}
-	return nil, false
+	return out
+}
+
+// keyIndex answers the entries of a list by the value of its key leaf name,
+// each value naming the map keys of the entries holding it (listEntryKey). It
+// is built on the first predicate that selects by name in this list and
+// reused for every later one, so the list is read once per key leaf.
+func (w *referenceWalk) keyIndex(entries []*yang.Entry, data map[string]any, name string) map[string][]string {
+	key := listIndexKey{list: reflect.ValueOf(data).Pointer(), name: name}
+	if index, ok := w.lists[key]; ok {
+		return index
+	}
+	index := make(map[string][]string, len(data))
+	for mapKey, raw := range data {
+		entryData, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		value, ok := listEntryKey(dataNode{entries: entries, data: entryData, key: mapKey}, name)
+		if !ok {
+			continue
+		}
+		index[value] = append(index[value], mapKey)
+	}
+	w.lists[key] = index
+	return index
 }
 
 // keyValues answers the values a predicate's current() path reads.
-func (v *Validator) keyValues(leaf *yang.Entry, key pathKey, frames []dataNode) []string {
+func (w *referenceWalk) keyValues(leaf *yang.Entry, key pathKey, frames []dataNode) []string {
 	start := pathStartNodes(key.up, frames)
 	steps := make([]pathStep, 0, len(key.nodes))
 	for _, nodeID := range key.nodes {
 		steps = append(steps, pathStep{node: nodeID})
 	}
-	return v.pathValues(leaf, start, steps, frames)
+	return w.pathValues(leaf, start, steps, frames)
 }
 
 // keysMatch reports whether a list entry satisfies every key predicate: its
-// key equals one of the values the predicate's current() path reads.
-func (v *Validator) keysMatch(leaf *yang.Entry, node dataNode, keys []pathKey, frames []dataNode) bool {
-	for _, key := range keys {
+// key equals one of the values wanted[i], which predicate keys[i]'s current()
+// path reads.
+func keysMatch(node dataNode, keys []pathKey, wanted [][]string) bool {
+	for i, key := range keys {
 		actual, ok := listEntryKey(node, localName(key.node))
 		if !ok {
 			return false
 		}
-		if !slices.Contains(v.keyValues(leaf, key, frames), actual) {
+		if !slices.Contains(wanted[i], actual) {
 			return false
 		}
 	}
@@ -570,15 +644,18 @@ func leafValues(nodes []dataNode, name string) []string {
 }
 
 // canonicalValue answers the form two values of a type are compared in. An
-// integer compares by number, so "+1", "01" and "1" agree; every other kind
-// compares as the tree stores it. A value that does not parse is answered as
-// written, so it equals only itself.
+// integer compares by number, so "+1", "01" and "1" agree, and a decimal64 by
+// its canonical form (canonicalDecimal64), so "1.50" and "1.5" agree. Every
+// other kind compares as the tree stores it: a boolean and an enumeration
+// have one lexical form per value (RFC 7950 Sections 9.5.2 and 9.6.2: "The
+// canonical form is the same as the lexical representation."). A value that
+// does not parse is answered as written, so it equals only itself.
 func canonicalValue(yangType *yang.YangType, value string) string {
 	if yangType == nil {
 		return value
 	}
 	var tb textbuf.Buffer
-	//exhaustive:ignore // only the integer kinds have a lexical form wider than their value
+	//exhaustive:ignore // only the integer and decimal64 kinds have a lexical form wider than their value
 	switch yangType.Kind {
 	case yang.Yint8, yang.Yint16, yang.Yint32, yang.Yint64:
 		if n, err := strconv.ParseInt(value, 10, 64); err == nil {
@@ -588,8 +665,67 @@ func canonicalValue(yangType *yang.YangType, value string) string {
 		if n, err := strconv.ParseUint(strings.TrimPrefix(value, "+"), 10, 64); err == nil {
 			return tb.Uint(n).String()
 		}
+	case yang.Ydecimal64:
+		if canonical, ok := canonicalDecimal64(value); ok {
+			return canonical
+		}
 	}
 	return value
+}
+
+// RFC 7950 Section 9.3.2: "The canonical form of a positive decimal64 value
+// does not include the sign "+".  The decimal point is required.  Leading
+// and trailing zeros are prohibited, subject to the rule that there MUST be
+// at least one digit before and after the decimal point.  The value zero is
+// represented as "0.0"."
+//
+// canonicalDecimal64 answers a decimal64 value in its canonical form, and
+// false for a value outside the lexical form of Section 9.3.1, an optional
+// sign, digits, and an optional point followed by digits. The type's
+// fraction-digits bound is the value check's, not this one's.
+func canonicalDecimal64(value string) (string, bool) {
+	digits := value
+	negative := false
+	if digits != "" && (digits[0] == '-' || digits[0] == '+') {
+		negative = digits[0] == '-'
+		digits = digits[1:]
+	}
+	whole, fraction, point := strings.Cut(digits, ".")
+	if whole == "" {
+		return "", false
+	}
+	if point && fraction == "" {
+		return "", false
+	}
+	if !allDigits(whole) {
+		return "", false
+	}
+	if !allDigits(fraction) {
+		return "", false
+	}
+	whole = strings.TrimLeft(whole, "0")
+	if whole == "" {
+		whole = "0"
+	}
+	fraction = strings.TrimRight(fraction, "0")
+	if fraction == "" {
+		fraction = "0"
+	}
+	var tb textbuf.Buffer
+	if negative && (whole != "0" || fraction != "0") {
+		tb.Byte('-')
+	}
+	return tb.Str(whole).Byte('.').Str(fraction).String(), true
+}
+
+// allDigits reports whether text holds only the digits 0 to 9.
+func allDigits(text string) bool {
+	for i := range len(text) {
+		if text[i] < '0' || text[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // RFC 7950 Section 9.13: "All such leaf nodes MUST reference existing nodes

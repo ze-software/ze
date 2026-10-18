@@ -45,8 +45,10 @@ func absentContainerInUse(e *yang.Entry, data map[string]any) bool {
 //
 // caseInEffect reports whether every case between e and its data parent is
 // in effect over data: the case holds data and no other case does, or no
-// case holds data and it is the choice's default case. The loop climbs one
-// choice per pass, so it is bounded by the choice nesting of the module.
+// case holds data and it is the choice's default case. When two cases of one
+// choice hold data, no case is in effect, because each one's default needs
+// "no nodes from any other case" (Section 7.6.1). The loop climbs one choice
+// per pass, so it is bounded by the choice nesting of the module.
 func caseInEffect(e *yang.Entry, data map[string]any) bool {
 	node := e
 	for node.Parent != nil && isSchemaGroup(node.Parent) {
@@ -58,7 +60,10 @@ func caseInEffect(e *yang.Entry, data map[string]any) bool {
 		if choice == nil {
 			return false
 		}
-		active := activeBranch(choice, data)
+		active, holding := activeBranch(choice, data)
+		if holding > 1 {
+			return false
+		}
 		if active == nil {
 			if !slices.Contains(choice.Default, branch.Name) {
 				return false
@@ -72,14 +77,24 @@ func caseInEffect(e *yang.Entry, data map[string]any) bool {
 }
 
 // activeBranch answers the branch of choice, a case or a shorthand data
-// node, that holds a node present in data, nil when none does.
-func activeBranch(choice *yang.Entry, data map[string]any) *yang.Entry {
+// node, that holds a node present in data, and how many branches hold one,
+// counted up to two. The branch is nil when none does, and is only one of
+// them when several do: choice.Dir is a map, so which one is not defined, and
+// the caller MUST read holding before it reads the branch.
+func activeBranch(choice *yang.Entry, data map[string]any) (*yang.Entry, int) {
+	var active *yang.Entry
+	holding := 0
 	for _, branch := range choice.Dir {
-		if holdsData(branch, data) {
-			return branch
+		if !holdsData(branch, data) {
+			continue
+		}
+		active = branch
+		holding++
+		if holding > 1 {
+			break
 		}
 	}
-	return nil
+	return active, holding
 }
 
 // holdsData reports whether a schema node, or a data node under it through

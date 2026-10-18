@@ -1,11 +1,13 @@
 // VALIDATES: the whole-tree reference walk honors defaults in use, selects a
 // keyless entry in data order, refuses an unprefixed key predicate, reports a
 // missing reference with its own kind, and stays linear in the referred list.
-// PREVENTS: a quadratic commit, and a valid reference refused for a default.
+// PREVENTS: a quadratic commit, a valid reference refused for a default, a
+// verdict or an error order that changes from run to run.
 
 package yang
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -187,43 +189,55 @@ func TestRFC7950LeafrefUnionLoop(t *testing.T) {
 	assert.Contains(t, err.Error(), "comes back")
 }
 
-// scaleModule refers from one list to another, both of entries entries.
+// scaleModule refers from one list to another, both of entries entries, and
+// through a predicate on both keys of a two-key list, route, whose vrf key
+// every entry shares.
 const scaleModule = `module sc-conf {
     namespace "urn:ze:test:sc";
     prefix sc;
     container sys {
         list interface { key name; leaf name { type string; } }
+        list route { key "vrf prefix"; leaf vrf { type string; } leaf prefix { type string; } leaf nh { type string; } }
         list binding {
             key id;
             leaf id { type string; }
+            leaf vrf { type string; }
             leaf ifname { type leafref { path "/sc:sys/sc:interface/sc:name"; } }
             leaf local { type leafref { path "../../interface/name"; } }
             leaf target { type instance-identifier; }
+            leaf next-hop { type leafref { path "/sc:sys/sc:route[sc:vrf = current()/../vrf][sc:prefix = current()/../id]/sc:nh"; } }
         }
     }
     container plain { list item { key k; leaf k { type string; } leaf v { type uint32; } } }
 }`
 
-// scaleData builds entries interfaces and as many bindings, each binding
-// referring to one interface by leafref and by instance-identifier, and as
-// many plain items, which hold no reference.
+// scaleData builds entries interfaces, as many routes and as many bindings,
+// each binding referring to one interface by leafref and by
+// instance-identifier and to one route's next hop through a predicate on
+// both route keys, and as many plain items, which hold no reference. A route
+// entry's map key is the two-key address "<vrf> prefix <prefix>".
 func scaleData(entries int) map[string]any {
 	interfaces := make(map[string]any, entries)
+	routes := make(map[string]any, entries)
 	bindings := make(map[string]any, entries)
 	items := make(map[string]any, entries)
 	var tb textbuf.Buffer
 	for i := range entries {
 		name := tb.Reset().Str("eth").Int(int64(i)).String()
+		nextHop := tb.Reset().Str("nh-").Str(name).String()
 		interfaces[name] = map[string]any{}
+		routes[tb.Reset().Str("v0 prefix ").Str(name).String()] = map[string]any{"nh": nextHop}
 		bindings[name] = map[string]any{
-			"ifname": name,
-			"local":  name,
-			"target": tb.Reset().Str("/sc:sys/sc:interface[sc:name='").Str(name).Str("']").String(),
+			"vrf":      "v0",
+			"ifname":   name,
+			"local":    name,
+			"target":   tb.Reset().Str("/sc:sys/sc:interface[sc:name='").Str(name).Str("']").String(),
+			"next-hop": nextHop,
 		}
 		items[name] = map[string]any{"v": "1"}
 	}
 	return map[string]any{
-		"sys":   map[string]any{"interface": interfaces, "binding": bindings},
+		"sys":   map[string]any{"interface": interfaces, "route": routes, "binding": bindings},
 		"plain": map[string]any{"item": items},
 	}
 }
@@ -240,8 +254,10 @@ func scaleValidator(tb testing.TB) *Validator {
 
 // TestReferenceWalkScales bounds the whole-tree walk at 20000 referring
 // entries. A walk that evaluates each value's path over the whole referred
-// list is quadratic and took 88 seconds at 10000 entries; one that indexes
-// the referred instances once is linear and finishes well inside the bound.
+// list is quadratic and took 88 seconds at 10000 entries, and one that scanned
+// a two-key list for each predicated value took 12.5 seconds at 4000; one
+// that indexes the referred instances and the list keys once is linear and
+// finishes well inside the bound.
 func TestReferenceWalkScales(t *testing.T) {
 	v := scaleValidator(t)
 	data := scaleData(20000)
@@ -263,14 +279,178 @@ func TestReferenceWalkSkipsSubtreesWithoutReference(t *testing.T) {
 	assert.False(t, walk.holdsReference(root.Dir["sys"].Dir["interface"]))
 }
 
-// BenchmarkReferenceWalk measures the whole-tree walk at 10000 entries.
+// BenchmarkReferenceWalk measures the whole-tree walk at 20000 entries,
+// predicated two-key path included.
 func BenchmarkReferenceWalk(b *testing.B) {
 	v := scaleValidator(b)
-	data := scaleData(10000)
+	data := scaleData(20000)
 	b.ResetTimer()
 	for b.Loop() {
 		if errs := v.ValidateReferences(data); len(errs) > 0 {
 			b.Fatal(errs[0].Error())
 		}
 	}
+}
+
+// TestReferenceWalkPredicateSelects pins that the predicated two-key path of
+// scaleModule selects by both keys: a next hop of another route, or of a
+// route in another vrf, is refused.
+func TestReferenceWalkPredicateSelects(t *testing.T) {
+	v := scaleValidator(t)
+	data := scaleData(3)
+	scaleBinding(t, data, "eth1")["next-hop"] = "nh-eth2"
+	requireRefused(t, v.ValidateReferences(data), "binding[eth1]/next-hop")
+	data = scaleData(3)
+	scaleBinding(t, data, "eth1")["vrf"] = "v1"
+	requireRefused(t, v.ValidateReferences(data), "binding[eth1]/next-hop")
+}
+
+// scaleBinding answers binding name of a scaleData tree.
+func scaleBinding(t *testing.T, data map[string]any, name string) map[string]any {
+	t.Helper()
+	sys, ok := data["sys"].(map[string]any)
+	require.True(t, ok)
+	bindings, ok := sys["binding"].(map[string]any)
+	require.True(t, ok)
+	binding, ok := bindings[name].(map[string]any)
+	require.True(t, ok, name)
+	return binding
+}
+
+// TestCaseDefaultWithTwoCasesHoldingData pins RFC 7950 Section 7.6.1, "if
+// no nodes from any other case exist": with data in both cases of choice
+// mode, neither case's default is in use. The verdict was drawn from Go map
+// order and accepted the rate default 174 times in 200, so the test asks 200
+// times.
+func TestCaseDefaultWithTwoCasesHoldingData(t *testing.T) {
+	v := defaultsValidator(t)
+	for range 200 {
+		requireRefused(t, boxErrors(v, map[string]any{"speed": "5", "burst": "5", "rate-ref": "10"}), "rate-ref")
+		requireRefused(t, boxErrors(v, map[string]any{"speed": "5", "burst": "5", "target": "/dv:box/dv:rate"}), "target")
+	}
+}
+
+// TestReferenceErrorsSortedByPath pins that the walk answers its errors
+// sorted by path, the same order on every run, which `ze config validate`
+// and the editor list them in (referenceFailures keeps the order).
+func TestReferenceErrorsSortedByPath(t *testing.T) {
+	v := scaleValidator(t)
+	data := scaleData(50)
+	var tb textbuf.Buffer
+	for i := range 50 {
+		scaleBinding(t, data, tb.Reset().Str("eth").Int(int64(i)).String())["ifname"] = "absent"
+	}
+	var first []string
+	for range 20 {
+		errs := v.ValidateReferences(data)
+		require.Len(t, errs, 50)
+		paths := make([]string, 0, len(errs))
+		for _, err := range errs {
+			paths = append(paths, err.Path)
+		}
+		require.True(t, slices.IsSorted(paths), "%v", paths)
+		if first == nil {
+			first = paths
+		}
+		require.Equal(t, first, paths)
+	}
+}
+
+// decimalModule refers to a decimal64 leaf, whose canonical form drops the
+// zeros a value may be written with.
+const decimalModule = `module dc-conf {
+    namespace "urn:ze:test:dc";
+    prefix dc;
+    container box {
+        leaf rate { type decimal64 { fraction-digits 2; } }
+        leaf rate-ref { type leafref { path "../rate"; } }
+    }
+}`
+
+// TestLeafrefDecimal64Canonical accepts a leafref value written in another
+// form of the referred decimal64 value (RFC 7950 Section 9.3.2), and refuses
+// another value.
+func TestLeafrefDecimal64Canonical(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.AddModuleFromText("dc-conf.yang", decimalModule))
+	resolved, err := loader.Resolve()
+	require.NoError(t, err)
+	v := NewValidator(resolved)
+	refer := func(rate, ref string) []ValidationError {
+		return v.ValidateReferences(map[string]any{"box": map[string]any{"rate": rate, "rate-ref": ref}})
+	}
+	assert.Empty(t, refer("1.5", "1.50"))
+	assert.Empty(t, refer("1.50", "+01.5"))
+	assert.Empty(t, refer("2", "2.00"))
+	assert.Empty(t, refer("0.0", "-0.00"))
+	requireRefused(t, refer("1.5", "1.51"), "rate-ref")
+	requireRefused(t, refer("1.5", "-1.5"), "rate-ref")
+}
+
+// TestCanonicalDecimal64 pins the canonical form of RFC 7950 Section 9.3.2
+// and the values outside the lexical form of Section 9.3.1.
+func TestCanonicalDecimal64(t *testing.T) {
+	for value, want := range map[string]string{
+		"1.50": "1.5", "+01.5": "1.5", "2": "2.0", "-0.00": "0.0", "0": "0.0",
+		"-3.140": "-3.14", "10.01": "10.01", "007": "7.0",
+	} {
+		got, ok := canonicalDecimal64(value)
+		require.True(t, ok, value)
+		assert.Equal(t, want, got, value)
+	}
+	for _, value := range []string{"", "-", "+", ".5", "1.", "1.2.3", "1e2", "-+1", "abc"} {
+		_, ok := canonicalDecimal64(value)
+		assert.False(t, ok, value)
+	}
+}
+
+// leafListModule holds a leaf-list an instance-identifier names one value
+// of, through a leaf-list-predicate.
+const leafListModule = `module lp-conf {
+    namespace "urn:ze:test:lp";
+    prefix lp;
+    container box {
+        leaf-list tag { type string; }
+        leaf target { type instance-identifier; }
+    }
+}`
+
+// leafListTarget checks an instance-identifier naming value in leaf-list
+// tag, which holds "red" and "blue": by value (validateLeafValue) and by
+// instance (ValidateReferences).
+func leafListTarget(t *testing.T, target string) ([]ValidationError, error) {
+	t.Helper()
+	loader := NewLoader()
+	require.NoError(t, loader.AddModuleFromText("lp-conf.yang", leafListModule))
+	resolved, err := loader.Resolve()
+	require.NoError(t, err)
+	v := NewValidator(resolved)
+	leaf := v.schema.GetEntry("lp-conf").Dir["box"].Dir["target"]
+	valueErr := v.validateLeafValue("box/target", leaf, leaf.Type, target)
+	box := map[string]any{"tag": []string{"red", "blue"}, "target": target}
+	return v.ValidateReferences(map[string]any{"box": box}), valueErr
+}
+
+// TestRFC7950InstanceIdentifierLeafListPredicate accepts the
+// leaf-list-predicate form of an instance-identifier naming a value the
+// leaf-list holds.
+//
+// RFC requirement: RFC7950-9.1-1 positive -- the instance-identifier "/lp:box/lp:tag[.='blue']" and its double-quoted spaced form /lp:box/lp:tag[ . = "blue" ], leaf-list-predicates naming the value "blue" of leaf-list tag holding "red" and "blue", are each accepted by validateLeafValue and by ValidateReferences.
+func TestRFC7950InstanceIdentifierLeafListPredicate(t *testing.T) {
+	for _, target := range []string{"/lp:box/lp:tag[.='blue']", `/lp:box/lp:tag[ . = "blue" ]`} {
+		errs, valueErr := leafListTarget(t, target)
+		require.NoError(t, valueErr, target)
+		assert.Empty(t, errs, target)
+	}
+}
+
+// TestRFC7950InstanceIdentifierLeafListPredicateAbsent refuses a
+// leaf-list-predicate naming a value the leaf-list does not hold.
+//
+// RFC requirement: RFC7950-9.1-1 negative -- the instance-identifier "/lp:box/lp:tag[.='green']" is accepted by validateLeafValue as a leaf-list-predicate and refused by ValidateReferences, leaf-list tag holding only "red" and "blue".
+func TestRFC7950InstanceIdentifierLeafListPredicateAbsent(t *testing.T) {
+	errs, valueErr := leafListTarget(t, "/lp:box/lp:tag[.='green']")
+	require.NoError(t, valueErr)
+	requireRefused(t, errs, "target")
+	assert.Contains(t, errs[0].Message, "no node exists at /lp:box/lp:tag[.='green']")
 }

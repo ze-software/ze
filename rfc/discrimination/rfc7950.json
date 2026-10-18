@@ -884,6 +884,28 @@
     {
       "rid": "RFC7950-9.1-1",
       "polarity": "positive",
+      "unit": "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierLeafListPredicate",
+      "unit-sha": "c38a8d60832d40fc",
+      "claim-sha": "01031f38b4d01379",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator_reference.go::readInstancePredicates",
+      "producer-sha": "608f435840abf08d",
+      "break": "body of readInstancePredicates replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-9.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierLeafListPredicateAbsent",
+      "unit-sha": "b10f84c685a3824f",
+      "claim-sha": "6c3828834371f071",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator_instance.go::instanceExists",
+      "producer-sha": "dee160f0a134f21d",
+      "break": "body of instanceExists replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-9.1-1",
+      "polarity": "positive",
       "unit": "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950UnionDefaultLeafrefMember",
       "unit-sha": "d3cc48a5ad1ac970",
       "claim-sha": "379787dfd55df75d",

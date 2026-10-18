@@ -399,7 +399,7 @@ Each built-in type checks its value's lexical form (RFC 7950 Section 9):
 | `binary` | base64 with padding (RFC 4648 Section 4), no whitespace; `length` counts the decoded octets |
 | `bits` | the names of the set bits separated by one or more space characters, each a defined bit and none twice; the empty string sets no bit |
 | `empty` | only the presence value the config tree stores (`true`); the type has no lexical form of its own |
-| `leafref` | a value of the type of the leaf the path names (Section 9.9.4); with require-instance true (the default), a value equal to an instance of that leaf in the whole config, or to its default where the default is in use |
+| `leafref` | a value of the type of the leaf the path names (Section 9.9.4); with require-instance true (the default), a value equal to an instance of that leaf in the whole config, or to its default where the default is in use, compared in canonical form: an integer by number, a decimal64 by its Section 9.3.2 form (`1.50` equals `1.5`) |
 | `identityref` | the name of an identity derived from the base, written `name`, `prefix:name` or `module:name` with the defining module's prefix or name; the base itself is refused, and an unprefixed name two modules define is refused naming the qualified forms. Config text carries no XML namespace, so the prefix is the module's, never a local declaration |
 | `instance-identifier` | the Section 14 rule, every node name prefixed (9.13.2) with its module's prefix or name, each step a data node, one quoted predicate per key of each keyed list, `[.='v']` on a leaf-list, `[n]` on a keyless list only; with require-instance true, the node must exist in the config or be a leaf whose default is in use |
 | any kind goyang adds, and an unresolved type | nothing: the value is refused, never accepted unchecked |
@@ -416,7 +416,7 @@ first member type that accepts it (Section 9.12). The traffic-control
 <!-- source: internal/component/config/yang/validator.go -- ValidateTree, walkTree, validateLeafValue -->
 <!-- source: internal/component/config/yang/validator_lexical.go -- validateEmpty, validateBinary, validateBits, uncheckedKindError -->
 <!-- source: internal/component/config/yang/validator_reference.go -- validateLeafref, validateIdentityref, validateInstanceIdentifier -->
-<!-- source: internal/component/config/yang/validator_instance.go -- ValidateReferences, checkLeafrefInstance, checkInstanceIdentifierInstance -->
+<!-- source: internal/component/config/yang/validator_instance.go -- ValidateReferences, checkLeafrefInstance, checkInstanceIdentifierInstance, canonicalValue -->
 <!-- source: internal/component/config/validate_sections.go -- ValidateCustomSections, referenceFailures -->
 
 ### Layer 2: Custom Validators (`ze:validate`)
