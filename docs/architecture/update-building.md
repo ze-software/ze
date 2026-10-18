@@ -268,9 +268,23 @@ VPN route's `VPNParams.LinkLocalNextHop` carries the address
 the forwarding rails a 24-octet RD-plus-global field naming the speaker's own
 global is raised to that 48-octet pair for an on-link destination, and a
 received 48-octet pair is cut to 24 octets for an off-link one.
+Under `next-hop self` or an explicit next hop, the forwarding rails write the
+SAFI 128 form of the configured address, never the plain one: 24 octets (zero
+RD, global), or 48 when the link-local decision holds; 12 octets (zero RD,
+IPv4) for VPN-IPv4 and 24 (zero RD, IPv4-mapped IPv6, RFC 4659 Section 3.2.1.2)
+for VPN-IPv6 under an IPv4 next hop. The forms are built once per forwarding
+facts snapshot. The MP_REACH materializer keeps the received next hop rather
+than write a length outside the family's own table.
+A configured IPv6 labeled-unicast route (SAFI 4) carries the same decided
+link-local in `LabeledUnicastParams.LinkLocalNextHop`, and
+`buildMPReachLabeledUnicast` writes the 32-octet RFC 2545 Section 3 field.
 <!-- source: internal/component/bgp/message/update_build_vpn.go -- buildMPReachVPN, vpnNextHopOctets -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- applyEgressNextHopScope, egressSpeakerLinkLocal -->
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- applyFactsNextHop, precomputeVPNNextHop -->
+<!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- mpReachNextHopHandler, familyAdmitsNextHopOctets -->
+<!-- source: internal/component/bgp/message/update_build_labeled.go -- buildMPReachLabeledUnicast -->
 <!-- test: internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go TestRFC4659StaticVPNv6LinkLocalCommonSubnet -->
+<!-- test: internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD -->
 The global-unicast requirement also covers unpaired ordinary IPv6 globals:
 loopback cannot bypass it. The explicit single mapped IPv6 unicast, multicast,
 labeled and RD-bearing VPN forms retain their separate control-plane

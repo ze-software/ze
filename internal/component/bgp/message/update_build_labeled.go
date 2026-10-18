@@ -28,6 +28,12 @@ type LabeledUnicastParams struct {
 	// NextHop is the next-hop address.
 	NextHop netip.Addr
 
+	// LinkLocalNextHop is the advertising speaker's IPv6 link-local address, to
+	// follow an IPv6 NextHop in the 32-octet RFC 2545 Section 3 form. The caller
+	// decides inclusion (Peer.linkLocalNextHopFor, reactor/link_scope.go); the
+	// zero Addr means the Next Hop field carries NextHop alone.
+	LinkLocalNextHop netip.Addr
+
 	// Labels is the MPLS label stack (20-bit values per RFC 8277 Section 2).
 	// RFC 8277 Section 2 - Multiple labels support.
 	Labels []uint32
@@ -88,7 +94,7 @@ func (ub *UpdateBuilder) BuildLabeledUnicast(p *LabeledUnicastParams) *Update {
 		afi = family.AFIIPv6
 	}
 	// RFC 8950 Section 3; RFC 4798 Section 2.
-	if err := ValidateFamilyNextHop(family.Family{AFI: afi, SAFI: family.SAFIMPLSLabel}, p.NextHop, netip.Addr{}); err != nil {
+	if err := ValidateFamilyNextHop(family.Family{AFI: afi, SAFI: family.SAFIMPLSLabel}, p.NextHop, p.LinkLocalNextHop); err != nil {
 		return nil
 	}
 	ub.resetScratch()
@@ -204,7 +210,17 @@ func (ub *UpdateBuilder) BuildLabeledUnicast(p *LabeledUnicastParams) *Update {
 //
 // RFC 8277 Section 2 - Labeled Unicast NLRI format:
 // Length (bits) + Label (3 octets) + Prefix (variable).
-// Next-hop: Plain IP address (4 or 16 bytes).
+//
+// RFC 8277 Section 2: "This document does not specify the format of the Network
+// Address of Next Hop field of the MP_REACH_NLRI attribute." For an IPv6 next
+// hop the field is RFC 2545 Section 3's: "The value of the Length of Next Hop
+// Network Address field on a MP_REACH_NLRI attribute shall be set to 16, when
+// only a global address is present, or 32 if a link-local address is also
+// included in the Next Hop field."
+//
+//	+0 IPv4 +4                     (IPv4 next hop)
+//	+0 Global IPv6 +16             (global only)
+//	+0 Global IPv6 +16 Link-Local +32
 func (ub *UpdateBuilder) buildMPReachLabeledUnicast(p *LabeledUnicastParams) *rawAttribute {
 	var afi uint16
 	if p.Prefix.Addr().Is6() {
@@ -214,22 +230,30 @@ func (ub *UpdateBuilder) buildMPReachLabeledUnicast(p *LabeledUnicastParams) *ra
 	}
 	safi := byte(4) // SAFI Labeled Unicast
 
-	// Build next-hop: Plain IP address
-	nhBytes := p.NextHop.AsSlice()
+	// Build next-hop: Plain IP address, then the decided link-local. BuildLabeledUnicast
+	// admitted the pair through ValidateFamilyNextHop before this runs.
+	nhLen := p.NextHop.BitLen() / 8
+	if p.NextHop.Is6() {
+		nhLen += p.LinkLocalNextHop.BitLen() / 8
+	}
 
 	// Build Labeled Unicast NLRI: Length + Label + Prefix
 	labeledNLRI := ub.BuildLabeledUnicastNLRIBytes(p)
 
 	// MP_REACH_NLRI value: AFI(2) + SAFI(1) + NH_Len(1) + NextHop + Reserved(1) + NLRI
-	valueLen := 2 + 1 + 1 + len(nhBytes) + 1 + len(labeledNLRI)
+	valueLen := 2 + 1 + 1 + nhLen + 1 + len(labeledNLRI)
 	value := ub.alloc(valueLen)
 	value[0] = byte(afi >> 8)
 	value[1] = byte(afi)
 	value[2] = safi
-	value[3] = byte(len(nhBytes))
-	copy(value[4:4+len(nhBytes)], nhBytes)
-	value[4+len(nhBytes)] = 0 // Reserved
-	copy(value[5+len(nhBytes):], labeledNLRI)
+	value[3] = byte(nhLen)
+	copy(value[4:4+nhLen], p.NextHop.AsSlice())
+	if nhLen == 32 {
+		ll := p.LinkLocalNextHop.As16()
+		copy(value[4+16:4+32], ll[:])
+	}
+	value[4+nhLen] = 0 // Reserved
+	copy(value[5+nhLen:], labeledNLRI)
 
 	return &rawAttribute{
 		flags: attribute.FlagOptional,

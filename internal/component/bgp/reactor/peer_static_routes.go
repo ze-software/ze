@@ -101,6 +101,8 @@ func toStaticRouteUnicastParams(r *StaticRoute, nextHop, linkLocal netip.Addr, s
 // toStaticRouteLabeledUnicastParams converts a StaticRoute to LabeledUnicastParams.
 // Used for labeled unicast routes (SAFI 4).
 // nextHop is the resolved next-hop address (from RouteNextHop policy).
+// LinkLocalNextHop is left zero: buildStaticRouteUpdateNew sets the address
+// Peer.linkLocalNextHopFor (link_scope.go) decided.
 func toStaticRouteLabeledUnicastParams(r *StaticRoute, nextHop netip.Addr, prefixSIDAllowed bool) message.LabeledUnicastParams {
 	// Write raw attributes into a single contiguous buffer
 	rawAttrs := packRawAttributes(r.RawAttributes)
@@ -205,7 +207,13 @@ func buildStaticRouteUpdateNew(ub *message.UpdateBuilder, route *StaticRoute, ne
 		return ub.BuildVPN(&p), nil
 	}
 	if route.isLabeledUnicast() {
+		// RFC 8277 Section 2 leaves the Next Hop field to the AFI's own rule;
+		// for IPv6 that is RFC 2545 Section 3, whose link-local "shall be
+		// included in the Next Hop field if and only if the BGP speaker shares
+		// a common subnet" with the next hop's entity and the peer, the decision
+		// linkLocal already carries.
 		p := toStaticRouteLabeledUnicastParams(route, nextHop, prefixSIDAllowed)
+		p.LinkLocalNextHop = linkLocal
 		update := ub.BuildLabeledUnicast(&p)
 		if update == nil {
 			return nil, message.ErrUnicastNextHopUnusable

@@ -10,6 +10,8 @@
 package reactor
 
 import (
+	"slices"
+
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
@@ -279,6 +281,8 @@ func mpReachNextHopHandler() filterapi.AttrModHandler {
 
 		// The new next-hop must be exactly one of the allowed lengths:
 		//   - 4  bytes: IPv4 next-hop (used by labeled unicast / VPN families).
+		//   - 12 bytes: RD + IPv4 (RFC 4364 Section 4.3.2), the VPN-IPv4 form
+		//     applyFactsNextHop writes under an IPv4 next-hop self or explicit.
 		//   - 16 bytes: IPv6 global-only next-hop.
 		//   - 24 bytes: RD + IPv6 global (RFC 4659 Section 3.2.1.1), the
 		//     VPN-IPv6 form applyEgressNextHopScope cuts from the 48-octet pair.
@@ -286,6 +290,9 @@ func mpReachNextHopHandler() filterapi.AttrModHandler {
 		//   - 48 bytes: RD + IPv6 global, RD + IPv6 link-local (RFC 4659
 		//     Section 3.2.1.1), the pair applyEgressNextHopScope raises a
 		//     24-octet field to for a destination on the common subnet.
+		// The length must also be one the family's own table admits, where it
+		// has one (attribute.ValidNextHopLens): a 16- or 32-octet field in SAFI
+		// 128 is none of RFC 4659 Section 3.2.1.1's 24 and 48.
 		// A mismatched op length is a caller bug; the route is left unchanged
 		// (the caller should have produced a valid op).
 		nextHopKept := setIdx < 0
@@ -301,7 +308,9 @@ func mpReachNextHopHandler() filterapi.AttrModHandler {
 				break
 			}
 			newNHLen = 0
-		case newNHLen != 4 && newNHLen != 16 && newNHLen != 24 && newNHLen != 32 && newNHLen != vpnNextHopPairOctets:
+		case newNHLen != 4 && newNHLen != 12 && newNHLen != 16 && newNHLen != 24 && newNHLen != 32 && newNHLen != vpnNextHopPairOctets:
+			nextHopKept = true
+		case !familyAdmitsNextHopOctets(val, newNHLen):
 			nextHopKept = true
 		}
 		if nextHopKept && nlriIdx < 0 {
@@ -338,6 +347,18 @@ func mpReachNextHopHandler() filterapi.AttrModHandler {
 		// needs (RFC 4271 Section 4.3).
 		p.Emit(src[0], byte(attribute.AttrMPReachNLRI))
 	}
+}
+
+// familyAdmitsNextHopOctets reports whether the AFI and SAFI at the head of an
+// MP_REACH_NLRI value admit a Next Hop field of octets. A family with no length
+// table (attribute.ValidNextHopLens returns nil) admits every length the
+// caller's generic set already passed. val MUST hold at least three octets.
+func familyAdmitsNextHopOctets(val []byte, octets int) bool {
+	lengths := attribute.ValidNextHopLens(attribute.AFI(uint16(val[0])<<8|uint16(val[1])), attribute.SAFI(val[2]))
+	if lengths == nil {
+		return true
+	}
+	return slices.Contains(lengths, octets)
 }
 
 // lastReplaceNLRI returns the index of the last AttrModReplaceNLRI op, or -1.
