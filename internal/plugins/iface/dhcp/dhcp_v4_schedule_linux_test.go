@@ -67,7 +67,7 @@ func TestV4LeaseTimersFromSendTime(t *testing.T) {
 		t.Errorf("deadlines T1 %v T2 %v expiry %v, want 50s 87.5s 100s", lease.renewAt.Sub(sent), lease.rebindAt.Sub(sent), lease.expireAt.Sub(sent))
 	}
 
-	r := newV4Rig(t, dHCPConfig{})
+	r := newV4Rig(t)
 	r.exch.acquireDelay = 3 * time.Second
 	r.exch.acquireAnswer = firstAckThenFail(testAck(t, loopServerA, 100*time.Second, nil))
 	r.startWorker()
@@ -75,7 +75,7 @@ func TestV4LeaseTimersFromSendTime(t *testing.T) {
 	assertTimes(t, "RENEW", r.extendTimes(v4DeliveryUnicast), []time.Duration{seconds(50)})
 	r.stop()
 
-	r = newV4Rig(t, dHCPConfig{})
+	r = newV4Rig(t)
 	r.exch.acquireAnswer = firstAckThenFail(testAck(t, loopServerA, 100*time.Second, nil,
 		dhcpv4.WithOption(dhcpv4.OptRenewTimeValue(30*time.Second)),
 		dhcpv4.WithOption(dhcpv4.OptRebindingTimeValue(70*time.Second))))

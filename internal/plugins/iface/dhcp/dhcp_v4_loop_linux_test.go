@@ -54,7 +54,7 @@ func assertTimes(t *testing.T, what string, got, want []time.Duration) {
 // PREVENTS: defect 1, the lease dropped after one renewal.
 func TestDHCPv4LoopHoldsLeaseFiveLeasePeriods(t *testing.T) {
 	t.Run("renewed every T1", func(t *testing.T) {
-		r := newV4Rig(t, dHCPConfig{})
+		r := newV4Rig(t)
 		r.exch.acquireAnswer = firstAckThenFail(testAck(t, loopServerA, 120*time.Second, loopRouter1))
 		r.exch.extendAnswer = func(int, v4Attempt) v4Reply {
 			return ackReply(testAck(t, loopServerA, 120*time.Second, loopRouter1))
@@ -90,7 +90,7 @@ func TestDHCPv4LoopHoldsLeaseFiveLeasePeriods(t *testing.T) {
 	})
 
 	t.Run("renewal to an infinite lease", func(t *testing.T) {
-		r := newV4Rig(t, dHCPConfig{})
+		r := newV4Rig(t)
 		r.exch.acquireAnswer = firstAckThenFail(testAck(t, loopServerA, 120*time.Second, nil))
 		r.exch.extendAnswer = func(int, v4Attempt) v4Reply {
 			return ackReply(testAck(t, loopServerA, v4LeaseInfinite, nil))
@@ -119,7 +119,7 @@ func TestDHCPv4LoopHoldsLeaseFiveLeasePeriods(t *testing.T) {
 // (iface.ResolveDevice), never on the logical name.
 // PREVENTS: defect 2, renewals opened on the logical name.
 func TestDHCPv4ExchangesBindTheResolvedDevice(t *testing.T) {
-	r := newV4Rig(t, dHCPConfig{})
+	r := newV4Rig(t)
 	r.exch.acquireAnswer = firstAckThenFail(testAck(t, loopServerA, 1000*time.Second, loopRouter1))
 	r.startWorker()
 	r.runUntil(seconds(1005))
@@ -155,7 +155,7 @@ func TestDHCPv4ExchangesBindTheResolvedDevice(t *testing.T) {
 // identifier from the leased address with the same message shape.
 // PREVENTS: defects 6 (one exchange per phase) and 8 (RENEW broadcast).
 func TestDHCPv4SilentServersExpireOnSchedule(t *testing.T) {
-	r := newV4Rig(t, dHCPConfig{})
+	r := newV4Rig(t)
 	ack := testAck(t, loopServerA, 1000*time.Second, loopRouter1)
 	ack.Flags = 0xffff
 	r.exch.acquireAnswer = firstAckThenFail(ack)
@@ -223,7 +223,7 @@ func TestDHCPv4NakRestartsConfiguration(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			r := newV4Rig(t, dHCPConfig{})
+			r := newV4Rig(t)
 			r.exch.acquireAnswer = firstAckThenFail(testAck(t, loopServerA, tc.lease, loopRouter1))
 			r.exch.extendAnswer = func(_ int, a v4Attempt) v4Reply {
 				if a.delivery == tc.nakOn {
@@ -263,7 +263,7 @@ func TestDHCPv4RebindAcceptsAnyServer(t *testing.T) {
 		t.Error("RENEWING matcher refuses the leasing server's ACK")
 	}
 
-	r := newV4Rig(t, dHCPConfig{})
+	r := newV4Rig(t)
 	r.exch.acquireAnswer = firstAckThenFail(testAck(t, loopServerA, 1000*time.Second, nil))
 	r.exch.extendAnswer = func(_ int, a v4Attempt) v4Reply {
 		answer := testAck(t, loopServerB, 1000*time.Second, nil)
@@ -296,7 +296,7 @@ func TestDHCPv4RebindAcceptsAnyServer(t *testing.T) {
 // the 10 s back-off.
 // PREVENTS: defect 12, a lease timed and renewed as held when it is not.
 func TestDHCPv4InstallFailureIsNotBound(t *testing.T) {
-	r := newV4Rig(t, dHCPConfig{})
+	r := newV4Rig(t)
 	r.backend.replaceErr = net.ErrClosed
 	r.exch.acquireAnswer = func(int) v4Reply { return ackReply(testAck(t, loopServerA, 120*time.Second, nil)) }
 	r.startWorker()
@@ -329,7 +329,7 @@ func TestDHCPv4StopInEveryState(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			r := newV4Rig(t, dHCPConfig{})
+			r := newV4Rig(t)
 			if tc.lease > 0 {
 				r.exch.acquireAnswer = firstAckThenFail(testAck(t, loopServerA, tc.lease, loopRouter1))
 			}
@@ -376,7 +376,7 @@ func TestDHCPv4RefusedAckNotInstalled(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			r := newV4Rig(t, dHCPConfig{})
+			r := newV4Rig(t)
 			r.exch.acquireAnswer = func(int) v4Reply { return ackReply(testAck(t, loopServerA, 0, nil, tc.mods...)) }
 			r.startWorker()
 			r.runUntil(seconds(35))
@@ -407,7 +407,7 @@ func TestDHCPv4RefusedAckNotInstalled(t *testing.T) {
 // VALIDATES: AC-17 -- the held lease keeps its address and deadlines, the
 // AC-9 schedule continues, and one Warn is logged for the lease.
 func TestDHCPv4RenewalAckWithoutLeaseTimeIsNoAnswer(t *testing.T) {
-	r := newV4Rig(t, dHCPConfig{})
+	r := newV4Rig(t)
 	r.exch.acquireAnswer = firstAckThenFail(testAck(t, loopServerA, 1000*time.Second, nil))
 	r.exch.extendAnswer = func(int, v4Attempt) v4Reply { return ackReply(testAck(t, loopServerA, 0, nil)) }
 	r.startWorker()
@@ -432,7 +432,7 @@ func TestDHCPv4RenewalAckWithoutLeaseTimeIsNoAnswer(t *testing.T) {
 // PREVENTS: defect 3, a route failure logged once and never retried.
 func TestDHCPv4RouteInstallRetried(t *testing.T) {
 	t.Run("recovers", func(t *testing.T) {
-		r := newV4Rig(t, dHCPConfig{})
+		r := newV4Rig(t)
 		r.backend.routeFailures = 2
 		r.exch.acquireAnswer = firstAckThenFail(testAck(t, loopServerA, 120*time.Second, loopRouter1))
 		r.exch.extendAnswer = func(int, v4Attempt) v4Reply {
@@ -455,7 +455,7 @@ func TestDHCPv4RouteInstallRetried(t *testing.T) {
 	})
 
 	t.Run("keeps failing", func(t *testing.T) {
-		r := newV4Rig(t, dHCPConfig{})
+		r := newV4Rig(t)
 		r.backend.routeFailures = 1 << 30
 		r.exch.acquireAnswer = firstAckThenFail(testAck(t, loopServerA, 1000*time.Second, loopRouter1))
 		r.startWorker()
@@ -476,7 +476,7 @@ func TestDHCPv4RouteInstallRetried(t *testing.T) {
 // installed; AC-6 -- a renewal naming no router removes the old route.
 // PREVENTS: defect 11, a stale default route left installed.
 func TestDHCPv4RouteFollowsRenewedRouter(t *testing.T) {
-	r := newV4Rig(t, dHCPConfig{})
+	r := newV4Rig(t)
 	r.exch.acquireAnswer = firstAckThenFail(testAck(t, loopServerA, 120*time.Second, loopRouter1))
 	r.exch.extendAnswer = func(n int, _ v4Attempt) v4Reply {
 		if n == 0 {

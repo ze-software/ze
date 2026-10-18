@@ -233,7 +233,7 @@ type v4Rig struct {
 	stopped bool
 }
 
-func newV4Rig(t *testing.T, cfg dHCPConfig) *v4Rig {
+func newV4Rig(t *testing.T) *v4Rig {
 	t.Helper()
 	loopBackendOnce.Do(func() {
 		loopBackendErr = iface.RegisterBackend(loopBackendName, func() (iface.Backend, error) {
@@ -261,7 +261,7 @@ func newV4Rig(t *testing.T, cfg dHCPConfig) *v4Rig {
 	start := time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC)
 	clk := sim.NewFakeClock(start)
 	bus := &recordingBus{}
-	client, err := newDHCPClient(logical, "0", bus, true, false, cfg, clk)
+	client, err := newDHCPClient(logical, "0", bus, true, false, dHCPConfig{}, clk)
 	if err != nil {
 		t.Fatalf("newDHCPClient: %v", err)
 	}

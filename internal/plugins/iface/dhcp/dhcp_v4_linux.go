@@ -694,6 +694,8 @@ func (c *DHCPClient) removeV4Address(cidr string) {
 //
 // RFC 2131 Section 3.3: "The time value of 0xffffffff is reserved to
 // represent "infinity"."
+//
+// A lease of this length never expires.
 const v4LeaseInfinite = 0xffffffff * time.Second
 
 // kernelLifetimeInfinite is the address lifetime the kernel holds as forever
@@ -705,6 +707,8 @@ const kernelLifetimeInfinite = 0xffffffff
 //
 // RFC 2131 Section 3.3: "A client acquires a lease for a network address for a
 // fixed period of time (which may be infinite)."
+//
+// An infinite lease installs a permanent address.
 func v4AddressLifetime(leaseTime time.Duration) int {
 	if leaseTime >= v4LeaseInfinite {
 		return kernelLifetimeInfinite
