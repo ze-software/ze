@@ -1,0 +1,86 @@
+# Test: a configured LOCAL_PREF of 0 and a configured MED of 0 reach the wire
+#       as the value the operator wrote.
+# VALIDATES: `local-preference 0` on an iBGP update block encodes LOCAL_PREF
+#            40 05 04 00000000; `med 0` encodes MULTI_EXIT_DISC 80 04 04
+#            00000000; a route that sets neither still carries the iBGP
+#            default LOCAL_PREF 100 (00000064) and no MULTI_EXIT_DISC.
+# PREVENTS: the UPDATE builders reading 0 as not configured. RFC 4271
+#           Sections 5.1.4 and 5.1.5 define both attributes as four-octet
+#           unsigned integers, so 0 is a legal value: the builders sent a
+#           configured LOCAL_PREF 0 as 100 and dropped a configured MED 0.
+#           Found by comparison with VyOS T9404.
+
+# ze-peer expectations (what peer expects to receive)
+stdin=peer:terminator=EOF_PEER
+# local-preference 0, no med: LOCAL_PREF 0, no MULTI_EXIT_DISC
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003040F0F0F0140050400000000200A000001
+# med 0, no local-preference: MULTI_EXIT_DISC 0, default LOCAL_PREF 100
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0038020000001C400101004002004003040F0F0F028004040000000040050400000064200A000002
+# neither: default LOCAL_PREF 100, no MULTI_EXIT_DISC
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003040F0F0F0340050400000064200A000003
+expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 0
+				next-hop 15.15.15.1
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.1/32
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				med 0
+				next-hop 15.15.15.2
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.2/32
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 15.15.15.3
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.3/32
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

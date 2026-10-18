@@ -29,8 +29,11 @@ type PluginParams struct {
 
 	// ASPath is the configured AS_PATH (nil = local-origin default).
 	ASPath []uint32
-	// LocalPreference is the configured LOCAL_PREF value (0 = default 100 on iBGP).
+	// LocalPreference is the configured LOCAL_PREF value, sent on iBGP. Without
+	// HasLocalPreference the builder sends the default 100; 0 is a legal value.
 	LocalPreference uint32
+	// HasLocalPreference says the route carries a configured LOCAL_PREF.
+	HasLocalPreference bool
 	// MapV4NextHop maps an IPv4 next-hop to IPv4-mapped IPv6 in MP_REACH for IPv6
 	// families (MUP). MVPN/VPLS/FlowSpec/SR-Policy leave it false.
 	MapV4NextHop bool
@@ -104,14 +107,8 @@ func (ub *UpdateBuilder) BuildPlugin(p PluginParams) *Update {
 		attrs = append(attrs, attribute.OriginIGP)
 	}
 
-	// LOCAL_PREF (code 5): well-known discretionary, iBGP only (RFC 4271 Section 5.1.5).
-	if ub.IsIBGP {
-		lp := p.LocalPreference
-		if lp == 0 {
-			lp = 100
-		}
-		attrs = append(attrs, attribute.LocalPref(lp))
-	}
+	// LOCAL_PREF (code 5): iBGP only (RFC 4271 Section 5.1.5).
+	attrs = ub.appendLocalPref(attrs, p.LocalPreference, p.HasLocalPreference)
 
 	attrs = append(attrs, ub.buildMPReachPlugin(p))
 

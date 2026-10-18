@@ -5,9 +5,12 @@
 # BuildGroupedUnicast, which emits one UPDATE containing all four NLRIs via
 # the scratch offset protocol (attrBytes at scratch[0:A), per-chunk NLRI at
 # scratch[A:)). Followed by an EOR marker for ipv4/unicast.
+#
+# The configured `med 0` is a metric like any other (RFC 4271 Section 5.1.4),
+# so the shared attributes carry MULTI_EXIT_DISC 80 04 04 00000000.
 
 stdin=peer:terminator=EOF_PEER
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C020000001540010100400200400304C000020140050400000064180A0000100A00140A00001C0A000010
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000001C40010100400200400304C00002018004040000000040050400000064180A0000100A00140A00001C0A000010
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 

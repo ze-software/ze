@@ -258,14 +258,16 @@ func routeSpecToUnicastParams(r bgptypes.RouteSpec) message.UnicastParams {
 	}
 
 	return message.UnicastParams{
-		Prefix:            r.Prefix,
-		NextHop:           r.NextHop.Addr, // Extract address from RouteNextHop
-		Origin:            attrs.Origin,
-		LocalPreference:   attrs.LocalPreference,
-		MED:               attrs.MED,
-		ASPath:            attrs.ASPath,
-		Communities:       attrs.Communities,
-		LargeCommunities:  attrs.LargeCommunities,
-		ExtCommunityBytes: attrs.ExtCommunityBytes,
+		Prefix:             r.Prefix,
+		NextHop:            r.NextHop.Addr, // Extract address from RouteNextHop
+		Origin:             attrs.Origin,
+		LocalPreference:    attrs.LocalPreference,
+		HasLocalPreference: attrs.HasLocalPreference,
+		MED:                attrs.MED,
+		HasMED:             attrs.HasMED,
+		ASPath:             attrs.ASPath,
+		Communities:        attrs.Communities,
+		LargeCommunities:   attrs.LargeCommunities,
+		ExtCommunityBytes:  attrs.ExtCommunityBytes,
 	}
 }

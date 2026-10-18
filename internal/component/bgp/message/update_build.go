@@ -158,13 +158,18 @@ type UnicastParams struct {
 	// For eBGP, local AS is prepended. For iBGP, used as-is.
 	ASPath []uint32
 
-	// MED is the multi-exit discriminator (optional, 0 = not set).
-	// RFC 4271 Section 5.1.4 - MULTI_EXIT_DISC attribute.
+	// MED is the multi-exit discriminator, emitted only when HasMED is set.
+	// RFC 4271 Section 5.1.4 - MULTI_EXIT_DISC attribute. 0 is a legal metric.
 	MED uint32
+	// HasMED says the route carries a MED. It is the only presence test.
+	HasMED bool
 
-	// LocalPreference is the local preference (iBGP only, 0 = default 100).
-	// RFC 4271 Section 5.1.5 - LOCAL_PREF attribute.
+	// LocalPreference is the local preference, emitted on iBGP only. Without
+	// HasLocalPreference the builder sends the default 100.
+	// RFC 4271 Section 5.1.5 - LOCAL_PREF attribute. 0 is a legal preference.
 	LocalPreference uint32
+	// HasLocalPreference says the route carries a configured LOCAL_PREF.
+	HasLocalPreference bool
 
 	// Communities is the list of standard communities (RFC 1997).
 	Communities []uint32
@@ -257,19 +262,10 @@ func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) (*Update, error) {
 	}
 
 	// 4. MED (type 4) - RFC 4271 Section 5.1.4
-	if p.MED > 0 {
-		attrs = append(attrs, attribute.MED(p.MED))
-	}
+	attrs = appendMED(attrs, p.MED, p.HasMED)
 
 	// 5. LOCAL_PREF (type 5) - RFC 4271 Section 5.1.5
-	// Only for iBGP sessions
-	if ub.IsIBGP {
-		lp := p.LocalPreference
-		if lp == 0 {
-			lp = 100 // Default LOCAL_PREF
-		}
-		attrs = append(attrs, attribute.LocalPref(lp))
-	}
+	attrs = ub.appendLocalPref(attrs, p.LocalPreference, p.HasLocalPreference)
 
 	// 6. ATOMIC_AGGREGATE (type 6) - RFC 4271 Section 5.1.6
 	if p.AtomicAggregate {
@@ -483,6 +479,39 @@ func ValidateIPv6NextHop(nextHop, linkLocal netip.Addr) error {
 		return ErrUnicastNextHopUnusable
 	}
 	return nil
+}
+
+// localPrefDefault is the LOCAL_PREF a builder sends to an internal peer when
+// the route carries none of its own.
+const localPrefDefault = 100
+
+// appendMED appends MULTI_EXIT_DISC when the route carries one. Presence is
+// the hasMED flag and never the value, because 0 is a metric like any other.
+//
+// RFC 4271 Section 4.3: "This is an optional non-transitive attribute that is
+// a four-octet unsigned integer."
+func appendMED(attrs []attribute.Attribute, med uint32, hasMED bool) []attribute.Attribute {
+	if !hasMED {
+		return attrs
+	}
+	return append(attrs, attribute.MED(med))
+}
+
+// appendLocalPref appends LOCAL_PREF on an iBGP session: the route's own value
+// when hasLocalPref is set, 0 included, and localPrefDefault otherwise.
+//
+// RFC 4271 Section 5.1.5: "LOCAL_PREF is a well-known attribute that SHALL be
+// included in all UPDATE messages that a given BGP speaker sends to other
+// internal peers." and "A BGP speaker MUST NOT include this attribute in
+// UPDATE messages it sends to external peers".
+func (ub *UpdateBuilder) appendLocalPref(attrs []attribute.Attribute, localPref uint32, hasLocalPref bool) []attribute.Attribute {
+	if !ub.IsIBGP {
+		return attrs
+	}
+	if !hasLocalPref {
+		localPref = localPrefDefault
+	}
+	return append(attrs, attribute.LocalPref(localPref))
 }
 
 // appendASPath appends the AS_PATH attribute for configuredPath to attrs, and

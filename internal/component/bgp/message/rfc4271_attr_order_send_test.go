@@ -35,6 +35,7 @@ func TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes(t *testing.T) {
 		Origin:           attribute.OriginIGP,
 		ASPath:           []uint32{65002},
 		MED:              10,
+		HasMED:           true,
 		Communities:      []uint32{0xFDE90064},
 		LargeCommunities: [][3]uint32{{65001, 1, 2}},
 	}
@@ -63,6 +64,7 @@ func TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes(t *testing.T) {
 			Origin:            params.Origin,
 			ASPath:            params.ASPath,
 			MED:               params.MED,
+			HasMED:            params.HasMED,
 			Communities:       params.Communities,
 			LargeCommunities:  params.LargeCommunities,
 			Labels:            []uint32{100},

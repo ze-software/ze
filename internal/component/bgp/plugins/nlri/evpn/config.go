@@ -41,7 +41,8 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 	}
 
 	attrs := []registry.PluginRouteAttr{{Code: uint8(attribute.AttrOrigin), Flags: uint8(attribute.FlagTransitive), Value: []byte{req.Origin}}}
-	if req.MED != 0 {
+	// RFC 4271 Section 5.1.4: the metric is a four-octet unsigned number, 0 included.
+	if req.HasMED {
 		attrs = append(attrs, registry.PluginRouteAttr{
 			Code: uint8(attribute.AttrMED), Flags: uint8(attribute.FlagOptional),
 			Value: []byte{byte(req.MED >> 24), byte(req.MED >> 16), byte(req.MED >> 8), byte(req.MED)},
@@ -82,5 +83,6 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 	return registry.PluginRoute{
 		NLRI: params.NLRI, NextHop: nextHop, Attrs: attrs,
 		ASPath: req.ASPath, LocalPreference: req.LocalPreference,
+		HasLocalPreference: req.HasLocalPreference,
 	}, nil
 }

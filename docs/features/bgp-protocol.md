@@ -405,8 +405,8 @@ le test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-fi
 | ORIGIN | 1 | `origin` | igp / egp / incomplete |
 | AS_PATH | 2 | `as-path` | AS path segments |
 | NEXT_HOP | 3 | `next-hop` | Next hop IP address |
-| MED | 4 | `med` | Multi-Exit Discriminator |
-| LOCAL_PREF | 5 | `local-preference` | Local preference |
+| MED | 4 | `med` | Multi-Exit Discriminator. A configured `med 0` is sent as 0; a route that configures no `med` carries none |
+| LOCAL_PREF | 5 | `local-preference` | Local preference, sent to iBGP peers only. A configured `local-preference 0` is sent as 0; a route that configures none carries 100 |
 | ATOMIC_AGGREGATE | 6 | `atomic-aggregate` | Atomic aggregate flag |
 | AGGREGATOR | 7 | `aggregator` | Aggregator ASN:IP |
 | COMMUNITY | 8 | `community` | Standard communities |
@@ -419,6 +419,7 @@ le test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-fi
 | PREFIX_SID | 40 | `prefix-sid` | Segment Routing prefix SID |
 
 <!-- source: internal/core/bgp/attribute/attribute.go -- attribute code constants -->
+<!-- source: internal/component/bgp/message/update_build.go -- appendMED, appendLocalPref -->
 <!-- source: internal/core/bgp/attribute/origin.go -- ORIGIN -->
 <!-- source: internal/core/bgp/attribute/aspath.go -- AS_PATH -->
 <!-- source: internal/core/bgp/attribute/community.go -- Communities, ExtendedCommunities, LargeCommunities -->

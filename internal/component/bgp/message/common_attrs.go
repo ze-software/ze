@@ -14,13 +14,15 @@ import (
 // CommonAttrs holds extracted common BGP path attributes.
 // Used by route-to-params conversion functions to avoid duplicate extraction code.
 type CommonAttrs struct {
-	Origin            attribute.Origin
-	LocalPreference   uint32
-	MED               uint32
-	ASPath            []uint32
-	Communities       []uint32
-	LargeCommunities  [][3]uint32
-	ExtCommunityBytes []byte
+	Origin             attribute.Origin
+	LocalPreference    uint32
+	HasLocalPreference bool // The wire carried LOCAL_PREF; 0 is a legal value.
+	MED                uint32
+	HasMED             bool // The wire carried MULTI_EXIT_DISC; 0 is a legal value.
+	ASPath             []uint32
+	Communities        []uint32
+	LargeCommunities   [][3]uint32
+	ExtCommunityBytes  []byte
 }
 
 // ExtractAttrsFromWire extracts CommonAttrs from AttributesWire.
@@ -45,8 +47,10 @@ func ExtractAttrsFromWire(wire *attribute.AttributesWire) CommonAttrs {
 			attrs.Origin = v
 		case attribute.LocalPref:
 			attrs.LocalPreference = uint32(v)
+			attrs.HasLocalPreference = true
 		case attribute.MED:
 			attrs.MED = uint32(v)
+			attrs.HasMED = true
 		case *attribute.ASPath:
 			if len(v.Segments) > 0 {
 				attrs.ASPath = v.Segments[0].ASNs

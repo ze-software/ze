@@ -65,8 +65,9 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 	// ORIGIN (code 1): always present (matches BuildVPLS), value from config.
 	attrs = append(attrs, registry.PluginRouteAttr{Code: attrCodeOrigin, Flags: flagWellKnownTrans, Value: []byte{req.Origin}})
 
-	// MED (code 4): only when > 0.
-	if req.MED > 0 {
+	// MED (code 4): only when configured. RFC 4271 Section 5.1.4: the metric
+	// is a four-octet unsigned number, so 0 is configured too.
+	if req.HasMED {
 		attrs = append(attrs, registry.PluginRouteAttr{
 			Code: attrCodeMED, Flags: flagOptional,
 			Value: []byte{byte(req.MED >> 24), byte(req.MED >> 16), byte(req.MED >> 8), byte(req.MED)},
@@ -108,12 +109,13 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 	}
 
 	return registry.PluginRoute{
-		IsIPv6:          req.IsIPv6,
-		NLRI:            nlri,
-		NextHop:         req.NextHop,
-		Attrs:           attrs,
-		ASPath:          req.ASPath,
-		LocalPreference: req.LocalPreference,
+		IsIPv6:             req.IsIPv6,
+		NLRI:               nlri,
+		NextHop:            req.NextHop,
+		Attrs:              attrs,
+		ASPath:             req.ASPath,
+		LocalPreference:    req.LocalPreference,
+		HasLocalPreference: req.HasLocalPreference,
 	}, nil
 }
 

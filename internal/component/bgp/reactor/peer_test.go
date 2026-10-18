@@ -280,10 +280,11 @@ func TestPeerCallback(t *testing.T) {
 func TestBuildStaticRouteUpdateIPv6(t *testing.T) {
 	nextHop := netip.MustParseAddr("2001:db8::ffff")
 	route := StaticRoute{
-		Prefix:          netip.MustParsePrefix("2001:db8::1/128"),
-		NextHop:         bgptypes.NewNextHopExplicit(nextHop),
-		Origin:          0,
-		LocalPreference: 100,
+		Prefix:             netip.MustParsePrefix("2001:db8::1/128"),
+		NextHop:            bgptypes.NewNextHopExplicit(nextHop),
+		Origin:             0,
+		LocalPreference:    100,
+		HasLocalPreference: true,
 	}
 
 	ub := message.NewUpdateBuilder(65000, true, true, false)                              // iBGP, ASN4, no ADD-PATH

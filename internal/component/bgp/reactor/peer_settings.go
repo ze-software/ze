@@ -81,8 +81,12 @@ type StaticRoute struct {
 	NextHop bgptypes.RouteNextHop // Encapsulates next-hop policy (explicit or self)
 
 	Origin          uint8  // 0=IGP, 1=EGP, 2=INCOMPLETE
-	LocalPreference uint32 // For iBGP
-	MED             uint32 // Multi-Exit Discriminator
+	LocalPreference uint32 // For iBGP; meaningful only with HasLocalPreference
+	MED             uint32 // Multi-Exit Discriminator; meaningful only with HasMED
+	// HasLocalPreference and HasMED say the operator configured the value. RFC
+	// 4271 makes 0 legal for both, so the value alone cannot say it was set.
+	HasLocalPreference bool
+	HasMED             bool
 
 	// Communities (RFC 1997) - each uint32 is ASN:value (high 16 bits : low 16 bits)
 	Communities []uint32
@@ -179,8 +183,10 @@ type PluginRoute struct {
 
 	// ASPath is the configured AS_PATH, encoded with ASN4 context by BuildPlugin.
 	ASPath []uint32
-	// LocalPreference is emitted only on iBGP sessions (0 = default 100).
-	LocalPreference uint32
+	// LocalPreference is emitted only on iBGP sessions. Without
+	// HasLocalPreference the UPDATE carries the default 100; 0 is legal.
+	LocalPreference    uint32
+	HasLocalPreference bool
 	// Group lets same-family same-attribute routes pack into one UPDATE (MVPN).
 	Group bool
 	// MapV4NextHop maps an IPv4 next-hop to IPv4-mapped IPv6 for IPv6 families.

@@ -363,16 +363,18 @@ type ConfigRouteRequest struct {
 	IsIPv6  bool     // derived from the family name prefix.
 
 	// Pre-parsed generic attributes (config order, unsorted).
-	ExtCommunity     []byte   // RFC 4360 extended communities wire bytes.
-	IPv6ExtCommunity []byte   // RFC 5701 IPv6 extended communities wire bytes (attr 25).
-	Community        []uint32 // RFC 1997 communities.
-	PrefixSID        []byte   // RFC 8669/9252 BGP Prefix-SID TLV value (attr 40).
-	OriginatorID     uint32   // RFC 4456 (0 = unset).
-	ClusterList      []uint32 // RFC 4456.
-	MED              uint32   // 0 = unset.
-	LocalPreference  uint32   // 0 = use default (100 on iBGP).
-	ASPath           []uint32 // configured AS_PATH (nil = local-origin default).
-	Origin           uint8    // 0=IGP, 1=EGP, 2=INCOMPLETE.
+	ExtCommunity       []byte   // RFC 4360 extended communities wire bytes.
+	IPv6ExtCommunity   []byte   // RFC 5701 IPv6 extended communities wire bytes (attr 25).
+	Community          []uint32 // RFC 1997 communities.
+	PrefixSID          []byte   // RFC 8669/9252 BGP Prefix-SID TLV value (attr 40).
+	OriginatorID       uint32   // RFC 4456 (0 = unset).
+	ClusterList        []uint32 // RFC 4456.
+	MED                uint32   // Meaningful only with HasMED; 0 is a legal metric.
+	HasMED             bool     // The attribute block configured med.
+	LocalPreference    uint32   // Meaningful only with HasLocalPreference; 0 is legal.
+	HasLocalPreference bool     // Configured; without it iBGP sends the default 100.
+	ASPath             []uint32 // configured AS_PATH (nil = local-origin default).
+	Origin             uint8    // 0=IGP, 1=EGP, 2=INCOMPLETE.
 }
 
 // PluginRoute is a family-agnostic route produced by a plugin's config parser.
@@ -387,8 +389,10 @@ type PluginRoute struct {
 	// ASPath is the configured AS_PATH; BuildPlugin encodes it with ASN4 context.
 	ASPath []uint32
 	// LocalPreference is the configured LOCAL_PREF value; BuildPlugin emits it
-	// only on iBGP sessions (0 = default 100 on iBGP).
-	LocalPreference uint32
+	// only on iBGP sessions. Without HasLocalPreference it sends the default
+	// 100, and 0 is a legal value (RFC 4271 Section 5.1.5).
+	LocalPreference    uint32
+	HasLocalPreference bool
 	// Group, when true, lets the reactor pack routes of the same family that
 	// share identical attributes into a single UPDATE (one MP_REACH, multiple
 	// NLRIs) -- required for MVPN wire compatibility (RFC 6514).

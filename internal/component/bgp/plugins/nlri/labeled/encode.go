@@ -306,16 +306,18 @@ func labeledUnicastRouteToParams(r bgptypes.LabeledUnicastRoute) message.Labeled
 	attrs := message.ExtractAttrsFromWire(r.Wire)
 
 	p := message.LabeledUnicastParams{
-		Prefix:            r.Prefix,
-		NextHop:           r.NextHop,
-		PathID:            r.PathID,
-		Origin:            attrs.Origin,
-		LocalPreference:   attrs.LocalPreference,
-		MED:               attrs.MED,
-		ASPath:            attrs.ASPath,
-		Communities:       attrs.Communities,
-		LargeCommunities:  attrs.LargeCommunities,
-		ExtCommunityBytes: attrs.ExtCommunityBytes,
+		Prefix:             r.Prefix,
+		NextHop:            r.NextHop,
+		PathID:             r.PathID,
+		Origin:             attrs.Origin,
+		LocalPreference:    attrs.LocalPreference,
+		HasLocalPreference: attrs.HasLocalPreference,
+		MED:                attrs.MED,
+		HasMED:             attrs.HasMED,
+		ASPath:             attrs.ASPath,
+		Communities:        attrs.Communities,
+		LargeCommunities:   attrs.LargeCommunities,
+		ExtCommunityBytes:  attrs.ExtCommunityBytes,
 	}
 
 	// Labels (copy from route)

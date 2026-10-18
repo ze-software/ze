@@ -48,12 +48,14 @@ func TestWireFormat_UnicastIPv4(t *testing.T) {
 	ub := message.NewUpdateBuilder(65001, true, true, false)
 
 	params := message.UnicastParams{
-		Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop:         netip.MustParseAddr("192.168.1.1"),
-		Origin:          attribute.OriginIGP,
-		MED:             100,
-		LocalPreference: 200,
-		Communities:     []uint32{0xFFFF0001, 0xFFFF0002},
+		Prefix:             netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:            netip.MustParseAddr("192.168.1.1"),
+		Origin:             attribute.OriginIGP,
+		MED:                100,
+		HasMED:             true,
+		LocalPreference:    200,
+		HasLocalPreference: true,
+		Communities:        []uint32{0xFFFF0001, 0xFFFF0002},
 	}
 
 	update := mustBuildUnicast(t, ub, &params)
@@ -115,10 +117,11 @@ func TestWireFormat_UnicastIPv6(t *testing.T) {
 	ub := message.NewUpdateBuilder(65001, true, true, false)
 
 	params := message.UnicastParams{
-		Prefix:          netip.MustParsePrefix("2001:db8::/32"),
-		NextHop:         netip.MustParseAddr("2001:db8::1"),
-		Origin:          attribute.OriginIGP,
-		LocalPreference: 100,
+		Prefix:             netip.MustParsePrefix("2001:db8::/32"),
+		NextHop:            netip.MustParseAddr("2001:db8::1"),
+		Origin:             attribute.OriginIGP,
+		LocalPreference:    100,
+		HasLocalPreference: true,
 	}
 
 	update := mustBuildUnicast(t, ub, &params)
@@ -155,13 +158,14 @@ func TestWireCompat_VPNIPv4(t *testing.T) {
 	// Build VPN route UPDATE
 	ub := message.NewUpdateBuilder(65001, true, true, false)
 	params := message.VPNParams{
-		Prefix:            netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop:           netip.MustParseAddr("192.168.1.1"),
-		Origin:            attribute.OriginIGP,
-		Labels:            []uint32{100},
-		RDBytes:           [8]byte{0, 1, 0, 0, 0, 100, 0, 100}, // Type 1: 100:100
-		LocalPreference:   150,
-		ExtCommunityBytes: []byte{0x00, 0x02, 0xfd, 0xe9, 0x00, 0x00, 0x00, 0x64}, // RT 65001:100
+		Prefix:             netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:            netip.MustParseAddr("192.168.1.1"),
+		Origin:             attribute.OriginIGP,
+		Labels:             []uint32{100},
+		RDBytes:            [8]byte{0, 1, 0, 0, 0, 100, 0, 100}, // Type 1: 100:100
+		LocalPreference:    150,
+		HasLocalPreference: true,
+		ExtCommunityBytes:  []byte{0x00, 0x02, 0xfd, 0xe9, 0x00, 0x00, 0x00, 0x64}, // RT 65001:100
 	}
 	update := ub.BuildVPN(&params)
 
@@ -203,6 +207,7 @@ func TestWireFormat_ExtendedNextHop(t *testing.T) {
 		NextHop:            netip.MustParseAddr("2001:db8::1"),
 		Origin:             attribute.OriginIGP,
 		LocalPreference:    100,
+		HasLocalPreference: true,
 		UseExtendedNextHop: true,
 	}
 

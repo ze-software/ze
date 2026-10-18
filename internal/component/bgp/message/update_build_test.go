@@ -177,11 +177,12 @@ func TestUpdateBuilder_BuildUnicast_IPv6_LinkLocal(t *testing.T) {
 	ub := NewUpdateBuilder(65533, true, true, false) // iBGP, ASN4, no ADD-PATH
 
 	params := UnicastParams{
-		Prefix:           netip.MustParsePrefix("2001:db8:1::1/128"),
-		NextHop:          netip.MustParseAddr("2001:db8::ffff"),
-		LinkLocalNextHop: netip.MustParseAddr("fe80::1"),
-		Origin:           attribute.OriginIGP,
-		LocalPreference:  100,
+		Prefix:             netip.MustParsePrefix("2001:db8:1::1/128"),
+		NextHop:            netip.MustParseAddr("2001:db8::ffff"),
+		LinkLocalNextHop:   netip.MustParseAddr("fe80::1"),
+		Origin:             attribute.OriginIGP,
+		LocalPreference:    100,
+		HasLocalPreference: true,
 	}
 
 	update := mustBuildUnicast(t, ub, &params)
@@ -389,11 +390,13 @@ func TestUpdateBuilder_BuildUnicast_AttributeOrder(t *testing.T) {
 	ub := NewUpdateBuilder(65001, true, true, false) // iBGP to include LOCAL_PREF
 
 	params := UnicastParams{
-		Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop:         netip.MustParseAddr("192.168.1.1"),
-		Origin:          attribute.OriginIGP,
-		MED:             100,
-		LocalPreference: 200,
+		Prefix:             netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:            netip.MustParseAddr("192.168.1.1"),
+		Origin:             attribute.OriginIGP,
+		MED:                100,
+		HasMED:             true,
+		LocalPreference:    200,
+		HasLocalPreference: true,
 	}
 
 	update := mustBuildUnicast(t, ub, &params)
@@ -701,13 +704,15 @@ func TestUpdateBuilder_BuildVPN_AttributeOrder(t *testing.T) {
 	ub := NewUpdateBuilder(65001, true, true, false) // iBGP
 
 	params := VPNParams{
-		Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop:         netip.MustParseAddr("192.168.1.1"),
-		Origin:          attribute.OriginIGP,
-		Labels:          []uint32{100},
-		RDBytes:         [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
-		MED:             50,
-		LocalPreference: 150,
+		Prefix:             netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:            netip.MustParseAddr("192.168.1.1"),
+		Origin:             attribute.OriginIGP,
+		Labels:             []uint32{100},
+		RDBytes:            [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
+		MED:                50,
+		HasMED:             true,
+		LocalPreference:    150,
+		HasLocalPreference: true,
 	}
 
 	update := ub.BuildVPN(&params)
@@ -822,12 +827,13 @@ func TestBuildUnicast_EncodesReflectorAttrs(t *testing.T) {
 	ub := NewUpdateBuilder(65001, true, true, false)
 
 	params := UnicastParams{
-		Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop:         netip.MustParseAddr("192.168.1.1"),
-		Origin:          attribute.OriginIGP,
-		LocalPreference: 100,
-		OriginatorID:    0xC0A80101, // 192.168.1.1
-		ClusterList:     []uint32{0xC0A80102, 0xC0A80103},
+		Prefix:             netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:            netip.MustParseAddr("192.168.1.1"),
+		Origin:             attribute.OriginIGP,
+		LocalPreference:    100,
+		HasLocalPreference: true,
+		OriginatorID:       0xC0A80101, // 192.168.1.1
+		ClusterList:        []uint32{0xC0A80102, 0xC0A80103},
 	}
 
 	update := mustBuildUnicast(t, ub, &params)
@@ -856,10 +862,11 @@ func TestBuildUnicast_eBGP_NoLocalPref(t *testing.T) {
 	ub := NewUpdateBuilder(65001, false, true, false) // isIBGP=false
 
 	params := UnicastParams{
-		Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop:         netip.MustParseAddr("192.168.1.1"),
-		Origin:          attribute.OriginIGP,
-		LocalPreference: 200, // Should be ignored for eBGP
+		Prefix:             netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:            netip.MustParseAddr("192.168.1.1"),
+		Origin:             attribute.OriginIGP,
+		LocalPreference:    200, // Should be ignored for eBGP
+		HasLocalPreference: true,
 	}
 
 	update := mustBuildUnicast(t, ub, &params)
@@ -967,11 +974,12 @@ func TestBuildGroupedUnicast_MultipleNLRIs(t *testing.T) {
 
 	routes := []UnicastParams{
 		{
-			Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
-			NextHop:         netip.MustParseAddr("192.168.1.1"),
-			Origin:          attribute.OriginIGP,
-			LocalPreference: 100,
-			Communities:     []uint32{0xFFFF0001},
+			Prefix:             netip.MustParsePrefix("10.0.0.0/24"),
+			NextHop:            netip.MustParseAddr("192.168.1.1"),
+			Origin:             attribute.OriginIGP,
+			LocalPreference:    100,
+			HasLocalPreference: true,
+			Communities:        []uint32{0xFFFF0001},
 		},
 		{
 			Prefix:  netip.MustParsePrefix("10.0.1.0/24"),
@@ -1805,6 +1813,7 @@ func TestUpdateBuilderReuse(t *testing.T) {
 		NextHop:     netip.MustParseAddr("192.168.1.1"),
 		Origin:      attribute.OriginIGP,
 		MED:         100,
+		HasMED:      true,
 		Communities: []uint32{0xFFFF0001, 0xFFFF0002},
 	}
 
@@ -1825,6 +1834,7 @@ func TestUpdateBuilderReuse(t *testing.T) {
 		NextHop:          netip.MustParseAddr("2001:db8::1"),
 		Origin:           attribute.OriginEGP,
 		MED:              200,
+		HasMED:           true,
 		LargeCommunities: [][3]uint32{{65001, 1, 2}},
 	}
 	_ = mustBuildUnicast(t, ub, &otherParams)
@@ -1889,6 +1899,7 @@ func TestUpdateBuilder_BuildTwice_InvalidatesFirst(t *testing.T) {
 		NextHop: netip.MustParseAddr("192.168.1.1"),
 		Origin:  attribute.OriginIGP,
 		MED:     100,
+		HasMED:  true,
 	}
 	u1 := mustBuildUnicast(t, ub, &p1)
 	snapshot := append([]byte(nil), u1.PathAttributes...)
@@ -1899,6 +1910,7 @@ func TestUpdateBuilder_BuildTwice_InvalidatesFirst(t *testing.T) {
 		NextHop:     netip.MustParseAddr("192.168.1.2"),
 		Origin:      attribute.OriginEGP,
 		MED:         999,
+		HasMED:      true,
 		Communities: []uint32{0xFFFF0001},
 	}
 	_ = mustBuildUnicast(t, ub, &p2)
@@ -2081,6 +2093,7 @@ func sampleIPv4Routes(n int) []UnicastParams {
 			NextHop: netip.MustParseAddr("192.168.1.1"),
 			Origin:  attribute.OriginIGP,
 			MED:     100,
+			HasMED:  true,
 		}
 	}
 	return routes

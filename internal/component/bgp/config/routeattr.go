@@ -350,33 +350,39 @@ func parseHexBytes(s string) ([]byte, error) {
 
 // ParsedRouteAttributes holds all parsed route attributes.
 type ParsedRouteAttributes struct {
-	Prefix            netip.Prefix
-	NextHop           netip.Addr
-	Origin            Origin
-	LocalPreference   uint32
-	MED               uint32
-	Community         Community
-	ExtendedCommunity ExtendedCommunity
-	LargeCommunity    LargeCommunity
-	PathID            PathID
-	Labels            []MPLSLabel // RFC 8277: MPLS label stack
-	RD                RouteDistinguisher
-	ASPath            ASPath
-	Aggregator        Aggregator
-	AtomicAggregate   bool
-	OriginatorID      uint32   // RFC 4456
-	ClusterList       []uint32 // RFC 4456
-	AIGPMetric        *uint64  // RFC 7311
-	PrefixSID         []byte   // BGP Prefix-SID TLV bytes (attribute 40), from attribute.EncodePrefixSID*
-	RawAttributes     []RawAttribute
+	Prefix          netip.Prefix
+	NextHop         netip.Addr
+	Origin          Origin
+	LocalPreference uint32
+	MED             uint32
+	// HasLocalPreference and HasMED say the route carries the attribute; 0 is
+	// a legal value for both (RFC 4271 Sections 5.1.4 and 5.1.5).
+	HasLocalPreference bool
+	HasMED             bool
+	Community          Community
+	ExtendedCommunity  ExtendedCommunity
+	LargeCommunity     LargeCommunity
+	PathID             PathID
+	Labels             []MPLSLabel // RFC 8277: MPLS label stack
+	RD                 RouteDistinguisher
+	ASPath             ASPath
+	Aggregator         Aggregator
+	AtomicAggregate    bool
+	OriginatorID       uint32   // RFC 4456
+	ClusterList        []uint32 // RFC 4456
+	AIGPMetric         *uint64  // RFC 7311
+	PrefixSID          []byte   // BGP Prefix-SID TLV bytes (attribute 40), from attribute.EncodePrefixSID*
+	RawAttributes      []RawAttribute
 }
 
 // ParseRouteAttributes parses all attributes from a StaticRouteConfig.
 func ParseRouteAttributes(src *StaticRouteConfig) (*ParsedRouteAttributes, error) {
 	attrs := &ParsedRouteAttributes{
-		Prefix:          src.Prefix,
-		LocalPreference: src.LocalPreference,
-		MED:             src.MED,
+		Prefix:             src.Prefix,
+		LocalPreference:    src.LocalPreference,
+		MED:                src.MED,
+		HasLocalPreference: src.HasLocalPreference,
+		HasMED:             src.HasMED,
 	}
 
 	// NextHop
@@ -555,11 +561,13 @@ func parseRawAttributeInto(attrs *ParsedRouteAttributes, raw RawAttribute) {
 	if raw.Code == 4 && len(raw.Value) >= 4 { // MED
 		attrs.MED = uint32(raw.Value[0])<<24 | uint32(raw.Value[1])<<16 |
 			uint32(raw.Value[2])<<8 | uint32(raw.Value[3])
+		attrs.HasMED = true
 		return
 	}
 	if raw.Code == 5 && len(raw.Value) >= 4 { // LOCAL_PREF
 		attrs.LocalPreference = uint32(raw.Value[0])<<24 | uint32(raw.Value[1])<<16 |
 			uint32(raw.Value[2])<<8 | uint32(raw.Value[3])
+		attrs.HasLocalPreference = true
 		return
 	}
 	if raw.Code == 32 { // LARGE_COMMUNITY — parse 12-byte tuples

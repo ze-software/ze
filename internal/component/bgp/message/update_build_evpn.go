@@ -31,13 +31,17 @@ type EVPNParams struct {
 	NextHop netip.Addr
 
 	// Path attributes
-	Origin            attribute.Origin
-	ASPath            []uint32
-	MED               uint32
-	LocalPreference   uint32
-	Communities       []uint32
-	LargeCommunities  [][3]uint32
-	ExtCommunityBytes []byte // Pre-packed (RT, etc.)
+	Origin          attribute.Origin
+	ASPath          []uint32
+	MED             uint32
+	HasMED          bool // MED is emitted only when set; 0 is a legal metric.
+	LocalPreference uint32
+	// HasLocalPreference says LocalPreference is configured; without it an
+	// iBGP UPDATE carries the default 100. 0 is a legal preference.
+	HasLocalPreference bool
+	Communities        []uint32
+	LargeCommunities   [][3]uint32
+	ExtCommunityBytes  []byte // Pre-packed (RT, etc.)
 
 	// ORIGINATOR_ID (RFC 4456) - 0 means not set.
 	OriginatorID uint32
@@ -81,18 +85,10 @@ func (ub *UpdateBuilder) BuildEVPN(p EVPNParams) (*Update, error) {
 	}
 
 	// 4. MED
-	if p.MED > 0 {
-		attrs = append(attrs, attribute.MED(p.MED))
-	}
+	attrs = appendMED(attrs, p.MED, p.HasMED)
 
 	// 5. LOCAL_PREF
-	if ub.IsIBGP {
-		lp := p.LocalPreference
-		if lp == 0 {
-			lp = 100
-		}
-		attrs = append(attrs, attribute.LocalPref(lp))
-	}
+	attrs = ub.appendLocalPref(attrs, p.LocalPreference, p.HasLocalPreference)
 
 	// 8. COMMUNITIES
 	if len(p.Communities) > 0 {

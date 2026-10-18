@@ -161,10 +161,11 @@ func TestUpdateBuilder_BuildEVPN_Type5(t *testing.T) {
 	nlriBytes := testEVPNType5Bytes(rd, 100, netip.MustParsePrefix("10.0.0.0/24"), netip.IPv4Unspecified(), 200)
 
 	params := EVPNParams{
-		NLRI:            nlriBytes,
-		NextHop:         netip.MustParseAddr("192.168.1.1"),
-		Origin:          attribute.OriginIGP,
-		LocalPreference: 150,
+		NLRI:               nlriBytes,
+		NextHop:            netip.MustParseAddr("192.168.1.1"),
+		Origin:             attribute.OriginIGP,
+		LocalPreference:    150,
+		HasLocalPreference: true,
 	}
 
 	update, err := ub.BuildEVPN(params)

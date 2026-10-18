@@ -69,27 +69,31 @@ func ParseFamilyMode(s string) FamilyMode {
 
 // StaticRouteConfig holds a static route.
 type StaticRouteConfig struct {
-	Prefix            netip.Prefix
-	NextHop           string
-	NextHopSelf       bool   // Use local address as next-hop
-	Origin            string // igp, egp, incomplete
-	LocalPreference   uint32
-	MED               uint32
-	Community         string
-	ExtendedCommunity string
-	LargeCommunity    string
-	ASPath            string
-	PathInformation   string   // path-id for add-path
-	Label             string   // MPLS label (backward compat, single)
-	Labels            []string // RFC 8277: MPLS label stack (multiple)
-	RD                string   // Route Distinguisher
-	Aggregator        string   // ASN:IP format
-	AtomicAggregate   bool     // ATOMIC_AGGREGATE attribute
-	Attribute         string   // Raw attribute hex: [ code flags value ]
-	OriginatorID      string   // ORIGINATOR_ID (RFC 4456)
-	ClusterList       string   // CLUSTER_LIST (RFC 4456)
-	AIGP              string   // AIGP metric (RFC 7311)
-	PrefixSID         string   // BGP Prefix-SID (RFC 8669) - can be number or "N, [(base,range),...]"
+	Prefix          netip.Prefix
+	NextHop         string
+	NextHopSelf     bool   // Use local address as next-hop
+	Origin          string // igp, egp, incomplete
+	LocalPreference uint32
+	MED             uint32
+	// HasLocalPreference and HasMED say the leaf was configured; 0 is a legal
+	// value for both (RFC 4271 Sections 5.1.4 and 5.1.5).
+	HasLocalPreference bool
+	HasMED             bool
+	Community          string
+	ExtendedCommunity  string
+	LargeCommunity     string
+	ASPath             string
+	PathInformation    string   // path-id for add-path
+	Label              string   // MPLS label (backward compat, single)
+	Labels             []string // RFC 8277: MPLS label stack (multiple)
+	RD                 string   // Route Distinguisher
+	Aggregator         string   // ASN:IP format
+	AtomicAggregate    bool     // ATOMIC_AGGREGATE attribute
+	Attribute          string   // Raw attribute hex: [ code flags value ]
+	OriginatorID       string   // ORIGINATOR_ID (RFC 4456)
+	ClusterList        string   // CLUSTER_LIST (RFC 4456)
+	AIGP               string   // AIGP metric (RFC 7311)
+	PrefixSID          string   // BGP Prefix-SID (RFC 8669) - can be number or "N, [(base,range),...]"
 
 	// Split prefix into more-specific routes (e.g., "/25" splits /24 into two /25s)
 	Split string
@@ -106,8 +110,10 @@ type PluginRouteConfig struct {
 
 	// ASPath is the configured AS_PATH (built with ASN4 context at send time).
 	ASPath []uint32
-	// LocalPreference is the configured LOCAL_PREF (emitted only on iBGP; 0 = default 100).
-	LocalPreference uint32
+	// LocalPreference is the configured LOCAL_PREF (emitted only on iBGP).
+	// Without HasLocalPreference the UPDATE carries the default 100.
+	LocalPreference    uint32
+	HasLocalPreference bool
 	// Group packs same-family same-attribute routes into one UPDATE (MVPN).
 	Group bool
 	// MapV4NextHop maps an IPv4 next-hop to IPv4-mapped IPv6 for IPv6 families.

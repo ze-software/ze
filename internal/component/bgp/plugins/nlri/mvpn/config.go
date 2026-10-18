@@ -60,7 +60,8 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 			attrs = append(attrs, registry.PluginRouteAttr{Code: attrCodeNextHop, Flags: flagWellKnownTrans, Value: b[:]})
 		}
 	}
-	if req.MED > 0 {
+	// RFC 4271 Section 5.1.4: the metric is a four-octet unsigned number, 0 included.
+	if req.HasMED {
 		m := req.MED
 		attrs = append(attrs, registry.PluginRouteAttr{Code: attrCodeMED, Flags: flagOptional, Value: []byte{byte(m >> 24), byte(m >> 16), byte(m >> 8), byte(m)}})
 	}
@@ -81,13 +82,14 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 	}
 
 	return registry.PluginRoute{
-		IsIPv6:          req.IsIPv6,
-		NLRI:            nlri,
-		NextHop:         req.NextHop,
-		Attrs:           attrs,
-		ASPath:          req.ASPath,
-		LocalPreference: req.LocalPreference,
-		Group:           true,
+		IsIPv6:             req.IsIPv6,
+		NLRI:               nlri,
+		NextHop:            req.NextHop,
+		Attrs:              attrs,
+		ASPath:             req.ASPath,
+		LocalPreference:    req.LocalPreference,
+		HasLocalPreference: req.HasLocalPreference,
+		Group:              true,
 	}, nil
 }
 

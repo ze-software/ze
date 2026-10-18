@@ -81,15 +81,17 @@ func l3vpnRouteToVPNParams(r bgptypes.L3VPNRoute, rd RouteDistinguisher) message
 	attrs := message.ExtractAttrsFromWire(r.Wire)
 
 	p := message.VPNParams{
-		Prefix:            r.Prefix,
-		NextHop:           r.NextHop,
-		Origin:            attrs.Origin,
-		LocalPreference:   attrs.LocalPreference,
-		MED:               attrs.MED,
-		ASPath:            attrs.ASPath,
-		Communities:       attrs.Communities,
-		LargeCommunities:  attrs.LargeCommunities,
-		ExtCommunityBytes: attrs.ExtCommunityBytes,
+		Prefix:             r.Prefix,
+		NextHop:            r.NextHop,
+		Origin:             attrs.Origin,
+		LocalPreference:    attrs.LocalPreference,
+		HasLocalPreference: attrs.HasLocalPreference,
+		MED:                attrs.MED,
+		HasMED:             attrs.HasMED,
+		ASPath:             attrs.ASPath,
+		Communities:        attrs.Communities,
+		LargeCommunities:   attrs.LargeCommunities,
+		ExtCommunityBytes:  attrs.ExtCommunityBytes,
 	}
 
 	// Use pre-parsed RD

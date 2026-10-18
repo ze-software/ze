@@ -38,7 +38,7 @@ func toPluginParams(r PluginRoute, fam family.Family, prefixSIDAllowed bool, loc
 	return message.PluginParams{
 		AFI: uint16(fam.AFI), SAFI: byte(fam.SAFI), IsIPv6: r.IsIPv6, NLRI: r.NLRI,
 		NextHop: r.NextHop, RawAttrs: rawAttrs,
-		ASPath: r.ASPath, LocalPreference: r.LocalPreference,
+		ASPath: r.ASPath, LocalPreference: r.LocalPreference, HasLocalPreference: r.HasLocalPreference,
 		MapV4NextHop: r.MapV4NextHop,
 	}, nil
 }
@@ -81,7 +81,9 @@ func toStaticRouteUnicastParams(r *StaticRoute, nextHop, linkLocal netip.Addr, s
 		Origin:             attribute.Origin(r.Origin),
 		ASPath:             r.ASPath,
 		MED:                r.MED,
+		HasMED:             r.HasMED,
 		LocalPreference:    r.LocalPreference,
+		HasLocalPreference: r.HasLocalPreference,
 		Communities:        r.Communities,
 		ExtCommunityBytes:  r.ExtCommunityBytes,
 		LargeCommunities:   r.LargeCommunities,
@@ -116,25 +118,27 @@ func toStaticRouteLabeledUnicastParams(r *StaticRoute, nextHop netip.Addr, prefi
 	}
 
 	return message.LabeledUnicastParams{
-		Prefix:            r.Prefix,
-		PathID:            r.PathID,
-		NextHop:           nextHop,
-		Labels:            r.Labels,
-		Origin:            attribute.Origin(r.Origin),
-		ASPath:            r.ASPath,
-		MED:               r.MED,
-		LocalPreference:   r.LocalPreference,
-		Communities:       r.Communities,
-		ExtCommunityBytes: r.ExtCommunityBytes,
-		LargeCommunities:  r.LargeCommunities,
-		AtomicAggregate:   r.AtomicAggregate,
-		HasAggregator:     r.HasAggregator,
-		AggregatorASN:     r.AggregatorASN,
-		AggregatorIP:      r.AggregatorIP,
-		OriginatorID:      r.OriginatorID,
-		ClusterList:       r.ClusterList,
-		PrefixSID:         prefixSID,
-		RawAttributeBytes: rawAttrs,
+		Prefix:             r.Prefix,
+		PathID:             r.PathID,
+		NextHop:            nextHop,
+		Labels:             r.Labels,
+		Origin:             attribute.Origin(r.Origin),
+		ASPath:             r.ASPath,
+		MED:                r.MED,
+		HasMED:             r.HasMED,
+		LocalPreference:    r.LocalPreference,
+		HasLocalPreference: r.HasLocalPreference,
+		Communities:        r.Communities,
+		ExtCommunityBytes:  r.ExtCommunityBytes,
+		LargeCommunities:   r.LargeCommunities,
+		AtomicAggregate:    r.AtomicAggregate,
+		HasAggregator:      r.HasAggregator,
+		AggregatorASN:      r.AggregatorASN,
+		AggregatorIP:       r.AggregatorIP,
+		OriginatorID:       r.OriginatorID,
+		ClusterList:        r.ClusterList,
+		PrefixSID:          prefixSID,
+		RawAttributeBytes:  rawAttrs,
 	}
 }
 
@@ -150,25 +154,27 @@ func toStaticRouteVPNParams(r *StaticRoute, nextHop netip.Addr, prefixSIDAllowed
 	}
 
 	return message.VPNParams{
-		Prefix:            r.Prefix,
-		PathID:            r.PathID,
-		NextHop:           nextHop,
-		Labels:            r.Labels,
-		RDBytes:           r.RDBytes,
-		Origin:            attribute.Origin(r.Origin),
-		ASPath:            r.ASPath,
-		MED:               r.MED,
-		LocalPreference:   r.LocalPreference,
-		Communities:       r.Communities,
-		ExtCommunityBytes: r.ExtCommunityBytes,
-		LargeCommunities:  r.LargeCommunities,
-		AtomicAggregate:   r.AtomicAggregate,
-		HasAggregator:     r.HasAggregator,
-		AggregatorASN:     r.AggregatorASN,
-		AggregatorIP:      r.AggregatorIP,
-		OriginatorID:      r.OriginatorID,
-		ClusterList:       r.ClusterList,
-		PrefixSID:         prefixSID,
+		Prefix:             r.Prefix,
+		PathID:             r.PathID,
+		NextHop:            nextHop,
+		Labels:             r.Labels,
+		RDBytes:            r.RDBytes,
+		Origin:             attribute.Origin(r.Origin),
+		ASPath:             r.ASPath,
+		MED:                r.MED,
+		HasMED:             r.HasMED,
+		LocalPreference:    r.LocalPreference,
+		HasLocalPreference: r.HasLocalPreference,
+		Communities:        r.Communities,
+		ExtCommunityBytes:  r.ExtCommunityBytes,
+		LargeCommunities:   r.LargeCommunities,
+		AtomicAggregate:    r.AtomicAggregate,
+		HasAggregator:      r.HasAggregator,
+		AggregatorASN:      r.AggregatorASN,
+		AggregatorIP:       r.AggregatorIP,
+		OriginatorID:       r.OriginatorID,
+		ClusterList:        r.ClusterList,
+		PrefixSID:          prefixSID,
 	}
 }
 
@@ -338,8 +344,10 @@ func routeGroupKey(r *StaticRoute) string {
 	b.Sep()
 	b.Uint(uint64(r.Origin))
 	b.Sep()
+	b.Bool(r.HasLocalPreference)
 	b.Uint(uint64(r.LocalPreference))
 	b.Sep()
+	b.Bool(r.HasMED)
 	b.Uint(uint64(r.MED))
 	b.Sep()
 	b.uint32Slice(comms)

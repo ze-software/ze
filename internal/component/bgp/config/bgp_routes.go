@@ -270,6 +270,7 @@ func applyAttributesFromTree(tree *config.Tree, sr *StaticRouteConfig) error {
 			return fmt.Errorf("invalid local-preference %q: %w", v, err)
 		}
 		sr.LocalPreference = uint32(n)
+		sr.HasLocalPreference = true
 	}
 	if v, ok := tree.Get("med"); ok {
 		n, err := strconv.ParseUint(v, 10, 32)
@@ -277,6 +278,7 @@ func applyAttributesFromTree(tree *config.Tree, sr *StaticRouteConfig) error {
 			return fmt.Errorf("invalid med %q: %w", v, err)
 		}
 		sr.MED = uint32(n)
+		sr.HasMED = true
 	}
 	if items := tree.GetSlice("community"); len(items) > 0 {
 		sr.Community = textbuf.Join(items, " ")
@@ -415,15 +417,16 @@ func pluginRouteFromRegistry(famName string, pr registry.PluginRoute) PluginRout
 		}
 	}
 	return PluginRouteConfig{
-		Family:          famName,
-		IsIPv6:          pr.IsIPv6,
-		NLRI:            pr.NLRI,
-		NextHop:         pr.NextHop,
-		Attrs:           attrs,
-		ASPath:          pr.ASPath,
-		LocalPreference: pr.LocalPreference,
-		Group:           pr.Group,
-		MapV4NextHop:    pr.MapV4NextHop,
+		Family:             famName,
+		IsIPv6:             pr.IsIPv6,
+		NLRI:               pr.NLRI,
+		NextHop:            pr.NextHop,
+		Attrs:              attrs,
+		ASPath:             pr.ASPath,
+		LocalPreference:    pr.LocalPreference,
+		HasLocalPreference: pr.HasLocalPreference,
+		Group:              pr.Group,
+		MapV4NextHop:       pr.MapV4NextHop,
 	}
 }
 
@@ -462,18 +465,20 @@ func buildConfigRouteRequest(attr *config.Tree, content []string, isIPv6 bool, f
 	}
 
 	return registry.ConfigRouteRequest{
-		Content:          content,
-		NextHop:          nextHop,
-		IsIPv6:           isIPv6,
-		ExtCommunity:     parsed.ExtendedCommunity.Bytes,
-		IPv6ExtCommunity: ipv6ExtComm,
-		Community:        parsed.Community.Values,
-		PrefixSID:        parsed.PrefixSID,
-		OriginatorID:     parsed.OriginatorID,
-		ClusterList:      parsed.ClusterList,
-		MED:              parsed.MED,
-		LocalPreference:  parsed.LocalPreference,
-		ASPath:           parsed.ASPath.Values,
-		Origin:           uint8(parsed.Origin),
+		Content:            content,
+		NextHop:            nextHop,
+		IsIPv6:             isIPv6,
+		ExtCommunity:       parsed.ExtendedCommunity.Bytes,
+		IPv6ExtCommunity:   ipv6ExtComm,
+		Community:          parsed.Community.Values,
+		PrefixSID:          parsed.PrefixSID,
+		OriginatorID:       parsed.OriginatorID,
+		ClusterList:        parsed.ClusterList,
+		MED:                parsed.MED,
+		HasMED:             parsed.HasMED,
+		LocalPreference:    parsed.LocalPreference,
+		HasLocalPreference: parsed.HasLocalPreference,
+		ASPath:             parsed.ASPath.Values,
+		Origin:             uint8(parsed.Origin),
 	}, nil
 }

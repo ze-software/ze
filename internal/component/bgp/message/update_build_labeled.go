@@ -38,11 +38,16 @@ type LabeledUnicastParams struct {
 	// ASPath is the configured AS path.
 	ASPath []uint32
 
-	// MED is the multi-exit discriminator.
+	// MED is the multi-exit discriminator, emitted only when HasMED is set.
 	MED uint32
+	// HasMED says the route carries a MED; 0 is a legal metric.
+	HasMED bool
 
-	// LocalPreference is the local preference (iBGP only).
+	// LocalPreference is the local preference (iBGP only). Without
+	// HasLocalPreference the builder sends the default 100.
 	LocalPreference uint32
+	// HasLocalPreference says the route carries a LOCAL_PREF; 0 is legal.
+	HasLocalPreference bool
 
 	// Communities is the list of standard communities.
 	Communities []uint32
@@ -104,18 +109,10 @@ func (ub *UpdateBuilder) BuildLabeledUnicast(p *LabeledUnicastParams) *Update {
 	}
 
 	// 4. MED
-	if p.MED > 0 {
-		attrs = append(attrs, attribute.MED(p.MED))
-	}
+	attrs = appendMED(attrs, p.MED, p.HasMED)
 
 	// 5. LOCAL_PREF
-	if ub.IsIBGP {
-		lp := p.LocalPreference
-		if lp == 0 {
-			lp = 100
-		}
-		attrs = append(attrs, attribute.LocalPref(lp))
-	}
+	attrs = ub.appendLocalPref(attrs, p.LocalPreference, p.HasLocalPreference)
 
 	// 6. ATOMIC_AGGREGATE
 	if p.AtomicAggregate {

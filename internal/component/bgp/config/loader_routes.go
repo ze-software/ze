@@ -65,13 +65,14 @@ func sortExtCommunities(data []byte) []byte {
 // convertPluginRoute converts a PluginRouteConfig to a reactor PluginRoute.
 func convertPluginRoute(pr PluginRouteConfig) (reactor.PluginRoute, error) {
 	route := reactor.PluginRoute{
-		Family:          pr.Family,
-		IsIPv6:          pr.IsIPv6,
-		NLRI:            pr.NLRI,
-		ASPath:          pr.ASPath,
-		LocalPreference: pr.LocalPreference,
-		Group:           pr.Group,
-		MapV4NextHop:    pr.MapV4NextHop,
+		Family:             pr.Family,
+		IsIPv6:             pr.IsIPv6,
+		NLRI:               pr.NLRI,
+		ASPath:             pr.ASPath,
+		LocalPreference:    pr.LocalPreference,
+		HasLocalPreference: pr.HasLocalPreference,
+		Group:              pr.Group,
+		MapV4NextHop:       pr.MapV4NextHop,
 	}
 
 	if pr.NextHop == configSelf {

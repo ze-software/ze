@@ -36,6 +36,7 @@ func TestRFC7606Section51MPAttributeEncodedFirst(t *testing.T) {
 		Origin:  attribute.OriginIGP,
 		ASPath:  []uint32{65002},
 		MED:     10,
+		HasMED:  true,
 	}
 	update := mustBuildUnicast(t, ub, &params)
 	if update == nil {

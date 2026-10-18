@@ -112,18 +112,10 @@ func (ub *UpdateBuilder) packGroupedAttributes(first *UnicastParams) []byte {
 	}
 
 	// 4. MED
-	if first.MED > 0 {
-		attrs = append(attrs, attribute.MED(first.MED))
-	}
+	attrs = appendMED(attrs, first.MED, first.HasMED)
 
 	// 5. LOCAL_PREF
-	if ub.IsIBGP {
-		lp := first.LocalPreference
-		if lp == 0 {
-			lp = 100
-		}
-		attrs = append(attrs, attribute.LocalPref(lp))
-	}
+	attrs = ub.appendLocalPref(attrs, first.LocalPreference, first.HasLocalPreference)
 
 	// 6. ATOMIC_AGGREGATE
 	if first.AtomicAggregate {

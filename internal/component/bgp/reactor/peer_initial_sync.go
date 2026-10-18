@@ -763,6 +763,7 @@ func pluginRouteGroupKey(r *PluginRoute) string {
 	b.Sep()
 	b.uint32Slice(r.ASPath)
 	b.Sep()
+	b.Bool(r.HasLocalPreference)
 	b.Uint(uint64(r.LocalPreference))
 	for _, raw := range r.RawAttrs {
 		b.Sep()
