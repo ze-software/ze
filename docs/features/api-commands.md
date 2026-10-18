@@ -39,8 +39,8 @@ NLRI operations: `add`, `del`, `eor` per address family.
 |---------|-------------|
 | `show bgp rib received [peer] [family]` | Show Adj-RIB-In |
 | `show bgp rib sent [peer] [family]` | Show Adj-RIB-Out |
-| `clear bgp rib in [peer] [family]` | Clear Adj-RIB-In |
-| `clear bgp rib out [peer] [family]` | Clear Adj-RIB-Out |
+| `clear bgp rib in <selector>` | Clear Adj-RIB-In (`*` for all peers) |
+| `clear bgp rib out <selector> [family <family>]` | Resend Adj-RIB-Out (`*` for all peers) |
 | `request bgp rib inject <peer> <family> <prefix> [attrs...]` | Insert route into Adj-RIB-In (no live session needed) |
 | `request bgp rib withdraw <peer> <family> <prefix>` | Remove route from Adj-RIB-In |
 

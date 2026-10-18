@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Plugin command names — used in both RPCRegistration.PluginCommand and ForwardToPlugin
@@ -81,8 +82,8 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-best", Handler: forwardRibBest, PluginCommand: cmdRibBest},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-best-status", Handler: forwardRibBestStatus, PluginCommand: cmdRibBestStatus},
 		// Write commands (exposed via "ze run" only)
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-clear-in", Handler: forwardRibClearIn, PluginCommand: cmdRibClearIn},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-clear-out", Handler: forwardRibClearOut, PluginCommand: cmdRibClearOut},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-clear-in", Handler: forwardRibClearIn, PluginCommand: cmdRibClearIn, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-clear-out", Handler: forwardRibClearOut, PluginCommand: cmdRibClearOut, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-inject", Handler: forwardRibInject, PluginCommand: cmdRibInject},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-withdraw", Handler: forwardRibWithdraw, PluginCommand: cmdRibWithdraw},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-rpf", Handler: forwardRibRPF, PluginCommand: cmdRibRPF},
@@ -280,14 +281,112 @@ func forwardRibBestStatus(ctx *pluginserver.CommandContext, validated command.Va
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibBestStatus, args, ctx.PeerSelector())
 }
 
-func forwardRibClearIn(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibClearIn, args, ctx.PeerSelector())
+// ribClearSelector answers the peer selector a clear bgp rib command was given:
+// the mandatory selector leaf the dispatcher bound (ze-rib-cmd.yang), or the
+// selector an RPC caller passed out of band. Both registrations require a
+// selector, so the dispatcher refuses the bare prefix before a handler runs;
+// found is false only for a route that skipped that guard, and the caller then
+// refuses rather than reading ctx.PeerSelector, whose "*" would clear every peer.
+func ribClearSelector(ctx *pluginserver.CommandContext) (selector string, found bool) {
+	if selector = ctx.Selector(ribClearSelectorLeaf); selector != "" {
+		return selector, true
+	}
+	if ctx.Peer != "" {
+		return ctx.Peer, true
+	}
+	return "", false
 }
 
+// ribClearSelectorLeaf and ribClearFamilyLeaf are the leaves ze-rib-cmd.yang
+// declares under clear bgp rib in and out.
+const (
+	ribClearSelectorLeaf = "selector"
+	ribClearFamilyLeaf   = "family"
+)
+
+// ribClearMissingSelector is the refusal for a clear with no selector. It names
+// the explicit forms, so the operator learns that * is how every peer is said.
+func ribClearMissingSelector(path string) *plugin.Response {
+	var tb textbuf.Buffer
+	return &plugin.Response{
+		Status: plugin.StatusError,
+		Error: tb.Str(path).Str(" needs a peer selector: ").Str(path).
+			Str(" * for every peer, or an address, a peer name or an AS pattern for the peers it matches").String(),
+	}
+}
+
+// forwardRibClearIn hands the bgp-rib plugin the bound selector as its first
+// argument, which is where the plugin reads it (rib_commands.go).
+func forwardRibClearIn(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args, refusal := ribClearArgs(ctx, validated, cmdRibClearIn)
+	if refusal != nil {
+		return refusal, nil
+	}
+	return ctx.Dispatcher().ForwardToPlugin(ribClearHandoff(ctx), cmdRibClearIn, args, args[0])
+}
+
+// forwardRibClearOut hands the bgp-rib plugin the bound selector, then the
+// bound family when one was given, the two positions the plugin reads.
 func forwardRibClearOut(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibClearOut, args, ctx.PeerSelector())
+	args, refusal := ribClearArgs(ctx, validated, cmdRibClearOut)
+	if refusal != nil {
+		return refusal, nil
+	}
+	return ctx.Dispatcher().ForwardToPlugin(ribClearHandoff(ctx), cmdRibClearOut, args, args[0])
+}
+
+// ribClearHandoff answers the context the clear forwarders hand the bgp-rib
+// plugin: the caller's, with no selector bound. The plugin reads a positional
+// grammar, `<selector> [<family>]` (rib_commands.go), the form gr.go sends on
+// the args route, so the forwarded arguments state the selector themselves.
+// The hand-off judges those arguments against the plugin's path with the
+// context's bound selectors too (routeToProcess, route R9), and a selector
+// stated twice leaves the positional one for the family leaf:
+// `clear bgp rib out *` was refused as an invalid family. The copy keeps the
+// caller's own binding intact for anything that reads it after the handler.
+func ribClearHandoff(ctx *pluginserver.CommandContext) *pluginserver.CommandContext {
+	handoff := *ctx
+	handoff.Selectors = nil
+	return &handoff
+}
+
+// ribClearArgs answers the arguments the bgp-rib plugin reads for a clear bgp
+// rib command: the bound selector first, then the bound family when one was
+// given (only clear bgp rib out declares one). A call with no selector answers
+// the refusal instead, and no arguments.
+func ribClearArgs(ctx *pluginserver.CommandContext, validated command.ValidatedArgs, path string) ([]string, *plugin.Response) {
+	selector, found := ribClearSelector(ctx)
+	if !found {
+		return nil, ribClearMissingSelector(path)
+	}
+	args := []string{selector}
+	// The tokens a whole form leaves are the selector, then `family <name>`
+	// when one was given. A token beyond those was bound to no leaf, so the
+	// forwarder cannot say what it means: dropping it would replay every
+	// family for an operator who named one, so the call is refused instead.
+	tokensMax := 1
+	if family, given := validated.Value(ribClearFamilyLeaf); given {
+		args = append(args, family)
+		tokensMax = 3
+	}
+	if len(validated.Tokens()) > tokensMax {
+		return nil, ribClearExtraToken(path)
+	}
+	return args, nil
+}
+
+// ribClearExtraToken refuses a clear whose tail holds a token no leaf took,
+// the shape `clear bgp rib out * ipv4/unicast` has, and names the form that
+// states the family by its keyword.
+func ribClearExtraToken(path string) *plugin.Response {
+	var tb textbuf.Buffer
+	tb.Str(path).Str(" takes a peer selector")
+	if path == cmdRibClearOut {
+		tb.Str(" and an optional family typed after its keyword: ").Str(path).Str(" * family ipv4/unicast")
+	} else {
+		tb.Str(" and nothing after it: ").Str(path).Str(" *")
+	}
+	return &plugin.Response{Status: plugin.StatusError, Error: tb.String()}
 }
 
 func forwardRibInject(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {

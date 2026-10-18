@@ -80,11 +80,14 @@ func (r commandResult13) text() string {
 	return string(r.raw)
 }
 
-func requireStatus13(label string, result commandResult13, want string) error {
-	if result.status != want {
-		return fmt.Errorf("%s: status=%s want %s: %.200s: %w", label, result.status, want, result.raw, result.err)
+// requireDone13 answers an error naming label unless the command answered done
+// with no error. A refusal is asserted by routingRefused, which also checks
+// that the refusal names the form that fixes it.
+func requireDone13(label string, result commandResult13) error {
+	if result.status != statusDone {
+		return fmt.Errorf("%s: status=%s want %s: %.200s: %w", label, result.status, statusDone, result.raw, result.err)
 	}
-	if result.err != nil && want != statusError {
+	if result.err != nil {
 		return fmt.Errorf("%s: %w", label, result.err)
 	}
 	return nil
@@ -223,7 +226,7 @@ func reloadListenerRejected13(ctx context.Context, args []string) error {
 	return observe13(ctx, "reload-listener-rejected-test", func(ctx context.Context, plugin *sdk.Plugin) error {
 		readPort := func() (int, error) {
 			result := pollCommand13(ctx, plugin, "show l2tp listeners", 40, 100*time.Millisecond, done13)
-			if err := requireStatus13("show l2tp listeners", result, "done"); err != nil {
+			if err := requireDone13("show l2tp listeners", result); err != nil {
 				return 0, err
 			}
 			var listeners []map[string]any
@@ -313,7 +316,7 @@ func originatedPrivateAS13(name string) Driver {
 			if _, _, err := plugin.UpdateRoute(ctx, "*", "update text origin igp as-path [64496 64512 64497] nhop 1.1.1.1 nlri add 10.0.0.0/24"); err != nil {
 				return err
 			}
-			if err := requireStatus13("wait for update acknowledgement", command13(ctx, plugin, "request quiesce"), "done"); err != nil {
+			if err := requireDone13("wait for update acknowledgement", command13(ctx, plugin, "request quiesce")); err != nil {
 				return err
 			}
 			if strings.Contains(name, "replace") {
@@ -356,7 +359,7 @@ func resolvePing13(ctx context.Context, args []string) error {
 			return err
 		}
 		result := command13(ctx, plugin, "resolve ping 127.0.0.1")
-		if err := requireStatus13("resolve ping", result, "done"); err != nil {
+		if err := requireDone13("resolve ping", result); err != nil {
 			return err
 		}
 		data := result.object()
@@ -529,7 +532,7 @@ func opaqueWithdraw13(ctx context.Context, args []string) error {
 		if _, _, err := plugin.UpdateRoute(ctx, source, "update text origin igp nhop 1.1.1.1 nlri add 192.0.2.0/24"); err != nil {
 			return err
 		}
-		if err := requireStatus13("wait for BGP-LS announcement", command13(ctx, plugin, "request quiesce"), "done"); err != nil {
+		if err := requireDone13("wait for BGP-LS announcement", command13(ctx, plugin, "request quiesce")); err != nil {
 			return err
 		}
 		sent := false

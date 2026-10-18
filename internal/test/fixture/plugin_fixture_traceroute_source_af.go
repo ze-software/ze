@@ -13,7 +13,7 @@ package fixture
 //
 // Design: docs/architecture/diagnostics/active-probes.md -- the source decides the family
 // Related: register_traceroute_source_af.go -- the scenario name
-// Related: plugin_fixture_13.go -- observe13, command13 and requireStatus13
+// Related: plugin_fixture_13.go -- observe13, command13 and requireDone13
 
 import (
 	"context"
@@ -48,7 +48,7 @@ func tracerouteSourceAF(ctx context.Context, _ []string) error {
 func tracerouteSourceAFPolarity(ctx context.Context, plugin *sdk.Plugin, source string) error {
 	command := "resolve traceroute localhost source " + source + tracerouteSourceAFProbe
 	result := command13(ctx, plugin, command)
-	if err := requireStatus13(command, result, statusDone); err != nil {
+	if err := requireDone13(command, result); err != nil {
 		return err
 	}
 	addr, err := tracerouteSourceAFFirstHop(result)

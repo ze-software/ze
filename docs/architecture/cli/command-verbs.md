@@ -353,8 +353,22 @@ Two declarations make the selector mandatory, and both are owed.
 
 The second is a fail-closed guard, not a duplicate of the first. Without it a
 selector-less invocation reaches the handler and the handler decides, which is
-where a wildcard becomes an action on every peer. 18 YANG nodes declare a
-mandatory selector leaf and 14 registrations carry the guard.
+where a wildcard becomes an action on every peer. The leaves and the guards
+do not pair one to one, and are not meant to: a leaf declared on a container,
+such as the one `request peer <selector> teardown` types its selector after,
+reaches every command below that container, while each of those commands
+carries its own guard.
+<!-- source: internal/component/config/yang/command.go -- inheritArgDefs -->
+
+When the guard refuses, the refusal names the line that supplies a selector
+and what the selector leaf's `ze:help` says the value is. `<selector>` sits
+where the dispatcher reads it: after the key token the selector leaf is
+anchored to, and after the whole path when that token is the last one or the
+leaf has no anchor. So `clear bgp rib out` alone answers with
+`clear bgp rib out <selector> (* for every peer, ...)`, and `request peer
+teardown` alone with `request peer <selector> teardown (* for every peer,
+...)`.
+<!-- source: internal/component/plugin/server/incomplete.go -- missingSelectorError, writeSelectedPath, selectorAnchorIndex -->
 
 ### Everything is a selector the operator types
 
@@ -551,7 +565,7 @@ The read-verb rows are in the section above.
 | T-18 | `request as112 healthcheck` | The family's premise is a change to the system, and this command changes nothing. It sends one DNS SOA query and answers `healthy`, so question 1 answers it: `show` | `health.go` `handleAS112Health`. It emits a packet, so L-1 governs the same choice for it |
 | T-19 | `request peer <sel> flush`, `request quiesce` | Neither changes the system nor reports state. Each blocks until queued work drains, and "Choosing the verb" has no question that answers a barrier | `ze-peer-cmd.yang` `flush` waits until every queued update for a peer is sent. `ze-system-cmd.yang` `quiesce` blocks until every subsystem has drained its pending async work |
 | T-20 | `update system firmware restart` | It fetches nothing and rewrites no data. It restarts the daemon into the staged binary, which is the residual: `request` | `selfupdate.go` `manualRestart` |
-| T-21 | `clear l2tp session all\|id`, `clear l2tp tunnel all\|id`, `clear ospf neighbor all`, `clear ospf process all`, `clear isis adjacency all`, `clear vpn ipsec sa all`, `clear bgp rib out` | `clear` returns data to zero, and L-4 states that Ze never resets a session with it. The first eight close live sessions instead, and `clear bgp rib out` replays the Adj-RIB-Out, which returns nothing to zero | `ze-ospf-cmd.yang` `neighbor` and `process`, `ze-isis-cmd.yang` `adjacency`. `l2tp.go` `handleSessionTeardown`. `ipsec.go` `handleClearIPsecSAAll` calls `engine.TerminateAllSAs`. `ze-rib-cmd.yang` `out` re-advertises every route to a peer |
+| T-21 | `clear l2tp session all\|id`, `clear l2tp tunnel all\|id`, `clear ospf neighbor all`, `clear ospf process all`, `clear isis adjacency all`, `clear vpn ipsec sa all`, `clear bgp rib out *\|<selector>` | `clear` returns data to zero, and L-4 states that Ze never resets a session with it. The first eight close live sessions instead, and `clear bgp rib out` replays the Adj-RIB-Out, which returns nothing to zero | `ze-ospf-cmd.yang` `neighbor` and `process`, `ze-isis-cmd.yang` `adjacency`. `l2tp.go` `handleSessionTeardown`. `ipsec.go` `handleClearIPsecSAAll` calls `engine.TerminateAllSAs`. `ze-rib-cmd.yang` `out` declares a mandatory `selector` leaf, `*` for every peer, and re-advertises every route to the peers it matches |
 
 ## Where this page diverges from what an operator expects
 

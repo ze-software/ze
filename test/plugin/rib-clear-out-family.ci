@@ -1,5 +1,5 @@
 # Test: rib clear out with family filter resends only that family
-# VALIDATES: AC-5 — rib clear out * ipv4/unicast resends only ipv4/unicast
+# VALIDATES: AC-5: clear bgp rib out * family ipv4/unicast resends only ipv4/unicast, and the positional family form is refused naming the keyword form
 # PREVENTS: Per-family filter ignored, all families resent
 
 # ze-peer expectations

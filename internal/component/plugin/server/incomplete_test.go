@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 )
@@ -134,4 +135,49 @@ func TestDispatcherRunsAWholeCommandThatIsAlsoAPrefix(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	assert.Equal(t, []string{"show peer"}, ran)
+}
+
+// TestSelectorRefusalPlacesTheSelectorWhereDispatchReadsIt proves the guard's
+// refusal of a command whose selector is anchored to an interior key token
+// names the line with `<selector>` after that token, not after the whole path.
+// Method: register `request peer teardown` with its selector anchored to
+// `peer`, the shape ze-peer-cmd.yang declares, and dispatch it bare and with
+// two unkeyed values; then dispatch the documented form the refusal names and
+// see the handler run with that selector.
+//
+// VALIDATES: the refusal reads `request peer <selector> teardown`, both on the
+// bare form and in the keyword example of the two-value form, and the line it
+// names is one Dispatch accepts.
+// PREVENTS: a refusal whose fix, `request peer teardown <selector>`, is a
+// line the dispatcher does not read the selector from.
+func TestSelectorRefusalPlacesTheSelectorWhereDispatchReadsIt(t *testing.T) {
+	const help = "* for every peer, or an address, a peer name or an AS pattern"
+	defs := []command.ArgDef{
+		commandtest.Must(command.NewStringArg(selectorLeaf, nil, nil,
+			command.ArgOptions{Mandatory: true, Anchor: "peer", ShortHelp: help})),
+		commandtest.Must(command.NewStringArg("reason", nil, nil, command.ArgOptions{})),
+	}
+	d := NewDispatcher()
+	var gotPeer string
+	handler := func(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
+		gotPeer = ctx.Peer
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+	require.NoError(t, d.RegisterWithOptions("request peer teardown", handler, "Tear a session down",
+		RegisterOptions{RequiresSelector: true, ArgDefs: defs}))
+
+	_, err := d.Dispatch(&CommandContext{}, "request peer teardown")
+	require.Error(t, err)
+	assert.Equal(t, "request peer teardown requires a selector: request peer <selector> teardown ("+help+")", err.Error())
+
+	_, err = d.Dispatch(&CommandContext{}, "request peer teardown 192.0.2.1 maintenance")
+	require.Error(t, err)
+	assert.Equal(t, "request peer teardown requires a selector: 192.0.2.1 maintenance are 2 values typed without a keyword,"+
+		" so none is taken as the selector. Type the selector first and the other value after its keyword:"+
+		" request peer 192.0.2.1 teardown reason maintenance", err.Error())
+
+	resp, err := d.Dispatch(&CommandContext{}, "request peer 192.0.2.1 teardown reason maintenance")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "192.0.2.1", gotPeer, "the line the refusal names must bind the selector")
 }

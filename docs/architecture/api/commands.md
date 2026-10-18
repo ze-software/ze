@@ -890,7 +890,7 @@ show bgp rib [filters...] [terminal]        # Unified route display with pipelin
 show bgp rib best [filters...] [terminal]   # Best-path per prefix (RFC 4271 §9.1.2)
 show bgp rib status                         # RIB status (peer/route counts)
 clear bgp rib in <selector>                  # Clear Adj-RIB-In (* for all peers)
-clear bgp rib out <selector> [family]        # Resend Adj-RIB-Out (* for all, optional family)
+clear bgp rib out <selector> [family <family>] # Resend Adj-RIB-Out (* for all, optional family)
 request bgp rib inject <peer> <family> <prefix> [attrs] # Insert route into Adj-RIB-In (no session needed)
 request bgp rib withdraw <peer> <family> <prefix>       # Remove route from Adj-RIB-In
 show bgp rib rpf <family> <source-addr>      # RPF lookup (longest-prefix-match in Loc-RIB)
@@ -1540,6 +1540,14 @@ is judged only at a path that model declares. Every shipped plugin command that
 declares an argument is also served by a builtin, which judges first (R1);
 `test/ui/cli-argument-refused-plugin-route.ci` reaches R9 alone through a test
 plugin serving `show config cat`, which no daemon builtin serves.
+
+R9 judges the forwarded tokens with the selectors the context carries, so a
+builtin proxy that puts the selector back into its tokens hands off a context
+with none bound. The `clear bgp rib in` and `out` forwarders do this: the
+bgp-rib plugin reads `<selector> [<family>]` positionally, the form the GR
+plugin sends on the args route, and with the selector also pre-matched R9
+would judge the positional one as the family.
+<!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- ribClearHandoff -->
 
 R6 and R7 run their handler through `command.InvokeLocal(path, handler, args)`,
 which judges the tokens with `ValidateModelArgs` and runs the handler on the

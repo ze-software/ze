@@ -63,7 +63,9 @@ func TestSendRefusesAMissingSelector(t *testing.T) {
 	ctx := &pluginserver.CommandContext{Server: server}
 	_, err = server.Dispatcher().Dispatch(ctx, "send bgp raw hex FF")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "requires a selector")
+	assert.Contains(t, err.Error(), "requires a selector: hex FF are 2 values typed without a keyword")
+	assert.Contains(t, err.Error(), "send bgp <selector> raw (* for every peer, or an address, a peer name or an AS pattern)",
+		"the refusal must name the selector after bgp, the keyword the model anchors it to")
 	assert.Empty(t, ctx.Peer, "a refused send must leave no destination bound")
 }
 

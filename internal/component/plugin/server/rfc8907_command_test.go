@@ -1774,7 +1774,7 @@ func TestTakesInlineSelector(t *testing.T) {
 // three-peer fixture would hide it behind an ambiguity error.
 //
 // VALIDATES: ResolveSinglePeer accepts every selector form the YANG leaf
-// advertises ("Peer selector"), returns exactly one peer or a named error, and
+// advertises (an address, a peer name or an AS pattern), returns exactly one peer or a named error, and
 // refuses set-valued selectors (`*`, `!<sel>`) rather than resolving them.
 // PREVENTS: two regressions. (1) the one this replaced --
 // raw/pause/resume/clear-soft/remove calling netip.ParseAddr on the selector, so
@@ -2044,7 +2044,8 @@ func TestDispatchTerminalNounSelectorBoundaries(t *testing.T) {
 
 		_, err := d.Dispatch(&CommandContext{}, "announce unicast 10.0.0.0/24 next-hop 192.0.2.1")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "requires a selector")
+		assert.Equal(t, "announce requires a selector: unicast 10.0.0.0/24 next-hop 192.0.2.1 are 4 values"+
+			" typed without a keyword, so none is taken as the selector. Type announce <selector>", err.Error())
 	})
 
 	t.Run("no trailing token still reports the selector as missing", func(t *testing.T) {
@@ -2058,7 +2059,7 @@ func TestDispatchTerminalNounSelectorBoundaries(t *testing.T) {
 
 		_, err := d.Dispatch(&CommandContext{}, "delete bgp peer")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "requires a selector")
+		assert.Equal(t, "delete bgp peer requires a selector: delete bgp peer <selector>", err.Error())
 	})
 
 	t.Run("an out-of-band selector wins over the trailing token", func(t *testing.T) {

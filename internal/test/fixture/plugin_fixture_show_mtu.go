@@ -11,7 +11,7 @@ package fixture
 // Related: test/plugin/show-mtu-json.ci -- the payload as one document
 // Related: test/plugin/show-mtu-no-ipsec-component.ci -- a registered inventory with no tunnel
 // Related: test/plugin/show-mtu-oversized-tunnels.ci -- two bound tunnels over the clamp
-// Related: plugin_fixture_13.go -- observe13, command13 and requireStatus13
+// Related: plugin_fixture_13.go -- observe13, command13 and requireDone13
 
 import (
 	"context"
@@ -60,7 +60,7 @@ const (
 // showMTUResult runs one show mtu command and decodes its document.
 func showMTUResult(ctx context.Context, plugin *sdk.Plugin, command string) (map[string]any, error) {
 	result := command13(ctx, plugin, command)
-	if err := requireStatus13(command, result, statusDone); err != nil {
+	if err := requireDone13(command, result); err != nil {
 		return nil, err
 	}
 	var data map[string]any
@@ -464,7 +464,7 @@ func showMTUSAsEstablished(ctx context.Context, plugin *sdk.Plugin, peers ...str
 	for _, peer := range peers {
 		command := "show vpn ipsec peer name " + peer
 		result := command13(ctx, plugin, command)
-		if err := requireStatus13(command, result, statusDone); err != nil {
+		if err := requireDone13(command, result); err != nil {
 			return err
 		}
 		var doc map[string]any

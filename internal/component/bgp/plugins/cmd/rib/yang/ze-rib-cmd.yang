@@ -2,7 +2,9 @@ module ze-rib-cmd {
     namespace "urn:ze:rib:cmd";
     prefix ribcmd;
     import ze-extensions { prefix ze; }
+    import ze-types { prefix zt; }
     description "BGP RIB operations: query routes, manage Adj-RIB, inject test routes";
+    revision 2026-10-17 { description "clear bgp rib in and clear bgp rib out declare their peer selector as a mandatory leaf, so the bare prefix is refused rather than reaching the plugin, and * is the explicit form for every peer. clear bgp rib out declares the optional family it already read from the second token."; }
     revision 2026-09-15 { description "show bgp rib protocol and request bgp rib fastpath are declared here, each stating its own argument. Both were reachable only through the plugin dispatch fallback, and each spelled its grammar in the summary sentence because the model declared no argument. The protocol leaf is a string the bgp-rib plugin checks against the protocol registry, which is the one list of the protocols this binary carries. The fastpath action is a closed set of three words, so it is an enumeration and the dispatcher refuses any other word by name."; }
     revision 2026-03-16 { description "Initial revision"; }
 
@@ -105,10 +107,19 @@ name the protocol registry does not hold and names the registered ones.";
                     ze:command "ze-bgp:rib-clear-in";
                     ze:rpc "ze-rib-api:clear-in";
                     ze:task-support forbidden;
-                    description "Wipes the Adj-RIB-In for matched peers. They will need to
-re-advertise everything (or you can send a route-refresh).
-Selector: IP, name, AS pattern, glob, or *.";
+                    description "Wipes the Adj-RIB-In for the peers the selector matches. They will
+need to re-advertise everything (or you can send a route-refresh). The selector is
+mandatory: clear bgp rib in alone is refused, and * is the explicit form for every peer.";
                     ze:help "Remove all routes received from a peer.";
+
+                    leaf selector {
+                        type zt:peer-selector;
+                        mandatory true;
+                        description "The value is an IP address, a peer name, an AS pattern such as as65001,
+a glob, a comma-separated list of those, or * for every peer. The Adj-RIB-In of each
+peer it matches is wiped.";
+                        ze:help "* for every peer, or an address, a peer name or an AS pattern";
+                    }
                 }
 
                 container out {
@@ -117,9 +128,26 @@ Selector: IP, name, AS pattern, glob, or *.";
                     ze:rpc "ze-rib-api:clear-out";
                     ze:task-support forbidden;
                     description "Triggers a full Adj-RIB-Out replay to the selected peers. Useful
-after a policy change to push updated attributes without tearing
-down the session. Selector: IP, name, AS pattern, glob, or *.";
+after a policy change to push updated attributes without tearing down the session. The
+selector is mandatory: clear bgp rib out alone is refused, and * is the explicit form for
+every peer. A family typed after its keyword, as family ipv4/unicast, limits the replay to
+that family.";
                     ze:help "Re-advertise all routes to a peer.";
+
+                    leaf selector {
+                        type zt:peer-selector;
+                        mandatory true;
+                        description "The value is an IP address, a peer name, an AS pattern such as as65001,
+a glob, a comma-separated list of those, or * for every peer. The Adj-RIB-Out of each
+peer it matches is replayed.";
+                        ze:help "* for every peer, or an address, a peer name or an AS pattern";
+                    }
+                    leaf family {
+                        type zt:address-family;
+                        description "An address family such as ipv4/unicast. Absent, every family the
+session negotiated is replayed.";
+                        ze:help "Address family to replay, such as ipv4/unicast";
+                    }
                 }
             }
         }

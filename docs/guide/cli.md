@@ -67,8 +67,8 @@ what `show | blame` reports for the changes the console commits.
 | `send bgp <sel> update hex <hex>` | Hex-format UPDATE |
 | `show bgp rib received [peer <selector>] [family <family>]` | Show Adj-RIB-In |
 | `show bgp rib advertised [peer <selector>] [family <family>]` | Show Adj-RIB-Out |
-| `clear bgp rib in [peer]` | Clear Adj-RIB-In |
-| `clear bgp rib out [peer]` | Clear Adj-RIB-Out |
+| `clear bgp rib in <selector>` | Clear Adj-RIB-In (`*` for all peers) |
+| `clear bgp rib out <selector> [family <family>]` | Resend Adj-RIB-Out (`*` for all peers) |
 <!-- source: internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang -- show/bgp/rib, clear/bgp/rib; internal/component/bgp/plugins/cmd/rib/rib.go -- route filters -->
 
 See [Route Injection guide](route-injection.md) for UPDATE syntax details.

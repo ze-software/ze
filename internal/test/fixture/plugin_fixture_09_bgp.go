@@ -93,7 +93,7 @@ func llgrReadvertise09(_ string) Driver {
 			if !done09(mark) {
 				return fmt.Errorf("mark-stale failed: %s", mark.text)
 			}
-			clear := dispatch09(ctx, p, "clear bgp rib out * ipv4/unicast")
+			clear := dispatch09(ctx, p, "clear bgp rib out * family ipv4/unicast")
 			if !done09(clear) {
 				return fmt.Errorf("clear-rib-out failed: %s", clear.text)
 			}

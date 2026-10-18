@@ -28,7 +28,7 @@ func init() {
 
 func ribReady13(ctx context.Context, plugin *sdk.Plugin) error {
 	result := pollCommand13(ctx, plugin, "show bgp rib status", 20, 250*time.Millisecond, done13)
-	return requireStatus13("rib plugin readiness", result, "done")
+	return requireDone13("rib plugin readiness", result)
 }
 
 func countFrom13(result commandResult13) (int, bool) {
@@ -121,24 +121,24 @@ func asPathText13(result commandResult13) string {
 func ribAdvertisedUserPath13(ctx context.Context, args []string) error {
 	return observe13(ctx, "rib-advertised-user-path", func(ctx context.Context, plugin *sdk.Plugin) error {
 		update := command13(ctx, plugin, "send bgp * update text origin igp local-preference 100 nhop 101.1.101.1 nlri add 1.1.0.0/24")
-		if err := requireStatus13("user update", update, "done"); err != nil {
+		if err := requireDone13("user update", update); err != nil {
 			return err
 		}
-		if err := requireStatus13("wait for update acknowledgement", command13(ctx, plugin, "request quiesce"), "done"); err != nil {
+		if err := requireDone13("wait for update acknowledgement", command13(ctx, plugin, "request quiesce")); err != nil {
 			return err
 		}
 		result := pollCommand13(ctx, plugin, "show bgp rib advertised prefix 1.1.0.0/24 count", 20, 250*time.Millisecond, func(result commandResult13) bool {
 			count, ok := countFrom13(result)
 			return done13(result) && ok && count == 1
 		})
-		if err := requireStatus13("show advertised count", result, "done"); err != nil {
+		if err := requireDone13("show advertised count", result); err != nil {
 			return err
 		}
 		if count, ok := countFrom13(result); !ok || count != 1 {
 			return fmt.Errorf("advertised count did not reach 1: %s", result.raw)
 		}
 		result = command13(ctx, plugin, "show bgp rib received prefix 1.1.0.0/24 count")
-		if err := requireStatus13("show received count", result, "done"); err != nil {
+		if err := requireDone13("show received count", result); err != nil {
 			return err
 		}
 		if count, ok := countFrom13(result); !ok || count != 0 {
@@ -152,7 +152,7 @@ func ribAdvertisedUserPath13(ctx context.Context, args []string) error {
 type assertions13 struct{ failures []error }
 
 func (a *assertions13) status(label string, result commandResult13) {
-	if err := requireStatus13(label, result, "done"); err != nil {
+	if err := requireDone13(label, result); err != nil {
 		a.failures = append(a.failures, err)
 		fmt.Fprintln(os.Stderr, "FAIL", err)
 		return
@@ -264,20 +264,20 @@ func ribWholeSetMED13(ctx context.Context, plugin *sdk.Plugin) error {
 		prefix := fmt.Sprintf("10.40.%d.0/24", i)
 		for _, path := range order {
 			command := "request bgp rib inject " + fmt.Sprintf(paths[path], prefix)
-			if err := requireStatus13("whole-set MED inject", command13(ctx, plugin, command), "done"); err != nil {
+			if err := requireDone13("whole-set MED inject", command13(ctx, plugin, command)); err != nil {
 				return err
 			}
 		}
 		// RFC 4271 Section 9.1.2.2(c,g): A removes C at MED, then B beats A.
 		best := command13(ctx, plugin, "show bgp rib best")
-		if err := requireStatus13("whole-set MED best", best, "done"); err != nil {
+		if err := requireDone13("whole-set MED best", best); err != nil {
 			return err
 		}
 		if row := bestPathFor13(best, prefix); row == nil || row["best-peer"] != addrPeerTwo {
 			return fmt.Errorf("MED order %v: best=%v, want 10.0.0.2", order, row)
 		}
 		reason := command13(ctx, plugin, "show bgp rib best prefix "+prefix+" reason")
-		if err := requireStatus13("whole-set MED reason", reason, "done"); err != nil {
+		if err := requireDone13("whole-set MED reason", reason); err != nil {
 			return err
 		}
 		var explanation struct {
@@ -320,11 +320,11 @@ func ribWholeSetMED13(ctx context.Context, plugin *sdk.Plugin) error {
 		}
 		// RFC 4271 Section 9.1.2.2: A's lower preference removes it before MED.
 		command := "request bgp rib inject 10.0.0.3 ipv4/unicast " + prefix + " aspath 65001 med 0 localpref 90"
-		if err := requireStatus13("whole-set MED earlier-criterion update", command13(ctx, plugin, command), "done"); err != nil {
+		if err := requireDone13("whole-set MED earlier-criterion update", command13(ctx, plugin, command)); err != nil {
 			return err
 		}
 		best = command13(ctx, plugin, "show bgp rib best")
-		if err := requireStatus13("whole-set MED earlier-criterion best", best, "done"); err != nil {
+		if err := requireDone13("whole-set MED earlier-criterion best", best); err != nil {
 			return err
 		}
 		if row := bestPathFor13(best, prefix); row == nil || row["best-peer"] != "10.0.0.1" {
@@ -336,10 +336,19 @@ func ribWholeSetMED13(ctx context.Context, plugin *sdk.Plugin) error {
 
 func ribClearOutFamily13(ctx context.Context, args []string) error {
 	return observe13(ctx, "rib-clear-out-family-test", func(ctx context.Context, plugin *sdk.Plugin) error {
-		if err := requireStatus13("clear out family", command13(ctx, plugin, "clear bgp rib out * ipv4/unicast"), "done"); err != nil {
+		if err := requireDone13("clear out family", command13(ctx, plugin, "clear bgp rib out * family ipv4/unicast")); err != nil {
 			return err
 		}
-		if err := requireStatus13("clear out missing selector", command13(ctx, plugin, "clear bgp rib out"), "error"); err != nil {
+		// The dispatcher refuses the bare prefix before the forwarder runs
+		// (RequiresSelector), so no peer's Adj-RIB-Out is replayed, and the
+		// refusal names * as the form that says every peer.
+		if err := routingRefused(ctx, plugin, "clear bgp rib out", "clear bgp rib out requires a selector: clear bgp rib out <selector> (* for every peer"); err != nil {
+			return err
+		}
+		// The family is typed after its keyword. The positional form is refused,
+		// and the refusal names the keyword form, rather than the token being
+		// dropped and every family replayed.
+		if err := routingRefused(ctx, plugin, "clear bgp rib out * ipv4/unicast", "clear bgp rib out * family ipv4/unicast"); err != nil {
 			return err
 		}
 		return waitEORSent13(ctx, plugin, "peer1")
@@ -361,7 +370,7 @@ func ribFilterShow13(ctx context.Context, args []string) error {
 		}
 		for _, check := range checks {
 			result := command13(ctx, plugin, check.command)
-			if err := requireStatus13(check.label, result, "done"); err != nil {
+			if err := requireDone13(check.label, result); err != nil {
 				return err
 			}
 			if check.errorData && !strings.Contains(result.text(), `"error"`) {
@@ -442,11 +451,11 @@ func ribGraph13(ctx context.Context, args []string) error {
 func ribInjectRFC5549(ctx context.Context, args []string) error {
 	return observe13(ctx, "rib-inject-rfc5549", func(ctx context.Context, plugin *sdk.Plugin) error {
 		inject := command13(ctx, plugin, "request bgp rib inject 10.0.0.99 ipv4/unicast 192.168.1.0/24 origin igp nexthop 2001:db8::1")
-		if err := requireStatus13("rib inject", inject, "done"); err != nil {
+		if err := requireDone13("rib inject", inject); err != nil {
 			return err
 		}
 		best := command13(ctx, plugin, "show bgp rib best")
-		if err := requireStatus13("rib best show", best, "done"); err != nil {
+		if err := requireDone13("rib best show", best); err != nil {
 			return err
 		}
 		if !strings.Contains(best.text(), "192.168.1.0/24") || !strings.Contains(best.text(), "2001:db8::1") {
@@ -499,10 +508,10 @@ func ribPipeFilter13(ctx context.Context, args []string) error {
 			return err
 		}
 		injected := command13(ctx, plugin, "send bgp * update text origin igp local-preference 100 nhop 10.0.0.1 nlri add 192.168.1.0/24")
-		if err := requireStatus13("inject sent RIB route", injected, "done"); err != nil {
+		if err := requireDone13("inject sent RIB route", injected); err != nil {
 			return err
 		}
-		if err := requireStatus13("settle injected route", command13(ctx, plugin, "request quiesce"), "done"); err != nil {
+		if err := requireDone13("settle injected route", command13(ctx, plugin, "request quiesce")); err != nil {
 			return err
 		}
 		settled := pollCommand13(ctx, plugin, "show bgp rib count", 40, 250*time.Millisecond, func(result commandResult13) bool {

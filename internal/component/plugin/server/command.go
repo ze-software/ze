@@ -295,7 +295,7 @@ func RequireReactor(ctx *CommandContext) (plugin.ReactorLifecycle, *plugin.Respo
 // and `flush` each carried their own hand-rolled "not an IP, try the name"
 // loop, while `raw`, `pause`, `resume`, `clear soft` and `delete bgp peer` went
 // straight to netip.ParseAddr and rejected the very selector their YANG leaf
-// advertises ("Peer selector", e.g. ze-raw-cmd.yang:19). An operator who
+// advertises (the selector leaf of ze-raw-cmd.yang). An operator who
 // configured `peer peer1 { ... }` and typed `peer peer1 raw ...` got
 // "invalid peer address". This is the one resolver for all of them, so the two
 // existing copies stop being two and a sixth cannot appear
@@ -1116,7 +1116,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 			explicitSelector = true
 		}
 		if matchedCmd.RequiresSelector && !explicitSelector && (ctx == nil || ctx.Peer == "") {
-			return nil, fmt.Errorf("%s requires a selector", matchedCmd.Name)
+			return nil, missingSelectorError(matchedCmd, args)
 		}
 
 		// Authorization check, after command resolution, before execution.
@@ -1228,7 +1228,7 @@ func adoptablePositional(validated command.ValidatedArgs, argErr error) (string,
 }
 
 // selectorLeaf is the YANG leaf name every peer-scoped command uses for its
-// selector ("Peer selector", e.g. ze-peer-cmd.yang:104). It is the one leaf the
+// selector (e.g. the peer container of ze-peer-cmd.yang). It is the one leaf the
 // dispatcher bridges onto CommandContext.Peer, so both the bridge in
 // applyExtractedSelectors and the guard in Dispatch name it from here rather
 // than spelling the literal twice.

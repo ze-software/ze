@@ -21,7 +21,7 @@ package fixture
 // Related: register_ping_df.go -- the scenario name
 // Related: test/plugin/ping-do-not-fragment-reports-mtu.ci -- the privileged daemon
 // Related: test/plugin/ping-do-not-fragment-unprivileged.ci -- the daemon without CAP_NET_RAW
-// Related: plugin_fixture_13.go -- observe13, command13 and requireStatus13
+// Related: plugin_fixture_13.go -- observe13, command13 and requireDone13
 
 import (
 	"context"
@@ -141,7 +141,7 @@ func pingDFReportedMTU(m map[string]any) error {
 // pingDFResult runs one show ping command and decodes its result.
 func pingDFResult(ctx context.Context, plugin *sdk.Plugin, command string) (map[string]any, error) {
 	result := command13(ctx, plugin, command)
-	if err := requireStatus13(command, result, statusDone); err != nil {
+	if err := requireDone13(command, result); err != nil {
 		return nil, err
 	}
 	var data map[string]any

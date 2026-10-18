@@ -80,7 +80,7 @@ func awaitGRState(ctx context.Context, plugin *sdk.Plugin, peerAddr string) (map
 	// sentinel is written where the scenario fails"). This line goes out before
 	// the assertion, so a reader always sees what the RIB answered.
 	fmt.Fprintln(os.Stderr, "gr-sender-facts: show bgp rib status =", result.status, string(result.raw))
-	if err := requireStatus13("show bgp rib status", result, "done"); err != nil {
+	if err := requireDone13("show bgp rib status", result); err != nil {
 		return nil, err
 	}
 	row := grStateRow(result, peerAddr)

@@ -2802,8 +2802,8 @@ unicast; `mp <family> add <prefixes>`, `mp <family> del <prefixes>` and
 | `show bgp rib \| peer <selector>` | read-only | Stream routes for one peer selector |
 | `show bgp rib best` | read-only | Best-path per prefix |
 | `show bgp rib best status` | read-only | Best-path computation status |
-| `clear bgp rib in <selector>` | write | Clear Adj-RIB-In (`*` for all peers) |
-| `clear bgp rib out <selector> [family]` | write | Regenerate and re-advertise Adj-RIB-Out (`*` for all peers, optional family filter) |
+| `clear bgp rib in <selector>` | write | Clear Adj-RIB-In for the peers the selector matches (`*` for all peers; the bare `clear bgp rib in` is refused) |
+| `clear bgp rib out <selector> [family <family>]` | write | Regenerate and re-advertise Adj-RIB-Out (`*` for all peers; the bare `clear bgp rib out` is refused). `family` limits the replay to one family, typed after its keyword: `clear bgp rib out * family ipv4/unicast`; a family with no keyword is refused |
 | `request bgp rib inject <peer> <family> <prefix> [attrs...]` | write | Insert route into Adj-RIB-In as if received from peer |
 | `request bgp rib withdraw <peer> <family> <prefix>` | write | Remove route from Adj-RIB-In |
 | `show bgp rib rpf <family> <source-addr>` | read | RPF lookup: longest-prefix-match against Loc-RIB for CIDR families <!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/rib/ -- RIB plugin --> |
