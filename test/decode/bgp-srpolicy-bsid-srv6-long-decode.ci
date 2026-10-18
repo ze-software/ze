@@ -1,0 +1,10 @@
+# Test: ze bgp decode shows a type-13 Binding SID sub-TLV of Length 20 malformed
+# VALIDATES: a Binding SID sub-TLV of Length 20 holding the SRv6 SID 2001:db8::b5
+#            is shown malformed, with its value as hex, not as an SRv6 SID.
+# PREVENTS: a sub-TLV of a length RFC 9830 does not define read as an SRv6 SID.
+# Companion: bgp-srpolicy-bsid-srv6-decode.ci holds the Length 18 case.
+# RFC 9830 Section 2.4.2: "If the length is 18, then the BSID contains a 16-octet
+# SRv6 SID."
+stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF007702000000604001010040020040050400000064800E1600014904C0000201006000000000000000640A000001C01736000F00320C060000000000640D14000020010DB80000000000000000000000B500008000110009060000000000010106000003E81000
+cmd=foreground:seq=1:exec=ze bgp decode --json --family ipv4/sr-policy -:stdin=payload
+expect=json:json={"bgp":{"message":{"direction":"received","id":0,"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"update":{"attr":{"local-preference":{"optional":false,"partial":false,"transitive":true,"value":100},"origin":{"optional":false,"partial":false,"transitive":true,"value":"igp"},"tunnel-encapsulation":{"optional":true,"partial":false,"transitive":true,"value":{"tunnels":[{"sub-tlvs":[{"type":12,"value":"000000000064"},{"malformed":true,"name":"binding-sid","type":13,"value":"000020010db80000000000000000000000b50000"},{"type":128,"value":"0009060000000000010106000003e81000"}],"tunnel-type":15}]}}},"ipv4/sr-policy":[{"action":"add","next-hop":"192.0.2.1","nlri":[{"color":100,"distinguisher":0,"endpoint":"10.0.0.1"}]}]}},"type":"bgp"}
