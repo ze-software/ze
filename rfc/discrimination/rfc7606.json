@@ -335,6 +335,17 @@
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7606-5.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts",
+      "unit-sha": "ff627cd3103761a1",
+      "claim-sha": "553b18f83ce8d5c0",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
+      "producer-sha": "d49c1a4797eb9fc3",
+      "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7606-5.3-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606CoalescedMalformedNLRIBoundaries",

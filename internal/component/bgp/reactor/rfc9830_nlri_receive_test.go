@@ -198,13 +198,19 @@ func TestRFC9830NLRILengthReceiveVerdicts(t *testing.T) {
 			srRequireReset(t, name, srReceive(t, addPath, body))
 		}
 
-		// A skippable-malformed NLRI in an UPDATE with no reachable NLRI is a session reset
-		// through the RFC 7606 Section 5.2 escalation. For the MP_UNREACH-alone shape RFC
-		// 7606 Section 5.2 exempts it ("other than MP_UNREACH_NLRI") and treat-as-withdraw
-		// is owed: this asserts the current escalation, a recorded pre-existing deviation
-		// (plan/journal/gate-fires-outside-its-population.md, 2026-10-14), not conformance.
-		srRequireReset(t, "MP_UNREACH alone 13 octets",
-			srReceive(t, addPath, srReceiveBody(v4, nil, srNLRI(104, 13, addPath, 1), false)))
+		// A skippable-malformed NLRI in an UPDATE with no reachable NLRI. RFC 7606 Section
+		// 5.2 escalates to session reset only an UPDATE that "does contain path attributes
+		// other than MP_UNREACH_NLRI and doesn't encode any reachable NLRI", so the two
+		// shapes part: MP_UNREACH_NLRI alone stays treat-as-withdraw, and the same NLRI
+		// beside ORIGIN, AS_PATH and LOCAL_PREF resets the session.
+		// RFC requirement: RFC9830-5-2 positive -- a walkable malformed NLRI (13 octets under AFI 1) in an UPDATE whose only attribute is MP_UNREACH_NLRI is handled as treat-as-withdraw through processMessage: the session stays Established and nothing is dispatched
+		// RFC requirement: RFC7606-5.2-1 negative -- an UPDATE whose only attribute is MP_UNREACH_NLRI is not escalated to session reset by a walkable malformed NLRI, while the same NLRI beside ORIGIN, AS_PATH and LOCAL_PREF with no reachable NLRI resets the session with NOTIFICATION 3/1
+		alone := srReceiveBody(v4, nil, srNLRI(104, 13, addPath, 1), false)
+		gotAlone := srReceive(t, addPath, alone)
+		srRequireWithdrawn(t, "MP_UNREACH alone 13 octets", gotAlone, alone)
+		if len(gotAlone.dispatched) != 0 {
+			t.Fatalf("ADD-PATH=%v: MP_UNREACH alone 13 octets dispatched %x, want nothing", addPath, gotAlone.dispatched)
+		}
 		srRequireReset(t, "MP_UNREACH with other attributes 13 octets",
 			srReceive(t, addPath, srReceiveBody(v4, nil, srNLRI(104, 13, addPath, 1), true)))
 	}
