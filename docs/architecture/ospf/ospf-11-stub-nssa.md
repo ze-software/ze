@@ -55,8 +55,11 @@ and Type 7 to Type 5 translation.
   live interface states. An interface that has gone Down cannot supply the
   replacement forwarding address. The periodic pass retries re-origination
   delayed by MinLSInterval; withdrawal removes the intent so a later interface
-  event cannot resurrect it.
+  event cannot resurrect it. A replay whose Type-5 or Type-7 body is unchanged
+  originates no new instance and floods nothing (RFC 2328 Section 12.4), so a
+  commit that does not touch redistribution leaves the external LSAs alone.
   <!-- source: internal/plugins/ospf/redist_wiring.go -- externalInterfaces, reconcileExternalImports -->
+  <!-- source: internal/plugins/ospf/lsdb/origination.go -- existingSelfBodyUnchanged -->
 - **The translator election is computed locally** from the NSSA Router-LSAs
   whose flags carry BOTH the B-bit and the RFC 3101 Nt-bit, and whose originator
   the NSSA's last completed SPF run reaches, so a stale or partitioned
