@@ -75,7 +75,17 @@ func (s *stubBackend) SetupMirror(_, _ string, _, _ bool) error  { return unsupp
 func (s *stubBackend) RemoveMirror(_ string) error               { return unsupported() }
 func (s *stubBackend) ListMirrors() ([]iface.MirrorState, error) { return nil, unsupported() }
 func (s *stubBackend) SetupLCPPair(_, _ string) error            { return unsupported() }
-func (s *stubBackend) RemoveLCPPair(_ string) error              { return unsupported() }
-func (s *stubBackend) StartMonitor(_ ze.EventBus) error          { return unsupported() }
-func (s *stubBackend) StopMonitor()                              {}
-func (s *stubBackend) Close() error                              { return nil }
+
+// ReplaceIPv6RPF has nothing to do for an empty set and refuses a real one,
+// because this platform has no dataplane to enforce it.
+func (s *stubBackend) ReplaceIPv6RPF(checks []iface.IPv6RPFCheck) error {
+	if len(checks) == 0 {
+		return nil
+	}
+	return unsupported()
+}
+
+func (s *stubBackend) RemoveLCPPair(_ string) error     { return unsupported() }
+func (s *stubBackend) StartMonitor(_ ze.EventBus) error { return unsupported() }
+func (s *stubBackend) StopMonitor()                     {}
+func (s *stubBackend) Close() error                     { return nil }

@@ -2812,14 +2812,35 @@ interface {
 }
 ```
 
-IPv6 `rpf-check` is accepted in config but only enforced with the VPP data plane.
-On Linux without VPP, a warning is logged and the setting has no effect.
+Linux has no IPv6 `rp_filter` sysctl, so IPv6 `rpf-check` is an nftables fib
+lookup in prerouting instead. Ze owns one table for it, `ip6 ze_iface_rpf`, and
+rebuilds it whole on every interface commit: each checked interface is a member
+of the `strict` or `loose` set, and a unit whose leaf, unit or interface leaves
+the config leaves the set with it. With no IPv6 `rpf-check` left, the table is
+deleted.
+
+| Value | nftables rule | Behavior |
+|-------|---------------|----------|
+| `disable` | none | No source address validation |
+| `strict` | `iifname @strict fib saddr . iif oif missing counter drop` | Drop a packet whose source does not route back through the arrival interface |
+| `loose` | `iifname @loose fib saddr oif missing counter drop` | Drop a packet whose source has no route at all; a default route counts |
+
+Two sources are accepted before either check: link-local (`fe80::/10`) and the
+unspecified address (`::`). Neighbor discovery, duplicate address detection
+and DHCPv6 send from them, and a router never forwards them. `nft list table
+ip6 ze_iface_rpf` shows the sets and the drop counters.
+
+IPv6 `rpf-check` is implemented on the netlink backend only. With `backend vpp`
+a commit that sets it is refused, naming the leaf, because VPP forwards outside
+the Linux netfilter path and Ze programs no VPP source check.
 
 The legacy `rp-filter 0|1|2` integer syntax is still accepted for backward
 compatibility but emits a deprecation warning. Use `rpf-check` in new configs.
 
 <!-- source: internal/component/iface/config.go -- parseIPv4Settings, parseIPv6Settings, rpfMode -->
 <!-- source: internal/component/iface/config_sysctl.go -- applySysctl -->
+<!-- source: internal/component/iface/rpf6.go -- desiredIPv6RPF -->
+<!-- source: internal/plugins/iface/netlink/rpf_linux.go -- ReplaceIPv6RPF, rpfDropExprs, rpfExemptRules -->
 
 ### IPv6 Router Advertisements
 

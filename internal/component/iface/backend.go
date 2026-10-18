@@ -247,6 +247,14 @@ type Backend interface {
 	// destination the operator deleted.
 	ListMirrors() ([]MirrorState, error)
 
+	// ReplaceIPv6RPF makes checks the complete set of IPv6 reverse-path checks
+	// the dataplane enforces, one per interface. Every check not in the slice
+	// is removed, so an empty slice removes them all. The whole set is passed
+	// on every apply, never a delta: a delta cannot remove the check of an
+	// interface that left the configuration while ze was down, and an
+	// incremental rule set is how a removed interface keeps a stale check.
+	ReplaceIPv6RPF(checks []IPv6RPFCheck) error
+
 	// SetupLCPPair creates a Linux Control Plane pair for a VPP interface: a
 	// Linux TAP that shadows the named VPP interface so kernel networking (the
 	// ze BGP listener, ssh, ...) can bind on it. hostName is the desired Linux

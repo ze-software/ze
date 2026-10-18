@@ -50,6 +50,8 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | | DHCPv6 (SARR, IA_NA, IA_PD) | have | |
 | | Concurrent v4+v6 | have | |
 | | Direct netlink install | have | |
+| | DHCPv4 address lifetime equals the lease, renewed with it; an infinite lease (0xffffffff) installs as infinite and is not renewed | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- v4AddressLifetime, holdInfiniteV4, v4RenewalTimes --> |
+| | DHCPv4 lease registered as leased, so a commit keeps it; `iface-dhcp` refuses to run as an external plugin, because the registry is a same-process call | have | <!-- source: internal/plugins/iface/dhcp/register.go -- runDHCPPlugin --> |
 | | Bus events (acquired/renewed/expired) | have | |
 | | Config-driven (`dhcp { enabled true }`) | have | |
 | | Default route from DHCP Router option | have | |
@@ -78,7 +80,7 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | | IPv6 forwarding | have | |
 | | Proxy ARP | have | |
 | | ARP announce / ARP ignore | have | |
-| | RPF / source validation | have | |
+| | RPF / source validation (IPv4 `rp_filter` sysctl; IPv6 nftables fib lookup in `ip6 ze_iface_rpf`, netlink backend only) | have | |
 | | TCP MSS clamping (v4+v6) | missing | medium |
 | | Directed broadcast | missing | lower |
 | **IPv6 Extended** | EUI-64 address generation | missing | medium |
@@ -290,13 +292,27 @@ device appears, and a config is validated on machines that will never run it.
   connect and owned-address change reconciles each enabled unit: it adds the addresses
   the config and the owned-address registry name, and removes the other addresses on the
   unit, such as one an operator added by hand or one a dropped config line left behind.
-  Three kinds stay in place. An address with a finite valid lifetime stays: a DHCPv4 or
-  DHCPv6 lease, or a SLAAC address. Its client renews it and the kernel expires it. An IPv6
-  link-local address the replaced config did not name stays, because the kernel generates
-  one on every IPv6 link (RFC 4291 Section 2.1). A link-local the operator configured and
-  then dropped is removed. A DHCPv4 lease with an infinite lifetime is permanent in the
-  kernel, the same as a static address, so the reconcile removes it.
+  Three kinds stay in place. A DHCPv4 lease stays because its client registers it as
+  leased while it holds it, finite or infinite: an infinite lease (RFC 2131 lease time
+  0xffffffff) is installed with the kernel's infinite lifetime, which makes it permanent like
+  a static address, so only the registration tells the two apart. The reconcile never
+  installs a leased address and never changes its lifetime, so a lease its client removed
+  is not put back. An address with a finite valid lifetime stays: a SLAAC address, or a
+  DHCPv6 lease, which its client does not register. Its owner renews it and the kernel
+  expires it. An IPv6 link-local address the replaced config did not name stays, because the
+  kernel generates one on every IPv6 link (RFC 4291 Section 2.1). A link-local the operator
+  configured and then dropped is removed. A DHCPv6 lease with an infinite lifetime is
+  permanent in the kernel and unregistered, so the reconcile still removes it.
 <!-- source: internal/component/iface/config_apply.go -- reconcileOnReadyWithJournal, learnedAddrSet, addrLearned -->
+<!-- source: internal/component/iface/address_owner.go -- RegisterLeasedAddresses, leasedAddressSet -->
+<!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- handleV4Lease, v4AddressLifetime, removeV4Addr -->
+- **A VLAN unit carries its parent's MTU.** A unit has no `mtu` leaf, so every
+  commit sets each VLAN sub-interface of an ethernet entry with an `mtu` to that
+  MTU, and a VLAN already at it gets no call. Neither backend does it alone: Linux
+  gives a VLAN its parent's MTU when it is created and keeps it when the parent's
+  later rises (it caps it when the parent's falls), and VPP creates a sub-interface
+  with no MTU of its own. An entry with no `mtu` leaf leaves its VLANs alone.
+<!-- source: internal/component/iface/config_apply.go -- applyConfig, applyVLANMTU -->
 - **Make-before-break.** Migration adds new address, waits for BGP readiness, then removes old.
   Prevents session loss during address moves.
 - **Same-subnet renumbers keep working.** Because the new address is added first, a renumber
@@ -1010,7 +1026,7 @@ underlying mechanism. Cells with a footnote carry a caveat.
 | | `ListKernelRoutes` | real | err [3] | err |
 | **Link state** | `SetAdminUp` | real | real (SwInterfaceSetFlags) | err |
 | | `SetAdminDown` | real | real (SwInterfaceSetFlags) | err |
-| **Properties** | `SetMTU` | real | real (SwInterfaceSetMtu) | err |
+| **Properties** | `SetMTU` | real | real (HwInterfaceSetMtu, then SwInterfaceSetMtu) | err |
 | | `SetMACAddress` | real | real (SwInterfaceSetMacAddress) | err |
 | | `GetMACAddress` | real | real (via SwInterfaceDump) | err |
 | | `GetStats` | real | err (pending GoVPP stats API) | err |
@@ -1126,6 +1142,20 @@ dataplane was last told. Nothing retries it on a timer: only a VPP restart
 its name map, then performs a deferred apply or reconciles the addresses.
 
 <!-- source: internal/component/iface/config_apply.go -- applyConfig, applyOwedConfig, reconcileOnVPPConnected, reconcileOnVPPReady -->
+
+An MTU on a NIC goes to its link first (`hw_interface_set_mtu`), which hands
+the frame size to the driver, so a NIC that takes no larger frame refuses it and
+the commit fails naming the interface, the asked MTU, the link MTU VPP reports
+and the `set interface ethernet <name> mtu <link MTU>` command that fits it. VPP
+then writes the new MTU on every sub-interface of that NIC. The protocol MTUs
+(`sw_interface_set_mtu`) follow, with the per-protocol values left at 0 so each
+tracks the L3 MTU. That message alone is never enough: VPP stores it without
+reading the link, so it would accept `mtu 9000` over a NIC capped at 1500. An
+interface whose frame size VPP cannot change (a loopback, a tunnel) takes the
+protocol MTU alone, up to the link MTU it reports, and a sub-interface is bounded
+by its parent's link MTU.
+
+<!-- source: internal/plugins/iface/vpp/mtu.go -- SetMTU, setLinkMTU, setProtocolMTU, linkRefusal -->
 
 Use the VPP backend when VPP owns the dataplane. Use netlink elsewhere.
 Routes, stats, counter reset, neighbour table, mirrors, and STP are the

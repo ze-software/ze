@@ -457,7 +457,8 @@ module ze-iface-conf {
                     description "strict drops a packet whose source address would not be routed back
                                  through this interface. loose drops a packet whose source address has
                                  no route at all. disable performs no source address validation.";
-                    ze:help "Reverse path filtering mode, on the VPP data plane only for IPv6.";
+                    ze:backend "netlink";
+                    ze:help "Reverse path filtering mode, enforced by an nftables fib lookup.";
                 }
 
                 container dhcpv6 {

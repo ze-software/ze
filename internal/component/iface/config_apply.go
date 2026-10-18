@@ -165,10 +165,14 @@ func currentAddrSet(infos []InterfaceInfo) map[string]map[string]bool {
 // not name them, because the kernel or a protocol client installed them and not
 // a config:
 //
-//   - An address with a finite valid lifetime: a DHCPv4 or DHCPv6 lease
-//     (ReplaceAddressWithLifetime) or a SLAAC address. Its owner renews it and
-//     the kernel removes it when the lifetime runs out. A static address Ze
-//     installs from config is permanent, so it never matches.
+//   - An address with a finite valid lifetime: a SLAAC address, or a DHCPv6
+//     lease (ReplaceAddressWithLifetime), which the DHCPv6 client does not
+//     register as leased. Its owner renews it and the kernel removes it when
+//     the lifetime runs out. A static address Ze installs from config is
+//     permanent, so it never matches. A DHCPv4 lease is spared by its
+//     registration instead (RegisterLeasedAddresses), which also covers an
+//     infinite lease the kernel holds as permanent; the reconcile adds the
+//     leased set to this one.
 //   - An IPv6 link-local address that previousAddrs, the desired state of the
 //     config being replaced, does not name. The kernel generates one on every
 //     IPv6 link. One the operator configured and then dropped is in
@@ -1420,6 +1424,18 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 						}
 					}
 				}
+				// The schema has no unit mtu leaf, so a VLAN's MTU is its
+				// parent's configured one. Neither backend keeps the two in
+				// step after creation: Linux leaves an existing VLAN's MTU
+				// alone when the parent's rises (it only caps it when the
+				// parent's falls), and VPP creates a sub-interface with no MTU
+				// of its own. A parent with no mtu leaf gives nothing to follow.
+				if e.MTU > 0 {
+					if err := applyVLANMTU(journal, b, vlanName, e.MTU); err != nil {
+						var bMtu textbuf.Buffer
+						return record(bMtu.Reset().Str(vlanName).Str(" set mtu ").Int(int64(e.MTU)).String(), err)
+					}
+				}
 				osName = vlanName
 			}
 			applySysctl(osName, *u)
@@ -1442,6 +1458,20 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 			applySysctl("lo", *u)
 			applySysctlProfiles("lo", u.SysctlProfiles)
 		}
+	}
+
+	// Phase 2b': Replace the IPv6 reverse-path checks. Linux has no IPv6
+	// rp_filter sysctl, so the IPv4 path above cannot carry them. The whole
+	// set goes to the backend on every apply, so a check whose leaf or
+	// interface left the config is removed here. The undo restores the set the
+	// previous config asked for, bound to this apply's devices.
+	rpf6 := desiredIPv6RPF(cfg, devices)
+	if err := applyBackendStep(journal, func() error {
+		return b.ReplaceIPv6RPF(rpf6)
+	}, func() error {
+		return b.ReplaceIPv6RPF(desiredIPv6RPF(previous, devices))
+	}); err != nil {
+		return record("ipv6 rpf-check", err)
 	}
 
 	// Phase 2c: Bring all non-disabled interfaces administratively UP.
@@ -1583,6 +1613,20 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 		previousAddrs, _, _ = previous.desiredState(previousDevices)
 	}
 	learnedAddrs := learnedAddrSet(currentInfos, previousAddrs)
+	// A leased address (a DHCP lease, address_owner.go) is spared whatever its
+	// lifetime: an infinite lease is permanent in the kernel like a static
+	// address, so only the registry tells it apart. Read after ListInterfaces,
+	// because the client registers before it installs: every lease this
+	// listing holds is therefore already in the snapshot. The leased set is
+	// never merged into desiredAddrs, so this pass never installs one.
+	for osName, leased := range leasedAddressSet() {
+		if learnedAddrs[osName] == nil {
+			learnedAddrs[osName] = make(map[string]bool, len(leased))
+		}
+		for addr := range leased {
+			learnedAddrs[osName][addr] = true
+		}
+	}
 
 	// Owned-device pass (macvlan): create/re-assert/delete plugin-owned
 	// devices from the owned-device registry (device_owner.go) BEFORE the
@@ -1690,6 +1734,29 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 	clearStaleIfaces(staleNames)
 
 	return errs, false
+}
+
+// applyVLANMTU sets the VLAN sub-interface vlanName to its parent's configured
+// mtu, and records the undo that writes the VLAN's previous MTU back. A VLAN
+// already at mtu gets no call. A VLAN whose MTU cannot be read is set anyway,
+// with no undo, the same way the parent's own MTU step treats an unreadable
+// device: the configured value is the answer, the read only serves the undo.
+func applyVLANMTU(journal *sdk.Journal, b Backend, vlanName string, mtu int) error {
+	oldMTU := 0
+	if info, err := b.GetInterface(vlanName); err == nil {
+		oldMTU = info.MTU
+	}
+	if oldMTU == mtu {
+		return nil
+	}
+	return applyBackendStep(journal, func() error {
+		return b.SetMTU(vlanName, mtu)
+	}, func() error {
+		if oldMTU <= 0 {
+			return nil
+		}
+		return b.SetMTU(vlanName, oldMTU)
+	})
 }
 
 func applyBackendStep(journal *sdk.Journal, apply, undo func() error) error {
