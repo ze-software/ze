@@ -56,21 +56,23 @@
         "internal/plugins/dhcpserver/options.go::findOption": "f36054253b4e72e8",
         "internal/plugins/dhcpserver/options.go::overloadValue": "04fdec65fc57cbd4"
       },
-      "note": "Re-judged 2026-10-18 (independent auditor, after 57965ea55c). RFC 2131 Section 4.1: \"The 'file' field MUST be interpreted next (if the 'option overload' option indicates that the 'file' field contains DHCP options), followed by the 'sname' field.\" RFC 2132 Section 9.3: \"1 the 'file' field is used to hold options / 2 the 'sname' field is used to hold options / 3 both fields are used to hold options\". The producer is correct: findOption reads file only under 52 = 1 or 3, then sname only under 2 or 3. Overlay mutants: ignoring 52 and walking sname before file red the positive units; walking both fields unconditionally reds the negative unit TestOverloadAbsentFieldsIgnored. Survivor: reading file under 52 = 2 (overload == overloadSname added to the file guard) passes every tagged unit and the FuzzFindOption seeds, because no assertion puts an option in file under value 2 (TestOverloadMalformedFields covers 0, 4, 255 only). The file arm's deciding condition is therefore not discriminated. Fix: in TestOverloadAbsentFieldsIgnored add a packet with 52 = 2 and the requested address in file, assert it is not read, tagged RFC2131-4.1-15 negative, and record that break.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after ef8666639d). RFC 2131 Section 4.1: \"The options in the 'options' field MUST be interpreted first, so that any 'option overload' options may be interpreted.  The 'file' field MUST be interpreted next (if the 'option overload' option indicates that the 'file' field contains DHCP options), followed by the 'sname' field.\" RFC 2132 Section 9.3 values: 1 file, 2 sname, 3 both. findOption reads file only under 52 = 1 or 3, then sname only under 2 or 3. The survivor named by the previous verdict is now killed: ef8666639d adds to TestOverloadAbsentFieldsIgnored a 52=2 packet whose requested address sits in file, asserting it is not read and the request draws a DHCPNAK (tagged negative). Overlay mutants, run under ./le job run: reading file under 52=2 reds that new case (line 197, and the reply turns DHCPACK instead of DHCPNAK at line 204); ignoring 52 reds the positives (TestOverloadFieldsCarryOptions file/sname/both, and line 139); walking sname before file reds TestOverloadInterpretationOrder at line 139 (file copy must win under 52=3). Each field's opening condition and the file-then-sname order are now discriminated in both polarities: 52 absent leaves both unread, 1 leaves sname unread, 2 leaves file unread. Units changed, so this is a fresh judgement, not an upgrade over unchanged units.",
       "requirement_sha": "3dc385e12ba76db1",
       "tests": {
-        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadAbsentFieldsIgnored": "a376d4e4c19a8a7f",
-        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadAbsentFieldsIgnored#2": "a376d4e4c19a8a7f",
-        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadFieldsCarryOptions": "a376d4e4c19a8a7f",
-        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder": "a376d4e4c19a8a7f"
+        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadAbsentFieldsIgnored": "bbf84c53fd06742c",
+        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadAbsentFieldsIgnored#2": "bbf84c53fd06742c",
+        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadAbsentFieldsIgnored#3": "bbf84c53fd06742c",
+        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadFieldsCarryOptions": "bbf84c53fd06742c",
+        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder": "bbf84c53fd06742c"
       },
       "units": {
-        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadAbsentFieldsIgnored": "014c834260e28122",
-        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadAbsentFieldsIgnored#2": "014c834260e28122",
+        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadAbsentFieldsIgnored": "c7d323beccbd61f1",
+        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadAbsentFieldsIgnored#2": "c7d323beccbd61f1",
+        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadAbsentFieldsIgnored#3": "c7d323beccbd61f1",
         "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadFieldsCarryOptions": "dd0f6de4d8f88f1a",
-        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder": "ef3c5f478dc52247"
+        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder": "01839caf9b5f6437"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2131-4.1-3": {
       "note": "positive walks each OFFER/ACK/NAK option by its length octets and requires reaching End (255); negative fills a request's options with 0x01 so it carries no End, and requires the reply to be End-terminated",
@@ -110,15 +112,17 @@
         "internal/plugins/dhcpserver/options.go::findOption": "f36054253b4e72e8",
         "internal/plugins/dhcpserver/options.go::overloadValue": "04fdec65fc57cbd4"
       },
-      "note": "Re-judged 2026-10-18 (independent auditor, after 57965ea55c). RFC 2131 Section 4.1: \"The options in the 'options' field MUST be interpreted first, so that any 'option overload' options may be interpreted.\" findOption walks pkt[240:] first and overloadValue reads option 52 from the options field only; every reader (parseMsgType, parseOptionAddr, parseOptionBytes, parseOptionString) and h.handle go through it. Positive (TestOverloadFieldsCarryOptions): message type and requested address in file/sname under 52=1/2/3 draw a DHCPACK through h.handle. Negative (TestOverloadInterpretationOrder): a 52 planted inside file opens no sname. Overlay mutants: ignoring 52 reds the positive; honoring a 52 found inside file reds the negative; walking file before options, or dropping the options walk, reds TestOverloadInterpretationOrder at its untagged options-first assertion (line 130), so the unit discriminates. Recorded breaks are whole-body panics, which prove reach only; these mutants supply the deciding-logic proof. Claims are no wider than the assertions.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after ef8666639d). RFC 2131 Section 4.1: \"The options in the 'options' field MUST be interpreted first, so that any 'option overload' options may be interpreted.  The 'file' field MUST be interpreted next (if the 'option overload' option indicates that the 'file' field contains DHCP options), followed by the 'sname' field.\" findOption walks pkt[240:] first and overloadValue reads option 52 from the options field only; parseMsgType and parseOptionAddr, and h.handle through them, go through findOption. ef8666639d tags the options-first assertion of TestOverloadInterpretationOrder (options, file and sname each carry option 50 under 52=3; the options copy must win) as positive, so the order clause now has a tagged, discriminating assertion beside TestOverloadFieldsCarryOptions (52 interpreted: 53 and 50 in file/sname under 1/2/3 draw a DHCPACK). Negative unchanged: a 52 planted inside file opens no sname. Overlay mutants on options.go, run under ./le job run: walking file before options reds the newly tagged line 131; ignoring 52 reds TestOverloadFieldsCarryOptions (file, sname, both); honouring a 52 found inside file reds the negative at line 150. Recorded breaks are whole-body panics proving reach; these mutants supply the deciding-logic proof. Claims are no wider than the assertions.",
       "requirement_sha": "c95c5b8e31806109",
       "tests": {
-        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadFieldsCarryOptions": "a376d4e4c19a8a7f",
-        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder": "a376d4e4c19a8a7f"
+        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadFieldsCarryOptions": "bbf84c53fd06742c",
+        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder": "bbf84c53fd06742c",
+        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder#2": "bbf84c53fd06742c"
       },
       "units": {
         "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadFieldsCarryOptions": "dd0f6de4d8f88f1a",
-        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder": "ef3c5f478dc52247"
+        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder": "01839caf9b5f6437",
+        "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder#2": "01839caf9b5f6437"
       },
       "verdict": "enforced"
     },
@@ -127,16 +131,16 @@
         "internal/plugins/dhcpserver/handler.go::extractMAC": "eb6323a629094cf0",
         "internal/plugins/dhcpserver/handler.go::handle": "4e0210ccd271699c"
       },
-      "note": "Re-judged 2026-10-18 (independent auditor, after 57965ea55c). RFC 2131 Section 4.2: \"If the client does not provide a 'client identifier' option, the server MUST use the contents of the 'chaddr' field to identify the client.\" Unchanged by 57965ea55c: the server reads no option 61 and handle keys every message type on extractMAC (pkt[28:28+hlen]); findOption changes only where option 53 and 50 are found. The tagged tests' bodies are unchanged; the unit moved only because the commit deleted the constant block in rfc2131_identity_options_test.go and left its comment line ('BOOTP fixed fields that a server reply leaves unused (RFC 2131 Section 2).') at line 14 heading TestRFC2131ChaddrContentsIdentifyTheClient's doc comment, a stale fragment to delete. Prior discrimination (xid-keyed and partial-chaddr keys go red) still holds.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after ef8666639d). RFC 2131 Section 4.2: \"If the client does not provide a 'client identifier' option, the server MUST use the contents of the 'chaddr' field to identify the client.\" ef8666639d only deletes the stale comment line above TestRFC2131ChaddrContentsIdentifyTheClient that the previous verdict asked removed; no assertion changed. The server reads no option 61 and handle keys every message type on extractMAC (pkt[28:28+hlen]). Overlay mutants on handler.go extractMAC, run under ./le job run: keying on xid reds TestRFC2131ChaddrContentsIdentifyTheClient and TestChaddrIdentifiesClientWithoutClientIdentifier; keying on all but the last chaddr octet reds TestRFC2131ChaddrContentsIdentifyTheClient. Positive (same chaddr, different xid and flags, one client) and negative (one chaddr octet differs, two clients) are distinct assertions.",
       "requirement_sha": "f506c0a20b93a61c",
       "tests": {
-        "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ChaddrContentsIdentifyTheClient": "53ba5163e1a89646",
-        "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ChaddrContentsIdentifyTheClient#2": "53ba5163e1a89646",
+        "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ChaddrContentsIdentifyTheClient": "b5a39ec9f84423c9",
+        "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ChaddrContentsIdentifyTheClient#2": "b5a39ec9f84423c9",
         "internal/plugins/dhcpserver/rfc2131_test.go::TestChaddrIdentifiesClientWithoutClientIdentifier": "8365c04cdfc2a046"
       },
       "units": {
-        "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ChaddrContentsIdentifyTheClient": "44c8d035ef6f68f7",
-        "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ChaddrContentsIdentifyTheClient#2": "44c8d035ef6f68f7",
+        "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ChaddrContentsIdentifyTheClient": "596673e186b3e922",
+        "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ChaddrContentsIdentifyTheClient#2": "596673e186b3e922",
         "internal/plugins/dhcpserver/rfc2131_test.go::TestChaddrIdentifiesClientWithoutClientIdentifier": "d554bfb011c765de"
       },
       "verdict": "enforced"
