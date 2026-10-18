@@ -92,7 +92,7 @@ Then the polarity pair:
 | `weak` | Tagged and green, but cannot fail on non-compliance (a floor assertion, a cascade-confounded buffer, a positive that proves only "no error"). **Report it. Do not leave it silently tagged.** |
 | `wrong` | The test asserts something the RFC does not say. The requirement is not covered and the test is misinformation. |
 | `unimplemented` | The tests are fine; the CODE does not do it. This is a `{gap}`, not a test gap. Requires a `code` map and a `{gap}`/`{not-applicable}` annotation. |
-| `not-applicable` | No reachable code path can satisfy or violate the requirement — it binds a document's authors, another role, or a layer Ze does not implement. Requires NO cited test (`tests` empty or omitted, either is the same state), a `no_code_path` reason in prose, and a `{not-applicable}` annotation on the checklist line. |
+| `not-applicable` | No reachable code path can satisfy or violate the requirement — it binds a document's authors, another role, a layer Ze does not implement, or an optional feature Ze declined. Requires NO cited test (`tests` empty or omitted, either is the same state), a `no_code_path` reason in prose, and a `{not-applicable}` or `{feature-declined}` annotation on the checklist line. |
 
 **The values are a closed enum and `./le rfc check` enforces it.** An unregistered
 word is a parse error, not a novel verdict.

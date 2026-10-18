@@ -1421,7 +1421,7 @@ requires a cited test and both polarities. `weak` (tagged and green but cannot f
 non-compliance), `wrong` (asserts something the RFC does not say), `unimplemented` (the code does
 not comply — needs a `code` map naming the producing function) and `not-applicable` (no reachable
 code path can satisfy or violate it — needs a `no_code_path` reason and an agreeing
-`{not-applicable}` annotation) each subtract the requirement from the published **proven** count
+`{not-applicable}` or `{feature-declined}` annotation) each subtract the requirement from the published **proven** count
 in `ai/RFC-REQUIREMENTS.md` while still exiting 0.
 
 That split is deliberate. Recording a finding is free and green. Erasing one is red. Two moves

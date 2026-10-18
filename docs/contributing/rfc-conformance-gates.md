@@ -761,6 +761,16 @@ declined`, and it is counted with `{not-applicable}` in the `Out of scope` card:
 neither obligation binds Ze, and the card's own note names both kinds and what
 each one says.
 
+An audit verdict over a `{feature-declined}` line is `not-applicable`, with a
+`no_code_path` reason saying why no Ze path reaches the declined feature.
+`verdictClaims` accepts that verdict over `{not-applicable}` and
+`{feature-declined}` alike, because both say nothing is owed, and
+`./le rfc audit-stamp` applies the same check. Audit coverage is monotonic, so
+a row judged before it was re-annotated keeps a verdict, and this is the one it
+can hold. `unimplemented` stays refused there: it says Ze owes behavior it does
+not deliver, which is the claim the annotation denies.
+<!-- source: internal/le/rfc/check_audit.go -- verdictClaims -->
+
 It cannot take a `{gap}`'s slot, for the reason recorded about `SupersededKind`:
 one checklist line carries ONE disposition, so a line carrying both is refused
 rather than silently relabeled.

@@ -113,7 +113,7 @@ func verdictClaims(rfc, rid string, verdict map[string]any, req Requirement, fou
 		}
 		if len(recordedMap(verdict, fingerprintTests)) == 0 {
 			var tb textbuf.Buffer
-			errs = append(errs, tb.Str(rel).Str(" is 'enforced' with an empty 'tests' map. 'enforced' means the tests would fail if the code stopped complying, so it must cite at least one. If no reachable code path could satisfy or violate the requirement, the honest verdict is 'not-applicable' with a 'no_code_path' reason and an agreeing {not-applicable} annotation").String())
+			errs = append(errs, tb.Str(rel).Str(" is 'enforced' with an empty 'tests' map. 'enforced' means the tests would fail if the code stopped complying, so it must cite at least one. If no reachable code path could satisfy or violate the requirement, the honest verdict is 'not-applicable' with a 'no_code_path' reason and an agreeing {not-applicable} or {feature-declined} annotation").String())
 		}
 		if req.Annotation == nil || req.Annotation.Kind != AnnotationSinglePolarity {
 			var missing []string
@@ -169,10 +169,17 @@ func verdictClaims(rfc, rid string, verdict map[string]any, req Requirement, fou
 			if req.Annotation.Kind == AnnotationNotApplicable {
 				return errs
 			}
+			// {feature-declined} is the other exclusion this verdict agrees with:
+			// the obligation is conditional on a feature the RFC makes optional and
+			// Ze declined, so no reachable path can satisfy or violate it.
+			// checkFeatureDeclined holds that line's quote and producer.
+			if req.Annotation.Kind == AnnotationFeatureDeclined {
+				return errs
+			}
 			kind = tb.Byte('{').Str(req.Annotation.Kind).Byte('}').String()
 		}
 		errs = append(errs, tb.Reset().Str(rel).Str(" is 'not-applicable' but ").Str(req.Source).Byte(':').Int(int64(req.Line)).
-			Str(" carries ").Str(kind).Str(". Two committed facts must agree, so this verdict is legal only over a {not-applicable} checklist line -- the audit record cannot reclassify a requirement on its own").String())
+			Str(" carries ").Str(kind).Str(". Two committed facts must agree, so this verdict is legal only over a {not-applicable} or {feature-declined} checklist line -- the audit record cannot reclassify a requirement on its own").String())
 	}
 	return errs
 }
