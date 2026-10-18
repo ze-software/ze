@@ -364,7 +364,10 @@ func (b *vppBackendImpl) CreateVLAN(spec iface.VLANSpec) error {
 
 	if len(spec.IngressQoSMap) > 0 || len(spec.EgressQoSMap) > 0 {
 		if err := b.enableVLANQoS(subIdx, spec); err != nil {
-			return fmt.Errorf("ifacevpp: %s qos: %w", subName, err)
+			// Deleted for the reason the MTU step above deletes it: left
+			// behind, the existing interface would turn the failed create
+			// into a green commit with the QoS maps not applied.
+			return errors.Join(fmt.Errorf("ifacevpp: %s qos: %w", subName, err), b.DeleteInterface(subName))
 		}
 	}
 	b.emitCreated(subName, "vlan", subIdx)

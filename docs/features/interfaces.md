@@ -1206,7 +1206,9 @@ it up again fails the commit saying so.
 A VLAN sub-interface Ze creates in VPP takes its parent's MTU: VPP creates it with
 an MTU of 0, which it reads as 9000, so without this a parent with no `mtu` leaf
 at 1500 would carry a 9000 VLAN. A sub-interface whose MTU VPP refuses is deleted
-and the create fails.
+and the create fails. So is one whose `ingress-qos-map` or `egress-qos-map` VPP
+refuses to program: left in place, the existing VLAN would let the commit succeed
+with its QoS maps not applied.
 
 Ze sets no MTU on a linux-cp tap itself. With `lcp sync` true, the default, VPP's
 linux-cp copies every MTU change of a paired interface to its tap, on the VPP
