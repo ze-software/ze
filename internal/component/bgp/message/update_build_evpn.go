@@ -48,7 +48,26 @@ type EVPNParams struct {
 
 	// CLUSTER_LIST (RFC 4456).
 	ClusterList []uint32
+
+	// RedundancyMode is the multihoming mode the operator asked an Ethernet
+	// A-D per ES route to signal. Unspecified leaves the ESI Label's own
+	// Single-Active flag as the statement of the mode.
+	RedundancyMode EVPNRedundancyMode
 }
+
+// EVPNRedundancyMode is the multihoming redundancy mode an originated
+// Ethernet A-D per ES route signals in its ESI Label extended community.
+type EVPNRedundancyMode uint8
+
+const (
+	// EVPNRedundancyUnspecified means the operator named no mode, so the
+	// Single-Active flag of the configured ESI Label states it.
+	EVPNRedundancyUnspecified EVPNRedundancyMode = iota
+	// EVPNRedundancyAllActive is RFC 7432 All-Active redundancy mode.
+	EVPNRedundancyAllActive
+	// EVPNRedundancySingleActive is RFC 7432 Single-Active redundancy mode.
+	EVPNRedundancySingleActive
+)
 
 // BuildEVPN builds an UPDATE message for EVPN routes (AFI=25, SAFI=70).
 //
@@ -66,7 +85,7 @@ func (ub *UpdateBuilder) BuildEVPN(p EVPNParams) (*Update, error) {
 	if p.NextHop.IsMulticast() {
 		return nil, fmt.Errorf("%w: multicast next hop", ErrEVPNOrigination)
 	}
-	if err := ValidateEVPNOrigination(p.NLRI, p.ExtCommunityBytes, false); err != nil {
+	if err := ValidateEVPNOriginationMode(p.NLRI, p.ExtCommunityBytes, false, p.RedundancyMode); err != nil {
 		return nil, err
 	}
 	ub.resetScratch()
@@ -181,9 +200,18 @@ func (ub *UpdateBuilder) buildMPReachEVPN(p EVPNParams) *rawAttribute {
 	}
 }
 
-// ValidateEVPNOrigination checks requirements on locally originated EVPN routes.
-// It does not apply sender constraints to received routes or withdrawals.
+// ValidateEVPNOrigination checks requirements on locally originated EVPN routes
+// whose producer carries no redundancy mode: the ESI Label's Single-Active
+// flag then states the mode. It does not apply sender constraints to received
+// routes or withdrawals.
 func ValidateEVPNOrigination(nlris, extCommunities []byte, addPath bool) error {
+	return ValidateEVPNOriginationMode(nlris, extCommunities, addPath, EVPNRedundancyUnspecified)
+}
+
+// ValidateEVPNOriginationMode checks requirements on locally originated EVPN
+// routes, and checks every Ethernet A-D per ES route's ESI Label against the
+// redundancy mode the operator asked for.
+func ValidateEVPNOriginationMode(nlris, extCommunities []byte, addPath bool, mode EVPNRedundancyMode) error {
 	if len(extCommunities)%8 != 0 {
 		return fmt.Errorf("%w: incomplete extended community", ErrEVPNOrigination)
 	}
@@ -235,6 +263,10 @@ func ValidateEVPNOrigination(nlris, extCommunities []byte, addPath bool) error {
 				if !hasESILabel {
 					return fmt.Errorf("%w: Ethernet A-D per ES requires an ESI Label extended community", ErrEVPNOrigination)
 				}
+				// RFC 7432 Section 8.2.1
+				if err := checkESILabelRedundancy(extCommunities, mode); err != nil {
+					return err
+				}
 				if !hasRT {
 					return fmt.Errorf("%w: Ethernet A-D per ES requires a route target", ErrEVPNOrigination)
 				}
@@ -261,6 +293,95 @@ func ValidateEVPNOrigination(nlris, extCommunities []byte, addPath bool) error {
 			}
 		}
 		nlris = nlris[size:]
+	}
+	return nil
+}
+
+// esiLabelSingleActive is the Single-Active bit of the ESI Label Flags octet,
+// at bit 40 of the community read as one big-endian 64-bit value.
+const esiLabelSingleActive = uint64(1) << 40
+
+// esiLabelReservedMax is the highest reserved MPLS label value.
+//
+// RFC 3032 Section 6: "Label values 0-15 inclusive have special meaning, as
+// specified in this document, or as further assigned by IANA." A valid ESI
+// label is therefore above this value.
+const esiLabelReservedMax = 15
+
+// checkESILabelRedundancy checks each ESI Label extended community of an
+// Ethernet A-D per ES route against the redundancy mode it signals.
+//
+// RFC 7432 Section 7.5, ESI Label extended community (8 octets):
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	| Type=0x06     | Sub-Type=0x01 | Flags(1 octet)|  Reserved=0   |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|  Reserved=0   |          ESI Label                            |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+//	octet 0 type, 1 sub-type, 2 flags (bit 0 Single-Active), 3-4 reserved,
+//	5-7 ESI Label: the label value is the high-order 20 bits, as RFC 7432
+//	Section 7.2 encodes its three-octet MPLS label fields.
+//
+// RFC 7432 Section 7.5: "The low-order bit of the Flags octet is defined as
+// the "Single-Active" bit.  A value of 0 means that the multihomed site is
+// operating in All-Active redundancy mode, and a value of 1 means that the
+// multihomed site is operating in Single-Active redundancy mode."
+//
+// RFC 7432 Section 8.2.1: "If All-Active redundancy mode is desired, then the
+// "Single-Active" bit in the flags of the ESI Label extended community MUST be
+// set to 0 and the MPLS label in that Extended Community MUST be set to a valid
+// MPLS label value."
+//
+// RFC 7432 Section 8.2.1: "If Single-Active redundancy mode is desired, then
+// the "Single-Active" bit in the flags of the ESI Label extended community MUST
+// be set to 1 and the ESI label SHOULD be set to a valid MPLS label value."
+// The SHOULD is not enforced: a Single-Active ESI Label keeps any label.
+func checkESILabelRedundancy(extCommunities []byte, mode EVPNRedundancyMode) error {
+	for off := 0; off+8 <= len(extCommunities); off += 8 {
+		ec := extCommunities[off : off+8]
+		if ec[0] != 6 {
+			continue
+		}
+		if ec[1] != 1 {
+			continue
+		}
+		value := binary.BigEndian.Uint64(ec)
+		singleActive := value&esiLabelSingleActive != 0
+		switch mode {
+		case EVPNRedundancyUnspecified:
+			// The flag states the mode the operator wants.
+		case EVPNRedundancyAllActive:
+			if singleActive {
+				return fmt.Errorf("%w: redundancy-mode all-active needs the ESI Label Single-Active flag at 0, "+
+					"but extended community 0x%016x sets it to 1 (RFC 7432 Section 8.2.1); "+
+					"use extended community 0x%016x, or set redundancy-mode single-active",
+					ErrEVPNOrigination, value, value&^esiLabelSingleActive)
+			}
+		case EVPNRedundancySingleActive:
+			if !singleActive {
+				return fmt.Errorf("%w: redundancy-mode single-active needs the ESI Label Single-Active flag at 1, "+
+					"but extended community 0x%016x sets it to 0 (RFC 7432 Section 8.2.1); "+
+					"use extended community 0x%016x, or set redundancy-mode all-active",
+					ErrEVPNOrigination, value, value|esiLabelSingleActive)
+			}
+		default:
+			return fmt.Errorf("%w: unknown redundancy mode %d; use all-active or single-active",
+				ErrEVPNOrigination, mode)
+		}
+		if singleActive {
+			continue
+		}
+		label := uint32(ec[5])<<12 | uint32(ec[6])<<4 | uint32(ec[7])>>4
+		if label <= esiLabelReservedMax {
+			return fmt.Errorf("%w: All-Active mode needs a valid MPLS label in the ESI Label, "+
+				"but extended community 0x%016x carries label %d, a reserved value from 0 to 15 (RFC 7432 Section 8.2.1); "+
+				"put a label from 16 to 1048575 in the high-order 20 bits of its last three octets, "+
+				"for example extended community 0x%016x for label 16",
+				ErrEVPNOrigination, value, label, value&^0xffffff|16<<4)
+		}
 	}
 	return nil
 }

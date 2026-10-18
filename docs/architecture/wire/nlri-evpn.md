@@ -345,6 +345,24 @@ extended community, and at least one Route Target. IMET advertisements require
 at least one Route Target. Ethernet Segment advertisements require a Type 1 RD
 and the dedicated ES-Import Route Target (`0x06/0x02`) specified by RFC 7432
 Section 8.1.1; neither an ordinary Route Target nor an ESI Label substitutes for it.
+
+An Ethernet A-D per-ES route also has its ESI Label checked against the
+redundancy mode it signals (RFC 7432 Section 8.2.1). The route keyword
+`redundancy-mode all-active` or `redundancy-mode single-active` states the mode
+the operator wants, and it is accepted only on an `ethernet-ad` route with
+`etag 4294967295`. Ze checks the ESI Label you supply against that mode. It
+does not write the Label for you.
+
+| Mode | Single-Active flag (low bit of octet 2) | ESI label (high-order 20 bits of octets 5 to 7) |
+|------|------------------------------------------|--------------------------------------------------|
+| `all-active` | must be 0 | must be a valid MPLS label, 16 to 1048575 (RFC 3032 Section 6 reserves 0 to 15) |
+| `single-active` | must be 1 | any value (the RFC says SHOULD be valid, and Ze does not enforce it) |
+| keyword omitted | states the mode | checked as `all-active` when the flag is 0 |
+
+The keyword exists in the route command and in native configuration. A path
+that validates NLRI bytes with no mode attached, such as a locally built API
+batch, lets the flag state the mode, as in the last row. Each refusal names the
+community, the reason, and the corrected community value.
 The route-command builder also rejects an empty NLRI and requires an explicit
 unicast next hop. Missing, unspecified, and multicast next hops are refused
 before any UPDATE is built. Native configuration preserves `next-hop self`
@@ -382,7 +400,7 @@ update {
         extended-community [ target:65000:100 0x0601000000001000 ];
     }
     nlri {
-        l2vpn/evpn add ethernet-ad rd 192.0.2.1:7 esi 00:01:02:03:04:05:06:07:08:09 etag 4294967295;
+        l2vpn/evpn add ethernet-ad rd 192.0.2.1:7 esi 00:01:02:03:04:05:06:07:08:09 etag 4294967295 redundancy-mode all-active;
     }
 }
 ```
@@ -400,6 +418,8 @@ before any bytes are written (RFC 9252 Section 6).
 
 <!-- source: internal/component/bgp/plugins/nlri/evpn/encode.go -- EncodeRoute -->
 <!-- source: internal/component/bgp/message/update_build_evpn.go -- ValidateEVPNOrigination -->
+<!-- source: internal/component/bgp/message/update_build_evpn.go -- checkESILabelRedundancy -->
+<!-- source: internal/component/bgp/plugins/nlri/evpn/encode.go -- parseL2VPNArgs -->
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- ParseUpdateText -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/config.go -- parseConfigRoute -->
 <!-- source: internal/component/bgp/reactor/evpn_origination.go -- validateQueuedEVPNOrigin -->

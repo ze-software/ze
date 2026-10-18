@@ -1,0 +1,58 @@
+# Two Ethernet A-D per ES routes from native configuration, one per
+# redundancy-mode. RFC 7432 Section 8.2.1: All-Active sends the ESI Label
+# Single-Active flag at 0 with a valid MPLS label, Single-Active sends it at 1.
+# VALIDATES: the redundancy-mode keyword is accepted through the config path and
+# each ESI Label reaches the wire byte for byte beside its Route Target.
+# PREVENTS: the mode check refusing a conforming route, or the route losing
+# its ESI Label on the way to the peer.
+#
+# EXT_COMMUNITIES C0 10 10: target:65000:100 (0002FDE800000064) then the ESI
+# Label 06 01 <flags> 0000 <label:3>; label 256 is 001000 (high-order 20 bits).
+# MP_REACH NLRI: type 01 len 19, RD 0001 C0000201 0007, ESI, MAX-ET FFFFFFFF,
+# NLRI label 000000.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+# All-Active: ESI ...09, ESI Label flag 00, label 256.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005F02000000484001010040020040050400000064800E2400194604C00002010001190001C0000201000700010203040506070809FFFFFFFF000000C010100002FDE8000000640601000000001000
+# Single-Active: ESI ...0A, ESI Label flag 01, label 256.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005F02000000484001010040020040050400000064800E2400194604C00002010001190001C000020100070001020304050607080AFFFFFFFF000000C010100002FDE8000000640601010000001000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4
+			family { l2vpn/evpn { prefix { maximum 10000; } } }
+		}
+		behavior { group-updates disable; }
+		update {
+			attribute {
+				origin igp
+				next-hop 192.0.2.1
+				extended-community [ target:65000:100 0x0601000000001000 ]
+			}
+			nlri { l2vpn/evpn add ethernet-ad rd 192.0.2.1:7 esi 00:01:02:03:04:05:06:07:08:09 etag 4294967295 redundancy-mode all-active; }
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 192.0.2.1
+				extended-community [ target:65000:100 0x0601010000001000 ]
+			}
+			nlri { l2vpn/evpn add ethernet-ad rd 192.0.2.1:7 esi 00:01:02:03:04:05:06:07:08:0a etag 4294967295 redundancy-mode single-active; }
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-nlri-evpn -:stdin=ze-bgp:timeout=10s

@@ -47,8 +47,13 @@ var scenarioExtras = map[string][]operation{
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON}, contains: []string{"l2VpnEvpn", frrCapabilityNegotiated}},
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp l2vpn evpn"}, contains: []string{"00:11:22:33:44:55", "00:11:22:33:44:66"}, timeout: 30 * time.Second},
 	},
+	// RFC 7432 Section 8.2.1: the two configured Ethernet A-D per ES routes
+	// reach GoBGP with the ESI Label each redundancy-mode requires. GoBGP
+	// renders the three label octets as one 24-bit value: 001000 is 4096 and
+	// 002000 is 8192.
 	scenarioEVPNGoBGP: {
-		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", "evpn", "-j"}, contains: []string{"00:11:22:33:44:55", "00:11:22:33:44:66"}, timeout: 30 * time.Second},
+		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", "evpn", "-j"}, contains: []string{"00:11:22:33:44:55", "00:11:22:33:44:66",
+			`"subtype":1,"label":4096,"is_single_active":false`, `"subtype":1,"label":8192,"is_single_active":true`}, timeout: 30 * time.Second},
 	},
 	// RFC 9830 origination: both policies arrive with their NLRI fields, the
 	// Binding SID label at the top of the 20-bit range and both Type A segment

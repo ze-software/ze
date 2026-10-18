@@ -1,0 +1,128 @@
+# Test: EVPN Ethernet A-D per ES redundancy-mode at config load
+# VALIDATES: a per-ES Ethernet A-D route whose ESI Label contradicts its
+#            redundancy-mode, or whose All-Active ESI label is a reserved MPLS
+#            label, is refused at load with the community, the reason and the
+#            corrected community named; the same route with flag 0 and label 16
+#            (0x0601000000000100) validates.
+# PREVENTS: originating an ESI Label that signals a redundancy mode the operator
+#           did not ask for, or an All-Active ESI label that is not a valid label.
+# RFC 7432 Section 8.2.1: "If All-Active redundancy mode is desired, then the
+# "Single-Active" bit in the flags of the ESI Label extended community MUST be set
+# to 0 and the MPLS label in that Extended Community MUST be set to a valid MPLS
+# label value." RFC 3032 Section 6: "Label values 0-15 inclusive have special
+# meaning".
+
+stdin=flagset:terminator=EOF_FLAGSET
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			router-id 192.0.2.1
+			family { l2vpn/evpn { prefix { maximum 10000; } } }
+		}
+		update {
+			attribute {
+				next-hop 192.0.2.1
+				extended-community [ target:65000:100 0x0601010000001000 ]
+			}
+			nlri {
+				l2vpn/evpn add ethernet-ad rd 192.0.2.1:7 esi 00:01:02:03:04:05:06:07:08:09 etag 4294967295 redundancy-mode all-active
+			}
+		}
+	}
+}
+EOF_FLAGSET
+
+stdin=reserved:terminator=EOF_RESERVED
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			router-id 192.0.2.1
+			family { l2vpn/evpn { prefix { maximum 10000; } } }
+		}
+		update {
+			attribute {
+				next-hop 192.0.2.1
+				extended-community [ target:65000:100 0x0601000000000000 ]
+			}
+			nlri {
+				l2vpn/evpn add ethernet-ad rd 192.0.2.1:7 esi 00:01:02:03:04:05:06:07:08:09 etag 4294967295 redundancy-mode all-active
+			}
+		}
+	}
+}
+EOF_RESERVED
+
+stdin=flagclear:terminator=EOF_FLAGCLEAR
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			router-id 192.0.2.1
+			family { l2vpn/evpn { prefix { maximum 10000; } } }
+		}
+		update {
+			attribute {
+				next-hop 192.0.2.1
+				extended-community [ target:65000:100 0x0601000000001000 ]
+			}
+			nlri {
+				l2vpn/evpn add ethernet-ad rd 192.0.2.1:7 esi 00:01:02:03:04:05:06:07:08:09 etag 4294967295 redundancy-mode single-active
+			}
+		}
+	}
+}
+EOF_FLAGCLEAR
+
+stdin=valid:terminator=EOF_VALID
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			router-id 192.0.2.1
+			family { l2vpn/evpn { prefix { maximum 10000; } } }
+		}
+		update {
+			attribute {
+				next-hop 192.0.2.1
+				extended-community [ target:65000:100 0x0601000000000100 ]
+			}
+			nlri {
+				l2vpn/evpn add ethernet-ad rd 192.0.2.1:7 esi 00:01:02:03:04:05:06:07:08:09 etag 4294967295 redundancy-mode all-active
+			}
+		}
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=flagset
+expect=exit:code=1
+expect=stdout:contains=redundancy-mode all-active needs the ESI Label Single-Active flag at 0, but extended community 0x0601010000001000 sets it to 1 (RFC 7432 Section 8.2.1); use extended community 0x0601000000001000, or set redundancy-mode single-active
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=reserved
+expect=exit:code=1
+expect=stdout:contains=extended community 0x0601000000000000 carries label 0, a reserved value from 0 to 15 (RFC 7432 Section 8.2.1); put a label from 16 to 1048575 in the high-order 20 bits of its last three octets, for example extended community 0x0601000000000100 for label 16
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=flagclear
+expect=exit:code=1
+expect=stdout:contains=redundancy-mode single-active needs the ESI Label Single-Active flag at 1, but extended community 0x0601000000001000 sets it to 0 (RFC 7432 Section 8.2.1); use extended community 0x0601010000001000, or set redundancy-mode all-active
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=valid
+expect=exit:code=0

@@ -33,7 +33,7 @@ func rfc7432PerESNLRI() []byte {
 var (
 	rfc7432ESImport = []byte{0x06, 0x02, 0, 0x11, 0x22, 0x33, 0x44, 0x55}
 	rfc7432RT       = []byte{0x00, 0x02, 0xfd, 0xe8, 0, 0, 0, 1}
-	rfc7432ESILabel = []byte{0x06, 0x01, 0, 0, 0, 0, 0, 0}
+	rfc7432ESILabel = []byte{0x06, 0x01, 0, 0, 0, 0, 0x10, 0} // All-Active, ESI label 256
 )
 
 func rfc7432Build(t *testing.T, nlri []byte, communities ...[]byte) (*Update, error) {

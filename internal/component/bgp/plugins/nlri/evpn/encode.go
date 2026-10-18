@@ -23,6 +23,11 @@ var (
 	errMissingPrefix             = errors.New("missing prefix")
 )
 
+// fieldRedundancyMode names the route keyword that states the multihoming mode
+// an Ethernet A-D per ES route signals. It is an encode keyword only: the
+// decoded JSON reports the ESI Label community, not the operator's intent.
+const fieldRedundancyMode = "redundancy-mode"
+
 // EncodeRoute encodes an EVPN route command into UPDATE body bytes and NLRI bytes.
 // This implements the InProcessRouteEncoder signature for the plugin registry.
 func EncodeRoute(routeCmd, _ string, localAS uint32, isIBGP, asn4, addPath bool) ([]byte, []byte, error) {
@@ -36,13 +41,13 @@ func EncodeRoute(routeCmd, _ string, localAS uint32, isIBGP, asn4, addPath bool)
 	}
 
 	// Parse using L2VPN argument parser
-	parsed, err := parseL2VPNArgs(args)
+	parsed, mode, err := parseL2VPNArgs(args)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse error: %w", err)
 	}
 
 	// Convert L2VPNRoute to EVPNParams (builds NLRI bytes internally)
-	params, err := l2vpnRouteToEVPNParams(parsed)
+	params, err := l2vpnRouteToEVPNParams(parsed, mode)
 	if err != nil {
 		return nil, nil, fmt.Errorf("conversion error: %w", err)
 	}
@@ -64,11 +69,24 @@ func EncodeRoute(routeCmd, _ string, localAS uint32, isIBGP, asn4, addPath bool)
 // Builds EVPN NLRI bytes internally using NewEVPNType*().
 //
 //nolint:goconst // String literals are clearer for route type matching.
-func l2vpnRouteToEVPNParams(r bgptypes.L2VPNRoute) (message.EVPNParams, error) {
+func l2vpnRouteToEVPNParams(r bgptypes.L2VPNRoute, mode message.EVPNRedundancyMode) (message.EVPNParams, error) {
 	p := message.EVPNParams{
 		NextHop:           r.NextHop,
 		Origin:            attribute.OriginIGP,
 		ExtCommunityBytes: r.ExtCommunityBytes,
+		RedundancyMode:    mode,
+	}
+	if mode != message.EVPNRedundancyUnspecified {
+		// The ESI Label, and so the mode it signals, belongs to the Ethernet
+		// A-D per ES route alone (RFC 7432 Section 8.2.1).
+		if r.RouteType != "ethernet-ad" {
+			return p, errors.New("redundancy-mode applies only to an Ethernet A-D per ES route; " +
+				"remove it, or originate ethernet-ad with etag 4294967295")
+		}
+		if r.EthernetTag != 0xffffffff {
+			return p, errors.New("redundancy-mode applies only to an Ethernet A-D per ES route, " +
+				"whose Ethernet Tag is MAX-ET; set etag 4294967295, or remove redundancy-mode")
+		}
 	}
 	if r.Label1 > 0xfffff {
 		return p, errors.New("EVPN label exceeds 20 bits")
@@ -175,14 +193,15 @@ func parseMAC(s string) ([6]byte, error) {
 // parseL2VPNArgs parses L2VPN/EVPN command arguments for encode command.
 //
 //nolint:goconst // String literals are clearer for route type parsing
-func parseL2VPNArgs(args []string) (bgptypes.L2VPNRoute, error) {
+func parseL2VPNArgs(args []string) (bgptypes.L2VPNRoute, message.EVPNRedundancyMode, error) {
 	var route bgptypes.L2VPNRoute
+	var mode message.EVPNRedundancyMode
 
 	if len(args) < 1 {
-		return route, errMissingRouteType
+		return route, mode, errMissingRouteType
 	}
 	if len(args)%2 == 0 {
-		return route, fmt.Errorf("missing value for %s", args[len(args)-1])
+		return route, mode, fmt.Errorf("missing value for %s", args[len(args)-1])
 	}
 
 	// First argument is route type
@@ -199,7 +218,7 @@ func parseL2VPNArgs(args []string) (bgptypes.L2VPNRoute, error) {
 	case "ethernet-ad", "ead", routeTypeToken1:
 		route.RouteType = "ethernet-ad"
 	default:
-		return route, fmt.Errorf("invalid route type: %s", routeType)
+		return route, mode, fmt.Errorf("invalid route type: %s", routeType)
 	}
 
 	// Parse remaining key-value pairs
@@ -215,7 +234,7 @@ func parseL2VPNArgs(args []string) (bgptypes.L2VPNRoute, error) {
 		case fieldEthernetTag, "etag":
 			n, err := strconv.ParseUint(value, 10, 32)
 			if err != nil {
-				return route, fmt.Errorf("invalid ethernet-tag: %s", value)
+				return route, mode, fmt.Errorf("invalid ethernet-tag: %s", value)
 			}
 			route.EthernetTag = uint32(n)
 		case fieldMAC:
@@ -223,34 +242,34 @@ func parseL2VPNArgs(args []string) (bgptypes.L2VPNRoute, error) {
 		case fieldIP:
 			ip, err := netip.ParseAddr(value)
 			if err != nil {
-				return route, fmt.Errorf("invalid ip: %s", value)
+				return route, mode, fmt.Errorf("invalid ip: %s", value)
 			}
 			route.IP = ip
 		case fieldPrefix:
 			prefix, err := netip.ParsePrefix(value)
 			if err != nil {
-				return route, fmt.Errorf("invalid prefix: %s", value)
+				return route, mode, fmt.Errorf("invalid prefix: %s", value)
 			}
 			route.Prefix = prefix
 		case fieldGateway, "gw":
 			gw, err := netip.ParseAddr(value)
 			if err != nil {
-				return route, fmt.Errorf("invalid gateway: %s", value)
+				return route, mode, fmt.Errorf("invalid gateway: %s", value)
 			}
 			route.Gateway = gw
 		case fieldLabel, "label1":
 			n, err := strconv.ParseUint(value, 10, 32)
 			if err != nil {
-				return route, fmt.Errorf("invalid label: %s", value)
+				return route, mode, fmt.Errorf("invalid label: %s", value)
 			}
 			route.Label1 = uint32(n)
 		case "label2":
 			if route.RouteType != "mac-ip" {
-				return route, errors.New("only MAC/IP advertisements carry a second label")
+				return route, mode, errors.New("only MAC/IP advertisements carry a second label")
 			}
 			n, err := strconv.ParseUint(value, 10, 32)
 			if err != nil {
-				return route, fmt.Errorf("invalid label2: %s", value)
+				return route, mode, fmt.Errorf("invalid label2: %s", value)
 			}
 			route.Label2 = uint32(n)
 		case "extended-community":
@@ -262,33 +281,42 @@ func parseL2VPNArgs(args []string) (bgptypes.L2VPNRoute, error) {
 				ec, err = attribute.ParseSingleExtCommunity(value)
 			}
 			if err != nil {
-				return route, err
+				return route, mode, err
 			}
 			route.ExtCommunityBytes = append(route.ExtCommunityBytes, ec[:]...)
+		case fieldRedundancyMode:
+			switch strings.ToLower(value) {
+			case "all-active":
+				mode = message.EVPNRedundancyAllActive
+			case "single-active":
+				mode = message.EVPNRedundancySingleActive
+			default:
+				return route, mode, fmt.Errorf("invalid redundancy-mode %q: use all-active or single-active", value)
+			}
 		case "next-hop":
 			nh, err := netip.ParseAddr(value)
 			if err != nil {
-				return route, fmt.Errorf("invalid next-hop: %s", value)
+				return route, mode, fmt.Errorf("invalid next-hop: %s", value)
 			}
 			route.NextHop = nh
 
 		default:
-			return route, fmt.Errorf("unknown l2vpn keyword: %s", key)
+			return route, mode, fmt.Errorf("unknown l2vpn keyword: %s", key)
 		}
 	}
 
 	// Validate required fields based on route type
 	if route.RD == "" {
-		return route, errMissingRouteDistinguisher
+		return route, mode, errMissingRouteDistinguisher
 	}
 
 	if route.RouteType == "mac-ip" && route.MAC == "" {
-		return route, errMissingMacAddress
+		return route, mode, errMissingMacAddress
 	}
 
 	if route.RouteType == RouteNameIPPrefix && !route.Prefix.IsValid() {
-		return route, errMissingPrefix
+		return route, mode, errMissingPrefix
 	}
 
-	return route, nil
+	return route, mode, nil
 }

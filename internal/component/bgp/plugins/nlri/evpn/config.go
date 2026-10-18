@@ -15,7 +15,7 @@ import (
 // parseConfigRoute shares the route-command NLRI producer and sender checks.
 // BuildPlugin supplies the session-dependent AS_PATH, LOCAL_PREF and MP_REACH.
 func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, error) {
-	route, err := parseL2VPNArgs(req.Content)
+	route, mode, err := parseL2VPNArgs(req.Content)
 	if err != nil {
 		return registry.PluginRoute{}, err
 	}
@@ -32,11 +32,11 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 	} else {
 		route.ExtCommunityBytes = append(route.ExtCommunityBytes, req.ExtCommunity...)
 	}
-	params, err := l2vpnRouteToEVPNParams(route)
+	params, err := l2vpnRouteToEVPNParams(route, mode)
 	if err != nil {
 		return registry.PluginRoute{}, err
 	}
-	if err := message.ValidateEVPNOrigination(params.NLRI, params.ExtCommunityBytes, false); err != nil {
+	if err := message.ValidateEVPNOriginationMode(params.NLRI, params.ExtCommunityBytes, false, params.RedundancyMode); err != nil {
 		return registry.PluginRoute{}, err
 	}
 
