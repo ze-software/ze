@@ -302,7 +302,7 @@ func (t Translator) Line(line string) (Translation, error) {
 // Each mapping is to a command ze declares, checked against the live registry
 // rather than assumed:
 //
-//	clear adj-rib in|out        -> clear bgp rib in|out       (ze-bgp:rib-clear-in/out)
+//	clear adj-rib in|out        -> clear bgp rib in|out <sel> (ze-bgp:rib-clear-in/out)
 //	flush adj-rib [in|out]      -> request peer <sel> flush   (ze-bgp:peer-flush)
 //	announce watchdog <name>    -> request bgp watchdog announce <name>
 //	withdraw watchdog <name>    -> request bgp watchdog withdraw <name>
@@ -332,8 +332,12 @@ func convertControl(selector, rest string) (Translation, bool) {
 		return Translation{Commands: textCommands("request shutdown"), Selector: selector}, true
 	case len(fields) == 3 && fields[0] == "clear" && fields[1] == "adj-rib" &&
 		(fields[2] == "in" || fields[2] == "out"):
+		// ze refuses `clear bgp rib in|out` without a selector, because the
+		// all-peers effect must be typed. ExaBGP's neighbor-less form means every
+		// peer the process serves, which is what selector already holds
+		// (everyPeer), so the selector is always written into the command.
 		return Translation{
-			Commands: textCommands(tb.Str("clear bgp rib ").Str(fields[2]).String()),
+			Commands: textCommands(tb.Str("clear bgp rib ").Str(fields[2]).Str(" ").Str(selector).String()),
 			Selector: selector,
 		}, true
 	case fields[0] == "flush" && len(fields) >= 2 && fields[1] == "adj-rib":

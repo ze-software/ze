@@ -26,8 +26,8 @@ func TestBridgeTranslatesTheControlVocabulary(t *testing.T) {
 		line string
 		want string
 	}{
-		{"clear adj-rib out", "clear bgp rib out"},
-		{"clear adj-rib in", "clear bgp rib in"},
+		{"clear adj-rib out", "clear bgp rib out *"},
+		{"clear adj-rib in", "clear bgp rib in *"},
 		{"flush adj-rib out", "request peer * flush"},
 		{"announce watchdog dnsr", "request bgp watchdog announce dnsr"},
 		{"withdraw watchdog dnsr", "request bgp watchdog withdraw dnsr"},
@@ -66,6 +66,16 @@ func TestBridgeTranslatesTheControlVocabulary(t *testing.T) {
 	translation, err := TranslateLine("neighbor 10.0.0.1 flush adj-rib out")
 	require.NoError(t, err)
 	assert.Equal(t, "request peer 10.0.0.1 flush", onlyCommand(translation))
+
+	// ze refuses a clear with no selector, so the neighbor-less ExaBGP form,
+	// which means every peer, is written with *, and a neighbor-scoped one with
+	// that neighbor.
+	translation, err = TranslateLine("neighbor 10.0.0.1 clear adj-rib out")
+	require.NoError(t, err)
+	assert.Equal(t, "clear bgp rib out 10.0.0.1", onlyCommand(translation))
+	translation, err = TranslateLine("neighbor 10.0.0.1 clear adj-rib in")
+	require.NoError(t, err)
+	assert.Equal(t, "clear bgp rib in 10.0.0.1", onlyCommand(translation))
 }
 
 // TestAckModeApplyTimesTheSilence pins the one thing the three ack words differ
