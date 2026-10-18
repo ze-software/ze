@@ -294,7 +294,8 @@ func (l *Loader) AddModuleFromFile(path string) error {
 //
 // It also refuses every `pattern` statement compilePattern cannot compile,
 // each wrapping ErrUncompilablePattern, and every structure goyang accepts
-// and RFC 7950 forbids (checkStructure): length parts that overlap or descend
+// and RFC 7950 forbids (checkStructure): an include of a submodule that
+// belongs to another module (ErrIncludeBelongsTo), length parts that overlap or descend
 // (ErrLengthOrder), an enum restriction that departs from its base type
 // (ErrEnumRestriction), a non-YANG statement under an extension
 // (ErrExtensionSubstatement), and a leafref whose path names no leaf, whose

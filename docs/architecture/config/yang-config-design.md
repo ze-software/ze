@@ -126,12 +126,13 @@ exit 1, and `IsDeclaredCommand` returns it rather than `false`, so the
 local-handler lookup refuses the match instead of serving a handler that
 shadows a declared command.
 
-The same two callers refuse four structures RFC 7950 forbids and goyang
-accepts, and the three built-in types whose values Ze cannot check. Each
+The same two callers refuse the structures below, which RFC 7950 forbids and
+goyang accepts, and the three built-in types whose values Ze cannot check. Each
 refusal names the module, the file location and the fault.
 
 | Structure refused | RFC 7950 | Why goyang misses it | Error |
 |-------------------|----------|----------------------|-------|
+| An `include` of a submodule whose `belongs-to` names a module other than the including module, or other than the module the including submodule belongs to | 7.2.2 | it finds an included submodule by its name alone and never reads its `belongs-to` | `ErrIncludeBelongsTo` |
 | A `length` whose parts, in the order written, overlap or descend, with `min` and `max` read as the bounds of the type being restricted | 9.4.4 | it sorts and coalesces the parts before it checks them | `ErrLengthOrder` |
 | An enumeration whose values break Section 9.6.4.2: a value outside int32, a value assigned twice, an enum with no value after one holding 2147483647 | 9.6.4.2 | it checks only an enumeration it resolves, and it resolves none in a grouping no schema node uses | `ErrEnumValue` |
 | An `enum` in a restricted enumeration that the base type does not assign, or whose `value` differs from the base type's | 9.6.4, 9.6.4.2 | it builds the restricted values afresh and never compares them with the base | `ErrEnumRestriction` |
@@ -207,7 +208,7 @@ rather than checked against a guessed span.
 
 <!-- source: internal/component/config/yang/loader.go -- Resolve, checkExtensions, DefaultLoader -->
 <!-- source: internal/component/config/yang/enum_assignment.go -- parseEnumAssignment, assignEnumValues -->
-<!-- source: internal/component/config/yang/loader_structure.go -- checkStructure, restrictedLengthSpan, resolveProduction, extensionSubstatementError -->
+<!-- source: internal/component/config/yang/loader_structure.go -- checkStructure, moduleIncludeErrors, restrictedLengthSpan, resolveProduction, extensionSubstatementError -->
 <!-- source: internal/component/config/yang/loader_reference.go -- checkReferences, checkLeafrefSchema -->
 <!-- source: internal/component/config/yang/reference_path.go -- leafrefTarget, checkPathKeys -->
 <!-- source: internal/component/config/yang/loader_abnf.go -- parseYANGGrammar, rfc7950Grammar -->

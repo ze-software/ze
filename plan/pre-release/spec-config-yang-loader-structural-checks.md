@@ -117,7 +117,7 @@ Read from source, tests, `rfc/audit/rfc7950.json` and `rfc/short/rfc7950.md`, no
 | AC-2 | red file replaced | met | `loader_rfc7950_structural_red_test.go` is gone; `rfc7950_loader_structural_test.go` holds the tagged proofs |
 | AC-1 | RFC7950-9.6.4-2 | met in code and tests; no audit verdict yet | its `{gap}` left the summary; `TestRFC7950EnumRestrictionKeepsTheBaseValue` tagged positive and negative |
 | AC-1 | the other eighteen ids | NOT met, undesigned | each still carries `{gap}` naming this spec: 5.1-1, 5.5-1, 5.6.5-1, 6.2.1-1, 6.3.1-1, 7.1.4-1, 7.3-1, 7.9.2-1, 7.9.3-1, 7.12-1, 7.15-1, 7.16-1, 7.17-1, 7.18.2-1, 7.21.2-1, 9.2.4-2, 9.6.4-1, 9.12-2 |
-| AC-1 | RFC7950-7.2.2-1 | NOT met | carries `{gap}` naming this spec; the Task table folds its sentence under 5.1-1 |
+| AC-1 | RFC7950-7.2.2-1 | met in code and tests; no audit verdict yet | 2026-10-18, owner order to implement the RFC gaps easiest-first (`plan/rfc-gap-difficulty-2026-10-18.md` row 11): `loader_structure.go::moduleIncludeErrors`, joined by `checkStructure`, refuses an include whose submodule's belongs-to names another module (`ErrIncludeBelongsTo`); `TestRFC7950SubmoduleIncludedOnlyByItsModule` in `rfc7950_loader_structural_test.go` tagged positive and negative, red before the fix, revert records in `rfc/discrimination/rfc7950.json`; its `{gap}` left the summary. The 5.1-1 row still carries the same sentence among its others |
 
 The original wording of both ACs:
 

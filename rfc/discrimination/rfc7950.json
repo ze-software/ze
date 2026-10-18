@@ -189,6 +189,28 @@
       "break": "body of AddModuleFromText replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7950-7.2.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950SubmoduleIncludedOnlyByItsModule",
+      "unit-sha": "c38d8c91edeee7ae",
+      "claim-sha": "d4db97e62ac8c360",
+      "route": "revert",
+      "producer": "internal/component/config/yang/loader_structure.go::moduleIncludeErrors",
+      "producer-sha": "b309afb1f80de613",
+      "break": "body of moduleIncludeErrors replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-7.2.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950SubmoduleIncludedOnlyByItsModule",
+      "unit-sha": "c38d8c91edeee7ae",
+      "claim-sha": "9ce4dcc4e57a30db",
+      "route": "revert",
+      "producer": "internal/component/config/yang/loader_structure.go::moduleIncludeErrors",
+      "producer-sha": "b309afb1f80de613",
+      "break": "body of moduleIncludeErrors replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7950-7.3.2-1",
       "polarity": "negative",
       "unit": "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950TypedefTypeMustBePresent",

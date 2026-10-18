@@ -1,6 +1,6 @@
 // Design: docs/architecture/config/yang-config-design.md — YANG schema handling
 // Related: loader.go — Resolve and DefaultLoader join these checks
-// RFC: rfc/short/rfc7950.md -- Sections 7.19, 9.4.4 and 9.6.4, structures goyang accepts
+// RFC: rfc/short/rfc7950.md -- Sections 7.2.2, 7.19, 9.4.4 and 9.6.4, structures goyang accepts
 package yang
 
 import (
@@ -36,17 +36,79 @@ var ErrEnumValue = errors.New("YANG enum value invalid")
 // extension"), so it never reads these substatements.
 var ErrExtensionSubstatement = errors.New("invalid YANG statement under an extension")
 
+// ErrIncludeBelongsTo marks an `include` of a submodule that belongs to a
+// module other than the including module, or other than the module the
+// including submodule belongs to. goyang finds an included submodule by its
+// name alone (modules.go, FindModule: "we should check the BelongsTo field
+// below?"), so it merges a foreign submodule's definitions without a word.
+var ErrIncludeBelongsTo = errors.New("YANG submodule included outside the module it belongs to")
+
 // checkStructure joins the structural checks goyang does not perform over
 // every loaded module and submodule.
 func (l *Loader) checkStructure() error {
 	mods := l.modules.sourceModules()
 	errs := make([]error, 0, len(mods))
 	for _, mod := range mods {
+		// RFC 7950 Section 7.2.2
+		errs = append(errs, moduleIncludeErrors(mod)...)
 		errs = append(errs, moduleLengthErrors(mod)...)
 		errs = append(errs, moduleEnumErrors(mod)...)
 		errs = append(errs, moduleExtensionSubstatementErrors(l.modules.source(mod))...)
 	}
 	return errors.Join(errs...)
+}
+
+// moduleIncludeErrors returns one error for each `include` in mod, a module
+// or a submodule, whose submodule belongs to another module than mod's own.
+// An include goyang found no submodule for is its own refusal ("no such
+// submodule"), so it has no belongs-to to compare here.
+func moduleIncludeErrors(mod *yang.Module) []error {
+	owner := mod.Name
+	if mod.BelongsTo != nil {
+		owner = mod.BelongsTo.Name
+	}
+	var errs []error
+	for _, include := range mod.Include {
+		submodule := includedSubmodule(mod, include)
+		if submodule == nil {
+			continue
+		}
+		if submodule.BelongsTo == nil {
+			errs = append(errs, fmt.Errorf("%w: module %s: %s: include %s: submodule %s has no belongs-to statement;"+
+				" add `belongs-to %s { prefix ...; }` to submodule %s",
+				ErrIncludeBelongsTo, mod.Name, include.Source.Location(), include.Name, submodule.Name, owner, submodule.Name))
+			continue
+		}
+		// RFC 7950 Section 7.2.2: "A submodule MUST only be included by either
+		// the module to which it belongs or another submodule that belongs to
+		// that module."
+		if submodule.BelongsTo.Name == owner {
+			continue
+		}
+		errs = append(errs, fmt.Errorf("%w: module %s: %s: include %s: submodule %s belongs to module %s, not %s,"+
+			" so its definitions cannot join module %s (RFC 7950 Section 7.2.2);"+
+			" remove this include, or include %s from module %s or one of its submodules",
+			ErrIncludeBelongsTo, mod.Name, include.Source.Location(), include.Name, submodule.Name,
+			submodule.BelongsTo.Name, owner, owner, submodule.Name, submodule.BelongsTo.Name))
+	}
+	return errs
+}
+
+// includedSubmodule answers the submodule include names: the one goyang bound
+// while processing, else the one loaded under the include's revision or bare
+// name, the two keys goyang stores a submodule under. It never reads a file,
+// unlike goyang's FindModule, so a check cannot load a module the caller did
+// not add.
+func includedSubmodule(mod *yang.Module, include *yang.Include) *yang.Module {
+	if include.Module != nil {
+		return include.Module
+	}
+	if include.RevisionDate != nil {
+		if submodule := mod.Modules.SubModules[include.Name+"@"+include.RevisionDate.Name]; submodule != nil {
+			return submodule
+		}
+	}
+	return mod.Modules.SubModules[include.Name]
 }
 
 // moduleLengthErrors returns one error for each `length` statement in mod

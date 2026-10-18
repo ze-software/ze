@@ -90,3 +90,30 @@ func TestLengthInAnUnusedGroupingReadsTheTypedefBounds(t *testing.T) {
 	requireModuleRefused(t, "min names the lower bound", "does not start after", head+`min | 2"; } } } }`)
 	requireModuleLoaded(t, "ascending disjoint over the bounds", head+`min..4 | 6..max"; } } } }`)
 }
+
+// TestRFC7950SubmoduleIncludedOnlyByItsModule drives an include of a
+// submodule that belongs to another module, once from a module and once from
+// a submodule of that module, which RFC 7950 Section 7.2.2 forbids, and the
+// same includes when the submodule belongs to the including module. goyang
+// finds an included submodule by name alone (modules.go, FindModule: "we
+// should check the BelongsTo field below?"), so the refusals are Ze's
+// checkStructure. Module b, which owns the foreign submodule, is loaded and
+// includes it, so nothing but the belongs-to differs between the cases.
+//
+// RFC requirement: RFC7950-7.2.2-1 negative — module a including submodule s, whose belongs-to names module b, and submodule a-s of module a including s, are each refused naming the module s belongs to.
+// RFC requirement: RFC7950-7.2.2-1 positive — module a including its own submodule a-s, and a-s including a-t, another submodule of module a, load.
+func TestRFC7950SubmoduleIncludedOnlyByItsModule(t *testing.T) {
+	const moduleB = `module b { namespace "urn:b"; prefix b; include s; }`
+	const foreign = `submodule s { belongs-to b { prefix b; } leaf s { type string; } }`
+	const own = `submodule a-t { belongs-to a { prefix a; } leaf t { type string; } }`
+	requireModuleRefused(t, "module includes a foreign submodule", "belongs to module b",
+		`module a { namespace "urn:a"; prefix a; include s; }`, foreign, moduleB)
+	requireModuleRefused(t, "submodule includes a foreign submodule", "belongs to module b",
+		`module a { namespace "urn:a"; prefix a; include a-s; }`,
+		`submodule a-s { belongs-to a { prefix a; } include s; }`, foreign, moduleB)
+	requireModuleLoaded(t, "module includes its own submodule",
+		`module a { namespace "urn:a"; prefix a; include a-t; }`, own)
+	requireModuleLoaded(t, "submodule includes a sibling submodule",
+		`module a { namespace "urn:a"; prefix a; include a-s; include a-t; }`,
+		`submodule a-s { belongs-to a { prefix a; } include a-t; }`, own)
+}
