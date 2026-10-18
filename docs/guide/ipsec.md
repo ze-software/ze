@@ -248,8 +248,9 @@ client sent plus this list, anchored at `ca-certificate` only: an intermediate
 completes a path and never ends one. On TLS 1.3 the client certificate's
 revocation status must be read, so give the intermediate entry its own `crl`.
 RFC 5216 Section 5.3 asks the authenticator to obtain the intermediates a path
-needs. Ze does not fetch them from the Authority Information Access URL; this
-list is the pre-configuration the same section names instead.
+needs. Ze does not fetch them from the Authority Information Access URL, so
+that SHOULD is not met; this list is the pre-configuration the same section
+names for a server that cannot retrieve them.
 
 ```
 pki {

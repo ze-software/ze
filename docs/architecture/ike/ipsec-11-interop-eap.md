@@ -60,7 +60,9 @@ authenticator such as strongSwan. The responder half is described in
   `checkChainRevocation`. With no list, crypto/tls verifies as before and keeps
   choosing its own alerts. Each listed entry's `crl` joins the authenticator's
   revocation lists, because on TLS 1.3 it answers for the leaf the intermediate
-  issued. Ze performs no Authority Information Access fetch.
+  issued. Ze performs no Authority Information Access fetch, so the retrieval
+  the SHOULD asks for is not met: RFC5216-5.3-5 is a gap in the ledger, and the
+  configured list is the fallback, not the retrieval.
 - RFC 9190 Section 2.1.3 leaves resumption to each end: "It is up to the EAP-TLS
   peer to use resumption". The peer offers a ticket when its peering carries a
   resumption store, which is what the `session-resumption` leaf decides.

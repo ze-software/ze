@@ -7,7 +7,7 @@
 | Name | IPsec EAP Authentication |
 | Kind | protocol |
 | Scope | partial |
-| Scope gaps | the RFC 5216 3DES cipher-suite MUST is not met, RFC 3748 is Partial in the ledger with open defects in spec-ike-eap-rfc-defects |
+| Scope gaps | the RFC 5216 3DES cipher-suite MUST is not met, the RFC 5216 Section 5.3 SHOULD to retrieve missing intermediate certificates is not met (no Authority Information Access fetch; the `intermediate-certificate` list pre-configures them instead), RFC 3748 is Partial in the ledger with open defects in spec-ike-eap-rfc-defects |
 | Level | experimental |
 | Components | internal/core/eap, internal/component/ike/engine/eap_auth.go |
 | Real-path tests | test/ipsec/ipsec-eap-md5-challenge.ci, test/ipsec/ipsec-eap-nak-unacceptable-type.ci, test/ipsec/ipsec-eap-tls13-ocsp-required.ci, test/ipsec/ipsec-eap-tls13-ocsp-stapling.ci, test/ipsec/ipsec-eap-tls-clienthello.ci |

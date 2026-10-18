@@ -15,6 +15,8 @@
 
 package eap
 
+// RFC naming: untagged -- the configured intermediate list is the fallback RFC 5216 Section 5.3 names for a server unable to retrieve intermediates, and RFC5216-5.3-5, the retrieval itself, is a gap that no test here proves.
+
 import (
 	"crypto/tls"
 	"crypto/x509"
@@ -101,13 +103,15 @@ func requireRefusedUnknownAuthority(t *testing.T, res *hsResult, why string) {
 // exchange whose peer sends its leaf without the intermediate that issued it,
 // with that intermediate configured on the authenticator.
 //
-// RFC requirement: RFC5216-5.3-5 positive -- RFC 5216 Section 5.3: the server
+// RFC 5216 Section 5.3: the server
 // "SHOULD support validating the peer certificate using RFC 3280 [RFC3280]
-// compliant path validation, including the ability to retrieve intermediate
-// certificates that may be necessary to validate the peer certificate." The
-// intermediate here is necessary, the peer did not send it, and the
-// authenticator completes the path from its configured intermediate
-// certificates, which is the pre-configuration the same section names.
+// compliant path validation". The intermediate here is necessary and the peer
+// did not send it, and the authenticator path-validates the leaf to its trust
+// anchor through the intermediate pre-configured on it, the fallback the same
+// section names: "Where the EAP-TLS server is unable to retrieve intermediate
+// certificates, either it will need to be pre-configured with the necessary
+// intermediate certificates to complete path validation". It proves no
+// retrieval: Ze fetches nothing, and RFC5216-5.3-5 is a gap.
 func TestEAPTLSConfiguredIntermediateCompletesALeafOnlyChain(t *testing.T) {
 	chain := newLeafOnlyChain(t)
 
@@ -124,7 +128,8 @@ func TestEAPTLSConfiguredIntermediateCompletesALeafOnlyChain(t *testing.T) {
 // TestEAPTLSLeafOnlyChainRefusedWithoutAnIntermediate is the same exchange with
 // no intermediate configured.
 //
-// RFC requirement: RFC5216-5.3-5 negative -- the positive test above proves
+// Path validation refuses a leaf
+// with no route to the trust anchor, and the positive test above proves
 // nothing unless the intermediate it configures is what completed the path. With
 // none configured, the authenticator has only what the peer sent, which is the
 // leaf, and path validation finds no route to the trust anchor.
@@ -140,7 +145,7 @@ func TestEAPTLSLeafOnlyChainRefusedWithoutAnIntermediate(t *testing.T) {
 // intermediate CA that the trust anchor issued but that did not issue the
 // client leaf.
 //
-// RFC requirement: RFC5216-5.3-5 negative -- the configured list completes a
+// The configured list completes a
 // path only through a certificate that is ON it. A list read as "the operator
 // vouched for this peer" would accept here, because the configured certificate
 // does chain to the trust anchor; the leaf's issuer is still missing, so the
@@ -158,9 +163,9 @@ func TestEAPTLSUnrelatedConfiguredIntermediateCompletesNothing(t *testing.T) {
 // issuer as an intermediate while the authenticator's trust anchor is a CA that
 // issued neither.
 //
-// RFC requirement: RFC5216-5.3-5 negative -- Section 5.3 asks for intermediate
-// certificates "necessary to validate the peer certificate", and an
-// intermediate is a link on the path, never its end. Pooled into the roots, the
+// RFC 3280 path validation ends at
+// a trust anchor, and a pre-configured intermediate is a link on the path,
+// never its end. Pooled into the roots, the
 // intermediate would anchor the leaf on its own and the exchange would
 // complete; kept as an intermediate, it has no route to the configured anchor.
 func TestEAPTLSConfiguredIntermediateIsNoTrustAnchor(t *testing.T) {
