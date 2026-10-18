@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-18",
+  "audited": "2026-10-19",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -298,15 +298,19 @@
       "verdict": "enforced"
     },
     "RFC2131-4.4.5-3": {
-      "note": "positive: for leases 60, 3600, 86400 and 604800 the OFFER's option 59 (T2) must be strictly below the lease seconds; negative: parseConfig must reject lease-time 0",
+      "note": "Server: for leases 60, 3600, 86400 and 604800 the OFFER's option 59 (T2) must be strictly below the lease seconds (positive); parseConfig must reject lease-time 0 (negative). Client, re-judged 2026-10-19 after the DHCPv4 lease loop: TestV4ServerTimersHonoredWhenOrdered calls v4LeaseTimers, the only producer of the client's T2, and asserts a server T2 below the lease (99 s and 95 s in 100 s) is used (positive) and a T2 at the lease (100 s) falls back to both defaults (negative); the default T2 is lease - lease/8 (v4RenewalTimes), below any finite lease. Revert records for both polarities.",
       "requirement_sha": "6ead253f6787dda5",
       "tests": {
         "internal/plugins/dhcpserver/rfc2131_test.go::TestRenewalTimersOrderedWithinLease": "8365c04cdfc2a046",
-        "internal/plugins/dhcpserver/rfc2131_test.go::TestShortLeaseTimeRejected": "8365c04cdfc2a046"
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestShortLeaseTimeRejected": "8365c04cdfc2a046",
+        "internal/plugins/iface/dhcp/rfc2131_dhcp_v4_timers_linux_test.go::TestV4ServerTimersHonoredWhenOrdered": "eb7b155092788240",
+        "internal/plugins/iface/dhcp/rfc2131_dhcp_v4_timers_linux_test.go::TestV4ServerTimersHonoredWhenOrdered#2": "eb7b155092788240"
       },
       "units": {
         "internal/plugins/dhcpserver/rfc2131_test.go::TestRenewalTimersOrderedWithinLease": "543d64b66af292da",
-        "internal/plugins/dhcpserver/rfc2131_test.go::TestShortLeaseTimeRejected": "cd34a97b1f7653da"
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestShortLeaseTimeRejected": "cd34a97b1f7653da",
+        "internal/plugins/iface/dhcp/rfc2131_dhcp_v4_timers_linux_test.go::TestV4ServerTimersHonoredWhenOrdered": "1824484423a7939b",
+        "internal/plugins/iface/dhcp/rfc2131_dhcp_v4_timers_linux_test.go::TestV4ServerTimersHonoredWhenOrdered#2": "1824484423a7939b"
       },
       "verdict": "enforced"
     }

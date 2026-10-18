@@ -523,3 +523,174 @@ identifier). Callers name the section.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
 - [ ] **Commit A:** code + tests + docs + edited spec + journal rows marked fixed (`silent-fall-through.md` T9108 v4 row, `identity-default-hides-a-mapping.md` renewV4 row, `zero-value-as-valid-answer.md` v4LeaseTime row)
 - [ ] **Commit B:** `remove plan/immediate/spec-dhcpv4-client-drops-lease-every-period.md` only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- `runV4` / `acquireV4` / `holdV4` / `extendV4` (`internal/plugins/iface/dhcp/dhcp_v4_linux.go`): the RFC 2131 Figure 5 loop on the injected `c.clock`, deadlines from the REQUEST send instant (`v4LeaseFromAck`), retransmission on the Section 4.4.5 schedule (`v4NextAttempt`), NAK restart, expiry teardown (`teardownV4`), server T1/T2 when ordered (`v4LeaseTimers`), lease-time refusal (`v4LeaseTime`), route retry and router follow (`applyV4Route`, `installV4Route`, `removeV4Route`). Commits 492ad6f5dc, 231c9684f4, 3f3202c50a.
+- `v4Exchanger` seam and `nclient4Exchanger` (`dhcp_v4_exchange_linux.go`): one transmission per extend; RENEW unicast from the leased address with the answer read from the raw device socket (`newV4UnicastClient`, `v4UnicastConn`); REBIND broadcast accepting any server (`v4ExtendAccepts`).
+- `sim.FakeClock.AwaitTimers`, `NextTimer` (`internal/test/sim/sim.go`).
+- dnsmasq interop sidecar and two scenarios (cc69746db8); 20 discrimination records (3a9fd049b1) plus 6 in this closure.
+
+### Bugs Found/Fixed
+- D-16: a RENEW socket bound to the leased address never heard a broadcast DHCPNAK; fixed by `v4UnicastConn`, covered by `TestDHCPv4NakOnRenewRestartsOnVeth` (red walk recorded in the handover).
+- Closure review: 17 `rfc/short/rfc2131.md` annotations cited deleted code (`handleV4Lease`, `renewV4`, `client.Renew`, stale line numbers, a vendored file that does not hold the builders); rewritten to the current producers.
+- Closure review: the client-role tags the spec planned for RFC2131-4.4.5-2, -3 and -8 were missing; added to `TestV4ServerTimersHonoredWhenOrdered` and `TestV4RetransmitSchedule`, moved verbatim into `rfc2131_dhcp_v4_timers_linux_test.go` (the RFC file-name rule), six revert records written, RFC2131-4.4.5-3 audit verdict re-judged.
+
+### Documentation Updates
+- `docs/features/interfaces.md` DHCP rows 53 to 63, each with a `<!-- source: -->` anchor on the new producers (492ad6f5dc, 231c9684f4).
+- `docs/architecture/testing/interop.md` Optional sidecars row, `docs/features/interoperability-testing.md` Target daemons row (cc69746db8).
+- `docs/functional-tests.md` dnsmasq paragraph with anchors on `checkDHCPRenewNak`, `checkDHCPRebind`, `prepare.go`: carried in this closure. The foreign `./le verify` rename hunks that held it back are now in HEAD (`git diff docs/functional-tests.md` shows only the dnsmasq paragraph).
+- `rfc/short/rfc2131.md` annotations; `docs/features/rfc-status.md` is derived on demand and gitignored (`./le rfc index-update` run).
+- `features/interfaces.md` Defect review no longer lists this spec.
+
+### Deviations from Plan
+- D-10 to D-19 (Key Design Decisions) record each deviation; A-2 broken and replaced by a permanent neighbor entry.
+- Two extra veth tests (D-17) beyond the six planned.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2: a peer-side address in the veth lab would answer unicast | both veth ends share one namespace, so the frame is delivered locally | Phase 5 QEMU run | permanent neighbor entry in `sfSetupLab` |
+| assumption | A-1 (receive half): the bound UDP socket would receive the answer to RENEW | a broadcast DHCPNAK never reaches it | `TestDHCPv4NakOnRenewRestartsOnVeth` red | D-16 socket pair |
+| approach | Phase 5 rewrote five stale citations in `rfc/short/rfc2131.md` | seventeen more rows still named deleted code | closure review grep for `renewV4\|handleV4Lease\|client.Renew` | rewritten in this closure |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1 renew more than once | Done | `holdV4`, `extendV4` | `TestDHCPv4LoopHoldsLeaseFiveLeasePeriods` |
+| 2 resolved device | Done | `acquireV4`, `sendV4Extend` | `TestDHCPv4ExchangesBindTheResolvedDevice` |
+| 3 route retry | Done | `installV4Route` | `TestDHCPv4RouteInstallRetried` |
+| 4 NAK restart | Done | `extendV4` NAK arm | `TestDHCPv4NakRestartsConfiguration` |
+| 5 REBIND any server | Done | `v4ExtendAccepts` | `TestDHCPv4RebindAcceptsAnyServer` |
+| 6 retransmission schedule | Done | `v4NextAttempt` | `TestV4RetransmitSchedule` |
+| 7 no invented lease time | Done | `v4LeaseTime` | `TestV4AckWithoutLeaseTimeRefused` |
+| 8 unicast RENEW | Done | `sendV4Extend`, `newV4UnicastClient` | `TestDHCPv4RenewIsUnicastToServer` |
+| 9 client-id on renewal | Done | `v4ExtendRequest` | `TestV4RenewalCarriesClientIdentity` |
+| 10 options 58/59 | Done | `v4LeaseTimers` | `TestV4ServerTimersHonoredWhenOrdered` |
+| 11 old route removed | Done | `applyV4Route` | `TestDHCPv4RouteFollowsRenewedRouter` |
+| 12 uninstalled lease not timed | Done | `installV4Lease` returns false | `TestDHCPv4InstallFailureIsNotBound` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestDHCPv4LoopHoldsLeaseFiveLeasePeriods`, `TestDHCPv4RenewsRepeatedlyOnVeth` | |
+| AC-2 | Done | `TestDHCPv4ExchangesBindTheResolvedDevice` | |
+| AC-3, AC-4 | Done | `TestDHCPv4RouteInstallRetried` (recovers, keeps failing) | |
+| AC-5, AC-6 | Done | `TestDHCPv4RouteFollowsRenewedRouter` | |
+| AC-7, AC-8 | Done | `TestDHCPv4NakRestartsConfiguration`, `TestDHCPv4NakOnRenewRestartsOnVeth` | |
+| AC-9 | Done | `TestV4RetransmitSchedule`, `TestDHCPv4SilentServersExpireOnSchedule` | |
+| AC-10 | Done | `TestDHCPv4RebindAcceptsAnyServerOnVeth` | |
+| AC-11, AC-13 | Done | `TestDHCPv4RebindAcceptsAnyServer` | |
+| AC-12 | Done | `TestDHCPv4RenewIsUnicastToServer` | |
+| AC-14 | Done | `TestV4LeaseTimersFromSendTime` | |
+| AC-15, AC-16 | Done | `TestV4AckWithoutLeaseTimeRefused`, `TestDHCPv4RefusedAckNotInstalled` | |
+| AC-17 | Done | `TestDHCPv4RenewalAckWithoutLeaseTimeIsNoAnswer` | |
+| AC-18, AC-19 | Done | `TestV4ServerTimersHonoredWhenOrdered`, `TestV4LeaseTimersFromSendTime` | |
+| AC-20 | Done | `TestV4RenewalCarriesClientIdentity`, `TestDHCPv4RenewCarriesClientID` | |
+| AC-21 | Done | `TestDHCPv4InstallFailureIsNotBound` | |
+| AC-22 | Done | `TestDHCPv4StopInEveryState` | |
+| AC-23 | Done | `TestDHCPv4LoopHoldsLeaseFiveLeasePeriods/renewal_to_an_infinite_lease` | |
+| AC-24 | Done | `dhcpv4-renew-nak-dnsmasq` | green 2026-10-18 (implementer run), not re-run at closure |
+| AC-25 | Done | `dhcpv4-rebind-two-servers-dnsmasq` | green 2026-10-18 (implementer run), not re-run at closure |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| 17 unit tests of the Unit Tests table | Done | `dhcp_test.go`, `dhcp_payload_linux_test.go`, `dhcp_v4_loop_linux_test.go`, `dhcp_v4_schedule_linux_test.go`, `rfc2131_dhcp_v4_timers_linux_test.go` | `TestV4RetransmitSchedule` and `TestV4ServerTimersHonoredWhenOrdered` moved to the RFC-named file at closure |
+| `TestFakeClockAwaitTimers` | Done | `internal/test/sim/sim_test.go` | |
+| 6 planned veth tests plus 2 (D-17) | Done | `rfc2131_dhcp_lease_maintenance_integration_linux_test.go` | QEMU guest, implementer run |
+| 2 interop scenarios | Done | `test/interop/scenarios/dhcpv4-*-dnsmasq/` | red walk recorded |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `dhcp_v4_linux.go`, `dhcp_linux.go`, `register.go`, `dhcp_v4_exchange_linux.go` | Done | |
+| test files, `internal/test/sim/sim.go` | Done | |
+| `internal/le/interoplab/bgp/{run,prepare,names}.go`, `check_dhcp.go`, `check_dhcp_predicate.go`, `register_dhcp.go` | Done | checker registration in `register_dhcp.go`, not `checkers.go` |
+| `test/interop/Dockerfile.dnsmasq`, scenario directories | Done | |
+| docs, `rfc/short/rfc2131.md`, `rfc/discrimination/rfc2131.json` | Done | `rfc-status.md` is derived, not committed |
+
+### Audit Summary
+- **Total items:** 12 requirements, 25 ACs, 28 tests, 2 scenarios
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** D-10 to D-19
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Keeps renewing at T1 and rebinding at T2 while a server answers | interop + kernel | `dhcpv4-renew-nak-dnsmasq`: seven renewals, one DISCOVER; red under the old-lease break ("ze sent DHCPDISCOVER 2 times"); `TestDHCPv4RenewsRepeatedlyOnVeth` |
+| Rebinds to any server | interop | `dhcpv4-rebind-two-servers-dnsmasq`; red with the rebinding branch of `v4ExtendAccepts` removed ("peer output is missing 172.30.0.50/24") |
+| Retransmits on the RFC schedule | unit | `TestV4RetransmitSchedule`, `TestDHCPv4SilentServersExpireOnSchedule`; revert records RFC2131-4.4.5-8 |
+| Restarts on DHCPNAK | interop + kernel | renew-nak scenario NAK phase; `TestDHCPv4NakOnRenewRestartsOnVeth` red without D-16 |
+| Removes the address only at real expiry | kernel | `TestDHCPv4ExpiresOnTimeOnVeth` (RFC2131-4.4.5-1 negative), record in `rfc/discrimination/rfc2131.json` |
+| Holds its default route | unit | `TestDHCPv4RouteInstallRetried`, `TestDHCPv4RouteFollowsRenewedRouter` (red walk recorded in the handover) |
+| Never invents a lease time | unit | `TestV4AckWithoutLeaseTimeRefused`, `TestDHCPv4RefusedAckNotInstalled` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC and Task goal is done; Known Limitations are outside the owner's scope | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` at closure (path in the commit body) |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | state machine and RFC 2131 Section 4.4.5 transitions read at the producers; socket and matcher paths; style pass (`docs/contributing/ze-go-style.md`: no peer-reachable panic, the two `BUG` panics are closed-enum arms only Ze produces); RFC ledger citations; doc anchors; closure citers |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | 17 annotations cite deleted producers and wrong line numbers | `rfc/short/rfc2131.md` rows 2-1, 2-4, 3-2, 3.1-1 to 3.1-4, 3.1-7, 3.2-1, 3.2-3, 3.6-1, 4.4-1 to 4.4-3, 4.4.1-1, 4.4.1-4, 4.4.2-1, 4.4.2-2, 4.4.3-1 | rewritten to `nclient4Exchanger`, `v4ExtendRequest`, `installV4Lease`, `teardownV4` |
+| 2 | ISSUE | Files to Modify promised client-role tests for RFC2131-4.4.5-2, -3, -8; none tagged | `dhcp_v4_schedule_linux_test.go` | tags, move to `rfc2131_dhcp_v4_timers_linux_test.go`, six revert records, 4.4.5-3 verdict re-judged |
+
+NOTEs (no change): RENEWING with no known server identifier (D-14) matches only answers without option 54 (`IsCorrectServer(nil)`); `NewRenewFromAck` reuses the ACK's xid on every extension, as HEAD's `Renew` did; `stoppableContext` spawns one goroutine per exchange (pre-existing, R-8 asserts it flat); `installV4Lease` defaults /24 with a Warn when option 1 is absent (pre-existing).
+
+Round 2 re-read the edited annotations and test tags against the producers: 0 BLOCKER, 0 ISSUE.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `dhcp_v4_exchange_linux.go`, `rfc2131_dhcp_lease_maintenance_integration_linux_test.go`, `rfc2131_dhcp_v4_timers_linux_test.go` | Yes | `ls internal/plugins/iface/dhcp/` 2026-10-19 |
+| `check_dhcp.go`, `check_dhcp_predicate.go`, `test/interop/Dockerfile.dnsmasq`, both scenario directories | Yes | `ls` 2026-10-19 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-23 | unit tests green | `./le job run ... go test -race -count=1 ./internal/plugins/iface/dhcp/ ./internal/test/sim/`: ok, 2026-10-19 (before and after the test move) |
+| AC-24, AC-25 | checker verdicts | `go test -run 'DHCP\|Dnsmasq' ./internal/le/interoplab/bgp/`: ok (4 tests); scenarios not re-run |
+| RFC rows | ledger | `./le rfc check`: no rfc2131 or dhcp finding; its other reds belong to other documents |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `newDHCPClient` + `Start` | N-A (no `.ci` can host a DHCP server) | `TestDHCPv4LoopHoldsLeaseFiveLeasePeriods` starts the worker through `Start` |
+| config `dhcp { enabled true }` in a ze container | interop scenarios `ze.conf` | both scenario `ze.conf` files carry the DHCP block |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed (send), broken (receive) | D-16 |
+| A-2 | broken | neighbor entry, Phase 5 QEMU run |
+| A-3, A-4, A-5 | confirmed | interop green runs 2026-10-18 |
+| A-6 | confirmed | `test/parse/iface-vpp-rejects-dhcp.ci` |
+| A-7 | confirmed | `TestSleepOrStopOnInjectedClock` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/features/interfaces.md` DHCP rows | read against `holdV4`, `extendV4`, `v4LeaseTimers`, `v4LeaseTime`, `applyV4Route`, `v4ExtendRequest` | Yes |
+| `docs/functional-tests.md` dnsmasq paragraph | `dhcpRenewalsWanted = 7`, `dhcpReservationCommand` | Yes |
+| RFC 2131 summary | `./le rfc check` clean for rfc2131 | Yes |

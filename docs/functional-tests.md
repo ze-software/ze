@@ -1587,6 +1587,28 @@ kernel (`docs/architecture/testing/qemu-integration.md`).
 <!-- source: internal/le/interoplab/bgp/checkers.go -- vrrp-mastership-keepalived -->
 <!-- source: internal/le/test/qemu/vrrp_owner_linux.go -- runOwnerKeepsTheAddress -->
 
+A scenario that includes `dnsmasq.conf` gets a dnsmasq DHCPv4 server on the
+run's `.20` address, and `dnsmasq-b.conf` adds a second one on `.21`. Ze runs
+`dhcp { enabled true }` on eth0 beside the static address docker assigned it.
+Each pool holds the one address `.50`, with dnsmasq's minimum lease of 120 s
+and options 58 and 59 at T1 20 s and T2 40 s. The checkers read dnsmasq's own
+log (`log-dhcp`) and Ze's interface:
+
+- `dhcpv4-renew-nak-dnsmasq` requires Ze to hold `.50` across seven renewals
+  with a single DHCPDISCOVER. Seven T1 periods outlast the 120 s lease, so a
+  client that renews but never extends its deadlines expires first. The checker then writes a reservation of `.51`
+  into dnsmasq's `dhcp-hostsfile` and sends SIGHUP. dnsmasq NAKs the next
+  RENEW, and the scenario requires a second DHCPDISCOVER, an ACK of `.51`, and
+  `.51` on Ze's eth0 with `.50` gone.
+- `dhcpv4-rebind-two-servers-dnsmasq` stops the server whose log holds the
+  lease ACK. Ze's RENEW then goes unanswered, and the scenario requires the
+  other server to log a DHCPREQUEST and a DHCPACK for `.50`, then, once the
+  first lease has run out, `.50` still on Ze's eth0 and no DHCPDISCOVER after
+  the stop.
+
+<!-- source: internal/le/interoplab/bgp/check_dhcp.go -- checkDHCPRenewNak, checkDHCPRebind -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- dnsmasq sidecars -->
+
 **Positive tests** (expect success):
 ```
 # test/parse/simple-v4.ci

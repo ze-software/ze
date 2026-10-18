@@ -13,7 +13,7 @@
 | Real-path tests | test/plugin/iface-tunnel-kinds.ci, test/plugin/iface-vlan-qos.ci, test/plugin/iface-cli-ops.ci, test/plugin/iface-verbs.ci, test/plugin/iface-rate-json.ci, test/plugin/iface-ensure-rollback.ci, test/plugin/iface-learned-route-metric.ci, test/plugin/iface-route-protocol-name.ci, test/parse/iface-rpf-check.ci, test/parse/iface-netlink-accepts-wireguard.ci, test/reload/tx-iface-apply.ci |
 | Docs | docs/features/interfaces.md |
 | Doc review | 2026-10-07: the row itself says target-runner evidence is still required; anchors (rtproto Iface 253, route-priority default 254, tunnel ttl defaults) exist at the named files |
-| Defect review | 2026-10-07: open: plan/immediate/spec-bridge-member-removal-never-detaches-port.md, spec-iface-delete-parent-before-vlan-rolls-back.md, spec-interface-monitor-container-names-no-behavior.md, spec-dhcpv4-client-drops-lease-every-period.md |
+| Defect review | 2026-10-07: open: plan/immediate/spec-bridge-member-removal-never-detaches-port.md, spec-iface-delete-parent-before-vlan-rolls-back.md, spec-interface-monitor-container-names-no-behavior.md |
 | Extra criteria | supported: privileged netlink evidence on a target runner per link type = none yet |
 
 ## Description

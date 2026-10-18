@@ -1,8 +1,9 @@
 # Handover: DHCPv4 lease maintenance (spec-dhcpv4-client-drops-lease-every-period)
 
 Written 2026-10-18 by the ze-implement agent at its 100-call budget. Spec:
-`plan/immediate/spec-dhcpv4-client-drops-lease-every-period.md` (in-progress,
-Phase 5/6, claimed by session 20123ea5). Handoff field `-`: closure is `/ze-close`.
+`spec-dhcpv4-client-drops-lease-every-period` (in-progress at the time,
+Phase 5/6, claimed by session 20123ea5; closed 2026-10-19, see the closure
+update at the end). Handoff field `-`: closure is `/ze-close`.
 
 ## Done (committed with this file)
 
@@ -117,3 +118,19 @@ Remaining:
 | Scoped lint 2026-10-19 | `internal/le/interoplab/bgp`: 0 issues. `internal/plugins/iface/dhcp`: the three v4 findings fixed (two godot on RFC-quoted declarations in `dhcp_v4_linux.go`, unparam on `newV4Rig`); the godot, unused and modernize findings left are all in `dhcp_v6_exchange_linux.go` and `dhcp_v6_lease_linux.go`, the DHCPv6 spec's (handover 01) |
 | Package reds walked into (journal rows written) | `TestCheckerPopulationMatchesProducer` and `TestAnnouncementPlanOrderAndTimingFixture` in `internal/le/interoplab/bgp`, both from `43d84584f8` (bgp-vpn-frr) |
 | `/ze-close` | in a fresh agent; the author does not review its own work |
+
+## Update 2026-10-19, closure (/ze-close, independent reviewer)
+
+The spec is closed by the two commits that carry this update. The review found
+two ISSUEs, both fixed in commit A: seventeen `rfc/short/rfc2131.md`
+annotations still named deleted code (`handleV4Lease`, `renewV4`,
+`client.Renew`), and the client-role tags the spec planned for
+RFC2131-4.4.5-2, -3 and -8 were missing (now in
+`internal/plugins/iface/dhcp/rfc2131_dhcp_v4_timers_linux_test.go`, six revert
+records, RFC2131-4.4.5-3 re-judged). The `docs/functional-tests.md` dnsmasq
+paragraph rode in commit A: the foreign rename hunks that held it are in HEAD.
+
+Still owed, as verification debt for the main thread: `./le test unit all`,
+`./le test functional gating`, `./le verify worktree`. Not re-run at closure:
+the two interop scenarios (green 2026-10-18) and the QEMU veth package run.
+Nothing else remains; this file can be removed when the debt is cleared.

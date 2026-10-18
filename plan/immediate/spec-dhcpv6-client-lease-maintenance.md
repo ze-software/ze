@@ -66,7 +66,7 @@ depends on that work for the infinite case (A-6).
 | Spec / row | Relation | Coordination |
 |------------|----------|--------------|
 | `plan/immediate/spec-dhcpv6-client-never-requests-a-delegated-prefix.md` (skeleton) | Same two call sites (`runV6`, `renewV6`); this spec replaces both with message builders, so the PD request becomes one IA row in the builder this spec writes | Folded into this spec (owner Q3, 2026-10-18): D-13, AC-25; the skeleton file is removed |
-| `plan/immediate/spec-dhcpv4-client-drops-lease-every-period.md` (skeleton) | Same loop shape (renew at most once, then expire), same logical-name socket defect, same untestable `sleepOrStop` | Shares only the controlled clock this spec adds to `DHCPClient`; RFC 2131 timers and retransmission differ, so no shared state machine (Key Design Decisions, Q7) |
+| `spec-dhcpv4-client-drops-lease-every-period` (closed 2026-10-19; the v4 loop is `runV4` in `internal/plugins/iface/dhcp/dhcp_v4_linux.go`) | Same loop shape (renew at most once, then expire), same logical-name socket defect, same untestable `sleepOrStop` | Shares only the controlled clock this spec adds to `DHCPClient`; RFC 2131 timers and retransmission differ, so no shared state machine (Key Design Decisions, Q7) |
 | `plan/spec-dhcpv6-server.md` (skeleton) | Server side of DHCPv6 | Enrolment excludes server and relay sections as a role Ze does not fill today; that spec re-walks them when a server exists (Q2) |
 | `plan/journal/unwired-feature.md` (2026-09-03, `dhcpv6/pd`) | The unwired PD leaf | Closed by this spec (AC-25), since Q3 folded the PD spec in |
 | `plan/journal/reconciler-claims-state-another-owner-installed.md` (2026-10-18) | Reconcile spares finite-lifetime leases | A-6 |
