@@ -649,6 +649,21 @@ walkable malformed SR Policy NLRI in it stays treat-as-withdraw.
 <!-- source: internal/component/bgp/reactor/session_validation_nlritype.go -- typedNLRIEdit -->
 <!-- source: internal/component/bgp/plugins/nlri/srpolicy/split.go -- SplitSRPolicy, judgeSRPolicySection, retainSRPolicySection -->
 
+### SR-Policy NLRI in `ze bgp decode` and the engine JSON
+
+`DecodeNLRIHex` is the one SR-Policy NLRI decoder: `ze bgp decode --family`,
+`ze bgp decode --nlri` and the engine's JSON output all reach it through
+`registry.DecodeNLRIByFamily`. It reads the wire form of a whole MP_REACH_NLRI or
+MP_UNREACH_NLRI section: each NLRI starts with its RFC 9830 Section 2.1 NLRI
+Length octet (preceded by a Path Identifier under ADD-PATH), and every NLRI in
+the section is decoded, as one object for one NLRI or a list for several. A
+Length other than 96 for AFI 1 or 192 for AFI 2, an NLRI cut short, or an empty
+section is refused with an error naming the offset. `--nlri` therefore takes
+the hex with its Length octet (`60...` for IPv4, `C0...` for IPv6), not the
+body alone.
+
+<!-- source: internal/component/bgp/plugins/nlri/srpolicy/decode.go -- DecodeNLRIHex, decodeSRPolicySection -->
+
 ### SR-Policy Tunnel Encapsulation in `ze bgp decode`
 
 The SR-Policy plugin registers the JSON decoder of the Tunnel Encapsulation
