@@ -3370,7 +3370,7 @@ branches' encoding tests (ExaBGP `qa/old/<branch>`, taken from the main pin's
 commit). They hold the configurations and helper programs a 4.2 or 5.0
 deployment runs, so they show those still announce and withdraw what they did
 when ze runs them. Each population keeps its configs and helpers in an `etc/`
-of its own, copied unchanged from the branch's `etc/exabgp/`, because their
+of its own, copied unchanged from the branch's `etc/exabgp/`, because their <!-- doc-links: ignore (etc/exabgp/ is a path in the ExaBGP repository's 4.2 and 5.0 branches, not in Ze) -->
 names collide with the `api` population's and their contents differ; a
 population with no `etc/` uses the shared `test/exabgp-compat/etc/`. Each case
 is the branch's `.ci` (the configs it loads) and `.msg` (what the peer must
