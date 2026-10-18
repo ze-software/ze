@@ -9,6 +9,7 @@
 #            the Transposition Scheme is not applicable").
 # PREVENTS: ze advertising transposed SID bits on a global IPv6 service route,
 #           which has no label field for the receiver to rebuild them from.
+# RFC requirement: RFC9252-3.2.1-2 negative -- a configured SID Structure with a non-zero transposition on an ipv6/unicast route is refused at config load, so it is never advertised
 
 stdin=config:terminator=EOF_CONF
 bgp {

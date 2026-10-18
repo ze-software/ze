@@ -156,6 +156,18 @@
       "break": "body of checkTranspositionNotApplicable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9252-3.2.1-2",
+      "polarity": "negative",
+      "unit": "test/parse/srv6-transposition-refused-unicast.ci",
+      "unit-sha": "bf22b072cb5379b7",
+      "claim-sha": "daa81fcae76f38c5",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/prefixsid.go::checkTranspositionNotApplicable",
+      "producer-sha": "c81962661dbe8dcb",
+      "break": "body of checkTranspositionNotApplicable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=stdout:contains=invalid srv6 SID structure for ipv6/unicast routes: transposition length 16 and offset 64 must both be 0"
+    },
+    {
       "rid": "RFC9252-3.2.1-3",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/rib/pool/rfc9252_sid_structure_validity_test.go::TestExtractSRv6SIDFull_SIDStructureLengthNotSix",
