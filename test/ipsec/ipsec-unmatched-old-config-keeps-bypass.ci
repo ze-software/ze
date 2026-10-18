@@ -4,11 +4,15 @@
 # Config: stamped `# ze-schema: 26.10.01`, vpn ipsec with one leaf,
 #         cookie-threshold, the same block ipsec-unmatched-default-discard-said-at-start
 #         starts unstamped and gets the discard default.
-# Expected: the schema evolution ipsec-unmatched-keeps-bypass runs, the engine
-#           configures, and the start log never says the DISCARD is in force.
+# Expected: the schema evolution ipsec-unmatched-keeps-bypass runs and says so at
+#           the default log level (hub.evolve is left at its default, Warn),
+#           naming the command that restores the discard and that the file was
+#           saved back; the engine configures, and the start log never says the
+#           DISCARD is in force.
 #
 # VALIDATES: unmatchedBypassEvolution (internal/component/ike/ipsec/unmatched_evolution.go)
-#            reached through the real start: config on stdin, the hub's schema
+#            reached through the real start: the harness writes the config to
+#            a file and runs `ze start <file>`, then the hub's schema
 #            evolution (applyEvolutions, cmd/ze/hub/main_evolve.go), then the ike
 #            plugin's first apply (applyConfig, applyStartup), which would call
 #            warnImplicitDiscardAtStart on an unset leaf.
@@ -21,7 +25,6 @@
 option=env:var=ze_test_ike_dataplane:value=noop
 option=env:var=ze_test_ike_port:value=$PORT2
 option=env:var=ze.log.ike:value=info
-option=env:var=ze.log.hub.evolve:value=info
 option=timeout:value=30s
 
 stdin=ze-bgp:terminator=EOF_CONF
@@ -36,7 +39,9 @@ EOF_CONF
 cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=25s
 
 await=stderr:contains=ike engine configured:then=stop
-expect=stderr:contains=applied schema evolutions
-expect=stderr:contains=ipsec-unmatched-keeps-bypass
+expect=stderr:contains=config evolution changed behavior
+expect=stderr:contains=evolution=ipsec-unmatched-keeps-bypass
+expect=stderr:contains=set vpn ipsec unmatched discard
+expect=stderr:contains=saved: the file now states the change
 reject=stderr:contains=the SPD catch-all DISCARD is in force
 reject=stderr:pattern=panic

@@ -382,3 +382,46 @@ func TestEvolveStampedOnlyNeedsADatedStamp(t *testing.T) {
 		}
 	}
 }
+
+// TestEvolveCarriesTheNoticeOfABehaviorChange checks that Evolve hands back the
+// Notice of an applied evolution that carries one, and nothing for a shape-only
+// evolution beside it, so the hub can warn about the first and stay quiet about
+// the second.
+// Method: register one evolution with a Notice and one without, evolve, read Notices.
+func TestEvolveCarriesTheNoticeOfABehaviorChange(t *testing.T) {
+	evolutionMu.Lock()
+	saved := evolutions
+	evolutions = nil
+	evolutionMu.Unlock()
+	defer func() {
+		evolutionMu.Lock()
+		evolutions = saved
+		evolutionMu.Unlock()
+	}()
+
+	keep := func(t *config.Tree) (*config.Tree, error) { return t, nil }
+	if err := RegisterEvolution(Evolution{
+		Release: "26.06.01", Name: "old-default", Notice: "wrote the old default",
+		Detect: func(*config.Tree) bool { return true }, Apply: keep,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := RegisterEvolution(Evolution{
+		Release: "26.06.01", Name: "shape",
+		Detect: func(*config.Tree) bool { return true }, Apply: keep,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Evolve(config.NewTree(), "26.05.31")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result == nil {
+		t.Fatal("expected both evolutions to apply")
+	}
+	want := []EvolveNotice{{Evolution: "old-default", Text: "wrote the old default"}}
+	if !slices.Equal(result.Notices, want) {
+		t.Errorf("notices %v, want %v", result.Notices, want)
+	}
+}

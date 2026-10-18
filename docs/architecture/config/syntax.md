@@ -417,8 +417,21 @@ default. `ipsec-unmatched-keeps-bypass` is one: it writes `vpn ipsec unmatched
 bypass` into a file saved while bypass was the default
 ([IPsec guide](../../guide/ipsec.md)).
 
+The stamp is the one on the content the config loader parsed
+(`LoadConfigResult.StampRelease`). After a downgrade recovery (below) that is
+the rollback's own stamp, not the one recovery published over it, so a
+recovered rollback still gets the evolutions it is owed.
+
+An evolution that changes how the router behaves carries a `Notice`: what it
+wrote, why, and the command that undoes it. `applyEvolutions` logs each one at
+Warn, the default level, naming the config file (or stdin) and whether the
+change was saved back. An evolution that only changes a shape leaves `Notice`
+empty and is logged at Info with the others, so the Warn is kept for the
+changes an operator must hear about.
+
 <!-- source: internal/component/config/migration/evolution.go -- Evolution, Evolve, applicableEvolutions -->
-<!-- source: cmd/ze/hub/main_evolve.go -- applyEvolutions -->
+<!-- source: cmd/ze/hub/main_evolve.go -- applyEvolutions, warnEvolutionNotices -->
+<!-- source: internal/component/config/loader.go -- LoadConfigResult.StampRelease -->
 <!-- source: internal/component/ike/ipsec/unmatched_evolution.go -- unmatchedBypassEvolution -->
 
 #### Downgrade Recovery

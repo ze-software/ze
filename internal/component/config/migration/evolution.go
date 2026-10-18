@@ -36,12 +36,30 @@ type Evolution struct {
 	// unstamped file (written by hand, piped on stdin) or one a dev build
 	// stamped proves neither, and gets the current default.
 	StampedOnly bool
+	// Notice is the operator's account of an evolution that changes how the
+	// router behaves: what it wrote, why, and the command that undoes it. The
+	// hub logs it at Warn, which the default log level shows, because the
+	// operator did not ask for the change and must hear of it. An evolution
+	// that changes only a shape (a renamed leaf, a moved block) keeps the
+	// behavior, leaves Notice empty, and is logged at Info: a Warn at every
+	// upgrade for a rename would teach the operator to ignore the one that
+	// matters.
+	Notice string
 }
 
 // EvolveResult holds the outcome of schema evolution.
 type EvolveResult struct {
 	Tree    *config.Tree
 	Applied []string
+	// Notices holds, in application order, the Notice of each applied
+	// evolution that carries one.
+	Notices []EvolveNotice
+}
+
+// EvolveNotice is the Notice of one applied evolution, named.
+type EvolveNotice struct {
+	Evolution string
+	Text      string
 }
 
 var (
@@ -88,13 +106,17 @@ func Evolve(tree *config.Tree, stampRelease string) (*EvolveResult, error) {
 	result := &EvolveResult{}
 
 	for _, e := range applicable {
-		if e.Detect(working) {
-			evolved, err := e.Apply(working)
-			if err != nil {
-				return nil, fmt.Errorf("evolution %s (%s): %w", e.Name, e.Release, err)
-			}
-			working = evolved
-			result.Applied = append(result.Applied, e.Name)
+		if !e.Detect(working) {
+			continue
+		}
+		evolved, err := e.Apply(working)
+		if err != nil {
+			return nil, fmt.Errorf("evolution %s (%s): %w", e.Name, e.Release, err)
+		}
+		working = evolved
+		result.Applied = append(result.Applied, e.Name)
+		if e.Notice != "" {
+			result.Notices = append(result.Notices, EvolveNotice{Evolution: e.Name, Text: e.Notice})
 		}
 	}
 

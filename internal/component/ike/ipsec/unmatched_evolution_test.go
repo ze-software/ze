@@ -9,11 +9,15 @@
 package ipsec
 
 import (
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/migration"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
+	"github.com/ze-software/ze/internal/core/version"
 )
 
 // evolveUnmatched runs every registered evolution over tree as a file with stamp
@@ -100,5 +104,59 @@ func TestUnmatchedEvolutionLeavesABoxWithoutIPsecAlone(t *testing.T) {
 	}
 	if result != nil {
 		t.Fatalf("applied %v to a file with no `vpn ipsec`, want none", result.Applied)
+	}
+}
+
+// TestUnmatchedEvolutionReachesARecoveredRollback checks the downgrade path: a
+// binary older than its config file recovers a rollback from history, and that
+// rollback was saved by 26.10.18 with `vpn ipsec` and no `unmatched` leaf.
+// RecoverConfig publishes it re-stamped with this binary's release, so the stamp
+// that says the rollback is old survives only in LoadConfigResult.StampRelease,
+// which the hub hands to the evolution. The rollback must come out on bypass.
+// Method: a real store holding a file stamped by a future release and the old
+// rollback, RecoverConfig under a 26.10.19 binary, then Evolve with the
+// recovered StampRelease as the hub does, and ParseIPsecConfig.
+func TestUnmatchedEvolutionReachesARecoveredRollback(t *testing.T) {
+	version.Stamp(unmatchedBypassEvolutionRelease, "2026-10-19")
+	defer version.Stamp("dev", "unknown")
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.conf")
+	store, err := storage.Create(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close() //nolint:errcheck // test cleanup
+
+	future := []byte("# ze-schema: 99.01.01\nset unknown-future-leaf value\n")
+	if err := store.WriteFile(configPath, future, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rollback := []byte("# ze-schema: " + unmatchedDiscardDefaultDay + "\nset vpn ipsec cookie-threshold 5\n")
+	if err := store.WriteVersion(configPath, rollback, time.Date(2026, 10, 18, 12, 0, 0, 0, time.Local)); err != nil {
+		t.Fatal(err)
+	}
+
+	var published []byte
+	result, ok := config.RecoverConfig(store, configPath, future, nil, func(content []byte) error {
+		published = content
+		return nil
+	})
+	if !ok {
+		t.Fatal("the 26.10.18 rollback was not recovered")
+	}
+	if got := config.ScanStampRelease(published); got != unmatchedBypassEvolutionRelease {
+		t.Fatalf("published stamp %q, want this binary's %q", got, unmatchedBypassEvolutionRelease)
+	}
+	if result.StampRelease != unmatchedDiscardDefaultDay {
+		t.Fatalf("recovered StampRelease %q, want the rollback's own %q", result.StampRelease, unmatchedDiscardDefaultDay)
+	}
+
+	cfg, applied := evolveUnmatched(t, result.Tree, result.StampRelease)
+	if len(applied) != 1 || applied[0] != unmatchedEvolutionName {
+		t.Fatalf("applied %v, want [%s]", applied, unmatchedEvolutionName)
+	}
+	if cfg.Unmatched != dataplane.SPActionBypass {
+		t.Fatalf("unmatched read as %d, want bypass (%d)", cfg.Unmatched, dataplane.SPActionBypass)
 	}
 }

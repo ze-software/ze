@@ -28,6 +28,12 @@ type LoadConfigResult struct {
 	Plugins    []plugin.PluginConfig
 	ConfigDir  string
 	CLIPlugins []string
+	// StampRelease is the release in the `# ze-schema:` stamp of the content
+	// LoadConfig parsed, empty when that content carries none. Schema evolution
+	// reads it, never the stamp of the bytes on disk afterwards: RecoverConfig
+	// publishes a recovered rollback re-stamped with this binary's release, so
+	// only this field still says which release saved the rollback.
+	StampRelease string
 }
 
 // LoadConfig parses config with CLI plugin YANG schemas, extracts and resolves
@@ -117,10 +123,11 @@ func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResul
 	}
 
 	return &LoadConfigResult{
-		Tree:       tree,
-		Plugins:    plugins,
-		ConfigDir:  configDir,
-		CLIPlugins: slices.Clone(cliPlugins),
+		Tree:         tree,
+		Plugins:      plugins,
+		ConfigDir:    configDir,
+		CLIPlugins:   slices.Clone(cliPlugins),
+		StampRelease: ScanStampRelease([]byte(input)),
 	}, nil
 }
 

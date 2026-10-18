@@ -979,7 +979,7 @@ file was written under:
 
 | The file | At start |
 |---|---|
-| Stamped 26.10.18 or earlier, `vpn ipsec` present, `unmatched` unset | The schema evolution `ipsec-unmatched-keeps-bypass` writes `unmatched bypass` into it and saves it back, re-stamped. The router keeps the catch-all it ran with |
+| Stamped 26.10.18 or earlier, `vpn ipsec` present, `unmatched` unset | The schema evolution `ipsec-unmatched-keeps-bypass` writes `unmatched bypass` into it. A config file is saved back, re-stamped; a config piped on stdin is changed in memory only, so the evolution runs again at every start. The router keeps the catch-all it ran with, and the start log says so at warning level |
 | Stamped 26.10.19 or later, `unmatched` unset | Discard, the default, with the error log below |
 | No stamp (written by hand, piped on stdin), or a dev build's `dev` stamp | Discard, the default, with the error log below |
 | `unmatched` written, either value | As written |
@@ -987,10 +987,20 @@ file was written under:
 A file with no stamp proves no release, so it gets the RFC default rather than
 a guess: write `unmatched bypass` into it to keep passing unmatched traffic. The
 release is the build date, so a binary built on 2026-10-18 may hold either
-default; every file stamped that day is read as old. The cost falls on one
+default; every build made that day stamps 26.10.18, and every file it saved is
+read as old. The cost falls on one
 case: a file a 26.10.18 build saved with the leaf unset while the discard was
 already in force also gains `unmatched bypass`, so write `unmatched discard` in
 it to keep the discard. The evolution runs at start only, never on a reload.
+After a downgrade recovers a rollback from history, the evolution reads the
+stamp the rollback was saved with, not the one recovery writes over it.
+
+When the evolution applies, the start log says so at warning level, which the
+default log level shows:
+
+```
+level=WARN msg="config evolution changed behavior" config=/etc/ze/ze.conf evolution=ipsec-unmatched-keeps-bypass change="wrote `vpn ipsec unmatched bypass`: ... then run `set vpn ipsec unmatched discard` and commit" saved="saved: ..."
+```
 
 When the daemon starts with the discard in force by default, it logs it at
 error level, with the same facts and commands as the refusal, so the console

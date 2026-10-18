@@ -25,6 +25,16 @@ const unmatchedBypassEvolutionRelease = "26.10.19"
 
 const unmatchedEvolutionName = "ipsec-unmatched-keeps-bypass"
 
+// unmatchedBypassNotice is what the hub tells the operator, at the default log
+// level, when the evolution applies: the evolution keeps unprotected traffic
+// flowing in the clear where the RFC 4301 default would discard it, which is a
+// security decision the operator never made in this file.
+const unmatchedBypassNotice = "wrote `vpn ipsec unmatched bypass`: the config was saved by release " +
+	unmatchedDiscardDefaultDay + " or earlier, when an unset `unmatched` meant bypass, so traffic no " +
+	"IPsec policy matches keeps flowing in the clear as before; to discard it as RFC 4301 " +
+	"Section 4.4.1 requires, first add a `bypass` policy for each flow that must stay in the clear " +
+	"(BGP, SSH, ICMP: see the IPsec guide), then run `set vpn ipsec unmatched discard` and commit"
+
 // unmatchedBypassEvolution writes `unmatched bypass` into a `vpn ipsec` block that
 // leaves the leaf unset, in a file stamped before the default became discard. That
 // file ran with a bypass catch-all (the default before 2026-10-18, and before
@@ -39,6 +49,7 @@ func unmatchedBypassEvolution() migration.Evolution {
 		Detect:      unmatchedLeftToDefault,
 		Apply:       writeUnmatchedBypass,
 		StampedOnly: true,
+		Notice:      unmatchedBypassNotice,
 	}
 }
 

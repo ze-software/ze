@@ -34,6 +34,7 @@ func applyEvolutions(logger *slog.Logger, store storage.Storage, configPath stri
 		"count", len(result.Applied), "evolutions", result.Applied)
 
 	if configPath == "" || configPath == "-" {
+		warnEvolutionNotices(logger, "stdin", "not saved: the config came on stdin, so this change repeats at every start until the source carries it", result.Notices)
 		return evolveOutcome{tree: result.Tree, data: data, applied: result.Applied}, nil
 	}
 
@@ -54,6 +55,18 @@ func applyEvolutions(logger *slog.Logger, store storage.Storage, configPath stri
 	if writeErr := promoteConfigCandidate(store, configPath); writeErr != nil {
 		return evolveOutcome{tree: tree, data: data}, writeErr
 	}
+	warnEvolutionNotices(logger, configPath, "saved: the file now states the change, re-stamped with this release", result.Notices)
 
 	return evolveOutcome{tree: result.Tree, data: []byte(stamped), applied: result.Applied}, nil
+}
+
+// warnEvolutionNotices logs, at Warn, each evolution that changed how the router
+// behaves. Warn is the default level (slogutil.DefaultLevel), so the operator
+// hears of a change nobody asked for; the notice says what was written, why, and
+// how to undo it. A shape-only evolution carries no notice and stays at Info.
+func warnEvolutionNotices(logger *slog.Logger, source, saved string, notices []migration.EvolveNotice) {
+	for _, notice := range notices {
+		logger.Warn("config evolution changed behavior",
+			"config", source, "evolution", notice.Evolution, "change", notice.Text, "saved", saved)
+	}
 }
