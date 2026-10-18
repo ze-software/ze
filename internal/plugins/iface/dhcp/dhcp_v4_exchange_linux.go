@@ -9,6 +9,7 @@ package ifacedhcp
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"time"
 
@@ -118,20 +119,20 @@ func (x nclient4Exchanger) extend(ctx context.Context, attempt v4Attempt) v4Repl
 	// One transmission per call: the lease loop schedules retransmission
 	// (RFC 2131 Section 4.4.5), so the library's own retry is disabled.
 	opts := []nclient4.ClientOpt{nclient4.WithRetry(1), nclient4.WithTimeout(attempt.window)}
+	var client *nclient4.Client
+	var err error
 	destination := nclient4.DefaultServers
 	switch attempt.delivery {
 	case v4DeliveryUnicast:
 		// RFC 2131 Section 4.1
 		destination = &net.UDPAddr{IP: attempt.server, Port: nclient4.ServerPort}
-		opts = append(opts, nclient4.WithUnicast(&net.UDPAddr{IP: attempt.source, Port: nclient4.ClientPort}))
+		client, err = newV4UnicastClient(attempt, append(opts, nclient4.WithServerAddr(destination)))
 	case v4DeliveryBroadcast:
 		// RFC 2131 Section 4.3.2
+		client, err = nclient4.New(attempt.device, append(opts, nclient4.WithServerAddr(destination))...)
 	case v4DeliveryUnspecified:
 		panic("BUG: iface dhcp v4: extend called with no delivery")
 	}
-	opts = append(opts, nclient4.WithServerAddr(destination))
-
-	client, err := nclient4.New(attempt.device, opts...)
 	if err != nil {
 		return v4Reply{outcome: v4OutcomeFailed, sent: x.clock.Now(), err: err}
 	}
@@ -146,6 +147,74 @@ func (x nclient4Exchanger) extend(ctx context.Context, attempt v4Attempt) v4Repl
 		return v4Reply{outcome: v4OutcomeNak, msg: answer, sent: sent}
 	}
 	return v4Reply{outcome: v4OutcomeAck, msg: answer, sent: sent}
+}
+
+// newV4UnicastClient opens the client of a RENEWING exchange on a
+// v4UnicastConn: sent from the leased address, read from the device.
+func newV4UnicastClient(attempt v4Attempt, opts []nclient4.ClientOpt) (*nclient4.Client, error) {
+	device, err := net.InterfaceByName(attempt.device)
+	if err != nil {
+		return nil, fmt.Errorf("unicast renewal on %s: %w", attempt.device, err)
+	}
+	receive, err := nclient4.NewRawUDPConn(attempt.device, nclient4.ClientPort)
+	if err != nil {
+		return nil, fmt.Errorf("unicast renewal on %s: raw socket: %w", attempt.device, err)
+	}
+	send, err := net.ListenUDP("udp4", &net.UDPAddr{IP: attempt.source, Port: nclient4.ClientPort})
+	if err != nil {
+		closeV4Socket(receive, attempt.device)
+		return nil, fmt.Errorf("unicast renewal from %s: %w", attempt.source, err)
+	}
+	conn := &v4UnicastConn{send: send, receive: receive}
+	client, err := nclient4.NewWithConn(conn, device.HardwareAddr, opts...)
+	if err != nil {
+		closeV4Socket(conn, attempt.device)
+		return nil, fmt.Errorf("unicast renewal on %s: %w", attempt.device, err)
+	}
+	return client, nil
+}
+
+// v4UnicastConn is the socket pair of a RENEWING exchange. The DHCPREQUEST
+// leaves through a kernel UDP socket bound to the leased address, so the
+// kernel routes it to the server and resolves the server's hardware address.
+// The answer is read from the device's raw socket, which sees every datagram
+// for the client port: a server unicasts its DHCPACK to ciaddr, but with
+// giaddr zero it broadcasts its DHCPNAK (RFC 2131 Section 4.1), and a socket
+// bound to the leased address never receives a datagram addressed to
+// 255.255.255.255.
+//
+// Owned by one nclient4.Client, which closes it once from Client.Close.
+type v4UnicastConn struct {
+	send    *net.UDPConn
+	receive net.PacketConn
+}
+
+var _ net.PacketConn = (*v4UnicastConn)(nil)
+
+func (u *v4UnicastConn) ReadFrom(b []byte) (int, net.Addr, error) { return u.receive.ReadFrom(b) }
+
+func (u *v4UnicastConn) WriteTo(b []byte, addr net.Addr) (int, error) {
+	return u.send.WriteTo(b, addr)
+}
+
+func (u *v4UnicastConn) Close() error {
+	return errors.Join(u.send.Close(), u.receive.Close())
+}
+
+func (u *v4UnicastConn) LocalAddr() net.Addr { return u.send.LocalAddr() }
+
+func (u *v4UnicastConn) SetDeadline(t time.Time) error {
+	return errors.Join(u.send.SetDeadline(t), u.receive.SetDeadline(t))
+}
+
+func (u *v4UnicastConn) SetReadDeadline(t time.Time) error { return u.receive.SetReadDeadline(t) }
+
+func (u *v4UnicastConn) SetWriteDeadline(t time.Time) error { return u.send.SetWriteDeadline(t) }
+
+func closeV4Socket(conn net.PacketConn, device string) {
+	if err := conn.Close(); err != nil {
+		loggerPtr.Load().Debug("iface dhcp v4: socket close failed", "device", device, "err", err)
+	}
 }
 
 // v4ReplyFromError classifies an nclient4 error: the library's "no response"
