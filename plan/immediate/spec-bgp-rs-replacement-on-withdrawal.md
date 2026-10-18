@@ -9,12 +9,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | `plan/immediate/spec-bgp-graceful-restart-rfc-defects.md` D1, for one sub-case only (round 5, I-2): the non-retention input of Phase 2b and the GR-capable half of AC-17 land once D1's reason producer exists; no other phase waits on D1. Landing order with `plan/immediate/spec-daemon-drain-before-stop.md` free, the second carries `TestDrainReplayRefusedAtOwedKey` (Blast Radius) |
-| Phase | - |
+| Phase | 2/9 |
 | Handoff | verify |
-| Updated | 2026-10-13 |
+| Updated | 2026-10-18 |
 
 <!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later session reviews that commit and closes, on Opus when the model is an Anthropic one. `-` closes in the same session. -->
 
@@ -881,6 +881,7 @@ Setup (round 5, I-4). Under Data Flow 4 a departure owes a key only where the de
 - 2026-10-13 (round 2): "empty answer" meant two different things (no ribOut entry, and owner moved) and the reactor would have had to guess. Every key now gets exactly one named outcome, and a missing one is an error, not a default.
 - 2026-10-13 (design review round 3): "any announcement removes the owed record" read every announcement as a new owner, and one authority is not: a bgp-rib replay re-sends `ribOut[Destination]`, which still names the owner whose withdrawal the writer deferred, because a deferred withdrawal produces no sent event. A record rule keyed on "announcement or withdrawal" has to be keyed on authority instead, and every authority the writer admits needs its own row (Data Flow 7).
 - 2026-10-13 (round 3): an assumption that "a failed X ends the session" had no producer behind it: the failure was logged and the session read on. Before a design treats a failure as the start of a cleanup, read the code that is supposed to start the cleanup.
+- 2026-10-18 (Phase 1): the red probe now lives at its final carrier, `reactor/rs_withdrawal_replacement_test.go`, beside `TestRSOwnerWithdrawalRecoversOnCachedRail` and `TestRSOwnerWithdrawalRecoversOnFastPath`, and is committed so it cannot be lost again. All three are red at HEAD `99228a5b3d` for the defect's reason: C's history for 10.9.0.0/24 is B, A, then one withdrawal, and B is never re-sent. A receiver wrapper reads `RawMessage.ReactorForwarded` on A's withdrawal body, so each test proves which rail carried it. The order A, B, A-withdraw stays green in `TestRSWithdrawalKeepsCurrentDestinationOwner`.
 - 2026-10-13 (round 3): the cleanest simplification came from data the writer already held. The departure cut existed because `adjOutSameOwner` ignores the source's session generation, but nothing stopped the table from STORING the generation while equality ignores it; one field removed an outcome, an IPC field, a meta key and an assumption.
 
 ## Key Design Decisions

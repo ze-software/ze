@@ -56,3 +56,22 @@ stale), e62f9e8304 and d41fb04dfa (LLGR re-advertise rails), approved test
 fixes d8e084c3eb, ecba2d9147, c85342c940, 2effa4167c, dc82b0dd89, 31c1a7eb57.
 Re-judges: 097c5a6e0e, 7ca8d5215b, 4be0dfb736, 6397a049c7. Records:
 1f2a3f82c5. ExaBGP phase 1: 778d3912bf.
+
+## Item 8 continuation: spec-bgp-rs-replacement-on-withdrawal (2026-10-18)
+
+The spec is claimed, `in-progress`, Phase 2/9. Phase 1 (wiring) is done:
+`internal/component/bgp/reactor/rs_withdrawal_replacement_test.go` holds the
+recreated Evidence probe and the cached-rail and fast-path carriers of AC-1.
+All three are red on purpose: client C's history for 10.9.0.0/24 is B, A, then
+a bare withdrawal. The commit that carries them names them. The order A, B,
+A-withdraw stays green (`TestRSWithdrawalKeepsCurrentDestinationOwner`).
+RFC4271-9.2-7 stays weak until Phases 3 and 5 land.
+
+Still open: Phases 2, 2b, 3, 3b, 3a, 4, 5 and 6. Run one agent for each phase,
+because each phase is about one agent's budget. Two facts constrain the order:
+- Phase 2 cannot delete `RecoveryRequest.Cut` alone. The cut is the AC-18
+  guard in `rib_recovery.go` (`SourceMessageID > request.Cut`), and the guard
+  that replaces it is Phase 3's owner-session generation. Either keep the cut
+  until Phase 3, or land Phases 2 and 3 in one commit.
+- The second half of Phase 2b (the no-retention reason) waits on D1 of
+  `spec-bgp-graceful-restart-rfc-defects.md`, which is still at `design`.
