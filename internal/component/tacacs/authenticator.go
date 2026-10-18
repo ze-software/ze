@@ -51,12 +51,14 @@ func (a *tacacsAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 		return aaa.AuthResult{Source: backendName}, aaa.ErrAuthRejected
 	}
 	request.Username = username
-	service := request.Service
-	if service == "" {
-		service = defaultService
+	// The port field names the access channel the login arrived on ("ssh",
+	// "web"); a caller that names none is reported as ssh.
+	port := request.Service
+	if port == "" {
+		port = defaultService
 	}
 
-	reply, err := a.client.Authenticate(request.Username, request.Password, service, request.RemoteAddr)
+	reply, err := a.client.Authenticate(request.Username, request.Password, port, request.RemoteAddr)
 	if err != nil {
 		if errors.Is(err, errRequestInvalid) {
 			return aaa.AuthResult{Source: backendName}, aaa.ErrAuthRejected
@@ -67,7 +69,7 @@ func (a *tacacsAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 
 	// Handle each status explicitly. RFC 8907 Section 5.2.
 	if reply.Status == AuthenStatusPass {
-		return a.handlePass(request)
+		return a.handlePass(request, port)
 	}
 	if reply.Status == AuthenStatusFail {
 		// Explicit rejection: chain must NOT try next backend.
@@ -93,11 +95,12 @@ func (a *tacacsAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 	return aaa.AuthResult{}, fmt.Errorf("tacacs: unexpected authen status 0x%02x", reply.Status)
 }
 
-// handlePass obtains the session policy before granting profiles. PAP reply
+// handlePass obtains the session policy before granting profiles, naming the
+// same port the authentication START named. PAP reply
 // data is not a privilege assignment: RFC 8907 Section 9 states, "This privilege
 // level is returned by the server in a session-based shell authorization (when
 // \"service\" equals \"shell\" and \"cmd\" is empty).".
-func (a *tacacsAuthenticator) handlePass(request aaa.AuthRequest) (aaa.AuthResult, error) {
+func (a *tacacsAuthenticator) handlePass(request aaa.AuthRequest, port string) (aaa.AuthResult, error) {
 	args := []string{"service=shell", "cmd="}
 	reply, err := a.client.SendAuthorization(&AuthorRequest{
 		AuthenMethod:  AuthenMethodTACACS,
@@ -105,7 +108,7 @@ func (a *tacacsAuthenticator) handlePass(request aaa.AuthRequest) (aaa.AuthResul
 		AuthenType:    authenTypePAP,
 		AuthenService: authenServiceLogin,
 		User:          request.Username,
-		Port:          portSSH,
+		Port:          port,
 		RemAddr:       request.RemoteAddr,
 		Args:          args,
 	})

@@ -90,7 +90,8 @@ func (a *radiusAuthenticator) authenticateEAP(ctx context.Context, request aaa.A
 		if err != nil {
 			return aaa.AuthResult{}, err
 		}
-		resp, err := a.exchange(ctx, username, credential)
+		// RFC 3579 Section 3
+		resp, err := a.exchange(ctx, username, request.Service, credential)
 		if err != nil {
 			return aaa.AuthResult{}, err
 		}

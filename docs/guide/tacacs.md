@@ -102,11 +102,16 @@ than sixteen characters; keys of thirty-two characters or longer are supported.
 
 ## Authentication flow
 
-1. SSH client connects with username + password.
+1. An SSH client, or a web login (form or HTTP Basic auth), supplies a
+   username and password.
 2. Daemon's AAA chain calls `TacacsAuthenticator` first (priority 100; local
    bcrypt is priority 200).
 3. The client opens TCP to the first configured server and sends a PAP
    AUTHEN START. The MD5 pseudo-pad obfuscates the body using the shared secret.
+   Its `port` field names the access channel the login arrived on: `ssh` for an
+   SSH login, `web` for a web login (the login form and HTTP Basic auth). A
+   login whose caller names no channel reports `ssh`. The session
+   authorization of step 4 carries the same port.
 4. **PASS** -- Ze requests shell-session authorization with `service=shell` and
    an empty `cmd`. The server returns a decimal `priv-lvl` argument, which maps
    through `tacacs-profile <priv-lvl>.profile`. Missing privilege uses level one.

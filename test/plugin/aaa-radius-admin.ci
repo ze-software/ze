@@ -1,7 +1,12 @@
 # Test: RADIUS admin authentication succeeds over SSH with profile mapping
 # VALIDATES: Access-Accept authenticates through RADIUS and Filter-Id maps admin authorization.
 # PREVENTS: the RADIUS admin backend being registered but never reached by the chain.
+#
+# RFC requirement: RFC3579-3-2 positive -- "The NAS-Port or NAS-Port-Id
+# attributes SHOULD be included by the NAS in Access-Request packets": the
+# RADIUS server logs NAS-Port-Id `ssh` on the Access-Request of an SSH login.
 
 cmd=foreground:seq=1:exec=le test fixture plugin/aaa-radius-admin:timeout=20s
 expect=exit:code=0
+expect=stderr:pattern=OK: RADIUS server read NAS-Port-Id ssh
 expect=stderr:pattern=auth success.*source=radius

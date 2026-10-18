@@ -64,6 +64,12 @@ environment { ssh { enabled true; server main { ip 127.0.0.1; port 0; } } }
 		return fmt.Errorf("show summary via RADIUS auth: %w\nOUTPUT: %s\n%s", err, output, daemon.contents())
 	}
 	fmt.Fprintln(os.Stderr, "OK: summary ran via RADIUS auth")
+	// RFC 3579 Section 3: the server, not the client, says which port the
+	// Access-Request named.
+	if !strings.Contains(mock.contents(), "nas-port-id=ssh") {
+		return fmt.Errorf("the RADIUS server read no NAS-Port-Id ssh: %s", mock.contents())
+	}
+	fmt.Fprintln(os.Stderr, "OK: RADIUS server read NAS-Port-Id ssh")
 	if err := extra1Wait(ctx, 300*time.Millisecond); err != nil {
 		return err
 	}

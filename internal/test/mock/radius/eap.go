@@ -159,8 +159,8 @@ func (s *eapServer) handle(data []byte, pkt *radius.Packet, key []byte, users us
 		return nil
 	}
 	if logPackets {
-		slog.Info("radius-mock: Access-Request", "user", name, "method", "eap",
-			"eap-type", request.eapType, "reply", codeName(reply.code))
+		fields := requestLogFields(pkt, name, "eap", codeName(reply.code))
+		slog.Info("radius-mock: Access-Request", append(fields, "eap-type", request.eapType)...)
 	}
 	response, err := buildEAPResponse(reply, pkt.Identifier, pkt.Authenticator, key)
 	if err != nil {

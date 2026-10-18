@@ -121,7 +121,8 @@ func (a *radiusAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 		return aaa.AuthResult{}, err
 	}
 
-	resp, err := a.exchange(ctx, request.Username, credential)
+	// RFC 3579 Section 3
+	resp, err := a.exchange(ctx, request.Username, request.Service, credential)
 	if err != nil {
 		return aaa.AuthResult{}, err
 	}
@@ -129,18 +130,20 @@ func (a *radiusAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 }
 
 // exchange sends one Access-Request carrying credential beside the attributes
-// every admin login owes, and returns the server's reply.
+// every admin login owes, and returns the server's reply. port names the access
+// channel the login arrived on (AuthRequest.Service: "ssh", "web"), and is
+// empty when the caller names none.
 //
 // The Request Authenticator is drawn here and overwritten by SendToServers,
 // which draws its own per server. RFC 2865 Section 4.1 requires a new one with
 // each new Identifier, and failover assigns both.
-func (a *radiusAuthenticator) exchange(ctx context.Context, username string, credential []Attr) (*Packet, error) {
+func (a *radiusAuthenticator) exchange(ctx context.Context, username, port string, credential []Attr) (*Packet, error) {
 	auth, err := RandomAuthenticator()
 	if err != nil {
 		return nil, fmt.Errorf("radius: random authenticator: %w", err)
 	}
 
-	attrs := make([]Attr, 0, len(credential)+4)
+	attrs := make([]Attr, 0, len(credential)+5)
 	attrs = append(attrs, credential...)
 	attrs = append(attrs, Attr{Type: AttrServiceType, Value: AttrUint32(serviceTypeLogin)})
 	// RFC 3579 Section 3: "either NAS-Identifier, NAS-IP-Address or
@@ -162,6 +165,13 @@ func (a *radiusAuthenticator) exchange(ctx context.Context, username string, cre
 	if v4 != nil {
 		attrs = append(attrs, Attr{Type: AttrNASIPAddress, Value: v4})
 	}
+	// RFC 3579 Section 3: "The NAS-Port or NAS-Port-Id attributes SHOULD be
+	// included by the NAS in Access-Request packets". An admin login has no
+	// numbered port, and RFC 2869 Section 5.17 says NAS-Port-Id "is intended
+	// for use by NASes which cannot conveniently number their ports", so the
+	// port is named by the access channel. A caller that names no channel gets
+	// no attribute, because RFC 2865 Section 5 forbids zero-length text.
+	attrs = AppendTextAttr(attrs, AttrNASPortID, port)
 
 	pkt := &Packet{
 		Code:          CodeAccessRequest,

@@ -4,6 +4,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -15,7 +16,7 @@
         "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC3579SubscriberNASRefusesEAPMessage": "b439fffbe386e859",
         "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryCoversTheServicesZeOffers": "5f2ad3bca62785d7",
         "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService": "5f2ad3bca62785d7",
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRFC3579EAPAttributesServeALiveEAPMethod": "fdb8524d78824d96"
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRFC3579EAPAttributesServeALiveEAPMethod": "2b1b1ce908f454a5"
       },
       "units": {
         "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC3579SubscriberNASRefusesEAPMessage": "d459dfd5f3a5c539",
@@ -29,8 +30,8 @@
       "note": "negative compares verdict, profiles and source with and without a Notification carrying text; positive shows the message is delivered (logged, Notification Response sent) and not acted on",
       "requirement_sha": "b4d25f1afc2523b5",
       "tests": {
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNotificationDoesNotSteerTheLogin": "fdb8524d78824d96",
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNotificationIsAnsweredAndLogged": "fdb8524d78824d96"
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNotificationDoesNotSteerTheLogin": "2b1b1ce908f454a5",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNotificationIsAnsweredAndLogged": "2b1b1ce908f454a5"
       },
       "units": {
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNotificationDoesNotSteerTheLogin": "4e0b92ccd35d86a7",
@@ -42,8 +43,8 @@
       "note": "Access-Reject returns aaa.ErrAuthRejected with no profiles; the negative carries an EAP-Success inside the Access-Reject and still denies",
       "requirement_sha": "9fa69412a76bab90",
       "tests": {
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRejectDeniesAccess": "fdb8524d78824d96",
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRejectDeniesEvenCarryingEAPSuccess": "fdb8524d78824d96"
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRejectDeniesAccess": "2b1b1ce908f454a5",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRejectDeniesEvenCarryingEAPSuccess": "2b1b1ce908f454a5"
       },
       "units": {
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRejectDeniesAccess": "7d9c6511a23b39ec",
@@ -55,8 +56,8 @@
       "note": "positive compares User-Name to the Type-Data of the peer's EAP-Response/Identity read off the wire; negative checks every subsequent request (method Responses, not Identity) carries the same User-Name. Both clauses covered",
       "requirement_sha": "555d0d30082cff3c",
       "tests": {
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapUserNameIsThePeerIdentity": "fdb8524d78824d96",
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapUserNameRidesEverySubsequentRequest": "fdb8524d78824d96"
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapUserNameIsThePeerIdentity": "2b1b1ce908f454a5",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapUserNameRidesEverySubsequentRequest": "2b1b1ce908f454a5"
       },
       "units": {
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapUserNameIsThePeerIdentity": "6acb2f74a0370b8e",
@@ -71,8 +72,8 @@
         "internal/component/radius/rfc3579_eap_header_fields_test.go::TestRFC3579NASForwardsTheCurrentIdentifierBothWays": "ba130494c53d027a",
         "internal/component/radius/rfc3579_eap_header_fields_test.go::TestRFC3579NASRefusesANonRequestCodeInAChallenge": "ba130494c53d027a",
         "internal/component/radius/rfc3579_eap_header_fields_test.go::TestRFC3579NASRefusesAResponseOffTheCurrentIdentifier": "ba130494c53d027a",
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapReadsTheServerEAPHeaderFields": "fdb8524d78824d96",
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapRefusesAMalformedServerEAPHeader": "fdb8524d78824d96"
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapReadsTheServerEAPHeaderFields": "2b1b1ce908f454a5",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapRefusesAMalformedServerEAPHeader": "2b1b1ce908f454a5"
       },
       "units": {
         "internal/component/radius/rfc3579_eap_header_fields_test.go::TestRFC3579NASForwardsTheCurrentIdentifierBothWays": "e5d29f7a85187c66",
@@ -113,8 +114,8 @@
       "note": "a concluding Access-Accept's EAP Notification (and, in the negative, an undecodable EAP-Message) reaches the log before the code decides; a loop that reads resp.Code first and returns would log nothing",
       "requirement_sha": "42d9170152e845c0",
       "tests": {
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapProcessesAnUnparseableEAPMessageBeforeTheCode": "fdb8524d78824d96",
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapProcessesTheEAPMessageBeforeTheCode": "fdb8524d78824d96"
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapProcessesAnUnparseableEAPMessageBeforeTheCode": "2b1b1ce908f454a5",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapProcessesTheEAPMessageBeforeTheCode": "2b1b1ce908f454a5"
       },
       "units": {
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapProcessesAnUnparseableEAPMessageBeforeTheCode": "0ccd4635075ff29a",
@@ -126,9 +127,9 @@
       "note": "Row now quotes the MUST clause only (SHOULD half is RFC3579-3-2, {gap}). + TestRadiusAdminEapAccessRequestNamesTheNAS and TestRadiusAdminEapNamesTheNASWithoutASourceAddress: every Access-Request of the EAP conversation carries a non-empty NAS-Identifier, with and without a source address (one of the three suffices). - TestRadiusAdminEapWithNoNASIdentityIsNotSent: nasID empty and no IPv4 source -> Authenticate errors 'no NAS identity' and the server receives zero requests; observed red against the pre-fix exchange, which sent a zero-length NAS-Identifier. Producer exchange (authenticator.go) refuses before sending; NAS-IPv6-Address is never sent, so an IPv6-only source with no NAS-Identifier is refused, which is conservative, not non-conformant. Records at exchange observed red for all three units.",
       "requirement_sha": "bf24254bbc91edea",
       "tests": {
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRequestNamesTheNAS": "fdb8524d78824d96",
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNamesTheNASWithoutASourceAddress": "fdb8524d78824d96",
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapWithNoNASIdentityIsNotSent": "fdb8524d78824d96"
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRequestNamesTheNAS": "2b1b1ce908f454a5",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNamesTheNASWithoutASourceAddress": "2b1b1ce908f454a5",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapWithNoNASIdentityIsNotSent": "2b1b1ce908f454a5"
       },
       "units": {
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRequestNamesTheNAS": "34258572dcc17d7c",
@@ -246,8 +247,8 @@
       "note": "a successful and a rejected eap-mschapv2 login put an EAP-Message and no User-Password or CHAP-Password on every request, and the rejection produces no weaker retry",
       "requirement_sha": "293e15fa7692bbf7",
       "tests": {
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapDoesNotDowngradeAfterARejection": "fdb8524d78824d96",
-        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNeverSendsAPasswordCredential": "fdb8524d78824d96"
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapDoesNotDowngradeAfterARejection": "2b1b1ce908f454a5",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNeverSendsAPasswordCredential": "2b1b1ce908f454a5"
       },
       "units": {
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapDoesNotDowngradeAfterARejection": "c32369e026aeff83",

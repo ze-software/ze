@@ -41,10 +41,10 @@ const (
 	poolBufs    = 16
 )
 
-// defaultService is the TACACS+ authentication service an authentication
-// request carries when the caller names none, and portSSH is the TACACS+ port
-// field an authorization or accounting record carries for a CLI session. The
-// two hold the same text and name two different RFC 8907 fields.
+// defaultService is the TACACS+ port field a login's authentication START and
+// session authorization carry when the caller names no access channel
+// (AuthRequest.Service), and portSSH is the port field a command authorization
+// or accounting record carries for a CLI session.
 const (
 	defaultService = "ssh"
 	portSSH        = "ssh"

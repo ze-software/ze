@@ -351,6 +351,7 @@ func AuthMiddlewareWithAudit(store *SessionStore, authenticator authz.Authentica
 				Username:   username,
 				Password:   password,
 				RemoteAddr: r.RemoteAddr,
+				Service:    authServiceWeb,
 			}); err == nil && result.Authenticated {
 				logger.Debug("basic auth accepted", "username", username)
 				addSecurityHeaders(w)
@@ -371,6 +372,11 @@ func AuthMiddlewareWithAudit(store *SessionStore, authenticator authz.Authentica
 		loginRenderer(w, r)
 	})
 }
+
+// authServiceWeb names the web interface as the access channel of a login.
+// Backends that report the channel read it from AuthRequest.Service: RADIUS
+// sends it as NAS-Port-Id, TACACS+ as the port field of its START packet.
+const authServiceWeb = "web"
 
 // loginHandler returns an http.HandlerFunc that processes POST login requests.
 // On successful authentication, it creates a session, sets the ze-session cookie,
@@ -397,6 +403,7 @@ func LoginHandlerWithAudit(store *SessionStore, authenticator authz.Authenticato
 			Username:   username,
 			Password:   password,
 			RemoteAddr: r.RemoteAddr,
+			Service:    authServiceWeb,
 		})
 		if err != nil || !result.Authenticated {
 			logger.Warn("login failed", "username", username, "remote", r.RemoteAddr)

@@ -178,9 +178,20 @@ func handleRequest(data, key []byte, users userList, eap *eapServer, logPackets 
 		}
 	}
 	if logPackets {
-		slog.Info("radius-mock: Access-Request", "user", name, "method", method, "reply", codeName(code))
+		slog.Info("radius-mock: Access-Request", requestLogFields(pkt, name, method, codeName(code))...)
 	}
 	return buildResponse(code, pkt.Identifier, pkt.Authenticator, reply, key)
+}
+
+// requestLogFields returns the slog fields of one Access-Request log line.
+// NAS-Port-Id is logged only when the request carries it, so a fixture can
+// tell a request that named its port from one that sent no attribute.
+func requestLogFields(pkt *radius.Packet, name, method, reply string) []any {
+	fields := []any{"user", name, "method", method, "reply", reply}
+	if port := pkt.FindAttr(radius.AttrNASPortID); port != nil {
+		fields = append(fields, "nas-port-id", string(port))
+	}
+	return fields
 }
 
 // profileAttrs returns the Filter-Id attributes an Access-Accept carries for a

@@ -532,3 +532,41 @@ func TestVersionHeaderPresentByDefault(t *testing.T) {
 	assert.Contains(t, headers.Get("X-Ze-Version"), "ze/", "X-Ze-Version must carry the banner by default")
 	assert.Empty(t, headers.Get("Server"), "Ze must send no Server banner")
 }
+
+// TestWebLoginsNameTheWebChannel drives both web login paths, the login form
+// and Basic auth, into a recording authenticator.
+//
+// VALIDATES: every web login hands the AAA chain Service "web", which RADIUS
+// sends as NAS-Port-Id and TACACS+ as the port field.
+// PREVENTS: a web login reported to the AAA server as an SSH login, or as one
+// with no channel at all.
+func TestWebLoginsNameTheWebChannel(t *testing.T) {
+	t.Run("login form", func(t *testing.T) {
+		authenticator := &recordingAuthenticator{err: authz.ErrAuthRejected}
+		handler := loginHandler(NewSessionStore(nil), authenticator, noopRenderer)
+		form := url.Values{"username": {"alice"}, "password": {"testpass"}}
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		handler.ServeHTTP(httptest.NewRecorder(), req)
+
+		assert.Equal(t, "alice", authenticator.request.Username)
+		assert.Equal(t, "web", authenticator.request.Service)
+	})
+	t.Run("basic auth", func(t *testing.T) {
+		authenticator := &recordingAuthenticator{
+			result: authz.AuthResult{Authenticated: true, Source: "test"},
+		}
+		handler := authMiddleware(NewSessionStore(nil), authenticator, noopRenderer, okHandler())
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/status", http.NoBody)
+		req.Header.Set("Accept", "application/json")
+		req.Header.Set("Authorization", "Basic "+
+			base64.StdEncoding.EncodeToString([]byte("alice:testpass")))
+
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		require.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "web", authenticator.request.Service)
+	})
+}

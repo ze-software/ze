@@ -326,3 +326,57 @@ func TestTacacsAuthenticatorUsesRemoteAddr(t *testing.T) {
 	assert.True(t, result.Authenticated)
 	assert.Equal(t, "203.0.113.5:2222", seenRemoteAddr)
 }
+
+// TestTacacsAuthenticatorReportsTheAccessChannel reads the port field of the
+// authentication START and of the session authorization a login sends.
+//
+// VALIDATES: both packets name the channel from AuthRequest.Service, so a web
+// login reports port web, and a login that names no channel reports ssh.
+// PREVENTS: a web login reported to the server as an SSH login.
+func TestTacacsAuthenticatorReportsTheAccessChannel(t *testing.T) {
+	for _, tc := range []struct {
+		service string
+		port    string
+	}{
+		{service: "web", port: "web"},
+		{service: "ssh", port: "ssh"},
+		{service: "", port: "ssh"},
+	} {
+		t.Run("service="+tc.service, func(t *testing.T) {
+			key := []byte("test-key")
+			var startPort, authorPort string
+			srv := newProfileServer(t, key, func(header PacketHeader, body []byte) []byte {
+				if header.Type == 0x01 {
+					// START: action, priv_lvl, authen_type, service, user_len,
+					// port_len, rem_addr_len, data_len, then user and port.
+					off := 8 + int(body[4])
+					startPort = string(body[off : off+int(body[5])])
+				}
+				if header.Type == 0x02 {
+					// AUTHOR REQUEST: authen_method, priv_lvl, authen_type,
+					// authen_service, user_len, port_len, rem_addr_len, arg_cnt,
+					// arg lengths, then user and port.
+					off := 8 + int(body[7]) + int(body[4])
+					authorPort = string(body[off : off+int(body[5])])
+				}
+				return profileReplies(15)(header, body)
+			})
+
+			client := NewTacacsClient(TacacsClientConfig{
+				Servers: []TacacsServer{{Address: srv.addr(), Key: key}},
+				Timeout: 2 * time.Second,
+			})
+			auth := newTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil)
+			result, err := auth.Authenticate(authz.AuthRequest{
+				Username: "admin",
+				Password: "secret",
+				Service:  tc.service,
+			})
+
+			require.NoError(t, err)
+			assert.True(t, result.Authenticated)
+			assert.Equal(t, tc.port, startPort, "authentication START port")
+			assert.Equal(t, tc.port, authorPort, "session authorization port")
+		})
+	}
+}

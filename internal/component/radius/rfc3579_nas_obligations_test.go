@@ -604,3 +604,68 @@ func TestRadiusAdminEapWithNoNASIdentityIsNotSent(t *testing.T) {
 	assert.False(t, res.Authenticated)
 	assert.Zero(t, srv.requestCount(), "no Access-Request reached the server")
 }
+
+// TestRadiusAdminEapAccessRequestNamesThePort reads every Access-Request of an
+// EAP login off the wire, once for each access channel an operator logs in
+// through.
+//
+// VALIDATES: each Access-Request of the conversation carries NAS-Port-Id
+// naming the channel the login arrived on, taken from AuthRequest.Service.
+// PREVENTS: a NAS-Port-Id fixed to one channel, which would tell the server
+// every web login came over SSH.
+//
+// RFC requirement: RFC3579-3-2 positive -- "The NAS-Port or NAS-Port-Id
+// attributes SHOULD be included by the NAS in Access-Request packets": every
+// request of an `ssh` and of a `web` login carries NAS-Port-Id with that text
+// (authenticator.go exchange).
+// RFC requirement: RFC3579-3-2 negative -- a request whose channel is unnamed
+// carries no NAS-Port-Id at all rather than a zero-length one, which RFC 2865
+// Section 5 forbids.
+func TestRadiusAdminEapAccessRequestNamesThePort(t *testing.T) {
+	secret := []byte("testing123")
+	for _, service := range []string{"ssh", "web", ""} {
+		t.Run("service="+service, func(t *testing.T) {
+			srv := newEAPMockServer(t, secret, eap.TypeMSCHAPv2, "Hello",
+				[]Attr{{Type: AttrFilterID, Value: []byte("admin")}})
+			a := eapAuthenticator(t, srv.addr, secret, AuthMethodEAPMSCHAPv2)
+			res, err := a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "Hello", Service: service})
+			require.NoError(t, err)
+			require.True(t, res.Authenticated)
+
+			captured := srv.captured(t)
+			require.Greater(t, len(captured), 1)
+			for index, pkt := range captured {
+				if service == "" {
+					assert.Nilf(t, pkt.FindAttr(AttrNASPortID),
+						"request %d carries a NAS-Port-Id for a login with no channel", index)
+					continue
+				}
+				assert.Equalf(t, service, string(pkt.FindAttr(AttrNASPortID)),
+					"request %d names the access channel", index)
+			}
+		})
+	}
+}
+
+// TestRadiusAdminPapAccessRequestNamesThePort reads the one Access-Request a
+// PAP login sends.
+//
+// VALIDATES: the non-EAP admin login carries the same NAS-Port-Id.
+// PREVENTS: a port attribute added on the EAP path alone.
+//
+// RFC requirement: RFC3579-3-2 positive -- the PAP Access-Request of an `ssh`
+// login carries NAS-Port-Id `ssh` (authenticator.go exchange, shared by both
+// paths).
+func TestRadiusAdminPapAccessRequestNamesThePort(t *testing.T) {
+	secret := []byte("testing123")
+	srv := newCapturingServer(t, secret, CodeAccessAccept,
+		[]Attr{{Type: AttrFilterID, Value: []byte("admin")}}, true)
+	a := testAuthenticator(t, srv.mock.addr, secret, ExtractedConfig{ProfileAttr: AttrFilterID})
+	res, err := a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "secret", Service: "ssh"})
+	require.NoError(t, err)
+	require.True(t, res.Authenticated)
+
+	pkt, err := Decode(srv.request(t))
+	require.NoError(t, err)
+	assert.Equal(t, "ssh", string(pkt.FindAttr(AttrNASPortID)))
+}
