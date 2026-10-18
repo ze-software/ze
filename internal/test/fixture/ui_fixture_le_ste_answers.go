@@ -324,7 +324,7 @@ func leSTEAnswers(ctx context.Context) error {
 	if unknown.code != 2 || unknown.err == nil {
 		return leSTEFailf("a bare path answered %d, want 2", unknown.code)
 	}
-	if !bytes.Contains(unknown.stderr, []byte("unknown argument keyword")) {
+	if !bytes.Contains(unknown.stderr, []byte("takes no argument keyword")) {
 		return leSTEFailf("the unknown-keyword refusal is silent: %q", unknown.stderr)
 	}
 

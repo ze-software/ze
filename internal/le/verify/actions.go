@@ -17,10 +17,6 @@ import (
 
 const area = "verify"
 
-// modeKeyword is the parameter keyword that types a stage population, and it is
-// written once here so the two actions that take one cannot drift apart.
-const modeKeyword = "mode"
-
 // commitKeyword is the parameter keyword that names the revision a worktree
 // verification judges. The action declares it, the action reads it, and
 // worktreeArgv writes it into the work identity a second session attaches to,
@@ -44,9 +40,9 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:       "current",
-		Why:        "verify the current shared checkout; mode defaults to full",
+		Why:        "verify the tree: full (the default) runs the full population in a fresh detached worktree at HEAD, as worktree does; fast runs the changed-files population in place over the shared checkout",
 		Writes:     true,
-		Parameters: []leaction.Parameter{{Keyword: modeKeyword, Value: "full|changed", Requirement: leaction.Optional}},
+		Parameters: []leaction.Parameter{{Keyword: keywordFull}, {Keyword: keywordFast}},
 		AnswerArgs: currentHere,
 	},
 	leaction.Action{
@@ -58,8 +54,8 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:       "list",
-		Why:        "list the native current-checkout stages; mode defaults to full",
-		Parameters: []leaction.Parameter{{Keyword: modeKeyword, Value: "full|changed", Requirement: leaction.Optional}},
+		Why:        "list the native stages of the full population (the default) or the fast one",
+		Parameters: []leaction.Parameter{{Keyword: keywordFull}, {Keyword: keywordFast}},
 		AnswerArgs: listHere,
 	},
 )
@@ -89,12 +85,18 @@ func Subs() string { return actions.Subs() }
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
 func runHere(args leaction.Arguments) (any, int) {
+	return runWorktree(optionsFrom(args, os.Getenv))
+}
+
+// runWorktree runs the full population in a fresh detached worktree. Both
+// `le verify worktree` and a bare `le verify current` answer through it, so the
+// worktree lifecycle has one entry.
+func runWorktree(options Options) (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	options := optionsFrom(args, os.Getenv)
 	if err := options.HostPreflight(); err != nil {
 		leaction.ReportError(err)
 		return nil, 2

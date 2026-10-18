@@ -19,7 +19,7 @@ import (
 // rests on: the pieces together are the population, so nothing is judged twice
 // and nothing is skipped.
 func TestEveryStageIsDealtIntoExactlyOnePiece(t *testing.T) {
-	for _, mode := range []string{Mode, ChangedMode} {
+	for _, mode := range []string{Mode, FastMode} {
 		population := StagesForMode(mode)
 		for count := 1; count <= 8; count++ {
 			dealt := make([]string, 0, len(population))

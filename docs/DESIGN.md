@@ -895,7 +895,7 @@ expect=exit:code=0
 
 | Command | What It Runs |
 |---------|--------------|
-| `./le verify current mode full` | Static gates, Linux/amd64 SCA, unit, functional, and ExaBGP checks |
+| `./le verify current` | Static gates, Linux/amd64 SCA, unit, functional, and ExaBGP checks |
 | `./le test unit bgp` | Race-instrumented BGP unit group |
 | `./le test functional gating` | All release-gate `.ci` suites |
 | `./le go lint run` | golangci-lint over every Go build flavor |
@@ -912,7 +912,7 @@ vulnerability database.
 <!-- source: internal/le/verify/deps/actions.go -- Actions -->
 <!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 
-`./le verify current mode full` is the pre-commit gate. Not `go test`, not any subset. Every commit
+`./le verify current` is the pre-commit gate. Not `go test`, not any subset. Every commit
 passes the full suite.
 
 ### Linting

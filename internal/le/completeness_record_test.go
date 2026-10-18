@@ -159,8 +159,8 @@ var portedProducers = []portedProducer{
 	{Target: "ze-rfc-extraction-status", Area: "rfc", Verb: "extraction-status"},
 
 	// Verification, linting and the dependency stages.
-	{Target: "ze-precommit-verify", Area: "verify", Verb: "current", Note: "mode full"},
-	{Target: "ze-precommit-verify-changed", Area: "verify", Verb: "current", Note: "mode changed"},
+	{Target: "ze-precommit-verify", Area: "verify", Verb: "current", Note: "bare or full: the full population in a fresh worktree at HEAD"},
+	{Target: "ze-precommit-verify-changed", Area: "verify", Verb: "current", Note: "fast: the changed-files population in place"},
 	{Target: "ze-precommit-verify-list", Area: "verify", Verb: "list"},
 	{Target: "ze-verify-worktree", Area: "verify", Verb: "worktree"},
 	{Target: "ze-verify-debt-clear", Area: "commit", Verb: "debt-clear"},

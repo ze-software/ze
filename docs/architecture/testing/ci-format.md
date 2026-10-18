@@ -1182,7 +1182,7 @@ IPv6 works differently, because a host carries exactly one IPv6 loopback
 address. A fixture that needs a second one uses `fd00::2`, which is unique-local
 (RFC 4193) and never globally routable. `./le setup install` adds it, and
 `./le setup check` reports whether it is there. The runner never adds it:
-the ioctl returns EPERM to an unprivileged process, and `./le verify current mode full` runs as
+the ioctl returns EPERM to an unprivileged process, and `./le verify current` runs as
 an ordinary user. A test that binds an address this host does not carry fails at
 once with `loopback_address_missing` and the command to run, rather than timing
 out on a bind that could not succeed.

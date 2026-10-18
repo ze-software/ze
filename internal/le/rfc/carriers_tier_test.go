@@ -38,7 +38,7 @@ const minimalWorkflow = "name: fixture\non:\n  push:\njobs:\n  none:\n    runs-o
 // test_functional_tier_is_unchanged_by_selection (AC-7).
 //
 // A gating run no longer starts every suite: it selects the suites a change set
-// can reach, in full mode as well as changed mode. The tier a `.ci` earns MUST
+// can reach, in full mode as well as fast mode. The tier a `.ci` earns MUST
 // NOT follow that selection, because a requirement proven only by a suite this
 // run ruled out would lose its evidence and trip checkEvidenceRatchet.
 //

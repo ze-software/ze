@@ -277,7 +277,8 @@ Tests are named descriptively with kebab-case: `<feature>-<scenario>.ci`
 ```bash
 ./le test functional gating          # All gated functional tests
 ./le test unit all              # Component-group unit tests
-./le verify current mode full   # Full current-checkout verification
+./le verify current fast   # Changed-files verification of the working tree, in place
+./le verify current        # Full verification of HEAD, in a fresh worktree
 ```
 
 ## Checklist

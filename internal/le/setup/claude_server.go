@@ -255,7 +255,7 @@ func (s *claudeServerSetup) setup() (*claudeServerReport, int, error) {
 	repo := s.repositoryPath()
 	report.add("Next steps", "note", "1. Log in as "+s.User+" (or: su - "+s.User+")")
 	report.add("", "note", "2. Run 'claude' to authenticate and start working")
-	report.add("", "note", "3. cd "+repo+" && ./le verify current mode full")
+	report.add("", "note", "3. cd "+repo+" && ./le verify current")
 	return report, 0, nil
 }
 

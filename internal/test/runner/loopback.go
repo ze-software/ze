@@ -8,7 +8,7 @@
 //
 // The runner does not add it, and this is measured rather than assumed:
 // SIOCAIFADDR_IN6 returns EPERM to an unprivileged process on darwin, and the
-// Linux equivalent needs CAP_NET_ADMIN, while `./le verify current mode full`
+// Linux equivalent needs CAP_NET_ADMIN, while `./le verify current`
 // runs as an ordinary user on both (the merge gate runs it bare on
 // ubuntu-latest). So the privilege moved to environment-setup
 // time, where the IPv4 aliases already live: `./le setup` adds the addresses

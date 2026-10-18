@@ -38,7 +38,7 @@ func TestTheRealManifestDerivesEveryRow(t *testing.T) {
 	}
 
 	// The scope is named EMPTY rather than read from the environment. This test
-	// runs inside `./le verify current mode full` as a child of the unit stage,
+	// runs inside `./le verify current` as a child of the unit stage,
 	// and that run publishes its own feature-tag answer to every stage
 	// (publishChangeScope, internal/le/verify/engine/scope.go). A test reading
 	// the ambient answer would judge the run instead of the manifest, and it
@@ -529,8 +529,8 @@ func TestDeriveReadsTheAnswerTheRunPublished(t *testing.T) {
 
 	// The other half, and it is what keeps every OTHER test in this file honest:
 	// with that same answer planted in the environment, a caller that NAMES its
-	// scope is unaffected. Every test here runs inside `./le verify current mode
-	// full` as a child of the unit stage, and the assertion above proves the
+	// scope is unaffected. Every test here runs inside `./le verify current`
+	// as a child of the unit stage, and the assertion above proves the
 	// planted answer is really visible, so this one is not vacuous.
 	unscoped, _, err := DeriveScoped(tree, "")
 	if err != nil {

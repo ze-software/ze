@@ -260,12 +260,12 @@ func TestLossyPipeReadsTheTwoWordArea(t *testing.T) {
 		command string
 		blocked bool
 	}{
-		{"verify-gate", `./le verify current mode full | tail -5`, true},
+		{"verify-gate", `./le verify current | tail -5`, true},
 		{"verify-lint", `./le go lint run | grep issues`, true},
 		{"verify-deps", `./le verify deps unit-cached | head -20`, true},
 		{"verify-status", `./le verify status check | tail -1`, false},
 		{"verify-summary", `./le verify summary append | head -2`, false},
-		{"ze-le-verify-gate", `ze le verify current mode full | tail -5`, true},
+		{"ze-le-verify-gate", `ze le verify current | tail -5`, true},
 		{"ze-le-verify-status", `ze le verify status check | tail -1`, false},
 		{"functional-run", `./le test functional gating | tail -5`, true},
 		{"functional-listing", `./le test functional | head -20`, false},

@@ -185,10 +185,10 @@ func TestRedsCountsAFinishedRunAndClearsAPathNoRedNames(t *testing.T) {
 	root := t.TempDir()
 	redsFixtureWrite(t, root, "internal/mine/a.go", "package mine\n")
 	redsFixtureWrite(t, root, "internal/theirs/b.go", "package theirs\n")
-	run := "tmp/verify/changed-fixture"
-	stages := verifyengine.StagesForMode(verifyengine.ChangedMode)
+	run := "tmp/verify/fast-fixture"
+	stages := verifyengine.StagesForMode(verifyengine.FastMode)
 	if len(stages) == 0 {
-		t.Fatal("the changed mode has no stage population")
+		t.Fatal("the fast mode has no stage population")
 	}
 	for index, stage := range stages {
 		body := []string{"OK"}
@@ -214,8 +214,8 @@ func TestRedsCountsAFinishedRunAndClearsAPathNoRedNames(t *testing.T) {
 		t.Fatalf("verdict for a path no red names in a whole run is %q at exit %d, want %q at 0",
 			reds.Verdict, code, VerdictNotNamed)
 	}
-	if reds.Pending != 0 || !reds.Finished || reds.Mode != verifyengine.ChangedMode {
-		t.Errorf("a whole changed-mode run reads as %d pending, finished=%v, mode %q",
+	if reds.Pending != 0 || !reds.Finished || reds.Mode != verifyengine.FastMode {
+		t.Errorf("a whole fast-mode run reads as %d pending, finished=%v, mode %q",
 			reds.Pending, reds.Finished, reds.Mode)
 	}
 }

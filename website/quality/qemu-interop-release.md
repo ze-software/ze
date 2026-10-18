@@ -9,7 +9,7 @@ Use this page when the proof needs a Linux kernel, a real peer daemon, Docker, Q
 <!-- source: ../main/internal/le/integration/gates.go -- interop and live actions -->
 <!-- source: ../main/internal/le/evidence/actions.go -- release evidence action -->
 
-`./le verify current mode full` stays local on purpose. It should be fast enough to run often and safe enough for a normal developer machine. QEMU and interop jobs are the next layer when a local run would skip the real contract.
+`./le verify current` stays local on purpose. It should be fast enough to run often and safe enough for a normal developer machine. QEMU and interop jobs are the next layer when a local run would skip the real contract.
 
 ## When QEMU is required
 

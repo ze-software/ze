@@ -44,17 +44,17 @@ func leNamespaceDispatch(ctx context.Context) error {
 		return fmt.Errorf("le-namespace-dispatch: %w", err)
 	}
 
-	// `verify list mode full` is the member chosen because it reads the tree
+	// `verify list full` is the member chosen because it reads the tree
 	// and writes nothing, and .github/workflows/verify.yml reads its answer.
-	member, err := leNamespaceRun(ctx, root, binary, "verify", "list", "mode", "full")
+	member, err := leNamespaceRun(ctx, root, binary, "verify", "list", "full")
 	if err != nil {
 		return err
 	}
 	if member.code != 0 {
-		return fmt.Errorf("le-namespace-dispatch: `le verify list mode full` exited %d: %s", member.code, member.stderr)
+		return fmt.Errorf("le-namespace-dispatch: `le verify list full` exited %d: %s", member.code, member.stderr)
 	}
 	if !strings.Contains(member.stdout, "go lint/run") {
-		return fmt.Errorf("le-namespace-dispatch: `le verify list mode full` answered %q, want the stage population", member.stdout)
+		return fmt.Errorf("le-namespace-dispatch: `le verify list full` answered %q, want the stage population", member.stdout)
 	}
 
 	// A bare namespace token that is NOT a command of its own. It asks what
@@ -96,12 +96,12 @@ func leNamespaceDispatch(ctx context.Context) error {
 
 	// The pipe word ends the candidate span, so a member still resolves with
 	// an operator after it.
-	piped, err := leNamespaceRun(ctx, root, binary, "verify", "list", "mode", "full", "|", "json")
+	piped, err := leNamespaceRun(ctx, root, binary, "verify", "list", "full", "|", "json")
 	if err != nil {
 		return err
 	}
 	if piped.code != 0 {
-		return fmt.Errorf("le-namespace-dispatch: `le verify list mode full | json` exited %d: %s", piped.code, piped.stderr)
+		return fmt.Errorf("le-namespace-dispatch: `le verify list full | json` exited %d: %s", piped.code, piped.stderr)
 	}
 	if !strings.HasPrefix(strings.TrimSpace(piped.stdout), "{") {
 		return fmt.Errorf("le-namespace-dispatch: the json operator answered %q, want an object", piped.stdout)

@@ -70,7 +70,7 @@ func renderRollup(in RenderInput) []string {
 	var nightly textbuf.Buffer
 	out = append(out, nightly.Str("**Nightly-only** (").Int(int64(nightlyTotal)).
 		Str(" requirement(s)) counts what is proven ONLY by evidence no ").
-		Str("`./le verify current mode full` stage runs -- today, interop scenarios, which are ").
+		Str("`./le verify current` stage runs -- today, interop scenarios, which are ").
 		Str("scheduled and advisory. **Both** and **One polarity** are the polarity ").
 		Str("view: they answer which polarities exist, not which pipeline runs them, ").
 		Str("so a nightly-only requirement is counted there too. **Nightly-only** is ").

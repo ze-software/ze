@@ -545,7 +545,7 @@ func TestEveryTagTheScanProducesResolvesToACarrier(t *testing.T) {
 func TestAPipelineWithNoSuiteQualifierKeepsItsWholeText(t *testing.T) {
 	// stageOf cuts at the LAST comma, which is where a derived row's suite name
 	// sits. A pipeline with no comma at all must not lose its text.
-	if got := stageOf("./le verify current mode full (unit stage)"); got != "./le verify current mode full (unit stage))" {
+	if got := stageOf("./le verify current (unit stage)"); got != "./le verify current (unit stage))" {
 		t.Errorf("a comma-free pipeline rendered as %q", got)
 	}
 	if got := suiteOfPrefix(""); got != "" {

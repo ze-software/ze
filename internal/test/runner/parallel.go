@@ -148,7 +148,7 @@ func verifyModeEnabled() bool {
 }
 
 // VerifyModeEnabled reports whether this run is part of
-// `./le verify current mode full` (the verify runner sets ZE_VERIFY_MODE=1).
+// `./le verify current` (the verify runner sets ZE_VERIFY_MODE=1).
 // Suites use it to turn silent environment skips into hard failures.
 func VerifyModeEnabled() bool {
 	return verifyModeEnabled()

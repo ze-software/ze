@@ -241,7 +241,7 @@ obtain a plan. These are observation checks, not an atomic filesystem snapshot.
 
 ## The changed-set selector
 
-`./le repo changed scope` is the one selector, and `./le verify current mode changed`
+`./le repo changed scope` is the one selector, and `./le verify current fast`
 reuses its answer. It reports the changed packages plus two levels of their
 importers (`defaultDepth`, `internal/le/repo/changed/selector.go`), and the feature
 tags the change can reach.
@@ -782,7 +782,7 @@ published at four stable paths (`internal/le/verify/engine/artifacts.go`):
 | `tmp/ze-verify.log` | the combined log of the latest run |
 | `tmp/ze-verify-failures.log` | the human failure index |
 | `tmp/ze-verify-failures.json` | the machine failure index |
-| `tmp/ze-verify-full.json` | the latest FULL-mode machine index, kept when a changed run publishes a cheaper result |
+| `tmp/ze-verify-full.json` | the latest FULL-mode machine index, kept when a fast run publishes a cheaper result |
 
 Piping such a run through `head` or `grep` loses the failure line and costs a
 re-run. Run it clean, then read the log with paging.
@@ -875,8 +875,8 @@ pretool hook reads a runner as heavy for the lossy-pipe refusal, and a helper as
 light, from the same registration (`leroot.Admits`). Anything else is admitted by
 typing it after `./le job run label <label> command`. The rest of the heavy
 population joins in
-`plan/spec-native-action-job-admission.md`, so a second `./le verify current mode
-full` does NOT block on the first: only its lint stage does.
+`plan/spec-native-action-job-admission.md`, so a second `./le verify current
+fast` does NOT block on the first: only its lint stage does.
 
 `ZE_RUN_SLOTS` (`SlotsKey`) sets the slot count. It defaults to one slot per core
 share this machine holds (`defaultSlots`, `internal/le/job/job.go`), which is four

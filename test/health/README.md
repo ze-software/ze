@@ -30,7 +30,7 @@ gets routed around instead of read. The counters are refreshed by
 
 **The ratchets do not depend on any of this.** `./le test sensitivity check`
 enforces them from the tree itself, reading only `sensitivity-baseline.json`, at
-stage 10 of `./le verify current mode full`. Report staleness cannot weaken them.
+stage 10 of `./le verify current`. Report staleness cannot weaken them.
 
 ## Why the report is reproducible
 
@@ -72,7 +72,7 @@ for mutation scores.
 ## The ratchets
 
 `sensitivity-baseline.json` holds floors, not facts. `./le test sensitivity check`
-(stage 10 of `./le verify current mode full`, both modes) fails when a count rises above its floor
+(stage 10 of `./le verify current`, both modes) fails when a count rises above its floor
 and names every offending file.
 
 `./le test health update` only ever *lowers* a floor. Writing a higher one would let a
@@ -95,7 +95,7 @@ func TestCloseWithNoBundle(t *testing.T) { ... }
 | `./le test health update` | Regenerate the page, `latest.json`, and the baseline |
 | `./le test health check` | Fail if the committed page is stale (runs inside `./le repo generated-check`) |
 | `./le test health record` | Append one KPI sample, then regenerate the page |
-| `./le test sensitivity check` | Enforce the ratchets (runs inside `./le verify current mode full`) |
+| `./le test sensitivity check` | Enforce the ratchets (runs inside `./le verify current`) |
 | `./le test sensitivity check` | Human-readable list of every inert and orphaned test |
 
 The native site builder under `internal/le/site` publishes the same data

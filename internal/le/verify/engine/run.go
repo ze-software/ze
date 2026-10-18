@@ -22,8 +22,9 @@ import (
 const (
 	// Mode is the status identity for the full native action population.
 	Mode = "full"
-	// ChangedMode is the status identity for the scoped native population.
-	ChangedMode = "changed"
+	// FastMode is the status identity for the scoped native population, the one
+	// `./le verify current fast` runs in place over the working tree.
+	FastMode = "fast"
 	// Interrupted is the shell-compatible status for an interrupt signal.
 	Interrupted = 130
 	// Unjudged is the status of a run that reached no verdict about the tree.

@@ -285,7 +285,7 @@ func TestNativeActionsInWorkflowCommands(t *testing.T) {
 		{"a wrapper", "run: sudo ./le rfc check\n", []string{"rfc/check"}},
 		{"a chain", "run: ./le rfc check && ./le doc check verify\n", []string{"rfc/check", "doc check/verify"}},
 		{"a quoted scalar", "- \"./le arch tier check\"\n", []string{"arch tier/check"}},
-		{"arguments do not change identity", "run: ./le verify current mode full\n", []string{"verify/current"}},
+		{"arguments do not change identity", "run: ./le verify current fast\n", []string{"verify/current"}},
 		{"no native action", "run: echo a\n", nil},
 		{
 			"a lab run through a wrapper is run",

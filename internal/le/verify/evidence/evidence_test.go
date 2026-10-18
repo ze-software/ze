@@ -235,7 +235,7 @@ func TestTheContainerScriptClonesAndVerifies(t *testing.T) {
 		"set -euo pipefail",
 		"git clone --no-local /host /work/src",
 		"cd /work/src",
-		"./le verify current mode full",
+		"./le verify current",
 	} {
 		if !strings.Contains(ContainerScript, want) {
 			t.Errorf("the container script does not carry %q", want)

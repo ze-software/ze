@@ -138,7 +138,7 @@ jobs:
           SHARD_LIST: ${{ runner.temp }}/verify-shard-stages.txt
         run: |
           set -uo pipefail
-          ./le verify list mode full | tee "$STAGE_LIST" || exit $?
+          ./le verify list full | tee "$STAGE_LIST" || exit $?
           test -s "$STAGE_LIST" || exit 1
           awk -v i="$SHARD_INDEX" -v n="$SHARD_TOTAL" 'NR % n == i % n' "$STAGE_LIST" > "$SHARD_LIST"
           test -s "$SHARD_LIST" || exit 1

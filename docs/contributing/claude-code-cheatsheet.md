@@ -13,7 +13,7 @@ are available inside Claude Code when working in the ze repository.
 | `/ze-design` | Stress-test a design through structured decisions |
 | `/ze-audit` | Pre-implementation: what code already exists for this spec? |
 | `/ze-implement` | Implement a spec end-to-end (TDD, review loops, docs) |
-| `/./le verify current mode full` | Run `./le verify current mode full` and report results |
+| `/ze-verify` | Run `./le verify current` and report results |
 | `/ze-debug` | Investigate failing tests with parallel hypotheses |
 | `/ze-review` | Quick single-pass code review of uncommitted changes |
 | `/ze-review-deep` | Multi-agent exhaustive review (9 specialized agents) |
@@ -42,7 +42,7 @@ are available inside Claude Code when working in the ze repository.
 /ze-spec                   -- write the spec (design, ACs, test plan)
 /ze-audit                  -- check what's already implemented
 /ze-implement              -- TDD implementation with built-in reviews
-/./le verify current mode full                 -- run full test suite
+/ze-verify                 -- run full test suite
 /ze-review-deep            -- multi-agent review before submission
 /ze-commit                 -- prepare the commit
 ```
@@ -51,7 +51,7 @@ are available inside Claude Code when working in the ze repository.
 
 ```
 /ze-debug                  -- paste test output, get parallel investigation
-/./le verify current mode full                 -- confirm fix doesn't break anything
+/ze-verify                 -- confirm fix doesn't break anything
 /ze-review                 -- quick review of the fix
 /ze-commit                 -- prepare the commit
 ```
@@ -98,7 +98,7 @@ The four review commands serve different purposes:
 
 - `/ze-commit` does **not** run `git commit`. It generates a message file and executable commit script through `internal/le/commit.Answer`; you run the script yourself.
 <!-- source: internal/le/commit/actions.go -- Answer -->
-- `/./le verify current mode full` is the same as `./le verify current mode full` but formats the output as a structured report.
+- `/ze-verify` is the same as `./le verify current` but formats the output as a structured report.
 - `/ze-review-deep` accepts arguments: path scope, agent names, or `branch` for branch review.
 - `/ze-hunt` differs from the review family: the reviews look at the **diff**, `/ze-hunt` sweeps the **existing tree** for the recurring bug classes recorded in `plan/learned/RECURRING-PATTERNS.md`. Use it for periodic latent-bug sweeps, not for checking a change.
 - All commands are read-only unless explicitly stated. Reviews report findings without making changes.

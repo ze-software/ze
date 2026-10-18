@@ -61,7 +61,7 @@ func evidenceTier(rel string, carriers []Carrier) string {
 }
 
 // NightlyOnly answers: this requirement HAS evidence, and none of it runs
-// inside ./le verify current mode full.
+// inside ./le verify current.
 //
 // A nightly-advisory scenario and a merge-gate unit test are both "a tag", and
 // flattening them into one proven cell is how a claim nothing blocks on gets
@@ -90,7 +90,7 @@ type CoverageRow struct {
 	// Missing counts gated requirements with no tag and no annotation.
 	Missing int `json:"missing"`
 	// NightlyOnly counts gated requirements whose evidence exists but runs in
-	// NO ./le verify current mode full stage. Its OWN column, never folded into Both or
+	// NO ./le verify current stage. Its OWN column, never folded into Both or
 	// One: those two are the merge-gate view, and a nightly-only requirement is
 	// not merge-gate-proven.
 	NightlyOnly int `json:"nightly-only"`

@@ -15,9 +15,12 @@ import (
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
+// The two keywords that name a population. They are bare words, like `keep` on
+// `le verify worktree`, and `current` and `list` both take them, so one spelling
+// serves both actions.
 const (
-	modeFull    = "full"
-	modeChanged = "changed"
+	keywordFull = "full"
+	keywordFast = "fast"
 )
 
 // jobLabel is the name a verification claims in the shared job registry.
@@ -34,7 +37,7 @@ const jobLabel = "verify"
 // Both entry points answer with it, so a reader meets one word for one outcome.
 const failureAdmission = "admission"
 
-// stageList is the ordered native population for one current-checkout mode.
+// stageList is the ordered native population for one mode.
 type stageList struct {
 	Mode   string                  `json:"mode"`
 	Stages []verifyengine.Identity `json:"stages"`
@@ -50,33 +53,29 @@ func (l stageList) Text() string {
 	return text.String()
 }
 
-// listCurrent returns the ordered population for full or changed mode.
-func listCurrent(mode string) (stageList, error) {
-	certificateMode, err := certificateMode(mode)
-	if err != nil {
-		return stageList{}, err
-	}
+// listCurrent returns the ordered population for the full or the fast mode.
+func listCurrent(certificateMode string) stageList {
 	stages := verifyengine.StagesForMode(certificateMode)
 	list := stageList{Mode: certificateMode, Stages: make([]verifyengine.Identity, len(stages))}
 	for index := range stages {
 		list.Stages[index] = stages[index].Identity
 	}
-	return list, nil
+	return list
 }
 
-// runCurrent admits this verification through the shared job registry and then
+// runFast admits the fast verification through the shared job registry and then
 // verifies the shared checkout in place.
+//
+// Only the fast population runs in place. The full population runs in a fresh
+// detached worktree (runWorktree), so local development never moves the tree it
+// judges and the judged tree never moves under local development.
 //
 // The admission is what makes a second verification wait or share rather than
 // start a duplicate. A run that shares one returns the holder's verdict: the
 // holder judged this label's work over this tree, and the certificate on disk is
 // the one it wrote.
-func runCurrent(ctx context.Context, root, mode string, runner verifyengine.ActionRunner) verifyengine.Report {
-	certificateMode, err := certificateMode(mode)
-	if err != nil {
-		return verifyengine.Report{Mode: mode, Code: 2, Failure: &verifyengine.Failure{Kind: "unknown-mode", Message: err.Error()}}
-	}
-
+func runFast(ctx context.Context, root string, runner verifyengine.ActionRunner) verifyengine.Report {
+	certificateMode := verifyengine.FastMode
 	commit := job.Head(root)
 	if commit == job.Unknown {
 		return verifyengine.Report{Mode: certificateMode, Code: 2, Failure: &verifyengine.Failure{
@@ -88,7 +87,7 @@ func runCurrent(ctx context.Context, root, mode string, runner verifyengine.Acti
 	if err != nil {
 		return admissionFailure(certificateMode, commit, err)
 	}
-	ticket, err := admission.Admit(jobLabel, currentArgv(certificateMode))
+	ticket, err := admission.Admit(jobLabel, fastArgv())
 	if err != nil {
 		return admissionFailure(certificateMode, commit, err)
 	}
@@ -114,7 +113,7 @@ func runCurrent(ctx context.Context, root, mode string, runner verifyengine.Acti
 // said it attached on its own diagnostics since it was written
 // (lifecycle.go); this is the other half of that pair.
 //
-// It is a function rather than four lines inside runCurrent because the ticket
+// It is a function rather than four lines inside runFast because the ticket
 // is the only input: a test can hand it one and read the answer, where forcing
 // a real attach means winning a race with the registry.
 func attachedReport(mode, commit string, ticket *job.Ticket) verifyengine.Report {
@@ -129,11 +128,11 @@ func attachedReport(mode, commit string, ticket *job.Ticket) verifyengine.Report
 	}
 }
 
-// currentArgv is what the registry fingerprints as this run's work. A full run
-// and a changed run judge different stage populations, so they MUST NOT share
-// one verdict.
-func currentArgv(certificateMode string) []string {
-	return []string{"le", area, "current", modeKeyword, certificateMode}
+// fastArgv is what the registry fingerprints as this run's work. A worktree run
+// judges a different stage population over a different tree, and its argv
+// names `worktree`, so the two MUST NOT and cannot share one verdict.
+func fastArgv() []string {
+	return []string{"le", area, "current", keywordFast}
 }
 
 // admissionFailure answers the report for a run the registry could not admit.
@@ -179,24 +178,36 @@ func slotFor(root string, ticket *job.Ticket) (verifyengine.Slot, func()) {
 	}
 }
 
+// currentHere answers `le verify current`. Bare, or with `full`, it runs the
+// full population in a fresh detached worktree at HEAD, through the same
+// lifecycle `le verify worktree` runs; with `fast` it runs the changed-files
+// population in place.
 func currentHere(args leaction.Arguments) (any, int) {
+	certificateMode, err := population("le verify current", args)
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	if certificateMode == verifyengine.Mode {
+		var text textbuf.Buffer
+		text.Str("verify: le verify current runs the full population in a fresh detached worktree at HEAD, ").
+			Str("as le verify worktree does; le verify current fast runs the changed-files stages in place\n").
+			StdErr() //nolint:errcheck // CLI progress line
+		return runWorktree(Options{})
+	}
+
 	root, err := lepath.Root()
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	mode := args.One("mode")
-	// An unknown mode has no population to check, and runCurrent refuses it by
-	// name below, so only a known mode is preflighted.
-	if certificate, err := certificateMode(mode); err == nil {
-		if err := hostPreflight(certificate, verifyengine.Uncut(), setup.FunctionalHostPreflight); err != nil {
-			leaction.ReportError(err)
-			return nil, 2
-		}
+	if err := hostPreflight(certificateMode, verifyengine.Uncut(), setup.FunctionalHostPreflight); err != nil {
+		leaction.ReportError(err)
+		return nil, 2
 	}
 	ctx, stop := signalContext()
 	defer stop()
-	report := runCurrent(ctx, root, mode, actionRunner())
+	report := runFast(ctx, root, actionRunner())
 	if report.Failure != nil && withoutStageLog(report.Code) {
 		leaction.ReportError(errors.New(report.Failure.Message))
 	}
@@ -215,21 +226,29 @@ func withoutStageLog(code int) bool {
 }
 
 func listHere(args leaction.Arguments) (any, int) {
-	list, err := listCurrent(args.One("mode"))
+	certificateMode, err := population("le verify list", args)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	return list, 0
+	return listCurrent(certificateMode), 0
 }
 
-func certificateMode(mode string) (string, error) {
-	switch mode {
-	case "", modeFull:
-		return verifyengine.Mode, nil
-	case modeChanged:
-		return verifyengine.ChangedMode, nil
-	default:
-		return "", errors.New("verify mode must be full or changed")
+// population answers the stage population a `current` or `list` line names:
+// fast when it says `fast`, full when it says `full` or names neither. Naming
+// both is refused rather than resolved, because either answer would run work
+// the operator did not ask for. command is the line the operator typed, so the
+// refusal names the two spellings that work.
+func population(command string, args leaction.Arguments) (string, error) {
+	fast := args.Has(keywordFast)
+	if fast && args.Has(keywordFull) {
+		var text textbuf.Buffer
+		return "", errors.New(text.Str(command).Str(" takes full or fast, never both: ").
+			Str(command).Str(" full is every stage, which le verify current runs in a fresh worktree at HEAD, and ").
+			Str(command).Str(" fast is the changed-files stages, which le verify current runs in place").String())
 	}
+	if fast {
+		return verifyengine.FastMode, nil
+	}
+	return verifyengine.Mode, nil
 }

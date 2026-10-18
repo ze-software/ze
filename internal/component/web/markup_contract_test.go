@@ -785,7 +785,7 @@ var (
 //
 // No browser runs here, and none is available to run. The .wb harness drives
 // HTTP and executes no script. agent-browser is an interactive tool with no
-// hook in `./le verify current mode full`. What a browser adds over this is
+// hook in `./le verify current`. What a browser adds over this is
 // layout and event order. It would also catch a selector matching the wrong
 // element, which no component here can produce.
 func TestErrorDrawerWiringHoldsTogether(t *testing.T) {

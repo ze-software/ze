@@ -282,7 +282,7 @@ func carriersFor(suites []string, scheduled map[string]string) []Carrier {
 	}, Carrier{
 		Name: kindUnit, Kind: kindUnit, Tier: tierVerify, Prefix: "", Suffix: "_test.go",
 		Reader: "go", Runner: "./le verify deps unit-cached",
-		Pipeline: "./le verify current mode full (unit stage)",
+		Pipeline: "./le verify current (unit stage)",
 	})
 	// ONE verify-tier row per suite the run list actually names. A single
 	// empty-prefix row credited ANY .ci anywhere under internal/, pkg/ or test/
@@ -292,12 +292,12 @@ func carriersFor(suites []string, scheduled map[string]string) []Carrier {
 	// none of them. The verb runs exactly the population these rows are built
 	// from, because FunctionalSuites is testfunctional.GatingNames.
 	out = append(out, suiteCarriers(kindFunctional, ciSuffix, "ci",
-		"./le test functional gating", "./le verify current mode full (functional stage", suites)...)
+		"./le test functional gating", "./le verify current (functional stage", suites)...)
 	// `.et` is the cheapest verify-tier non-unit carrier available, and it
 	// costs one row: it is .ci semantics exactly, and only test/editor/ is
 	// walked for it.
 	out = append(out, suiteCarriers(kindEditor, etSuffix, "ci",
-		"./le test functional editor", "./le verify current mode full (functional stage",
+		"./le test functional editor", "./le verify current (functional stage",
 		editorSuites)...)
 	// test/exabgp-compat is not one of the run list's suites. It has its own
 	// native action and stage, so it is a declared row rather than a second
@@ -306,7 +306,7 @@ func carriersFor(suites []string, scheduled map[string]string) []Carrier {
 		Name: "functional-exabgp", Kind: kindFunctional, Tier: tierVerify,
 		Prefix: "test/exabgp-compat/", Suffix: ciSuffix, Reader: "ci",
 		Runner:   "./le test functional exabgp-test",
-		Pipeline: "./le verify current mode full (exabgp stage)",
+		Pipeline: "./le verify current (exabgp stage)",
 	}, Carrier{
 		Name: "functional-unrun", Kind: kindFunctional, Tier: tierUnrun, Prefix: "",
 		Suffix: ciSuffix, Reader: "ci",
@@ -704,7 +704,7 @@ func actionsInCommand(fields []string, registered func(string) bool, nested func
 	}
 	// Which words are the command is a question only the registry answers. A
 	// namespaced command takes two of them, so `./le doc check links` is the
-	// links verb of `doc check`, while `./le verify current mode full` is the
+	// links verb of `doc check`, while `./le verify current` is the
 	// current verb of `verify` and `mode` is its argument. Counting words would
 	// read the first as the `check` verb of a `doc` command that does not
 	// exist, and the second correctly, which is the worst kind of wrong.

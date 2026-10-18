@@ -24,7 +24,7 @@ requirements, and workflow expectations. Key points:
 
 - **TDD:** tests written before implementation
 - **Specs drive work:** no code without a spec
-- **`./le verify current mode full` must pass** before any submission
+- **`./le verify current` must pass** before any submission
 - **No partial deliveries:** code + tests + docs in one piece
 
 ## License

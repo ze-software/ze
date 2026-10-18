@@ -34,6 +34,10 @@ you have broken one, stop and tell the user.
 ## Worktrees
 - Never spawn a worktree agent unless the user instructs it.
 - Work that started in a worktree stays in that worktree.
+- Development never happens in a worktree, and the full verification gate always
+  does: `./le verify current` (or `./le verify worktree` to name a commit) runs it
+  in a throwaway worktree, never over the working tree. `./le verify current
+  fast` is the only in-place run, and it judges the changed files only.
 - A worktree agent works and commits on its own branch. It never merges,
   cherry-picks, rebases or copies into main.
 

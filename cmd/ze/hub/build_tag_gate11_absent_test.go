@@ -58,7 +58,7 @@ func TestBuildTag_Gate11_SymbolMatrix(t *testing.T) {
 	// t.Skip(), and flags the parent as non-parallel while its subtests are.
 	t.Parallel()
 	// -short guard only; this test still runs in full verification
-	// (`./le verify current mode full` passes no -short). It builds and links six
+	// (`./le verify current` passes no -short). It builds and links six
 	// ze binaries, so opt-in -short runs skip it for speed.
 	if testing.Short() {
 		t.Skip("builds six ze binaries (slow); skipped under -short")

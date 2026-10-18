@@ -1,4 +1,4 @@
-// VALIDATES: current-checkout full and changed entry points select distinct
+// VALIDATES: the fast and full populations select distinct
 // native populations, preserve mode certificates, publish reader artifacts, and
 // enter the shared job admission so a second verification shares one run.
 // PREVENTS: the sixteen concurrent verifications measured on 2026-09-05, and a
@@ -8,6 +8,7 @@ package verify
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,20 +18,23 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/job"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
-func TestRunCurrentFullAndChangedModes(t *testing.T) {
+// TestFastAndFullPopulationsKeepTheirCertificates drives the fast entry point
+// in place, and the full population through the engine it hands a worktree, and
+// proves each writes its own certificate mode, the reader artifacts, and that
+// only the full one writes the full index a commit carrying Go is gated on.
+func TestFastAndFullPopulationsKeepTheirCertificates(t *testing.T) {
 	for _, test := range []struct {
-		mode        string
-		wantMode    string
-		firstAction string
-		omits       string
+		wantMode string
+		omits    string
 	}{
-		{mode: "full", wantMode: verifyengine.Mode, firstAction: "go lint/run"},
-		{mode: "changed", wantMode: verifyengine.ChangedMode, firstAction: "go lint/run", omits: "verify deps/alloc"},
+		{wantMode: verifyengine.Mode},
+		{wantMode: verifyengine.FastMode, omits: "verify deps/alloc"},
 	} {
-		t.Run(test.mode, func(t *testing.T) {
+		t.Run(test.wantMode, func(t *testing.T) {
 			standalone(t)
 			repo := newFixtureRepo(t)
 			repo.commit(t, "fixture", "one")
@@ -39,15 +43,20 @@ func TestRunCurrentFullAndChangedModes(t *testing.T) {
 				called = append(called, identity.Name)
 				return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true, Output: identity.Name + " ok\n"}
 			}
-			report := runCurrent(context.Background(), repo.root, test.mode, runner)
+			var report verifyengine.Report
+			if test.wantMode == verifyengine.FastMode {
+				report = runFast(context.Background(), repo.root, runner)
+			} else {
+				report = verifyengine.RunMode(context.Background(), repo.root, job.Head(repo.root), verifyengine.Mode, runner, verifyengine.Slot{})
+			}
 			if report.Code != 0 || !report.Completed || report.Mode != test.wantMode {
 				t.Fatalf("report = %#v", report)
 			}
-			if len(called) == 0 || called[0] != test.firstAction {
+			if len(called) == 0 || called[0] != "go lint/run" {
 				t.Fatalf("called stages = %q", called)
 			}
 			if test.omits != "" && strings.Contains(strings.Join(called, " "), test.omits) {
-				t.Fatalf("changed mode called full-only %s", test.omits)
+				t.Fatalf("fast mode called full-only %s", test.omits)
 			}
 			certificate, err := verifyengine.ReadCertificate(repo.root)
 			if err != nil || certificate.Mode != test.wantMode {
@@ -59,27 +68,65 @@ func TestRunCurrentFullAndChangedModes(t *testing.T) {
 				}
 			}
 			_, fullErr := os.Stat(filepath.Join(repo.root, filepath.FromSlash(verifyengine.FullJSONPath)))
-			if test.mode == "full" && fullErr != nil {
+			if test.wantMode == verifyengine.Mode && fullErr != nil {
 				t.Errorf("full index: %v", fullErr)
 			}
-			if test.mode == "changed" && !os.IsNotExist(fullErr) {
-				t.Errorf("changed mode wrote full index: %v", fullErr)
+			if test.wantMode == verifyengine.FastMode && !os.IsNotExist(fullErr) {
+				t.Errorf("fast mode wrote full index: %v", fullErr)
 			}
 		})
 	}
 }
 
-func TestListCurrentAndModeGrammarFailClosed(t *testing.T) {
-	full, err := listCurrent("")
-	if err != nil || full.Mode != verifyengine.Mode || full.Stages[0].Name != "go lint/run" {
-		t.Fatalf("full list = %#v, err %v", full, err)
+// TestPopulationGrammar proves the bare words choose the population: none and
+// `full` are the full one, `fast` the fast one, and both together are refused
+// with a message that names the two spellings that work.
+func TestPopulationGrammar(t *testing.T) {
+	for _, test := range []struct {
+		args leaction.Arguments
+		want string
+	}{
+		{args: leaction.Arguments{}, want: verifyengine.Mode},
+		{args: leaction.Arguments{keywordFull: {""}}, want: verifyengine.Mode},
+		{args: leaction.Arguments{keywordFast: {""}}, want: verifyengine.FastMode},
+	} {
+		got, err := population("le verify list", test.args)
+		if err != nil || got != test.want {
+			t.Fatalf("population(%v) = %q, %v; want %q", test.args, got, err, test.want)
+		}
 	}
-	changed, err := listCurrent("changed")
-	if err != nil || changed.Mode != verifyengine.ChangedMode || changed.Stages[0].Name != "go lint/run" {
-		t.Fatalf("changed list = %#v, err %v", changed, err)
+	_, err := population("le verify current", leaction.Arguments{keywordFull: {""}, keywordFast: {""}})
+	if err == nil {
+		t.Fatal("full and fast together were accepted")
 	}
-	if _, err := listCurrent("chnaged"); err == nil {
-		t.Fatal("unknown mode was accepted")
+	for _, spelling := range []string{"le verify current full", "le verify current fast"} {
+		if !strings.Contains(err.Error(), spelling) {
+			t.Errorf("refusal %q does not name %q", err, spelling)
+		}
+	}
+
+	full := listCurrent(verifyengine.Mode)
+	if full.Mode != verifyengine.Mode || full.Stages[0].Name != "go lint/run" {
+		t.Fatalf("full list = %#v", full)
+	}
+	fast := listCurrent(verifyengine.FastMode)
+	if fast.Mode != verifyengine.FastMode || len(fast.Stages) >= len(full.Stages) {
+		t.Fatalf("fast list = %#v", fast)
+	}
+}
+
+// TestRemovedModeSpellingNamesTheWorkingOnes types the spelling `mode full`
+// removed on 2026-10-18 and proves the refusal names both working lines.
+func TestRemovedModeSpellingNamesTheWorkingOnes(t *testing.T) {
+	stderr := captureStderr(t, func() {
+		if _, code := Answer([]string{"current", "mode", "full"}); code != 2 {
+			t.Errorf("le verify current answered %d, want 2", code)
+		}
+	})
+	for _, spelling := range []string{"le verify current full", "le verify current fast"} {
+		if !strings.Contains(stderr, spelling) {
+			t.Errorf("refusal %q does not name %q", stderr, spelling)
+		}
 	}
 }
 
@@ -87,7 +134,7 @@ func TestListCurrentAndModeGrammarFailClosed(t *testing.T) {
 // job registry while a stage runs. It proves the run holds a slot of its own,
 // names that slot to every stage, and gives it back when the run ends.
 //
-// Until 2026-09-05 runCurrent called the engine directly and asked for nothing,
+// Until 2026-09-05 the in-place entry point called the engine directly and asked for nothing,
 // which is how sixteen verifications ran at once at load 73 to 108.
 func TestVerifyCurrentEntersAdmission(t *testing.T) {
 	standalone(t)
@@ -103,7 +150,7 @@ func TestVerifyCurrentEntersAdmission(t *testing.T) {
 		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true}
 	}
 
-	report := runCurrent(context.Background(), repo.root, modeFull, runner)
+	report := runFast(context.Background(), repo.root, runner)
 	if report.Code != 0 || !report.Completed {
 		t.Fatalf("report = %#v", report)
 	}
@@ -153,7 +200,7 @@ func TestNestedLintStageDoesNotQueueBehindItsParent(t *testing.T) {
 		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true}
 	}
 
-	report := runCurrent(context.Background(), repo.root, modeFull, runner)
+	report := runFast(context.Background(), repo.root, runner)
 	if report.Code != 0 {
 		t.Fatalf("report = %#v", report)
 	}
@@ -206,7 +253,7 @@ func TestTwoVerifiesShareOneRun(t *testing.T) {
 	}
 
 	holder := make(chan verifyengine.Report, 1)
-	go func() { holder <- runCurrent(context.Background(), repo.root, modeFull, holderRunner) }()
+	go func() { holder <- runFast(context.Background(), repo.root, holderRunner) }()
 	<-inStage
 
 	marker := filepath.Join(t.TempDir(), "follower-ran-a-stage")
@@ -261,7 +308,7 @@ func followerVerify(root, marker string) int {
 		}
 		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true}
 	}
-	report := runCurrent(context.Background(), root, modeFull, runner)
+	report := runFast(context.Background(), root, runner)
 	if unwritable {
 		return markerUnwritable
 	}
@@ -392,4 +439,28 @@ func onlyRegistryEntry(t *testing.T, root string) string {
 		t.Fatalf("registry holds %q, want exactly one entry", names)
 	}
 	return names[0]
+}
+
+// captureStderr runs fn with os.Stderr replaced by a pipe and answers what it
+// wrote. A refusal is one line, far below the pipe's buffer, so the pipe is read
+// after fn returns rather than by a concurrent reader.
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+
+	read, write, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("open a pipe: %v", err)
+	}
+	saved := os.Stderr
+	os.Stderr = write
+	fn()
+	os.Stderr = saved
+	if err := write.Close(); err != nil {
+		t.Fatalf("close the pipe: %v", err)
+	}
+	written, err := io.ReadAll(read)
+	if err != nil {
+		t.Fatalf("read the pipe: %v", err)
+	}
+	return string(written)
 }

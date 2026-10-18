@@ -542,7 +542,7 @@ func bashPollLoop(ctx context) *verdict {
 			"  -- A repeated event belongs to the Monitor tool. Leave persistent\n" +
 			"     false, or its timeout_ms deadline does not apply.\n" +
 			"  -- One watcher at a time. Each wake competes with QEMU, Docker and\n" +
-			"     ./le verify current mode full for the same cores."}
+			"     ./le verify current for the same cores."}
 	}
 	return nil
 }

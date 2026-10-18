@@ -8,7 +8,7 @@ directives, fuzz target list), see `docs/functional-tests.md`.
 
 ```sh
 ./le setup install
-./le verify current mode full
+./le verify current
 ```
 
 `./le` is the compiled repository development entry point. Each area exposes
@@ -29,10 +29,16 @@ Use the narrowest test that covers your change. Escalate only when needed.
 | 1 | `./le job run label one-test command go test ./pkg/... -run TestName` | Iterating on one test | seconds |
 | 2 | `./le test unit bgp` | Checking one component group | 10s to 1:30 |
 | 3 | `./le test functional plugin` | Checking the user-visible path | varies |
-| 4 | `./le verify current mode full` | Ready to commit | about 2 minutes |
+| 4 | `./le verify current fast` | Checking the working tree before a commit | about 2 minutes |
+| 5 | `./le verify current` | The full gate over the last commit | minutes |
 
-`./le verify current mode full` is the pre-commit gate. The narrower commands
-are development tools. `./le job run` admits an individual heavy command
+`./le verify current` is the full gate. It runs every stage in a fresh
+detached worktree at HEAD, through the same lifecycle as `./le verify worktree`,
+so it judges the last commit and never the working tree: an edit made while it
+runs cannot move the tree it judges. `./le verify current fast` runs the
+changed-files stages in place, over the working tree, and is how uncommitted
+work gets checked. `./le verify current full` is the bare form spelled out.
+The narrower commands are development tools. `./le job run` admits an individual heavy command
 through `internal/le/job`, so concurrent sessions do not oversubscribe the
 machine.
 
@@ -69,7 +75,7 @@ round-trip.
 ```sh
 ./le job run label bgp-message command go test ./internal/component/bgp/message/...
 ./le job run label parse-origin command go test ./internal/... -run TestParseOrigin
-./le verify current mode full
+./le verify current
 ```
 
 #### Fixture environment isolation
@@ -182,7 +188,7 @@ It is a Go tool recorded in `tools.go`. The native `./le test mutation combine`
 command combines completed reports, and `./le test mutation record-history` appends
 their per-package scores to the committed history.
 
-Mutation testing is advisory. It never gates `./le verify current mode full` or CI. A surviving mutant
+Mutation testing is advisory. It never gates `./le verify current` or CI. A surviving mutant
 is a signal that a test could be stronger, not a blocking failure.
 
 One consumer reads a gomu report for a narrower question. `./le rfc discriminate
@@ -282,12 +288,15 @@ COMMIT still needs a row for it, and that row is where you say which of the two
 happened.
 
 `./le test weakened check` runs the checker over the file and is a stage of
-`./le verify current mode full` in both modes. The rule is `ai/rules/testing.md`, and the design is
+`./le verify current` in both modes. The rule is `ai/rules/testing.md`, and the design is
 `docs/architecture/testing/test-health.md`.
 
-## How `./le verify current mode full` works
+## How `./le verify current` works
 
-`./le verify current mode full` is the pre-commit gate. It uses a two-pass strategy to stay fast:
+`./le verify current` runs the full population in a fresh detached worktree at
+HEAD; `./le verify current fast` runs the changed-files population in place.
+`./le verify list full` and `./le verify list fast` print each population. The
+unit stages use a two-pass strategy to stay fast:
 
 1. **Lint** (27 linters via golangci-lint)
 2. **Vet evidence** (cross-compile the Go evidence packages for Linux)
@@ -611,11 +620,11 @@ Reproducing a load-dependent flake is
 
 | I want to... | Run |
 |--------------|-----|
-| Check my setup | `./le verify current mode full` |
+| Check my setup | `./le verify current` |
 | Run one Go test | `./le job run label one-test command go test ./pkg/... -run TestName` |
 | Run one functional test | `./le job run label plugin-42 command bin/le test bgp plugin 42` |
 | Run a component group | `./le test unit bgp` |
-| Run the pre-commit check | `./le verify current mode full` |
+| Run the pre-commit check | `./le verify current` |
 | Type-check every supported feature combination | `./le go staticcheck check` |
 | List native test actions | `./le help` |
 | List functional tests | `./le job run label encode-list command bin/le test bgp encode --list` |

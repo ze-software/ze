@@ -371,7 +371,7 @@ func TestVerifyWorkflowIsTheFastMergeGate(t *testing.T) {
 		t.Fatalf("verify.yml native actions = %v, want only verify/list", actions)
 	}
 	source := workflowSource(t, "verify.yml")
-	if !strings.Contains(source, "./le verify list mode full") {
+	if !strings.Contains(source, "./le verify list full") {
 		t.Error("verify.yml must consume the full native verifier list")
 	}
 	if !strings.Contains(source, "fail-fast: false") {
@@ -477,7 +477,7 @@ func TestVerifyShardRunsNativeActionsAndContinuesAfterFailures(t *testing.T) {
 func TestVerifyProvisionsLoopbackBeforeReadingStages(t *testing.T) {
 	source := workflowSource(t, "verify.yml")
 	address := strings.Index(source, "sudo ip -6 addr add fd00::2/128 dev lo")
-	stages := strings.Index(source, "./le verify list mode full")
+	stages := strings.Index(source, "./le verify list full")
 	if address < 0 || stages < 0 || address > stages {
 		t.Fatalf("loopback step index %d, stage-list index %d", address, stages)
 	}
@@ -492,7 +492,7 @@ func TestVerifyProvisionsLoopbackBeforeReadingStages(t *testing.T) {
 // capability the hosted kernel can load (owner decision, 2026-10-17).
 func TestVerifyPreparesTheRunnerKernelBeforeReadingStages(t *testing.T) {
 	source := stripComments(workflowSource(t, "verify.yml"))
-	stages := strings.Index(source, "./le verify list mode full")
+	stages := strings.Index(source, "./le verify list full")
 	if stages < 0 {
 		t.Fatal("verify.yml no longer reads its stage list")
 	}

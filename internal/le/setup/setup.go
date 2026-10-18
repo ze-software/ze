@@ -187,7 +187,7 @@ func (s *Setup) Run() (*Report, int) {
 		return report, 1
 	}
 	if code == 0 {
-		report.Note("Verify with: ./le verify current mode changed")
+		report.Note("Verify with: ./le verify current fast")
 	}
 	return report, code
 }

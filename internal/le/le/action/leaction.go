@@ -569,7 +569,7 @@ func (a Area) Answer(args []string) (any, int) {
 			return nil, a.actionUsage(act)
 		}
 		if act.AnswerArgs != nil {
-			parsed, err := parseArguments(act.Parameters, args[1:])
+			parsed, err := parseArguments("le "+a.name+" "+verb, act.Parameters, args[1:])
 			if err != nil {
 				ReportError(err)
 				return nil, 2
@@ -633,8 +633,11 @@ func (a Area) actionUsage(act Action) int {
 
 // parseArguments validates one action's closed keyword grammar. It consumes a
 // value only after the parameter that names its meaning, and it refuses an
-// option in every value slot it reads.
-func parseArguments(parameters []Parameter, args []string) (Arguments, error) {
+// option in every value slot it reads. command is the line that reaches the
+// action (`le verify current`): an unknown keyword is answered with every
+// complete spelling the action takes, so a reader who typed a removed one
+// copies the right one rather than guessing where the keyword goes.
+func parseArguments(command string, parameters []Parameter, args []string) (Arguments, error) {
 	declared := make(map[string]Parameter, len(parameters))
 	for _, parameter := range parameters {
 		declared[parameter.Keyword] = parameter
@@ -645,9 +648,8 @@ func parseArguments(parameters []Parameter, args []string) (Arguments, error) {
 		keyword := args[index]
 		parameter, ok := declared[keyword]
 		if !ok {
-			var tb textbuf.Buffer
-			return nil, fmt.Errorf("unknown argument keyword %q; use one of: %s",
-				keyword, tb.Join(parameterNames(parameters), ", ").String())
+			return nil, fmt.Errorf("%s takes no argument keyword %q; use one of: %s",
+				command, keyword, spellings(command, parameters))
 		}
 		// A keyword given twice is a mistake, unless the parameter declared that
 		// it may be given again and that every value it introduces is kept.
@@ -731,13 +733,25 @@ func trailingIsValue(parameters []Parameter, args []string) bool {
 	return false
 }
 
-// parameterNames answers the allowed keywords in declaration order.
-func parameterNames(parameters []Parameter) []string {
-	names := make([]string, 0, len(parameters))
-	for _, parameter := range parameters {
-		names = append(names, parameter.Keyword)
+// spellings answers every keyword an action declares as the complete line that
+// types it, a value slot shown as <value>: `le go lint run scope <path>`. An
+// action that declares no keyword answers its bare line.
+func spellings(command string, parameters []Parameter) string {
+	if len(parameters) == 0 {
+		return command
 	}
-	return names
+	var tb textbuf.Buffer
+	tb.Reset()
+	for index, parameter := range parameters {
+		if index > 0 {
+			tb.Str(", ")
+		}
+		tb.Str(command).Byte(' ').Str(parameter.Keyword)
+		if parameter.Value != "" {
+			tb.Str(" <").Str(parameter.Value).Byte('>')
+		}
+	}
+	return tb.String()
 }
 
 // ─── The sweep: several actions on one command line ─────────────────────────

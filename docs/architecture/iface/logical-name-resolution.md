@@ -229,7 +229,7 @@ empty `default:` branch is refused by the pretool hook.
 ## The consumer side is a standing gate, not a one-time migration
 
 `internal/le/arch/ifaceresolution.Answer` rejects new direct kernel name resolution
-outside its allowlist. It runs as a `./le verify current mode full` stage through
+outside its allowlist. It runs as a `./le verify current` stage through
 `stagesForMode`, and the allowlist records every legitimate direct-resolution
 site.
 

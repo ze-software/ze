@@ -305,7 +305,7 @@ its rename.
 check` re-reads a stored proof and compares its fingerprints against the tree;
 `./le rfc discriminate-record` is the verb that applies a break, runs the tagged
 test, and records the red it observed. The split bounds what a verification
-stage costs. `rfc check` is the third stage of `./le verify current mode full`,
+stage costs. `rfc check` is the third stage of `./le verify current`,
 so a ratchet that started a mutation run or an interop scenario would put that
 cost on every session in the checkout. A gate area MAY therefore carry a verb
 that executes, and the ratchet it feeds MUST NOT.

@@ -12,7 +12,7 @@ import (
 // list round robin, so consecutive stages reach different shards and separated
 // ones can collide.
 func TestTheStaticcheckMatrixRunsOnePiecePerStage(t *testing.T) {
-	for _, mode := range []string{Mode, ChangedMode} {
+	for _, mode := range []string{Mode, FastMode} {
 		var positions []int
 		for index, one := range StagesForMode(mode) {
 			if one.Identity.Command != "go staticcheck" {
@@ -53,7 +53,7 @@ func TestTheStaticcheckMatrixRunsOnePiecePerStage(t *testing.T) {
 // held the two in agreement when no such test existed. Deleting the second
 // list is what fixed it; these assertions guard the properties that survive.
 func TestStructuralStagesAreMembersOfThePopulation(t *testing.T) {
-	for _, mode := range []string{Mode, ChangedMode} {
+	for _, mode := range []string{Mode, FastMode} {
 		population := StagesForMode(mode)
 		if len(population) == 0 {
 			t.Fatalf("mode %q declares no stage", mode)
@@ -80,9 +80,9 @@ func TestStructuralStagesAreMembersOfThePopulation(t *testing.T) {
 // red block a commit or not depending on which run recorded it.
 func TestStructuralIsASubsetOfFull(t *testing.T) {
 	full := Structural(Mode)
-	for name := range Structural(ChangedMode) {
+	for name := range Structural(FastMode) {
 		if !full[name] {
-			t.Errorf("%q is structural in the changed mode and not in the full one", name)
+			t.Errorf("%q is structural in the fast mode and not in the full one", name)
 		}
 	}
 }
@@ -91,7 +91,7 @@ func TestStructuralIsASubsetOfFull(t *testing.T) {
 // the full and the changed population (AC-26, AC-27): a stale review stamp
 // refuses ./le verify whichever mode certifies the tree.
 func TestPatchStampsRunsInBothModes(t *testing.T) {
-	for _, mode := range []string{Mode, ChangedMode} {
+	for _, mode := range []string{Mode, FastMode} {
 		found := false
 		for _, one := range StagesForMode(mode) {
 			if one.Identity.Command == "go patch-stamps" && len(one.Identity.Args) == 1 && one.Identity.Args[0] == "check" {

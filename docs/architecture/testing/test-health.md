@@ -16,7 +16,7 @@ The feature is two things that share collectors but not enforcement.
 | | Ratchets | Report |
 |---|---|---|
 | Question | "Did this commit make sensitivity worse?" | "What is the state of the suite?" |
-| Enforced by | `./le test sensitivity check`, stage 10 of `./le verify current mode full` | `./le test health check`, inside `./le repo generated-check` |
+| Enforced by | `./le test sensitivity check`, stage 10 of `./le verify current` | `./le test health check`, inside `./le repo generated-check` |
 | Reads | `test/health/sensitivity-baseline.json` + the working tree | the committed report vs the tree |
 | Source | `internal/le/test/sensitivity.Answer` | `internal/le/test/health.Answer` |
 <!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
@@ -97,7 +97,7 @@ floor, so deleting the baseline cannot launder a regression; first-time creation
 is the explicit `--bootstrap-baseline`.
 
 The ratchet scans the WORKING TREE, so an inert test is caught by the
-`./le verify current mode full` run that precedes its commit, not blamed on the next one.
+`./le verify current` run that precedes its commit, not blamed on the next one.
 
 ### The question these detectors do not ask
 
@@ -137,7 +137,7 @@ it under `tmp/` and the commit carries it as an `RFC-approved:` trailer
 | Refused at commit time by | `weakened_problems` (`internal/le/commit.Answer`) |
 | Reads | `test/weakened/<session>.md` + the HEAD content of the paths the commit names |
 | Source | `internal/le/test/weakened.Answer`, called by both gates |
-| Parse gate | `./le test weakened check`, in `./le verify current mode full` both modes |
+| Parse gate | `./le test weakened check`, in `./le verify current` both modes |
 <!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 
 ### The shard is named after your commit session

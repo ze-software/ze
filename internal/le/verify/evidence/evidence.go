@@ -116,7 +116,7 @@ fi
 CGO_ENABLED=0 go install -mod=vendor github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 CGO_ENABLED=0 go install -mod=vendor honnef.co/go/tools/cmd/staticcheck
 
-./le verify current mode full
+./le verify current
 `
 
 // requiredCommands are the programs the run cannot proceed without. Both are

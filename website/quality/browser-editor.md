@@ -74,7 +74,7 @@ Use editor tests for completion, validation, path context, commit and discard be
 
 ## Failure reading
 
-Both runners emit per-step trace records. The human output shows action and expectation lines with source locations. The machine output emits `VERIFY STEP` JSON so `./le verify current mode full` can group failures without scraping prose.
+Both runners emit per-step trace records. The human output shows action and expectation lines with source locations. The machine output emits `VERIFY STEP` JSON so `./le verify current` can group failures without scraping prose.
 
 ```bash
 ./le test web config-menu -v

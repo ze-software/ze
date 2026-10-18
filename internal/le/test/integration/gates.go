@@ -5,7 +5,7 @@
 // exact native callbacks or external toolchain arguments.
 // Each gate needs infrastructure that is not present on every machine.
 // The requirements include Docker, a network namespace, CAP_NET_ADMIN, root,
-// QEMU, and internet access. For that reason, `./le verify current mode full`
+// QEMU, and internet access. For that reason, `./le verify current`
 // does not include these evidence actions.
 //
 // The native QEMU area owns kernel staging, guards, boots, and its complete

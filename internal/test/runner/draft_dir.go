@@ -12,7 +12,7 @@ import (
 // under development: test/draft/<suite>/<name>.ci.
 //
 // A .ci in there is invisible to every suite and every repo-wide gate, so a
-// half-written test cannot redden `./le verify current mode full` for the author
+// half-written test cannot redden `./le verify current` for the author
 // or any other session sharing the checkout. It is gitignored too, which
 // makes the guarantee independent of every gate remembering to skip it: CI
 // checks out git, so the tree does not exist there at all.

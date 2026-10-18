@@ -195,7 +195,7 @@ func TestVerifyRunWidensWhenTheChangeSetCannotBeSelected(t *testing.T) {
 	root := t.TempDir()
 
 	// The assertion is against what this process ALREADY held, never against the
-	// empty string. This test runs inside `./le verify current mode full` as a
+	// empty string. This test runs inside `./le verify current` as a
 	// child of the unit stage, and that run publishes its own answer to every
 	// stage it starts: an assertion of "" would judge the run that started the
 	// test rather than the fixture the test drives, and it could only fail from

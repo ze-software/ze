@@ -112,7 +112,7 @@ on a full pipe.
 ## Flavors and why each names a file
 
 The build-tag flavors in `buildMatrix` are compiled, at about 45s warm against a
-25-minute `./le verify current mode full`. `ze_core ze_ssh` is dropped as a
+25-minute `./le verify current`. `ze_core ze_ssh` is dropped as a
 near-duplicate of `distro`. Each flavor builds `./...`
 rather than its own main package: it costs 1.8s more and type-checks every
 package the tag set selects, not only the ones a binary imports.

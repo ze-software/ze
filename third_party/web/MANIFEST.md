@@ -74,7 +74,7 @@ The consumer copies are generated files and they stay tracked in git. `//go:embe
 reads them at compile time, and `./le repo compiles check` compiles what git
 holds, so a build that runs no generator must find them.
 
-`./le web vendor check` is a stage of `./le verify current mode full` and a
+`./le web vendor check` is a stage of `./le verify current` and a
 prerequisite of `./le repo generated-check`. It exits non-zero when a copy
 differs or is absent. It queries no registry, so it runs with no network.
 

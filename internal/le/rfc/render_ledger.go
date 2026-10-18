@@ -427,7 +427,7 @@ func statusPageIntro(unrowed, summaries int) string {
 	tb.Str("that RFC's own file under `rfc/requirements/`, with a `kind/tier` cell per test link. ")
 	tb.Str("`kind` is the layer the test exercises (`unit`, `functional`, `editor`, `interop`); ")
 	tb.Str("`tier` is whether anything executes it. `verify` means it runs in ")
-	tb.Str("`./le verify current mode full` on every push. `interop/nightly` runs only in the ")
+	tb.Str("`./le verify current` on every push. `interop/nightly` runs only in the ")
 	tb.Str("scheduled, advisory `evidence-nightly` workflow -- so a requirement whose evidence is ")
 	tb.Str("entirely nightly-tier is marked `**nightly-only**` on its row there, and counted in ")
 	tb.Str("its own column of the coverage rollup in `ai/RFC-REQUIREMENTS.md`, and a row here ")

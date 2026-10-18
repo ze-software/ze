@@ -153,7 +153,7 @@ func renderMarkdown(metrics []Metric, history []object) string {
 	add("")
 	add("**How current is this?** The structural facts -- which test files nothing " +
 		"runs, which RFCs have no test pair, and every metric's status -- are checked " +
-		"by `./le verify current mode full` and cannot lag the tree. The volume counters are as of " +
+		"by `./le verify current` and cannot lag the tree. The volume counters are as of " +
 		"the last `./le test health update` and may lag by a few tests; they deliberately " +
 		"do not fail the check, because a check that fired on most commits that add a " +
 		"test would be routed around rather than read. Ratchets are enforced from the " +
@@ -178,7 +178,7 @@ func renderMarkdown(metrics []Metric, history []object) string {
 	add("- `unknown` is not `ok`. A metric whose input is missing sorts above every " +
 		"other row, because a number nobody is computing is worse than a bad number.")
 	add("- Counts marked with a floor are ratchets: they may fall, never rise. " +
-		"`./le verify current mode full` enforces them.")
+		"`./le verify current` enforces them.")
 	add("- Volume figures cover in-repo trees only. `vendor/` and `gokrazy/modcache/` " +
 		"are third-party module trees; including them inflates the test count roughly sixfold.")
 	add("")

@@ -155,12 +155,12 @@ func TestVerifyLintRunActionGrammarRefusesMalformedScope(t *testing.T) {
 		{
 			name: "unquoted package list",
 			args: []string{"run", "scope", "./cmd/ze", "./internal/le"},
-			want: "error: unknown argument keyword \"./internal/le\"; use one of: scope\n",
+			want: "error: le go lint run takes no argument keyword \"./internal/le\"; use one of: le go lint run scope <packages>\n",
 		},
 		{
 			name: "undeclared positional",
 			args: []string{"run", "./cmd/ze"},
-			want: "error: unknown argument keyword \"./cmd/ze\"; use one of: scope\n",
+			want: "error: le go lint run takes no argument keyword \"./cmd/ze\"; use one of: le go lint run scope <packages>\n",
 		},
 	}
 	for _, test := range tests {

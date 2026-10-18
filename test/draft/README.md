@@ -1,7 +1,7 @@
 # `test/draft/` — functional tests under development
 
 A `.ci` file here is **invisible to every suite and every repo-wide gate**. Write
-and iterate on it as long as you like; it cannot redden `./le verify current mode full`, and
+and iterate on it as long as you like; it cannot redden `./le verify current`, and
 because the directory is gitignored it does not exist in CI at all. The one
 tracked exception below is checked out by CI: it is invisible there because
 every reader skips this directory, not because the file is absent.
@@ -44,7 +44,7 @@ so a subdirectory is already invisible to it. The problem was everything else: s
 gates walk `test/` RECURSIVELY, and each one would have seen a half-written draft.
 
 A test in progress used to have nowhere to live. Writing it in `test/<suite>/`
-meant every `./le verify current mode full` in the tree ran it — including runs by other sessions
+meant every `./le verify current` in the tree ran it — including runs by other sessions
 working on unrelated things, who then had to decide whether the red was theirs.
 
 ## Layout

@@ -80,7 +80,7 @@ Do not delete `bin/le`. Several sessions share one checkout and one of them can
 be executing that file right now. Ask for a build of your own instead:
 
 ```bash
-./le --name mywork verify current mode full
+./le --name mywork verify current
 ```
 
 `--name` comes first, before the command, and the launcher consumes it. Every
@@ -413,7 +413,7 @@ section governs each of them.
 Verify everything works:
 
 ```bash
-./le verify current mode full
+./le verify current
 ```
 
 Check that appliance tools are detected:

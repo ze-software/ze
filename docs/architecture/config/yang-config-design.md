@@ -1194,7 +1194,7 @@ func cfgBool(v any) (bool, bool) {
 
 `./le config coercion check`
 (`internal/le/config/coercion/configcoercion.go`, wired into
-`./le verify current mode full`) parses every `internal/**/config.go` and fails
+`./le verify current`) parses every `internal/**/config.go` and fails
 on a type switch whose cases include a numeric or bool type but not `string`, or
 on a direct type assertion to a numeric or bool type.
 

@@ -31,7 +31,7 @@ etc/ze/database.zefs*
 
 # Functional tests under development. A .ci in here is invisible to every suite
 # and every repo-wide gate (see test/draft/README.md), so a half-written test can
-# never redden `./le verify current mode full` or CI. Ignored rather than merely excluded: CI
+# never redden `./le verify current` or CI. Ignored rather than merely excluded: CI
 # checks out git, so an ignored tree does not exist there at all, which makes the
 # guarantee independent of every gate remembering to skip it.
 # Promote with: mv test/draft/<suite>/<name>.ci test/<suite>/<name>.ci

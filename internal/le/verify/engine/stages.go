@@ -111,7 +111,7 @@ func fullStages() []Stage {
 		stage("config ports", "check"),
 		stage("go version-pin", "check"),
 		// Every patch of both families against what it was reviewed for: file
-		// reads and one go env, so the changed mode keeps it.
+		// reads and one go env, so the fast mode keeps it.
 		stage("go patch-stamps", "check"),
 		stage("config claims"),
 		stage("test sensitivity", "check"),
@@ -168,7 +168,7 @@ func fullStages() []Stage {
 	return stages
 }
 
-// changedStages returns the per-edit population: every full stage except the
+// fastStages returns the per-edit population: every full stage except the
 // three whose subject is the whole tree rather than the edit. Evidence vetting
 // and the allocation benchmarks read populations no edit narrows, and the
 // cached unit pass covers every package, so what an edit still owes is the
@@ -182,8 +182,8 @@ func fullStages() []Stage {
 // scope at all and loads the whole module whichever mode called it. Lint is a
 // large part of a run's wall clock, so this list makes the population smaller
 // without making the run proportionally faster. A stage that learns to narrow
-// itself narrows changed mode too, with no edit here.
-func changedStages() []Stage {
+// itself narrows fast mode too, with no edit here.
+func fastStages() []Stage {
 	full := fullStages()
 	stages := make([]Stage, 0, len(full)-3)
 	for _, current := range full {
@@ -218,8 +218,8 @@ func StagesForMode(mode string) []Stage {
 	switch mode {
 	case Mode:
 		return fullStages()
-	case ChangedMode:
-		return changedStages()
+	case FastMode:
+		return fastStages()
 	default:
 		return nil
 	}

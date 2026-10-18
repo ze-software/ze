@@ -20,16 +20,16 @@ Functional tests exercise release-gate behavior across BGP wire encoding and dec
 The stage list is **not reproduced here**. It lives in `stagesForMode`
 (`internal/le/verify/engine/stages.go`) and nowhere else. Each shard of
 `.github/workflows/verify.yml` reads that same list through
-`./le verify current mode full-list`, so a gate absent from the Go table runs
+`./le verify list full`, so a gate absent from the Go table runs
 nowhere and a gate added to it needs no duplicate list in this page. Run
-`./le verify current mode full-list` to read the current full-mode list.
+`./le verify list full` to read the current full-mode list.
 
 An earlier version of this paragraph enumerated the stages and went eight
 stages out of date. Keep the producer in Go and the prose at this level.
 
-Broadly, `./le verify current mode full` runs the static gates first, then
+Broadly, `./le verify current` runs the static gates first, then
 `./le verify deps vulnerability` before unit, functional, and ExaBGP stages.
-`./le verify current mode changed` substitutes changed-only lint and unit
+`./le verify current fast` substitutes changed-only lint and unit
 stages. Both modes run the same vulnerability scan. It needs network access to
 the live Go vulnerability database. `TestStagesForModeBranchesAgree` and
 `TestStagesForModeMatchesGolden` in `internal/le/verify/engine` pin the two lists.
@@ -43,7 +43,7 @@ failure index. The `run-dir` key in the failure index names the directory. At
 most ten run directories are kept: the newest ones, plus every directory a
 documented path below still points into. A run a published path points into is
 never removed for age, because only a full run writes `tmp/ze-verify-full.json`
-and ten cheaper `./le verify current mode changed` runs can follow it in one day.
+and ten cheaper `./le verify current fast` runs can follow it in one day.
 The documented paths below stay
 where they are: each is a symlink into the directory of the run that owns it.
 The combined log is published when the run starts, so a waiting session can
@@ -56,7 +56,7 @@ follow it; the failure artifacts are published when the run ends.
 | `tmp/verify/run-<start>-<mode>-<id>/<nn>-<stage>.log` | Full log for one stage of that run. The failure index names it in `detail-log` |
 | `tmp/ze-verify-failures.log` | Compact failure index to read first |
 | `tmp/ze-verify-failures.json` | Machine-readable failure routing index |
-| `tmp/ze-verify-full.json` | The same index, written by the FULL mode only. It is the record a commit carrying Go is gated on, and it is separate because a `./le verify current mode changed` run in another session republishes the shared path |
+| `tmp/ze-verify-full.json` | The same index, written by the FULL mode only. It is the record a commit carrying Go is gated on, and it is separate because a `./le verify current fast` run in another session republishes the shared path |
 | `tmp/ze-verify.status` | Freshness fingerprint for the last run |
 | `tmp/ze-verify-manifest.txt` | One fingerprint per path that differs from `HEAD`, so a session can ask about its own file list rather than the whole tree |
 
@@ -124,7 +124,7 @@ web, install, appliance, l2tp-wire, isis-wire, ospf-wire, runner, bfd, dhcp, vrr
 
 `./le repo check` is a fast (~0.2s) post-verify check that catches recurring
 implementation mistakes: stale source anchors, line-number anchors, unwired
-exported symbols, and incomplete spec AC tables. Run it after `./le verify current mode full` passes,
+exported symbols, and incomplete spec AC tables. Run it after `./le verify current` passes,
 before presenting work as complete.
 <!-- source: internal/le/verify/engine/stages.go -- StagesForMode -->
 <!-- source: internal/le/verify/deps/actions.go -- Actions -->
@@ -162,7 +162,7 @@ run. Queue a runner selection with
 Clean release-candidate evidence can be run with `./le verify evidence release-candidate`.
 The action refuses a dirty worktree, clones the repository into an ephemeral
 Docker container, mirrors the CI dependency setup, and runs
-`./le verify current mode full` there.
+`./le verify current` there.
 
 `ze-deployment-*` targets are deployment-grade external evidence. Some use
 Docker because the local runner needs a Linux system service; Docker-specific
@@ -268,7 +268,7 @@ le test bgp plugin --draft --all
 ## Writing a Test: Draft First
 
 **Never write or iterate on a `.ci` inside `test/<suite>/`.** That directory is
-live: every `./le verify current mode full` in the checkout runs it, including runs by other
+live: every `./le verify current` in the checkout runs it, including runs by other
 sessions working on unrelated things, who then have to work out whether your
 half-written test is their regression. The same applies to CHANGING an existing
 test.
@@ -627,7 +627,7 @@ component-group targets to test only the area you changed:
 | `./le test unit config` | `./internal/component/config/...` | about 20 seconds |
 | `./le test unit cli` | `./internal/component/cli/...` | about 10 seconds |
 | `./le test unit installer` | `./internal/install/...` behind the `ze_installer` tag | about 10 seconds |
-| `./le verify current mode full` | Every unit group plus repository gates | about 5 minutes |
+| `./le verify current` | Every unit group plus repository gates | about 5 minutes |
 
 The first five groups run with the test-only `CGO_ENABLED=1 go test -race` path
 on Linux and Darwin. These race-built test executables never ship or serve as
@@ -652,7 +652,7 @@ run in the ordinary unit passes (no build tag):
 | `TestForwardPoolOrderingProperty` | `internal/component/bgp/reactor` | batch order preservation, supersede-key determinism, malformed-body robustness, and exactly-once delivery under concurrent dispatch (`-race`). |
 | `TestFilterChainRandomUpdatesProperty` | `internal/component/bgp/reactor` | `buildModifiedPayload` never panics and only emits well-formed UPDATE bodies over random payloads+ops; `LessOrder` is a strict total order. |
 
-### Evidence / release-tier stress and perf tests (build-tagged, out of `./le verify current mode full`)
+### Evidence / release-tier stress and perf tests (build-tagged, out of `./le verify current`)
 
 Resource-heavy, host-dependent tests stay out of the pre-commit gate. Their
 native integration actions supply the required build tags:
@@ -742,7 +742,7 @@ software emulation. The guest, its packages and the macOS status are in
 harness in the guest".
 <!-- source: internal/le/test/qemu/stress.go -- stressAction, runStressGuest, copyStressEvidence -->
 
-### netlab template render check (`./le test netlab render-check`, out of `./le verify current mode full`)
+### netlab template render check (`./le test netlab render-check`, out of `./le verify current`)
 
 `contrib/netlab/` mirrors the netlab daemon integration: the daemon definition, the
 Jinja2 templates that emit ze configuration, one reference topology, and the committed
@@ -751,7 +751,7 @@ and runs `netlab create`. It then compares each rendered node configuration agai
 golden file, and runs `ze config validate` on each golden. It never writes to the
 golden file. `./le test netlab render-update` rewrites the golden files.
 
-It is out of `./le verify current mode full` because it needs netlab installed, and `./le verify current mode full` must run on
+It is out of `./le verify current` because it needs netlab installed, and `./le verify current` must run on
 a machine that has neither netlab nor Jinja2. **A missing netlab is an error exit, not a
 skip:** a check that passes without its dependency reports "no drift" about a render it
 never performed. `NETLAB=/path/to/netlab` names a specific install.
@@ -1262,13 +1262,13 @@ synthetic observations. The anomaly facts→judgment→response chain
 Use the narrowest test scope that covers your change, then widen before committing:
 
 ```
-single test  →  single package  →  component group  →  ./le verify current mode full
+single test  →  single package  →  component group  →  ./le verify current
 ```
 
 ```bash
 ./le job run label one-config-test command go test ./internal/component/config/system/... -run TestMyThing
 ./le test unit config
-./le verify current mode full
+./le verify current
 ```
 
 #### Test binaries are isolated from the development binary
@@ -1295,7 +1295,10 @@ the canonical bare names.
 <!-- source: internal/test/runner/runner.go -- prebuilt binary environment -->
 <!-- source: internal/test/runner/runner_exec.go -- bare-name resolution -->
 
-`./le verify current mode full` is the pre-commit gate. It runs a two-pass strategy:
+`./le verify current` is the full gate. It runs in a fresh detached worktree at
+HEAD, as `./le verify worktree` does, so it judges the last commit; `./le verify
+current fast` judges the working tree in place. Its unit stages run a two-pass
+strategy:
 1. Cached full pass (all packages, no `-race`; completes quickly when nothing changed)
 2. Race pass on changed groups only (detects data races in what you touched)
 3. All functional test suites
@@ -3508,7 +3511,7 @@ FUZZ=FuzzParseUpdate PKG=./internal/... TIME=30s ./le test fuzz run
 action.
 <!-- source: internal/le/test/fuzz/actions.go -- Actions -->
 
-Fuzz tests are not part of `./le verify current mode full` (they're time-bounded, not pass/fail
+Fuzz tests are not part of `./le verify current` (they're time-bounded, not pass/fail
 in the traditional sense). Run them periodically or before releases.
 
 ### Fuzz Target Areas
@@ -3568,7 +3571,7 @@ func FuzzParseMyProtocol(f *testing.F) {
 ## Live Tests (Docker + Internet)
 
 Live tests run against real external infrastructure inside Docker containers.
-They are **not** part of `./le verify current mode full` and require both Docker and internet access.
+They are **not** part of `./le verify current` and require both Docker and internet access.
 
 <!-- source: internal/component/bgp/plugins/rpki/rpki_live_test.go -- TestLiveRPKIValidation -->
 

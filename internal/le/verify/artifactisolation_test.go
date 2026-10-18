@@ -41,7 +41,7 @@ func TestConcurrentRunsDoNotShareArtifactPaths(t *testing.T) {
 					Output: mark + " " + identity.Name + "\n",
 				}
 			}
-			reports[index] = runCurrent(context.Background(), repo.root, "changed", runner)
+			reports[index] = runFast(context.Background(), repo.root, runner)
 		})
 	}
 	group.Wait()
@@ -119,7 +119,7 @@ func readCombined(t *testing.T, root, logDir string) string {
 // (plan/journal/assertion-reads-state-the-scheduler-owns.md).
 func TestARunThatAttachedSaysSoAndNamesTheHolder(t *testing.T) {
 	const commit = "a2fb7acb1a01b38e3b7dffcc51766d1fb08044a5"
-	report := attachedReport("changed", commit, &job.Ticket{
+	report := attachedReport(verifyengine.FastMode, commit, &job.Ticket{
 		Label: "verify", Kind: job.KindAttached, Code: 1,
 		Entry: "tmp/job/verify/1234", Log: "tmp/job/verify/1234/log",
 	})

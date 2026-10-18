@@ -18,7 +18,7 @@ change.
 `./le doc check verify` runs every documentation checker and returns non-zero if any of
 them report drift. Run it after editing documentation files, after adding or
 removing plugins, or as part of review. `./le doc wiring` selects the
-checks needed for the current diff and is included in `./le verify current mode full`.
+checks needed for the current diff and is included in `./le verify current`.
 
 ## What gets checked
 
@@ -63,7 +63,7 @@ pre-commit gate.
 | Before opening a documentation PR | `./le doc check verify` |
 
 The full `./le doc check verify` remains the explicit documentation review target.
-`./le verify current mode full` runs `./le doc wiring`, which invokes the relevant doc,
+`./le verify current` runs `./le doc wiring`, which invokes the relevant doc,
 command, inventory, and wiring checks for changed files.
 
 <!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->

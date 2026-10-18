@@ -264,7 +264,7 @@ plugin {
 
 ### Unit Tests
 ```bash
-./le verify current mode full   # complete pre-commit verification
+./le verify current   # complete pre-commit verification
 ```
 
 ### Functional Tests

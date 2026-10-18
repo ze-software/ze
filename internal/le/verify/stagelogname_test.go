@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/le/job"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
@@ -26,7 +27,9 @@ func TestStageLogNamesFollowTheCommandName(t *testing.T) {
 	runner := func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
 		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true, Output: "ok\n"}
 	}
-	report := runCurrent(context.Background(), repo.root, "full", runner)
+	// The full population runs in a worktree in production; the stage log names
+	// are the engine's, so the test drives the engine over the fixture directly.
+	report := verifyengine.RunMode(context.Background(), repo.root, job.Head(repo.root), verifyengine.Mode, runner, verifyengine.Slot{})
 	if report.Code != 0 || !report.Completed {
 		t.Fatalf("report = %#v", report)
 	}

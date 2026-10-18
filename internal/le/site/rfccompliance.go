@@ -2668,7 +2668,7 @@ func rfcMechanismLead(snapshot *rfcCompliance) string {
 	}
 	return "This gate runs before a commit is verified: " + snapshot.Verify.Command +
 		" is " + plural(snapshot.Verify.GateStages, "stage") + " of the " +
-		groupThousands(snapshot.Verify.Stages) + " that ./le verify current mode full runs."
+		groupThousands(snapshot.Verify.Stages) + " that ./le verify current runs."
 }
 
 // rfcMechanismRows answers what the gate reads, what runs it, and what it

@@ -589,7 +589,7 @@ func zeTestStartChaosServer(ctx context.Context, bins zeTestWebBinaries, listenA
 }
 
 // zeTestReadyTimeout bounds a server start. Under
-// `./le verify current mode full`, the web suite overlaps the -race unit stage,
+// `./le verify current`, the web suite overlaps the -race unit stage,
 // and a forked daemon can take well over 30s just to bind under CPU starvation,
 // so the budget scales by the contention headroom applied to per-test budgets. A standalone run
 // keeps the tight 30s so a genuine "server never starts" still surfaces fast.
