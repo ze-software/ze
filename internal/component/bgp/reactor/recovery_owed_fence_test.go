@@ -292,6 +292,64 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		require.Equal(t, []netip.Addr{source.Settings().Address}, excluded)
 		require.True(t, moved, "the re-owe moves the epoch")
 	})
+	// (k): the chosen survivor's live source accepted an UPDATE of another
+	// prefix between the round's cut and the admission. The lookup may
+	// predate it, so the key is left owed for a fresh round, and the source
+	// is NOT excluded: it still holds the route, and excluding it would
+	// withdraw the key at the destination.
+	t.Run("survivor-source-advanced-leaves-owed", func(t *testing.T) {
+		r, source, destination, conn, _ := newSyncOrderRail(t)
+		destination.sendingInitialRoutes.Store(0)
+		session := destination.currentSession()
+		key, record := recoveryOweForTest(t, destination, session, syncOrderPrefixWire)
+		epoch := record.epoch
+		source.acceptedReceive(1).complete(1)
+		generation := source.forwardGeneration.Load()
+		admission := &recoveryAdmission{peer: destination, session: session, ctx: t.Context(),
+			done:    make(chan struct{}),
+			sources: map[*Peer]recoverySourceReceipt{source: {generation: generation, cut: source.receiveCut()}},
+			keys: []recoveryAdmitKey{{key: key, record: record, epoch: epoch,
+				candidate: adjOutPath{source: source}}}}
+		admission.items = []fwdItem{{peer: destination, rawBodies: [][]byte{syncOrderAnnounceBody},
+			receivedPeer: source, receivedGeneration: generation}}
+		admission.mark(0)
+		source.acceptedReceive(2) // A later UPDATE on the same live session.
+		r.fwdPool.safeBatchHandle(fwdKey{peerAddr: destination.Settings().PeerKey()},
+			[]fwdItem{{peer: destination, recovery: admission}})
+		<-admission.done
+		require.Empty(t, conn.written(), "a possibly stale candidate is not written")
+		require.Equal(t, recoveryKeyLeftOwed, admission.keys[0].outcome)
+		require.Same(t, record, recoveryOwedRecord(destination, key), "the key stays owed")
+		table := &destination.adjOut
+		table.mu.Lock()
+		excluded, moved := slices.Clone(record.excluded), record.epoch != epoch
+		table.mu.Unlock()
+		require.Empty(t, excluded, "a live source is never excluded")
+		require.False(t, moved, "leaving a key owed moves no epoch")
+	})
+	// (l): the same advance seen by queueRecovery, before any section is
+	// staged. The next round asks again with no source excluded and writes
+	// the survivor.
+	t.Run("survivor-source-advanced-before-staging-rechooses", func(t *testing.T) {
+		rail := newOwedRail(t)
+		p := []byte{24, 192, 0, 2}
+		rail.source.acceptedReceive(1).complete(1)
+		rail.forward(t, false, p)
+		rail.forward(t, true, p)
+		before := rail.record(t)
+		rail.request(t)
+		rail.source.acceptedReceive(2).complete(2) // After the round's cut.
+		rail.release <- owedSurvivor(rail.source.Settings().Address, p)
+		request := rail.request(t)
+		require.Empty(t, request.Keys[0].Excluded, "a live source that advanced is not excluded")
+		after := rail.record(t)
+		require.Same(t, before.record, after.record, "the key stays owed")
+		require.Equal(t, before.epoch, after.epoch, "leaving a key owed moves no epoch")
+		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 1, "nothing written by the stale round")
+		rail.release <- owedSurvivor(rail.source.Settings().Address, p)
+		lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the next round decides")
+		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 2, "the survivor is written")
+	})
 	t.Run("survivor-gone-reowes", func(t *testing.T) {
 		rail := newOwedRail(t)
 		p := []byte{24, 192, 0, 2}

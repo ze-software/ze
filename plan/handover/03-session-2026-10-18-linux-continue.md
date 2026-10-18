@@ -375,3 +375,39 @@ green) and scoped lint (0 issues) landed in f6c2374f02. Still owed:
 - Independent re-audit of RFC5216-5.3-5: `./le rfc check` reports the audit
   verdict "unimplemented" against a row that no longer carries `{gap}`, so the
   verdict is stale and must be re-judged by a reader who did not author it.
+
+## RS replacement Phase 3 package (c), R-12 producer (2026-10-18, Linux)
+
+Landed in the commit "bgp: a live recovery source that advanced is retried,
+never excluded" (this section rides in it). The held-sent flake was a real
+defect, not the producer: `receivePublicationCut.current` was one boolean, so
+a live survivor that accepted any UPDATE after the round's cut was re-owed with
+itself excluded and C got a bare withdrawal. Now `receivePublicationCut.state`
+splits Advanced (key left owed, no exclusion) from Ended (re-owe, excluded).
+Root cause, interleaving and red proofs: spec Design Insights, "R-12 producer"
+row. Producer (`recovery-write` in a fresh meta copy, `forwardUpdateSection`),
+probe mark assertion (red without it), rib-storage-design and update-building
+updated. Evidence: process held-sent subtest 100/100 `-race` (was 3/60 without
+the producer, 7/60 with it); three probes 10/10; new fence subtests (k), (l).
+Builds and tests ran with a Go overlay mapping every foreign dirty file to HEAD
+(other sessions' rfc9774, link-local, MUP, dhcp edits did not compile).
+
+Owed next, in order:
+1. `TestOwedKeyPurgeBetweenLookupAndAdmission` (spec TDD row; reactor, real
+   RIB, file `rs_withdrawal_convergence_test.go`, does not exist yet).
+2. Coordinator's report: `test/plugin/mup-t1st-malformed-treat-as-withdraw.ci`
+   fails (`./le test bgp plugin mup-t1st-malformed-treat-as-withdraw`,
+   reproduced on the working tree): the receiver gets K and the fence, never
+   the MP_UNREACH of K. In that config bgp-rib is loaded but no peer attaches
+   it, so a recovery owner IS registered and the treat-as-withdraw is owed
+   (`owesWithdrawal` -> `recoveryOwed`). Ruled out: the RIB can key both K and
+   the malformed K' (`recoveryIdentity` returns no error for either, probe
+   run). Not yet found: whether the worker's round reaches the lookup, what it
+   answers, and why no withdrawal is written. Next step: daemon debug logs of
+   the recovery worker in that .ci, or a reactor test with the RIB loaded but
+   unattached. Also question for the spec: is "owner registered" the right
+   test when the RIB does not receive the destination's sources?
+3. Phase 3's remaining items, then 3b (incl. `RecoveryRequest.PrefixOnly`,
+   no producer since package a), 3a, 4, 5, 6.
+Gates owed: scoped lint `./le go lint run scope ./internal/component/bgp/...`,
+`./le test unit all`, `./le verify worktree`.

@@ -23,6 +23,12 @@ import (
 
 var errRecoveryNotWritten = errors.New("source-DOWN recovery operation was not written")
 
+// errRecoverySourceAdvanced: the candidate's live source accepted UPDATEs
+// after the round's cut, so the lookup may predate one of them. The key is
+// decided again from a fresh cut, and no source is excluded: the source still
+// holds its routes.
+var errRecoverySourceAdvanced = errors.New("source-DOWN recovery candidate's source accepted UPDATEs after the lookup")
+
 // recoveryAdmission owns every route and post-policy section from one lookup
 // of one destination session's owed keys. Producers MUST stage all items
 // before dispatch; the destination worker MUST admit each key once under
@@ -59,8 +65,9 @@ const (
 	// recoveryKeyGone: the record left before the admission (a new owner, a
 	// decision, a table reset); nothing is left owed.
 	recoveryKeyGone
-	// recoveryKeyLeftOwed: the epoch moved, or the chosen candidate withdrew
-	// since the snapshot; the next round decides the record as it stands.
+	// recoveryKeyLeftOwed: the epoch moved, the chosen candidate withdrew
+	// since the snapshot, or the candidate's live source accepted UPDATEs
+	// after the round's cut; the next round decides the record as it stands.
 	recoveryKeyLeftOwed
 	// recoveryKeyReowed: the chosen survivor's session ended or restarted;
 	// the key is owed again with that source excluded.
@@ -92,7 +99,8 @@ func (admission *recoveryAdmission) mark(k int) {
 // are written. Per key the owed record must still be the one the round read,
 // belong to this session, and carry the round's epoch; the chosen candidate
 // must not have withdrawn since the snapshot, and its source must still be the
-// session the round captured. It reports false when the admission belongs to
+// session the round captured, with nothing accepted since the round's cut. It
+// reports false when the admission belongs to
 // another session, whose table reset dropped every key.
 func (admission *recoveryAdmission) admit(session *Session) bool {
 	if admission.session != session || session.tearingDown.Load() {
@@ -127,6 +135,9 @@ func (admission *recoveryAdmission) admit(session *Session) bool {
 		if key.outcome == recoveryKeyReowed {
 			continue
 		}
+		if key.outcome == recoveryKeyLeftOwed {
+			continue // The candidate's source advanced past the lookup.
+		}
 		if key.candidate.source != nil && record.moved(key.candidate) {
 			key.outcome = recoveryKeyLeftOwed
 			continue
@@ -134,31 +145,42 @@ func (admission *recoveryAdmission) admit(session *Session) bool {
 		key.outcome = recoveryKeyWrite
 	}
 	// Fence every source before writing any section: a source whose session
-	// ended or restarted re-owes its own key, and only that key.
+	// ended or restarted re-owes its own key with that source excluded, and a
+	// live source that accepted UPDATEs since the cut leaves its key owed for
+	// a fresh lookup. Either touches that key only.
 	for j := range admission.items {
 		section := &admission.items[j]
 		if admission.keys[admission.itemKeys[j]].outcome != recoveryKeyWrite {
 			continue
 		}
-		if !admission.sourceCurrent(section) {
+		switch admission.sourceState(section) {
+		case receiveCutCurrent:
+		case receiveCutAdvanced:
+			admission.keys[admission.itemKeys[j]].outcome = recoveryKeyLeftOwed
+		case receiveCutEnded:
 			admission.reowe(j)
+		case receiveCutUnspecified:
+			panic("BUG: recovery source fence returned no cut state")
 		}
 	}
 	return true
 }
 
-func (admission *recoveryAdmission) sourceCurrent(section *fwdItem) bool {
+// sourceState is the cut state of a section's source. A source whose session
+// generation moved, or which the round never captured, has ended for this
+// round. A withdrawal section has no source and is always current.
+func (admission *recoveryAdmission) sourceState(section *fwdItem) receiveCutState {
 	if !forwardSourceCurrent(section.receivedPeer, section.receivedGeneration) {
-		return false
+		return receiveCutEnded
 	}
 	if section.receivedPeer == nil {
-		return true
+		return receiveCutCurrent
 	}
 	receipt, present := admission.sources[section.receivedPeer]
 	if !present {
-		return false
+		return receiveCutEnded
 	}
-	return receipt.cut.current(section.receivedPeer)
+	return receipt.cut.state(section.receivedPeer)
 }
 
 // writes reports whether item j's key is admitted for writing.
@@ -474,6 +496,10 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 		NLRIFraming: rpc.NLRIFramingSourceWire}
 	first := len(admission.items)
 	err := a.queueRecovery(admission.peer, &stored, fam, admission, admission.sources, sender)
+	if errors.Is(err, errRecoverySourceAdvanced) {
+		key.outcome = recoveryKeyLeftOwed
+		return nil
+	}
 	if errors.Is(err, errRelayNoSource) || errors.Is(err, errForwardNoSource) {
 		key.outcome, key.gone = recoveryKeyReowed, survivor.Source
 		return nil
@@ -508,8 +534,18 @@ func (a *reactorAPIAdapter) queueRecovery(destination *Peer, route *rpc.StoredRo
 	if !present {
 		return errRelayNoSource
 	}
-	if receipt.generation != source.generation || !receipt.cut.current(source.info.peer) {
+	if receipt.generation != source.generation {
 		return errRelayNoSource
+	}
+	switch receipt.cut.state(source.info.peer) {
+	case receiveCutCurrent:
+	case receiveCutAdvanced:
+		// The source is live: excluding it would withdraw a route it holds.
+		return errRecoverySourceAdvanced
+	case receiveCutEnded:
+		return errRelayNoSource
+	case receiveCutUnspecified:
+		panic("BUG: recovery source receipt returned no cut state")
 	}
 	var spans []relayAttrSpan
 	update, id, _, err := a.buildRelayUpdate([]rpc.StoredRoute{*route}, source, &spans)

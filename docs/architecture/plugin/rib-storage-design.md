@@ -231,9 +231,11 @@ function starts it before events flow and stops it after `Run` drains
 delivery: stop cancels the dispatcher's context, which cancels the send in
 flight, joins the worker, and drops what is still pending, because no recovery
 owner exists while bgp-rib is stopped. A late removal is safe: the writer
-admits it only when the entry still holds the same revision. No sent event
-carries the key yet: the reactor's producer, which marks a recovery
-admission's write in a fresh copy of the item's meta, has not landed.
+admits it only when the entry still holds the same revision. The reactor sets
+the key when it stages a recovery section, in a fresh copy of the item's meta,
+because the item's meta is the update's shared map and every write hands it to
+its sent event; a forwarded write never carries it.
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateSection (recovery branch) -->
 <!-- source: internal/component/bgp/plugins/rib/rib_sent_lifecycle.go -- projectRecoveryWriteLocked, recoveryRemovals, startRecoveryRemovals, stopRecoveryRemovals -->
 <!-- source: internal/component/bgp/plugins/rib/sent_owner.go -- recoveryCandidateGone -->
 
@@ -274,8 +276,10 @@ decides. The destination worker decides each key under `writeMu` against the
 record, session and epoch its round read, the movers noted since the snapshot,
 and the source generations and received-publication cuts. A stale record or
 epoch, or a chosen candidate that withdrew, leaves the key owed for the next
-round; a survivor whose source session changed owes only its own key again,
-with that source excluded. Siblings do not invalidate one another, and
+round, and so does a survivor whose live source accepted another UPDATE since
+the round's cut, with no source excluded, because the lookup may predate that
+UPDATE while the source still holds the route; a survivor whose source session
+changed owes only its own key again, with that source excluded. Siblings do not invalidate one another, and
 unrelated output to the destination never cancels a decision. Item release
 answers one completion after releasing all child resources, including
 cancellation and pool shutdown, and a canceled or unrun admission leaves its

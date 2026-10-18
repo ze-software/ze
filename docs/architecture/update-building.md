@@ -468,9 +468,13 @@ excludes it; the destination is not retired for it. The RIB's answer is staged
 as one admission on the destination's forward worker, which decides each key
 under `writeMu`. A key whose record left, belongs to another session, or
 carries a newer epoch is not written. A key whose chosen candidate withdrew
-since the snapshot is left owed. A key whose survivor's source session ended or
-restarted since the round's receipt, at reconstruction or at the final writer,
-is owed again with that source excluded. Every other key is written: the first
+since the snapshot is left owed, and so is a key whose survivor's source is
+still the same live session but accepted another UPDATE since the round's cut:
+the lookup may predate that UPDATE, so the next round asks again from a fresh
+cut, with no source excluded, because excluding a live source would withdraw a
+route it still holds. A key whose survivor's source session ended or
+restarted since the round's receipt, or whose received publication failed, at
+reconstruction or at the final writer, is owed again with that source excluded. Every other key is written: the first
 survivor as the new owner, or the withdrawal when no candidate survives. A
 written decision removes its record when its epoch has not moved, and that
 completes its waiters; a table reset drops every record and completes them too.

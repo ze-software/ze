@@ -65,8 +65,8 @@ func TestReceivePublicationBroadcast(t *testing.T) {
 				peer.receivePublication.Store(replacement)
 				peer.acceptedReceive(99)
 				replacement.complete(99)
-				if cut.current(peer) {
-					t.Fatal("replacement worker satisfied an old source receipt")
+				if got := cut.state(peer); got != receiveCutEnded {
+					t.Fatalf("replacement worker left an old source receipt in state %d, want ended", got)
 				}
 				close(done)
 				want = errReceivePublicationStopped
@@ -81,10 +81,15 @@ func TestReceivePublicationBroadcast(t *testing.T) {
 					t.Fatal("publication did not broadcast to both waiters")
 				}
 			}
+			if mode == "failure" {
+				if got := cut.state(peer); got != receiveCutEnded {
+					t.Fatalf("a failed publication left the cold cut in state %d, want ended", got)
+				}
+			}
 			if mode == "complete" {
 				peer.acceptedReceive(42)
-				if cut.current(peer) {
-					t.Fatal("a later accepted receive left the cold cut current")
+				if got := cut.state(peer); got != receiveCutAdvanced {
+					t.Fatalf("a later accepted receive left the cold cut in state %d, want advanced", got)
 				}
 			}
 		})
@@ -122,7 +127,7 @@ func TestReceivePublicationCancellation(t *testing.T) {
 func TestReceivePublicationEmptyCut(t *testing.T) {
 	peer := new(Peer)
 	cut := peer.receiveCut()
-	if err := cut.wait(t.Context()); err != nil || !cut.current(peer) {
+	if err := cut.wait(t.Context()); err != nil || cut.state(peer) != receiveCutCurrent {
 		t.Fatalf("untouched peer has a pending publication: %v", err)
 	}
 	ctx, cancel := context.WithCancel(t.Context())
@@ -131,7 +136,7 @@ func TestReceivePublicationEmptyCut(t *testing.T) {
 		t.Fatalf("empty cut hid caller cancellation: %v", err)
 	}
 	peer.acceptedReceive(7)
-	if cut.current(peer) {
+	if cut.state(peer) == receiveCutCurrent {
 		t.Fatal("first accepted message did not invalidate an empty cut")
 	}
 }

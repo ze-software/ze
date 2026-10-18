@@ -14,8 +14,10 @@ package reactor
 import (
 	"errors"
 	"fmt"
+	"maps"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -1182,6 +1184,14 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 					item.authority = adjOutRecovery
 				}
 				item.supersedeKey = 0 // The operation owns every staged section.
+				// R-12: bgp-rib checks a recovery write's projection against
+				// the candidate's received path. The key goes in a fresh copy,
+				// because item.meta is the update's shared map and
+				// session.sentMeta hands it to the sent event of every write.
+				meta := make(map[string]any, len(item.meta)+1)
+				maps.Copy(meta, item.meta)
+				meta[bgptypes.RecoveryWriteMeta] = true
+				item.meta = meta
 			}
 			// Dedup borrows this item's buffer. Publish only after the body can
 			// dispatch; an earlier failure MUST abandon before returning its slot.

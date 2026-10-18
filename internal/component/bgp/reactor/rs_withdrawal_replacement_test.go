@@ -7,6 +7,8 @@ package reactor
 import (
 	"bytes"
 	"net/netip"
+	"slices"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -66,6 +68,7 @@ type replacementRun struct {
 	attrsB       []byte
 	rail         replacementRail
 	observedRail replacementRail
+	observer     *replacementRailObserver
 }
 
 // replacementScenario runs B announce, A announce, A withdraw over real
@@ -91,7 +94,8 @@ func replacementScenario(t *testing.T, rail replacementRail, addressA, addressB,
 	r.mu.RLock()
 	prior := r.messageReceiver
 	r.mu.RUnlock()
-	observer := &replacementRailObserver{MessageReceiver: prior, source: a.peer.Settings().Address}
+	observer := &replacementRailObserver{MessageReceiver: prior, source: a.peer.Settings().Address,
+		client: c.peer.Settings().Address}
 	r.setMessageReceiver(observer)
 	t.Cleanup(func() { r.setMessageReceiver(prior) })
 
@@ -105,6 +109,7 @@ func replacementScenario(t *testing.T, rail replacementRail, addressA, addressB,
 	ownershipLiveSend(t, a, nil, run.attrsA, marker)         // RFC 4271 Section 4.3.
 	ownershipLiveThrough(t, c, marker, run.attrsA)
 	run.observedRail = observer.rail()
+	run.observer = observer
 	ownershipLiveEstablished(t, peers)
 	return run
 }
@@ -128,6 +133,17 @@ func (run replacementRun) expectReplacement(t *testing.T) {
 	ownershipLiveRoute(t, view, run.prefix, run.attrsB)
 	ownershipLiveWithdrawals(t, view, run.prefix, 0)
 	ownershipLiveAnnouncements(t, view, run.prefix, run.attrsB, run.attrsA, run.attrsB)
+	// R-12: only the recovery write's sent event carries recovery-write, so
+	// bgp-rib checks that projection against a purge and no forwarded one.
+	// The sent event follows the write, so the third mark may trail C's view.
+	marks := run.observer.recoveryMarks()
+	for len(marks) < 3 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+		marks = run.observer.recoveryMarks()
+	}
+	if !slices.Equal(marks, []bool{false, false, true}) {
+		t.Fatalf("recovery-write on C's sent announcements of %s = %v, want [false false true]", run.prefix, marks)
+	}
 }
 
 // replacementRailObserver records which rail carried the source's withdrawal
@@ -138,6 +154,32 @@ type replacementRailObserver struct {
 	source   netip.Addr
 	fastPath atomic.Bool
 	seen     atomic.Bool
+	// client and marks record, per sent announcement of 10.9.0.0/24 to the
+	// client, whether its sent event carried the recovery-write meta key.
+	client netip.Addr
+	mu     sync.Mutex
+	marks  []bool
+}
+
+// OnMessageSent records the recovery-write mark of each sent announcement of
+// 10.9.0.0/24 to the client, then passes the event on unchanged.
+func (observer *replacementRailObserver) OnMessageSent(peer *plugin.PeerInfo, msg bgptypes.RawMessage) {
+	// RFC 4271 Section 4.3: Withdrawn Routes Length 0, and the NLRI field
+	// closes the body: 10.9.0.0/24 is its last four octets here.
+	if peer.Address == observer.client && len(msg.RawBytes) > 2 && msg.RawBytes[0] == 0 && msg.RawBytes[1] == 0 &&
+		bytes.HasSuffix(msg.RawBytes, []byte{24, 10, 9, 0}) {
+		_, marked := msg.Meta[bgptypes.RecoveryWriteMeta]
+		observer.mu.Lock()
+		observer.marks = append(observer.marks, marked)
+		observer.mu.Unlock()
+	}
+	observer.MessageReceiver.OnMessageSent(peer, msg)
+}
+
+func (observer *replacementRailObserver) recoveryMarks() []bool {
+	observer.mu.Lock()
+	defer observer.mu.Unlock()
+	return slices.Clone(observer.marks)
 }
 
 func (observer *replacementRailObserver) OnMessageBatchReceived(peer *plugin.PeerInfo, messages []bgptypes.RawMessage) []int {

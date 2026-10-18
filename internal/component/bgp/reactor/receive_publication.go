@@ -59,15 +59,43 @@ func (p *Peer) receiveCut() receivePublicationCut {
 	return receivePublicationCut{publication: publication, messageID: publication.accepted.Load()}
 }
 
-func (cut receivePublicationCut) current(peer *Peer) bool {
+// receiveCutState is what became of a source since a cold recovery captured
+// its cut. The two stale states call for opposite answers, so they are never
+// one false: a session that ended is excluded from the key, while a live
+// session that accepted more UPDATEs only makes the round's lookup possibly
+// stale for the keys those UPDATEs touched, and excluding it would withdraw a
+// route the source still holds.
+type receiveCutState uint8
+
+const (
+	receiveCutUnspecified receiveCutState = iota
+	// receiveCutCurrent: same publication, nothing accepted since the cut.
+	receiveCutCurrent
+	// receiveCutAdvanced: the same live publication accepted UPDATEs since
+	// the cut; decide again from a fresh cut.
+	receiveCutAdvanced
+	// receiveCutEnded: the publication was replaced (the session ended or
+	// restarted) or failed, so its received routes are no candidates.
+	receiveCutEnded
+)
+
+// state reports what became of the source's publication since the cut. Safe
+// for concurrent use: it reads atomics only.
+func (cut receivePublicationCut) state(peer *Peer) receiveCutState {
 	publication := peer.receivePublication.Load()
 	if publication != cut.publication {
-		return false
+		return receiveCutEnded
 	}
 	if publication == nil {
-		return true
+		return receiveCutCurrent
 	}
-	return !publication.failed.Load() && publication.accepted.Load() == cut.messageID
+	if publication.failed.Load() {
+		return receiveCutEnded
+	}
+	if publication.accepted.Load() != cut.messageID {
+		return receiveCutAdvanced
+	}
+	return receiveCutCurrent
 }
 
 // complete follows successful publication, not plugin application. The caller
