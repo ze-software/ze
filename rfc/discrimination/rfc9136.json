@@ -9,7 +9,7 @@
       "claim-sha": "1f024d6eabd7c178",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/evpn/plugin.go::buildEVPNFromParams",
-      "producer-sha": "a5a7d7bc481e1851",
+      "producer-sha": "c096725aa0351544",
       "break": "body of buildEVPNFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -31,7 +31,7 @@
       "claim-sha": "ad0f23b55c695168",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/evpn/plugin.go::buildEVPNFromParams",
-      "producer-sha": "a5a7d7bc481e1851",
+      "producer-sha": "c096725aa0351544",
       "break": "body of buildEVPNFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
