@@ -63,6 +63,16 @@ func peerDownEvent(reason string) *rpc.StructuredEvent {
 	}
 }
 
+// peerDownOnEvent18 is the state event for a session the FSM closed on RFC 4271
+// Section 8.1 Event 18 (TcpConnectionFails), the event number the reactor reports
+// beside the close reason for a local close without NOTIFICATION and for a
+// transport loss.
+func peerDownOnEvent18(reason string) *rpc.StructuredEvent {
+	se := peerDownEvent(reason)
+	se.FSMEvent = 18
+	return se
+}
+
 // readPeerDown drives the events and returns the Peer Down the collector reads.
 func readPeerDown(t *testing.T, bp *BMPPlugin, server net.Conn, events ...*rpc.StructuredEvent) *PeerDown {
 	t.Helper()
@@ -104,10 +114,10 @@ func TestRFC7854PeerDownCarriesTheDataItsReasonRequires(t *testing.T) {
 
 	t.Run("reason 1 carries the notification ze sent", func(t *testing.T) {
 		bp, server := peerDownHarness(t)
-		recordPeerUpFor(t, bp, peerDownEvent("session closed"))
+		recordPeerUpFor(t, bp, peerDownEvent(rpc.ReasonNotification))
 		pd := readPeerDown(t, bp, server,
 			notificationEvent(rpc.DirectionSent, body),
-			peerDownEvent("session closed"))
+			peerDownEvent(rpc.ReasonNotification))
 
 		if pd.Reason != PeerDownLocalNotify {
 			t.Fatalf("reason = %d, want %d", pd.Reason, PeerDownLocalNotify)
@@ -120,10 +130,10 @@ func TestRFC7854PeerDownCarriesTheDataItsReasonRequires(t *testing.T) {
 
 	t.Run("reason 3 carries the notification the peer sent", func(t *testing.T) {
 		bp, server := peerDownHarness(t)
-		recordPeerUpFor(t, bp, peerDownEvent("connection lost"))
+		recordPeerUpFor(t, bp, peerDownEvent(rpc.ReasonNotification))
 		pd := readPeerDown(t, bp, server,
 			notificationEvent(rpc.DirectionReceived, body),
-			peerDownEvent("connection lost"))
+			peerDownEvent(rpc.ReasonNotification))
 
 		if pd.Reason != PeerDownRemoteNotify {
 			t.Fatalf("reason = %d, want %d", pd.Reason, PeerDownRemoteNotify)
@@ -136,14 +146,16 @@ func TestRFC7854PeerDownCarriesTheDataItsReasonRequires(t *testing.T) {
 
 	t.Run("reason 2 carries the two-byte event code", func(t *testing.T) {
 		bp, server := peerDownHarness(t)
-		recordPeerUpFor(t, bp, peerDownEvent("connection lost"))
-		pd := readPeerDown(t, bp, server, peerDownEvent("connection lost"))
+		// A local close with no NOTIFICATION on FSM Event 18 is the GR-aware
+		// congestion teardown (reactor sessionCloseFor). The Data is that event.
+		recordPeerUpFor(t, bp, peerDownOnEvent18(rpc.ReasonLocalClose))
+		pd := readPeerDown(t, bp, server, peerDownOnEvent18(rpc.ReasonLocalClose))
 
 		if pd.Reason != PeerDownLocalNoNotify {
 			t.Fatalf("reason = %d, want %d", pd.Reason, PeerDownLocalNoNotify)
 		}
-		if !bytes.Equal(pd.Data, []byte{0, 0}) {
-			t.Errorf("data = %x, want two zero bytes", pd.Data)
+		if !bytes.Equal(pd.Data, []byte{0, 18}) {
+			t.Errorf("data = %x, want the FSM event code 0012", pd.Data)
 		}
 	})
 }
@@ -170,6 +182,20 @@ func TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone(t *testing.T) {
 	if len(pd.Data) != 0 {
 		t.Errorf("data = %x, want none: reason 5 has no Data field", pd.Data)
 	}
+
+	// Reason 4 has no Data field either: "The remote system closed the session
+	// without a notification message. This includes any unexpected termination
+	// of the transport session". The reactor reports that close as
+	// rpc.ReasonTCPFailure on FSM Event 18, and the event code is not written.
+	bp, server = peerDownHarness(t)
+	recordPeerUpFor(t, bp, peerDownOnEvent18(rpc.ReasonTCPFailure))
+	pd = readPeerDown(t, bp, server, peerDownOnEvent18(rpc.ReasonTCPFailure))
+	if pd.Reason != PeerDownRemoteNoData {
+		t.Fatalf("transport loss: reason = %d, want %d", pd.Reason, PeerDownRemoteNoData)
+	}
+	if len(pd.Data) != 0 {
+		t.Errorf("transport loss: data = %x, want none: reason 4 has no Data field", pd.Data)
+	}
 }
 
 // TestPeerDownDropsTheNotificationWithTheSession proves the cache does not
@@ -179,16 +205,16 @@ func TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone(t *testing.T) {
 func TestPeerDownDropsTheNotificationWithTheSession(t *testing.T) {
 	bp, server := peerDownHarness(t)
 
-	recordPeerUpFor(t, bp, peerDownEvent("session closed"))
+	recordPeerUpFor(t, bp, peerDownEvent(rpc.ReasonNotification))
 	first := readPeerDown(t, bp, server,
 		notificationEvent(rpc.DirectionSent, []byte{6, 2}),
-		peerDownEvent("session closed"))
+		peerDownEvent(rpc.ReasonNotification))
 	if first.Reason != PeerDownLocalNotify {
 		t.Fatalf("first reason = %d, want %d", first.Reason, PeerDownLocalNotify)
 	}
 
-	recordPeerUpFor(t, bp, peerDownEvent("connection lost"))
-	second := readPeerDown(t, bp, server, peerDownEvent("connection lost"))
+	recordPeerUpFor(t, bp, peerDownEvent(rpc.ReasonLocalClose))
+	second := readPeerDown(t, bp, server, peerDownEvent(rpc.ReasonLocalClose))
 	if second.Reason != PeerDownLocalNoNotify {
 		t.Fatalf("second reason = %d, want %d: the cached NOTIFICATION must not survive", second.Reason, PeerDownLocalNoNotify)
 	}
@@ -240,7 +266,7 @@ func recordPeerUpFor(t *testing.T, bp *BMPPlugin, down *rpc.StructuredEvent) {
 // the first message the collector reads is the sentinel only when the down
 // event queued nothing before it.
 func TestPeerDownIsNotSentForAPeerNeverReportedUp(t *testing.T) {
-	for _, reason := range []string{"connection lost", rpc.ReasonPeerRemoved} {
+	for _, reason := range []string{rpc.ReasonLocalClose, rpc.ReasonPeerRemoved} {
 		t.Run(reason, func(t *testing.T) {
 			bp, server := peerDownHarness(t)
 			down := peerDownEvent(reason)

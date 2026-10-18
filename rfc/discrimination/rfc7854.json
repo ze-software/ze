@@ -299,6 +299,28 @@
       "break": "body of fsmEventData replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7854-4.9-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownCarriesTheDataItsReasonRequires",
+      "unit-sha": "485f343f2f7e8743",
+      "claim-sha": "f780e73a9b32695d",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::peerDownFor",
+      "producer-sha": "d1c0c3cd17b2bf05",
+      "break": "body of peerDownFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7854-4.9-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone",
+      "unit-sha": "21639dd45bb24787",
+      "claim-sha": "da7bface7b94adec",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::peerDownFor",
+      "producer-sha": "d1c0c3cd17b2bf05",
+      "break": "body of peerDownFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7854-5-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagFollowsPolicy",
