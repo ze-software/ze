@@ -882,6 +882,50 @@
       "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5216-5.3-5",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc5216_intermediate_pool_test.go::TestEAPTLSConfiguredIntermediateCompletesALeafOnlyChain",
+      "unit-sha": "c57719a97fa37c00",
+      "claim-sha": "32777845ea405c63",
+      "route": "revert",
+      "producer": "internal/core/eap/client_chain.go::verify",
+      "producer-sha": "ddc72566544c658f",
+      "break": "body of verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-5.3-5",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc5216_intermediate_pool_test.go::TestEAPTLSConfiguredIntermediateIsNoTrustAnchor",
+      "unit-sha": "3edc944b0330bb4d",
+      "claim-sha": "90d42a43bcc412c1",
+      "route": "revert",
+      "producer": "internal/core/eap/client_chain.go::verify",
+      "producer-sha": "ddc72566544c658f",
+      "break": "body of verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-5.3-5",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc5216_intermediate_pool_test.go::TestEAPTLSLeafOnlyChainRefusedWithoutAnIntermediate",
+      "unit-sha": "bbf73a1c9cc08aa7",
+      "claim-sha": "b30d7decc867bedc",
+      "route": "revert",
+      "producer": "internal/core/eap/client_chain.go::parseIntermediateCAs",
+      "producer-sha": "0e4175af609d67c6",
+      "break": "body of parseIntermediateCAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-5.3-5",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc5216_intermediate_pool_test.go::TestEAPTLSUnrelatedConfiguredIntermediateCompletesNothing",
+      "unit-sha": "6aa8c6687f32d493",
+      "claim-sha": "0c37448e5453f3dc",
+      "route": "revert",
+      "producer": "internal/core/eap/client_chain.go::verify",
+      "producer-sha": "ddc72566544c658f",
+      "break": "body of verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5216-5.4-1",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerRefusesARevokedServerCertificateOverTLS12",

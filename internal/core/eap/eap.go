@@ -346,6 +346,15 @@ type MethodConfig struct {
 	// (checkChainRevocation, revocation.go).
 	CRLPEM []byte
 
+	// IntermediateCertPEM holds intermediate CA certificates, concatenated as
+	// PEM, that the authenticator adds to path validation of the client chain
+	// beside the intermediates the client sends. RFC 5216 Section 5.3 asks the
+	// server to obtain the intermediates a path needs, and these are the
+	// pre-configured ones it names. They are links on the path and never trust
+	// anchors: only CACertPEM anchors it (clientChainVerifier, client_chain.go).
+	// Empty leaves crypto/tls to verify the chain from what the client sent.
+	IntermediateCertPEM []byte
+
 	// Resumption carries the session-ticket keys this peering issues its
 	// NewSessionTicket messages under, and the operator's session-resumption
 	// setting. RFC 9190 Section 2.1.2 makes issuance a MUST on the EAP-TLS

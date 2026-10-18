@@ -73,10 +73,14 @@ var scenarioCheckers = map[string]scenarioCheck{
 	"responder-eap-mschapv2":                          {run: checkResponderEAPMSCHAPv2},
 	"responder-eap-tls12":                             {run: checkResponderEAPTLS12},
 	"responder-eap-tls13":                             {run: checkResponderEAPTLS13},
-	"responder-eap-tls13-revoked-client":              {run: checkResponderEAPTLS13RevokedClient},
-	"responder-ike-rekey":                             {run: checkResponderIKERekey},
-	"responder-psk":                                   {run: checkResponderPSK},
-	"responder-raises-child-rekey":                    {run: checkResponderRaisesChildRekey},
+	// The leaf-only client establishes exactly as responder-eap-tls13 does, so it
+	// runs the same checker: the scenario differs in its chain alone (RFC 5216
+	// Section 5.3, Ze's intermediate-certificate list completes the path).
+	"responder-eap-tls13-leaf-only-client": {run: checkResponderEAPTLS13},
+	"responder-eap-tls13-revoked-client":   {run: checkResponderEAPTLS13RevokedClient},
+	"responder-ike-rekey":                  {run: checkResponderIKERekey},
+	"responder-psk":                        {run: checkResponderPSK},
+	"responder-raises-child-rekey":         {run: checkResponderRaisesChildRekey},
 }
 
 // ScenarioNames returns every typed checker name in lexical selection order.

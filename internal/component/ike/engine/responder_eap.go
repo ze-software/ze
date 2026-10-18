@@ -77,7 +77,8 @@ func eapTLSServerConfig(sa *SA) (eap.MethodConfig, error) {
 	// RFC 5216 Section 5.3: "Both sides MUST perform certificate path validation."
 	// The authenticator validates the client chain against this trust anchor and has
 	// no other means to do so. Refuse rather than proceed without one: newTLSMethod
-	// sets ClientAuth to RequireAndVerifyClientCert over whatever pool it is given,
+	// validates every client chain against whatever pool it is given (through
+	// crypto/tls, or through clientChainVerifier when intermediates are configured),
 	// and an empty pool rejects every client with an opaque "certificate signed by
 	// unknown authority" that names neither the peer nor the CA that failed to load.
 	// Denying while saying nothing is the failure this guards (ai/rules/evidence.md).
@@ -101,6 +102,30 @@ func eapTLSServerConfig(sa *SA) (eap.MethodConfig, error) {
 	// answer nil, which refuses a TLS 1.3 client rather than admitting one whose
 	// status nobody read (eap.checkChainRevocation).
 	cfg.CRLPEM = ca.CRLPEM()
+
+	// RFC 5216 Section 5.3: "Where the EAP-TLS server is unable to retrieve
+	// intermediate certificates, either it will need to be pre-configured with
+	// the necessary intermediate certificates to complete path validation or it
+	// will rely on the EAP-TLS peer to provide this information". The
+	// intermediate-certificate list is that pre-configuration: the EAP core adds
+	// it to path validation beside what the client sends, never to the roots
+	// (eap.MethodConfig.IntermediateCertPEM). Config verify refused a name that
+	// is missing or not a CA (ipsec.ValidateIntermediateRefs); a name the live
+	// store lost since is refused here rather than validated without.
+	for _, name := range sa.PeerCfg.Auth.IntermediateCertificates.List() {
+		inter := pki.GetCA(name)
+		if inter == nil {
+			return eap.MethodConfig{}, fmt.Errorf(
+				"ike: EAP-TLS intermediate-certificate %q not found in PKI store (peer %q)", name, sa.PeerName)
+		}
+		cfg.IntermediateCertPEM = append(cfg.IntermediateCertPEM,
+			pem.EncodeToMemory(&pem.Block{Type: pemBlockCertificate, Bytes: inter.Raw})...)
+		// The lists this intermediate publishes answer for the client
+		// certificates it issued, which RFC 9190 Section 5.4 makes the
+		// authenticator check on TLS 1.3. Without them a leaf-only client under
+		// this intermediate would be refused as uncheckable.
+		cfg.CRLPEM = append(cfg.CRLPEM, inter.CRLPEM()...)
+	}
 
 	// RFC 9190 Section 2.1.2: "the EAP-TLS server MUST send one or more
 	// post-handshake NewSessionTicket messages ... in the initial

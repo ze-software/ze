@@ -1,0 +1,188 @@
+# Test: reload rejects intermediate-certificate on a peer not in eap-tls mode
+# The intermediate-certificate leaf-list is the RFC 5216 Section 5.3
+# pre-configuration an EAP-TLS authenticator completes a client chain with, and
+# only eap-tls mode reads it. On any other mode it would do nothing, so
+# ValidateIntermediateRefs refuses the config rather than accept a list that
+# reads as working. The reload must fail OnConfigVerify, log the refusal to
+# stderr, and leave the old config running.
+#
+# This is the wiring proof for the leaf-list: it parses through the YANG
+# schema, ParseIPsecConfig reads it in every mode, and validateIPsecSections
+# runs ValidateIntermediateRefs at reload. ze config validate does NOT invoke
+# plugin OnConfigVerify, so a reload is the entry point that exercises it. The
+# missing-entry and not-a-CA refusals are unit tests over the same validator
+# (validate_intermediate_test.go), because they need certificate material in
+# the pki section.
+
+option=skip-os:value=darwin
+stdin=peer:terminator=EOF_PEER
+
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=2
+EOF_PEER
+
+# Initial config: the peer authenticates with a pre-shared secret, which needs
+# no certificate material at all, so the daemon starts clean.
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		# The kernel dataplane runs unprivileged here, so the default discard catch-all
+		# cannot be installed and would fail the apply (installUnmatched fails closed).
+		# A bypass that cannot be installed is tolerated, so this test keeps its subject.
+		unmatched bypass;
+		ike-group IKE-1 {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-1 {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch {
+				ike-group IKE-1
+				esp-group ESP-1
+				remote-address 198.51.100.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret "s3cret"
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Updated config: the pre-shared-secret peer gains an intermediate-certificate
+# list, which its mode never reads. Reload must reject.
+tmpfs=config2.conf:terminator=EOF_CONF2
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		# The kernel dataplane runs unprivileged here, so the default discard catch-all
+		# cannot be installed and would fail the apply (installUnmatched fails closed).
+		# A bypass that cannot be installed is tolerated, so this test keeps its subject.
+		unmatched bypass;
+		ike-group IKE-1 {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-1 {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch {
+				ike-group IKE-1
+				esp-group ESP-1
+				remote-address 198.51.100.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret "s3cret"
+					intermediate-certificate corp-sub-ca
+				}
+			}
+		}
+	}
+}
+EOF_CONF2
+
+await=stderr:contains=intermediate-certificate is read only in eap-tls mode
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+# Asserted under the daemon that writes it. These lines used to sit
+# above every cmd=, where the runner checked them against the whole
+# test's output and they could have been satisfied by any command.
+expect=stderr:contains=intermediate-certificate is read only in eap-tls mode

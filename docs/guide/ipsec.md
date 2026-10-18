@@ -240,6 +240,38 @@ toward the anchor. Ze sends its own chain the same way: the `certificate` entry
 first, then the intermediate that PKI entry carries. A refusal names the anchor
 and the number of intermediate certificates the peer supplied.
 
+An `eap-tls` peer whose EAP-TLS client sends its certificate without the
+intermediate that issued it can still authenticate. Store that intermediate as a
+PKI `ca` entry and name it in `intermediate-certificate`, a list. When Ze is the
+EAP-TLS authenticator, it builds the client's path from the certificates the
+client sent plus this list, anchored at `ca-certificate` only: an intermediate
+completes a path and never ends one. On TLS 1.3 the client certificate's
+revocation status must be read, so give the intermediate entry its own `crl`.
+RFC 5216 Section 5.3 asks the authenticator to obtain the intermediates a path
+needs. Ze does not fetch them from the Authority Information Access URL; this
+list is the pre-configuration the same section names instead.
+
+```
+pki {
+    ca corp-root { certificate "<pem>"; crl "<pem>"; }
+    ca corp-sub  { certificate "<pem>"; crl "<pem>"; }
+}
+vpn ipsec site-to-site peer branch authentication {
+    mode eap-tls
+    certificate ze-server
+    ca-certificate corp-root
+    intermediate-certificate corp-sub
+}
+```
+
+Commit and reload refuse a name that is not a PKI `ca` entry, an entry that is
+not a CA certificate, and the list on a peer whose mode is not `eap-tls`, where
+nothing would read it.
+
+<!-- source: internal/component/ike/ipsec/validate.go -- ValidateIntermediateRefs -->
+<!-- source: internal/core/eap/client_chain.go -- clientChainVerifier.verify -->
+<!-- source: internal/component/ike/engine/responder_eap.go -- eapTLSServerConfig reads intermediate-certificate -->
+
 Ze refuses a config that names no `ca-certificate` at commit and at reload. It
 does NOT refuse it under `ze config validate`, which reads the schema and does
 not run a plugin's config verifier.

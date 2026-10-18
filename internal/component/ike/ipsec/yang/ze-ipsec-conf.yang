@@ -1336,6 +1336,21 @@ module ze-ipsec-conf {
                             ze:help "Name of the CA certificate in the PKI store.";
                         }
 
+                        leaf-list intermediate-certificate {
+                            type string;
+                            description "Names of intermediate CA certificates held as ca entries in the
+                                PKI store. Read in eap-tls mode only. When ze is the EAP-TLS
+                                authenticator, it adds these certificates to path validation of the
+                                client's certificate chain, beside the intermediates the client sends.
+                                A client that sends its certificate alone then still validates, as
+                                RFC 5216 Section 5.3 asks of an authenticator that cannot fetch the
+                                intermediates a path needs. The certificates complete a path and never
+                                end one: ca-certificate stays the only trust anchor. Commit refuses a
+                                name that is not a PKI ca entry, an entry that is not a CA certificate,
+                                and the list on a peer whose mode is not eap-tls.";
+                            ze:help "PKI CA certificates that complete an EAP-TLS client chain.";
+                        }
+
                         leaf certificate {
                             type string;
                             description "Name of the device certificate in the PKI store. Required for

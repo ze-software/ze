@@ -2,6 +2,7 @@
 package engine
 
 import (
+	"crypto/x509"
 	"encoding/json"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -61,48 +62,63 @@ func parseVPNSections(sections []sdk.ConfigSection) (*ipsec.IPsecConfig, error) 
 // set, without installing it. An absent section yields an empty set, so a
 // certificate reference in a config that defines no PKI is correctly reported
 // as unresolvable.
-func candidatePKI(sections []sdk.ConfigSection) (
-	hasCA, hasCert func(string) bool,
-	certCN func(string) string,
-	certChainLen func(string) int,
-	err error,
-) {
-	cfg := &pki.PKIConfig{
-		CACerts:      make(map[string]*pki.CACertEntry),
-		Certificates: make(map[string]*pki.CertificateEntry),
-	}
+func candidatePKI(sections []sdk.ConfigSection) (*candidatePKISet, error) {
 	for _, s := range sections {
 		if s.Root != configRootPKI {
 			continue
 		}
-		parsed, perr := pki.ParseJSON(s.Data)
-		if perr != nil {
-			return nil, nil, nil, nil, perr
+		parsed, err := pki.ParseJSON(s.Data)
+		if err != nil {
+			return nil, err
 		}
-		cfg = parsed
-		break
+		return &candidatePKISet{cfg: parsed}, nil
 	}
+	return &candidatePKISet{cfg: &pki.PKIConfig{
+		CACerts:      make(map[string]*pki.CACertEntry),
+		Certificates: make(map[string]*pki.CertificateEntry),
+	}}, nil
+}
 
-	hasCA = func(name string) bool { return cfg.CACerts[name] != nil }
-	hasCert = func(name string) bool { return cfg.Certificates[name] != nil }
-	certCN = func(name string) string {
-		entry := cfg.Certificates[name]
-		if entry == nil || entry.Certificate == nil {
-			return ""
-		}
-		return entry.Certificate.Subject.CommonName
+// candidatePKISet answers the IPsec validators' certificate lookups from a
+// candidate pki section that was parsed and never installed. Its methods are
+// handed to the validators as method values. It is read-only after
+// candidatePKI builds it, so it is safe for concurrent use.
+type candidatePKISet struct {
+	cfg *pki.PKIConfig
+}
+
+func (c *candidatePKISet) hasCA(name string) bool { return c.cfg.CACerts[name] != nil }
+
+func (c *candidatePKISet) hasCert(name string) bool { return c.cfg.Certificates[name] != nil }
+
+func (c *candidatePKISet) certCN(name string) string {
+	entry := c.cfg.Certificates[name]
+	if entry == nil || entry.Certificate == nil {
+		return ""
 	}
-	// The count ze would put on the wire: the device certificate plus its intermediates,
-	// which is exactly what localCertChain assembles. A name the candidate section does
-	// not carry reports 0, and ValidatePKIRefs refuses that separately.
-	certChainLen = func(name string) int {
-		entry := cfg.Certificates[name]
-		if entry == nil {
-			return 0
-		}
-		return 1 + len(entry.RawIntermediates)
+	return entry.Certificate.Subject.CommonName
+}
+
+// certChainLen is the count ze would put on the wire: the device certificate
+// plus its intermediates, which is exactly what localCertChain assembles. A
+// name the candidate section does not carry reports 0, and ValidatePKIRefs
+// refuses that separately.
+func (c *candidatePKISet) certChainLen(name string) int {
+	entry := c.cfg.Certificates[name]
+	if entry == nil {
+		return 0
 	}
-	return hasCA, hasCert, certCN, certChainLen, nil
+	return 1 + len(entry.RawIntermediates)
+}
+
+// caCert answers the parsed certificate of a pki ca entry, or nil when the
+// candidate section carries no entry of that name.
+func (c *candidatePKISet) caCert(name string) *x509.Certificate {
+	entry := c.cfg.CACerts[name]
+	if entry == nil {
+		return nil
+	}
+	return entry.Certificate
 }
 
 // validateIPsecSections parses the delivered config sections and runs the
@@ -134,17 +150,20 @@ func validateIPsecSections(sections []sdk.ConfigSection) error {
 	if err != nil {
 		return err
 	}
-	hasCA, hasCert, certCN, certChainLen, err := candidatePKI(sections)
+	candidate, err := candidatePKI(sections)
 	if err != nil {
 		return err
 	}
 	if err := cfg.ValidateGroupRefs(); err != nil {
 		return err
 	}
-	if err := cfg.ValidatePKIRefs(hasCA, hasCert, certCN); err != nil {
+	if err := cfg.ValidatePKIRefs(candidate.hasCA, candidate.hasCert, candidate.certCN); err != nil {
 		return err
 	}
-	if err := cfg.ValidateCertificateChains(certChainLen); err != nil {
+	if err := cfg.ValidateCertificateChains(candidate.certChainLen); err != nil {
+		return err
+	}
+	if err := cfg.ValidateIntermediateRefs(candidate.caCert); err != nil {
 		return err
 	}
 	if err := cfg.ValidateIdentities(); err != nil {

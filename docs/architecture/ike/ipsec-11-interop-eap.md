@@ -8,6 +8,7 @@ authenticator such as strongSwan. The responder half is described in
 <!-- source: internal/component/ike/engine/fsm.go -- startEAPExchange, handleEAPResponse, buildPeerTLSConfig -->
 <!-- source: internal/component/ike/engine/auth.go -- buildAuthRequest, buildEAPResponse, buildEAPAuthMessage -->
 <!-- source: internal/component/ike/engine/eap_auth.go -- computeEAPAuth, eapAuthSecret -->
+<!-- source: internal/core/eap/client_chain.go -- clientChainVerifier, parseIntermediateCAs -->
 
 ## RFC obligations carried by this code
 
@@ -45,6 +46,21 @@ authenticator such as strongSwan. The responder half is described in
   is available", and to "use a secure transport" for it. That check runs after the
   Child SA is installed, over https. RFC 5216 Section 5.4 asks for the same thing
   with no TLS version attached.
+- RFC 5216 Section 5.3 asks the EAP-TLS server for path validation "including
+  the ability to retrieve intermediate certificates that may be necessary to
+  validate the peer certificate", and names the alternative for a server that
+  cannot: "it will need to be pre-configured with the necessary intermediate
+  certificates". Ze takes the alternative. The `intermediate-certificate` list
+  of an `eap-tls` peer names PKI `ca` entries, and the authenticator adds them to
+  the intermediates the client sent, never to the roots. crypto/tls cannot take
+  such a pool, because it builds the client's intermediates from the certificate
+  message alone, so with a list configured `newTLSMethod` sets `ClientAuth` to
+  `RequireAnyClientCert` and `clientChainVerifier.verify` path-validates the
+  chain in `VerifyConnection`, then hands the paths it built to
+  `checkChainRevocation`. With no list, crypto/tls verifies as before and keeps
+  choosing its own alerts. Each listed entry's `crl` joins the authenticator's
+  revocation lists, because on TLS 1.3 it answers for the leaf the intermediate
+  issued. Ze performs no Authority Information Access fetch.
 - RFC 9190 Section 2.1.3 leaves resumption to each end: "It is up to the EAP-TLS
   peer to use resumption". The peer offers a ticket when its peering carries a
   resumption store, which is what the `session-resumption` leaf decides.
@@ -323,6 +339,11 @@ Ze as the initiator and strongSwan as the authenticator. The MS-CHAPv2 and MD4
 primitives worked against strongSwan on the first run; what interop found was
 elsewhere. See `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md` for the five
 defects that a same-implementation suite could not see.
+
+`responder-eap-tls13-leaf-only-client` puts Ze in the authenticator seat
+against a strongSwan client whose certificate an intermediate CA issued and
+whose certificate message carries the leaf alone; it establishes only through
+the `intermediate-certificate` list.
 
 For Code-admission changes, run both `eap-mschapv2` and
 `responder-eap-mschapv2` through

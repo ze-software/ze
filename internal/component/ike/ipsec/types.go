@@ -206,7 +206,7 @@ func parsePFSMode(s string) (PFSMode, bool) {
 // attacks". It is never a default and no other mode reaches it, so an operator
 // holds it only by writing it, and the engine warns once when it is adopted
 // (warnKeylessEAPModes, internal/component/ike/engine/eap_auth.go).
-type AuthMode int
+type AuthMode uint8
 
 const (
 	AuthUnknown AuthMode = iota
@@ -454,13 +454,36 @@ func (g IKEGroup) Equal(h IKEGroup) bool {
 	return reflect.DeepEqual(g, h)
 }
 
+// CertificateRefs is an ordered list of PKI store names, built once by the
+// config parser and never changed after.
+type CertificateRefs struct {
+	Names []string
+}
+
+// List answers the names, and nil for a nil list: no names configured.
+func (r *CertificateRefs) List() []string {
+	if r == nil {
+		return nil
+	}
+	return r.Names
+}
+
 // AuthConfig holds peer authentication settings.
 type AuthConfig struct {
-	Mode          AuthMode
 	PSK           string // decoded plaintext (only for pre-shared-secret mode)
 	LocalID       string
 	RemoteID      string
 	CACertificate string // PKI store name (x509 and EAP modes)
+	// IntermediateCertificates names PKI store CA entries that an EAP-TLS
+	// authenticator adds to path validation of the client chain, beside the
+	// intermediates the client sends (RFC 5216 Section 5.3). They are never
+	// trust anchors. ValidateIntermediateRefs refuses a name that is missing,
+	// that is not a CA certificate, or that is set on a peer not in eap-tls mode.
+	//
+	// It is a pointer rather than a slice so SiteToSitePeer stays under the
+	// hugeParam threshold (TestSiteToSitePeerStaysUnderTheHugeParamThreshold).
+	// Nil means the operator configured none.
+	IntermediateCertificates *CertificateRefs
 	// Certificate is a PKI store name. X.509 mode uses it, and every EAP mode
 	// requires it, because RFC 7296 Section 2.16 makes the responder sign its
 	// AUTH with a public key. ValidatePKIRefs enforces that.
@@ -531,6 +554,10 @@ type AuthConfig struct {
 	// It sits BESIDE SessionResumption and HashAndURL so the three bools share
 	// one word (TestSiteToSitePeerStaysUnderTheHugeParamThreshold).
 	CertificateStatusRequest bool
+
+	// Mode sits beside the bools above so the five one-octet members and it
+	// share one word (TestSiteToSitePeerStaysUnderTheHugeParamThreshold).
+	Mode AuthMode
 
 	// CertificateURL is the http URL at which ze's own certificate is published,
 	// sent beside the SHA-1 in a Hash and URL CERT payload.

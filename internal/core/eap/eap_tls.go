@@ -529,6 +529,34 @@ func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 		},
 	}
 
+	// RFC 5216 Section 5.3: "Where the EAP-TLS server is unable to retrieve
+	// intermediate certificates, either it will need to be pre-configured with
+	// the necessary intermediate certificates to complete path validation or it
+	// will rely on the EAP-TLS peer to provide this information".
+	//
+	// With intermediates configured, crypto/tls cannot verify the chain, because
+	// it pools the client's own intermediates and nothing else. The
+	// authenticator then verifies it (clientChainVerifier, client_chain.go) and
+	// hands the paths it built to the same revocation check. Without any, the
+	// crypto/tls verification above stays, and with it the alert crypto/tls
+	// picks for each failure (unknown_ca, certificate_expired).
+	configured, err := parseIntermediateCAs(config.IntermediateCertPEM)
+	if err != nil {
+		return nil, err
+	}
+	if len(configured) > 0 {
+		chain := &clientChainVerifier{roots: pool, configured: configured}
+		tlsCfg.ClientAuth = tls.RequireAnyClientCert
+		tlsCfg.VerifyConnection = func(cs tls.ConnectionState) error {
+			now := time.Now()
+			chains, vErr := chain.verify(cs.PeerCertificates, now)
+			if vErr != nil {
+				return vErr
+			}
+			return checkChainRevocation(crls, chains, cs.Version, now)
+		}
+	}
+
 	// SetSessionTicketKeys rather than a Config field, because it is the only
 	// route Go offers and it is what makes the key the PEERING's instead of this
 	// tls.Config's. crypto/tls encrypts under the first key and tries every key

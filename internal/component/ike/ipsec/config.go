@@ -788,6 +788,13 @@ func parseAuthConfig(peerName string, t *config.Tree) (AuthConfig, error) {
 		readCertificateRefs(t, &auth)
 	}
 
+	// Read in every mode, so ValidateIntermediateRefs can refuse the list on a
+	// peer whose mode never reads it, rather than accepting a config that does
+	// nothing.
+	if names := t.GetSlice("intermediate-certificate"); len(names) > 0 {
+		auth.IntermediateCertificates = &CertificateRefs{Names: names}
+	}
+
 	return auth, nil
 }
 

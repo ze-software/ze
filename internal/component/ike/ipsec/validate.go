@@ -5,6 +5,7 @@
 package ipsec
 
 import (
+	"crypto/x509"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -269,6 +270,60 @@ func (c *IPsecConfig) ValidatePolicyOrder() error {
 			name, priority, dataplane.PriorityIKEBypass, dataplane.PriorityIKEBypass)
 	}
 	return nil
+}
+
+// ValidateIntermediateRefs checks every peer's intermediate-certificate list:
+// each name MUST be a ca entry of the PKI store holding a CA certificate, and
+// the list MUST sit on a peer in eap-tls mode, the only mode that reads it.
+//
+// caCert answers the certificate of the named PKI ca entry, or nil when the
+// candidate PKI section carries no such entry.
+//
+// RFC 5216 Section 5.3: "either it will need to be pre-configured with the
+// necessary intermediate certificates to complete path validation or it will
+// rely on the EAP-TLS peer to provide this information". A name that resolves
+// to nothing, or to a certificate that cannot sign another, completes no path,
+// so the config is refused here rather than read as a working pre-configuration
+// (ai/rules/protocol.md). The EAP core refuses a non-CA certificate too
+// (parseIntermediateCAs, internal/core/eap/client_chain.go).
+func (c *IPsecConfig) ValidateIntermediateRefs(caCert func(string) *x509.Certificate) error {
+	for name := range c.Peers {
+		peer := c.Peers[name]
+		if len(peer.Auth.IntermediateCertificates.List()) == 0 {
+			continue
+		}
+		if peer.Auth.Mode != AuthEAPTLS {
+			return fmt.Errorf(
+				"ipsec peer %q: intermediate-certificate is read only in eap-tls mode, where it completes the client chain, "+
+					"and this peer uses %s; remove authentication intermediate-certificate or set authentication mode eap-tls",
+				name, peer.Auth.Mode)
+		}
+		for _, ref := range peer.Auth.IntermediateCertificates.List() {
+			cert := caCert(ref)
+			if cert == nil {
+				return fmt.Errorf(
+					"ipsec peer %q: intermediate-certificate %q not found among the PKI ca entries; "+
+						"add it with pki ca %s certificate <pem>, or remove it from the list",
+					name, ref, ref)
+			}
+			if !cert.BasicConstraintsValid {
+				return intermediateNotCA(name, ref, cert)
+			}
+			if !cert.IsCA {
+				return intermediateNotCA(name, ref, cert)
+			}
+		}
+	}
+	return nil
+}
+
+// intermediateNotCA is ValidateIntermediateRefs' refusal of a certificate that
+// cannot issue another.
+func intermediateNotCA(peer, ref string, cert *x509.Certificate) error {
+	return fmt.Errorf(
+		"ipsec peer %q: intermediate-certificate %q holds %q, which is not a CA certificate, "+
+			"so it cannot issue a certificate on the client's path; name the CA that issued the client certificate instead",
+		peer, ref, cert.Subject.String())
 }
 
 // ValidatePKIRefs checks that X.509 and EAP auth references (ca-certificate,

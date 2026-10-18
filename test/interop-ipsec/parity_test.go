@@ -53,6 +53,7 @@ var ipsecScenarios = []string{
 	"responder-eap-mschapv2",
 	"responder-eap-tls12",
 	"responder-eap-tls13",
+	"responder-eap-tls13-leaf-only-client",
 	"responder-eap-tls13-revoked-client",
 	"responder-ike-rekey",
 	"responder-psk",
