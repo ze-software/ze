@@ -86,13 +86,13 @@ func TestRecoverySelectsSurvivorWithItsOwnAttributes(t *testing.T) {
 	event.RouteMeta["source-message-id"] = float64(80)
 	r.handleSent(event)
 	request := ribevents.RecoveryRequest{Destination: dest, Family: family.IPv4Unicast,
-		Keys: []ribevents.RecoveryKey{recoveryKey(raw, failed)}, Cut: 90}
+		Keys: []ribevents.RecoveryKey{recoveryKey(raw, failed)}}
 	// RFC 4271 Section 6: query the same whole-set selection used by live changes.
 	outcomes, err := r.recoveryRoutes(request)
 	require.NoError(t, err)
 	require.Len(t, outcomes, 1)
 	require.False(t, outcomes[0].Withdraw, "a survivor is a replacement, never a transient withdrawal")
-	require.Equal(t, [][]byte{raw}, outcomes[0].Sent, "the failed source's advertisement is replaced")
+	require.Empty(t, outcomes[0].Sent, "a non-ADD-PATH key's advertisement is named by the writer's owed record")
 	require.Len(t, outcomes[0].Survivors, 1)
 	survivor := outcomes[0].Survivors[0]
 	require.Equal(t, backup, survivor.Source)
@@ -119,7 +119,7 @@ func TestRecoverySelectsSurvivorWithItsOwnAttributes(t *testing.T) {
 	require.Contains(t, r.bgpPeers, failed)
 	// The external command must reach the exact same producer and framing.
 	status, answer, err := r.recoveryCommand("", []string{dest.String(), family.IPv4Unicast.String(),
-		"false", "false", "false", "90", ribevents.FormatRecoveryKey(&request.Keys[0])})
+		"false", "false", "false", ribevents.FormatRecoveryKey(&request.Keys[0])})
 	require.NoError(t, err)
 	require.Equal(t, statusDone, status)
 	require.Equal(t, outcomes, answer)
@@ -132,15 +132,17 @@ func TestRecoverySelectsSurvivorWithItsOwnAttributes(t *testing.T) {
 	// RFC 4271 Section 6: an already advertised survivor remains the replacement.
 	outcomes, err = r.recoveryRoutes(request)
 	require.NoError(t, err)
-	require.Equal(t, [][]byte{raw}, outcomes[0].Sent)
+	require.Empty(t, outcomes[0].Sent)
 	require.Equal(t, []netip.Addr{backup}, recoverySources(outcomes[0]))
-	// Without a survivor, the backup's advertisement is not the failed
-	// source's to withdraw.
+	// Without a survivor, the answer is WITHDRAW. Whose advertisement it
+	// withdraws is the reactor writer's owed record, which a departure creates
+	// only where the departed source's ended session owns the entry
+	// (TestAdjOutDepartureOwesOnlyDepartedSession).
 	r.peerUp[backup] = false
 	outcomes, err = r.recoveryRoutes(request)
 	require.NoError(t, err)
 	require.True(t, outcomes[0].Withdraw)
-	require.Empty(t, outcomes[0].Sent, "another source's route is never withdrawn for the failed source")
+	require.Empty(t, outcomes[0].Sent, "a non-ADD-PATH key names no Sent")
 	r.peerUp[backup] = true
 
 	// RFC 4271 Section 3.1: a later advertisement already replaced the old path.
@@ -149,7 +151,7 @@ func TestRecoverySelectsSurvivorWithItsOwnAttributes(t *testing.T) {
 	r.handleSent(event)
 	outcomes, err = r.recoveryRoutes(request)
 	require.NoError(t, err)
-	require.Empty(t, outcomes[0].Sent, "old DOWN must not erase or replace a newer received owner")
+	require.Empty(t, outcomes[0].Sent, "a non-ADD-PATH key names no Sent")
 
 	// With no survivor, only the failed advertisement is withdrawn.
 	r.peerUp[backup] = false
@@ -160,7 +162,7 @@ func TestRecoverySelectsSurvivorWithItsOwnAttributes(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, outcomes[0].Withdraw)
 	require.Empty(t, outcomes[0].Survivors)
-	require.Equal(t, [][]byte{raw}, outcomes[0].Sent)
+	require.Empty(t, outcomes[0].Sent)
 }
 
 // TestRecoveryOwnerWithdrawalKeepsSourceOtherPaths asks with an EMPTY excluded
@@ -388,7 +390,7 @@ func TestRecoveryAnswersEveryRequestedKey(t *testing.T) {
 // withdrawal, regardless of the former label stack. Zero is a valid identifier.
 // PREVENTS: native source-DOWN recovery withdrawing another source's path or
 // copying ingress identifiers over independently assigned egress identifiers.
-func TestRecoveryNativeSentIdentityAndNewerOwner(t *testing.T) {
+func TestRecoveryAddPathDepartureWithdrawsEverySentIdentifier(t *testing.T) {
 	vpn4 := []byte{112, 0, 6, 65, 0, 0, 0, 1, 0, 0, 0, 2, 198, 51, 100}
 	for _, tc := range []struct {
 		name string
@@ -423,14 +425,17 @@ func TestRecoveryNativeSentIdentityAndNewerOwner(t *testing.T) {
 				r.handleSent(event)
 			}
 			request := ribevents.RecoveryRequest{Destination: dest, Family: tc.fam,
-				Keys: []ribevents.RecoveryKey{recoveryKey(tc.raw, failed)}, SentAddPath: true, Cut: 90}
-			// RFC 7911 Section 3: only the failed source's advertised IDs depart.
+				Keys: []ribevents.RecoveryKey{recoveryKey(tc.raw, failed)}, SentAddPath: true}
+			// RFC 7911 Section 3: the failed source's advertised IDs depart,
+			// its reconnected identifier 99 included: the RIB holds no session
+			// generation, so the reactor's writer is the reconnect guard
+			// (TestAdjOutDepartureOwesOnlyDepartedSession).
 			outcomes, err := r.recoveryRoutes(request)
 			require.NoError(t, err)
 			require.Len(t, outcomes, 1)
 			require.True(t, outcomes[0].Withdraw, "ADD-PATH departure runs no election")
 			require.Empty(t, outcomes[0].Survivors)
-			require.Len(t, outcomes[0].Sent, 2)
+			require.Len(t, outcomes[0].Sent, 3)
 			ids := make(map[uint32]bool)
 			for _, sent := range outcomes[0].Sent {
 				key, ok := ribOutRouteKeyForAction(tc.fam, sent, true, true)
@@ -442,8 +447,8 @@ func TestRecoveryNativeSentIdentityAndNewerOwner(t *testing.T) {
 				}
 				r.handleSent(nativeSentEvent(t, dest, tc.fam, sent, nil, true, true))
 			}
-			require.Equal(t, map[uint32]bool{0: true, 7: true}, ids)
-			require.Len(t, r.ribOut[dest][tc.fam], 2, "survivor and reconnect advertisement remain")
+			require.Equal(t, map[uint32]bool{0: true, 7: true, 99: true}, ids)
+			require.Len(t, r.ribOut[dest][tc.fam], 1, "only the survivor remains")
 			// RFC 7911 Section 3: repeating DOWN cannot withdraw a different path.
 			outcomes, err = r.recoveryRoutes(request)
 			require.NoError(t, err)
@@ -464,19 +469,22 @@ func TestRecoveryLabeledTextPrefixMatchesNativeSentStack(t *testing.T) {
 	advertised := []byte{72, 0, 6, 64, 0, 12, 129, 198, 51, 100}
 	r.handleSent(nativeSentEvent(t, dest, fam, advertised, nativeSentAttrs(), false, false))
 	// RFC 8277 Section 2.4: the label-free text name is the same route identity.
+	identity, err := recoveryIdentity(fam, []byte{24, 198, 51, 100}, false, true)
+	require.NoError(t, err)
+	require.Contains(t, r.ribOut[dest][fam], identity, "the text key names the advertised stack's identity")
 	outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, Family: fam,
 		Keys: []ribevents.RecoveryKey{recoveryKey([]byte{24, 198, 51, 100}, failed)}, PrefixOnly: true})
 	require.NoError(t, err)
 	require.Len(t, outcomes, 1)
 	require.True(t, outcomes[0].Withdraw)
-	require.Equal(t, [][]byte{{48, 0x80, 0, 0, 198, 51, 100}}, outcomes[0].Sent)
 }
 
 // TestRecoveryBatchedIdentitiesShareOneElectionResult drives both lookup
 // surfaces with many distinct prefixes and repeated ingress identities. Each
-// requested key is answered once, the answer retains every failed egress ID,
-// skips new ownership and survives actual sent-withdrawal projection without a
-// restart for each path.
+// requested key is answered once, the answer names every egress ID the failed
+// source owns, its reconnected identifier included (the reactor's writer is
+// the reconnect guard), and survives actual sent-withdrawal projection without
+// a restart for each path.
 func TestRecoveryBatchedIdentitiesShareOneElectionResult(t *testing.T) {
 	r := newTestRIBManager(t)
 	recoveryTestCleanup(t, r)
@@ -484,8 +492,8 @@ func TestRecoveryBatchedIdentitiesShareOneElectionResult(t *testing.T) {
 	backup := netip.MustParseAddr("192.0.2.11")
 	destination := netip.MustParseAddr("192.0.2.20")
 	request := ribevents.RecoveryRequest{Destination: destination,
-		Family: family.IPv4Unicast, AddPath: true, SentAddPath: true, Cut: 90}
-	args := []string{destination.String(), request.Family.String(), "true", "false", "true", "90"}
+		Family: family.IPv4Unicast, AddPath: true, SentAddPath: true}
+	args := []string{destination.String(), request.Family.String(), "true", "false", "true"}
 	for prefix := range 64 {
 		raw := []byte{0, 0, 0, 42, 24, 198, 51, byte(prefix)}
 		key := recoveryKey(raw, failed)
@@ -516,18 +524,18 @@ func TestRecoveryBatchedIdentitiesShareOneElectionResult(t *testing.T) {
 	unique := make(map[string][]byte)
 	for i, outcome := range outcomes {
 		require.True(t, outcome.Withdraw)
-		require.Len(t, outcome.Sent, 2)
+		require.Len(t, outcome.Sent, 3)
 		require.ElementsMatch(t, outcome.Sent, external[i].Sent)
 		for _, sent := range outcome.Sent {
-			require.Contains(t, []uint32{0, 7}, binary.BigEndian.Uint32(sent))
+			require.Contains(t, []uint32{0, 7, 99}, binary.BigEndian.Uint32(sent))
 			unique[string(sent)] = sent
 		}
 	}
-	require.Len(t, unique, 128, "every prefix and every failed sent identifier exactly once")
+	require.Len(t, unique, 192, "every prefix and every failed sent identifier exactly once")
 	for _, sent := range unique {
 		r.handleSent(nativeSentEvent(t, destination, request.Family, sent, nil, true, true))
 	}
-	require.Len(t, r.ribOut[destination][request.Family], 128, "survivors and newer source generation remain")
+	require.Len(t, r.ribOut[destination][request.Family], 64, "only the survivors remain")
 	outcomes, err = r.recoveryRoutes(request)
 	require.NoError(t, err)
 	for _, outcome := range outcomes {

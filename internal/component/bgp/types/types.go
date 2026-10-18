@@ -287,11 +287,10 @@ const RecoveryWriteMeta = "recovery-write"
 type NLRIBatch struct {
 	Family family.Family // AFI/SAFI for all NLRIs
 	NLRIs  []nlri.NLRI   // NLRIs to announce or withdraw
-	// RecoverySource marks source-DOWN reconciliation. RecoveryCut is the last
-	// received message admitted before DOWN; zero source means ordinary API
-	// withdrawal. The RIB supplies replacement selection and sent ownership.
+	// RecoverySource marks source-DOWN reconciliation; zero source means
+	// ordinary API withdrawal. The RIB supplies replacement selection, and the
+	// writer owes a key only where the source's ended session owns it.
 	RecoverySource netip.Addr
-	RecoveryCut    uint64
 	// SentOwnerMessage fences automatic sent replay and cleanup against the
 	// exact advertisement captured by the RIB before dispatch. A replacement
 	// owner or destination session MUST NOT inherit that operation.

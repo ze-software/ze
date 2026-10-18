@@ -35,7 +35,6 @@ func (r *RIBManager) recoveryRoutes(request ribevents.RecoveryRequest) ([]ribeve
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
 
-	entries := r.ribOut[request.Destination][request.Family]
 	outcomes := make([]ribevents.RecoveryOutcome, len(request.Keys))
 	for i := range request.Keys {
 		outcomes[i].NLRI = request.Keys[i].NLRI
@@ -44,7 +43,7 @@ func (r *RIBManager) recoveryRoutes(request ribevents.RecoveryRequest) ([]ribeve
 		// RFC 7911 Section 3: ADD-PATH already advertised the surviving paths,
 		// so no election runs; each excluded source's sent identifiers,
 		// including zero, are withdrawn.
-		recoverySentAddPathLocked(&request, identities, entries, outcomes)
+		recoverySentAddPathLocked(&request, identities, r.ribOut[request.Destination][request.Family], outcomes)
 		return outcomes, nil
 	}
 	for i := range request.Keys {
@@ -56,9 +55,6 @@ func (r *RIBManager) recoveryRoutes(request ribevents.RecoveryRequest) ([]ribeve
 		}
 		outcome.Survivors = survivors
 		outcome.Withdraw = len(survivors) == 0
-		if entry, found := entries[identities[i]]; found {
-			outcome.Sent = recoverySentLocked(&request, key, identities[i], entry, outcome.Withdraw)
-		}
 	}
 	return outcomes, nil
 }
@@ -66,7 +62,10 @@ func (r *RIBManager) recoveryRoutes(request ribevents.RecoveryRequest) ([]ribeve
 // recoverySentAddPathLocked answers every key WITHDRAW with the sent
 // identifiers an excluded source owns at the destination for the key's prefix.
 // It scans the destination's sent family once for the whole request rather
-// than once per key. The caller MUST hold peerMu.
+// than once per key. An identifier the departed source's reconnected session
+// advertised is named too: the RIB holds no session generation, and the
+// reactor's writer withdraws only an identifier no current session owns.
+// The caller MUST hold peerMu.
 func recoverySentAddPathLocked(request *ribevents.RecoveryRequest, identities []ribOutKey, entries map[ribOutKey]ribOutEntry, outcomes []ribevents.RecoveryOutcome) {
 	keysByIdentity := make(map[ribOutKey][]int, len(identities))
 	for i, identity := range identities {
@@ -83,9 +82,6 @@ func recoverySentAddPathLocked(request *ribevents.RecoveryRequest, identities []
 		if !entry.AddPath {
 			continue
 		}
-		if entry.SourceMessageID > request.Cut {
-			continue
-		}
 		var sent []byte
 		for _, i := range indexes {
 			if !recoveryExcludes(&request.Keys[i], entry.SourcePeer) {
@@ -98,24 +94,6 @@ func recoverySentAddPathLocked(request *ribevents.RecoveryRequest, identities []
 			outcomes[i].Sent = append(outcomes[i].Sent, sent)
 		}
 	}
-}
-
-// recoverySentLocked names the destination's advertisement of the key when it
-// is not newer than the cut. A withdrawal additionally needs an excluded source
-// to own it: another source's route is never withdrawn on this source's behalf.
-// The caller MUST hold peerMu.
-func recoverySentLocked(request *ribevents.RecoveryRequest, key *ribevents.RecoveryKey, identity ribOutKey, entry ribOutEntry, withdraw bool) [][]byte {
-	if entry.AddPath {
-		return nil
-	}
-	if entry.SourceMessageID > request.Cut {
-		return nil
-	}
-	if withdraw && !recoveryExcludes(key, entry.SourcePeer) {
-		return nil
-	}
-	// RFC 7911 Section 3: preserve the exact destination-framed withdrawal ID.
-	return [][]byte{recoverySentNLRI(request.Family, identity, entry)}
 }
 
 // recoveryExcludes reports whether the sent owner is in the key's excluded set.
@@ -325,8 +303,8 @@ func recoverySentNLRI(fam family.Family, key ribOutKey, entry ribOutEntry) []byt
 // caller MUST successfully drain applied sent deliveries first, outside writeMu.
 // Each key argument is ribevents.FormatRecoveryKey's form.
 func (r *RIBManager) recoveryCommand(_ string, args []string) (string, any, error) {
-	if len(args) < 7 {
-		return statusError, nil, fmt.Errorf("usage: request bgp rib recovery <destination> <family> <add-path> <prefix-only> <sent-add-path> <cut> <nlri-hex>=<excluded,...>...")
+	if len(args) < 6 {
+		return statusError, nil, fmt.Errorf("usage: request bgp rib recovery <destination> <family> <add-path> <prefix-only> <sent-add-path> <nlri-hex>=<excluded,...>...")
 	}
 	destination, err := netip.ParseAddr(args[0])
 	if err != nil {
@@ -348,13 +326,9 @@ func (r *RIBManager) recoveryCommand(_ string, args []string) (string, any, erro
 	if err != nil {
 		return statusError, nil, fmt.Errorf("recovery sent ADD-PATH: %w", err)
 	}
-	cut, err := strconv.ParseUint(args[5], 10, 64)
-	if err != nil {
-		return statusError, nil, fmt.Errorf("recovery cut: %w", err)
-	}
 	request := ribevents.RecoveryRequest{Destination: destination, Family: fam, AddPath: addPath,
-		PrefixOnly: prefixOnly, SentAddPath: sentAddPath, Cut: cut, Keys: make([]ribevents.RecoveryKey, 0, len(args)-6)}
-	for _, encoded := range args[6:] {
+		PrefixOnly: prefixOnly, SentAddPath: sentAddPath, Keys: make([]ribevents.RecoveryKey, 0, len(args)-5)}
+	for _, encoded := range args[5:] {
 		key, err := ribevents.ParseRecoveryKey(encoded)
 		if err != nil {
 			return statusError, nil, err

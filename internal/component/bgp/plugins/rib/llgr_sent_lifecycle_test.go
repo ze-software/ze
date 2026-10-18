@@ -298,12 +298,14 @@ func testRetainRoutesSentOwnership(t *testing.T, onDown bool) {
 			if onDown {
 				// The forwarding owner first consumes the retained identity;
 				// only its successful sent withdrawal releases that ownership.
+				// A non-ADD-PATH key names no Sent: the writer's owed record
+				// holds the advertisement it withdraws.
 				outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, Family: tc.fam,
-					Keys: []ribevents.RecoveryKey{{NLRI: tc.wire, Excluded: []netip.Addr{source}}}, Cut: 91})
-				if err != nil || len(outcomes) != 1 || !outcomes[0].Withdraw || len(outcomes[0].Sent) != 1 {
+					Keys: []ribevents.RecoveryKey{{NLRI: tc.wire, Excluded: []netip.Addr{source}}}})
+				if err != nil || len(outcomes) != 1 || !outcomes[0].Withdraw || len(outcomes[0].Sent) != 0 {
 					t.Fatalf("DOWN withdrawal handoff: outcomes=%v error=%v", outcomes, err)
 				}
-				r.handleSent(nativeSentEvent(t, dest, tc.fam, outcomes[0].Sent[0], nil, false, true))
+				r.handleSent(nativeSentEvent(t, dest, tc.fam, tc.wire, nil, false, true))
 				if len(r.ribOut[dest][tc.fam]) != 0 {
 					t.Fatal("successful sent withdrawal did not prune unretained ownership")
 				}

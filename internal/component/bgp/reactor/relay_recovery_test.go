@@ -463,7 +463,7 @@ func TestRecoveryParserRetainsNativeAddPathAndPrunesSent(t *testing.T) {
 	command := r.api.Dispatcher().Registry().Lookup(recoveryCommandName)
 	require.NoError(t, command.Process.DrainEventsApplied(ctx))
 	remaining, err := ribevents.RecoveryProvider().Lookup(recoveryDepartureRequest(batch.RecoverySource,
-		destination.peer.Settings().Address, batch.Family, ^uint64(0), []byte{24, 203, 0, 114}, []byte{24, 203, 0, 115}))
+		destination.peer.Settings().Address, batch.Family, []byte{24, 203, 0, 114}, []byte{24, 203, 0, 115}))
 	require.NoError(t, err)
 	require.Len(t, remaining, 2)
 	for _, outcome := range remaining {
@@ -879,8 +879,8 @@ func recoveryWithdrawAnswer(request ribevents.RecoveryRequest) []ribevents.Recov
 }
 
 // recoveryDepartureRequest names one departed source's keys at a destination.
-func recoveryDepartureRequest(source, destination netip.Addr, fam family.Family, cut uint64, keys ...[]byte) ribevents.RecoveryRequest {
-	request := ribevents.RecoveryRequest{Destination: destination, Family: fam, Cut: cut}
+func recoveryDepartureRequest(source, destination netip.Addr, fam family.Family, keys ...[]byte) ribevents.RecoveryRequest {
+	request := ribevents.RecoveryRequest{Destination: destination, Family: fam}
 	for _, raw := range keys {
 		request.Keys = append(request.Keys, ribevents.RecoveryKey{NLRI: raw, Excluded: []netip.Addr{source}})
 	}

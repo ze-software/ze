@@ -315,6 +315,32 @@ test, stopped-source exclusion, `TestOwedKeyPurgeBetweenLookupAndAdmission`
 rib-storage-design.md in the same commit. The MRT collision flake was not
 investigated. Full file list: the per-spec state file of session d75c882e.
 
+## RS replacement Phase 3 package (c), first half (2026-10-18, Linux)
+
+Landed in the commit "bgp: delete the departure cut end to end" (this file
+rides in it): `RecoveryRequest.Cut`, the IPC `<cut>` argument,
+`NLRIBatch.RecoveryCut`, the `recovery-cut` meta and its parser, the rs `cut`
+parameter chain, and non-ADD-PATH `Sent` (`recoverySentLocked`). AC-18 is
+carried by the writer's generation check alone, proven red by `-overlay`
+(spec Design Insights). RIB, rs, update and process guard rows rewritten;
+`TestRecoveryAddPathDepartureWithdrawsEverySentIdentifier` exists (renamed).
+reactor, rib, rs, rr, update, process, ribevents green under `-race` with the
+ze_* tags; the three Phase 1 probes green.
+
+Owed next, in order (same package):
+1. R-12 producer. Code is in the spec's Design Insights (package c row). With
+   it, `process.TestRecoveryQueuedDeliveryTransport/direct/unrelated-prefix/held-sent`
+   fails 3 of 25; without it 0 of 25. Find why the RIB's R-12 check
+   (`projectRecoveryWriteLocked`, `recoveryCandidateGone` in
+   `plugins/rib/sent_owner.go`) withdraws a live survivor in that schedule,
+   fix it, then land the producer, its mark assertion on the three probes,
+   and the rib-storage-design sentence (it now says no event carries the key).
+2. `TestOwedKeyPurgeBetweenLookupAndAdmission` (spec TDD row, real RIB).
+3. Then Phase 3's remaining items, then 3b, 3a, 4, 5, 6 as the spec orders.
+Gates owed: scoped lint (`./le go lint run scope ./internal/component/bgp/...`
+refused twice: "inputs changed during planning" while another session's
+evpn interop ran), `./le test unit all`, `./le verify worktree`.
+
 ## VRRP checksum follow-up to a78870fd39 (agent, 2026-10-18): owed
 
 Landed: d2abad70ad (transmit test asserts `params.Checksum == spec.Checksum`

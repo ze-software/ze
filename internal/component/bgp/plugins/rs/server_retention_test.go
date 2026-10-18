@@ -162,8 +162,7 @@ func TestPeerDownRecoveryUsesJoinedLifecycle(t *testing.T) {
 				if err := json.Unmarshal(raw, &input); err != nil {
 					return nil, err
 				}
-				if method != rpc.MethodUpdateRoute || input.Meta["recovery-source"] != "192.0.2.1" ||
-					input.Meta["recovery-cut"] != "90" {
+				if method != rpc.MethodUpdateRoute || input.Meta["recovery-source"] != "192.0.2.1" {
 					t.Errorf("wrong recovery request: %s %+v", method, input)
 				}
 				entered <- call
@@ -178,7 +177,7 @@ func TestPeerDownRecoveryUsesJoinedLifecycle(t *testing.T) {
 			rs.withdrawals["192.0.2.1"] = map[withdrawalKey]withdrawalEntry{
 				{fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("192.0.2.0/24")}: {},
 			}
-			rs.handleStateDown("192.0.2.1", 90)
+			rs.handleStateDown("192.0.2.1")
 			var call context.Context
 			select {
 			case call = <-entered:

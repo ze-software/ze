@@ -95,7 +95,7 @@ func TestMUPInventoryCommandRoundTrip(t *testing.T) {
 				}
 				var commands []string
 				rs.updateRouteHook = func(_, command string) { commands = append(commands, command) }
-				rs.sendBatchedWithdrawals("10.0.0.1", entries, 0)
+				rs.sendBatchedWithdrawals("10.0.0.1", entries)
 				wantRoutes := slices.Clone(routes[1:])
 				slices.Sort(wantRoutes)
 				want := "update hex nlri " + fam.String()

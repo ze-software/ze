@@ -7,7 +7,6 @@ package reactor
 import (
 	"context"
 	"errors"
-	"math"
 	"net/netip"
 	"slices"
 	"sync"
@@ -280,9 +279,8 @@ func (w *recoveryWorker) decide(fam family.Family, chunk []recoveryOwedKey) erro
 		// A departure key at an ADD-PATH destination: the RIB names each of
 		// the departed source's sent identifiers and runs no election. The
 		// writer withdraws only an identifier no current session owns, which
-		// is the reconnect guard, so no message cut narrows the RIB's list.
+		// is the reconnect guard: the RIB holds no session generation.
 		request.SentAddPath = true
-		request.Cut = math.MaxUint64
 	}
 	outcomes, err := w.adapter.lookupRecovery(w.ctx, &request)
 	if err != nil {

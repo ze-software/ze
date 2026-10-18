@@ -371,10 +371,10 @@ func (a *reactorAPIAdapter) lookupRecovery(ctx context.Context, request *ribeven
 		if a.r.api == nil {
 			return nil, errServerNotReady
 		}
-		args := make([]string, 0, 6+len(request.Keys))
+		args := make([]string, 0, 5+len(request.Keys))
 		args = append(args, request.Destination.String(), request.Family.String(),
 			strconv.FormatBool(request.AddPath), strconv.FormatBool(request.PrefixOnly),
-			strconv.FormatBool(request.SentAddPath), strconv.FormatUint(request.Cut, 10))
+			strconv.FormatBool(request.SentAddPath))
 		for i := range request.Keys {
 			args = append(args, ribevents.FormatRecoveryKey(&request.Keys[i]))
 		}

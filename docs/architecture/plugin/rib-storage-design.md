@@ -171,7 +171,10 @@ expiry and release encode their source-specific withdrawals here.
 ### Source-DOWN replacement and sent ordering
 
 RS drains the departed source's workers and submits its existing native/text
-withdrawal batches with the source address and a received-message cut. The
+withdrawal batches with the source address alone. No received-message cut
+travels with them: the reactor's writer owes a key only where the departed
+source owns it through a session that is no longer current, so a reconnected
+session's newer route is never taken for the old one. The
 reactor asks the RIB about one destination at a time, and each requested key
 carries its own excluded-source set: a departure puts the departed source in
 it, and an empty set excludes nobody, so the withdrawing source's other
@@ -188,22 +191,23 @@ candidate remains, otherwise SURVIVORS: every remaining candidate in election
 order, meaning `SelectBest` over the remainder, then over the rest, because the
 decision comparator is not transitive under MED and cannot sort. Each survivor
 carries its own NLRI, attributes, next hop, received message ID, received path
-identifier and received ADD-PATH flag. The outcome's `Sent` list names the
-destination's advertisement of the key when it is not newer than the DOWN cut,
-so a newer advertisement from the departed source's reconnected session is left
-alone; on WITHDRAW it is listed only when an excluded source owns it, because
-another source's route is never withdrawn on the departed source's behalf. The
-reactor writes the first survivor in place of the advertisement, or withdraws
-it on WITHDRAW, and writes nothing for a key with an empty `Sent`.
+identifier and received ADD-PATH flag. A non-ADD-PATH key's outcome leaves
+`Sent` empty: the writer's owed record already names the one advertisement the
+decision replaces or withdraws, and the reactor writes the first survivor in
+its place, or withdraws it on WITHDRAW.
 ADD-PATH destinations run no election: the outcome is WITHDRAW and `Sent` lists
-the failed source's actual sent identifiers, including zero. The external
+every identifier the failed source owns at the destination for the prefix,
+including zero, and including one its reconnected session advertised, because
+the RIB holds no session generation. The writer withdraws only an identifier
+whose owner's session is no longer current, so the reconnected session's path
+stays. The external
 command takes one argument per key in `ribevents.FormatRecoveryKey`'s form,
 `<nlri-hex>=<excluded>,<excluded>`. This remains the cold lookup's retained
 sent projection; final writer admission still requires its live owner receipt.
-Entries learned after the DOWN cut are not candidates for removal.
 <!-- source: internal/core/bgp/ribevents/recovery.go -- RecoveryRequest, RecoveryOutcome, CheckRecoveryAnswer, FormatRecoveryKey -->
-<!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoverySurvivorsLocked, recoverySentLocked, recoverySentAddPathLocked -->
-<!-- source: internal/component/bgp/reactor/relay_recovery.go -- queueRecoveryOutcome -->
+<!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoverySurvivorsLocked, recoverySentAddPathLocked -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- queueRecoveryOutcome, departedOwner -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- adjOutWrite.allow -->
 
 A lifecycle purge can remove the chosen survivor between the lookup and the
 write: B's retained stale path is elected for C, then B's End-of-RIB purges it.
@@ -227,9 +231,9 @@ function starts it before events flow and stops it after `Run` drains
 delivery: stop cancels the dispatcher's context, which cancels the send in
 flight, joins the worker, and drops what is still pending, because no recovery
 owner exists while bgp-rib is stopped. A late removal is safe: the writer
-admits it only when the entry still holds the same revision. The reactor sets
-the meta key on recovery writes in Phase 3 of the route-server replacement
-work; until then no sent event carries it.
+admits it only when the entry still holds the same revision. No sent event
+carries the key yet: the reactor's producer, which marks a recovery
+admission's write in a fresh copy of the item's meta, has not landed.
 <!-- source: internal/component/bgp/plugins/rib/rib_sent_lifecycle.go -- projectRecoveryWriteLocked, recoveryRemovals, startRecoveryRemovals, stopRecoveryRemovals -->
 <!-- source: internal/component/bgp/plugins/rib/sent_owner.go -- recoveryCandidateGone -->
 

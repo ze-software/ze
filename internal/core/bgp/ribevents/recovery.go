@@ -27,11 +27,6 @@ type RecoveryRequest struct {
 	PrefixOnly bool `json:"prefix-only"`
 	// SentAddPath selects the destination's negotiated sent identity space.
 	SentAddPath bool `json:"sent-add-path"`
-	// Cut is the last received message the forwarding owner admitted before a
-	// departure. A sent entry newer than Cut, such as the departed source's
-	// reconnected session's, is never reported in Sent. It is the old-DOWN
-	// guard until the writer's owner generation replaces it.
-	Cut uint64 `json:"cut"`
 }
 
 // RecoveryKey is one route identity and the sources whose candidates the
@@ -44,10 +39,13 @@ type RecoveryKey struct {
 
 // RecoveryOutcome is the RIB's one answer for one requested key. Exactly one
 // of Withdraw and Survivors holds: WITHDRAW when no candidate remains,
-// SURVIVORS otherwise. Sent lists the destination-framed identities the
-// destination advertises for the key that the decision replaces or withdraws:
-// none newer than the request's Cut, and on WITHDRAW only those an excluded
-// source owns. It is empty when the destination has nothing to change.
+// SURVIVORS otherwise. Sent is filled only for a SentAddPath request: every
+// destination-framed identifier an excluded source owns at the destination
+// for the key's prefix. The RIB holds no session generation, so it cannot
+// tell a reconnected session's identifier from the departed one's; the
+// reactor's writer withdraws only an identifier no current session owns. A
+// non-ADD-PATH key leaves Sent empty, because the writer's owed record names
+// the one advertisement the decision replaces or withdraws.
 type RecoveryOutcome struct {
 	NLRI     []byte `json:"nlri"`
 	Withdraw bool   `json:"withdraw"`

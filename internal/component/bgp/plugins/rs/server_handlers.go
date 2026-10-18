@@ -131,13 +131,12 @@ func (rs *routeServer) handleState(event *Event) {
 	// From here on `!Up` means DOWN for this peer, never "not yet" -- see
 	// PeerState.StateSeen and processForward's guard.
 	rs.peers[peerAddr].StateSeen = true
-	cut := rs.seenMsgID
 	rs.mu.Unlock()
 
 	logger().Debug("peer state applied", "peer", peerAddr, "state", state)
 
 	if state == "down" {
-		rs.handleStateDown(peerAddr, cut)
+		rs.handleStateDown(peerAddr)
 	}
 }
 
@@ -150,7 +149,7 @@ const withdrawalBatchSize = 500
 // handleStateDown processes peer session teardown.
 // Reconciles sent ownership asynchronously in one joined lifecycle goroutine.
 // Batches native/text identities by family; the RIB elects any replacement.
-func (rs *routeServer) handleStateDown(peerAddr string, cut uint64) {
+func (rs *routeServer) handleStateDown(peerAddr string) {
 	// Drain workers first: in-flight forwards may update the withdrawal map.
 	// PeerDown waits for all workers to finish, so after this call no more
 	// updates for this peer can occur.
@@ -180,14 +179,14 @@ func (rs *routeServer) handleStateDown(peerAddr string, cut uint64) {
 	}
 
 	rs.downWG.Add(1)
-	go rs.sendPeerDown(peerAddr, entries, cut)
+	go rs.sendPeerDown(peerAddr, entries)
 }
 
 // sendPeerDown owns one DOWN lifecycle. Shutdown MUST stop event delivery and
 // wait for downWG before releasing the plugin connection.
-func (rs *routeServer) sendPeerDown(peerAddr string, entries map[withdrawalKey]withdrawalEntry, cut uint64) {
+func (rs *routeServer) sendPeerDown(peerAddr string, entries map[withdrawalKey]withdrawalEntry) {
 	defer rs.downWG.Done()
-	rs.sendBatchedWithdrawals(peerAddr, entries, cut)
+	rs.sendBatchedWithdrawals(peerAddr, entries)
 }
 
 // withdrawalGroup names one batched withdrawal command: every entry in it
@@ -212,7 +211,7 @@ type withdrawalGroup struct {
 // type as an opaque object, and that is exactly what the text form cannot
 // carry: sending it as text failed with route.ErrFamilyNotSupported and left
 // the departing peer's Link-State routes announced to every other client.
-func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withdrawalKey]withdrawalEntry, cut uint64) {
+func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withdrawalKey]withdrawalEntry) {
 	if len(entries) == 0 {
 		return
 	}
@@ -277,7 +276,7 @@ func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 			command := buf.String()
 			// The engine chooses replacement or withdrawal from the selecting
 			// RIB, then queues it behind this destination's prior forwards.
-			rs.recoverRouteSel(excludeSel, command, peerAddr, cut)
+			rs.recoverRouteSel(excludeSel, command, peerAddr)
 		}
 	}
 }

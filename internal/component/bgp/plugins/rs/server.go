@@ -524,7 +524,7 @@ func (rs *routeServer) updateRoute(peerSelector, command string) {
 
 // recoverRouteSel sends a source-owned DOWN request through the normal UPDATE
 // grammar. The engine MUST reconcile against the RIB before admitting output.
-func (rs *routeServer) recoverRouteSel(sel *selector.Selector, command, source string, cut uint64) {
+func (rs *routeServer) recoverRouteSel(sel *selector.Selector, command, source string) {
 	if rs.updateRouteHook != nil {
 		rs.updateRouteHook(sel.String(), command)
 	}
@@ -533,7 +533,7 @@ func (rs *routeServer) recoverRouteSel(sel *selector.Selector, command, source s
 		// Struct-literal unit owners have no running plugin lifecycle.
 		ctx = context.Background()
 	}
-	meta := map[string]any{"recovery-source": source, "recovery-cut": strconv.FormatUint(cut, 10)}
+	meta := map[string]any{"recovery-source": source}
 	_, _, err := rs.plugin.UpdateRouteWithMeta(ctx, sel.String(), command, meta)
 	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
 		if rs.stopping.Load() {

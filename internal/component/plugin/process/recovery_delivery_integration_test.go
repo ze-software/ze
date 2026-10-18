@@ -174,7 +174,8 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 
 	// Use the production SDK API and sender grant, not recoverNLRIBatch or a
 	// manufactured NLRIBatch. This is the native source-DOWN command emitted
-	// by RS, with the actual received-message cut captured before newer output.
+	// by RS. The writer, not a received-message cut, decides which keys the
+	// departed source's ended session still owns.
 	bridge := srv.ProcessManager().GetProcess("bgp-rs").Bridge()
 	client, unused := net.Pipe()
 	api := sdk.NewWithConn("bgp-rs", rpc.NewBridgedConn(client, bridge))
@@ -185,7 +186,7 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 	completed := make(chan error, 1)
 	go func() {
 		_, _, err := api.UpdateRouteWithMeta(ctx, "127.0.0.1", "update hex nlri ipv4/unicast del 18cb0072",
-			map[string]any{"recovery-source": "127.0.0.2", "recovery-cut": strconv.FormatUint(cut, 10)})
+			map[string]any{"recovery-source": "127.0.0.2"})
 		completed <- err
 	}()
 	joined := false

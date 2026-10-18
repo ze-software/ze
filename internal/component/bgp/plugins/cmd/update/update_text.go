@@ -1120,7 +1120,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 	// A RESEND exists to put those same routes back on the wire, so it says so
 	// and the reactor sends them.
 	replay := replayFromMeta(ctx.Meta)
-	recoverySource, recoveryCut, recoveryErr := recoveryFromMeta(ctx.Meta)
+	recoverySource, recoveryErr := recoveryFromMeta(ctx.Meta)
 	if recoveryErr != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: recoveryErr.Error()}, recoveryErr
 	}
@@ -1185,7 +1185,6 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 				NextHop:          group.NextHop,
 				Wire:             group.Wire,
 				RecoverySource:   recoverySource,
-				RecoveryCut:      recoveryCut,
 				SentOwnerMessage: sentOwnerMessage,
 			}
 			switch err := bgpReactor.WithdrawNLRIBatch(ctx.Context(), sel, batch, ctx.Sender); {
