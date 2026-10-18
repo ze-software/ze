@@ -597,6 +597,68 @@ func checkRFC2545NextHops(ctx context.Context, check *interoplab.CheckContext) e
 	return nil
 }
 
+// RFC requirement: RFC4659-3.2.1.1-3 positive -- an independent receiver (FRR) decodes the VPN-IPv6 route 2001:db8:4659::/48, whose global next hop is Ze's own address on the lab /64 FRR's session address shares, with two next hops: Ze's global and Ze's topology-owned link-local, so Ze sent the 48-octet Next Hop field.
+// RFC requirement: RFC4659-3.2.1.1-3 negative -- on the same session with the same `link-local` leaf, the VPN-IPv6 route 2001:db8:465a::/48 whose global 2001:db8:ffff::1 is on no connected prefix reaches FRR with that global as its sole next hop and no link-local entry.
+//
+// UNRUN at authoring (2026-10-18): Docker was held by a full verify. The FRR
+// JSON shape for `show bgp ipv6 vpn rd <rd> <prefix> json` is assumed to match
+// the unicast one parseFRRNextHops reads; the first run settles it.
+func checkVPNFRR(ctx context.Context, check *interoplab.CheckContext) error {
+	const (
+		rd             = "65001:100"
+		onLinkPrefix   = "2001:db8:4659::/48"
+		offLinkPrefix  = "2001:db8:465a::/48"
+		offLinkNextHop = "2001:db8:ffff::1"
+	)
+	if err := checkScenario(ctx, check, scenarioVPNFRR); err != nil {
+		return err
+	}
+	if !check.Network.IPv6.IsValid() {
+		return errors.New("bgp-vpn-frr has no selected IPv6 network")
+	}
+	session := operation{kind: opFRRSession, argument: networkHostAddress6(check.Network, 2)}
+	if err := runOperation(ctx, check.Network, check.Lab, &session); err != nil {
+		return err
+	}
+	query := func(prefix string) ([]nextHop, error) {
+		var wait []nextHop
+		deadline := time.Now().Add(60 * time.Second)
+		for {
+			output, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show bgp ipv6 vpn rd " + rd + " " + prefix + " json"}, nil)
+			if err == nil {
+				wait, err = parseFRRNextHops(output)
+			}
+			if err == nil {
+				return wait, nil
+			}
+			if time.Now().After(deadline) {
+				return nil, fmt.Errorf("%s: %w", prefix, err)
+			}
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(time.Second):
+			}
+		}
+	}
+	onLink, err := query(onLinkPrefix)
+	if err != nil {
+		return err
+	}
+	expectedGlobal := check.Network.IPv6.Masked().Addr().Next().Next()
+	if err := requireNextHopShape(onLink, expectedGlobal, linkLocalAt(check.Network, zeHostNumber)); err != nil {
+		return fmt.Errorf("on-link VPN-IPv6 route: %w", err)
+	}
+	offLink, err := query(offLinkPrefix)
+	if err != nil {
+		return err
+	}
+	if err := requireNextHopShape(offLink, netip.MustParseAddr(offLinkNextHop), netip.Addr{}); err != nil {
+		return fmt.Errorf("off-link VPN-IPv6 route: %w", err)
+	}
+	return runOperation(ctx, check.Network, check.Lab, &session)
+}
+
 // RFC requirement: RFC7606-5.1-3 positive -- ONE UPDATE mixing Withdrawn Routes with NLRI is
 // ACCEPTED on receive, relayed, and installed by a real FRR. Section 5.1's second bullet forbids
 // any conforming SENDER to produce that shape, so a raw injector is the only carrier that can

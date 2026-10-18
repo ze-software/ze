@@ -145,7 +145,10 @@ func toStaticRouteLabeledUnicastParams(r *StaticRoute, nextHop netip.Addr, prefi
 // toStaticRouteVPNParams converts a StaticRoute to VPNParams.
 // Used for VPN routes (SAFI 128).
 // nextHop is the resolved next-hop address (from RouteNextHop policy).
-func toStaticRouteVPNParams(r *StaticRoute, nextHop netip.Addr, prefixSIDAllowed bool) message.VPNParams {
+// linkLocal is the speaker's link-local address to follow nextHop, already
+// decided by Peer.linkLocalNextHopFor (link_scope.go); the zero Addr means the
+// 24-octet RD-plus-global form.
+func toStaticRouteVPNParams(r *StaticRoute, nextHop, linkLocal netip.Addr, prefixSIDAllowed bool) message.VPNParams {
 	// RFC 8669 Section 8, as for labeled unicast above. VPNParams carries no raw
 	// attribute block, so the configured bytes are the only way in.
 	prefixSID := r.PrefixSIDBytes
@@ -157,6 +160,7 @@ func toStaticRouteVPNParams(r *StaticRoute, nextHop netip.Addr, prefixSIDAllowed
 		Prefix:             r.Prefix,
 		PathID:             r.PathID,
 		NextHop:            nextHop,
+		LinkLocalNextHop:   linkLocal,
 		Labels:             r.Labels,
 		RDBytes:            r.RDBytes,
 		Origin:             attribute.Origin(r.Origin),
@@ -194,7 +198,10 @@ func toStaticRouteVPNParams(r *StaticRoute, nextHop netip.Addr, prefixSIDAllowed
 // The error reports a unicast or labeled field that cannot encode its next hop.
 func buildStaticRouteUpdateNew(ub *message.UpdateBuilder, route *StaticRoute, nextHop, linkLocal netip.Addr, sendCtx *bgpctx.EncodingContext, prefixSIDAllowed bool) (*message.Update, error) {
 	if route.IsVPN() {
-		p := toStaticRouteVPNParams(route, nextHop, prefixSIDAllowed)
+		// RFC 4659 Section 3.2.1.1: the link-local address is included if and
+		// only if the speaker shares a common subnet with the peer, the same
+		// RFC 2545 Section 3 decision the unicast branch carries.
+		p := toStaticRouteVPNParams(route, nextHop, linkLocal, prefixSIDAllowed)
 		return ub.BuildVPN(&p), nil
 	}
 	if route.isLabeledUnicast() {

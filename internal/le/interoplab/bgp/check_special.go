@@ -58,6 +58,7 @@ var specialCheckers = map[string]interoplab.Checker{
 	"bgp-linklocal-only-multihop-withdraw-frr": checkLinkLocalOnlyMultihopWithdraw,
 	labeledWithdrawScenario:                    checkLabeledWithdrawCompatibility,
 	"bgp-rfc2545-linklocal-nexthop-frr":        checkRFC2545NextHops,
+	scenarioVPNFRR:                             checkVPNFRR,
 	"bgp-rfc7606-relay-shape-frr":              checkRFC7606MixedUpdate,
 	"bgp-rfc7606-typed-nlri-discard":           checkRFC7606TypedNLRIDiscard,
 	"bgp-rfc7999-blackhole-frr":                checkRFC7999Blackhole,

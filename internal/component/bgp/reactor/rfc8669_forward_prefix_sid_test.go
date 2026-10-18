@@ -316,8 +316,8 @@ func TestPrefixSIDOriginationBoundary(t *testing.T) {
 			PrefixSIDBytes: prefixSIDValue,
 		}
 
-		assert.Equal(t, prefixSIDValue, toStaticRouteVPNParams(route, nextHop, true).PrefixSID)
-		assert.Nil(t, toStaticRouteVPNParams(route, nextHop, false).PrefixSID)
+		assert.Equal(t, prefixSIDValue, toStaticRouteVPNParams(route, nextHop, netip.Addr{}, true).PrefixSID)
+		assert.Nil(t, toStaticRouteVPNParams(route, nextHop, netip.Addr{}, false).PrefixSID)
 	})
 
 	t.Run("unicast raw attribute", func(t *testing.T) {

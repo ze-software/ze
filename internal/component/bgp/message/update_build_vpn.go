@@ -26,6 +26,12 @@ type VPNParams struct {
 	// NextHop is the next-hop address (PE address).
 	NextHop netip.Addr
 
+	// LinkLocalNextHop is the advertising speaker's IPv6 link-local address, to
+	// follow NextHop as a second VPN-IPv6 address (RFC 4659 Section 3.2.1.1).
+	// The caller decides inclusion (Peer.linkLocalNextHopFor, reactor/link_scope.go);
+	// the zero Addr means the Next Hop field carries the global address alone.
+	LinkLocalNextHop netip.Addr
+
 	// Labels is the MPLS label stack (20-bit values per RFC 8277 Section 2).
 	// RFC 4364 Section 4.3 - Labels for VPN route.
 	// RFC 8277 Section 2 - Multiple labels support.
@@ -197,7 +203,18 @@ func (ub *UpdateBuilder) BuildVPN(p *VPNParams) *Update {
 //
 // RFC 4364 Section 4.3.4 - VPN NLRI format:
 // Length(1) + Label(3) + RD(8) + Prefix(variable).
-// Next-hop: RD(8, all zeros) + IP address.
+// Next-hop: RD(8, all zeros) + IP address, optionally followed by a second
+// RD(8, all zeros) + IPv6 link-local address.
+//
+// RFC 4659 Section 3.2.1.1: "The value of the Length of the Next Hop Network
+// Address field in the MP_REACH_NLRI attribute shall be set to 24 when only a
+// global address is present, and to 48 if a link-local address is also
+// included in the Next Hop field."
+//
+//	+0      +8                    +24     +32                   +48
+//	| RD=0  | Global IPv6 (16 B)  | RD=0  | Link-Local IPv6 (16 B) |
+//
+// The global-only form ends at +24. An IPv4 next hop is RD(8) + IPv4(4), 12 octets.
 //
 // Returns a rawAttribute because VPN next-hop format (RD+IP) differs from
 // standard MPReachNLRI (which only supports plain IP addresses).
@@ -210,27 +227,29 @@ func (ub *UpdateBuilder) buildMPReachVPN(p *VPNParams) *rawAttribute {
 	}
 	safi := byte(128) // SAFI MPLS VPN
 
-	// Next-hop: RD (8 zero bytes) + IP. RFC 4364 Section 4.3.2.
-	nhLen := 12 // 8-byte RD + 4-byte IPv4
-	if p.NextHop.Is6() {
-		nhLen = 24 // 8-byte RD + 16-byte IPv6
-	}
+	nhLen := vpnNextHopOctets(p)
 
 	// Build VPN NLRI: Length + Label + RD + Prefix
 	vpnNLRI := ub.buildVPNNLRIBytes(p)
 
 	// MP_REACH_NLRI value: AFI(2) + SAFI(1) + NH_Len(1) + NextHop + Reserved(1) + NLRI.
 	// Writing directly into value (rather than via an intermediate nhBytes slice from
-	// ub.alloc) keeps the RD slot zeroed without relying on scratch-buffer state.
+	// ub.alloc) keeps the RD slots zeroed without relying on scratch-buffer state.
 	valueLen := 2 + 1 + 1 + nhLen + 1 + len(vpnNLRI)
 	value := ub.alloc(valueLen)
 	value[0] = byte(afi >> 8)
 	value[1] = byte(afi)
 	value[2] = safi
 	value[3] = byte(nhLen)
-	clear(value[4 : 4+8])                         // RD (must be zero per RFC 4364)
-	copy(value[4+8:4+nhLen], p.NextHop.AsSlice()) // IP address
-	value[4+nhLen] = 0                            // Reserved
+	// RFC 4659 Section 3.2.1.1: each VPN-IPv6 address of the Next Hop field
+	// has its "8-octet RD is set to zero".
+	clear(value[4 : 4+nhLen])
+	copy(value[4+8:], p.NextHop.AsSlice()) // Global (or IPv4) address
+	if nhLen == vpnNextHopPairOctets {
+		ll := p.LinkLocalNextHop.As16()
+		copy(value[4+32:4+48], ll[:]) // Link-Local address after the second zero RD
+	}
+	value[4+nhLen] = 0 // Reserved
 	copy(value[4+nhLen+1:], vpnNLRI)
 
 	return &rawAttribute{
@@ -238,6 +257,29 @@ func (ub *UpdateBuilder) buildMPReachVPN(p *VPNParams) *rawAttribute {
 		code:  attribute.AttrMPReachNLRI,
 		data:  value,
 	}
+}
+
+// vpnNextHopPairOctets is the RFC 4659 Section 3.2.1.1 global-plus-link-local
+// Next Hop field: two VPN-IPv6 addresses of 24 octets each.
+const vpnNextHopPairOctets = 48
+
+// vpnNextHopOctets returns the Next Hop field length buildMPReachVPN writes.
+//
+// The link-local second address is written only after an IPv6 next hop and only
+// when it is IPv6 link-local unicast: RFC 4659 Section 3.2.1.1 names it "the
+// link-local IPv6 address of the advertising BGP speaker", so any other value in
+// that slot would break the sentence the 48-octet form exists to satisfy.
+func vpnNextHopOctets(p *VPNParams) int {
+	if !p.NextHop.Is6() {
+		return 12 // 8-byte RD + 4-byte IPv4
+	}
+	if !p.LinkLocalNextHop.Is6() {
+		return 24 // 8-byte RD + 16-byte IPv6
+	}
+	if !p.LinkLocalNextHop.IsLinkLocalUnicast() {
+		return 24
+	}
+	return vpnNextHopPairOctets
 }
 
 // buildVPNNLRIBytes builds the VPN NLRI bytes.

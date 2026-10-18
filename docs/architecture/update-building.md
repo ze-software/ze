@@ -261,6 +261,16 @@ fallback under `next-hop auto` or `unchanged`. It uses the existing immutable
 ownership snapshot and accumulator storage, without rerunning policy.
 Third-party Link-Local discovery remains absent; the speaker's own address
 cannot substitute for another router's Link-Local.
+VPN-IPv6 takes the same decision (RFC 4659 Section 3.2.1.1): a configured
+VPN route's `VPNParams.LinkLocalNextHop` carries the address
+`Peer.linkLocalNextHopFor` chose, and `buildMPReachVPN` then writes the
+48-octet field (zero RD, global, zero RD, link-local) instead of 24 octets. On
+the forwarding rails a 24-octet RD-plus-global field naming the speaker's own
+global is raised to that 48-octet pair for an on-link destination, and a
+received 48-octet pair is cut to 24 octets for an off-link one.
+<!-- source: internal/component/bgp/message/update_build_vpn.go -- buildMPReachVPN, vpnNextHopOctets -->
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- applyEgressNextHopScope, egressSpeakerLinkLocal -->
+<!-- test: internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go TestRFC4659StaticVPNv6LinkLocalCommonSubnet -->
 The global-unicast requirement also covers unpaired ordinary IPv6 globals:
 loopback cannot bypass it. The explicit single mapped IPv6 unicast, multicast,
 labeled and RD-bearing VPN forms retain their separate control-plane

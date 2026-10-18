@@ -283,6 +283,9 @@ func mpReachNextHopHandler() filterapi.AttrModHandler {
 		//   - 24 bytes: RD + IPv6 global (RFC 4659 Section 3.2.1.1), the
 		//     VPN-IPv6 form applyEgressNextHopScope cuts from the 48-octet pair.
 		//   - 32 bytes: IPv6 global + link-local per RFC 2545 Section 3.
+		//   - 48 bytes: RD + IPv6 global, RD + IPv6 link-local (RFC 4659
+		//     Section 3.2.1.1), the pair applyEgressNextHopScope raises a
+		//     24-octet field to for a destination on the common subnet.
 		// A mismatched op length is a caller bug; the route is left unchanged
 		// (the caller should have produced a valid op).
 		nextHopKept := setIdx < 0
@@ -298,7 +301,7 @@ func mpReachNextHopHandler() filterapi.AttrModHandler {
 				break
 			}
 			newNHLen = 0
-		case newNHLen != 4 && newNHLen != 16 && newNHLen != 24 && newNHLen != 32:
+		case newNHLen != 4 && newNHLen != 16 && newNHLen != 24 && newNHLen != 32 && newNHLen != vpnNextHopPairOctets:
 			nextHopKept = true
 		}
 		if nextHopKept && nlriIdx < 0 {

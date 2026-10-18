@@ -397,6 +397,13 @@ func egressNextHopLinkLocalOnlyRefused(dest *Peer, mods *filterapi.ModAccumulato
 //
 // The single-address form ends at +16; the paired form ends at +32.
 //
+// VPN-IPv6 next-hop bytes (RFC 4659 Section 3.2.1.1), the same decision with a
+// zero RD before each address. The 24-octet form is raised and the 48-octet
+// form trimmed exactly as the plain forms are:
+//
+//	+0      +8                    +24     +32                   +48
+//	| RD=0  | Global IPv6 (16 B)  | RD=0  | Link-Local IPv6 (16 B) |
+//
 // A trimmed field aliases its original operation or payload. A newly constructed
 // pair is copied into mods' owned storage; no stack-backed slice is retained.
 func applyEgressNextHopScope(dest *Peer, facts *peerForwardFacts, mods *filterapi.ModAccumulator, basePayload []byte, baseFamily family.Family) {
@@ -421,31 +428,9 @@ func applyEgressNextHopScope(dest *Peer, facts *peerForwardFacts, mods *filterap
 		if !profile.IPv6Roles {
 			return
 		}
-		global := netip.AddrFrom16([16]byte(field)).Unmap()
-		if !global.Is6() {
-			return
-		}
-		if !global.IsGlobalUnicast() {
-			return
-		}
-		configured := dest.settings.LinkLocal.Unmap()
-		if !configured.Is6() {
-			return
-		}
-		if !configured.IsLinkLocalUnicast() {
-			return
-		}
-		scope := dest.llScope.Load()
-		if scope == nil {
-			return
-		}
-		if !scope.peerOnLink {
-			return
-		}
-		owners := facts.nextHopOwners()
 		// RFC 2545 Section 3: append only this entity's own Link-Local on
 		// the common subnet. Third-party discovery remains an absent feature.
-		ll := scope.linkLocalNextHop(configured, global, owners.classify(global))
+		ll := egressSpeakerLinkLocal(dest, facts, netip.AddrFrom16([16]byte(field)).Unmap())
 		if !ll.IsValid() {
 			return
 		}
@@ -453,6 +438,30 @@ func applyEgressNextHopScope(dest *Peer, facts *peerForwardFacts, mods *filterap
 		copy(pair[:16], field)
 		address := ll.As16()
 		copy(pair[16:], address[:])
+		mods.OpCopy(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModSet, pair[:])
+		return
+	case 24: // RD(8) + Global(16)
+		if !slices.Contains(profile.Lengths, vpnNextHopPairOctets) {
+			return
+		}
+		// RFC 4659 Section 3.2.1.1: "The link-local address shall be included
+		// in the Next Hop field if and only if the advertising BGP speaker
+		// shares a common subnet with the peer the route is being advertised
+		// to [BGP-IPv6]." The cited [BGP-IPv6] condition is RFC 2545 Section 3's,
+		// so the same decision as the 16-octet case raises RD+Global to the
+		// 48-octet RD+Global, RD+Link-Local form. The second RD is zero: the
+		// section says each address's "8-octet RD is set to zero".
+		if [8]byte(field[:8]) != ([8]byte{}) {
+			return
+		}
+		ll := egressSpeakerLinkLocal(dest, facts, netip.AddrFrom16([16]byte(field[8:])).Unmap())
+		if !ll.IsValid() {
+			return
+		}
+		var pair [vpnNextHopPairOctets]byte
+		copy(pair[:24], field)
+		address := ll.As16()
+		copy(pair[32:], address[:])
 		mods.OpCopy(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModSet, pair[:])
 		return
 	case 32: // Global(16) + Link-Local(16)
@@ -490,6 +499,41 @@ func applyEgressNextHopScope(dest *Peer, facts *peerForwardFacts, mods *filterap
 		}
 	}
 	mods.Op(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModSet, field[:globalOctets])
+}
+
+// vpnNextHopPairOctets is the RFC 4659 Section 3.2.1.1 VPN-IPv6 pair:
+// RD(8) + Global(16), RD(8) + Link-Local(16).
+const vpnNextHopPairOctets = 48
+
+// egressSpeakerLinkLocal returns the configured speaker Link-Local to follow
+// global toward dest, or the zero Addr when RFC 2545 Section 3's condition does
+// not hold for this destination (linkScope.linkLocalNextHop decides).
+//
+// Only an IPv6 global unicast address is raised: an unspecified, loopback or
+// multicast first address is judged by the egress gates, never paired here.
+func egressSpeakerLinkLocal(dest *Peer, facts *peerForwardFacts, global netip.Addr) netip.Addr {
+	if !global.Is6() {
+		return netip.Addr{}
+	}
+	if !global.IsGlobalUnicast() {
+		return netip.Addr{}
+	}
+	configured := dest.settings.LinkLocal.Unmap()
+	if !configured.Is6() {
+		return netip.Addr{}
+	}
+	if !configured.IsLinkLocalUnicast() {
+		return netip.Addr{}
+	}
+	scope := dest.llScope.Load()
+	if scope == nil {
+		return netip.Addr{}
+	}
+	if !scope.peerOnLink {
+		return netip.Addr{}
+	}
+	owners := facts.nextHopOwners()
+	return scope.linkLocalNextHop(configured, global, owners.classify(global))
 }
 
 // vpnUnspecifiedNextHopPair recognizes the exact 48-octet RFC 4659
