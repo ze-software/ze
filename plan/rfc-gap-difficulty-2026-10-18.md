@@ -116,6 +116,8 @@ interact with #2's default), 14 a `scope` gate, and 1 sits outside Ze (#59). The
 | #31 RFC3101-3.1-4 | Fix it: the wedge-avoidance deviation is reversed |
 | #55 RFC2328-8.1-1 | Unnumbered P2P, approved shape: `interface <x> unit <u> ipv4 unnumbered <donor-iface>` in iface (Cisco `ip unnumbered`, Junos `unnumbered-address`), with an optional source-address choice when the donor holds several IPv4 addresses (Junos `preferred-source-address`), else its first. Ze installs the donor address as a /32 on the link (the FRR wire shape). Commit refuses `unnumbered` with `address`, a missing, unnumbered or address-less donor, a source address the donor does not hold, and OSPF on an unnumbered non-point-to-point interface; doctor warns when the donor is not in OSPF. Donor down or address lost takes the link out of OSPF. OSPF sends a 0.0.0.0 hello mask, ifIndex link data, no stub link (RFC 2328 9.5, 12.4.1.1) |
 | #7 RFC9830-2.4.2-12 | Bring up to date: the 2026-10-11 decline is reversed, implement the type-13 SRv6 form |
+| #2 follow-up | Config migration writes `unmatched bypass` into configs saved before the discard default; boot with the leaf unset discards with an Error log; the RFC-tagged IPsec test changes are approved |
+| #15 RFC5216-5.3-5 | No AIA caIssuers retrieval (the fetch URL comes from an untrusted client); the configured intermediate pool is the implementation, and the row stays a disclosed gap |
 | All other rows | Implement from easiest to hardest |
 
 ## Bundles that close several rows with one change
