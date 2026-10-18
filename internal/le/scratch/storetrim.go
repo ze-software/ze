@@ -30,6 +30,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/procscan"
 	"github.com/ze-software/ze/internal/le/session"
 )
 
@@ -619,11 +620,11 @@ const storeTrimTimeout = time.Hour
 // and exits 1 while every store is still trimmed, the rule a bad budget follows
 // (AC-13).
 func trimStores(root, automatic string) (trimReport, int) {
-	return trimStoresScanning(root, automatic, session.ScanProcesses)
+	return trimStoresScanning(root, automatic, procscan.Scan)
 }
 
 // trimStoresScanning is trimStores with the process scanner a test replaces.
-func trimStoresScanning(root, automatic string, scan func() ([]session.Process, error)) (trimReport, int) {
+func trimStoresScanning(root, automatic string, scan func() ([]procscan.Process, error)) (trimReport, int) {
 	report := trimReport{Automatic: storeTrimOn}
 	enabled, err := parseStoreTrim(automatic)
 	switch {
@@ -667,7 +668,7 @@ func trimStoresScanning(root, automatic string, scan func() ([]session.Process, 
 // livenessStores scans the process table once and trims the stores a live
 // session may be using against it. A scan that fails is every row's error:
 // with no process table nothing can be judged dead.
-func livenessStores(ctx context.Context, root string, scan func() ([]session.Process, error)) []StoreTrim {
+func livenessStores(ctx context.Context, root string, scan func() ([]procscan.Process, error)) []StoreTrim {
 	processes, err := scan()
 	if err != nil {
 		rows := livenessRows(root)
@@ -679,10 +680,10 @@ func livenessStores(ctx context.Context, root string, scan func() ([]session.Pro
 	return trimLiveness(ctx, root, &livenessPass{
 		now:       time.Now(),
 		processes: processes,
-		judge: func(processes []session.Process) (session.Judgement, error) {
+		judge: func(processes []procscan.Process) (session.Judgement, error) {
 			return session.Judge(root, "", processes)
 		},
-		startedAt: session.ProcessStartTime,
+		startedAt: procscan.StartTime,
 		remove:    os.RemoveAll,
 	})
 }

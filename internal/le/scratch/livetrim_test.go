@@ -14,6 +14,7 @@ import (
 	"time"
 
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/procscan"
 	"github.com/ze-software/ze/internal/le/session"
 )
 
@@ -69,19 +70,19 @@ func refusingRemove(t *testing.T) func(string) error {
 }
 
 // claudeCLI is the process fact that makes liveness judgeable.
-func claudeCLI(now time.Time) session.Process {
-	return session.Process{PID: 1, Start: "cli", StartedAt: now.Add(-10 * time.Hour), Argv: []string{"claude"}, CLI: true}
+func claudeCLI(now time.Time) procscan.Process {
+	return procscan.Process{PID: 1, Start: "cli", StartedAt: now.Add(-10 * time.Hour), Argv: []string{"claude"}, CLI: true}
 }
 
 // judgeIn binds session.Judge to a checkout and a Claude config directory
 // whose projects/ exists, so Reap's rules judge rather than refuse.
-func judgeIn(t *testing.T, root string) func([]session.Process) (session.Judgement, error) {
+func judgeIn(t *testing.T, root string) func([]procscan.Process) (session.Judgement, error) {
 	t.Helper()
 	configDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(configDir, "projects", "p"), 0o750); err != nil {
 		t.Fatal(err)
 	}
-	return func(processes []session.Process) (session.Judgement, error) {
+	return func(processes []procscan.Process) (session.Judgement, error) {
 		return session.Judge(root, configDir, processes)
 	}
 }
@@ -138,7 +139,7 @@ func TestTrimNamedLaunchers(t *testing.T) {
 	}
 	agedDir(t, bin, now, day)
 
-	processes := []session.Process{
+	processes := []procscan.Process{
 		claudeCLI(now),
 		{PID: 2, Start: "r", Argv: []string{filepath.Join(gotoolchain.NamedLauncherDir(root, "running"), "le"), "scratch", "store-trim"}},
 		{PID: 3, Start: "ab", Argv: []string{"bin/le-ab/le", "go", "test"}},
@@ -198,7 +199,7 @@ func TestTrimNamedLaunchers(t *testing.T) {
 			_ = stdin.Close()  //nolint:errcheck // releases the parked probe
 			_ = command.Wait() //nolint:errcheck // the probe's exit is not under test
 		})
-		scanned, err := session.ScanProcesses()
+		scanned, err := procscan.Scan()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -229,14 +230,14 @@ func TestTrimSessionsAgePlusReap(t *testing.T) {
 
 	configDir := t.TempDir()
 	agedFile(t, filepath.Join(configDir, "projects", "p", "livetranscript.jsonl"), now, time.Minute)
-	processes := []session.Process{
+	processes := []procscan.Process{
 		claudeCLI(now),
 		{PID: 2, Start: "w", Argv: []string{"le", "work", "liveargv"}},
 	}
 	var removed []string
 	rows := trimLiveness(t.Context(), root, &livenessPass{
 		now: now, processes: processes,
-		judge: func(processes []session.Process) (session.Judgement, error) {
+		judge: func(processes []procscan.Process) (session.Judgement, error) {
 			return session.Judge(root, configDir, processes)
 		},
 		startedAt: func(int) time.Time { return time.Time{} }, remove: recordingRemove(t, &removed),
@@ -257,7 +258,7 @@ func TestTrimSessionsAgePlusReap(t *testing.T) {
 	t.Run("Reap refusing to judge removes nothing", func(t *testing.T) {
 		rows := trimLiveness(t.Context(), root, &livenessPass{
 			now: now, processes: processes,
-			judge: func(processes []session.Process) (session.Judgement, error) {
+			judge: func(processes []procscan.Process) (session.Judgement, error) {
 				return session.Judge(root, t.TempDir(), processes)
 			},
 			startedAt: func(int) time.Time { return time.Time{} }, remove: refusingRemove(t),
@@ -270,7 +271,7 @@ func TestTrimSessionsAgePlusReap(t *testing.T) {
 		root := t.TempDir()
 		dir := agedDir(t, filepath.Join(root, "tmp", "session", "2026-01-01-peergone"), now, day)
 		rows := trimLiveness(t.Context(), root, &livenessPass{
-			now: now, processes: []session.Process{claudeCLI(now)}, judge: judgeIn(t, root),
+			now: now, processes: []procscan.Process{claudeCLI(now)}, judge: judgeIn(t, root),
 			startedAt: func(int) time.Time { return time.Time{} },
 			remove:    func(string) error { return fs.ErrNotExist },
 		})
@@ -282,12 +283,12 @@ func TestTrimSessionsAgePlusReap(t *testing.T) {
 
 	t.Run("with no session directory the testbin row says so", func(t *testing.T) {
 		root := t.TempDir()
-		for name, judge := range map[string]func([]session.Process) (session.Judgement, error){
+		for name, judge := range map[string]func([]procscan.Process) (session.Judgement, error){
 			noSessionRoot:         judgeIn(t, root),
-			"could not be judged": func([]session.Process) (session.Judgement, error) { return session.Judgement{}, errors.New("broken") },
+			"could not be judged": func([]procscan.Process) (session.Judgement, error) { return session.Judgement{}, errors.New("broken") },
 		} {
 			rows := trimLiveness(t.Context(), root, &livenessPass{
-				now: now, processes: []session.Process{claudeCLI(now)}, judge: judge,
+				now: now, processes: []procscan.Process{claudeCLI(now)}, judge: judge,
 				startedAt: func(int) time.Time { return time.Time{} }, remove: refusingRemove(t),
 			})
 			if got := rowNamed(t, rows, testbinStore).Skipped; !strings.Contains(got, name) {
@@ -317,7 +318,7 @@ func TestTrimSkipsLivenessWithoutSessions(t *testing.T) {
 	entry := filepath.Join(gotoolchain.GoCache(root), "ab", "abguard-a")
 	agedFile(t, entry, now, day)
 
-	noCLI := []session.Process{{PID: 2, Start: "x", Argv: []string{"sh"}}}
+	noCLI := []procscan.Process{{PID: 2, Start: "x", Argv: []string{"sh"}}}
 	rows := trimLiveness(t.Context(), root, &livenessPass{
 		now: now, processes: noCLI, judge: judgeIn(t, root),
 		startedAt: func(int) time.Time { return time.Time{} }, remove: refusingRemove(t),
@@ -332,7 +333,7 @@ func TestTrimSkipsLivenessWithoutSessions(t *testing.T) {
 	// skip and nothing of the user's is trimmed.
 	t.Setenv("HOME", t.TempDir())
 	telemetryOffUnderHome(t)
-	report, _ := trimStoresScanning(root, storeTrimOn, func() ([]session.Process, error) { return noCLI, nil })
+	report, _ := trimStoresScanning(root, storeTrimOn, func() ([]procscan.Process, error) { return noCLI, nil })
 	if got := rowNamed(t, report.Stores, checkoutCache); got.Skipped != "" || got.SizeBefore == 0 {
 		t.Errorf("checkout cache row = %+v, want it measured: the caches trim without a session", got)
 	}
@@ -406,7 +407,7 @@ func TestTrimOrphanTestbins(t *testing.T) {
 	agedDir(t, scratch, now, 0)
 	agedDir(t, sessionDir, now, 30*24*time.Hour)
 
-	processes := []session.Process{
+	processes := []procscan.Process{
 		claudeCLI(now),
 		{PID: 2, Start: "s", Argv: []string{"le", "livesession"}},
 		{PID: 222, Start: "a", StartedAt: made.Add(-time.Hour)},

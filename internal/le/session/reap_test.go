@@ -10,6 +10,7 @@ import (
 	"time"
 
 	leaction "github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/procscan"
 )
 
 func TestReapDryAcceptsKeywordAndEnvironment(t *testing.T) {
@@ -59,7 +60,7 @@ func TestReapKeepsEveryLiveSourceAndRemovesDeadState(t *testing.T) {
 	started := time.Date(2026, 8, 27, 10, 0, 0, 0, time.UTC)
 	writeTranscriptFixture(t, projects, "transcript-live", started.Add(time.Minute))
 	writeTranscriptFixture(t, projects, "dead", started.Add(-time.Minute))
-	processes := []Process{
+	processes := []procscan.Process{
 		{PID: 44, Start: "123", Argv: []string{"worker"}},
 		{PID: 45, Start: "456", StartedAt: started, Argv: []string{"/usr/bin/claude"}, CLI: true},
 		{PID: 46, Start: "789", Argv: []string{"tool", "--session-id", "argv-live"}},
@@ -105,7 +106,7 @@ func TestReapDryRunAndReusedPIDPinRemoveNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	report, err := reap(root, filepath.Join(root, "config"), "own", true,
-		fixtureReapOps([]Process{{PID: 44, Start: "new"}}))
+		fixtureReapOps([]procscan.Process{{PID: 44, Start: "new"}}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +145,7 @@ func TestReapFailsClosedWithoutTranscriptsWhileCLIIsRunning(t *testing.T) {
 		t.Fatal(err)
 	}
 	dead := writeSessionFixture(t, sessions, "dead")
-	processes := []Process{{PID: 45, Start: "456", StartedAt: time.Now(), CLI: true}}
+	processes := []procscan.Process{{PID: 45, Start: "456", StartedAt: time.Now(), CLI: true}}
 	report, err := reap(root, filepath.Join(root, "missing-config"), "own", false, fixtureReapOps(processes))
 	if err != nil {
 		t.Fatal(err)
@@ -197,9 +198,9 @@ func TestCleanScratchRemovesOnlyCurrentSessionAndRefusesSymlinkRoot(t *testing.T
 	})
 }
 
-func fixtureReapOps(processes []Process) reapOps {
+func fixtureReapOps(processes []procscan.Process) reapOps {
 	return reapOps{
-		processes: func() ([]Process, error) { return processes, nil },
+		processes: func() ([]procscan.Process, error) { return processes, nil },
 		removeDir: os.RemoveAll,
 		remove:    os.Remove,
 	}
@@ -225,41 +226,5 @@ func writeTranscriptFixture(t *testing.T, projects, sid string, at time.Time) {
 	}
 	if err := os.Chtimes(path, at, at); err != nil {
 		t.Fatal(err)
-	}
-}
-
-// VALIDATES: the portable ps elapsed-time field parses in every shape ps emits,
-// and a shape it never emits is refused rather than read as an age.
-// PREVENTS: the reaper going blind again. `etimes` is Linux-only, so on macOS
-// the whole process scan exited non-zero, no session looked either dead or
-// running, and the command reported nothing to remove over eleven live
-// directories -- a clean-tree answer produced by having examined nothing.
-func TestElapsedSecondsReadsEveryShapePSEmits(t *testing.T) {
-	for _, row := range []struct {
-		value string
-		want  int64
-	}{
-		{"00:00", 0},
-		{"00:01", 1},
-		{"01:00", 60},
-		{"59:59", 3599},
-		{"01:00:00", 3600},
-		{"23:59:59", 86399},
-		{"1-00:00:00", 86400},
-		{"02-04:31:48", 189108},
-		{"  02:30  ", 150},
-	} {
-		got, ok := elapsedSeconds(row.value)
-		if !ok || got != row.want {
-			t.Errorf("elapsedSeconds(%q) = %d, %v; want %d, true", row.value, got, ok, row.want)
-		}
-	}
-}
-
-func TestElapsedSecondsRefusesWhatPSNeverEmits(t *testing.T) {
-	for _, value := range []string{"", "   ", "12", "1:2:3:4", "aa:bb", "-1:00", "x-01:00:00", "01:-1"} {
-		if got, ok := elapsedSeconds(value); ok {
-			t.Errorf("elapsedSeconds(%q) = %d, true; want a refusal", value, got)
-		}
 	}
 }

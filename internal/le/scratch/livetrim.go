@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/procscan"
 	"github.com/ze-software/ze/internal/le/session"
 )
 
@@ -71,12 +72,12 @@ const (
 
 // livenessPass is what one liveness trim reads besides the tree: the clock,
 // the process table scanned once, and the operations a test replaces. judge is
-// session.Judge bound to the checkout; startedAt is session.ProcessStartTime;
+// session.Judge bound to the checkout; startedAt is procscan.StartTime;
 // remove is os.RemoveAll.
 type livenessPass struct {
 	now       time.Time
-	processes []session.Process
-	judge     func([]session.Process) (session.Judgement, error)
+	processes []procscan.Process
+	judge     func([]procscan.Process) (session.Judgement, error)
 	startedAt func(pid int) time.Time
 	remove    func(path string) error
 }
@@ -118,7 +119,7 @@ func livenessRows(root string) []StoreTrim {
 
 // sessionProcessVisible answers whether any Claude CLI runs, the fact every
 // liveness judgement here needs before it can call anything dead.
-func sessionProcessVisible(processes []session.Process) bool {
+func sessionProcessVisible(processes []procscan.Process) bool {
 	for _, process := range processes {
 		if process.CLI {
 			return true
@@ -198,7 +199,7 @@ func launcherIdle(dir string, now time.Time) (bool, error) {
 // directory. The `le` script execs the binary by its absolute path, so a
 // running named le carries bin/le-<name>/ in its argv (A-4). The trailing
 // separator keeps le-a from matching le-ab.
-func launcherNamedInArgv(processes []session.Process, name string) bool {
+func launcherNamedInArgv(processes []procscan.Process, name string) bool {
 	var needle textbuf.Buffer
 	needle.Str(strings.TrimPrefix(gotoolchain.NamedLauncherDir("", name), string(filepath.Separator))).
 		Byte(filepath.Separator)

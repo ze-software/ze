@@ -645,7 +645,8 @@ directory more than 2 hours old and any other entry more than 6 hours old is
 removed. A home with no usable base makes the row a skip that says
 why.
 <!-- source: internal/le/scratch/livetrim.go -- trimLiveness, trimSessions, trimTestbins, trimTestTemp -->
-<!-- source: internal/le/session/reap.go -- Judge, ScanProcesses -->
+<!-- source: internal/le/session/reap.go -- Judge -->
+<!-- source: internal/le/procscan/procscan.go -- Scan -->
 
 ### A verify worktree shares that cache
 
