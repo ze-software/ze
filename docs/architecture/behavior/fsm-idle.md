@@ -52,12 +52,13 @@ about any of this. It only observes the state change.
 | Event | Produced by | FSM reaction | Wire side effect | Next state |
 |-------|-------------|--------------|------------------|------------|
 | `EventManualStart` | `Session.Start()` | passive flag decides next state; **sets ConnectRetryCounter to zero** | none | `Active` if `passive == true`, else `Connect` |
-| `EventAutomaticStartWithDampPeerOscillations` | `Session.startDamped()`, from every reconnect cycle after the first | same branch as `EventManualStart`; ConnectRetryCounter untouched | none | `Active` if `passive == true`, else `Connect` |
+| `EventAutomaticStart` | `Session.startAutomatic()`, from a reconnect cycle whose previous cycle reached Established | same branch as `EventManualStart`; **sets ConnectRetryCounter to zero** | none | `Active` if `passive == true`, else `Connect` |
+| `EventAutomaticStartWithDampPeerOscillations` | `Session.startDamped()`, from a reconnect cycle whose previous cycle never reached Established | same branch as `EventManualStart`; ConnectRetryCounter untouched | none | `Active` if `passive == true`, else `Connect` |
 | `EventManualStop` / `EventAutomaticStop` | n/a | ignored (per RFC 4271 8.2.2); ConnectRetryCounter untouched | none | `Idle` |
 | any other event | n/a | ignored (per RFC 4271 8.2.2) | none | `Idle` |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleIdle -->
-<!-- source: internal/component/bgp/reactor/session.go — Start -->
+<!-- source: internal/component/bgp/reactor/session.go — Start, startAutomatic, startDamped -->
 
 The passive flag is set at session construction time from
 `settings.Connection.IsActive()` and remembered on the FSM via

@@ -14,9 +14,11 @@
 //     connect_retry_counter.go), ConnectRetryTimer, HoldTimer and
 //     KeepaliveTimer (timer.go; the ConnectRetryTimer is the peer reconnect
 //     loop, see ARCHITECTURAL NOTES below). DampPeerOscillations is expressed
-//     as that same loop's exponential backoff, which is why Event 6
-//     (AutomaticStart_with_DampPeerOscillations) is implemented while Events 3
-//     to 5 and 7 are not.
+//     as that same loop's exponential backoff: it is TRUE for the cycle after
+//     one that never reached Established, which starts with Event 6
+//     (AutomaticStart_with_DampPeerOscillations), and FALSE for the cycle
+//     after one that did, which starts with Event 3 (AutomaticStart). Events
+//     4, 5 and 7 are not implemented.
 //
 //  2. Missing NOTIFICATION message sending:
 //     RFC requires sending NOTIFICATION messages on various error conditions
@@ -400,11 +402,11 @@ func (f *FSM) Event(event Event) error {
 // RFC 4271 Section 8.2.2 (Idle state):
 // "In this state, BGP FSM refuses all incoming BGP connections for this peer.
 // No resources are allocated to the peer."
-// Handles ManualStart event to transition to Connect state.
+// Handles the start events that move to Connect or Active.
 func (f *FSM) handleIdle(event Event) {
 	switch event {
-	case EventManualStart:
-		// RFC 4271 Section 8.2.2: Event 1 (ManualStart)
+	case EventManualStart, EventAutomaticStart:
+		// RFC 4271 Section 8.2.2: Events 1 (ManualStart) and 3 (AutomaticStart)
 		// "In response to a ManualStart event (Event 1) or an AutomaticStart
 		// event (Event 3), the local system... initiates a TCP connection to
 		// the other BGP peer... and changes its state to Connect."
@@ -416,7 +418,17 @@ func (f *FSM) handleIdle(event Event) {
 		// listed for Event 1/3 (the Connect branch) and again, in the same
 		// words, for Event 4/5 (the Active branch), so both branches below
 		// reset. An operator restarting a peer is telling ze the retry history
-		// no longer applies.
+		// no longer applies; an automatic start after a session that reached
+		// Established says the same, because that session ended the run of
+		// failed attempts the counter recorded.
+		//
+		// RFC 4271 Section 8.2.2: "or an AutomaticStart event (Event 3), the
+		// local system: - initializes all BGP resources for the peer
+		// connection, - sets ConnectRetryCounter to zero".
+		//
+		// Ze conflates Event 1 with Event 4 and Event 3 with Event 5: one arm
+		// serves each pair, and f.passive (PassiveTcpEstablishment) chooses
+		// Connect or Active, so no separate passive start event exists.
 		f.crc.Reset()
 		if f.passive {
 			f.change(StateActive)
@@ -435,7 +447,8 @@ func (f *FSM) handleIdle(event Event) {
 		// reset is NOT: no clause asks for one, and a damped retry that zeroed
 		// the counter would erase the very history the counter records. This
 		// is the event ze's reconnect loop fires on every cycle after the
-		// operator's first (peer_run.go, runOnce).
+		// operator's first whose previous cycle never reached Established
+		// (peer_run.go, runOnce); after one that did, it fires Event 3.
 		if f.passive {
 			f.change(StateActive)
 		} else {
@@ -487,7 +500,7 @@ func (f *FSM) handleIdle(event Event) {
 // Handles connection events to transition to OpenSent or Idle state.
 func (f *FSM) handleConnect(event Event) error {
 	switch event {
-	case EventManualStart, EventAutomaticStartWithDampPeerOscillations:
+	case EventManualStart, EventAutomaticStart, EventAutomaticStartWithDampPeerOscillations:
 		// RFC 4271 Section 8.2.2: "The start events (Events 1, 3-7) are
 		// ignored in the Connect state." Ignored means the counter is not
 		// touched either: the clause list is empty.
@@ -627,7 +640,7 @@ func (f *FSM) handleConnect(event Event) error {
 // Handles connection events for passive mode peers.
 func (f *FSM) handleActive(event Event) error {
 	switch event {
-	case EventManualStart, EventAutomaticStartWithDampPeerOscillations:
+	case EventManualStart, EventAutomaticStart, EventAutomaticStartWithDampPeerOscillations:
 		// RFC 4271 Section 8.2.2: "The start events (Events 1, 3-7) are
 		// ignored in the Active state." Ignored means the counter is not
 		// touched either: the clause list is empty.
@@ -959,7 +972,7 @@ func (f *FSM) handleOpenSent(event Event) error {
 		// paragraph, so none here.
 		f.change(StateActive)
 
-	case EventManualStart, EventAutomaticStartWithDampPeerOscillations:
+	case EventManualStart, EventAutomaticStart, EventAutomaticStartWithDampPeerOscillations:
 		// RFC 4271 Section 8.2.2: "The start events (Events 1, 3-7) are
 		// ignored in the OpenSent state." No state or counter action is due.
 
@@ -1139,7 +1152,7 @@ func (f *FSM) handleOpenConfirm(event Event) error {
 		// name it. Ignoring it beats the default arm, which would answer a
 		// local bookkeeping slip by dropping a nearly established session.
 
-	case EventManualStart, EventAutomaticStartWithDampPeerOscillations:
+	case EventManualStart, EventAutomaticStart, EventAutomaticStartWithDampPeerOscillations:
 		// RFC 4271 Section 8.2.2: "Any start event (Events 1, 3-7) is
 		// ignored in the OpenConfirm state." No state or counter action is due.
 
@@ -1327,7 +1340,7 @@ func (f *FSM) handleEstablished(event Event) error {
 		// strict-mode are irrelevant since the work of this feature has been
 		// completed."
 
-	case EventManualStart, EventAutomaticStartWithDampPeerOscillations:
+	case EventManualStart, EventAutomaticStart, EventAutomaticStartWithDampPeerOscillations:
 		// RFC 4271 Section 8.2.2: "Any Start event (Events 1, 3-7) is
 		// ignored in the Established state." No state or counter action is due.
 

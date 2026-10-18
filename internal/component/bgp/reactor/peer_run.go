@@ -379,12 +379,24 @@ func (p *Peer) runOnce() error {
 	}
 
 	// The operator's start is Event 1 (ManualStart), whose §8.2.2 clause sets
-	// the ConnectRetryCounter to zero. Every cycle after it is a retry the
-	// backoff above already damped, which is Event 6
+	// the ConnectRetryCounter to zero. Every cycle after it is automatic. A
+	// cycle that follows one which reached Established is Event 3
+	// (AutomaticStart): §8.1.2 sets DampPeerOscillations FALSE for it, and
+	// §8.2.2 gives it Event 1's clause, so the counter starts again from zero.
+	// A cycle that follows a failed attempt is a retry the backoff in run()
+	// already damped, which is Event 6
 	// (AutomaticStart_with_DampPeerOscillations) and carries no such clause.
-	// Firing Event 1 on every cycle would zero the counter before each attempt
-	// and leave it structurally unable to read more than one.
+	// Firing a zeroing event on every cycle would leave the counter
+	// structurally unable to read more than one.
+	//
+	// The Swap reads the previous cycle's answer and clears it for this one in
+	// one step, whatever error the previous cycle returned.
+	reachedEstablished := p.cycleReachedEstablished.Swap(false)
 	start := session.startDamped
+	if reachedEstablished {
+		// RFC 4271 Section 8.2.2
+		start = session.startAutomatic
+	}
 	if !p.operatorStarted.Swap(true) {
 		start = session.Start
 	}
@@ -483,6 +495,7 @@ func (p *Peer) runOnce() error {
 			p.setEncodingContexts(neg)
 			// Before Established is published, so the first owed key has a worker.
 			session.startRecovery(p)
+			p.cycleReachedEstablished.Store(true)
 			p.setState(PeerStateEstablished)
 			p.setEstablishedNow()
 

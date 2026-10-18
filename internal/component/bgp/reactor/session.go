@@ -550,6 +550,10 @@ type Session struct {
 	// addrLabel caches settings.Address.String() to avoid per-message allocations.
 	addrLabel string
 
+	// asSetSendLog bounds the RFC 9774 Section 3 send-guard warning to one line per
+	// wellKnownScanLogInterval for this peer (session_rfc9774.go). The zero value is ready.
+	asSetSendLog wellKnownScanLog
+
 	// onNotifSent is called after every NOTIFICATION write attempt, with
 	// delivered saying whether the write returned no error. A refused write
 	// still ends the session, and RFC 9384 Section 4 asks for that reason in
@@ -1032,6 +1036,15 @@ func (s *Session) collisionPeerAS() uint32 {
 // not erase the retry history (peer_run.go, runOnce).
 func (s *Session) Start() error {
 	return s.fsm.Event(fsm.EventManualStart)
+}
+
+// startAutomatic triggers RFC 4271 Event 3 (AutomaticStart) for a connection
+// cycle that follows a cycle which reached Established. It reaches Connect
+// (or Active, when passive) exactly as Start does, and like Start it sets the
+// ConnectRetryCounter to zero: §8.2.2 gives Events 1 and 3 one action list.
+func (s *Session) startAutomatic() error {
+	// RFC 4271 Section 8.2.2
+	return s.fsm.Event(fsm.EventAutomaticStart)
 }
 
 // startDamped triggers RFC 4271 Event 6

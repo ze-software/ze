@@ -659,3 +659,57 @@ func TestRFC4271ConnectRetryCounterCollisionDumpIsQuietInIdle(t *testing.T) {
 	require.Equal(t, uint32(4), c.Load(), "Idle + OpenCollisionDump is ignored")
 	require.Equal(t, StateIdle, f.State())
 }
+
+// TestRFC4271AutomaticStartZeroesConnectRetryCounter verifies the system's own
+// start runs the same Idle action list as the operator's.
+//
+// VALIDATES: Idle + AutomaticStart (Event 3) drives a counter standing at 7 to
+// zero, and moves to Connect, or to Active when the peer is passive.
+//
+// PREVENTS: Event 3 being treated like Event 6, which carries no counter
+// clause, so a peer whose session ran and then ended would restart still
+// reporting the retries of the attempts before that session.
+//
+// RFC requirement: RFC4271-8.2.2-20 positive -- an FSM in Idle with its ConnectRetryCounter at 7 that receives AutomaticStart (Event 3) holds a ConnectRetryCounter of 0 and is in Connect, or in Active when passive.
+func TestRFC4271AutomaticStartZeroesConnectRetryCounter(t *testing.T) {
+	for _, passive := range []bool{false, true} {
+		f, c := crcFSM(t, StateIdle, 7)
+		f.SetPassive(passive)
+
+		require.NoError(t, f.Event(EventAutomaticStart))
+		require.Equal(t, uint32(0), c.Load(),
+			"passive=%v: AutomaticStart in Idle must set ConnectRetryCounter to zero", passive)
+
+		want := StateConnect
+		if passive {
+			want = StateActive
+		}
+		require.Equal(t, want, f.State(), "passive=%v: start branch", passive)
+	}
+}
+
+// TestRFC4271AutomaticStartZeroesOnlyFromIdle is the negative half: the zero
+// clause belongs to Event 3 in Idle and to nothing next to it.
+//
+// VALIDATES: Idle + AutomaticStart_with_DampPeerOscillations (Event 6) leaves a
+// counter of 7 at 7, and Event 3 in Connect, Active, OpenSent, OpenConfirm and
+// Established, where §8.2.2 says the start events are ignored, leaves both the
+// counter and the state alone.
+//
+// PREVENTS: The reset spreading from Event 3 to the damped restart, which would
+// erase the history the damping reads, or to a start arriving mid-session.
+//
+// RFC requirement: RFC4271-8.2.2-20 negative -- an FSM in Idle with its ConnectRetryCounter at 7 that receives AutomaticStart_with_DampPeerOscillations (Event 6) keeps the counter at 7, and AutomaticStart (Event 3) in Connect, Active, OpenSent, OpenConfirm or Established keeps the counter at 7 and the state unchanged.
+func TestRFC4271AutomaticStartZeroesOnlyFromIdle(t *testing.T) {
+	f, c := crcFSM(t, StateIdle, 7)
+	require.NoError(t, f.Event(EventAutomaticStartWithDampPeerOscillations))
+	require.Equal(t, uint32(7), c.Load(), "Event 6 in Idle has no ConnectRetryCounter clause")
+	require.Equal(t, StateConnect, f.State())
+
+	for _, st := range allNonIdleStates {
+		f, c := crcFSM(t, st, 7)
+		require.NoError(t, f.Event(EventAutomaticStart), "%s + AutomaticStart", st)
+		require.Equal(t, uint32(7), c.Load(), "%s + AutomaticStart: start events are ignored", st)
+		require.Equal(t, st, f.State(), "%s + AutomaticStart: ignored means no state change", st)
+	}
+}

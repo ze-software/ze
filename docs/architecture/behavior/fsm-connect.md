@@ -37,7 +37,7 @@ Idle).
 
 | Event | Produced by | FSM reaction | Wire side effect | Next state |
 |-------|-------------|--------------|------------------|------------|
-| `EventManualStart` / `EventAutomaticStartWithDampPeerOscillations` | duplicate `Session.Start()` / `startDamped()` call | ignored (RFC 4271) | none | `Connect` |
+| `EventManualStart` / `EventAutomaticStart` / `EventAutomaticStartWithDampPeerOscillations` | duplicate `Session.Start()` / `startAutomatic()` / `startDamped()` call | ignored (RFC 4271) | none | `Connect` |
 | `EventManualStop` | `Session.Stop` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION from `Session.Teardown` when a conn exists; `Session.Stop` sends nothing | `Idle` |
 | `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.teardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | none while the dial is in progress (no connection is published yet); the teardown seals the session, so when the dial returns `connectionEstablished` refuses it and `Connect` closes the socket it dialed, sending no OPEN | `Idle` |
 | `EventConnectRetryTimerExpires` | not generated in production | no-op comment (reconnect handled externally) | none | `Connect` |

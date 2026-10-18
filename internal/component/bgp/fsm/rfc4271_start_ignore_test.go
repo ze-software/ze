@@ -13,7 +13,7 @@ import "testing"
 // Each state retains its session and retry history after these events.
 func TestRFC4271AdvancedStartEventsIgnored(t *testing.T) {
 	for _, state := range []State{StateOpenSent, StateOpenConfirm, StateEstablished} {
-		for _, event := range []Event{EventManualStart, EventAutomaticStartWithDampPeerOscillations} {
+		for _, event := range []Event{EventManualStart, EventAutomaticStart, EventAutomaticStartWithDampPeerOscillations} {
 			t.Run(state.String()+"/"+event.String(), func(t *testing.T) {
 				f, counter := crcFSM(t, state, 7)
 				changes := 0

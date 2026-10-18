@@ -87,6 +87,7 @@ func TestEventConstants(t *testing.T) {
 		EventKeepaliveMsg,
 		EventUpdateMsg,
 		EventUpdateMsgErr,
+		EventAutomaticStart,
 		EventAutomaticStartWithDampPeerOscillations,
 		EventAutomaticStop,
 		EventOpenCollisionDump,
@@ -109,6 +110,7 @@ func TestEventString(t *testing.T) {
 	require.Equal(t, "ManualStop", EventManualStop.String())
 	require.Equal(t, "HoldTimerExpires", EventHoldTimerExpires.String())
 	require.Equal(t, "BGPOpen", EventBGPOpen.String())
+	require.Equal(t, "AutomaticStart", EventAutomaticStart.String())
 	require.Equal(t, "AutomaticStartWithDampPeerOscillations",
 		EventAutomaticStartWithDampPeerOscillations.String())
 	require.Equal(t, "AutomaticStop", EventAutomaticStop.String())
@@ -374,7 +376,9 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 		// RFC 4271 Section 8.2.2 Event 6: same branch choice as Event 1, and
 		// deliberately no ConnectRetryCounter reset (rfc4271_connect_retry_test.go).
 		{"Idle_DampedStart_active", StateIdle, false, EventAutomaticStartWithDampPeerOscillations, StateConnect},
+		{"Idle_AutomaticStart_active", StateIdle, false, EventAutomaticStart, StateConnect},
 		{"Idle_DampedStart_passive", StateIdle, true, EventAutomaticStartWithDampPeerOscillations, StateActive},
+		{"Idle_AutomaticStart_passive", StateIdle, true, EventAutomaticStart, StateActive},
 		// RFC 4271 Section 8.2.2: Event 8 is ignored in Idle beside Event 2;
 		// Event 23 falls to the same do-nothing default arm.
 		{"Idle_AutomaticStop", StateIdle, false, EventAutomaticStop, StateIdle},
@@ -399,6 +403,7 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 		{"Connect_UpdateMsg", StateConnect, false, EventUpdateMsg, StateIdle},
 		{"Connect_UpdateMsgErr", StateConnect, false, EventUpdateMsgErr, StateIdle},
 		{"Connect_DampedStart", StateConnect, false, EventAutomaticStartWithDampPeerOscillations, StateConnect},
+		{"Connect_AutomaticStart", StateConnect, false, EventAutomaticStart, StateConnect},
 		{"Connect_AutomaticStop", StateConnect, false, EventAutomaticStop, StateIdle},
 		{"Connect_OpenCollisionDump", StateConnect, false, EventOpenCollisionDump, StateIdle},
 
@@ -423,6 +428,7 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 		{"Active_UpdateMsg", StateActive, false, EventUpdateMsg, StateIdle},
 		{"Active_UpdateMsgErr", StateActive, false, EventUpdateMsgErr, StateIdle},
 		{"Active_DampedStart", StateActive, false, EventAutomaticStartWithDampPeerOscillations, StateActive},
+		{"Active_AutomaticStart", StateActive, false, EventAutomaticStart, StateActive},
 		{"Active_AutomaticStop", StateActive, false, EventAutomaticStop, StateIdle},
 		{"Active_OpenCollisionDump", StateActive, false, EventOpenCollisionDump, StateIdle},
 
@@ -445,6 +451,7 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 		{"OpenSent_UpdateMsg", StateOpenSent, false, EventUpdateMsg, StateIdle},
 		{"OpenSent_UpdateMsgErr", StateOpenSent, false, EventUpdateMsgErr, StateIdle},
 		{"OpenSent_DampedStart", StateOpenSent, false, EventAutomaticStartWithDampPeerOscillations, StateOpenSent},
+		{"OpenSent_AutomaticStart", StateOpenSent, false, EventAutomaticStart, StateOpenSent},
 		{"OpenSent_AutomaticStop", StateOpenSent, false, EventAutomaticStop, StateIdle},
 		{"OpenSent_OpenCollisionDump", StateOpenSent, false, EventOpenCollisionDump, StateIdle},
 
@@ -467,6 +474,7 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 		{"OpenConfirm_UpdateMsg", StateOpenConfirm, false, EventUpdateMsg, StateIdle},
 		{"OpenConfirm_UpdateMsgErr", StateOpenConfirm, false, EventUpdateMsgErr, StateIdle},
 		{"OpenConfirm_DampedStart", StateOpenConfirm, false, EventAutomaticStartWithDampPeerOscillations, StateOpenConfirm},
+		{"OpenConfirm_AutomaticStart", StateOpenConfirm, false, EventAutomaticStart, StateOpenConfirm},
 		{"OpenConfirm_AutomaticStop", StateOpenConfirm, false, EventAutomaticStop, StateIdle},
 		{"OpenConfirm_OpenCollisionDump", StateOpenConfirm, false, EventOpenCollisionDump, StateIdle},
 
@@ -489,6 +497,7 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 		{"Established_UpdateMsg", StateEstablished, false, EventUpdateMsg, StateEstablished},
 		{"Established_UpdateMsgErr", StateEstablished, false, EventUpdateMsgErr, StateIdle},
 		{"Established_DampedStart", StateEstablished, false, EventAutomaticStartWithDampPeerOscillations, StateEstablished},
+		{"Established_AutomaticStart", StateEstablished, false, EventAutomaticStart, StateEstablished},
 		{"Established_AutomaticStop", StateEstablished, false, EventAutomaticStop, StateIdle},
 		{"Established_OpenCollisionDump", StateEstablished, false, EventOpenCollisionDump, StateIdle},
 	}

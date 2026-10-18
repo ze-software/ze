@@ -167,7 +167,22 @@ down. Step-by-step:
    `Peer.cleanup` releases it, so the session survives every retry. A
    peer with BFD but no `strict` keeps the old lifetime: opened by the
    state-change callback on Established, released on the way out of it.
-6. **Start the FSM:** `session.Start()` fires `EventManualStart`.
+6. **Start the FSM** with one RFC 4271 start event, chosen per cycle:
+   - the operator's first cycle after `StartWithContext`: `session.Start()`
+     fires `EventManualStart` (Event 1), which zeroes the ConnectRetryCounter;
+   - a cycle whose previous cycle reached Established:
+     `session.startAutomatic()` fires `EventAutomaticStart` (Event 3), which
+     zeroes the counter as well;
+   - any other cycle, a retry after a failed attempt:
+     `session.startDamped()` fires
+     `EventAutomaticStartWithDampPeerOscillations` (Event 6), which keeps it.
+
+   The second case reads `Peer.cycleReachedEstablished`, set by the FSM
+   state callback when the session publishes `PeerStateEstablished` and
+   swapped back to false by the next cycle before its start event, so the
+   answer holds whatever error ended the previous cycle. The backoff delay
+   is not that answer: an inbound connection resets the delay without any
+   session having run.
 7. **Take a buffered inbound connection if passive is enabled.**
    `takeInboundConnection()` transfers the socket and any already-received
    OPEN to this session. Ordinary arrivals use `session.Accept(conn)`;

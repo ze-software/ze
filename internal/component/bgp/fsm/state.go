@@ -81,12 +81,13 @@ func (s State) String() string {
 // Events 16-18 are mandatory TCP events (Section 8.1.4).
 // Events 19, 21-22, 24-28 are mandatory message events (Section 8.1.5).
 //
-// This implementation includes every mandatory event, plus three optional
-// ones the ConnectRetryCounter needs in order to be right: Event 6
-// (AutomaticStart_with_DampPeerOscillations) for a damped retry, Event 8
-// (AutomaticStop) for a teardown the system chose, and Event 23
+// This implementation includes every mandatory event, plus four optional
+// ones the ConnectRetryCounter needs in order to be right: Event 3
+// (AutomaticStart) for a restart after a session that reached Established,
+// Event 6 (AutomaticStart_with_DampPeerOscillations) for a damped retry,
+// Event 8 (AutomaticStop) for a teardown the system chose, and Event 23
 // (OpenCollisionDump) for a connection lost to collision resolution. The
-// remaining optional events (3-5, 7, 12-15, 20) are not implemented.
+// remaining optional events (4, 5, 7, 12-15, 20) are not implemented.
 //
 // Six further events come from draft-ietf-idr-bgp-bfd-strict-mode Section 4,
 // registered as FSM events 30 to 35 by its Section 13.3. They are declared at
@@ -159,6 +160,18 @@ const (
 	// An invalid UPDATE message is received.
 	EventUpdateMsgErr
 
+	// EventAutomaticStart: RFC 4271 Section 8.1.2 Event 3 (Optional),
+	// "Local system automatically starts the BGP connection."
+	//
+	// The reconnect loop (internal/component/bgp/reactor/peer_run.go) fires it
+	// for the cycle that follows a cycle which reached Established. Section
+	// 8.1.2 says of this event "If the DampPeerOscillations is supported, it
+	// SHOULD be set to FALSE when this event occurs": a session that ran is
+	// not an oscillation, so there is nothing to damp, and Section 8.2.2 gives
+	// Event 3 the same Idle action list as Event 1, including "sets
+	// ConnectRetryCounter to zero". Every other automatic restart is Event 6.
+	EventAutomaticStart
+
 	// EventAutomaticStartWithDampPeerOscillations: RFC 4271 Section 8.1.2
 	// Event 6 (Optional) — AutomaticStart_with_DampPeerOscillations.
 	//
@@ -175,7 +188,9 @@ const (
 	// Events 6 and 7 no action list at all ("The method of preventing
 	// persistent peer oscillation is outside the scope of this document"), and
 	// in particular no ConnectRetryCounter clause, which is exactly the
-	// semantics a damped retry needs.
+	// semantics a damped retry needs. Ze fires it for every automatic restart
+	// after a cycle that never reached Established; after one that did, the
+	// restart is Event 3 (EventAutomaticStart).
 	EventAutomaticStartWithDampPeerOscillations
 
 	// EventAutomaticStop: RFC 4271 Section 8.1.2 Event 8 (Optional)
@@ -347,6 +362,7 @@ var eventSpecs = map[Event]eventSpec{
 	EventUpdateMsg:                {"UpdateMsg", 27},
 	EventUpdateMsgErr:             {"UpdateMsgErr", 28},
 
+	EventAutomaticStart:                         {"AutomaticStart", 3},
 	EventAutomaticStartWithDampPeerOscillations: {"AutomaticStartWithDampPeerOscillations", 6},
 	EventAutomaticStop:                          {"AutomaticStop", 8},
 	EventOpenCollisionDump:                      {"OpenCollisionDump", 23},

@@ -313,11 +313,22 @@ type Peer struct {
 
 	// operatorStarted is false until StartWithContext has handed the first
 	// connection cycle its RFC 4271 Event 1 (ManualStart). Later cycles get
-	// Event 6 (AutomaticStart_with_DampPeerOscillations) instead, so the
-	// §8.2.2 "sets ConnectRetryCounter to zero" clause on Event 1 fires when
-	// the operator starts the peer and not on every damped retry. Reset by
+	// Event 3 (AutomaticStart) or Event 6
+	// (AutomaticStart_with_DampPeerOscillations) instead, chosen by
+	// cycleReachedEstablished, so the §8.2.2 "sets ConnectRetryCounter to
+	// zero" clause fires when the operator starts the peer or a session ran,
+	// and not on every damped retry. Reset by
 	// StartWithContext so stopping and restarting a peer is a fresh start.
 	operatorStarted atomic.Bool
+
+	// cycleReachedEstablished records that the connection cycle in progress
+	// (or the one that just ended) reached Established. The FSM state callback
+	// in runOnce sets it beside PeerStateEstablished; the next runOnce swaps it
+	// to false before its start event and fires RFC 4271 Event 3
+	// (AutomaticStart) when it was true, Event 6 when it was false. It is the
+	// only input to that choice: the backoff delay cannot carry it, because
+	// inboundNotify resets the delay without any session having run.
+	cycleReachedEstablished atomic.Bool
 
 	// stopping is set by Reactor.stop (reactor.go) on every peer BEFORE it
 	// notifies them, and by stopWithCease on one removed peer before its Cease
@@ -1789,9 +1800,10 @@ func (p *Peer) StartWithContext(ctx context.Context) {
 	p.mu.Unlock()
 
 	// The next connection cycle is the operator's start, so runOnce fires
-	// RFC 4271 Event 1 (ManualStart) for it and Event 6 for every cycle after.
-	// Event 1's §8.2.2 clause zeroes the ConnectRetryCounter, which is what an
-	// operator starting (or restarting) a peer means.
+	// RFC 4271 Event 1 (ManualStart) for it, and Event 3 or Event 6 for every
+	// cycle after (runOnce). Event 1's §8.2.2 clause zeroes the
+	// ConnectRetryCounter, which is what an operator starting (or restarting)
+	// a peer means.
 	p.operatorStarted.Store(false)
 
 	// p.stopping is deliberately NOT cleared here. Clearing it is the act of

@@ -137,8 +137,8 @@ transition = {
 - **To:** CONNECT (active) or ACTIVE (passive)
 <!-- source: internal/component/bgp/fsm/fsm.go -- handleIdle, EventManualStart -->
 
-If ManualStart (Event 1) or AutomaticStart_with_DampPeerOscillations
-(Event 6) is delivered in OpenSent, OpenConfirm or Established, the FSM
+If ManualStart (Event 1), AutomaticStart (Event 3) or
+AutomaticStart_with_DampPeerOscillations (Event 6) is delivered in OpenSent, OpenConfirm or Established, the FSM
 ignores it under RFC 4271 section 8.2.2. It returns no error, changes no
 state or ConnectRetryCounter, and invokes no state-change callback.
 Normal startup constructs a fresh Idle FSM; this rule describes the
@@ -176,18 +176,32 @@ these later states.
 
 ### Optional events ze implements
 
-RFC 4271 Section 8.1.2 and Section 8.1.5 mark these three optional. Ze
+RFC 4271 Section 8.1.2 and Section 8.1.5 mark these four optional. Ze
 implements them because the ConnectRetryCounter below cannot be correct
 without them: each carries a counter clause that differs from the mandatory
 event it would otherwise be folded into.
 
+Every reconnect cycle after the operator's first start is automatic, and the
+reconnect loop chooses between Event 3 and Event 6 from one fact: whether the
+cycle that just ended reached Established. The FSM state callback in
+`runOnce` sets `Peer.cycleReachedEstablished` beside `PeerStateEstablished`,
+and the next `runOnce` swaps it back to false before its start event, whatever
+error ended the previous cycle. That is Ze's DampPeerOscillations attribute:
+FALSE after a session that ran (RFC 4271 Section 8.1.2 says of Event 3 "If the
+DampPeerOscillations is supported, it SHOULD be set to FALSE when this event
+occurs"), TRUE after a failed attempt, when the reconnect loop's exponential
+backoff is the damping. No config leaf sets it, because the answer is a fact
+about the last cycle and not a preference.
+
 | Event | Ze producer | Why it is not the mandatory event beside it |
 |-------|-------------|---------------------------------------------|
-| Event 6, `AutomaticStart_with_DampPeerOscillations` | `Session.startDamped`, from every reconnect cycle after the first | Event 1 (ManualStart) sets the ConnectRetryCounter to zero. Ze fires a start event per cycle because each cycle builds a new FSM, so Event 1 there would zero the counter on every retry |
+| Event 3, `AutomaticStart` | `Session.startAutomatic`, from a reconnect cycle whose previous cycle reached Established | Event 3 runs Event 1's Idle action list, so it sets the ConnectRetryCounter to zero too: a session that reached Established ended the run of failures the counter recorded. It differs from Event 1 in who started it, which is the system |
+| Event 6, `AutomaticStart_with_DampPeerOscillations` | `Session.startDamped`, from a reconnect cycle whose previous cycle never reached Established | Event 1 (ManualStart) sets the ConnectRetryCounter to zero. Ze fires a start event per cycle because each cycle builds a new FSM, so Event 1 there would zero the counter on every retry |
 | Event 8, `AutomaticStop` | `Session.teardownAutomatic`, from a BFD session going down and from a forward-pool out-of-resources drop | Event 2 (ManualStop) zeroes the counter; Event 8 increments it. The operator did not ask for this stop |
 | Event 23, `OpenCollisionDump` | `Session.CloseWithNotification`, whose only caller is RFC 4271 Section 6.8 collision resolution | Same difference as Event 8: a connection lost to a collision is an attempt that failed |
 
-<!-- source: internal/component/bgp/fsm/state.go -- EventAutomaticStartWithDampPeerOscillations, EventAutomaticStop, EventOpenCollisionDump -->
+<!-- source: internal/component/bgp/fsm/state.go -- EventAutomaticStart, EventAutomaticStartWithDampPeerOscillations, EventAutomaticStop, EventOpenCollisionDump -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- runOnce -->
 <!-- source: internal/component/bgp/reactor/session_connection.go -- teardownAutomatic, CloseWithNotification -->
 
 ### The six BFD strict-mode events
@@ -275,7 +289,7 @@ facts; their OPEN is processed by the next Session, not the sealed loser.
 
 | Direction | Events | Note |
 |-----------|--------|------|
-| set to zero | Event 1 (ManualStart) in Idle; Event 2 (ManualStop) in every other state | Only the operator ends a retry history |
+| set to zero | Event 1 (ManualStart) and Event 3 (AutomaticStart) in Idle; Event 2 (ManualStop) in every other state | The operator ends a retry history, and so does a session that reached Established, through the Event 3 that starts the cycle after it |
 | increment by 1 | Events 8, 10, 18, 21, 22, 23, 24, 25, 28, and each state's "any other event" arm | Which events apply is per state, not global |
 | unchanged | Event 6 (damped restart), Events 26 and 27 (KEEPALIVE, UPDATE), Event 19 in OpenSent, Event 11, and every event in Idle | The success path and the ignores |
 
