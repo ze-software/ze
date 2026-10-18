@@ -194,13 +194,15 @@
       "verdict": "enforced"
     },
     "RFC4301-4.4.1-3": {
-      "code": {
-        "internal/component/ike/engine/unmatched.go::installUnmatched": "5d0e47124bc0eddf",
-        "internal/component/ike/ipsec/config.go::parseUnmatched": "ce574002482b65f2"
-      },
-      "note": "Re-judged 2026-09-30 after installUnmatched gained an error return (R29-a). Unchanged finding: disclosed deviation (R27, owner gate pending), with the default configuration the final SPD entry is a BYPASS, not the discard the SHOULD asks for. parseUnmatched returns SPActionBypass for an absent `unmatched` leaf and installUnmatched installs it at PriorityUnmatched in 3 directions x 2 families. The gap unit TestRFC4301DefaultFinalSPDEntryDiscards (rfcgap.Demonstrate) runs config -> ParseIPsecConfig -> installUnmatched (finalEntriesFor now fails on an install error) and asserts every final entry discards; it fails today, so the gap is demonstrated. `unmatched discard` installs the final discard, and since R29-a a discard that cannot be installed fails the apply or is refused at verify. Row, Support remaining and docs/guide/ipsec.md disclose it. Not counted conformant.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 79aaa4fe34). RFC 4301 Section 4.4.1 read: 'Every SPD SHOULD have a nominal, final entry that matches anything that is otherwise unmatched, and discards it.' The CODE now complies on XFRM: ze-ipsec-conf.yang `default discard`, parseUnmatched returns SPActionDiscard for an absent leaf, installUnmatched installs a wildcard any-proto any-port entry at dataplane.PriorityUnmatched in in/out/fwd for both families, and the kernel blocks an unmatched clear datagram on it (untagged TestRFC4301InboundClearPacketMatchingNoEntryFollowsTheUnmatchedLeaf, run here in a user netns: PASS). The ONE tag is positive: TestRFC4301DefaultFinalSPDEntryDiscards (absent leaf -> ParseIPsecConfig -> installUnmatched over a fake dataplane; asserts 6 entries, final priority, discard action). It discriminates its deciding logic: overlay mutant parseUnmatched absent->SPActionBypass turned it red (the recorded discrimination is only a panic-the-producer break). Not enforced because: (1) no negative polarity and no {single-polarity} annotation, and `./le rfc check` refuses `enforced` on one polarity; (2) the tagged unit does not assert the 'matches anything' clause (wildcard selector, proto/port any) -- that is in the untagged sibling TestRFC4301UnmatchedDiscardIsTheLastEntryOfEveryDatabase; (3) it runs over a fake dataplane, the kernel half is in an untagged linux test that drives an explicit discard, not the absent leaf. Upgrade path: tag a negative (an otherwise unmatched clear packet is NOT delivered with the leaf absent, on XFRM) or annotate {single-polarity}.",
       "requirement_sha": "79a186b4ae7a6067",
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/component/ike/engine/rfc4301_final_entry_test.go::TestRFC4301DefaultFinalSPDEntryDiscards": "91ab29cc911d04e4"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc4301_final_entry_test.go::TestRFC4301DefaultFinalSPDEntryDiscards": "ebeb0a006a8c74e6"
+      },
+      "verdict": "weak"
     },
     "RFC4301-4.4.1-4": {
       "note": "TestSpdOperatorOrdersOverlappingPeers asserts the operator's priority reaches every entry in both directions and orders overlapping peers; negatives refuse an unstated order reaching the SPD as 0 and ranks that capture IKE (engine and ipsec). The mistagged mirroring unit (TestSPDPolicyMirrorsTheInboundSelector) moved to RFC4301-4.4.1-11/12.",
@@ -595,10 +597,10 @@
       "code": {
         "internal/component/ike/dataplane/vpp_policy.go::vppPolicyInterface": "00554018ad645f31",
         "internal/component/ike/engine/unmatched.go::installUnmatched": "5d0e47124bc0eddf",
-        "internal/component/ike/engine/unmatched.go::verifyUnmatchedEnforceable": "0fe4879c61edab47",
-        "internal/component/ike/ipsec/config.go::parseUnmatched": "ce574002482b65f2"
+        "internal/component/ike/engine/unmatched.go::verifyUnmatchedEnforceable": "e7106c06f5569ab5",
+        "internal/component/ike/ipsec/config.go::parseUnmatched": "e972e90aca38faa4"
       },
-      "note": "Re-judged 2026-09-30 on the R29-a fail-closed code (RULINGS R28). RFC 4301 Section 4.4.1 text read: 'if a packet that is looked up in the SPD-I cannot be matched to an entry there, then the packet MUST be discarded.' Where installUnmatched has installed the catch-all at PriorityUnmatched every inbound packet meets an SPD-I entry, but paths with NO entry remain and were each verified at the producer: (a) VPP: vppPolicyInterface refuses IfIndex 0 with ErrNotSupported, vppBackend.CatchAllSupported refuses, and installUnmatched under the default bypass logs and returns nil, so no catch-all and the config is accepted; (b) before the first apply (applyConfig is the only caller) and after exit (register.go removeUnmatched when unmatchedApplied); (c) a bypass install failure is logged (Warn) and an XFRM-unsupported error returns nil. `unmatched discard` is refused at verify on (a) and fails the apply on an install error (untagged TestUnmatchedDiscardRefusedAtVerifyWhereItCannotBeEnforced, TestUnmatchedDiscardInstallFailureFailsTheApply, judge ran both: PASS). Under the default bypass the catch-all delivers the packet (the R27 deviation). Row {gap} and Support remaining name all three paths. Not counted conformant.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 79aaa4fe34). RFC 4301 Section 4.4.1 read: 'Since the SPD-I is just a part of the SPD, if a packet that is looked up in the SPD-I cannot be matched to an entry there, then the packet MUST be discarded.' With the default now discard, the installed-catch-all path conforms on XFRM (every inbound packet meets the PriorityUnmatched entry, and the kernel blocks it: untagged TestRFC4301InboundClearPacketMatchingNoEntryFollowsTheUnmatchedLeaf PASS in a user netns). Under a written `unmatched bypass` the packet matches a bypass entry, so this sentence is not engaged. The {gap} stays truthful, re-verified at the producers: (a) VPP: vppPolicyInterface refuses IfIndex 0, so verifyUnmatchedEnforceable refuses the default discard at commit and installUnmatched fails the startup apply; only `unmatched bypass` runs there, and installUnmatched then installs nothing (logged), leaving no SPD-I entry; (b) before the first applyConfig and after removeUnmatched at engine exit no catch-all exists; (c) a bypass install failure or a platform without XFRM is logged and tolerated (under bypass only; under the default discard both fail the apply). Reader note: the annotation's '(c) ... a platform without XFRM, is logged and tolerated' holds only under `unmatched bypass` and could say so. Not counted conformant.",
       "requirement_sha": "627457a03bb75173",
       "verdict": "unimplemented"
     },
@@ -679,10 +681,10 @@
       "code": {
         "internal/component/ike/dataplane/vpp_policy.go::vppPolicyInterface": "00554018ad645f31",
         "internal/component/ike/engine/unmatched.go::installUnmatched": "5d0e47124bc0eddf",
-        "internal/component/ike/engine/unmatched.go::verifyUnmatchedEnforceable": "0fe4879c61edab47",
-        "internal/component/ike/ipsec/config.go::parseUnmatched": "ce574002482b65f2"
+        "internal/component/ike/engine/unmatched.go::verifyUnmatchedEnforceable": "e7106c06f5569ab5",
+        "internal/component/ike/ipsec/config.go::parseUnmatched": "e972e90aca38faa4"
       },
-      "note": "Re-judged 2026-09-30 on the R29-a fail-closed code (RULINGS R28). Step 3b 'If there is no match, discard the traffic.' Same producer walk as RFC4301-5.2-1: the no-entry paths (VPP with no node-wide SPD under the default bypass, before first apply and after exit, a tolerated bypass install failure or no XFRM) each leave an unmatched inbound packet delivered, and with the catch-all installed the default bypass delivers it too (R27 deviation). `unmatched discard` gives the RFC behaviour where enforceable and is refused or fails the apply where not (verifyUnmatchedEnforceable, installUnmatched). Row {gap} names the paths. Not counted conformant.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 79aaa4fe34). RFC 4301 Section 5.2 step 3b read: '(No SAs are created in response to receipt of a packet that requires IPsec protection; only BYPASS or DISCARD cache entries can be created this way.) If there is no match, discard the traffic.' Same producer walk as RFC4301-5.2-1: with the catch-all installed (default discard after 79aaa4fe34) an inbound clear packet no operator entry names is blocked by the kernel (untagged TestRFC4301InboundClearPacketMatchingNoEntryFollowsTheUnmatchedLeaf, PASS here), but the no-entry paths remain: VPP (runs only under `unmatched bypass`, which installs nothing there), before the first apply and after engine exit (removeUnmatched), and a tolerated bypass install failure or no-XFRM platform. The {gap} annotation still describes the code. No tag carries this id, correctly. Not counted conformant.",
       "requirement_sha": "85de5f441399996b",
       "verdict": "unimplemented"
     },
