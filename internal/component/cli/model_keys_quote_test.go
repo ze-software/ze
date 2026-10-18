@@ -6,6 +6,7 @@
 package cli
 
 import (
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -100,6 +101,26 @@ func TestQuestionMarkFollowsTheCursorNotTheLine(t *testing.T) {
 			t.Errorf("input = %q, want ? outside the quote to insert nothing", asked.InputValue())
 		}
 	})
+}
+
+// TestQuestionMarkCursorIsCountedInRunes puts a two-byte rune inside a closed
+// pair of quotes and the cursor just after the closing quote. Counted in runes
+// the prefix holds both quotes, so no quote is open. Cut at the same index in
+// bytes, the prefix would stop before the closing quote and read one as open.
+//
+// VALIDATES: the cursor position, a rune index, cuts the prefix in runes.
+// PREVENTS: a multi-byte character before the cursor shifting the quote test,
+// so ? is typed after a closed value instead of opening help.
+func TestQuestionMarkCursorIsCountedInRunes(t *testing.T) {
+	m := newTestModel(t)
+	m.textInput.SetValue(`set bgp description "é" `)
+	m.textInput.SetCursor(len([]rune(`set bgp description "é"`)))
+
+	asked, _ := pressKey(t, m, tea.KeyPressMsg{Code: '?', Text: "?"})
+
+	if strings.Contains(asked.InputValue(), "?") {
+		t.Errorf("input = %q, want ? after the closing quote to insert nothing", asked.InputValue())
+	}
 }
 
 // TestQuestionMarkOutsideQuotesStillRevealsHelp is the control for the tests

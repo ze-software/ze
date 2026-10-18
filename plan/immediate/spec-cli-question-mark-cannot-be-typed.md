@@ -104,7 +104,7 @@ quote still reveals help.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Double quote is the only quoting character and has no escape | `tokenizeCommand` comment and body | a `\"` or `'` case would need its own rule | reading `tokenizeCommand`, `handleQuoteChar` | confirmed |
-| A-2 | Bracketed paste does not pass through `handleKeyMsg` | `Model.Update` has no `tea.PasteMsg` arm and forwards to `textInput.Update` | a pasted `?` would be swallowed | `TestPastedQuestionMarkReachesTheInput` | unvalidated |
+| A-2 | Bracketed paste does not pass through `handleKeyMsg` | `Model.Update` has no `tea.PasteMsg` arm and forwards to `textInput.Update` | a pasted `?` would be swallowed | `TestPastedQuestionMarkReachesTheInput` | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -123,7 +123,7 @@ quote still reveals help.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| typed `?` key press | → | `handleKeyMsg` `?` arm, `quoteOpen` | `TestQuestionMarkInsideQuotesIsTyped` |
+| typed `?` key press | → | `handleKeyMsg` `?` arm, `quoteOpen` | `TestQuestionMarkInsideQuotesIsTyped`, `test/editor/completion/question-mark-inside-quotes.et` |
 
 ## Acceptance Criteria
 
@@ -151,6 +151,7 @@ quote still reveals help.
 | `TestQuestionMarkFollowsTheCursorNotTheLine` | same | AC-3, AC-4 | |
 | `TestQuestionMarkOutsideQuotesStillRevealsHelp` | same | AC-4 control | |
 | `TestPastedQuestionMarkReachesTheInput` | same | AC-5 | |
+| `TestQuestionMarkCursorIsCountedInRunes` | same | Critical Review "cursor is a rune index" | added at closure |
 
 ### Boundary Tests (numeric inputs)
 N-A: the feature takes no numeric input.
@@ -158,7 +159,8 @@ N-A: the feature takes no numeric input.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| model tests above | `internal/component/cli/` | the model tests drive `handleKeyMsg`, the function a terminal key press reaches; the `.ci` harness sends whole command lines rather than key presses, so it cannot observe this arm | |
+| model tests above | `internal/component/cli/` | the model tests drive `handleKeyMsg`, the function a terminal key press reaches | |
+| `question-mark-inside-quotes.et` | `test/editor/completion/` | the `.ci` harness sends whole command lines, but the `.et` editor harness sends one `tea.KeyPressMsg` per rune (`Input.toTypeMessages` in `internal/component/cli/testing/input.go`) through `Model.Update`, so it reaches the `?` arm: the operator types the quoted URL key by key, commits it with Enter, and reads it back from the working config; the control types `?` outside a quote | added at closure |
 
 ### Interop Tests (Scope: protocol)
 N-A: Scope is cli, no wire behavior.
@@ -170,6 +172,7 @@ N-A: Scope is cli, no wire behavior.
 
 ## Files to Create
 - `internal/component/cli/model_keys_quote_test.go` - model tests
+- `test/editor/completion/question-mark-inside-quotes.et` - key-press functional test (added at closure)
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -296,3 +299,139 @@ N-A: Scope is cli, no wire behavior.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- `quoteOpen` (`internal/component/cli/model_commands.go`) reports an open double quote at the end of a prefix under the tokenizer's rule (every `"` toggles, no escape)
+- `Model.cursorInQuote` (`internal/component/cli/model_keys.go`) cuts the input at the cursor, in runes, and asks `quoteOpen`
+- The `?` arm of `Model.handleKeyMsg` (`internal/component/cli/model_keys.go`) is guarded by `!m.cursorInQuote()`, so inside a quote the key reaches the generic text arm and `textInput.Update` inserts it
+- Implementation commit `b5d6305b93`; closure added `TestQuestionMarkCursorIsCountedInRunes` and `test/editor/completion/question-mark-inside-quotes.et`
+
+### Bugs Found/Fixed
+- The defect itself: `?` could not be typed inside a quoted value. Covered by `TestQuestionMarkInsideQuotesIsTyped` and `question-mark-inside-quotes.et`
+
+### Documentation Updates
+- `docs/guide/cli.md` "Keys that reveal help": new row for `?` inside a double-quoted value; source anchor gains `cursorInQuote` (commit `b5d6305b93`)
+- `docs/architecture/cli/command-completion.md`: the "does not reach the input" sentence corrected, anchors `handleKeyMsg, cursorInQuote` and `quoteOpen, tokenizeCommand` (commit `b5d6305b93`)
+- `./le doc check verify` is red on this tree for reasons outside these pages: `clear bgp rib in/out` command-surface arguments and missing `../gh-pages/reference/command-equivalents/*` pages. No finding names a file this spec changed
+
+### Deviations from Plan
+- The spec said no functional test could reach the key arm because the `.ci` harness sends whole lines. The `.et` editor harness sends one key press per rune, so closure added `question-mark-inside-quotes.et`
+- Added `TestQuestionMarkCursorIsCountedInRunes` for the Critical Review check "the prefix is cut in runes, not bytes", which no planned test discriminated
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The spec stated no functional test could reach the `?` arm | `.et` tests under `test/editor/` deliver typed text as one `tea.KeyPressMsg` per rune (`Input.toTypeMessages`) | closure review read `internal/component/cli/testing/input.go` | `.et` test added; Functional Tests row corrected |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `?` inserts itself inside an open quoted value | Done | `Model.handleKeyMsg`, `Model.cursorInQuote`, `quoteOpen` | |
+| `?` keeps its help meaning elsewhere | Done | `Model.handleKeyMsg`, `?` arm body unchanged | |
+| Inside-a-quote follows the tokenizer rule | Done | `quoteOpen` applies `tokenizeCommand`'s `isQuote` toggle | |
+| No escape for an unquoted `?` | Done | Key Design Decisions | quoting is the escape |
+| Model test with a quoted URL; help test outside a quote | Done | `model_keys_quote_test.go` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestQuestionMarkInsideQuotesIsTyped`, `question-mark-inside-quotes.et` steps 1-6 | |
+| AC-2 | Done | `TestQuestionMarkInsideAnUnterminatedQuoteIsTyped` | |
+| AC-3 | Done | `TestQuestionMarkFollowsTheCursorNotTheLine/between_the_quotes` | |
+| AC-4 | Done | `.../before_an_opening_quote`, `TestQuestionMarkOutsideQuotesStillRevealsHelp`, `.et` steps 7-9 | |
+| AC-5 | Done | `TestPastedQuestionMarkReachesTheInput` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestQuestionMarkInsideQuotesIsTyped` | Done | `internal/component/cli/model_keys_quote_test.go` | |
+| `TestQuestionMarkInsideAnUnterminatedQuoteIsTyped` | Done | same | |
+| `TestQuestionMarkFollowsTheCursorNotTheLine` | Done | same | |
+| `TestQuestionMarkOutsideQuotesStillRevealsHelp` | Done | same | |
+| `TestPastedQuestionMarkReachesTheInput` | Done | same | |
+| `TestQuestionMarkCursorIsCountedInRunes` | Done | same | added at closure |
+| `question-mark-inside-quotes.et` | Done | `test/editor/completion/` | added at closure |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/cli/model_keys.go` | Done | |
+| `internal/component/cli/model_commands.go` | Done | |
+| `docs/guide/cli.md` | Done | |
+| `docs/architecture/cli/command-completion.md` | Done | |
+| `internal/component/cli/model_keys_quote_test.go` | Done | |
+| `test/editor/completion/question-mark-inside-quotes.et` | Done | added at closure |
+
+### Audit Summary
+- **Total items:** 23
+- **Done:** 23
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2, the closure tests (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An operator can type a quoted value carrying `?` | functional `.et` over the real key path | `question-mark-inside-quotes.et`: typed key by key, Enter, `content:contains=https://example.net/a?b=1&c=?` passes. With the guard defeated (the `?` arm always taken) step 2 went red, input `"https://example.net/ab=1&c="`; restored, green. Full editor suite 179/179 |
+| `?` keeps its help meaning outside a quote | functional `.et` + model tests | `.et` steps 7-9 (`?` not typed, completion offers `description`); `TestQuestionMarkOutsideQuotesStillRevealsHelp` |
+| The cursor's context decides, counted in runes | unit | `TestQuestionMarkCursorIsCountedInRunes` red under a byte cut (`"set bgp description \"é\"? "`), green restored |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC and Task goal is done | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/cli-question-mark-cannot-be-typed-20123ea5-a7dd-4d5e-aa9c-d2846361ee33.md` |
+| `./le spec review check` | clean: `review_gate: OK (4 code files, clean, hashes match ...)` |
+| Rounds | 2: round 1 found the two ISSUEs below, round 2 over the added tests found 0 BLOCKER, 0 ISSUE |
+| Reviewer lenses used | wiring + functional coverage, logic and edge cases (quote rule, cursor runes, paste route), security, style pass (`ze-go-style.md`: no panic, no discarded error, comments are sentences), docs drift |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | No functional test over the key path, though the `.et` harness reaches it | `test/editor/` | `question-mark-inside-quotes.et` (red/green recorded) |
+| 2 | ISSUE | No test discriminated the rune cut the Critical Review requires | `model_keys_quote_test.go` | `TestQuestionMarkCursorIsCountedInRunes` (red/green recorded) |
+
+### Notes
+- NOTE: `quoteOpen` restates the toggle `tokenizeCommand` applies rather than sharing code with it; its comment names the source, and the `.et` Enter step proves the tokenizer reads the typed line with the quoted value as one token.
+- NOTE: an unbracketed paste (a terminal without bracketed paste) arrives as key presses, so an unquoted pasted `?` is help there; the architecture page says "bracketed paste", which is accurate.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/cli/model_keys_quote_test.go` | yes | `git show --stat b5d6305b93` lists it |
+| `test/editor/completion/question-mark-inside-quotes.et` | yes | editor run id 48 PASS |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-5 | model tests green | `go test -race -run 'QuestionMark|Paste' ./internal/component/cli/`: ok 2.705s |
+| AC-1, AC-4 | key path end to end | `./le --name qmclose test editor -v -p question-mark-inside-quotes`: pass 1/1, steps 1-9 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| typed `?` key press | `test/editor/completion/question-mark-inside-quotes.et` | read: `input=type:text=` sends one `KeyPressMsg` per rune through `Model.Update` to `handleKeyMsg` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `tokenizeCommand` toggles only on `c == '"'`; no escape branch |
+| A-2 | confirmed | `Model.Update` (`model.go`) has no `tea.PasteMsg` arm and ends in `m.textInput.Update(msg)`; vendored `textinput.Model.Update` handles `tea.PasteMsg` with `insertRunesFromUserInput`; no `WithoutBracketedPaste` in the tree; `TestPastedQuestionMarkReachesTheInput` green |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/guide/cli.md` `?` inside a quoted value row | `handleKeyMsg` arm guard, `cursorInQuote` | yes |
+| `docs/architecture/cli/command-completion.md` `?` paragraph | `cursorInQuote`, `quoteOpen`, `Model.Update` paste route | yes |
+| `docs/guide/config-editor.md` `?` on a highlighted key | still true outside a quote | yes |

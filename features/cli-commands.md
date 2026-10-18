@@ -14,7 +14,7 @@
 | Real-path tests | test/ui/cli-verb-daemon-dispatch.ci, test/ui/send-old-paths-are-refused.ci, test/ui/help-parent-node.ci |
 | Docs | docs/features/cli-commands.md |
 | Doc review | 2026-10-10: ssh.go intercepts stop, restart and reboot (commandReboot) in the exec middleware as the row says |
-| Defect review | 2026-10-07: open: the three Scope gaps specs plus plan/immediate/spec-cli-question-mark-cannot-be-typed.md |
+| Defect review | 2026-10-07: open: the three Scope gaps specs; spec-cli-question-mark-cannot-be-typed closed on 2026-10-18 |
 | Extra criteria | supported: a gate that every declared command path has a handler = none yet |
 
 ## Description

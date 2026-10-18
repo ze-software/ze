@@ -1,0 +1,48 @@
+# Test: a ? typed inside a double-quoted value is a character of the value
+# VALIDATES: spec-cli-question-mark-cannot-be-typed AC-1 -- every key of a quoted
+#            URL with a query string reaches the input, no explanation is revealed,
+#            and the committed value carries both ?
+# VALIDATES: AC-4 -- outside a quote, ? still completes as Tab does and inserts
+#            nothing
+# PREVENTS: the ? key arm swallowing a ? the operator types inside a quoted value
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  peer peer1 {
+  	connection {
+  		remote {
+  			ip 1.1.1.1
+  		}
+  	}
+  	session {
+  		asn {
+  			remote 65001
+  		}
+  	}
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Each rune is one key press through the key handler, ? included.
+input=type:text=set bgp peer peer1 description "https://example.net/a?b=1&c=?"
+expect=input:value=set bgp peer peer1 description "https://example.net/a?b=1&c=?"
+expect=explanation:empty
+
+input=enter
+expect=error:none
+expect=content:contains=https://example.net/a?b=1&c=?
+
+# Control: no quote on the line, so ? is help: it offers the completion and is
+# not typed.
+input=type:text=set bgp peer peer1 descriptio?
+expect=input:value=set bgp peer peer1 descriptio
+expect=completion:contains=description
