@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
+
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
 // flagsReserved masks bits 1 to 15 of the flags field. Bit 0, the most
@@ -33,7 +35,7 @@ func TestRFC2131ClientSetsReservedFlagsBitsToZero(t *testing.T) {
 	zeSide, peerConn := sfSetupLab(t)
 
 	bus := &recordingBus{}
-	client, err := newDHCPClient(zeSide, "0", bus, true, false, dHCPConfig{})
+	client, err := newDHCPClient(zeSide, "0", bus, true, false, dHCPConfig{}, clock.RealClock{})
 	if err != nil {
 		t.Fatalf("newDHCPClient(%s): %v", zeSide, err)
 	}
@@ -86,14 +88,14 @@ const renewalReadsMax = 5
 // through acquisition and into its T1 renewal over a veth pair. Method: the
 // OFFER is clean, the ACK that binds the lease sets every flags bit and grants
 // a two-second lease, and the renewing REQUEST ze builds from that ACK is read.
-// The renewal is the second producer path: renewV4 passes clearReservedFlags
-// to client.Renew, and dropping that argument sends the ACK's reserved bits
-// back.
+// The renewal is the second producer path: v4ExtendRequest applies
+// v4RequestModifiers, whose clearReservedFlags runs after NewRenewFromAck
+// copies the ACK's flags, and dropping it sends the ACK's reserved bits back.
 func TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero(t *testing.T) {
 	zeSide, peerConn := sfSetupLab(t)
 
 	bus := &recordingBus{}
-	client, err := newDHCPClient(zeSide, "0", bus, true, false, dHCPConfig{})
+	client, err := newDHCPClient(zeSide, "0", bus, true, false, dHCPConfig{}, clock.RealClock{})
 	if err != nil {
 		t.Fatalf("newDHCPClient(%s): %v", zeSide, err)
 	}

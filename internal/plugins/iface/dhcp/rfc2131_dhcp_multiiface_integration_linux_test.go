@@ -19,6 +19,8 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/mdlayher/packet"
 	"github.com/vishvananda/netlink"
+
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
 // TestRFC2131ClientRunsDHCPOnEachInterfaceIndependently drives two real clients
@@ -38,7 +40,7 @@ func TestRFC2131ClientRunsDHCPOnEachInterfaceIndependently(t *testing.T) {
 
 	for i := range labs {
 		labs[i].zeSide, labs[i].peer = sfSetupLab(t)
-		client, err := newDHCPClient(labs[i].zeSide, "0", &recordingBus{}, true, false, dHCPConfig{})
+		client, err := newDHCPClient(labs[i].zeSide, "0", &recordingBus{}, true, false, dHCPConfig{}, clock.RealClock{})
 		if err != nil {
 			t.Fatalf("newDHCPClient(%s): %v", labs[i].zeSide, err)
 		}

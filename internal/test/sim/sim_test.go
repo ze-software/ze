@@ -356,3 +356,48 @@ func TestFakeListenerFactoryDelegates(t *testing.T) {
 		t.Error("ListenFunc was not called")
 	}
 }
+
+// TestFakeClockAwaitTimers verifies the AfterFunc fence and the next-deadline
+// query a test uses to step a goroutine parked on the fake clock.
+//
+// VALIDATES: AwaitTimers wakes when another goroutine arms a timer, counts
+// only armed timers (a fired or stopped one no longer counts), times out when
+// none arrives, and NextTimer reports the earliest armed deadline.
+// PREVENTS: a test advancing the clock before the worker armed its timer.
+func TestFakeClockAwaitTimers(t *testing.T) {
+	start := time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC)
+	c := NewFakeClock(start)
+
+	if c.AwaitTimers(1, 20*time.Millisecond) {
+		t.Fatal("AwaitTimers(1) answered true with no timer armed")
+	}
+	if _, ok := c.NextTimer(); ok {
+		t.Fatal("NextTimer answered a deadline with no timer armed")
+	}
+
+	armed := make(chan struct{})
+	go armLater(c, armed)
+	if !c.AwaitTimers(2, 5*time.Second) {
+		t.Fatal("AwaitTimers(2) did not wake when two timers were armed")
+	}
+	<-armed
+	next, ok := c.NextTimer()
+	if !ok || !next.Equal(start.Add(3*time.Second)) {
+		t.Fatalf("NextTimer = %v, %v; want %v, true", next, ok, start.Add(3*time.Second))
+	}
+
+	c.Set(next)
+	if c.AwaitTimers(2, 20*time.Millisecond) {
+		t.Fatal("AwaitTimers(2) counted a fired timer")
+	}
+	if !c.AwaitTimers(1, time.Second) {
+		t.Fatal("AwaitTimers(1) lost the timer still armed")
+	}
+}
+
+// armLater arms two AfterFunc timers, 7 s and 3 s out, then closes done.
+func armLater(c *FakeClock, done chan<- struct{}) {
+	c.AfterFunc(7*time.Second, func() {})
+	c.AfterFunc(3*time.Second, func() {})
+	close(done)
+}

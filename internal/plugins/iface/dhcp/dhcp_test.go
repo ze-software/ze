@@ -3,15 +3,19 @@
 package ifacedhcp
 
 import (
+	"net"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/clock"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
+	"github.com/ze-software/ze/internal/test/sim"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -181,7 +185,7 @@ func TestNewDHCPClientValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			client, err := newDHCPClient(tt.ifaceName, tt.unit, tt.eventBus, tt.v4, tt.v6, dHCPConfig{})
+			client, err := newDHCPClient(tt.ifaceName, tt.unit, tt.eventBus, tt.v4, tt.v6, dHCPConfig{}, clock.RealClock{})
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				assert.NotNil(t, client)
@@ -204,7 +208,7 @@ func TestV4RequestModifiersHostname(t *testing.T) {
 	client, err := newDHCPClient("eth0", "default", bus, true, false, dHCPConfig{
 		Hostname: "ze-router",
 		ClientID: "ze:01",
-	})
+	}, clock.RealClock{})
 	require.NoError(t, err)
 
 	msg, err := dhcpv4.New(client.v4RequestModifiers()...)
@@ -222,7 +226,7 @@ func TestV4RequestModifiersEmpty(t *testing.T) {
 	// a server's OFFER or ACK into the message the client sends.
 
 	bus := stubEventBus{}
-	client, err := newDHCPClient("eth0", "default", bus, true, false, dHCPConfig{})
+	client, err := newDHCPClient("eth0", "default", bus, true, false, dHCPConfig{}, clock.RealClock{})
 	require.NoError(t, err)
 
 	msg, err := dhcpv4.New(dhcpv4.PrependModifiers(client.v4RequestModifiers(), func(d *dhcpv4.DHCPv4) { d.Flags = 0xffff })...)
@@ -240,7 +244,7 @@ func TestSleepOrStopWithClosedChannel(t *testing.T) {
 	// PREVENTS: goroutine hangs when Stop() races with retry backoff.
 
 	bus := stubEventBus{}
-	client, err := newDHCPClient("eth0", "default", bus, true, false, dHCPConfig{})
+	client, err := newDHCPClient("eth0", "default", bus, true, false, dHCPConfig{}, clock.RealClock{})
 	require.NoError(t, err)
 
 	// Close the stop channel directly to simulate a stopped client.
@@ -249,4 +253,79 @@ func TestSleepOrStopWithClosedChannel(t *testing.T) {
 	// Should return false (stopped) almost immediately, not wait a full second.
 	got := client.sleepOrStop(5 * 1e9) // 5 seconds -- would timeout the test if it blocks
 	assert.False(t, got, "sleepOrStop should return false when stop channel is closed")
+}
+
+// TestSleepOrStopOnInjectedClock drives sleepOrStop from a fake clock.
+//
+// VALIDATES: A-7 -- the wait is an AfterFunc on the client's clock, so
+// advancing the fake clock to the deadline wakes it (true), and Stop during a
+// wait answers false.
+// PREVENTS: a lease wait on the real clock, which no test can step.
+func TestSleepOrStopOnInjectedClock(t *testing.T) {
+	t.Parallel()
+	clk := sim.NewFakeClock(time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC))
+	client, err := newDHCPClient("eth0", "default", stubEventBus{}, true, false, dHCPConfig{}, clk)
+	require.NoError(t, err)
+
+	woke := make(chan bool, 1)
+	go sleepInto(client, time.Minute, woke)
+	require.True(t, clk.AwaitTimers(1, 5*time.Second), "sleepOrStop armed no timer on the clock")
+	clk.Add(59 * time.Second)
+	select {
+	case <-woke:
+		t.Fatal("sleepOrStop woke before its deadline")
+	default: // still waiting, as it should
+	}
+	clk.Add(time.Second)
+	assert.True(t, <-woke, "sleepOrStop did not wake at its deadline")
+
+	go sleepInto(client, time.Minute, woke)
+	require.True(t, clk.AwaitTimers(1, 5*time.Second), "sleepOrStop armed no timer on the clock")
+	client.Stop()
+	assert.False(t, <-woke, "sleepOrStop answered true after Stop")
+}
+
+// sleepInto runs sleepOrStop and delivers its answer.
+func sleepInto(client *DHCPClient, d time.Duration, out chan<- bool) {
+	out <- client.sleepOrStop(d)
+}
+
+// TestV4RenewalCarriesClientIdentity builds the extending DHCPREQUEST from an
+// ACK with a client configured with a hostname and a client-id.
+//
+// VALIDATES: AC-20 -- every RENEW and REBIND carries the same option 61 and
+// option 12 bytes as the acquisition modifiers put in the DORA REQUEST; and
+// the message shape AC-10/AC-12 require: ciaddr the leased address, no option
+// 54, no option 50, no reserved flags bit.
+// PREVENTS: defect 9, the client identity dropped on renewal.
+func TestV4RenewalCarriesClientIdentity(t *testing.T) {
+	t.Parallel()
+	client, err := newDHCPClient("eth0", "default", stubEventBus{}, true, false, dHCPConfig{
+		Hostname: "ze-router",
+		ClientID: "ze:01",
+	}, clock.RealClock{})
+	require.NoError(t, err)
+
+	acquisition, err := dhcpv4.New(client.v4RequestModifiers()...)
+	require.NoError(t, err)
+
+	leased := net.IP{192, 0, 2, 50}
+	ack, err := dhcpv4.New(
+		dhcpv4.WithMessageType(dhcpv4.MessageTypeAck),
+		dhcpv4.WithYourIP(leased),
+		dhcpv4.WithOption(dhcpv4.OptServerIdentifier(net.IP{192, 0, 2, 1})),
+		dhcpv4.WithOption(dhcpv4.OptIPAddressLeaseTime(time.Hour)),
+	)
+	require.NoError(t, err)
+	ack.Flags = 0xffff
+
+	renewal, err := client.v4ExtendRequest(ack)
+	require.NoError(t, err)
+	assert.Equal(t, acquisition.Options.Get(dhcpv4.OptionClientIdentifier), renewal.Options.Get(dhcpv4.OptionClientIdentifier), "option 61")
+	assert.Equal(t, acquisition.Options.Get(dhcpv4.OptionHostName), renewal.Options.Get(dhcpv4.OptionHostName), "option 12")
+	assert.NotEmpty(t, renewal.Options.Get(dhcpv4.OptionClientIdentifier), "option 61 present")
+	assert.True(t, renewal.ClientIPAddr.Equal(leased), "ciaddr is the leased address")
+	assert.False(t, renewal.Options.Has(dhcpv4.OptionServerIdentifier), "no option 54")
+	assert.False(t, renewal.Options.Has(dhcpv4.OptionRequestedIPAddress), "no option 50")
+	assert.Equal(t, uint16(0), renewal.Flags&^uint16(flagsBroadcast), "reserved flags bits")
 }

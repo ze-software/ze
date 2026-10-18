@@ -24,6 +24,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
 func TestDHCPv4LeaseLifetimeAndOwnership(t *testing.T) {
@@ -48,7 +49,7 @@ func TestDHCPv4LeaseLifetimeAndOwnership(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			zeSide, peerConn := sfSetupLab(t)
-			client, err := newDHCPClient(zeSide, "0", &recordingBus{}, true, false, dHCPConfig{})
+			client, err := newDHCPClient(zeSide, "0", &recordingBus{}, true, false, dHCPConfig{}, clock.RealClock{})
 			if err != nil {
 				t.Fatalf("newDHCPClient(%s): %v", zeSide, err)
 			}

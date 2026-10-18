@@ -9,6 +9,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
@@ -54,7 +55,7 @@ func newDHCPClientFromFactory(ifaceName, unit string, eb ze.EventBus, v4, v6 boo
 		HasStaticNameServers: hasStaticNameServers,
 		RouteMetric:          routeMetric,
 	}
-	client, err := newDHCPClient(ifaceName, unit, eb, v4, v6, cfg)
+	client, err := newDHCPClient(ifaceName, unit, eb, v4, v6, cfg, clock.RealClock{})
 	if err != nil {
 		return nil, err
 	}

@@ -1269,9 +1269,10 @@ func handleDHCPLeaseEvent(data string, active map[dhcpUnitKey]dhcpEntry, log *sl
 	if entry, ok := active[key]; ok {
 		entry.gateway = payload.Router
 		// A lease says nothing reliable about which metrics carry a route now.
-		// (*DHCPClient).handleV4Lease (internal/plugins/iface/dhcp/dhcp_v4_linux.go)
+		// (*DHCPClient).installV4Lease (internal/plugins/iface/dhcp/dhcp_v4_linux.go)
 		// installs at the configured metric and then publishes the lease even
-		// when that install returned an error, and its install removes no route
+		// when that install returned an error (it retries the install later),
+		// and its install removes no route
 		// a link handler put at the deprioritized metric. Recording either
 		// metric here would make the next link event a no-op over a kernel that
 		// holds something else, so record that ze does not know: the next link

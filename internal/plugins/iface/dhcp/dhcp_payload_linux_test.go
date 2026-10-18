@@ -1,6 +1,6 @@
 // VALIDATES: the DHCP option-to-payload translators — v4Payload (subnet-mask ->
 // prefix length with /24 fallback, router, full ordered DNS list, NTP servers,
-// lease time), v4LeaseTime default, v6Timers (defaults vs IANA-supplied T1/T2 and
+// lease time), v4LeaseTime (absent and zero refused), v6Timers (defaults vs IANA-supplied T1/T2 and
 // address ValidLifetime), publishV6Expired (one /128 expiry event per IA_NA
 // address, 16-address cap), and publishDHCP name/unit backfill + unknown-topic
 // no-emit.
@@ -22,6 +22,7 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv6"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
 // leases decodes every payload the bus recorded into DHCPPayload values.
@@ -42,7 +43,7 @@ func (b *recordingBus) leases(t *testing.T) []iface.DHCPPayload {
 
 func newTestClient(t *testing.T, bus *recordingBus, v4, v6 bool) *DHCPClient {
 	t.Helper()
-	c, err := newDHCPClient("eth0", "0", bus, v4, v6, dHCPConfig{})
+	c, err := newDHCPClient("eth0", "0", bus, v4, v6, dHCPConfig{}, clock.RealClock{})
 	if err != nil {
 		t.Fatalf("NewDHCPClient: %v", err)
 	}
@@ -63,7 +64,7 @@ func TestV4Payload(t *testing.T) {
 	ack.UpdateOption(dhcpv4.OptNTPServers(net.ParseIP("192.0.2.123")))
 	ack.UpdateOption(dhcpv4.OptIPAddressLeaseTime(2 * time.Hour))
 
-	p := c.v4Payload(ack)
+	p := c.v4Payload(ack, 2*time.Hour)
 	if p.Name != "eth0" || p.Unit != "0" {
 		t.Errorf("identity = %q/%q, want eth0/0", p.Name, p.Unit)
 	}
@@ -100,30 +101,51 @@ func TestV4PayloadPrefixFallback(t *testing.T) {
 	ack.YourIPAddr = net.ParseIP("10.0.0.7")
 	// No subnet mask option: prefix length must fall back to /24.
 
-	p := c.v4Payload(ack)
+	p := c.v4Payload(ack, time.Hour)
 	if p.PrefixLength != 24 {
 		t.Errorf("PrefixLength = %d, want 24 fallback when mask absent", p.PrefixLength)
 	}
 }
 
-func TestV4LeaseTime(t *testing.T) {
-	c := newTestClient(t, &recordingBus{}, true, false)
-
-	withLease, err := dhcpv4.New()
-	if err != nil {
-		t.Fatalf("dhcpv4.New: %v", err)
+// TestV4AckWithoutLeaseTimeRefused replaces the old assertion that an ACK
+// without option 51 leases for an invented hour.
+//
+// VALIDATES: AC-15, AC-16 -- v4LeaseTime answers "absent" and "zero" as two
+// distinct refusals, decodes every value from 1 s to 0xfffffffe s as given,
+// decodes 0xffffffff as infinite, and never answers a lease time the ACK did
+// not carry.
+// PREVENTS: a lifetime no server granted reaching the kernel.
+func TestV4AckWithoutLeaseTimeRefused(t *testing.T) {
+	cases := []struct {
+		name    string
+		raw     []byte // option 51 bytes; nil leaves the option out
+		want    time.Duration
+		refusal *v4Refusal
+	}{
+		{name: "7200 s", raw: []byte{0, 0, 0x1c, 0x20}, want: 2 * time.Hour},
+		{name: "1 s, the shortest lease", raw: []byte{0, 0, 0, 1}, want: time.Second},
+		{name: "0xfffffffe s, the longest finite lease", raw: []byte{0xff, 0xff, 0xff, 0xfe}, want: 0xfffffffe * time.Second},
+		{name: "0xffffffff s, infinite", raw: []byte{0xff, 0xff, 0xff, 0xff}, want: v4LeaseInfinite},
+		{name: "absent", raw: nil, refusal: errV4LeaseTimeAbsent},
+		{name: "malformed, three octets", raw: []byte{0, 0, 1}, refusal: errV4LeaseTimeAbsent},
+		{name: "zero", raw: []byte{0, 0, 0, 0}, refusal: errV4LeaseTimeZero},
 	}
-	withLease.UpdateOption(dhcpv4.OptIPAddressLeaseTime(7200 * time.Second))
-	if got := c.v4LeaseTime(withLease); got != 2*time.Hour {
-		t.Errorf("v4LeaseTime(7200s) = %v, want 2h", got)
-	}
-
-	noLease, err := dhcpv4.New()
-	if err != nil {
-		t.Fatalf("dhcpv4.New: %v", err)
-	}
-	if got := c.v4LeaseTime(noLease); got != time.Hour {
-		t.Errorf("v4LeaseTime(absent) = %v, want 1h default", got)
+	for _, tc := range cases {
+		ack, err := dhcpv4.New()
+		if err != nil {
+			t.Fatalf("dhcpv4.New: %v", err)
+		}
+		if tc.raw != nil {
+			ack.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionIPAddressLeaseTime, tc.raw))
+		}
+		got, refusal := v4LeaseTime(ack)
+		if refusal != tc.refusal {
+			t.Errorf("%s: refusal = %v, want %v", tc.name, refusal, tc.refusal)
+			continue
+		}
+		if got != tc.want {
+			t.Errorf("%s: lease time = %v, want %v", tc.name, got, tc.want)
+		}
 	}
 }
 

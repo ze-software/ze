@@ -8,10 +8,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 5/6 |
 | Handoff | - |
 | Updated | 2026-10-18 |
 
@@ -171,12 +171,12 @@ registry, T1/T2 overflow fix), 0d6d873f2b (reconcile spares registered leases).
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | A UDP socket bound to leased-address:68 can send the unicast RENEW and receive the unicast ACK while no other socket owns that address and port | `nclient4.WithUnicast` uses `net.ListenUDP("udp4", srcAddr)` | RENEW cannot be unicast; Q3 goes back to the owner | `TestDHCPv4RenewIsUnicastToServer` in the veth lab | unvalidated |
-| A-2 | The veth lab can answer unicast frames if the peer side carries `sfServerIP` so the kernel resolves ARP for it | `sfSetupLab` assigns no address to the peer side today | the unicast test cannot run in the lab; it moves to the interop scenario only | lab extension in Phase 5, test passes | unvalidated |
+| A-2 | The veth lab can answer unicast frames if the peer side carries `sfServerIP` so the kernel resolves ARP for it | `sfSetupLab` assigns no address to the peer side today | the unicast test cannot run in the lab; it moves to the interop scenario only | lab extension in Phase 5, test passes | broken (2026-10-18): both veth ends share one namespace, so a peer-side address is delivered locally and never crosses the veth. Replaced by a permanent neighbor entry for `sfServerIP` on the ze side (`sfSetupLab`); proof owed by the QEMU run in Phase 5 |
 | A-3 | dnsmasq NAKs a RENEW for an address that a SIGHUP-reloaded `dhcp-hostsfile` now reserves elsewhere, when `dhcp-authoritative` is set | dnsmasq documentation (read at implementation) | the NAK scenario needs a different trigger (restart with a new range) | `dhcpv4-renew-nak-dnsmasq` red/green walk | unvalidated |
 | A-4 | A ze interop container can run `dhcp { enabled true }` on `eth0` beside the docker-assigned static address | `test/parse/dhcp-static-coexist.ci` accepts the config | the scenario needs a second docker network for the DHCP segment | scenario boots and acquires | unvalidated |
 | A-5 | dnsmasq sends options 58/59 from `dhcp-option=option:T1,...` and `option:T2,...`, letting the interop run at T1 20 s under dnsmasq's 120 s minimum lease | dnsmasq option names | interop runtime grows to minutes (T1 60 s) | scenario timing | unvalidated |
 | A-6 | DHCP is never configured on the VPP backend, so a route retry never meets the VPP backend's permanent `AddRoute` refusal | `test/parse/iface-vpp-rejects-dhcp.ci` | the retry would warn forever; add a permanent-error stop | read the parse refusal at implementation | unvalidated |
-| A-7 | `sim.FakeClock.AfterFunc` callbacks run synchronously inside `Add`, so a callback that closes a channel wakes the worker deterministically | `internal/test/sim/sim.go` type doc comment | fake-clock tests are flaky | `TestSleepOrStopOnInjectedClock` | unvalidated |
+| A-7 | `sim.FakeClock.AfterFunc` callbacks run synchronously inside `Add`, so a callback that closes a channel wakes the worker deterministically | `internal/test/sim/sim.go` type doc comment | fake-clock tests are flaky | `TestSleepOrStopOnInjectedClock` | confirmed 2026-10-18 (`TestSleepOrStopOnInjectedClock` green, `-race -count=3`) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -446,6 +446,12 @@ Discrimination (`ai/rules/interop-and-goal-validation.md`): for each scenario, r
 | D-7 Route retry inside the worker, back-off 5 s doubling to 60 s, while a lease is held | Retry only at the next lease event (today), or a separate goroutine | The worker already wakes on deadlines; one more deadline costs nothing and needs no lock |
 | D-8 ACK without option 51 or with 0: refused (DORA) / no answer (renewal) | A named, logged default (1 h) | RFC 2131 Table 3 makes option 51 a MUST in that ACK; a default is a lifetime no server granted (Q1) |
 | D-9 dnsmasq sidecar in the existing `test/interop/scenarios/` suite | Kea; a new `test/interop-dhcp/` suite | dnsmasq is small, its authoritative mode NAKs, and options 58/59 are configurable; the keepalived sidecar is the precedent for a non-BGP peer in that suite (Q5) |
+| D-10 (implementation, 2026-10-18) The exchanger has two methods, `acquire` and `extend(v4Attempt)`; the loop builds the extending DHCPREQUEST, its delivery (unicast/broadcast enum), source, destination, matcher and listen window | `renew` and `rebind` methods that each build their own message | The message shape (AC-10, AC-12, AC-20) and the matcher (AC-11, AC-13) become unit-testable through the scripted exchanger; the production exchanger only opens the socket and sends |
+| D-11 (implementation) `sim.FakeClock.NextTimer()` beside `AwaitTimers` | Test advances by fixed steps | A test steps exactly to the deadline the worker armed, so a schedule assertion is exact to the nanosecond |
+| D-12 (implementation) The listen window ends at the next attempt or the pending route retry, whichever is first, floored at 1 s | Window to the next attempt only | Keeps D-7 (no lock, one worker) while AC-4's retries continue during RENEWING and REBINDING |
+| D-13 (implementation) A renewal ACK whose address does not install (claim refused, replace failed) counts as no answer; the held lease keeps its deadlines | Adopt the new deadlines anyway | The kernel still holds the old lifetime, so the worker and the kernel agree on when the address goes |
+| D-14 (implementation) Leasing server = ACK option 54, else the OFFER's (DORA) or the previous lease's (renewal); with none known RENEWING goes broadcast | Refuse an ACK without option 54 | Refusing is a scope decision the owner did not take; broadcast is HEAD's behavior for that case |
+| D-15 (implementation) The default route is re-added (RouteReplace) on every accepted ACK, as at HEAD | Add only when the router changes | Restores a route a link flap removed; AC-3's "no retry after success" counts retries, not renewals |
 
 ## Owner Questions
 

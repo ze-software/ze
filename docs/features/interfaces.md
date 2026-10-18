@@ -50,11 +50,17 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | | DHCPv6 (SARR, IA_NA, IA_PD) | have | |
 | | Concurrent v4+v6 | have | |
 | | Direct netlink install | have | |
-| | DHCPv4 address lifetime equals the lease, renewed with it; an infinite lease (0xffffffff) installs as infinite and is not renewed | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- v4AddressLifetime, holdInfiniteV4, v4RenewalTimes --> |
+| | DHCPv4 address lifetime equals the lease, refreshed by every renewal; an infinite lease (0xffffffff) installs as infinite and is not renewed | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- v4AddressLifetime, installV4Lease, holdV4 --> |
+| | DHCPv4 lease kept for as long as a server answers: RENEW unicast to the leasing server at every T1, REBIND broadcast to any server at T2, both retransmitted on the RFC 2131 Section 4.4.5 schedule (half the time left, at least 60 s); the address goes only when the lease expires. Deadlines count from the instant the REQUEST was sent | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- holdV4, extendV4, v4NextAttempt, v4LeaseFromAck --> |
+| | DHCPv4 T1 and T2 from the server (options 58 and 59) when T1 < T2 < lease, otherwise the defaults (half and seven eighths of the lease) | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- v4LeaseTimers --> |
+| | DHCPv4 DHCPNAK to a RENEW or REBIND removes the address and route and restarts DORA at once | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- extendV4 --> |
+| | DHCPv4 ACK without a lease time (option 51), or with 0, is refused: nothing is installed and DORA retries after 10 s; during a renewal it counts as no answer. The Warn names the server and says option 51 is missing | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- v4LeaseTime, logV4Refusal --> |
+| | DHCPv4 DORA, RENEW and REBIND open their sockets on the kernel device the interface name resolves to (`os-name`, `mac/match`) | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- acquireV4, sendV4Extend --> |
+| | DHCPv4 RENEW and REBIND carry the same client-id (option 61) and hostname (option 12) as the DORA REQUEST | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- v4ExtendRequest --> |
 | | DHCPv4 lease registered as leased, so a commit keeps it; `iface-dhcp` refuses to run as an external plugin, because the registry is a same-process call | have | <!-- source: internal/plugins/iface/dhcp/register.go -- runDHCPPlugin --> |
 | | Bus events (acquired/renewed/expired) | have | |
 | | Config-driven (`dhcp { enabled true }`) | have | |
-| | Default route from DHCP Router option | have | |
+| | Default route from DHCP Router option; a failed install is retried while the lease is held (5 s, doubling to 60 s), and a renewal naming another router, or none, removes the old route | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- applyV4Route, installV4Route --> |
 | | Route priority per unit (`route-priority`) | have | |
 | | Link-down route deprioritization (metric + 1024) | have | |
 | | IPv6 default route from RA with configurable metric | have | |
@@ -345,7 +351,7 @@ device appears, and a config is validated on machines that will never run it.
   permanent in the kernel and unregistered, so the reconcile still removes it.
 <!-- source: internal/component/iface/config_apply.go -- reconcileOnReadyWithJournal, learnedAddrSet, addrLearned -->
 <!-- source: internal/component/iface/address_owner.go -- RegisterLeasedAddresses, leasedAddressSet -->
-<!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- handleV4Lease, v4AddressLifetime, removeV4Addr -->
+<!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- installV4Lease, v4AddressLifetime, teardownV4 -->
 - **A VLAN unit carries its parent's MTU.** A unit has no `mtu` leaf, so every
   commit sets each VLAN sub-interface of an ethernet entry with an `mtu` to that
   MTU, and a VLAN already at it gets no call. Neither backend does it alone: Linux

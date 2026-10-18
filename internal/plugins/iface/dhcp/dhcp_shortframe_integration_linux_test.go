@@ -26,6 +26,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/clock"
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the netlink backend so iface.Resolve works
 )
 
@@ -60,7 +61,7 @@ func TestDHCPv4SurvivesShortIPv4Payload(t *testing.T) {
 	zeSide, peerConn := sfSetupLab(t)
 
 	bus := &recordingBus{}
-	client, err := newDHCPClient(zeSide, "0", bus, true, false, dHCPConfig{})
+	client, err := newDHCPClient(zeSide, "0", bus, true, false, dHCPConfig{}, clock.RealClock{})
 	if err != nil {
 		t.Fatalf("newDHCPClient(%s): %v", zeSide, err)
 	}
@@ -150,6 +151,24 @@ func sfSetupLab(t *testing.T) (string, *packet.Conn) {
 	peerIfc, err := net.InterfaceByName(peerSide)
 	if err != nil {
 		t.Fatalf("InterfaceByName(%s): %v", peerSide, err)
+	}
+	// The RENEW is unicast to the server identifier (RFC 2131 Section 4.1).
+	// The peer side holds no address, because one in this namespace would be
+	// delivered locally and never cross the veth, so a permanent neighbor
+	// entry lets the kernel send the frame to the peer's MAC.
+	zeLink, err := netlink.LinkByName(zeSide)
+	if err != nil {
+		t.Fatalf("LinkByName(%s): %v", zeSide, err)
+	}
+	neigh := &netlink.Neigh{
+		LinkIndex:    zeLink.Attrs().Index,
+		Family:       netlink.FAMILY_V4,
+		State:        netlink.NUD_PERMANENT,
+		IP:           sfServerIP,
+		HardwareAddr: peerIfc.HardwareAddr,
+	}
+	if err := netlink.NeighSet(neigh); err != nil {
+		t.Fatalf("neighbor %v on %s: %v", sfServerIP, zeSide, err)
 	}
 	// Datagram matches what nclient4 opens on the other end: the kernel writes
 	// the Ethernet header, so this lab reads and writes IP packets.

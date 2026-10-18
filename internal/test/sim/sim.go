@@ -28,8 +28,9 @@ type FakeClock struct {
 	tickers []*fakeTicker
 	timers  []*fakeTimer // scheduled AfterFunc timers, fired on Add/Set
 	seq     uint64       // FIFO tie-break for same-deadline timers
-	// added is closed and replaced every time NewTicker hands one out, which
-	// is how AwaitTickers wakes without polling.
+	// added is closed and replaced every time NewTicker hands out a ticker or
+	// AfterFunc (or Reset) arms a timer, which is how AwaitTickers and
+	// AwaitTimers wake without polling.
 	added chan struct{}
 }
 
@@ -114,7 +115,79 @@ func (c *FakeClock) AfterFunc(d time.Duration, f func()) clock.Timer {
 	t := &fakeTimer{clock: c, deadline: c.now.Add(d), callback: f, seq: c.seq}
 	c.seq++
 	c.timers = append(c.timers, t)
+	c.signalAddedLocked()
 	return t
+}
+
+// signalAddedLocked wakes every AwaitTickers and AwaitTimers caller. The
+// caller MUST hold c.mu.
+func (c *FakeClock) signalAddedLocked() {
+	if c.added != nil {
+		close(c.added)
+	}
+	c.added = make(chan struct{})
+}
+
+// pendingTimersLocked counts the AfterFunc timers that are armed: neither
+// stopped nor fired. The caller MUST hold c.mu.
+func (c *FakeClock) pendingTimersLocked() int {
+	pending := 0
+	for _, t := range c.timers {
+		if !t.stopped && !t.fired {
+			pending++
+		}
+	}
+	return pending
+}
+
+// AwaitTimers blocks until at least n AfterFunc timers are armed (neither
+// stopped nor fired), and answers false when within expires first.
+//
+// It is the fence a test needs before Add or Set when the goroutine under test
+// parks on an AfterFunc: advancing the clock before that goroutine has armed
+// its timer moves time past a deadline nobody has registered yet, so the timer
+// is later armed relative to the advanced clock and the test observes the
+// wrong instant. As with AwaitTickers, the bound is real time, because what is
+// awaited is the other goroutine being scheduled.
+func (c *FakeClock) AwaitTimers(n int, within time.Duration) bool {
+	expired := time.After(within)
+	for {
+		c.mu.Lock()
+		have := c.pendingTimersLocked()
+		if c.added == nil {
+			c.added = make(chan struct{})
+		}
+		added := c.added
+		c.mu.Unlock()
+		if have >= n {
+			return true
+		}
+		select {
+		case <-added:
+		case <-expired:
+			return false
+		}
+	}
+}
+
+// NextTimer answers the earliest deadline among the armed AfterFunc timers,
+// and false when none is armed. A test reads it after AwaitTimers to advance
+// the clock exactly to the instant the goroutine under test asked for.
+func (c *FakeClock) NextTimer() (time.Time, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	var earliest time.Time
+	found := false
+	for _, t := range c.timers {
+		if t.stopped || t.fired {
+			continue
+		}
+		if !found || t.deadline.Before(earliest) {
+			earliest = t.deadline
+			found = true
+		}
+	}
+	return earliest, found
 }
 
 // NewTimer returns a fakeTimer with a blocking channel.
@@ -131,10 +204,7 @@ func (c *FakeClock) NewTicker(time.Duration) clock.Ticker {
 	defer c.mu.Unlock()
 	ft := &fakeTicker{ch: make(chan time.Time, 1)}
 	c.tickers = append(c.tickers, ft)
-	if c.added != nil {
-		close(c.added)
-	}
-	c.added = make(chan struct{})
+	c.signalAddedLocked()
 	return ft
 }
 
@@ -228,6 +298,7 @@ func (t *fakeTimer) Reset(d time.Duration) bool {
 	t.fired = false
 	t.seq = t.clock.seq
 	t.clock.seq++
+	t.clock.signalAddedLocked()
 	return wasActive
 }
 

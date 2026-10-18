@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/clock"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -48,6 +49,14 @@ type DHCPClient struct {
 	started   atomic.Bool
 	stopOnce  sync.Once
 
+	// clock is the only time source of the DHCP workers: every wait and every
+	// lease deadline reads it, so a test drives lease timing with a fake
+	// clock. clock.RealClock{} in production.
+	clock clock.Clock
+	// v4Exchange sends the DHCPv4 messages and reads the answers. The
+	// production exchanger runs over nclient4; a test replaces it before Start.
+	v4Exchange v4Exchanger
+
 	// v4Owner names this client in the leased-address registry
 	// (iface.RegisterLeasedAddresses). One client serves one unit.
 	v4Owner string
@@ -59,9 +68,13 @@ type DHCPClient struct {
 // newDHCPClient creates a DHCP client for the named interface.
 // eventBus must not be nil. At least one of v4 or v6 must be true.
 // cfg carries optional parameters (hostname, client-id) from the config.
-func newDHCPClient(ifaceName, unit string, eventBus ze.EventBus, v4, v6 bool, cfg dHCPConfig) (*DHCPClient, error) {
+// clk must not be nil: it times every wait and every lease.
+func newDHCPClient(ifaceName, unit string, eventBus ze.EventBus, v4, v6 bool, cfg dHCPConfig, clk clock.Clock) (*DHCPClient, error) {
 	if eventBus == nil {
 		return nil, errors.New("iface dhcp: event bus is nil")
+	}
+	if clk == nil {
+		return nil, errors.New("iface dhcp: clock is nil")
 	}
 	if !v4 && !v6 {
 		return nil, errors.New("iface dhcp: at least one of v4 or v6 must be enabled")
@@ -70,15 +83,17 @@ func newDHCPClient(ifaceName, unit string, eventBus ze.EventBus, v4, v6 bool, cf
 		return nil, fmt.Errorf("iface dhcp: %w", err)
 	}
 	return &DHCPClient{
-		ifaceName: ifaceName,
-		unit:      unit,
-		eventBus:  eventBus,
-		config:    cfg,
-		stop:      make(chan struct{}),
-		done:      make(chan struct{}),
-		v4:        v4,
-		v6:        v6,
-		v4Owner:   "iface-dhcp-v4 " + ifaceName + " unit " + unit,
+		ifaceName:  ifaceName,
+		unit:       unit,
+		eventBus:   eventBus,
+		config:     cfg,
+		stop:       make(chan struct{}),
+		done:       make(chan struct{}),
+		v4:         v4,
+		v6:         v6,
+		v4Owner:    "iface-dhcp-v4 " + ifaceName + " unit " + unit,
+		clock:      clk,
+		v4Exchange: nclient4Exchanger{clock: clk},
 	}, nil
 }
 
@@ -173,15 +188,33 @@ func (c *DHCPClient) stoppableContext() (context.Context, context.CancelFunc) {
 	return ctx, cancel
 }
 
+// sleepOrStop waits d on the client's clock. It answers true when the wait
+// ran out and false when Stop was called first.
+//
+// The wait is an AfterFunc closing a channel, never a clock timer channel: a
+// fake clock fires only AfterFunc callbacks, so this is what lets a test step
+// the worker through its deadlines.
 func (c *DHCPClient) sleepOrStop(d time.Duration) bool {
-	timer := time.NewTimer(d)
+	if d <= 0 {
+		return !c.stopped()
+	}
+
+	woken := make(chan struct{})
+	timer := c.clock.AfterFunc(d, func() { close(woken) })
 	defer timer.Stop()
+
 	select {
-	case <-timer.C:
+	case <-woken:
 		return true
 	case <-c.stop:
 		return false
 	}
+}
+
+// sleepUntilOrStop waits until deadline on the client's clock, with the
+// answers of sleepOrStop.
+func (c *DHCPClient) sleepUntilOrStop(deadline time.Time) bool {
+	return c.sleepOrStop(deadline.Sub(c.clock.Now()))
 }
 
 // publishDHCP emits a DHCP lease event on the EventBus under the

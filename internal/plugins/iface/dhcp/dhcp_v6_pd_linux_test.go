@@ -18,6 +18,7 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv6"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/clock"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 )
 
@@ -47,7 +48,7 @@ func (b *recordingBus) Subscribe(_, _ string, _ func(any)) func() { return func(
 // event with the delegated prefix, its length, and the valid lifetime.
 func TestDHCPv6PDLeaseFlow(t *testing.T) {
 	bus := &recordingBus{}
-	c, err := newDHCPClient("eth0", "", bus, false, true, dHCPConfig{})
+	c, err := newDHCPClient("eth0", "", bus, false, true, dHCPConfig{}, clock.RealClock{})
 	if err != nil {
 		t.Fatalf("NewDHCPClient: %v", err)
 	}

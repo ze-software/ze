@@ -12,13 +12,15 @@ package ifacedhcp
 import (
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
 func TestDHCPClientStartStopLifecycle(t *testing.T) {
 	bus := &recordingBus{}
 	// Loopback always exists; there is no DHCP server on it, so the worker will
 	// loop on retry and must exit cleanly the moment Stop closes the stop channel.
-	c, err := newDHCPClient("lo", "0", bus, true, false, dHCPConfig{})
+	c, err := newDHCPClient("lo", "0", bus, true, false, dHCPConfig{}, clock.RealClock{})
 	if err != nil {
 		t.Fatalf("newDHCPClient: %v", err)
 	}
