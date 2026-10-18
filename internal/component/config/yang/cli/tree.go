@@ -292,11 +292,23 @@ func yangEnumValues(entry *gyang.Entry) []EnumValue {
 }
 
 // yangDefault returns the first default value from a YANG entry, or empty string.
+// It reads the defaults and their notation as the config schema does
+// (yangToLeaf), so the default shown here is the value the config tree takes: a
+// typedef's default when the leaf has none, and an integer default a module wrote
+// in hexadecimal or octal in decimal. A default whose notation is refused is
+// shown as written, because the schema build refuses the module for it.
+//
+// RFC 7950 Section 9.1.
 func yangDefault(entry *gyang.Entry) string {
-	if len(entry.Default) > 0 {
-		return entry.Default[0]
+	defaults := entry.DefaultValues()
+	if len(defaults) == 0 {
+		return ""
 	}
-	return ""
+	canonical, err := yang.CanonicalModuleDefault(entry.Type, defaults[0])
+	if err != nil {
+		return defaults[0]
+	}
+	return canonical
 }
 
 // yangRange returns the range constraint string from a YANG entry's type, or empty string.

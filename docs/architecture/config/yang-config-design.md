@@ -1066,7 +1066,31 @@ valid and gives no new default, or the default names an enum or a bit that
 carries an `if-feature`. That enum or bit is looked up in the leaf's own type,
 in every typedef the type derives from, and, for a union, in the first member
 type that accepts the default (RFC 7950 Section 9.12 order).
-<!-- source: internal/component/config/yang_schema.go -- validateLeafDefaults, validateTypedefDefault, validateDefaultNotIfFeature, unionMemberHolding -->
+
+An integer default may be written in a module in decimal, in hexadecimal
+(`0x1f`) or in octal (`017`, since a leading zero means octal there), each with
+an optional sign (RFC 7950 Section 9.2.1). The schema build reads the notation,
+checks the decimal value against the type, and gives the config tree the
+decimal form, so `default 0x10` on a `uint8` leaf is the value `16`. A config
+value is always decimal: the notations belong to the module alone. A config
+value may still carry leading zeros, and they do not make it octal, so `010` in
+a config file is ten (RFC 7950 Section 9.2.1: "integer is always interpreted as
+a decimal number, and leading zeros are allowed").
+
+A union default is read the way RFC 7950 Section 9.12 reads any union value:
+against each member type in the order the module declares them, until one
+accepts it. An integer member reads it in the module notations, so `default
+0x10` on a union of `int32` then `string` is the value `16`, while on a union of
+`string` then `int32` it stays the string `0x10`. A default no member accepts
+stops the schema build.
+
+A refused integer default names its cause: a notation that is none of the
+three, a leading `0` followed by an 8 or a 9 (which octal has no digit for), or
+a value larger than `uint64` holds. The CLI analysis tree shows the same
+canonical default the config tree takes (`yangDefault`).
+<!-- source: internal/component/config/yang_schema.go -- validateLeafDefaults, validateTypedefDefault, validateDefaultNotIfFeature, unionMemberHolding, checkModuleDefault, yangToLeaf -->
+<!-- source: internal/component/config/yang/module_default.go -- CanonicalModuleDefault, canonicalUnionDefault, parseModuleInteger -->
+<!-- source: internal/component/config/yang/cli/tree.go -- yangDefault -->
 
 | Rule | Detail |
 |------|--------|

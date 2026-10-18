@@ -718,6 +718,15 @@ func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 	// and none on a mandatory leaf.
 	if defaults := entry.DefaultValues(); len(defaults) > 0 {
 		node.Default = defaults[0]
+		// RFC 7950 Section 9.1: a module may write an integer default in
+		// hexadecimal or octal, and the config tree takes the decimal value.
+		// A union default takes the form of the first member type that
+		// accepts it (Section 9.12).
+		// A default whose notation is refused keeps its text, and
+		// validateLeafDefaults records the build error for it.
+		if canonical, err := yang.CanonicalModuleDefault(entry.Type, defaults[0]); err == nil {
+			node.Default = canonical
+		}
 	}
 	validateLeafDefaults(entry, path)
 	node.Sensitive = hasSensitiveExtension(entry)
@@ -751,6 +760,21 @@ func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 // schema build. It holds no loader: a type check reads the YangType alone.
 var defaultValidator = yang.NewValidator(nil)
 
+// checkModuleDefault checks one default statement against its type. The default
+// is read in the notation a module may use, then its canonical value is checked,
+// so a hexadecimal or octal integer default is held to the type's range.
+//
+// RFC 7950 Section 9.1: "Implementations MUST support all lexical representations
+// specified in this document." Section 9.2.1 adds the hexadecimal and octal
+// notations for an integer default in a YANG module.
+func checkModuleDefault(path string, yangType *gyang.YangType, def string) error {
+	canonical, err := yang.CanonicalModuleDefault(yangType, def)
+	if err != nil {
+		return err
+	}
+	return defaultValidator.ValidateType(path, yangType, canonical)
+}
+
 // validateLeafDefaults records a schema build error for a default statement
 // its own type refuses, and for a default placed where RFC 7950 forbids one.
 // goyang copies a leaf's own default onto entry.Default and a typedef's
@@ -766,7 +790,7 @@ func validateLeafDefaults(entry *gyang.Entry, path string) {
 	// 7.3.4: "The value of the "default" statement MUST be valid according
 	// to the type specified in the "type" statement."
 	for _, def := range entry.Default {
-		if err := defaultValidator.ValidateType(path, entry.Type, def); err != nil {
+		if err := checkModuleDefault(path, entry.Type, def); err != nil {
 			recordSchemaBuildError(fmt.Errorf("at %s: default %q is not valid for type %s: %w", path, def, entry.Type.Name, err))
 		}
 		validateDefaultNotIfFeature(entry, path, def)
@@ -799,7 +823,7 @@ func validateTypedefDefault(entry *gyang.Entry, path string) {
 	// RFC 7950 Section 7.3.4: "The value of the "default" statement MUST be
 	// valid according to the type specified in the "type" statement."
 	if base := entry.Type.Base; base != nil && base.YangType != nil {
-		if err := defaultValidator.ValidateType(path, base.YangType, def); err != nil {
+		if err := checkModuleDefault(path, base.YangType, def); err != nil {
 			recordSchemaBuildError(fmt.Errorf("at %s: typedef default %q is not valid for type %s: %w", path, def, base.YangType.Name, err))
 			return
 		}
@@ -811,7 +835,7 @@ func validateTypedefDefault(entry *gyang.Entry, path string) {
 	// according to the new restrictions specified in a derived type or leaf
 	// definition, the derived type or leaf definition MUST specify a new
 	// default value compatible with the restrictions."
-	if err := defaultValidator.ValidateType(path, entry.Type, def); err != nil {
+	if err := checkModuleDefault(path, entry.Type, def); err != nil {
 		recordSchemaBuildError(fmt.Errorf("at %s: inherited default %q is not valid for the restricted type %s, which must specify a new default: %w", path, def, entry.Type.Name, err))
 		return
 	}
