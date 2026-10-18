@@ -32,27 +32,33 @@ import (
 // not the configured 200. That last advertisement is then encoded as the
 // transport encodes it (WriteTo, FillChecksum with a parent address as source)
 // and must carry those fields on the wire and decode with its checksum
-// verified.
+// verified. The IPv4 run is made once per checksum mode: the advertisement
+// must carry the group's configured mode, and the encoding computed with that
+// mode must verify under the same mode on receive.
 //
 // RFC requirement: RFC5798-7.2-1 positive -- the advertisement handed to the transport carries version 3, the effective priority (200, then 150 after a tracked interface fails), the 1000 ms interval and both virtual addresses, and its encoding carries those octets and a checksum that verifies on decode (doSendAdvert instance.go, WriteTo packet/packet.go, FillChecksum packet/checksum.go).
 // RFC requirement: RFC9568-7.2-1 positive -- for an IPv4 and an IPv6 VRRPv3 instance, the advertisement doSendAdvert (instance.go) hands to the transport carries version 3, the effective priority (200, then 150 after a tracked interface fails), the configured 1000 ms interval and both configured virtual addresses in order, and its WriteTo encoding carries the Version/Type, VRID, Priority, Count, Reserve/Max Advertise Interval and address octets of that state, compared with literals.
+// RFC requirement: RFC9568-7.2-5 positive -- the advertisement doSendAdvert (instance.go) hands to the transport carries the group's configured checksum mode, ChecksumRFC9568 for a default IPv4 and IPv6 group and ChecksumRFC5798Compatible for an IPv4 group configured rfc5798-compatible, each compared with the spec's mode, and the IPv4 encoding checksummed under that mode (FillChecksum checksum.go) decodes with its checksum verified under the same mode.
 func TestTransmittedAdvertFilledFromInstanceState(t *testing.T) {
-	t.Run("ipv4", func(t *testing.T) {
-		spec := trackingSpec()
-		spec.VIPs = []netip.Addr{netip.MustParseAddr("192.0.2.1"), netip.MustParseAddr("192.0.2.2")}
-		p := advertFilledFromTrackingInstance(t, spec, packet.V4)
+	for _, mode := range []packet.ChecksumMode{packet.ChecksumRFC9568, packet.ChecksumRFC5798Compatible} {
+		t.Run("ipv4-"+mode.String(), func(t *testing.T) {
+			spec := trackingSpec()
+			spec.Checksum = mode
+			spec.VIPs = []netip.Addr{netip.MustParseAddr("192.0.2.1"), netip.MustParseAddr("192.0.2.2")}
+			p := advertFilledFromTrackingInstance(t, spec, packet.V4)
 
-		adv := packet.Advertisement{Version: p.Version, Family: packet.V4, VRID: spec.VRID, Priority: p.Priority, AdverIntervalMS: p.AdverIntervalMS, VIPs: p.VIPs}
-		buf := make([]byte, packet.MaxLenV3v4)
-		n := adv.WriteTo(buf, 0)
-		source := netip.MustParseAddr("192.0.2.251")
-		packet.FillChecksum(buf, 0, n, source, packet.MulticastV4, packet.ChecksumRFC9568)
-		want := []byte{0x31, 10, 150, 2, 0x00, 0x64}
-		if !slices.Equal(buf[:6], want) || !slices.Equal(buf[8:n], []byte{192, 0, 2, 1, 192, 0, 2, 2}) {
-			t.Fatalf("encoded advert % x, want header % x .. and addresses 192.0.2.1, 192.0.2.2", buf[:n], want)
-		}
-		verifyEncodedAdvert(t, buf[:n], packet.RxMeta{TTL: 255, Src: source, Dst: packet.MulticastV4, Family: packet.V4})
-	})
+			adv := packet.Advertisement{Version: p.Version, Family: packet.V4, VRID: spec.VRID, Priority: p.Priority, AdverIntervalMS: p.AdverIntervalMS, VIPs: p.VIPs}
+			buf := make([]byte, packet.MaxLenV3v4)
+			n := adv.WriteTo(buf, 0)
+			source := netip.MustParseAddr("192.0.2.251")
+			packet.FillChecksum(buf, 0, n, source, packet.MulticastV4, p.Checksum)
+			want := []byte{0x31, 10, 150, 2, 0x00, 0x64}
+			if !slices.Equal(buf[:6], want) || !slices.Equal(buf[8:n], []byte{192, 0, 2, 1, 192, 0, 2, 2}) {
+				t.Fatalf("encoded advert % x, want header % x .. and addresses 192.0.2.1, 192.0.2.2", buf[:n], want)
+			}
+			verifyEncodedAdvert(t, buf[:n], packet.RxMeta{TTL: 255, Src: source, Dst: packet.MulticastV4, Family: packet.V4}, mode)
+		})
+	}
 
 	t.Run("ipv6", func(t *testing.T) {
 		spec := trackingSpec()
@@ -64,13 +70,13 @@ func TestTransmittedAdvertFilledFromInstanceState(t *testing.T) {
 		buf := make([]byte, packet.MaxLenV3v6)
 		n := adv.WriteTo(buf, 0)
 		source := netip.MustParseAddr("fe80::251")
-		packet.FillChecksum(buf, 0, n, source, packet.MulticastV6, packet.ChecksumRFC9568)
+		packet.FillChecksum(buf, 0, n, source, packet.MulticastV6, p.Checksum)
 		want := []byte{0x31, 10, 150, 2, 0x00, 0x64}
 		wantVIPs := slices.Concat(spec.VIPs[0].AsSlice(), spec.VIPs[1].AsSlice())
 		if !slices.Equal(buf[:6], want) || !slices.Equal(buf[8:n], wantVIPs) {
 			t.Fatalf("encoded advert % x, want header % x .. and addresses fe80::1, 2001:db8::1", buf[:n], want)
 		}
-		verifyEncodedAdvert(t, buf[:n], packet.RxMeta{TTL: 255, Src: source, Dst: packet.MulticastV6, Family: packet.V6})
+		verifyEncodedAdvert(t, buf[:n], packet.RxMeta{TTL: 255, Src: source, Dst: packet.MulticastV6, Family: packet.V6}, spec.Checksum)
 	})
 }
 
@@ -105,6 +111,9 @@ func advertFilledFromTrackingInstance(t *testing.T, spec GroupSpec, family uint8
 		if p.Version != packet.VersionV3 || p.Priority != priority || p.AdverIntervalMS != 1000 || !slices.Equal(p.VIPs, spec.VIPs) {
 			t.Fatalf("advert params = %+v, want version 3, priority %d, 1000 ms, VIPs %v", p, priority, spec.VIPs)
 		}
+		if p.Checksum != spec.Checksum {
+			t.Fatalf("advert params checksum = %v, want the group's configured %v", p.Checksum, spec.Checksum)
+		}
 		return p
 	}
 	check(200)
@@ -113,12 +122,13 @@ func advertFilledFromTrackingInstance(t *testing.T, spec GroupSpec, family uint8
 	return check(150)
 }
 
-// verifyEncodedAdvert decodes an encoded advertisement as a receiver does,
-// checksum included, and fails the test when it does not verify.
-func verifyEncodedAdvert(t *testing.T, frame []byte, meta packet.RxMeta) {
+// verifyEncodedAdvert decodes an encoded advertisement as a receiver configured
+// with checksum mode does, checksum included, and fails the test when it does
+// not verify.
+func verifyEncodedAdvert(t *testing.T, frame []byte, meta packet.RxMeta, mode packet.ChecksumMode) {
 	t.Helper()
 	lookup := func(uint8) (packet.Local, bool) {
-		return packet.Local{Version: packet.VersionV3, AdverIntervalMS: 1000, Checksum: packet.ChecksumRFC9568}, true
+		return packet.Local{Version: packet.VersionV3, AdverIntervalMS: 1000, Checksum: mode}, true
 	}
 	if _, err := packet.Decode(frame, meta, lookup); err != nil {
 		t.Fatalf("the encoded advert does not verify: %v", err)

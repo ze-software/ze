@@ -110,6 +110,8 @@ func pseudoSumV6(src, dst netip.Addr, upperLen int) uint32 {
 // RFC 5798 Section 5.2.8: "The checksum is the 16-bit one's complement of the
 // one's complement sum of the entire VRRP message starting with the version
 // field and a "pseudo-header" as defined in Section 8.1 of [RFC2460]."
+// For IPv4 that pseudo-header is the one drawn above, built from src, dst and
+// vrrpLen.
 func pseudoSumV4(src, dst netip.Addr, vrrpLen int) uint32 {
 	s := src.As4()
 	d := dst.As4()
@@ -165,10 +167,10 @@ func pseudoSumFor(src, dst netip.Addr, n int, family uint8, mode ChecksumMode) (
 // read from the message, the family is inferred from src (an IPv6 source
 // selects the RFC 8200 pseudo-header), and mode picks the v3/IPv4 form.
 //
-// RFC 9568 Section 7.2: "The following operations MUST be performed when
-// transmitting a VRRP packet: ... Compute the VRRP checksum".
 // RFC 9568 Section 5.2.8: "For computing the checksum, the Checksum field is
 // set to zero."
+// RFC 9568 Section 7.2: "The following operations MUST be performed when
+// transmitting a VRRP packet: ... Compute the VRRP checksum".
 func FillChecksum(buf []byte, off, n int, src, dst netip.Addr, mode ChecksumMode) {
 	msg := buf[off : off+n]
 	msg[6] = 0

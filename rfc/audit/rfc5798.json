@@ -12,6 +12,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -44,7 +45,7 @@
       "note": "single-polarity by annotation: integration test reads IPV6_MULTICAST_HOPS 255 back from the tx socket; runs only under the privileged QEMU suite",
       "requirement_sha": "e30a16b3b8010e7c",
       "tests": {
-        "internal/plugins/vrrp/transport/transport_integration_linux_test.go::TestIntegrationOpenInstanceSocketOptions": "abf88b7e84ca2f3e"
+        "internal/plugins/vrrp/transport/transport_integration_linux_test.go::TestIntegrationOpenInstanceSocketOptions": "72419e6316df8b6d"
       },
       "units": {
         "internal/plugins/vrrp/transport/transport_integration_linux_test.go::TestIntegrationOpenInstanceSocketOptions": "c4a068e79f43afef"
@@ -55,8 +56,8 @@
       "note": "golden v6 decode passes at hop limit 255; hop limit 64 asserts ErrTTL",
       "requirement_sha": "53144ff20f530a67",
       "tests": {
-        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv6": "19a4c15f930f948e",
-        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit": "19a4c15f930f948e"
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv6": "5bbc8ddba98cd418",
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit": "5bbc8ddba98cd418"
       },
       "units": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv6": "2a54600c4cbf442d",
@@ -81,8 +82,8 @@
       "note": "owner EffectivePriority(0)==255 from configured 120; non-owner keeps 100",
       "requirement_sha": "55c8b9a3b3f6605b",
       "tests": {
-        "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection": "a9cea999ab08a8a1",
-        "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection#2": "a9cea999ab08a8a1"
+        "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection": "30e27105e8a9f202",
+        "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection#2": "30e27105e8a9f202"
       },
       "units": {
         "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection": "47246169c047d639",
@@ -94,9 +95,9 @@
       "note": "vrrp judge 2026-09-29 (independent): config range: TestBoundaryPriority accepts 1 and 254 and refuses 0 and 255; run-time: TestEffectivePriorityWithTracking (now tagged here) requires exact values including the floor at 1 for decrements equal to and past the priority (254/254, 100/100, 100/4064), so removing the clamp goes red. Record: revert EffectivePriority.",
       "requirement_sha": "f17282153fbc54e9",
       "tests": {
-        "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "a9cea999ab08a8a1",
-        "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "a9cea999ab08a8a1",
-        "internal/plugins/vrrp/groups_test.go::TestEffectivePriorityWithTracking": "a9cea999ab08a8a1"
+        "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "30e27105e8a9f202",
+        "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "30e27105e8a9f202",
+        "internal/plugins/vrrp/groups_test.go::TestEffectivePriorityWithTracking": "30e27105e8a9f202"
       },
       "units": {
         "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "fcd4ad07247002db",
@@ -109,7 +110,7 @@
       "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 5.2.6 says \"This field MUST be set to zero on transmission and ignored on reception.\" TestEncodeGoldenV3IPv4 now runs a subtest per checksum mode, and each still requires the rsvd nibble to be zero and the exact golden bytes; TestEncodeV3ReserveZeroOverDirtyBuffer encodes over an all-0xFF buffer against the default-mode golden G2. The reception half is TestDecodeV3ReserveIgnoredOnReceive, unchanged. Verdict unchanged.",
       "requirement_sha": "3b95c99b3ca55ebb",
       "tests": {
-        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "1a58859c2c8eb3f8",
+        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "15a7697300d1b17c",
         "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestEncodeV3ReserveZeroOverDirtyBuffer": "42ac89061f52b9ae",
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3ReserveIgnoredOnReceive": "5bbc8ddba98cd418"
       },
@@ -158,8 +159,8 @@
       "note": "vrrp judge 2026-09-29 (independent): TestValidateVIPFamilyMatchesGroupFamily now isolates both mixed-family cases: the IPv4 group lists 192.0.2.1 then 2001:db8::1, the IPv6 group lists fe80::1 then 192.0.2.1 (so the first-address-link-local rule cannot refuse it), and each refusal must carry the family error text; same-family lists validate. Records: revert validateGroup, both polarities.",
       "requirement_sha": "0d3b9463a005ec4c",
       "tests": {
-        "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily": "a9cea999ab08a8a1",
-        "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily#2": "a9cea999ab08a8a1"
+        "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily": "30e27105e8a9f202",
+        "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily#2": "30e27105e8a9f202"
       },
       "units": {
         "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily": "d7ca52f2021d9d58",
@@ -184,8 +185,8 @@
       "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): Re-read: the unit's body is unchanged; only the 6.4.2 and 6.4.3 Virtual Router MAC proxy tags left it for TestVRRPBackupDoesNotForwardVirtualMACFrames, so the verdict stands. Prior note: Backup installs no VIP (parent carries arp_ignore=1, so nothing answers ARP for it); Master contrast installs it on the vMAC device",
       "requirement_sha": "1306530dd2a643bd",
       "tests": {
-        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "b7108f927f669585",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "b7108f927f669585"
+        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "90d279832a92de75",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "90d279832a92de75"
       },
       "units": {
         "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e1a785d3aeb30340",
@@ -210,8 +211,8 @@
       "note": "Backup installs no IPv6 VIP, Master installs it on the vMAC macvlan only; NS answering follows the kernel address",
       "requirement_sha": "f3f8398db7d58c5d",
       "tests": {
-        "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "b7108f927f669585",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice#2": "b7108f927f669585"
+        "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "90d279832a92de75",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice#2": "90d279832a92de75"
       },
       "units": {
         "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "bb1f308ff09eb61c",
@@ -223,8 +224,8 @@
       "note": "Backup emits zero announcements; the Master's one announcement is BuildNA type 136, never 134",
       "requirement_sha": "5ccb64c842422565",
       "tests": {
-        "internal/plugins/vrrp/instance_test.go::TestInstanceBackupSendsNoRouterAdvertisement": "b7108f927f669585",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceBackupSendsNoRouterAdvertisement#2": "b7108f927f669585"
+        "internal/plugins/vrrp/instance_test.go::TestInstanceBackupSendsNoRouterAdvertisement": "90d279832a92de75",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceBackupSendsNoRouterAdvertisement#2": "90d279832a92de75"
       },
       "units": {
         "internal/plugins/vrrp/instance_test.go::TestInstanceBackupSendsNoRouterAdvertisement": "a4e07dd25ead0a40",
@@ -238,8 +239,8 @@
       "tests": {
         "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState": "222f08528bf57944",
         "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState#2": "222f08528bf57944",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "f9e1bb72cffca4dc",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "f9e1bb72cffca4dc"
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "44393888cc66696b",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "44393888cc66696b"
       },
       "units": {
         "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState": "79074dcf716f8085",
@@ -253,8 +254,8 @@
       "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): Re-read: the unit's body is unchanged; only the 6.4.2 and 6.4.3 Virtual Router MAC proxy tags left it for TestVRRPBackupDoesNotForwardVirtualMACFrames, so the verdict stands. Prior note: Backup installs no VIP so no packet to it is delivered locally; Master contrast installs it",
       "requirement_sha": "aa141be8239f3b53",
       "tests": {
-        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "b7108f927f669585",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "b7108f927f669585"
+        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "90d279832a92de75",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "90d279832a92de75"
       },
       "units": {
         "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e1a785d3aeb30340",
@@ -331,8 +332,8 @@
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "a2a1d36eaea86500",
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "a2a1d36eaea86500",
         "internal/plugins/vrrp/promote_install_test.go::TestPromotionInstallsIPv4AddressOnVirtualMACDevice": "9bad609fe413a369",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "f9e1bb72cffca4dc",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "f9e1bb72cffca4dc"
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "44393888cc66696b",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "44393888cc66696b"
       },
       "units": {
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "8bbcb38638b03997",
@@ -369,8 +370,8 @@
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f",
         "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource": "a878e0cdb3eac07e",
         "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource#2": "a878e0cdb3eac07e",
-        "internal/plugins/vrrp/tiebreak_v6_test.go::TestInstanceIPv6ElectionUsesUnsignedOrder": "ff841e8617708828",
-        "internal/plugins/vrrp/tiebreak_v6_test.go::TestInstanceIPv6ElectionUsesUnsignedOrder#2": "ff841e8617708828"
+        "internal/plugins/vrrp/tiebreak_v6_test.go::TestInstanceIPv6ElectionUsesUnsignedOrder": "3156ce97c4930a0e",
+        "internal/plugins/vrrp/tiebreak_v6_test.go::TestInstanceIPv6ElectionUsesUnsignedOrder#2": "3156ce97c4930a0e"
       },
       "units": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
@@ -399,8 +400,8 @@
       "note": "Master installs the IPv6 VIP on the vMAC macvlan (kernel joins its solicited-node group); Backup installs nothing",
       "requirement_sha": "fed998151ecde027",
       "tests": {
-        "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "b7108f927f669585",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice#2": "b7108f927f669585"
+        "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "90d279832a92de75",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice#2": "90d279832a92de75"
       },
       "units": {
         "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "bb1f308ff09eb61c",
@@ -412,8 +413,8 @@
       "note": "Master installs the IPv6 VIP on the vMAC macvlan so it answers NS; Backup installs nothing",
       "requirement_sha": "f0c69ae622c56f50",
       "tests": {
-        "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "b7108f927f669585",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice#2": "b7108f927f669585"
+        "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "90d279832a92de75",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice#2": "90d279832a92de75"
       },
       "units": {
         "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "bb1f308ff09eb61c",
@@ -427,8 +428,8 @@
       "tests": {
         "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState": "222f08528bf57944",
         "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState#2": "222f08528bf57944",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "f9e1bb72cffca4dc",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "f9e1bb72cffca4dc"
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "44393888cc66696b",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "44393888cc66696b"
       },
       "units": {
         "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState": "79074dcf716f8085",
@@ -566,7 +567,7 @@
       "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 7.2 says \"If the protected address is an IPv4 address, then: + Set the source MAC address to virtual router MAC Address + Set the source IPv4 address to interface primary IPv4 address - else // ipv6 + Set the source MAC address to virtual ...\" TestTxAdvertV4OnWire changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the captured source MAC is still compared with 00-00-5e-00-01-0a. Single-polarity per the row annotation. Verdict unchanged; the guest record is owed a re-record.",
       "requirement_sha": "447e1b9f4570d8b2",
       "tests": {
-        "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "1a58859c2c8eb3f8",
+        "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "15a7697300d1b17c",
         "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "e6113ed83a42c0f9",
         "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "e6113ed83a42c0f9"
       },
@@ -712,8 +713,8 @@
         "internal/plugins/vrrp/boot_late_device_test.go::TestEngineWaitsForALateVirtualMACDevice#2": "f5e911ac6de85b6f",
         "internal/plugins/vrrp/boot_order_test.go::TestEngineAnnouncesNothingBeforeTheVirtualMACDevice": "ed30f38ef8942327",
         "internal/plugins/vrrp/boot_order_test.go::TestEngineAnnouncesNothingBeforeTheVirtualMACDevice#2": "ed30f38ef8942327",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceDelaysAnnounceUntilParentUsable": "b7108f927f669585",
-        "internal/plugins/vrrp/instance_test.go::TestInstanceDelaysAnnounceUntilParentUsable#2": "b7108f927f669585"
+        "internal/plugins/vrrp/instance_test.go::TestInstanceDelaysAnnounceUntilParentUsable": "90d279832a92de75",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceDelaysAnnounceUntilParentUsable#2": "90d279832a92de75"
       },
       "units": {
         "internal/plugins/vrrp/boot_late_device_test.go::TestEngineWaitsForALateVirtualMACDevice": "efe0afaccbd4e14e",

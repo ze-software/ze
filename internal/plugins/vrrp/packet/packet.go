@@ -11,7 +11,7 @@
 // v2 whole seconds) happens ONLY in this package's four conversion helpers.
 //
 // checksum.go holds the RFC 1071 core, the pseudo-header builders, FillChecksum
-// and the rx dual-accept; validate.go holds RxMeta, Decode with the 13-row
+// and the rx verification of the group's configured checksum form; validate.go holds RxMeta, Decode with the 13-row
 // receive-validation ladder, the typed error sentinels, Reason() and
 // StripIPv4Header.
 //

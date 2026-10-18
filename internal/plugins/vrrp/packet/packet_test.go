@@ -147,8 +147,7 @@ func TestEncodeGoldenV3IPv4(t *testing.T) {
 // checksum was wrong when its pseudo-header sum matched.
 //
 // RFC requirement: RFC9568-5.2.8-2 positive -- under the default mode an IPv4 advert carrying the message-only checksum (G2, 0x828A) decodes (verifyReceived checksum.go, Decode validate.go).
-// RFC requirement: RFC9568-5.2.8-2 negative -- under the default mode the same advert carrying the RFC 5798 pseudo-header checksum (G2c, 0xDEFB) is discarded with ErrChecksum, so a checksum that includes the pseudo-header is not accepted (verifyReceived checksum.go, Decode validate.go).
-// RFC requirement: RFC9568-7.2-5 negative -- a v3 IPv4 group configured rfc5798-compatible discards the message-only G2 advert with ErrChecksum and accepts only the pseudo-header G2c form it computes itself (verifyReceived, pseudoSumFor checksum.go).
+// RFC requirement: RFC9568-5.2.8-2 negative -- under the default mode the same advert carrying the RFC 5798 pseudo-header checksum (G2c, 0xDEFB) is discarded with ErrChecksum, so a checksum that includes the pseudo-header is not accepted; the pseudo-header form is accepted only by a v3 IPv4 group configured rfc5798-compatible, which in turn discards the message-only G2 advert with ErrChecksum (verifyReceived, pseudoSumFor checksum.go, Decode validate.go).
 func TestDecodeV3IPv4ChecksumOnlyConfiguredForm(t *testing.T) {
 	cases := []struct {
 		name   string
