@@ -89,3 +89,60 @@ func TestPPPoEAuthDrainFollowsProviderReplacement(t *testing.T) {
 		}()
 	}
 }
+
+// TestPPPoEAuthDrainRefusesWithoutProvider proves an empty auth slot fails
+// closed. It drives the production PPP driver to its authentication request
+// with no handler registered and asserts the drain emits a reject.
+// MUTATION: accepting when the handler is nil admits the session.
+func TestPPPoEAuthDrainRefusesWithoutProvider(t *testing.T) {
+	original := subscriber.GetAuthHandler()
+	subscriber.UnregisterAuthHandler()
+	t.Cleanup(func() {
+		if original != nil {
+			subscriber.RegisterAuthHandler(original)
+		}
+	})
+	bus := newRecordBus()
+	decisions := make(chan *subevents.SessionAuthResultPayload, 1)
+	subevents.SessionAuthResult.Subscribe(bus, func(result *subevents.SessionAuthResultPayload) {
+		decisions <- result
+	})
+	driver := ppp.NewProductionDriver(slog.Default(), authReloadBackend{})
+	if err := driver.Start(); err != nil {
+		t.Fatal(err)
+	}
+	var pending sync.Map
+	done := startPPPoEAuthDrain(slog.Default(), driver, subscriber.GetAuthHandler, bus, &pending)
+	t.Cleanup(func() {
+		driver.Stop()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Error("auth drain did not stop")
+		}
+	})
+	fds, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = unix.Close(fds[1]) }()
+	unit, err := unix.Dup(fds[0])
+	if err != nil {
+		_ = unix.Close(fds[0])
+		t.Fatal(err)
+	}
+	options := []byte{1, 4, 5, 220}
+	driver.SessionsIn() <- ppp.StartSession{
+		TunnelID: 7, SessionID: 1, ChanFD: fds[0], UnitFD: unit,
+		LNSMode: true, ProxyLCPInitialRecv: options,
+		ProxyLCPLastSent: options, ProxyLCPLastRecv: options,
+	}
+	select {
+	case decision := <-decisions:
+		if decision.Accept {
+			t.Fatalf("decision=%+v, want a reject with no auth handler registered", decision)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("received no authentication decision")
+	}
+}

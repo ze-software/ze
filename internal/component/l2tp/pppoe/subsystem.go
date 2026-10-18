@@ -204,7 +204,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		authH := subscriber.GetAuthHandler()
 		poolH := subscriber.GetPoolHandler()
 		if authH == nil {
-			s.logger.Warn("pppoe: no auth handler registered; all sessions will be accepted")
+			s.logger.Warn("pppoe: no auth handler registered yet; a session arriving before one registers is refused")
 		}
 		if poolH == nil {
 			s.logger.Error("pppoe: no pool handler registered; all IP requests will be rejected")

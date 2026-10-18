@@ -59,8 +59,13 @@ func startPPPoEAuthDrain(logger *slog.Logger, d *ppp.Driver, resolve func() subs
 }
 
 func callPPPoEAuthHandler(logger *slog.Logger, handler subscriber.AuthHandler, req ppp.EventAuthRequest, respond subscriber.AuthRespondFunc) (result subscriber.AuthResult) {
+	// Owner ruling 2026-10-18: "PPPOE expectation of those session should be
+	// explicitly configured." An empty auth slot refuses every request, the
+	// same as the L2TP drain, so no credential is admitted unchecked. A
+	// configured no-auth session is admitted by the registered provider
+	// (l2tp-auth-local, l2tp-auth-radius) after PPP's allow-no-auth guard.
 	if handler == nil {
-		return subscriber.AuthResult{Accept: true, Message: "no auth handler; accept by default"}
+		return subscriber.AuthResult{Accept: false, Message: "no auth handler configured"}
 	}
 	defer func() {
 		if r := recover(); r != nil {
