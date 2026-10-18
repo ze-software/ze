@@ -277,9 +277,58 @@ built from ITS pid, so a different pid leaves the old set untouched.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `TestKilledLabRunIsCleanedByNextStart` | `internal/le/interoplab/orphans_docker_test.go` (`//go:build docker`, so `docker-peers` runs it) | a re-exec'd child creates a labeled network, container and retained tag and is SIGKILLed; a second, live child's resources exist beside them; one sweep removes exactly the first set | |
+| `TestKilledLabRunIsCleanedByNextStart` | `internal/le/interoplab/orphans_docker_test.go` (`//go:build docker`, so `docker-peers` runs it) | a re-exec'd child creates a labeled network, container and retained tag and is SIGKILLed; a second, live child's resources exist beside them; one sweep removes exactly the first set | no clean pass yet. An earlier phase-2 run proved the verdict (killed set removed, live set kept) but ran past 280 s. Rerun 2026-10-18 ~23:20, load average 34.15 at start and 19.98 at end: FAIL after 130.4 s, in the CHILD's `docker run -d`, not in the sweep (output below the table). Timeouts were not raised. The run left its labeled resources (containers `ze-orphan-peer-{live,killed}-dm8b7wc2wq89`, networks `ze-orphan-net-{live,killed}-dm8b7wc2wq89`, tag `ze-interop-retained:APM5SD5J2FUONMAX6J3ZOY32GH`), owned by exited pids, so the next `cleanup` removes them |
 | `TestLabtestStartsServerAndCleansUp` | `internal/le/interoplab/labtest/labtest_docker_test.go` (`//go:build docker`) | a package test starts a server, reaches it, and leaves nothing after | |
-| `./le test integration cleanup dry` | run in phase 2 against a seeded daemon, output pasted in this spec | the operator sees what would go and why the rest stays | |
+| `./le test integration cleanup dry` | run in phase 2 against a seeded daemon, output pasted in this spec | the operator sees what would go and why the rest stays | ran 2026-10-18 on the shared daemon (load average about 28) with an le built from this tree (`bin/orphan-d8e7/le`), output below |
+
+`TestKilledLabRunIsCleanedByNextStart`, rerun of 2026-10-18 ~23:20:
+
+```
+orphans_docker_test.go:53: live-dm8b7wc2wq89 run: --- FAIL: TestKilledLabRunIsCleanedByNextStart (60.39s)
+orphans_docker_test.go:53: live-dm8b7wc2wq89 run:     orphans_docker_test.go:168: child container: docker run -d did not finish within 1m0s (exit 124): context deadline exceeded
+orphans_docker_test.go:53: the live-dm8b7wc2wq89 run exited before it created its resources
+--- FAIL: TestKilledLabRunIsCleanedByNextStart (130.42s)
+```
+
+`cleanup dry` run of 2026-10-18, phase 2. The daemon held two labeled containers in state
+"created" and their two networks, left by earlier `TestKilledLabRunIsCleanedByNextStart`
+children whose pids had exited, plus 30 unlabeled `ze-interop-retained:` tags from
+before the labels existed. The first `cleanup dry` attempt failed with exit 1
+because `docker image ls` took longer than 30 s under that load: `error: cleanup:
+the labeled lab resources could not be listed (docker image ls did not finish
+within 30s (exit 124): context deadline exceeded). Fix: run the failing docker
+command by hand ...`. The retry, exit 0 (the 30 tag lines are cut to two):
+
+```
+cleanup: would remove container ze-orphan-peer-killed-dm8aopvpy7cx (1852fd40a625): its owner, pid 708601, has exited
+cleanup: would remove container ze-orphan-peer-killed-dm8al3j8a1ke (befa4d5300a0): its owner, pid 672701, has exited
+cleanup: would remove network ze-orphan-net-killed-dm8al3j8a1ke (4c3dffd28285): its owner, pid 672701, has exited
+cleanup: would remove network ze-orphan-net-killed-dm8aopvpy7cx (fb81d54292d8): its owner, pid 708601, has exited
+cleanup: unlabeled image tag ze-interop-retained:5URGBWWN5KXGAK2BDOXSETYZVG (c857193bc3f9): it predates the owner labels, so this command never removes it. Fix: `docker image rm --no-prune ze-interop-retained:5URGBWWN5KXGAK2BDOXSETYZVG` once no run uses it
+cleanup: unlabeled image tag ze-interop-retained:AQJ2LH2JUOKJQVIU7WCU7XIKXW (48272adddddd): it predates the owner labels, so this command never removes it. Fix: `docker image rm --no-prune ze-interop-retained:AQJ2LH2JUOKJQVIU7WCU7XIKXW` once no run uses it
+cleanup: 4 to remove, 0 kept, 0 failed
+```
+
+Then `./le test integration cleanup`, exit 1. The daemon finished all four
+removals, but three of the `docker rm -f` and `docker network rm` calls outlasted
+the 30 s command bound on the client side, so the report names them as failed
+with the command to rerun:
+
+```
+cleanup: removed network ze-orphan-net-killed-dm8aopvpy7cx (fb81d54292d8): its owner, pid 708601, has exited
+cleanup: FAILED to remove container ze-orphan-peer-killed-dm8aopvpy7cx (1852fd40a625) (its owner, pid 708601, has exited): docker rm -f did not finish within 30s (exit 124): context deadline exceeded. Fix: run `docker rm -f 1852fd40a62586a1c02433e29cb020b200f6791cbc667355d9f6f7928f297b09` by hand, or run `./le test integration cleanup` again
+cleanup: FAILED to remove container ze-orphan-peer-killed-dm8al3j8a1ke (befa4d5300a0) (its owner, pid 672701, has exited): docker rm -f did not finish within 30s (exit 124): context deadline exceeded. Fix: run `docker rm -f befa4d5300a03bbfec15c9f114ca674df8641ca0c29ce01c2172ffdd767203a1` by hand, or run `./le test integration cleanup` again
+cleanup: FAILED to remove network ze-orphan-net-killed-dm8al3j8a1ke (4c3dffd28285) (its owner, pid 672701, has exited): docker network rm did not finish within 30s (exit 124): context deadline exceeded. Fix: run `docker network rm 4c3dffd28285e69d5ad0bb447d4926f97128c73b8ef060773e900577e773fc60` by hand, or run `./le test integration cleanup` again
+cleanup: 1 removed, 0 kept, 3 failed
+```
+
+The rerun the report names, exit 0:
+
+```
+cleanup: no Ze lab resource on this Docker daemon
+```
+
+No unlabeled container, network or tag was touched: the 30 retained tags are still on the daemon after both runs.
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
