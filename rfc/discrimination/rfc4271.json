@@ -425,17 +425,6 @@
     {
       "rid": "RFC4271-5.1.2-3",
       "polarity": "positive",
-      "unit": "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotInsertsWhenAbsent",
-      "unit-sha": "8dce6521b37b65bc",
-      "claim-sha": "6c1a55fae6669a98",
-      "route": "revert",
-      "producer": "internal/component/bgp/wireu/aspath_slot.go::recordPrepend",
-      "producer-sha": "3b88cb0ed6047bda",
-      "break": "body of recordPrepend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC4271-5.1.2-3",
-      "polarity": "positive",
       "unit": "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotPrependsBeforeALeadingASSet",
       "unit-sha": "c67a744713dc355e",
       "claim-sha": "df23ad2138b496c7",

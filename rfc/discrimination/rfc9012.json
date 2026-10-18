@@ -91,17 +91,6 @@
     },
     {
       "rid": "RFC9012-13-10",
-      "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
-      "unit-sha": "8f98639bfee45463",
-      "claim-sha": "b301e78c0983a861",
-      "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
-      "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9012-13-10",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
       "unit-sha": "8f98639bfee45463",
