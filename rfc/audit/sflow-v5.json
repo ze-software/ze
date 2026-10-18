@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-10-18",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -17,11 +17,23 @@
     },
     "SFLOW-V5-4.3-2": {
       "code": {
-        "internal/plugins/flowexport/sflow/register.go::validateSFlowCollectors": "9eb9e7066b409ce4"
+        "internal/plugins/flowexport/register.go::runEngine": "67a731e45c66b3cc",
+        "internal/plugins/flowexport/sflow/agent_address.go::adviseSFlowCollectors": "364f3a7d6c21998c",
+        "internal/plugins/flowexport/sflow/agent_address.go::classifyAgentAddress": "687122cd97ced449"
       },
-      "note": "SHOULD: on a multi-homed agent the address should be the loopback address. validateSFlowCollectors checks a specified address, equal on every sflow collector, and nothing checks it belongs to a loopback interface; only docs/guide/flow-export.md recommends one. {gap} annotation and Meta Support coverage disclose it.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 24c32c00b8). sFlow v5 Section 4.3, sFlowAgentAddress: \"In the case of a multi-homed agent, this should be the loopback address of the agent.\" adviseSFlowCollectors classifies the agent address against the interface list and returns a warning naming the interface and the dummy-interface fix; flowexport runEngine logs each advice at Warn and refuses nothing. The tagged unit tests discriminate the classifier and the advice text (lo, dummy, routed, single-homed, IPv6 spelling) and claim no more than they assert, but no tagged test reaches the operator: deleting RegisterCollectorsAdvisor(\"sflow\", ...) or the Warn loop in runEngine leaves every tag green, and test/flow-export/sflow-agent-address-warning.ci is untagged and covers only the absent-address case. The discrimination records replace classifyAgentAddress with a panic, proving reach, not logic.",
       "requirement_sha": "c0d687e1764f334f",
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go::TestSFlowV5AgentAddressOnLoopbackWhenMultiHomed": "e62ec460238d0480",
+        "internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go::TestSFlowV5AgentAddressOnLoopbackWhenMultiHomed#2": "e62ec460238d0480",
+        "internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go::TestSFlowV5AgentAddressSingleHomedNoAdvice": "e62ec460238d0480"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go::TestSFlowV5AgentAddressOnLoopbackWhenMultiHomed": "fdbb8458fbc785de",
+        "internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go::TestSFlowV5AgentAddressOnLoopbackWhenMultiHomed#2": "fdbb8458fbc785de",
+        "internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go::TestSFlowV5AgentAddressSingleHomedNoAdvice": "9620f97e62556546"
+      },
+      "verdict": "weak"
     },
     "SFLOW-V5-x-1": {
       "note": "single-polarity: the header's first field decodes big-endian to 5, the only datagram_version the XDR union defines; WriteDatagramHeader writes a constant, so any other value fails the assertion",
