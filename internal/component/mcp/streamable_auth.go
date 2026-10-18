@@ -83,8 +83,9 @@ func buildAuthForMode(mode AuthMode, cfg StreamableConfig) (authBuildResult, err
 // RFC 9728 Section 3.1: "If the resource identifier value contains a path
 // or query component, any terminating slash (/) following the host
 // component MUST be removed before inserting /.well-known/ and the
-// well-known URI path suffix". Only the terminating slash is removed; the
-// identifier's remaining path and query retain their exact spelling.
+// well-known URI path suffix". Only the slash terminating the host is
+// removed, which is a path of "/" alone; the identifier's remaining path,
+// a trailing slash included, and its query retain their exact spelling.
 //
 // Returns the empty string when neither is set or when the base is
 // unparseable or carries a fragment or userinfo. These cannot identify an
@@ -122,7 +123,15 @@ func resourceOriginAndPath(cfg OAuthConfig) (origin, resourcePath string, ok boo
 	if err != nil {
 		return "", "", false
 	}
-	resourcePath = strings.TrimRight(u.EscapedPath(), "/")
+	// RFC 9728 Section 3.1: "any terminating slash (/) following the host
+	// component MUST be removed before inserting /.well-known/". That slash is
+	// the path "/" standing alone after the host, as in https://h/ or
+	// https://h/?x=1. A slash ending a longer path belongs to the path, so
+	// https://h/mcp/ keeps it.
+	resourcePath = u.EscapedPath()
+	if resourcePath == "/" {
+		resourcePath = ""
+	}
 	if u.RawQuery != "" || u.ForceQuery {
 		resourcePath += "?" + u.RawQuery
 	}

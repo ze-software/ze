@@ -4,6 +4,17 @@
     {
       "rid": "RFC9728-2-2",
       "polarity": "positive",
+      "unit": "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_MetadataEndpoint",
+      "unit-sha": "6a0500fb237ba724",
+      "claim-sha": "48a16bfc0defefd5",
+      "route": "revert",
+      "producer": "internal/component/mcp/oauth.go::writeResourceMetadata",
+      "producer-sha": "6290166dc0c1e0c2",
+      "break": "body of writeResourceMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9728-2-2",
+      "polarity": "positive",
       "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728AuthorizationServersAreIssuerIdentifiers",
       "unit-sha": "bd37f88ff4e21fd2",
       "claim-sha": "355580111d3fffb8",
@@ -22,17 +33,6 @@
       "producer": "internal/component/mcp/as_metadata.go::asMetadataURL",
       "producer-sha": "40613bae2cd4d34e",
       "break": "body of asMetadataURL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9728-2-2",
-      "polarity": "positive",
-      "unit": "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_MetadataEndpoint",
-      "unit-sha": "6a0500fb237ba724",
-      "claim-sha": "48a16bfc0defefd5",
-      "route": "revert",
-      "producer": "internal/component/mcp/oauth.go::writeResourceMetadata",
-      "producer-sha": "6290166dc0c1e0c2",
-      "break": "body of writeResourceMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9728-2-2",
@@ -86,7 +86,7 @@
       "claim-sha": "8e71c673e15e9d9e",
       "route": "revert",
       "producer": "internal/component/mcp/streamable_auth.go::resourceOriginAndPath",
-      "producer-sha": "37aff4838eb462a3",
+      "producer-sha": "51958a183fa15af4",
       "break": "body of resourceOriginAndPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -137,23 +137,23 @@
       "rid": "RFC9728-3.1-3",
       "polarity": "positive",
       "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion",
-      "unit-sha": "c977792e11f8a43e",
-      "claim-sha": "2be2949842284dd8",
+      "unit-sha": "3d3eaa6140cd99cf",
+      "claim-sha": "4a6ed30bee2ba92c",
       "route": "revert",
-      "producer": "internal/component/mcp/streamable_auth.go::resourceMetadataURL",
-      "producer-sha": "6ce4052c860d42eb",
-      "break": "body of resourceMetadataURL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/mcp/streamable_auth.go::resourceOriginAndPath",
+      "producer-sha": "51958a183fa15af4",
+      "break": "body of resourceOriginAndPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9728-3.1-3",
       "polarity": "negative",
       "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion",
-      "unit-sha": "c977792e11f8a43e",
-      "claim-sha": "1bc917eea05d79b0",
+      "unit-sha": "3d3eaa6140cd99cf",
+      "claim-sha": "f075c70d5f7a14d0",
       "route": "revert",
-      "producer": "internal/component/mcp/streamable_auth.go::resourceMetadataURL",
-      "producer-sha": "6ce4052c860d42eb",
-      "break": "body of resourceMetadataURL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/mcp/streamable_auth.go::resourceOriginAndPath",
+      "producer-sha": "51958a183fa15af4",
+      "break": "body of resourceOriginAndPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9728-3.2-3",
@@ -201,17 +201,6 @@
     },
     {
       "rid": "RFC9728-3.3-1",
-      "polarity": "positive",
-      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceMatchesInsertedIdentifier",
-      "unit-sha": "194e37114106572e",
-      "claim-sha": "867985e303318e34",
-      "route": "revert",
-      "producer": "internal/component/mcp/streamable_auth.go::resourceOriginAndPath",
-      "producer-sha": "37aff4838eb462a3",
-      "break": "body of resourceOriginAndPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9728-3.3-1",
       "polarity": "negative",
       "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceMatchesInsertedIdentifier",
       "unit-sha": "194e37114106572e",
@@ -222,11 +211,22 @@
       "break": "body of writeResourceMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9728-3.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceMatchesInsertedIdentifier",
+      "unit-sha": "194e37114106572e",
+      "claim-sha": "867985e303318e34",
+      "route": "revert",
+      "producer": "internal/component/mcp/streamable_auth.go::resourceOriginAndPath",
+      "producer-sha": "51958a183fa15af4",
+      "break": "body of resourceOriginAndPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9728-5.1-1",
       "polarity": "positive",
-      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ChallengeNamesMetadataURL",
-      "unit-sha": "ca9e0e3475f01730",
-      "claim-sha": "b3dbbfeda7be1438",
+      "unit": "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_RejectsMissingBearer",
+      "unit-sha": "ee28f981a8e7fd04",
+      "claim-sha": "243134ffe80f77c5",
       "route": "revert",
       "producer": "internal/component/mcp/streamable_auth.go::resourceMetadataURL",
       "producer-sha": "6ce4052c860d42eb",
@@ -235,9 +235,9 @@
     {
       "rid": "RFC9728-5.1-1",
       "polarity": "positive",
-      "unit": "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_RejectsMissingBearer",
-      "unit-sha": "ee28f981a8e7fd04",
-      "claim-sha": "243134ffe80f77c5",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ChallengeNamesMetadataURL",
+      "unit-sha": "ca9e0e3475f01730",
+      "claim-sha": "b3dbbfeda7be1438",
       "route": "revert",
       "producer": "internal/component/mcp/streamable_auth.go::resourceMetadataURL",
       "producer-sha": "6ce4052c860d42eb",
@@ -278,28 +278,6 @@
     },
     {
       "rid": "RFC9728-7.1-2",
-      "polarity": "positive",
-      "unit": "cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites",
-      "unit-sha": "312664f30240b3d7",
-      "claim-sha": "0b42b567ca2083f8",
-      "route": "revert",
-      "producer": "cmd/ze/hub/service_mcp.go::loadMCPTLSConfig",
-      "producer-sha": "fa3507b812cc82c6",
-      "break": "body of loadMCPTLSConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9728-7.1-2",
-      "polarity": "negative",
-      "unit": "cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites",
-      "unit-sha": "312664f30240b3d7",
-      "claim-sha": "1f582e369a259eab",
-      "route": "revert",
-      "producer": "cmd/ze/hub/service_mcp.go::loadMCPTLSConfig",
-      "producer-sha": "fa3507b812cc82c6",
-      "break": "body of loadMCPTLSConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9728-7.1-2",
       "polarity": "negative",
       "unit": "cmd/ze/hub/rfc9728_service_mcp_test.go::TestRFC9728MCPServingTLSVersions",
       "unit-sha": "26310dd007140893",
@@ -315,6 +293,28 @@
       "unit": "cmd/ze/hub/rfc9728_service_mcp_test.go::TestRFC9728MCPServingTLSVersions",
       "unit-sha": "26310dd007140893",
       "claim-sha": "a5089ed95a56896a",
+      "route": "revert",
+      "producer": "cmd/ze/hub/service_mcp.go::loadMCPTLSConfig",
+      "producer-sha": "fa3507b812cc82c6",
+      "break": "body of loadMCPTLSConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9728-7.1-2",
+      "polarity": "positive",
+      "unit": "cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites",
+      "unit-sha": "312664f30240b3d7",
+      "claim-sha": "0b42b567ca2083f8",
+      "route": "revert",
+      "producer": "cmd/ze/hub/service_mcp.go::loadMCPTLSConfig",
+      "producer-sha": "fa3507b812cc82c6",
+      "break": "body of loadMCPTLSConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9728-7.1-2",
+      "polarity": "negative",
+      "unit": "cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites",
+      "unit-sha": "312664f30240b3d7",
+      "claim-sha": "1f582e369a259eab",
       "route": "revert",
       "producer": "cmd/ze/hub/service_mcp.go::loadMCPTLSConfig",
       "producer-sha": "fa3507b812cc82c6",

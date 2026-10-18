@@ -108,26 +108,29 @@ func TestRFC9728WellKnownInsertedBetweenHostAndPath(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC9728-3.1-3 positive — the slash terminating the host component is removed before the suffix is inserted: https://mcp.example/ yields https://mcp.example/.well-known/oauth-protected-resource and https://mcp.example/mcp/ yields https://mcp.example/.well-known/oauth-protected-resource/mcp.
-// RFC requirement: RFC9728-3.1-3 negative — no advertised URL carries a doubled slash before .well-known or a trailing slash after the inserted suffix.
+// RFC requirement: RFC9728-3.1-3 positive — the slash terminating the host component is removed before the suffix is inserted: https://mcp.example/ yields https://mcp.example/.well-known/oauth-protected-resource and https://mcp.example/?x=1 yields https://mcp.example/.well-known/oauth-protected-resource?x=1, and the metadata is served at that path.
+// RFC requirement: RFC9728-3.1-3 negative — only the slash terminating the host is removed: https://mcp.example/mcp/ keeps its own trailing slash and yields https://mcp.example/.well-known/oauth-protected-resource/mcp/, and no advertised URL carries a doubled slash before .well-known.
 func TestRFC9728TerminatingSlashRemovedBeforeInsertion(t *testing.T) {
 	cases := []struct {
 		audience string
 		want     string
 	}{
 		{"https://mcp.example/", "https://mcp.example/.well-known/oauth-protected-resource"},
-		{"https://mcp.example/mcp/", "https://mcp.example/.well-known/oauth-protected-resource/mcp"},
+		{"https://mcp.example/?x=1", "https://mcp.example/.well-known/oauth-protected-resource?x=1"},
+		{"https://mcp.example/mcp/", "https://mcp.example/.well-known/oauth-protected-resource/mcp/"},
 	}
 	for _, c := range cases {
-		got := resourceMetadataURL(OAuthConfig{Audience: c.audience})
+		cfg := OAuthConfig{Audience: c.audience}
+		got := resourceMetadataURL(cfg)
 		if got != c.want {
 			t.Fatalf("resourceMetadataURL(%q) = %q, want %q", c.audience, got, c.want)
 		}
 		if strings.Contains(got, "//.well-known") {
 			t.Fatalf("resourceMetadataURL(%q) = %q keeps the terminating slash", c.audience, got)
 		}
-		if strings.HasSuffix(got, "/") {
-			t.Fatalf("resourceMetadataURL(%q) = %q ends in a slash", c.audience, got)
+		wantPath := strings.TrimPrefix(c.want, "https://mcp.example")
+		if path := resourceMetadataPath(cfg); path != wantPath {
+			t.Fatalf("resourceMetadataPath(%q) = %q, want %q", c.audience, path, wantPath)
 		}
 	}
 }

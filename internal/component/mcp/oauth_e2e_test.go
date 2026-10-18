@@ -1029,7 +1029,9 @@ func TestResourceMetadataURL(t *testing.T) {
 		want string
 	}{
 		{"audience only", OAuthConfig{Audience: "https://mcp.example/"}, "https://mcp.example/.well-known/oauth-protected-resource"},
-		{"audience trailing-slash stripped", OAuthConfig{Audience: "https://mcp.example///"}, "https://mcp.example/.well-known/oauth-protected-resource"},
+		// RFC 9728 Section 3.1 removes only the slash terminating the host; a path of
+		// three slashes is a path, kept as spelled.
+		{"audience slash path kept", OAuthConfig{Audience: "https://mcp.example///"}, "https://mcp.example/.well-known/oauth-protected-resource///"},
 		{"explicit metadata-resource wins", OAuthConfig{Audience: "https://aud/", MetadataResource: "https://meta/"}, "https://meta/.well-known/oauth-protected-resource"},
 		{"neither set", OAuthConfig{}, ""},
 	}
