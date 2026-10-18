@@ -355,11 +355,11 @@ func pluginShellExtra4TacacsAuthor(ctx context.Context, args []string) error {
 			return err
 		}
 		fmt.Fprintln(os.Stderr, "OK: 'show bgp' authorized")
-		_, err := pluginShellExtra4Command(port, "admin", "testpass", "clear interface counters")
+		_, err := pluginShellExtra4Command(port, "admin", "testpass", "clear interface counters all")
 		if err == nil {
 			return errors.New("clear interface counters should have been blocked by TACACS+ authorization")
 		}
-		fmt.Fprintf(os.Stderr, "OK: 'clear interface counters' blocked: %v\n", err)
+		fmt.Fprintf(os.Stderr, "OK: 'clear interface counters all' blocked: %v\n", err)
 		if !strings.Contains(err.Error(), "command restricted by access control") {
 			return fmt.Errorf("expected command restricted by access control, got: %w", err)
 		}

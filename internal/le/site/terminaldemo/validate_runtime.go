@@ -199,7 +199,7 @@ func validateRBAC() error {
 	if err := contains(allowed, strings.TrimSpace(version)); err != nil {
 		return err
 	}
-	denied, err := runZe([]string{commandCLI, "--user", "noc", "-c", "clear interface counters"}, env, nil)
+	denied, err := runZe([]string{commandCLI, "--user", "noc", "-c", "clear interface counters all"}, env, nil)
 	if err == nil {
 		return errors.New("validation failed: denied RBAC command succeeded")
 	}

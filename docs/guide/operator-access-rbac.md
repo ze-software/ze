@@ -124,7 +124,7 @@ Test that NOC is refused a command its profile denies. The `read-only` profile a
 
 ```bash
 ZE_SSH_PASSWORD='CHANGE_ME_NOC' \
-  /usr/local/bin/ze cli --user noc -c "clear interface counters"
+  /usr/local/bin/ze cli --user noc -c "clear interface counters all"
 ```
 
 Authorization refuses it, and says so:

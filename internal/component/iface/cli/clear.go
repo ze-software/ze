@@ -34,8 +34,9 @@ func cmdClear(args []string) int {
 	}
 }
 
-// cmdClearCounters zeros RX/TX counters. With no argument, clears every
-// managed interface; with one argument, clears that interface only.
+// cmdClearCounters zeros RX/TX counters. `all` clears every managed
+// interface and a name clears that interface only; with no target the call
+// is refused (clearCountersTarget).
 // Backends that cannot reset kernel counters fall back to a per-iface
 // baseline inside iface.ResetCounters -- from the operator's view the
 // counters read zero immediately on the next `show interface`.
@@ -56,19 +57,9 @@ func cmdClearCounters(args []string) int {
 		}
 		return 1
 	}
-	rest := fs.Args()
-	name := ""
-	switch len(rest) {
-	case 0:
-		// clear all
-	case 1:
-		if err := validateIfaceName(rest[0]); err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			return 1
-		}
-		name = rest[0]
-	default:
-		fmt.Fprintf(os.Stderr, "error: clear counters accepts at most one argument: [<name>]\n")
+	name, err := clearCountersTarget(fs.Args())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
 		clearUsage()
 		return 1
 	}
@@ -84,18 +75,48 @@ func cmdClearCounters(args []string) int {
 	return 0
 }
 
+// errClearCountersNoTarget refuses `ze interface clear counters` with no
+// target: it names nothing to act on, and the everything form must be typed
+// (the explicit-all CLI rule, owner decision 2026-10-17).
+var errClearCountersNoTarget = errors.New("clear counters needs a target: it names no interface, " +
+	"and Ze never resets every interface unless you type all. " +
+	"Run ze interface clear counters all to reset every interface, or ze interface clear counters <name> for one")
+
+// errClearCountersTooMany refuses a second target word.
+var errClearCountersTooMany = errors.New("clear counters takes one target, all or <name>: " +
+	"run ze interface clear counters all, or ze interface clear counters <name>")
+
+// clearCountersTarget answers the interface a `ze interface clear counters`
+// call targets, where "" means every interface, as iface.ResetCounters reads
+// it. Only the explicit word all yields "".
+func clearCountersTarget(rest []string) (string, error) {
+	switch len(rest) {
+	case 0:
+		return "", errClearCountersNoTarget
+	case 1:
+		if rest[0] == "all" {
+			return "", nil
+		}
+		if err := validateIfaceName(rest[0]); err != nil {
+			return "", err
+		}
+		return rest[0], nil
+	}
+	return "", errClearCountersTooMany
+}
+
 func clearUsage() {
 	p := helpfmt.Page{
 		Command:   "ze interface clear",
 		ShortHelp: "Clear per-interface operational state",
-		Usage:     []string{"ze interface clear <subject> [<name>]"},
+		Usage:     []string{"ze interface clear <subject> all|<name>"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Subjects", Entries: []helpfmt.HelpEntry{
-				{Name: "counters [<name>]", Desc: "Zero RX/TX counters (all interfaces, or one)"},
+				{Name: "counters all|<name>", Desc: "Zero RX/TX counters on every interface (all), or on one"},
 			}},
 		},
 		Examples: []string{
-			"ze interface clear counters",
+			"ze interface clear counters all",
 			"ze interface clear counters eth0",
 		},
 	}

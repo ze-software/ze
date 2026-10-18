@@ -10,6 +10,7 @@ module ze-iface-interface-cmd {
     // clear verb roots. See ai/rules/plugin-self-containment.md.
     description "The show interface, monitor interface rate, and clear interface counters command tree.";
     // The model now states the grammar, and the generated usage line reads it.
+    revision 2026-10-17 { description "clear interface counters alone is refused; clear interface counters all resets every interface."; }
     revision 2026-08-29 { description "Declare the value the description spelled in prose."; }
     // The show interface family, monitor interface rate, and clear interface
     // counters left the central show, monitor, and clear schemas, for plugin
@@ -153,17 +154,26 @@ every second. Optionally pass an interface name to watch just one link.";
 
         container interface {
             config false;
-            description "Without a name every managed interface is reset. clear interface name
-<name> counters resets one instead.";
+            description "clear interface counters all resets every managed interface, and
+clear interface name <name> counters resets one. The bare clear interface counters is
+refused: it names no target, and Ze never resets everything unless all is typed.";
             ze:help "Reset interface traffic counters.";
 
             container counters {
                 config false;
-                ze:command "ze-iface:clear-interface-counters";
-                ze:rpc "ze-cli-clear-api:interface-counters";
-                description "One call resets every interface the backend manages, and the answer
+                description "Clear interface counters alone is refused: say all to reset every
+interface, or use clear interface name <name> counters for one. Everything is never the
+default.";
+                ze:help "Zero interface Rx/Tx counters: all, or clear interface name <name> counters.";
+
+                container all {
+                    config false;
+                    ze:command "ze-iface:clear-interface-counters";
+                    ze:rpc "ze-cli-clear-api:interface-counters";
+                    description "One call resets every interface the backend manages, and the answer
 reports the scope as all. Nothing else about the interfaces changes.";
-                ze:help "Zero the Rx/Tx counters for every managed interface.";
+                    ze:help "Zero the Rx/Tx counters for every managed interface.";
+                }
             }
 
             container name {
@@ -183,7 +193,7 @@ its kernel device first, so a name bound to hardware by a selector clears the ri
                         type string;
                         mandatory true;
                         description "The interface whose counters are reset. The answer names
-it as the scope cleared, where the form without a name reports all.";
+it as the scope cleared, where clear interface counters all reports all.";
                         ze:help "Interface name";
                     }
                 }

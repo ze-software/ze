@@ -50,7 +50,7 @@ Hide
 Type "clear"
 Enter
 Show
-Type "ze cli --user noc -c 'clear interface counters'"
+Type "ze cli --user noc -c 'clear interface counters all'"
 Enter
 Wait+Screen /restricted by access control/
 Sleep 6s

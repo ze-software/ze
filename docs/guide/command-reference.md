@@ -1540,19 +1540,21 @@ than reading it as "every SPI".
 ### clear vpn ipsec sa
 
 ```
-clear vpn ipsec sa                          # Terminate all IPsec SAs
+clear vpn ipsec sa all                      # Terminate all IPsec SAs
 clear vpn ipsec sa peer <name>              # Terminate SAs for one peer (1-255 chars)
 ```
 
-Without arguments, terminates every active Security Association and
+`clear vpn ipsec sa all` terminates every active Security Association and
 returns the count. With `peer <name>`, terminates only the named
-peer's SAs and returns the peer name. Peers configured with `connection-type initiate` re-establish
+peer's SAs and returns the peer name. The bare `clear vpn ipsec sa` is
+refused and names both forms, so a prefix typed by mistake never
+terminates every SA. Peers configured with `connection-type initiate` re-establish
 automatically; `respond`-only peers wait for the remote side.
 
 Peer name must be 1-255 characters. A missing name after `peer`
 returns an error. An unknown peer name returns "peer not found".
 
-<!-- source: internal/component/ike/cmd/ipsec.go -- handleClearIPsecSA -->
+<!-- source: internal/component/ike/cmd/ipsec.go -- handleClearIPsecSAAll -->
 
 ### show system profile
 
@@ -1838,16 +1840,16 @@ Three `ze doctor` checks report the same facts with stable diagnostic codes:
 ### clear interface counters
 
 ```
-ze clear interface counters                # Reset counters on every managed interface
-ze clear interface counters <name>         # Reset counters on one interface
+ze clear interface counters all            # Reset counters on every managed interface
+ze clear interface name <name> counters    # Reset counters on one interface
 ```
 
-Grammar uses action-before-identifier: `counters` keyword first, then the
-optional interface name. Bare `ze clear interface counters` (no name) clears
-all interfaces. The old forms `clear interface <name> counters` and
-`clear interface <name>` are still accepted with a deprecation warning.
-Errors in argument shape (unknown trailing keyword, three or more tokens)
-reject with the usage line rather than silently defaulting to "all".
+Every interface is reset only when `all` is typed. The bare
+`ze clear interface counters` is refused and names the `all` form, so a
+prefix typed by mistake never resets every counter. One interface is
+selected with the `name` keyword before its value, as `show interface name
+<name>` does. A trailing token after either form is refused with the usage
+line rather than silently defaulting to "all".
 
 The `clear` verb resets runtime/operational state without touching
 configuration. Backends that expose a real counter-reset syscall

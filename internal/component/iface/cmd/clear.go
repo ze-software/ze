@@ -23,7 +23,8 @@ func init() {
 //
 // Canonical grammar:
 //
-//	clear interface counters               -> all
+//	clear interface counters all           -> all
+//	clear interface counters               -> refused by the dispatcher: no command at that node
 //	clear interface name <name> counters   -> one
 func handleClearInterfaceCounters(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	args := validated.Tokens()
@@ -34,7 +35,7 @@ func handleClearInterfaceCounters(ctx *pluginserver.CommandContext, validated co
 	if len(args) != 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "usage: clear interface counters or clear interface name <name> counters",
+			Error:  "usage: clear interface counters all, or clear interface name <name> counters",
 		}, nil
 	}
 

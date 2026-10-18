@@ -35,7 +35,7 @@ EOF_CONF
 cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=25s
 expect=exit:code=0
 expect=stderr:pattern=tacacs-mock: AUTHOR cmd=\\"show bgp\\" reply=PASS_ADD
-expect=stderr:pattern=tacacs-mock: AUTHOR cmd=\\"clear interface counters\\" reply=FAIL
-expect=stderr:pattern=OK: 'clear interface counters' blocked
+expect=stderr:pattern=tacacs-mock: AUTHOR cmd=\\"clear interface counters all\\" reply=FAIL
+expect=stderr:pattern=OK: 'clear interface counters all' blocked
 expect=stderr:pattern=OK: TACACS\+ refusal names access control
 reject=stderr:pattern=ZE-OBSERVER-FAIL

@@ -31,45 +31,40 @@ func TestClearInterfaceCounters_RegisteredWireMethod(t *testing.T) {
 	require.True(t, found, "ze-iface:clear-interface-counters not registered")
 }
 
-// TestHandleClearInterfaceCounters_Grammars verifies every accepted
-// argument shape resolves to the right scope. Covers:
-//   - `clear interface counters`           (args=[], scope all)
-//   - `clear interface counters`           (args=["counters"], scope all)
-//   - `clear interface <name>`             (args=[<name>], scope named)
-//   - `clear interface <name> counters`    (args=[<name>, "counters"], scope named)
-//   - `clear interface counters <name>`    (args=["counters", <name>], tolerated)
+// TestHandleClearInterfaceCounters_Scopes proves both whole forms pass the
+// argument check and reach the counter reset with the scope they name:
+// `clear interface counters all` arrives with no tokens and no selector, and
+// `clear interface name <name> counters` with the name as its selector. The
+// bare `clear interface counters` reaches no handler: the dispatcher refuses it
+// (TestClearInterfaceCountersBareIsRefused). Method: call the handler with each
+// form's validated arguments. No backend is loaded in this package's tests, so
+// the reset answers the backend's own refusal, which only a call that got past
+// the argument check can produce; a loaded backend answers the scope instead.
 //
-// VALIDATES: AC (op-0 command 5) -- CLI grammar matches `show interface
-// <name> counters` in symbol ordering; bare form clears all.
-// PREVENTS: regression where a new argument ordering or a typo maps to
-// the wrong scope (e.g. typo landing as "all").
-func TestHandleClearInterfaceCounters_Grammars(t *testing.T) {
+// VALIDATES: each whole form reaches iface.ResetCounters, never the usage line.
+// PREVENTS: an argument check that refuses a correctly typed whole form.
+func TestHandleClearInterfaceCounters_Scopes(t *testing.T) {
 	tests := []struct {
 		name string
-		args []string
-		want string // expected "cleared" value when status is done
+		ctx  *pluginserver.CommandContext
+		want string // the "cleared" value a loaded backend answers
 	}{
-		{"bare", nil, "all"},
-		{"bare-counters", []string{"counters"}, "all"},
-		{"name-only", []string{"eth0"}, "eth0"},
-		{"name-then-counters", []string{"eth0", "counters"}, "eth0"},
-		{"counters-then-name", []string{"counters", "eth0"}, "eth0"},
+		{"all", nil, "all"},
+		{"name", &pluginserver.CommandContext{Selectors: map[string]string{"name": "eth0"}}, "eth0"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := handleClearInterfaceCounters(nil, commandtest.Args(tt.args...))
+			resp, err := handleClearInterfaceCounters(tt.ctx, commandtest.Args())
 			require.NoError(t, err)
 			require.NotNil(t, resp)
-			// Backend may not be loaded in the unit-test environment; in
-			// that case the handler surfaces the backend error with the
-			// correct argument parse, so we still know the scope branch
-			// that fired. Assert on shape only when the call succeeded.
-			if resp.Status != plugin.StatusDone {
+			if resp.Status == plugin.StatusDone {
+				data, ok := resp.Data.(plugin.Map)
+				require.True(t, ok)
+				assert.Equal(t, tt.want, data["cleared"])
 				return
 			}
-			data, ok := resp.Data.(plugin.Map)
-			require.True(t, ok)
-			assert.Equal(t, tt.want, data["cleared"], "args=%v", tt.args)
+			assert.Equal(t, plugin.StatusError, resp.Status)
+			assert.Equal(t, "iface: no backend loaded", resp.Error, "the form was refused before it reached the reset")
 		})
 	}
 }
@@ -93,59 +88,5 @@ func TestHandleClearInterfaceCounters_RejectBadGrammar(t *testing.T) {
 		assert.Equal(t, plugin.StatusError, resp.Status, "args=%v should reject", args)
 		msg := resp.Error
 		assert.Contains(t, msg, "usage", "args=%v error should include usage line", args)
-	}
-}
-
-// TestClearInterface_DeprecatedNameFirst verifies old name-first grammar adds deprecation.
-func TestClearInterface_DeprecatedNameFirst(t *testing.T) {
-	tests := []struct {
-		name string
-		args []string
-		want string
-	}{
-		{"name-only", []string{"eth0"}, "eth0"},
-		{"name-then-counters", []string{"eth0", "counters"}, "eth0"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resp, err := handleClearInterfaceCounters(nil, commandtest.Args(tt.args...))
-			require.NoError(t, err)
-			require.NotNil(t, resp)
-			if resp.Status != plugin.StatusDone {
-				return
-			}
-			data, ok := resp.Data.(plugin.Map)
-			require.True(t, ok)
-			assert.Equal(t, tt.want, data["cleared"])
-			dep, hasDeprecated := data["deprecated"]
-			assert.True(t, hasDeprecated, "deprecated grammar should have deprecation warning")
-			assert.Contains(t, dep, "clear interface counters")
-		})
-	}
-}
-
-// TestClearInterface_CanonicalNoDeprecation verifies canonical grammar has no deprecation.
-func TestClearInterface_CanonicalNoDeprecation(t *testing.T) {
-	tests := []struct {
-		name string
-		args []string
-	}{
-		{"bare", nil},
-		{"counters-keyword", []string{"counters"}},
-		{"counters-then-name", []string{"counters", "eth0"}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resp, err := handleClearInterfaceCounters(nil, commandtest.Args(tt.args...))
-			require.NoError(t, err)
-			require.NotNil(t, resp)
-			if resp.Status != plugin.StatusDone {
-				return
-			}
-			data, ok := resp.Data.(plugin.Map)
-			require.True(t, ok)
-			_, hasDeprecated := data["deprecated"]
-			assert.False(t, hasDeprecated, "canonical grammar should not have deprecation")
-		})
 	}
 }

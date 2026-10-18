@@ -4,7 +4,7 @@
 # 1. Config has environment.ssh + system.authorization profiles + a noc user,
 #    and deliberately NO bgp{} block (the gokrazy appliance / ssh-only shape).
 # 2. `ze cli --user noc -c "show version"` succeeds (read-only run: default allow).
-# 3. `ze cli --user noc -c "clear interface counters"` is refused: the read-only
+# 3. `ze cli --user noc -c "clear interface counters all"` is refused: the read-only
 #    profile denies the "clear" prefix.
 #
 # VALIDATES: AC -- system.authorization profiles apply to a daemon started without a
@@ -58,6 +58,7 @@ expect=exit:code=0
 # The read-only profile still allows operational reads.
 expect=stderr:pattern=OK: 'show version' allowed
 # The denied command was refused with the access-control wording.
+expect=stderr:pattern=OK: bare clear interface counters refused, names clear interface counters all
 expect=stderr:pattern=OK: refusal names access control
 # The refusal carried one "error: " prefix, not two.
 expect=stderr:pattern=OK: single error prefix

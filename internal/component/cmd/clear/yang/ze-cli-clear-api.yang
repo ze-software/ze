@@ -12,7 +12,10 @@ module ze-cli-clear-api {
      configuration.";
 
   rpc interface-counters {
-    description "Without an interface name, Ze clears every interface. Ze first
+    description "clear interface counters all clears every interface, and clear
+interface name <name> counters clears one. The bare clear interface counters is
+refused, because it names no target and Ze never clears everything unless all is
+typed. Ze first
 asks the backend to zero the kernel counters. When the backend answers that
 the counters cannot be reset, Ze records the current values as a baseline and
 subtracts it from later reads. That baseline is held in memory, so a restart

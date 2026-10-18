@@ -200,9 +200,20 @@ func rbacSSHOnlyExtra3(ctx context.Context, args []string) error {
 	}
 	fmt.Fprintf(os.Stderr, "OK: 'show version' allowed: %s\n", output)
 
-	message, err := rawPasswordSSHCommandExtra3(port, "noc", "noc-secret", "clear interface counters")
+	// The bare prefix names no target, so it is refused as incomplete and
+	// the refusal names the explicit form; only `all` reaches every interface.
+	bare, err := rawPasswordSSHCommandExtra3(port, "noc", "noc-secret", "clear interface counters")
 	if err == nil {
-		return errors.New("'clear interface counters' must be refused")
+		return errors.New("'clear interface counters' must be refused: it names no target")
+	}
+	if !strings.Contains(bare, "is not a whole command") || !strings.Contains(bare, "clear interface counters all") {
+		return fmt.Errorf("bare clear interface counters must be refused naming clear interface counters all: %s", bare)
+	}
+	fmt.Fprintln(os.Stderr, "OK: bare clear interface counters refused, names clear interface counters all")
+
+	message, err := rawPasswordSSHCommandExtra3(port, "noc", "noc-secret", "clear interface counters all")
+	if err == nil {
+		return errors.New("'clear interface counters all' must be refused")
 	}
 	fmt.Fprintf(os.Stderr, "DENIED-OUTPUT: %s\n", message)
 	if !strings.Contains(message, "command restricted by access control") {
