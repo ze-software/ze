@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-13",
+  "audited": "2026-10-18",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -293,17 +293,19 @@
       "verdict": "enforced"
     },
     "RFC7854-4.9-1": {
-      "note": "Re-judged 2026-10-13; both tagged units changed by setup only (recordPeerUpFor seeds the Peer Up Section 3.3 now requires before each Peer Down; every assertion byte-identical), so the earlier finding stands unchanged. Reasons 1 and 3 carry the exact NOTIFICATION PDU and reason 5 carries no Data, but the reason 2 clause ('the code corresponding to the FSM Event that caused the system to close the session') is unproven: the producer writes the constant fsmEventNone for every reason 2, so the subtest's two-zero-octet assertion cannot fail on a wrong event code, and the subtest drives 'connection lost', an unexpected transport termination that Section 4.9 assigns to reason 4, not reason 2.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 4ef90497c6). Section 4.9: \"Reason 2: The local system closed the session.  No notification message was sent.  Following the reason code is a 2-byte field containing the code corresponding to the Finite State Machine (FSM) Event that caused the system to close the session\". The earlier finding (the producer wrote a constant zero event for every reason 2) is fixed: peerDownFor writes fsmEventData(fsmEvent) and new TestRFC7854PeerDownLocalCloseCarriesTheFSMEvent asserts Reason 2 with Data 0008 for rpc.ReasonLocalClose and AutomaticStop, red if the zero octets come back. Reasons 1 and 3 still carry the exact NOTIFICATION PDU (TestRFC7854PeerDownCarriesTheDataItsReasonRequires) and the negative keeps reason 5 Data-free. Which event closed the session is the reactor's answer (sessionCloseFor, tagged under RFC7854-x-10 and RFC4724-4-2, numbers pinned by untagged TestSessionCloseForCoversEveryCause); the copy of CloseFSMEvent into StructuredEvent.FSMEvent (server/events.go) has no unit.",
       "requirement_sha": "16daa710662a204f",
       "tests": {
+        "internal/component/bgp/plugins/bmp/rfc7854_peerdown_cause_test.go::TestRFC7854PeerDownLocalCloseCarriesTheFSMEvent": "9670cb870441e913",
         "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownCarriesTheDataItsReasonRequires": "f35e3e516018f144",
         "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone": "f35e3e516018f144"
       },
       "units": {
+        "internal/component/bgp/plugins/bmp/rfc7854_peerdown_cause_test.go::TestRFC7854PeerDownLocalCloseCarriesTheFSMEvent": "5e0db2b1f05b542a",
         "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownCarriesTheDataItsReasonRequires": "0c4da1b51531150b",
         "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone": "e183e3aaeed62801"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7854-5-1": {
       "note": "Re-judged 2026-09-29 (the negative unit gained the RFC7854-5-4 tag line only; assertions unchanged). rfc7854_test.go::TestRFC7854LFlagFollowsPolicy: received announce and withdraw leave with L clear, sent with L set. ::TestRFC7854LFlagNotDecidedByBody: one body streamed on both sides leaves L clear received and L set sent, so the flag follows the direction (policy stage) and not the message. Ze sends no post-policy Adj-RIB-In; its L-set stream is the RFC 8671 Adj-RIB-Out (O and L set, peerHeaderFromEvent).",
@@ -386,17 +388,23 @@
       "verdict": "enforced"
     },
     "RFC7854-x-10": {
-      "note": "Re-judged 2026-10-13; the TestHandleSenderStatePeerDown change is setup only (recordPeerUpFor seeds the Peer Up Section 3.3 now requires before a Peer Down; assertions byte-identical), so the earlier finding stands unchanged. TestBMPSenderPeerDown round-trips a Reason byte the caller chose (5), so it cannot fail on a wrong cause; TestHandleSenderStatePeerDown pins reason 2 ('no notification message was sent') for an event whose close reason is 'notification'. No unit ties a Reason to the cause that closed the session, and the producer peerDownFor (bmp_events.go) never emits reason 4, so an unexpected transport termination (which Section 4.9 assigns to reason 4) is reported as a local close.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 4ef90497c6). Section 4.9: \"Reason indicates why the session was closed.\" The earlier finding (no unit tied a Reason to the cause, and peerDownFor never emitted reason 4) is fixed and now proven at both decision points. Reactor: TestPeerCloseNamesTheTransportLoss drops TCP under a running Peer and asserts rpc.ReasonTCPFailure with Event 18; TestPeerCloseNamesTheCongestionTeardownLocal drives congestionTeardownPeer and asserts rpc.ReasonLocalClose with Event 18, so ze closing the transport itself is not reported as the remote doing it. BMP: TestRFC7854PeerDownTransportLossIsReason4 asserts Reason 4 (\"This includes any unexpected termination of the transport session\") with no Data for rpc.ReasonTCPFailure. TestHandleSenderStatePeerDown (reason 2 for a NOTIFICATION close with no cached PDU) and TestBMPSenderPeerDown (round-trips a chosen byte) remain weak on their own. Seam not covered by a tagged unit: apiStateObserver.OnPeerClosed and server/events.go copying the reason and CloseFSMEvent into the StructuredEvent. Single-polarity annotation holds: every Peer Down is written with a reason byte.",
       "requirement_sha": "18f14aad3f239d5b",
       "tests": {
-        "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerDown": "dd4b2b96c0b38dc9",
-        "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderPeerDown": "b1d529e5dcb7872e"
+        "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerDown": "1600925b71fa0ce5",
+        "internal/component/bgp/plugins/bmp/rfc7854_peerdown_cause_test.go::TestRFC7854PeerDownTransportLossIsReason4": "9670cb870441e913",
+        "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderPeerDown": "b1d529e5dcb7872e",
+        "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheCongestionTeardownLocal": "cf6e617fcfa3155a",
+        "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheTransportLoss": "cf6e617fcfa3155a"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerDown": "baeff2fea0c65d89",
-        "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderPeerDown": "d103d014f34221d9"
+        "internal/component/bgp/plugins/bmp/rfc7854_peerdown_cause_test.go::TestRFC7854PeerDownTransportLossIsReason4": "31a9e2e00f95104b",
+        "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderPeerDown": "d103d014f34221d9",
+        "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheCongestionTeardownLocal": "a4784ff23f6b2c26",
+        "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheTransportLoss": "4d5ca2f74e71e068"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7854-x-11": {
       "note": "Re-judged 2026-09-29: the stale unit TestSenderStopSendsTerminationToCollector changed only by an added RFC7854-4.5-5 tag comment; body unchanged. It still requires the collector to read a Termination through stop() racing holdConnection, and the writeTerminationLocked break recorded under RFC7854-4.5-5 on this same unit was observed red. sender_test.go::TestBMPSenderTermination covers the encoder, no record. {single-polarity: positive} holds for a MAY that ze always exercises.",

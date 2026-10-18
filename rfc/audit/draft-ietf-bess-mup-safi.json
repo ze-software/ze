@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-15",
+  "audited": "2026-10-18",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -104,30 +104,34 @@
       "verdict": "enforced"
     },
     "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-2": {
-      "note": "Judged 2026-10-14 (independent auditor, spec-bgp-update-propagation-rfc-defects Q-1 (a)). Both units drive nlritype.Get(fam), the recognizer the mup plugin's init registers (recognizerFor: RecognizeNLRI then ValidateNLRI), through nlritype.Retain, the call typedNLRIEdit makes at ingress, with the route between two well-formed ISD siblings. Positive TestMUPMalformedRouteTreatedAsWithdrawnAtIngress case T1ST Endpoint Address Length 24 (octets 24, 192, 0, 2, 1) is withdrawn, but the buffer does not isolate the rule (question 3). Removing the addressBitsOctets check in parseBodyT1ST leaves endpointOctets 0, so 192 is then read as the Source Address Length and ErrMUPSourceLength withdraws the route anyway; a mutant reading (bits+7)/8 octets leaves one octet, read as Source Address Length 1, same answer. The test stays green with the Endpoint Address Length rule gone. A case whose only fault is the endpoint length (for example Endpoint Address Length 24 followed by Source Address Length 0 and nothing else, beside one carrying three address octets) would discriminate. Negative TestMUPWellFormedRouteKeptAtIngress: 32 with an IPv4 endpoint and 128 with an IPv6 endpoint kept, sound.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 7414ef24cc). Section 3.1.3.1: \"Any other value is considered as an invalid and a malformed Endpoint Address.  A BGP speaker MUST handle such a malformed NLRI as a \"Treat-as-withdraw\" [RFC7606].\" The earlier finding (question 3, the 24-length case was withdrawn by a later field check with the rule gone) is answered by the new unit TestMUPT1STEndpointLengthIsTheOnlyFault, which drives the registered recognizer through nlritype.Retain between two well-formed ISD siblings and asserts the exact Kept, Withdrawn, WithdrawnCount 1 and zero Discarded. Its two buffers each parse as a valid route under one wrong reading: length 24 then Source Address Length 0 is well formed if addressBitsOctets accepts 24 as zero octets, and length 24 then three address octets then Source Address Length 0 is well formed if it rounds up to (24+7)/8, so removing the check in parseBodyT1ST or either mutant of addressBitsOctets keeps one case and goes red. Negative TestMUPWellFormedRouteKeptAtIngress keeps 32 with an IPv4 endpoint and 128 with an IPv6 endpoint, sound. Residual: only 24 is sampled as an other value, and only under ipv4/mup.",
       "requirement_sha": "f050c5d3bfc23c82",
       "tests": {
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "cfceab5a74352356",
-        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "cfceab5a74352356"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "cfceab5a74352356",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_address_length_test.go::TestMUPT1STEndpointLengthIsTheOnlyFault": "03ae6e37b7f40342"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "ce08ffce82ad21e4",
-        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "3d80b3cbbc9addd5"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "3d80b3cbbc9addd5",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_address_length_test.go::TestMUPT1STEndpointLengthIsTheOnlyFault": "bbbac8de693f31c2"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-3": {
-      "note": "Judged 2026-10-14 (independent auditor, spec-bgp-update-propagation-rfc-defects Q-1 (a)). Both units drive nlritype.Get(fam), the recognizer the mup plugin's init registers (recognizerFor: RecognizeNLRI then ValidateNLRI), through nlritype.Retain, the call typedNLRIEdit makes at ingress, with the route between two well-formed ISD siblings. Positive TestMUPMalformedRouteTreatedAsWithdrawnAtIngress case T1ST Source Address Length 16 (16, 10, 1) is withdrawn, but the buffer does not isolate the rule (question 3). Removing the sourceOK check in parseBodyT1ST leaves sourceOctets 0, so 10, 1 is then read as a TLV of Length 1 that overruns, and validateTLVs' ErrMUPTLV withdraws the route anyway: the test stays green with the Source Address Length rule gone (a mutant reading 2 octets would be caught). A Source Address Length fault whose trailing octets also form valid TLVs, or none, would discriminate. Negative TestMUPWellFormedRouteKeptAtIngress: Source Address Length 0, 32 with an IPv4 source and 128 with an IPv6 source kept, sound.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 7414ef24cc). Section 3.1.3.1 gives the Source Address Length 0, 32 or 128 and \"Any other value is considered as an invalid and a malformed Endpoint Address.  A BGP speaker MUST handle such a malformed NLRI as a \"Treat-as-withdraw\" [RFC7606].\" The earlier finding (the 16-length case was withdrawn by validateTLVs with the rule gone) is answered by TestMUPT1STSourceLengthIsTheOnlyFault: a valid IPv4 endpoint then Source Address Length 16 followed by nothing, or by one valid TLV (0xf0, length 1), each parses as a well-formed route when the length reads as zero octets, so dropping the !sourceOK check in parseBodyT1ST keeps both and the exact Kept/Withdrawn/WithdrawnCount assertions go red; the older 16, 10, 1 case still catches a mutant that rounds 16 up to two octets. Negative TestMUPWellFormedRouteKeptAtIngress keeps 0, 32 with an IPv4 source and 128 with an IPv6 source, sound. The MAY clause on local source configuration binds nothing testable.",
       "requirement_sha": "2e3db2730765c89d",
       "tests": {
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "cfceab5a74352356",
-        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "cfceab5a74352356"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "cfceab5a74352356",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_address_length_test.go::TestMUPT1STSourceLengthIsTheOnlyFault": "03ae6e37b7f40342"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "ce08ffce82ad21e4",
-        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "3d80b3cbbc9addd5"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "3d80b3cbbc9addd5",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_address_length_test.go::TestMUPT1STSourceLengthIsTheOnlyFault": "669727bed31cff1b"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6": {
       "note": "Re-judged 2026-10-14 (independent auditor, D3). Draft Section 3.1.3.1: \"< 0: the mandatory fields exceed the declared Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw.\" TestMUPMalformedT1STTreatAsWithdraw runs classifyRFC7606 and applyRFC7606 with the real registered ipv4/mup recognizer (the reactor test binary links the mup plugin) over L, K, L2 where K's Length ends inside the Endpoint Address: ActionNone, MP_REACH keeps exactly L then L2, MP_UNREACH carries exactly K; red if K is kept, dropped without a withdrawal, or the session resets. Its negative subtest returns an UPDATE of well-formed L and L2 (L2 with unknown TLV 0xF0) byte for byte. TestMUPT1STMandatoryFieldsWithinLength pins ParseMUP's ErrMUPTruncated, the answer ValidateNLRI turns into Withdraw. The earlier finding (decode path only, ingress stored the route) is closed by recognizerFor.",

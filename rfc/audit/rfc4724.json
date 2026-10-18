@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-12",
+  "audited": "2026-10-18",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -90,17 +90,25 @@
       "verdict": "enforced"
     },
     "RFC4724-4-2": {
-      "note": "the tagged units call grStateManager.onSessionDown with wasNotification injected as true/false. In production handleStructuredState/handleStateEvent (gr.go) derive wasNotification from reason == \"notification\", and the only session-down producer (peer_run.go via notifyPeerClosed) sends \"session closed\" or \"connection lost\", so the NOTIFICATION branch is unreachable and routes are retained after a NOTIFICATION teardown. The tests stay green against that defect",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 4ef90497c6). Section 4: \"It is noted that the normal BGP procedures MUST be followed when the TCP session terminates due to the sending or receiving of a BGP NOTIFICATION message.\" The earlier finding (GR compared against \"notification\" while the reactor only ever sent \"session closed\" or \"connection lost\") is fixed: reactor/peer_close.go::sessionCloseFor returns rpc.ReasonNotification whenever notificationExchanged is set, and gr.go handleStructuredState and handleStateEvent compare against that constant. TestPeerCloseNamesTheNotificationTheNeighborSent drives a running Peer that receives a Cease and asserts the observer sees rpc.ReasonNotification with Event 25; TestRFC4724NotificationCloseRetainsNothing feeds that reason to the production GR callbacks and asserts no purge-stale, retain-routes or mark-stale dispatch, so the RIB clears the Adj-RIB-In on DOWN (rib.go, retainedPeers unset). Negatives TestPeerCloseNamesTheTransportLoss (TCP drop, rpc.ReasonTCPFailure) and TestRFC4724TransportCloseRetains (three-command sequence for TCPFailure and LocalClose) are genuine contrasts. The sending half has no tagged end-to-end unit: it rests on incrNotificationSent setting notificationExchanged (asserted by an untagged unit in reactor/peer_stats_test.go) and on the notified=true rows of untagged TestSessionCloseForCoversEveryCause. The older tagged gr_state_test.go units inject wasNotification and prove only the state-machine branch. Not covered: the text-event path handleStateEvent, which external GR plugins take.",
       "requirement_sha": "27edc6747b36ca46",
       "tests": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerNotificationBypass": "cf2845d2e52807df",
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRouteRetention": "cf2845d2e52807df"
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRouteRetention": "cf2845d2e52807df",
+        "internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go::TestRFC4724NotificationCloseRetainsNothing": "51e4cdbd76bc873f",
+        "internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go::TestRFC4724TransportCloseRetains": "51e4cdbd76bc873f",
+        "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheNotificationTheNeighborSent": "cf6e617fcfa3155a",
+        "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheTransportLoss": "cf6e617fcfa3155a"
       },
       "units": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerNotificationBypass": "16cfa56e18a119dc",
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRouteRetention": "30a739dea259dade"
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRouteRetention": "30a739dea259dade",
+        "internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go::TestRFC4724NotificationCloseRetainsNothing": "56b485277cb0cd80",
+        "internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go::TestRFC4724TransportCloseRetains": "596d839d448556a1",
+        "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheNotificationTheNeighborSent": "63e4547fe047cb11",
+        "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheTransportLoss": "4d5ca2f74e71e068"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4724-4-4": {
       "note": "Re-judged 2026-10-02 (BGP c29 judge), owner rulings 7 and 8(a). parseGRCapValue now lists a family only when nlrisplit.Supported (the RIB plugin, a hard Dependency of bgp-gr resolved by ResolveDependencies at autoload, can store and re-send it). Negative TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores registers ipv4/rib-less (SAFI 241, no splitter, preconditions asserted) and pins 007800010100 for the session list and 0078 (capability still sent, no tuple) for a configured list naming only it, each with the Warn carrying peer and family; HEAD negative ClaimsNoFamilyItDoesNotCarry keeps the uncarried-family refusal. Positives: TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores (ipv4/flow + ipv4/unicast, 00780001850000010100, no Warn) and ListsTheFamiliesOfTheSession (exact two-tuple payload). Four observed-red records (revert parseGRCapValue); author probe inverting the condition reds all four, and the pre-fix run reds only the negative, so the pair discriminates the condition itself.",

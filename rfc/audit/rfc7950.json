@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-16",
+  "audited": "2026-10-18",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -334,17 +334,23 @@
       "verdict": "unimplemented"
     },
     "RFC7950-8.1-2": {
-      "note": "The tagged units drive config.LoadConfig directly: TestRFC7950RunningDatastoreRefusesAViolationAfterParse requires a nil result and ErrCustomValidation for a ze:validate violation, and TestRFC7950RunningDatastoreAcceptsAValidConfig loads a valid config. \"Always\" binds every route into the running configuration, and no tagged unit drives one: neither the daemon install path (the load closure runReload receives, cmd/ze/hub/main_reload.go) nor the editor commit (internal/component/cli/editor_commit.go, whose validateStagedTree is a no-op when preCommitValidate is nil). A route that installed a tree without LoadConfig leaves every tagged assertion green. The YANG-type violation is asserted only in TestRFC7950RunningDatastoreRefusesAViolationAtParse, tagged to RFC7950-8.3-1, not to this row.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 9d4a5e79e2). Section 8.1: \"The running configuration datastore MUST always be valid.\" The earlier finding (only config.LoadConfig was driven; no install route) is answered for the reload route: TestRFC7950ReloadInstallsAValidConfig and TestRFC7950ReloadRefusesAConstraintViolation write the file and drive diskConfigLoaders and doReload, the path every SIGHUP and editor reload notifier reaches, and assert the refused reload returns ErrCustomValidation naming the value while the reactor keeps system/host reload-valid-host. TestRFC7950WebCommitRefusesAConstraintViolation shows the web editor commit writes nothing for the same violation. Startup stays covered by the LoadConfig units. Residual: the SSH session editor (session_editor.go) sets no pre-commit validator, so its commit relies on the reload refusal the reload units prove; no tagged unit drives that editor, and none drives the gNMI/API configValidationHook route.",
       "requirement_sha": "ac895bc9c1082f2f",
       "tests": {
+        "cmd/ze/hub/rfc7950_reload_validation_test.go::TestRFC7950ReloadInstallsAValidConfig": "f783bcee003d247c",
+        "cmd/ze/hub/rfc7950_reload_validation_test.go::TestRFC7950ReloadRefusesAConstraintViolation": "f783bcee003d247c",
+        "cmd/ze/hub/rfc7950_web_commit_validation_test.go::TestRFC7950WebCommitRefusesAConstraintViolation": "49a840f6902a77aa",
         "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreAcceptsAValidConfig": "881ae8cd8e73bade",
         "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreRefusesAViolationAfterParse": "881ae8cd8e73bade"
       },
       "units": {
+        "cmd/ze/hub/rfc7950_reload_validation_test.go::TestRFC7950ReloadInstallsAValidConfig": "af342b5622e32205",
+        "cmd/ze/hub/rfc7950_reload_validation_test.go::TestRFC7950ReloadRefusesAConstraintViolation": "b82555770f1f7bef",
+        "cmd/ze/hub/rfc7950_web_commit_validation_test.go::TestRFC7950WebCommitRefusesAConstraintViolation": "f9f6416368621660",
         "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreAcceptsAValidConfig": "a4dd1bf5400ad5d7",
         "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreRefusesAViolationAfterParse": "cd1fa735402534b4"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7950-8.1-3": {
       "note": "Re-judged 2026-10-12, second pass (independent auditor) after 60a74fc04b, 600996fb77, 975428e1b3, 3f1bec74f0 and 84382339ce. SHIFTED only: the tagged units are byte-identical (gate-verified). range: receive-hold-time 2 and port 0 refused ErrTypeRange, 1 and 2 refused and 0, 3, 180, 65535 accepted; pattern: router-id not-an-ip refused ErrTypePattern at errs[0] with session/asn/local supplied so no missing-mandatory error comes first, 192.0.2.1 accepted; length: a 256-char isis hostname refused ErrTypeLength and a within-length one raises no length error. The validateString record on TestValidateTree_PatternViolation is current again (no stale record). Base-type conformance is carried by the Section 9 rows. Re-run green 2026-10-12. Verdict stands.",
@@ -378,19 +384,23 @@
       "verdict": "unimplemented"
     },
     "RFC7950-8.3-1": {
-      "note": "parse window and whole-tree validation window are proven through LoadConfig; the edit-processing window (the config editor set/commit path) is untested",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 9d4a5e79e2). Section 8.3: \"For configuration data, there are three windows when constraints MUST be enforced\": parsing, processing of <edit-config>, and validation. Parse and whole-tree validation stay proven through LoadConfig (TestRFC7950RunningDatastoreRefusesAViolationAtParse, ...AfterParse). The earlier finding (edit-processing window untested) is answered for the web editor: TestRFC7950WebCommitWritesAValidEdit (SetValue, CommitNow, file carries the edit) and TestRFC7950WebCommitRefusesAConstraintViolation (a value the YANG type accepts and the internal-plugin ze:validate rule refuses: CommitNow errors naming the value and the file is byte-identical), driven through newEditorFactory(ValidateContent), the factory service_web.go installs. Residual: the SSH CLI editor commit, which carries no pre-commit validator and is refused only at reload, and the gNMI/API session commit are not driven by a tagged unit.",
       "requirement_sha": "a37c845b0879394f",
       "tests": {
+        "cmd/ze/hub/rfc7950_web_commit_validation_test.go::TestRFC7950WebCommitRefusesAConstraintViolation": "49a840f6902a77aa",
+        "cmd/ze/hub/rfc7950_web_commit_validation_test.go::TestRFC7950WebCommitWritesAValidEdit": "49a840f6902a77aa",
         "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreAcceptsAValidConfig": "881ae8cd8e73bade",
         "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreRefusesAViolationAfterParse": "881ae8cd8e73bade",
         "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreRefusesAViolationAtParse": "881ae8cd8e73bade"
       },
       "units": {
+        "cmd/ze/hub/rfc7950_web_commit_validation_test.go::TestRFC7950WebCommitRefusesAConstraintViolation": "f9f6416368621660",
+        "cmd/ze/hub/rfc7950_web_commit_validation_test.go::TestRFC7950WebCommitWritesAValidEdit": "b7d267364e6c5988",
         "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreAcceptsAValidConfig": "a4dd1bf5400ad5d7",
         "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreRefusesAViolationAfterParse": "cd1fa735402534b4",
         "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreRefusesAViolationAtParse": "66e928625a6ded56"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7950-8.3.3-1": {
       "note": "Row narrowed 2026-09-30 to the first sentence. The tags prove LoadConfig refuses a ze:validate violation with ErrCustomValidation and no partial tree, and accepts a valid config. \"All validation constraints\" is not met by the stack: a missing mandatory leaf is only a warning (SectionValidationError.Blocking), and when, unique and choice are evaluated nowhere, so a final datastore content violating those is accepted. Owner ruling 4: carried by spec-config-yang-when-unique-choice AC-2.",
@@ -416,14 +426,18 @@
       "verdict": "unimplemented"
     },
     "RFC7950-9.1-1": {
-      "note": "decimal64 lexical forms both polarities, and integer \"+17\" now accepted for uint8 (validateUnsigned fixed) and int8 (positive only, record on validateUnsigned). Missing: hexadecimal and octal integer forms in a module default (Section 9.2.1, \"0x10\" refused by ParseUint base 10), and bits, binary, empty, identityref fall to validateYangType's default arm with no lexical check or tagged case. Re-judged 2026-09-30: the decimal64 units changed only by their RFC7950-9.3.2-1 tags moving to RFC7950-9.3.1-1; the gaps named stand.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 9d4a5e79e2). Section 9.1: \"Implementations MUST support all lexical representations specified in this document.\" The hexadecimal and octal integer gap named before is closed: TestRFC7950IntegerModuleDefaultHexAndOctal drives yangToNode over module text and asserts the canonical decimal for 0x, +0x, -0x, leading-zero octal, the int8/int64 minimums, the uint64 maximum and union member order, and TestRFC7950IntegerModuleDefaultMalformedNotation asserts a named build error for malformed notations and out-of-range values. The decimal64 and signed decimal units stand. Still missing, so the whole requirement is unproven: validator.go validateYangType returns nil for binary, bits, empty, identityref, instance-identifier and leafref with no lexical check, so a malformed base64 binary value or an undefined bit name is accepted, and no tagged case covers those types. The row carries no {gap} or {partial} annotation for them.",
       "requirement_sha": "75762b5ffc3b2a55",
       "tests": {
+        "internal/component/config/rfc7950_yang_schema_integer_default_test.go::TestRFC7950IntegerModuleDefaultHexAndOctal": "cf3e89ed71ea75d8",
+        "internal/component/config/rfc7950_yang_schema_integer_default_test.go::TestRFC7950IntegerModuleDefaultMalformedNotation": "cf3e89ed71ea75d8",
         "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Accepted": "42b5eb7bb7c9bc1a",
         "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Refused": "42b5eb7bb7c9bc1a",
         "internal/component/config/yang/rfc7950_validator_integer_test.go::TestRFC7950IntegerSignedLexicalForms": "019c7227f6c340cf"
       },
       "units": {
+        "internal/component/config/rfc7950_yang_schema_integer_default_test.go::TestRFC7950IntegerModuleDefaultHexAndOctal": "9eb41aa1dc3baec1",
+        "internal/component/config/rfc7950_yang_schema_integer_default_test.go::TestRFC7950IntegerModuleDefaultMalformedNotation": "141712d043060a49",
         "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Accepted": "8ac07305a919d26e",
         "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Refused": "8a00b786008ce8d0",
         "internal/component/config/yang/rfc7950_validator_integer_test.go::TestRFC7950IntegerSignedLexicalForms": "af6aafba3295ec96"
