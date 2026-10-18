@@ -22,6 +22,9 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
+// owedAnswer is the RIB's answer to one gated lookup; nil answers WITHDRAW.
+type owedAnswer func(ribevents.RecoveryRequest) []ribevents.RecoveryOutcome
+
 // owedRail is a destination with a running recovery worker, a registered
 // recovery owner, and a lookup double the test gates.
 type owedRail struct {
@@ -30,7 +33,7 @@ type owedRail struct {
 	destination *Peer
 	conn        *recordingConn
 	requests    chan ribevents.RecoveryRequest
-	release     chan struct{}
+	release     chan owedAnswer
 }
 
 func newOwedRail(t *testing.T) *owedRail {
@@ -45,10 +48,12 @@ func newOwedRail(t *testing.T) *owedRail {
 	destination.reactor = r
 	destination.sendingInitialRoutes.Store(0)
 	rail := &owedRail{r: r, source: source, destination: destination, conn: conn,
-		requests: make(chan ribevents.RecoveryRequest, 8), release: make(chan struct{}, 8)}
+		requests: make(chan ribevents.RecoveryRequest, 8), release: make(chan owedAnswer, 8)}
 	owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
 		rail.requests <- request
-		<-rail.release
+		if answer := <-rail.release; answer != nil {
+			return answer(request), nil
+		}
 		return recoveryWithdrawAnswer(request), nil
 	})
 	session := destination.currentSession()
@@ -125,7 +130,7 @@ func TestAdjOutOwnerWithdrawalOwedToRecovery(t *testing.T) {
 	require.Len(t, request.Keys, 1)
 	require.Equal(t, p, request.Keys[0].NLRI)
 	require.Empty(t, request.Keys[0].Excluded, "an owner withdrawal excludes no source")
-	rail.release <- struct{}{}
+	rail.release <- nil
 
 	lowEventually(t, func() bool {
 		return len(recoveryWrittenUpdates(t, rail.conn.written())) == 2
@@ -162,7 +167,7 @@ func TestOwedKeyHandOffNeverBlocksWriter(t *testing.T) {
 		t.Fatal("the writer waited on the recovery worker")
 	}
 	require.Len(t, rail.owed(), 2)
-	rail.release <- struct{}{}
+	rail.release <- nil
 
 	// The writes that owed Q moved the destination's send sequence, so the
 	// first admission may retry and the next round may ask about P again.
@@ -173,7 +178,7 @@ func TestOwedKeyHandOffNeverBlocksWriter(t *testing.T) {
 	}
 	require.True(t, asked, "the next round asks about the key owed while the worker was busy")
 	for range 4 {
-		rail.release <- struct{}{}
+		rail.release <- nil
 	}
 	lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "both owed keys are decided")
 }
@@ -289,7 +294,7 @@ func TestAdjOutOwedAuthorities(t *testing.T) {
 		request := rail.request(t)
 		require.Equal(t, p, request.Keys[0].NLRI)
 		require.Empty(t, request.Keys[0].Excluded, "a lifecycle removal excludes no source")
-		rail.release <- struct{}{}
+		rail.release <- nil
 		lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the decided record leaves the owed set")
 	})
 	t.Run("add-path-destination-written", func(t *testing.T) {

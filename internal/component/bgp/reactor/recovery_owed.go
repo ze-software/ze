@@ -7,6 +7,9 @@ package reactor
 import (
 	"context"
 	"errors"
+	"math"
+	"net/netip"
+	"slices"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -47,10 +50,13 @@ type recoveryWorker struct {
 	ownerLog sync.Once
 }
 
-// recoveryOwedKey is one key of a round's snapshot, with the record it read.
+// recoveryOwedKey is one key of a round's snapshot: the record it read, and
+// the record's epoch and excluded sources as they stood.
 type recoveryOwedKey struct {
-	key    adjOutKey
-	record *adjOutOwed
+	key      adjOutKey
+	record   *adjOutOwed
+	epoch    uint64
+	excluded []netip.Addr
 }
 
 // startRecovery MUST be called once per session, before the session publishes
@@ -179,24 +185,27 @@ func (w *recoveryWorker) retire(err error) {
 }
 
 // round decides every key owed when it started, one family and one bounded
-// chunk at a time. It reports again when a chunk must be looked up again.
+// chunk at a time. It reports again when a key of its snapshot is still owed
+// after its admission: left owed on a moved epoch or a withdrawn candidate,
+// or re-owed with a source excluded. Each such key changed since the
+// snapshot, and each change is bounded, so this cannot hot-loop.
 func (w *recoveryWorker) round() (bool, error) {
 	owed := w.snapshot()
-	again := false
 	for fam, keys := range owed {
 		for start := 0; start < len(keys); start += recoveryLookupKeysMax {
 			chunk := keys[start:min(start+recoveryLookupKeysMax, len(keys))]
-			retry, err := w.decide(fam, chunk)
-			if err != nil {
+			if err := w.decide(fam, chunk); err != nil {
 				return false, err
 			}
-			again = again || retry
 		}
 	}
-	return again, nil
+	return w.stillOwed(owed), nil
 }
 
-// snapshot copies the owed set of this session under the table mutex.
+// snapshot copies the owed set of this session under the table mutex, and
+// clears each record's movers: a withdrawal after this point is noted again.
+// It is taken before the source cuts are captured, so a withdrawal landing
+// between the two is either drained or recorded.
 func (w *recoveryWorker) snapshot() map[family.Family][]recoveryOwedKey {
 	table := &w.peer.adjOut
 	table.mu.Lock()
@@ -213,69 +222,72 @@ func (w *recoveryWorker) snapshot() map[family.Family][]recoveryOwedKey {
 		if record.session != w.session {
 			continue
 		}
-		owed[record.family] = append(owed[record.family], recoveryOwedKey{key: key, record: record})
+		record.movers = record.movers[:0]
+		owed[record.family] = append(owed[record.family], recoveryOwedKey{key: key, record: record,
+			epoch: record.epoch, excluded: slices.Clone(record.excluded)})
 	}
 	return owed
+}
+
+// stillOwed reports whether any key of the snapshot is owed after the round.
+func (w *recoveryWorker) stillOwed(owed map[family.Family][]recoveryOwedKey) bool {
+	table := &w.peer.adjOut
+	table.mu.Lock()
+	defer table.mu.Unlock()
+
+	for _, keys := range owed {
+		for i := range keys {
+			if table.owed[keys[i].key] != nil {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // decide runs one lookup and one admission for a chunk of owed keys of one
 // family. The order is a constraint: the source cuts are captured after the
 // snapshot, so an owe that lands after the snapshot is either drained here or
-// decided by the next round.
-func (w *recoveryWorker) decide(fam family.Family, chunk []recoveryOwedKey) (bool, error) {
-	session, sequence := recoverySnapshot(w.peer)
-	if session != w.session {
-		return false, nil // The table reset with the session; nothing is owed.
+// decided by the next round. A chunk holds keys of one framing: a destination
+// sends a family with ADD-PATH or without it.
+func (w *recoveryWorker) decide(fam family.Family, chunk []recoveryOwedKey) error {
+	if w.session.tearingDown.Load() {
+		return nil // The table resets with the session; nothing stays owed.
 	}
 	sources := w.adapter.recoverySources()
-	if err := drainRecoverySources(w.ctx, sources); err != nil {
-		return false, err
+	stopped, err := drainRecoverySources(w.ctx, sources)
+	if err != nil {
+		return err
 	}
 	command := w.owner()
 	if command == nil {
-		return false, errRecoveryOwnerGone
+		return errRecoveryOwnerGone
 	}
 	if err := command.Process.DrainEventsApplied(w.ctx); err != nil {
-		return false, err
+		return err
 	}
 	request := ribevents.RecoveryRequest{Destination: w.peer.Settings().Address, Family: fam,
 		Keys: make([]ribevents.RecoveryKey, len(chunk))}
+	admission := &recoveryAdmission{peer: w.peer, session: w.session, ctx: w.ctx,
+		done: make(chan struct{}), sources: sources, keys: make([]recoveryAdmitKey, len(chunk))}
 	for i := range chunk {
-		// An owner withdrawal or a lifecycle removal excludes no source: the
-		// withdrawn path is already gone from the RIB, and the source's other
-		// paths stay eligible.
-		request.Keys[i].NLRI = chunk[i].record.nlri
+		// The snapshot's excluded set is a copy, so appending to it is safe.
+		request.Keys[i] = ribevents.RecoveryKey{NLRI: chunk[i].record.nlri,
+			Excluded: append(chunk[i].excluded, stopped...)}
+		admission.keys[i] = recoveryAdmitKey{key: chunk[i].key, record: chunk[i].record, epoch: chunk[i].epoch}
+	}
+	if chunk[0].key.addPath {
+		// A departure key at an ADD-PATH destination: the RIB names each of
+		// the departed source's sent identifiers and runs no election. The
+		// writer withdraws only an identifier no current session owns, which
+		// is the reconnect guard, so no message cut narrows the RIB's list.
+		request.SentAddPath = true
+		request.Cut = math.MaxUint64
 	}
 	outcomes, err := w.adapter.lookupRecovery(w.ctx, &request)
 	if err != nil {
-		return false, err
-	}
-	for i := range outcomes {
-		// The destination holds the record's advertisement, in its own framing.
-		outcomes[i].Sent = [][]byte{chunk[i].record.nlri}
+		return err
 	}
 	sender := plugin.ProcessSender(command.Process.Name())
-	retry, err := w.adapter.admitRecovery(w.ctx, outcomes, fam, w.peer, session, sequence, sender, sources)
-	if err != nil {
-		return false, err
-	}
-	if retry {
-		return true, nil
-	}
-	w.settle(chunk)
-	return false, nil
-}
-
-// settle removes the records a written admission decided. A record replaced
-// by a later owe stays: the next round decides it.
-func (w *recoveryWorker) settle(chunk []recoveryOwedKey) {
-	table := &w.peer.adjOut
-	table.mu.Lock()
-	defer table.mu.Unlock()
-
-	for i := range chunk {
-		if table.owed[chunk[i].key] == chunk[i].record {
-			delete(table.owed, chunk[i].key)
-		}
-	}
+	return w.adapter.admitRecovery(admission, outcomes, fam, sender)
 }

@@ -438,21 +438,49 @@ registered, the withdrawal is written as before and one warning is logged per
 destination session. A destination with ADD-PATH send keeps every path and owes
 nothing.
 
+A key keeps one record while it is owed, and every later owe merges into it,
+so a round deciding the key never loses an owe made while it ran. The record
+carries a set of excluded sources, an epoch that moves whenever a source is
+excluded, the movers, and a done channel its waiters block on. A departure
+(`recoverNLRIBatch`, the DOWN command bgp-rs sends) owes a key only where the
+departed source owns the destination's entry through a session that is no
+longer current. Where another source, the source's reconnected session, or
+nobody owns it, nothing is owed, so an old DOWN never overwrites a newer route.
+The departure's owe adds the departed source to the excluded set, and the
+departure waits on every record it owed; canceling the wait stops only the
+waiter. At an ADD-PATH destination a departure owes per prefix: the RIB names
+each identifier it sent for the source, and the writer withdraws only an
+identifier that no current session owns. A forwarded withdrawal of an owed key
+by a source that does not own it is dropped and recorded as a mover. A bgp-rib
+replay of an owed key (ROUTE-REFRESH, `clear bgp rib out`) is refused and leaves
+the record; the refusal is counted once per write on the destination's
+owed-refusal counter.
+
 The recovery worker is one goroutine per destination session. The FSM
 Established callback starts it before the session publishes Established, and
 its first round runs without a wake, so a key owed before it existed is never
-stranded. Each round snapshots the owed set under the table mutex, captures and
-drains the source publication cuts, waits for the RIB to apply its events, and
-asks the RIB about at most 500 keys of one family at a time, with no excluded
-source. The RIB's answer goes through the ordinary recovery admission on the
-destination's forward worker: the first survivor is written as the new owner,
-or the key is withdrawn when no candidate survives. A written decision removes
-the record it decided; a record replaced by a later owe stays for the next round.
+stranded. Each round snapshots the owed set under the table mutex and clears
+the movers, then captures and drains the source publication cuts, waits for the
+RIB to apply its events, and asks the RIB about at most 500 keys of one family
+at a time, each with its excluded set. A source whose received publication
+failed was torn down by its delivery worker, and every key of the round
+excludes it; the destination is not retired for it. The RIB's answer is staged
+as one admission on the destination's forward worker, which decides each key
+under `writeMu`. A key whose record left, belongs to another session, or
+carries a newer epoch is not written. A key whose chosen candidate withdrew
+since the snapshot is left owed. A key whose survivor's source session ended or
+restarted since the round's receipt, at reconstruction or at the final writer,
+is owed again with that source excluded. Every other key is written: the first
+survivor as the new owner, or the withdrawal when no candidate survives. A
+written decision removes its record when its epoch has not moved, and that
+completes its waiters; a table reset drops every record and completes them too.
 Every teardown path seals the session, and sealing stops the worker without
 waiting. `Peer.runOnce`'s deferred cleanup, after the down has been announced,
 joins it. Every write that installs an owner also records the owner's source
 session generation, which ownership equality ignores.
-<!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal, applyOwes -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal, stageMover, applyStaged -->
+<!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjOutOwed, owe, exclude, removeOwed, dropOwed -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, oweDeparture, recoveryAdmission.admit, settle -->
 <!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryWorker -->
 
 Ordinary UPDATE sizing follows the final policy and next-hop result, after AIGP

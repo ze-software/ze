@@ -22,18 +22,21 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/plugins/cmd/update"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
 // recoveryAdvertiseFailed establishes sent history through the actual final
-// writer before stopping the configured source. Bodies already have the
-// destination's negotiated framing, including its assigned ADD-PATH IDs.
-func recoveryAdvertiseFailed(t *testing.T, r *Reactor, destination *Peer, bodies ...[]byte) {
+// writer before stopping the configured source, and returns that source.
+// Bodies already have the destination's negotiated framing, including its
+// assigned ADD-PATH IDs. Stopping the source ends the session that owns the
+// destination's entries, so a departure owes them.
+func recoveryAdvertiseFailed(t *testing.T, r *Reactor, destination *Peer, bodies ...[]byte) *Peer {
 	t.Helper()
 	failed, _ := newAnnouncePeer(t, "192.0.2.10")
 	failed.recvCtxID = destination.sendContextID()
@@ -42,13 +45,100 @@ func recoveryAdvertiseFailed(t *testing.T, r *Reactor, destination *Peer, bodies
 		require.NoError(t, ownershipWriterForward(t, destination, failed, body, false))
 	}
 	failed.setState(PeerStateStopped)
+	return failed
+}
+
+// recoveryOwnerStart registers the bgp-rib recovery command owner and starts
+// the destination session's recovery worker, as runOnce does before
+// Established. Without both, a departure retires the destination as
+// ownerless. It MUST run before the test publishes its own lookup double,
+// because the registered RIB publishes the real one when it starts.
+func recoveryOwnerStart(t *testing.T, r *Reactor, destination *Peer) {
+	t.Helper()
+	if r.api == nil {
+		r.api = flowForwardPluginServer(t, New(&Config{ListenAddr: "127.0.0.1:0"}))
+	}
+	lowEventually(t, func() bool {
+		command := r.api.Dispatcher().Registry().Lookup(recoveryCommandName)
+		return command != nil && command.Process != nil
+	}, "recovery command owner registered")
+	destination.reactor = r
+	session := destination.currentSession()
+	session.startRecovery(destination)
+	t.Cleanup(session.joinRecovery)
+}
+
+// recoveryDepartureBatch is bgp-rs's departure command for source over the
+// IPv4 prefixes.
+func recoveryDepartureBatch(source netip.Addr, prefixes ...string) bgptypes.NLRIBatch {
+	batch := bgptypes.NLRIBatch{Family: family.IPv4Unicast, RecoverySource: source}
+	for _, prefix := range prefixes {
+		batch.NLRIs = append(batch.NLRIs, nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix(prefix), 0))
+	}
+	return batch
+}
+
+// recoveryDepart runs the departure command and returns once every key it
+// owed is decided.
+func recoveryDepart(t *testing.T, r *Reactor, destination *Peer, source netip.Addr, prefixes ...string) error {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	return (&reactorAPIAdapter{r: r}).recoverNLRIBatch(ctx, recoveryDepartureBatch(source, prefixes...),
+		[]*Peer{destination}, plugin.ProcessSender("bgp-rs"))
+}
+
+// recoveryOweForTest owes one IPv4 key at the destination session, as a
+// writer or a departure does.
+func recoveryOweForTest(t *testing.T, destination *Peer, session *Session, raw []byte) (adjOutKey, *adjOutOwed) {
+	t.Helper()
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	var key adjOutKey
+	require.NoError(t, fwdPathKeyFor(&key.path, family.IPv4Unicast, 0, raw, false, scratch[:]))
+	table := &destination.adjOut
+	table.mu.Lock()
+	defer table.mu.Unlock()
+	return key, table.owe(key, session, family.IPv4Unicast, raw)
+}
+
+// recoveryOwedRecord reads the destination's record for key.
+func recoveryOwedRecord(destination *Peer, key adjOutKey) *adjOutOwed {
+	table := &destination.adjOut
+	table.mu.Lock()
+	defer table.mu.Unlock()
+	return table.owed[key]
+}
+
+// recoveryLookups records every lookup request a double receives.
+type recoveryLookups struct {
+	mu       sync.Mutex
+	requests []ribevents.RecoveryRequest
+}
+
+func (l *recoveryLookups) add(request ribevents.RecoveryRequest) int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.requests = append(l.requests, request)
+	return len(l.requests)
+}
+
+func (l *recoveryLookups) all() []ribevents.RecoveryRequest {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return append([]ribevents.RecoveryRequest(nil), l.requests...)
 }
 
 // RFC 4271 Section 6 advertises the new best route after the
 // failed path is invalidated; RFC 4271 Section 3.1 makes a newer advertisement
 // replace the preceding route rather than coexist with it on a non-ADD-PATH peer.
-// PREVENTS: a destination-wide receipt fence dropping a required replacement on
-// unrelated traffic, or an old DOWN overwriting a newer target advertisement.
+// PREVENTS: unrelated traffic dropping a required replacement, or an old DOWN
+// overwriting a newer target advertisement.
+// Method: the departed source owns P at the destination through its ended
+// session. "unrelated-prefix" writes 192.0.1.0/24 to the destination between
+// the lookup and the admission; the per-key admission still writes the
+// replacement once, with no second election. "newer-target-owner" lets the
+// live source's newer advertisement own P before the DOWN, so the departure
+// owes nothing and asks the RIB nothing.
 func TestRecoveryFinalWorkerRequestsCausalReresolution(t *testing.T) {
 	for _, newerTarget := range []bool{false, true} {
 		name := "unrelated-prefix"
@@ -58,7 +148,6 @@ func TestRecoveryFinalWorkerRequestsCausalReresolution(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var destination, source *Peer
 			var once sync.Once
-			var superseded atomic.Bool
 			writeResult := make(chan error, 1)
 			generationProof := make(chan bool, 2)
 			r, src, dst, conn, ctxID := newSyncOrderRailWith(t, func(key fwdKey, items []fwdItem) {
@@ -73,9 +162,7 @@ func TestRecoveryFinalWorkerRequestsCausalReresolution(t *testing.T) {
 					items[0].recovery.items[0].receivedGeneration == source.forwardGeneration.Load()
 				once.Do(func() {
 					body := bytes.Clone(syncOrderAnnounceBody)
-					if !newerTarget {
-						body[len(body)-1] = 1 // 192.0.1.0/24 is unrelated to the target.
-					}
+					body[len(body)-1] = 1 // 192.0.1.0/24 is unrelated to the target.
 					session := destination.session
 					session.writeMu.Lock()
 					err := session.writeRawUpdateBody(body)
@@ -83,7 +170,6 @@ func TestRecoveryFinalWorkerRequestsCausalReresolution(t *testing.T) {
 						err = session.bufWriter.Flush()
 					}
 					session.writeMu.Unlock()
-					superseded.Store(newerTarget)
 					writeResult <- err
 				})
 				fwdBatchHandler(key, items)
@@ -94,82 +180,52 @@ func TestRecoveryFinalWorkerRequestsCausalReresolution(t *testing.T) {
 			destination.sendingInitialRoutes.Store(0)
 			destination.session.setSendCtxID(ctxID)
 			destination.session.onMessageReceived = r.notifyMessageReceiver
+			failed := recoveryAdvertiseFailed(t, r, destination, syncOrderAnnounceBody)
+			if newerTarget {
+				// RFC 4271 Section 3.1: the live source's newer advertisement
+				// replaces the departed source's route at the destination.
+				require.NoError(t, ownershipWriterForward(t, destination, source, syncOrderAnnounceBody, false))
+			}
+			setup := len(conn.written())
 			stored := storedIPv4Route(source.Settings().Address.String())
 			attrs, err := hex.DecodeString(stored.AttrHex)
 			require.NoError(t, err)
-			calls := 0
+			recoveryOwnerStart(t, r, destination)
+			var calls atomic.Int32
 			owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
-				calls++
-				require.Len(t, request.Keys, 1)
-				require.Equal(t, syncOrderPrefixWire, request.Keys[0].NLRI)
-				outcomes := recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address,
-					NLRI: syncOrderPrefixWire, Attributes: attrs, NextHop: []byte{1, 1, 1, 1}, MessageID: 81})
-				if superseded.Load() {
-					outcomes[0].Sent = nil // The causally newer sent owner is outside the DOWN cut.
-				}
-				return outcomes, nil
+				calls.Add(1)
+				return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address,
+					NLRI: syncOrderPrefixWire, Attributes: attrs, NextHop: []byte{1, 1, 1, 1}, MessageID: 81}), nil
 			})
 			t.Cleanup(owner.Close)
-			api := &reactorAPIAdapter{r: r}
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
-			request := recoveryDepartureRequest(netip.MustParseAddr("192.0.2.10"),
-				destination.Settings().Address, family.IPv4Unicast, 90, syncOrderPrefixWire)
-			session, sequence := recoverySnapshot(destination)
 			// RFC 4271 Section 6: replacement is admitted only at the final writer.
-			retry, err := api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
-			require.NoError(t, err)
-			require.True(t, retry, "intervening output requires a fresh causal snapshot, not silent success")
+			require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, "192.0.2.0/24"))
+			updates := recoveryWrittenUpdates(t, conn.written()[setup:])
+			if newerTarget {
+				require.Zero(t, calls.Load(), "an old DOWN owes nothing where a newer advertisement owns the key")
+				require.Empty(t, updates, "an old DOWN never overwrites a newer target advertisement")
+				return
+			}
 			require.NoError(t, <-writeResult)
 			require.True(t, <-generationProof, "reconstruction must retain its surviving source generation")
-			require.Len(t, parseWireUpdates(t, conn.written()), 1, "stale queued recovery must not write")
-
-			// The production caller drains the owning process's FIFO before this
-			// second lookup. This deterministic provider has already processed the
-			// injected send when the first item completion answers above.
-			session, sequence = recoverySnapshot(destination)
 			// RFC 4271 Section 6: unrelated output does not cancel the required repair.
-			retry, err = api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
-			require.NoError(t, err)
-			require.False(t, retry)
-			require.Equal(t, 2, calls)
-			updates := parseWireUpdates(t, conn.written())
-			if newerTarget {
-				require.Len(t, updates, 1)
-				require.True(t, updates[0].announces)
-			} else {
-				require.Len(t, updates, 2)
-				require.False(t, updates[0].announces)
-				require.True(t, updates[1].announces, "survivor must eventually replace the failed route")
-			}
+			require.Equal(t, int32(1), calls.Load(), "unrelated output never forces a second election")
+			require.Len(t, updates, 2)
+			require.Equal(t, []byte{24, 192, 0, 1}, updates[0].NLRI)
+			require.Equal(t, syncOrderPrefixWire, updates[1].NLRI, "the replacement is written once, with no retry")
 			for _, update := range updates {
-				require.False(t, update.withdraws, "a valid replacement must not transiently disappear")
+				require.Empty(t, update.WithdrawnRoutes, "a valid replacement must not transiently disappear")
 			}
 		})
 	}
 }
 
-// PREVENTS: an asynchronous stored-route replay passing final admission after
-// its source session has been replaced, even when the source address is reused.
-func TestRecoveryFinalWorkerRejectsChangedSourceGeneration(t *testing.T) {
-	r, source, destination, conn, _ := newSyncOrderRail(t)
-	destination.sendingInitialRoutes.Store(0)
-	session, sequence := recoverySnapshot(destination)
-	admission := &recoveryAdmission{peer: destination, session: session, sequence: sequence, done: make(chan bool, 1)}
-	generation := source.forwardGeneration.Load()
-	source.forwardGeneration.Add(1)
-	admission.items = []fwdItem{{peer: destination, rawBodies: [][]byte{syncOrderAnnounceBody},
-		receivedPeer: source, receivedGeneration: generation}}
-	item := fwdItem{peer: destination, recovery: admission}
-	// Exercise the real worker and its completion/resource owner synchronously.
-	r.fwdPool.safeBatchHandle(fwdKey{peerAddr: destination.Settings().PeerKey()}, []fwdItem{item})
-	require.True(t, <-admission.done, "a stale candidate requires causal re-election")
-	require.Empty(t, conn.written())
-}
-
 // TestRecoveryLookupRejectsReconnectedSource reconnects the elected source
-// inside the RIB lookup, after its old bytes were selected. Only the next lookup's
-// new bytes may reach the real writer; the first receipt must request election.
+// inside the RIB lookup, after its old bytes were selected. The old bytes
+// never reach the writer: the key is owed again with the reconnected source
+// excluded, and the next election, with no candidate left, withdraws it. The
+// reconnected session's new bytes reach the destination through its own
+// forward, never through a re-election of the old ones.
 func TestRecoveryLookupRejectsReconnectedSource(t *testing.T) {
 	r, source, destination, conn, ctxID := newSyncOrderRail(t)
 	r.clock = clock.RealClock{}
@@ -177,47 +233,38 @@ func TestRecoveryLookupRejectsReconnectedSource(t *testing.T) {
 	destination.sendingInitialRoutes.Store(0)
 	destination.session.setSendCtxID(ctxID)
 	destination.session.onMessageReceived = r.notifyMessageReceiver
+	failed := recoveryAdvertiseFailed(t, r, destination, syncOrderAnnounceBody)
+	setup := len(conn.written())
 	stored := storedIPv4Route(source.Settings().Address.String())
 	attrs, err := hex.DecodeString(stored.AttrHex)
 	require.NoError(t, err)
-	calls := 0
+	recoveryOwnerStart(t, r, destination)
+	var lookups recoveryLookups
 	owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
-		calls++
-		raw := syncOrderPrefixWire
-		if calls == 1 {
-			source.setState(PeerStateStopped)
-			source.setState(PeerStateEstablished)
-		} else {
-			raw = []byte{24, 192, 0, 3}
+		if lookups.add(request) != 1 {
+			return recoveryWithdrawAnswer(request), nil
 		}
+		source.setState(PeerStateStopped)
+		source.setState(PeerStateEstablished)
 		return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address,
-			NLRI: raw, Attributes: attrs, NextHop: []byte{1, 1, 1, 1}, MessageID: 81}), nil
+			NLRI: syncOrderPrefixWire, Attributes: attrs, NextHop: []byte{1, 1, 1, 1}, MessageID: 81}), nil
 	})
 	t.Cleanup(owner.Close)
-	api := &reactorAPIAdapter{r: r}
-	request := recoveryDepartureRequest(netip.MustParseAddr("192.0.2.10"),
-		destination.Settings().Address, family.IPv4Unicast, 90, syncOrderPrefixWire)
-	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
-	defer cancel()
-	session, sequence := recoverySnapshot(destination)
-	retry, err := api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
-	require.NoError(t, err)
-	require.True(t, retry)
-	require.Empty(t, conn.written(), "old selected bytes must not acquire the reconnect generation")
-	session, sequence = recoverySnapshot(destination)
-	retry, err = api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
-	require.NoError(t, err)
-	require.False(t, retry)
-	require.Equal(t, 2, calls)
-	bodies := recoveryWrittenUpdates(t, conn.written())
-	require.Len(t, bodies, 1)
-	require.Equal(t, []byte{24, 192, 0, 3}, bodies[0].NLRI)
+	require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, "192.0.2.0/24"))
+	requests := lookups.all()
+	require.Len(t, requests, 2)
+	require.ElementsMatch(t, []netip.Addr{failed.Settings().Address, source.Settings().Address},
+		requests[1].Keys[0].Excluded, "the reconnected source's old selection is excluded from the next election")
+	written := recoveryWrittenUpdates(t, conn.written()[setup:])
+	require.Len(t, written, 1)
+	require.Empty(t, written[0].NLRI, "old selected bytes must not acquire the reconnect generation")
+	require.Equal(t, syncOrderPrefixWire, written[0].WithdrawnRoutes)
 }
 
 // TestRecoveryMixedPolicySectionsCompleteOnce drives the existing raw mixed
 // policy shape through reconstruction and the actual destination writer. The
 // three-section case adds an independent legacy withdrawal, exposing duplicate
-// completions as well as a sibling's self-induced sequence conflict.
+// completions. The departed source owns every key the policy output touches.
 func TestRecoveryMixedPolicySectionsCompleteOnce(t *testing.T) {
 	for _, three := range []bool{false, true} {
 		t.Run(map[bool]string{false: "two", true: "three"}[three], func(t *testing.T) {
@@ -244,14 +291,14 @@ func TestRecoveryMixedPolicySectionsCompleteOnce(t *testing.T) {
 			// Recovery removes actual failed-source output, including the
 			// policy-generated MP withdrawal and independent legacy sibling.
 			// RFC 4271 Section 4.3 and RFC 4760 Section 3.
-			seed := [][]byte{ownershipRailBody(family.IPv6Unicast, false, wantMPWithdrawal[3:], 0)}
+			seed := [][]byte{syncOrderAnnounceBody, ownershipRailBody(family.IPv6Unicast, false, wantMPWithdrawal[3:], 0)}
 			if three {
 				seed = append(seed, ownershipRailBody(family.IPv4Unicast, false, wantWithdraw, 0))
 			}
-			recoveryAdvertiseFailed(t, r, destination, seed...)
+			failed := recoveryAdvertiseFailed(t, r, destination, seed...)
 			setup := conn.written()
 			require.Len(t, recoveryWrittenUpdates(t, setup), len(seed))
-			r.api = &pluginserver.Server{}
+			recoveryOwnerStart(t, r, destination)
 			calls := 0
 			r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 				calls++
@@ -271,16 +318,8 @@ func TestRecoveryMixedPolicySectionsCompleteOnce(t *testing.T) {
 					NLRI: syncOrderPrefixWire, Attributes: original, NextHop: []byte{1, 1, 1, 1}, MessageID: 81}), nil
 			})
 			t.Cleanup(owner.Close)
-			api := &reactorAPIAdapter{r: r}
-			request := recoveryDepartureRequest(netip.MustParseAddr("192.0.2.10"),
-				destination.Settings().Address, family.IPv4Unicast, 90, syncOrderPrefixWire)
-			ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
-			defer cancel()
-			session, sequence := recoverySnapshot(destination)
-			retry, err := api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
-			require.NoError(t, err)
-			require.False(t, retry, "own sections must not invalidate their lookup receipt")
-			require.Equal(t, 1, calls)
+			require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, "192.0.2.0/24"))
+			require.Equal(t, 1, calls, "own sections must not invalidate their lookup receipt")
 			var announced, withdrawn, mpWithdrawn int
 			for _, written := range recoveryWrittenUpdates(t, conn.written()[len(setup):]) {
 				if len(written.NLRI) != 0 {
@@ -314,6 +353,10 @@ func TestRecoveryMixedPolicySectionsCompleteOnce(t *testing.T) {
 
 // TestRecoveryCanceledAndStoppedOperation releases three child resource owners
 // but publishes only one completion, including an operation never written.
+// Method: the admission's key is owed at the destination session with the
+// round's epoch, so the canceled admission acts on a live record; both
+// halves assert the record survives, left owed for the next round. A second
+// completion would close the done channel twice and panic.
 func TestRecoveryCanceledAndStoppedOperation(t *testing.T) {
 	for _, stopped := range []bool{false, true} {
 		t.Run(map[bool]string{false: "canceled", true: "stopped"}[stopped], func(t *testing.T) {
@@ -321,9 +364,10 @@ func TestRecoveryCanceledAndStoppedOperation(t *testing.T) {
 			destination.sendingInitialRoutes.Store(0)
 			ctx, cancel := context.WithCancel(t.Context())
 			cancel()
-			session, sequence := recoverySnapshot(destination)
-			admission := &recoveryAdmission{peer: destination, session: session,
-				sequence: sequence, ctx: ctx, done: make(chan bool, 1)}
+			session := destination.currentSession()
+			key, record := recoveryOweForTest(t, destination, session, syncOrderPrefixWire)
+			admission := &recoveryAdmission{peer: destination, session: session, ctx: ctx,
+				done: make(chan struct{}), keys: []recoveryAdmitKey{{key: key, record: record, epoch: record.epoch}}}
 			released := 0
 			buffers := newPeerPool(4096)
 			for range 3 {
@@ -334,21 +378,27 @@ func TestRecoveryCanceledAndStoppedOperation(t *testing.T) {
 					rawBodies: [][]byte{raw[:len(syncOrderWithdrawBody)]}, done: func() { released++ },
 					peerBufIdx: index, peerPoolRef: buffers})
 			}
+			admission.mark(0)
 			item := fwdItem{peer: destination, recovery: admission}
-			key := fwdKey{peerAddr: destination.Settings().PeerKey()}
+			fwd := fwdKey{peerAddr: destination.Settings().PeerKey()}
 			if stopped {
 				r.fwdPool.Stop()
-				require.False(t, r.fwdPool.dispatchOverflow(key, &item))
+				require.False(t, r.fwdPool.dispatchOverflow(fwd, &item))
 				require.Error(t, admission.err)
 			} else {
-				r.fwdPool.safeBatchHandle(key, []fwdItem{item})
+				r.fwdPool.safeBatchHandle(fwd, []fwdItem{item})
 				require.ErrorIs(t, admission.err, context.Canceled)
 			}
-			require.False(t, <-admission.done)
+			select {
+			case <-admission.done:
+			default:
+				t.Fatal("the operation never completed")
+			}
 			require.Equal(t, 3, released)
 			require.Equal(t, peerPoolSize, buffers.top, "every borrowed child buffer returns once")
-			require.Empty(t, admission.done, "the operation completes once, not once per child")
 			require.Empty(t, conn.written())
+			require.Same(t, record, recoveryOwedRecord(destination, key),
+				"an admission that never ran leaves its key owed for the next round")
 		})
 	}
 }
@@ -371,6 +421,17 @@ func recoveryWrittenUpdates(t *testing.T, raw []byte) []*message.Update {
 	return updates
 }
 
+// lowLiveDepart ends a live source's session the way a real departure does:
+// its transport closes, and the test waits until it has left Established, so
+// the generation that owns its routes at every destination is no longer
+// current. A running Session.Run keeps the FSM and the reactor in agreement.
+func lowLiveDepart(t *testing.T, source *lowLivePeer) {
+	t.Helper()
+	require.NoError(t, source.remote.Close())
+	lowEventually(t, func() bool { return source.peer.State() != PeerStateEstablished },
+		"the departed source left Established")
+}
+
 // TestRecoveryParserRetainsNativeAddPathAndPrunesSent uses the real hex parser,
 // registered RIB, strict delivery drain, and recipient TCP. Ingress IDs zero and
 // seven identify different affected prefixes, not bytes that may be stripped
@@ -383,13 +444,14 @@ func TestRecoveryParserRetainsNativeAddPathAndPrunesSent(t *testing.T) {
 		announced, _ := fatalLengthRecipientRoutes(t, destination)
 		return announced == 3
 	}, "source advertisements reach recipient before recovery")
+	lowLiveDepart(t, source)
 	parsed, err := update.ParseUpdateWire(strings.Fields(
 		"nlri ipv4/unicast addpath del 0000000018cb0072 del 0000000718cb0073"), plugin.WireEncodingHex)
 	require.NoError(t, err)
 	require.Len(t, parsed.Groups, 1)
 	r := source.peer.reactor
 	batch := bgptypes.NLRIBatch{Family: family.IPv4Unicast, NLRIs: parsed.Groups[0].Withdraw,
-		RecoverySource: source.peer.Settings().Address, RecoveryCut: ^uint64(0)}
+		RecoverySource: source.peer.Settings().Address}
 	api := &reactorAPIAdapter{r: r}
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
@@ -398,10 +460,10 @@ func TestRecoveryParserRetainsNativeAddPathAndPrunesSent(t *testing.T) {
 		_, withdrawn := fatalLengthRecipientRoutes(t, destination)
 		return withdrawn == 3 // The helper returns a two-prefix bit mask, not a count.
 	}, "both exact parsed identities are withdrawn on recipient TCP")
-	command := r.api.Dispatcher().Registry().Lookup("request bgp rib recovery")
+	command := r.api.Dispatcher().Registry().Lookup(recoveryCommandName)
 	require.NoError(t, command.Process.DrainEventsApplied(ctx))
 	remaining, err := ribevents.RecoveryProvider().Lookup(recoveryDepartureRequest(batch.RecoverySource,
-		destination.peer.Settings().Address, batch.Family, batch.RecoveryCut, []byte{24, 203, 0, 114}, []byte{24, 203, 0, 115}))
+		destination.peer.Settings().Address, batch.Family, ^uint64(0), []byte{24, 203, 0, 114}, []byte{24, 203, 0, 115}))
 	require.NoError(t, err)
 	require.Len(t, remaining, 2)
 	for _, outcome := range remaining {
@@ -410,8 +472,10 @@ func TestRecoveryParserRetainsNativeAddPathAndPrunesSent(t *testing.T) {
 }
 
 // TestRecoveryHardFailureRetiresDestination makes the real lookup owner refuse
-// election after routes were advertised. The affected established recipient must
-// receive Cease and lose its session, not retain the failed source indefinitely.
+// election after routes were advertised and their source departed. The
+// affected established recipient must receive Cease and lose its session, not
+// retain the failed source indefinitely. The departure's keys complete with
+// the retired session.
 func TestRecoveryHardFailureRetiresDestination(t *testing.T) {
 	peers := extendedRecoveryPeers(t, false, false)
 	source, destination := peers[0], peers[1]
@@ -430,6 +494,7 @@ func TestRecoveryHardFailureRetiresDestination(t *testing.T) {
 		restored := ribevents.PublishRecovery(prior.Lookup)
 		t.Cleanup(restored.Close)
 	}()
+	lowLiveDepart(t, source)
 	parsed, err := update.ParseUpdateWire(strings.Fields("nlri ipv4/unicast del 18cb0072"), plugin.WireEncodingHex)
 	require.NoError(t, err)
 	session := destination.peer.currentSession()
@@ -437,9 +502,9 @@ func TestRecoveryHardFailureRetiresDestination(t *testing.T) {
 	defer cancel()
 	err = (&reactorAPIAdapter{r: source.peer.reactor}).recoverNLRIBatch(ctx,
 		bgptypes.NLRIBatch{Family: family.IPv4Unicast, NLRIs: parsed.Groups[0].Withdraw,
-			RecoverySource: source.peer.Settings().Address, RecoveryCut: ^uint64(0)},
+			RecoverySource: source.peer.Settings().Address},
 		[]*Peer{destination.peer}, plugin.OperatorSender())
-	require.ErrorIs(t, err, failure)
+	require.NoError(t, err, "the owed keys complete with the retired session")
 	lowEventually(t, func() bool {
 		destination.mu.Lock()
 		defer destination.mu.Unlock()
@@ -467,58 +532,52 @@ func (c recoveryClock) Now() time.Time {
 	return c.Clock.Now()
 }
 
-// TestRecoverySourceLossBeforeEnqueueReresolves exercises errForwardNoSource
-// from the actual admission gate, rather than only the final writer fence.
-func TestRecoverySourceLossBeforeEnqueueReresolves(t *testing.T) {
+// TestRecoverySourceLossBeforeEnqueueReowes exercises a survivor whose source
+// session ends while its replacement is reconstructed, before the forwarding
+// admission. The lost source's route is never written: the key is owed again
+// with that source excluded, and the next election withdraws it.
+func TestRecoverySourceLossBeforeEnqueueReowes(t *testing.T) {
 	r, source, destination, conn, ctxID := newSyncOrderRail(t)
 	source.recvCtxID = ctxID
 	destination.sendingInitialRoutes.Store(0)
 	destination.session.setSendCtxID(ctxID)
 	destination.session.onMessageReceived = r.notifyMessageReceiver
 	r.clock = clock.RealClock{}
-	recoveryAdvertiseFailed(t, r, destination, syncOrderAnnounceBody)
+	failed := recoveryAdvertiseFailed(t, r, destination, syncOrderAnnounceBody)
 	setup := conn.written()
 	require.Len(t, recoveryWrittenUpdates(t, setup), 1)
+	recoveryOwnerStart(t, r, destination)
+	stored := storedIPv4Route(source.Settings().Address.String())
+	attrs, err := hex.DecodeString(stored.AttrHex)
+	require.NoError(t, err)
+	var lookups recoveryLookups
+	owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
+		if lookups.add(request) == 1 {
+			return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address,
+				NLRI: syncOrderPrefixWire, Attributes: attrs, NextHop: []byte{1, 1, 1, 1}, MessageID: 81}), nil
+		}
+		return recoveryWithdrawAnswer(request), nil
+	})
+	t.Cleanup(owner.Close)
 	var once sync.Once
 	r.clock = recoveryClock{Clock: clock.RealClock{}, onNow: func() {
 		once.Do(func() { source.setState(PeerStateStopped) })
 	}}
-	stored := storedIPv4Route(source.Settings().Address.String())
-	attrs, err := hex.DecodeString(stored.AttrHex)
-	require.NoError(t, err)
-	calls := 0
-	failed := netip.MustParseAddr("192.0.2.10")
-	owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
-		calls++
-		if calls == 1 {
-			return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address,
-				NLRI: syncOrderPrefixWire, Attributes: attrs, NextHop: []byte{1, 1, 1, 1}, MessageID: 81}), nil
-		}
-		return recoveryWithdrawAnswer(request, syncOrderPrefixWire), nil
-	})
-	t.Cleanup(owner.Close)
-	api := &reactorAPIAdapter{r: r}
-	request := recoveryDepartureRequest(failed, destination.Settings().Address, family.IPv4Unicast, 90, syncOrderPrefixWire)
-	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
-	defer cancel()
-	session, sequence := recoverySnapshot(destination)
-	retry, err := api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
-	require.NoError(t, err)
-	require.True(t, retry, "pre-enqueue source loss must preserve the failed owner's obligation")
-	require.Empty(t, conn.written()[len(setup):])
-	session, sequence = recoverySnapshot(destination)
-	retry, err = api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
-	require.NoError(t, err)
-	require.False(t, retry)
+	require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, "192.0.2.0/24"))
+	requests := lookups.all()
+	require.Len(t, requests, 2)
+	require.Contains(t, requests[1].Keys[0].Excluded, source.Settings().Address,
+		"pre-enqueue source loss owes the key again without that source")
 	written := recoveryWrittenUpdates(t, conn.written()[len(setup):])
 	require.Len(t, written, 1)
+	require.Empty(t, written[0].NLRI, "the lost source's route is never written")
 	require.Equal(t, syncOrderPrefixWire, written[0].WithdrawnRoutes)
 }
 
-// TestRecoveryAddPathWritesEntireLookup admits several destination-framed
-// identifiers, including zero, as one operation. An older implementation wrote
-// just the first path and restarted a full sent-inventory scan for its siblings.
-func TestRecoveryAddPathWritesEntireLookup(t *testing.T) {
+// recoveryAddPathRail is a sync-order rail whose destination negotiated
+// ADD-PATH for IPv4 unicast.
+func recoveryAddPathRail(t *testing.T) (*Reactor, *Peer, *recordingConn) {
+	t.Helper()
 	r, _, destination, conn, _ := newSyncOrderRail(t)
 	r.clock = clock.RealClock{}
 	destination.sendingInitialRoutes.Store(0)
@@ -529,85 +588,56 @@ func TestRecoveryAddPathWritesEntireLookup(t *testing.T) {
 	destination.sendCtxID = ctxID
 	destination.session.setSendCtxID(ctxID)
 	destination.session.onMessageReceived = r.notifyMessageReceiver
-	failed := netip.MustParseAddr("192.0.2.10")
+	return r, destination, conn
+}
+
+// recoveryAddPathAnswer decides every key with WITHDRAW of the identifiers
+// sent lists for its prefix, as the RIB's SentAddPath branch answers.
+func recoveryAddPathAnswer(sent map[string][][]byte) func(ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
+	return func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
+		if !request.SentAddPath {
+			return nil, errors.New("an ADD-PATH departure must ask for the sent identifiers")
+		}
+		outcomes := make([]ribevents.RecoveryOutcome, len(request.Keys))
+		for i := range request.Keys {
+			outcomes[i] = ribevents.RecoveryOutcome{NLRI: request.Keys[i].NLRI, Withdraw: true,
+				Sent: sent[string(request.Keys[i].NLRI)]}
+		}
+		return outcomes, nil
+	}
+}
+
+// TestRecoveryAddPathWritesEntireLookup admits several destination-framed
+// identifiers, including zero, as one operation. An older implementation wrote
+// just the first path and restarted a full sent-inventory scan for its siblings.
+func TestRecoveryAddPathWritesEntireLookup(t *testing.T) {
+	r, destination, conn := recoveryAddPathRail(t)
 	want := [][]byte{{0, 0, 0, 0, 24, 192, 0, 2}, {0, 0, 0, 7, 24, 192, 0, 2}, {0, 0, 0, 17, 24, 192, 0, 3}}
 	var seed [][]byte
 	for _, raw := range want {
 		// RFC 4271 Section 4.3 and RFC 7911 Section 3.
 		seed = append(seed, ownershipRailBody(family.IPv4Unicast, false, raw, 0))
 	}
-	recoveryAdvertiseFailed(t, r, destination, seed...)
+	failed := recoveryAdvertiseFailed(t, r, destination, seed...)
 	setup := conn.written()
 	require.Len(t, recoveryWrittenUpdates(t, setup), len(want))
-	calls := 0
+	recoveryOwnerStart(t, r, destination)
+	var calls atomic.Int32
+	answer := recoveryAddPathAnswer(map[string][][]byte{
+		string(syncOrderPrefixWire): want[:2], string([]byte{24, 192, 0, 3}): want[2:]})
 	owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
-		calls++
-		return recoveryWithdrawAnswer(request, want...), nil
+		calls.Add(1)
+		return answer(request)
 	})
 	t.Cleanup(owner.Close)
-	api := &reactorAPIAdapter{r: r}
-	request := recoveryDepartureRequest(failed, destination.Settings().Address, family.IPv4Unicast, 90,
-		syncOrderPrefixWire, []byte{24, 192, 0, 3})
-	request.SentAddPath = true
-	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
-	defer cancel()
-	session, sequence := recoverySnapshot(destination)
-	retry, err := api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
-	require.NoError(t, err)
-	require.False(t, retry)
-	require.Equal(t, 1, calls)
+	require.NoError(t, recoveryDepart(t, r, destination, failed.Settings().Address, "192.0.2.0/24", "192.0.3.0/24"))
+	require.Equal(t, int32(1), calls.Load(), "one lookup answers every identifier")
 	var got [][]byte
 	for _, written := range recoveryWrittenUpdates(t, conn.written()[len(setup):]) {
 		require.Empty(t, written.NLRI)
 		got = append(got, written.WithdrawnRoutes)
 	}
-	require.Equal(t, want, got, "every advertised identifier must survive destination framing")
-}
-
-// TestRecoveryDestinationReconnectInvalidatesLookup swaps the destination
-// session during selection while its send counter stays unchanged. Only a fresh
-// lookup may write to the new connection.
-func TestRecoveryDestinationReconnectInvalidatesLookup(t *testing.T) {
-	r, source, destination, oldConn, ctxID := newSyncOrderRail(t)
-	r.clock = clock.RealClock{}
-	source.recvCtxID = ctxID
-	destination.sendingInitialRoutes.Store(0)
-	destination.session.setSendCtxID(ctxID)
-	next, newConn := newSyncOrderDest(t, bgpctx.Registry.Get(ctxID), ctxID)
-	next.session.setSendCtxID(ctxID)
-	next.session.onMessageReceived = r.notifyMessageReceiver
-	stored := storedIPv4Route(source.Settings().Address.String())
-	attrs, err := hex.DecodeString(stored.AttrHex)
-	require.NoError(t, err)
-	calls := 0
-	owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
-		calls++
-		if calls == 1 {
-			destination.mu.Lock()
-			destination.session = next.session
-			destination.mu.Unlock()
-		}
-		return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address,
-			NLRI: syncOrderPrefixWire, Attributes: attrs, NextHop: []byte{1, 1, 1, 1}, MessageID: 81}), nil
-	})
-	t.Cleanup(owner.Close)
-	api := &reactorAPIAdapter{r: r}
-	request := recoveryDepartureRequest(netip.MustParseAddr("192.0.2.10"),
-		destination.Settings().Address, family.IPv4Unicast, 90, syncOrderPrefixWire)
-	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
-	defer cancel()
-	session, sequence := recoverySnapshot(destination)
-	retry, err := api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
-	require.NoError(t, err)
-	require.True(t, retry)
-	require.Empty(t, oldConn.written())
-	require.Empty(t, newConn.written())
-	session, sequence = recoverySnapshot(destination)
-	retry, err = api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
-	require.NoError(t, err)
-	require.False(t, retry)
-	require.Empty(t, oldConn.written())
-	require.Len(t, recoveryWrittenUpdates(t, newConn.written()), 1)
+	require.ElementsMatch(t, want, got, "every advertised identifier must survive destination framing")
 }
 
 // recoveryFailureConn fails one real transport operation and observes closure.
@@ -619,7 +649,7 @@ type recoveryFailureConn struct {
 	failure    error
 	writes     int
 	deadline   bool
-	closed     bool
+	closed     atomic.Bool // Written by the teardown, read by the test.
 	firstFrame int
 }
 
@@ -644,13 +674,17 @@ func (c *recoveryFailureConn) SetWriteDeadline(deadline time.Time) error {
 }
 
 func (c *recoveryFailureConn) Close() error {
-	c.closed = true
+	c.closed.Store(true)
 	return nil
 }
 
-// TestRecoveryWriterFailureOverridesPartialRetry drives the production caller,
-// reconstruction, destination worker and fail-close path. Source loss after the
-// first section marks retry, but cannot erase a later body/flush failure.
+// TestRecoveryWriterFailureOverridesPartialRetry drives the departure, the
+// recovery worker, reconstruction, the destination worker and the fail-close
+// path. Three owed keys are decided in one admission, in the request's order:
+// a withdrawal, a survivor whose source is lost on the first write, and a
+// withdrawal. The survivor's key is owed again, and that never masks the
+// later body, deadline or flush failure: the destination ends with Cease or
+// transport closure, and no later section escapes.
 func TestRecoveryWriterFailureOverridesPartialRetry(t *testing.T) {
 	for _, mode := range []string{"deadline", "write", "flush"} {
 		t.Run(mode, func(t *testing.T) {
@@ -674,21 +708,20 @@ func TestRecoveryWriterFailureOverridesPartialRetry(t *testing.T) {
 				fwdBatchHandler(key, items)
 			})
 			r.clock = clock.RealClock{}
-			r.api = flowForwardPluginServer(t, New(&Config{ListenAddr: "127.0.0.1:0"}))
-			lowEventually(t, func() bool {
-				command := r.api.Dispatcher().Registry().Lookup("request bgp rib recovery")
-				return command != nil && command.Process != nil
-			}, "recovery command owner registered")
 			source.recvCtxID = ctxID
 			destination.sendingInitialRoutes.Store(0)
 			session := destination.currentSession()
 			session.setSendCtxID(ctxID)
-			// Seed both failed-source slots before arming transport failure
+			// Seed every failed-source key before arming transport failure
 			// and the onWrite source-loss hook.
 			// RFC 4271 Section 4.3.
-			recoveryAdvertiseFailed(t, r, destination, syncOrderAnnounceBody,
-				ownershipRailBody(family.IPv4Unicast, false, []byte{32, 192, 0, 2, 9}, 0))
-			require.Len(t, recoveryWrittenUpdates(t, seedConn.written()), 2)
+			var seed [][]byte
+			for _, raw := range [][]byte{{24, 192, 0, 2}, {24, 192, 0, 3}, {24, 192, 0, 4}} {
+				seed = append(seed, ownershipRailBody(family.IPv4Unicast, false, raw, 0))
+			}
+			failed := recoveryAdvertiseFailed(t, r, destination, seed...)
+			require.Len(t, recoveryWrittenUpdates(t, seedConn.written()), 3)
+			recoveryOwnerStart(t, r, destination)
 			var once sync.Once
 			session.onWrite = func() {
 				once.Do(func() { source.setState(PeerStateStopped) })
@@ -705,48 +738,57 @@ func TestRecoveryWriterFailureOverridesPartialRetry(t *testing.T) {
 			stored := storedIPv4Route(source.Settings().Address.String())
 			attrs, err := hex.DecodeString(stored.AttrHex)
 			require.NoError(t, err)
-			failed := netip.MustParseAddr("192.0.2.10")
-			calls := 0
+			var lookups recoveryLookups
 			owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
-				calls++
-				if calls > 1 {
+				if lookups.add(request) > 1 {
 					return nil, errors.New("hard write failure incorrectly requested another election")
 				}
-				// Three keys, three sections in one admission: a withdrawal, a
-				// survivor whose source is lost on write, and a withdrawal.
-				outcomes := recoveryWithdrawAnswer(request, syncOrderPrefixWire)
-				outcomes[1] = recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{
-					Source: source.Settings().Address, NLRI: syncOrderPrefixWire,
+				if len(request.Keys) != 3 {
+					return nil, errors.New("the three owed keys were not decided in one lookup")
+				}
+				outcomes := recoveryWithdrawAnswer(request)
+				outcomes[1] = recoverySurvivorAnswer(request, nil, ribevents.RecoveryRoute{
+					Source: source.Settings().Address, NLRI: request.Keys[1].NLRI,
 					Attributes: attrs, NextHop: []byte{1, 1, 1, 1}, MessageID: 81})[1]
-				outcomes[2].Sent = [][]byte{{32, 192, 0, 2, 9}}
 				return outcomes, nil
 			})
 			t.Cleanup(owner.Close)
-			parsed, err := update.ParseUpdateWire(strings.Fields(
-				"nlri ipv4/unicast del 18c00002 del 18c00003 del 18c00004"), plugin.WireEncodingHex)
-			require.NoError(t, err)
-			ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 			defer cancel()
-			err = (&reactorAPIAdapter{r: r}).recoverNLRIBatch(ctx,
-				bgptypes.NLRIBatch{Family: family.IPv4Unicast, NLRIs: parsed.Groups[0].Withdraw,
-					RecoverySource: failed, RecoveryCut: 90}, []*Peer{destination}, plugin.OperatorSender())
-			require.ErrorIs(t, err, failure, "the consumer must receive the actual transport failure")
+			departed := make(chan error, 1)
+			go func() {
+				departed <- (&reactorAPIAdapter{r: r}).recoverNLRIBatch(ctx,
+					recoveryDepartureBatch(failed.Settings().Address, "192.0.2.0/24", "192.0.3.0/24", "192.0.4.0/24"),
+					[]*Peer{destination}, plugin.ProcessSender("bgp-rs"))
+			}()
+			lowEventually(t, session.tearingDown.Load, "the failed write retires the destination session")
+			// A failed body or flush resets the table at once; a failed
+			// deadline leaves that to runOnce, which this fake session lacks.
+			cancel()
+			if err := <-departed; err != nil {
+				require.ErrorIs(t, err, context.Canceled)
+			}
 			r.fwdPool.Stop()
-			require.Equal(t, 1, calls, "hard failure wins over re-election")
+			requests := lookups.all()
+			require.Len(t, requests, 1, "hard failure wins over re-election")
 			admission := <-admitted
-			require.Equal(t, mode != "deadline", admission.retry)
-			require.ErrorIs(t, admission.err, failure)
-			require.False(t, admission.written)
-			require.Empty(t, admission.done, "the consumer receives exactly one completion")
+			require.Equal(t, mode != "deadline", admission.keys[1].outcome == recoveryKeyReowed,
+				"the lost survivor's key is owed again once its source is gone")
+			require.ErrorIs(t, admission.err, failure, "the actual transport failure is the admission's result")
+			select {
+			case <-admission.done:
+			default:
+				t.Fatal("the admission never completed")
+			}
 			require.Empty(t, admission.items, "all staged ownership is released")
 			require.Equal(t, int32(3), released.Load())
-			require.True(t, conn.closed, "the affected recipient transport must be retired")
+			lowEventually(t, conn.closed.Load, "the affected recipient transport must be retired")
 			raw := conn.written()
 			if mode != "deadline" {
 				require.GreaterOrEqual(t, len(raw), conn.firstFrame)
 				written := recoveryWrittenUpdates(t, raw[:conn.firstFrame])
 				require.Len(t, written, 1)
-				require.Equal(t, syncOrderPrefixWire, written[0].WithdrawnRoutes)
+				require.Equal(t, requests[0].Keys[0].NLRI, written[0].WithdrawnRoutes)
 				raw = raw[conn.firstFrame:]
 			}
 			if mode == "deadline" {
@@ -763,74 +805,56 @@ func TestRecoveryWriterFailureOverridesPartialRetry(t *testing.T) {
 	}
 }
 
-// TestRecoveryRetryOwnsReplacementSession distinguishes the replacement selected
-// by a fresh attempt from a later reconnect which that failed attempt never owned.
+// TestRecoveryRetryOwnsReplacementSession proves a failed recovery attempt
+// retires only the destination session its owed record names. Method: the
+// departed source owns P at the original session; the lookup swaps the
+// destination to an unrelated reconnect and fails. The original session is
+// retired with Cease; the reconnect it never owned receives nothing and stays
+// usable. Owed records are per destination session and a table reset
+// completes them, so no attempt ever starts on a replacement session.
 func TestRecoveryRetryOwnsReplacementSession(t *testing.T) {
-	for _, reconnectAgain := range []bool{false, true} {
-		t.Run(map[bool]string{false: "admitted-replacement", true: "unrelated-reconnect"}[reconnectAgain], func(t *testing.T) {
-			r, _, destination, oldConn, ctxID := newSyncOrderRail(t)
-			r.clock = clock.RealClock{}
-			r.api = flowForwardPluginServer(t, New(&Config{ListenAddr: "127.0.0.1:0"}))
-			lowEventually(t, func() bool {
-				command := r.api.Dispatcher().Registry().Lookup("request bgp rib recovery")
-				return command != nil && command.Process != nil
-			}, "recovery command owner registered")
-			destination.sendingInitialRoutes.Store(0)
-			original := destination.currentSession()
-			replacement, replacementConn := newSyncOrderDest(t, bgpctx.Registry.Get(ctxID), ctxID)
-			unrelated, unrelatedConn := newSyncOrderDest(t, bgpctx.Registry.Get(ctxID), ctxID)
-			failure := errors.New("replacement attempt lookup failed")
-			calls := 0
-			owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
-				calls++
-				destination.mu.Lock()
-				defer destination.mu.Unlock()
-				if calls == 1 {
-					destination.session = replacement.session
-					// The changed session forces the actual caller to retry.
-					return recoveryWithdrawAnswer(request), nil
-				}
-				if reconnectAgain {
-					destination.session = unrelated.session
-				}
-				return nil, failure
-			})
-			t.Cleanup(owner.Close)
-			parsed, err := update.ParseUpdateWire(strings.Fields("nlri ipv4/unicast del 18c00002"), plugin.WireEncodingHex)
-			require.NoError(t, err)
-			ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
-			defer cancel()
-			err = (&reactorAPIAdapter{r: r}).recoverNLRIBatch(ctx,
-				bgptypes.NLRIBatch{Family: family.IPv4Unicast, NLRIs: parsed.Groups[0].Withdraw,
-					RecoverySource: netip.MustParseAddr("192.0.2.10"), RecoveryCut: 90},
-				[]*Peer{destination}, plugin.OperatorSender())
-			require.ErrorIs(t, err, failure)
-			require.Equal(t, 2, calls)
-			require.Empty(t, oldConn.written())
-			require.False(t, original.tearingDown.Load())
-			require.Empty(t, unrelatedConn.written())
-			require.False(t, unrelated.session.tearingDown.Load(), "unadmitted reconnect must remain usable")
-			if reconnectAgain {
-				require.Empty(t, replacementConn.written())
-				require.False(t, replacement.session.tearingDown.Load())
-				unrelated.session.writeMu.Lock()
-				err = unrelated.session.writeRawUpdateBody(syncOrderWithdrawBody)
-				if err == nil {
-					err = unrelated.session.flushWrites()
-				}
-				unrelated.session.writeMu.Unlock()
-				require.NoError(t, err)
-				require.Len(t, recoveryWrittenUpdates(t, unrelatedConn.written()), 1)
-			} else {
-				raw := replacementConn.written()
-				require.GreaterOrEqual(t, len(raw), message.HeaderLen+2)
-				require.Equal(t, byte(3), raw[18])
-				require.Equal(t, byte(message.NotifyCease), raw[19])
-				require.Equal(t, message.NotifyCeaseOutOfResources, raw[20])
-				require.True(t, replacement.session.tearingDown.Load())
-			}
-		})
+	r, _, destination, oldConn, ctxID := newSyncOrderRail(t)
+	r.clock = clock.RealClock{}
+	destination.sendingInitialRoutes.Store(0)
+	failed := recoveryAdvertiseFailed(t, r, destination, syncOrderAnnounceBody)
+	setup := len(oldConn.written())
+	original := destination.currentSession()
+	recoveryOwnerStart(t, r, destination)
+	unrelated, unrelatedConn := newSyncOrderDest(t, bgpctx.Registry.Get(ctxID), ctxID)
+	failure := errors.New("replacement attempt lookup failed")
+	owner := ribevents.PublishRecovery(func(ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
+		destination.mu.Lock()
+		defer destination.mu.Unlock()
+		destination.session = unrelated.session
+		return nil, failure
+	})
+	t.Cleanup(owner.Close)
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() {
+		done <- (&reactorAPIAdapter{r: r}).recoverNLRIBatch(ctx,
+			recoveryDepartureBatch(failed.Settings().Address, "192.0.2.0/24"),
+			[]*Peer{destination}, plugin.ProcessSender("bgp-rs"))
+	}()
+	lowEventually(t, func() bool { return original.tearingDown.Load() },
+		"the failed attempt retires the session its record names")
+	cancel() // The fake session has no runOnce to reset its table.
+	require.ErrorIs(t, <-done, context.Canceled, "canceling stops only the waiter")
+	raw := oldConn.written()[setup:]
+	require.GreaterOrEqual(t, len(raw), message.HeaderLen+2)
+	require.Equal(t, byte(3), raw[18])
+	require.Equal(t, byte(message.NotifyCease), raw[19])
+	require.Equal(t, message.NotifyCeaseOutOfResources, raw[20])
+	require.Empty(t, unrelatedConn.written())
+	require.False(t, unrelated.session.tearingDown.Load(), "unadmitted reconnect must remain usable")
+	unrelated.session.writeMu.Lock()
+	err := unrelated.session.writeRawUpdateBody(syncOrderWithdrawBody)
+	if err == nil {
+		err = unrelated.session.flushWrites()
 	}
+	unrelated.session.writeMu.Unlock()
+	require.NoError(t, err)
+	require.Len(t, recoveryWrittenUpdates(t, unrelatedConn.written()), 1)
 }
 
 // recoverySurvivorAnswer decides every requested key with one survivor that
@@ -844,15 +868,12 @@ func recoverySurvivorAnswer(request ribevents.RecoveryRequest, sent []byte, surv
 	return outcomes
 }
 
-// recoveryWithdrawAnswer decides the first requested key with WITHDRAW of the
-// listed advertisements, and every other key with WITHDRAW of nothing.
-func recoveryWithdrawAnswer(request ribevents.RecoveryRequest, sent ...[]byte) []ribevents.RecoveryOutcome {
+// recoveryWithdrawAnswer decides every requested key with WITHDRAW: no
+// candidate survives. A non-ADD-PATH key withdraws its record's advertisement.
+func recoveryWithdrawAnswer(request ribevents.RecoveryRequest) []ribevents.RecoveryOutcome {
 	outcomes := make([]ribevents.RecoveryOutcome, len(request.Keys))
 	for i := range request.Keys {
 		outcomes[i] = ribevents.RecoveryOutcome{NLRI: request.Keys[i].NLRI, Withdraw: true}
-	}
-	if len(outcomes) > 0 {
-		outcomes[0].Sent = sent
 	}
 	return outcomes
 }

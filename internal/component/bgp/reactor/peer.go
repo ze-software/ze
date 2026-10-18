@@ -288,11 +288,12 @@ type Peer struct {
 	// Established MUST advance it; receive snapshots MUST retain its value.
 	forwardGeneration atomic.Uint64
 
-	// sentUpdateSequence is one causal receipt counter, not a route inventory.
-	// The writer advances it under writeMu for sent delivery and source-bound
-	// operations filtered without output. Recovery snapshots it under that lock,
-	// then drains applied event delivery without locks before re-resolving.
-	sentUpdateSequence atomic.Uint64
+	// owedRefused counts the bgp-rib replays (ROUTE-REFRESH, clear bgp rib
+	// out, a drain replay) this destination's writer refused because the key
+	// was owed to recovery. Monotonic and never reset; a reader takes the
+	// delta between two loads. It lives on Peer because the Adj-RIB-Out is
+	// reset per session.
+	owedRefused atomic.Uint64
 
 	// Reconnect configuration
 	reconnectMin time.Duration

@@ -171,7 +171,7 @@ does not reset a destination that has already reconnected.
 <!-- source: internal/component/bgp/plugins/rr/withdrawal.go -- walkVPNNLRIs -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown -->
 <!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoveryRoutes, recoverySentNLRI -->
-<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, relayRecovery -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, oweDeparture -->
 
 The VPN daemon fixtures wait for the owning server or reflector to report both
 peers UP before releasing the source's first route. They then fence each marker

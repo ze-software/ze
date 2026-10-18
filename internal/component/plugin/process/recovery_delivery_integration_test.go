@@ -40,13 +40,18 @@ import (
 // IPC uses the real RIB runner with an unbridged connection: both sent events
 // and recovery commands cross JSON RPC. It is not a fake recovery provider.
 //
-// MUTATION: Remove only recoverNLRIBatch's Process.DrainEventsApplied call. The newer
-// owner's held sent event cannot reach the RIB, while lookup can still run. The
-// test waits for that real lookup's completion before releasing the event; TCP
-// then contains the older, better survivor's attributes after the newer owner.
-// This is a semantic failure, not a scheduling timeout. The unheld controls use
-// the same producers. The unrelated-prefix case also sends after barrier
-// admission, forcing the destination sequence conflict to resolve afresh.
+// The departed source .2 closes its TCP session before the DOWN command, so
+// the destination's entry it owns is held by an ended session and is owed.
+// "newer-target-owner": .4 owns 203.0.114.0/24 at the destination when the
+// DOWN arrives, so the writer's record owes nothing, no lookup runs, and the
+// newer owner is never overwritten on TCP. "unrelated-prefix": the key is owed
+// and the recovery worker elects .3; .3's native write of an unrelated prefix
+// after the barrier never cancels that decision.
+// MUTATION: Remove the departedOwner test in oweDeparture (owe every requested
+// key). The newer-target case then owes 203.0.114.0/24, and the election
+// writes .3's older route over .4's on TCP. Removing the worker's
+// Process.DrainEventsApplied call lets the unrelated case elect before the RIB
+// applied the held sent event.
 func TestRecoveryQueuedDeliveryTransport(t *testing.T) {
 	for _, mode := range []string{"direct", "ipc"} {
 		for _, target := range []bool{true, false} {
@@ -162,6 +167,10 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 		t.Fatal("recovery lookup observed before the native source-DOWN command")
 	default:
 	}
+	// The departed source's session ends first, as it does before RS sends
+	// the DOWN command, so the entry it owns is held by an ended session.
+	peers[1].conn.Close() //nolint:errcheck // The departure under test; the fixture's close is idempotent.
+	recoveryPeerLeft(t, ctx, r, "127.0.0.2")
 
 	// Use the production SDK API and sender grant, not recoverNLRIBatch or a
 	// manufactured NLRIBatch. This is the native source-DOWN command emitted
@@ -191,7 +200,11 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 			}
 		}
 	}()
-	if delayed {
+	if delayed && target {
+		// Nothing is owed, so no barrier or lookup runs for the command.
+		gate.Release()
+	}
+	if delayed && !target {
 		select {
 		case <-gate.Barriers:
 			if !target {
@@ -222,7 +235,7 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 	if err := ribProcess.DrainEvents(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if mode == "ipc" && ipcCommands.Load() == 0 {
+	if mode == "ipc" && !target && ipcCommands.Load() == 0 {
 		t.Fatal("recovery did not cross the real external JSON command transport")
 	}
 	if !target {
@@ -745,6 +758,25 @@ func recoveryResult(t *testing.T, ctx context.Context, result <-chan error) erro
 	case <-ctx.Done():
 		t.Fatal("native recovery command deadline", ctx.Err())
 		return ctx.Err()
+	}
+}
+
+// recoveryPeerLeft waits until the peer at address has left Established.
+func recoveryPeerLeft(t *testing.T, ctx context.Context, r *reactor.Reactor, address string) {
+	t.Helper()
+	tick := time.NewTicker(time.Millisecond)
+	defer tick.Stop()
+	for {
+		for _, peer := range r.Peers() {
+			if peer.Settings().Address.String() == address && peer.SessionState() != fsm.StateEstablished {
+				return
+			}
+		}
+		select {
+		case <-tick.C:
+		case <-ctx.Done():
+			t.Fatal("the departed source never left Established", ctx.Err())
+		}
 	}
 }
 

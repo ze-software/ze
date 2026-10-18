@@ -173,9 +173,10 @@ before selecting again; this counter is not a sent-message or delivery metric.
 
 Source-DOWN recovery is a cold selecting-RIB operation, not a second steady-state
 forwarding model. Its replacement uses the existing retained candidate and
-ordinary egress rail. Before querying sent ownership, recovery snapshots the
-destination write sequence, releases `writeMu`, then captures each source's
-accepted receive-message cut. It waits for publication into plugin queues before
+ordinary egress rail. A departure owes each key the departed source owns
+through its ended session to the destination's recovery worker. Before querying
+the RIB, the worker snapshots the destination's owed keys, then captures each
+source's accepted receive-message cut. It waits for publication into plugin queues before
 requiring successful application from the RIB owner. Scalar accepted/completed
 IDs bridge the fast-forward-before-delivery gap; cold waits broadcast to every
 waiter and are tied to the exact delivery worker, without a hot dispatch lock.
@@ -183,13 +184,14 @@ Source identity, generation, worker, and accepted receive cut fence the lookup,
 including external IPC.
 
 All selected paths and post-policy sections share one final writer admission
-and completion. The writer compares those causal receipts under `writeMu`;
-an intervening operation causes re-resolution, not a dropped
-repair. RS's joined lifecycle owns that work without a command-expiry timer.
+and completion. The writer decides each owed key under `writeMu` against its
+record, epoch and movers and those causal receipts; a key whose question
+changed is left owed or owed again with the lost source excluded, never
+dropped, and unrelated output cancels no decision. RS's joined lifecycle owns that work without a command-expiry timer.
 Hard ownership or writer failures retire the affected destination session
 instead of leaving stale advertisements installed. Sent callbacks stay
 asynchronous. See [sent recovery ordering](../plugin/rib-storage-design.md#source-down-replacement-and-sent-ordering).
-<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverySnapshot, recoverNLRIBatch, recoveryAdmission.current -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, oweDeparture, recoveryAdmission.admit -->
 
 FlowSpec uses the same gate with a full native NLRI key rather than a CIDR
 prefix. Its selecting RIB publishes per-path generation and authorization after

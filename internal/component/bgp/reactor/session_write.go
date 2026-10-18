@@ -645,8 +645,7 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 		}
 		if length == 0 {
 			// An all-owed body never reaches record; its owes apply here.
-			ownership.applyOwes()
-			ownership.noteFilteredOperation()
+			ownership.applyStaged()
 			return false, nil
 		}
 		if ownership.removed != 0 {
@@ -655,7 +654,7 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 			ownership.removed, ownership.suppressed = 0, 0
 			clear(ownership.owners)
 			clear(ownership.withdrawn)
-			clear(ownership.owes)
+			ownership.clearStaged()
 			length, err = ownership.filter(handle.Buf, body)
 			if err != nil {
 				return false, err
@@ -683,8 +682,7 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 				"peer", s.settings.Address, "paths", dropped)
 		}
 		if n == 0 {
-			ownership.applyOwes()
-			ownership.noteFilteredOperation()
+			ownership.applyStaged()
 			return false, nil
 		}
 		body = handle.Buf[:n]
@@ -709,7 +707,7 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 
 	written = true
 	if !opaque {
-		ownership.applyOwes()
+		ownership.applyStaged()
 		s.sentReceipt.SetMessageID(nextMsgID())
 		if err := ownership.record(body); err != nil {
 			return false, err
@@ -826,7 +824,7 @@ func (s *Session) retireWrite(err error) {
 		s.adjOut.mu.Lock()
 		if s.adjOut.session == s {
 			s.adjOut.routes = nil
-			s.adjOut.owed = nil
+			s.adjOut.dropOwed()
 			s.adjOut.pending = false
 		}
 		s.adjOut.mu.Unlock()

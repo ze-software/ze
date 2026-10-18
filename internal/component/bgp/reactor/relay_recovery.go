@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -22,39 +23,193 @@ import (
 
 var errRecoveryNotWritten = errors.New("source-DOWN recovery operation was not written")
 
-// recoveryAdmission owns every route and post-policy section from one lookup.
-// Producers MUST stage all items before dispatch; the destination worker MUST
-// fence the entire operation once under writeMu and complete it once at release.
-// No IPC or RIB lookup runs under writeMu. This cold receipt is bounded by the
-// lookup response and its policy output, not another persistent route inventory.
+// recoveryAdmission owns every route and post-policy section from one lookup
+// of one destination session's owed keys. Producers MUST stage all items
+// before dispatch; the destination worker MUST admit each key once under
+// writeMu and complete the operation once at release. No IPC or RIB lookup
+// runs under writeMu. This cold receipt is bounded by the lookup response and
+// its policy output, not another persistent route inventory.
 type recoveryAdmission struct {
-	peer     *Peer
-	session  *Session
-	sequence uint64
-	nlri     []byte
-	items    []fwdItem
+	peer    *Peer
+	session *Session
+	// nlri is the advertisement of the key being staged, which an
+	// egress-denied survivor withdraws.
+	nlri  []byte
+	items []fwdItem
+	// itemKeys holds, per item, the index of the key it decides.
+	itemKeys []int
+	keys     []recoveryAdmitKey
 	ctx      context.Context
-	retry    bool
-	written  bool
+	settled  bool
 	err      error
-	done     chan bool
+	done     chan struct{}
 	sources  map[*Peer]recoverySourceReceipt
 }
 
-func (admission *recoveryAdmission) current(session *Session) bool {
-	if admission.session != session {
-		admission.retry = true
+// recoveryKeyOutcome is one owed key's outcome at its admission.
+type recoveryKeyOutcome uint8
+
+const (
+	recoveryKeyUnspecified recoveryKeyOutcome = iota
+	// recoveryKeyWrite: the decision is written (a survivor, or the owed
+	// withdrawal), and the record is removed once the write is flushed. A
+	// decision with no section (an ADD-PATH WITHDRAW naming no identifier)
+	// is written by writing nothing, and its record is removed the same way.
+	recoveryKeyWrite
+	// recoveryKeyGone: the record left before the admission (a new owner, a
+	// decision, a table reset); nothing is left owed.
+	recoveryKeyGone
+	// recoveryKeyLeftOwed: the epoch moved, or the chosen candidate withdrew
+	// since the snapshot; the next round decides the record as it stands.
+	recoveryKeyLeftOwed
+	// recoveryKeyReowed: the chosen survivor's session ended or restarted;
+	// the key is owed again with that source excluded.
+	recoveryKeyReowed
+)
+
+// recoveryAdmitKey is one owed key of an admission, with the record and the
+// epoch its round read.
+type recoveryAdmitKey struct {
+	key    adjOutKey
+	record *adjOutOwed
+	epoch  uint64
+	// candidate is the survivor chosen for the key; a withdrawal decision
+	// has none (source nil).
+	candidate adjOutPath
+	outcome   recoveryKeyOutcome
+	// gone is the source a re-owe excludes, for recoveryKeyReowed only.
+	gone netip.Addr
+}
+
+// mark assigns key k to every item staged since the previous mark.
+func (admission *recoveryAdmission) mark(k int) {
+	for len(admission.itemKeys) < len(admission.items) {
+		admission.itemKeys = append(admission.itemKeys, k)
+	}
+}
+
+// admit decides, under the destination's writeMu, which keys of the admission
+// are written. Per key the owed record must still be the one the round read,
+// belong to this session, and carry the round's epoch; the chosen candidate
+// must not have withdrawn since the snapshot, and its source must still be the
+// session the round captured. It reports false when the admission belongs to
+// another session, whose table reset dropped every key.
+func (admission *recoveryAdmission) admit(session *Session) bool {
+	if admission.session != session || session.tearingDown.Load() {
+		admission.settled = true
+		for k := range admission.keys {
+			admission.keys[k].outcome = recoveryKeyGone
+		}
 		return false
 	}
-	if session.tearingDown.Load() {
-		admission.retry = true
-		return false
+	table := &admission.peer.adjOut
+	table.mu.Lock()
+	defer table.mu.Unlock()
+
+	for k := range admission.keys {
+		key := &admission.keys[k]
+		record := table.owed[key.key]
+		if record != key.record {
+			key.outcome = recoveryKeyGone
+			continue
+		}
+		if record.session != session {
+			// Unreachable while every reset drops the owed set; never left
+			// owed, so it cannot start rounds forever.
+			table.removeOwed(key.key, record)
+			key.outcome = recoveryKeyGone
+			continue
+		}
+		if record.epoch != key.epoch {
+			key.outcome = recoveryKeyLeftOwed
+			continue
+		}
+		if key.outcome == recoveryKeyReowed {
+			continue
+		}
+		if key.candidate.source != nil && record.moved(key.candidate) {
+			key.outcome = recoveryKeyLeftOwed
+			continue
+		}
+		key.outcome = recoveryKeyWrite
 	}
-	if admission.peer.sentUpdateSequence.Load() != admission.sequence {
-		admission.retry = true
-		return false
+	// Fence every source before writing any section: a source whose session
+	// ended or restarted re-owes its own key, and only that key.
+	for j := range admission.items {
+		section := &admission.items[j]
+		if admission.keys[admission.itemKeys[j]].outcome != recoveryKeyWrite {
+			continue
+		}
+		if !admission.sourceCurrent(section) {
+			admission.reowe(j)
+		}
 	}
 	return true
+}
+
+func (admission *recoveryAdmission) sourceCurrent(section *fwdItem) bool {
+	if !forwardSourceCurrent(section.receivedPeer, section.receivedGeneration) {
+		return false
+	}
+	if section.receivedPeer == nil {
+		return true
+	}
+	receipt, present := admission.sources[section.receivedPeer]
+	if !present {
+		return false
+	}
+	return receipt.cut.current(section.receivedPeer)
+}
+
+// writes reports whether item j's key is admitted for writing.
+func (admission *recoveryAdmission) writes(j int) bool {
+	return admission.keys[admission.itemKeys[j]].outcome == recoveryKeyWrite
+}
+
+// reowe re-owes item j's key with the item's source excluded. A key whose
+// candidate has no source is a withdrawal and has no source to exclude.
+func (admission *recoveryAdmission) reowe(j int) {
+	key := &admission.keys[admission.itemKeys[j]]
+	if admission.items[j].receivedPeer == nil {
+		return
+	}
+	key.outcome = recoveryKeyReowed
+	key.gone = admission.items[j].receivedPeer.Settings().Address
+}
+
+// settle applies every key's outcome once the admission's writes are flushed,
+// under the destination's writeMu, so the record is removed in the same
+// section that wrote its decision. A record whose epoch moved after admit (a
+// departure merged) stays owed for the next round.
+func (admission *recoveryAdmission) settle() {
+	admission.settled = true
+	table := &admission.peer.adjOut
+	table.mu.Lock()
+	defer table.mu.Unlock()
+
+	reowed := false
+	for k := range admission.keys {
+		key := &admission.keys[k]
+		record := table.owed[key.key]
+		if record != key.record {
+			continue
+		}
+		switch key.outcome {
+		case recoveryKeyWrite:
+			if record.epoch == key.epoch {
+				table.removeOwed(key.key, record)
+			}
+		case recoveryKeyReowed:
+			record.exclude(key.gone)
+			reowed = true
+		case recoveryKeyGone, recoveryKeyLeftOwed:
+		case recoveryKeyUnspecified:
+			panic("BUG: recovery key settled without an admission outcome")
+		}
+	}
+	if reowed {
+		admission.session.wakeRecovery()
+	}
 }
 
 type recoverySourceReceipt struct {
@@ -77,150 +232,131 @@ func (a *reactorAPIAdapter) recoverySources() map[*Peer]recoverySourceReceipt {
 
 // drainRecoverySources closes the gap between a fast-path wire decision and
 // publication of its received event. Only afterward may the process-level
-// applied-event barrier make a cold RIB lookup causally current.
-func drainRecoverySources(ctx context.Context, sources map[*Peer]recoverySourceReceipt) error {
-	for _, source := range sources {
-		if err := source.cut.wait(ctx); err != nil {
-			return err
+// applied-event barrier make a cold RIB lookup causally current. It returns
+// the sources whose publication failed: the delivery worker tore each one
+// down (failReceivePublication), and the RIB still holds routes it will never
+// see withdrawn, so every key of the round excludes it. A failed source is
+// never a reason to retire the destination.
+func drainRecoverySources(ctx context.Context, sources map[*Peer]recoverySourceReceipt) ([]netip.Addr, error) {
+	var stopped []netip.Addr
+	for peer, source := range sources {
+		err := source.cut.wait(ctx)
+		if errors.Is(err, errReceivePublicationFailed) {
+			stopped = append(stopped, peer.Settings().Address)
+			continue
+		}
+		if err != nil {
+			return nil, err
 		}
 	}
-	return nil
+	return stopped, nil
 }
 
-// recoverySnapshot takes the sequence only after every preceding writer has
-// enqueued its sent event. Taking an atomic value without writeMu could observe
-// a writer between incrementing the sequence and enqueueing that event.
-func recoverySnapshot(peer *Peer) (*Session, uint64) {
-	peer.mu.RLock()
-	session := peer.session
-	peer.mu.RUnlock()
-	if session == nil {
-		return nil, 0
-	}
-	session.writeMu.Lock()
-	sequence := peer.sentUpdateSequence.Load()
-	session.writeMu.Unlock()
-	return session, sequence
-}
-
-// recoverNLRIBatch keeps the parser's native identity. Every received path of a
-// departed source is gone; the sent inventory, not ingress IDs, owns egress IDs.
+// recoverNLRIBatch owes a departed source's keys to every selected
+// destination's recovery worker, then waits until each owed key is decided.
 // RFC 4271 Section 6: "The local system recalculates its best routes for the
-// destinations of the routes marked as invalid."
-// Recovery preserves the departed source's native destination identities.
-func (a *reactorAPIAdapter) recoverNLRIBatch(ctx context.Context, batch bgptypes.NLRIBatch, destinations []*Peer, sender plugin.Sender) (result error) {
-	// A hard ownership failure cannot leave known-invalid routes installed.
-	// Capture the affected sessions for failures before admission, then refresh
-	// ownership on each attempt. An old attempt MUST NOT retire a reconnect
-	// unless recovery has itself started an attempt on that replacement.
-	sessions := make([]*Session, len(destinations))
-	for i, destination := range destinations {
-		sessions[i] = destination.currentSession()
-	}
-	defer func() {
-		if result == nil {
-			return
-		}
-		for i, session := range sessions {
-			if session == nil {
-				continue
-			}
-			if destinations[i].currentSession() != session {
-				continue
-			}
-			// AutomaticStop uses the existing safe NOTIFICATION/close path.
-			// This is not a graceful-restart TCP drop: obsolete output MUST
-			// disappear from the remote rather than be retained as stale.
-			_ = session.teardownAutomatic(message.NotifyCeaseOutOfResources, "")
-		}
-	}()
-	if a.r.api == nil || a.r.fwdPool == nil {
-		return errServerNotReady
-	}
-	command := a.r.api.Dispatcher().Registry().Lookup("request bgp rib recovery")
-	if command == nil || command.Process == nil {
-		return fmt.Errorf("source-DOWN recovery requires the BGP RIB command owner")
-	}
+// destinations of the routes marked as invalid." The election is the RIB's,
+// run by the destination's worker; this command only owes and waits, so its
+// synchronous contract with the plugin holds. Canceling the wait stops only
+// the waiter: the keys stay owed and the worker still decides them.
+func (a *reactorAPIAdapter) recoverNLRIBatch(ctx context.Context, batch bgptypes.NLRIBatch, destinations []*Peer, _ plugin.Sender) error {
 	if len(batch.NLRIs) == 0 {
 		return nil
 	}
-	// RFC 4271 Section 6: every candidate of the departed source is invalid.
-	excluded := []netip.Addr{batch.RecoverySource}
-	request := ribevents.RecoveryRequest{Family: batch.Family,
-		Cut: batch.RecoveryCut, Keys: make([]ribevents.RecoveryKey, 0, len(batch.NLRIs))}
-	for i, route := range batch.NLRIs {
-		// RFC 7911 Section 3: "In order to carry the Path Identifier in an
-		// UPDATE message, the NLRI encoding MUST be extended by prepending
-		// the Path Identifier field, which is of four octets."
-		addPath := false
-		if framing, ok := route.(nlri.AddPathAware); ok {
-			addPath = framing.HasAddPath()
+	var owed []*adjOutOwed
+	var ownerless error
+	for _, destination := range destinations {
+		if destination.State() != PeerStateEstablished {
+			continue
 		}
-		_, prefixOnly := route.(*nlri.INET)
-		prefixOnly = batch.Family.SAFI == family.SAFIMPLSLabel && prefixOnly
-		if i == 0 {
-			request.AddPath, request.PrefixOnly = addPath, prefixOnly
-		} else if request.AddPath != addPath || request.PrefixOnly != prefixOnly {
-			return fmt.Errorf("source-DOWN recovery batch has mixed NLRI framing")
+		nc := destination.negotiated.Load()
+		if nc == nil || !nc.Has(batch.Family) {
+			continue
 		}
-		raw := make([]byte, nlri.LenWithContext(route, addPath))
-		nlri.WriteNLRI(route, raw, 0, addPath)
-		request.Keys = append(request.Keys, ribevents.RecoveryKey{NLRI: raw, Excluded: excluded})
+		session := destination.currentSession()
+		if session == nil {
+			continue
+		}
+		if !session.recoveryOwed() {
+			// No process can run the election, so the destination cannot be
+			// told which route replaces the departed one. AutomaticStop uses
+			// the existing safe NOTIFICATION/close path; obsolete output MUST
+			// disappear from the remote rather than be retained as stale.
+			ownerless = errors.New("source-DOWN recovery requires the BGP RIB command owner")
+			_ = session.teardownAutomatic(message.NotifyCeaseOutOfResources, "")
+			continue
+		}
+		keys, err := oweDeparture(destination, session, &batch)
+		if err != nil {
+			return err
+		}
+		if len(keys) != 0 {
+			owed = append(owed, keys...)
+			session.wakeRecovery()
+		}
 	}
-	for i, destination := range destinations {
-		for {
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-			if destination.State() != PeerStateEstablished {
-				break
-			}
-			nc := destination.negotiated.Load()
-			if nc == nil || !nc.Has(batch.Family) {
-				break
-			}
-			session, sequence := recoverySnapshot(destination)
-			if session == nil {
-				break
-			}
-			sessions[i] = session // Own this attempt before its barrier or lookup can fail.
-			sources := a.recoverySources()
-			if err := drainRecoverySources(ctx, sources); err != nil {
-				return err
-			}
-			// No session or RIB lock is held across this FIFO barrier. A
-			// receipt MUST prove application, not merely attempted delivery.
-			if err := command.Process.DrainEventsApplied(ctx); err != nil {
-				return err
-			}
-			request.Destination = destination.Settings().Address
-			request.SentAddPath = destination.addPathFor(batch.Family)
-			// RFC 4271 Section 6: only the RIB chooses withdrawal or replacement.
-			retry, err := a.relayRecovery(ctx, request, destination, session, sequence, sender, sources)
-			if err != nil {
-				return err
-			}
-			if !retry {
-				break
-			}
+	for _, record := range owed {
+		select {
+		case <-record.done:
+		case <-ctx.Done():
+			return ctx.Err()
 		}
-		sessions[i] = nil // This destination's obligation completed or its session retired.
 	}
-	return nil
+	return ownerless
 }
 
-// relayRecovery keeps election in the RIB and export on the ordinary forward
-// rail. No command or delivery barrier is invoked under destination writeMu.
-// RFC 4271 Section 6: "Before the invalid routes are deleted from the system,
-// it advertises, to its peers, either withdraws for the routes marked as invalid,
-// or the new best routes before the invalid routes are deleted from the system."
-// Selection and export therefore complete before source ownership is released.
-func (a *reactorAPIAdapter) relayRecovery(ctx context.Context, request ribevents.RecoveryRequest, destination *Peer, session *Session, sequence uint64, sender plugin.Sender, sources map[*Peer]recoverySourceReceipt) (bool, error) {
-	outcomes, err := a.lookupRecovery(ctx, &request)
-	if err != nil {
-		return false, err
+// oweDeparture owes, at one destination, each key of the batch whose adj-out
+// entry the departed source owns through a session that is no longer current.
+// Where another source owns the key, where the source's reconnected session
+// owns it, or where no entry exists, nothing is owed: an old DOWN never
+// overwrites a newer route. Each owe merges into an existing record and adds
+// the departed source to its excluded set. At an ADD-PATH destination the key
+// is owed per prefix (identifier zero), and the admission's writer tests each
+// identifier's owner.
+func oweDeparture(destination *Peer, session *Session, batch *bgptypes.NLRIBatch) ([]*adjOutOwed, error) {
+	addPath := destination.addPathFor(batch.Family)
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	table := &destination.adjOut
+	table.mu.Lock()
+	defer table.mu.Unlock()
+
+	if table.session != session {
+		return nil, nil
 	}
-	return a.admitRecovery(ctx, outcomes, request.Family, destination, session, sequence, sender, sources)
+	var owed []*adjOutOwed
+	for _, route := range batch.NLRIs {
+		raw := make([]byte, nlri.LenWithContext(route, false))
+		nlri.WriteNLRI(route, raw, 0, false)
+		key := adjOutKey{addPath: addPath}
+		if err := fwdPathKeyFor(&key.path, batch.Family, 0, raw, false, scratch[:]); err != nil {
+			return nil, err
+		}
+		// An ADD-PATH destination's identifiers are the RIB's to name; the
+		// writer refuses each one a current session owns.
+		if !addPath && !departedOwner(table.routes[key], batch.RecoverySource) {
+			continue
+		}
+		record := table.owe(key, session, batch.Family, raw)
+		record.exclude(batch.RecoverySource)
+		owed = append(owed, record)
+	}
+	return owed, nil
+}
+
+// departedOwner reports whether entry is owned by source through a session
+// that is no longer current. The generation is read under the table mutex
+// every write takes, so the test is exact.
+func departedOwner(entry *adjRIBOutRoute, source netip.Addr) bool {
+	if entry == nil {
+		return false
+	}
+	if entry.owner.source == nil {
+		return false
+	}
+	if entry.owner.source.Settings().Address != source {
+		return false
+	}
+	return !forwardSourceCurrent(entry.owner.source, entry.owner.generation)
 }
 
 // lookupRecovery asks the RIB for one outcome per requested key, in process or
@@ -271,16 +407,13 @@ func (a *reactorAPIAdapter) lookupRecovery(ctx context.Context, request *ribeven
 	return outcomes, nil
 }
 
-// admitRecovery stages every outcome on the destination's forward worker as one
-// admission and waits for it. It reports retry when the destination's session or
-// send sequence moved since the lookup's snapshot.
-func (a *reactorAPIAdapter) admitRecovery(ctx context.Context, outcomes []ribevents.RecoveryOutcome, fam family.Family, destination *Peer, session *Session, sequence uint64, sender plugin.Sender, sources map[*Peer]recoverySourceReceipt) (bool, error) {
-	currentSession, currentSequence := recoverySnapshot(destination)
-	if currentSession != session || currentSequence != sequence {
-		return true, nil
-	}
-	admission := &recoveryAdmission{peer: destination, session: session, sequence: sequence,
-		ctx: ctx, done: make(chan bool, 1), sources: sources}
+// admitRecovery stages one outcome per owed key on the destination's forward
+// worker as one admission, and waits for it. Outcomes are in key order.
+// RFC 4271 Section 6: "Before the invalid routes are deleted from the system,
+// it advertises, to its peers, either withdraws for the routes marked as
+// invalid, or the new best routes before the invalid routes are deleted from
+// the system." Selection is the RIB's; export runs on the ordinary rail.
+func (a *reactorAPIAdapter) admitRecovery(admission *recoveryAdmission, outcomes []ribevents.RecoveryOutcome, fam family.Family, sender plugin.Sender) error {
 	// On every pre-dispatch exit this producer MUST release staged references.
 	// After dispatch, releaseItem owns them and the single completion instead.
 	dispatched := false
@@ -289,62 +422,71 @@ func (a *reactorAPIAdapter) admitRecovery(ctx context.Context, outcomes []ribeve
 			a.r.fwdPool.releaseRecoveryItems(admission)
 		}
 	}()
-	for i := range outcomes {
-		retry, err := a.queueRecoveryOutcome(destination, &outcomes[i], fam, admission, sources, sender)
-		if err != nil || retry {
-			return retry, err
+	for k := range outcomes {
+		if err := a.queueRecoveryOutcome(&outcomes[k], k, fam, admission, sender); err != nil {
+			return err
 		}
+		admission.mark(k)
 	}
-	if len(admission.items) == 0 {
-		return false, nil
-	}
-	// One queue entry prevents siblings from invalidating each other's receipt,
-	// and sends all advertised ADD-PATH IDs without restarting the RIB scan.
+	// One queue entry decides every key under one writeMu hold, so a key
+	// with nothing to write is settled in the same section as its siblings.
 	dispatched = true
-	if !a.r.fwdPool.dispatchOverflow(fwdKey{peerAddr: destination.Settings().PeerKey()},
-		&fwdItem{peer: destination, recovery: admission}) {
-		return false, errForwardPoolStopped
+	if !a.r.fwdPool.dispatchOverflow(fwdKey{peerAddr: admission.peer.Settings().PeerKey()},
+		&fwdItem{peer: admission.peer, recovery: admission}) {
+		return errForwardPoolStopped
 	}
 	select {
-	case retry := <-admission.done:
-		return retry, admission.err
-	case <-ctx.Done():
-		return false, ctx.Err()
+	case <-admission.done:
+		return admission.err
+	case <-admission.ctx.Done():
+		return admission.ctx.Err()
 	}
 }
 
-// queueRecoveryOutcome stages one key's decision. The destination acts only on
-// the advertisements Sent names, and a key with an empty Sent writes nothing.
-// WITHDRAW withdraws each of them; SURVIVORS writes the first candidate in
-// election order in place of the advertisement.
+// queueRecoveryOutcome stages key k's decision. WITHDRAW withdraws the
+// record's advertisement, or at an ADD-PATH destination each identifier the
+// RIB names; SURVIVORS writes the first candidate in election order. A
+// survivor whose session ended or restarted since the round's receipt is
+// written nowhere: the key is re-owed with that source excluded, so the next
+// round elects over the survivors without it, and the admission's other keys
+// are still decided.
 // RFC 4271 Section 6: replacement and withdrawal have disjoint owners.
-func (a *reactorAPIAdapter) queueRecoveryOutcome(destination *Peer, outcome *ribevents.RecoveryOutcome, fam family.Family, admission *recoveryAdmission, sources map[*Peer]recoverySourceReceipt, sender plugin.Sender) (bool, error) {
+func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutcome, k int, fam family.Family, admission *recoveryAdmission, sender plugin.Sender) error {
+	key := &admission.keys[k]
+	admission.nlri = key.record.nlri // Immutable once the record exists.
 	if outcome.Withdraw {
-		for _, sent := range outcome.Sent {
-			withdraw := rpc.StoredRoute{Family: fam.String(), NLRIHex: hex.EncodeToString(sent), Withdraw: true}
-			if err := a.queueRecoveryWithdrawal(destination, &withdraw, fam, admission); err != nil {
-				return false, err
+		sent := [][]byte{admission.nlri}
+		if key.key.addPath {
+			sent = outcome.Sent
+		}
+		for _, raw := range sent {
+			withdraw := rpc.StoredRoute{Family: fam.String(), NLRIHex: hex.EncodeToString(raw), Withdraw: true}
+			if err := a.queueRecoveryWithdrawal(admission.peer, &withdraw, fam, admission); err != nil {
+				return err
 			}
 		}
-		return false, nil
+		return nil
 	}
-	if len(outcome.Sent) == 0 {
-		return false, nil
-	}
-	admission.nlri = outcome.Sent[0]
 	survivor := &outcome.Survivors[0]
 	stored := rpc.StoredRoute{SourcePeer: survivor.Source.String(), Family: fam.String(),
 		NLRIHex: hex.EncodeToString(survivor.NLRI), AttrHex: hex.EncodeToString(survivor.Attributes),
 		NextHopHex: hex.EncodeToString(survivor.NextHop), MsgID: survivor.MessageID,
 		NLRIFraming: rpc.NLRIFramingSourceWire}
-	err := a.queueRecovery(destination, &stored, fam, admission, sources, sender)
-	if errors.Is(err, errRelayNoSource) {
-		return true, nil
+	first := len(admission.items)
+	err := a.queueRecovery(admission.peer, &stored, fam, admission, admission.sources, sender)
+	if errors.Is(err, errRelayNoSource) || errors.Is(err, errForwardNoSource) {
+		key.outcome, key.gone = recoveryKeyReowed, survivor.Source
+		return nil
 	}
-	if errors.Is(err, errForwardNoSource) {
-		return true, nil
+	if err != nil {
+		return err
 	}
-	return false, err
+	if n := len(admission.items); n > first {
+		// An egress-denied survivor stages a withdrawal, which has no source.
+		key.candidate = adjOutPath{source: admission.items[n-1].receivedPeer,
+			received: survivor.PathID, addPath: survivor.AddPath}
+	}
+	return nil
 }
 
 // queueRecovery admits a replacement on its surviving source's ordinary rail;
@@ -386,7 +528,7 @@ func (a *reactorAPIAdapter) queueRecovery(destination *Peer, route *rpc.StoredRo
 }
 
 // queueRecoveryWithdrawal uses destination framing, including the advertised
-// ADD-PATH identifier. The session/sequence receipt captures its obsolete owner.
+// ADD-PATH identifier. The admission's per-key fence captures its obsolete owner.
 // RFC 7911 Section 3: "The combination of the address prefix and the Path
 // Identifier can be used to identify a route advertised by a BGP speaker.".
 func (a *reactorAPIAdapter) queueRecoveryWithdrawal(destination *Peer, route *rpc.StoredRoute, fam family.Family, admission *recoveryAdmission) error {

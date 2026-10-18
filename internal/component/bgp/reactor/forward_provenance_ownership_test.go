@@ -359,32 +359,50 @@ func TestRSWithdrawalOwnershipInitialExpiryOrdering(t *testing.T) {
 	}
 }
 
+// TestRecoveryRefusesFilteredCandidateWithdrawalAfterLookup proves a dropped
+// withdrawal is never invisible to a pending decision. Method: A owns P at the
+// destination through an ended session, and its departure owes P. While the
+// worker's lookup runs, C, the candidate the RIB elects, withdraws P through
+// the actual direct writer; C does not own P, so the writer drops the
+// withdrawal and notes C as a mover of the owed key. The admission writes
+// nothing for the dead candidate and leaves P owed; the next round asks with
+// only A excluded (the mover, not C's cut, refused the write) and withdraws.
 func TestRecoveryRefusesFilteredCandidateWithdrawalAfterLookup(t *testing.T) {
 	f := ownershipRailNew(t, nil)
 	f.r.clock = clock.RealClock{}
 	f.source.recvCtxID = f.ctxID
 	f.send(t, "cached", f.other, f.ctxID, ownershipRailBody(family.IPv4Unicast, false, syncOrderPrefixWire, 72))
 	f.await(t, 72, syncOrderPrefixWire)
-	api := &reactorAPIAdapter{r: f.r}
-	session, sequence := recoverySnapshot(f.destination)
-	sources := api.recoverySources()
+	f.other.forwardGeneration.Add(1) // A's session is no longer current.
+	recoveryOwnerStart(t, f.r, f.destination)
 	candidate, err := message.UnpackUpdate(ownershipRailBody(family.IPv4Unicast, false, syncOrderPrefixWire, 73))
 	if err != nil {
 		t.Fatal(err)
 	}
+	var lookups recoveryLookups
+	withdrawn := make(chan struct{})
 	lookup := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
+		if lookups.add(request) != 1 {
+			return recoveryWithdrawAnswer(request), nil
+		}
 		// C's removal reaches the actual direct writer after selection, while
 		// A still owns the destination. No withdrawal may reach the wire.
 		f.send(t, "direct", f.source, f.ctxID, syncOrderWithdrawBody)
+		close(withdrawn)
 		return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: f.source.Settings().Address,
 			NLRI: syncOrderPrefixWire, Attributes: candidate.PathAttributes, NextHop: []byte{10, 0, 0, 1}, MessageID: 81}), nil
 	})
 	t.Cleanup(lookup.Close)
-	retry, err := api.relayRecovery(t.Context(), recoveryDepartureRequest(f.other.Settings().Address,
-		f.destination.Settings().Address, family.IPv4Unicast, 0, syncOrderPrefixWire),
-		f.destination, session, sequence, plugin.OperatorSender(), sources)
-	if err != nil || !retry {
-		t.Fatalf("filtered source removal failed to invalidate cold selection: retry=%v err=%v", retry, err)
+	if err := recoveryDepart(t, f.r, f.destination, f.other.Settings().Address, "192.0.2.0/24"); err != nil {
+		t.Fatal(err)
 	}
-	f.assertHistory(t, []byte{72}, 0)
+	<-withdrawn
+	requests := lookups.all()
+	if len(requests) != 2 {
+		t.Fatalf("a dead candidate's decision must leave the key owed for one more round: %d lookups", len(requests))
+	}
+	if excluded := requests[1].Keys[0].Excluded; len(excluded) != 1 || excluded[0] != f.other.Settings().Address {
+		t.Fatalf("the candidate's own withdrawal, not its cut, must refuse the write: excluded %v", excluded)
+	}
+	f.assertHistory(t, []byte{72}, 1)
 }

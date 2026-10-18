@@ -31,10 +31,15 @@ type adjOutWrite struct {
 	encoding  *bgpctx.EncodingContext
 	owners    map[adjOutKey]adjOutPath
 	withdrawn map[adjOutKey]struct{}
-	// owes stages the owner withdrawals this write leaves to recovery. allow
-	// runs twice for a filtered body, so it stages, never applies; applyOwes
-	// applies once after the last pass. The bytes point into the body.
+	// owes, movers and refused stage this write's effects on owed keys:
+	// the owner withdrawals it leaves to recovery, the forwarded withdrawals
+	// of keys already owed, and the replays refused at an owed key. allow
+	// runs twice for a filtered body, so it stages per key, never applies;
+	// applyStaged applies once after the last pass. The bytes point into the
+	// body.
 	owes        map[adjOutKey]adjOutOwe
+	movers      map[adjOutKey]adjOutPath
+	refused     map[adjOutKey]struct{}
 	keyScratch  [nlrisplit.PrefixKeyScratchSize]byte
 	removed     int
 	suppressed  int
@@ -53,6 +58,8 @@ var adjOutWritePool = sync.Pool{New: func() any {
 		owners:    make(map[adjOutKey]adjOutPath),
 		withdrawn: make(map[adjOutKey]struct{}),
 		owes:      make(map[adjOutKey]adjOutOwe),
+		movers:    make(map[adjOutKey]adjOutPath),
+		refused:   make(map[adjOutKey]struct{}),
 		ordinals:  make(map[family.Family]uint32),
 	}
 }}
@@ -99,7 +106,7 @@ func (s *Session) beginAdjOut(raw bool) (*adjOutWrite, error) {
 	if s.adjOut.session != s {
 		s.adjOut.session = s
 		s.adjOut.routes = nil
-		s.adjOut.owed = nil
+		s.adjOut.dropOwed()
 		s.adjOut.pending = false
 	}
 	work, _ := adjOutWritePool.Get().(*adjOutWrite)
@@ -114,7 +121,7 @@ func (w *adjOutWrite) release() {
 	w.table.mu.Unlock()
 	clear(w.owners)
 	clear(w.withdrawn)
-	clear(w.owes)
+	w.clearStaged()
 	clear(w.ordinals)
 	w.session, w.table = nil, nil
 	w.encoding = nil
@@ -183,6 +190,9 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 				return false, errAdjOutProvenance
 			}
 			if withdraw {
+				// RFC 4271 Section 9.2: a withdrawal of a key whose
+				// replacement is being elected may kill the chosen route.
+				w.stageMover(key, owner)
 				if entry == nil {
 					return owner.synthesized, nil
 				}
@@ -192,6 +202,12 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 			}
 		case adjOutExpected:
 			if entry == nil {
+				return false, nil
+			}
+			if !withdraw && w.table.owed[key] != nil {
+				// A bgp-rib replay of an owed key replays the route being
+				// replaced; the recovery write answers the replay instead.
+				w.refused[key] = struct{}{}
 				return false, nil
 			}
 			if owner.revision == 0 {
@@ -212,11 +228,18 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 				return false, nil
 			}
 		case adjOutRecovery:
-			// The operation's existing session/send-sequence fence is checked
-			// once before its siblings. A denied survivor withdraws this old
-			// owner, not a path attributed to the denied source.
+			// The admission's per-key fence ran under writeMu before any
+			// section. A denied survivor withdraws this old owner, not a path
+			// attributed to the denied source.
 			if withdraw {
 				if entry == nil {
+					return false, nil
+				}
+				if key.addPath && forwardSourceCurrent(entry.owner.source, entry.owner.generation) {
+					// A departure withdraws an ADD-PATH identifier only while
+					// the departed source's ended session owns it: the
+					// reconnected session's newer path, or an originated
+					// one, is never withdrawn for an old DOWN.
 					return false, nil
 				}
 				owner = entry.owner
@@ -282,12 +305,41 @@ func (w *adjOutWrite) owesWithdrawal(key adjOutKey, entry *adjRIBOutRoute) bool 
 	return w.session.recoveryOwed()
 }
 
-// applyOwes MUST run once, under the table mutex, after the last filter pass
-// of a write that returned no error. A key the same body also announces is not
+// stageMover notes a forwarded withdrawal of a key owed before this write.
+// The owe this write itself stages is applied after the last pass, so the
+// withdrawal that creates a record is never its own mover.
+func (w *adjOutWrite) stageMover(key adjOutKey, owner adjOutPath) {
+	if w.table.owed[key] == nil {
+		return
+	}
+	w.movers[key] = owner
+}
+
+// clearStaged drops the staged effects of a filter pass.
+func (w *adjOutWrite) clearStaged() {
+	clear(w.owes)
+	clear(w.movers)
+	clear(w.refused)
+}
+
+// applyStaged MUST run once, under the table mutex, after the last filter
+// pass of a write that returned no error. An owe merges into the key's record
+// when the key is already owed. A key the same body also announces is not
 // owed: RFC 4271 Section 4.3 reads "A BGP speaker SHOULD treat an UPDATE
 // message of this form as though the WITHDRAWN ROUTES do not contain the
-// address prefix." Every owe wakes the worker.
-func (w *adjOutWrite) applyOwes() {
+// address prefix." Every owe wakes the worker. The refusals are counted once
+// per write, on the destination Peer, whose counter outlives the table.
+func (w *adjOutWrite) applyStaged() {
+	for key, owner := range w.movers {
+		if record := w.table.owed[key]; record != nil {
+			record.noteMover(owner)
+		}
+	}
+	if len(w.refused) != 0 {
+		if peer := w.session.sentForward.peer; peer != nil {
+			peer.owedRefused.Add(uint64(len(w.refused)))
+		}
+	}
 	if len(w.owes) == 0 {
 		return
 	}
@@ -295,13 +347,7 @@ func (w *adjOutWrite) applyOwes() {
 		if _, announced := w.owners[key]; announced {
 			continue
 		}
-		if w.table.owed == nil {
-			w.table.owed = make(map[adjOutKey]*adjOutOwed)
-		}
-		// The copy is deliberate: the body is the session's write buffer,
-		// and the record outlives this write.
-		w.table.owed[key] = &adjOutOwed{session: w.session, family: owe.family,
-			nlri: append([]byte(nil), owe.nlri...)}
+		w.table.owe(key, w.session, owe.family, owe.nlri)
 	}
 	w.session.wakeRecovery()
 }
@@ -586,7 +632,7 @@ func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withd
 		if !w.sourceBound() {
 			// An originated route is not a candidate of the election and is
 			// not overridden by it: it decides an owed key itself.
-			delete(w.table.owed, key)
+			w.table.removeOwed(key, w.table.owed[key])
 		}
 		if w.session.sentForward == nil || w.session.sentForward.authority != adjOutExpected {
 			replay, _ := w.session.sentMeta["replay"].(bool)
@@ -619,18 +665,6 @@ func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withd
 	}
 	w.table.pending = true
 	return cause
-}
-
-// noteFilteredOperation invalidates a cold recovery snapshot even when a source
-// withdrawal emits no bytes. The existing applied-event barrier must then
-// re-resolve the source state; this counter is not a successful-send metric.
-func (w *adjOutWrite) noteFilteredOperation() {
-	if !w.sourceBound() {
-		return
-	}
-	if peer := w.session.sentForward.peer; peer != nil {
-		peer.sentUpdateSequence.Add(1)
-	}
 }
 
 // checkInitialWrite runs under writeMu, including before originated policy can

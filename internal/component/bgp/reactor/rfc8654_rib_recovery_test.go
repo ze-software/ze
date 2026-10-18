@@ -162,12 +162,14 @@ func TestRFC8654TreatAsWithdrawRemovesInstalledRoutes(t *testing.T) {
 
 // TestRFC8654FatalLengthReelectsAlternateBest leaves one prefix with an alternate
 // path and one without. The production election must replace the former in one
-// Loc-RIB change and advertise its own AS_PATH/NEXT_HOP, while withdrawing only
-// the latter. Actual TCP delivery is not required to precede unrelated storage
+// Loc-RIB change, and the recipient, which already holds the alternate's own
+// AS_PATH/NEXT_HOP advertisement, is sent nothing for it (AC-10 of
+// spec-bgp-rs-replacement-on-withdrawal: the departed source no longer owns the
+// recipient's entry, so nothing is owed); only the latter is withdrawn. Actual TCP delivery is not required to precede unrelated storage
 // cleanup; the synchronous Loc-RIB consumer sees the selection transition.
 // MUTATION: Skip re-election in emitPurgedWithdraws and withdraw every purged
-// route: the replacement attribute and ChangeUpdate assertions fail.
-// RFC requirement: RFC8654-5-4 positive -- fatal extended-length rejection re-elects an installed alternate, emits no transient Loc-RIB removal or downstream withdrawal for it, and advertises the alternate's exact AS_PATH and NEXT_HOP while withdrawing the route with no survivor.
+// route: the ChangeUpdate and never-withdrawn assertions fail.
+// RFC requirement: RFC8654-5-4 positive -- fatal extended-length rejection re-elects an installed alternate, emits no transient Loc-RIB removal or downstream withdrawal for it, re-sends nothing to a recipient already holding the alternate's exact AS_PATH and NEXT_HOP, and withdraws the route with no survivor.
 func TestRFC8654FatalLengthReelectsAlternateBest(t *testing.T) {
 	peers := extendedRecoveryPeers(t, false, true)
 	source, recipient, alternate := peers[0], peers[1], peers[2]
@@ -188,8 +190,9 @@ func TestRFC8654FatalLengthReelectsAlternateBest(t *testing.T) {
 		return bytes.Equal(extendedRecoveryStoredAttributes("192.0.2.3", []byte{203, 0, 114}), backup.PathAttributes)
 	}, "alternate path installed in actual Adj-RIB-In")
 	lowEventually(t, func() bool {
-		return extendedRecoveryRecipientAttribute(t, recipient, 0, attribute.AttrASPath, alternatePath) == 1
-	}, "alternate's initial advertisement drained before the fatal event")
+		return extendedRecoveryRecipientAttribute(t, recipient, 0, attribute.AttrASPath, alternatePath) == 1 &&
+			extendedRecoveryRecipientAttribute(t, recipient, 0, attribute.AttrNextHop, []byte{192, 0, 2, 3}) == 1
+	}, "alternate's own advertisement drained before the fatal event")
 	recipient.mu.Lock()
 	beforeFatal := len(recipient.frames)
 	recipient.mu.Unlock()
@@ -228,13 +231,13 @@ func TestRFC8654FatalLengthReelectsAlternateBest(t *testing.T) {
 		return !installed
 	}, "route without alternate removed")
 	lowEventually(t, func() bool {
-		return extendedRecoveryRecipientAttribute(t, recipient, beforeFatal, attribute.AttrASPath, alternatePath) == 1 &&
-			extendedRecoveryRecipientAttribute(t, recipient, beforeFatal, attribute.AttrNextHop, []byte{192, 0, 2, 3}) == 1
-	}, "replacement best's own attributes received on TCP")
-	lowEventually(t, func() bool {
 		_, withdrawn := fatalLengthRecipientRoutes(t, recipient)
 		return withdrawn&2 != 0
 	}, "route without alternate withdrawn downstream")
+	// Both prefixes are in one departure: a re-send of the alternate would be
+	// a section of the same admission, flushed with this withdrawal.
+	require.Zero(t, extendedRecoveryRecipientAttribute(t, recipient, beforeFatal, attribute.AttrASPath, alternatePath),
+		"nothing is re-sent to a recipient already holding the alternate")
 	_, withdrawn := fatalLengthRecipientRoutes(t, recipient)
 	require.Equal(t, uint8(2), withdrawn, "the surviving prefix must never be withdrawn")
 	mu.Lock()

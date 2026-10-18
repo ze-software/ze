@@ -259,9 +259,6 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 	r.mu.RLock()
 	receiver := r.messageReceiver
 	peer, hasPeer := r.findPeerByAddr(peerAddr)
-	if hasPeer && direction == rpc.DirectionSent && msgType == msgtype.TypeUPDATE {
-		peer.sentUpdateSequence.Add(1)
-	}
 
 	// Build PeerInfo while holding lock to avoid race on state
 	var peerInfo plugin.PeerInfo

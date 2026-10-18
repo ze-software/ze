@@ -5,9 +5,9 @@ package reactor
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -22,8 +22,11 @@ import (
 
 // TestRecoveryWaitsForFilteredReceivedPublication runs actual Peer.runOnce
 // sessions over net.Pipe, including their delivery workers and registered RIB.
-// B's filtered withdrawal must publish and apply before recovery can elect a
-// replacement for A. A failed delivery worker must fail closed without lookup.
+// A departs; B's filtered withdrawal must publish and apply before recovery
+// can elect a replacement for A. When B's delivery worker fails instead, B is
+// torn down with Cease / Out of Resources, the destination is NOT retired, and
+// the lookup runs with B in every key's excluded-source set, so the
+// destination receives the withdrawal and never B's withdrawn route.
 func TestRecoveryWaitsForFilteredReceivedPublication(t *testing.T) {
 	for _, fail := range []bool{false, true} {
 		name := "published"
@@ -72,6 +75,12 @@ func TestRecoveryWaitsForFilteredReceivedPublication(t *testing.T) {
 			var lookups atomic.Int32
 			provider := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
 				lookups.Add(1)
+				if fail {
+					if !slices.Contains(request.Keys[0].Excluded, b.peer.Settings().Address) {
+						return nil, fmt.Errorf("a source whose publication failed was not excluded")
+					}
+					return prior.Lookup(request)
+				}
 				if len(extendedRecoveryStoredAttributes(b.peer.addrString, []byte{203, 0, 114})) != 0 {
 					return nil, fmt.Errorf("recovery lookup preceded actual RIB withdrawal application")
 				}
@@ -109,7 +118,7 @@ func TestRecoveryWaitsForFilteredReceivedPublication(t *testing.T) {
 
 			batch := adjOutBatch(prefix.String(), "10.0.0.1")
 			batch.RecoverySource = a.peer.Settings().Address
-			batch.RecoveryCut = ^uint64(0)
+			lowLiveDepart(t, a)
 			session := destination.peer.currentSession()
 			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 			done := make(chan error, 1)
@@ -141,26 +150,32 @@ func TestRecoveryWaitsForFilteredReceivedPublication(t *testing.T) {
 			joined = true
 			cancel()
 			if fail {
-				if !errors.Is(err, errReceivePublicationFailed) {
-					t.Fatalf("failed real delivery worker returned %v", err)
+				if err != nil {
+					t.Fatalf("departure after a source's failed publication returned %v", err)
 				}
-				if lookups.Load() != 0 {
-					t.Fatal("failed delivery authorized a RIB lookup")
+				if lookups.Load() == 0 {
+					t.Fatal("the lookup never ran with the failed source excluded")
 				}
 				lowEventually(t, func() bool {
-					destination.mu.Lock()
-					defer destination.mu.Unlock()
-					for _, frame := range destination.frames {
+					b.mu.Lock()
+					defer b.mu.Unlock()
+					for _, frame := range b.frames {
 						if frame[18] == byte(msgtype.TypeNOTIFICATION) && len(frame) >= message.HeaderLen+2 &&
 							frame[19] == byte(message.NotifyCease) && frame[20] == message.NotifyCeaseOutOfResources {
 							return true
 						}
 					}
 					return false
-				}, "failed publication sends recipient Cease Out of Resources")
-				if !session.tearingDown.Load() {
-					t.Fatal("failed publication did not retire the affected destination session")
+				}, "failed publication sends its source Cease Out of Resources")
+				if session.tearingDown.Load() {
+					t.Fatal("a source's failed publication retired the destination session")
 				}
+				lowEventually(t, func() bool {
+					view = ownershipLiveRead(t, destination) // RFC 4271 Section 9.
+					return view.withdrawals[prefix] == 1
+				}, "recovery withdraws the owner with the failed source excluded")
+				ownershipLiveAbsent(t, view, prefix)
+				ownershipLiveAnnouncements(t, view, prefix, attrsB, attrsA)
 				return
 			}
 			if err != nil {
@@ -176,7 +191,7 @@ func TestRecoveryWaitsForFilteredReceivedPublication(t *testing.T) {
 			ownershipLiveAbsent(t, view, prefix)
 			ownershipLiveAnnouncements(t, view, prefix, attrsB, attrsA)
 			ownershipLiveWithdrawals(t, view, prefix, 1)
-			ownershipLiveEstablished(t, peers)
+			ownershipLiveEstablished(t, []*lowLivePeer{b, destination}) // A departed.
 		})
 	}
 }

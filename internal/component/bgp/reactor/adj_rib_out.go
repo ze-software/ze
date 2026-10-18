@@ -6,6 +6,8 @@ package reactor
 
 import (
 	"bytes"
+	"net/netip"
+	"slices"
 	"sync"
 	"sync/atomic"
 
@@ -77,13 +79,100 @@ type adjOutPath struct {
 
 // adjOutOwed is one key whose decision belongs to the destination's recovery
 // worker. It names the destination session it was owed to, and carries a copy
-// of the destination-framed NLRI, because the writer's bytes are pooled.
-// A new owe of a key already owed replaces the record, so a round that
-// decided an older record never removes a newer one.
+// of the destination-framed NLRI, because the writer's bytes are pooled. A key
+// keeps ONE record while it is owed: every later owe merges into it, so a
+// round deciding the key never loses an owe made while it ran. Every field is
+// read and written under adjRIBOut.mu.
 type adjOutOwed struct {
 	session *Session
 	family  family.Family
 	nlri    []byte
+	// excluded names the sources whose every candidate the election skips: a
+	// departed source, and a chosen survivor whose session ended before its
+	// write. An owner withdrawal or a lifecycle removal excludes nobody.
+	excluded []netip.Addr
+	// epoch moves whenever the question asked of the RIB changes (a source
+	// is excluded), so an admission answering an older question leaves the
+	// key owed for the next round instead of writing a stale answer.
+	epoch uint64
+	// movers are the owner identities of forwarded withdrawals of the key
+	// since the last round's snapshot. Only the chosen candidate's own
+	// withdrawal makes a decision dead, so the admission compares the
+	// candidate with this set. Bounded by the distinct paths that withdrew.
+	movers []adjOutPath
+	// done is closed when the record leaves the owed set, whatever removed
+	// it: a decision, an originated announcement, or a table reset. A
+	// departure waits on it.
+	done chan struct{}
+}
+
+// owe returns the key's record, creating it when the key is not owed. The
+// copy is deliberate: the body is the session's write buffer, and the record
+// outlives the write. MUST be called with mu held.
+func (a *adjRIBOut) owe(key adjOutKey, session *Session, fam family.Family, raw []byte) *adjOutOwed {
+	if record := a.owed[key]; record != nil {
+		return record
+	}
+	if a.owed == nil {
+		a.owed = make(map[adjOutKey]*adjOutOwed)
+	}
+	record := &adjOutOwed{session: session, family: fam, nlri: append([]byte(nil), raw...),
+		done: make(chan struct{})}
+	a.owed[key] = record
+	return record
+}
+
+// exclude adds source to the record's excluded set and moves the epoch, so a
+// round that asked without it never settles the key.
+func (o *adjOutOwed) exclude(source netip.Addr) {
+	o.epoch++
+	if slices.Contains(o.excluded, source) {
+		return
+	}
+	o.excluded = append(o.excluded, source)
+}
+
+// noteMover records a forwarded withdrawal of the key by owner.
+func (o *adjOutOwed) noteMover(owner adjOutPath) {
+	for i := range o.movers {
+		if adjOutSameOwner(o.movers[i], owner) {
+			return
+		}
+	}
+	o.movers = append(o.movers, owner)
+}
+
+// moved reports whether candidate withdrew the key since the snapshot.
+func (o *adjOutOwed) moved(candidate adjOutPath) bool {
+	for i := range o.movers {
+		if adjOutSameOwner(o.movers[i], candidate) {
+			return true
+		}
+	}
+	return false
+}
+
+// removeOwed removes the key's record when it is still record, and completes
+// its waiters. MUST be called with mu held.
+func (a *adjRIBOut) removeOwed(key adjOutKey, record *adjOutOwed) {
+	if record == nil {
+		return
+	}
+	if a.owed[key] != record {
+		return
+	}
+	delete(a.owed, key)
+	close(record.done)
+}
+
+// dropOwed empties the owed set with the table it belongs to, and completes
+// every waiter: the session that owed the keys is gone, and so is every route
+// the keys could have replaced. MUST be called with mu held.
+func (a *adjRIBOut) dropOwed() {
+	for _, record := range a.owed {
+		close(record.done)
+	}
+	a.owed = nil
 }
 
 // adjOutKey adds presence to fwdPathKey: identifier zero is a valid identifier.
@@ -169,7 +258,7 @@ func (a *adjRIBOut) reset() {
 	defer a.mu.Unlock()
 
 	a.routes = nil
-	a.owed = nil
+	a.dropOwed()
 	a.session = nil
 	a.pending = false
 }

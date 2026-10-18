@@ -269,39 +269,26 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 					continue
 				}
 			}
-			if !recovery.current(session) {
-				continue
-			}
-			// Fence every source before writing any sibling. A generation
-			// change MUST retry the whole lookup, never relabel selected bytes.
-			for j := range recovery.items {
-				section := &recovery.items[j]
-				if !forwardSourceCurrent(section.receivedPeer, section.receivedGeneration) {
-					recovery.retry = true
-					break
-				}
-				if section.receivedPeer != nil {
-					receipt, present := recovery.sources[section.receivedPeer]
-					if !present || !receipt.cut.current(section.receivedPeer) {
-						recovery.retry = true
-						break
-					}
-				}
-			}
-			if recovery.retry {
+			// Per key: a stale record, epoch or candidate leaves its key
+			// owed, and a generation change re-owes that key with its
+			// source excluded, never relabeling selected bytes.
+			if !recovery.admit(session) {
 				continue
 			}
 			sections = recovery.items
 		}
 		for j := range sections {
 			item := &sections[j]
+			if recovery := items[i].recovery; recovery != nil && !recovery.writes(j) {
+				continue
+			}
 			sourceCurrent := forwardSourceCurrent(item.receivedPeer, item.receivedGeneration)
 			if item.authority == adjOutInitial && !item.initialLocal {
 				sourceCurrent = initialSourceCurrent(item.receivedPeer, item.receivedGeneration, item.initialSourceState)
 			}
 			if item.authority != adjOutExpected && !sourceCurrent {
 				if recovery := items[i].recovery; recovery != nil {
-					recovery.retry = true
+					recovery.reowe(j)
 				}
 				continue
 			}
@@ -359,15 +346,15 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 	}
 	written = true
 	for i := range items {
-		if recovery := items[i].recovery; recovery != nil {
-			recovery.written = !recovery.retry && recovery.err == nil
+		if recovery := items[i].recovery; recovery != nil && !recovery.settled && recovery.err == nil {
+			recovery.settle()
 		}
 	}
 }
 
-// failRecoveryWrites propagates a batch's hard failure even if an admission
-// already requested re-election after partial output. Admissions for another
-// session retain their retry: this writer never owned their output.
+// failRecoveryWrites propagates a batch's hard failure even after partial
+// output. The failed write retires the session, whose table reset drops every
+// owed key. Admissions for another session are not this writer's output.
 func failRecoveryWrites(items []fwdItem, session *Session, err error) {
 	for i := range items {
 		if recovery := items[i].recovery; recovery != nil && recovery.session == session {
@@ -657,10 +644,10 @@ func (fp *fwdPool) releaseItem(item *fwdItem) {
 	}
 	if recovery := item.recovery; recovery != nil {
 		fp.releaseRecoveryItems(recovery)
-		if !recovery.retry && !recovery.written && recovery.err == nil {
+		if !recovery.settled && recovery.err == nil {
 			recovery.err = errRecoveryNotWritten
 		}
-		recovery.done <- recovery.retry
+		close(recovery.done)
 		item.recovery = nil
 	}
 	if item.peerBufIdx > 0 && item.peerPoolRef != nil {

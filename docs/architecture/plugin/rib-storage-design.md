@@ -91,7 +91,7 @@ buffered writes in order without a RIB RPC. Source-bound withdrawals must match
 that live owner; automatic cleanup carries the captured owner and advertisement
 revision before deleting a projection entry. Sent-route refresh preserves
 ownership instead of becoming unrestricted local origination. Cold source-DOWN
-recovery still uses the applied-delivery and session/sequence receipts below.
+recovery uses the applied-delivery receipts and the per-key owed records below.
 Sent events record successful buffered acceptance, not successful flush or TCP
 delivery. The writer's pending frontier and AIGP receipts commit on flush, and a
 failure invalidates that Session. Neither this projection nor its old callback
@@ -234,9 +234,8 @@ work; until then no sent event carries it.
 <!-- source: internal/component/bgp/plugins/rib/sent_owner.go -- recoveryCandidateGone -->
 
 Sent event callbacks enqueue delivery; they do not synchronously update the RIB.
-The engine first snapshots a destination's causal send sequence under its
-session `writeMu`, releases the lock, then captures each source's accepted
-receive-message cut. Before the selecting RIB's barrier, it waits for those
+The destination's recovery worker first snapshots its owed keys under the
+adj-out table mutex, then captures each source's accepted receive-message cut. Before the selecting RIB's barrier, it waits for those
 exact cuts to be published into plugin queues. Acceptance precedes reactor-native
 fast forwarding; completion follows `OnMessageBatchReceived` (or the synchronous
 receive callback). Thus a fast-path write cannot outrun its source event and
@@ -265,16 +264,20 @@ generations. Reconstruction and final admission must still match its worker,
 accepted receive cut, and generation. Reconnect or a later source UPDATE cannot
 relabel old selected bytes with a new session's context.
 
-Every selected path and every post-policy output section is staged in one
-destination operation. The destination worker checks its session, causal send
-sequence, source generations, and received-publication cuts under `writeMu`.
-An intervening operation requests new publication/application barriers and
-selection after releasing all write locks. Siblings
-do not invalidate one another through their own sends, and item release answers
-one completion after releasing all child resources, including cancellation and
-pool shutdown. A hard deadline, write or flush error takes precedence over a
-retry request, including source loss after a sibling has already written.
-Sent callbacks remain asynchronous.
+Every selected path and every post-policy output section of one lookup is
+staged in one destination admission, each section tagged with the owed key it
+decides. The destination worker decides each key under `writeMu` against the
+record, session and epoch its round read, the movers noted since the snapshot,
+and the source generations and received-publication cuts. A stale record or
+epoch, or a chosen candidate that withdrew, leaves the key owed for the next
+round; a survivor whose source session changed owes only its own key again,
+with that source excluded. Siblings do not invalidate one another, and
+unrelated output to the destination never cancels a decision. Item release
+answers one completion after releasing all child resources, including
+cancellation and pool shutdown, and a canceled or unrun admission leaves its
+keys owed. A hard deadline, write or flush error retires the destination
+session, whose table reset completes every owed key, even when a sibling key
+was already owed again. Sent callbacks remain asynchronous.
 <!-- source: internal/component/bgp/reactor/receive_publication.go -- receivePublicationCut.wait, current -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- runOnce delivery publication -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- acceptedReceive, synchronous publication -->
@@ -283,31 +286,33 @@ The publication regression runs actual `Peer.runOnce` sessions over `net.Pipe`.
 It blocks the real batch-receiver callback after native forwarding and waits
 for a later same-source marker on the recipient wire, fencing the filtered
 withdrawal's writer decision. Recovery then captures a cut including that
-marker, starts with a live context, and waits for publication before allowing
+marker after the departed source closed its transport, and waits for publication before allowing
 the registered dispatcher to deliver the withdrawal. The lookup wrapper checks
 the selecting RIB's actual candidate removal before calling its real provider;
 recipient history must then contain a withdrawal, not a stale replacement.
-A panicking delivery callback instead requires no lookup and an explicit Cease
-on the affected destination session. This carrier exercises the applied-event
+A panicking delivery callback instead tears its source down with Cease / Out of
+Resources; the destination is not retired, the lookup runs with that source
+excluded, and the recipient receives the withdrawal, never the source's
+withdrawn route. This carrier exercises the applied-event
 drain but does not independently discriminate that drain or external IPC.
 <!-- test: internal/component/bgp/reactor/forward_publication_ownership_test.go TestRecoveryWaitsForFilteredReceivedPublication -->
 
 There is no timer retry and no second route inventory. RS owns and joins each
 DOWN operation using its plugin lifecycle context, without an unrelated
-60-second command expiry. Once traffic permits admission, unrelated-prefix
-conflicts still finish the required repair; a newer target owner remains
-protected by the cut. A hard projection, lookup or writer failure retires the
+60-second command expiry. Unrelated output never cancels a
+required repair, and a newer target owner is protected at owe time: a
+departure owes nothing where another source, or the source's current session,
+owns the key. A hard projection, lookup or writer failure retires the
 affected destination session through the existing AutomaticStop/Cease path
 rather than leaving known-invalid advertisements installed. Fail-close ownership
-follows the session selected by each attempt, before its delivery barrier or
-lookup can fail, and ends when that destination's obligation completes. A
-replacement session admitted by a retry is therefore retired on hard failure;
-an unrelated subsequent reconnect is not retired by the old attempt's failure.
+follows the destination session the owed records name: the worker retires only
+its own session, and a reconnect never inherits a record, so an unrelated
+subsequent reconnect is not retired by the old session's failure.
 Replacement UPDATEs pass ordinary egress policy and reflection rules; a
 policy-denied replacement withdraws the obsolete advertised identity.
 
 <!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoveryRoutes, recoveryCandidate, recoverySentNLRI -->
-<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverySnapshot, recoverNLRIBatch, relayRecovery, recoveryAdmission.current -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, oweDeparture, drainRecoverySources, recoveryAdmission.admit, settle -->
 <!-- source: internal/component/plugin/process/delivery.go -- DrainEventsApplied -->
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler, releaseItem -->
 <!-- source: internal/component/bgp/plugins/rs/server.go -- recoverRouteSel, RunRouteServer -->

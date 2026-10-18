@@ -313,15 +313,14 @@ func TestFinalWriterMixedWithdrawalIntent(t *testing.T) {
 	if !bytes.Equal(sections.Withdrawn(bodies[0]), q) || len(sections.NLRI(bodies[0])) != 0 {
 		t.Fatalf("original withdrawal inherited synthesized authority: %x", bodies[0])
 	}
-	before := peer.sentUpdateSequence.Load()
+	// A dropped withdrawal of an owed key is noted as a mover: that guard is
+	// TestOwedKeyFenceInterleavings's, now that no destination-wide sequence
+	// exists.
 	if err := ownershipWriterForward(t, peer, source, syncOrderWithdrawBody, false); err != nil {
 		t.Fatal(err)
 	}
 	if len(updateBodies(t, conn.written())) != 1 {
 		t.Fatal("entirely filtered withdrawal emitted an accidental EOR")
-	}
-	if peer.sentUpdateSequence.Load() == before {
-		t.Fatal("filtered source operation left a cold recovery receipt current")
 	}
 	malformed := []byte{0, 2, 32, 192, 0, 0}
 	if err := ownershipWriterForward(t, peer, source, malformed, false); err == nil {
