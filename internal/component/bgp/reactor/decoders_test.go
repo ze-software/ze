@@ -1,6 +1,5 @@
 // Design: docs/architecture/wire/attributes.md -- carrier-aware tunnel validation.
 // Related: rfc9012_receive_storage_test.go -- the storage tests these decoders serve.
-// RFC naming: untagged -- this file holds no test, only the decoder imports the RFC 9012 storage tests in rfc9012_receive_storage_test.go need.
 
 package reactor
 
