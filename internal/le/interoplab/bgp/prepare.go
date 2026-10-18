@@ -49,6 +49,7 @@ environment {
 var containerRoles = []string{
 	"ze", peerFRR, peerBIRD, peerGoBGP, peerBMP, peerRPKI, peerInject, peerSpeaker,
 	peerSpeaker2, peerKeepalived, peerStayRTR, peerPMACCT, peerFRRTransit, peerFRRSink,
+	peerDnsmasq, peerDnsmasqB,
 }
 
 func scenarioPlans(root, producer, suffix string, sources []interoplab.ScenarioSource) ([]interoplab.ScenarioPlan, error) {
@@ -481,6 +482,21 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 	if path := filepath.Join(scenario, "keepalived.conf"); regularFile(path) {
 		peers = append(peers, interoplab.PeerConfig{Name: peerKeepalived, Container: containerName(peerKeepalived, suffix), Image: peerKeepalived, Host: 8,
 			Mounts: []interoplab.Mount{mount(path, "/etc/keepalived/keepalived.conf")}, Capabilities: []string{capabilityNetAdmin, "NET_RAW", "NET_BROADCAST"}, Arguments: ipv6Sysctls(), Ready: ready("ip", ipObjectLink)})
+	}
+	// A scenario carrying dnsmasq.conf runs ze as a DHCPv4 client of dnsmasq;
+	// dnsmasq-b.conf adds a second server. The image's entrypoint reads
+	// /etc/dnsmasq.conf (test/interop/Dockerfile.dnsmasq). dnsmasq 2.90
+	// refuses to serve DHCP without NET_ADMIN ("process is missing required
+	// capability NET_ADMIN", exit 5, measured 2026-10-18). NET_RAW and
+	// NET_BIND_SERVICE, which port 67 also needs, are in Docker's default set.
+	for _, server := range []struct {
+		name, file string
+		host       uint8
+	}{{peerDnsmasq, dnsmasqConfigFile, dnsmasqHostNumber}, {peerDnsmasqB, dnsmasqBConfigFile, dnsmasqBHostNumber}} {
+		if path := filepath.Join(scenario, server.file); regularFile(path) {
+			peers = append(peers, interoplab.PeerConfig{Name: server.name, Container: containerName(server.name, suffix), Image: peerDnsmasq, Host: server.host,
+				Mounts: []interoplab.Mount{mount(path, "/etc/dnsmasq.conf")}, Capabilities: []string{capabilityNetAdmin}, Ready: ready("ip", ipObjectLink)})
+		}
 	}
 	if path := filepath.Join(scenario, "gobgp.toml"); regularFile(path) {
 		peers = append(peers, interoplab.PeerConfig{Name: peerGoBGP, Container: containerName(peerGoBGP, suffix), Image: peerGoBGP, Host: 5,

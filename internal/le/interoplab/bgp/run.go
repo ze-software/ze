@@ -113,6 +113,7 @@ func suiteFor(root string, options Options) (interoplab.Suite, error) {
 			{Name: peerBIRD, Tag: "bird-interop", Dockerfile: filepath.Join(producer, "Dockerfile.bird"), Context: producer, Required: true},
 			{Name: peerGoBGP, Tag: "gobgp-interop", Dockerfile: filepath.Join(producer, "Dockerfile.gobgp"), Context: producer},
 			{Name: peerKeepalived, Tag: "keepalived-interop", Dockerfile: filepath.Join(producer, "Dockerfile.keepalived"), Context: producer, Required: true},
+			{Name: peerDnsmasq, Tag: "dnsmasq-interop", Dockerfile: filepath.Join(producer, "Dockerfile.dnsmasq"), Context: producer},
 			{Name: peerStayRTR, Tag: "stayrtr-interop", Dockerfile: filepath.Join(producer, "Dockerfile.stayrtr"), Context: producer},
 			{Name: peerFRR, Tag: environment.Image, Pull: true, Required: true},
 			{Name: peerPMACCT, Tag: defaultPMACCTImage, Pull: true},

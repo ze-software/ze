@@ -218,6 +218,7 @@ fifteen-second bound.
 | Docker | Interop tests | Containers for FRR, BIRD, GoBGP, Ze |
 | A Docker daemon kernel with every feature Ze enrolls | Interop tests, `docker-*` deployment proofs, the `l2tp-test`, `vpp-test` and `vpp-iface-test` proofs, `TestVPPSRv6ServiceRoute`, the terminal-demo render and validate mode, the `./le perf` ze DUT, `./le verify evidence release-candidate` | Checked before any image build or container start; see "The Docker host kernel check" |
 | ~1.5 GB disk | Interop tests | Docker images (Go builder, FRR, Alpine) |
+| Docker | `./le test integration cleanup`, `./le test integration docker-peers` | No Ze kernel: neither runs Ze in a container |
 
 The interop test network uses `172.30.0.0/24`. MD5 authentication scenarios require
 `NET_ADMIN` capability (granted automatically by the orchestrator).
@@ -338,16 +339,70 @@ via each daemon's native CLI.
 
 The native `internal/le/interoplab/bgp` package discovers scenario directories in
 `test/interop/scenarios/`. Before any scenario, the shared `interoplab.Suite`
-engine runs the lab's preflight (which stages ze), checks the Docker daemon's
+engine removes what a killed earlier run left behind ("Crash-safe teardown"
+below), runs the lab's preflight (which stages ze), checks the Docker daemon's
 kernel with that ze ("The Docker host kernel check" below), and builds the
 images. For each scenario it then:
 
-1. Creates an isolated Docker network.
+1. Creates an isolated Docker network, after refusing an existing container or
+   network of the same name that it cannot prove abandoned.
 2. Starts Ze and the peer daemons declared by the scenario's config files.
 3. Waits for every declared readiness probe.
 4. Runs the scenario's typed checker from the package-local BGP registry.
-5. Tears down every container and network, including after setup or checker failure.
-<!-- source: internal/le/interoplab/lab.go -- suite lifecycle -->
+5. Tears down every container and network, including after setup or checker
+   failure and after a Ctrl-C or SIGTERM, which cancel the run rather than end
+   the process. A SIGKILL, a lost machine or a panic runs no teardown; the next
+   lab start, or `./le test integration cleanup`, removes what it left.
+<!-- source: internal/le/interoplab/lab.go -- Suite.Run, Lab.preClean -->
+<!-- source: internal/le/test/integration/actions.go -- nativeRunner, signalContext -->
+
+### Crash-safe teardown
+
+Every container, one-shot container (the kernel probe included), network and
+built image the wrapper (`interoplab.Docker`) creates carries owner labels, all
+from one helper, `ownerIdentity.labelArguments`:
+
+| Label | Value |
+|-------|-------|
+| `ze.lab` | `1`, the marker. The cleanup lists only resources carrying it |
+| `ze.lab.run` | a random id for the run |
+| `ze.lab.pid` | the creating process's pid |
+| `ze.lab.pid-start` | that pid's start token, which changes when the pid is reused (`procscan`) |
+| `ze.lab.boot-id` | the client machine's boot id |
+| `ze.lab.machine-id` | the client machine's id (`/etc/machine-id`, or the Mac's IOPlatformUUID) |
+| `ze.lab.started` | when the run started, RFC 3339 |
+| `ze.lab.purpose` | the creating command line, for the operator |
+<!-- source: internal/le/interoplab/orphans.go -- labelMarker, ownerIdentity.labelArguments -->
+
+Every owner fact is read on the client, the machine running `le`, never from
+the daemon: on a Mac the daemon runs in a VM whose pids are not the Mac's.
+
+`Docker.CleanupOrphans` removes a labeled resource only when its owner is
+provably gone, on one of three paths: the same machine and a different boot;
+the same machine and boot with the pid absent; or the pid held by a process
+with another start token. It removes containers, then networks, then the
+run-owned `ze-interop-retained:` tag, each by the id the labeled listing gave.
+Everything else is kept and reported with its reason and the command that
+resolves it: an owner still running, an owner on another machine (run the
+cleanup there), labels it cannot read, or a network another run's container is
+still attached to. An unlabeled resource, a volume and the shared cache tag
+that `NO_BUILD=1` reuses are never candidates.
+<!-- source: internal/le/interoplab/orphans.go -- Docker.CleanupOrphans, ownerJudge.judge -->
+
+`Suite.Run` runs the cleanup after the Docker probe and before Preflight, and
+prints each removal or skip as a progress line. A listing the daemon refuses is
+a setup error. Before a scenario creates its network and containers, its
+pre-clean removes an existing resource of the same name only on the same
+verdict, and otherwise fails the scenario naming the owner and the fix: set
+the lab's `ZE_<LAB>_INTEROP_SUFFIX` variable, or run the cleanup.
+<!-- source: internal/le/interoplab/orphans.go -- Docker.claimName -->
+
+`./le test integration cleanup` runs the cleanup by hand and exits 1 when a
+removal failed, naming the failing command. `./le test integration cleanup
+dry` lists what would go and what stays, removes nothing, and also lists
+`ze-interop-retained:` tags left from before the labels existed, which no mode
+removes. Both render through `| json`.
+<!-- source: internal/le/test/integration/cleanup.go -- labCleanup -->
 
 ### The Docker host kernel check
 
@@ -861,6 +916,7 @@ A scenario directory may also carry files that start extra containers before Ze:
 | `inject.msg` | `le test peer` (raw injector, 172.30.0.9) | Drive Ze with wire bytes no conforming daemon would emit. An optional `inject-args` file adds flags. Because the injector and Ze start before the peer daemons, an early route exercises Ze's replay-on-peer-up path. |
 | `speaker-args` (and optional `speaker2-args`) | `le test interop-bgp speaker` (172.30.0.10; second at 172.30.0.11) | Dial Ze with an independent strict peer. The compiled speaker negotiates the requested families and ADD-PATH mode, frames BGP itself, applies the named native oracle, and writes a structured verdict to container logs. It catches wire output that Ze's own lenient decoder could accept. |
 | `vrps.json` | StayRTR (172.30.0.12:8282) | Serve RPKI VRPs from a real third-party cache, so Ze is the RTR client of an implementation that is not its own. The typed checker asserts each per-prefix validation answer, not merely the RTR session. |
+| `dnsmasq.conf` (and optional `dnsmasq-b.conf`) | dnsmasq DHCPv4 server (172.30.0.20; second at 172.30.0.21), `test/interop/Dockerfile.dnsmasq` | Serve Ze's DHCPv4 client from an implementation Ze did not write. The checkers of `dhcpv4-renew-nak-dnsmasq` and `dhcpv4-rebind-two-servers-dnsmasq` count the DHCP messages in dnsmasq's `log-dhcp` output and read Ze's eth0 addresses. The renew-NAK checker writes a reservation into the container's own `/run/dhcp-hosts` and reloads it with SIGHUP; the rebind checker stops the server that granted the lease. |
 | `pmbmpd.conf` | pmacct `pmbmpd` (172.30.0.13:1790) | Read Ze's BMP stream with a collector Ze did not write. The file is also the selector: a scenario that carries it starts pmacct INSTEAD of Ze's own collector, because two collectors are two readings of one stream and only the third-party one is interop evidence. The typed checker greps pmacct's JSON msglog, so every needle is a field pmacct printed after decoding. |
 
 The `ospf-te-frr` and `ospf-te-interas-frr` scenarios keep their FRR adjacency,

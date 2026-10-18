@@ -24,6 +24,8 @@ const (
 	peerKeepalived = "keepalived"
 	peerStayRTR    = "stayrtr"
 	peerPMACCT     = "pmacct"
+	peerDnsmasq    = "dnsmasq"
+	peerDnsmasqB   = "dnsmasq-b"
 )
 
 // Programs a scenario runs inside a peer container. cmdGoBGP has the spelling
@@ -706,4 +708,18 @@ const (
 	srPolicyReceivedA          = "Color 100, Endpoint: 10.0.0.1 "
 	srPolicyReceivedB          = "Color 300, Endpoint: 10.0.0.3 "
 	srPolicyReceivedControl    = "Color 400, Endpoint: 10.0.0.5 "
+)
+
+// The DHCPv4 scenarios' dnsmasq sidecars: the file that selects each server,
+// the last byte of its lab address, and the addresses the servers lease.
+// Each pool holds one address (dhcpLeasedAddress), so the lease ze holds is
+// known before the run; dhcpReservedAddress is the reservation the renew-NAK
+// checker moves ze to.
+const (
+	dnsmasqConfigFile   = "dnsmasq.conf"
+	dnsmasqBConfigFile  = "dnsmasq-b.conf"
+	dnsmasqHostNumber   = uint8(20)
+	dnsmasqBHostNumber  = uint8(21)
+	dhcpLeasedAddress   = "172.30.0.50"
+	dhcpReservedAddress = "172.30.0.51"
 )

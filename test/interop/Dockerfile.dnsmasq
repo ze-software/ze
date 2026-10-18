@@ -1,0 +1,18 @@
+# dnsmasq DHCPv4 server for interoperability testing of ze's DHCP client.
+# Alpine ships dnsmasq in its main repository.
+#
+# iproute2 is present so a checker can read the container's interface state
+# over `docker exec`. tini forwards the SIGHUP a checker sends to reload the
+# host reservations, and the SIGTERM that stops the server.
+#
+# The reservation file /run/dhcp-hosts lives in the container, not in a mount:
+# every lab mount is read-only, and the renew-NAK scenario writes a reservation
+# mid-run (dhcp-hostsfile, re-read on SIGHUP).
+
+FROM alpine:3.21
+
+RUN apk add --no-cache dnsmasq iproute2 tini
+
+# --keep-in-foreground so docker sees the real process, --log-facility=- so
+# `docker logs` carries every DHCP transaction the checker reads.
+ENTRYPOINT ["tini", "--", "/bin/sh", "-c", "touch /run/dhcp-hosts && exec dnsmasq --keep-in-foreground --log-facility=- --conf-file=/etc/dnsmasq.conf"]
