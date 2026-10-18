@@ -8,7 +8,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
@@ -451,11 +451,11 @@ Discrimination (`ai/rules/interop-and-goal-validation.md`): for each scenario, r
 
 | ID | Question | Recommendation | Answer |
 |----|----------|----------------|--------|
-| Q1 | An ACK with no IP address lease time (option 51) or a lease time of 0: refuse it, or install it under a named, logged default? | Refuse. RFC 2131 Section 4.3.1 Table 3 makes the lease time a MUST in a DHCPACK to a DHCPREQUEST, and 0 grants nothing. In DORA the ACK is not installed and DORA retries after the 10 s back-off; in RENEWING/REBINDING it counts as no answer, so the held lease keeps its own deadlines. Log once with the server identifier and what is missing (AC-15 to AC-17); `TestV4LeaseTime`'s 1 h assertion is corrected | |
-| Q2 | Honour the server's T1 (option 58) and T2 (option 59)? | Yes, when T1 < T2 < lease holds (RFC 2131 Section 4.4.5 MUSTs), else both defaults; same function as the defect-1 fix (AC-18, AC-19) | |
-| Q3 | Send RENEW by unicast to the server identifier from the leased address (RFC2131-4.1-10, a recorded MUST gap; Section 4.4.5 "sends (via unicast)")? | Yes. The fix rebuilds the RENEW send path anyway; leaving it broadcast keeps a known MUST gap in the function being rewritten (AC-12, A-1) | |
-| Q4 | Carry option 61 (client-id) and 12 (hostname) on every RENEW and REBIND (RFC2131-2-2, a recorded MUST gap)? | Yes: pass the acquisition modifiers to every renewal (AC-20); a server keyed on client-id cannot otherwise match the renewal to the lease | |
-| Q5 | Host the DHCP interop scenarios as a dnsmasq sidecar in `test/interop/scenarios/`, or open a dedicated `test/interop-dhcp/` suite? | Sidecar in the existing suite, like keepalived; a new suite costs a runner, catalog and gate for two scenarios | |
+| Q1 | An ACK with no IP address lease time (option 51) or a lease time of 0: refuse it, or install it under a named, logged default? | Refuse. RFC 2131 Section 4.3.1 Table 3 makes the lease time a MUST in a DHCPACK to a DHCPREQUEST, and 0 grants nothing. In DORA the ACK is not installed and DORA retries after the 10 s back-off; in RENEWING/REBINDING it counts as no answer, so the held lease keeps its own deadlines. Log once with the server identifier and what is missing (AC-15 to AC-17); `TestV4LeaseTime`'s 1 h assertion is corrected | 2026-10-18, Thomas: "I approve of the specifications." Refuse, as recommended: DORA does not install and retries after the 10 s back-off; RENEW/REBIND treat it as no answer; log once naming the server identifier and what is missing; `TestV4LeaseTime` corrected |
+| Q2 | Honour the server's T1 (option 58) and T2 (option 59)? | Yes, when T1 < T2 < lease holds (RFC 2131 Section 4.4.5 MUSTs), else both defaults; same function as the defect-1 fix (AC-18, AC-19) | 2026-10-18, Thomas: "I approve of the specifications." Yes, as recommended: options 58/59 when T1 < T2 < lease, else the defaults for both |
+| Q3 | Send RENEW by unicast to the server identifier from the leased address (RFC2131-4.1-10, a recorded MUST gap; Section 4.4.5 "sends (via unicast)")? | Yes. The fix rebuilds the RENEW send path anyway; leaving it broadcast keeps a known MUST gap in the function being rewritten (AC-12, A-1) | 2026-10-18, Thomas: "I approve of the specifications." Yes, as recommended: unicast RENEW to the server identifier |
+| Q4 | Carry option 61 (client-id) and 12 (hostname) on every RENEW and REBIND (RFC2131-2-2, a recorded MUST gap)? | Yes: pass the acquisition modifiers to every renewal (AC-20); a server keyed on client-id cannot otherwise match the renewal to the lease | 2026-10-18, Thomas: "I approve of the specifications." Yes, as recommended: options 61 and 12 on every RENEW and REBIND |
+| Q5 | Host the DHCP interop scenarios as a dnsmasq sidecar in `test/interop/scenarios/`, or open a dedicated `test/interop-dhcp/` suite? | Sidecar in the existing suite, like keepalived; a new suite costs a runner, catalog and gate for two scenarios | 2026-10-18, Thomas: "I approve of the specifications." Sidecar in `test/interop/scenarios/`, as recommended |
 
 ## Known Limitations
 
