@@ -338,3 +338,14 @@ Then `./le rfc reseal` and commit only rfc3768/rfc5798/rfc9568 files.
 
 Verdicts to re-judge (stale, reseal refuses): RFC5798-7.2-1, RFC9568-5.2.8-2,
 RFC9568-7.2-1, RFC9568-7.2-5.
+
+## Gap #15 RFC5216-5.3-5 (EAP-TLS configured intermediates): committed f6c2374f02
+
+Code, unit tests, reload .ci (`tx-ipsec-intermediate-certificate-requires-eap-tls`,
+green) and scoped lint (0 issues) landed in f6c2374f02. Still owed:
+- Run interop scenario `responder-eap-tls13-leaf-only-client`
+  (`test/interop-ipsec/scenarios/`, needs Docker; never run yet), and its
+  revert-red walk per `ai/rules/interop-and-goal-validation.md`.
+- Independent re-audit of RFC5216-5.3-5: `./le rfc check` reports the audit
+  verdict "unimplemented" against a row that no longer carries `{gap}`, so the
+  verdict is stale and must be re-judged by a reader who did not author it.
