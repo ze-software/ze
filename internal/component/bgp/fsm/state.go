@@ -317,39 +317,61 @@ func (s BfdSubState) String() string {
 	return b.Reset().Str("UNKNOWN(").Int(int64(s)).Byte(')').String()
 }
 
-var eventNames = map[Event]string{
-	EventManualStart:              "ManualStart",
-	EventManualStop:               "ManualStop",
-	EventConnectRetryTimerExpires: "ConnectRetryTimerExpires",
-	EventHoldTimerExpires:         "HoldTimerExpires",
-	EventKeepaliveTimerExpires:    "KeepaliveTimerExpires",
-	EventTCPConnectionConfirmed:   "TCPConnectionConfirmed",
-	EventTCPConnectionFails:       "TCPConnectionFails",
-	EventBGPOpen:                  "BGPOpen",
-	EventBGPHeaderErr:             "BGPHeaderErr",
-	EventBGPOpenMsgErr:            "BGPOpenMsgErr",
-	EventNotifMsgVerErr:           "NotifMsgVerErr",
-	EventNotifMsg:                 "NotifMsg",
-	EventKeepaliveMsg:             "KeepaliveMsg",
-	EventUpdateMsg:                "UpdateMsg",
-	EventUpdateMsgErr:             "UpdateMsgErr",
+// eventSpec is what the specifications say about one event: its name, and the
+// number RFC 4271 Section 8.1 (or, for Events 30 to 35,
+// draft-ietf-idr-bgp-bfd-strict-mode Section 13.3) gives it. The constants are an
+// iota sequence with gaps where an optional event is not implemented, so the
+// number cannot be derived from the constant and is declared here, beside the
+// name, once.
+type eventSpec struct {
+	name   string
+	number uint16
+}
 
-	EventAutomaticStartWithDampPeerOscillations: "AutomaticStartWithDampPeerOscillations",
-	EventAutomaticStop:                          "AutomaticStop",
-	EventOpenCollisionDump:                      "OpenCollisionDump",
+// eventSpecs numbers RFC 4271 Section 8.1 Events 1 to 28 and
+// draft-ietf-idr-bgp-bfd-strict-mode Section 13.3 Events 30 to 35.
+var eventSpecs = map[Event]eventSpec{
+	EventManualStart:              {"ManualStart", 1},
+	EventManualStop:               {"ManualStop", 2},
+	EventConnectRetryTimerExpires: {"ConnectRetryTimerExpires", 9},
+	EventHoldTimerExpires:         {"HoldTimerExpires", 10},
+	EventKeepaliveTimerExpires:    {"KeepaliveTimerExpires", 11},
+	EventTCPConnectionConfirmed:   {"TCPConnectionConfirmed", 17},
+	EventTCPConnectionFails:       {"TCPConnectionFails", 18},
+	EventBGPOpen:                  {"BGPOpen", 19},
+	EventBGPHeaderErr:             {"BGPHeaderErr", 21},
+	EventBGPOpenMsgErr:            {"BGPOpenMsgErr", 22},
+	EventNotifMsgVerErr:           {"NotifMsgVerErr", 24},
+	EventNotifMsg:                 {"NotifMsg", 25},
+	EventKeepaliveMsg:             {"KeepaliveMsg", 26},
+	EventUpdateMsg:                {"UpdateMsg", 27},
+	EventUpdateMsgErr:             {"UpdateMsgErr", 28},
 
-	EventBfdAdminDown:           "BfdAdminDown",
-	EventBfdDown:                "BfdDown",
-	EventBfdUp:                  "BfdUp",
-	EventBfdDisabled:            "BfdDisabled",
-	EventBfdHoldTimerExpires:    "BfdHoldTimerExpires",
-	EventBfdStrictConfigChanged: "BfdStrictConfigChanged",
+	EventAutomaticStartWithDampPeerOscillations: {"AutomaticStartWithDampPeerOscillations", 6},
+	EventAutomaticStop:                          {"AutomaticStop", 8},
+	EventOpenCollisionDump:                      {"OpenCollisionDump", 23},
+
+	EventBfdAdminDown:           {"BfdAdminDown", 30},
+	EventBfdDown:                {"BfdDown", 31},
+	EventBfdUp:                  {"BfdUp", 32},
+	EventBfdDisabled:            {"BfdDisabled", 33},
+	EventBfdHoldTimerExpires:    {"BfdHoldTimerExpires", 34},
+	EventBfdStrictConfigChanged: {"BfdStrictConfigChanged", 35},
+}
+
+// Number returns the registered FSM event number, the "code corresponding to
+// the Finite State Machine (FSM) Event" that RFC 7854 Section 4.9 puts behind
+// a reason 2 Peer Down. An event the table does not declare answers false, so
+// no caller can mistake it for a registered number.
+func (e Event) Number() (uint16, bool) {
+	spec, ok := eventSpecs[e]
+	return spec.number, ok
 }
 
 // String returns a human-readable event name.
 func (e Event) String() string {
-	if name, ok := eventNames[e]; ok {
-		return name
+	if spec, ok := eventSpecs[e]; ok {
+		return spec.name
 	}
 	var b2 textbuf.Buffer
 	return b2.Reset().Str("UNKNOWN(").Int(int64(e)).Byte(')').String()

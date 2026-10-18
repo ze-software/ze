@@ -112,8 +112,8 @@ type callbackAdapter struct {
 }
 
 func (a *callbackAdapter) OnPeerEstablished(peer *Peer) { a.cb.OnPeerEstablished(peer) }
-func (a *callbackAdapter) OnPeerClosed(peer *Peer, reason string) {
-	a.cb.OnPeerClosed(peer, reason)
+func (a *callbackAdapter) OnPeerClosed(peer *Peer, closed sessionClose) {
+	a.cb.OnPeerClosed(peer, closed.reason)
 }
 
 // AddPeerLifecycleCallback registers an external callback via the any-typed interface.
@@ -173,7 +173,7 @@ func (r *Reactor) notifyPeerNegotiated(peer *Peer, neg *capability.Negotiated) {
 }
 
 // notifyPeerClosed calls all observers when peer leaves Established.
-func (r *Reactor) notifyPeerClosed(peer *Peer, reason string) {
+func (r *Reactor) notifyPeerClosed(peer *Peer, closed sessionClose) {
 	r.forgetAIGPPeer(peer)
 	// Remove peer from update group index before notifying observers.
 	// Must happen before clearEncodingContexts resets sendCtxID to 0.
@@ -191,7 +191,7 @@ func (r *Reactor) notifyPeerClosed(peer *Peer, reason string) {
 	r.observersMu.RUnlock()
 
 	for _, obs := range observers {
-		obs.OnPeerClosed(peer, reason)
+		obs.OnPeerClosed(peer, closed)
 	}
 }
 

@@ -38,10 +38,12 @@ import (
 
 // peerDownRecorder is the peer lifecycle observer the RIB's state feed hangs off
 // (apiStateObserver in production). It records each peer the reactor reports
-// established or closed. The channels are buffered so the run loop never blocks on it.
+// established or closed, and the close it was told about. The channels are buffered so
+// the run loop never blocks on it.
 type peerDownRecorder struct {
 	established chan *Peer
 	closed      chan *Peer
+	causes      chan sessionClose
 }
 
 func (r *peerDownRecorder) OnPeerEstablished(peer *Peer) {
@@ -51,7 +53,11 @@ func (r *peerDownRecorder) OnPeerEstablished(peer *Peer) {
 	}
 }
 
-func (r *peerDownRecorder) OnPeerClosed(peer *Peer, _ string) {
+func (r *peerDownRecorder) OnPeerClosed(peer *Peer, closed sessionClose) {
+	select {
+	case r.causes <- closed:
+	default:
+	}
 	select {
 	case r.closed <- peer:
 	default:
@@ -93,7 +99,11 @@ func startMPLinkNeighbor(t *testing.T) *mpLinkNeighbor {
 
 	reactor := New(&Config{ListenAddr: "127.0.0.1:0"})
 	link := &mpLinkNeighbor{
-		events:   &peerDownRecorder{established: make(chan *Peer, 4), closed: make(chan *Peer, 4)},
+		events: &peerDownRecorder{
+			established: make(chan *Peer, 4),
+			closed:      make(chan *Peer, 4),
+			causes:      make(chan sessionClose, 4),
+		},
 		updates:  make(chan struct{}, 4),
 		fromPeer: make(chan []byte, 1),
 	}

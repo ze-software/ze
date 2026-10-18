@@ -401,9 +401,9 @@ func (p *Peer) announceEstablished(r *Reactor, session *Session, neg *capability
 // mark after the read would leave a window in which the down missed the
 // process and the reload still judged the session up.
 // The caller MUST hold neither r.mu nor p.mu.
-func (p *Peer) announceClosed(r *Reactor, session *Session, reason string) {
+func (p *Peer) announceClosed(r *Reactor, session *Session, closed sessionClose) {
 	p.markSessionUp(r, session, sessionUpClosing)
-	r.notifyPeerClosed(p, reason)
+	r.notifyPeerClosed(p, closed)
 }
 
 // bindProcesses tells the named processes, whose bindings bindings holds, that

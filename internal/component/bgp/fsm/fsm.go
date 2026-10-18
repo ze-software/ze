@@ -54,8 +54,11 @@ import (
 // in the state", e.g. any other event in Idle) return nil, not this sentinel.
 var ErrFSMError = errors.New("fsm: event caused a Finite State Machine Error")
 
-// StateCallback is called when the FSM changes state.
-type StateCallback func(from, to State)
+// StateCallback is called when the FSM changes state. event is the RFC 4271
+// Section 8.1 event whose handling made the change, so a consumer that has to
+// say why a session closed reads the cause from the transition itself rather
+// than from state that a later event may already have overwritten.
+type StateCallback func(from, to State, event Event)
 
 // FSM implements the BGP Finite State Machine per RFC 4271 Section 8.
 //
@@ -98,6 +101,12 @@ type FSM struct {
 	pending  []transition
 	draining bool
 
+	// event is the event Event() is dispatching, written under mu before the
+	// handler runs. change() copies it into the transition it queues, so each
+	// callback learns the cause of its own change even when it runs after a
+	// later event has been dispatched.
+	event Event
+
 	// bfdSub is the draft-ietf-idr-bgp-bfd-strict-mode Section 8.1 sub-state.
 	// It is only ever non-None while state is StateOpenSent, and change()
 	// clears it on every transition out of that state.
@@ -111,10 +120,12 @@ type FSM struct {
 	bfdStrict bool
 }
 
-// transition records a single (from, to) state change awaiting its callback.
+// transition records a single (from, to) state change awaiting its callback,
+// with the event that caused it.
 type transition struct {
-	from State
-	to   State
+	from  State
+	to    State
+	event Event
 }
 
 // New creates a new FSM in the IDLE state.
@@ -307,7 +318,7 @@ func (f *FSM) change(to State) {
 		return
 	}
 
-	f.pending = append(f.pending, transition{from: from, to: to})
+	f.pending = append(f.pending, transition{from: from, to: to, event: f.event})
 	if f.draining {
 		// Another goroutine is draining; it will run this callback in order.
 		return
@@ -320,7 +331,7 @@ func (f *FSM) change(to State) {
 		cb := f.callback
 		f.mu.Unlock()
 		if cb != nil {
-			cb(t.from, t.to)
+			cb(t.from, t.to, t.event)
 		}
 		f.mu.Lock()
 	}
@@ -339,6 +350,10 @@ func (f *FSM) change(to State) {
 func (f *FSM) Event(event Event) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
+	// Every state change happens inside a handler this call dispatches, so
+	// the event recorded here is the cause change() attaches to it.
+	f.event = event
 
 	switch f.state {
 	case StateIdle:

@@ -462,7 +462,7 @@ func (p *Peer) runOnce() error {
 	}
 
 	// Monitor FSM state
-	session.fsm.SetCallback(func(from, to fsm.State) {
+	session.fsm.SetCallback(func(from, to fsm.State, event fsm.Event) {
 		addr := p.settings.Address.String()
 		peerLogger().Debug("FSM transition", "peer", addr, "from", from.String(), "to", to.String())
 
@@ -566,11 +566,13 @@ func (p *Peer) runOnce() error {
 			// toward convergence while its wire is gone (update_delay.go).
 			p.updateDelayPeerDown()
 
-			// Determine reason based on target state
-			reason := "session closed"
-			if to == fsm.StateIdle {
-				reason = "connection lost"
-			}
+			// The close is derived once, from the event that made this
+			// transition, from whether a NOTIFICATION crossed the wire, and
+			// from the close reason the session recorded, and every consumer
+			// reads it: Graceful Restart and BMP both decide on it
+			// (peer_close.go).
+			closed := sessionCloseFor(p.notificationExchanged.Load(), event, closeCause(session))
+			reason := closed.reason
 
 			// Raise session-dropped on the report bus only when no NOTIFICATION
 			// was exchanged during this session. If one was sent or received,
@@ -588,7 +590,7 @@ func (p *Peer) runOnce() error {
 			// the delivery graph, so a reload racing it can place that read
 			// (applyHotSwappableSettings).
 			if reactor != nil {
-				p.announceClosed(reactor, session, reason)
+				p.announceClosed(reactor, session, closed)
 			}
 
 			// Clear negotiated capabilities and encoding contexts on session teardown

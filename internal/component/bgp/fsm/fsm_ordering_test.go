@@ -31,7 +31,7 @@ func TestFSMCallbackOrderingRace(t *testing.T) {
 	maxInFlight := 0
 	var chain []transition
 
-	f.SetCallback(func(from, to State) {
+	f.SetCallback(func(from, to State, _ Event) {
 		mu.Lock()
 		inFlight++
 		if inFlight > maxInFlight {

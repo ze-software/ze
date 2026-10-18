@@ -131,6 +131,11 @@ type PeerInfo struct {
 	// InitialReplay identifies the exact session whose peer-up replay is owed.
 	// Zero is not a replay receipt.
 	InitialReplay uint64
+	// CloseFSMEvent is, on a session-down state change only, the RFC 4271
+	// Section 8.1 number of the FSM event that closed the session. Zero is
+	// the value RFC 7854 Section 4.9 itself gives "no relevant Event code",
+	// which is what every other state change carries.
+	CloseFSMEvent uint16
 
 	// BFDSubState is the draft-ietf-idr-bgp-bfd-strict-mode Section 8.1
 	// sub-state, empty where the session is not waiting for BFD. Section 11

@@ -121,6 +121,7 @@ func getStructuredStateEvent(peer *plugin.PeerInfo, state rpc.SessionState, reas
 	se.State = state
 	se.InitialReplay = peer.InitialReplay
 	se.Reason = reason
+	se.FSMEvent = peer.CloseFSMEvent
 	return se
 }
 
@@ -571,7 +572,8 @@ func countPeerUpBarrier(procs []*process.Process, state rpc.SessionState) int {
 
 // onPeerStateChange handles peer state transitions.
 // Called by reactor when peer state changes (not a BGP message).
-// reason is the close reason (empty for "up"): "tcp-failure", "notification", etc.
+// reason is the close reason (empty for "up"): one of the rpc.Reason*
+// constants, such as rpc.ReasonNotification or rpc.ReasonTCPFailure.
 // State events are delivered sequentially in reverse dependency order so that
 // plugins with dependencies (e.g., bgp-gr) process before their dependencies (e.g., bgp-rib).
 func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.SessionState, reason string) {

@@ -142,7 +142,7 @@ re-establishment rather than waiting for Ze to re-advertise.
 
 ### Peer Restarts
 
-1. **Peer goes down** -- GR plugin sends `retain-routes` with the received GR families plus exchanged LLGR families whose received LLST is nonzero
+1. **Peer goes down** -- unless the session ended by a NOTIFICATION, sent or received. RFC 4724 Section 4 says "the normal BGP procedures MUST be followed when the TCP session terminates due to the sending or receiving of a BGP NOTIFICATION message", so that down (reason `notification`) retains nothing. Ze never advertises the RFC 8538 N bit, so no NOTIFICATION is graceful. For any other down (`tcp-failure`, `local-close`) the GR plugin sends `retain-routes` with the received GR families plus exchanged LLGR families whose received LLST is nonzero
 2. **RIB marks routes as stale** -- routes kept in forwarding but flagged
 3. **Restart timer starts** -- countdown from `restart-time` seconds
 4. **Peer reconnects** -- new session established, fresh routes received. A family whose Forwarding State bit is clear in the new OPEN, a family the new capability omits, and every family when the new OPEN carries no Graceful Restart Capability at all, are purged with `purge-stale` at once (RFC 4724 Section 4.2)

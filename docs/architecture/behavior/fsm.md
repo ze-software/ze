@@ -471,7 +471,7 @@ const (
 The FSM callback in `peer.go` notifies the reactor on Established transitions:
 
 ```go
-session.fsm.SetCallback(func(from, to fsm.State) {
+session.fsm.SetCallback(func(from, to fsm.State, event fsm.Event) {
     if to == fsm.StateEstablished {
         // ... set negotiated capabilities ...
         if reactor != nil {
@@ -479,18 +479,23 @@ session.fsm.SetCallback(func(from, to fsm.State) {
         }
         p.startInitialRoutes()
     } else if from == fsm.StateEstablished {
-        reason := "session closed"
-        if to == fsm.StateIdle {
-            reason = "connection lost"
-        }
+        // the event that made this transition, and whether a NOTIFICATION
+        // crossed the wire, decide the close once (peer_close.go)
+        closed := sessionCloseFor(p.notificationExchanged.Load(), event)
         if reactor != nil {
-            p.announceClosed(reactor, session, reason) // marks the session closing, then notifyPeerClosed
+            p.announceClosed(reactor, session, closed) // marks the session closing, then notifyPeerClosed
         }
         // ... clear capabilities ...
     }
 })
 ```
-<!-- source: internal/component/bgp/reactor/peer.go -- SetCallback on fsm -->
+Every callback receives the event whose handling made its change: `Event`
+records it before dispatching, and `change` queues it with the transition, so a
+callback drained on another goroutine still reads its own cause.
+
+<!-- source: internal/component/bgp/reactor/peer_run.go -- SetCallback on fsm -->
+<!-- source: internal/component/bgp/reactor/peer_close.go -- sessionCloseFor -->
+<!-- source: internal/component/bgp/fsm/fsm.go -- FSM.Event, FSM.change -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyPeerEstablished, notifyPeerClosed -->
 <!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- Peer.announceEstablished, Peer.announceClosed -->
 

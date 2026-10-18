@@ -44,7 +44,7 @@ func FuzzFSMEventSequence(f *testing.F) {
 			m := New()
 			m.SetPassive(passive)
 			// Callback observes every transition; both endpoints must be valid.
-			m.SetCallback(func(from, to State) {
+			m.SetCallback(func(from, to State, _ Event) {
 				if !validState(from) || !validState(to) {
 					t.Fatalf("callback saw invalid transition %v -> %v (passive=%v)", from, to, passive)
 				}

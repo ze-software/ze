@@ -276,15 +276,28 @@ sequence exactly as it reads above.
 
 **On transition *out of* `StateEstablished`:**
 
-1. Determine a textual reason (`"session closed"`, `"connection lost"`).
+1. Derive the close once with `sessionCloseFor` (`peer_close.go`), from the
+   FSM event that made the transition, from `notificationExchanged`, and from
+   the close reason the session recorded (`closeCause`). The reason is
+   `rpc.ReasonNotification` when a NOTIFICATION was sent or received,
+   `rpc.ReasonTCPFailure` for Event 18 without one, and `rpc.ReasonLocalClose`
+   for any other event without one. The GR-aware congestion teardown
+   (`forward_pool_congestion.go`) fires Event 18 after recording
+   `ErrCongestionTeardown`: ze closed that transport itself, so its close is
+   `rpc.ReasonLocalClose` carrying Event 18. The RFC 4271 Section 8.1 number of the
+   event travels beside it, to the plugins, as `StructuredEvent.FSMEvent`.
+   Graceful Restart retains routes for every reason but
+   `rpc.ReasonNotification` (RFC 4724 Section 4), and BMP writes Peer Down
+   reason 4 for `rpc.ReasonTCPFailure` and reason 2 with the event code for
+   `rpc.ReasonLocalClose` (RFC 7854 Section 4.9).
 2. If no NOTIFICATION was exchanged (`notificationExchanged == false`),
    raise `session-dropped` on the report bus via
    `raiseSessionDropped`. The check avoids duplicating an event the
    operator already sees elsewhere when NOTIFICATION fired.
-3. `p.announceClosed(reactor, session, reason)`: mark the session closing
+3. `p.announceClosed(reactor, session, closed)`: mark the session closing
    under the reactor lock, so a reload attaching a process at the same moment
    tells that process down itself (`docs/architecture/core-design.md`, section
-   18a), then notify the reactor via `reactor.notifyPeerClosed(p, reason)`.
+   18a), then notify the reactor via `reactor.notifyPeerClosed(p, closed)`.
 4. Clear negotiated capabilities and encoding contexts.
 5. `setState(PeerStateConnecting)`.
 6. Log `session closed` with the reason.

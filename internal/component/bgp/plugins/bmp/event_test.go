@@ -111,18 +111,20 @@ func TestPeerDownReasonMapping(t *testing.T) {
 		name       string
 		notify     *notifyPDU
 		closeText  string
+		fsmEvent   uint16
 		wantReason uint8
 		wantData   []byte
 	}{
-		{"ze sent a notification", &notifyPDU{pdu: pdu, sent: true}, "session closed", PeerDownLocalNotify, pdu},
-		{"the peer sent a notification", &notifyPDU{pdu: pdu}, "connection lost", PeerDownRemoteNotify, pdu},
-		{"the peer was removed", nil, rpc.ReasonPeerRemoved, PeerDownDeconfigured, nil},
-		{"no notification, session closed", nil, "session closed", PeerDownLocalNoNotify, []byte{0, 0}},
-		{"no notification, connection lost", nil, "connection lost", PeerDownLocalNoNotify, []byte{0, 0}},
+		{"ze sent a notification", &notifyPDU{pdu: pdu, sent: true}, rpc.ReasonNotification, 10, PeerDownLocalNotify, pdu},
+		{"the peer sent a notification", &notifyPDU{pdu: pdu}, rpc.ReasonNotification, 25, PeerDownRemoteNotify, pdu},
+		{"the peer was removed", nil, rpc.ReasonPeerRemoved, 0, PeerDownDeconfigured, nil},
+		{"no notification, ze closed the session", nil, rpc.ReasonLocalClose, 8, PeerDownLocalNoNotify, []byte{0, 8}},
+		{"no notification, no relevant event", nil, rpc.ReasonLocalClose, 0, PeerDownLocalNoNotify, []byte{0, 0}},
+		{"no notification, the transport was lost", nil, rpc.ReasonTCPFailure, 18, PeerDownRemoteNoData, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := peerDownFor(tt.notify, tt.closeText)
+			got := peerDownFor(tt.notify, tt.closeText, tt.fsmEvent)
 			if got.reason != tt.wantReason {
 				t.Errorf("reason = %d, want %d", got.reason, tt.wantReason)
 			}

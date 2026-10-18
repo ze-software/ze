@@ -32,7 +32,7 @@ func TestPeerEstablishedTeardownOrdering(t *testing.T) {
 
 		var mu sync.Mutex
 		established := false
-		f.SetCallback(func(from, to fsm.State) {
+		f.SetCallback(func(from, to fsm.State, _ fsm.Event) {
 			mu.Lock()
 			defer mu.Unlock()
 			// Same arms as the peer_run.go closure's setState calls.

@@ -1053,9 +1053,13 @@ type StructuredEvent struct {
 	InitialReplay uint64           // Exact peer-up replay session receipt; zero when absent.
 	SourceID      uint32           // Registry identity for body-common forwarded source.
 	Reason        string           // For state events: close reason
-	RawMessage    any              // *types.RawMessage for wire messages, nil for synthetic events
-	Meta          map[string]any   // Route metadata (sent events only)
-	SourcePeerStr string           // Source peer address for ribOut stale-scoping (sent events only)
+	// FSMEvent is, for a down state event, the RFC 4271 Section 8.1 number
+	// of the FSM event that closed the session; zero means no relevant event,
+	// the meaning RFC 7854 Section 4.9 gives two zero octets.
+	FSMEvent      uint16
+	RawMessage    any            // *types.RawMessage for wire messages, nil for synthetic events
+	Meta          map[string]any // Route metadata (sent events only)
+	SourcePeerStr string         // Source peer address for ribOut stale-scoping (sent events only)
 	// UnheldRoles names the exclusive roles this plugin was told are claimed
 	// (ConfigureInput.Claims) that NO other process taking delivery of this
 	// event holds. A plugin that stood its own default behavior down for one of
@@ -1094,6 +1098,7 @@ func PutStructuredEvent(se *StructuredEvent) {
 	se.InitialReplay = 0
 	se.SourceID = 0
 	se.Reason = ""
+	se.FSMEvent = 0
 	se.RawMessage = nil
 	se.Meta = nil
 	se.SourcePeerStr = ""

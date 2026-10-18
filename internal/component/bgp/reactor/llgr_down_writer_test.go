@@ -40,7 +40,7 @@ func TestLLGRActualDownKeepsWriterOwner(t *testing.T) {
 			t.Cleanup(func() {
 				// Stop GR timers before the SDK and sockets are released.
 				for _, peer := range peers {
-					peer.peer.reactor.notifyPeerClosed(peer.peer, rpc.ReasonPeerRemoved)
+					peer.peer.reactor.notifyPeerClosed(peer.peer, closeWithReason(rpc.ReasonPeerRemoved))
 				}
 			})
 			raw := []byte{24, 10, 0, 3}

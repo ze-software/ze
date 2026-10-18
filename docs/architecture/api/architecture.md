@@ -1492,10 +1492,16 @@ The reactor notifies observers when peers change state via the unexported
 ```go
 type peerLifecycleObserver interface {
     OnPeerEstablished(peer *Peer)
-    OnPeerClosed(peer *Peer, reason string)
+    OnPeerClosed(peer *Peer, closed sessionClose)
 }
 ```
 <!-- source: internal/component/bgp/reactor/reactor.go -- peerLifecycleObserver -->
+
+`sessionClose` carries the close reason the plugins read and the RFC 4271
+Section 8.1 number of the FSM event that closed the session (zero when no
+event applies). The external callback below receives the reason alone.
+<!-- source: internal/component/bgp/reactor/peer_close.go -- sessionClose, sessionCloseFor -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- callbackAdapter -->
 
 ### Registration
 
@@ -1524,23 +1530,36 @@ peer 192.0.2.1 remote as 65001 state down
 **JSON format:**
 ```json
 {"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"local":{"address":"192.0.2.2","as":65000},"name":"","remote":{"address":"192.0.2.1","as":65001}},"state":"up"}}
-{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"local":{"address":"192.0.2.2","as":65000},"name":"","remote":{"address":"192.0.2.1","as":65001}},"state":"down","reason":"hold-timer-expired"}}
+{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"local":{"address":"192.0.2.2","as":65000},"name":"","remote":{"address":"192.0.2.1","as":65001}},"state":"down","reason":"notification"}}
 ```
 <!-- source: internal/component/bgp/format/text_human.go -- appendStateChangeText -->
 <!-- source: internal/component/bgp/format/text_json.go -- appendStateChangeJSON -->
 
 ### Close Reasons
 
+The reactor derives the reason once, when the session leaves Established, from
+whether a NOTIFICATION crossed the wire and from the FSM event of the closing
+transition. A NOTIFICATION decides first.
+
 | Reason | Trigger |
 |--------|---------|
-| `connection lost` | FSM transitions to Idle |
-| `session closed` | FSM leaves Established for other state |
+| `notification` | A NOTIFICATION was sent to, or received from, the peer on this session |
+| `tcp-failure` | No NOTIFICATION, and the transport ended (RFC 4271 Section 8.1 Event 18) |
+| `local-close` | No NOTIFICATION reached the peer, and ze closed the session on any other event |
+| `removed` | The peer was removed from the configuration (no FSM event) |
+
+Graceful Restart retains a GR-capable peer's routes on every close except
+`notification` and `removed` (RFC 4724 Section 4), and BMP maps the reason to
+its Peer Down reason code (RFC 7854 Section 4.9).
+<!-- source: internal/component/bgp/plugins/gr/gr.go -- handleStructuredState, handleStateEvent -->
+<!-- source: internal/component/bgp/reactor/peer_close.go -- sessionCloseFor -->
+<!-- source: pkg/plugin/rpc/enums.go -- ReasonNotification, ReasonTCPFailure, ReasonLocalClose, ReasonPeerRemoved -->
 
 ### Flow
 
 ```
-FSM callback (peer.go)
-    │ State changes from/to Established
+FSM callback (peer_run.go)
+    │ State changes from/to Established; a close derives sessionClose
     ▼
 Peer.reactor.notifyPeerEstablished/Closed()
     │ Copy observers, iterate

@@ -294,7 +294,7 @@ func TestFSMCallback(t *testing.T) {
 	var callbackCalled bool
 	var oldState, newState State
 
-	fsm.SetCallback(func(from, to State) {
+	fsm.SetCallback(func(from, to State, _ Event) {
 		callbackCalled = true
 		oldState = from
 		newState = to
@@ -579,7 +579,7 @@ func TestFSMUnexpectedEventCallback(t *testing.T) {
 			var called bool
 			var fromState, toState State
 
-			f.SetCallback(func(from, to State) {
+			f.SetCallback(func(from, to State, _ Event) {
 				called = true
 				fromState = from
 				toState = to

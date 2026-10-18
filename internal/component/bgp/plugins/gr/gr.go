@@ -447,7 +447,11 @@ func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionStat
 		if gp.consumeRemovedTombstone(peerAddr) {
 			return
 		}
-		wasNotification := reason == "notification"
+		// RFC 4724 Section 4: "the normal BGP procedures MUST be followed
+		// when the TCP session terminates due to the sending or receiving of
+		// a BGP NOTIFICATION message." The reactor names that close
+		// rpc.ReasonNotification (reactor/peer_close.go, sessionCloseFor).
+		wasNotification := reason == rpc.ReasonNotification
 
 		gp.mu.Lock()
 		cap := gp.peerCaps[peerAddr]
@@ -608,8 +612,9 @@ func (gp *grPlugin) handleOpenEvent(peerAddr string, payload map[string]any) {
 
 // handleStateEvent processes peer up/down state changes.
 // RFC 4724 Section 4.2:
-//   - TCP failure for GR-capable peer → 3-step sequence: purge-stale → retain → mark-stale
-//   - NOTIFICATION → standard BGP (no retention)
+//   - Any close but rpc.ReasonNotification for a GR-capable peer → 3-step
+//     sequence: purge-stale → retain → mark-stale
+//   - rpc.ReasonNotification → standard BGP (no retention)
 //   - Peer reconnects → validate new GR cap, purge non-forwarding families
 func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 	state, _ := payload["state"].(string)
@@ -626,7 +631,11 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 		if gp.consumeRemovedTombstone(peerAddr) {
 			return
 		}
-		wasNotification := reason == "notification"
+		// RFC 4724 Section 4: "the normal BGP procedures MUST be followed
+		// when the TCP session terminates due to the sending or receiving of
+		// a BGP NOTIFICATION message." The reactor names that close
+		// rpc.ReasonNotification (reactor/peer_close.go, sessionCloseFor).
+		wasNotification := reason == rpc.ReasonNotification
 
 		gp.mu.Lock()
 		cap := gp.peerCaps[peerAddr]

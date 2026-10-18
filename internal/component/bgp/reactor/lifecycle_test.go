@@ -30,7 +30,8 @@ func (m *mockLifecycleObserver) OnPeerEstablished(peer *Peer) {
 	}
 }
 
-func (m *mockLifecycleObserver) OnPeerClosed(peer *Peer, reason string) {
+func (m *mockLifecycleObserver) OnPeerClosed(peer *Peer, closed sessionClose) {
+	reason := closed.reason
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.closed = append(m.closed, closedEvent{peer: peer, reason: reason})
@@ -102,7 +103,7 @@ func TestPeerLifecycleCallbacks(t *testing.T) {
 	require.Equal(t, 1, obs.establishedCount(), "OnPeerEstablished should be called")
 
 	// Simulate closed transition
-	reactor.notifyPeerClosed(peer, "session closed")
+	reactor.notifyPeerClosed(peer, closeWithReason("session closed"))
 	require.Equal(t, 1, obs.closedCount(), "OnPeerClosed should be called")
 }
 
@@ -181,10 +182,10 @@ func TestPeerClosedReason(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// Test various reasons
-	reactor.notifyPeerClosed(peer, "connection lost")
+	reactor.notifyPeerClosed(peer, closeWithReason("connection lost"))
 	require.Equal(t, "connection lost", obs.lastClosedReason())
 
-	reactor.notifyPeerClosed(peer, "session closed")
+	reactor.notifyPeerClosed(peer, closeWithReason("session closed"))
 	require.Equal(t, "session closed", obs.lastClosedReason())
 }
 

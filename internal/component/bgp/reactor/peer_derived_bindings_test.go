@@ -531,7 +531,7 @@ func (o *graphUpObserver) OnPeerEstablished(peer *Peer) {
 	o.mu.Unlock()
 }
 
-func (o *graphUpObserver) OnPeerClosed(peer *Peer, _ string) {
+func (o *graphUpObserver) OnPeerClosed(peer *Peer, _ sessionClose) {
 	fed := recv(o.srv.DeliveryGraph(), bgpevents.EventState, events.DirUnspecified, peer.settings.Address.String())
 	o.mu.Lock()
 	o.downs = append(o.downs, fed)
@@ -735,7 +735,7 @@ func TestAttachWhileSessionClosingIsToldDown(t *testing.T) {
 			session := peer.session
 			var successor *Session
 			rec.onBind = func() {
-				peer.announceClosed(peer.reactor, session, "connection lost")
+				peer.announceClosed(peer.reactor, session, closeWithReason(rpc.ReasonTCPFailure))
 				if !tc.gone {
 					return
 				}

@@ -98,7 +98,7 @@ func connectedLocalEndpoint(peer *Peer, local netip.Addr, localString string) (n
 	return local, localString
 }
 
-func (o *apiStateObserver) OnPeerClosed(peer *Peer, reason string) {
+func (o *apiStateObserver) OnPeerClosed(peer *Peer, closed sessionClose) {
 	if o.dispatcher == nil {
 		return
 	}
@@ -121,8 +121,11 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, reason string) {
 		Connect:  s.Connection.Connect,
 		Accept:   s.Connection.Accept,
 		State:    peer.State().PluginState(),
+		// The FSM event travels beside the reason so a plugin that has to
+		// name it (BMP Peer Down reason 2) reads what closed the session.
+		CloseFSMEvent: closed.fsmEvent,
 	}
-	o.dispatcher.OnPeerStateChange(&peerInfo, rpc.SessionStateDown, reason)
+	o.dispatcher.OnPeerStateChange(&peerInfo, rpc.SessionStateDown, closed.reason)
 }
 
 // reactorAPIAdapter implements plugin.ReactorLifecycle + bgptypes.BGPReactor for the Reactor.

@@ -464,6 +464,29 @@ const ReasonPeerRemoved = "removed"
 // through the plugin server's targeted up, to the attached processes alone.
 const ReasonAttached = "attached"
 
+// The three SessionStateDown reasons below say why an Established session
+// closed. The reactor derives one from what the session observed
+// (internal/component/bgp/reactor/peer_close.go, sessionCloseFor), and every
+// plugin that has to act on the cause reads it here rather than guessing from
+// prose: Graceful Restart decides route retention on it (RFC 4724 Section 4)
+// and BMP picks the Peer Down reason (RFC 7854 Section 4.9). Whether the
+// NOTIFICATION was sent or received is not repeated here: the NOTIFICATION
+// message event that preceded the down already carries its direction and PDU.
+
+// ReasonNotification is the down reason for a session that ended because a
+// NOTIFICATION was sent to, or received from, the peer.
+const ReasonNotification = "notification"
+
+// ReasonTCPFailure is the down reason for a session whose transport ended
+// with no NOTIFICATION exchanged: RFC 4271 Section 8.1 Event 18.
+const ReasonTCPFailure = "tcp-failure"
+
+// ReasonLocalClose is the down reason for a session ze closed itself with no
+// NOTIFICATION reaching the peer, for example when the Cease could not be
+// written. The FSM event that closed it travels beside it (StructuredEvent
+// FSMEvent).
+const ReasonLocalClose = "local-close"
+
 func (s SessionState) String() string {
 	switch s {
 	case SessionStateUp:

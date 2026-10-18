@@ -119,7 +119,7 @@ func TestAttachWhileSessionClosingDispatcherDeliversDown(t *testing.T) {
 	conn := newStateSubscriber(t, srv, "monitor")
 	log := &stateLog{}
 	go answerStateEvents(t.Context(), conn, log, func() {
-		peer.announceClosed(r, session, "connection lost")
+		peer.announceClosed(r, session, closeWithReason(rpc.ReasonTCPFailure))
 	})
 
 	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))

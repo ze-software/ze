@@ -212,7 +212,8 @@ type peerDownCause struct {
 	reported bool
 }
 
-// fsmEventNone is the Data of a reason 2 Peer Down.
+// fsmEventData is the Data of a reason 2 Peer Down: the FSM event that closed
+// the session, as two octets in network order.
 //
 // RFC 7854 Section 4.9: "Reason 2: The local system closed the session.  No
 // notification message was sent.  Following the reason code is a 2-byte field
@@ -221,14 +222,11 @@ type peerDownCause struct {
 // Two bytes both set to 0 are used to indicate that no relevant Event code is
 // defined."
 //
-// Ze reports the zero form because the close reason it is handed names no FSM
-// event: Peer.Run sends "session closed" or "connection lost"
-// (internal/component/bgp/reactor/peer_run.go), and neither is an RFC 4271
-// Section 8.1 event code. Reporting an event code ze did not observe would put
-// a number the collector can act on behind a guess.
-//
-// Read-only: writePeerDown copies it into the message buffer.
-var fsmEventNone = []byte{0, 0}
+// The event is the one the reactor observed on the closing transition
+// (rpc.StructuredEvent FSMEvent), so zero arrives only where no event applies.
+func fsmEventData(event uint16) []byte {
+	return []byte{byte(event >> 8), byte(event)}
+}
 
 // clearPeerState drops everything the plugin holds for a peer that has left
 // Established, and answers with the Peer Down that event owes the collectors.
@@ -259,7 +257,7 @@ func (bp *BMPPlugin) clearPeerState(se *rpc.StructuredEvent) peerDownCause {
 	delete(bp.peerUps, se.PeerAddress)
 	bp.mu.Unlock()
 
-	cause := peerDownFor(notify, se.Reason)
+	cause := peerDownFor(notify, se.Reason, se.FSMEvent)
 	cause.peer = peer
 	cause.reported = st != nil
 	return cause
@@ -275,13 +273,18 @@ func (bp *BMPPlugin) clearPeerState(se *rpc.StructuredEvent) peerDownCause {
 // peer". A reason ze cannot supply the Data for is a reason ze must not send,
 // so the cached PDU is what makes reason 1 and reason 3 reachable at all.
 //
-// The close-reason string answers the one case no NOTIFICATION describes: a
-// peer the operator removed from the configuration. Reason 5 is "Information
-// for this peer will no longer be sent to the monitoring station for
-// configuration reasons", and the figure in the same section gives it no Data.
+// The close reason answers what no NOTIFICATION describes. A peer the
+// operator removed from the configuration is reason 5, "Information for this
+// peer will no longer be sent to the monitoring station for configuration
+// reasons", which the figure in the same section gives no Data.
 //
-// Everything else is reason 2 with the two-byte zero event code (fsmEventNone).
-func peerDownFor(notify *notifyPDU, reason string) peerDownCause {
+// A transport that ended with no NOTIFICATION is reason 4. RFC 7854 Section
+// 4.9: "Reason 4: The remote system closed the session without a notification
+// message.  This includes any unexpected termination of the transport
+// session". The figure gives it no Data either.
+//
+// Everything else is reason 2, carrying the FSM event that closed the session.
+func peerDownFor(notify *notifyPDU, reason string, fsmEvent uint16) peerDownCause {
 	if notify != nil {
 		if notify.sent {
 			return peerDownCause{reason: PeerDownLocalNotify, data: notify.pdu}
@@ -291,7 +294,12 @@ func peerDownFor(notify *notifyPDU, reason string) peerDownCause {
 	if reason == rpc.ReasonPeerRemoved {
 		return peerDownCause{reason: PeerDownDeconfigured}
 	}
-	return peerDownCause{reason: PeerDownLocalNoNotify, data: fsmEventNone}
+	// RFC 7854 Section 4.9: "This includes any unexpected termination of the
+	// transport session".
+	if reason == rpc.ReasonTCPFailure {
+		return peerDownCause{reason: PeerDownRemoteNoData}
+	}
+	return peerDownCause{reason: PeerDownLocalNoNotify, data: fsmEventData(fsmEvent)}
 }
 
 // recordPeerUp captures the Peer Up state of a peer that has just reached

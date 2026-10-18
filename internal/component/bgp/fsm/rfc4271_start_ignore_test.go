@@ -17,7 +17,7 @@ func TestRFC4271AdvancedStartEventsIgnored(t *testing.T) {
 			t.Run(state.String()+"/"+event.String(), func(t *testing.T) {
 				f, counter := crcFSM(t, state, 7)
 				changes := 0
-				f.SetCallback(func(_, _ State) { changes++ })
+				f.SetCallback(func(_, _ State, _ Event) { changes++ })
 				if err := f.Event(event); err != nil {
 					t.Errorf("start returned %v, want ignored", err)
 				}

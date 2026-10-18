@@ -247,7 +247,7 @@ type MessageReceiver interface {
 // Implementations MUST NOT block; use goroutine for slow processing.
 type peerLifecycleObserver interface {
 	OnPeerEstablished(peer *Peer)
-	OnPeerClosed(peer *Peer, reason string)
+	OnPeerClosed(peer *Peer, closed sessionClose)
 }
 
 // MessageObserver receives complete original BGP messages at the wire boundary.
