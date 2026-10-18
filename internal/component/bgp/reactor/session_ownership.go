@@ -26,11 +26,15 @@ var errRawOwnership = errors.New("raw diagnostic bytes sent; session retired bec
 // native paths in one extended message and cleared before release. They are not
 // a second recipient inventory. Callers MUST release after record or refusal.
 type adjOutWrite struct {
-	session     *Session
-	table       *adjRIBOut
-	encoding    *bgpctx.EncodingContext
-	owners      map[adjOutKey]adjOutPath
-	withdrawn   map[adjOutKey]struct{}
+	session   *Session
+	table     *adjRIBOut
+	encoding  *bgpctx.EncodingContext
+	owners    map[adjOutKey]adjOutPath
+	withdrawn map[adjOutKey]struct{}
+	// owes stages the owner withdrawals this write leaves to recovery. allow
+	// runs twice for a filtered body, so it stages, never applies; applyOwes
+	// applies once after the last pass. The bytes point into the body.
+	owes        map[adjOutKey]adjOutOwe
 	keyScratch  [nlrisplit.PrefixKeyScratchSize]byte
 	removed     int
 	suppressed  int
@@ -48,6 +52,7 @@ var adjOutWritePool = sync.Pool{New: func() any {
 	return &adjOutWrite{
 		owners:    make(map[adjOutKey]adjOutPath),
 		withdrawn: make(map[adjOutKey]struct{}),
+		owes:      make(map[adjOutKey]adjOutOwe),
 		ordinals:  make(map[family.Family]uint32),
 	}
 }}
@@ -94,6 +99,7 @@ func (s *Session) beginAdjOut(raw bool) (*adjOutWrite, error) {
 	if s.adjOut.session != s {
 		s.adjOut.session = s
 		s.adjOut.routes = nil
+		s.adjOut.owed = nil
 		s.adjOut.pending = false
 	}
 	work, _ := adjOutWritePool.Get().(*adjOutWrite)
@@ -108,6 +114,7 @@ func (w *adjOutWrite) release() {
 	w.table.mu.Unlock()
 	clear(w.owners)
 	clear(w.withdrawn)
+	clear(w.owes)
 	clear(w.ordinals)
 	w.session, w.table = nil, nil
 	w.encoding = nil
@@ -165,6 +172,9 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 		if err != nil {
 			return false, err
 		}
+		// The owner's session generation tells a departure which session of
+		// the source wrote the path. An expected write keeps entry.owner.
+		owner.generation = item.receivedGeneration
 		switch item.authority {
 		case adjOutUnspecified:
 			return false, errAdjOutProvenance
@@ -214,6 +224,10 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 		}
 	}
 	if withdraw {
+		if w.owesWithdrawal(key, entry) {
+			w.owes[key] = adjOutOwe{family: fam, nlri: raw}
+			return false, nil
+		}
 		w.withdrawn[key] = struct{}{}
 		return true, nil
 	}
@@ -228,6 +242,68 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 	}
 	w.owners[key] = owner
 	return true, nil
+}
+
+// adjOutOwe is one staged owner withdrawal: the family and the
+// destination-framed NLRI, still pointing into the body being written.
+type adjOutOwe struct {
+	family family.Family
+	nlri   []byte
+}
+
+// owesWithdrawal reports whether this admitted withdrawal is left to the
+// destination's recovery worker instead of being emitted. It is, for a
+// source-owned key at a destination without ADD-PATH send for the family,
+// when the writer is source-bound (a forwarded owner withdrawal, received or
+// synthesized, or a bgp-rib lifecycle removal) and a recovery owner is
+// registered. A recovery write is the decision itself and is never owed.
+// RFC 4271 Section 9.2: "All newly installed routes and all newly unfeasible
+// routes for which there is no replacement route SHALL be advertised to its
+// peers by means of an UPDATE message." Whether a replacement exists is the
+// RIB's election, so the bare withdrawal is not this writer's to send.
+func (w *adjOutWrite) owesWithdrawal(key adjOutKey, entry *adjRIBOutRoute) bool {
+	if entry == nil {
+		return false
+	}
+	if entry.owner.source == nil {
+		return false
+	}
+	if key.addPath {
+		return false
+	}
+	if !w.sourceBound() {
+		return false
+	}
+	switch w.session.sentForward.authority {
+	case adjOutForwarded, adjOutExpected:
+	case adjOutUnspecified, adjOutRecovery, adjOutInitial:
+		return false
+	}
+	return w.session.recoveryOwed()
+}
+
+// applyOwes MUST run once, under the table mutex, after the last filter pass
+// of a write that returned no error. A key the same body also announces is not
+// owed: RFC 4271 Section 4.3 reads "A BGP speaker SHOULD treat an UPDATE
+// message of this form as though the WITHDRAWN ROUTES do not contain the
+// address prefix." Every owe wakes the worker.
+func (w *adjOutWrite) applyOwes() {
+	if len(w.owes) == 0 {
+		return
+	}
+	for key, owe := range w.owes {
+		if _, announced := w.owners[key]; announced {
+			continue
+		}
+		if w.table.owed == nil {
+			w.table.owed = make(map[adjOutKey]*adjOutOwed)
+		}
+		// The copy is deliberate: the body is the session's write buffer,
+		// and the record outlives this write.
+		w.table.owed[key] = &adjOutOwed{session: w.session, family: owe.family,
+			nlri: append([]byte(nil), owe.nlri...)}
+	}
+	w.session.wakeRecovery()
 }
 
 // adjOutExactNLRI avoids a second owned copy when the canonical key already
@@ -507,6 +583,11 @@ func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withd
 			w.table.routes[key] = entry
 		}
 		entry.owner = owner
+		if !w.sourceBound() {
+			// An originated route is not a candidate of the election and is
+			// not overridden by it: it decides an owed key itself.
+			delete(w.table.owed, key)
+		}
 		if w.session.sentForward == nil || w.session.sentForward.authority != adjOutExpected {
 			replay, _ := w.session.sentMeta["replay"].(bool)
 			if !replay || entry.revision == 0 {

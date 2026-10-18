@@ -510,6 +510,9 @@ func (s *Session) teardownAutomatic(subcode uint8, shutdownMsg string) error {
 // to hold for that stop too.
 func (s *Session) seal() {
 	s.tearingDown.Store(true)
+	// Every teardown path seals, so every one of them stops the recovery
+	// worker; stop never waits. runOnce's defer joins it.
+	s.stopRecovery()
 }
 
 func (s *Session) teardown(subcode uint8, shutdownMsg string, stopEvent fsm.Event) error {

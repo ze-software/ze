@@ -421,6 +421,40 @@ withdrawal may pass when absent, but neither can remove another owner's route.
 Surviving legacy and MP sections are preserved. Removing every route from an
 ordinary UPDATE produces no message, not an accidental End-of-RIB.
 
+An owner withdrawal does not decide what a destination without ADD-PATH send
+holds next, because only the RIB knows whether another candidate survives. So
+when a recovery owner is registered (`request bgp rib recovery`), the writer
+does not emit the withdrawal of a source-owned key at such a destination, either
+a forwarded owner withdrawal (received or synthesized) or a bgp-rib lifecycle
+removal. It records the key in the table's owed set instead: the destination
+session, the family, and a copy of the destination-framed NLRI. The adj-out entry
+keeps the old owner until the decision is written. The writer stages these owes
+during its filter passes and applies them once after the last pass, and then
+wakes the destination's recovery worker without blocking (a one-slot channel,
+send or skip, because the owed set itself is the queue). A key the same body
+also announces is not owed (RFC 4271 Section 4.3), and an originated
+announcement of an owed key removes its record. With no recovery owner
+registered, the withdrawal is written as before and one warning is logged per
+destination session. A destination with ADD-PATH send keeps every path and owes
+nothing.
+
+The recovery worker is one goroutine per destination session. The FSM
+Established callback starts it before the session publishes Established, and
+its first round runs without a wake, so a key owed before it existed is never
+stranded. Each round snapshots the owed set under the table mutex, captures and
+drains the source publication cuts, waits for the RIB to apply its events, and
+asks the RIB about at most 500 keys of one family at a time, with no excluded
+source. The RIB's answer goes through the ordinary recovery admission on the
+destination's forward worker: the first survivor is written as the new owner,
+or the key is withdrawn when no candidate survives. A written decision removes
+the record it decided; a record replaced by a later owe stays for the next round.
+Every teardown path seals the session, and sealing stops the worker without
+waiting. `Peer.runOnce`'s deferred cleanup, after the down has been announced,
+joins it. Every write that installs an owner also records the owner's source
+session generation, which ownership equality ignores.
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal, applyOwes -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryWorker -->
+
 Ordinary UPDATE sizing follows the final policy and next-hop result, after AIGP
 stripping. A body that still fits goes directly to the existing writer without
 another copy. A larger body is split with the destination's send-size limit and

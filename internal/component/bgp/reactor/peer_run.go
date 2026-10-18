@@ -305,6 +305,10 @@ func (p *Peer) runOnce() error {
 		// validateOpen, so another peer may use it once this session is over. Called outside
 		// p.mu (the claim registry is a leaf lock, and clearEncodingContexts below takes p.mu).
 		p.releaseRouterIDClaim()
+		// The down defer has run (it was registered later), so the leave
+		// callback finished and the down was delivered before this join. It
+		// holds neither writeMu nor the forward worker.
+		session.joinRecovery()
 		p.clearEncodingContexts()
 		// Clear prefix-threshold warnings raised by this session from the report
 		// bus so they do not linger after the session ends. Must be called before
@@ -477,6 +481,8 @@ func (p *Peer) runOnce() error {
 			neg := session.Negotiated()
 			p.negotiated.Store(NewNegotiatedCapabilities(neg))
 			p.setEncodingContexts(neg)
+			// Before Established is published, so the first owed key has a worker.
+			session.startRecovery(p)
 			p.setState(PeerStateEstablished)
 			p.setEstablishedNow()
 

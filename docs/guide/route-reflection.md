@@ -120,8 +120,19 @@ check. For each native route and outgoing ADD-PATH identifier, the writer
 remembers the source peer and received path that last advertised it. A received
 withdrawal removes only that owner's route; an unknown withdrawal or a withdrawal
 from another source cannot erase a replacement or a locally originated route.
-This is not best-path selection. The latest eligible advertisement still wins
-at a destination without ADD-PATH.
+Announcements are not best-path selection: the latest eligible advertisement
+still wins at a destination without ADD-PATH.
+
+When the owner withdraws its route, or `bgp-rib` removes it, and `bgp-rib` is
+loaded, a destination without ADD-PATH is not sent the bare withdrawal. The
+`bgp-rib` election decides instead: the destination receives the best remaining
+route from another source, or the withdrawal when none remains. So when B
+announces a prefix, then A announces it, then A withdraws it, the client keeps
+B's route. When
+`bgp-rib` is not loaded, the withdrawal is sent as before and a warning names the
+missing plugin.
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryWorker -->
 
 Policy-generated withdrawals keep their per-path intent: an absent route may
 still receive a synthesized withdrawal, but an original withdrawn sibling does

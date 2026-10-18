@@ -171,6 +171,36 @@ It changes `TestRFC8654FatalLengthReelectsAlternateBest` to AC-10 and
 re-records its discrimination; the owner approved that change. The second
 half of Phase 2b still waits on D1.
 
+Update (2026-10-18, Phase 3 package (a)): commit "bgp: owe an owner
+withdrawal to the RIB's election". The three Phase 1 probes are GREEN.
+`adjOutWrite.owesWithdrawal`/`applyOwes` (`session_ownership.go`) owe a
+forwarded owner withdrawal or a lifecycle removal of a source-owned key at a
+non-ADD-PATH destination when the session has a worker and
+`request bgp rib recovery` is registered; otherwise it is written as before
+with one warning. `adjOutPath.generation` records the owner's session
+generation. `adjRIBOut.owed` is cleared by `reset`, `retireWrite` and a
+`beginAdjOut` session change. The worker is `reactor/recovery_owed.go`
+(`Session.startRecovery` in the Established callback before
+`setState(Established)`, stop in `Session.seal`, join in runOnce's first
+defer); it reuses `lookupRecovery`/`admitRecovery`, split out of
+`relayRecovery`, and sets each outcome's `Sent` to the record's NLRI. Tests:
+`recovery_owed_worker_test.go` (`TestAdjOutOwnerWithdrawalOwedToRecovery`,
+`TestAdjOutOwedAuthorities`, `TestOwedKeyHandOffNeverBlocksWriter`,
+`TestOwedKeyWorkerLifecycle`); three live ownership tests now wait through
+`ownershipLiveDecided`. Red recorded by overlay (spec Design Insights).
+reactor, rib, rs, rr, process green under -race with the ze_* tags, except
+one `TestMRTCollisionWinnerReservation/taken` red in the full reactor run
+that passed 8 of 8 alone (not investigated further). Docs: update-building.md,
+buffer-architecture.md (copy trigger), guide/route-reflection.md.
+NOT done here, owed by (b): epoch, movers, excluded sets and merges in the
+record (a second owe now replaces it), the per-key admission check, departure
+owing only where a no-longer-current session owns, `errRelayNoSource` re-owe,
+stopped-source exclusion, owed-refusal counter. Owed by (c): the cut deletion
+end to end, the `recovery-write` producer, the rib-storage-design sentence,
+and the AC-10 change of `TestRFC8654FatalLengthReelectsAlternateBest`, which
+still passes unchanged after (a). Gates owed: `./le verify worktree`,
+`./le test unit all`.
+
 ## spec-config-yang-reference-types (2026-10-18)
 
 Landed in commit bccd1e7cf5 ("config/yang: check leafref, identityref and

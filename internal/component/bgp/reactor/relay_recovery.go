@@ -216,14 +216,24 @@ func (a *reactorAPIAdapter) recoverNLRIBatch(ctx context.Context, batch bgptypes
 // or the new best routes before the invalid routes are deleted from the system."
 // Selection and export therefore complete before source ownership is released.
 func (a *reactorAPIAdapter) relayRecovery(ctx context.Context, request ribevents.RecoveryRequest, destination *Peer, session *Session, sequence uint64, sender plugin.Sender, sources map[*Peer]recoverySourceReceipt) (bool, error) {
+	outcomes, err := a.lookupRecovery(ctx, &request)
+	if err != nil {
+		return false, err
+	}
+	return a.admitRecovery(ctx, outcomes, request.Family, destination, session, sequence, sender, sources)
+}
+
+// lookupRecovery asks the RIB for one outcome per requested key, in process or
+// over IPC. A key with no outcome is a lookup failure, never "no survivor".
+func (a *reactorAPIAdapter) lookupRecovery(ctx context.Context, request *ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
 	var outcomes []ribevents.RecoveryOutcome
 	var err error
 	if owner := ribevents.RecoveryProvider(); owner != nil {
 		// RFC 4271 Section 6: use the existing selection producer in-process.
-		outcomes, err = owner.Lookup(request)
+		outcomes, err = owner.Lookup(*request)
 	} else {
 		if a.r.api == nil {
-			return false, errServerNotReady
+			return nil, errServerNotReady
 		}
 		args := make([]string, 0, 6+len(request.Keys))
 		args = append(args, request.Destination.String(), request.Family.String(),
@@ -253,11 +263,18 @@ func (a *reactorAPIAdapter) relayRecovery(ctx context.Context, request ribevents
 	}
 	if err == nil {
 		// A key with no outcome is a lookup failure, never "no survivor".
-		err = ribevents.CheckRecoveryAnswer(&request, outcomes)
+		err = ribevents.CheckRecoveryAnswer(request, outcomes)
 	}
 	if err != nil {
-		return false, err
+		return nil, err
 	}
+	return outcomes, nil
+}
+
+// admitRecovery stages every outcome on the destination's forward worker as one
+// admission and waits for it. It reports retry when the destination's session or
+// send sequence moved since the lookup's snapshot.
+func (a *reactorAPIAdapter) admitRecovery(ctx context.Context, outcomes []ribevents.RecoveryOutcome, fam family.Family, destination *Peer, session *Session, sequence uint64, sender plugin.Sender, sources map[*Peer]recoverySourceReceipt) (bool, error) {
 	currentSession, currentSequence := recoverySnapshot(destination)
 	if currentSession != session || currentSequence != sequence {
 		return true, nil
@@ -273,7 +290,7 @@ func (a *reactorAPIAdapter) relayRecovery(ctx context.Context, request ribevents
 		}
 	}()
 	for i := range outcomes {
-		retry, err := a.queueRecoveryOutcome(destination, &outcomes[i], request.Family, admission, sources, sender)
+		retry, err := a.queueRecoveryOutcome(destination, &outcomes[i], fam, admission, sources, sender)
 		if err != nil || retry {
 			return retry, err
 		}

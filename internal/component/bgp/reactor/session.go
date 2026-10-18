@@ -323,7 +323,10 @@ type Session struct {
 	// Final ownership is bound to this Session, not copied per route. Standalone
 	// sessions allocate it lazily; Peer construction installs its existing table.
 	// All access, including borrowed producer provenance, MUST hold writeMu.
-	adjOut      *adjRIBOut
+	adjOut *adjRIBOut
+	// recovery is this session's recovery worker (recovery_owed.go), nil
+	// until the Established callback starts it and for a peer with no reactor.
+	recovery    atomic.Pointer[recoveryWorker]
 	sentForward *fwdItem
 	// The callback borrows scalar IDs and this typed, reusable origin receipt.
 	sentReceipt wireu.WireUpdate

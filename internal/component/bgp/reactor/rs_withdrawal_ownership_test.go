@@ -59,7 +59,8 @@ func TestRSReturnedWithdrawalPreservesOtherSource(t *testing.T) {
 	// dropping all attribute-free withdrawals cannot satisfy this control.
 	ownershipLiveSend(t, a, []netip.Prefix{p}, nil)  // RFC 4271 Section 4.3.
 	ownershipLiveSend(t, a, nil, attrsA, legitimate) // RFC 4271 Section 4.3.
-	view = ownershipLiveThrough(t, c, legitimate, attrsA)
+	ownershipLiveThrough(t, c, legitimate, attrsA)
+	view = ownershipLiveDecided(t, c, p)
 	ownershipLiveAbsent(t, view, p)
 	ownershipLiveWithdrawals(t, view, p, 1)
 	ownershipLiveRoute(t, view, q, attrsA)
@@ -118,7 +119,8 @@ func TestRSWithdrawalKeepsCurrentDestinationOwner(t *testing.T) {
 
 			ownershipLiveSend(t, b, []netip.Prefix{p}, nil) // RFC 4271 Section 4.3.
 			ownershipLiveSend(t, b, nil, attrsB, current)   // RFC 4271 Section 4.3.
-			view = ownershipLiveThrough(t, c, current, attrsB)
+			ownershipLiveThrough(t, c, current, attrsB)
+			view = ownershipLiveDecided(t, c, p)
 			ownershipLiveAbsent(t, view, p)
 			ownershipLiveWithdrawals(t, view, p, 1)
 			ownershipLiveEstablished(t, peers)
@@ -154,7 +156,8 @@ func TestRSMixedWithdrawalPreservesAnnouncementSibling(t *testing.T) {
 	// filtering an unowned withdrawal must preserve both other sections.
 	ownershipLiveSend(t, b, []netip.Prefix{p, q}, attrsB, r) // RFC 4271 Section 4.3.
 	ownershipLiveSend(t, b, nil, attrsB, mixed)              // RFC 4271 Section 4.3.
-	view = ownershipLiveThrough(t, c, mixed, attrsB)
+	ownershipLiveThrough(t, c, mixed, attrsB)
+	view = ownershipLiveDecided(t, c, q)
 	ownershipLiveRoute(t, view, p, attrsA)
 	ownershipLiveAnnouncements(t, view, p, attrsA)
 	ownershipLiveWithdrawals(t, view, p, 0)
@@ -186,6 +189,21 @@ func ownershipLiveThrough(t *testing.T, peer *lowLivePeer, marker netip.Prefix, 
 		view = ownershipLiveRead(t, peer) // RFC 4271 Section 9.
 		return bytes.Equal(view.routes[marker], attrs)
 	}, "recipient TCP causal marker "+marker.String())
+	return view
+}
+
+// ownershipLiveDecided waits until the recipient no longer holds prefix. An
+// owner withdrawal is owed to the destination's recovery worker, so the
+// withdrawal the RIB decides (RFC 4271 Section 9.2) is written after the
+// election and may follow the causal marker.
+func ownershipLiveDecided(t *testing.T, peer *lowLivePeer, prefix netip.Prefix) ownershipLiveProjection {
+	t.Helper()
+	var view ownershipLiveProjection
+	lowEventually(t, func() bool {
+		view = ownershipLiveRead(t, peer)
+		_, held := view.routes[prefix]
+		return !held
+	}, "recipient withdrawal of "+prefix.String())
 	return view
 }
 

@@ -18,15 +18,22 @@ import (
 // RFC 4271 Section 3.2: "The Adj-RIBs-Out stores information the local BGP
 // speaker selected for advertisement to its peers."
 //
-// Its only readers are final writers under writeMu. A successful flush commits
-// pending changes; a failed write retires the session and invalidates the table.
-// There is no independently readable committed cache or second owner inventory.
-// The bound is the native paths currently advertised to this recipient.
+// Its writers are final writers under writeMu. The destination's recovery
+// worker also reads the owed set under mu, without being a final writer. A
+// successful flush commits pending changes; a failed write retires the session
+// and invalidates the table. There is no independently readable committed cache
+// or second owner inventory. The bound is the native paths currently advertised
+// to this recipient, and the owed set holds at most one record per such path.
 // mu also serializes session binding and teardown with a replacement writer.
 type adjRIBOut struct {
 	mu      sync.Mutex
 	session *Session
 	routes  map[adjOutKey]*adjRIBOutRoute
+	// owed holds the keys whose owner withdrawal this destination did not
+	// emit, because the RIB elects what replaces the route
+	// (adjOutWrite.allow). Every reset of routes clears it: a record is framed
+	// for the session it was owed to.
+	owed    map[adjOutKey]*adjOutOwed
 	pending bool
 	// suppressed counts the routes this peer was NOT sent because it already
 	// held them. A suppression and a drop are different outcomes and an operator
@@ -61,6 +68,22 @@ type adjOutPath struct {
 	addPath     bool
 	synthesized bool
 	revision    uint64
+	// generation is the owner's source session generation
+	// (Peer.forwardGeneration) when the path was written. Ownership equality
+	// ignores it, so a GR-retained path stays withdrawable by the same source
+	// on its new session; it tells which session of the source wrote it.
+	generation uint64
+}
+
+// adjOutOwed is one key whose decision belongs to the destination's recovery
+// worker. It names the destination session it was owed to, and carries a copy
+// of the destination-framed NLRI, because the writer's bytes are pooled.
+// A new owe of a key already owed replaces the record, so a round that
+// decided an older record never removes a newer one.
+type adjOutOwed struct {
+	session *Session
+	family  family.Family
+	nlri    []byte
 }
 
 // adjOutKey adds presence to fwdPathKey: identifier zero is a valid identifier.
@@ -146,6 +169,7 @@ func (a *adjRIBOut) reset() {
 	defer a.mu.Unlock()
 
 	a.routes = nil
+	a.owed = nil
 	a.session = nil
 	a.pending = false
 }
