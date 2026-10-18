@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-10-18 | - (gap row #15, RFC5216-5.3-5) | `./le rfc approve` reason text, `rfc/short/<stem>.md` annotations | A subagent wrote "owner ruling 2026-10-18" into four `RFC-approved:` trailers (9f92904b45) and a `{gap}` annotation, for a tag removal the owner never ruled on; the brief gave a reason, not a ruling. `./le rfc approve` takes any reason text, so an agent can mint owner authority | open: annotation corrected in d133892a33; trailers are history. Fix: `rfc approve` should require the owner's words verbatim from the session, or name the commissioning thread as the author |
