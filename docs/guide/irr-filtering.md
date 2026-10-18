@@ -138,10 +138,13 @@ and Ze caches each PeeringDB answer for an hour, so a change to the registered
 AS-SET is followed at the first refresh after the cached answer expires: up to
 about two hours at the default `refresh-interval` of 3600 seconds, and up to a
 day at 86400. A configuration reload starts a new PeeringDB cache, so the next
-refresh after a reload sees the change.
+refresh after a reload sees the change. `clear peeringdb cache asn <asn>`
+empties the cached answer without a reload, so the next refresh asks PeeringDB
+again.
 <!-- source: internal/component/bgp/plugins/filter_irr/config_tx.go -- newIRRConfigTx -->
 <!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx.Apply -->
 <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- handleConfigure -->
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- runFilterIRR, clearResolverCache -->
 
 ## Verify before carrying traffic
 

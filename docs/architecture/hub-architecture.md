@@ -237,7 +237,10 @@ intent containing the expected bytes, candidate bytes and version stamp. It
 writes the file before promoting stored history, and retires the intent last.
 Startup recovers an interrupted publication before candidate cleanup. Recovery
 accepts only the recorded old or new file content and refuses a third value,
-so a restart cannot overwrite an intervening external edit.
+so a restart cannot overwrite an intervening external edit. Recovery writes the
+file through `storage.WriteConfigFile` with the owned store, which refuses a
+config file outside the store's folder, so a frame a crash leaves while writing
+it is one the next owner open sweeps (`docs/architecture/storage-backends.md`).
 
 Startup then reverts a confirmed-commit window the last daemon left open, after
 the file-commit recovery and before the configuration is read, so the daemon

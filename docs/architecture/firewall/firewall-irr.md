@@ -211,6 +211,14 @@ always queries the server, because `update firewall irr as-set X` is the one
 command an operator has to correct data the server changed. It writes the cache
 it did not read, so the show commands see what the refresh learned.
 
+`clear irr cache` and `clear peeringdb cache` empty this plugin's client caches
+as well. `runFirewallIRR` declares both caches at Stage 1 through
+`OnResolverCacheClear`, and `PrefixStore.ClearResolverCache` clears the clients
+the last configure installed. The prefix entries under `meta/irr/` are not a
+client cache and stay: only `clear firewall irr` removes one.
+<!-- source: internal/component/firewall/plugins/irr/irr.go -- runFirewallIRR, clearResolverCache -->
+<!-- source: internal/component/resolve/irr/store/clear.go -- ResolverCaches, ClearResolverCache -->
+
 Removing prefixes is an operator action: `clear firewall irr asn|as-set` calls
 `PrefixStore.Purge`. Without it, an AS-SET deregistered upstream would be
 enforced forever.
