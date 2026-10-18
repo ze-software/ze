@@ -14,7 +14,9 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -44,9 +46,10 @@ type recoveryWorker struct {
 	cancel  context.CancelFunc
 	// wake has one slot: the owed set is the queue, so a skipped send loses
 	// nothing.
-	wake     chan struct{}
-	done     chan struct{}
-	ownerLog sync.Once
+	wake          chan struct{}
+	done          chan struct{}
+	ownerLog      sync.Once
+	unattachedLog sync.Once
 }
 
 // recoveryOwedKey is one key of a round's snapshot: the record it read, and
@@ -115,6 +118,43 @@ func (s *Session) recoveryOwed() bool {
 		return false
 	}
 	return worker.owner() != nil
+}
+
+// recoveryOwedFor reports whether an owner withdrawal of a route source sent
+// is left to recovery: recoveryOwed holds, and the recovery owner receives
+// source's received UPDATEs. An owner the operator never attached to source
+// holds none of its routes and is not fed its withdrawals, so its election
+// for the key is not the forwarder's and its answer only delays the
+// withdrawal behind every later UPDATE: the writer sends it as it stands.
+// A departure keeps recoveryOwed alone: its keys come from the RIB's own
+// command, so an owner is already engaged.
+func (s *Session) recoveryOwedFor(source *Peer) bool {
+	worker := s.recovery.Load()
+	if worker == nil {
+		return false
+	}
+	command := worker.owner()
+	if command == nil {
+		return false
+	}
+	return worker.ownerReceives(command, source)
+}
+
+// ownerReceives reports whether the delivery graph grants command's process
+// source's received UPDATE events. The graph is the operator's attach blocks
+// and an immutable snapshot, and the lookup allocates nothing.
+func (w *recoveryWorker) ownerReceives(command *pluginserver.RegisteredCommand, source *Peer) bool {
+	granted := w.adapter.r.api.DeliveryGraph().Receivers(events.LookupNamespaceID(bgpevents.Namespace),
+		events.LookupEventTypeID(bgpevents.EventUpdate), events.DirReceived, source.addrString)
+	if slices.Contains(granted, command.Process.Name()) {
+		return true
+	}
+	w.unattachedLog.Do(func() {
+		fwdLogger().Warn("owner withdrawal sent without election: the RIB recovery owner does not receive the source's UPDATEs",
+			"peer", w.peer.Settings().Address, "source", source.addrString, "owner", command.Process.Name(),
+			"fix", "attach the RIB process to the source peer with receive [ update-received ]")
+	})
+	return false
 }
 
 func (w *recoveryWorker) stop() {

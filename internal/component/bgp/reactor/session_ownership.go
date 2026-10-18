@@ -278,8 +278,10 @@ type adjOutOwe struct {
 // destination's recovery worker instead of being emitted. It is, for a
 // source-owned key at a destination without ADD-PATH send for the family,
 // when the writer is source-bound (a forwarded owner withdrawal, received or
-// synthesized, or a bgp-rib lifecycle removal) and a recovery owner is
-// registered. A recovery write is the decision itself and is never owed.
+// synthesized, or a bgp-rib lifecycle removal), a recovery owner is
+// registered, and that owner receives the owning source's UPDATEs
+// (Session.recoveryOwedFor). A recovery write is the decision itself and is
+// never owed.
 // RFC 4271 Section 9.2: "All newly installed routes and all newly unfeasible
 // routes for which there is no replacement route SHALL be advertised to its
 // peers by means of an UPDATE message." Whether a replacement exists is the
@@ -302,7 +304,7 @@ func (w *adjOutWrite) owesWithdrawal(key adjOutKey, entry *adjRIBOutRoute) bool 
 	case adjOutUnspecified, adjOutRecovery, adjOutInitial:
 		return false
 	}
-	return w.session.recoveryOwed()
+	return w.session.recoveryOwedFor(entry.owner.source)
 }
 
 // stageMover notes a forwarded withdrawal of a key owed before this write.

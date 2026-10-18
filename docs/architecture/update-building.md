@@ -435,8 +435,16 @@ send or skip, because the owed set itself is the queue). A key the same body
 also announces is not owed (RFC 4271 Section 4.3), and an originated
 announcement of an owed key removes its record. With no recovery owner
 registered, the withdrawal is written as before and one warning is logged per
-destination session. A destination with ADD-PATH send keeps every path and owes
-nothing.
+destination session. A registered owner counts only for a source it receives:
+when no `attach process` block grants the owner process the owning source's
+received UPDATEs (an auto-loaded bgp-rib nobody attaches), the RIB holds none
+of that source's routes, so its election is not the forwarder's and its answer
+would only queue the withdrawal behind the source's later UPDATEs. The
+withdrawal is then written as it stands, in order, and one warning per
+destination session names the source and the attach block that fixes it
+(`Session.recoveryOwedFor`). A departure is not subject to this test: the RIB's
+own command owes its keys. A destination with ADD-PATH send keeps every path
+and owes nothing.
 
 A key keeps one record while it is owed, and every later owe merges into it,
 so a round deciding the key never loses an owe made while it ran. The record

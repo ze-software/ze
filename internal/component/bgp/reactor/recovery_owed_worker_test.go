@@ -17,8 +17,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -47,6 +49,7 @@ func newOwedRail(t *testing.T) *owedRail {
 	}, "recovery command owner registered")
 	destination.reactor = r
 	destination.sendingInitialRoutes.Store(0)
+	attachRecoveryOwner(t, r, source)
 	rail := &owedRail{r: r, source: source, destination: destination, conn: conn,
 		requests: make(chan ribevents.RecoveryRequest, 8), release: make(chan owedAnswer, 8)}
 	owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
@@ -66,6 +69,24 @@ func newOwedRail(t *testing.T) *owedRail {
 		owner.Close()
 	})
 	return rail
+}
+
+// attachRecoveryOwner publishes a delivery graph in which the registered
+// recovery owner receives each source's received UPDATEs, as an `attach
+// process bgp-rib { receive [ update-received ] }` block on each source does.
+func attachRecoveryOwner(t *testing.T, r *Reactor, sources ...*Peer) {
+	t.Helper()
+	command := r.api.Dispatcher().Registry().Lookup(recoveryCommandName)
+	require.NotNil(t, command)
+	settings := make([]*PeerSettings, 0, len(sources))
+	for _, source := range sources {
+		source.settings.ProcessBindings = append(source.settings.ProcessBindings, ProcessBinding{
+			PluginName: command.Process.Name(),
+			Receive:    map[string]events.Direction{bgpevents.EventUpdate: events.DirReceived},
+		})
+		settings = append(settings, source.settings)
+	}
+	r.api.UpdateDeliveryGraph(bgpevents.Namespace, deliveryPeersFromSettings(settings))
 }
 
 func (rail *owedRail) forward(t *testing.T, withdraw bool, raw []byte) {
@@ -138,6 +159,62 @@ func TestAdjOutOwnerWithdrawalOwedToRecovery(t *testing.T) {
 	updates := recoveryWrittenUpdates(t, rail.conn.written())
 	require.True(t, bytes.Equal(p, updates[1].WithdrawnRoutes), "the decision withdraws P")
 	lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the decided record leaves the owed set")
+}
+
+// TestOwnerWithdrawalWrittenWhenOwnerDoesNotReceiveSource proves a
+// recovery owner counts only for a source it receives. Method: bgp-rib is
+// registered, as an auto-loaded RIB is, but no attach block grants it the
+// source's received UPDATEs (test/plugin/mup-t1st-malformed-treat-as-withdraw.ci).
+// The source announces P and withdraws it: the withdrawal is written at once,
+// nothing is owed, and the worker asks the RIB nothing, so a later UPDATE from
+// the source cannot overtake it. Attaching the owner to the source then makes
+// the next owner withdrawal owed, so the test is not passing on a worker that
+// never owes.
+func TestOwnerWithdrawalWrittenWhenOwnerDoesNotReceiveSource(t *testing.T) {
+	r, source, destination, conn, _ := newSyncOrderRail(t)
+	r.clock = clock.RealClock{}
+	r.api = flowForwardPluginServer(t, New(&Config{ListenAddr: "127.0.0.1:0"}))
+	lowEventually(t, func() bool {
+		command := r.api.Dispatcher().Registry().Lookup(recoveryCommandName)
+		return command != nil && command.Process != nil
+	}, "recovery command owner registered")
+	destination.reactor = r
+	destination.sendingInitialRoutes.Store(0)
+	requests := make(chan ribevents.RecoveryRequest, 8)
+	owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
+		requests <- request
+		return recoveryWithdrawAnswer(request), nil
+	})
+	session := destination.currentSession()
+	session.startRecovery(destination)
+	t.Cleanup(func() {
+		session.joinRecovery()
+		owner.Close()
+	})
+	rail := &owedRail{r: r, source: source, destination: destination, conn: conn}
+	p := []byte{24, 192, 0, 2}
+
+	rail.forward(t, false, p)
+	rail.forward(t, true, p)
+	updates := recoveryWrittenUpdates(t, conn.written())
+	require.Len(t, updates, 2, "an owner that does not receive the source owes nothing: the withdrawal is written")
+	require.True(t, bytes.Equal(p, updates[1].WithdrawnRoutes), "the write withdraws P")
+	require.Empty(t, rail.owed())
+	select {
+	case request := <-requests:
+		t.Fatalf("the worker asked the RIB about %d keys it does not hold", len(request.Keys))
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	attachRecoveryOwner(t, r, source)
+	rail.forward(t, false, p)
+	rail.forward(t, true, p)
+	require.Len(t, recoveryWrittenUpdates(t, conn.written()), 3, "an attached owner's withdrawal is owed, not written")
+	request := <-requests
+	require.Len(t, request.Keys, 1)
+	lowEventually(t, func() bool {
+		return len(recoveryWrittenUpdates(t, conn.written())) == 4
+	}, "the attached owner's WITHDRAW decision is written")
 }
 
 // TestOwedKeyHandOffNeverBlocksWriter proves the writer never waits on the

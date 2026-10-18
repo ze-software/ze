@@ -411,3 +411,20 @@ Owed next, in order:
    no producer since package a), 3a, 4, 5, 6.
 Gates owed: scoped lint `./le go lint run scope ./internal/component/bgp/...`,
 `./le test unit all`, `./le verify worktree`.
+
+### Update: MUP regression fixed (item 2)
+
+Root cause: no stall. The owed withdrawal was decided WITHDRAW, then the
+daemon's shutdown (started when the client saw the source's later fence route)
+canceled the admission. bgp-rib was auto-loaded and attached to no peer, so it
+was not a recovery owner for that source. Fix: the writer owes only when the
+owner process receives the owning source's received UPDATEs
+(`Session.recoveryOwedFor` in `reactor/recovery_owed.go`); otherwise the
+withdrawal is written in order with one warning. Test
+`TestOwnerWithdrawalWrittenWhenOwnerDoesNotReceiveSource` (red at parent,
+green after). Both MUP `.ci` and `linklocal-capability-malformed-nexthop-withdraw.ci`
+green. reactor (three Phase 1 probes included), rib, rs, rr, cmd/update,
+plugin/process and ribevents all green under -race with the ze_* tags
+(overlay mapping foreign dirty files to HEAD). Spec Design Insights carry
+the answer and the open ordering note.
+Remaining owed: item 1, item 3, and the gates above.
