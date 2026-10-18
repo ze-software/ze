@@ -20,6 +20,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/stringsx"
 )
 
@@ -398,4 +400,99 @@ func validateSRv6OriginStructure(sid netip.Addr, behavior uint16, structure []by
 		}
 	}
 	return nil
+}
+
+// CheckSRv6TranspositionForFamily refuses an SRv6 SID Structure whose
+// transposition the route family cannot carry: any transposition on a family
+// that has no label field, and a Transposition Length wider than the label
+// field on a family that has one.
+//
+// prefixSID is a Prefix-SID attribute value as EncodePrefixSIDSRv6 produces it;
+// TLVs other than the SRv6 Service TLVs are not judged here. The check is not in
+// the encoder because the encoder sees no route: `update text` declares its
+// attributes before the sections that name a family, and one attribute set can
+// serve sections of several families. Each entry point calls this where the
+// attribute meets the family of the routes it is advertised with.
+//
+// nlrisplit.TranspositionLabelWidth answers which families have a label field
+// and how wide it is, the same answer the receive side bounds the transposition
+// length with, so a structure this accepts is never refused by that bound. For
+// the VPN families a ze receiver also rebuilds the transposed SID. For EVPN it
+// does not: nlrisplit.TranspositionLabel reads no EVPN label field, so an EVPN
+// route ze originates with a non-zero transposition yields no SID at a ze
+// receiver.
+func CheckSRv6TranspositionForFamily(prefixSID []byte, fam family.Family) error {
+	return forEachPrefixSIDTLV("TLV", prefixSID, func(tlvType uint8, value []byte) error {
+		if tlvType != PrefixSIDTLVSRv6L3Service && tlvType != PrefixSIDTLVSRv6L2Service {
+			return nil
+		}
+		if len(value) < srv6ServiceReservedLen {
+			return fmt.Errorf("prefix-sid: SRv6 service TLV type %d has no RESERVED octet", tlvType)
+		}
+		return forEachPrefixSIDTLV("SRv6 sub-TLV", value[srv6ServiceReservedLen:], func(subType uint8, subValue []byte) error {
+			if subType != srv6SubTLVSIDInformation {
+				return nil
+			}
+			if len(subValue) < srv6SIDInfoLen {
+				return fmt.Errorf("prefix-sid: SRv6 SID information sub-TLV is %d octets, RFC 9252 Section 3.1 needs %d",
+					len(subValue), srv6SIDInfoLen)
+			}
+			return forEachPrefixSIDTLV("SRv6 sub-sub-TLV", subValue[srv6SIDInfoLen:], func(subSubType uint8, structure []byte) error {
+				if subSubType != srv6SubSubTLVSIDStructure {
+					return nil
+				}
+				return checkSIDStructureForFamily(structure, fam)
+			})
+		})
+	})
+}
+
+// checkSIDStructureForFamily judges one SID Structure Sub-Sub-TLV value against
+// the label field of fam: none, or one of a known width.
+func checkSIDStructureForFamily(structure []byte, fam family.Family) error {
+	if len(structure) != srv6SIDStructureLen {
+		return fmt.Errorf("prefix-sid: SRv6 SID structure is %d octets, RFC 9252 Section 3.2.1 needs %d",
+			len(structure), srv6SIDStructureLen)
+	}
+	width := nlrisplit.TranspositionLabelWidth(fam)
+	if width == 0 {
+		return checkTranspositionNotApplicable(structure, fam)
+	}
+	return checkTranspositionFitsLabel(structure, fam, width)
+}
+
+// checkTranspositionFitsLabel judges one SID Structure Sub-Sub-TLV value of
+// srv6SIDStructureLen octets for a family whose label field is width bits wide.
+func checkTranspositionFitsLabel(structure []byte, fam family.Family, width uint8) error {
+	length := structure[4]
+	// RFC 9252 Sections 5.1 and 5.2, for the VPN label field: "When using the
+	// Transposition Scheme, the Transposition Length MUST be less than or equal to
+	// 20 and less than or equal to the FL." Sections 6.2, 6.3 and 6.5 say the same
+	// of the 24-bit EVPN field: "the Transposition Length MUST be less than or
+	// equal to 24". The FL half is not judged here.
+	if length <= width {
+		return nil
+	}
+	return fmt.Errorf("invalid srv6 SID structure for %s routes: transposition length %d exceeds the %d-bit label field "+
+		"that carries the transposed SID bits (RFC 9252 Sections 5 and 6); "+
+		"set the fifth structure value to %d or less: [%d,%d,%d,%d,%d,%d]",
+		fam, length, width, width, structure[0], structure[1], structure[2], structure[3], width, structure[5])
+}
+
+// checkTranspositionNotApplicable judges one SID Structure Sub-Sub-TLV value of
+// srv6SIDStructureLen octets for a family where the Transposition Scheme is not
+// applicable.
+func checkTranspositionNotApplicable(structure []byte, fam family.Family) error {
+	length, offset := structure[4], structure[5]
+	// RFC 9252 Section 7: "The transposition offset and length MUST be 0 when the
+	// Sub-Sub-TLV is advertised along with routes where the Transposition Scheme is
+	// not applicable (e.g., for global IPv6 service [RFC2545] where there is no label
+	// field)."
+	if length == 0 && offset == 0 {
+		return nil
+	}
+	return fmt.Errorf("invalid srv6 SID structure for %s routes: transposition length %d and offset %d must both be 0, "+
+		"because routes of family %s have no label field to carry transposed SID bits (RFC 9252 Section 7); "+
+		"set the last two structure values to 0: [%d,%d,%d,%d,0,0]",
+		fam, length, offset, fam, structure[0], structure[1], structure[2], structure[3])
 }

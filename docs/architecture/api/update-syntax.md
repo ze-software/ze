@@ -608,6 +608,20 @@ valid under RFC 9252 erratum 7817. Zero transposition length requires zero offse
 and every transposed bit must already be zero in the advertised SID; the encoder
 does not move those bits into the route's label field.
 
+A non-zero transposition length or offset is accepted only with routes whose
+NLRI has a label field to carry the transposed bits: the IPv4 and IPv6 VPN
+families and EVPN. With any other family (IPv4 or IPv6 unicast, labeled
+unicast) RFC 9252 Section 7 requires both to be 0, and the route is refused
+with an error that names the family and the structure to write instead. On
+the families that have a label field, the transposition length must also fit it:
+at most 20 bits for IPv4 and IPv6 VPN and at most 24 bits for EVPN (RFC 9252
+Sections 5 and 6), or the route is refused the same way. The
+family is the one of the `nlri` or `mp` section, or of the configured route, the
+attribute is advertised with, so the same attribute can be accepted for one
+section and refused for another.
+<!-- source: internal/core/bgp/attribute/prefixsid.go -- CheckSRv6TranspositionForFamily -->
+<!-- source: internal/core/bgp/nlri/nlrisplit/transposition.go -- TranspositionLabelWidth -->
+
 The encoder accepts a nonzero argument length only for End.DT2M (`0x0018`), the
 endpoint behaviour with arguments that it supports. Extra text after the
 structure or endpoint behaviour is refused. These are origination checks; a

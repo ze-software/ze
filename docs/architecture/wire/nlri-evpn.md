@@ -394,6 +394,9 @@ originating router's address while configuration is being parsed.
 Both NLRI-only and route-command encoders reject a missing originating address
 before writing IMET or Ethernet Segment bytes. MAC/IP advertisements always
 carry their first three-octet label field, including when its value is zero.
+`update text` also judges an SRv6 Prefix-SID against each EVPN section: a SID
+Structure whose transposition length exceeds the 24-bit label field is refused
+before any bytes are written (RFC 9252 Section 6).
 
 <!-- source: internal/component/bgp/plugins/nlri/evpn/encode.go -- EncodeRoute -->
 <!-- source: internal/component/bgp/message/update_build_evpn.go -- ValidateEVPNOrigination -->

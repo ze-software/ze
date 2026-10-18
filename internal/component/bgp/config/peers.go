@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -550,6 +551,12 @@ func patchStaticRoutes(ps *reactor.PeerSettings, routes []StaticRouteConfig, add
 			// RFC 4364: VPN routes require at least one label.
 			if route.IsVPN() && len(route.Labels) == 0 {
 				return fmt.Errorf("peer %s VPN route %s requires at least one label", addr, prefix)
+			}
+
+			// RFC 9252 Section 7: no transposition where the route family has no label
+			// field, and the family is known only once the route is built.
+			if err := attribute.CheckSRv6TranspositionForFamily(route.PrefixSIDBytes, route.Family()); err != nil {
+				return fmt.Errorf("peer %s static route %s: %w", addr, prefix, err)
 			}
 
 			ps.StaticRoutes = append(ps.StaticRoutes, route)

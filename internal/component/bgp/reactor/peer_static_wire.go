@@ -60,7 +60,7 @@ func (p *Peer) sendStaticRoutes(session *Session, routes []StaticRoute, group bo
 	sent := make([]StaticRoute, 0, len(routes))
 	for i := range routes {
 		route := &routes[i]
-		fam := routeFamily(route)
+		fam := route.Family()
 		// Resolve next-hop from RouteNextHop policy.
 		nextHop, nhErr := p.resolveNextHop(session, route.NextHop, fam)
 		if nhErr != nil {
@@ -109,7 +109,7 @@ func (p *Peer) negotiatedStaticRoutes(routes []StaticRoute) []StaticRoute {
 	}
 	kept := make([]StaticRoute, 0, len(routes))
 	for i := range routes {
-		fam := routeFamily(&routes[i])
+		fam := routes[i].Family()
 		if !nc.Has(fam) {
 			routesLogger().Warn("static route not sent: family not negotiated with the peer",
 				"peer", p.addrString, "prefix", routes[i].Prefix.String(), "family", fam.String())
@@ -138,7 +138,7 @@ func (p *Peer) sendStaticRoutesGrouped(session *Session, routes []StaticRoute, m
 		var included []StaticRoute
 		for i := range grouped {
 			route := &grouped[i]
-			fam := routeFamily(route)
+			fam := route.Family()
 			nextHop, nhErr := p.resolveNextHop(session, route.NextHop, fam)
 			if nhErr != nil {
 				routesLogger().Debug("next-hop resolution failed", "peer", addr, "error", nhErr)
@@ -307,7 +307,7 @@ func (p *Peer) withdrawStaticRoutes(session *Session, routes []StaticRoute, maxM
 
 	for i := range routes {
 		route := &routes[i]
-		fam := routeFamily(route)
+		fam := route.Family()
 		nextHop, nhErr := p.resolveNextHop(session, route.NextHop, fam)
 		if nhErr != nil {
 			routesLogger().Warn("static route not withdrawn: its next hop no longer resolves",

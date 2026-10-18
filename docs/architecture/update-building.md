@@ -215,7 +215,9 @@ NLRI, attribute and MP-overhead encoding errors rather than replacing them with
 a no-negotiated-family warning. Connection failures remain fail-fast; the
 first-error contract within one split UPDATE and all-or-nothing legacy
 static-group recording are unchanged. Intentional raw injection and pre-filtered
-forwarding retain their distinct admission boundaries.
+forwarding retain their distinct admission boundaries. The three static paths
+take each route's family from `StaticRoute.Family`, the same answer the config
+loader judges the route's SRv6 Prefix-SID against.
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateGated -->
 <!-- source: internal/component/bgp/reactor/peer_send.go -- isRouteScopedSendError -->
 <!-- source: internal/component/bgp/rib/commit.go -- Commit -->
@@ -678,6 +680,7 @@ hops. Extended IPv4 routes, including next-hop self resolving to IPv6, and
 labeled/VPN routes use their existing per-route builders instead. Each such
 successful send is recorded independently; a refused route does not suppress
 its usable siblings. Genuine legacy batches keep their all-or-nothing recording.
+The IPv4-unicast test reads the route's family from `StaticRoute.Family`.
 <!-- source: internal/component/bgp/reactor/peer_static_wire.go -- sendStaticRoutesGrouped -->
 <!-- test: internal/component/bgp/reactor/peer_static_group_next_hop_test.go TestStaticGroupedResolvedNextHopWire -->
 

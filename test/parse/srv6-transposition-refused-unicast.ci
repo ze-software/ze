@@ -1,0 +1,53 @@
+# Test: an SRv6 SID Structure that declares a transposition is refused on an
+# IPv6 unicast route.
+#
+# VALIDATES: `ze config validate` refuses a `bgp-prefix-sid-srv6` whose
+#            structure carries transposition length 16 and offset 64 on an
+#            ipv6/unicast route, naming the family, the RFC and the corrected
+#            structure (RFC 9252 Section 7: "The transposition offset and length
+#            MUST be 0 when the Sub-Sub-TLV is advertised along with routes where
+#            the Transposition Scheme is not applicable").
+# PREVENTS: ze advertising transposed SID bits on a global IPv6 service route,
+#           which has no label field for the receiver to rebuild them from.
+
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 198.51.100.200
+			family {
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 2001:db8::1
+				bgp-prefix-sid-srv6 ( l3-service 2001:db8:: 0x13 [64,24,16,0,16,64] )
+			}
+			nlri {
+				ipv6/unicast add 2001:db8:1::/48
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=invalid srv6 SID structure for ipv6/unicast routes: transposition length 16 and offset 64 must both be 0
+expect=stdout:contains=because routes of family ipv6/unicast have no label field to carry transposed SID bits
+expect=stdout:contains=[64,24,16,0,0,0]

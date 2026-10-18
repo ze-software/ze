@@ -203,22 +203,24 @@ func buildStaticRouteUpdateNew(ub *message.UpdateBuilder, route *StaticRoute, ne
 	return ub.BuildUnicast(&p)
 }
 
-// routeFamily returns the NLRI family for a StaticRoute.
-// Used to track which families had routes sent for EOR purposes.
-func routeFamily(route *StaticRoute) family.Family {
-	if route.IsVPN() {
-		if route.Prefix.Addr().Is6() {
+// Family returns the NLRI family for a StaticRoute. It is the one answer to
+// which family a static route is advertised in: the reactor tracks the families
+// it sent for EOR purposes with it, and the config loader judges a route's
+// Prefix-SID against it (RFC 9252 Section 7).
+func (r *StaticRoute) Family() family.Family {
+	if r.IsVPN() {
+		if r.Prefix.Addr().Is6() {
 			return family.Family{AFI: family.AFIIPv6, SAFI: 128} // VPNv6
 		}
 		return family.Family{AFI: family.AFIIPv4, SAFI: 128} // VPNv4
 	}
-	if route.isLabeledUnicast() {
-		if route.Prefix.Addr().Is6() {
+	if r.isLabeledUnicast() {
+		if r.Prefix.Addr().Is6() {
 			return family.Family{AFI: family.AFIIPv6, SAFI: 4} // IPv6 Labeled Unicast
 		}
 		return family.Family{AFI: family.AFIIPv4, SAFI: 4} // IPv4 Labeled Unicast
 	}
-	if route.Prefix.Addr().Is6() {
+	if r.Prefix.Addr().Is6() {
 		return family.IPv6Unicast
 	}
 	return family.IPv4Unicast

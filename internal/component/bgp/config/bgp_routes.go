@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -155,7 +156,11 @@ func extractRoutesFromUpdateBlock(update *config.Tree) (*UpdateBlockRoutes, erro
 			}
 			contentTokens := extractContentTokens(parts)
 			isIPv6 := strings.HasPrefix(famName, "ipv6/")
-			req, err := buildConfigRouteRequest(attr, contentTokens, isIPv6)
+			fam, known := family.LookupFamily(famName)
+			if !known {
+				return nil, fmt.Errorf("family %s has a config route parser but no registered family, so its routes cannot be checked; this is a ze defect, report it", famName)
+			}
+			req, err := buildConfigRouteRequest(attr, contentTokens, isIPv6, fam)
 			if err != nil {
 				return nil, fmt.Errorf("%s attributes: %w", famName, err)
 			}
@@ -427,13 +432,19 @@ func pluginRouteFromRegistry(famName string, pr registry.PluginRoute) PluginRout
 // parsers so plugin config parsers receive generic path attributes as typed
 // values / wire bytes without importing the config package. RD is NOT included:
 // it is carried inline with the NLRI content tokens, not the attribute block.
-func buildConfigRouteRequest(attr *config.Tree, content []string, isIPv6 bool) (registry.ConfigRouteRequest, error) {
+// fam is the family of the nlri entry the attributes serve; the Prefix-SID is
+// judged against it (RFC 9252 Section 7).
+func buildConfigRouteRequest(attr *config.Tree, content []string, isIPv6 bool, fam family.Family) (registry.ConfigRouteRequest, error) {
 	var sr StaticRouteConfig
 	if err := applyAttributesFromTree(attr, &sr); err != nil {
 		return registry.ConfigRouteRequest{}, err
 	}
 	parsed, err := ParseRouteAttributes(&sr)
 	if err != nil {
+		return registry.ConfigRouteRequest{}, err
+	}
+	// RFC 9252 Section 7: no transposition where the route family has no label field.
+	if err := attribute.CheckSRv6TranspositionForFamily(parsed.PrefixSID, fam); err != nil {
 		return registry.ConfigRouteRequest{}, err
 	}
 

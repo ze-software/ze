@@ -739,6 +739,16 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 			if err != nil {
 				return nil, err
 			}
+			// RFC 9252 Section 7: the SID Structure's transposition must be 0 on routes
+			// where the Transposition Scheme is not applicable. The attributes precede
+			// every section, so the family of these routes is known only here.
+			if wire != nil && len(result.Announce) > 0 {
+				if _, _, prefixSID, found := attribute.AttrFind(wire.Packed(), attribute.AttrPrefixSID); found {
+					if err := attribute.CheckSRv6TranspositionForFamily(prefixSID, result.Family); err != nil {
+						return nil, err
+					}
+				}
+			}
 			if result.Family == (family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}) {
 				// snapshot returns a nil wire when no attribute was given, so a
 				// section without attributes carries no extended community.

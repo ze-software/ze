@@ -838,6 +838,19 @@ documented in [the UPDATE syntax reference](../api/update-syntax.md).
 
 <!-- source: internal/core/bgp/attribute/prefixsid.go -- EncodePrefixSIDSRv6, validateSRv6OriginStructure -->
 
+The encoder sees no route, so the rule that depends on the route family is
+judged where the attribute meets it. `CheckSRv6TranspositionForFamily` refuses
+a non-zero transposition length or offset with a family that has no label
+field, per RFC 9252 Section 7, and a transposition length wider than the label
+field of a family that has one: 20 bits for IPv4 and IPv6 VPN (Sections 5.1 and
+5.2) and 24 bits for EVPN (Section 6), the widths the receive side bounds the
+same length with. The bound against the Function Length is not judged. The config loader calls it for each static
+route with `StaticRoute.Family` and for each plugin route with its `nlri`
+family, and `update text` calls it for each announcing section.
+
+<!-- source: internal/core/bgp/attribute/prefixsid.go -- CheckSRv6TranspositionForFamily -->
+<!-- source: internal/component/bgp/config/peers.go -- patchStaticRoutes -->
+
 JSON, under the key `bgp-prefix-sid`, with one member per TLV. The member names
 are ExaBGP's, so the two agree on the wire and in the API. A Label-Index or
 Originator SRGB TLV whose length its RFC does not allow, which is kept off

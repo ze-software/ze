@@ -1980,11 +1980,15 @@ family. A route whose family the peer did not advertise, an `ipv6/mpls-vpn`
 route to a peer without the AFI 2 / SAFI 128 Multiprotocol capability for
 example, is not sent on that session, and Ze logs a warning naming the peer,
 the prefix and the family (RFC 4659 Section 3.4, RFC 4760). A VPN route also
-needs at least one `label`: config load refuses one without.
+needs at least one `label`: config load refuses one without. Config load also
+refuses a `bgp-prefix-sid-srv6` whose SID structure declares a transposition the
+route's family cannot carry: any transposition on a family without a label
+field, such as `ipv6/unicast`, and a transposition length above 20 bits on a VPN
+family (RFC 9252 Sections 5 and 7).
 
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- static route config, update/attribute/nlri blocks -->
 <!-- source: internal/component/bgp/reactor/peer_static_wire.go -- negotiatedStaticRoutes, the negotiated-family filter -->
-<!-- source: internal/component/bgp/config/peers.go -- patchStaticRoutes, a VPN route requires at least one label -->
+<!-- source: internal/component/bgp/config/peers.go -- patchStaticRoutes, a VPN route requires at least one label, and the SRv6 transposition must fit the route family -->
 
 ## MPLS
 

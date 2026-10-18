@@ -11,7 +11,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
-// VALIDATES: Static route helpers (routeFamily, writeRawAttribute, packRawAttributes, routeGroupKey, groupRoutesByAttributes).
+// VALIDATES: Static route helpers (StaticRoute.Family, writeRawAttribute, packRawAttributes, routeGroupKey, groupRoutesByAttributes).
 // PREVENTS: Wrong family detection, raw attribute encoding errors, incorrect route grouping.
 
 func staticRoute(prefix string) StaticRoute {
@@ -24,14 +24,14 @@ func staticRoute(prefix string) StaticRoute {
 // TestRouteFamily_IPv4Unicast verifies plain IPv4 route returns IPv4 unicast family.
 func TestRouteFamily_IPv4Unicast(t *testing.T) {
 	r := staticRoute("10.0.0.0/24")
-	f := routeFamily(&r)
+	f := r.Family()
 	assert.Equal(t, family.IPv4Unicast, f)
 }
 
 // TestRouteFamily_IPv6Unicast verifies plain IPv6 route returns IPv6 unicast family.
 func TestRouteFamily_IPv6Unicast(t *testing.T) {
 	r := staticRoute("2001:db8::/32")
-	f := routeFamily(&r)
+	f := r.Family()
 	assert.Equal(t, family.IPv6Unicast, f)
 }
 
@@ -39,7 +39,7 @@ func TestRouteFamily_IPv6Unicast(t *testing.T) {
 func TestRouteFamily_VPNv4(t *testing.T) {
 	r := staticRoute("10.0.0.0/24")
 	r.RD = "100:100"
-	f := routeFamily(&r)
+	f := r.Family()
 	assert.Equal(t, family.AFIIPv4, f.AFI)
 	assert.Equal(t, family.SAFI(128), f.SAFI)
 }
@@ -48,7 +48,7 @@ func TestRouteFamily_VPNv4(t *testing.T) {
 func TestRouteFamily_VPNv6(t *testing.T) {
 	r := staticRoute("2001:db8::/32")
 	r.RD = "100:100"
-	f := routeFamily(&r)
+	f := r.Family()
 	assert.Equal(t, family.AFIIPv6, f.AFI)
 	assert.Equal(t, family.SAFI(128), f.SAFI)
 }
@@ -57,7 +57,7 @@ func TestRouteFamily_VPNv6(t *testing.T) {
 func TestRouteFamily_LabeledIPv4(t *testing.T) {
 	r := staticRoute("10.0.0.0/24")
 	r.Labels = []uint32{100}
-	f := routeFamily(&r)
+	f := r.Family()
 	assert.Equal(t, family.AFIIPv4, f.AFI)
 	assert.Equal(t, family.SAFI(4), f.SAFI)
 }

@@ -585,7 +585,7 @@ func TestRouteFamilyIPv4Unicast(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1")),
 	}
 
-	fam := routeFamily(&route)
+	fam := route.Family()
 
 	require.Equal(t, family.AFIIPv4, fam.AFI, "AFI should be IPv4")
 	require.Equal(t, family.SAFIUnicast, fam.SAFI, "SAFI should be unicast")
@@ -602,7 +602,7 @@ func TestRouteFamilyIPv6Unicast(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
 
-	fam := routeFamily(&route)
+	fam := route.Family()
 
 	require.Equal(t, family.AFIIPv6, fam.AFI, "AFI should be IPv6")
 	require.Equal(t, family.SAFIUnicast, fam.SAFI, "SAFI should be unicast")
@@ -620,7 +620,7 @@ func TestRouteFamilyVPNv4(t *testing.T) {
 		RD:      "100:100", // Has RD = VPN
 	}
 
-	fam := routeFamily(&route)
+	fam := route.Family()
 
 	require.Equal(t, family.AFIIPv4, fam.AFI, "AFI should be IPv4")
 	require.Equal(t, family.SAFI(128), fam.SAFI, "SAFI should be MPLS-VPN (128)")
@@ -638,7 +638,7 @@ func TestRouteFamilyVPNv6(t *testing.T) {
 		RD:      "100:100", // Has RD = VPN
 	}
 
-	fam := routeFamily(&route)
+	fam := route.Family()
 
 	require.Equal(t, family.AFIIPv6, fam.AFI, "AFI should be IPv6")
 	require.Equal(t, family.SAFI(128), fam.SAFI, "SAFI should be MPLS-VPN (128)")
