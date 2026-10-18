@@ -428,3 +428,47 @@ plugin/process and ribevents all green under -race with the ze_* tags
 (overlay mapping foreign dirty files to HEAD). Spec Design Insights carry
 the answer and the open ordering note.
 Remaining owed: item 1, item 3, and the gates above.
+
+### Update: RFC 2545 tests re-scoped for capability 77 on receive (owner-approved)
+
+Done (working tree, NOT committed), all in
+`internal/component/bgp/reactor/rfc2545_forward_subnet_test.go`:
+
+| Item | Result |
+|------|--------|
+| Fixture | `rfc2545ReceiveFixtureCaps(t, sourceCap77, destinationCap77, ...)`; `rfc2545ReceiveFixture` keeps source cap77 on, so its four other callers are unchanged |
+| Receive helper | `rfc2545ReceiveForwardPublished(..., withdrawnAtReceipt)` returns recipient and published UPDATEs; `rfc2545AssertWithdrawnAtReceipt` checks the published MP_UNREACH (and legacy withdrawal) and that the recipient gets no announcement |
+| `TestRFC2545ReceivedPairSecondAddressValidated` | source negotiates 77 only for `link-local-only-control`; four `cap77-source-*` cases (three malformed seconds withdrawn at receipt, link-local second kept) |
+| `TestRFC2545ReceivedPairFirstAddressValidated` | caps are source x destination; loopback, multicast, IPv4-mapped first withdrawn at receipt under source 77; `fe80::`/`::` firsts are well formed per draft Section 6 and still withheld at egress |
+| `TestRFC2545EffectivePairPolicyAndMixedSibling` | source never negotiates 77 except new `cap77-source-invalid-second-withdrawn` (mixed layout: legacy sibling withdrawn too, RFC 7606 Section 2) |
+| Claims | RFC2545-3-1 claims of the three tests match their new cases; RFC2545-3-2 claims unchanged |
+| Discrimination | 8 records re-recorded (`route revert`, producer `forward_next_hop.go::egressNextHopWithheld`) in `rfc/discrimination/rfc2545.json` |
+
+Verification (overlay mapping foreign dirty `internal/plugins/iface` and
+`internal/component/iface` files to HEAD): full reactor `-race` ok (144s),
+`-run TestRFC2545 -count=5 -race` ok, full message `-race` ok, `go vet` clean.
+Scoped lint (reactor + message): only 2 gocritic `appendAssign` findings, both in
+the RFC 9774 session's `TestRFC9774SendAddPathFraming` file
+(`reactor/rfc9774_send_test.go`).
+
+Not committed, and why: `message/rfc7606.go` and `rfc7606_test.go` carry the RFC
+9774 session's hunks, which need the untracked `message/rfc9774.go` (not in
+HEAD). There is no hunk-level commit, and #13's
+`reactor/session_validation_receive.go` needs the new
+`ValidateUpdateRFC7606AddPath(..., linkLocalNextHop)` signature in that same file.
+Checked four times up to HEAD 4af80acf2a: `rfc9774.go` still untracked, and
+`04-rfc9774-as-set-deprecation.md` still lists 5b, 5c, items 6-10, A-5/A-6 and
+the commit as open.
+
+Next: once RFC 9774 lands, commit #13 (parent scratch `llnh-6-1-files.txt`,
+plus `docs/features/bgp-protocol.md` with its MUP hunk for 691bd048e9, name both
+in the body) with `reactor/rfc2545_forward_subnet_test.go` and
+`rfc/discrimination/rfc2545.json`, via `./le commit create replace session
+3f5fcb0a ... structural-red-ok "arch tier/check and iface-resolution reds are
+stale; both gates pass when run now"`.
+
+Owed (verdict work, not done here): `./le rfc check` reports RFC2545-3-1 and
+3-2 audit verdicts STALE (re-judge with ze-rfc-audit), RFC2545-3-3 SHIFTED
+(`./le rfc reseal`), and DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 still
+`unimplemented` in its audit JSON with no `{gap}` on its summary row.
+Gates still owed: `./le rfc check` for these stems, `./le verify worktree`.
