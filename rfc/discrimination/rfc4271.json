@@ -1635,6 +1635,17 @@
     {
       "rid": "RFC4271-8.2.2-20",
       "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go::TestRFC4271FailedCycleAfterEstablishedKeepsCounter",
+      "unit-sha": "75b0275e8d9cf15d",
+      "claim-sha": "c3257e5e26e96064",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
+      "producer-sha": "3340671b3373584c",
+      "break": "body of runOnce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-8.2.2-20",
+      "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go::TestRFC4271FailedCycleRestartKeepsCounter",
       "unit-sha": "c50225a6fadb189c",
       "claim-sha": "c3b44aa4325a4730",
