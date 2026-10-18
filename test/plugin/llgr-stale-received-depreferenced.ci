@@ -7,6 +7,8 @@
 #   LOCAL_PREF 200 with LLGR_STALE is not depreferenced and wins on LOCAL_PREF.
 # PREVENTS: the ingress verdict not reaching the RIB (reactor msg.Meta), and a
 #   verdict that depreferences LLGR_STALE from every neighbor.
+# RFC requirement: RFC9494-4.3-1 positive -- through the daemon, 10.0.0.0/8 received with LLGR_STALE at LOCAL_PREF 200 from the neighbor whose OPEN from Ze carried the LLGR Capability is not best: the fresh copy at LOCAL_PREF 100 wins at the stale-level step.
+# RFC requirement: RFC9494-4.3-1 negative -- through the daemon, 10.1.0.0/16 received with LLGR_STALE at LOCAL_PREF 200 from the neighbor whose OPEN from Ze carried no LLGR Capability is best, decided at local-preference.
 
 stdin=llgr:terminator=EOF_LLGR
 option=tcp_connections:value=1

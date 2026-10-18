@@ -411,6 +411,30 @@
       "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9494-4.3-1",
+      "polarity": "positive",
+      "unit": "test/plugin/llgr-stale-received-depreferenced.ci",
+      "unit-sha": "59727078c0413ad7",
+      "claim-sha": "f7f3335d230ce342",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
+      "producer-sha": "f6cfa0fa7fd66260",
+      "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=stderr:contains=OK: llgr received 10.0.0.0/8 best ::1 by stale-level"
+    },
+    {
+      "rid": "RFC9494-4.3-1",
+      "polarity": "negative",
+      "unit": "test/plugin/llgr-stale-received-depreferenced.ci",
+      "unit-sha": "59727078c0413ad7",
+      "claim-sha": "4817d51e5f553564",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
+      "producer-sha": "f6cfa0fa7fd66260",
+      "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=stderr:contains=OK: llgr received 10.1.0.0/16 best ::1 by local-preference"
+    },
+    {
       "rid": "RFC9494-4.3-3",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/gr/rfc9494_gr_egress_rails_test.go::TestLLGREgressFilter_GRStaleLevelOnePassesThrough",
