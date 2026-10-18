@@ -73,9 +73,10 @@ path before the script is written:
 - A path that does not exist. Use `remove` for a tracked deletion. A rename is
   a plain `rm` of the old path plus the new file: name the old path with
   `remove` and the new one with `file`, because `git mv` stages. Renaming a
-  spec this way is not a closure, and owes no review artifact, only when the
-  new spec is the one spec the commit adds whose text equals the old spec's text
-  at HEAD with every occurrence of the old stem replaced by the new stem. Any
+  spec this way is not a closure, and owes no review artifact, only when
+  exactly one spec the commit adds, absent at HEAD, has text equal to the old
+  spec's text at HEAD with every occurrence of the old stem replaced by the new
+  stem. The pairing is one to one; other specs the commit adds do not affect it. Any
   other edit in the same commit makes the removal a closure, so rename first
   and edit in a later commit (`renamedSpecs`, `docs/contributing/spec-workflow.md`).
 <!-- source: internal/le/commit/review.go -- renamedSpecs -->
