@@ -206,7 +206,10 @@ func rbacSSHOnlyExtra3(ctx context.Context, args []string) error {
 	if err == nil {
 		return errors.New("'clear interface counters' must be refused: it names no target")
 	}
-	if !strings.Contains(bare, "is not a whole command") || !strings.Contains(bare, "clear interface counters all") {
+	if !strings.Contains(bare, "is not a whole command") {
+		return fmt.Errorf("bare clear interface counters must be refused naming clear interface counters all: %s", bare)
+	}
+	if !strings.Contains(bare, "clear interface counters all") {
 		return fmt.Errorf("bare clear interface counters must be refused naming clear interface counters all: %s", bare)
 	}
 	fmt.Fprintln(os.Stderr, "OK: bare clear interface counters refused, names clear interface counters all")

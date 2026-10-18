@@ -8,10 +8,10 @@ package store
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/component/resolve/peeringdb"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -62,14 +62,16 @@ func clearPeeringDBClient(pdb *peeringdb.PeeringDB, input rpc.ResolverCacheClear
 		}
 		return pdb.ClearCache(), nil
 	case rpc.ResolverCacheDeleteEntry:
-		number, err := strconv.ParseUint(input.Key, 10, 32)
+		// The engine sends the decimal spelling, and asn.Parse is the one
+		// reader of an AS number in text, so asdot is taken here too.
+		number, err := asn.Parse(input.Key)
 		if err != nil {
-			return 0, fmt.Errorf("clear peeringdb cache: %q is not a decimal AS number: %w", input.Key, err)
+			return 0, fmt.Errorf("clear peeringdb cache: %w", err)
 		}
 		if pdb == nil {
 			return 0, nil
 		}
-		return pdb.ClearCachedASN(uint32(number)), nil
+		return pdb.ClearCachedASN(number), nil
 	}
 	return 0, unknownClearAction(input.Action)
 }

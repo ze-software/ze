@@ -136,7 +136,7 @@ func checkBFDLinkLocalOn(ctx context.Context, check *interoplab.CheckContext, sc
 
 	sessions := zeCommand(zeShowBFDSessions)
 	var ze zeBFDSession
-	last, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{
+	_, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 30 * time.Second, Interval: time.Second, Description: text.Reset().Str("ze BFD session up on ").Str(link).String(),
 	}, func(probeCtx context.Context) (string, error) {
 		return check.Lab.Query(probeCtx, "ze", sessions, queryEnvironment("ze", sessions))

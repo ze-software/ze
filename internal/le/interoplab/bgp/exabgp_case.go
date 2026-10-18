@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 )
 
 // readExaBGPCase reads a `.ci` fixture: the script each connection owes, the AS
@@ -143,11 +145,11 @@ func readExaBGPOption(line string, spec *exabgpCase) error {
 		return nil
 	}
 	if value, ok := strings.CutPrefix(option, "asn:"); ok {
-		parsed, err := strconv.ParseUint(value, 10, 32)
+		parsed, err := asn.Parse(value)
 		if err != nil {
-			return fmt.Errorf("option=asn: %q is not an AS number: %w", value, err)
+			return fmt.Errorf("option=asn: %w", err)
 		}
-		spec.asn = uint32(parsed)
+		spec.asn = parsed
 		spec.asnStated = true
 		return nil
 	}

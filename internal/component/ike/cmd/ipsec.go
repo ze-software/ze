@@ -48,7 +48,10 @@ func handleClearIPsecSAPeer(_ *pluginserver.CommandContext, validated command.Va
 	if len(validated.Tokens()) > 2 {
 		return &plugin.Response{Status: plugin.StatusError, Error: "clear vpn ipsec sa peer: unexpected words after the peer name; type clear vpn ipsec sa peer <name>"}, nil
 	}
-	if name == "" || len(name) > 255 {
+	if name == "" {
+		return &plugin.Response{Status: plugin.StatusError, Error: "clear vpn ipsec sa peer: name must be 1-255 characters"}, nil
+	}
+	if len(name) > 255 {
 		return &plugin.Response{Status: plugin.StatusError, Error: "clear vpn ipsec sa peer: name must be 1-255 characters"}, nil
 	}
 	if !engine.TerminatePeerSA(name) {

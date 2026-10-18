@@ -75,3 +75,18 @@ func TestClearResolverCache_Refusals(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: a PeeringDB delete-entry key is read by asn.Parse, so the asdot
+// spelling 3.10 removes the entry cached for AS 196618.
+// PREVENTS: a hand-written decimal parse that refuses an RFC 5396 spelling.
+func TestClearResolverCache_PeeringDBKeyASDot(t *testing.T) {
+	ctx := context.Background()
+	pdb := peeringdb.NewPeeringDB(fakePeeringDB(t, map[string]string{"196618": "AS-Y"}))
+	s := New(irr.NewIRR("127.0.0.1:1"), pdb, nil)
+
+	if _, err := pdb.LookupASSet(ctx, 196618); err != nil {
+		t.Fatalf("LookupASSet: %v", err)
+	}
+	mustClear(t, s, clearInput(rpc.ResolverCachePeeringDB, rpc.ResolverCacheDeleteEntry, "3.10"), 1)
+	mustClear(t, s, clearInput(rpc.ResolverCachePeeringDB, rpc.ResolverCacheDeleteEntry, "196618"), 0)
+}

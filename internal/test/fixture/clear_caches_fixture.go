@@ -51,7 +51,10 @@ func requireAnswer04(ctx context.Context, p *sdk.Plugin, command string, want ma
 		return nil, err
 	}
 	data, _ := value.(map[string]any)
-	if status != statusDone || data == nil {
+	if status != statusDone {
+		return nil, fmt.Errorf("%s: status=%s answer=%v", command, status, value)
+	}
+	if data == nil {
 		return nil, fmt.Errorf("%s: status=%s answer=%v", command, status, value)
 	}
 	for key, value := range want {

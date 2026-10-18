@@ -180,3 +180,27 @@ func TestLGLabInjectionPopulationAndOrder(t *testing.T) {
 		t.Fatalf("LG prefixes = %v", keys)
 	}
 }
+
+// TestExaBGPServerASNumbersReadASDot checks that the case's `option=asn:` and
+// the config's `peer-as` are read by asn.Parse: the asdot spelling 3.10 is AS
+// 196618 in both, where a hand-written decimal parse refuses it.
+func TestExaBGPServerASNumbersReadASDot(t *testing.T) {
+	dir := t.TempDir()
+	casePath := filepath.Join(dir, "case.ci")
+	if err := os.WriteFile(casePath, []byte("option=asn:3.10\n1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	spec, err := readExaBGPCase(casePath)
+	if err != nil || spec.asn != 196618 || !spec.asnStated {
+		t.Fatalf("option=asn:3.10 = ASN %d stated %v, error %v; want 196618 stated", spec.asn, spec.asnStated, err)
+	}
+
+	configPath := filepath.Join(dir, "case.conf")
+	if err := os.WriteFile(configPath, []byte("neighbor 127.0.0.1 {\n\tpeer-as 3.10;\n}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	peerAS, found, err := peerASFromExaBGPConfig(configPath)
+	if err != nil || !found || peerAS != 196618 {
+		t.Fatalf("peer-as 3.10 = %d found %v, error %v; want 196618 found", peerAS, found, err)
+	}
+}

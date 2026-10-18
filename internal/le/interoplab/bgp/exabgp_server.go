@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
@@ -655,11 +656,11 @@ func peerASFromExaBGPConfig(path string) (uint32, bool, error) {
 		if len(fields) < 2 || fields[0] != "peer-as" {
 			continue
 		}
-		parsed, parseErr := strconv.ParseUint(strings.TrimSuffix(fields[1], ";"), 10, 32)
+		parsed, parseErr := asn.Parse(strings.TrimSuffix(fields[1], ";"))
 		if parseErr != nil {
 			return 0, false, fmt.Errorf("peer-as in %s: %w", path, parseErr)
 		}
-		return uint32(parsed), true, nil
+		return parsed, true, nil
 	}
 	return 0, false, scanner.Err()
 }
