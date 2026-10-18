@@ -108,3 +108,31 @@ deliveries, the FSM entered-Established bit, the `notifyPeerClosed` split,
 the `fsm.md` edit) needs nothing from D1. The second half
 (`ReasonAdjRIBInInvalid`, `ReasonForbidsRetention`) waits on D1. The
 per-spec state file lists the code sites already read.
+
+## spec-config-yang-reference-types (2026-10-18)
+
+Landed in commit bccd1e7cf5 ("config/yang: check leafref, identityref and
+instance-identifier"). It implements the owner decision of 2026-10-18: the
+loader refusal (`ErrUncheckedType`, `loader_unchecked.go`) is deleted, and
+the loader and validator now check the three reference types.
+`ValidateCustomSections` runs the whole-tree require-instance walk
+(`Validator.ValidateReferences`). traffic-control `default-class` is a
+leafref, proved by `test/parse/yang-leafref-default-class.ci`. The commit
+holds 17 tagged RFC 7950 tests, each with a discrimination record.
+`test/weakened/3f5fcb0a.md` records the deleted refusal test. Scoped lint is
+clean. The yang, config and traffic package tests pass untagged, and the
+.ci passes.
+
+Still owed:
+- Independent `/ze-review` of the commit. The spec stays open.
+- Independent re-judge (`./le rfc audit-stamp ... mode rejudge`) of the STALE
+  verdicts RFC7950-9.1-1, 9.1-2, 7.6.5-1, 8.3.3-2 and 7.2.2-1. RFC7950-9.1-2's
+  audit record still says "unimplemented", which `./le rfc check` reports
+  until the re-judge is done. Then run `./le rfc index-update`.
+- Retiring `plan/spec-config-yang-type-{leafref,identityref,instance-identifier}.md`.
+  `./le commit create` counts each removal as a spec closure, allows one per
+  commit, and wants an independent-review artifact at
+  `tmp/review/config-yang-type-<name>-<sid>.md`.
+- The tagged unit run of `internal/component/config/yang/...` (`yang/cli`
+  needs the `ze_*` feature tags). It did not build while other sessions had
+  rib and vrrp edits in progress. Untagged, `yang` passes.
