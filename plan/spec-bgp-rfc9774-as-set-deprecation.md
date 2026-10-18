@@ -2,11 +2,11 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Handoff | - |
+| Handoff | verify |
 | Updated | 2026-10-18 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -42,6 +42,17 @@ of brief aggregation. Ze has no aggregation feature (research below), so those r
 
 Each is "which way". The spec is written under the recommended answer; the delta for
 the other answer is stated so the implementer does not have to guess.
+
+Answered 2026-10-18. Thomas, verbatim: "For the rest it looks good to me", accepting
+the recommendations put to him, with Q-4 answered (b) as recorded below.
+
+| Q | Owner answer (2026-10-18) |
+|---|---------------------------|
+| Q-1 | (a) no knob: the rule is applied unconditionally |
+| Q-2 | (a) treat-as-withdraw on every session, including AS4_PATH between two 4-octet speakers |
+| Q-3 | (a) the writer guard only |
+| Q-4 | (b) raw injection (`send bgp ... raw`) is exempt. This departs from the 2026-10-14 Q-3 (a) ruling that applied normalization to raw writes, because raw send is a test instrument |
+| Q-5 | the spec stays in `plan/` |
 
 | # | Question | Options | Recommendation | Delta if the other option is chosen |
 |---|----------|---------|----------------|-------------------------------------|
