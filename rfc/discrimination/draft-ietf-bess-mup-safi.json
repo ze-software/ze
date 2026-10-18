@@ -200,6 +200,17 @@
       "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_address_length_test.go::TestMUPT1STEndpointLengthIsTheOnlyFault",
+      "unit-sha": "45dd126b0960d2a4",
+      "claim-sha": "dc61878858917a39",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::addressBitsOctets",
+      "producer-sha": "d38946ba0649485c",
+      "break": "body of addressBitsOctets replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress",
@@ -216,6 +227,17 @@
       "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress",
       "unit-sha": "377456399d1fdb55",
       "claim-sha": "e517bdad5089d611",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
+      "producer-sha": "44c9f3c0a8663159",
+      "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_address_length_test.go::TestMUPT1STSourceLengthIsTheOnlyFault",
+      "unit-sha": "c1cea818d61f3fe1",
+      "claim-sha": "7eed98d040785bc2",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
       "producer-sha": "44c9f3c0a8663159",
