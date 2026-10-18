@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -63,6 +64,21 @@ func routingValue(ctx context.Context, plugin *sdk.Plugin, command string) (any,
 		return nil, fmt.Errorf("%s: expected done, got status=%s data=%v", command, status, value)
 	}
 	return value, nil
+}
+
+// routingRefused dispatches a bare clear prefix and requires the daemon to
+// refuse it with an answer that names the explicit all form. A clear that
+// stops before its selector must never reach the all-effect (ai/rules/cli.md).
+func routingRefused(ctx context.Context, plugin *sdk.Plugin, bare, whole string) error {
+	var value any
+	status, err := Dispatch(ctx, plugin, bare, &value)
+	if err == nil {
+		return fmt.Errorf("%s: expected a refusal naming %q, got status=%s data=%v", bare, whole, status, value)
+	}
+	if !strings.Contains(err.Error(), whole) {
+		return fmt.Errorf("%s: the refusal does not name %q: %w", bare, whole, err)
+	}
+	return nil
 }
 
 func routingRows(ctx context.Context, plugin *sdk.Plugin, command string, nullAsEmpty bool) ([]map[string]any, error) {
@@ -208,12 +224,15 @@ func isisShowScenario(ctx context.Context, plugin *sdk.Plugin) error {
 	if _, err := routingRows(ctx, plugin, "show isis spf-log", false); err != nil {
 		return err
 	}
-	for _, command := range []string{"clear isis adjacency", "clear isis counters"} {
+	if err := routingRefused(ctx, plugin, "clear isis adjacency", "clear isis adjacency all"); err != nil {
+		return err
+	}
+	for _, command := range []string{"clear isis adjacency all", "clear isis counters"} {
 		if _, err := routingValue(ctx, plugin, command); err != nil {
 			return err
 		}
 	}
-	fmt.Fprintln(os.Stderr, "OK: show isis neighbor/database[ detail]/route/interface/hostname/spf-log + clear isis adjacency/counters dispatched through the engine")
+	fmt.Fprintln(os.Stderr, "OK: show isis neighbor/database[ detail]/route/interface/hostname/spf-log + clear isis adjacency all/counters dispatched through the engine")
 	return nil
 }
 
@@ -729,7 +748,13 @@ func ospfShowScenario(ctx context.Context, plugin *sdk.Plugin) error {
 			return err
 		}
 	}
-	for _, command := range []string{"clear ospf process", "clear ospf neighbor", "clear ospf counters"} {
+	if err := routingRefused(ctx, plugin, "clear ospf neighbor", "clear ospf neighbor all"); err != nil {
+		return err
+	}
+	if err := routingRefused(ctx, plugin, "clear ospf process", "clear ospf process all"); err != nil {
+		return err
+	}
+	for _, command := range []string{"clear ospf process all", "clear ospf neighbor all", "clear ospf counters"} {
 		result, err := routingObject(ctx, plugin, command)
 		if err != nil {
 			return err
@@ -905,12 +930,15 @@ func vrrpShowScenario(ctx context.Context, plugin *sdk.Plugin) error {
 			return fmt.Errorf("%s: expected empty list with zero groups, got %#v", assertion.command, value)
 		}
 	}
-	cleared, err := vrrpShowPayload(ctx, plugin, "clear vrrp statistics", "cleared")
+	if err := routingRefused(ctx, plugin, "clear vrrp statistics", "clear vrrp statistics all"); err != nil {
+		return err
+	}
+	cleared, err := vrrpShowPayload(ctx, plugin, "clear vrrp statistics all", "cleared")
 	if err != nil {
 		return err
 	}
 	if cleared != float64(0) {
-		return fmt.Errorf("clear vrrp statistics: expected cleared 0, got %#v", cleared)
+		return fmt.Errorf("clear vrrp statistics all: expected cleared 0, got %#v", cleared)
 	}
 	fmt.Fprintln(os.Stderr, "OK: vrrp show/interface/statistics/clear all resolve through the daemon path")
 	return nil

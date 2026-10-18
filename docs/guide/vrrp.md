@@ -362,7 +362,7 @@ A few consequences of this mechanism are worth knowing:
 | `show vrrp` | Every group: state, priority, vrid, virtual addresses. |
 | `show vrrp interface name eth0` | Only the groups on one interface. |
 | `show vrrp statistics` | Per-group counters, including rejected packets and why. |
-| `clear vrrp statistics` | Resets those counters. |
+| `clear vrrp statistics all` | Resets every group's counters. `clear vrrp statistics` alone is refused. |
 
 State changes are logged as `vrrp: state change` with `from`, `to`, and a
 `reason`, so a failover leaves a record of what triggered it.

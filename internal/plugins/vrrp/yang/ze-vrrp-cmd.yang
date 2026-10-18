@@ -14,6 +14,9 @@ module ze-vrrp-cmd {
          together (ai/rules/plugin-self-containment.md). The wire methods these
          nodes bind are registered in cmd_show.go as plugin proxies.";
 
+    revision 2026-10-17 {
+        description "clear vrrp statistics alone is refused; clear vrrp statistics all zeroes every virtual router.";
+    }
     revision 2026-07-15 {
         description "Initial revision (spec-vrrp-5).";
     }
@@ -71,9 +74,16 @@ timers in microseconds (a VRRPv3 skew is sub-millisecond).";
 
             container statistics {
                 config false;
-                ze:command "ze-vrrp:clear-statistics";
-                description "Protocol state is untouched: clearing counters never triggers a failover.";
-                ze:help "Reset every VRRP virtual router's counters to zero.";
+                description "clear vrrp statistics alone is refused: say all to zero every virtual
+router's counters. Everything is never the default.";
+                ze:help "Reset VRRP counters: all.";
+
+                container all {
+                    config false;
+                    ze:command "ze-vrrp:clear-statistics";
+                    description "Protocol state is untouched: clearing counters never triggers a failover.";
+                    ze:help "Reset every VRRP virtual router's counters to zero.";
+                }
             }
         }
     }

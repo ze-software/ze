@@ -41,7 +41,7 @@ const (
 	cmdShowVRRP           = "show vrrp"
 	cmdShowVRRPInterface  = "show vrrp interface"
 	cmdShowVRRPStatistics = "show vrrp statistics"
-	cmdClearVRRPStats     = "clear vrrp statistics"
+	cmdClearVRRPStats     = "clear vrrp statistics all"
 )
 
 // Wire methods, kebab-case per ai/patterns/cli-command.md.

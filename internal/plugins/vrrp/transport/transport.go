@@ -125,7 +125,7 @@ type AdvertParams struct {
 }
 
 // CounterSnapshot is a per-instance read-back for spec-vrrp-5 `show vrrp
-// statistics` / `clear vrrp statistics` (Finding 7). Prio-0 sent/received counters
+// statistics` / `clear vrrp statistics all` (Finding 7). Prio-0 sent/received counters
 // are ENGINE-owned (D-F): the transport never parses payloads.
 type CounterSnapshot struct {
 	AdvertsSent       uint64
@@ -475,7 +475,8 @@ func (t *Transport) CounterSnapshot(key InstanceKey) (CounterSnapshot, bool) {
 	return inst.counters.snapshot(), true
 }
 
-// ResetCounters zeroes one instance's snapshot counters (clear vrrp statistics).
+// ResetCounters zeroes one instance's snapshot counters; `clear vrrp statistics
+// all` calls it for every instance.
 // The Prometheus series are monotonic and left untouched.
 func (t *Transport) ResetCounters(key InstanceKey) {
 	inst := t.lookup(key)

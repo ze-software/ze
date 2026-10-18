@@ -28,8 +28,8 @@
 #   {"vrrp-statistics": [...]}. Every wire method (ze-vrrp:show-vrrp,
 #   ze-vrrp:show-interface, ze-vrrp:show-statistics) is registered on the daemon
 #   and the proxy FORWARDS rather than re-dispatching (no recursion).
-#   AC-9 -- `clear vrrp statistics` -> {"cleared": N} reports how many instances
-#   it cleared.
+#   AC-9 -- `clear vrrp statistics all` -> {"cleared": N} reports how many instances
+#   it cleared; the bare `clear vrrp statistics` is refused naming the all form.
 # With zero groups configured the engine is idle, so every list payload is EMPTY
 # and `cleared` is 0 -- which also exercises AC-6's "show vrrp reports zero
 # instances" clause through the real dispatch path (not just the config surface

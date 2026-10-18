@@ -1,7 +1,7 @@
 // Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- per-instance counter snapshot (Finding 7)
 //
 // instanceCounters mirrors every Prometheus increment into an atomic snapshot so
-// spec-vrrp-5 can serve `show vrrp statistics` / `clear vrrp statistics` per
+// spec-vrrp-5 can serve `show vrrp statistics` / `clear vrrp statistics all` per
 // instance without resetting the monotonic ze_vrrp_* series. The metrics pointer
 // is read through the transport's atomic.Pointer so a SetMetrics swap after
 // OpenInstance is picked up. Tested by metrics_test.go (TestCounterSnapshotAndReset).

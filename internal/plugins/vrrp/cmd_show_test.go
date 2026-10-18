@@ -170,7 +170,7 @@ func TestShowInterfaceFiltersToOneParent(t *testing.T) {
 	}
 }
 
-// TestClearStatisticsPreservesState proves `clear vrrp statistics` zeroes
+// TestClearStatisticsPreservesState proves `clear vrrp statistics all` zeroes
 // counters without perturbing the protocol: an operator clearing counters must
 // never trigger a failover.
 func TestClearStatisticsPreservesState(t *testing.T) {
