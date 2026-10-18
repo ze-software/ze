@@ -1,0 +1,21 @@
+# Test: ze config validate rejects an out-of-range L2TP max-retransmit
+# VALIDATES: RFC 2661 Section 5.8 -- YANG range 1..255 is enforced; 0, which
+#            would clear a tunnel on its first unanswered message, is rejected.
+stdin=config:terminator=EOF_CONF
+l2tp {
+	enabled true
+	max-retransmit 0
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=max-retransmit

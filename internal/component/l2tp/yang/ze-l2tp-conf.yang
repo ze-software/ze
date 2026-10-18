@@ -98,8 +98,21 @@ module ze-l2tp-conf {
                 is hello-retries x hello-interval, measured from the last proof of peer liveness. That proof is a
                 delivered control message, or an acknowledgement of one of our messages, including a ZLB ACK of a
                 HELLO. A value of 0 disables dead-peer detection, and reliable-transport retransmit exhaustion,
-                about 31s, is then the only teardown signal. The default is 2.";
+                about 31s with the default max-retransmit, is then the only teardown signal. The default is 2.";
             ze:help "Unanswered HELLO intervals tolerated before the peer is declared dead.";
+        }
+
+        leaf max-retransmit {
+            type uint8 {
+                range "1..255";
+            }
+            default 5;
+            description "Retransmissions of an unacknowledged control message before the tunnel and all its sessions are
+                cleared, as RFC 2661 Section 5.8 requires. The first retransmission waits 1s and each later one doubles
+                the wait up to 16s, so each retransmission above the default 5 adds 16s to the time a silent tunnel
+                takes to clear. The value applies to tunnels created after it is set; a reload leaves established
+                tunnels on the count they started with.";
+            ze:help "Retransmissions of an unacknowledged control message before the tunnel is cleared.";
         }
 
         leaf cqm-enabled {

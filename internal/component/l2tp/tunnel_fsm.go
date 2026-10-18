@@ -29,6 +29,10 @@ type TunnelDefaults struct {
 	FramingCapabilities uint32
 	BearerCapabilities  uint32
 	RecvWindow          uint16
+	// MaxRetransmit is the retransmission budget of each new tunnel's
+	// reliable-delivery engine, from the `l2tp max-retransmit` leaf. Zero
+	// means DefaultMaxRetransmit (newReliableEngine applies it).
+	MaxRetransmit int
 	// SharedSecret is the CHAP-MD5 tunnel authentication secret (RFC 2661
 	// S5.1.1). Empty disables our end of authentication; when a peer sends a
 	// Challenge AVP while SharedSecret is empty, we reject the tunnel with

@@ -132,6 +132,21 @@ func (s *Subsystem) cqmEchoInterval() time.Duration {
 	return d
 }
 
+// tunnelDefaults is the per-tunnel configuration every reactor starts with,
+// built from the parsed Parameters. HostName is left empty: the reactor
+// applies the "ze" default until a YANG leaf for the operator's hostname
+// exists.
+func (s *Subsystem) tunnelDefaults() TunnelDefaults {
+	return TunnelDefaults{
+		FramingCapabilities: 0x00000003, // sync + async per RFC 2661 S4.4.3
+		BearerCapabilities:  0,
+		RecvWindow:          16,
+		// RFC 2661 Section 5.8
+		MaxRetransmit: int(s.params.MaxRetransmit),
+		SharedSecret:  s.params.SharedSecret,
+	}
+}
+
 // Start implements ze.Subsystem. It is a no-op when Enabled=false or when
 // no listener addresses are configured. Phase 3 logs the intent; phase 2
 // of the tunnel work wires the actual UDP listener.
@@ -243,14 +258,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 			EnableIPv6CP:     s.params.EnableIPv6CP,
 			NCPTimeout:       s.params.NCPTimeout,
 			CQMEchoInterval:  s.cqmEchoInterval(),
-			Defaults: TunnelDefaults{
-				// HostName left empty; reactor applies "ze" default.
-				// Phase 7 will wire a YANG leaf for operator-controlled hostname.
-				FramingCapabilities: 0x00000003, // sync + async per RFC 2661 S4.4.3
-				BearerCapabilities:  0,
-				RecvWindow:          16,
-				SharedSecret:        s.params.SharedSecret,
-			},
+			Defaults:         s.tunnelDefaults(),
 		})
 		// spec-l2tp-7 Phase 6: install the subsystem's route observer
 		// into every reactor so EventSessionIPAssigned and

@@ -148,6 +148,17 @@ func (s *Subsystem) Reload(_ context.Context, cfg ze.ConfigProvider) error {
 		applied++
 	}
 
+	// Hot-apply: max-retransmit (new tunnels only).
+	if prev.MaxRetransmit != next.MaxRetransmit {
+		s.params.MaxRetransmit = next.MaxRetransmit
+		for _, r := range s.reactors {
+			r.setMaxRetransmit(int(next.MaxRetransmit))
+		}
+		s.logger.Info("l2tp reload: max-retransmit updated (applies to new tunnels only)",
+			"previous", prev.MaxRetransmit, "new", next.MaxRetransmit)
+		applied++
+	}
+
 	// Hot-apply: max-tunnels.
 	if prev.MaxTunnels != next.MaxTunnels {
 		s.params.MaxTunnels = next.MaxTunnels
@@ -279,6 +290,7 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 		Enabled:        true,
 		HelloInterval:  time.Duration(DefaultHelloSecs) * time.Second,
 		HelloRetries:   DefaultHelloRetries,
+		MaxRetransmit:  DefaultMaxRetransmit,
 		MaxTunnels:     DefaultMaxTunnels,
 		MaxSessions:    DefaultMaxSessions,
 		AuthMethod:     DefaultAuthMethod,
@@ -310,6 +322,13 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 			return Parameters{}, fmt.Errorf("hello-retries: %w", perr)
 		}
 		p.HelloRetries = uint8(n)
+	}
+	if v, ok := l2tpRoot["max-retransmit"].(string); ok {
+		n, perr := strconv.ParseUint(v, 10, 8)
+		if perr != nil {
+			return Parameters{}, fmt.Errorf("max-retransmit: %w", perr)
+		}
+		p.MaxRetransmit = uint8(n)
 	}
 	if v, ok := l2tpRoot["max-tunnels"].(string); ok {
 		n, perr := strconv.ParseUint(v, 10, 16)

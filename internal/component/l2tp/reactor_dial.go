@@ -234,7 +234,7 @@ func (r *l2tpReactor) handleDial(req dialRequest) {
 	}
 
 	t := newTunnel(localTID, 0, req.target.Remote,
-		ReliableConfig{RecvWindow: r.params.Defaults.RecvWindow}, r.logger, now)
+		r.reliableConfig(), r.logger, now)
 	t.maxSessions = r.params.MaxSessions
 	t.initiatorSecret = req.target.SharedSecret
 	t.pendingCall = req.call

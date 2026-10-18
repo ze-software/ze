@@ -907,7 +907,7 @@ func (r *l2tpReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader,
 			"from", from.String(), "error", err.Error())
 		return nil, teardowns, downs
 	}
-	t := newTunnel(localTID, sccrq.AssignedTunnelID, from, ReliableConfig{RecvWindow: r.params.Defaults.RecvWindow}, r.logger, r.params.Clock())
+	t := newTunnel(localTID, sccrq.AssignedTunnelID, from, r.reliableConfig(), r.logger, r.params.Clock())
 	t.maxSessions = r.params.MaxSessions
 	r.tunnelsByLocalID[localTID] = t
 	r.tunnelsByPeer[key] = t

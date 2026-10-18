@@ -106,6 +106,26 @@ func TestConfig_HelloRetries(t *testing.T) {
 	})
 }
 
+// TestConfig_MaxRetransmit verifies the reliable-transport retransmit budget
+// leaf: it defaults to DefaultMaxRetransmit (5, the RFC 2661 Section 5.8
+// recommendation) when unset and parses an explicit value.
+//
+// VALIDATES: RFC 2661 Section 5.8, the retransmit count is configurable.
+func TestConfig_MaxRetransmit(t *testing.T) {
+	t.Run("default when unset", func(t *testing.T) {
+		tree := loadTree(t, "l2tp {\n\tenabled true\n}")
+		p, err := l2tp.ExtractParameters(tree)
+		require.NoError(t, err)
+		assert.Equal(t, uint8(l2tp.DefaultMaxRetransmit), p.MaxRetransmit)
+	})
+	t.Run("explicit value", func(t *testing.T) {
+		tree := loadTree(t, "l2tp {\n\tenabled true\n\tmax-retransmit 9\n}")
+		p, err := l2tp.ExtractParameters(tree)
+		require.NoError(t, err)
+		assert.Equal(t, uint8(9), p.MaxRetransmit)
+	})
+}
+
 // TestConfig_DefaultAuthRequiresCHAP verifies that enabling L2TP defaults to
 // a real PPP Auth-Protocol and does not allow no-auth fallback unless the
 // operator opts in.

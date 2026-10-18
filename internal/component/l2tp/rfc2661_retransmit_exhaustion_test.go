@@ -74,3 +74,62 @@ func TestRFC2661RetransmitExhaustionClearsTunnel(t *testing.T) {
 	require.Equal(t, 0, sessions, "session survived the retransmit exhaustion")
 	waitForLog(t, logs, "StopCCN sent; tunnel closed")
 }
+
+// RFC requirement: RFC2661-5.8-8 positive -- with max-retransmit set to 2, a
+// tunnel created after the setting clears on the tick that exhausts two
+// retransmissions of its unanswered HELLO, three fewer than the default 5.
+// RFC requirement: RFC2661-5.8-8 negative -- before those two retransmissions
+// run out the tunnel stays established, so the budget is the configured value
+// and not a fixed one.
+//
+// VALIDATES: the configured retransmit count reaches each new tunnel's
+// reliable-delivery engine.
+// PREVENTS: a max-retransmit leaf that parses but leaves every tunnel on the
+// built-in default of 5.
+//
+// TestRFC2661ConfiguredMaxRetransmitClearsTunnel sets the reactor's tunnel
+// default before the tunnel exists, disables dead-peer detection so the
+// retransmit budget is the only teardown trigger, then ticks the reactor once
+// past each retransmission deadline.
+func TestRFC2661ConfiguredMaxRetransmitClearsTunnel(t *testing.T) {
+	const maxRetransmit = 2
+
+	clk := newTestClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	spy := &recordingRouteObserver{}
+	ln, r, logs, stop := buildLogReactorWithClockObserver(t, clk, 60*time.Second, "", spy)
+	defer stop()
+	r.setHelloRetries(0)
+	r.setMaxRetransmit(maxRetransmit)
+
+	client, localTID := driveToEstablished(t, ln, "")
+	defer client.Close()
+	waitForLog(t, logs, "tunnel now established")
+
+	r.tunnelsMu.Lock()
+	tunnel := r.tunnelsByLocalID[localTID]
+	tunnel.lastActivity = clk.now().Add(-70 * time.Second)
+	r.tunnelsMu.Unlock()
+
+	tunnelState := func() L2TPTunnelState {
+		r.tunnelsMu.Lock()
+		defer r.tunnelsMu.Unlock()
+		return tunnel.state
+	}
+
+	// The first tick sends the HELLO; the peer never acknowledges it.
+	clk.add(65 * time.Second)
+	r.handleTick(tickReq{tunnelID: localTID})
+
+	retransmitTimeout := DefaultRTimeout
+	for attempt := range maxRetransmit {
+		clk.add(retransmitTimeout + time.Second)
+		retransmitTimeout = min(retransmitTimeout*2, DefaultRTimeoutCap)
+		r.handleTick(tickReq{tunnelID: localTID})
+		require.Equal(t, L2TPTunnelEstablished, tunnelState(), "tunnel cleared at retransmission %d, before the configured budget ran out", attempt+1)
+	}
+
+	clk.add(retransmitTimeout + time.Second)
+	r.handleTick(tickReq{tunnelID: localTID})
+	require.Equal(t, L2TPTunnelClosed, tunnelState(), "tunnel not cleared after the configured retransmit budget of %d ran out", maxRetransmit)
+	waitForLog(t, logs, "StopCCN sent; tunnel closed")
+}

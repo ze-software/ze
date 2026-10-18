@@ -51,6 +51,30 @@ func (r *l2tpReactor) setHelloRetries(n uint8) {
 	r.tunnelsMu.Unlock()
 }
 
+// setMaxRetransmit updates the retransmission budget a new tunnel's
+// reliable-delivery engine starts with. Established tunnels keep the
+// budget they were created with. Read under tunnelsMu by the two tunnel
+// constructors (locateTunnelLocked, handleDial).
+func (r *l2tpReactor) setMaxRetransmit(n int) {
+	r.tunnelsMu.Lock()
+	r.params.Defaults.MaxRetransmit = n
+	r.tunnelsMu.Unlock()
+}
+
+// RFC 2661 Section 5.8: "If no peer response is detected after several
+// retransmissions, (a recommended default is 5, but SHOULD be
+// configurable), the tunnel and all sessions within MUST be cleared."
+//
+// reliableConfig is the reliable-delivery configuration of a tunnel the
+// reactor creates now, carrying the operator's retransmit budget. Caller
+// MUST hold tunnelsMu.
+func (r *l2tpReactor) reliableConfig() ReliableConfig {
+	return ReliableConfig{
+		MaxRetransmit: r.params.Defaults.MaxRetransmit,
+		RecvWindow:    r.params.Defaults.RecvWindow,
+	}
+}
+
 // setMaxTunnels updates the per-reactor tunnel admission cap. Affects
 // the next SCCRQ admission check; existing tunnels are untouched.
 func (r *l2tpReactor) setMaxTunnels(n uint16) {

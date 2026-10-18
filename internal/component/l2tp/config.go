@@ -130,6 +130,11 @@ type Parameters struct {
 	// our outstanding messages, including a ZLB ACK of a HELLO). Zero
 	// disables dead-peer detection. See spec-l2tp-dead-peer-detection.
 	HelloRetries uint8
+	// MaxRetransmit is the number of retransmissions of an unacknowledged
+	// control message before the tunnel and all its sessions are cleared
+	// (RFC 2661 Section 5.8, `l2tp max-retransmit`). New tunnels read it;
+	// established ones keep the value they started with.
+	MaxRetransmit uint8
 	// SharedSecret is the CHAP-MD5 tunnel authentication secret (RFC 2661
 	// S5.1.1). Empty means peers that include a Challenge AVP in SCCRQ will
 	// be rejected with StopCCN Result Code 4 (Not Authorized).
@@ -202,6 +207,7 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 		Enabled:        true, // presence of l2tp{} implies enabled
 		HelloInterval:  time.Duration(DefaultHelloSecs) * time.Second,
 		HelloRetries:   DefaultHelloRetries,
+		MaxRetransmit:  DefaultMaxRetransmit,
 		MaxTunnels:     DefaultMaxTunnels,
 		MaxSessions:    DefaultMaxSessions,
 		AuthMethod:     DefaultAuthMethod,
@@ -264,6 +270,14 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 			return Parameters{}, fmt.Errorf("l2tp hello-retries: %w", err)
 		}
 		p.HelloRetries = uint8(n)
+	}
+
+	if v, ok := l2tpRoot.Get("max-retransmit"); ok {
+		n, err := strconv.ParseUint(v, 10, 8)
+		if err != nil {
+			return Parameters{}, fmt.Errorf("l2tp max-retransmit: %w", err)
+		}
+		p.MaxRetransmit = uint8(n)
 	}
 
 	if v, ok := l2tpRoot.Get("shared-secret"); ok {

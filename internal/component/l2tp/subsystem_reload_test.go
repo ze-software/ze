@@ -124,6 +124,38 @@ func TestReloadAppliesHelloRetries(t *testing.T) {
 	require.Equal(t, uint8(3), s.params.HelloRetries)
 }
 
+// VALIDATES: RFC 2661 Section 5.8 -- max-retransmit (the retransmit budget
+// before a tunnel is cleared) is hot-applied on reload, and the reactor's
+// tunnel defaults, which every new tunnel's reliable engine reads, carry it.
+func TestReloadAppliesMaxRetransmit(t *testing.T) {
+	s := newStartedSubsystem(t, Parameters{
+		Enabled:       true,
+		HelloInterval: 60 * time.Second,
+		MaxRetransmit: DefaultMaxRetransmit,
+		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("0.0.0.0:1701")},
+	})
+	ln := newUDPListener(netip.MustParseAddrPort("127.0.0.1:0"), slog.Default())
+	r := newL2TPReactor(ln, slog.Default(), reactorParams{Defaults: s.tunnelDefaults()})
+	s.reactors = []*l2tpReactor{r}
+	cfg := &fakeConfigProvider{trees: map[string]map[string]any{
+		"l2tp": {
+			"hello-interval": "60",
+			"max-retransmit": "8",
+		},
+		"environment": {
+			"l2tp": map[string]any{
+				"server": map[string]any{
+					"default": map[string]any{"ip": "0.0.0.0", "port": "1701"},
+				},
+			},
+		},
+	}}
+	require.NoError(t, s.Reload(context.Background(), cfg))
+	require.Equal(t, uint8(8), s.params.MaxRetransmit)
+	require.Equal(t, 8, r.params.Defaults.MaxRetransmit)
+	require.Equal(t, 8, s.tunnelDefaults().MaxRetransmit)
+}
+
 // VALIDATES: AC-3 -- max-tunnels and max-sessions hot-apply.
 func TestReloadAppliesLimits(t *testing.T) {
 	s := newStartedSubsystem(t, Parameters{
@@ -201,6 +233,7 @@ func TestReloadNoOpOnIdentical(t *testing.T) {
 		Enabled:       true,
 		HelloInterval: 60 * time.Second,
 		HelloRetries:  DefaultHelloRetries,
+		MaxRetransmit: DefaultMaxRetransmit,
 		SharedSecret:  "same",
 		MaxTunnels:    10,
 		MaxSessions:   20,
