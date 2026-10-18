@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-08",
+  "audited": "2026-10-18",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC3209-3-1": {
@@ -162,28 +162,25 @@
       "verdict": "enforced"
     },
     "RFC3209-4.6.1-1": {
-      "note": "Rejudged 2026-10-08 after the tagged units shifted byte-identical; re-read against rfc/full/rfc3209.txt and the current producers. Section 4.6.1.1 diagram: the field before Tunnel ID is \"MUST be zero\". TestRFC3209SessionReservedZeroOverDirtyBuffer encodes over a 0xFF-prefilled buffer and asserts buf[8:10] zero, so encodeSessionIPv4 skipping its buf[8]=0, buf[9]=0 goes red. TestRSVPSessionObjectEncoding encodes into a zeroed buffer and alone would not discriminate the write; the dirty-buffer test carries the verdict.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after c85342c940). Section 4.6.1.1 LSP_TUNNEL_IPv4 Session Object diagram: the 16 bits before Tunnel ID are \"MUST be zero\". TestRSVPSessionObjectEncoding changed only by the deleted RFC3209-4.6.1-2 tag line; its body is identical and still encodes into a zeroed buffer, so alone it would not discriminate a skipped write. TestRFC3209SessionReservedZeroOverDirtyBuffer carries the verdict: it prefills 0xFF and asserts buf[8:10] zero, the header 0,16,1,7, the endpoint and Tunnel ID, so encodeSessionIPv4 (internal/plugins/rsvpte/wire.go) dropping buf[8]=0, buf[9]=0 goes red. Single polarity as annotated: no decoder reads the field.",
       "requirement_sha": "93388d6496d487d1",
       "tests": {
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC3209SessionReservedZeroOverDirtyBuffer": "8cea1a3ca4572fd1",
-        "internal/plugins/rsvpte/wire_test.go::TestRSVPSessionObjectEncoding": "c1c346406058c0f1"
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPSessionObjectEncoding": "9e0ed20ca4d343e6"
       },
       "units": {
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC3209SessionReservedZeroOverDirtyBuffer": "04175a5064f207a7",
-        "internal/plugins/rsvpte/wire_test.go::TestRSVPSessionObjectEncoding": "2407b2fdac03b64d"
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPSessionObjectEncoding": "6167ee0065dd028f"
       },
       "verdict": "enforced"
     },
     "RFC3209-4.6.1-2": {
-      "note": "Rejudged 2026-10-08 after the tagged units shifted byte-identical; re-read against rfc/full/rfc3209.txt and the current producers. The row is the LSP_TUNNEL_IPv6 SESSION (Section 4.6.1.2, C-Type 8) reserved field. TestRSVPSessionObjectEncoding encodes only the IPv4 SESSION via encodeSessionIPv4 (C-Type 7) and proves RFC3209-4.6.1-1. Ze has no IPv6 SESSION encoder, so the tag claims a row its test cannot observe.",
+      "code": {
+        "internal/plugins/rsvpte/wire.go::encodeSessionIPv4": "edb3462d79a52c63"
+      },
+      "note": "Re-judged 2026-10-18 (independent auditor, after c85342c940). Section 4.6.1.2 LSP_TUNNEL_IPv6 Session Object, C_Type = 8: the 16 bits before Tunnel ID are \"MUST be zero\". The row is now {gap} and no test tags it: the wrong tag on TestRSVPSessionObjectEncoding, which proved only the IPv4 object, was moved off by owner ruling. The gap is real: internal/plugins/rsvpte/wire.go defines CTypeLSPTunnelIPv6 = 8 but no non-test code uses it, and encodeSessionIPv4 is the only SESSION encoder, so Ze emits no IPv6 SESSION object whose reserved field could be zero or not. Scheduled in plan/spec-rsvpte-ipv6-lsp-tunnel.md. Recording this gap authorizes no implementation.",
       "requirement_sha": "ac65c0a91789a9c3",
-      "tests": {
-        "internal/plugins/rsvpte/wire_test.go::TestRSVPSessionObjectEncoding": "c1c346406058c0f1"
-      },
-      "units": {
-        "internal/plugins/rsvpte/wire_test.go::TestRSVPSessionObjectEncoding": "2407b2fdac03b64d"
-      },
-      "verdict": "wrong"
+      "verdict": "unimplemented"
     },
     "RFC3209-4.6.2-1": {
       "note": "Rejudged 2026-10-08 after the tagged units shifted byte-identical; re-read against rfc/full/rfc3209.txt and the current producers. Section 4.6.2.1 diagram: the field before LSP ID is \"MUST be zero\". TestRSVPSenderTemplateReservedZeroOnSend prefills 0xAA, asserts buf[8],buf[9]==0 and the whole 12-octet object, and that nothing past it was written, so an encodeSenderTemplate that skips or corrupts the reserved write goes red. Single polarity: the decoder does not read the field.",

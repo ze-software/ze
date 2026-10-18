@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-14",
+  "audited": "2026-10-18",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -981,16 +981,15 @@
       "verdict": "enforced"
     },
     "RFC9830-4.2.1-2": {
-      "code": {},
-      "note": "Re-judged 2026-10-14 (independent auditor). RFC 9830 Section 4.2.1: 'The SR Policy NLRI MUST include a distinguisher, Color, and Endpoint field that implies that the length of the NLRI MUST be either 12 or 24 octets'. The tags now sit on reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts, which drives received UPDATEs through processMessage on an Established session with and without ADD-PATH. Positive: 12 octets under AFI 1 and 24 under AFI 2 are accepted with no write and dispatched byte-identical (srRequireKept). Negative: 13 and 24 octets under AFI 1, 12 and 25 under AFI 2, and a 13-octet NLRI beside a good one are treat-as-withdraw: session Established, nothing written, the received body never dispatched (srRequireWithdrawn). Producer: srpolicy/split.go srPolicySyntaxRule/judgeSRPolicySection with nlriBitsIPv4/IPv6. A receiver that accepted any byte-aligned length (the earlier weak finding) goes red on the negative. The NLRI that lacks only the IPv6 endpoint's tail (12 octets under AFI 2) is the missing-field case.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after e5724325c1). Section 4.2.1: \"The SR Policy NLRI MUST include a distinguisher, Color, and Endpoint field that implies that the length of the NLRI MUST be either 12 or 24 octets (depending on the address family of the Endpoint).\" TestRFC9830NLRILengthReceiveVerdicts changed only in its MP_UNREACH-alone block, which bears the RFC9830-5-2 and RFC7606-5.2-1 claims, not this row's. The two RFC9830-4.2.1-2 blocks are identical: positive, 12 octets under AFI 1 and 24 under AFI 2 accepted through processMessage with nothing written and dispatched byte-identical (srRequireKept); negative, 13 and 24 octets under AFI 1, 12 and 25 under AFI 2, a 13-octet NLRI beside a good one and in MP_UNREACH beside reachable NLRI are treat-as-withdraw with the session Established and the received body never dispatched (srRequireWithdrawn). Producer: srpolicy/split.go judgeSRPolicySection; a receiver accepting any byte-aligned length reddens the negative, and 12 octets under AFI 2 is the missing-field case.",
       "requirement_sha": "6c8518fcdfb5abb9",
       "tests": {
-        "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "8c78e6e4c280da80",
-        "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts#2": "8c78e6e4c280da80"
+        "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "5189635b831d2fc2",
+        "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts#2": "5189635b831d2fc2"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "e35a6b064fb4e240",
-        "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts#2": "e35a6b064fb4e240"
+        "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "917a41bcd9145c5f",
+        "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts#2": "917a41bcd9145c5f"
       },
       "verdict": "enforced"
     },

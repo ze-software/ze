@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-15",
+  "audited": "2026-10-18",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -87,21 +87,20 @@
       "verdict": "enforced"
     },
     "RFC4301-4.1-9": {
-      "note": "Re-judged 2026-10-01 under owner ruling 5: judged on the positive. TestRFC4301ParallelSAsWithOneSelectorAreEachReceived installs two Child SAs on one selector pair through createFirstChildSA over real XFRM in a rootless netns (re-exec child) and sends an in-selector packet on SA1, SA2, then SA1 again, asserting each is delivered; a per-SA template/reqid mismatch or shared replay state that dropped the sibling's packets goes red. No receive-side injection of prejudiced processing exists, so the negatives (TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy, which proves the 4.4.1-10 post-decryption SPD check, and the dataplane SAD boundary units, which prove the 4.1-5 permission) stay supplementary per the BFD 6.1-3 precedent. All four units hold observed-red revert records.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after c85342c940). Section 4.1: \"The receiver MUST process the packets from the different SAs without prejudice.\" The two dataplane SAD boundary units changed only by the deleted RFC4301-4.4.2.1-3 tag lines; their bodies are identical, and the engine units are byte-identical. Judged on the positive under owner ruling 5: TestRFC4301ParallelSAsWithOneSelectorAreEachReceived installs two Child SAs on one selector pair through createFirstChildSA over real XFRM in a rootless netns and delivers an in-selector packet on SA1, SA2, then SA1 again; a per-SA template or reqid mismatch, or shared replay state that dropped the sibling's packets, goes red. The builder positive asserts two SAD entries with distinct SPIs 0x1000 and 0x2000 from xfrmStateFromParams. The negatives (TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy, which proves the 4.4.1-10 post-decryption SPD check, and the SAD refusal unit, which proves an unbuildable SA installs nothing) stay supplementary: no receive-side input can inject prejudiced processing.",
       "requirement_sha": "9155c82e5e69deae",
       "tests": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "dac292180c08600d",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong": "dac292180c08600d",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "69d0d6fedadb8664",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong": "69d0d6fedadb8664",
         "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy": "4c7d6435e335e97b",
         "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsWithOneSelectorAreEachReceived": "4c7d6435e335e97b"
       },
       "units": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "d612e7e84bd68e76",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong": "071b186b3f6afa42",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "500e0e082e266fac",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong": "7526337720204893",
         "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy": "f17abddffa400d24",
         "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsWithOneSelectorAreEachReceived": "fe81deb1bdb10c45"
       },
-      "upgrade_reason": "No unit changed; the earlier weak verdict rested only on the absence of a genuine negative, which owner ruling 5 (2026-09-30) resolved: this row is judged on its positive. Re-read the positive at its body: it drives real XFRM delivery on both parallel SAs, interleaved.",
       "verdict": "enforced"
     },
     "RFC4301-4.2-1": {
@@ -354,17 +353,13 @@
       "verdict": "enforced"
     },
     "RFC4301-4.4.2.1-3": {
-      "note": "the sentence concerns byte-count LIFETIME counters at the two ends getting out of synch (4.4.2.1 lifetime item (a)); the units assert the anti-replay window, a different mechanism Re-judged 2026-09-30 (pass 2): the two SAD boundary units changed only by the deleted RFC4301-4.1-8 tag lines (the 4.1-8 retirement was reversed by ruling R24: Ze has manual OSPFv3 multicast SAs, row restored as RFC4301-4.1-12 on the OSPF path); bodies identical, verdict unchanged. Re-judged 2026-09-30 (pass 3): the tagged units changed only by tag lines (RFC4301-4.4-1 and 4.4.2.1-1 lines deleted from the dataplane boundary units, RFC4301-5.2-2 lines added to the engine sad_selector units); bodies identical, verdict unchanged. Re-judged 2026-09-30 (pass 4): the HEAD tags are kept as they were (ruling R26) and an RFC4301-4.4.2.1-6 tag was added beside them on the positive unit; bodies identical. Still wrong: both units assert the anti-replay window, not lifetime counters out of synch; blocked by spec-ipsec-lifetime-volume AC-7, whose implementation replaces the proof.",
+      "code": {
+        "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "82c928a10be6b083",
+        "internal/component/ike/engine/rekey.go::newLifetimeState": "ec8a5aaeb7223f1e"
+      },
+      "note": "Re-judged 2026-10-18 (independent auditor, after c85342c940). Section 4.4.2.1 lifetime item (a): \"If byte count is used, then the implementation SHOULD count the number of bytes ... Note that implementations MUST be able to handle having the counters at the ends of an SA get out of synch\". The row is now {gap} and no test tags it: the two SAD boundary tags, which asserted the anti-replay window and were recorded wrong, were moved off by owner ruling. The gap is real: newLifetimeState (internal/component/ike/engine/rekey.go) sets softTime and hardTime only, lifetimeState.softBytes and byteCount are never written by non-test code, and xfrmStateFromParams installs no byte limit, so Ze keeps no byte-count lifetime whose counters could fall out of synch. The obligation is conditional on byte-count lifetimes, whose absence is the RFC4301-4.4.2.1-2 gap; scheduled in plan/spec-ipsec-lifetime-volume.md. Recording this gap authorizes no implementation.",
       "requirement_sha": "c34a4dddcbd80efb",
-      "tests": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "dac292180c08600d",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong": "dac292180c08600d"
-      },
-      "units": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "d612e7e84bd68e76",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong": "071b186b3f6afa42"
-      },
-      "verdict": "wrong"
+      "verdict": "unimplemented"
     },
     "RFC4301-4.4.2.1-4": {
       "code": {},
@@ -390,14 +385,14 @@
       "verdict": "enforced"
     },
     "RFC4301-4.4.2.1-6": {
-      "note": "Single-polarity positive (justified: every window is installed as given, zero included, nothing to refuse). Windows 32 and 64 read back from the SAD entry. Builder-level; zero is not asserted. Re-judged 2026-09-30 (pass 4): TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp added as a second positive (window 64 read back from the built SAD entry); record: revert xfrmStateFromParams, observed red. Verdict unchanged.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after c85342c940). Section 4.4.2.1: \"Anti-Replay Window: a 64-bit counter and a bit-map (or equivalent) used to determine whether an inbound AH or ESP packet is a replay.\" TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp changed only by the deleted RFC4301-4.4.2.1-3 tag line; body identical, it asserts ReplayWindow == 64 on the entry xfrmStateFromParams builds (internal/component/ike/dataplane/xfrm_linux.go sets state.ReplayWindow from p.ReplayWin). TestRFC4301SADItemAntiReplayWindowIsInstalled reads windows 32 and 64 back. Builder-level, zero not asserted; the kernel performs the replay check on the window Ze installs. Single polarity as annotated: every window is installed as given.",
       "requirement_sha": "c3a0d2406dfe86ff",
       "tests": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "dac292180c08600d",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "69d0d6fedadb8664",
         "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemAntiReplayWindowIsInstalled": "9705c65b7b397cd1"
       },
       "units": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "d612e7e84bd68e76",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "500e0e082e266fac",
         "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemAntiReplayWindowIsInstalled": "9ea45688870c590a"
       },
       "verdict": "enforced"

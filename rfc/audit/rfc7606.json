@@ -462,7 +462,7 @@
       "verdict": "enforced"
     },
     "RFC7606-5.2-1": {
-      "note": "Re-judged 2026-10-18 (independent auditor, after 99ed958ec5). Section 5.2: \"Thus, if an UPDATE message is encountered that does contain path attributes other than MP_UNREACH_NLRI and doesn't encode any reachable NLRI, we cannot be confident that the NLRI have been successfully parsed as Section 3 (j) requires.\" ValidateUpdateRFC7606AddPath now escalates only when hasAttrOtherThanMPUnreach is set, and keeps escalating an abandoned walk because it cannot know the rest of the section. New TestRFC7606Section52MPUnreachOnlyNotEscalated: positive, MP_UNREACH_NLRI alone with a walkable malformed SR Policy NLRI stays TreatAsWithdraw with MPUnreachNLRI locatable (red if the new condition is dropped); negatives, the same attribute beside a malformed ORIGIN and beside a valid ORIGIN both reset with a Section 5.2 description, and the valid-ORIGIN case isolates the population clause because its only error is the NLRI (red if the condition is inverted or always false). The earlier units still cover reachable legacy and MP NLRI, discard-only errors, empty MP_REACH, abandoned walks and the reactor NOTIFICATION 3/1 path. Not re-proven at the reactor for the MP_UNREACH-alone shape: TestRFC9830NLRILengthReceiveVerdicts still asserts the old escalation and awaits owner approval (RFC9830 row, not this one).",
+      "note": "Re-judged 2026-10-18 (independent auditor, after e5724325c1). Section 5.2: \"Thus, if an UPDATE message is encountered that does contain path attributes other than MP_UNREACH_NLRI and doesn't encode any reachable NLRI, we cannot be confident that the NLRI have been successfully parsed as Section 3 (j) requires.\" The seam the previous verdict named is closed: TestRFC9830NLRILengthReceiveVerdicts now carries an RFC7606-5.2-1 negative tag and drives both shapes through processMessage on an Established session, with and without ADD-PATH. MP_UNREACH_NLRI alone with a walkable 13-octet SR Policy NLRI is treat-as-withdraw (session Established, nothing written, nothing dispatched), and the same NLRI beside ORIGIN, AS_PATH and LOCAL_PREF with no reachable NLRI resets with exactly NOTIFICATION 3/1 and dispatches nothing. The only error in the second body is the NLRI, so it isolates the population clause: dropping hasAttrOtherThanMPUnreach from the escalation in ValidateUpdateRFC7606AddPath reddens the alone shape, and an always-false condition reddens the reset shape. The message-level units (TestRFC7606Section52MPUnreachOnlyNotEscalated, TestRFC7606NoNLRIEscalation, TestRFC7606NoNLRIAttributeDiscardNoEscalation, TestRFC7606EmptyMPReachEscalatesToReset, the systematic length corruption and the reactor abandoned-walk and NLRI-present units) are unchanged and still cover reachable legacy and MP NLRI, discard-only errors, empty MP_REACH and abandoned walks.",
       "requirement_sha": "eebc85d439ba43a8",
       "tests": {
         "internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606EmptyMPReachEscalatesToReset": "757239f190198c52",
@@ -475,7 +475,8 @@
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption#2": "0aa8e78db18e49c6",
         "internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go::TestRFC7606AttributeEnvelopeSession": "7f12ec998cbec524",
         "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52EscalatesWhenTheAttributeWalkIsAbandoned": "f7788746939ead18",
-        "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52LeavesAnUpdateWithNLRIAlone": "f7788746939ead18"
+        "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52LeavesAnUpdateWithNLRIAlone": "f7788746939ead18",
+        "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "5189635b831d2fc2"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606EmptyMPReachEscalatesToReset": "42e31253be69f149",
@@ -488,7 +489,8 @@
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption#2": "07b9d95ed1e789a5",
         "internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go::TestRFC7606AttributeEnvelopeSession": "008145acee126508",
         "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52EscalatesWhenTheAttributeWalkIsAbandoned": "3af9ff5f8e051dbf",
-        "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52LeavesAnUpdateWithNLRIAlone": "0e1529d7d8a7be8d"
+        "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52LeavesAnUpdateWithNLRIAlone": "0e1529d7d8a7be8d",
+        "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "917a41bcd9145c5f"
       },
       "verdict": "enforced"
     },

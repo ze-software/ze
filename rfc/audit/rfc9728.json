@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-18",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -38,7 +38,7 @@
       "verdict": "enforced"
     },
     "RFC9728-3-2": {
-      "note": "Path clause: TestRFC9728WellKnownInsertedBetweenHostAndPath. Query clause now proven by TestRFC9728WellKnownInsertedBeforeQuery: + https://mcp.example/mcp?tenant=a at /.well-known/oauth-protected-resource/mcp?tenant=a and query-only https://mcp.example?tenant=a at /.well-known/oauth-protected-resource?tenant=a, advertised by resourceMetadataURL, resource equal to the identifier; - query dropped, suffix after path, bare suffix, suffix after query each serve no document. Still weak: resourceOriginAndPath TrimRights the path's trailing slash, so https://mcp.example/mcp/ is published at .../oauth-protected-resource/mcp, not at the URL formed from the identifier, and no tagged assertion covers that input. Blocked by spec-mcp-protected-resource-metadata-path AC-5 (same defect as RFC9728-3.1-3).",
+      "note": "Re-judged 2026-10-18 (independent auditor, after d8e084c3eb). Section 3: \"Protected resources supporting metadata MUST make a JSON document containing metadata as specified in Section 2 available at a URL formed by inserting a well-known URI string into the protected resource's resource identifier between the host component and the path and/or query components, if any.\" Path clause: TestRFC9728WellKnownInsertedBetweenHostAndPath serves the document through ServeHTTP at /.well-known/oauth-protected-resource/mcp with resource https://mcp.example/mcp, advertises the same URL, and answers 404 at the suffix after the path and at the bare suffix. Query clause: TestRFC9728WellKnownInsertedBeforeQuery covers /mcp?tenant=a and the query-only identifier, and refuses the dropped query, suffix after path, bare suffix and suffix after query. The weak finding rested on the producer defect for https://mcp.example/mcp/, fixed in resourceOriginAndPath; that input is pinned at resourceMetadataURL and resourceMetadataPath by the RFC9728-3.1-3 units, not by this row's own units.",
       "requirement_sha": "c9c94b41f41cee12",
       "tests": {
         "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBeforeQuery": "70cb12fbb65e4490",
@@ -52,20 +52,21 @@
         "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath": "a1cc6fa1f8a9ab2d",
         "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath#2": "a1cc6fa1f8a9ab2d"
       },
-      "verdict": "weak"
+      "upgrade_reason": "No tagged unit of this row changed. The earlier weak verdict rested on resourceOriginAndPath trimming the path's own trailing slash, a producer defect for one input that d8e084c3eb fixed (only a lone \"/\" path is dropped now). Re-read both tagged units at their bodies: they serve and refuse through ServeHTTP for the path, query and query-only identifiers, so a construction that appended, dropped or misplaced the suffix goes red. The trailing-slash input that this row's units do not carry is asserted, URL and served path, by TestRFC9728TerminatingSlashRemovedBeforeInsertion under RFC9728-3.1-3.",
+      "verdict": "enforced"
     },
     "RFC9728-3.1-3": {
-      "note": "The sentence removes only the terminating slash following the host component when the identifier has a path or query. TestRFC9728TerminatingSlashRemovedBeforeInsertion asserts https://mcp.example/mcp/ maps to .../oauth-protected-resource/mcp and its negative forbids any trailing slash: that is the path's own slash, which the RFC keeps (the path is inserted unchanged). The test pins resourceOriginAndPath's strings.TrimRight(u.EscapedPath(), \"/\"), which conflates /mcp/ and /mcp. The query case (e.g. https://mcp.example/?x=1) is not asserted.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after d8e084c3eb). Section 3.1: \"If the resource identifier value contains a path or query component, any terminating slash (/) following the host component MUST be removed before inserting /.well-known/ and the well-known URI path suffix between the host component and the path and/or query components.\" The earlier wrong finding is fixed at the producer: resourceOriginAndPath (streamable_auth.go) no longer TrimRights the path; it drops only a path of \"/\" standing alone after the host, the slash that both follows the host and terminates the identifier's path. Read that way, RFC 8414 Section 3.1's broader \"any terminating /\" is narrowed by RFC 9728's \"following the host component\"; the reading was approved by the owner on 2026-10-18 and agrees with the Section 3.1 example. TestRFC9728TerminatingSlashRemovedBeforeInsertion: positive, https://mcp.example/ maps to .../oauth-protected-resource and https://mcp.example/?x=1 to .../oauth-protected-resource?x=1; negative, https://mcp.example/mcp/ keeps its own slash at .../oauth-protected-resource/mcp/. Each case also asserts resourceMetadataPath, the value streamable.go stores as metadataPath and ServeHTTP matches against r.URL.RequestURI(), and that no URL carries //.well-known. Restoring TrimRight reddens the /mcp/ case; losing the lone-slash removal reddens both positives.",
       "requirement_sha": "368fd46bb4b53f52",
       "tests": {
-        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion": "9f4549a3bab58953",
-        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion#2": "9f4549a3bab58953"
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion": "70cb12fbb65e4490",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion#2": "70cb12fbb65e4490"
       },
       "units": {
-        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion": "431d42d80c2e2f99",
-        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion#2": "431d42d80c2e2f99"
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion": "c62c9edfa3546627",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion#2": "c62c9edfa3546627"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC9728-3.2-3": {
       "note": "Forbidden: a success status other than 200, a content type other than application/json, a body that is not a JSON object, a member outside Section 2. Red: TestRFC9728ResponseShape fails on w.Code != 200, on Content-Type != application/json, on json.Unmarshal into a map (arrays/scalars refused), and on any member absent from rfc9728Section2Members.",
