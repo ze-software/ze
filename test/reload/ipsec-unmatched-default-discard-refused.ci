@@ -44,6 +44,8 @@ await=stderr:contains=reload error:then=stop
 expect=stderr:contains=this commit turns on the SPD catch-all DISCARD without saying so
 expect=stderr:contains=`vpn ipsec unmatched` is not set and its default is discard (RFC 4301 Section 4.4.1)
 expect=stderr:contains=the 0 `vpn ipsec policy` bypass entries stay open
+expect=stderr:contains=its ICMP (ping, traceroute, `show mtu` probes
+expect=stderr:contains=`set vpn ipsec policy icmp4 protocol 1`
 expect=stderr:contains=`set vpn ipsec unmatched bypass` to keep passing that traffic
 reject=stderr:contains=sighup reload complete
 reject=stderr:pattern=panic

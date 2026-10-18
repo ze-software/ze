@@ -3,8 +3,10 @@
 // With the leaf absent the final entry is the DISCARD RFC 4301 Section 4.4.1 asks
 // for ("Every SPD SHOULD have a nominal, final entry that matches anything that is
 // otherwise unmatched, and discards it."); with `unmatched bypass` it is a BYPASS.
-// PREVENTS: the default silently changing in either direction, and a written
-// disposition installing anything but what was written.
+// The default's entry is also checked to match anything: wildcard prefixes, any
+// protocol, any port.
+// PREVENTS: the default silently changing in either direction, a written disposition
+// installing anything but what was written, and a default entry narrower than "anything".
 
 package engine
 
@@ -62,11 +64,23 @@ func TestRFC4301FinalSPDEntryFollowsTheUnmatchedLeaf(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC4301-4.4.1-3 positive -- with the `unmatched` leaf absent, the entry Ze installs last in every direction and family of the SPD discards.
+// RFC requirement: RFC4301-4.4.1-3 positive -- with the `unmatched` leaf absent, the entry Ze installs last in every direction and family of the SPD matches anything (wildcard source and destination, any protocol, any port) and discards.
 func TestRFC4301DefaultFinalSPDEntryDiscards(t *testing.T) {
 	for _, p := range finalEntriesFor(t, "") {
 		if p.Action != dataplane.SPActionDiscard {
 			t.Errorf("default dir %d: final entry action %d, want discard (%d)", p.Dir, p.Action, dataplane.SPActionDiscard)
+		}
+		if ones, _ := p.Src.Mask.Size(); ones != 0 {
+			t.Errorf("default dir %d: source %s is not the wildcard, so the entry does not match anything", p.Dir, p.Src)
+		}
+		if ones, _ := p.Dst.Mask.Size(); ones != 0 {
+			t.Errorf("default dir %d: destination %s is not the wildcard, so the entry does not match anything", p.Dir, p.Dst)
+		}
+		if p.UpperProto != 0 {
+			t.Errorf("default dir %d: protocol %d, want 0 (any), so the entry does not match anything", p.Dir, p.UpperProto)
+		}
+		if !p.SrcPort.IsAny() || !p.DstPort.IsAny() {
+			t.Errorf("default dir %d: a port selector is set, so the entry does not match anything", p.Dir)
 		}
 	}
 }

@@ -9,7 +9,8 @@
 // SPD-I and bypassed or discarded as the entry it matches says (step 3b); and an ESP packet
 // is processed with the SA its SPI selected, so one failing that SA's integrity check is
 // discarded (step 4). The catch-all's handling of a packet no SPD-I entry matches follows
-// the `vpn ipsec unmatched` leaf, which is the RFC4301-4.4.1-3 deviation.
+// the `vpn ipsec unmatched` leaf, and with the leaf absent it discards, the final entry
+// RFC 4301 Section 4.4.1 asks for (RFC4301-4.4.1-3).
 // PREVENTS: an inbound SA or SPD-I entry Ze installs that the kernel does not apply, so an
 // ESP packet with an unknown SPI, a forged ESP packet, or a packet the operator discards
 // reaches a local socket.
@@ -287,9 +288,9 @@ func TestRFC4301InboundClearPacketIsDiscardedByTheSPDIEntryItMatches(t *testing.
 // sentence "If there is no match, discard the traffic." to the `vpn ipsec unmatched` leaf.
 // It carries no RFC requirement tag: RFC4301-5.2-9 is a {gap} for the paths that install
 // no catch-all at all (VPP, before the first apply). Method: a clear datagram to local
-// port 7109, which no operator entry names; with `unmatched discard`, the default, it
-// must be counted as XfrmInPolBlock and never delivered, and with `unmatched bypass` it
-// is delivered.
+// port 7109, which no operator entry names; with `unmatched discard` written it must be
+// counted as XfrmInPolBlock and never delivered, and with `unmatched bypass` it is
+// delivered. The leaf-absent case is TestRFC4301InboundClearPacketIsDiscardedByTheDefaultFinalEntry.
 func TestRFC4301InboundClearPacketMatchingNoEntryFollowsTheUnmatchedLeaf(t *testing.T) {
 	if !sadSelOwnNamespace(t) {
 		return
@@ -314,5 +315,33 @@ func TestRFC4301InboundClearPacketMatchingNoEntryFollowsTheUnmatchedLeaf(t *test
 	inStepSendClear(t, inStepStrayPort)
 	if !sadSelDelivered(t, stray) {
 		t.Fatal("with unmatched bypass, a clear datagram no SPD-I entry names was not delivered")
+	}
+}
+
+// TestRFC4301InboundClearPacketIsDiscardedByTheDefaultFinalEntry proves, on a real Linux
+// XFRM stack, that the final SPD entry Ze installs when the operator writes no
+// `unmatched` leaf discards what nothing else matches. Method: a `vpn ipsec` block with
+// no `unmatched` leaf goes through ParseIPsecConfig, and its disposition is installed by
+// installUnmatched beside the operator entries of inStepSPDI; a clear UDP datagram to
+// local port 7109, which no operator entry names, must be counted as XfrmInPolBlock and
+// never delivered.
+func TestRFC4301InboundClearPacketIsDiscardedByTheDefaultFinalEntry(t *testing.T) {
+	// RFC requirement: RFC4301-4.4.1-3 negative -- with the `unmatched` leaf absent, a clear
+	// datagram no other SPD-I entry matches is not delivered: the final entry Ze installs
+	// discards it (XfrmInPolBlock rises by one).
+	if !sadSelOwnNamespace(t) {
+		return
+	}
+	inStepNetns(t)
+	inStepSPDI(t, implicitDiscardConfig(t, "", 0).Unmatched)
+	stray := sadSelListen(t, sadSelInnerLocal, inStepStrayPort)
+
+	blocked := sadSelStat(t, inStepStatPolBlock)
+	inStepSendClear(t, inStepStrayPort)
+	if sadSelDelivered(t, stray) {
+		t.Fatal("with the unmatched leaf absent, a clear datagram no SPD-I entry names was delivered")
+	}
+	if got := sadSelStat(t, inStepStatPolBlock) - blocked; got != 1 {
+		t.Fatalf("with the unmatched leaf absent, %s rose by %d, want 1", inStepStatPolBlock, got)
 	}
 }

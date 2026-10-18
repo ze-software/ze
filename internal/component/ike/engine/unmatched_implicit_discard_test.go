@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 )
 
@@ -73,6 +74,10 @@ func TestImplicitDiscardRefusedAtCommit(t *testing.T) {
 		"`vpn ipsec unmatched` is not set",
 		"RFC 4301 Section 4.4.1",
 		"BGP, SSH, DNS and NTP",
+		"its ICMP (ping, traceroute, `show mtu` probes",
+		"its IPv6 neighbor discovery",
+		"`set vpn ipsec policy icmp4 protocol 1`",
+		"`icmp6` entry with protocol 58 and prefix ::/0",
 		"UDP 500 and 4500",
 		"the 2 `vpn ipsec policy` bypass entries",
 		"set vpn ipsec unmatched discard",
@@ -80,6 +85,98 @@ func TestImplicitDiscardRefusedAtCommit(t *testing.T) {
 	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal does not say %q: %v", want, err)
+		}
+	}
+}
+
+// TestImplicitDiscardReadsWhatTheLastApplyInstalled covers the input the commit check
+// takes from the running engine: discardInForce, which applyConfig stores after the
+// catch-all is installed and OnConfigVerify reads. Method: an engine over a backend
+// that holds the catch-all applies a configuration, then a leaf-unset configuration
+// goes through refuseImplicitDiscard with the engine's discardInForce, as
+// OnConfigVerify passes it. After a discard apply it is accepted, because the box
+// already discards; after a bypass apply, and on an engine that applied nothing, it is
+// refused. A store that never runs, or one that records the wrong disposition, turns
+// one of the three red.
+func TestImplicitDiscardReadsWhatTheLastApplyInstalled(t *testing.T) {
+	loadFailClosedBackend(t, &catchAllDP{})
+	unset := implicitDiscardConfig(t, "", 0)
+
+	fresh := applyTestState(t)
+	if err := refuseImplicitDiscard(unset, fresh.discardInForce.Load()); err == nil {
+		t.Fatal("no apply yet: a leaf-unset commit was accepted, want the refusal")
+	}
+
+	cases := []struct {
+		name    string
+		applied dataplane.SPAction
+		refused bool
+	}{
+		{"after a discard apply: accepted", dataplane.SPActionDiscard, false},
+		{"after a bypass apply: refused", dataplane.SPActionBypass, true},
+	}
+	for _, c := range cases {
+		state := applyTestState(t)
+		cfg := testIPsecConfig(applyTestPeer("127.0.0.1"))
+		cfg.Unmatched = c.applied
+		if err := state.applyConfig(cfg, applyReload); err != nil {
+			t.Fatalf("%s: apply: %v", c.name, err)
+		}
+		err := refuseImplicitDiscard(unset, state.discardInForce.Load())
+		if c.refused != (err != nil) {
+			t.Fatalf("%s: refused = %v (%v), want %v", c.name, err != nil, err, c.refused)
+		}
+	}
+}
+
+// TestImplicitDiscardICMPExampleIsAccepted proves the ICMP bypass the refusal and the
+// start log print (implicitDiscardICMPExample) is a configuration Ze accepts and
+// installs as written. Method: the icmp4 and icmp6 entries, with the leaf values the
+// example names, go through ParseIPsecConfig and ValidateSPDPolicies; each must parse
+// as a bypass of its protocol over the wildcard of its family at order 3000.
+func TestImplicitDiscardICMPExampleIsAccepted(t *testing.T) {
+	tree := config.NewTree()
+	vpn := tree.GetOrCreateContainer("vpn").GetOrCreateContainer("ipsec")
+	vpn.Set("unmatched", "discard")
+	examples := []struct {
+		name     string
+		protocol string
+		number   uint8
+		prefix   string
+	}{
+		{"icmp4", "1", 1, "0.0.0.0/0"},
+		{"icmp6", "58", 58, "::/0"},
+	}
+	for _, e := range examples {
+		if !strings.Contains(implicitDiscardICMPExample, e.name) {
+			t.Fatalf("the printed example does not name the %s entry: %s", e.name, implicitDiscardICMPExample)
+		}
+		entry := config.NewTree()
+		entry.Set("action", "bypass")
+		entry.Set("protocol", e.protocol)
+		entry.Set("order", "3000")
+		entry.GetOrCreateContainer("local").Set("prefix", e.prefix)
+		entry.GetOrCreateContainer("remote").Set("prefix", e.prefix)
+		vpn.AddListEntry("policy", e.name, entry)
+	}
+	cfg, err := ipsec.ParseIPsecConfig(tree)
+	if err != nil {
+		t.Fatalf("ParseIPsecConfig: the printed ICMP example is refused: %v", err)
+	}
+	if err := cfg.ValidateSPDPolicies(); err != nil {
+		t.Fatalf("ValidateSPDPolicies: the printed ICMP example is refused: %v", err)
+	}
+	for _, e := range examples {
+		p, ok := cfg.Policies[e.name]
+		if !ok {
+			t.Fatalf("%s: not parsed", e.name)
+		}
+		if p.Action != dataplane.SPActionBypass || p.Order != 3000 || p.Protocol != e.number {
+			t.Errorf("%s: action %d order %d protocol %d, want bypass at 3000 of protocol %s",
+				e.name, p.Action, p.Order, p.Protocol, e.protocol)
+		}
+		if p.LocalPrefix.String() != e.prefix || p.RemotePrefix.String() != e.prefix {
+			t.Errorf("%s: prefixes %s and %s, want %s", e.name, p.LocalPrefix, p.RemotePrefix, e.prefix)
 		}
 	}
 }
@@ -123,6 +220,10 @@ func TestImplicitDiscardSaidAtStart(t *testing.T) {
 			"`vpn ipsec unmatched` is not set",
 			"RFC 4301 Section 4.4.1",
 			"BGP, SSH, DNS and NTP",
+			"its ICMP (ping, traceroute, `show mtu` probes",
+			"its IPv6 neighbor discovery",
+			"`set vpn ipsec policy icmp4 protocol 1`",
+			"`icmp6` entry with protocol 58 and prefix ::/0",
 			"set vpn ipsec unmatched discard",
 			"set vpn ipsec unmatched bypass",
 			"bypass-entries=1",

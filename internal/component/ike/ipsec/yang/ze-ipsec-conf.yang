@@ -112,8 +112,10 @@ module ze-ipsec-conf {
                              The default is discard, the entry RFC 4301 Section 4.4.1 asks
                              for: 'Every SPD SHOULD have a nominal, final entry that matches
                              anything that is otherwise unmatched, and discards it.' It also
-                             drops the router's own control plane (BGP, SSH, DNS, NTP) where
-                             that traffic crosses in the clear, so write a bypass entry under
+                             drops the router's own traffic where it crosses in the clear:
+                             BGP, SSH, DNS, NTP, ICMP (ping, traceroute, show mtu probes and
+                             path-MTU errors) and IPv6 neighbor discovery, which is ICMPv6
+                             (protocol 58). So write a bypass entry under
                              policy for every flow that must still cross in the clear, or set
                              bypass to pass all of it. A commit that would turn the discard
                              on while this leaf is unset is refused until the leaf is

@@ -30,7 +30,9 @@ cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=25s
 
 await=stderr:contains=the SPD catch-all DISCARD is in force because `vpn ipsec unmatched` is not set:then=stop
 expect=stderr:contains=its default is discard (RFC 4301 Section 4.4.1)
-expect=stderr:contains=including this router's own BGP, SSH, DNS and NTP traffic outside a tunnel
+expect=stderr:contains=including this router's own BGP, SSH, DNS and NTP traffic, its ICMP
+expect=stderr:contains=and its IPv6 neighbor discovery, outside a tunnel
+expect=stderr:contains=the same `icmp6` entry with protocol 58 and prefix ::/0
 expect=stderr:contains=`set vpn ipsec unmatched bypass` to pass that traffic
 expect=stderr:contains=bypass-entries=0
 reject=stderr:pattern=panic

@@ -150,8 +150,8 @@ func verifyUnmatchedEnforceable(dp dataplane.Dataplane, action dataplane.SPActio
 //
 // RFC 4301 Section 4.4.1: "Every SPD SHOULD have a nominal, final entry that matches
 // anything that is otherwise unmatched, and discards it." So `unmatched` defaults to
-// discard, and that entry also drops the router's own control plane (BGP, SSH, DNS,
-// NTP) wherever it crosses in the clear. The flows Ze would have to exempt are spread
+// discard, and that entry also drops the router's own traffic wherever it crosses in
+// the clear (implicitDiscardCuts names it). The flows Ze would have to exempt are spread
 // over every component's configuration and the kernel's routes, so an automatic
 // exemption list would be incomplete, and what it missed would be cut with nobody
 // told. Instead a commit that would turn the discard on WITHOUT the operator writing
@@ -176,12 +176,33 @@ func refuseImplicitDiscard(cfg *ipsec.IPsecConfig, discardInForce bool) error {
 	return fmt.Errorf("this commit turns on the SPD catch-all DISCARD without saying so: "+
 		"`vpn ipsec unmatched` is not set and its default is discard (RFC 4301 Section 4.4.1). "+
 		"Once applied, every packet this router sends, receives or forwards that no SPD entry names is dropped, "+
-		"including its own BGP, SSH, DNS and NTP traffic outside a tunnel; "+
+		"including its "+implicitDiscardCuts+"; "+
 		"only IKE (UDP 500 and 4500), the negotiated tunnels and the %d `vpn ipsec policy` bypass entries stay open. "+
-		"Fix: add a `vpn ipsec policy <name>` bypass entry for each flow that must stay in the clear, "+
+		"Fix: add a `vpn ipsec policy <name>` bypass entry for each flow that must stay in the clear "+
+		"("+implicitDiscardICMPExample+"), "+
 		"then `set vpn ipsec unmatched discard` to confirm; "+
 		"or `set vpn ipsec unmatched bypass` to keep passing that traffic", countBypassEntries(cfg))
 }
+
+// implicitDiscardCuts names the router's own traffic the discard catch-all drops
+// where it crosses in the clear. It is one string because the commit refusal and the
+// start log say the same thing. ICMP is in it because `show mtu`, ping, traceroute
+// and the path-MTU errors that size every packet ride it. IPv6 neighbor discovery
+// is in it because the catch-all matches every protocol, ICMPv6 included, so an IPv6
+// neighbor is never resolved: an unprivileged netns probe with an any-protocol XFRM
+// block in and out showed the neighbor FAILED, and REACHABLE once protocol 58 was
+// bypassed.
+const implicitDiscardCuts = "own BGP, SSH, DNS and NTP traffic, its ICMP (ping, traceroute, " +
+	"`show mtu` probes and the path-MTU errors that size its packets) and its IPv6 neighbor discovery, " +
+	"outside a tunnel"
+
+// implicitDiscardICMPExample is the bypass that keeps ICMP and IPv6 neighbor
+// discovery working under the discard catch-all. Order 3000 ranks it after a
+// tunnel's default 2000, so ICMP a tunnel's selectors cover still takes the tunnel.
+const implicitDiscardICMPExample = "for ICMP: `set vpn ipsec policy icmp4 action bypass`, " +
+	"`set vpn ipsec policy icmp4 protocol 1`, `set vpn ipsec policy icmp4 order 3000`, " +
+	"`set vpn ipsec policy icmp4 local prefix 0.0.0.0/0`, `set vpn ipsec policy icmp4 remote prefix 0.0.0.0/0`, " +
+	"and the same `icmp6` entry with protocol 58 and prefix ::/0 for ICMPv6 and neighbor discovery"
 
 // warnImplicitDiscardAtStart is the start-time half of refuseImplicitDiscard. The
 // configuration the daemon starts with is never verified, so a box booting a file
@@ -200,8 +221,9 @@ func warnImplicitDiscardAtStart(cfg *ipsec.IPsecConfig, log *slog.Logger) {
 	}
 	log.Error("ike: the SPD catch-all DISCARD is in force because `vpn ipsec unmatched` is not set "+
 		"and its default is discard (RFC 4301 Section 4.4.1): every packet no SPD entry names is dropped, "+
-		"including this router's own BGP, SSH, DNS and NTP traffic outside a tunnel; "+
-		"fix: add a `vpn ipsec policy <name>` bypass entry for each flow that must stay in the clear, "+
+		"including this router's "+implicitDiscardCuts+"; "+
+		"fix: add a `vpn ipsec policy <name>` bypass entry for each flow that must stay in the clear "+
+		"("+implicitDiscardICMPExample+"), "+
 		"then `set vpn ipsec unmatched discard` to confirm, or `set vpn ipsec unmatched bypass` to pass that traffic",
 		"bypass-entries", countBypassEntries(cfg))
 }

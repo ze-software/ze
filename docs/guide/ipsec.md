@@ -878,17 +878,47 @@ SPD SHOULD have a nominal, final entry that matches anything that is otherwise
 unmatched, and discards it." Until 2026-10-18 the default was `bypass`; the
 owner reversed that ruling (R27) to follow the RFC.
 
-The catch-all also drops the router's own control plane wherever it crosses in
-the clear: BGP sessions, SSH and web logins, DNS, NTP. Only IKE (UDP 500 and
-4500, the control-plane bypass at order 100), the negotiated tunnels and your
-`policy` entries stay open. So write a `bypass` entry under `policy` for every
-flow that must still cross in the clear, for example a BGP neighbor:
+The catch-all also drops the router's own traffic wherever it crosses in
+the clear:
+
+- BGP sessions, SSH and web logins, DNS and NTP.
+- ICMP: ping, traceroute, the probes of `show mtu`, and the path-MTU errors
+  ("fragmentation needed", "packet too big") that tell the router to send
+  smaller packets.
+- IPv6 neighbor discovery. It is ICMPv6 (protocol 58), and the catch-all
+  matches every protocol, so with no bypass the router cannot resolve an IPv6
+  neighbor on a link and sends it nothing.
+
+Only IKE (UDP 500 and 4500, the control-plane bypass at order 100), the
+negotiated tunnels and your `policy` entries stay open. So write a `bypass`
+entry under `policy` for every flow that must still cross in the clear, for
+example a BGP neighbor:
 
 ```
 set vpn ipsec policy frr-bgp action bypass
 set vpn ipsec policy frr-bgp local prefix 172.28.0.2/32
 set vpn ipsec policy frr-bgp remote prefix 172.28.0.4/32
 ```
+
+and ICMP for both address families, which keeps ping, traceroute, `show mtu`,
+path-MTU errors and IPv6 neighbor discovery working:
+
+```
+set vpn ipsec policy icmp4 action bypass
+set vpn ipsec policy icmp4 protocol 1
+set vpn ipsec policy icmp4 order 3000
+set vpn ipsec policy icmp4 local prefix 0.0.0.0/0
+set vpn ipsec policy icmp4 remote prefix 0.0.0.0/0
+set vpn ipsec policy icmp6 action bypass
+set vpn ipsec policy icmp6 protocol 58
+set vpn ipsec policy icmp6 order 3000
+set vpn ipsec policy icmp6 local prefix ::/0
+set vpn ipsec policy icmp6 remote prefix ::/0
+```
+
+Order 3000 ranks these entries after a tunnel's default 2000, so ICMP that a
+tunnel's traffic selectors cover still goes through the tunnel. The refusal and
+the start-up log below print the same ICMP example.
 
 Or write `set vpn ipsec unmatched bypass` to pass all of that traffic.
 
@@ -937,7 +967,7 @@ applied:
 
 | Situation | `discard` | `bypass` |
 |---|---|---|
-| The dataplane cannot hold an entry bound to no interface: the VPP backend, a build off Linux, or a kernel without XFRM | Refused at commit, so these platforms need `set vpn ipsec unmatched bypass` | Accepted; no entry is installed, and the kernel passes the traffic |
+| The dataplane cannot hold an entry bound to no interface: the VPP backend, a build off Linux, or a kernel without XFRM | Refused at commit. A configuration the daemon starts with is not verified, so a start with `unmatched` unset (or `discard`) fails instead: installing the discard entry fails, and the configure step returns that error. Fix: `set vpn ipsec unmatched bypass` in the configuration file, then start again | Accepted; no entry is installed, and the kernel passes the traffic |
 | No dataplane loaded (the daemon logged that the load failed) | Refused at commit | Accepted; no entry is installed |
 | The install itself fails when the configuration is applied, which includes a daemon without `CAP_NET_ADMIN`: it can open the XFRM socket, so the commit check passes, and the kernel refuses the install | The apply fails with the error, and the configuration is not reported applied: a commit is refused, and at startup the configure step returns the error | Logged as a warning; the kernel passes the traffic |
 | Before the first configuration is applied, and after the engine stops | No entry exists, and the kernel passes the traffic in the clear | Same |
