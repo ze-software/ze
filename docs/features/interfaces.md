@@ -286,6 +286,17 @@ device appears, and a config is validated on machines that will never run it.
 - **Per-family addresses.** Addresses live inside `ipv4 { address [...]; }` and
   `ipv6 { address [...]; }` containers within each unit, following the Junos/Nokia model.
 - **DAD-aware.** IPv6 addresses with `IFA_F_TENTATIVE` flag are held until DAD completes.
+- **The config owns its addresses, not every address on the unit.** Every commit, VPP
+  connect and owned-address change reconciles each enabled unit: it adds the addresses
+  the config and the owned-address registry name, and removes the other addresses on the
+  unit, such as one an operator added by hand or one a dropped config line left behind.
+  Three kinds stay in place. An address with a finite valid lifetime stays: a DHCPv4 or
+  DHCPv6 lease, or a SLAAC address. Its client renews it and the kernel expires it. An IPv6
+  link-local address the replaced config did not name stays, because the kernel generates
+  one on every IPv6 link (RFC 4291 Section 2.1). A link-local the operator configured and
+  then dropped is removed. A DHCPv4 lease with an infinite lifetime is permanent in the
+  kernel, the same as a static address, so the reconcile removes it.
+<!-- source: internal/component/iface/config_apply.go -- reconcileOnReadyWithJournal, learnedAddrSet, addrLearned -->
 - **Make-before-break.** Migration adds new address, waits for BGP readiness, then removes old.
   Prevents session loss during address moves.
 - **Same-subnet renumbers keep working.** Because the new address is added first, a renumber

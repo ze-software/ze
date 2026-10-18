@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net/netip"
 	"slices"
 	"strings"
 	"sync"
@@ -157,6 +158,66 @@ func currentAddrSet(infos []InterfaceInfo) map[string]map[string]bool {
 		result[infos[i].Name] = m
 	}
 	return result
+}
+
+// learnedAddrSet names, per OS interface, the current addresses that the
+// "remove extra addresses" pass leaves in place although the desired state does
+// not name them, because the kernel or a protocol client installed them and not
+// a config:
+//
+//   - An address with a finite valid lifetime: a DHCPv4 or DHCPv6 lease
+//     (ReplaceAddressWithLifetime) or a SLAAC address. Its owner renews it and
+//     the kernel removes it when the lifetime runs out. A static address Ze
+//     installs from config is permanent, so it never matches.
+//   - An IPv6 link-local address that previousAddrs, the desired state of the
+//     config being replaced, does not name. The kernel generates one on every
+//     IPv6 link. One the operator configured and then dropped is in
+//     previousAddrs and is still removed.
+//
+// Every other current address the desired state does not name is removed, as
+// before: an address an operator added by hand, or one a previous run of Ze
+// installed from a config that no longer names it. A backend that reports no
+// lifetime (vpp) leaves only the link-local rule in force.
+func learnedAddrSet(infos []InterfaceInfo, previousAddrs map[string]map[string]bool) map[string]map[string]bool {
+	result := make(map[string]map[string]bool)
+	for i := range infos {
+		name := infos[i].Name
+		for j := range infos[i].Addresses {
+			a := &infos[i].Addresses[j]
+			var bCidr textbuf.Buffer
+			cidr := bCidr.Reset().Str(a.Address).Byte('/').Int(int64(a.PrefixLength)).String()
+			if !addrLearned(a, previousAddrs[name][cidr]) {
+				continue
+			}
+			if result[name] == nil {
+				result[name] = make(map[string]bool)
+			}
+			result[name][cidr] = true
+		}
+	}
+	return result
+}
+
+// addrLearned reports whether a is an address the kernel or a protocol client
+// installed: see learnedAddrSet. previouslyConfigured is true when the config
+// being replaced named a.
+func addrLearned(a *AddrInfo, previouslyConfigured bool) bool {
+	if a.ValidLifetime > 0 {
+		return true
+	}
+	ip, err := netip.ParseAddr(a.Address)
+	if err != nil {
+		// Not an address this pass can classify, so it is treated like any
+		// other unnamed address and removed, which is what the pass did
+		// before learned addresses were spared.
+		return false
+	}
+	// RFC 4291 Section 2.1: "All interfaces are required to have at least one
+	// Link-Local unicast address".
+	if ip.Is6() && ip.IsLinkLocalUnicast() {
+		return !previouslyConfigured
+	}
+	return false
 }
 
 // currentIfaceSet builds a set of OS interface names by type.
@@ -1515,6 +1576,14 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 
 	currentAddrs := currentAddrSet(currentInfos)
 
+	// The config being replaced names the link-local addresses Ze installed,
+	// so dropping one from config still removes it (learnedAddrSet).
+	var previousAddrs map[string]map[string]bool
+	if previous != nil {
+		previousAddrs, _, _ = previous.desiredState(previousDevices)
+	}
+	learnedAddrs := learnedAddrSet(currentInfos, previousAddrs)
+
 	// Owned-device pass (macvlan): create/re-assert/delete plugin-owned
 	// devices from the owned-device registry (device_owner.go) BEFORE the
 	// address loops, so a VIP registered on an owned device via the address
@@ -1545,11 +1614,16 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 		}
 	}
 
-	// Remove extra addresses on configured interfaces.
+	// Remove extra addresses on configured interfaces. An address the kernel
+	// or a protocol client installed (a DHCP lease, SLAAC, the kernel's IPv6
+	// link-local) is not the config's to remove: learnedAddrSet.
 	for osName, desired := range desiredAddrs {
 		current := currentAddrs[osName]
 		for addr := range current {
 			if desired[addr] {
+				continue
+			}
+			if learnedAddrs[osName][addr] {
 				continue
 			}
 			if err := applyBackendStep(journal, func() error {
