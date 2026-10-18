@@ -472,7 +472,7 @@
       "claim-sha": "f6c11fc5c79b191e",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_relay.go::buildRelayUpdate",
-      "producer-sha": "7717f237ae310ad3",
+      "producer-sha": "2685dfa6b65fe85a",
       "break": "body of buildRelayUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005702000000404001010040020A02020000FDE80000FDE9800E2C0002012020010DB8000000000000000000000001FE800000000000000000000000000001003020010DB80001"
     },
@@ -739,7 +739,7 @@
       "claim-sha": "916f34de09c7b622",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_relay.go::buildRelayUpdate",
-      "producer-sha": "7717f237ae310ad3",
+      "producer-sha": "2685dfa6b65fe85a",
       "break": "body of buildRelayUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005702000000404001010040020A02020000FDE80000FDE9800E2C0002012020010DB8000000000000000000000001FE800000000000000000000000000001003020010DB80001"
     },
