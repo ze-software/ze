@@ -180,6 +180,8 @@ var acceptOnlyExcludedParsePrefixes = []struct{ prefix, reason string }{
 	{"test/decode/", "decode dialect: expect=json:json={...} without conn=/seq=; hex-to-JSON value tests, never accept-only"},
 	{"test/exabgp-compat/encoding/", "legacy exabgp-compat dialect (option=file:<name>, N:raw:/N:json:) the generic parser cannot read; wire-value tests, never accept-only"},
 	{"test/exabgp-compat/api/", "the same legacy exabgp-compat dialect, ported with the 40 upstream API tests (8d98caf8fe); 39 pin UPDATE bytes with N:raw:/N:json: and the fortieth asserts a NOTIFICATION text, so none carries an exit code to be weak about"},
+	{"test/exabgp-compat/old-4.2/", "the same legacy exabgp-compat dialect, ExaBGP 4.2's qa/old cases (778d3912bf); every case pins the UPDATEs the peer must receive as N:raw: bytes or N:announce:/N:withdraw: prefixes, so none carries an exit code to be weak about"},
+	{"test/exabgp-compat/old-5.0/", "the same legacy exabgp-compat dialect, ExaBGP 5.0's qa/old cases (778d3912bf); every case pins the messages the peer must receive as N:raw: bytes, and one as an N:notification: text, so none carries an exit code to be weak about"},
 }
 
 // acceptOnlyExcludedParseFiles lists individual .ci files the generic parser
