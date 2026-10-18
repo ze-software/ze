@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-12",
+  "audited": "2026-10-18",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -216,11 +216,20 @@
     },
     "RFC5880-6.7.2-2": {
       "code": {
-        "internal/component/bfd/config.go::parseAuthConfig": "e70e674e90c67142"
+        "internal/component/bfd/config.go::parseAuthConfig": "f88561afff3025ec",
+        "internal/component/bfd/config.go::parseAuthSecret": "871a0a69ed6b9b80"
       },
-      "note": "Recorded 2026-10-11 from independent review round 1, ISSUE 1. Confirmed at the producer: parseAuthConfig reads the secret leaf with stringField and stores []byte(secret) for every Auth Type, Simple Password included (config.go); the YANG leaf secret is type string with no hex form, so a binary Simple Password cannot be configured. The ASCII half of the sentence is met by the same string leaf; the hexadecimal SHOULD is the gap. The {gap} annotation is accurate; disclosed in Support remaining.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 97686ea267). RFC 5880 Section 6.7.2: \"For interoperability, the management interface by which the password is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form.\" The YANG choice secret|secret-hex (ze-bfd-conf.yang, pattern ([0-9a-fA-F][0-9a-fA-F])+, length 2..40) and parseAuthSecret (hex.DecodeString) provide the hexadecimal form; the ASCII half stays on the secret leaf and is proven under RFC5880-6.7.2-1. Positive: TestRFC5880KeyManagementConfigEntryAcceptsHexBinaryStrings drives simple-password config text through ParseTreeWithYANG, parseSections and resolveProfile and requires Secret to equal 0x00, 0xFF and a 16-byte key holding 0x00/0x80/0xFF, in lower and upper case. Negative: TestRFC5880KeyManagementConfigEntryKeepsEveryBinaryByte sweeps every byte 0x00-0xFF in 16-byte chunks and requires each byte back unchanged. An overlay mutation replacing hex.DecodeString(written) with []byte(written) turned both tagged tests red, so the tests discriminate the decoding logic and not only reach (the recorded revert-route panic breaks prove reach only). The decoded bytes become SessionRequest.Auth.Secret, which buildAuthPair (engine/engine.go) assigns unchanged to auth.Settings.Secret for NewSigner and NewVerifier; no test drives a secret-hex key to wire bytes, but the seam is a plain assignment. ",
       "requirement_sha": "45be4b9793cfc582",
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/component/bfd/rfc5880_key_management_hex_test.go::TestRFC5880KeyManagementConfigEntryAcceptsHexBinaryStrings": "a5f2771aa9cfe596",
+        "internal/component/bfd/rfc5880_key_management_hex_test.go::TestRFC5880KeyManagementConfigEntryKeepsEveryBinaryByte": "a5f2771aa9cfe596"
+      },
+      "units": {
+        "internal/component/bfd/rfc5880_key_management_hex_test.go::TestRFC5880KeyManagementConfigEntryAcceptsHexBinaryStrings": "37af7e3515496483",
+        "internal/component/bfd/rfc5880_key_management_hex_test.go::TestRFC5880KeyManagementConfigEntryKeepsEveryBinaryByte": "031d3037e0ad732c"
+      },
+      "verdict": "enforced"
     },
     "RFC5880-6.7.2-3": {
       "note": "Judge rejudge 2026-09-30 (phase 8: the Keyed SHA1 key-id units moved to RFC5880-6.7.4-10, row cites 6.7.2 only). Positive TestRFC5880SimplePasswordSectionCarriesPasswordAndKeyID asserts the selected password and Key ID on the signed wire. Negatives TestRFC5880SimplePasswordOtherThanSelectedPairDiscarded (key id 4/6/255 with the right password, password changed in first/middle/last byte, ErrPasswordMismatch each, selected pair accepted) and TestRFC5880SimplePasswordSignerNeedsPassword (nil/empty password refused at NewSigner). Units unchanged; judgement unchanged.",
@@ -377,9 +386,9 @@
         "internal/component/bfd/auth/sha1.go::newDigestSigner": "c77b7f7f0409ad35",
         "internal/component/bfd/auth/signer.go::NewSigner": "9247a1c17e7f8873",
         "internal/component/bfd/auth/signer.go::NewVerifier": "bb2384924ac4d630",
-        "internal/component/bfd/config.go::parseAuthConfig": "e70e674e90c67142"
+        "internal/component/bfd/config.go::parseAuthConfig": "f88561afff3025ec"
       },
-      "note": "Positive: TestRFC5880ShortKeyZeroPaddedIntoDigestField computes MD5 independently over the signed packet with the Auth Key/Digest field replaced by the 11-byte key and five zero bytes and requires Sign's transmitted digest to equal it; TestKeyedSecretLongerThanSlotRefused (NewSigner, NewVerifier) and TestParseAuthConfigKeyedSecretLength (parseAuthConfig) accept a 16-byte key for both MD5 types. Negative: the same two refuse a 17-byte key, NewSigner and NewVerifier with ErrKeyLengthInvalid, so no key longer than the field is truncated into it.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 97686ea267). RFC 5880 Section 6.7.3: \"The authentication key value is a binary string of up to 16 bytes, and MUST be placed into the Auth Key/Digest field, padded with trailing zero bytes as necessary.\" parseAuthConfig now takes the secret from parseAuthSecret (ASCII or decoded hex) and still refuses a decoded MD5 key over packet.KeyedMD5KeyLenMax before any session exists; NewSigner and NewVerifier refuse the same at the auth boundary and newDigestSigner copies the key into a zero-filled 16-byte slot. Positive: TestRFC5880ShortKeyZeroPaddedIntoDigestField recomputes MD5 independently over the packet with the 11-byte key plus five zero bytes and requires Sign's digest to match; TestParseAuthConfigKeyedSecretLength and TestKeyedSecretLongerThanSlotRefused accept 16 bytes. Negative: both refuse 17 bytes. An overlay mutation disabling the MD5 length check in current parseAuthConfig turned TestParseAuthConfigKeyedSecretLength red (and the untagged hex refusal case), so the change did not weaken the parser-side check.",
       "requirement_sha": "083bed83eb058f2f",
       "tests": {
         "internal/component/bfd/auth/rfc5880_test.go::TestKeyedSecretLongerThanSlotRefused": "5a25c74cc2d9bd47",
@@ -399,11 +408,20 @@
     },
     "RFC5880-6.7.3-14": {
       "code": {
-        "internal/component/bfd/config.go::parseAuthConfig": "e70e674e90c67142"
+        "internal/component/bfd/config.go::parseAuthConfig": "f88561afff3025ec",
+        "internal/component/bfd/config.go::parseAuthSecret": "871a0a69ed6b9b80"
       },
-      "note": "Judge 2026-09-30 (phase 8). Confirmed at the producer: parseAuthConfig reads the secret leaf with stringField and stores []byte(secret) (config.go); the YANG leaf secret is type string with no hex form, so a binary Keyed MD5 key cannot be configured. The {gap} annotation is accurate; disclosed in Support remaining.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 97686ea267). RFC 5880 Section 6.7.3: \"For interoperability, the management interface by which the key is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form.\" secret-hex (YANG choice with secret) decoded by parseAuthSecret carries a binary Keyed MD5 or Meticulous Keyed MD5 key. Positive: TestRFC5880KeyManagementConfigEntryAcceptsHexBinaryStrings requires the decoded 1-byte and 16-byte binary keys byte for byte in the resolved session request; negative: TestRFC5880KeyManagementConfigEntryKeepsEveryBinaryByte sweeps all 256 byte values in 16-byte chunks. An overlay mutation replacing hex.DecodeString(written) with []byte(written) turned both tagged tests red, so the tests discriminate the decoding logic and not only reach (the recorded revert-route panic breaks prove reach only). The decoded bytes become SessionRequest.Auth.Secret, which buildAuthPair (engine/engine.go) assigns unchanged to auth.Settings.Secret for NewSigner and NewVerifier; no test drives a secret-hex key to wire bytes, but the seam is a plain assignment. ",
       "requirement_sha": "bf37d983eb3a7dcd",
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/component/bfd/rfc5880_key_management_hex_test.go::TestRFC5880KeyManagementConfigEntryAcceptsHexBinaryStrings": "a5f2771aa9cfe596",
+        "internal/component/bfd/rfc5880_key_management_hex_test.go::TestRFC5880KeyManagementConfigEntryKeepsEveryBinaryByte": "a5f2771aa9cfe596"
+      },
+      "units": {
+        "internal/component/bfd/rfc5880_key_management_hex_test.go::TestRFC5880KeyManagementConfigEntryAcceptsHexBinaryStrings": "37af7e3515496483",
+        "internal/component/bfd/rfc5880_key_management_hex_test.go::TestRFC5880KeyManagementConfigEntryKeepsEveryBinaryByte": "031d3037e0ad732c"
+      },
+      "verdict": "enforced"
     },
     "RFC5880-6.7.3-15": {
       "note": "Judge 2026-09-30 (phase 8). Positive TestRFC5880MD5AuthKeyIDIsTheCurrentKey: both MD5 types, key ids 0/1/200/255 read back at MandatoryLen+2 and verified. Negative (R1b, forced input) TestRFC5880MD5AuthKeyIDOverwritesStaleBuffer: section pre-filled 0xFF, Sign must leave key 7. Judge break digestSigner.Sign writing buf[off+2] unchanged reds both (and the positive at ids 1..255).",
@@ -745,9 +763,9 @@
         "internal/component/bfd/auth/sha1.go::newDigestSigner": "c77b7f7f0409ad35",
         "internal/component/bfd/auth/signer.go::NewSigner": "9247a1c17e7f8873",
         "internal/component/bfd/auth/signer.go::NewVerifier": "bb2384924ac4d630",
-        "internal/component/bfd/config.go::parseAuthConfig": "e70e674e90c67142"
+        "internal/component/bfd/config.go::parseAuthConfig": "f88561afff3025ec"
       },
-      "note": "Positive: TestRFC5880ShortKeyZeroPaddedIntoDigestField computes SHA1 independently over the signed packet with the Auth Key/Hash field replaced by the 11-byte key and nine zero bytes and requires Sign's transmitted hash to equal it; TestKeyedSecretLongerThanSlotRefused and TestParseAuthConfigKeyedSecretLength accept a 20-byte key for both SHA1 types. Negative: the same two refuse a 21-byte key.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 97686ea267). RFC 5880 Section 6.7.4: \"The authentication key value is a binary string of up to 20 bytes, and MUST be placed into the Auth Key/Hash field, padding with trailing zero bytes as necessary.\" parseAuthConfig applies the packet.KeyedSHA1KeyLenMax refusal to the secret parseAuthSecret returns, so the ASCII and hex forms meet the same limit (a hex form over 20 bytes is also refused earlier by the YANG length 2..40); NewSigner and NewVerifier refuse it again and newDigestSigner zero-pads into the 20-byte slot. Positive: TestRFC5880ShortKeyZeroPaddedIntoDigestField recomputes SHA1 over the packet with the 11-byte key plus nine zero bytes and requires Sign's hash to match; TestParseAuthConfigKeyedSecretLength and TestKeyedSecretLongerThanSlotRefused accept 20 bytes. Negative: both refuse 21 bytes, and by inspection removing the SHA1 check in parseAuthConfig leaves the 21-byte case accepted, which the test fails on.",
       "requirement_sha": "db17e705cc0050dc",
       "tests": {
         "internal/component/bfd/auth/rfc5880_test.go::TestKeyedSecretLongerThanSlotRefused": "5a25c74cc2d9bd47",
@@ -767,11 +785,20 @@
     },
     "RFC5880-6.7.4-8": {
       "code": {
-        "internal/component/bfd/config.go::parseAuthConfig": "e70e674e90c67142"
+        "internal/component/bfd/config.go::parseAuthConfig": "f88561afff3025ec",
+        "internal/component/bfd/config.go::parseAuthSecret": "871a0a69ed6b9b80"
       },
-      "note": "Judge 2026-09-30 (phase 8). Confirmed at the producer: parseAuthConfig stores []byte(secret) of the string leaf; no hexadecimal form is parsed, so a binary Keyed SHA1 key cannot be configured. The {gap} annotation is accurate; disclosed in Support remaining.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after 97686ea267). RFC 5880 Section 6.7.4: \"For interoperability, the management interface by which the key is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form.\" secret-hex decoded by parseAuthSecret carries a binary Keyed SHA1 or Meticulous Keyed SHA1 key of up to 20 bytes (YANG length 2..40 digits). Positive: TestRFC5880KeyManagementConfigEntryAcceptsHexBinaryStrings requires 1-byte and 20-byte binary keys byte for byte in the resolved session request; negative: TestRFC5880KeyManagementConfigEntryKeepsEveryBinaryByte sweeps all 256 byte values in 20-byte chunks. An overlay mutation replacing hex.DecodeString(written) with []byte(written) turned both tagged tests red, so the tests discriminate the decoding logic and not only reach (the recorded revert-route panic breaks prove reach only). The decoded bytes become SessionRequest.Auth.Secret, which buildAuthPair (engine/engine.go) assigns unchanged to auth.Settings.Secret for NewSigner and NewVerifier; no test drives a secret-hex key to wire bytes, but the seam is a plain assignment. ",
       "requirement_sha": "3480c98f9a9a7756",
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/component/bfd/rfc5880_key_management_hex_test.go::TestRFC5880KeyManagementConfigEntryAcceptsHexBinaryStrings": "a5f2771aa9cfe596",
+        "internal/component/bfd/rfc5880_key_management_hex_test.go::TestRFC5880KeyManagementConfigEntryKeepsEveryBinaryByte": "a5f2771aa9cfe596"
+      },
+      "units": {
+        "internal/component/bfd/rfc5880_key_management_hex_test.go::TestRFC5880KeyManagementConfigEntryAcceptsHexBinaryStrings": "37af7e3515496483",
+        "internal/component/bfd/rfc5880_key_management_hex_test.go::TestRFC5880KeyManagementConfigEntryKeepsEveryBinaryByte": "031d3037e0ad732c"
+      },
+      "verdict": "enforced"
     },
     "RFC5880-6.7.4-9": {
       "note": "Judge 2026-09-30 (re-judge, independent of the author). Row is the Keyed SHA1 \u00a76.7.4 SHOULD, quoted verbatim (rfc5880.txt 1409). engine/rfc5880_xmit_auth_seq_test.go drives a Keyed SHA1 session through the real transmit path (Loop.tick periodic, Loop.handleInbound Final) and parses the Sequence Number of every transmitted packet. + AdvancesOnStateAndContentChange: state clause (Down->Init->Up, preconditions pin the transmitted states, each seq differs) and contents clause (Final with F set, Up, then periodic with F clear, Up: seq differs). - AdvancesForAnOutOfTimerFinal (R1b: forces the producer input toward the violation): the Final sent from handleInbound at the same instant as the previous periodic packet carries a new seq, and every differing consecutive pair carries distinct seqs. Records revert AdvanceAuthSeq (+) and sendLocked (-), observed red; author's targeted overlays (advance only after periodic / only on timer) each red only their own unit, so the two units are not one assertion wearing two hats. MD5 twin 6.7.3-5 not covered here.",

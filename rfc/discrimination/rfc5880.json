@@ -284,7 +284,7 @@
       "claim-sha": "5e854bbbc57af580",
       "route": "revert",
       "producer": "internal/component/bfd/config.go::parseAuthConfig",
-      "producer-sha": "c1d0c0daa05c14d8",
+      "producer-sha": "d2efdf939368ce6c",
       "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -295,7 +295,7 @@
       "claim-sha": "4994450dd28be1e4",
       "route": "revert",
       "producer": "internal/component/bfd/config.go::parseAuthConfig",
-      "producer-sha": "c1d0c0daa05c14d8",
+      "producer-sha": "d2efdf939368ce6c",
       "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -306,7 +306,7 @@
       "claim-sha": "0c32f5c9126749ef",
       "route": "revert",
       "producer": "internal/component/bfd/config.go::parseAuthConfig",
-      "producer-sha": "c1d0c0daa05c14d8",
+      "producer-sha": "d2efdf939368ce6c",
       "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -652,24 +652,24 @@
     },
     {
       "rid": "RFC5880-6.7.3-13",
-      "polarity": "positive",
-      "unit": "internal/component/bfd/rfc5881_test.go::TestParseAuthConfigKeyedSecretLength",
-      "unit-sha": "5f995619fd427538",
-      "claim-sha": "a570bfe28a17aa15",
-      "route": "revert",
-      "producer": "internal/component/bfd/config.go::parseAuthConfig",
-      "producer-sha": "c1d0c0daa05c14d8",
-      "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5880-6.7.3-13",
       "polarity": "negative",
       "unit": "internal/component/bfd/rfc5881_test.go::TestParseAuthConfigKeyedSecretLength",
       "unit-sha": "5f995619fd427538",
       "claim-sha": "a053aa80e62b0ede",
       "route": "revert",
       "producer": "internal/component/bfd/config.go::parseAuthConfig",
-      "producer-sha": "c1d0c0daa05c14d8",
+      "producer-sha": "d2efdf939368ce6c",
+      "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.3-13",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/rfc5881_test.go::TestParseAuthConfigKeyedSecretLength",
+      "unit-sha": "5f995619fd427538",
+      "claim-sha": "a570bfe28a17aa15",
+      "route": "revert",
+      "producer": "internal/component/bfd/config.go::parseAuthConfig",
+      "producer-sha": "d2efdf939368ce6c",
       "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -878,7 +878,7 @@
       "claim-sha": "3f0bdbb0d7e0bdd1",
       "route": "revert",
       "producer": "internal/component/bfd/config.go::parseAuthConfig",
-      "producer-sha": "c1d0c0daa05c14d8",
+      "producer-sha": "d2efdf939368ce6c",
       "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -889,7 +889,7 @@
       "claim-sha": "87d0cb388c711b29",
       "route": "revert",
       "producer": "internal/component/bfd/config.go::parseAuthConfig",
-      "producer-sha": "c1d0c0daa05c14d8",
+      "producer-sha": "d2efdf939368ce6c",
       "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -900,7 +900,7 @@
       "claim-sha": "8977b875794c0ebd",
       "route": "revert",
       "producer": "internal/component/bfd/config.go::parseAuthConfig",
-      "producer-sha": "c1d0c0daa05c14d8",
+      "producer-sha": "d2efdf939368ce6c",
       "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1351,7 +1351,7 @@
       "claim-sha": "b7890b70abfb334a",
       "route": "revert",
       "producer": "internal/component/bfd/config.go::parseAuthConfig",
-      "producer-sha": "c1d0c0daa05c14d8",
+      "producer-sha": "d2efdf939368ce6c",
       "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1362,7 +1362,7 @@
       "claim-sha": "c2c6200cabe3768b",
       "route": "revert",
       "producer": "internal/component/bfd/config.go::parseAuthConfig",
-      "producer-sha": "c1d0c0daa05c14d8",
+      "producer-sha": "d2efdf939368ce6c",
       "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1373,7 +1373,7 @@
       "claim-sha": "bb7d95ab543544e2",
       "route": "revert",
       "producer": "internal/component/bfd/config.go::parseAuthConfig",
-      "producer-sha": "c1d0c0daa05c14d8",
+      "producer-sha": "d2efdf939368ce6c",
       "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1411,24 +1411,24 @@
     },
     {
       "rid": "RFC5880-6.7.4-7",
-      "polarity": "positive",
-      "unit": "internal/component/bfd/rfc5881_test.go::TestParseAuthConfigKeyedSecretLength",
-      "unit-sha": "5f995619fd427538",
-      "claim-sha": "c8050d53b1307daf",
-      "route": "revert",
-      "producer": "internal/component/bfd/config.go::parseAuthConfig",
-      "producer-sha": "c1d0c0daa05c14d8",
-      "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5880-6.7.4-7",
       "polarity": "negative",
       "unit": "internal/component/bfd/rfc5881_test.go::TestParseAuthConfigKeyedSecretLength",
       "unit-sha": "5f995619fd427538",
       "claim-sha": "522bb251b249f975",
       "route": "revert",
       "producer": "internal/component/bfd/config.go::parseAuthConfig",
-      "producer-sha": "c1d0c0daa05c14d8",
+      "producer-sha": "d2efdf939368ce6c",
+      "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.4-7",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/rfc5881_test.go::TestParseAuthConfigKeyedSecretLength",
+      "unit-sha": "5f995619fd427538",
+      "claim-sha": "c8050d53b1307daf",
+      "route": "revert",
+      "producer": "internal/component/bfd/config.go::parseAuthConfig",
+      "producer-sha": "d2efdf939368ce6c",
       "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
