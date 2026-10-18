@@ -485,11 +485,11 @@ func ValidateIPv6NextHop(nextHop, linkLocal netip.Addr) error {
 // the route carries none of its own.
 const localPrefDefault = 100
 
-// appendMED appends MULTI_EXIT_DISC when the route carries one. Presence is
-// the hasMED flag and never the value, because 0 is a metric like any other.
-//
 // RFC 4271 Section 4.3: "This is an optional non-transitive attribute that is
 // a four-octet unsigned integer."
+//
+// appendMED appends MULTI_EXIT_DISC when the route carries one. Presence is
+// the hasMED flag and never the value, because 0 is a metric like any other.
 func appendMED(attrs []attribute.Attribute, med uint32, hasMED bool) []attribute.Attribute {
 	if !hasMED {
 		return attrs

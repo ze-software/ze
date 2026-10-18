@@ -4,11 +4,13 @@
 package evpn
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -61,5 +63,37 @@ func TestOriginPerESRedundancyModeRefused(t *testing.T) {
 		frame, _, err := EncodeRoute(tc.route, "l2vpn/evpn", 65000, true, true, false)
 		require.ErrorContains(t, err, tc.message, tc.route)
 		require.Nil(t, frame)
+	}
+}
+
+// VALIDATES: the native config path hands the configured redundancy-mode to the
+// mode check, so an `update` block whose ESI Label contradicts its
+// redundancy-mode is refused before any route is built.
+// PREVENTS: parseConfigRoute dropping the configured mode and letting the ESI
+// Label flag alone decide, which would accept both contradictions below.
+func TestConfiguredEVPNRefusesPerESRedundancyMismatch(t *testing.T) {
+	parser := registry.ConfigRouteParserByFamily("l2vpn/evpn")
+	require.NotNil(t, parser)
+	const perESRoute = "ethernet-ad rd 192.0.2.1:7 esi 00:01:02:03:04:05:06:07:08:09 etag 4294967295 redundancy-mode "
+	target := []byte{0x00, 0x02, 0xfd, 0xe8, 0, 0, 0, 100}
+	cases := []struct {
+		mode     string
+		esiLabel []byte
+		message  string
+	}{
+		// RFC requirement: RFC7432-8.2.1-4 negative -- a configured redundancy-mode all-active refuses an ESI Label with flag 1.
+		{"all-active", []byte{0x06, 0x01, 0x01, 0, 0, 0x00, 0x10, 0x00}, "redundancy-mode all-active needs the ESI Label Single-Active flag at 0"},
+		// RFC requirement: RFC7432-8.2.1-7 negative -- a configured redundancy-mode single-active refuses an ESI Label with flag 0.
+		{"single-active", []byte{0x06, 0x01, 0x00, 0, 0, 0x00, 0x10, 0x00}, "redundancy-mode single-active needs the ESI Label Single-Active flag at 1"},
+	}
+	for _, tc := range cases {
+		request := registry.ConfigRouteRequest{
+			Content:      strings.Fields(perESRoute + tc.mode),
+			NextHop:      "192.0.2.1",
+			ExtCommunity: append(append([]byte{}, target...), tc.esiLabel...),
+		}
+		route, err := parser(request)
+		require.ErrorContains(t, err, tc.message, tc.mode)
+		require.Empty(t, route.NLRI, tc.mode)
 	}
 }
