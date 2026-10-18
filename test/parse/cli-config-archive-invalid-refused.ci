@@ -1,0 +1,73 @@
+# Test: `ze config validate` refuses an archive entry whose location scheme Ze
+# cannot upload to, or whose timeout is not a positive Go duration, and accepts
+# an https location with a valid timeout.
+#
+# VALIDATES: an archive entry is checked at config validation and commit, not
+#            only by the manual `ze config archive` command. A `trigger commit`
+#            entry with an ftp:// location used to commit clean, and then every
+#            later commit's archive failed at runtime. A timeout of
+#            "5 minutes" used to commit and run with a silent 30s.
+# PREVENTS:  `archive-location` and `archive-timeout` validators that never
+#            run: both leaves are `type string`, so YANG alone admits every
+#            value below.
+#
+# DISCRIMINATOR: remove `ze:validate "archive-location"` from the location leaf
+# in ze-system-conf.yang and step 1 exits 0; remove `ze:validate
+# "archive-timeout"` from the timeout leaf and steps 2 and 3 exit 0.
+
+stdin=ftp:terminator=EOF_FTP
+system {
+	archive offsite {
+		location "ftp://archive.example.com/configs";
+		trigger commit;
+	}
+}
+EOF_FTP
+
+stdin=words:terminator=EOF_WORDS
+system {
+	archive offsite {
+		location "https://archive.example.com/configs";
+		timeout "5 minutes";
+	}
+}
+EOF_WORDS
+
+stdin=zero:terminator=EOF_ZERO
+system {
+	archive offsite {
+		location "https://archive.example.com/configs";
+		timeout 0s;
+	}
+}
+EOF_ZERO
+
+stdin=valid:terminator=EOF_VALID
+system {
+	archive offsite {
+		location "https://archive.example.com/configs";
+		timeout 2m;
+		trigger commit;
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ftp
+expect=exit:code=1
+expect=stdout:contains=system/archive[offsite]/location
+expect=stdout:contains=ftp
+expect=stdout:contains=file://, http:// or https://
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=words
+expect=exit:code=1
+expect=stdout:contains=system/archive[offsite]/timeout
+expect=stdout:contains=5 minutes
+expect=stdout:contains=Go duration
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=zero
+expect=exit:code=1
+expect=stdout:contains=system/archive[offsite]/timeout
+expect=stdout:contains=0s
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=valid
+expect=exit:code=0

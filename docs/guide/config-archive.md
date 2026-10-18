@@ -36,7 +36,7 @@ system {
 | `location` | string | (required) | Destination URL |
 | `trigger` | enum | `manual` | When to archive: `commit`, `manual`, `daily`, `hourly` |
 | `filename` | string | `{name}-{host}-{date}-{time}` | Filename format with token substitution |
-| `timeout` | duration | `30s` | HTTP upload timeout |
+| `timeout` | duration | `30s` | HTTP upload timeout, a positive Go duration such as `30s` or `2m` |
 | `on-change` | boolean | `false` | Time-based triggers only: skip if config is unchanged since last archive |
 
 ### Location Schemes
@@ -48,7 +48,24 @@ system {
 | `https://host/path` | Same as HTTP with TLS. |
 
 Use absolute paths for `file://` locations. `file://./relative` does not work correctly in Go's URL parser.
-<!-- source: internal/component/config/archive/archive.go -- ToFile, ToHTTP, ValidateLocation -->
+<!-- source: internal/component/config/archive/archive.go -- ToFile, ToHTTP -->
+
+### Validation
+
+`ze config validate` and every commit check each archive entry, so an entry
+the uploader cannot use never reaches the running config:
+
+| Value | Refused when | Example refusal |
+|-------|--------------|-----------------|
+| `location` | Its scheme is not `file`, `http` or `https`, or it has no scheme | `archive location "ftp://h/" uses scheme "ftp", which Ze cannot upload to` |
+| `timeout` | It is not a Go duration, or it is not above zero | `archive timeout "5 minutes" is not a Go duration; write a number and a unit, such as 30s or 2m` |
+
+Each refusal names the entry and ends with the accepted forms. A refused
+location never echoes the password of a URL with credentials in it. An entry
+with no `timeout` uses `30s`; an invalid `timeout` is refused rather than
+replaced by `30s`.
+<!-- source: internal/component/config/validators_archive.go -- ValidateArchiveLocation, ParseArchiveTimeout -->
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- ze:validate archive-location, archive-timeout -->
 
 ### Triggers
 

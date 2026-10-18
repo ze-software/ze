@@ -25,15 +25,6 @@ import (
 	"github.com/ze-software/ze/internal/component/config/system"
 )
 
-var errEmptyArchiveLocation = errors.New("empty archive location")
-
-// Archive URL schemes.
-const (
-	schemeFile  = "file"
-	schemeHTTP  = "http"
-	schemeHTTPS = "https"
-)
-
 // Trigger keywords for archive blocks.
 // enumeration: gated by TestTriggerVocabularyMatchesModel
 const (
@@ -147,28 +138,6 @@ func RedactURL(rawURL string) string {
 	return parsed.Redacted()
 }
 
-// ValidateLocation checks that a URL has a supported scheme.
-// Supported schemes: file, http, https.
-func ValidateLocation(rawURL string) error {
-	if rawURL == "" {
-		return errEmptyArchiveLocation
-	}
-
-	parsed, err := url.Parse(rawURL)
-	if err != nil {
-		return fmt.Errorf("invalid URL: %w", err)
-	}
-
-	switch parsed.Scheme {
-	case schemeFile, schemeHTTP, schemeHTTPS:
-		return nil
-	case "":
-		return fmt.Errorf("missing URL scheme in %q (use file://, http://, or https://)", parsed.Redacted())
-	}
-
-	return fmt.Errorf("unsupported archive scheme %q (supported: file, http, https)", parsed.Scheme)
-}
-
 // ToFile writes content to a file in the target directory.
 // Creates the destination directory if needed.
 func ToFile(content []byte, destDir, filename string) error {
@@ -230,9 +199,9 @@ func archiveToLocation(content []byte, location, filename string, timeout time.D
 	}
 
 	switch parsed.Scheme {
-	case schemeFile:
+	case config.ArchiveSchemeFile:
 		return ToFile(content, parsed.Path, filename)
-	case schemeHTTP, schemeHTTPS:
+	case config.ArchiveSchemeHTTP, config.ArchiveSchemeHTTPS:
 		return ToHTTP(content, location, filename, timeout)
 	}
 
@@ -254,16 +223,21 @@ func FilterByTrigger(configs []ArchiveConfig, trigger string) []ArchiveConfig {
 
 // ExtractConfigs extracts named archive blocks from a parsed config tree.
 // Reads from system.archive list entries.
-// Returns nil if no system block or no archive entries exist.
-func ExtractConfigs(tree *config.Tree) []ArchiveConfig {
+// Returns nil and no error if no system block or no archive entries exist.
+//
+// A `timeout` that is not a positive Go duration is an error naming the entry,
+// never the 30s default: the default stands only for an absent leaf. A
+// committed tree cannot hold one, because the `archive-timeout` validator
+// refuses it, but the manual command parses a file without validating it.
+func ExtractConfigs(tree *config.Tree) ([]ArchiveConfig, error) {
 	sys := tree.GetContainer("system")
 	if sys == nil {
-		return nil
+		return nil, nil
 	}
 
 	entries := sys.GetListOrdered("archive")
 	if len(entries) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	configs := make([]ArchiveConfig, 0, len(entries))
@@ -285,9 +259,11 @@ func ExtractConfigs(tree *config.Tree) []ArchiveConfig {
 		}
 
 		if to, ok := entry.Value.Get("timeout"); ok {
-			if d, err := time.ParseDuration(to); err == nil && d > 0 {
-				ac.Timeout = d
+			d, err := config.ParseArchiveTimeout(to)
+			if err != nil {
+				return nil, fmt.Errorf("archive %s: %w", entry.Key, err)
 			}
+			ac.Timeout = d
 		}
 
 		if tr, ok := entry.Value.Get("trigger"); ok && tr != "" {
@@ -301,7 +277,7 @@ func ExtractConfigs(tree *config.Tree) []ArchiveConfig {
 		configs = append(configs, ac)
 	}
 
-	return configs
+	return configs, nil
 }
 
 // ArchiveMatcher returns the pattern that a file name matches when this
@@ -351,7 +327,7 @@ func PruneFileArchives(location string, maxKeep uint16, matcher *regexp.Regexp) 
 	if err != nil {
 		return errors.New("prune: archive location does not parse")
 	}
-	if parsed.Scheme != schemeFile {
+	if parsed.Scheme != config.ArchiveSchemeFile {
 		return nil
 	}
 

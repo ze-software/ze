@@ -929,8 +929,10 @@ module ze-system-conf {
 
             leaf location {
                 type string;
+                ze:validate "archive-location";
                 description "A file:// URL writes to the local filesystem. An http:// or
-                             https:// URL uploads the config with an HTTP request.";
+                             https:// URL uploads the config with an HTTP request. Any
+                             other scheme is refused when the config is validated.";
                 ze:help "Archive destination URL (file://, http://, https://).";
             }
 
@@ -944,10 +946,11 @@ module ze-system-conf {
 
             leaf timeout {
                 type string;
+                ze:validate "archive-timeout";
                 description "Ze gives up on an upload that passes this timeout. The
-                             format is the Go duration format, such as 30s or 2m.";
+                             format is the Go duration format, such as 30s or 2m, and
+                             the value must be above zero. An absent timeout is 30s.";
                 ze:help "HTTP upload timeout, in Go duration format, for example 30s.";
-
             }
 
             leaf trigger {

@@ -76,7 +76,13 @@ func handleArchiveTrigger(ctx *pluginserver.CommandContext, validated command.Va
 	}
 
 	sys := system.ExtractSystemConfig(tree)
-	configs := archive.ExtractConfigs(tree)
+	configs, extractErr := archive.ExtractConfigs(tree)
+	if extractErr != nil {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Error:  tb.Reset().Err(extractErr).String(),
+		}, extractErr
+	}
 	if len(configs) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
@@ -103,7 +109,7 @@ func handleArchiveTrigger(ctx *pluginserver.CommandContext, validated command.Va
 		}, nil
 	}
 
-	if err := archive.ValidateLocation(ac.Location); err != nil {
+	if err := iconfig.ValidateArchiveLocation(ac.Location); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Error:  tb.Reset().Str("invalid location for ").Str(archiveName).Str(": ").Err(err).String(),

@@ -71,54 +71,6 @@ func TestFormatFilename_NoExtension(t *testing.T) {
 	assert.Equal(t, "config-host.conf", name)
 }
 
-// --- ValidateLocation tests ---
-
-// TestValidateLocation_Valid verifies URL parsing for file and HTTP schemes.
-//
-// VALIDATES: file://, http://, and https:// schemes are accepted.
-// PREVENTS: Valid archive URLs being rejected.
-func TestValidateLocation_Valid(t *testing.T) {
-	tests := []struct {
-		name string
-		url  string
-	}{
-		{"file URL", "file:///backups/configs"},
-		{"http URL", "http://config-server.example.com/archive"},
-		{"https URL", "https://config-server.example.com/archive"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := archive.ValidateLocation(tt.url)
-			assert.NoError(t, err)
-		})
-	}
-}
-
-// TestValidateLocation_Invalid verifies rejection of unsupported schemes.
-//
-// VALIDATES: Unsupported schemes (scp, sftp, ftp, empty) are rejected.
-// PREVENTS: Silent acceptance of unsupported protocols.
-func TestValidateLocation_Invalid(t *testing.T) {
-	tests := []struct {
-		name string
-		url  string
-	}{
-		{"scp scheme", "scp://user@host:/path"},
-		{"sftp scheme", "sftp://user@host/path"},
-		{"ftp scheme", "ftp://server/path"},
-		{"empty string", ""},
-		{"no scheme", "just-a-path"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := archive.ValidateLocation(tt.url)
-			assert.Error(t, err)
-		})
-	}
-}
-
 // --- ToFile tests ---
 
 // TestToFile verifies file:// upload creates archive copy.
@@ -302,7 +254,8 @@ func TestExtractConfigs(t *testing.T) {
 	entry.Set("on-change", "true")
 	sys.AddListEntry("archive", "local-backup", entry)
 
-	configs := archive.ExtractConfigs(tree)
+	configs, err := archive.ExtractConfigs(tree)
+	require.NoError(t, err)
 	require.Len(t, configs, 1)
 
 	ac := configs[0]
@@ -325,7 +278,8 @@ func TestExtractConfigs_Defaults(t *testing.T) {
 	entry.Set("location", "file:///backups")
 	sys.AddListEntry("archive", "minimal", entry)
 
-	configs := archive.ExtractConfigs(tree)
+	configs, err := archive.ExtractConfigs(tree)
+	require.NoError(t, err)
 	require.Len(t, configs, 1)
 
 	ac := configs[0]
@@ -356,7 +310,8 @@ func TestExtractConfigs_MultipleBlocks(t *testing.T) {
 	e2.Set("on-change", "true")
 	sys.AddListEntry("archive", "offsite", e2)
 
-	configs := archive.ExtractConfigs(tree)
+	configs, err := archive.ExtractConfigs(tree)
+	require.NoError(t, err)
 	require.Len(t, configs, 2)
 
 	assert.Equal(t, "local", configs[0].Name)
@@ -375,8 +330,34 @@ func TestExtractConfigs_MultipleBlocks(t *testing.T) {
 // PREVENTS: Panic on configs without system block.
 func TestExtractConfigs_NoSystem(t *testing.T) {
 	tree := config.NewTree()
-	configs := archive.ExtractConfigs(tree)
+	configs, err := archive.ExtractConfigs(tree)
+	require.NoError(t, err)
 	assert.Nil(t, configs)
+}
+
+// TestExtractConfigs_InvalidTimeoutRefused verifies an invalid timeout is an
+// error naming the entry, never the 30s default.
+//
+// VALIDATES: a timeout that is not a Go duration, and one that is not above
+// zero, each make ExtractConfigs fail with the entry name and the value.
+// PREVENTS: `timeout "5 minutes"` running every upload with a silent 30s.
+func TestExtractConfigs_InvalidTimeoutRefused(t *testing.T) {
+	for _, value := range []string{"5 minutes", "0s", "-1s"} {
+		t.Run(value, func(t *testing.T) {
+			tree := config.NewTree()
+			sys := tree.GetOrCreateContainer("system")
+			entry := config.NewTree()
+			entry.Set("location", "https://server/archive")
+			entry.Set("timeout", value)
+			sys.AddListEntry("archive", "offsite", entry)
+
+			configs, err := archive.ExtractConfigs(tree)
+			require.Error(t, err)
+			assert.Nil(t, configs)
+			assert.Contains(t, err.Error(), "archive offsite")
+			assert.Contains(t, err.Error(), value)
+		})
+	}
 }
 
 // --- FilterByTrigger tests ---
@@ -885,26 +866,6 @@ func TestRedactURL_InvalidURL(t *testing.T) {
 	raw := "://bad"
 	got := archive.RedactURL(raw)
 	assert.Equal(t, raw, got)
-}
-
-// TestValidateLocation_RedactsCredentials verifies error messages do not leak passwords.
-//
-// VALIDATES: AC-3 -- ValidateLocation error output sanitizes credentials.
-// PREVENTS: Password appearing in validation error message.
-func TestValidateLocation_RedactsCredentials(t *testing.T) {
-	err := archive.ValidateLocation("ftp://admin:s3cret@host.example.com/path")
-	require.Error(t, err)
-	assert.NotContains(t, err.Error(), "s3cret")
-}
-
-// TestValidateLocation_NoSchemeRedactsCredentials verifies missing-scheme error sanitizes credentials.
-//
-// VALIDATES: AC-3 -- missing-scheme error path also sanitizes.
-// PREVENTS: Password leak in "missing URL scheme" error message.
-func TestValidateLocation_NoSchemeRedactsCredentials(t *testing.T) {
-	err := archive.ValidateLocation("//admin:s3cret@host/path")
-	require.Error(t, err)
-	assert.NotContains(t, err.Error(), "s3cret")
 }
 
 // TestToHTTP_RedactsCredentials verifies HTTP error messages do not leak passwords.

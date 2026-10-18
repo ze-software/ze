@@ -375,7 +375,12 @@ func startArchiveScheduler(tree *zeconfig.Tree, configPath string, store configs
 		archiveSchedulerCancel = nil
 	}
 
-	configs := archive.ExtractConfigs(tree)
+	configs, err := archive.ExtractConfigs(tree)
+	if err != nil {
+		slogutil.Logger("archive").Error("archive scheduler not started: an archive entry is invalid; correct it and reload",
+			"error", err, "check", "ze config validate")
+		return
+	}
 	if len(configs) == 0 {
 		return
 	}

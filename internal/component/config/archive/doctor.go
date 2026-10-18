@@ -24,6 +24,11 @@ import (
 // `ze show diagnostic doctor-archive-unreachable` answers.
 const codeArchiveUnreachable = "doctor-archive-unreachable"
 
+// codeArchiveInvalid names an archive entry ExtractConfigs refuses, which a
+// validated config cannot hold. The check reports it rather than probing
+// nothing in silence.
+const codeArchiveInvalid = "doctor-archive-invalid"
+
 // archiveProbeTimeout bounds one destination probe. DoctorProbeTimeout can
 // only shorten it.
 const archiveProbeTimeout = 5 * time.Second
@@ -46,7 +51,7 @@ var archiveDoctorCheck = diagnostic.DoctorCheck{
 	Component:    "archive",
 	Dependencies: []string{"archive-server"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{codeArchiveUnreachable},
+	Codes:        []string{codeArchiveUnreachable, codeArchiveInvalid},
 	Check:        checkArchiveDestinations,
 }
 
@@ -63,12 +68,22 @@ func checkArchiveDestinations(ctx diagnostic.DoctorCheckContext) []diagnostic.Di
 		return nil
 	}
 
+	configs, err := ExtractConfigs(tree)
+	if err != nil {
+		var tb textbuf.Buffer
+		return []diagnostic.Diagnostic{{
+			Code:     codeArchiveInvalid,
+			Severity: diagnostic.SeverityWarning,
+			Message:  tb.Err(err).Str("; run `ze config validate` on the config and correct the entry it names").String(),
+		}}
+	}
+
 	var diags []diagnostic.Diagnostic
-	for _, ac := range ExtractConfigs(tree) {
+	for _, ac := range configs {
 		if ac.Location == "" {
 			continue
 		}
-		if !strings.HasPrefix(ac.Location, schemeHTTP+"://") && !strings.HasPrefix(ac.Location, schemeHTTPS+"://") {
+		if !strings.HasPrefix(ac.Location, config.ArchiveSchemeHTTP+"://") && !strings.HasPrefix(ac.Location, config.ArchiveSchemeHTTPS+"://") {
 			continue
 		}
 		if err := archiveHTTPHead(ac.Location, diagnostic.DoctorProbeTimeout(archiveProbeTimeout)); err != nil {

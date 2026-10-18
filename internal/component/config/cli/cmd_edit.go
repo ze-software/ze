@@ -640,7 +640,13 @@ func runEditor(ed *cli.Editor, configPath, user string) int {
 	}
 	if ed.Tree() != nil {
 		sys := system.ExtractSystemConfig(ed.Tree())
-		configs := archive.FilterByTrigger(archive.ExtractConfigs(ed.Tree()), archive.TriggerCommit)
+		all, archiveErr := archive.ExtractConfigs(ed.Tree())
+		if archiveErr != nil {
+			var tb textbuf.Buffer
+			tb.Str("warning: commit archiving is off for this session: ").Err(archiveErr).Str("; correct the entry and restart the editor\n")
+			tb.StdErr() //nolint:errcheck // terminal output, the editor still starts
+		}
+		configs := archive.FilterByTrigger(all, archive.TriggerCommit)
 		if len(configs) > 0 {
 			ed.SetArchiveNotifier(archive.NewNotifier(configPath, configs, &sys, nil))
 		}
