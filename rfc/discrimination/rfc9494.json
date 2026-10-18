@@ -390,6 +390,28 @@
     },
     {
       "rid": "RFC9494-4.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc9494_llgr_self_attach_test.go::TestRFC9494SelfAttachSkipsRouteLearnedAfterLoss",
+      "unit-sha": "f4a1b0ea1a7e028f",
+      "claim-sha": "6f67b0f761e571e0",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_commands_community.go::attachCommunityCommand",
+      "producer-sha": "4a258f918fc9014c",
+      "break": "body of attachCommunityCommand replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc9494_llgr_self_attach_test.go::TestRFC9494SelfAttachedLLGRStaleIsLeastPreferred",
+      "unit-sha": "1b2e2a7fb015eda5",
+      "claim-sha": "60265d9413b5bddd",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_commands_community.go::attachCommunityCommand",
+      "producer-sha": "4a258f918fc9014c",
+      "break": "body of attachCommunityCommand replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.3-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go::TestRFC9494ReceivedEventCarriesIngressStale",
       "unit-sha": "d15a38a9be77d03d",
