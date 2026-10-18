@@ -24,7 +24,7 @@ type RawMessage struct {
 	WireUpdate      *wireu.WireUpdate         // UPDATE wire wrapper (nil if not UPDATE)
 	Direction       rpc.MessageDirection      // DirectionSent / DirectionReceived
 	ParseError      error                     // Non-nil if lazy parsing failed
-	Meta            map[string]any            // Route metadata from ReceivedUpdate (sent events only)
+	Meta            map[string]any            // Route metadata: the ingress steps' decisions on a received event, ReceivedUpdate.Meta on a sent one
 	SourcePeerStr   string                    // Source peer address for ribOut stale-scoping (sent events only)
 	SourceMessageID uint64                    // Original received generation on every forwarded sent event
 	SourceID        uint32                    // Registry source identity; SourceOwner proves the Peer incarnation.

@@ -89,7 +89,9 @@ The event still owns the HoldTimer restart. Control messages do not transfer
 their buffers to this cache and retain their existing post-callback handlers.
 `TestReceiveUpdateDoesNotReadTransferredStorage` makes reuse deterministic inside
 the ownership-taking callback; a borrowed-buffer control preserves ordinary
-delivery.
+delivery. The ingress steps' decisions ride on the received event as
+`RawMessage.Meta`, a map the callback builds, so they borrow no payload byte and
+add nothing to this contract.
 <!-- source: internal/component/bgp/reactor/session_read.go -- processMessage -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver -->
 

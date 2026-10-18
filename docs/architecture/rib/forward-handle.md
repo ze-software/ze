@@ -37,7 +37,10 @@ of the identical path is a Loc-RIB no-op, not a second byte-carrying event.
 Consumers therefore observe `Change.Best` for the selected path and treat
 `Change.Forward` as optional even for BGP. Tests needing a causal recovery marker
 use a changed path field, such as the MED carried as `Best.Metric`, and check the
-wire attributes separately in storage and on recipient TCP.
+wire attributes separately in storage and on recipient TCP. The same handler
+writes the GR ingress step's received LLGR_STALE decision on each stored entry
+from the event metadata, which changes the path's Step 0 standing but not the
+handle model.
 <!-- source: internal/component/bgp/plugins/rib/rib_structured.go -- handleReceivedStructured -->
 <!-- source: internal/component/bgp/plugins/rib/rib_aigp.go -- reselectAIGPRoutes -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- checkRouteBestChange -->

@@ -34,6 +34,17 @@ type RouteEntry struct {
 	// RFC 4724: GR-stale routes (level 1) compete normally in best-path.
 	// RFC 9494: LLGR-stale routes (level 2+) are least preferred.
 	StaleLevel uint8
+	// ReceivedLLGRStale says the route arrived carrying the LLGR_STALE
+	// community from a neighbor Ze sent the LLGR Capability to, which is the
+	// case RFC 9494 Section 4.3 governs. The GR plugin's ingress step decides
+	// it (meta["stale"]), and the RIB's received handler writes it on every
+	// insert of the route, the no-op and equal-attribute branches included, so
+	// it always follows the latest UPDATE. It is kept apart from StaleLevel on
+	// purpose. StaleLevel is the RETENTION
+	// mark that mark-stale overwrites and purge-stale deletes on, so a received
+	// LLGR_STALE route stored there would be purged at the next TCP loss and at
+	// every EOR. extractCandidate combines the two for best path.
+	ReceivedLLGRStale bool
 	// MsgID identifies the received UPDATE for validation eligibility.
 	// Zero is an unversioned producer; it asks the gate about the current path.
 	MsgID uint64
@@ -114,12 +125,13 @@ func (e *RouteEntry) AddRef() error {
 // Returns nil if AddRef fails (e.g., pool shutdown).
 func (e *RouteEntry) Clone() *RouteEntry {
 	clone := &RouteEntry{
-		StaleLevel:      e.StaleLevel,
-		MsgID:           e.MsgID,
-		AttrFingerprint: e.AttrFingerprint,
-		AttrLen:         e.AttrLen,
-		Bundle:          e.Bundle,
-		ASPath:          e.ASPath,
+		StaleLevel:        e.StaleLevel,
+		ReceivedLLGRStale: e.ReceivedLLGRStale,
+		MsgID:             e.MsgID,
+		AttrFingerprint:   e.AttrFingerprint,
+		AttrLen:           e.AttrLen,
+		Bundle:            e.Bundle,
+		ASPath:            e.ASPath,
 	}
 	if err := clone.AddRef(); err != nil {
 		return nil

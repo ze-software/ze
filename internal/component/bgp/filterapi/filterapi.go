@@ -60,6 +60,12 @@ type PeerFilterInfo struct {
 	// that needs the session type reads this field rather than comparing PeerAS
 	// with LocalAS, which gets the migration session wrong.
 	IsIBGP bool
+	// LLGRAdvertised reports that the OPEN Ze sent on this session carried the
+	// Long-Lived Graceful Restart Capability (RFC 9494 Section 3). Filled on the
+	// received path only, from the session's own OPEN on the goroutine that read
+	// the UPDATE, so it is settled before the session's first UPDATE is judged.
+	// False on every other rail: none of them reads it.
+	LLGRAdvertised bool
 }
 
 // FilterRef is one entry in a peer's import/export filter chain: the canonical

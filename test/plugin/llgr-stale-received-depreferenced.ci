@@ -1,0 +1,76 @@
+# Test: a received LLGR_STALE route is least preferred only from a session whose
+# own OPEN carried the LLGR Capability (RFC 9494 Section 4.3).
+# VALIDATES: AC-13 -- 10.0.0.0/8 from peer llgr (Ze sent it LLGR) at LOCAL_PREF
+#   200 with LLGR_STALE loses Step 0 (stale-level) to peer plain's fresh copy at
+#   LOCAL_PREF 100.
+# VALIDATES: AC-14 -- 10.1.0.0/16 from peer plain (Ze sent it no LLGR) at
+#   LOCAL_PREF 200 with LLGR_STALE is not depreferenced and wins on LOCAL_PREF.
+# PREVENTS: the ingress verdict not reaching the RIB (reactor msg.Meta), and a
+#   verdict that depreferences LLGR_STALE from every neighbor.
+
+stdin=llgr:terminator=EOF_LLGR
+option=tcp_connections:value=1
+option=open:value=router-id:id=192.0.2.1
+option=timeout:value=30s
+option=linger:value=true
+# 10.0.0.0/8: ORIGIN IGP, AS_PATH empty, NEXT_HOP 10.0.0.1, LOCAL_PREF 200, COMMUNITIES LLGR_STALE.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0035020000001C400101004002004003040A000001400504000000C8C00804FFFF0006080A
+# 10.1.0.0/16: ORIGIN IGP, AS_PATH empty, NEXT_HOP 10.0.0.1, LOCAL_PREF 100.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F0200000015400101004002004003040A00000140050400000064100A01
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_LLGR
+
+stdin=plain:terminator=EOF_PLAIN
+option=tcp_connections:value=1
+option=open:value=router-id:id=192.0.2.2
+option=timeout:value=30s
+option=linger:value=true
+# 10.0.0.0/8: ORIGIN IGP, AS_PATH empty, NEXT_HOP 10.0.0.2, LOCAL_PREF 100.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E0200000015400101004002004003040A00000240050400000064080A
+# 10.1.0.0/16: ORIGIN IGP, AS_PATH empty, NEXT_HOP 10.0.0.2, LOCAL_PREF 200, COMMUNITIES LLGR_STALE.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001C400101004002004003040A000002400504000000C8C00804FFFF0006100A01
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PLAIN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+ internal gr { use bgp-gr; }
+ internal bgp-rib { use bgp-rib; }
+ external observer { run "le test fixture plugin/llgr-stale-received-depreferenced"; encoder json; }
+}
+bgp {
+ peer llgr {
+  connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
+  session {
+   asn { local 65000; remote 65000; }
+   router-id 1.2.3.4
+   family { ipv4/unicast { prefix { maximum 10000; } } }
+   capability { graceful-restart { restart-time 120; long-lived-stale-time 3600; } }
+  }
+  attach process gr { receive [ open state eor ]; send [ update ]; }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+  attach process observer { receive [ state ]; }
+ }
+ peer plain {
+  connection { remote { ip ::1; } local { ip ::1; accept false; } }
+  session {
+   asn { local 65000; remote 65000; }
+   router-id 1.2.3.4
+   family { ipv4/unicast { prefix { maximum 10000; } } }
+   capability { graceful-restart disable }
+  }
+  attach process gr { receive [ open state eor ]; send [ update ]; }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+  attach process observer { receive [ state ]; }
+ }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=llgr
+cmd=background:seq=2:exec=le test peer --bind ::1 --port $PORT:stdin=plain
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=35s
+await=stderr:contains=OK: llgr received 10.1.0.0/16:then=stop
+expect=stderr:contains=OK: llgr received 10.0.0.0/8 best ::1 by stale-level
+expect=stderr:contains=OK: llgr received 10.1.0.0/16 best ::1 by local-preference
+reject=stderr:pattern=panic
+reject=stderr:pattern=ZE-OBSERVER-FAIL

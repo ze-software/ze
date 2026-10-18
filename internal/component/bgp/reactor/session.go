@@ -299,6 +299,13 @@ type Session struct {
 	// A transparent route server does not prepend its ASN (RFC 7947 Section 2.2.2).
 	localRSClient bool
 
+	// localLLGR records that our OPEN carried the Long-Lived Graceful Restart
+	// Capability, set by retainAdvertisedLLGR from our own capabilities. Only the receive
+	// goroutine accesses it, after negotiation and so before the first UPDATE.
+	// The RFC 9494 Section 4.3 ingress step reads it through
+	// filterapi.PeerFilterInfo.LLGRAdvertised.
+	localLLGR bool
+
 	// writeMu serializes all access to writeBuf.
 	// Multiple goroutines send concurrently (keepalive timer, forward pool workers,
 	// sendInitialRoutes, plugin RPC handlers) — this mutex prevents races on the

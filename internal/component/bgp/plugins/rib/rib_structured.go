@@ -235,6 +235,12 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		}
 	}
 
+	// RFC 9494 Section 4.3: the GR ingress step judged this UPDATE a received
+	// LLGR_STALE route from a neighbor Ze sent the LLGR Capability to. Written
+	// on every insert below, the no-op branches included, so the mark follows
+	// the latest UPDATE for the route.
+	receivedStale := receivedLLGRStaleFromMeta(se.Meta)
+
 	// Parse attributes once for all announcements in this UPDATE.
 	// An UPDATE carries one attribute block shared by all announced NLRIs.
 	// Parsing per-NLRI was the dominant RIB allocation site (~57% of space).
@@ -248,6 +254,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		if parseErr == nil {
 			haveParsed = true
 			parsed.MsgID = msg.MessageID
+			parsed.ReceivedLLGRStale = receivedStale
 			defer parsed.Release()
 		}
 	}
@@ -273,6 +280,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 				}
 				peerRIB.ModifyFamilyEntry(ipv4Family, wirePrefix, func(entry *storage.RouteEntry) {
 					entry.MsgID = msg.MessageID
+					entry.ReceivedLLGRStale = receivedStale
 				})
 				affected = append(affected, affectedPrefix{fam: ipv4Family, nlriBytes: wirePrefix, addPath: addPath})
 			}
@@ -297,9 +305,9 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 				for _, wirePrefix := range prefixes {
 					if isLabeled {
 						if haveParsed {
-							r.insertLabeledEntry(peerRIB, fam, parsed, fp, attrLen, wirePrefix, addPath, &affected)
+							r.insertLabeledEntry(peerRIB, fam, parsed, fp, attrLen, wirePrefix, addPath, receivedStale, &affected)
 						} else {
-							r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, &affected)
+							r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, receivedStale, &affected)
 						}
 					} else {
 						if haveParsed {
@@ -309,6 +317,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 						}
 						peerRIB.ModifyFamilyEntry(fam, wirePrefix, func(entry *storage.RouteEntry) {
 							entry.MsgID = msg.MessageID
+							entry.ReceivedLLGRStale = receivedStale
 						})
 						affected = append(affected, affectedPrefix{fam: fam, nlriBytes: wirePrefix, addPath: addPath})
 					}
@@ -620,12 +629,17 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 // insertLabeled handles a single labeled unicast NLRI announce. It strips
 // MPLS labels from the wire entry, stores the route under CIDR bytes (same
 // as FRR's SAFI remap), and stores labels as side-data on the FamilyRIB.
-func (r *RIBManager) insertLabeled(peerRIB *storage.PeerRIB, fam family.Family, attrBytes, wireEntry []byte, addPath bool, affected *[]affectedPrefix) {
+// receivedStale is written on the stored route whichever insert branch ran, as
+// insertLabeledEntry does (RFC 9494 Section 4.3).
+func (r *RIBManager) insertLabeled(peerRIB *storage.PeerRIB, fam family.Family, attrBytes, wireEntry []byte, addPath, receivedStale bool, affected *[]affectedPrefix) {
 	labels, cidrBytes, err := nlrisplit.ExtractLabels(wireEntry, addPath)
 	if err != nil || len(cidrBytes) == 0 {
 		return
 	}
 	peerRIB.Insert(fam, attrBytes, cidrBytes)
+	peerRIB.ModifyFamilyEntry(fam, cidrBytes, func(stored *storage.RouteEntry) {
+		stored.ReceivedLLGRStale = receivedStale
+	})
 	labelHandle := pool.InternLabels(labels)
 	if !peerRIB.SetLabelsIfRouteExists(fam, cidrBytes, labelHandle) {
 		if labelHandle.IsValid() {
@@ -636,14 +650,35 @@ func (r *RIBManager) insertLabeled(peerRIB *storage.PeerRIB, fam family.Family, 
 	*affected = append(*affected, affectedPrefix{fam: fam, nlriBytes: cidrBytes, addPath: addPath})
 }
 
+// receivedLLGRStaleFromMeta reads the stale level the GR ingress step wrote for
+// a received UPDATE (gr_ingress.go LLGRIngressFilter). A missing key, a nil map
+// and a level below the depreference threshold all answer false: only that step
+// writes the key on a received event, and it writes the threshold or nothing.
+// The structured event carries the uint8 the step wrote; a JSON event's
+// route-meta decodes it as a float64.
+func receivedLLGRStaleFromMeta(meta map[string]any) bool {
+	switch level := meta["stale"].(type) {
+	case uint8:
+		return level >= storage.DepreferenceThreshold
+	case float64:
+		return level >= float64(storage.DepreferenceThreshold)
+	}
+	return false
+}
+
 // insertLabeledEntry handles a single labeled unicast NLRI announce using a
 // pre-parsed RouteEntry. Same as insertLabeled but avoids re-parsing attributes.
-func (r *RIBManager) insertLabeledEntry(peerRIB *storage.PeerRIB, fam family.Family, entry storage.RouteEntry, fp uint64, attrLen uint32, wireEntry []byte, addPath bool, affected *[]affectedPrefix) {
+// receivedStale is written on the stored route whichever insert branch ran, as
+// the unlabeled path does (RFC 9494 Section 4.3).
+func (r *RIBManager) insertLabeledEntry(peerRIB *storage.PeerRIB, fam family.Family, entry storage.RouteEntry, fp uint64, attrLen uint32, wireEntry []byte, addPath, receivedStale bool, affected *[]affectedPrefix) {
 	labels, cidrBytes, err := nlrisplit.ExtractLabels(wireEntry, addPath)
 	if err != nil || len(cidrBytes) == 0 {
 		return
 	}
 	peerRIB.InsertEntry(fam, entry, fp, attrLen, cidrBytes)
+	peerRIB.ModifyFamilyEntry(fam, cidrBytes, func(stored *storage.RouteEntry) {
+		stored.ReceivedLLGRStale = receivedStale
+	})
 	labelHandle := pool.InternLabels(labels)
 	if !peerRIB.SetLabelsIfRouteExists(fam, cidrBytes, labelHandle) {
 		if labelHandle.IsValid() {

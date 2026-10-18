@@ -67,7 +67,8 @@ body being rewritten, not from the session's unrelated receive permission.
 Capability negotiation computes its result under the session lock, before taking
 the writer lock. Publishing that result and resizing the write buffer remain one
 writer-locked operation, so an internal negotiation panic cannot strand that lock
-and block connection cleanup.
+and block connection cleanup. The same section records whether Ze's own OPEN
+carried the LLGR Capability, which sizes no buffer.
 
 <!-- source: internal/component/bgp/reactor/session_negotiate.go -- negotiateWith -->
 <!-- source: internal/component/bgp/reactor/session.go -- getReadBuffer -->

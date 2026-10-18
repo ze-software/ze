@@ -285,7 +285,8 @@ LLGR is only active for a family when both OPENs of the session list it in their
    - Per-family LLST timer starts
 3. **During LLGR** -- LLGR-stale routes lose to any non-stale route in best-path selection. Between two LLGR-stale routes, normal tiebreaking applies.
 4. **LLST timer expires** -- stale routes for that family are purged
-5. **Peer reconnects during LLGR** -- standard RFC 4724 procedures apply; families with F-bit=0 or missing from the new OPEN are purged
+5. **Peer reconnects during LLGR** -- standard RFC 4724 procedures apply; families with F-bit=0 or missing from the new OPEN are purged. A family whose LLGR period has begun must also pass the new LLGR Capability: if that capability clears the family's F bit, omits the family, or is absent, the family's stale routes are purged at once, whatever the GR Capability says (RFC 9494 Section 4.2). A family still in its conventional GR period is judged by the GR Capability alone. A configuration with a Restart Time of zero therefore keeps its stale routes across a reconnect only when the new GR Capability also lists the family with its F bit set
+<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- onSessionReestablished, reconnectKeepsFamily -->
 
 The LLST expiry uses the time in the **remote peer's received OPEN**, not the
 `long-lived-stale-time` Ze advertises from its local configuration. Different
@@ -378,6 +379,24 @@ Ze uses a graduated stale level system for route prioritization:
 | 0 | Fresh | Normal selection |
 | 1 | GR-stale | Normal selection (not deprioritized) |
 | 2+ | LLGR-stale | Loses to any route with level < 2 |
+
+A route a neighbor sends carrying LLGR_STALE is least preferred too, when Ze
+sent that neighbor the LLGR Capability (RFC 9494 Section 4.3 binds "A BGP
+speaker that has advertised the Long-Lived Graceful Restart Capability to a
+neighbor"). From any other neighbor the route competes normally. The GR
+plugin decides this as the UPDATE arrives, before any import policy runs, and
+best path treats the route as level 2. That mark is separate from the stale
+level above: `mark-stale` and `purge-stale` act on the stale level alone, so
+such a route is retained at a TCP loss and survives an EOR like a fresh route.
+A refresh without the community makes it a normal route again. When the route
+is forwarded as it arrives, the LLGR egress decision applies to it as to a
+route Ze marked itself: withdrawn toward an EBGP neighbor without LLGR, sent
+with NO_EXPORT and LOCAL_PREF 0 toward an IBGP one. The `show bgp rib` stale
+level, a RIB replay or route refresh, and an adj-rib-in relay still see only
+the stale level, so on those paths such a route is sent as a fresh one.
+<!-- source: internal/component/bgp/plugins/gr/gr_ingress.go -- LLGRIngressFilter, llgrStaleFromSource -->
+<!-- source: internal/component/bgp/plugins/rib/rib_structured.go -- receivedLLGRStaleFromMeta -->
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- extractCandidate -->
 
 ### Readvertising a Stale Route
 

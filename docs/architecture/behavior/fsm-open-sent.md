@@ -104,7 +104,10 @@ In order:
    answers the AS, taking the configured value before the one the OPEN
    advertises. `PeerSettings.isIBGPWith` (`session_as_migration.go`) answers the
    verdict. Both go into `capability.Negotiate` as a `PeerIdentity`, so
-   `Negotiated.Identity` is what every later reader of the two gets.
+   `Negotiated.Identity` is what every later reader of the two gets. It also
+   records whether Ze's own OPEN carried the Long-Lived Graceful Restart
+   Capability (`retainAdvertisedLLGR`), which the RFC 9494 Section 4.3 ingress
+   step reads for every UPDATE this session receives.
 7. `CheckRequired(requiredFamilies)` must pass. Missing required families
    sends NOTIFICATION (UnsupportedCapability) and fires
    `EventBGPOpenMsgErr`.

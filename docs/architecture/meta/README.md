@@ -11,6 +11,15 @@ Each plugin documents the meta keys it sets and reads below.
 |-----|--------|---------|------|-------------|
 | `src-role` | role (ingress) | role (egress) | `string` | Source peer's role from our config (e.g., "provider", "customer", "peer", "rs", "rs-client") |
 | `src-peer-role` | role (ingress) | filter_community (ingress) | `string` | What the source peer IS to us: the Role capability it announced, or the complement of our configured role, from RFC 9234 Table 2. Absent when the role cannot be resolved |
+| `stale` | gr (ingress, `LLGRIngressFilter`); rib (replay and `rib_commands.go` re-advertise, from the stored stale level) | rib (received store, `receivedLLGRStaleFromMeta`); gr (egress, `LLGREgressFilter`) | `uint8` | The route's stale level: 2 marks an LLGR-stale route. The ingress step writes 2 for a received route carrying LLGR_STALE on a session whose own OPEN carried the LLGR Capability (RFC 9494 Section 4.3), and writes nothing otherwise |
+
+**Where the map is visible.** The reactor puts the ingress steps' map on the
+received event (`RawMessage.Meta`), so an in-process consumer reads the decision
+with no second scan, and a JSON event for a received UPDATE carries the same
+keys in its `route-meta` object. A sent event carries `ReceivedUpdate.Meta`
+there, beside the forward provenance keys (`source-peer`, `source-message-id`,
+`source-id`, `source-owner`, `source-local`, `sent-path-sources`). A JSON reader
+gets `stale` as a number.
 
 **`src-role` and `src-peer-role` carry OPPOSITE values for the same peer.**
 The first is OUR role toward that peer, read from the `import` keyword. The

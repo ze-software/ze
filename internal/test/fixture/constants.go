@@ -56,6 +56,7 @@ const (
 	addrLoopback               = "127.0.0.1"
 	addrLoopbackSecond         = "127.0.0.2"
 	addrLoopbackThird          = "127.0.0.3"
+	addrLoopbackV6             = "::1"
 	addrPeerOne                = "10.0.0.1"
 	addrPeerTwo                = "10.0.0.2"
 	addrPeerThree              = "10.0.0.3"

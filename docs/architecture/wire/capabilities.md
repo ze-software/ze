@@ -649,7 +649,9 @@ value or nowhere. RFC 7705 Section 4.2 lets a renumbering router hold an interna
 session under its second AS, so equal AS numbers are the ordinary internal case and
 not the whole rule. The reactor answers both before it negotiates: `sessionPeerAS`
 takes the configured AS before the advertised one, `PeerSettings.isIBGPWith` decides
-`Internal`, and `PeerIdentity.IsIBGP` returns that verdict unchanged.
+`Internal`, and `PeerIdentity.IsIBGP` returns that verdict unchanged. `negotiateWith`
+also records whether Ze's own OPEN carried the LLGR Capability (code 71), for the
+RFC 9494 Section 4.3 ingress step.
 
 <!-- source: internal/core/bgp/capability/identity.go -- PeerIdentity, IsIBGP -->
 <!-- source: internal/component/bgp/reactor/session_negotiate.go -- negotiateWith, the PeerIdentity it states -->

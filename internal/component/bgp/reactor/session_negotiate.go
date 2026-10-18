@@ -15,6 +15,30 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
+// capabilityCodeLLGR is the Long-Lived Graceful Restart Capability code. The
+// capability package names no constant for it, because no core decoder exists:
+// the GR plugin emits and reads its value. RFC 9494 Section 8: "IANA has
+// assigned a value of 71 from the "Capability Codes" registry".
+const capabilityCodeLLGR capability.Code = 71
+
+// retainAdvertisedLLGR records whether our own OPEN carried the LLGR
+// Capability. negotiateWith calls it, on the receive goroutine, so the ingress
+// step is told before this session's first UPDATE is read; a session whose OPEN
+// did not carry it forgets the previous session's answer.
+//
+// RFC 9494 Section 4.3: "A BGP speaker that has advertised the Long-Lived
+// Graceful Restart Capability to a neighbor MUST perform the following upon
+// receiving a route from that neighbor with the LLGR_STALE community".
+func (s *Session) retainAdvertisedLLGR(localCaps []capability.Capability) {
+	s.localLLGR = false
+	for _, cap := range localCaps {
+		if cap.Code() == capabilityCodeLLGR {
+			s.localLLGR = true
+			return
+		}
+	}
+}
+
 // negotiateWith performs capability negotiation using pre-parsed capabilities.
 func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 	s.mu.Lock()
@@ -66,6 +90,9 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 		s.localRSClient = role[2] == 2
 		break
 	}
+
+	// RFC 9494 Section 4.3
+	s.retainAdvertisedLLGR(localCaps)
 
 	s.initPathsLimit(s.negotiated.Encoding)
 	// RFC 8654 Section 4: "A BGP speaker MAY send BGP Extended Messages to a

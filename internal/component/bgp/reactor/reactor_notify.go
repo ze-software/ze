@@ -256,6 +256,10 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 
 	// Build PeerInfo while holding lock to avoid race on state
 	var peerInfo plugin.PeerInfo
+	// llgrAdvertised is read from the session only on the received direction,
+	// which runs on that session's read goroutine, the one negotiateWith wrote
+	// localLLGR on, so program order orders the write before this read.
+	var llgrAdvertised bool
 	if hasPeer {
 		s := peer.Settings()
 		peer.mu.RLock()
@@ -284,6 +288,9 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 			State:          peer.State().PluginState(),
 		}
 		if session != nil {
+			if direction == rpc.DirectionReceived {
+				llgrAdvertised = session.localLLGR
+			}
 			if endpoints := session.transport.Load(); endpoints != nil {
 				if endpoints.local.IsValid() {
 					peerInfo.LocalAddress = endpoints.local
@@ -466,6 +473,9 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 			PeerAS:   peerInfo.PeerAS,
 			LocalAS:  peerInfo.LocalAS,
 			RouterID: peerInfo.RouterID,
+			// RFC 9494 Section 4.3: the LLGR_STALE step binds only a speaker that
+			// advertised the capability on this session.
+			LLGRAdvertised: llgrAdvertised,
 		}
 		if hasPeer {
 			src.Name = peer.settings.Name
@@ -549,6 +559,11 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 		}
 		if len(ingressMeta) > 0 {
 			routeMeta = ingressMeta
+			// The received event carries what the ingress steps decided, so an
+			// in-process consumer reads it with no second scan: the RIB stores a
+			// received LLGR_STALE route least preferred from meta["stale"]
+			// (RFC 9494 Section 4.3).
+			msg.Meta = routeMeta
 		}
 	}
 	if direction == rpc.DirectionReceived && wireUpdate != nil {

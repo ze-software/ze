@@ -93,6 +93,6 @@ The current bgp-rs text parser collects NLRI values as opaque strings for forwar
 | Text full | `appendFullFromResult` writes parsed text plus raw text line | parsed text line covered by route-server parser |
 | JSON parsed | `plugin.FormatParsed` through JSON formatter functions | handled by JSON consumers, not this text parser |
 | JSON raw | `appendRawFromResult` | not parsed by route server |
-| JSON full | `appendFullFromResult` | not parsed by route server |
+| JSON full | `appendFullFromResult`, with a `route-meta` object: the ingress steps' decisions on a received event, the forward provenance on a sent one (`docs/architecture/meta/README.md`) | not parsed by route server |
 <!-- source: internal/component/bgp/format/text_update.go -- appendParsedFromResult, appendRawFromResult, appendFullFromResult -->
 <!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextNLRIOps, parseTextOpen, parseTextState, parseTextRefresh -->

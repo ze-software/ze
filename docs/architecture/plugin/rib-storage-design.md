@@ -1388,6 +1388,13 @@ when EOR arrives — preserving fresh routes received during the GR window.
 Stale state is not shared via dedup because each route instance has independent stale status.
 Level 0 means fresh (not stale). Plugins define non-zero levels and pass them via RIB commands.
 `DepreferenceThreshold` (default 2) is the level at which best-path deprioritizes routes.
+`ReceivedLLGRStale bool` sits beside it: the GR plugin's ingress step writes
+`meta["stale"] = 2` for a route received carrying LLGR_STALE from a neighbor Ze sent
+the LLGR Capability to (RFC 9494 Section 4.3), the reactor puts that metadata on the
+received event, and `handleReceivedStructured` writes the flag on every insert of the
+route, the no-op branches included, so it follows the latest UPDATE. `extractCandidate`
+raises the candidate to `DepreferenceThreshold`. No stale operation below reads or
+writes it.
 
 <!-- source: internal/component/bgp/plugins/rib/storage/routeentry.go — StaleLevelFresh, DepreferenceThreshold -->
 

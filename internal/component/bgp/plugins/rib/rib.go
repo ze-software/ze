@@ -1098,6 +1098,9 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr netip.Addr) {
 		}
 	}
 
+	// RFC 9494 Section 4.3: the GR ingress step's verdict, from the event's
+	// route-meta, as handleReceivedStructured reads it from the structured event.
+	receivedStale := receivedLLGRStaleFromMeta(event.RouteMeta)
 	for _, fam := range event.RawNLRIFamilies() {
 		nlriBytes := event.GetRawNLRIBytes(fam)
 		if len(nlriBytes) > 0 {
@@ -1106,15 +1109,16 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr netip.Addr) {
 				logger().Warn("received event: invalid next hop", "family", fam.String(), "error", err)
 				continue
 			}
-			r.insertPoolNLRIs(peerRIB, fam, nlriBytes, familyAttrs, event.AddPath[fam], event.GetMsgID())
+			r.insertPoolNLRIs(peerRIB, fam, nlriBytes, familyAttrs, event.AddPath[fam], event.GetMsgID(), receivedStale)
 		}
 	}
 }
 
 // insertPoolNLRIs inserts split NLRIs into the peer's RIB. Metric labels and
 // log lines use PeerRIB's cached canonical address string (no per-call
-// conversion).
-func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family, nlriBytes, attrBytes []byte, addPath bool, msgID uint64) {
+// conversion). receivedStale is the RFC 9494 Section 4.3 verdict written on
+// every stored route.
+func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family, nlriBytes, attrBytes []byte, addPath bool, msgID uint64, receivedStale bool) {
 	famStr := fam.String()
 	if !nlrisplit.Supported(fam) {
 		logger().Debug("pool: no splitter for family", "peer", peerRIB.PeerAddr(), "family", famStr)
@@ -1134,7 +1138,7 @@ func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family
 			prefixes := affected[:0]
 			// RFC 8277 Section 2.2: keep labels beside the normalized CIDR,
 			// exactly as on the structured receive path.
-			r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, &prefixes)
+			r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, receivedStale, &prefixes)
 			if len(prefixes) == 0 {
 				continue
 			}
@@ -1146,6 +1150,7 @@ func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family
 		peerRIB.Insert(fam, attrBytes, wirePrefix)
 		peerRIB.ModifyFamilyEntry(fam, wirePrefix, func(entry *storage.RouteEntry) {
 			entry.MsgID = msgID
+			entry.ReceivedLLGRStale = receivedStale
 		})
 	}
 	if m := metricsPtr.Load(); m != nil {

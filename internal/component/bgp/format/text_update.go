@@ -603,19 +603,20 @@ func appendFullFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMes
 	buf = hex.AppendEncode(buf, msg.RawBytes)
 	buf = append(buf, '"', '}') // close "update" hex then close "raw"
 
-	// Inject route metadata if present (sideband, not in wire bytes).
-	// Marshal error silently drops metadata (meta contains only string/bool values
-	// from ingress filters; marshal failure requires a code bug, not external input).
+	// Inject route metadata if present (sideband, not in wire bytes). A sent
+	// event carries the forward provenance and ReceivedUpdate.Meta; a received
+	// event carries what the ingress steps decided (docs/architecture/meta/README.md,
+	// Key Registry). A value of a type appendRouteMetaValue cannot write drops its
+	// key: only a Ze defect puts one there, never external input.
 	hasMeta := len(msg.Meta) > 0 || msg.SourcePeerStr != "" || msg.SourceOwner != 0 || msg.SourceLocal || len(msg.SentPathSources) != 0
 	if hasMeta {
 		buf = append(buf, `,"route-meta":{`...)
 		first := true
 		if msg.SourcePeerStr != "" {
-			buf = append(buf, `"source-peer":`...)
-			if sb, err := json.Marshal(msg.SourcePeerStr); err == nil {
-				buf = append(buf, sb...)
-				first = false
-			}
+			buf = append(buf, `"source-peer":"`...)
+			buf = appendJSONString(buf, msg.SourcePeerStr)
+			buf = append(buf, '"')
+			first = false
 		}
 		if msg.SourceMessageID != 0 {
 			if !first {
@@ -674,17 +675,19 @@ func appendFullFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMes
 				k == bgptypes.SourceOwnerMeta || k == bgptypes.SourceLocalMeta || k == bgptypes.SentPathSourcesMeta {
 				continue // Transport provenance cannot be replaced by route policy.
 			}
-			kb, kerr := json.Marshal(k)
-			vb, verr := json.Marshal(v)
-			if kerr != nil || verr != nil {
-				continue
-			}
+			mark := len(buf)
 			if !first {
 				buf = append(buf, ',')
 			}
-			buf = append(buf, kb...)
-			buf = append(buf, ':')
-			buf = append(buf, vb...)
+			buf = append(buf, '"')
+			buf = appendJSONString(buf, k)
+			buf = append(buf, '"', ':')
+			var written bool
+			buf, written = appendRouteMetaValue(buf, v)
+			if !written {
+				buf = buf[:mark]
+				continue
+			}
 			first = false
 		}
 		buf = append(buf, '}')
@@ -693,6 +696,30 @@ func appendFullFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMes
 	// Close bgp and outer wrapper
 	buf = append(buf, "}}\n"...)
 	return buf
+}
+
+// appendRouteMetaValue appends one route-meta value as JSON and reports whether
+// it wrote one. The registered value types (docs/architecture/meta/README.md) are
+// written directly, because this runs for every received UPDATE an ingress step
+// annotated: a string role and the uint8 stale level are the common cases, and
+// json.Marshal allocates for each. Any other type goes through json.Marshal,
+// which is the cold path only a key outside the registry reaches.
+func appendRouteMetaValue(buf []byte, v any) ([]byte, bool) {
+	switch value := v.(type) {
+	case string:
+		buf = append(buf, '"')
+		buf = appendJSONString(buf, value)
+		return append(buf, '"'), true
+	case uint8:
+		return strconv.AppendUint(buf, uint64(value), 10), true
+	case bool:
+		return strconv.AppendBool(buf, value), true
+	}
+	encoded, err := json.Marshal(v)
+	if err != nil {
+		return buf, false
+	}
+	return append(buf, encoded...), true
 }
 
 // appendRawSectionsJSON writes the "raw" object contents directly from

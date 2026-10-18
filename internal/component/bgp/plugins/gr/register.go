@@ -60,6 +60,18 @@ func init() {
 		os.Exit(1)
 	}
 
+	// RFC 9494 Section 4.3: the received LLGR_STALE step. A second entry because
+	// it needs FilterStageProtocol, ahead of every operator import policy, while
+	// the egress decision above stays at its annotation stage. Register fails only
+	// on a duplicate or empty name, which a Ze defect alone produces.
+	if err := filterapi.Register(filterapi.Filter{
+		Name:    grPluginName + "-llgr-ingress",
+		Stage:   filterapi.FilterStageProtocol,
+		Ingress: LLGRIngressFilter,
+	}); err != nil {
+		panic("BUG: gr: ingress filter registration failed: " + err.Error())
+	}
+
 	reg := registry.Registration{
 		Name:            grPluginName,
 		Description:     "Graceful Restart capability and mechanism plugin",

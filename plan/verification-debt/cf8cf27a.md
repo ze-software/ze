@@ -7,5 +7,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
-| 2026-10-18 | cf8cf27a | fix(gr): LLGR reconnect purges a family the new LLGR caps drop (+2 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-18T03:37:59Z) | open |
-| 2026-10-18 | cf8cf27a | fix(gr): LLGR reconnect purges a family the new LLGR caps drop (+2 more) | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-10-18 | cf8cf27a | fix(gr): LLGR reconnect purges a family the new LLGR caps drop (+3 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-18T03:37:59Z) | open |
+| 2026-10-18 | cf8cf27a | fix(gr): LLGR reconnect purges a family the new LLGR caps drop (+3 more) | full native verification over this commit's Go | no full native verification covers this commit's Go | open |

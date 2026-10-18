@@ -44,6 +44,7 @@ func init() {
 	Register("plugin/bestpath-reason", observer02("reason-test", bestpathReason02))
 	Register("plugin/bfd-auth-sha1", observer02("bfd-auth-sha1-test", bfdAuthSHA102))
 	Register("plugin/bfd-auth-simple-password", observer02("bfd-auth-simple-password-test", bfdAuthSimplePassword02))
+	Register("plugin/llgr-stale-received-depreferenced", observer02("llgr-received-test", llgrStaleReceived02))
 	// The reject-asn drivers sit beside the as-path ones because they are the
 	// same shape: one filter chain, one route, and a decision read off the log.
 	Register("plugin/path-asn-filter-accept", observer02("test-path-asn-accept", adjRIBRouteObserver02))

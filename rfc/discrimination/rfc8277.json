@@ -570,7 +570,7 @@
       "claim-sha": "47ed95d9e9dc5e67",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_structured.go::insertLabeledEntry",
-      "producer-sha": "1a9d1e392b3b5dd6",
+      "producer-sha": "d1d6443b0fc30dec",
       "break": "body of insertLabeledEntry replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

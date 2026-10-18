@@ -1369,8 +1369,18 @@ func (r *RIBManager) extractCandidate(fam family.Family, peerAddr netip.Addr, pe
 		}
 	}
 
-	// RFC 9494: LLGR-stale flag for best-path depreference.
+	// RFC 9494 Section 4.3: "upon receiving a route from that neighbor with the
+	// LLGR_STALE community or upon attaching the LLGR_STALE community itself per
+	// Section 4.2: * Treat the route as the least preferred in route selection".
+	// The level Ze attached is the retention mark StaleLevel; a received
+	// LLGR_STALE is ReceivedLLGRStale, kept apart so purge-stale and mark-stale
+	// never touch it. Best path sees the higher of the two. The received case
+	// binds only "A BGP speaker that has advertised the Long-Lived Graceful
+	// Restart Capability to a neighbor", which the GR ingress step checked.
 	c.StaleLevel = entry.StaleLevel
+	if entry.ReceivedLLGRStale && c.StaleLevel < storage.DepreferenceThreshold {
+		c.StaleLevel = storage.DepreferenceThreshold
+	}
 
 	c.AIGP, c.HasAIGP = entryAIGP(entry)
 

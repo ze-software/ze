@@ -246,6 +246,105 @@
       "citation": "expect=stderr:contains=OK: import-added NO_LLGR removed on LLGR entry; unmarked control retained with LLGR_STALE"
     },
     {
+      "rid": "RFC9494-4.2-8",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_BothFBitsSetKeepsLLGRPeriodFamily",
+      "unit-sha": "c4fe588108617fe9",
+      "claim-sha": "546ac174bdff620e",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_state.go::reconnectKeepsFamily",
+      "producer-sha": "cdec4aa797f1e5f7",
+      "break": "body of reconnectKeepsFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.2-8",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_FamilyAbsentFromLLGRPurges",
+      "unit-sha": "5fd80fd5a6a55425",
+      "claim-sha": "9f3c5412c7874cc2",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_state.go::reconnectKeepsFamily",
+      "producer-sha": "cdec4aa797f1e5f7",
+      "break": "body of reconnectKeepsFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.2-8",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_GRPeriodFamilyIgnoresLLGRBullets",
+      "unit-sha": "500956da52a6d9b5",
+      "claim-sha": "06daf4d4684de930",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_state.go::reconnectKeepsFamily",
+      "producer-sha": "cdec4aa797f1e5f7",
+      "break": "body of reconnectKeepsFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.2-8",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_LLGRFBitClearPurges",
+      "unit-sha": "4b868b425eef9e5e",
+      "claim-sha": "50da58d4d1f03e9b",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_state.go::reconnectKeepsFamily",
+      "producer-sha": "cdec4aa797f1e5f7",
+      "break": "body of reconnectKeepsFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.2-8",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_NoLLGRCapPurgesLLGRPeriodFamily",
+      "unit-sha": "e46da7c1db924cda",
+      "claim-sha": "361bdc05e53e1d39",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_state.go::reconnectKeepsFamily",
+      "producer-sha": "cdec4aa797f1e5f7",
+      "break": "body of reconnectKeepsFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/gr/rfc9494_gr_ingress_test.go::TestLLGRIngressFilter_MarksReceivedStale",
+      "unit-sha": "ca2f92116f1a870d",
+      "claim-sha": "9130b2898a3643db",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_ingress.go::llgrStaleFromSource",
+      "producer-sha": "9b1cbde96e36aaec",
+      "break": "body of llgrStaleFromSource replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/gr/rfc9494_gr_ingress_test.go::TestLLGRIngressFilter_NoLLGRSentLeavesFresh",
+      "unit-sha": "07da0587f3e05d80",
+      "claim-sha": "b8ef43d58f96713a",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_ingress.go::llgrStaleFromSource",
+      "producer-sha": "9b1cbde96e36aaec",
+      "break": "body of llgrStaleFromSource replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_GRStaleCompetesNormally",
+      "unit-sha": "fdb961ca7c8875f7",
+      "claim-sha": "e124822348c317b9",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/bestpath.go::compareBeforeMED",
+      "producer-sha": "998e7a9aab5fe43c",
+      "break": "body of compareBeforeMED replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_LLGRStale",
+      "unit-sha": "e72d16396937b65c",
+      "claim-sha": "2411e631109be598",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/bestpath.go::compareBeforeMED",
+      "producer-sha": "998e7a9aab5fe43c",
+      "break": "body of compareBeforeMED replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9494-4.3-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rfc9494_llgr_least_preferred_test.go::TestRFC9494LLGRStaleLosesEveryLaterTieBreak",
@@ -255,6 +354,61 @@
       "producer": "internal/component/bgp/plugins/rib/bestpath.go::compareBeforeMED",
       "producer-sha": "998e7a9aab5fe43c",
       "break": "body of compareBeforeMED replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc9494_llgr_received_stale_test.go::TestRFC9494ReceivedLLGRStaleFromNonLLGRNeighborCompetesNormally",
+      "unit-sha": "f0538246048e3c65",
+      "claim-sha": "e383950d886d8e6b",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_structured.go::receivedLLGRStaleFromMeta",
+      "producer-sha": "d25cdb348e3edb28",
+      "break": "body of receivedLLGRStaleFromMeta replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc9494_llgr_received_stale_test.go::TestRFC9494ReceivedLLGRStaleIsLeastPreferred",
+      "unit-sha": "1c9eae41f5164c44",
+      "claim-sha": "1c06e35e5142d6a7",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_structured.go::receivedLLGRStaleFromMeta",
+      "producer-sha": "d25cdb348e3edb28",
+      "break": "body of receivedLLGRStaleFromMeta replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc9494_llgr_received_stale_test.go::TestRFC9494ReceivedOtherCommunityCompetesNormally",
+      "unit-sha": "4a95e3b070c45743",
+      "claim-sha": "8d414f042b6e2a9e",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_structured.go::receivedLLGRStaleFromMeta",
+      "producer-sha": "d25cdb348e3edb28",
+      "break": "body of receivedLLGRStaleFromMeta replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go::TestRFC9494ReceivedEventCarriesIngressStale",
+      "unit-sha": "d15a38a9be77d03d",
+      "claim-sha": "cd8bc30b03aa18d0",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
+      "producer-sha": "f044d9c84cfd61bd",
+      "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go::TestRFC9494ReceivedEventNoLLGRSessionStaysFresh",
+      "unit-sha": "dd44ddb8f3a52f5d",
+      "claim-sha": "5d56b5993f6c9059",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
+      "producer-sha": "f044d9c84cfd61bd",
+      "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9494-4.3-3",
