@@ -1,0 +1,449 @@
+package interoplab
+
+import (
+	"context"
+	"errors"
+	"net/netip"
+	"os"
+	"slices"
+	"strings"
+	"testing"
+
+	"github.com/ze-software/ze/internal/le/procscan"
+)
+
+const (
+	fixtureContainerID = "c000000000000000000000000000000000000000000000000000000000000001"
+	fixtureNetworkID   = "a000000000000000000000000000000000000000000000000000000000000002"
+	fixtureImageID     = "sha256:b000000000000000000000000000000000000000000000000000000000000003"
+	otherMachineID     = "fedcba9876543210fedcba9876543210"
+	otherBootID        = "76543210-89ab-cdef-0123-456789abcdef"
+)
+
+// fixtureLabels answers the label set of a resource owned by pid 4242 on the
+// fixture machine, in the fixture boot, with start token "100".
+func fixtureLabels(mutate func(map[string]string)) map[string]string {
+	labels := map[string]string{
+		labelMarker:    labelMarkerValue,
+		labelRun:       "run-fixture",
+		labelPID:       "4242",
+		labelPIDStart:  "100",
+		labelBootID:    fixtureBootID,
+		labelMachineID: fixtureMachineID,
+		labelStarted:   "2026-10-18T10:00:00Z",
+		labelPurpose:   "le test integration interop",
+	}
+	if mutate != nil {
+		mutate(labels)
+	}
+	return labels
+}
+
+func labelJSON(labels map[string]string) string {
+	keys := make([]string, 0, len(labels))
+	for key := range labels {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	var text strings.Builder
+	text.WriteByte('{')
+	for index, key := range keys {
+		if index > 0 {
+			text.WriteByte(',')
+		}
+		text.WriteString(`"` + key + `":"` + labels[key] + `"`)
+	}
+	text.WriteByte('}')
+	return text.String()
+}
+
+// lookupAnswering answers pid 4242 with the given start token; every other pid is absent.
+func lookupAnswering(start string) func(int) (procscan.Process, bool, error) {
+	return func(pid int) (procscan.Process, bool, error) {
+		if pid == 4242 && start != "" {
+			return procscan.Process{PID: pid, Start: start, Argv: []string{"le", "test", "integration", "interop"}}, true, nil
+		}
+		return procscan.Process{}, false, nil
+	}
+}
+
+// orphanDaemon answers the labeled listings with one container, one network
+// and one image carrying the cache tag and the run-owned tag, each owned by
+// the labels given.
+func orphanDaemon(labels map[string]string, extra func(processCommand) (processResult, bool)) func(processCommand) (processResult, error) {
+	return func(command processCommand) (processResult, error) {
+		if extra != nil {
+			if result, handled := extra(command); handled {
+				return result, nil
+			}
+		}
+		joined := strings.Join(command.Arguments, " ")
+		switch {
+		case strings.HasPrefix(joined, "docker ps -a"):
+			return processResult{Stdout: fixtureContainerID + "\tlab-peer-4242\n"}, nil
+		case strings.HasPrefix(joined, "docker network ls"):
+			return processResult{Stdout: fixtureNetworkID + "\tlab-net-4242\n"}, nil
+		case strings.HasPrefix(joined, "docker image ls"):
+			return processResult{Stdout: fixtureImageID + "\tze-interop-peer:latest\n" +
+				fixtureImageID + "\tze-interop-retained:abc\n"}, nil
+		case strings.HasPrefix(joined, "docker container inspect"),
+			strings.HasPrefix(joined, "docker network inspect"),
+			strings.HasPrefix(joined, "docker image inspect"):
+			return processResult{Stdout: labelJSON(labels) + "\n"}, nil
+		}
+		return processResult{}, nil
+	}
+}
+
+// VALIDATES: AC-1, AC-2, AC-3: every create path the wrapper owns carries the
+// marker and every owner label, from the one helper.
+// PREVENTS: a create path whose resource a later sweep cannot attribute.
+func TestOwnerLabelsOnEveryCreate(t *testing.T) {
+	runner := &recordingRunner{run: func(processCommand) (processResult, error) {
+		return processResult{Stdout: "sha256:feed\n"}, nil
+	}}
+	docker := newDocker(runner)
+	ctx := t.Context()
+	network := Network{Name: "lab-net", IPv4: netip.MustParsePrefix("172.29.0.0/24")}
+	if err := docker.runContainer(ctx, network, PeerConfig{Name: "peer", Container: "lab-peer", Image: "peer-image", Host: 3}); err != nil {
+		t.Fatalf("runContainer: %v", err)
+	}
+	if _, err := docker.RunOneShot(ctx, OneShotContainer{Image: "alpine", Timeout: dockerRunTimeout}); err != nil {
+		t.Fatalf("RunOneShot: %v", err)
+	}
+	if _, err := docker.createNetwork(ctx, NetworkSpec{Name: "lab-net", Candidates: []Subnet{{IPv4: network.IPv4}}}); err != nil {
+		t.Fatalf("createNetwork: %v", err)
+	}
+	if _, err := docker.Build(ctx, ImageBuild{Name: "peer", Tag: "peer-image", Dockerfile: "Dockerfile", Context: "."}); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	probe := docker.kernelProbeArgv("/staged/ze", false)
+
+	creates := make([][]string, 0, 5)
+	for _, command := range runner.commands {
+		creates = append(creates, command.Arguments)
+	}
+	creates = append(creates, probe)
+	if len(creates) != 5 {
+		t.Fatalf("recorded %d create commands, want 5", len(creates))
+	}
+	owner := fixtureOwner()
+	want := map[string]string{
+		labelMarker:    labelMarkerValue,
+		labelRun:       owner.run,
+		labelPID:       "4242",
+		labelPIDStart:  owner.pidStart,
+		labelBootID:    owner.bootID,
+		labelMachineID: owner.machineID,
+		labelStarted:   owner.started.Format(timeLayoutRFC3339),
+		labelPurpose:   owner.purpose,
+	}
+	for _, argv := range creates {
+		joined := strings.Join(argv, " ")
+		for key, value := range want {
+			if !strings.Contains(joined, "--label "+key+"="+value) {
+				t.Errorf("%s carries no --label %s=%s", joined, key, value)
+			}
+		}
+	}
+}
+
+// VALIDATES: AC-4: the owner facts and the verdict are taken on the client;
+// no Docker command asks the daemon for a pid, a boot id or a machine id.
+// PREVENTS: judging a Mac run by the Colima VM's pid namespace.
+func TestOwnerIdentityNeverReadsTheDaemon(t *testing.T) {
+	runner := &recordingRunner{run: orphanDaemon(fixtureLabels(nil), nil)}
+	docker := newDocker(runner)
+	if _, err := docker.CleanupOrphans(t.Context(), false); err != nil {
+		t.Fatalf("CleanupOrphans: %v", err)
+	}
+	if len(runner.commands) == 0 {
+		t.Fatal("CleanupOrphans ran no command, so the assertion below is vacuous")
+	}
+	for _, command := range runner.commands {
+		joined := strings.Join(command.Arguments, " ")
+		for _, daemonFact := range []string{"docker info", "docker version", "State.Pid", "/proc", "boot_id", "machine-id"} {
+			if strings.Contains(joined, daemonFact) {
+				t.Errorf("%q asks the daemon for an owner fact (%s)", joined, daemonFact)
+			}
+		}
+	}
+}
+
+// VALIDATES: A-2, A-3: the host facts come from the client's own files on
+// Linux and its own commands on macOS, and an unreadable or malformed answer
+// is a named problem, never an empty identity read as a match.
+func TestOwnerIdentityReadsBootID(t *testing.T) {
+	linux := hostReaders{
+		goos: "linux",
+		readFile: func(path string) ([]byte, error) {
+			switch path {
+			case machineIDPath:
+				return []byte("0123456789ABCDEF0123456789abcdef\n"), nil
+			case bootIDPath:
+				return []byte("01234567-89ab-cdef-0123-456789abcdef\n"), nil
+			}
+			return nil, os.ErrNotExist
+		},
+	}
+	facts := readHostFacts(linux)
+	if facts.problem != "" {
+		t.Fatalf("linux facts carry a problem: %s", facts.problem)
+	}
+	if facts.machineID != fixtureMachineID {
+		t.Errorf("machine id = %q, want %q (lower-cased)", facts.machineID, fixtureMachineID)
+	}
+	if facts.bootID != fixtureBootID {
+		t.Errorf("boot id = %q, want %q", facts.bootID, fixtureBootID)
+	}
+
+	darwin := hostReaders{
+		goos: "darwin",
+		command: func(name string, arguments ...string) ([]byte, error) {
+			if name == "ioreg" {
+				return []byte(`    "IOPlatformUUID" = "0123ABCD-0000-1111-2222-333344445555"` + "\n"), nil
+			}
+			if name == "sysctl" && slices.Contains(arguments, "kern.bootsessionuuid") {
+				return []byte("01234567-89AB-CDEF-0123-456789ABCDEF\n"), nil
+			}
+			return nil, errors.New("unexpected command")
+		},
+	}
+	facts = readHostFacts(darwin)
+	if facts.problem != "" {
+		t.Fatalf("darwin facts carry a problem: %s", facts.problem)
+	}
+	if facts.machineID != "0123abcd-0000-1111-2222-333344445555" {
+		t.Errorf("darwin machine id = %q", facts.machineID)
+	}
+	if facts.bootID != fixtureBootID {
+		t.Errorf("darwin boot id = %q", facts.bootID)
+	}
+
+	unreadable := hostReaders{goos: "linux", readFile: func(string) ([]byte, error) { return nil, os.ErrPermission }}
+	if facts := readHostFacts(unreadable); facts.problem == "" || !strings.Contains(facts.problem, machineIDPath) {
+		t.Errorf("an unreadable machine id gave problem %q, want one naming %s", facts.problem, machineIDPath)
+	}
+	malformed := hostReaders{goos: "linux", readFile: func(string) ([]byte, error) { return []byte("not-an-id\n"), nil }}
+	if facts := readHostFacts(malformed); facts.problem == "" {
+		t.Error("a malformed machine id was accepted")
+	}
+	if facts := readHostFacts(hostReaders{goos: "plan9"}); facts.problem == "" {
+		t.Error("a host with no identity source answered an identity")
+	}
+}
+
+// VALIDATES: AC-5 (a, b, c) gone, AC-6 (a, b, c, d) skipped, and the pid label
+// boundary, over injected identity and process scans.
+// PREVENTS: R-1, a live run's resource judged gone.
+func TestCleanupOrphansVerdictTable(t *testing.T) {
+	host := hostFacts{machineID: fixtureMachineID, bootID: fixtureBootID}
+	for _, row := range []struct {
+		name   string
+		host   hostFacts
+		lookup func(int) (procscan.Process, bool, error)
+		mutate func(map[string]string)
+		want   ownerVerdict
+	}{
+		{"AC-5a same boot, pid absent", host, lookupAnswering(""), nil, ownerGone},
+		{"AC-5b same boot, pid reused", host, lookupAnswering("999"), nil, ownerGone},
+		{"AC-5c different boot", host, lookupAnswering("100"), func(l map[string]string) { l[labelBootID] = otherBootID }, ownerGone},
+		{"AC-6a alive with the same token", host, lookupAnswering("100"), nil, ownerAlive},
+		{"AC-6b another machine", host, lookupAnswering(""), func(l map[string]string) { l[labelMachineID] = otherMachineID }, ownerUnknown},
+		{"AC-6c missing pid", host, lookupAnswering(""), func(l map[string]string) { delete(l, labelPID) }, ownerUnknown},
+		{"AC-6c missing start token", host, lookupAnswering(""), func(l map[string]string) { delete(l, labelPIDStart) }, ownerUnknown},
+		{"AC-6c malformed machine id", host, lookupAnswering(""), func(l map[string]string) { l[labelMachineID] = "x;rm -rf" }, ownerUnknown},
+		{"AC-6c malformed boot id", host, lookupAnswering(""), func(l map[string]string) { l[labelBootID] = "" }, ownerUnknown},
+		{"AC-6d own machine id unreadable", hostFacts{problem: "machine id unreadable"}, lookupAnswering(""), nil, ownerUnknown},
+		{"pid scan failed", host, func(int) (procscan.Process, bool, error) { return procscan.Process{}, false, errors.New("ps failed") }, nil, ownerUnknown},
+		{"pid 2147483647 is the last valid", host, lookupAnswering(""), func(l map[string]string) { l[labelPID] = "2147483647" }, ownerGone},
+		{"pid 0 is malformed", host, lookupAnswering(""), func(l map[string]string) { l[labelPID] = "0" }, ownerUnknown},
+		{"pid 2147483648 is malformed", host, lookupAnswering(""), func(l map[string]string) { l[labelPID] = "2147483648" }, ownerUnknown},
+		{"pid -1 is malformed", host, lookupAnswering(""), func(l map[string]string) { l[labelPID] = "-1" }, ownerUnknown},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			judge := ownerJudge{host: row.host, lookup: row.lookup}
+			got := judge.judge(fixtureLabels(row.mutate))
+			if got.verdict != row.want {
+				t.Errorf("verdict = %v (%s), want %v", got.verdict, got.reason, row.want)
+			}
+			if got.reason == "" {
+				t.Error("the verdict states no reason")
+			}
+			if got.verdict != ownerGone && got.fix == "" {
+				t.Error("a skip names no fix")
+			}
+		})
+	}
+}
+
+// VALIDATES: AC-5 order: containers, then networks, then the run-owned tags,
+// each by the id the filtered listing gave; and R-7, a network a foreign
+// endpoint still holds is a reported skip, not a failure.
+func TestCleanupOrphansOrderContainersNetworksTags(t *testing.T) {
+	runner := &recordingRunner{run: orphanDaemon(fixtureLabels(nil), nil)}
+	docker := newDocker(runner)
+	report, err := docker.CleanupOrphans(t.Context(), false)
+	if err != nil {
+		t.Fatalf("CleanupOrphans: %v", err)
+	}
+	assertOrder(t, recordedCommands(runner.commands),
+		"docker ps -a --no-trunc --filter label=ze.lab",
+		"docker rm -f "+fixtureContainerID,
+		"docker network rm "+fixtureNetworkID,
+		"docker image rm --no-prune ze-interop-retained:abc",
+	)
+	if len(report.Removed) != 3 {
+		t.Errorf("removed %d resources, want 3: %#v", len(report.Removed), report.Removed)
+	}
+	if report.Code() != 0 {
+		t.Errorf("code = %d, want 0", report.Code())
+	}
+
+	busy := &recordingRunner{run: orphanDaemon(fixtureLabels(nil), func(command processCommand) (processResult, bool) {
+		if strings.HasPrefix(strings.Join(command.Arguments, " "), "docker network rm") {
+			return processResult{ExitCode: 1, Stderr: "Error response from daemon: error while removing network: network lab-net-4242 id " + fixtureNetworkID + " has active endpoints"}, true
+		}
+		return processResult{}, false
+	})}
+	report, err = newDocker(busy).CleanupOrphans(t.Context(), false)
+	if err != nil {
+		t.Fatalf("CleanupOrphans: %v", err)
+	}
+	if len(report.Failed) != 0 {
+		t.Errorf("a network with a foreign endpoint failed the sweep: %#v", report.Failed)
+	}
+	skipped := false
+	for _, resource := range report.Skipped {
+		if resource.ID == fixtureNetworkID && strings.Contains(resource.Reason, "endpoint") {
+			skipped = true
+		}
+	}
+	if !skipped {
+		t.Errorf("the attached network is not a reported skip: %#v", report.Skipped)
+	}
+}
+
+// VALIDATES: AC-9: the sweep lists only by the marker label, never removes a
+// volume, never prunes, and never removes a tag other than the run-owned one.
+func TestCleanupOrphansNeverTouchesUnlabeledVolumesOrCacheTags(t *testing.T) {
+	for _, dry := range []bool{false, true} {
+		runner := &recordingRunner{run: orphanDaemon(fixtureLabels(nil), nil)}
+		if _, err := newDocker(runner).CleanupOrphans(t.Context(), dry); err != nil {
+			t.Fatalf("CleanupOrphans(dry=%v): %v", dry, err)
+		}
+		for _, command := range runner.commands {
+			joined := strings.Join(command.Arguments, " ")
+			if slices.Contains(command.Arguments, "volume") || slices.Contains(command.Arguments, "prune") {
+				t.Errorf("dry=%v ran %q", dry, joined)
+			}
+			if strings.Contains(joined, "ze-interop-peer:latest") {
+				t.Errorf("dry=%v touched the shared cache tag: %q", dry, joined)
+			}
+			listing := strings.HasPrefix(joined, "docker ps") || strings.HasPrefix(joined, "docker network ls")
+			if listing && !strings.Contains(joined, "--filter label="+labelMarker) {
+				t.Errorf("dry=%v listed without the marker filter: %q", dry, joined)
+			}
+			if dry && slices.Contains(command.Arguments, "rm") {
+				t.Errorf("dry run removed something: %q", joined)
+			}
+		}
+	}
+}
+
+// VALIDATES: R-6: a resource another sweep already removed is success.
+func TestCleanupOrphansConcurrentAbsentIsSuccess(t *testing.T) {
+	runner := &recordingRunner{run: orphanDaemon(fixtureLabels(nil), func(command processCommand) (processResult, bool) {
+		joined := strings.Join(command.Arguments, " ")
+		switch {
+		case strings.HasPrefix(joined, "docker rm -f"):
+			return processResult{ExitCode: 1, Stderr: "Error response from daemon: No such container: " + fixtureContainerID}, true
+		case strings.HasPrefix(joined, "docker network rm"):
+			return processResult{ExitCode: 1, Stderr: "Error response from daemon: network " + fixtureNetworkID + " not found"}, true
+		case strings.HasPrefix(joined, "docker image rm"):
+			return processResult{ExitCode: 1, Stderr: "Error response from daemon: No such image: ze-interop-retained:abc"}, true
+		}
+		return processResult{}, false
+	})}
+	report, err := newDocker(runner).CleanupOrphans(t.Context(), false)
+	if err != nil {
+		t.Fatalf("CleanupOrphans: %v", err)
+	}
+	if len(report.Failed) != 0 || report.Code() != 0 {
+		t.Errorf("an already-removed resource failed the sweep: code %d, %#v", report.Code(), report.Failed)
+	}
+}
+
+// VALIDATES: AC-6 messages: each skip names the resource, why it stays, and
+// the command that resolves it; a removal failure names the failing command.
+func TestCleanupOrphansSkipMessagesNameFix(t *testing.T) {
+	foreign := fixtureLabels(func(l map[string]string) { l[labelMachineID] = otherMachineID })
+	docker := newDocker(&recordingRunner{run: orphanDaemon(foreign, nil)})
+	report, err := docker.CleanupOrphans(t.Context(), false)
+	if err != nil {
+		t.Fatalf("CleanupOrphans: %v", err)
+	}
+	if len(report.Skipped) == 0 {
+		t.Fatal("a foreign owner's resources were not skipped")
+	}
+	for _, resource := range report.Skipped {
+		if !strings.Contains(resource.Fix, "./le test integration cleanup") || !strings.Contains(resource.Fix, otherMachineID) {
+			t.Errorf("foreign skip fix %q names neither the command nor the machine", resource.Fix)
+		}
+	}
+	text := report.Text()
+	if !strings.Contains(text, "lab-peer-4242") {
+		t.Errorf("the text report does not name the container:\n%s", text)
+	}
+
+	alive := newDocker(&recordingRunner{run: orphanDaemon(fixtureLabels(nil), nil)})
+	alive.judge.lookup = lookupAnswering("100")
+	report, err = alive.CleanupOrphans(t.Context(), true)
+	if err != nil {
+		t.Fatalf("CleanupOrphans: %v", err)
+	}
+	for _, resource := range report.Skipped {
+		if !strings.Contains(resource.Reason, "4242") || !strings.Contains(resource.Reason, "le test integration interop") {
+			t.Errorf("a live-owner skip %q names neither the pid nor its command line", resource.Reason)
+		}
+	}
+
+	failing := newDocker(&recordingRunner{run: orphanDaemon(fixtureLabels(nil), func(command processCommand) (processResult, bool) {
+		if strings.HasPrefix(strings.Join(command.Arguments, " "), "docker rm -f") {
+			return processResult{ExitCode: 1, Stderr: "Error response from daemon: device busy"}, true
+		}
+		return processResult{}, false
+	})})
+	report, err = failing.CleanupOrphans(t.Context(), false)
+	if err != nil {
+		t.Fatalf("CleanupOrphans: %v", err)
+	}
+	if report.Code() != 1 || len(report.Failed) != 1 || !strings.Contains(report.Failed[0].Error, "docker rm -f") ||
+		!strings.Contains(report.Failed[0].Fix, "docker rm -f "+fixtureContainerID) {
+		t.Errorf("a failed removal is not named with its command: code %d, %#v", report.Code(), report.Failed)
+	}
+}
+
+// VALIDATES: Q-3: the dry run lists an unlabeled run-owned tag left from
+// before the labels existed, and no mode removes it.
+func TestCleanupOrphansListsUnlabeledRetainedTags(t *testing.T) {
+	runner := &recordingRunner{run: func(command processCommand) (processResult, error) {
+		joined := strings.Join(command.Arguments, " ")
+		if strings.HasPrefix(joined, "docker image ls") && strings.Contains(joined, "reference=") {
+			return processResult{Stdout: "sha256:dd\tze-interop-retained:old\n"}, nil
+		}
+		return processResult{}, nil
+	}}
+	report, err := newDocker(runner).CleanupOrphans(context.Background(), true)
+	if err != nil {
+		t.Fatalf("CleanupOrphans: %v", err)
+	}
+	if len(report.Unlabeled) != 1 || report.Unlabeled[0].Name != "ze-interop-retained:old" {
+		t.Errorf("unlabeled = %#v, want the old retained tag", report.Unlabeled)
+	}
+	for _, command := range runner.commands {
+		if slices.Contains(command.Arguments, "rm") {
+			t.Errorf("the dry run removed: %v", command.Arguments)
+		}
+	}
+}

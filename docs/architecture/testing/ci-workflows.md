@@ -43,7 +43,9 @@ the 120-minute job bound.
 A Docker lab prints one progress line as each scenario starts and ends
 (`Suite.Progress`), and `docker-lab` streams the guest's output over ssh as it
 arrives, so a lab that hangs names its scenario in the job log before the
-deadline kills it.
+deadline kills it. Before its first scenario, `Suite.Run` also prints one line
+for each labeled container, network or retained tag it removed or kept from an
+earlier lab run, so a job log names what a crashed run left behind.
 
 A nightly is advisory because no merge waits on it, not because its jobs hide a
 failure. The jobs of `evidence-nightly.yml` and `perf-nightly.yml` state their

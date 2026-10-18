@@ -231,7 +231,15 @@ They are not part of the normal development cycle.
 ./le test integration iface
 ./le test qemu all-tests
 ./le test integration live-rpki
+./le test integration docker-peers   # every package test tagged `docker`
+./le test integration cleanup dry    # what a killed lab run left, and why the rest stays
+./le test integration cleanup        # remove the lab resources whose owner is gone
 ```
+
+A package test that starts a real peer container carries `//go:build docker`,
+never `docker` and `integration` together: the integration population runs in
+the QEMU guest, which has no Docker. `docker-peers` derives its packages from
+the tree and sets `ZE_REQUIRE_DOCKER=1`.
 
 
 ## When a test must be weakened

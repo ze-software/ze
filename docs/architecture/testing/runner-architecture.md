@@ -97,6 +97,18 @@ process group of its own never saw the Ctrl-C that stopped its parent.
 <!-- source: internal/component/plugin/sysproc.go -- KillGroupOnCancel, KillProcessGroup -->
 <!-- test: internal/test/cli/cmd_exabgp_process_test.go TestCanceledContextReapsTheWholeGroup, TestStopExaProcessReapsTheWholeGroup -->
 
+A Docker lab container is the child `Pdeathsig` cannot reach: the daemon, not
+the runner, is its parent, so killing the runner kills nothing it started. The
+labs therefore cover the three routes differently. The `defer` beside the start
+is `Suite.Run`'s teardown. Cancellation is a `signal.NotifyContext` root on
+SIGINT and SIGTERM at each lab entry point, so a Ctrl-C runs that teardown. The
+stand-in for `Pdeathsig` is the owner labels every lab resource carries: the
+next lab start, or `./le test integration cleanup`, removes the resources whose
+owner is provably gone (`interop.md`, "Crash-safe teardown").
+<!-- source: internal/le/test/integration/actions.go -- nativeRunner, signalContext -->
+<!-- source: internal/le/interoplab/orphans.go -- Docker.CleanupOrphans -->
+<!-- test: internal/le/interoplab/orphans_docker_test.go TestKilledLabRunIsCleanedByNextStart -->
+
 ### Shared reporting
 
 The scheduler and suite wrappers render through the same components:

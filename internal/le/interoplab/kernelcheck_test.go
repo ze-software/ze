@@ -44,6 +44,10 @@ func scriptedKernel(stdout string, exit int, runErr error) *recordingRunner {
 		if slices.Contains(command.Arguments, "info") {
 			return processResult{Stdout: "6.8.0-117-generic\n"}, nil
 		}
+		// The orphan cleanup's labeled listings find nothing on this daemon.
+		if slices.Contains(command.Arguments, "label="+labelMarker) {
+			return processResult{}, nil
+		}
 		return processResult{Stdout: stdout, ExitCode: exit}, runErr
 	}}
 }

@@ -17,6 +17,16 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// The docker CLI words several command lines in this package repeat.
+const (
+	dockerFormatFlag    = "--format"
+	dockerFilterFlag    = "--filter"
+	dockerNoTruncFlag   = "--no-trunc"
+	dockerInspectVerb   = "inspect"
+	dockerImageObject   = "image"
+	dockerNetworkObject = "network"
+)
+
 // DockerExecutable is the program every lab Docker command runs. grantcheck
 // skips it when a whole argv opens with it.
 const DockerExecutable = "docker"
@@ -66,6 +76,10 @@ const dockerBuildTimeoutDefault = 90 * time.Minute
 type Docker struct {
 	runner       processRunner
 	buildTimeout time.Duration
+	// owner is the label set every create argv carries, and judge decides a
+	// labeled resource's owner; both are client-side facts (orphans.go).
+	owner ownerIdentity
+	judge ownerJudge
 }
 
 // ImageBuild identifies one image that a suite builds before it starts scenarios.
@@ -213,11 +227,14 @@ func (e *commandError) Unwrap() error { return e.Cause }
 // NewDocker returns the real Docker client used by interop suites. It reads the
 // machine's build budget once, so no suite carries that knob through its plan.
 func NewDocker() *Docker {
-	return &Docker{runner: systemProcessRunner{}, buildTimeout: machineBuildTimeout(os.LookupEnv)}
+	owner, judge := processIdentity()
+	return &Docker{runner: systemProcessRunner{}, buildTimeout: machineBuildTimeout(os.LookupEnv), owner: owner, judge: judge}
 }
 
+// newDocker is the test double's client: a fixed owner and a host on which
+// every pid is absent, so a test argv is deterministic.
 func newDocker(runner processRunner) *Docker {
-	return &Docker{runner: runner, buildTimeout: dockerBuildTimeoutDefault}
+	return &Docker{runner: runner, buildTimeout: dockerBuildTimeoutDefault, owner: fixtureOwner(), judge: fixtureJudge()}
 }
 
 // machineBuildTimeout reads the machine's build budget in whole seconds. A value that
@@ -258,7 +275,7 @@ func (d *Docker) Probe(ctx context.Context) error {
 // it got. It never falls back to the host architecture, because a guess here is
 // the failure this method exists to remove.
 func (d *Docker) ServerArchitecture(ctx context.Context) (string, error) {
-	result, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, "version", "--format", serverArchitectureFormat)
+	result, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, "version", dockerFormatFlag, serverArchitectureFormat)
 	if err != nil {
 		return "", err
 	}
@@ -314,8 +331,10 @@ func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, erro
 	if timeout <= 0 {
 		return image, errors.New("Docker build timeout must be positive")
 	}
-	image.retainedTag = "ze-interop-retained:" + rand.Text()
-	arguments := []string{DockerExecutable, "build", "-t", build.Tag}
+	image.retainedTag = retainedTagRepository + ":" + rand.Text()
+	arguments := []string{DockerExecutable, "build"}
+	arguments = append(arguments, d.owner.labelArguments()...)
+	arguments = append(arguments, "-t", build.Tag)
 	for _, argument := range build.BuildArgs {
 		arguments = append(arguments, "--build-arg", argument)
 	}
@@ -338,7 +357,7 @@ func (d *Docker) releaseImage(ctx context.Context, image ImageResult) error {
 	if image.retainedTag == "" {
 		return nil
 	}
-	_, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, "image", "rm", "--no-prune", image.retainedTag)
+	_, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, dockerImageObject, "rm", "--no-prune", image.retainedTag)
 	if err == nil {
 		return nil
 	}
@@ -370,13 +389,20 @@ func (d *Docker) RunOneShot(ctx context.Context, spec OneShotContainer) (Command
 	if spec.Timeout <= 0 {
 		return CommandResult{}, errors.New("one-shot container timeout must be positive")
 	}
-	argv := make([]string, 0, 4+len(spec.Arguments)+len(spec.Command))
+	result, err := d.command(ctx, spec.Timeout, d.oneShotArguments(spec)...)
+	return CommandResult(result), err
+}
+
+// oneShotArguments is every one-shot container's argv, the kernel probe's
+// included, so each carries the owner labels.
+func (d *Docker) oneShotArguments(spec OneShotContainer) []string {
+	labels := d.owner.labelArguments()
+	argv := make([]string, 0, 4+len(spec.Arguments)+len(labels)+len(spec.Command))
 	argv = append(argv, DockerExecutable, "run", "--rm")
+	argv = append(argv, labels...)
 	argv = append(argv, spec.Arguments...)
 	argv = append(argv, spec.Image)
-	argv = append(argv, spec.Command...)
-	result, err := d.command(ctx, spec.Timeout, argv...)
-	return CommandResult(result), err
+	return append(argv, spec.Command...)
 }
 
 // createNetwork tries each declared candidate once. Only overlap moves to the next candidate.
@@ -389,7 +415,7 @@ func (d *Docker) createNetwork(ctx context.Context, spec NetworkSpec) (Network, 
 	}
 	var last *commandError
 	for _, candidate := range spec.Candidates {
-		argv, err := networkCreateArguments(spec.Name, candidate)
+		argv, err := networkCreateArguments(spec.Name, candidate, d.owner.labelArguments())
 		if err != nil {
 			return Network{}, err
 		}
@@ -412,7 +438,7 @@ func (d *Docker) createNetwork(ctx context.Context, spec NetworkSpec) (Network, 
 
 // removeNetwork removes a network. A name-specific not-found answer is success.
 func (d *Docker) removeNetwork(ctx context.Context, name string) error {
-	_, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, "network", "rm", name)
+	_, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, dockerNetworkObject, "rm", name)
 	if err == nil {
 		return nil
 	}
@@ -443,7 +469,7 @@ func (d *Docker) runContainer(ctx context.Context, network Network, peer PeerCon
 	if err != nil {
 		return err
 	}
-	argvCapacity := 10 + 2*len(peer.Capabilities) + 2*len(peer.Mounts) +
+	argvCapacity := 26 + 2*len(peer.Capabilities) + 2*len(peer.Mounts) +
 		2*len(peer.Environment) + len(peer.Arguments) + len(peer.Command)
 	if network.IPv6.IsValid() {
 		argvCapacity += 2
@@ -458,6 +484,7 @@ func (d *Docker) runContainer(ctx context.Context, network Network, peer PeerCon
 		}
 		argv = append(argv, "--ip6", ipv6.String())
 	}
+	argv = append(argv, d.owner.labelArguments()...)
 	for _, capability := range peer.Capabilities {
 		argv = append(argv, "--cap-add", capability)
 	}
@@ -653,7 +680,7 @@ func (d *Docker) Logs(ctx context.Context, name string, lines int) (LogResult, e
 // containerPID returns the positive host PID of one container's PID 1.
 func (d *Docker) containerPID(ctx context.Context, name string) (int, error) {
 	result, err := d.command(ctx, dockerCommandTimeout,
-		DockerExecutable, "inspect", "--format", "{{.State.Pid}}", name)
+		DockerExecutable, dockerInspectVerb, dockerFormatFlag, "{{.State.Pid}}", name)
 	if err != nil {
 		return 0, err
 	}
@@ -712,7 +739,7 @@ func commandOperation(argv []string) string {
 	return tb.String()
 }
 
-func networkCreateArguments(name string, subnet Subnet) ([]string, error) {
+func networkCreateArguments(name string, subnet Subnet, labels []string) ([]string, error) {
 	if !subnet.IPv4.IsValid() {
 		return nil, errors.New("Docker network IPv4 subnet is invalid")
 	}
@@ -720,7 +747,9 @@ func networkCreateArguments(name string, subnet Subnet) ([]string, error) {
 		return nil, errors.New("Docker network IPv4 subnet must be a /24")
 	}
 	var tb textbuf.Buffer
-	argv := []string{DockerExecutable, "network", "create", tb.Str("--subnet=").Str(subnet.IPv4.String()).String()}
+	argv := []string{DockerExecutable, dockerNetworkObject, "create"}
+	argv = append(argv, labels...)
+	argv = append(argv, tb.Str("--subnet=").Str(subnet.IPv4.String()).String())
 	if subnet.IPv6.IsValid() {
 		if subnet.IPv6.Bits() != 64 {
 			return nil, errors.New("Docker network IPv6 subnet must be a /64")

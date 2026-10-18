@@ -236,22 +236,21 @@ func StagedZePath(root string, binaries []LabBinary) string {
 // namespace, and gives the container its own network so nothing it creates
 // reaches the host's. On a daemon applying AppArmor it runs under Ze's profile,
 // because docker-default denies the MPLS probe's mount and sysctl write (D-7).
-func kernelProbeArgv(zePath string, appArmor bool) []string {
-	argv := make([]string, 0, 14+len(kernelProbeCommand))
-	argv = append(argv, DockerExecutable, "run", "--rm",
-		"--cap-add", "NET_ADMIN", "--cap-add", "SYS_ADMIN",
-		"--network", "none")
+// It is built by oneShotArguments, so it carries the owner labels.
+func (d *Docker) kernelProbeArgv(zePath string, appArmor bool) []string {
+	arguments := make([]string, 0, 10)
+	arguments = append(arguments, "--cap-add", "NET_ADMIN", "--cap-add", "SYS_ADMIN", "--network", "none")
 	if appArmor {
-		argv = append(argv, "--security-opt", "apparmor="+kernelcap.ProbeAppArmorProfileName)
+		arguments = append(arguments, "--security-opt", "apparmor="+kernelcap.ProbeAppArmorProfileName)
 	}
-	argv = append(argv, "-v", zePath+":"+kernelProbeMount+":ro", kernelProbeImage)
-	return append(argv, kernelProbeCommand...)
+	arguments = append(arguments, "-v", zePath+":"+kernelProbeMount+":ro")
+	return d.oneShotArguments(OneShotContainer{Image: kernelProbeImage, Arguments: arguments, Command: kernelProbeCommand, Timeout: kernelProbeTimeout})
 }
 
 // dockerAppArmor asks whether the daemon applies AppArmor to its containers. A
 // question it cannot answer is an error: the probe's argv depends on it.
 func dockerAppArmor(ctx context.Context, docker *Docker) (bool, error) {
-	argv := []string{DockerExecutable, "info", "--format", dockerSecurityOptionsFormat}
+	argv := []string{DockerExecutable, "info", dockerFormatFlag, dockerSecurityOptionsFormat}
 	result, err := docker.runner.Run(ctx, processCommand{Arguments: argv, Timeout: dockerInfoTimeout})
 	var problem textbuf.Buffer
 	problem.Str("the Docker kernel check could not read the daemon's security options: `").
@@ -352,7 +351,7 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 			return missing
 		}
 	}
-	argv := kernelProbeArgv(zePath, appArmor)
+	argv := docker.kernelProbeArgv(zePath, appArmor)
 	result, err := docker.runner.Run(ctx, processCommand{Arguments: argv, Timeout: kernelProbeTimeout})
 
 	var problem textbuf.Buffer
@@ -440,7 +439,7 @@ func deniedFix(appArmor, seLinux bool) string {
 // its place rather than stopping the check.
 func dockerKernelRelease(ctx context.Context, docker *Docker) string {
 	result, err := docker.runner.Run(ctx, processCommand{
-		Arguments: []string{DockerExecutable, "info", "--format", "{{.KernelVersion}}"},
+		Arguments: []string{DockerExecutable, "info", dockerFormatFlag, "{{.KernelVersion}}"},
 		Timeout:   dockerInfoTimeout,
 	})
 	if err != nil {

@@ -197,8 +197,8 @@ var _ CheckerLab = (*Lab)(nil)
 // start, so a caller that walks a suite's whole peer set can skip the absent ones.
 var ErrUnknownPeer = errors.New("unknown peer")
 
-// Run probes Docker once, checks the daemon's kernel, prepares images once,
-// and runs every scenario.
+// Run probes Docker once, removes what earlier runs left behind, checks the
+// daemon's kernel, prepares images once, and runs every scenario.
 func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 	if s.Docker == nil {
 		report.SetupError = "interop suite has no Docker client"
@@ -214,6 +214,21 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 		report.SetupError = err.Error()
 		report.Code = 1
 		return report
+	}
+	// The orphan cleanup runs before Preflight and before anything is
+	// created, so a killed run's leftovers go before this run's names are
+	// claimed. Its per-resource outcomes are progress lines: a dead run's
+	// leftover it could not remove is not this run's failure, and preClean
+	// still refuses a name it collides with.
+	orphans, err := s.Docker.CleanupOrphans(ctx, false)
+	if err != nil {
+		report.SetupError = err.Error()
+		report.Code = 1
+		return report
+	}
+	var line textbuf.Buffer
+	for _, text := range orphans.Lines() {
+		s.progress(line.Reset().Str("interop: ").Str(text))
 	}
 	if s.Preflight != nil {
 		if err := s.Preflight(ctx, s.Docker); err != nil {
@@ -231,7 +246,7 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 		return report
 	}
 
-	var line textbuf.Buffer
+	line.Reset()
 	s.progress(line.Str("interop: preparing ").Int(int64(len(s.Images))).Str(" image(s)"))
 	preparing := time.Now()
 	images, references, err := s.prepareImages(ctx)
@@ -511,12 +526,20 @@ func (l *Lab) setPeers(peers []PeerConfig) {
 	}
 }
 
+// preClean clears this scenario's container and network names before it
+// creates them. A same-name resource goes only when its owner labels prove the
+// owner gone; a live, foreign, unjudgeable or unlabeled one fails the scenario
+// with the owner and the fix (Docker.claimName).
 func (l *Lab) preClean(ctx context.Context, network string, peers []PeerConfig) error {
-	errorsFound := l.cleanup(ctx, network, peers)
-	if len(errorsFound) == 0 {
+	for index := range peers {
+		if err := l.docker.claimName(ctx, resourceContainer, peers[index].Container); err != nil {
+			return err
+		}
+	}
+	if network == "" {
 		return nil
 	}
-	return errors.New(errorsFound[0])
+	return l.docker.claimName(ctx, resourceNetwork, network)
 }
 
 func (l *Lab) cleanup(ctx context.Context, network string, peers []PeerConfig) []string {

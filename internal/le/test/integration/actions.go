@@ -15,6 +15,9 @@ package testintegration
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -36,9 +39,13 @@ func table(tc gotoolchain.Toolchain) leaction.Area {
 	rows := make([]leaction.Action, 0, len(declared))
 	for _, action := range declared {
 		row := leaction.Action{Verb: action.Verb, Why: action.Why}
-		if action.Native != nil {
+		switch {
+		case action.NativeArgs != nil:
+			row.Parameters = action.Parameters
+			row.AnswerArgs = nativeArgsRunner(tc.Root, action.NativeArgs)
+		case action.Native != nil:
 			row.Answer = nativeRunner(tc.Root, action.Native)
-		} else {
+		default:
 			row.Answer = commandRunner(tc, action)
 		}
 		rows = append(rows, row)
@@ -46,13 +53,39 @@ func table(tc gotoolchain.Toolchain) leaction.Area {
 	return leaction.New(Area, rows...)
 }
 
+// nativeRunner roots a native verb on a context SIGINT and SIGTERM cancel, so
+// a Ctrl-C or a `./le job` stop runs the teardown the lab already defers rather
+// than Go's default action ending the process with its containers left behind
+// (docs/architecture/testing/runner-architecture.md, "How a suite's child
+// processes end").
 func nativeRunner(
 	root string,
 	run func(context.Context, string) (any, int),
 ) func() (any, int) {
 	return func() (any, int) {
-		return run(context.Background(), root)
+		ctx, stop := signalContext()
+		defer stop()
+		return run(ctx, root)
 	}
+}
+
+// nativeArgsRunner is nativeRunner for a verb with a keyword grammar.
+func nativeArgsRunner(
+	root string,
+	run func(context.Context, string, leaction.Arguments) (any, int),
+) func(leaction.Arguments) (any, int) {
+	return func(args leaction.Arguments) (any, int) {
+		ctx, stop := signalContext()
+		defer stop()
+		return run(ctx, root, args)
+	}
+}
+
+// signalContext is the entry-root shape every lab driver uses (guestContext
+// in internal/le/test/qemu): canceled by SIGINT or SIGTERM. The caller MUST
+// call the returned stop when the verb ends.
+func signalContext() (context.Context, context.CancelFunc) {
+	return signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 }
 
 func commandRunner(tc gotoolchain.Toolchain, action Action) func() (any, int) {

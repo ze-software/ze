@@ -40,6 +40,12 @@ func TestEveryActionDeclaresOneRunnerAndAReason(t *testing.T) {
 	env.ResetCache()
 	for _, gate := range Table() {
 		hasNative := gate.Native != nil
+		if gate.NativeArgs != nil {
+			if hasNative {
+				t.Errorf("action %s declares both Native and NativeArgs", gate.Verb)
+			}
+			hasNative = true
+		}
 		hasCommand := gate.Argv != nil
 		if hasCommand {
 			hasCommand = len(gate.Argv()) > 0
@@ -62,7 +68,7 @@ func TestCgoIsDerivedFromTheExternalCommand(t *testing.T) {
 	env.ResetCache()
 	raced := 0
 	for _, gate := range Table() {
-		if gate.Native != nil {
+		if gate.Native != nil || gate.NativeArgs != nil {
 			if gate.needsCgo() {
 				t.Errorf("native action %s requested command-runner cgo", gate.Verb)
 			}

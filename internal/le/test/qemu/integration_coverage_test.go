@@ -5,11 +5,11 @@ package testqemu
 import (
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/population"
+	"github.com/ze-software/ze/internal/le/test/buildtag"
 )
 
 // treeRoot walks up from the working directory to the checkout holding go.mod.
@@ -34,68 +34,15 @@ func treeRoot(t *testing.T) string {
 
 // integrationTestPackages answers every package directory, relative to root and
 // slash-separated, holding a _test.go file whose build constraint names the
-// integration tag.
-//
-// The constraint is read from the file's leading comment block: a //go:build
-// line must appear before the package clause, so a bounded read of the head is
-// the whole of it and the file never needs parsing.
+// integration tag. The scan is buildtag's, which the docker-peers verb shares.
 func integrationTestPackages(t *testing.T, root string) []string {
 	t.Helper()
 
-	seen := map[string]bool{}
-	for _, area := range []string{"internal", "cmd"} {
-		err := filepath.WalkDir(filepath.Join(root, area), func(path string, d os.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if d.IsDir() {
-				if name := d.Name(); name == "testdata" || name == "node_modules" {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if !strings.HasSuffix(d.Name(), "_test.go") {
-				return nil
-			}
-			data, readErr := os.ReadFile(path) //nolint:gosec // a path this walk produced under the checkout
-			if readErr != nil {
-				return readErr
-			}
-			head, _, _ := strings.Cut(string(data), "\npackage ")
-			for line := range strings.SplitSeq(head, "\n") {
-				if !strings.HasPrefix(line, "//go:build ") {
-					continue
-				}
-				if !constraintNamesIntegration(line) {
-					continue
-				}
-				rel, relErr := filepath.Rel(root, filepath.Dir(path))
-				if relErr != nil {
-					return relErr
-				}
-				seen[filepath.ToSlash(rel)] = true
-			}
-			return nil
-		})
-		if err != nil {
-			t.Fatalf("walk %s: %v", area, err)
-		}
+	packages, err := buildtag.Packages(root, "integration")
+	if err != nil {
+		t.Fatalf("scan the integration-tagged tests: %v", err)
 	}
-
-	out := make([]string, 0, len(seen))
-	for dir := range seen {
-		out = append(out, dir)
-	}
-	return out
-}
-
-// constraintNamesIntegration reports whether a //go:build line names the
-// integration tag as a term. The tag is matched as a whole word so that a
-// hypothetical `integration_slow` never counts as this one.
-func constraintNamesIntegration(line string) bool {
-	return slices.Contains(strings.FieldsFunc(line, func(r rune) bool {
-		return r == ' ' || r == '(' || r == ')' || r == '&' || r == '|' || r == '!' || r == ','
-	}), "integration")
+	return packages
 }
 
 // covered reports whether a package directory is reached by one of the go test
@@ -204,6 +151,30 @@ func TestEveryNamedIntegrationPackageExists(t *testing.T) {
 		}
 		if !info.IsDir() {
 			t.Errorf("%s names %s, which is not a directory", pattern, rel)
+		}
+	}
+}
+
+// VALIDATES: AC-23 and R-12: no _test.go names both the docker and the
+// integration tag. The integration population runs in the QEMU guest, which
+// has no Docker, so such a file would skip there forever while docker-peers,
+// which selects by the docker tag, would never build it without integration.
+// PREVENTS: a Docker test that compiles everywhere and runs nowhere.
+func TestDockerTagNeverJoinsIntegration(t *testing.T) {
+	root := treeRoot(t)
+
+	files, err := buildtag.TestFiles(root)
+	if err != nil {
+		t.Fatalf("scan the tagged tests: %v", err)
+	}
+	if len(files) == 0 {
+		t.Fatal("no build-tagged test file was found, so this test asserted nothing")
+	}
+	for _, file := range files {
+		if file.Names("docker") && file.Names("integration") {
+			t.Errorf("%s names both the docker and the integration tag: the integration population runs in"+
+				" the QEMU guest, which has no Docker. Keep `//go:build docker` alone, so"+
+				" `./le test integration docker-peers` runs it", file.Path)
 		}
 	}
 }

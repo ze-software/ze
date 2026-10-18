@@ -19,9 +19,11 @@ import (
 	"errors"
 	"net/netip"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"slices"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -153,7 +155,11 @@ func Run() (any, int) {
 	if err != nil {
 		return setupFailure(err)
 	}
-	report, code := RunAt(context.Background(), root, "")
+	// SIGINT and SIGTERM cancel the run, so the teardown Suite.Run defers
+	// runs rather than Go's default action leaving the containers behind.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	report, code := RunAt(ctx, root, "")
 	return report, code
 }
 

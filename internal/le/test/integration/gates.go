@@ -36,6 +36,7 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/core/env"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
 // Area is the word this command is typed as.
@@ -48,12 +49,17 @@ const goTool = "go"
 const envString = "string"
 
 // Action defines one integration action: its native verb, purpose, and native
-// callback or external toolchain command. Exactly one of Native and Argv is set.
+// callback or external toolchain command. Exactly one of Native, NativeArgs and
+// Argv is set.
 type Action struct {
 	Verb   string
 	Why    string
 	Native func(context.Context, string) (any, int)
 	Argv   func() []string
+	// NativeArgs is a native callback for a verb with a keyword grammar,
+	// Parameters. It counts as Native for "exactly one runner".
+	NativeArgs func(context.Context, string, leaction.Arguments) (any, int)
+	Parameters []leaction.Parameter
 }
 
 // needsCgo reports whether this action's external command needs CGO_ENABLED=1.
@@ -158,6 +164,21 @@ func Table() []Action {
 			Why: "RSVP-TE interop between Ze and freeRouter in ingress, transit, relay and egress roles, every" +
 				" scenario under test/interop-rsvpte/scenarios/. Needs Docker, privileged" +
 				" containers and host MPLS routing. RSVPTE_INTEROP_SCENARIO=<name> runs one scenario",
+		},
+		{
+			Verb:       cleanupVerb,
+			NativeArgs: runLabCleanup,
+			Parameters: []leaction.Parameter{{Keyword: "dry"}},
+			Why: "remove the Docker containers, networks and run-owned image tags a killed lab run left" +
+				" behind: only resources whose ze.lab owner labels prove the owner gone, never an unlabeled" +
+				" one, a volume or a cache tag. `dry` lists what would go and what stays, and why",
+		},
+		{
+			Verb:   dockerPeersVerb,
+			Native: runDockerPeers,
+			Why: "every package test tagged `docker` (a real peer container started through interoplab," +
+				" derived from the tree), with ZE_REQUIRE_DOCKER=1 so an absent Docker fails. Needs Docker" +
+				" and no Ze kernel",
 		},
 		// ── Stress ───────────────────────────────────────────────────────
 		{
