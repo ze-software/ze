@@ -147,3 +147,28 @@ func TestValidateTypeEmpty(t *testing.T) {
 		t.Fatalf("TypeEmpty.String() = %q, want %q", got, valueTypeEmpty)
 	}
 }
+
+// TestParseTypeEmptyLeafRefusesValue pins that a type-empty flag given any
+// word other than the round-trip "true" is refused, naming the leaf, the word
+// and the bare form to write. parseLeaf used to consume and ignore the word,
+// so "disable false;" stored presence and disabled the interface.
+func TestParseTypeEmptyLeafRefusesValue(t *testing.T) {
+	schema := NewSchema()
+	schema.Define("disable", &LeafNode{Type: TypeEmpty})
+
+	for _, input := range []string{"disable false;", `disable "false";`, "disable no;", "disable 0;"} {
+		t.Run(input, func(t *testing.T) {
+			tree, err := NewParser(schema).Parse(input)
+			if err == nil {
+				v, ok := tree.Get("disable")
+				t.Fatalf("%q accepted, flag = %q (ok=%v); want a refusal", input, v, ok)
+			}
+			msg := err.Error()
+			for _, want := range []string{"disable is a flag and takes no value", `write "disable;"`, "delete the line"} {
+				if !strings.Contains(msg, want) {
+					t.Fatalf("error %q does not carry %q", msg, want)
+				}
+			}
+		})
+	}
+}

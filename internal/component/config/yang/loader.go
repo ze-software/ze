@@ -296,8 +296,10 @@ func (l *Loader) AddModuleFromFile(path string) error {
 // each wrapping ErrUncompilablePattern, and every structure goyang accepts
 // and RFC 7950 forbids (checkStructure): length parts that overlap or descend
 // (ErrLengthOrder), an enum restriction that departs from its base type
-// (ErrEnumRestriction), and a non-YANG statement under an extension
-// (ErrExtensionSubstatement).
+// (ErrEnumRestriction), a non-YANG statement under an extension
+// (ErrExtensionSubstatement), and a leafref, identityref or
+// instance-identifier type, whose values ze has no check for
+// (ErrUncheckedType).
 //
 // It answers the Resolved only when every check passed, and no value
 // otherwise. It runs once: afterwards, successful or not, every load and every

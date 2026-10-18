@@ -305,13 +305,21 @@ func (p *Parser) parseNode(tree *Tree, name string, node Node) error {
 // Sensitive leaves accept $9$-encoded values and decode them to plaintext.
 func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 	// "type empty" leaves are presence flags. The canonical form is a bare
-	// "no-default-route;"; an explicit boolean ("no-default-route true;") is
-	// also accepted so serialized value-form output round-trips and the
-	// pre-TypeEmpty value form stays valid. Presence always records true.
+	// "no-default-route;"; "no-default-route true;" is also accepted so
+	// serialized value-form output round-trips and the pre-TypeEmpty value
+	// form stays valid. Presence always records true.
+	//
+	// RFC 7950 Section 9.11.2 gives an empty leaf no lexical value at all, so
+	// any other word is refused rather than ignored: "disable false;" used to
+	// store presence and disable the interface it meant to keep enabled.
 	if node.Type == TypeEmpty {
 		tok := p.tok.peek()
 		if tok.kind == tokenWord || tok.kind == tokenString {
-			p.tok.next() // consume and ignore the explicit presence value
+			if tok.value != configTrue {
+				return p.errorf(tok, "%s is a flag and takes no value, got %q: the line would set the flag whatever the word says\n  write %q to set it, or delete the line to clear it",
+					name, tok.value, name+";")
+			}
+			p.tok.next() // the round-trip presence value
 			tok = p.tok.peek()
 		}
 		if tok.kind != tokenSemicolon {

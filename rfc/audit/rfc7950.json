@@ -88,10 +88,10 @@
     },
     "RFC7950-7.2.2-1": {
       "code": {
-        "internal/component/config/yang/loader.go::Resolve": "62ea2509b4ab8f3b",
-        "internal/component/config/yang/loader_structure.go::checkStructure": "494e1a9ea6b11f7e"
+        "internal/component/config/yang/loader.go::Resolve": "bbf32500bb74b675",
+        "internal/component/config/yang/loader_structure.go::checkStructure": "243db30505d2cffa"
       },
-      "note": "{gap} stands, re-judged 2026-10-09 after 180df07922: Resolve now runs once and returns *yang.Resolved, and checkStructure only switched to l.modules.sourceModules(); neither compares an include with the included submodule's belongs-to, and the only BelongsTo read in loader.go resolves extension owners. RFC 7.2.2: 'A submodule MUST only be included by either the module to which it belongs or another submodule that belongs to that module.' The 2026-10-09 probe (module b { include s; } with s belonging to a resolves) is not re-run; no code path that could refuse it was added.",
+      "note": "{gap} stands, re-judged 2026-10-18 after the uncommitted ErrUncheckedType change: checkStructure only gained moduleUncheckedTypeErrors, and Resolve's doc comment gained that refusal; neither compares an include with the included submodule's belongs-to. The only BelongsTo read in loader.go (line 507) resolves extension owners. RFC 7950 Section 7.2.2: \"A submodule MUST only be included by either the module to which it belongs or another submodule that belongs to that module.\"",
       "requirement_sha": "4111ba92ddb919e3",
       "verdict": "unimplemented"
     },
@@ -426,21 +426,29 @@
       "verdict": "unimplemented"
     },
     "RFC7950-9.1-1": {
-      "note": "Re-judged 2026-10-18 (independent auditor, after 9d4a5e79e2). Section 9.1: \"Implementations MUST support all lexical representations specified in this document.\" The hexadecimal and octal integer gap named before is closed: TestRFC7950IntegerModuleDefaultHexAndOctal drives yangToNode over module text and asserts the canonical decimal for 0x, +0x, -0x, leading-zero octal, the int8/int64 minimums, the uint64 maximum and union member order, and TestRFC7950IntegerModuleDefaultMalformedNotation asserts a named build error for malformed notations and out-of-range values. The decimal64 and signed decimal units stand. Still missing, so the whole requirement is unproven: validator.go validateYangType returns nil for binary, bits, empty, identityref, instance-identifier and leafref with no lexical check, so a malformed base64 binary value or an undefined bit name is accepted, and no tagged case covers those types. The row carries no {gap} or {partial} annotation for them.",
+      "note": "Re-judged 2026-10-18 (independent reviewer) after the bits negative was narrowed. Section 9.1: \"Implementations MUST support all lexical representations specified in this document.\" Every tagged unit now asserts only what the RFC says, each with a verified revert record: TestRFC7950BinaryAccepted/Refused pin Section 9.8.2 base64 (RFC 4648 Section 4, padding required, CR/LF and spaces refused) and the octet-count length (AQID accepted at length 0..3, AQIDBA== refused with ErrTypeLength); TestRFC7950BitsAccepted/Refused pin Section 9.7.2 space-separated defined names in any order, the empty string, and the refusal of an undefined name and a tab separator; the repeated-name refusal moved to the untagged TestValidateBitsRefusesRepeatedName as Ze's own rule. The integer, hex/octal default and decimal64 units stand. Still not the whole requirement: the lexical representations of leafref (9.9.2), identityref (9.10.3) and instance-identifier (9.13.2) are unsupported, because moduleUncheckedTypeErrors refuses any module declaring them (ErrUncheckedType) and uncheckedKindError refuses every value; the row carries no {gap} or {partial} for them (owner decision pending), so the tags prove part of the sentence only.",
       "requirement_sha": "75762b5ffc3b2a55",
       "tests": {
         "internal/component/config/rfc7950_yang_schema_integer_default_test.go::TestRFC7950IntegerModuleDefaultHexAndOctal": "cf3e89ed71ea75d8",
         "internal/component/config/rfc7950_yang_schema_integer_default_test.go::TestRFC7950IntegerModuleDefaultMalformedNotation": "cf3e89ed71ea75d8",
         "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Accepted": "42b5eb7bb7c9bc1a",
         "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Refused": "42b5eb7bb7c9bc1a",
-        "internal/component/config/yang/rfc7950_validator_integer_test.go::TestRFC7950IntegerSignedLexicalForms": "019c7227f6c340cf"
+        "internal/component/config/yang/rfc7950_validator_integer_test.go::TestRFC7950IntegerSignedLexicalForms": "019c7227f6c340cf",
+        "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BinaryAccepted": "69157daac8c41112",
+        "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BinaryRefused": "69157daac8c41112",
+        "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BitsAccepted": "69157daac8c41112",
+        "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BitsRefused": "69157daac8c41112"
       },
       "units": {
         "internal/component/config/rfc7950_yang_schema_integer_default_test.go::TestRFC7950IntegerModuleDefaultHexAndOctal": "9eb41aa1dc3baec1",
         "internal/component/config/rfc7950_yang_schema_integer_default_test.go::TestRFC7950IntegerModuleDefaultMalformedNotation": "141712d043060a49",
         "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Accepted": "8ac07305a919d26e",
         "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Refused": "8a00b786008ce8d0",
-        "internal/component/config/yang/rfc7950_validator_integer_test.go::TestRFC7950IntegerSignedLexicalForms": "af6aafba3295ec96"
+        "internal/component/config/yang/rfc7950_validator_integer_test.go::TestRFC7950IntegerSignedLexicalForms": "af6aafba3295ec96",
+        "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BinaryAccepted": "8fc8a5f7c3675505",
+        "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BinaryRefused": "4bdc578b31f33c45",
+        "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BitsAccepted": "1bcbfd4299bcd383",
+        "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BitsRefused": "ae96a744750b413e"
       },
       "verdict": "weak"
     },

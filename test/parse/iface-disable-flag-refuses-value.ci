@@ -1,0 +1,57 @@
+# Interface `disable` is a YANG `type empty` leaf (ze-iface-conf.yang): a flag
+# whose presence disables the interface. The parser used to consume and ignore
+# any word after it, so `disable false;` stored presence and disabled the
+# interface the line was written to keep enabled.
+#
+# VALIDATES: `disable false;` and `disable no;` are refused by
+#            `ze config validate`, naming the flag and the bare line that sets
+#            it (parseLeaf, internal/component/config/parser.go); the bare
+#            `disable;` and the round-trip `disable true;` are accepted.
+# PREVENTS: a word after a presence flag being ignored again, so a config that
+#           reads as "not disabled" silently disables the interface.
+
+stdin=dfalse:terminator=EOF_DFALSE
+interface {
+	ethernet eth0 {
+		disable false;
+	}
+}
+EOF_DFALSE
+
+stdin=dno:terminator=EOF_DNO
+interface {
+	ethernet eth0 {
+		disable no;
+	}
+}
+EOF_DNO
+
+stdin=dbare:terminator=EOF_DBARE
+interface {
+	ethernet eth0 {
+		disable;
+	}
+}
+EOF_DBARE
+
+stdin=dtrue:terminator=EOF_DTRUE
+interface {
+	ethernet eth0 {
+		disable true;
+	}
+}
+EOF_DTRUE
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=dfalse
+expect=exit:code=1
+expect=stdout:contains=disable is a flag and takes no value, got "false"
+expect=stdout:contains=write "disable;" to set it, or delete the line to clear it
+cmd=foreground:seq=2:exec=ze config validate -:stdin=dno
+expect=exit:code=1
+expect=stdout:contains=disable is a flag and takes no value, got "no"
+cmd=foreground:seq=3:exec=ze config validate -:stdin=dbare
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+cmd=foreground:seq=4:exec=ze config validate -:stdin=dtrue
+expect=exit:code=0
+expect=stdout:contains=configuration valid

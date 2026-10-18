@@ -127,7 +127,8 @@ local-handler lookup refuses the match instead of serving a handler that
 shadows a declared command.
 
 The same two callers refuse four structures RFC 7950 forbids and goyang
-accepts. Each refusal names the module, the file location and the fault.
+accepts, and the three built-in types whose values Ze cannot check. Each
+refusal names the module, the file location and the fault.
 
 | Structure refused | RFC 7950 | Why goyang misses it | Error |
 |-------------------|----------|----------------------|-------|
@@ -135,6 +136,7 @@ accepts. Each refusal names the module, the file location and the fault.
 | An enumeration whose values break Section 9.6.4.2: a value outside int32, a value assigned twice, an enum with no value after one holding 2147483647 | 9.6.4.2 | it checks only an enumeration it resolves, and it resolves none in a grouping no schema node uses | `ErrEnumValue` |
 | An `enum` in a restricted enumeration that the base type does not assign, or whose `value` differs from the base type's | 9.6.4, 9.6.4.2 | it builds the restricted values afresh and never compares them with the base | `ErrEnumRestriction` |
 | A statement under an extension statement that is not a YANG keyword, that the block holding it does not admit, whose argument breaks its Section 14 argument rule, whose substatements break the counts or the alternatives of its rule's block, or that omits a block its rule requires | 7.19 | it keeps an extension statement as raw text | `ErrExtensionSubstatement` |
+| A `type leafref`, `type identityref` or `type instance-identifier`, directly, as a typedef base or as a union member | 9.1 | goyang resolves the type; checking a value needs the data tree or the identity set, and the validator checks one value at a time, so a leaf of the type would accept nothing | `ErrUncheckedType` |
 
 The grammar under an extension is the RFC's own: `rfc7950.abnf`, embedded in
 the package, is the Section 14 code component of `rfc/full/rfc7950.txt`, and
@@ -205,6 +207,7 @@ rather than checked against a guessed span.
 <!-- source: internal/component/config/yang/loader.go -- Resolve, checkExtensions, DefaultLoader -->
 <!-- source: internal/component/config/yang/enum_assignment.go -- parseEnumAssignment, assignEnumValues -->
 <!-- source: internal/component/config/yang/loader_structure.go -- checkStructure, restrictedLengthSpan, resolveProduction, extensionSubstatementError -->
+<!-- source: internal/component/config/yang/loader_unchecked.go -- moduleUncheckedTypeErrors, uncheckedTypeNames -->
 <!-- source: internal/component/config/yang/loader_abnf.go -- parseYANGGrammar, rfc7950Grammar -->
 <!-- source: internal/component/config/yang/loader_grammar.go -- argumentCheckers, checkURI, checkPathArg -->
 <!-- source: internal/component/config/yang/loader_source.go -- statementHasBlock -->
@@ -386,7 +389,18 @@ checking constraints at every level.
 | Length | `type string { length "1..255"; }` | String bounds |
 | Mandatory | `mandatory true;` | Required fields |
 
-<!-- source: internal/component/config/yang/validator.go -- ValidateTree, walkTree -->
+Each built-in type checks its value's lexical form (RFC 7950 Section 9):
+
+| Type | Value accepted |
+|------|----------------|
+| integers, `decimal64`, `boolean`, `string`, `enumeration`, `union` | the Section 9 lexical form, then the type's range, length, pattern or enum set |
+| `binary` | base64 with padding (RFC 4648 Section 4), no whitespace; `length` counts the decoded octets |
+| `bits` | the names of the set bits separated by one or more space characters, each a defined bit and none twice; the empty string sets no bit |
+| `empty` | only the presence value the config tree stores (`true`); the type has no lexical form of its own |
+| `leafref`, `identityref`, `instance-identifier`, and any kind goyang adds | nothing: the value is refused, never accepted unchecked. The loader refuses a module that declares one of the three (`ErrUncheckedType`) |
+
+<!-- source: internal/component/config/yang/validator.go -- ValidateTree, walkTree, validateYangType -->
+<!-- source: internal/component/config/yang/validator_lexical.go -- validateEmpty, validateBinary, validateBits, uncheckedKindError -->
 
 ### Layer 2: Custom Validators (`ze:validate`)
 
@@ -713,7 +727,7 @@ YANG constructs map to CLI syntax as follows:
 | `leaf bar` | `bar <value>` |
 | `leaf-list baz` | `baz <value>` (repeatable) |
 | `presence container` | `foo` (no value, enables) |
-| `leaf { type empty }` | `foo` (flag, no value) |
+| `leaf { type empty }` | `foo` (flag, no value). `foo true` is also read, so value-form output round-trips. Any other word is refused, because the flag would be set whatever the word said |
 
 ### Leaf-List Editing Semantics
 
@@ -1095,9 +1109,13 @@ canonical default the config tree takes (`yangDefault`).
 | Rule | Detail |
 |------|--------|
 | Positive assertion, one word | `enabled`, not `enable`, `disable` or `disabled` |
-| Standard admin-state words are the only exception | `shutdown` (BFD, RFC 5880 section 6.8.16) and interface `disable` (kernel admin-down) are the canonical protocol and kernel terms, so they are allowed, typed `boolean` with `default false`, never `type empty` |
+| Standard admin-state words are the only exception | `shutdown` (BFD, RFC 5880 section 6.8.16) and interface `disable` (kernel admin-down) are the canonical protocol and kernel terms, so they are allowed. BFD `shutdown` is typed `boolean` with `default false`. Interface `disable` is a `type empty` flag: `disable;` disables the interface, an absent leaf leaves it enabled, and `disable false;` is refused |
 | No boolean-as-enum | A two-value on/off is not `enumeration { enum enable; enum disable; }`. A genuine tri-state for config inheritance is justified in the module; it is an exception |
 | Bare flag | "This section is on when present" is a `presence` container, not a `type empty` leaf |
+
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf disable, type empty -->
+<!-- source: internal/component/iface/config.go -- the disable leaf is read by presence -->
+<!-- source: internal/component/config/parser.go -- parseLeaf, TypeEmpty -->
 
 | Rule | Canonical | Anti-pattern |
 |------|-----------|--------------|

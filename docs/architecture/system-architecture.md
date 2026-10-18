@@ -634,7 +634,9 @@ package.
 ### What YANG Provides
 
 - Type validation (ranges, patterns, enums)
-- Cross-reference validation (leafref)
+- No cross-reference validation: the loader refuses a module that declares
+  `leafref` (`ErrUncheckedType`), so a reference is a string that a
+  `ze:validate` function checks
 - Schema-driven config routing
 
 ### Schema Registration

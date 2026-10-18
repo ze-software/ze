@@ -893,6 +893,50 @@
       "break": "body of validateUnsigned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7950-9.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BinaryAccepted",
+      "unit-sha": "f3d59527ede06f82",
+      "claim-sha": "94758762ac0af1a8",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator_lexical.go::validateBinary",
+      "producer-sha": "37be3c625f0af2b5",
+      "break": "body of validateBinary replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-9.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BinaryRefused",
+      "unit-sha": "dc9b65fd52c9dfd0",
+      "claim-sha": "7f0c096abae9a522",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator_lexical.go::validateBinary",
+      "producer-sha": "37be3c625f0af2b5",
+      "break": "body of validateBinary replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-9.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BitsAccepted",
+      "unit-sha": "c3cf62c057119b46",
+      "claim-sha": "60b4436e4772622a",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator_lexical.go::validateBits",
+      "producer-sha": "42a2f1aee86ea61d",
+      "break": "body of validateBits replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-9.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BitsRefused",
+      "unit-sha": "eb5c95bfad620490",
+      "claim-sha": "1465096fd0e154b2",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator_lexical.go::validateBits",
+      "producer-sha": "42a2f1aee86ea61d",
+      "break": "body of validateBits replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7950-9.12-1",
       "polarity": "positive",
       "unit": "internal/component/config/rfc7950_validator_union_test.go::TestRFC7950UnionAcceptsEveryMemberType",

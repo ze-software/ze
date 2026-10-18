@@ -214,6 +214,12 @@ lo
 
 ### Cross-Subsystem References
 
+This section is design only. The schema loader refuses a module that declares
+a `leafref` type today (`ErrUncheckedType`), so no Ze module carries the leaf
+below and the hub runs no leafref validation
+(`plan/spec-config-yang-type-leafref.md`).
+<!-- source: internal/component/config/yang/loader_unchecked.go -- moduleUncheckedTypeErrors -->
+
 When BGP references system interfaces (leafref to another subsystem):
 
 ```yang

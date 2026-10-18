@@ -7,7 +7,7 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
-| 2026-10-18 | 3f5fcb0a | rfc(2545): re-record RFC2545-3-1 and 3-2 after buildRelayUpdate moved (+5 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-17T10:46:25Z) | open |
+| 2026-10-18 | 3f5fcb0a | rfc(2545): re-record RFC2545-3-1 and 3-2 after buildRelayUpdate moved (+6 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-17T10:46:25Z) | open |
 | 2026-10-18 | 3f5fcb0a | rfc(2545): re-record RFC2545-3-1 and 3-2 after buildRelayUpdate moved (+2 more) | native structural checks (red) | recorded reds come from a verify that predates the 2026-10-18 rebase; ./le arch tier check and ./le arch iface-resolution both pass over this tree now | open |
-| 2026-10-18 | 3f5fcb0a | test(reactor): drop the RFC naming marker from decoders_test.go (+2 more) | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
-| 2026-10-18 | 3f5fcb0a | test(bgp): RFC 9494 4.3 units pin the advertised trigger and cache rail (+2 more) | native structural checks (red) | recorded reds come from a verify that predates the 2026-10-18 rebase; ./le arch tier check and ./le arch iface-resolution both pass over this tree; a full verify is in progress | open |
+| 2026-10-18 | 3f5fcb0a | test(reactor): drop the RFC naming marker from decoders_test.go (+3 more) | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-10-18 | 3f5fcb0a | test(bgp): RFC 9494 4.3 units pin the advertised trigger and cache rail (+3 more) | native structural checks (red) | recorded reds come from a verify that predates the 2026-10-18 rebase; ./le arch tier check and ./le arch iface-resolution both pass over this tree; a full verify is in progress | open |

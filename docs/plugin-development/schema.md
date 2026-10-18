@@ -211,30 +211,23 @@ leaf optional-field {
 }
 ```
 
-## References (leafref)
+## References (no leafref)
 
-Reference values from other parts of config:
+Ze does not check leafref, identityref or instance-identifier values, so the
+schema loader refuses a module that declares one of these types, naming the
+module, the location and the type (`ErrUncheckedType`). A leaf of such a type
+could accept no value. Declare a reference to another part of the config as a
+string, with a pattern where the name has a fixed shape, and check that the
+referenced entry exists in a `ze:validate` function. Checking leafref values is
+planned (`plan/spec-config-yang-type-leafref.md`).
 
 ```yang
-// In ze-bgp-conf module
-list peer-group {
-    key "name";
-    leaf name { type string; }
-}
-
-// In your module - reference peer-group
+// In your module: a reference to a peer-group by name
 leaf group {
-    type leafref {
-        path "/bgp/peer-group/name";
-    }
+    type string { length "1..64"; }
 }
 ```
-
-Ze does not check leafref values today: the validator accepts any value for a
-leafref leaf, so a reference to a peer-group that does not exist is not
-refused. Checking that the referenced value exists is planned
-(`plan/spec-config-yang-type-leafref.md`).
-<!-- source: internal/component/config/yang/validator.go -- validateYangType: the Yleafref arm returns nil -->
+<!-- source: internal/component/config/yang/loader_unchecked.go -- moduleUncheckedTypeErrors, uncheckedTypeNames -->
 
 ## Best Practices
 
