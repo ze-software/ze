@@ -486,7 +486,11 @@ func (w *referenceWalk) childNodes(leaf *yang.Entry, entries []*yang.Entry, data
 	}
 	wanted := make([][]string, len(keys))
 	for i, key := range keys {
-		wanted[i] = w.keyValues(leaf, key, frames)
+		name := localName(key.node)
+		for _, value := range w.keyValues(leaf, key, frames) {
+			// RFC 7950 Section 9.1
+			wanted[i] = append(wanted[i], canonicalKey(entries, name, value))
+		}
 	}
 	selected, mapKeys := -1, 0
 	for i, key := range keys {
@@ -530,8 +534,9 @@ func listEntryNodes(entries []*yang.Entry, data map[string]any) []dataNode {
 	return out
 }
 
-// keyIndex answers the entries of a list by the value of its key leaf name,
-// each value naming the map keys of the entries holding it (listEntryKey). It
+// keyIndex answers the entries of a list by the value of its key leaf name in
+// canonical form (canonicalKey), each value naming the map keys of the entries
+// holding it (listEntryKey). It
 // is built on the first predicate that selects by name in this list and
 // reused for every later one, so the list is read once per key leaf.
 func (w *referenceWalk) keyIndex(entries []*yang.Entry, data map[string]any, name string) map[string][]string {
@@ -549,6 +554,8 @@ func (w *referenceWalk) keyIndex(entries []*yang.Entry, data map[string]any, nam
 		if !ok {
 			continue
 		}
+		// RFC 7950 Section 9.1
+		value = canonicalKey(entries, name, value)
 		index[value] = append(index[value], mapKey)
 	}
 	w.lists[key] = index
@@ -567,14 +574,16 @@ func (w *referenceWalk) keyValues(leaf *yang.Entry, key pathKey, frames []dataNo
 
 // keysMatch reports whether a list entry satisfies every key predicate: its
 // key equals one of the values wanted[i], which predicate keys[i]'s current()
-// path reads.
+// path reads, each in canonical form (canonicalKey).
 func keysMatch(node dataNode, keys []pathKey, wanted [][]string) bool {
 	for i, key := range keys {
-		actual, ok := listEntryKey(node, localName(key.node))
+		name := localName(key.node)
+		actual, ok := listEntryKey(node, name)
 		if !ok {
 			return false
 		}
-		if !slices.Contains(wanted[i], actual) {
+		// RFC 7950 Section 9.1
+		if !slices.Contains(wanted[i], canonicalKey(node.entries, name, actual)) {
 			return false
 		}
 	}
@@ -673,6 +682,31 @@ func canonicalValue(yangType *yang.YangType, value string) string {
 	return value
 }
 
+// RFC 7950 Section 9.1: "In particular, any XPath expression evaluations are
+// done using the canonical form if the data type has a canonical form."
+//
+// sameValue reports whether a and b are one value of yangType, equal in
+// canonical form (canonicalValue). A configured value and a default in use
+// are both compared through it, so each answers the same lexical forms.
+func sameValue(yangType *yang.YangType, a, b string) bool {
+	return canonicalValue(yangType, a) == canonicalValue(yangType, b)
+}
+
+// RFC 7950 Section 9.1: "Note, however, that values in the data tree are
+// conceptually stored in the canonical representation as defined in this
+// section."
+//
+// canonicalKey answers value, held by or compared with key leaf name of a list
+// whose schema nodes are entries, in canonical form under the key leaf's type:
+// the form a list's key index and a key predicate are compared in.
+func canonicalKey(entries []*yang.Entry, name, value string) string {
+	key := childOf(entries, name)
+	if key == nil {
+		return value // not a key of this list: equals only itself, as canonicalValue answers an unparsed value
+	}
+	return canonicalValue(key.Type, value)
+}
+
 // RFC 7950 Section 9.3.2: "The canonical form of a positive decimal64 value
 // does not include the sign "+".  The decimal point is required.  Leading
 // and trailing zeros are prohibited, subject to the rule that there MUST be
@@ -746,7 +780,7 @@ func (w *referenceWalk) checkInstanceIdentifierInstance(path string, leaf *yang.
 	if err != nil {
 		return missingReferenceError(path, yangType, value, err.Error())
 	}
-	exists, err := instanceExists(frames[0].data, schema, steps)
+	exists, err := w.instanceExists(frames[0].data, schema, steps)
 	if err != nil {
 		return missingReferenceError(path, yangType, value, err.Error())
 	}
@@ -760,8 +794,9 @@ func (w *referenceWalk) checkInstanceIdentifierInstance(path string, leaf *yang.
 // schema nodes instanceSchema resolved. A step through an absent
 // non-presence container goes on into an empty node, and a last step at an
 // absent leaf or leaf-list answers whether its default is in use (RFC 7950
-// Section 7.6.1).
-func instanceExists(root map[string]any, schema []*yang.Entry, steps []instanceStep) (bool, error) {
+// Section 7.6.1). Every value is compared in canonical form (sameValue,
+// canonicalKey).
+func (w *referenceWalk) instanceExists(root map[string]any, schema []*yang.Entry, steps []instanceStep) (bool, error) {
 	data := root
 	for i, step := range steps {
 		node := schema[i]
@@ -779,7 +814,7 @@ func instanceExists(root map[string]any, schema []*yang.Entry, steps []instanceS
 		}
 		switch {
 		case node.IsList():
-			entryData, found, err := selectListEntry(node, data, step)
+			entryData, found, err := w.selectListEntry(node, data, step)
 			if err != nil {
 				return false, err
 			}
@@ -791,7 +826,10 @@ func instanceExists(root map[string]any, schema []*yang.Entry, steps []instanceS
 			if !step.hasValue {
 				return last, nil
 			}
-			return slices.Contains(leafListItems(raw), step.value), nil
+			// RFC 7950 Section 9.1
+			return slices.ContainsFunc(leafListItems(raw), func(item string) bool {
+				return sameValue(node.Type, item, step.value)
+			}), nil
 		case node.IsLeaf():
 			return last, nil
 		default:
@@ -819,21 +857,20 @@ func absentLeafInUse(node *yang.Entry, data map[string]any, step instanceStep) b
 	if !step.hasValue {
 		return len(defaults) > 0
 	}
-	want := canonicalValue(node.Type, step.value)
-	for _, def := range defaults {
-		if canonicalValue(node.Type, def) == want {
-			return true
-		}
-	}
-	return false
+	// RFC 7950 Section 9.1
+	return slices.ContainsFunc(defaults, func(def string) bool {
+		return sameValue(node.Type, def, step.value)
+	})
 }
 
 // selectListEntry answers the entry of list, a child of container, that an
-// instance-identifier step selects: by its keys, read by the entry's map key,
-// or by position for a list with none, counted in the order the data
-// delivers (configorder). It answers false for no such entry, and an error when
-// the data carries no order to count a position in.
-func selectListEntry(list *yang.Entry, container map[string]any, step instanceStep) (map[string]any, bool, error) {
+// instance-identifier step selects: by its keys, compared in canonical form
+// through the list's key index (keyIndex), or by position for a list with
+// none, counted in the order the data delivers (configorder). It answers
+// false for no such entry, and an error when the data carries no order to
+// count a position in. Two entries whose keys are one value written two ways
+// are read in map key order, so the answer does not change from run to run.
+func (w *referenceWalk) selectListEntry(list *yang.Entry, container map[string]any, step instanceStep) (map[string]any, bool, error) {
 	if step.pos > 0 {
 		entries, err := configorder.Entries(container, list.Name, "")
 		if err != nil {
@@ -845,47 +882,41 @@ func selectListEntry(list *yang.Entry, container map[string]any, step instanceSt
 		}
 		return entries[step.pos-1].Map, true, nil
 	}
+	if len(step.keys) == 0 {
+		return nil, false, nil // a keyed list step with no predicate names no one entry
+	}
 	entries, ok := container[list.Name].(map[string]any)
 	if !ok {
 		return nil, false, nil
 	}
-	key := listEntryAddress(list, step.keys)
-	entryData, ok := entries[key].(map[string]any)
-	if !ok {
-		return nil, false, nil
-	}
-	if !instanceKeysMatch(dataNode{entries: []*yang.Entry{list}, data: entryData, key: key}, step.keys) {
-		return nil, false, nil
-	}
-	return entryData, true, nil
-}
-
-// listEntryAddress answers the map key of the list entry the key predicates
-// name: the key value for a single-key list, else the canonical address
-// "<first> <key2> <value2> ..." (docs/architecture/config/syntax.md).
-func listEntryAddress(list *yang.Entry, keys []instanceKey) string {
-	values := make(map[string]string, len(keys))
-	for _, key := range keys {
-		values[localName(key.node)] = key.value
-	}
-	var tb textbuf.Buffer
-	for i, name := range listKeys(list) {
-		if i > 0 {
-			tb.Byte(' ').Str(name).Byte(' ')
+	schema := []*yang.Entry{list}
+	name := localName(step.keys[0].node)
+	index := w.keyIndex(schema, entries, name)
+	// RFC 7950 Section 9.1
+	mapKeys := slices.Sorted(slices.Values(index[canonicalKey(schema, name, step.keys[0].value)]))
+	for _, mapKey := range mapKeys {
+		entryData, ok := entries[mapKey].(map[string]any)
+		if !ok {
+			continue
 		}
-		tb.Str(values[name])
+		if instanceKeysMatch(dataNode{entries: schema, data: entryData, key: mapKey}, step.keys) {
+			return entryData, true, nil
+		}
 	}
-	return tb.String()
+	return nil, false, nil
 }
 
-// instanceKeysMatch reports whether a list entry carries every key value.
+// instanceKeysMatch reports whether a list entry carries every key value,
+// each compared in canonical form (canonicalKey).
 func instanceKeysMatch(node dataNode, keys []instanceKey) bool {
 	for _, key := range keys {
-		actual, ok := listEntryKey(node, localName(key.node))
+		name := localName(key.node)
+		actual, ok := listEntryKey(node, name)
 		if !ok {
 			return false
 		}
-		if actual != key.value {
+		// RFC 7950 Section 9.1
+		if canonicalKey(node.entries, name, actual) != canonicalKey(node.entries, name, key.value) {
 			return false
 		}
 	}

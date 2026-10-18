@@ -1104,6 +1104,17 @@
     {
       "rid": "RFC7950-9.13-1",
       "polarity": "positive",
+      "unit": "internal/component/config/yang/rfc7950_reference_canonical_test.go::TestRFC7950InstanceIdentifierCanonicalValue",
+      "unit-sha": "0cc88e9a5f37dac5",
+      "claim-sha": "00d855273e76964a",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator_instance.go::sameValue",
+      "producer-sha": "65c5a3a27361ff8a",
+      "break": "body of sameValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-9.13-1",
+      "polarity": "positive",
       "unit": "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950InstanceIdentifierExists",
       "unit-sha": "6dc5f3db707d9728",
       "claim-sha": "b341523c674a2a39",
@@ -1441,6 +1452,17 @@
       "producer": "internal/component/config/yang/loader.go::AddModuleFromText",
       "producer-sha": "4887216187fdb0bc",
       "break": "body of AddModuleFromText replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-9.9-1",
+      "polarity": "positive",
+      "unit": "internal/component/config/yang/rfc7950_reference_canonical_test.go::TestRFC7950LeafrefPredicateCanonicalValue",
+      "unit-sha": "7ae7ac288a3fc5f9",
+      "claim-sha": "6576ffc3782bc3f3",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator_instance.go::canonicalKey",
+      "producer-sha": "d9dc958a7308f912",
+      "break": "body of canonicalKey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7950-9.9-1",
