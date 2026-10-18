@@ -116,6 +116,7 @@ func TestGenerateStartupConf(t *testing.T) {
 		{"plugins section", "plugins {"},
 		{"plugin default disable", "plugin default {"},
 		{"dpdk enable", "plugin dpdk_plugin.so {"},
+		{"urpf enable", "plugin urpf_plugin.so {"},
 		{"linux_cp enable", "plugin linux_cp_plugin.so {"},
 		{"linux_nl enable", "plugin linux_nl_plugin.so {"},
 		{"linux-cp section", "linux-cp {"},

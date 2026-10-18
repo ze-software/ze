@@ -1332,6 +1332,7 @@ go.fd.io/govpp/binapi/span
 go.fd.io/govpp/binapi/sr
 go.fd.io/govpp/binapi/sr_types
 go.fd.io/govpp/binapi/tunnel_types
+go.fd.io/govpp/binapi/urpf
 go.fd.io/govpp/binapi/vxlan
 go.fd.io/govpp/binapi/wireguard
 go.fd.io/govpp/codec

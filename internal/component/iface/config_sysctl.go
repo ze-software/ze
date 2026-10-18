@@ -58,6 +58,9 @@ func applySysctl(osName string, u unitEntry) {
 		if s.ArpIgnore != nil {
 			emit("net.ipv4.conf."+osName+".arp_ignore", strconv.Itoa(*s.ArpIgnore))
 		}
+		// The rp_filter sysctl judges what the Linux kernel forwards. A
+		// backend with its own dataplane enforces the same leaf through
+		// Backend.ReplaceIPv4RPF (rpf4.go, desiredIPv4RPF).
 		if s.RPFCheck != nil {
 			emit("net.ipv4.conf."+osName+".rp_filter", strconv.Itoa(s.RPFCheck.rpfSysctlValue()))
 		}

@@ -366,7 +366,8 @@ module ze-iface-conf {
                     description "Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable
                                  is 0, strict is 1 and loose is 2. strict drops a packet whose source
                                  address would not route back through this interface. loose drops a
-                                 packet whose source address has no route at all.";
+                                 packet whose source address has no route at all. With backend vpp, Ze
+                                 also enables VPP uRPF in the same mode on the interface's receive path.";
                     ze:help "Reverse path filtering mode";
                 }
 

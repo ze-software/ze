@@ -1,15 +1,15 @@
 // Design: docs/architecture/testing/interop.md -- what one VPP feature proof is
 // Overview: vppiface.go -- the run that drives this table
 //
-// vppifacescenarios.go contains the DATA for the four interface features. Each
+// vppifacescenarios.go contains the DATA for the five interface features. Each
 // row defines the ze configuration, the vppctl query that checks whether VPP
 // created the object and the words that a reader gets back.
 //
-// This is a table because only the data differs between the four features. Each
+// This is a table because only the data differs between the five features. Each
 // scenario writes a configuration, starts ze on it, polls one VPP query and
-// matches a needle. A fifth feature is another row in this table.
+// matches a needle. A sixth feature is another row in this table.
 //
-// LCP must stay off in three of the four configurations. When it is enabled, ze
+// LCP must stay off in four of the five configurations. When it is enabled, ze
 // creates an lcp_itf_pair for every loopback. This fails the whole apply on a
 // VPP build without linux_cp_plugin.so. This is an honest exact-or-reject at the
 // binapi layer. Only the LCP scenario turns it on, and only after its plugin
@@ -112,6 +112,18 @@ const (
     }
 }
 `
+	// The address puts a connected route on the interface, so the check has a
+	// FIB to judge against; strict is the mode the probe looks for by name.
+	urpfBlock = `interface {
+    backend vpp;
+    dummy urpf0 {
+        unit default {
+            address 10.98.0.1/24;
+            ipv4 { rpf-check strict; }
+        }
+    }
+}
+`
 	lcpBlock = `interface {
     backend vpp;
     dummy loop0 {
@@ -159,11 +171,26 @@ type vppScenario struct {
 	hostLinks       bool
 }
 
-// vppScenarios is the table in the order that the run performs it. The order is
-// the Python's, and it matters. The four scenarios share one VPP daemon. A
+// vppScenarios is the table in the order that the run performs it. After the
+// uRPF row the order is the Python's, and it matters. The scenarios share one VPP daemon. A
 // feature that the run was unable to program leaves that daemon in a state that the
 // next scenario would use for its verdict.
 var vppScenarios = []vppScenario{
+	{
+		// First, on a VPP that holds no loopback yet, so the dummy ze creates
+		// is VPP's loop0 and the probe can name it. The feature arc listing is
+		// VPP's own record that the check is on the interface's receive path.
+		feature:      "ipv4-urpf",
+		file:         "urpf.conf",
+		config:       joined(vppBase, urpfBlock),
+		needsPlugins: []string{URPFPlugin},
+		skipDetail: joined(URPFPlugin, " not loaded in this image; ze refuses an ipv4 rpf-check at apply",
+			" naming the plugin (unit-tested). Image limit recorded."),
+		probe:         "show interface features loop0",
+		needles:       []string{"ip4-rx-urpf-strict"},
+		provenDetail:  "real VPP enabled strict IPv4 uRPF on the receive path of the dummy ze created",
+		missingDetail: "ip4-rx-urpf-strict not observed on the receive path in real VPP",
+	},
 	{
 		feature: "gre-tunnel",
 		file:    "tunnel.conf",

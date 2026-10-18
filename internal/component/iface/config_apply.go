@@ -1351,13 +1351,19 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 			if info, err := b.GetInterface(device); err == nil {
 				oldMTU = info.MTU
 			}
+			// Read before the parent changes: lowering it makes Linux cap
+			// every VLAN above it, so afterwards the old VLAN MTU is gone.
+			oldVLANMTUs := readVLANMTUs(b, device, e.Units)
 			if err := applyBackendStep(journal, func() error {
 				return b.SetMTU(device, e.MTU)
 			}, func() error {
 				if oldMTU <= 0 {
 					return nil
 				}
-				return b.SetMTU(device, oldMTU)
+				if err := b.SetMTU(device, oldMTU); err != nil {
+					return err
+				}
+				return restoreVLANMTUs(b, oldVLANMTUs)
 			}); err != nil {
 				var bMtu textbuf.Buffer
 				return record(bMtu.Reset().Str(device).Str(" set mtu ").Int(int64(e.MTU)).String(), err)
@@ -1428,8 +1434,10 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 				// parent's configured one. Neither backend keeps the two in
 				// step after creation: Linux leaves an existing VLAN's MTU
 				// alone when the parent's rises (it only caps it when the
-				// parent's falls), and VPP creates a sub-interface with no MTU
-				// of its own. A parent with no mtu leaf gives nothing to follow.
+				// parent's falls), and VPP rewrites a sub-interface only when
+				// the parent's link MTU changes, not its protocol MTU alone.
+				// A parent with no mtu leaf gives nothing to follow: each
+				// backend creates a VLAN at its parent's MTU.
 				if e.MTU > 0 {
 					if err := applyVLANMTU(journal, b, vlanName, e.MTU); err != nil {
 						var bMtu textbuf.Buffer
@@ -1472,6 +1480,19 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		return b.ReplaceIPv6RPF(desiredIPv6RPF(previous, devices))
 	}); err != nil {
 		return record("ipv6 rpf-check", err)
+	}
+
+	// Phase 2b'': Replace the IPv4 reverse-path checks a backend with its own
+	// dataplane enforces. The rp_filter sysctl written above judges only what
+	// the Linux kernel forwards, so the whole set also goes to the backend,
+	// with the same removal and undo as the IPv6 set.
+	rpf4 := desiredIPv4RPF(cfg, devices)
+	if err := applyBackendStep(journal, func() error {
+		return b.ReplaceIPv4RPF(rpf4)
+	}, func() error {
+		return b.ReplaceIPv4RPF(desiredIPv4RPF(previous, devices))
+	}); err != nil {
+		return record("ipv4 rpf-check", err)
 	}
 
 	// Phase 2c: Bring all non-disabled interfaces administratively UP.
@@ -1737,10 +1758,15 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 }
 
 // applyVLANMTU sets the VLAN sub-interface vlanName to its parent's configured
-// mtu, and records the undo that writes the VLAN's previous MTU back. A VLAN
-// already at mtu gets no call. A VLAN whose MTU cannot be read is set anyway,
-// with no undo, the same way the parent's own MTU step treats an unreadable
-// device: the configured value is the answer, the read only serves the undo.
+// mtu. A VLAN already at mtu gets no call. A VLAN whose MTU cannot be read is
+// set anyway: the configured value is the answer.
+//
+// The step records no undo of its own. The parent's MTU step, recorded before
+// it, carries the undo for every VLAN of the entry, because the order matters
+// and the journal undoes in reverse: the parent's old MTU goes back first,
+// then each VLAN's. A VLAN undone first could not rise above a parent still at
+// the lowered MTU (Linux answers ERANGE), and a parent undone last would cap
+// the VLAN again.
 func applyVLANMTU(journal *sdk.Journal, b Backend, vlanName string, mtu int) error {
 	oldMTU := 0
 	if info, err := b.GetInterface(vlanName); err == nil {
@@ -1751,12 +1777,53 @@ func applyVLANMTU(journal *sdk.Journal, b Backend, vlanName string, mtu int) err
 	}
 	return applyBackendStep(journal, func() error {
 		return b.SetMTU(vlanName, mtu)
-	}, func() error {
-		if oldMTU <= 0 {
-			return nil
+	}, nil)
+}
+
+// vlanMTU is one VLAN sub-interface and the MTU it held before a commit.
+type vlanMTU struct {
+	name string
+	mtu  int
+}
+
+// readVLANMTUs returns the MTU each existing VLAN sub-interface of device
+// holds now, for the parent's undo to put back. A VLAN the backend does not
+// report does not exist yet: the commit creates it, and the create's own undo
+// deletes it, so it has no MTU to restore.
+func readVLANMTUs(b Backend, device string, units []unitEntry) []vlanMTU {
+	var held []vlanMTU
+	for i := range units {
+		u := &units[i]
+		if u.Disable {
+			continue
 		}
-		return b.SetMTU(vlanName, oldMTU)
-	})
+		if u.VLANID <= 0 {
+			continue
+		}
+		name := unitOSName(device, u)
+		info, err := b.GetInterface(name)
+		if err != nil {
+			continue
+		}
+		if info.MTU <= 0 {
+			continue
+		}
+		held = append(held, vlanMTU{name: name, mtu: info.MTU})
+	}
+	return held
+}
+
+// restoreVLANMTUs writes back the MTUs readVLANMTUs read. It MUST run after
+// the parent's old MTU is back, so a VLAN can rise to its old value. Every
+// VLAN is attempted, and the failures are returned together.
+func restoreVLANMTUs(b Backend, held []vlanMTU) error {
+	var errs []error
+	for _, v := range held {
+		if err := b.SetMTU(v.name, v.mtu); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }
 
 func applyBackendStep(journal *sdk.Journal, apply, undo func() error) error {

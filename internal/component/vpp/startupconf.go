@@ -93,6 +93,14 @@ func GenerateStartupConf(w io.Writer, s *VPPSettings, inv CPUInventory) error {
 		b.nested("plugin dpdk_plugin.so", func() {
 			b.flag("enable")
 		})
+		// The interface backend programs an IPv4 rpf-check as VPP uRPF, and
+		// whether a unit sets one is interface config this component does not
+		// read. The plugin does nothing until a check is enabled on an
+		// interface, so it always loads rather than gating rpf-check on a
+		// second toggle the operator would have to know about.
+		b.nested("plugin urpf_plugin.so", func() {
+			b.flag("enable")
+		})
 		if s.LCP.Enabled {
 			b.nested("plugin linux_cp_plugin.so", func() {
 				b.flag("enable")

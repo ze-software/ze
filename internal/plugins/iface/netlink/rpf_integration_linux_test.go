@@ -214,17 +214,17 @@ func TestIntegrationIPv6RPF(t *testing.T) {
 
 	lab.expect("no check", all)
 
-	if err := b.ReplaceIPv6RPF([]iface.IPv6RPFCheck{{Interface: "r0", Mode: iface.IPv6RPFStrict}}); err != nil {
+	if err := b.ReplaceIPv6RPF([]iface.RPFCheck{{Interface: "r0", Mode: iface.RPFStrict}}); err != nil {
 		t.Fatalf("strict: %v", err)
 	}
 	lab.expect("strict", map[string]bool{rpfLabValid: true})
 
-	if err := b.ReplaceIPv6RPF([]iface.IPv6RPFCheck{{Interface: "r0", Mode: iface.IPv6RPFLoose}}); err != nil {
+	if err := b.ReplaceIPv6RPF([]iface.RPFCheck{{Interface: "r0", Mode: iface.RPFLoose}}); err != nil {
 		t.Fatalf("loose: %v", err)
 	}
 	lab.expect("loose", map[string]bool{rpfLabValid: true, rpfLabElsewhere: true})
 
-	if err := b.ReplaceIPv6RPF([]iface.IPv6RPFCheck{{Interface: "other", Mode: iface.IPv6RPFStrict}}); err != nil {
+	if err := b.ReplaceIPv6RPF([]iface.RPFCheck{{Interface: "other", Mode: iface.RPFStrict}}); err != nil {
 		t.Fatalf("other interface: %v", err)
 	}
 	lab.expect("check on another interface only", all)

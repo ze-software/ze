@@ -78,7 +78,16 @@ func (s *stubBackend) SetupLCPPair(_, _ string) error            { return unsupp
 
 // ReplaceIPv6RPF has nothing to do for an empty set and refuses a real one,
 // because this platform has no dataplane to enforce it.
-func (s *stubBackend) ReplaceIPv6RPF(checks []iface.IPv6RPFCheck) error {
+func (s *stubBackend) ReplaceIPv6RPF(checks []iface.RPFCheck) error {
+	if len(checks) == 0 {
+		return nil
+	}
+	return unsupported()
+}
+
+// ReplaceIPv4RPF has nothing to do for an empty set and refuses a real one,
+// for the same reason as ReplaceIPv6RPF.
+func (s *stubBackend) ReplaceIPv4RPF(checks []iface.RPFCheck) error {
 	if len(checks) == 0 {
 		return nil
 	}

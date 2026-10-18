@@ -10,7 +10,7 @@ import (
 )
 
 // ReplaceIPv6RPF records each whole set the apply hands the dataplane.
-func (b *fakeBackend) ReplaceIPv6RPF(checks []IPv6RPFCheck) error {
+func (b *fakeBackend) ReplaceIPv6RPF(checks []RPFCheck) error {
 	b.rpf6Calls = append(b.rpf6Calls, slices.Clone(checks))
 	return nil
 }
@@ -49,12 +49,12 @@ func TestDesiredIPv6RPF(t *testing.T) {
 
 	got := desiredIPv6RPF(cfg, devices)
 
-	want := []IPv6RPFCheck{
-		{Interface: "eth7", Mode: IPv6RPFStrict},
-		{Interface: "eth7.100", Mode: IPv6RPFLoose},
-		{Interface: "dum0", Mode: IPv6RPFStrict},
-		{Interface: "dum1", Mode: IPv6RPFLoose},
-		{Interface: "lo", Mode: IPv6RPFLoose},
+	want := []RPFCheck{
+		{Interface: "eth7", Mode: RPFStrict},
+		{Interface: "eth7.100", Mode: RPFLoose},
+		{Interface: "dum0", Mode: RPFStrict},
+		{Interface: "dum1", Mode: RPFLoose},
+		{Interface: "lo", Mode: RPFLoose},
 	}
 	assert.ElementsMatch(t, want, got)
 	assert.Empty(t, desiredIPv6RPF(nil, nil), "a nil config asks for no check")
@@ -73,7 +73,7 @@ func TestApplyConfigHandsIPv6RPFToBackend(t *testing.T) {
 
 	require.Empty(t, errs)
 	require.NotEmpty(t, b.rpf6Calls)
-	assert.Equal(t, []IPv6RPFCheck{{Interface: "dum0", Mode: IPv6RPFLoose}}, b.rpf6Calls[len(b.rpf6Calls)-1])
+	assert.Equal(t, []RPFCheck{{Interface: "dum0", Mode: RPFLoose}}, b.rpf6Calls[len(b.rpf6Calls)-1])
 }
 
 // VALIDATES: removing the leaf, or the whole interface, hands the backend a
@@ -88,9 +88,9 @@ func TestApplyConfigRemovesIPv6RPF(t *testing.T) {
 		{Name: "dum1", Units: []unitEntry{rpf6Unit(rpfModeLoose)}},
 	}}
 	require.Empty(t, applyConfig(first, nil, b))
-	assert.ElementsMatch(t, []IPv6RPFCheck{
-		{Interface: "dum0", Mode: IPv6RPFStrict},
-		{Interface: "dum1", Mode: IPv6RPFLoose},
+	assert.ElementsMatch(t, []RPFCheck{
+		{Interface: "dum0", Mode: RPFStrict},
+		{Interface: "dum1", Mode: RPFLoose},
 	}, b.rpf6Calls[len(b.rpf6Calls)-1])
 
 	leafGone := &ifaceConfig{Backend: "fake", Dummy: []ifaceEntry{
@@ -98,7 +98,7 @@ func TestApplyConfigRemovesIPv6RPF(t *testing.T) {
 		{Name: "dum1", Units: []unitEntry{rpf6Unit(rpfModeLoose)}},
 	}}
 	require.Empty(t, applyConfig(leafGone, first, b))
-	assert.Equal(t, []IPv6RPFCheck{{Interface: "dum1", Mode: IPv6RPFLoose}}, b.rpf6Calls[len(b.rpf6Calls)-1])
+	assert.Equal(t, []RPFCheck{{Interface: "dum1", Mode: RPFLoose}}, b.rpf6Calls[len(b.rpf6Calls)-1])
 
 	ifaceGone := &ifaceConfig{Backend: "fake", Dummy: []ifaceEntry{
 		{Name: "dum0", Units: []unitEntry{{Label: "0"}}},
@@ -126,14 +126,14 @@ func TestApplyConfigRollsBackIPv6RPF(t *testing.T) {
 	require.NotEmpty(t, errs)
 	n := len(b.rpf6Calls)
 	require.GreaterOrEqual(t, n, 2)
-	assert.Equal(t, []IPv6RPFCheck{{Interface: "dum0", Mode: IPv6RPFLoose}}, b.rpf6Calls[n-2])
-	assert.Equal(t, []IPv6RPFCheck{{Interface: "dum0", Mode: IPv6RPFStrict}}, b.rpf6Calls[n-1], "rollback restores the previous set")
+	assert.Equal(t, []RPFCheck{{Interface: "dum0", Mode: RPFLoose}}, b.rpf6Calls[n-2])
+	assert.Equal(t, []RPFCheck{{Interface: "dum0", Mode: RPFStrict}}, b.rpf6Calls[n-1], "rollback restores the previous set")
 }
 
 // VALIDATES: the vpp backend refuses an ipv6 rpf-check at commit, naming the
-// leaf, and the netlink backend accepts it. VPP forwards outside netfilter
-// and ze programs no VPP source check, so accepting it would be the silent
-// no-op the Linux backend used to be.
+// leaf, and the netlink backend accepts it. VPP forwards outside netfilter,
+// and VPP's own uRPF drops every unicast packet from a link-local source, so
+// the vpp backend refuses the check rather than break neighbor discovery.
 // METHOD: the real schema's ze:backend gate over one config per backend.
 func TestBackendGateIPv6RPFCheck(t *testing.T) {
 	data := func(backend string) string {

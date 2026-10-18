@@ -80,7 +80,7 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | | IPv6 forwarding | have | |
 | | Proxy ARP | have | |
 | | ARP announce / ARP ignore | have | |
-| | RPF / source validation (IPv4 `rp_filter` sysctl; IPv6 nftables fib lookup in `ip6 ze_iface_rpf`, netlink backend only) | have | |
+| | RPF / source validation (IPv4 `rp_filter` sysctl, plus VPP uRPF on backend vpp; IPv6 nftables fib lookup in `ip6 ze_iface_rpf`, netlink backend only) | have | See "Reverse-path check" |
 | | TCP MSS clamping (v4+v6) | missing | medium |
 | | Directed broadcast | missing | lower |
 | **IPv6 Extended** | EUI-64 address generation | missing | medium |
@@ -162,6 +162,35 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go — DHCPv4 worker -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_linux.go — DHCPv6 worker -->
 <!-- source: internal/component/bgp/reactor/reactor_iface.go — BGP integration -->
+
+### Reverse-path check
+
+Each apply builds the complete set of reverse-path checks the config asks for,
+one per unit and address family, and hands it to the backend whole:
+`ReplaceIPv4RPF` and `ReplaceIPv6RPF`. A check whose leaf, unit or interface
+left the config is absent from the set, so the backend removes it, and the
+apply journal restores the previous set when a later step fails.
+
+| Family | netlink backend | vpp backend |
+|--------|-----------------|-------------|
+| IPv4 | `net.ipv4.conf.<dev>.rp_filter`, written by the sysctl phase; `ReplaceIPv4RPF` installs nothing more | `urpf_update` on the receive path of the VPP interface (strict or loose), read back with `urpf_interface_dump` so a check no longer configured is turned off. The sysctl still reaches the Linux Control Plane tap, which judges only what VPP punts to the host |
+| IPv6 | nftables table `ip6 ze_iface_rpf` | refused at commit (`ze:backend "netlink"`) and by the backend |
+
+VPP's uRPF (`urpf_plugin.so`, always enabled in the startup.conf ze writes)
+passes a packet to a multicast destination or to 255.255.255.255, so DHCP from
+0.0.0.0 passes. Loose accepts a source whose route has a real path, a default
+route included, and drops one that only VPP's drop default covers. IPv6 is not
+offered on VPP because VPP's `fe80::/10` entry carries an empty uRPF list:
+measured on VPP 26.06 with the packet generator, strict and loose both drop a
+unicast packet from a link-local source, which would break neighbor discovery,
+DHCPv6 and link-local BGP. An external VPP without the plugin accepts a config
+with no IPv4 `rpf-check` and refuses one that sets it, naming the plugin.
+
+<!-- source: internal/component/iface/rpf.go -- RPFCheck, desiredRPF -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfigPass, the two rpf-check phases -->
+<!-- source: internal/plugins/iface/vpp/rpf.go -- ReplaceIPv4RPF, ReplaceIPv6RPF, errIPv6RPFUnsupported -->
+<!-- source: internal/plugins/iface/netlink/rpf_linux.go -- ReplaceIPv4RPF, ReplaceIPv6RPF -->
+<!-- source: internal/component/vpp/startupconf.go -- plugin urpf_plugin.so -->
 
 ## Architecture
 
@@ -313,12 +342,16 @@ device appears, and a config is validated on machines that will never run it.
   later rises (it caps it when the parent's falls), and VPP rewrites a
   sub-interface's MTU only when its parent's link MTU changes, not when the
   parent takes a protocol MTU alone. An entry with no `mtu` leaf leaves its VLANs
-  alone; each backend still creates a VLAN at its parent's MTU.
+  alone; each backend still creates a VLAN at its parent's MTU. A commit that
+  fails after changing a parent's MTU puts the parent's old MTU back first, then
+  the MTU each existing VLAN held before the commit: Linux caps a VLAN when its
+  parent falls and refuses a VLAN above its parent, so a VLAN restored first, or
+  read after the parent changed, would stay capped.
 - **An omitted `mtu` leaves the device's MTU alone.** The schema declares no MTU
   default, because each kind has its own: a device ze creates keeps the kernel's
   value, 1500 for a dummy, veth or bridge, 1420 for wireguard, and the underlay
   MTU less the encapsulation for a tunnel (1476 for gre).
-<!-- source: internal/component/iface/config_apply.go -- applyConfig, applyVLANMTU -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfig, applyVLANMTU, readVLANMTUs, restoreVLANMTUs -->
 <!-- source: internal/component/iface/config.go -- parseIfaceEntry -->
 - **Make-before-break.** Migration adds new address, waits for BGP readiness, then removes old.
   Prevents session loss during address moves.

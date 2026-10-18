@@ -253,7 +253,17 @@ type Backend interface {
 	// on every apply, never a delta: a delta cannot remove the check of an
 	// interface that left the configuration while ze was down, and an
 	// incremental rule set is how a removed interface keeps a stale check.
-	ReplaceIPv6RPF(checks []IPv6RPFCheck) error
+	ReplaceIPv6RPF(checks []RPFCheck) error
+
+	// ReplaceIPv4RPF makes checks the complete set of IPv4 reverse-path checks
+	// the backend's own dataplane enforces, under the same whole-set contract
+	// as ReplaceIPv6RPF. The same leaf also reaches the Linux rp_filter sysctl
+	// of each device through applySysctl, so a backend whose traffic the Linux
+	// kernel forwards is already enforced there and MUST say so where it
+	// accepts the set. A backend that forwards outside the kernel MUST enforce
+	// the set itself or refuse it: the sysctl then reaches only the traffic
+	// the dataplane hands the host.
+	ReplaceIPv4RPF(checks []RPFCheck) error
 
 	// SetupLCPPair creates a Linux Control Plane pair for a VPP interface: a
 	// Linux TAP that shadows the named VPP interface so kernel networking (the

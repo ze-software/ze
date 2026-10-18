@@ -49,7 +49,7 @@ const ip6SaddrOffset = 8
 
 // ReplaceIPv6RPF rebuilds the ze_iface_rpf table so it enforces exactly
 // checks. An empty slice deletes the table.
-func (b *netlinkBackend) ReplaceIPv6RPF(checks []iface.IPv6RPFCheck) error {
+func (b *netlinkBackend) ReplaceIPv6RPF(checks []iface.RPFCheck) error {
 	conn, err := nftables.New(nftables.WithSockOptions(func(c *netlink.Conn) error {
 		return c.SetDeadline(time.Now().Add(rpfNetlinkWait))
 	}))
@@ -65,10 +65,19 @@ func (b *netlinkBackend) ReplaceIPv6RPF(checks []iface.IPv6RPFCheck) error {
 	return nil
 }
 
+// ReplaceIPv4RPF accepts the IPv4 set and installs nothing for it, because
+// this backend's traffic is forwarded by the Linux kernel, and the kernel
+// already enforces each check: the same leaf reaches
+// net.ipv4.conf.<dev>.rp_filter through the iface component's sysctl phase,
+// which judges every packet this backend forwards.
+func (b *netlinkBackend) ReplaceIPv4RPF(_ []iface.RPFCheck) error {
+	return nil
+}
+
 // queueIPv6RPF queues the batch that replaces the table. Adding the table
 // before deleting it makes the delete succeed whether or not the table exists,
 // which is the nft idiom for "replace" without a separate read.
-func queueIPv6RPF(conn *nftables.Conn, checks []iface.IPv6RPFCheck) error {
+func queueIPv6RPF(conn *nftables.Conn, checks []iface.RPFCheck) error {
 	table := &nftables.Table{Family: nftables.TableFamilyIPv6, Name: rpfTableName}
 	conn.AddTable(table)
 	conn.DelTable(table)
@@ -79,11 +88,11 @@ func queueIPv6RPF(conn *nftables.Conn, checks []iface.IPv6RPFCheck) error {
 	var strict, loose []nftables.SetElement
 	for _, c := range checks {
 		switch c.Mode {
-		case iface.IPv6RPFStrict:
+		case iface.RPFStrict:
 			strict = append(strict, nftables.SetElement{Key: ifnameKey(c.Interface)})
-		case iface.IPv6RPFLoose:
+		case iface.RPFLoose:
 			loose = append(loose, nftables.SetElement{Key: ifnameKey(c.Interface)})
-		case iface.IPv6RPFUnspecified:
+		case iface.RPFUnspecified:
 			// desiredIPv6RPF never emits Unspecified; a check without a mode is
 			// a caller defect, refused rather than read as either mode.
 			return fmt.Errorf("ipv6 rpf-check: interface %q has no mode", c.Interface)

@@ -33,13 +33,13 @@ func fixtureVPPIface(t *testing.T) *vppIface {
 	}
 }
 
-// VALIDATES: the table declares four features, each with its own configuration
+// VALIDATES: the table declares five features, each with its own configuration
 // file, its own probe and something for that probe to look for.
-// PREVENTS: a fifth scenario added with a field left empty, which would probe
+// PREVENTS: a sixth scenario added with a field left empty, which would probe
 // nothing and pass on the first poll.
 func TestEveryScenarioNamesAFileAProbeAndANeedle(t *testing.T) {
-	if len(vppScenarios) != 4 {
-		t.Fatalf("the table holds %d scenarios, want 4", len(vppScenarios))
+	if len(vppScenarios) != 5 {
+		t.Fatalf("the table holds %d scenarios, want 5", len(vppScenarios))
 	}
 
 	files := map[string]bool{}

@@ -87,7 +87,10 @@ func (m *mockMigrateBackend) RemoveMirror(_ string) error {
 func (m *mockMigrateBackend) ListMirrors() ([]MirrorState, error) {
 	return nil, fmt.Errorf("mock: not supported")
 }
-func (m *mockMigrateBackend) ReplaceIPv6RPF(_ []IPv6RPFCheck) error {
+func (m *mockMigrateBackend) ReplaceIPv6RPF(_ []RPFCheck) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) ReplaceIPv4RPF(_ []RPFCheck) error {
 	return fmt.Errorf("mock: not supported")
 }
 func (m *mockMigrateBackend) SetupLCPPair(_, _ string) error {

@@ -2830,9 +2830,20 @@ unspecified address (`::`). Neighbor discovery, duplicate address detection
 and DHCPv6 send from them, and a router never forwards them. `nft list table
 ip6 ze_iface_rpf` shows the sets and the drop counters.
 
+With `backend vpp`, VPP forwards outside the Linux kernel, so the `rp_filter`
+sysctl alone would judge only what VPP hands the host. Ze therefore also turns
+on VPP's uRPF for IPv4 on the interface's receive path, in the same mode:
+`strict` drops a packet whose source does not route back through the arrival
+interface, `loose` one whose source has no route with a real path (a default
+route counts). Removing the leaf or the interface turns the check off. Packets
+to a multicast address or to 255.255.255.255 always pass, so DHCP works.
+`vppctl show interface features <vpp-name>` lists `ip4-rx-urpf-strict` or
+`ip4-rx-urpf-loose`, and `vppctl show errors` counts the drops as `uRPF Drop`.
+
 IPv6 `rpf-check` is implemented on the netlink backend only. With `backend vpp`
-a commit that sets it is refused, naming the leaf, because VPP forwards outside
-the Linux netfilter path and Ze programs no VPP source check.
+a commit that sets it is refused, naming the leaf, because VPP's uRPF drops
+every unicast packet from a link-local source, which would break neighbor
+discovery.
 
 The legacy `rp-filter 0|1|2` integer syntax is still accepted for backward
 compatibility but emits a deprecation warning. Use `rpf-check` in new configs.
@@ -2840,6 +2851,7 @@ compatibility but emits a deprecation warning. Use `rpf-check` in new configs.
 <!-- source: internal/component/iface/config.go -- parseIPv4Settings, parseIPv6Settings, rpfMode -->
 <!-- source: internal/component/iface/config_sysctl.go -- applySysctl -->
 <!-- source: internal/component/iface/rpf6.go -- desiredIPv6RPF -->
+<!-- source: internal/plugins/iface/vpp/rpf.go -- ReplaceIPv4RPF, errIPv6RPFUnsupported -->
 <!-- source: internal/plugins/iface/netlink/rpf_linux.go -- ReplaceIPv6RPF, rpfDropExprs, rpfExemptRules -->
 
 ### IPv6 Router Advertisements

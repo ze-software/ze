@@ -2187,7 +2187,8 @@ type fakeBackend struct {
 	mtuSet         map[string]int    // kernel device -> MTU recorded by SetMTU
 	adminSet       map[string]string // kernel device -> "up"/"down" recorded by SetAdminUp/Down
 	bridgePorts    []bridgePortCall  // ordered log of BridgeAddPort + BridgeDelPort calls
-	rpf6Calls      [][]IPv6RPFCheck  // ordered log of ReplaceIPv6RPF sets (rpf6_test.go)
+	rpf6Calls      [][]RPFCheck      // ordered log of ReplaceIPv6RPF sets (rpf6_test.go)
+	rpf4Calls      [][]RPFCheck      // ordered log of ReplaceIPv4RPF sets (rpf4_test.go)
 }
 
 // The two membership operations a bridge can be asked for.

@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/interop.md -- ze against a real VPP daemon
 // Overview: actions.go -- the area table that reaches this run
-// Detail: vppifacescenarios.go -- the four features and the configuration each needs
+// Detail: vppifacescenarios.go -- the five features and the configuration each needs
 // Detail: vppifacereport.go -- the payload this run answers
 // Related: deployment.go -- the container and the collector
 // Related: daemonbuild.go -- the daemon this proof builds
@@ -67,11 +67,12 @@ var (
 		"the GOARCH the VPP interface proof cross-compiles the daemon for")
 )
 
-// The three plugins the run reports on, whether or not a scenario needs them.
-// The report names all three because "the image limits what can be proven" is
+// The four plugins the run reports on, whether or not a scenario needs them.
+// The report names all four because "the image limits what can be proven" is
 // the fact a reader of a green run has to be able to check.
 const (
 	WireguardPlugin = "wireguard_plugin.so"
+	URPFPlugin      = "urpf_plugin.so"
 	LinuxCPPlugin   = "linux_cp_plugin.so"
 	LinuxNLPlugin   = "linux_nl_plugin.so"
 )
@@ -317,7 +318,7 @@ func (v *vppIface) Run() (VPPIfaceReport, error) {
 // daemon. A feature that the run was unable to program leaves that daemon in a state
 // that the next scenario would use for its verdict.
 func (v *vppIface) proveScenarios(report VPPIfaceReport) (VPPIfaceReport, error) {
-	reported := []string{WireguardPlugin, LinuxCPPlugin, LinuxNLPlugin}
+	reported := []string{WireguardPlugin, LinuxCPPlugin, LinuxNLPlugin, URPFPlugin}
 	loaded := make(map[string]bool, len(reported))
 	for _, plugin := range reported {
 		state, err := v.pluginLoaded(report.Container, plugin)

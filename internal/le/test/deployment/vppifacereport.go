@@ -7,7 +7,7 @@
 // is a second rendering of the same data for a person who typed no operator.
 //
 // The plugin table is part of the ANSWER, not narration. A green run over an
-// image that ships neither wireguard nor linux-cp proves two of the four
+// image that ships neither wireguard nor linux-cp proves three of the five
 // features and skips the other two. The plugin table lets the reader tell that
 // run from a full one.
 
