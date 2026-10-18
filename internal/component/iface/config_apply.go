@@ -905,6 +905,7 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		if e.Disable {
 			continue
 		}
+		existed := interfaceExists(b, e.Name)
 		created := false
 		if err := applyBackendStep(journal, func() error {
 			if err := b.CreateDummy(e.Name); err != nil {
@@ -918,12 +919,14 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 				if errors.Is(err, ErrInterfaceExists) {
 					return nil
 				}
-				if _, getErr := b.GetInterface(e.Name); getErr != nil {
+				// Existence was read before the create, so a failed
+				// create that left a device behind still fails the apply.
+				if !existed {
 					return err
 				}
 				return nil
 			}
-			created = true
+			created = !existed
 			return nil
 		}, func() error {
 			if !created {
@@ -957,15 +960,19 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		if peer == "" {
 			peer = e.Name + "-peer"
 		}
+		// Existence is read before the create: a failed create that left
+		// a device behind must still fail the apply, and only a device
+		// this step made is deleted by the undo.
+		existed := interfaceExists(b, e.Name)
 		created := false
 		if err := applyBackendStep(journal, func() error {
 			if err := b.CreateVeth(e.Name, peer); err != nil {
-				if _, getErr := b.GetInterface(e.Name); getErr != nil {
+				if !existed {
 					return err
 				}
 				return nil
 			}
-			created = true
+			created = !existed
 			return nil
 		}, func() error {
 			if !created {
@@ -1014,12 +1021,18 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 				return record("tunnel "+e.Name+" delete before recreate", err)
 			}
 		}
+		// What held the name is read before the create, never after it:
+		// a create that fails can leave a device behind, and a read
+		// afterwards would take that leftover for a netdev an earlier
+		// process made and swallow the error.
+		held, heldErr := b.GetInterface(e.Name)
 		created := false
 		if err := applyBackendStep(journal, func() error {
 			if err := b.CreateTunnel(e.Spec); err != nil {
-				// What holds the name decides. Nothing holds it: the
-				// create failed on its own merits, so report that error. A
-				// tunnel of this kind holds it: the kernel answered EEXIST
+				// What held the name before the create decides. Nothing
+				// held it: the create failed on its own merits, so report
+				// that error even if it left a device behind. A tunnel of
+				// this kind held it: the kernel answered EEXIST
 				// for a netdev that outlived the process which made it, so
 				// keep it as the five sibling steps keep theirs, since
 				// rebuilding an identical link would break the traffic
@@ -1039,20 +1052,19 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 				// encapsulation field, so the WARN says the parameters
 				// were not verified rather than claiming the kept link
 				// agrees with the config.
-				info, getErr := b.GetInterface(e.Name)
-				if getErr != nil {
+				if heldErr != nil {
 					return err
 				}
 				wantType, known := e.Spec.Kind.kernelLinkType()
-				if info == nil || !known || info.Type != wantType {
+				if !heldByLinkType(held, wantType, known) {
 					return fmt.Errorf("%w: %q is held by a device of type %s, not by a %s tunnel",
-						err, e.Name, existingLinkType(info), e.Spec.Kind)
+						err, e.Name, existingLinkType(held), e.Spec.Kind)
 				}
 				log.Warn("iface config: kept existing tunnel netdev, parameters not verified",
 					"name", e.Name, "kind", e.Spec.Kind.String())
 				return nil
 			}
-			created = true
+			created = heldErr != nil
 			return nil
 		}, func() error {
 			if !created {
@@ -1078,6 +1090,7 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		}
 		if !hadPrev {
 			// New wireguard interface: create the netdev first.
+			existed := interfaceExists(b, e.Name)
 			created := false
 			if err := applyBackendStep(journal, func() error {
 				if err := b.CreateWireguardDevice(e.Name); err != nil {
@@ -1085,15 +1098,17 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 					// the previous-state tracker is stale. That is harmless.
 					// A genuine failure (e.g. missing kernel module) means
 					// we must skip ConfigureWireguardDevice -- there is
-					// nothing to configure.
-					if _, getErr := b.GetInterface(e.Name); getErr != nil {
+					// nothing to configure. Existence is read before the
+					// create, so a failed create that left a device
+					// behind is still a genuine failure.
+					if !existed {
 						return err
 					}
 					log.Debug("iface config: create wireguard (already exists)",
 						"name", e.Name, "err", err)
 					return nil
 				}
-				created = true
+				created = !existed
 				return nil
 			}, func() error {
 				if !created {
@@ -1151,15 +1166,19 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 				return record("xfrm "+e.Name+" delete before recreate", err)
 			}
 		}
+		// Existence is read before the create: a failed create that left
+		// a device behind must still fail the apply, and only a device
+		// this step made is deleted by the undo.
+		existed := interfaceExists(b, e.Name)
 		created := false
 		if err := applyBackendStep(journal, func() error {
 			if err := b.CreateXFRM(e.Spec); err != nil {
-				if _, getErr := b.GetInterface(e.Name); getErr != nil {
+				if !existed {
 					return err
 				}
 				return nil
 			}
-			created = true
+			created = !existed
 			return nil
 		}, func() error {
 			if !created {
@@ -1174,15 +1193,19 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		if e.Disable {
 			continue
 		}
+		// Existence is read before the create: a failed create that left
+		// a device behind must still fail the apply, and only a device
+		// this step made is deleted by the undo.
+		existed := interfaceExists(b, e.Name)
 		created := false
 		if err := applyBackendStep(journal, func() error {
 			if err := b.CreateBridge(e.Name); err != nil {
-				if _, getErr := b.GetInterface(e.Name); getErr != nil {
+				if !existed {
 					return err
 				}
 				return nil
 			}
-			created = true
+			created = !existed
 			return nil
 		}, func() error {
 			if !created {
@@ -1391,6 +1414,13 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 			osName := device
 			if u.VLANID > 0 {
 				vlanName := unitOSName(device, u)
+				// Existence is read before the create, never after it: a
+				// create that fails can leave the device behind (a backend
+				// whose cleanup failed too), and a read afterwards would
+				// take that leftover for a VLAN an earlier apply made and
+				// swallow the error. A VLAN that existed is kept and never
+				// deleted by the undo; only one this step made is.
+				existed := interfaceExists(b, vlanName)
 				created := false
 				if err := applyBackendStep(journal, func() error {
 					if err := b.CreateVLAN(VLANSpec{
@@ -1399,12 +1429,12 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 						IngressQoSMap: u.IngressQoSMap,
 						EgressQoSMap:  u.EgressQoSMap,
 					}); err != nil {
-						if _, getErr := b.GetInterface(vlanName); getErr != nil {
+						if !existed {
 							return err
 						}
 						return nil
 					}
-					created = true
+					created = !existed
 					return nil
 				}, func() error {
 					if !created {
@@ -1984,6 +2014,19 @@ func existingLinkType(info *InterfaceInfo) string {
 		return "unreadable"
 	}
 	return info.Type
+}
+
+// heldByLinkType reports whether the device read before a create is of the
+// kernel link type the create asked for. A nil read or a kind with no known
+// link type is no match, so the caller refuses to keep that device.
+func heldByLinkType(held *InterfaceInfo, wantType string, known bool) bool {
+	if held == nil {
+		return false
+	}
+	if !known {
+		return false
+	}
+	return held.Type == wantType
 }
 
 func interfaceExists(b Backend, name string) bool {

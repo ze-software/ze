@@ -163,6 +163,17 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_linux.go — DHCPv6 worker -->
 <!-- source: internal/component/bgp/reactor/reactor_iface.go — BGP integration -->
 
+### Creating a device
+
+Each apply creates the devices the config names: dummy, veth, bridge, tunnel,
+wireguard, xfrm, and the VLAN of each unit with a `vlan-id`. Whether a device
+exists is read before its create, never after. A device that existed is kept,
+and the undo of a failed apply leaves it in place. A create that fails for a
+device that did not exist fails the commit, even when the backend left a
+partial device behind, and the undo deletes only the devices the apply created.
+
+<!-- source: internal/component/iface/config_apply.go — applyConfig create steps, interfaceExists -->
+
 ### Reverse-path check
 
 Each apply builds the complete set of reverse-path checks the config asks for,
