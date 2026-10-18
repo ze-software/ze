@@ -14,6 +14,7 @@ func resetAddressOwners(t *testing.T) {
 	reset := func() {
 		addressOwnerMu.Lock()
 		addressOwners = map[string]map[string]map[string]bool{}
+		leasedAddresses = map[string]map[string]map[string]bool{}
 		staleIfaces = map[string]bool{}
 		addressOwnerTrigger = nil
 		addressOwnerMu.Unlock()

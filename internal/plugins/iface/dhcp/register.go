@@ -72,6 +72,16 @@ func runDHCPPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("iface-dhcp", conn)
 	defer func() { _ = p.Close() }()
 
+	// The DHCP clients run inside the interface plugin's process, created
+	// through iface.SetDHCPClientFactory, and register their leases with its
+	// address reconcile by a plain call (iface.RegisterLeasedAddresses). An
+	// external iface-dhcp process holds neither the clients nor that registry,
+	// so it refuses to start rather than run as a process that does nothing.
+	if !p.IsInternal() {
+		log.Error("iface-dhcp: refusing to start as an external plugin process -- DHCP clients run inside the interface plugin and register their leases with its address registry (iface.RegisterLeasedAddresses), a same-process call; remove the external iface-dhcp plugin block so it runs internal")
+		return 1
+	}
+
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{}); err != nil {

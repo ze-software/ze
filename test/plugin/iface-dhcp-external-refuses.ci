@@ -1,0 +1,68 @@
+# Test: iface-dhcp refuses to start as an external plugin process
+# VALIDATES: ai/rules/plugins.md "Plugin Process Boundary" -- iface-dhcp's
+# IsInternal() guard (internal/plugins/iface/dhcp/register.go) refuses to
+# start when iface-dhcp runs as a genuine external subprocess. The DHCP
+# clients run inside the interface plugin and register their leases with its
+# address registry (iface.RegisterLeasedAddresses), a same-process call.
+# PREVENTS: an operator configuring `plugin { external iface-dhcp { ... } }`
+# getting a process that holds no client and no registry while reporting
+# success.
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	hub {
+		server local {
+			ip 127.0.0.1;
+			port 0;
+			secret iface-dhcp-external-refuse-test-secret-1;
+		}
+	}
+	external iface-dhcp {
+		# le test plugin-external (internal/test/cli/cmd_plugin_external.go)
+		# launches the registered plugin's own RunEngine via a real TLS
+		# connect-back.
+		run "le test plugin-external iface-dhcp"
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# The needle names the DHCP reason, so it cannot match the refusal another
+# plugin with the same IsInternal guard prints. No ':' in the needle (a ':'
+# would be truncated by the kv splitter).
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=15s
+await=stderr:contains=refusing to start as an external plugin process -- DHCP clients run inside the interface plugin
+expect=stderr:contains=refusing to start as an external plugin process -- DHCP clients run inside the interface plugin

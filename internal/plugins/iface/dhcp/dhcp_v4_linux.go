@@ -75,8 +75,11 @@ func (c *DHCPClient) runV4() {
 		c.handleV4Lease(ack, iface.TopicDHCPLeaseAcquired)
 
 		leaseTime := c.v4LeaseTime(ack)
-		t1 := leaseTime / 2
-		t2 := leaseTime * 7 / 8
+		if leaseTime >= v4LeaseInfinite {
+			c.holdInfiniteV4(ack)
+			return
+		}
+		t1, t2 := v4RenewalTimes(leaseTime)
 
 		if !c.sleepOrStop(t1) {
 			c.removeV4Addr(ack)
@@ -88,8 +91,11 @@ func (c *DHCPClient) runV4() {
 			lease = newLease
 			ack = lease.ACK
 			leaseTime = c.v4LeaseTime(ack)
-			t1 = leaseTime / 2
-			t2 = leaseTime * 7 / 8
+			if leaseTime >= v4LeaseInfinite {
+				c.holdInfiniteV4(ack)
+				return
+			}
+			t1, t2 = v4RenewalTimes(leaseTime)
 			if !c.sleepOrStop(t2 - t1) {
 				c.removeV4Addr(ack)
 				return
@@ -106,7 +112,11 @@ func (c *DHCPClient) runV4() {
 				lease = newLease
 				ack = lease.ACK
 				leaseTime = c.v4LeaseTime(ack)
-				t2 = leaseTime * 7 / 8
+				if leaseTime >= v4LeaseInfinite {
+					c.holdInfiniteV4(ack)
+					return
+				}
+				_, t2 = v4RenewalTimes(leaseTime)
 			}
 		}
 
@@ -121,6 +131,27 @@ func (c *DHCPClient) runV4() {
 		c.removeV4Addr(ack)
 		c.publishDHCP(iface.TopicDHCPLeaseExpired, c.v4Payload(ack))
 	}
+}
+
+// holdInfiniteV4 keeps an infinite lease until the client stops, then
+// removes it.
+//
+// RFC 2131 Section 3.3: "A client acquires a lease for a network address for a
+// fixed period of time (which may be infinite)." An infinite lease never runs
+// out, so there is no T1, no T2 and no expiry to wait for.
+func (c *DHCPClient) holdInfiniteV4(ack *dhcpv4.DHCPv4) {
+	<-c.stop
+	c.removeV4Addr(ack)
+}
+
+// v4RenewalTimes returns T1 and T2 for a finite lease.
+//
+// RFC 2131 Section 4.4.5: "T1 defaults to (0.5 * duration_of_lease).  T2
+// defaults to (0.875 * duration_of_lease)." T2 is computed as the lease less
+// an eighth, never as seven eighths of it: leaseTime * 7 overflows a
+// time.Duration for a lease above 41 years.
+func v4RenewalTimes(leaseTime time.Duration) (t1, t2 time.Duration) {
+	return leaseTime / 2, leaseTime - leaseTime/8
 }
 
 func (c *DHCPClient) renewV4(lease *nclient4.Lease) (*nclient4.Lease, bool) {
@@ -178,13 +209,29 @@ func (c *DHCPClient) handleV4Lease(ack *dhcpv4.DHCPv4, topic string) {
 	var bCidr textbuf.Buffer
 	cidr := bCidr.Reset().Str(ip.String()).Byte('/').Int(int64(ones)).String()
 	leaseTime := c.v4LeaseTime(ack)
-	lftSec := int(leaseTime.Seconds())
+	lifetime := v4AddressLifetime(leaseTime)
 
-	if err := iface.ReplaceAddressWithLifetime(c.ifaceName, cidr, lftSec, lftSec); err != nil {
-		logger.Warn("iface dhcp v4: addr replace failed",
+	// Registered before it is installed, so the address reconcile never sees
+	// the lease unregistered (iface.RegisterLeasedAddresses).
+	if err := c.claimV4Address(cidr); err != nil {
+		logger.Warn("iface dhcp v4: lease not installed, the address is not this client's to hold",
 			"iface", c.ifaceName, "cidr", cidr, "err", err)
 		return
 	}
+	// The lifetime is the lease, refreshed on every renewal: the kernel
+	// removes the address when the lease runs out unless the client renewed.
+	if err := iface.ReplaceAddressWithLifetime(c.ifaceName, cidr, lifetime, lifetime); err != nil {
+		logger.Warn("iface dhcp v4: addr replace failed",
+			"iface", c.ifaceName, "cidr", cidr, "err", err)
+		c.settleV4Address(c.v4Address)
+		return
+	}
+	if c.v4Address != "" && c.v4Address != cidr {
+		// The server granted another address: the old one is no longer leased.
+		c.removeV4Address(c.v4Address)
+	}
+	c.v4Address = cidr
+	c.settleV4Address(cidr)
 
 	payload := c.v4Payload(ack)
 
@@ -213,20 +260,14 @@ func (c *DHCPClient) handleV4Lease(ack *dhcpv4.DHCPv4, topic string) {
 
 func (c *DHCPClient) removeV4Addr(ack *dhcpv4.DHCPv4) {
 	logger := loggerPtr.Load()
-	ip := ack.YourIPAddr
-	mask := ack.SubnetMask()
-	ones, _ := mask.Size()
-	if ones == 0 {
-		ones = 24
-	}
 
-	var bCidr textbuf.Buffer
-	cidr := bCidr.Reset().Str(ip.String()).Byte('/').Int(int64(ones)).String()
-
-	if err := iface.RemoveAddress(c.ifaceName, cidr); err != nil {
-		logger.Debug("iface dhcp v4: addr removal failed",
-			"iface", c.ifaceName, "cidr", cidr, "err", err)
+	// Removed before it is unregistered, so the address reconcile never sees
+	// the lease unregistered (iface.RegisterLeasedAddresses).
+	if c.v4Address != "" {
+		c.removeV4Address(c.v4Address)
+		c.v4Address = ""
 	}
+	c.settleV4Address("")
 
 	// Remove default route installed from this lease.
 	routerIP := dhcpv4.GetIP(dhcpv4.OptionRouter, ack.Options)
@@ -242,6 +283,70 @@ func (c *DHCPClient) removeV4Addr(ack *dhcpv4.DHCPv4) {
 	// writer wins). Clearing here would remove DNS that another active
 	// lease provided. Stale DNS is better than no DNS; the next lease
 	// acquisition overwrites with fresh servers.
+}
+
+// claimV4Address registers cidr as this client's lease. The address it
+// replaces, when it differs, stays registered until it is removed.
+func (c *DHCPClient) claimV4Address(cidr string) error {
+	addrs := []string{cidr}
+	if c.v4Address != "" && c.v4Address != cidr {
+		addrs = append(addrs, c.v4Address)
+	}
+	return c.registerV4Addresses(addrs)
+}
+
+// settleV4Address makes the registration name exactly cidr, the address the
+// client holds, or nothing when cidr is empty.
+func (c *DHCPClient) settleV4Address(cidr string) {
+	if cidr == "" {
+		iface.UnregisterLeasedAddresses(c.v4Owner)
+		return
+	}
+	if err := c.registerV4Addresses([]string{cidr}); err != nil {
+		loggerPtr.Load().Warn("iface dhcp v4: lease registration failed",
+			"iface", c.ifaceName, "cidr", cidr, "err", err)
+	}
+}
+
+// registerV4Addresses records addrs as this client's leases on the kernel
+// device the logical interface name resolves to, the key the reconcile uses.
+func (c *DHCPClient) registerV4Addresses(addrs []string) error {
+	osName, err := iface.ResolveDevice(c.ifaceName)
+	if err != nil {
+		return err
+	}
+	return iface.RegisterLeasedAddresses(osName, c.v4Owner, addrs)
+}
+
+// removeV4Address removes one leased address from the kernel.
+func (c *DHCPClient) removeV4Address(cidr string) {
+	if err := iface.RemoveAddress(c.ifaceName, cidr); err != nil {
+		loggerPtr.Load().Debug("iface dhcp v4: addr removal failed",
+			"iface", c.ifaceName, "cidr", cidr, "err", err)
+	}
+}
+
+// v4LeaseInfinite is the lease time RFC 2131 reserves for a lease that never
+// runs out, as v4LeaseTime decodes it.
+//
+// RFC 2131 Section 3.3: "The time value of 0xffffffff is reserved to
+// represent "infinity"."
+const v4LeaseInfinite = 0xffffffff * time.Second
+
+// kernelLifetimeInfinite is the address lifetime the kernel holds as forever
+// (INFINITY_LIFE_TIME): an address installed with it is permanent.
+const kernelLifetimeInfinite = 0xffffffff
+
+// v4AddressLifetime is the valid and preferred lifetime, in seconds, the
+// leased address is installed with: the lease itself.
+//
+// RFC 2131 Section 3.3: "A client acquires a lease for a network address for a
+// fixed period of time (which may be infinite)."
+func v4AddressLifetime(leaseTime time.Duration) int {
+	if leaseTime >= v4LeaseInfinite {
+		return kernelLifetimeInfinite
+	}
+	return int(leaseTime / time.Second)
 }
 
 func (c *DHCPClient) v4LeaseTime(ack *dhcpv4.DHCPv4) time.Duration {

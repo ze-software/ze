@@ -80,17 +80,9 @@ func setAddressOwnerReconcileTrigger(trigger func()) {
 func RegisterOwnedAddresses(ifaceName, owner string, addrs []string) error {
 	addressOwnerMu.Lock()
 
-	for otherOwner, ifaces := range addressOwners {
-		if otherOwner == owner {
-			continue
-		}
-		existing := ifaces[ifaceName]
-		for _, a := range addrs {
-			if existing[a] {
-				addressOwnerMu.Unlock()
-				return fmt.Errorf("iface: address %q on %q already owned by %q", a, ifaceName, otherOwner)
-			}
-		}
+	if err := ownerConflictLocked(ifaceName, owner, addrs); err != nil {
+		addressOwnerMu.Unlock()
+		return err
 	}
 
 	set := make(map[string]bool, len(addrs))
@@ -134,6 +126,103 @@ func UnregisterOwnedAddresses(owner string) {
 	if existed && trigger != nil {
 		trigger()
 	}
+}
+
+// leasedAddresses maps owner name -> OS interface name -> set of CIDR
+// addresses that owner installed itself and still holds: a DHCP lease. Guarded
+// by addressOwnerMu, and disjoint from addressOwners on each interface.
+//
+// The two registries differ in who installs. The reconcile installs an
+// addressOwners address as a permanent address and removes it once its owner
+// leaves. It never installs or removes a leased address: it only leaves it in
+// place (config_apply.go, reconcileOnReadyWithJournal). The client stays the
+// single installer, so the lifetime it installed is the one the kernel keeps,
+// and an expired lease the client removed is never put back.
+var leasedAddresses = map[string]map[string]map[string]bool{}
+
+// RegisterLeasedAddresses declares that owner installed addrs on ifaceName
+// and still holds them, so the address reconcile leaves them in place although
+// the config does not name them. Re-registering the same owner for the same
+// interface replaces its previous set there; an empty addrs forgets it.
+//
+// The owner MUST register an address BEFORE it installs it: a reconcile lists
+// the kernel's addresses before it reads this registry, so an address it sees
+// is then already registered. The owner MUST remove the address BEFORE it calls
+// UnregisterLeasedAddresses, so no reconcile ever sees it unregistered.
+//
+// No reconcile is triggered: a lease changes nothing the reconcile installs.
+// Returns an error naming the other owner when an address in addrs is already
+// registered on ifaceName by a different owner, in either registry, and leaves
+// the registry unchanged.
+func RegisterLeasedAddresses(ifaceName, owner string, addrs []string) error {
+	addressOwnerMu.Lock()
+	defer addressOwnerMu.Unlock()
+
+	if err := ownerConflictLocked(ifaceName, owner, addrs); err != nil {
+		return err
+	}
+	if len(addrs) == 0 {
+		delete(leasedAddresses[owner], ifaceName)
+		return nil
+	}
+	set := make(map[string]bool, len(addrs))
+	for _, a := range addrs {
+		set[a] = true
+	}
+	if leasedAddresses[owner] == nil {
+		leasedAddresses[owner] = make(map[string]map[string]bool)
+	}
+	leasedAddresses[owner][ifaceName] = set
+	return nil
+}
+
+// UnregisterLeasedAddresses forgets every address owner registered with
+// RegisterLeasedAddresses. A no-op when owner has none.
+func UnregisterLeasedAddresses(owner string) {
+	addressOwnerMu.Lock()
+	defer addressOwnerMu.Unlock()
+	delete(leasedAddresses, owner)
+}
+
+// leasedAddressSet returns a fresh snapshot, OS interface name -> set of CIDR
+// addresses, merging every owner's leased addresses. The caller may mutate it.
+func leasedAddressSet() map[string]map[string]bool {
+	addressOwnerMu.Lock()
+	defer addressOwnerMu.Unlock()
+
+	result := make(map[string]map[string]bool)
+	for _, ifaces := range leasedAddresses {
+		for ifaceName, addrs := range ifaces {
+			if result[ifaceName] == nil {
+				result[ifaceName] = make(map[string]bool, len(addrs))
+			}
+			for a := range addrs {
+				result[ifaceName][a] = true
+			}
+		}
+	}
+	return result
+}
+
+// ownerConflictLocked returns an error naming the owner that already holds an
+// address of addrs on ifaceName, in either registry, when that owner is not
+// owner. An address has one owner, whichever registry holds it. Caller must
+// hold addressOwnerMu.
+func ownerConflictLocked(ifaceName, owner string, addrs []string) error {
+	for _, registry := range []map[string]map[string]map[string]bool{addressOwners, leasedAddresses} {
+		for otherOwner, ifaces := range registry {
+			if otherOwner == owner {
+				continue
+			}
+			existing := ifaces[ifaceName]
+			for _, a := range addrs {
+				if existing[a] {
+					return fmt.Errorf("iface: address %q on %q already owned by %q", a, ifaceName, otherOwner)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // ifaceHasOwnerLocked reports whether any remaining owner in addressOwners

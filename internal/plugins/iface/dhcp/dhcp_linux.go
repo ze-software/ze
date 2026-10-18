@@ -47,6 +47,13 @@ type DHCPClient struct {
 	v6        bool
 	started   atomic.Bool
 	stopOnce  sync.Once
+
+	// v4Owner names this client in the leased-address registry
+	// (iface.RegisterLeasedAddresses). One client serves one unit.
+	v4Owner string
+	// v4Address is the CIDR the v4 worker installed and registered as leased,
+	// empty when it holds none. Read and written by the v4 worker only.
+	v4Address string
 }
 
 // newDHCPClient creates a DHCP client for the named interface.
@@ -71,6 +78,7 @@ func newDHCPClient(ifaceName, unit string, eventBus ze.EventBus, v4, v6 bool, cf
 		done:      make(chan struct{}),
 		v4:        v4,
 		v6:        v6,
+		v4Owner:   "iface-dhcp-v4 " + ifaceName + " unit " + unit,
 	}, nil
 }
 
@@ -130,6 +138,10 @@ func (c *DHCPClient) stopped() bool {
 }
 
 func (c *DHCPClient) safeRunV4() {
+	// Whatever way the worker ends, it no longer holds a lease. runV4 removes
+	// the address before it returns; after a panic the address stays without
+	// an owner, and the next reconcile treats it as any unnamed address.
+	defer iface.UnregisterLeasedAddresses(c.v4Owner)
 	defer func() {
 		if r := recover(); r != nil {
 			loggerPtr.Load().Error("iface dhcp: panic in v4 worker",

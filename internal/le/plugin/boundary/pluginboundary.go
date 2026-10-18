@@ -6,10 +6,11 @@
 // for a SAME-PROCESS-EFFECT operation (one that only reaches the engine's real,
 // shared package state when the plugin runs in the same OS process as the
 // engine) silently no-ops, or never fires, when that plugin is configured to
-// run as an external subprocess (plugin { external <name> { ... } }). Five
+// run as an external subprocess (plugin { external <name> { ... } }). Six
 // confirmed instances so far, all fixed: as112
 // (iface.RegisterOwnedAddresses/UnregisterOwnedAddresses -- refuses to start
-// external), cos (iface.GetBackend -- warns), traffic-usage and flow-export
+// external), iface-dhcp (iface.RegisterLeasedAddresses/UnregisterLeasedAddresses
+// -- refuses), cos (iface.GetBackend -- warns), traffic-usage and flow-export
 // (iface.SubscribeCollectNotify -- both refuse), ddos-detect
 // (iface.SubscribeCollectNotify + trafficstat.EnsureGlobal/Global -- warns).
 //
@@ -98,6 +99,8 @@ type dangerousCall struct {
 var dangerousCalls = []dangerousCall{
 	{ifacePackage, "RegisterOwnedAddresses"},
 	{ifacePackage, "UnregisterOwnedAddresses"},
+	{ifacePackage, "RegisterLeasedAddresses"},
+	{ifacePackage, "UnregisterLeasedAddresses"},
 	{ifacePackage, "GetBackend"},
 	{ifacePackage, "SubscribeCollectNotify"},
 	{ifacePackage, "UnsubscribeCollectNotify"},
