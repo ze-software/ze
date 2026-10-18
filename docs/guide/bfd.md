@@ -79,7 +79,7 @@ every interval in microseconds. A future release may add `-ms` aliases.
 | `required-min-rx-us` | 0 – 4 294 967 295 | 300 000 | Minimum inter-packet gap the local end can handle. Zero means "do not send me periodic control packets." |
 | `detect-multiplier` | 1 – 255 | 3 | Number of consecutive missed packets that trigger a Down transition. |
 | `passive` | boolean | false | Active sessions transmit from creation. Passive waits for the peer's first packet. See RFC 5883 §4.3 for the unidirectional-link use case. A single-hop session that uses a passive profile is refused: a configured session at load, and a BGP peer or static next-hop that names the profile at commit. RFC 5881 §3 requires both ends of a single-hop session to be Active. |
-| `auth { type key-id secret }` | see below | none | RFC 5880 §6.7 cryptographic authentication (Stage 5). |
+| `auth { type key-id secret \| secret-hex }` | see below | none | RFC 5880 §6.7 cryptographic authentication (Stage 5). |
 | `echo { desired-min-echo-tx-us }` | see below | none | RFC 5880 §6.4 Echo mode (single-hop only). |
 
 ### Echo mode
@@ -172,6 +172,25 @@ bfd {
             secret              "BFD-SHARED-SECRET-V1";
         }
     }
+}
+```
+
+The secret takes one of two forms, and a profile names exactly one. `secret`
+is an ASCII string whose bytes are the key. `secret-hex` is any binary string
+written in hexadecimal, two digits for each byte with no `0x` prefix, so a key
+holding a zero byte or a byte above 0x7F can be configured (RFC 5880 §6.7.2,
+§6.7.3 and §6.7.4). The limits above apply to the decoded bytes, so a 20-byte
+`keyed-sha1` key is 40 hex digits. `ze config validate` refuses an odd digit
+count, a character that is not a hex digit, and a profile that names both forms
+or neither. Both forms are redacted from `ze config show` output.
+<!-- source: internal/component/bfd/config.go — parseAuthSecret decodes secret or secret-hex -->
+<!-- source: internal/component/bfd/yang/ze-bfd-conf.yang — choice secret-form -->
+
+```
+auth {
+    type                keyed-sha1;
+    key-id              7;
+    secret-hex          "00ff4142434445464748494a4b4c4d4e4f5051ff";
 }
 ```
 

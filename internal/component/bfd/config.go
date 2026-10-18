@@ -17,6 +17,7 @@
 package bfd
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -285,7 +286,8 @@ func authTypeFromEnum(s string) (wire uint8, meticulous, ok bool) {
 }
 
 // parseAuthConfig decodes the `auth { ... }` block inside a profile.
-// Every leaf is mandatory and every failure returns an error: a profile
+// Every leaf is mandatory, the secret in exactly one of its two forms, and
+// every failure returns an error: a profile
 // that names authentication and cannot build a usable key stops the
 // load rather than running unauthenticated.
 func parseAuthConfig(profileName string, fields map[string]any) (*authConfig, error) {
@@ -305,9 +307,11 @@ func parseAuthConfig(profileName string, fields map[string]any) (*authConfig, er
 	if err != nil {
 		return nil, fmt.Errorf("bfd: profile %q: auth key-id %q: %w", profileName, keyIDStr, err)
 	}
-	secret := stringField(fields, "secret")
-	if secret == "" {
-		return nil, fmt.Errorf("bfd: profile %q: auth block missing secret", profileName)
+	// RFC 5880 Sections 6.7.2, 6.7.3 and 6.7.4: the ASCII and the
+	// hexadecimal management forms of the password or key.
+	secret, err := parseAuthSecret(profileName, fields)
+	if err != nil {
+		return nil, err
 	}
 	// RFC 5880 Section 6.7.2: "The password is a binary string, and MUST
 	// be 1 to 16 bytes in length." The Auth Len field is one byte holding
@@ -339,9 +343,44 @@ func parseAuthConfig(profileName string, fields map[string]any) (*authConfig, er
 	return &authConfig{
 		authType:   wire,
 		keyID:      uint8(keyID),
-		secret:     []byte(secret),
+		secret:     secret,
 		meticulous: meticulous,
 	}, nil
+}
+
+// parseAuthSecret reads the shared secret from the one form the auth block
+// names: `secret`, whose ASCII bytes are the key, or `secret-hex`, a binary
+// string in hexadecimal. The YANG choice already admits only one form; the
+// parser checks again because it is the boundary the plugin owns.
+//
+// RFC 5880 Section 6.7.2: "For interoperability, the management interface by
+// which the password is configured MUST accept ASCII strings, and SHOULD also
+// allow for the configuration of any arbitrary binary string in hexadecimal
+// form."
+// RFC 5880 Section 6.7.3 and Section 6.7.4: "For interoperability, the
+// management interface by which the key is configured MUST accept ASCII
+// strings, and SHOULD also allow for the configuration of any arbitrary
+// binary string in hexadecimal form."
+func parseAuthSecret(profileName string, fields map[string]any) ([]byte, error) {
+	ascii := stringField(fields, "secret")
+	written := stringField(fields, "secret-hex")
+	if written == "" {
+		if ascii == "" {
+			return nil, fmt.Errorf("bfd: profile %q: auth block names no secret: "+
+				"add `secret \"<ascii>\"` or `secret-hex \"<hex digits>\"` to the auth block", profileName)
+		}
+		return []byte(ascii), nil
+	}
+	if ascii != "" {
+		return nil, fmt.Errorf("bfd: profile %q: auth block names both secret and secret-hex, "+
+			"so the key is ambiguous: delete one of the two", profileName)
+	}
+	key, err := hex.DecodeString(written)
+	if err != nil {
+		return nil, fmt.Errorf("bfd: profile %q: auth secret-hex is not a binary string in hexadecimal "+
+			"(%w): write two hex digits for each byte, with no 0x prefix and no separator", profileName, err)
+	}
+	return key, nil
 }
 
 // keyedMD5 reports whether wire is one of the two MD5 Auth Types.

@@ -347,6 +347,13 @@ var scenarioOperations = map[string][]operation{
 	"bfd-simple-password-bird": {
 		{kind: opWaitContains, peer: peerBIRD, command: []string{cmdBirdc, birdShowBFDSessions}, contains: []string{zeLabAddress, birdBFDStateUp}, timeout: 90 * time.Second},
 	},
+	// RFC 5880 Section 6.7.2 hexadecimal password form, judged by BIRD. ze
+	// writes the password as `secret-hex` and BIRD as the ASCII string those
+	// digits encode, so the session reaches Up only when ze decodes the digits
+	// into the same bytes; a ze that keyed on the digit text itself stays down.
+	"bfd-simple-password-hex-bird": {
+		{kind: opWaitContains, peer: peerBIRD, command: []string{cmdBirdc, birdShowBFDSessions}, contains: []string{zeLabAddress, birdBFDStateUp}, timeout: 90 * time.Second},
+	},
 	scenarioAddPathFRR: {
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: injectPrefixFirst},

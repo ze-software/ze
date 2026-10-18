@@ -14,6 +14,10 @@ module ze-bfd-conf {
          OSPF, static routes) are created at runtime via the plugin
          Service interface and do not appear here.";
 
+    revision 2026-10-18 {
+        description "auth gains secret-hex, a hexadecimal form of the shared secret, in a choice with secret.";
+    }
+
     revision 2026-09-20 {
         description "enabled false now stops a runtime session as well as a pinned one.";
     }
@@ -178,16 +182,39 @@ module ze-bfd-conf {
                     ze:help "Auth Key ID (RFC 5880 Section 6.7.1).";
                 }
 
-                leaf secret {
-                    type string;
+                choice secret-form {
                     mandatory true;
-                    ze:sensitive;
-                    description "Shared secret. Redacted from `ze config show` output. The MD5 variants take a secret of up to 16
-                        bytes (RFC 5880 Section 6.7.3) and the SHA1 variants one of up to 20 bytes (Section 6.7.4). Both pad
-                        a shorter secret with zeros, and a longer one is refused at parse time. The simple-password type
-                        carries the secret itself on the wire, so it must be 1 to 16 bytes, and a longer one is refused at
-                        parse time too (RFC 5880 Section 6.7.2).";
-                    ze:help "Shared secret, redacted from `ze config show` output.";
+                    description "Name the shared secret in exactly one form. secret takes an ASCII string and uses its
+                        bytes as the key. secret-hex takes any binary string written in hexadecimal, so a key holding
+                        a zero byte or a byte above 0x7F can be configured (RFC 5880 Sections 6.7.2, 6.7.3 and 6.7.4).
+                        Ze refuses a profile that names both forms or neither.";
+                    ze:help "The shared secret, as an ASCII string or in hexadecimal.";
+
+                    leaf secret {
+                        type string;
+                        ze:sensitive;
+                        description "Shared secret as an ASCII string, whose bytes are the key. Redacted from `ze config
+                            show` output. The MD5 variants take a secret of up to 16 bytes (RFC 5880 Section 6.7.3) and
+                            the SHA1 variants one of up to 20 bytes (Section 6.7.4). Both pad a shorter secret with
+                            zeros, and a longer one is refused at parse time. The simple-password type carries the
+                            secret itself on the wire, so it must be 1 to 16 bytes, and a longer one is refused at
+                            parse time too (RFC 5880 Section 6.7.2).";
+                        ze:help "Shared secret as an ASCII string, redacted from `ze config show` output.";
+                    }
+
+                    leaf secret-hex {
+                        type string {
+                            pattern "([0-9a-fA-F][0-9a-fA-F])+";
+                            length "2..40";
+                        }
+                        ze:sensitive;
+                        description "Shared secret as a binary string in hexadecimal, two digits for each byte with no
+                            0x prefix, upper or lower case. Redacted from `ze config show` output. The decoded key
+                            obeys the same limits as secret: 1 to 16 bytes for simple-password, up to 16 bytes for
+                            the MD5 variants and up to 20 bytes for the SHA1 variants (RFC 5880 Sections 6.7.2,
+                            6.7.3 and 6.7.4).";
+                        ze:help "Shared secret as hexadecimal digits, two for each byte, redacted from output.";
+                    }
                 }
             }
         }
