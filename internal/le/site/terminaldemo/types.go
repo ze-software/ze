@@ -108,6 +108,13 @@ type Options struct {
 	LockPoll     time.Duration
 	KernelCheck  KernelCheck
 	NetSysctl    NetSysctlArguments
+	// Context is the run's root: the actions pass the signal context, so an
+	// interrupt stops the demo container and removes it. Nil is a caller
+	// that installs no signal root.
+	Context context.Context
+	// Docker runs every demo container (interoplab.Docker.RunOneShot). Nil
+	// selects interoplab.NewDocker.
+	Docker *interoplab.Docker
 }
 
 // Engine owns one invocation of the renderer pipeline. It is not safe for
@@ -126,6 +133,8 @@ type Engine struct {
 	lockPoll             time.Duration
 	kernelCheck          KernelCheck
 	netSysctl            NetSysctlArguments
+	ctx                  context.Context
+	docker               *interoplab.Docker
 }
 
 // New creates an Engine. Root and ArtifactRoot must be absolute or relative
@@ -159,6 +168,14 @@ func New(options Options) *Engine {
 	if netSysctl == nil {
 		netSysctl = dockerNetSysctlArguments
 	}
+	ctx := options.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	docker := options.Docker
+	if docker == nil {
+		docker = interoplab.NewDocker()
+	}
 	demoRoot := filepath.Join(options.Root, "demos", terminalLabel)
 	return &Engine{
 		root:                 options.Root,
@@ -173,6 +190,8 @@ func New(options Options) *Engine {
 		lockWait:             wait,
 		lockPoll:             poll,
 		kernelCheck:          kernelCheck,
+		ctx:                  ctx,
+		docker:               docker,
 		netSysctl:            netSysctl,
 	}
 }

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/dockerhost"
 )
 
 // The docker CLI words several command lines in this package repeat.
@@ -85,6 +86,10 @@ type Docker struct {
 	// one can be removed by name: killing the docker client stops nothing the
 	// daemon runs, and --rm fires only when the container's command ends.
 	oneShotName func() string
+	// environ is the environment every docker command runs under: this
+	// process's with the Colima socket selected (dockerhost.Inherited), so a
+	// macOS host reaches the same daemon `docker` on its PATH would.
+	environ []string
 }
 
 // ImageBuild identifies one image that a suite builds before it starts scenarios.
@@ -239,7 +244,7 @@ func (e *commandError) Unwrap() error { return e.Cause }
 // machine's build budget once, so no suite carries that knob through its plan.
 func NewDocker() *Docker {
 	owner, judge := processIdentity()
-	return &Docker{runner: systemProcessRunner{}, buildTimeout: machineBuildTimeout(os.LookupEnv), owner: owner, judge: judge, oneShotName: randomOneShotName}
+	return &Docker{runner: systemProcessRunner{}, buildTimeout: machineBuildTimeout(os.LookupEnv), owner: owner, judge: judge, oneShotName: randomOneShotName, environ: dockerhost.Inherited()}
 }
 
 // NewFixtureDocker is the test double's client for a package outside this
@@ -424,7 +429,7 @@ func (d *Docker) RunOneShot(ctx context.Context, spec OneShotContainer) (Command
 	name := d.oneShotName()
 	argv := d.oneShotArguments(spec, name)
 	result, err := d.runner.Run(ctx, ProcessCommand{
-		Arguments: argv, Timeout: spec.Timeout,
+		Arguments: argv, Timeout: spec.Timeout, Environment: d.environ,
 		Stdin: spec.Stdin, Stdout: spec.Stdout, Stderr: spec.Stderr,
 	})
 	if err != nil {
@@ -797,7 +802,7 @@ func (d *Docker) command(ctx context.Context, timeout time.Duration, argv ...str
 
 // commandAs runs argv and names it operation in any error it returns.
 func (d *Docker) commandAs(ctx context.Context, timeout time.Duration, operation string, argv ...string) (ProcessResult, error) {
-	result, err := d.runner.Run(ctx, ProcessCommand{Arguments: argv, Timeout: timeout})
+	result, err := d.runner.Run(ctx, ProcessCommand{Arguments: argv, Timeout: timeout, Environment: d.environ})
 	if err != nil {
 		return result, &commandError{
 			Operation: operation,

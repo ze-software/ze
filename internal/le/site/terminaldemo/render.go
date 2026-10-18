@@ -22,6 +22,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/dockerhost"
@@ -281,36 +282,52 @@ const demoStderrTailOctets = 4096
 // is unreadable (a non-root renderer) demoGrants cannot refuse first, and the
 // daemon's failure to apply the profile surfaces only there; it is answered
 // with the load command, never as a bare exit code.
-func (e *Engine) runDemoContainer(demo *Demo, command []string) error {
-	run := e.externalCommand(command, e.root)
+func (e *Engine) runDemoContainer(demo *Demo, container interoplab.OneShotContainer) error {
+	container.Timeout = demoContainerTimeout
+	container.Stdin = os.Stdin
+	container.Stdout = e.output
+	container.Stderr = e.output
 	var stderrTail *tail.Buffer
 	if demo.isNetSysctl() {
 		stderrTail = tail.New(demoStderrTailOctets)
-		terminal := run.Stderr
-		if terminal == nil {
-			terminal = os.Stderr
-		}
-		run.Stderr = io.MultiWriter(terminal, stderrTail)
+		container.Stderr = io.MultiWriter(e.output, stderrTail)
 	}
-	code := e.execute(run)
-	if code == 0 {
+	result, err := e.docker.RunOneShot(e.ctx, container)
+	if err == nil {
 		return nil
 	}
 	if stderrTail != nil {
-		if refusal := interoplab.NetSysctlUnapplied(code, stderrTail.String()); refusal != nil {
+		if refusal := interoplab.NetSysctlUnapplied(result.ExitCode, stderrTail.String()); refusal != nil {
 			return fmt.Errorf("terminal demo %s writes /proc/sys/net: %w", demo.ID, refusal)
 		}
 	}
-	return commandFailure{code: code, args: command}
+	if stopped(err) {
+		return fmt.Errorf("terminal demo %s: %w", demo.ID, err)
+	}
+	return commandFailure{code: result.ExitCode, args: append([]string{container.Image}, container.Command...)}
 }
 
-// containerCommand answers the docker argv one demo step runs in.
+// stopped reports a demo container the root context or its bound stopped,
+// rather than one whose command exited non-zero.
+func stopped(err error) bool {
+	if errors.Is(err, context.Canceled) {
+		return true
+	}
+	return errors.Is(err, context.DeadlineExceeded)
+}
+
+// demoContainerTimeout bounds one demo container. The longest render takes
+// minutes; the bound is there so a hung browser cannot hold the render lock
+// for ever, and an interrupt stops a run sooner through the root context.
+const demoContainerTimeout = time.Hour
+
+// containerCommand answers the container one demo step runs in.
 //
 // The container holds NET_ADMIN, NET_RAW and SYS_ADMIN and keeps Docker's
 // default seccomp profile, which admits mount, unshare and setns once
 // SYS_ADMIN is granted. grants (demoGrants) follow --rm and carry what the
 // demo's manifest entry adds to that.
-func (e *Engine) containerCommand(renderer Renderer, grants []string, entries ...string) []string {
+func (e *Engine) containerCommand(renderer Renderer, grants []string, entries ...string) interoplab.OneShotContainer {
 	uid := strconv.Itoa(os.Getuid())
 	gid := strconv.Itoa(os.Getgid())
 	scratchRoot := filepath.Join(e.root, "tmp", "terminal-demos")
@@ -326,8 +343,12 @@ func (e *Engine) containerCommand(renderer Renderer, grants []string, entries ..
 	rootVolume := buffer.Str(e.root).Str(":/src").String()
 	buffer.Reset()
 	artifactVolume := buffer.Str(e.artifactRoot).Str(":/src/demos/terminal/artifacts").String()
-	args := []string{
-		dockerProgram, "run", "--rm",
+	var args []string
+	if !strings.HasSuffix(renderer.Platform, "/native") {
+		args = append(args, "--platform", renderer.Platform)
+	}
+	args = append(args, grants...)
+	args = append(args,
 		"--network", "none",
 		"--hostname", demoInstance,
 		dockerCapAddToken, "NET_ADMIN",
@@ -337,7 +358,7 @@ func (e *Engine) containerCommand(renderer Renderer, grants []string, entries ..
 		dockerEnvironmentToken, gidEnv,
 		dockerEnvironmentToken, "ZE_DEMO_LOCK_HELD=1",
 		"--volume", rootVolume,
-	}
+	)
 	if resolvedScratch != scratchRoot {
 		buffer.Reset()
 		scratchVolume := buffer.Str(resolvedScratch).Byte(':').Str(resolvedScratch).String()
@@ -346,14 +367,8 @@ func (e *Engine) containerCommand(renderer Renderer, grants []string, entries ..
 	args = append(args,
 		"--volume", artifactVolume,
 		"--workdir", "/src/demos/terminal",
-		renderer.Image,
 	)
-	args = append(args, entries...)
-	args = insertArgs(args, 3, grants...)
-	if !strings.HasSuffix(renderer.Platform, "/native") {
-		args = insertArgs(args, 3, "--platform", renderer.Platform)
-	}
-	return args
+	return interoplab.OneShotContainer{Image: renderer.Image, Arguments: args, Command: entries}
 }
 
 // demoGrants answers the docker run arguments a demo takes beyond the default
@@ -375,13 +390,6 @@ func (e *Engine) demoGrants(demo *Demo) ([]string, error) {
 		return nil, fmt.Errorf("terminal demo %s writes /proc/sys/net: %w", demo.ID, err)
 	}
 	return grants, nil
-}
-
-func insertArgs(args []string, index int, values ...string) []string {
-	result := make([]string, 0, len(args)+len(values))
-	result = append(result, args[:index]...)
-	result = append(result, values...)
-	return append(result, args[index:]...)
 }
 
 func (e *Engine) acceleratedTerminalTape(demo Demo) (string, error) {
@@ -538,15 +546,11 @@ func (e *Engine) renderDemo(manifest Manifest, demo Demo, release string) (Artif
 		return ArtifactEntry{}, err
 	}
 	command := e.containerCommand(manifest.Renderer, grants, containerSource)
-	imageIndex := indexOf(command, manifest.Renderer.Image)
-	if imageIndex < 0 {
-		return ArtifactEntry{}, errors.New("renderer image is absent from Docker argv")
-	}
 	var buffer textbuf.Buffer
 	releaseEnv := buffer.Str("ZE_DEMO_RELEASE=").Str(release).String()
 	buffer.Reset()
 	speedEnv := buffer.Str("ZE_DEMO_SPEEDUP=").Int(int64(speedup)).String()
-	command = insertArgs(command, imageIndex,
+	command.Arguments = append(command.Arguments,
 		dockerEnvironmentToken, releaseEnv,
 		dockerEnvironmentToken, speedEnv,
 	)
@@ -622,15 +626,6 @@ func (e *Engine) renderDemo(manifest Manifest, demo Demo, release string) (Artif
 		DefinitionSHA256: definitionDigest,
 		Assets:           assets,
 	}, nil
-}
-
-func indexOf(values []string, wanted string) int {
-	for index, value := range values {
-		if value == wanted {
-			return index
-		}
-	}
-	return -1
 }
 
 func (e *Engine) removeSupersededAssets(demo Demo) ([]string, error) {

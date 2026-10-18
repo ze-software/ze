@@ -85,6 +85,15 @@ and a reason on a demo that is not privileged, before any command starts.
 <!-- source: internal/le/site/terminaldemo/render.go -- containerCommand -->
 <!-- source: internal/le/site/terminaldemo/manifest.go -- privilegeJustified -->
 
+Every demo container runs through the lab Docker wrapper, so it carries the
+lab owner labels and a `ze-oneshot-` name. An interrupt (SIGINT or SIGTERM) to
+a validate or render action cancels the run, and the wrapper removes the
+running container by that name rather than leaving it to record to the end. A
+container that runs past one hour is stopped and removed the same way.
+<!-- source: internal/le/site/terminaldemo/render.go -- runDemoContainer, demoContainerTimeout -->
+<!-- source: internal/le/site/terminaldemo/actions.go -- signalRooted -->
+<!-- source: internal/le/interoplab/docker.go -- Docker.RunOneShot -->
+
 A demo whose only extra need is writing its own network namespace's sysctls
 under `/proc/sys/net`, such as `rib-fib`, where `fib-kernel` has the `sysctl`
 plugin turn on forwarding, sets `"net-sysctl": true` instead. Its container runs with

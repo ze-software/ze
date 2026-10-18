@@ -16,6 +16,7 @@ import (
 	"time"
 
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 // VALIDATES: every terminal-demo action keeps its name, reason text, and writes metadata; only the single-demo render takes a value, and pty forwards its words.
@@ -164,6 +165,7 @@ type demoFixture struct {
 	root            string
 	artifacts       string
 	commands        []Command
+	canceledRuns    int
 	failValidation  int
 	wrongTranscript bool
 	failFFmpeg      int
@@ -256,7 +258,20 @@ func (f *demoFixture) engine(output *bytes.Buffer) *Engine {
 		LockPoll:     time.Millisecond,
 		KernelCheck:  f.kernelCheck,
 		NetSysctl:    f.netSysctl,
+		Docker:       interoplab.NewFixtureDocker(f),
 	})
+}
+
+// Run is the fixture's Docker process boundary: every demo container the
+// wrapper starts is recorded beside the ffmpeg and build commands, in order,
+// and answered by execute.
+func (f *demoFixture) Run(ctx context.Context, command interoplab.ProcessCommand) (interoplab.ProcessResult, error) {
+	if err := ctx.Err(); err != nil {
+		f.canceledRuns++
+		return interoplab.ProcessResult{ExitCode: 124}, err
+	}
+	code := f.execute(Command{Args: command.Arguments, Dir: command.Directory, Env: command.Environment, Stdout: command.Stdout, Stderr: command.Stderr})
+	return interoplab.ProcessResult{ExitCode: code}, nil
 }
 
 func (f *demoFixture) execute(command Command) int {

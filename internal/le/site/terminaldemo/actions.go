@@ -10,8 +10,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
@@ -215,7 +217,23 @@ func demoTags(toolchain gotoolchain.Toolchain) string {
 }
 
 func runRenderer(mode string, releaseRequired bool) (any, int) {
-	engine, release, err := renderEngine(releaseRequired)
+	return signalRooted(func(ctx context.Context) (any, int) {
+		return runRendererIn(ctx, mode, releaseRequired)
+	})
+}
+
+// signalRooted runs one renderer action under a root context SIGINT or
+// SIGTERM cancels, so an interrupt stops the demo container and its removal
+// runs (interoplab.Docker.RunOneShot) instead of the process dying with the
+// container still recording.
+func signalRooted(run func(context.Context) (any, int)) (any, int) {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return run(ctx)
+}
+
+func runRendererIn(ctx context.Context, mode string, releaseRequired bool) (any, int) {
+	engine, release, err := renderEngine(ctx, releaseRequired)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -230,7 +248,7 @@ func runRenderer(mode string, releaseRequired bool) (any, int) {
 // runImageBuild builds the renderer container image. It needs no release,
 // because the image carries the renderer's pinned versions and not Ze's.
 func runImageBuild() (any, int) {
-	engine, _, err := renderEngine(false)
+	engine, _, err := renderEngine(context.Background(), false)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -249,6 +267,12 @@ func runImageBuild() (any, int) {
 // records the whole gallery is render-all, and a developer who typed `render`
 // asked for one demo.
 func runRenderOne(args leaction.Arguments) (any, int) {
+	return signalRooted(func(ctx context.Context) (any, int) {
+		return runRenderOneIn(ctx, args)
+	})
+}
+
+func runRenderOneIn(ctx context.Context, args leaction.Arguments) (any, int) {
 	demoID := args.One(demoKeyword)
 	if demoID == "" {
 		leaction.ReportError(errors.New(
@@ -256,7 +280,7 @@ func runRenderOne(args leaction.Arguments) (any, int) {
 				" (the ids are in demos/terminal/manifest.json; render-all records every one)"))
 		return nil, 2
 	}
-	engine, release, err := renderEngine(true)
+	engine, release, err := renderEngine(ctx, true)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -271,7 +295,7 @@ func runRenderOne(args leaction.Arguments) (any, int) {
 
 // renderEngine builds the engine every renderer action runs, and answers the
 // release identity a recording stamps into its artifacts.
-func renderEngine(releaseRequired bool) (*Engine, string, error) {
+func renderEngine(ctx context.Context, releaseRequired bool) (*Engine, string, error) {
 	root, err := lepath.Root()
 	if err != nil {
 		return nil, "", err
@@ -295,7 +319,7 @@ func renderEngine(releaseRequired bool) (*Engine, string, error) {
 			release = toolchain.Version
 		}
 	}
-	return New(Options{Root: root, ArtifactRoot: artifactRoot}), release, nil
+	return New(Options{Root: root, ArtifactRoot: artifactRoot, Context: ctx}), release, nil
 }
 
 func executeRenderer(engine *Engine, mode, release string) (Report, int, error) {
