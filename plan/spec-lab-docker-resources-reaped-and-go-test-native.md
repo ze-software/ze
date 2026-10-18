@@ -122,6 +122,17 @@ built from ITS pid, so a different pid leaves the old set untouched.
 - `preClean` no longer force-removes a same-name container it cannot prove dead (AC-7).
 - Lab roots cancel on SIGINT/SIGTERM so teardown runs (AC-8).
 - MUST sites lose their own docker invocations (AC-11..AC-15).
+- A removal call that fails or outlasts the 30 s client bound is settled by
+  re-observing that exact resource (`Docker.confirmRemoval`, a bounded
+  `docker <kind> inspect --format {{.Id}} <ref>`): gone is "removed", still
+  present is "failed" with the removal's error, and an observation that fails
+  too is "unknown" with both errors (exit 1). It lives in `RemoveContainer`,
+  `removeNetwork` and `releaseImage`, so `Docker.CleanupOrphans`, `claimName`
+  and the scenario teardown `Lab.cleanup` all report the same verdict. Found on
+  the 2026-10-18 run in the Functional Tests section, where four removals the
+  daemon completed were reported "1 removed, 3 failed". A listing that times
+  out (`docker image ls` there) stays a named setup error with the command to
+  run: it reports no verdict about any resource, so it needs no re-observation.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -258,7 +269,11 @@ built from ITS pid, so a different pid leaves the old set untouched.
 | `TestPreCleanRefusesLiveOrUnlabeledSameName` | `internal/le/interoplab/lab_test.go` | AC-7 | |
 | `TestSuiteRunCleansOrphansBeforePreflight` | `internal/le/interoplab/lab_test.go` | wiring | |
 | `TestDockerPeersVerbRunsEveryDockerPackage` | `internal/le/test/integration` | AC-22: over a fixture tree, the argv names exactly the `docker`-tagged packages, sets `ZE_REQUIRE_DOCKER=1`, and refuses an empty set; a fixture package added later appears with no verb edit | |
-| `TestDockerTagNeverJoinsIntegration` | `internal/le/test/qemu/integration_coverage_test.go` | AC-23, R-12 | |
+| `TestDockerTagNeverJoinsIntegration` | `internal/le/test/qemu/integration_coverage_test.go` | AC-23, R-12; carries its own negative case, a fixture tree with one file tagged `docker && integration` beside a docker-only and an integration-only file, which MUST refuse exactly the first | red 2026-10-18 with the predicate mutated to `integration-mutated` ("the fixture tree refused [], want exactly internal/fixture/both_test.go"), green restored |
+| `TestCleanupOrphansTimedOutRemovalOfGoneResourceIsRemoved` | `internal/le/interoplab/orphans_test.go` | a removal timed out and the re-observation finds it gone: removed, code 0 | red before `confirmRemoval` (3 failed, code 1), green after |
+| `TestCleanupOrphansTimedOutRemovalOfPresentResourceFails` | `internal/le/interoplab/orphans_test.go` | timed out and still present: failed, carrying the removal's timeout | guard, green before and after: the re-observation cannot turn a real failure into "removed" |
+| `TestCleanupOrphansRecheckFailureIsUnknown` | `internal/le/interoplab/orphans_test.go` | removal and re-observation both time out: unknown, both errors, code 1, the summary counts it | red before (3 failed, 0 unknown), green after |
+| `TestRemoveContainerTimedOutReobservesPresence` | `internal/le/interoplab/orphans_test.go` | the same three outcomes through `RemoveContainer`, which `Lab.cleanup` calls per peer | red before (gone reported as the timeout), green after |
 | `TestLabtestSkipsOrFailsOnAbsentDocker` | `internal/le/interoplab/labtest/labtest_test.go` | AC-19 both arms with an injected lookup: skip without the switch, fail with it | |
 | `TestLabtestRunsNoKernelCheck` | `internal/le/interoplab/labtest/labtest_test.go` | AC-26 over the fake runner | |
 | `TestEvidenceNightlyScheduleActionsAndPrivileges` (changed) | `internal/le/workflowcheck/workflowcheck_test.go` | AC-25 | |
@@ -329,6 +344,41 @@ cleanup: no Ze lab resource on this Docker daemon
 ```
 
 No unlabeled container, network or tag was touched: the 30 retained tags are still on the daemon after both runs.
+
+After `546f386a3c` (removal re-observation, and the kill test removing its own
+run's resources on every exit path), 2026-10-18 ~23:38, load average 44 to 58,
+with `bin/le-lab06/le` built from this tree by `./le --name lab06`. The
+`cleanup dry` run, exit 0 (the 30 unlabeled tag lines cut): the five
+`*-dm8b7wc2wq89` leftovers were already gone, removed by an intervening lab
+start's own sweep, and the only labeled resources belonged to a live
+`bin/le-dhcp4red/le test integration interop` run (pid 981084):
+
+```
+cleanup: kept network ze-iop-981084 (40d0e5bcf5aa): its owner, pid 981084 (/home/thomas/Code/github.com/ze-software/ze/main/bin/le-dhcp4red/le test integration interop), is still running. Fix: that run removes it when it ends; if it is stuck, stop pid 981084, then run `./le test integration cleanup`
+cleanup: kept image tag ze-interop-retained:AFMHIJOJHA4B66TI2EBULKMH5Q (0a3a5e40c27c): its owner, pid 981084 (...), is still running. Fix: ...
+(five more kept tags of pid 981084)
+cleanup: 0 to remove, 7 kept, 0 failed, 0 unknown
+```
+
+The real `cleanup` through `./le --name lab06` did not run: the rebuild it
+performs on every call failed on another session's uncommitted
+`internal/component/bgp/reactor/peer_static_routes.go` (`unknown field
+LinkLocalNextHop`). The same binary, built a minute earlier from this tree, was
+run directly (`ZE_LE_BUILD_NAME=lab06 bin/le-lab06/le test integration
+cleanup`), exit 0. By then pid 981084 had exited and its own teardown had
+removed its network and five of its tags:
+
+```
+cleanup: removed image tag ze-interop-retained:WOIXC6EZZXWFYPEG274IBHP26Q (652808ed330f): its owner, pid 981084, has exited
+cleanup: removed image tag ze-interop-retained:6KZAMUNN5YMXABKEFXIY7YBYXS (2972cf701a68): its owner, pid 981084, has exited
+cleanup: 2 removed, 0 kept, 0 failed, 0 unknown
+```
+
+`TestKilledLabRunIsCleanedByNextStart` was not rerun after `546f386a3c`: the
+load average was 72.8 at 23:31 and 44.6 at 23:38, above the ~16 bound set for
+a rerun. Timeouts were not raised. Its cleanup path (the parent removing every
+resource labeled with each child's `ze.lab.run`) is compiled and vetted with
+`-tags docker` but has not run against the daemon yet.
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -468,7 +518,8 @@ Counts: MUST 8, SHOULD 6, NOT 11. S-2 (NTP) and S-4 (flow-export) packages are a
 | Deliverable | Verification method |
 |-------------|---------------------|
 | labels on every create | `TestOwnerLabelsOnEveryCreate`; a `docker inspect` of a lab container, pasted |
-| crash cleanup | `TestKilledLabRunIsCleanedByNextStart` output pasted |
+| crash cleanup | `TestKilledLabRunIsCleanedByNextStart` output pasted (a clean pass is still owed: not rerun after `546f386a3c`, load 44 to 72); afterwards no `ze.lab.run` of its children is left on the daemon |
+| truthful removal verdicts | `TestCleanupOrphansTimedOutRemovalOfGoneResourceIsRemoved`, `...PresentResourceFails`, `...RecheckFailureIsUnknown`, `TestRemoveContainerTimedOutReobservesPresence` (red before `confirmRemoval`, green after); the post-fix `cleanup` run pasted under Functional Tests |
 | no stray docker exec | the AC-16 gate green, and red when its fixture adds one |
 | `labtest` | `TestLabtestStartsServerAndCleansUp` and the converted rpki tests, pasted |
 | `docker-peers` has a home | a pasted `./le test integration docker-peers` run, and the id of the first nightly run that executed it |
