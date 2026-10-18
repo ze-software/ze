@@ -30,6 +30,11 @@ stdin=peer:terminator=EOF_PEER
 option=asn:value=65000
 option=tcp_connections:value=1
 option=timeout:value=50s
+# ze-peer creates this file on the daemon's first UPDATE (its EOR); the staged
+# fixture holds its first step until it exists. Without it the four stages ran
+# in about 0.3s, the fixture shut the daemon down, and the dialing peer, which
+# retries every 500ms, never reached the listener.
+option=established-file:path=established
 # EOR from ze
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 # The clean shutdown after the last stage: Cease / Administrative Shutdown.
@@ -151,6 +156,9 @@ bgp {
 EOF_CONF2
 
 tmpfs=stages.script:terminator=EOF_SCRIPT
+# The session is up before any stage runs, so the clean shutdown at the end
+# reaches the peer as its expected Cease.
+await-file established
 # Two stored paths for one prefix, equal in every attribute the selection reads.
 has request bgp rib inject 10.0.0.98 ipv4/unicast 10.1.0.0/24 origin igp aspath 65001 localpref 100 nexthop 10.0.0.11 => 10.1.0.0/24
 has request bgp rib inject 10.0.0.99 ipv4/unicast 10.1.0.0/24 origin igp aspath 65001 localpref 100 nexthop 10.0.0.12 => 10.1.0.0/24
