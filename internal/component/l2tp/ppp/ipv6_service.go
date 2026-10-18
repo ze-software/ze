@@ -1,4 +1,5 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- IPv6 service lifecycle for PPP sessions
+// RFC: rfc/short/rfc5072.md -- RFC 5072 Section 5 (link-local address of a PPP interface)
 // Related: ra.go -- RA message building
 // Related: dhcpv6.go -- DHCPv6 codec
 // Related: dhcpv6_linux.go -- DHCPv6 UDP listener
@@ -60,9 +61,10 @@ type IPv6Service struct {
 	lifetimes DHCPv6Lifetimes
 	stop      func()
 
-	mu              sync.Mutex
-	delegatedPrefix netip.Prefix
-	routeInstalled  bool
+	mu                 sync.Mutex
+	delegatedPrefix    netip.Prefix
+	routeInstalled     bool
+	linkLocalInstalled bool
 }
 
 func newIPv6Service(cfg iPv6ServiceConfig) *IPv6Service {
@@ -82,13 +84,58 @@ func (s *IPv6Service) Stop() {
 		s.stop()
 	}
 	s.cleanupPrefix()
+	s.removeLinkLocal()
+}
+
+// linkLocalPrefixBits is the length of the link-local prefix FE80::/64 that
+// RFC 5072 Section 5 forms a PPP link-local address in.
+const linkLocalPrefixBits = 64
+
+// installLinkLocal puts the negotiated link-local pair on pppN. Linux
+// autoconfigures a link-local address only on the device types
+// addrconf_dev_config lists (net/ipv6/addrconf.c), and ARPHRD_PPP is not one,
+// so without this pppN has no link-local address. Every Router Advertisement
+// sent there would then break RFC 4861 Section 4.2, and DHCPv6 replies would
+// leave from no link-local source either.
+//
+// RFC 5072 Section 5: "The negotiated interface identifier is used by the
+// local end of the PPP link to autoconfigure an IPv6 link-local unicast
+// address for the PPP interface."
+// RFC 4861 Section 4.2: the Router Advertisement Source Address "MUST be the
+// link-local address assigned to the interface from which this message is
+// sent." This installs that address.
+func (s *IPv6Service) installLinkLocal() error {
+	local := netip.PrefixFrom(linkLocalFromInterfaceID(s.cfg.LocalInterfaceID), linkLocalPrefixBits)
+	peer := netip.PrefixFrom(linkLocalFromInterfaceID(s.cfg.PeerInterfaceID), linkLocalPrefixBits)
+	if err := s.cfg.Backend.AddAddressP2P(s.cfg.Ifname, local.String(), peer.String()); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	s.linkLocalInstalled = true
+	s.mu.Unlock()
+	return nil
+}
+
+// removeLinkLocal withdraws the pair installLinkLocal put on pppN, so an
+// IPv6CP renegotiation inside one session installs its new pair cleanly.
+func (s *IPv6Service) removeLinkLocal() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.linkLocalInstalled {
+		return
+	}
+	local := netip.PrefixFrom(linkLocalFromInterfaceID(s.cfg.LocalInterfaceID), linkLocalPrefixBits)
+	// The device usually goes with the session, taking the address with it,
+	// so a failed removal here has nothing left to undo.
+	_ = s.cfg.Backend.RemoveAddress(s.cfg.Ifname, local.String()) //nolint:errcheck // pppN is normally gone with the session
+	s.linkLocalInstalled = false
 }
 
 func (s *IPv6Service) cleanupPrefix() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.routeInstalled && s.delegatedPrefix.IsValid() {
-		peerLL := peerLinkLocal(s.cfg.PeerInterfaceID)
+		peerLL := linkLocalFromInterfaceID(s.cfg.PeerInterfaceID)
 		_ = s.cfg.Backend.RemoveRoute(s.cfg.Ifname, s.delegatedPrefix.String(), peerLL.String(), 0, rtproto.Iface)
 		s.routeInstalled = false
 	}
@@ -101,7 +148,7 @@ func (s *IPv6Service) cleanupPrefix() {
 func (s *IPv6Service) installRoute(prefix netip.Prefix) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	peerLL := peerLinkLocal(s.cfg.PeerInterfaceID)
+	peerLL := linkLocalFromInterfaceID(s.cfg.PeerInterfaceID)
 	if err := s.cfg.Backend.AddRoute(s.cfg.Ifname, prefix.String(), peerLL.String(), 0, rtproto.Iface); err != nil {
 		return err
 	}
@@ -275,7 +322,11 @@ func (s *IPv6Service) noPrefixAvailReply(msg *dHCPv6Message, serverID DHCPv6DUID
 	return buf[:n], nil
 }
 
-func peerLinkLocal(id [8]byte) netip.Addr {
+// linkLocalFromInterfaceID forms the PPP link-local address of one end.
+// RFC 5072 Section 5: "The most significant 10 bits of the address is the
+// Link-Local prefix FE80::.  54 zero bits pad out the address between the
+// Link-Local prefix and the interface-identifier fields." Both ends use it.
+func linkLocalFromInterfaceID(id [8]byte) netip.Addr {
 	var addr [16]byte
 	addr[0] = 0xfe
 	addr[1] = 0x80

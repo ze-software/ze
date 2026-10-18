@@ -485,8 +485,18 @@ func assertLifecycleNCPPublished(t *testing.T, events <-chan Event, backend *fak
 		if len(calls) != 1 || calls[0].local != "192.0.2.1/32" || calls[0].peer != "192.0.2.2/32" {
 			t.Fatalf("wrong programmed IPv4 address: %+v", calls)
 		}
-	} else if len(calls) != 0 {
-		t.Fatalf("IPv6-only completion unexpectedly programmed IPv4: %+v", calls)
+		return
+	}
+	// IPv6-only completion programs no IPv4 address. Its one p2p call is
+	// the negotiated link-local pair the IPv6 service installs on pppN.
+	if len(calls) != 1 {
+		t.Fatalf("IPv6-only completion programmed %d addresses, want the link-local pair only: %+v", len(calls), calls)
+	}
+	for _, cidr := range []string{calls[0].local, calls[0].peer} {
+		prefix, err := netip.ParsePrefix(cidr)
+		if err != nil || !prefix.Addr().IsLinkLocalUnicast() || prefix.Bits() != 64 {
+			t.Fatalf("IPv6-only completion programmed %q, want a fe80::/64 link-local: %+v", cidr, calls)
+		}
 	}
 }
 

@@ -701,8 +701,15 @@ L2TP subscriber routes carry:
 IPv6 addressing for PPP subscribers involves two separate protocols:
 
 1. **IPv6CP** (RFC 5072): negotiates only the 64-bit interface identifier.
-   Does NOT assign addresses or prefixes. After IPv6CP completes, the pppN
-   interface has a link-local address derived from the negotiated identifier.
+   Does NOT assign addresses or prefixes. After IPv6CP completes, ze installs
+   the link-local pair on pppN itself, `fe80::<local identifier>/64` peer
+   `fe80::<peer identifier>/64` (RFC 5072 Section 5), before the RA sender and
+   the DHCPv6 server start, and removes it when the IPv6 service stops. The
+   kernel would not: `addrconf_dev_config` (`net/ipv6/addrconf.c`)
+   autoconfigures only the device types it lists, and ARPHRD_PPP is not one,
+   so without it every Router Advertisement on pppN would leave with no
+   link-local source (RFC 4861 Section 4.2)
+   (`installLinkLocal`, `internal/component/l2tp/ppp/ipv6_service.go`).
 
    IPv6CP can reach Opened without ever learning the peer's identifier (the
    peer's Configure-Request carried no Interface-Identifier option). ze

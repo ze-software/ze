@@ -363,7 +363,7 @@ func TestHandleDHCPv6LifetimeDefaults(t *testing.T) {
 
 func TestPeerLinkLocal(t *testing.T) {
 	id := [8]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77}
-	got := peerLinkLocal(id)
+	got := linkLocalFromInterfaceID(id)
 	want := netip.MustParseAddr("fe80::11:2233:4455:6677")
 	if got != want {
 		t.Errorf("peerLinkLocal = %s, want %s", got, want)
@@ -444,5 +444,39 @@ func TestIPv6ServiceRefusesUnnegotiatedIdentifier(t *testing.T) {
 	}
 	if !strings.Contains(got, "without a negotiated peer interface identifier") {
 		t.Errorf("the refusal was not logged with its reason; log = %q", got)
+	}
+}
+
+// TestIPv6ServiceInstallsNegotiatedLinkLocal proves the IPv6 service gives
+// pppN the link-local pair IPv6CP negotiated and takes it away on Stop.
+// Linux does not autoconfigure a link-local address on ARPHRD_PPP, so without
+// this the RA sender has no link-local source.
+//
+// VALIDATES: RFC 5072 Section 5 link-local formation from the local and peer
+// interface identifiers, installed as fe80::<local>/64 peer fe80::<peer>/64.
+// PREVENTS: Router Advertisements on pppN sent with no link-local source
+// (RFC 4861 Section 4.2).
+func TestIPv6ServiceInstallsNegotiatedLinkLocal(t *testing.T) {
+	fb := &fakeBackend{}
+	svc := newIPv6Service(iPv6ServiceConfig{
+		Ifname:           "ppp0",
+		LocalInterfaceID: [8]byte{0x02, 0x00, 0x00, 0xff, 0xfe, 0x00, 0x00, 0x01},
+		PeerInterfaceID:  [8]byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x11},
+		Backend:          fb,
+	})
+	if err := svc.installLinkLocal(); err != nil {
+		t.Fatal(err)
+	}
+	want := p2pCall{name: "ppp0", local: "fe80::200:ff:fe00:1/64", peer: "fe80::aabb:ccdd:eeff:11/64"}
+	if len(fb.p2pCalls) != 1 || fb.p2pCalls[0] != want {
+		t.Fatalf("p2p calls = %+v, want [%+v]", fb.p2pCalls, want)
+	}
+	svc.Stop()
+	if len(fb.addrRemoves) != 1 || fb.addrRemoves[0] != (addrCall{"ppp0", "fe80::200:ff:fe00:1/64"}) {
+		t.Fatalf("address removals = %+v, want the link-local only", fb.addrRemoves)
+	}
+	svc.Stop()
+	if len(fb.addrRemoves) != 1 {
+		t.Fatalf("a second Stop removed again: %+v", fb.addrRemoves)
 	}
 }

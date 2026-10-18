@@ -332,11 +332,13 @@ type IfaceBackend interface {
 	SetMTU(name string, mtu int) error
 	SetAdminUp(name string) error
 	// AddAddressP2P installs a point-to-point address on pppN after
-	// IPCP negotiation completes (spec-l2tp-6c-ncp AC-5).
+	// IPCP negotiation completes (spec-l2tp-6c-ncp AC-5), and the
+	// IPv6CP link-local pair when the IPv6 service starts.
 	AddAddressP2P(name, localCIDR, peerCIDR string) error
 	// AddRoute installs IPv6 delegated-prefix routes through the peer.
 	AddRoute(name, destCIDR, gateway string, metric int, proto rtproto.Proto) error
-	// RemoveAddress removes the IPCP address and its kernel-created peer route.
+	// RemoveAddress removes the IPCP address or the IPv6CP link-local
+	// address, with its kernel-created peer route.
 	RemoveAddress(name, cidr string) error
 	// RemoveRoute withdraws IPv6 delegated-prefix routes.
 	RemoveRoute(name, destCIDR, gateway string, metric int, proto rtproto.Proto) error
