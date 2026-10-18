@@ -149,6 +149,12 @@ func runEngine(conn net.Conn) int {
 			return fmt.Errorf("flow-export exporter: %w", err)
 		}
 
+		// Each warning is a SHOULD the configuration misses: reported on
+		// every applied config, never refused.
+		for _, warning := range adviseProtocolCollectors(cfg.Collectors) {
+			log.Warn("flow-export: " + warning)
+		}
+
 		wireEncoders(exp, cfg)
 		startFlowSubsystems(exp, cfg)
 

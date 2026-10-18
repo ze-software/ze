@@ -53,12 +53,7 @@ func RegisterCollectorsValidator(protocol string, v CollectorsValidator) {
 func validateProtocolCollectors(collectors []CollectorConfig) error {
 	var errs []error
 	for _, protocol := range slices.Sorted(maps.Keys(collectorsValidators)) {
-		var matched []CollectorConfig
-		for i := range collectors {
-			if collectors[i].Protocol == protocol {
-				matched = append(matched, collectors[i])
-			}
-		}
+		matched := collectorsOfProtocol(collectors, protocol)
 		if len(matched) == 0 {
 			continue
 		}
@@ -67,6 +62,47 @@ func validateProtocolCollectors(collectors []CollectorConfig) error {
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// CollectorsAdvisor answers the warnings one protocol owes for its
+// collectors: a SHOULD of the protocol that the configuration or the host
+// misses. Ze reports each one and refuses nothing. An empty answer means
+// nothing to report. It runs only over collectors its protocol's
+// CollectorsValidator accepted. Registered by a protocol subpackage in init().
+type CollectorsAdvisor func(collectors []CollectorConfig) []string
+
+var collectorsAdvisors = map[string]CollectorsAdvisor{}
+
+// RegisterCollectorsAdvisor registers the advisor for one protocol's
+// collectors. Called from init() in protocol subpackages.
+func RegisterCollectorsAdvisor(protocol string, a CollectorsAdvisor) {
+	collectorsAdvisors[protocol] = a
+}
+
+// adviseProtocolCollectors runs each registered protocol advisor over the
+// configured collectors of its protocol, in protocol order, and answers every
+// warning. MUST be called only after validateProtocolCollectors accepted them.
+func adviseProtocolCollectors(collectors []CollectorConfig) []string {
+	var warnings []string
+	for _, protocol := range slices.Sorted(maps.Keys(collectorsAdvisors)) {
+		matched := collectorsOfProtocol(collectors, protocol)
+		if len(matched) == 0 {
+			continue
+		}
+		warnings = append(warnings, collectorsAdvisors[protocol](matched)...)
+	}
+	return warnings
+}
+
+// collectorsOfProtocol answers the collectors that name the protocol.
+func collectorsOfProtocol(collectors []CollectorConfig, protocol string) []CollectorConfig {
+	var matched []CollectorConfig
+	for i := range collectors {
+		if collectors[i].Protocol == protocol {
+			matched = append(matched, collectors[i])
+		}
+	}
+	return matched
 }
 
 // FlowSampleEncoderFactory creates a FlowSampleEncoder for a collector.

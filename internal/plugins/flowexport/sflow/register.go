@@ -15,6 +15,7 @@ func init() {
 	flowexport.RegisterEncoderFactory("sflow", newSFlowEncoder)
 	flowexport.RegisterFlowSampleEncoderFactory("sflow", newSFlowFlowEncoder)
 	flowexport.RegisterCollectorsValidator("sflow", validateSFlowCollectors)
+	flowexport.RegisterCollectorsAdvisor("sflow", adviseSFlowCollectors)
 }
 
 func newSFlowEncoder(cfg flowexport.CollectorConfig, startTime time.Time) flowexport.ProtocolEncoder {

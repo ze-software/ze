@@ -43,7 +43,7 @@ configure several collectors at once (for example one sFlow and one IPFIX).
 | `template-refresh` | 600 | Template refresh interval in seconds, NetFlow v9 / IPFIX (1-86400) |
 | `sub-agent-id` | 0 | sFlow sub-agent identifier. Every sflow collector exports every interface, so all sflow collectors MUST name the same value |
 | `observation-domain` | 0 | IPFIX / NetFlow v9 observation domain ID |
-| `agent-address` | - | sFlow agent address (the device's own stable IP, for example a loopback). Mandatory for `sflow`. `0.0.0.0` and `::` are refused, and all sflow collectors MUST name the same address. Ze compares the parsed addresses, so `2001:db8::1` and `2001:DB8:0::1` are one address |
+| `agent-address` | - | sFlow agent address (the device's own stable IP, for example a loopback). Mandatory for `sflow`. `0.0.0.0` and `::` are refused, and all sflow collectors MUST name the same address. Ze compares the parsed addresses, so `2001:db8::1` and `2001:DB8:0::1` are one address. Ze logs a warning when no interface holds the address, or when the router has more than one routed interface and the address is not on a loopback or dummy interface |
 | `source-address` | - | Local source IP for the collector's UDP socket |
 | `max-datagram-size` | 464 | Maximum UDP payload bytes, including protocol padding (464-1400) |
 <!-- source: internal/plugins/flowexport/yang/ze-flowexport-conf.yang -- collector -->
@@ -73,6 +73,22 @@ flow-export {
     }
 }
 ```
+
+The agent address is how a collector tells this router from every other
+agent. sFlow v5 asks a router with several routed interfaces to use a loopback
+address, which does not go away when one interface goes down. When the plugin
+applies the config, it compares the address with the router's interfaces and
+logs a warning that names the fix:
+
+```
+flow-export: sflow agent-address 203.0.113.1 is on routed interface eth0, not on a loopback interface. ...
+flow-export: sflow agent-address 198.51.100.1 is not configured on any interface. ...
+```
+
+A dummy interface counts as a loopback, so
+`create interface dummy name agent0 address 198.51.100.1/32` silences both.
+The warning never refuses the config: the export runs either way.
+<!-- source: internal/plugins/flowexport/sflow/agent_address.go -- classifyAgentAddress, agentAddressAdvice -->
 
 A NetFlow v9 collector plus an IPFIX collector on the same device:
 

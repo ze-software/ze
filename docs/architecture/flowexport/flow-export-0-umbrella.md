@@ -46,6 +46,18 @@ that set, and `protocols_test.go` holds the two together.
 <!-- source: internal/plugins/flowexport/encoder_registry.go -- RegisteredProtocols -->
 <!-- source: internal/plugins/flowexport/config.go -- CollectorConfig.validate -->
 
+A protocol registers two more hooks the same way. A `CollectorsValidator`
+checks a rule that spans every collector of its protocol, and its error refuses
+the config at commit. A `CollectorsAdvisor` answers the warnings the protocol
+owes for a SHOULD the configuration misses: the plugin logs each one at Warn
+every time it applies a config, and refuses nothing. It runs only over
+collectors the validator accepted. The sFlow advisor checks that the agent
+address sits on a loopback or dummy interface when the router has more than one
+routed interface, and that some interface holds it at all (sFlow v5
+Section 4.3).
+<!-- source: internal/plugins/flowexport/encoder_registry.go -- RegisterCollectorsValidator, RegisterCollectorsAdvisor, adviseProtocolCollectors -->
+<!-- source: internal/plugins/flowexport/sflow/agent_address.go -- adviseSFlowCollectors, classifyAgentAddress -->
+
 ## Buffer-first encoding
 
 Datagram assembly uses `WriteTo(buf, off) int` with skip-and-backfill for the

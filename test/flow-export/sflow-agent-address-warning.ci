@@ -1,0 +1,76 @@
+# Test: an sflow agent-address the router holds on no interface draws a warning
+# that names the address, why it matters and the command that fixes it, and
+# the export still runs.
+#
+# VALIDATES: sFlow v5 Section 4.3 ("In the case of a multi-homed agent, this
+#            should be the loopback address of the agent"): the flow-export
+#            plugin classifies the configured agent-address against the
+#            router's interfaces when it applies the config, and warns when no
+#            interface holds it. 192.0.2.99 (TEST-NET-1) is held by no
+#            interface on any test host, so the warning is deterministic.
+# PREVENTS:  an agent address the router does not own being exported in
+#            silence, and the warning refusing the config (it is a SHOULD).
+
+option=env:var=ze.log.flow.export:value=info
+option=timeout:value=20s
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external sflow-receiver {
+		run "le test fixture flow-export/sflow-export $PORT2"
+		encoder json
+	}
+}
+
+environment {
+	log {
+		flow.export info
+	}
+}
+
+flow-export {
+	collector c1 {
+		address 127.0.0.1
+		port $PORT2
+		protocol sflow
+		agent-address 192.0.2.99
+		polling-interval 1
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=flow-export configured
+expect=stderr:contains=sflow agent-address 192.0.2.99 is not configured on any interface
+expect=stderr:contains=create interface dummy name agent0 address 192.0.2.99/32
