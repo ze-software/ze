@@ -1125,7 +1125,7 @@ func (p *Peer) recvContext() *bgpctx.EncodingContext {
 // sessionAdvertisedLLGR reports whether the OPEN the peer's current session
 // sent carried the LLGR Capability, false when the peer has no session. Safe for
 // concurrent use: p.mu guards the session pointer, and Session.advertisedLLGR
-// takes the session's own lock after p.mu is released.
+// is an atomic load that takes no session lock.
 func (p *Peer) sessionAdvertisedLLGR() bool {
 	p.mu.RLock()
 	session := p.session
