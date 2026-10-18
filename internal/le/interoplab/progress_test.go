@@ -17,8 +17,8 @@ import (
 // lab silent for 89 minutes until the docker-lab ssh deadline killed it.
 func TestSuiteNarratesEachScenarioWhileItRuns(t *testing.T) {
 	runner := &recordingRunner{}
-	runner.run = kernelAnswering(func(processCommand) (processResult, error) {
-		return processResult{}, nil
+	runner.run = kernelAnswering(func(ProcessCommand) (ProcessResult, error) {
+		return ProcessResult{}, nil
 	})
 	var progress bytes.Buffer
 	var seenDuringSecond string

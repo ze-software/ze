@@ -70,8 +70,8 @@ func lookupAnswering(start string) func(int) (procscan.Process, bool, error) {
 // orphanDaemon answers the labeled listings with one container, one network
 // and one image carrying the cache tag and the run-owned tag, each owned by
 // the labels given.
-func orphanDaemon(labels map[string]string, extra func(processCommand) (processResult, bool)) func(processCommand) (processResult, error) {
-	return func(command processCommand) (processResult, error) {
+func orphanDaemon(labels map[string]string, extra func(ProcessCommand) (ProcessResult, bool)) func(ProcessCommand) (ProcessResult, error) {
+	return func(command ProcessCommand) (ProcessResult, error) {
 		if extra != nil {
 			if result, handled := extra(command); handled {
 				return result, nil
@@ -80,18 +80,18 @@ func orphanDaemon(labels map[string]string, extra func(processCommand) (processR
 		joined := strings.Join(command.Arguments, " ")
 		switch {
 		case strings.HasPrefix(joined, "docker ps -a"):
-			return processResult{Stdout: fixtureContainerID + "\tlab-peer-4242\n"}, nil
+			return ProcessResult{Stdout: fixtureContainerID + "\tlab-peer-4242\n"}, nil
 		case strings.HasPrefix(joined, "docker network ls"):
-			return processResult{Stdout: fixtureNetworkID + "\tlab-net-4242\n"}, nil
+			return ProcessResult{Stdout: fixtureNetworkID + "\tlab-net-4242\n"}, nil
 		case strings.HasPrefix(joined, "docker image ls"):
-			return processResult{Stdout: fixtureImageID + "\tze-interop-peer:latest\n" +
+			return ProcessResult{Stdout: fixtureImageID + "\tze-interop-peer:latest\n" +
 				fixtureImageID + "\tze-interop-retained:abc\n"}, nil
 		case strings.HasPrefix(joined, "docker container inspect"),
 			strings.HasPrefix(joined, "docker network inspect"),
 			strings.HasPrefix(joined, "docker image inspect"):
-			return processResult{Stdout: labelJSON(labels) + "\n"}, nil
+			return ProcessResult{Stdout: labelJSON(labels) + "\n"}, nil
 		}
-		return processResult{}, nil
+		return ProcessResult{}, nil
 	}
 }
 
@@ -99,8 +99,8 @@ func orphanDaemon(labels map[string]string, extra func(processCommand) (processR
 // marker and every owner label, from the one helper.
 // PREVENTS: a create path whose resource a later sweep cannot attribute.
 func TestOwnerLabelsOnEveryCreate(t *testing.T) {
-	runner := &recordingRunner{run: func(processCommand) (processResult, error) {
-		return processResult{Stdout: "sha256:feed\n"}, nil
+	runner := &recordingRunner{run: func(ProcessCommand) (ProcessResult, error) {
+		return ProcessResult{Stdout: "sha256:feed\n"}, nil
 	}}
 	docker := newDocker(runner)
 	ctx := t.Context()
@@ -117,7 +117,7 @@ func TestOwnerLabelsOnEveryCreate(t *testing.T) {
 	if _, err := docker.Build(ctx, ImageBuild{Name: "peer", Tag: "peer-image", Dockerfile: "Dockerfile", Context: "."}); err != nil {
 		t.Fatalf("Build: %v", err)
 	}
-	probe := docker.kernelProbeArgv("/staged/ze", false)
+	probe := docker.oneShotArguments(kernelProbeContainer("/staged/ze", false), fixtureOneShotName())
 
 	creates := make([][]string, 0, 5)
 	for _, command := range runner.commands {
@@ -300,11 +300,11 @@ func TestCleanupOrphansOrderContainersNetworksTags(t *testing.T) {
 		t.Errorf("code = %d, want 0", report.Code())
 	}
 
-	busy := &recordingRunner{run: orphanDaemon(fixtureLabels(nil), func(command processCommand) (processResult, bool) {
+	busy := &recordingRunner{run: orphanDaemon(fixtureLabels(nil), func(command ProcessCommand) (ProcessResult, bool) {
 		if strings.HasPrefix(strings.Join(command.Arguments, " "), "docker network rm") {
-			return processResult{ExitCode: 1, Stderr: "Error response from daemon: error while removing network: network lab-net-4242 id " + fixtureNetworkID + " has active endpoints"}, true
+			return ProcessResult{ExitCode: 1, Stderr: "Error response from daemon: error while removing network: network lab-net-4242 id " + fixtureNetworkID + " has active endpoints"}, true
 		}
-		return processResult{}, false
+		return ProcessResult{}, false
 	})}
 	report, err = newDocker(busy).CleanupOrphans(t.Context(), false)
 	if err != nil {
@@ -353,17 +353,17 @@ func TestCleanupOrphansNeverTouchesUnlabeledVolumesOrCacheTags(t *testing.T) {
 
 // VALIDATES: R-6: a resource another sweep already removed is success.
 func TestCleanupOrphansConcurrentAbsentIsSuccess(t *testing.T) {
-	runner := &recordingRunner{run: orphanDaemon(fixtureLabels(nil), func(command processCommand) (processResult, bool) {
+	runner := &recordingRunner{run: orphanDaemon(fixtureLabels(nil), func(command ProcessCommand) (ProcessResult, bool) {
 		joined := strings.Join(command.Arguments, " ")
 		switch {
 		case strings.HasPrefix(joined, "docker rm -f"):
-			return processResult{ExitCode: 1, Stderr: "Error response from daemon: No such container: " + fixtureContainerID}, true
+			return ProcessResult{ExitCode: 1, Stderr: "Error response from daemon: No such container: " + fixtureContainerID}, true
 		case strings.HasPrefix(joined, "docker network rm"):
-			return processResult{ExitCode: 1, Stderr: "Error response from daemon: network " + fixtureNetworkID + " not found"}, true
+			return ProcessResult{ExitCode: 1, Stderr: "Error response from daemon: network " + fixtureNetworkID + " not found"}, true
 		case strings.HasPrefix(joined, "docker image rm"):
-			return processResult{ExitCode: 1, Stderr: "Error response from daemon: No such image: ze-interop-retained:abc"}, true
+			return ProcessResult{ExitCode: 1, Stderr: "Error response from daemon: No such image: ze-interop-retained:abc"}, true
 		}
-		return processResult{}, false
+		return ProcessResult{}, false
 	})}
 	report, err := newDocker(runner).CleanupOrphans(t.Context(), false)
 	if err != nil {
@@ -408,11 +408,11 @@ func TestCleanupOrphansSkipMessagesNameFix(t *testing.T) {
 		}
 	}
 
-	failing := newDocker(&recordingRunner{run: orphanDaemon(fixtureLabels(nil), func(command processCommand) (processResult, bool) {
+	failing := newDocker(&recordingRunner{run: orphanDaemon(fixtureLabels(nil), func(command ProcessCommand) (ProcessResult, bool) {
 		if strings.HasPrefix(strings.Join(command.Arguments, " "), "docker rm -f") {
-			return processResult{ExitCode: 1, Stderr: "Error response from daemon: device busy"}, true
+			return ProcessResult{ExitCode: 1, Stderr: "Error response from daemon: device busy"}, true
 		}
-		return processResult{}, false
+		return ProcessResult{}, false
 	})})
 	report, err = failing.CleanupOrphans(t.Context(), false)
 	if err != nil {
@@ -427,12 +427,12 @@ func TestCleanupOrphansSkipMessagesNameFix(t *testing.T) {
 // VALIDATES: Q-3: the dry run lists an unlabeled run-owned tag left from
 // before the labels existed, and no mode removes it.
 func TestCleanupOrphansListsUnlabeledRetainedTags(t *testing.T) {
-	runner := &recordingRunner{run: func(command processCommand) (processResult, error) {
+	runner := &recordingRunner{run: func(command ProcessCommand) (ProcessResult, error) {
 		joined := strings.Join(command.Arguments, " ")
 		if strings.HasPrefix(joined, "docker image ls") && strings.Contains(joined, "reference=") {
-			return processResult{Stdout: "sha256:dd\tze-interop-retained:old\n"}, nil
+			return ProcessResult{Stdout: "sha256:dd\tze-interop-retained:old\n"}, nil
 		}
-		return processResult{}, nil
+		return ProcessResult{}, nil
 	}}
 	report, err := newDocker(runner).CleanupOrphans(context.Background(), true)
 	if err != nil {
@@ -461,29 +461,29 @@ const (
 // orphanDaemon, with an owner pid that is absent, times out every removal the
 // way a loaded daemon outlasts the client bound, and answers the `{{.Id}}`
 // re-observation with presence.
-func timedOutRemovalDaemon(presence presenceAnswer) func(processCommand) (processResult, error) {
+func timedOutRemovalDaemon(presence presenceAnswer) func(ProcessCommand) (ProcessResult, error) {
 	listings := orphanDaemon(fixtureLabels(nil), nil)
-	return func(command processCommand) (processResult, error) {
+	return func(command ProcessCommand) (ProcessResult, error) {
 		joined := strings.Join(command.Arguments, " ")
 		removal := strings.HasPrefix(joined, "docker rm -f") ||
 			strings.HasPrefix(joined, "docker network rm") ||
 			strings.HasPrefix(joined, "docker image rm")
 		if removal {
-			return processResult{ExitCode: -1}, context.DeadlineExceeded
+			return ProcessResult{ExitCode: -1}, context.DeadlineExceeded
 		}
 		if !strings.Contains(joined, dockerFormatFlag+" {{.Id}}") {
 			return listings(command)
 		}
 		switch presence {
 		case presenceGone:
-			return processResult{ExitCode: 1, Stderr: "Error response from daemon: No such object: " +
+			return ProcessResult{ExitCode: 1, Stderr: "Error response from daemon: No such object: " +
 				command.Arguments[len(command.Arguments)-1]}, nil
 		case presenceStill:
-			return processResult{Stdout: fixtureContainerID + "\n"}, nil
+			return ProcessResult{Stdout: fixtureContainerID + "\n"}, nil
 		case presenceNoAnswer:
-			return processResult{ExitCode: -1}, context.DeadlineExceeded
+			return ProcessResult{ExitCode: -1}, context.DeadlineExceeded
 		}
-		return processResult{}, errors.New("BUG: timedOutRemovalDaemon without a presence answer")
+		return ProcessResult{}, errors.New("BUG: timedOutRemovalDaemon without a presence answer")
 	}
 }
 

@@ -13,14 +13,14 @@ import (
 )
 
 type recordingRunner struct {
-	commands []processCommand
-	run      func(processCommand) (processResult, error)
+	commands []ProcessCommand
+	run      func(ProcessCommand) (ProcessResult, error)
 }
 
-func (r *recordingRunner) Run(_ context.Context, command processCommand) (processResult, error) {
+func (r *recordingRunner) Run(_ context.Context, command ProcessCommand) (ProcessResult, error) {
 	r.commands = append(r.commands, command)
 	if r.run == nil {
-		return processResult{}, nil
+		return ProcessResult{}, nil
 	}
 	return r.run(command)
 }
@@ -113,13 +113,13 @@ func TestReadEnvironmentPreservesLabKnobs(t *testing.T) {
 // An overlapping subnet must not prevent trying the next declared candidate.
 func TestDockerNetworkOverlapSelectsUsableSubnet(t *testing.T) {
 	runner := &recordingRunner{}
-	runner.run = func(command processCommand) (processResult, error) {
+	runner.run = func(command ProcessCommand) (ProcessResult, error) {
 		joined := strings.Join(command.Arguments, " ")
 		switch {
 		case strings.Contains(joined, "--subnet=172.30.0.0/24"):
-			return processResult{ExitCode: 1, Stderr: "Pool overlaps with other one"}, nil
+			return ProcessResult{ExitCode: 1, Stderr: "Pool overlaps with other one"}, nil
 		default:
-			return processResult{}, nil
+			return ProcessResult{}, nil
 		}
 	}
 	docker := newDocker(runner)
@@ -160,8 +160,8 @@ func TestDockerBuildRejectsEmptyImageID(t *testing.T) {
 // declares one today: a number below that budget shortens it and kills a build
 // the machine would finish.
 func TestDockerBuildUsesDeclaredTimeout(t *testing.T) {
-	runner := &recordingRunner{run: func(processCommand) (processResult, error) {
-		return processResult{Stdout: "sha256:slow\n"}, nil
+	runner := &recordingRunner{run: func(ProcessCommand) (ProcessResult, error) {
+		return ProcessResult{Stdout: "sha256:slow\n"}, nil
 	}}
 	docker := newDocker(runner)
 	_, err := docker.Build(t.Context(), ImageBuild{
@@ -211,8 +211,8 @@ func TestDockerBuildTakesTheMachineBudget(t *testing.T) {
 		}
 	}
 
-	runner := &recordingRunner{run: func(processCommand) (processResult, error) {
-		return processResult{Stdout: "sha256:machine\n"}, nil
+	runner := &recordingRunner{run: func(ProcessCommand) (ProcessResult, error) {
+		return ProcessResult{Stdout: "sha256:machine\n"}, nil
 	}}
 	docker := newDocker(runner)
 	docker.buildTimeout = 45 * time.Minute
@@ -238,12 +238,12 @@ func TestNewDockerReadsTheMachineBudget(t *testing.T) {
 // PREVENTS: a clean host failing before network creation or a different removal error passing.
 func TestRemoveContainerAcceptsOnlyExactAbsence(t *testing.T) {
 	answer := "Error response from daemon: No such container: lab-peer"
-	runner := &recordingRunner{run: func(command processCommand) (processResult, error) {
+	runner := &recordingRunner{run: func(command ProcessCommand) (ProcessResult, error) {
 		if command.Arguments[1] == "container" {
 			// The re-observation after a failed removal finds the container still there.
-			return processResult{Stdout: "c000000000000000000000000000000000000000000000000000000000000001\n"}, nil
+			return ProcessResult{Stdout: "c000000000000000000000000000000000000000000000000000000000000001\n"}, nil
 		}
-		return processResult{ExitCode: 1, Stderr: answer}, nil
+		return ProcessResult{ExitCode: 1, Stderr: answer}, nil
 	}}
 	docker := newDocker(runner)
 	if err := docker.RemoveContainer(t.Context(), "lab-peer"); err != nil {
@@ -283,8 +283,8 @@ func TestContainerPIDRejectsInvalidOutput(t *testing.T) {
 	}
 	for _, one := range tests {
 		t.Run(one.name, func(t *testing.T) {
-			docker := newDocker(&recordingRunner{run: func(processCommand) (processResult, error) {
-				return processResult{Stdout: one.stdout}, nil
+			docker := newDocker(&recordingRunner{run: func(ProcessCommand) (ProcessResult, error) {
+				return ProcessResult{Stdout: one.stdout}, nil
 			}})
 			if _, err := docker.containerPID(t.Context(), "lab-peer"); err == nil {
 				t.Fatalf("containerPID accepted %q", one.stdout)
@@ -297,11 +297,11 @@ func TestContainerPIDRejectsInvalidOutput(t *testing.T) {
 // PREVENTS: Docker or peer failures silently becoming valid-looking empty output.
 func TestLabQueryNeverAnswersSilentlyEmpty(t *testing.T) {
 	runner := &recordingRunner{}
-	runner.run = func(command processCommand) (processResult, error) {
+	runner.run = func(command ProcessCommand) (ProcessResult, error) {
 		if command.Arguments[len(command.Arguments)-1] == "failed" {
-			return processResult{ExitCode: 9, Stderr: "peer refused query"}, nil
+			return ProcessResult{ExitCode: 9, Stderr: "peer refused query"}, nil
 		}
-		return processResult{}, nil
+		return ProcessResult{}, nil
 	}
 	lab := newLab(newDocker(runner), []PeerConfig{{Name: "peer", Container: "lab-peer"}})
 
@@ -318,24 +318,24 @@ func TestLabQueryNeverAnswersSilentlyEmpty(t *testing.T) {
 func TestPeerCommandAndLogAPIsPreserveTheirContracts(t *testing.T) {
 	runner := &recordingRunner{}
 	logCalls := 0
-	runner.run = func(command processCommand) (processResult, error) {
+	runner.run = func(command ProcessCommand) (ProcessResult, error) {
 		joined := strings.Join(command.Arguments, " ")
 		if strings.HasPrefix(joined, "docker run --rm ") {
-			return processResult{Stdout: "kernel-ready\n"}, nil
+			return ProcessResult{Stdout: "kernel-ready\n"}, nil
 		}
 		if strings.HasPrefix(joined, "docker exec ") {
-			return processResult{Stdout: "answer\n", Stderr: "notice\n"}, nil
+			return ProcessResult{Stdout: "answer\n", Stderr: "notice\n"}, nil
 		}
 		if strings.HasPrefix(joined, "docker inspect ") {
-			return processResult{Stdout: "4321\n"}, nil
+			return ProcessResult{Stdout: "4321\n"}, nil
 		}
 		if strings.HasPrefix(joined, "docker logs ") {
 			logCalls++
 			if logCalls == 2 {
-				return processResult{ExitCode: 2, Stderr: "log unavailable"}, nil
+				return ProcessResult{ExitCode: 2, Stderr: "log unavailable"}, nil
 			}
 		}
-		return processResult{}, nil
+		return ProcessResult{}, nil
 	}
 	docker := newDocker(runner)
 	lab := newLab(docker, []PeerConfig{{Name: "peer", Container: "lab-peer"}})
@@ -414,7 +414,7 @@ func TestPeerCommandAndLogAPIsPreserveTheirContracts(t *testing.T) {
 	}
 	joined := recordedCommands(runner.commands)
 	assertOrder(t, joined,
-		"docker run --rm "+fixtureLabelText()+" --privileged alpine:3 modprobe pppoe",
+		"docker run --rm --name "+fixtureOneShotName()+" "+fixtureLabelText()+" --privileged alpine:3 modprobe pppoe",
 		"docker exec -e TOKEN=secret lab-peer show state",
 		"docker exec -d lab-peer sh -c exec pppd call peer >/var/log/ppp/dial.log 2>&1",
 		"docker logs lab-peer --tail 20",
@@ -434,14 +434,14 @@ func TestScenarioPreparerReceivesSelectedNetwork(t *testing.T) {
 	runner := &recordingRunner{}
 	// The first network removal is the pre-clean; the kernel check runs two
 	// commands before it.
-	runner.run = kernelAnswering(func(command processCommand) (processResult, error) {
+	runner.run = kernelAnswering(func(command ProcessCommand) (ProcessResult, error) {
 		joined := strings.Join(command.Arguments, " ")
 		if strings.Contains(joined, "docker network rm dynamic-net") {
 			if len(runner.commands) <= 6 {
-				return processResult{ExitCode: 1, Stderr: "network dynamic-net not found"}, nil
+				return ProcessResult{ExitCode: 1, Stderr: "network dynamic-net not found"}, nil
 			}
 		}
-		return processResult{}, nil
+		return ProcessResult{}, nil
 	})
 	preparedNetwork := netip.Prefix{}
 	hostCleanups := 0
@@ -515,17 +515,17 @@ func TestSuiteRunsLifecycleAndCheckerInOrder(t *testing.T) {
 	checkerCalls := 0
 	// The first network removal is the pre-clean; the kernel check runs two
 	// commands before it.
-	runner.run = kernelAnswering(func(command processCommand) (processResult, error) {
+	runner.run = kernelAnswering(func(command ProcessCommand) (ProcessResult, error) {
 		joined := strings.Join(command.Arguments, " ")
 		if strings.Contains(joined, "docker network rm lab-net") {
 			if len(runner.commands) <= 6 {
-				return processResult{ExitCode: 1, Stderr: "network lab-net not found"}, nil
+				return ProcessResult{ExitCode: 1, Stderr: "network lab-net not found"}, nil
 			}
 		}
 		if strings.Contains(joined, "docker exec lab-peer show state") {
-			return processResult{Stdout: "ready\n"}, nil
+			return ProcessResult{Stdout: "ready\n"}, nil
 		}
-		return processResult{}, nil
+		return ProcessResult{}, nil
 	})
 	checker := func(ctx context.Context, check *CheckContext) error {
 		checkerCalls++
@@ -594,15 +594,15 @@ func TestSuiteRunsLifecycleAndCheckerInOrder(t *testing.T) {
 func TestSuiteWaitsForConfiguredPeer(t *testing.T) {
 	for _, testCase := range []struct {
 		name         string
-		answer       processResult
+		answer       ProcessResult
 		ready        bool
 		preCancelled bool
 	}{
-		{name: "configured", answer: processResult{Stdout: "configured\naccepting\n"}, ready: true},
+		{name: "configured", answer: ProcessResult{Stdout: "configured\naccepting\n"}, ready: true},
 		{name: "empty"},
-		{name: "partial", answer: processResult{Stdout: "configured\n"}},
-		{name: "stderr", answer: processResult{Stderr: "configured\naccepting\n"}},
-		{name: "failed", answer: processResult{Stdout: "configured\naccepting\n", ExitCode: 1}},
+		{name: "partial", answer: ProcessResult{Stdout: "configured\n"}},
+		{name: "stderr", answer: ProcessResult{Stderr: "configured\naccepting\n"}},
+		{name: "failed", answer: ProcessResult{Stdout: "configured\naccepting\n", ExitCode: 1}},
 		{name: "pre-canceled", preCancelled: true},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -612,7 +612,7 @@ func TestSuiteWaitsForConfiguredPeer(t *testing.T) {
 				cancel()
 			}
 			probes, starts, checks := 0, 0, 0
-			runner := &recordingRunner{run: kernelAnswering(func(command processCommand) (processResult, error) {
+			runner := &recordingRunner{run: kernelAnswering(func(command ProcessCommand) (ProcessResult, error) {
 				joined := strings.Join(command.Arguments, " ")
 				if strings.HasPrefix(joined, "docker exec ") {
 					probes++
@@ -621,10 +621,10 @@ func TestSuiteWaitsForConfiguredPeer(t *testing.T) {
 						t.Fatalf("readiness lost its command or environment: %v", command.Arguments)
 					}
 					if probes == 1 {
-						return processResult{}, nil
+						return ProcessResult{}, nil
 					}
 					if probes == 2 {
-						return processResult{Stdout: "configured\n"}, nil
+						return ProcessResult{Stdout: "configured\n"}, nil
 					}
 					if !testCase.ready {
 						cancel()
@@ -637,7 +637,7 @@ func TestSuiteWaitsForConfiguredPeer(t *testing.T) {
 						t.Fatal("relay started before the native peer was configured")
 					}
 				}
-				return processResult{}, nil
+				return ProcessResult{}, nil
 			})}
 			suite := Suite{
 				Docker:   newDocker(runner),
@@ -691,22 +691,22 @@ func TestSuiteWaitsForConfiguredPeer(t *testing.T) {
 func TestSuiteCleansUpAfterSetupFailure(t *testing.T) {
 	runner := &recordingRunner{}
 	// Command counts include the two the kernel check runs after docker info.
-	runner.run = kernelAnswering(func(command processCommand) (processResult, error) {
+	runner.run = kernelAnswering(func(command ProcessCommand) (ProcessResult, error) {
 		joined := strings.Join(command.Arguments, " ")
 		if strings.Contains(joined, "docker network rm fail-net") {
 			if len(runner.commands) <= 5 {
-				return processResult{ExitCode: 1, Stderr: "network fail-net not found"}, nil
+				return ProcessResult{ExitCode: 1, Stderr: "network fail-net not found"}, nil
 			}
 		}
 		if strings.Contains(joined, "docker rm -f fail-peer") {
 			if len(runner.commands) > 7 {
-				return processResult{ExitCode: 23, Stderr: "cleanup busy"}, nil
+				return ProcessResult{ExitCode: 23, Stderr: "cleanup busy"}, nil
 			}
 		}
 		if strings.Contains(joined, "docker run -d --name fail-peer") {
-			return processResult{ExitCode: 17, Stderr: "cannot start peer"}, nil
+			return ProcessResult{ExitCode: 17, Stderr: "cannot start peer"}, nil
 		}
-		return processResult{}, nil
+		return ProcessResult{}, nil
 	})
 	suite := Suite{
 		Docker:   newDocker(runner),
@@ -864,7 +864,7 @@ func TestWaitCancellationPreservesEvidence(t *testing.T) {
 	}
 }
 
-func recordedCommands(commands []processCommand) string {
+func recordedCommands(commands []ProcessCommand) string {
 	lines := make([]string, 0, len(commands))
 	for _, command := range commands {
 		lines = append(lines, strings.Join(command.Arguments, " "))

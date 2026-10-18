@@ -106,7 +106,7 @@ func StageBinaries(root string, noBuild bool, binaries ...LabBinary) PreflightCh
 // tool trimming it mid-build fails this cross-compile with a wave of "no such
 // file or directory" against Go's own standard library
 // (plan/journal/full-disk-false-red.md). Measured on 2026-09-04, twice.
-func stageBinaries(ctx context.Context, runner processRunner, root, architecture string, binaries []LabBinary) error {
+func stageBinaries(ctx context.Context, runner ProcessRunner, root, architecture string, binaries []LabBinary) error {
 	toolchain, err := gotoolchain.New(root)
 	if err != nil {
 		return err
@@ -128,7 +128,7 @@ func stageBinaries(ctx context.Context, runner processRunner, root, architecture
 }
 
 // stageBinary cross-compiles one declared binary.
-func stageBinary(ctx context.Context, runner processRunner, root string, environment []string, binary LabBinary) error {
+func stageBinary(ctx context.Context, runner ProcessRunner, root string, environment []string, binary LabBinary) error {
 	if binary.Name == "" || binary.Output == "" || binary.Base == "" {
 		var tb textbuf.Buffer
 		return errors.New(tb.Str("a lab binary declares a name, a tag base and an output path; this one declares name ").
@@ -140,7 +140,7 @@ func stageBinary(ctx context.Context, runner processRunner, root string, environ
 	if err != nil {
 		return err
 	}
-	command := processCommand{
+	command := ProcessCommand{
 		Arguments: []string{
 			"go", "build",
 			"-tags", tags,
@@ -170,7 +170,7 @@ func stageBinary(ctx context.Context, runner processRunner, root string, environ
 // buildDiagnostic answers what the compiler said, preferring its diagnostics on
 // stderr and falling back to stdout. An empty answer is named rather than left
 // blank, so a failure never reads as a build that said nothing wrong.
-func buildDiagnostic(result processResult) string {
+func buildDiagnostic(result ProcessResult) string {
 	if trimmed := strings.TrimSpace(result.Stderr); trimmed != "" {
 		return trimmed
 	}

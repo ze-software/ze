@@ -58,7 +58,7 @@ func TestDockerKernelCheckOnThisHost(t *testing.T) {
 	if securityErr != nil {
 		t.Fatalf("read the daemon's security options: %v", securityErr)
 	}
-	result, runErr := docker.runner.Run(ctx, processCommand{Arguments: docker.kernelProbeArgv(staged, appArmor), Timeout: kernelProbeTimeout})
+	result, runErr := docker.RunOneShot(ctx, kernelProbeContainer(staged, appArmor))
 	if runErr != nil {
 		t.Fatalf("read the rows a second time: %v", runErr)
 	}

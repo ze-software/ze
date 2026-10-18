@@ -14,8 +14,8 @@ import (
 // Method: a recording runner answers every exec with the timeout result the system
 // runner produces, and the test reads the error text.
 func TestDockerExecTimeoutNamesTheCommand(t *testing.T) {
-	runner := &recordingRunner{run: func(processCommand) (processResult, error) {
-		return processResult{ExitCode: timeoutExitCode}, context.DeadlineExceeded
+	runner := &recordingRunner{run: func(ProcessCommand) (ProcessResult, error) {
+		return ProcessResult{ExitCode: timeoutExitCode}, context.DeadlineExceeded
 	}}
 	docker := newDocker(runner)
 

@@ -231,27 +231,42 @@ func StagedZePath(root string, binaries []LabBinary) string {
 	return ""
 }
 
-// kernelProbeArgv is the probe container's command line. It grants NET_ADMIN
+// kernelProbeContainer is the probe container. It grants NET_ADMIN
 // for the netlink probes and SYS_ADMIN for the probes that unshare a network
 // namespace, and gives the container its own network so nothing it creates
 // reaches the host's. On a daemon applying AppArmor it runs under Ze's profile,
 // because docker-default denies the MPLS probe's mount and sysctl write (D-7).
-// It is built by oneShotArguments, so it carries the owner labels.
-func (d *Docker) kernelProbeArgv(zePath string, appArmor bool) []string {
+// It runs through RunOneShot, so it carries the owner labels and a cancelled
+// probe is removed by name.
+func kernelProbeContainer(zePath string, appArmor bool) OneShotContainer {
 	arguments := make([]string, 0, 10)
 	arguments = append(arguments, "--cap-add", "NET_ADMIN", "--cap-add", "SYS_ADMIN", "--network", "none")
 	if appArmor {
 		arguments = append(arguments, "--security-opt", "apparmor="+kernelcap.ProbeAppArmorProfileName)
 	}
 	arguments = append(arguments, "-v", zePath+":"+kernelProbeMount+":ro")
-	return d.oneShotArguments(OneShotContainer{Image: kernelProbeImage, Arguments: arguments, Command: kernelProbeCommand, Timeout: kernelProbeTimeout})
+	return OneShotContainer{Image: kernelProbeImage, Arguments: arguments, Command: kernelProbeCommand, Timeout: kernelProbeTimeout}
+}
+
+// probeFailed reports a probe that did not run to an exit code: the docker
+// client failed or was stopped. A probe that exited non-zero is judged on its
+// answer, as the AppArmor refusal and the unreadable-answer error need.
+func probeFailed(err error) bool {
+	if err == nil {
+		return false
+	}
+	commandErr, ok := errors.AsType[*commandError](err)
+	if !ok {
+		return true
+	}
+	return commandErr.Cause != nil
 }
 
 // dockerAppArmor asks whether the daemon applies AppArmor to its containers. A
 // question it cannot answer is an error: the probe's argv depends on it.
 func dockerAppArmor(ctx context.Context, docker *Docker) (bool, error) {
 	argv := []string{DockerExecutable, "info", dockerFormatFlag, dockerSecurityOptionsFormat}
-	result, err := docker.runner.Run(ctx, processCommand{Arguments: argv, Timeout: dockerInfoTimeout})
+	result, err := docker.runner.Run(ctx, ProcessCommand{Arguments: argv, Timeout: dockerInfoTimeout})
 	var problem textbuf.Buffer
 	problem.Str("the Docker kernel check could not read the daemon's security options: `").
 		Str(strings.Join(argv, " ")).Str("` ")
@@ -351,13 +366,13 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 			return missing
 		}
 	}
-	argv := docker.kernelProbeArgv(zePath, appArmor)
-	result, err := docker.runner.Run(ctx, processCommand{Arguments: argv, Timeout: kernelProbeTimeout})
+	probe := kernelProbeContainer(zePath, appArmor)
+	result, err := docker.RunOneShot(ctx, probe)
 
 	var problem textbuf.Buffer
 	problem.Str("the Docker daemon's kernel (").Str(release).Str(") could not be checked: `").
-		Str(strings.Join(argv, " ")).Str("` ")
-	if err != nil {
+		Str(strings.Join(probe.Command, " ")).Str("` in ").Str(probe.Image).Str(" ")
+	if probeFailed(err) {
 		return errors.New(problem.Str("failed: ").Err(err).String())
 	}
 	if appArmor && appArmorProfileUnapplied(result.ExitCode, result.Stderr) {
@@ -438,7 +453,7 @@ func deniedFix(appArmor, seLinux bool) string {
 // context for the reader, never a verdict, so a failed read is spelled out in
 // its place rather than stopping the check.
 func dockerKernelRelease(ctx context.Context, docker *Docker) string {
-	result, err := docker.runner.Run(ctx, processCommand{
+	result, err := docker.runner.Run(ctx, ProcessCommand{
 		Arguments: []string{DockerExecutable, "info", dockerFormatFlag, "{{.KernelVersion}}"},
 		Timeout:   dockerInfoTimeout,
 	})

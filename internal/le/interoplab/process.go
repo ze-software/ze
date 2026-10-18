@@ -8,6 +8,7 @@ package interoplab
 import (
 	"context"
 	"errors"
+	"io"
 	"os/exec"
 	"syscall"
 	"time"
@@ -17,7 +18,9 @@ import (
 
 const timeoutExitCode = 124
 
-type processCommand struct {
+// ProcessCommand is one bounded host process the wrapper runs: a docker
+// command, or the lab's own Go cross-compile.
+type ProcessCommand struct {
 	Arguments []string
 	Timeout   time.Duration
 	// Directory is the working directory the command runs in. Empty inherits
@@ -28,26 +31,38 @@ type processCommand struct {
 	// cross-compile names one (zebuild.go), because the toolchain it must run
 	// under is derived from the checkout rather than from the machine.
 	Environment []string
+	// Stdin, Stdout and Stderr attach the process to the caller's streams. A
+	// nil Stdout or Stderr is captured into the ProcessResult instead; a set
+	// one is not, so a one-shot that streams an hour of build output to the
+	// operator's terminal holds none of it in memory. A nil Stdin reads
+	// nothing.
+	Stdin  io.Reader
+	Stdout io.Writer
+	Stderr io.Writer
 }
 
-type processResult struct {
+// ProcessResult is what a ProcessCommand left: the captured streams (empty
+// for a stream the command attached) and the exit code.
+type ProcessResult struct {
 	Stdout   string
 	Stderr   string
 	ExitCode int
 }
 
-type processRunner interface {
-	Run(context.Context, processCommand) (processResult, error)
+// ProcessRunner is the wrapper's host process boundary. NewDocker runs the
+// system's; a test hands NewFixtureDocker a double that records the argv.
+type ProcessRunner interface {
+	Run(context.Context, ProcessCommand) (ProcessResult, error)
 }
 
 type systemProcessRunner struct{}
 
-func (systemProcessRunner) Run(ctx context.Context, command processCommand) (processResult, error) {
+func (systemProcessRunner) Run(ctx context.Context, command ProcessCommand) (ProcessResult, error) {
 	if len(command.Arguments) == 0 {
-		return processResult{}, errors.New("process command has no arguments")
+		return ProcessResult{}, errors.New("process command has no arguments")
 	}
 	if command.Timeout <= 0 {
-		return processResult{}, errors.New("process command timeout must be positive")
+		return ProcessResult{}, errors.New("process command timeout must be positive")
 	}
 
 	runCtx, cancel := context.WithTimeout(ctx, command.Timeout)
@@ -61,10 +76,17 @@ func (systemProcessRunner) Run(ctx context.Context, command processCommand) (pro
 	cmd.Env = command.Environment
 	var stdout textbuf.Buffer
 	var stderr textbuf.Buffer
+	cmd.Stdin = command.Stdin
 	cmd.Stdout = &stdout
+	if command.Stdout != nil {
+		cmd.Stdout = command.Stdout
+	}
 	cmd.Stderr = &stderr
+	if command.Stderr != nil {
+		cmd.Stderr = command.Stderr
+	}
 	err := cmd.Run()
-	result := processResult{Stdout: stdout.String(), Stderr: stderr.String()}
+	result := ProcessResult{Stdout: stdout.String(), Stderr: stderr.String()}
 	if err == nil {
 		return result, nil
 	}

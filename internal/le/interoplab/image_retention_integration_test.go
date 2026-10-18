@@ -53,8 +53,9 @@ func TestDockerBuildRetainsImageAcrossRetag(t *testing.T) {
 		images = append(images, image)
 	}
 	for index, marker := range []string{"first", "second"} {
-		result, err := docker.command(ctx, dockerCommandTimeout,
-			DockerExecutable, "run", "--rm", "--network", "none", images[index].Reference)
+		result, err := docker.RunOneShot(ctx, OneShotContainer{
+			Image: images[index].Reference, Arguments: []string{"--network", "none"}, Timeout: dockerCommandTimeout,
+		})
 		if err != nil {
 			t.Fatalf("run selected %s image after retag: %v", marker, err)
 		}
@@ -73,8 +74,9 @@ func TestDockerBuildRetainsImageAcrossRetag(t *testing.T) {
 			t.Fatalf("released tag remains or inspection failed for another reason: %v", err)
 		}
 	}
-	result, err := docker.command(ctx, dockerCommandTimeout,
-		DockerExecutable, "run", "--rm", "--network", "none", cacheTag)
+	result, err := docker.RunOneShot(ctx, OneShotContainer{
+		Image: cacheTag, Arguments: []string{"--network", "none"}, Timeout: dockerCommandTimeout,
+	})
 	if err != nil || strings.TrimSpace(result.Stdout) != "second" {
 		t.Fatalf("releasing run-owned tags changed the shared cache image: stdout=%q error=%v", result.Stdout, err)
 	}

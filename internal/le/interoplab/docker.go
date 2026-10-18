@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"io"
 	"net/netip"
 	"os"
 	"strconv"
@@ -74,12 +75,16 @@ const dockerBuildTimeoutDefault = 90 * time.Minute
 // Docker runs the closed set of Docker operations that an interop leaf needs.
 // It is safe for concurrent use when its process runner is safe for concurrent use.
 type Docker struct {
-	runner       processRunner
+	runner       ProcessRunner
 	buildTimeout time.Duration
 	// owner is the label set every create argv carries, and judge decides a
 	// labeled resource's owner; both are client-side facts (orphans.go).
 	owner ownerIdentity
 	judge ownerJudge
+	// oneShotName names each one-shot container, so a canceled or timed-out
+	// one can be removed by name: killing the docker client stops nothing the
+	// daemon runs, and --rm fires only when the container's command ends.
+	oneShotName func() string
 }
 
 // ImageBuild identifies one image that a suite builds before it starts scenarios.
@@ -169,12 +174,18 @@ type PeerConfig struct {
 	AppArmorProfile string `json:"apparmor-profile,omitempty"`
 }
 
-// OneShotContainer is a bounded foreground container used for host preflight.
+// OneShotContainer is a bounded foreground container: a host preflight, the
+// kernel probe, a release-candidate gate run or a terminal-demo render.
 type OneShotContainer struct {
 	Image     string        `json:"image"`
 	Arguments []string      `json:"arguments,omitempty"`
 	Command   []string      `json:"command,omitempty"`
 	Timeout   time.Duration `json:"timeout"`
+	// Stdin, Stdout and Stderr attach the container to the caller's streams
+	// (ProcessCommand); a nil Stdout or Stderr is captured into the result.
+	Stdin  io.Reader `json:"-"`
+	Stdout io.Writer `json:"-"`
+	Stderr io.Writer `json:"-"`
 }
 
 // CommandResult records a peer command without merging output streams.
@@ -228,13 +239,35 @@ func (e *commandError) Unwrap() error { return e.Cause }
 // machine's build budget once, so no suite carries that knob through its plan.
 func NewDocker() *Docker {
 	owner, judge := processIdentity()
-	return &Docker{runner: systemProcessRunner{}, buildTimeout: machineBuildTimeout(os.LookupEnv), owner: owner, judge: judge}
+	return &Docker{runner: systemProcessRunner{}, buildTimeout: machineBuildTimeout(os.LookupEnv), owner: owner, judge: judge, oneShotName: randomOneShotName}
+}
+
+// NewFixtureDocker is the test double's client for a package outside this
+// one: it runs every command through runner, under the fixed owner and a host
+// on which every pid is absent, so a recorded argv is deterministic. Code that
+// talks to a real daemon MUST call NewDocker: this client's labels name an
+// owner that does not exist.
+func NewFixtureDocker(runner ProcessRunner) *Docker {
+	return newDocker(runner)
 }
 
 // newDocker is the test double's client: a fixed owner and a host on which
 // every pid is absent, so a test argv is deterministic.
-func newDocker(runner processRunner) *Docker {
-	return &Docker{runner: runner, buildTimeout: dockerBuildTimeoutDefault, owner: fixtureOwner(), judge: fixtureJudge()}
+func newDocker(runner ProcessRunner) *Docker {
+	return &Docker{runner: runner, buildTimeout: dockerBuildTimeoutDefault, owner: fixtureOwner(), judge: fixtureJudge(), oneShotName: fixtureOneShotName}
+}
+
+// oneShotNamePrefix starts every one-shot container's name.
+const oneShotNamePrefix = "ze-oneshot-"
+
+// randomOneShotName answers a name no other one-shot on any client holds.
+func randomOneShotName() string {
+	return oneShotNamePrefix + strings.ToLower(rand.Text())
+}
+
+// fixtureOneShotName is the test double's fixed one-shot name.
+func fixtureOneShotName() string {
+	return oneShotNamePrefix + "fixture"
 }
 
 // machineBuildTimeout reads the machine's build budget in whole seconds. A value that
@@ -388,16 +421,45 @@ func (d *Docker) RunOneShot(ctx context.Context, spec OneShotContainer) (Command
 	if spec.Timeout <= 0 {
 		return CommandResult{}, errors.New("one-shot container timeout must be positive")
 	}
-	result, err := d.command(ctx, spec.Timeout, d.oneShotArguments(spec)...)
-	return CommandResult(result), err
+	name := d.oneShotName()
+	argv := d.oneShotArguments(spec, name)
+	result, err := d.runner.Run(ctx, ProcessCommand{
+		Arguments: argv, Timeout: spec.Timeout,
+		Stdin: spec.Stdin, Stdout: spec.Stdout, Stderr: spec.Stderr,
+	})
+	if err != nil {
+		// The bound or the caller's context ended the docker client, which
+		// leaves the container running its command. Remove it by name, on a
+		// context the cancellation does not reach, and report both.
+		removeErr := d.RemoveContainer(context.WithoutCancel(ctx), name)
+		return CommandResult(result), errors.Join(d.oneShotError(argv, spec.Timeout, result, err), removeErr)
+	}
+	if result.ExitCode != 0 {
+		return CommandResult(result), d.oneShotError(argv, spec.Timeout, result, nil)
+	}
+	return CommandResult(result), nil
+}
+
+// oneShotError names a one-shot that did not exit 0, the way commandAs names
+// every other docker command.
+func (d *Docker) oneShotError(argv []string, timeout time.Duration, result ProcessResult, cause error) error {
+	return &commandError{
+		Operation: commandOperation(argv),
+		Command:   argv,
+		ExitCode:  result.ExitCode,
+		Stderr:    strings.TrimSpace(result.Stderr),
+		Cause:     cause,
+		Timeout:   timeout,
+	}
 }
 
 // oneShotArguments is every one-shot container's argv, the kernel probe's
-// included, so each carries the owner labels.
-func (d *Docker) oneShotArguments(spec OneShotContainer) []string {
+// included, so each carries the owner labels and the name a canceled run is
+// removed by.
+func (d *Docker) oneShotArguments(spec OneShotContainer, name string) []string {
 	labels := d.owner.labelArguments()
-	argv := make([]string, 0, 4+len(spec.Arguments)+len(labels)+len(spec.Command))
-	argv = append(argv, DockerExecutable, "run", "--rm")
+	argv := make([]string, 0, 6+len(spec.Arguments)+len(labels)+len(spec.Command))
+	argv = append(argv, DockerExecutable, "run", "--rm", "--name", name)
 	argv = append(argv, labels...)
 	argv = append(argv, spec.Arguments...)
 	argv = append(argv, spec.Image)
@@ -729,13 +791,13 @@ func (d *Docker) containerPID(ctx context.Context, name string) (int, error) {
 	return pid, nil
 }
 
-func (d *Docker) command(ctx context.Context, timeout time.Duration, argv ...string) (processResult, error) {
+func (d *Docker) command(ctx context.Context, timeout time.Duration, argv ...string) (ProcessResult, error) {
 	return d.commandAs(ctx, timeout, commandOperation(argv), argv...)
 }
 
 // commandAs runs argv and names it operation in any error it returns.
-func (d *Docker) commandAs(ctx context.Context, timeout time.Duration, operation string, argv ...string) (processResult, error) {
-	result, err := d.runner.Run(ctx, processCommand{Arguments: argv, Timeout: timeout})
+func (d *Docker) commandAs(ctx context.Context, timeout time.Duration, operation string, argv ...string) (ProcessResult, error) {
+	result, err := d.runner.Run(ctx, ProcessCommand{Arguments: argv, Timeout: timeout})
 	if err != nil {
 		return result, &commandError{
 			Operation: operation,

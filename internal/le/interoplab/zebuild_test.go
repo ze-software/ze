@@ -22,19 +22,19 @@ type buildRunner struct {
 
 func newBuildRunner(architecture string) *buildRunner {
 	runner := &buildRunner{architecture: architecture}
-	runner.run = func(command processCommand) (processResult, error) {
+	runner.run = func(command ProcessCommand) (ProcessResult, error) {
 		if len(command.Arguments) > 1 && command.Arguments[1] == "version" {
-			return processResult{Stdout: runner.architecture + "\n"}, nil
+			return ProcessResult{Stdout: runner.architecture + "\n"}, nil
 		}
-		return processResult{}, nil
+		return ProcessResult{}, nil
 	}
 	return runner
 }
 
 // builds answers every cross-compile the runner recorded, dropping the daemon
 // architecture query.
-func (r *buildRunner) builds() []processCommand {
-	out := make([]processCommand, 0, len(r.commands))
+func (r *buildRunner) builds() []ProcessCommand {
+	out := make([]ProcessCommand, 0, len(r.commands))
 	for _, command := range r.commands {
 		if len(command.Arguments) > 0 && command.Arguments[0] == "go" {
 			out = append(out, command)
@@ -44,7 +44,7 @@ func (r *buildRunner) builds() []processCommand {
 }
 
 // tagsOf answers the -tags value of one recorded build command.
-func tagsOf(t *testing.T, command processCommand) string {
+func tagsOf(t *testing.T, command ProcessCommand) string {
 	t.Helper()
 	for index, argument := range command.Arguments {
 		if argument == "-tags" && index+1 < len(command.Arguments) {
@@ -56,7 +56,7 @@ func tagsOf(t *testing.T, command processCommand) string {
 }
 
 // outputOf answers the -o value of one recorded build command.
-func outputOf(t *testing.T, command processCommand) string {
+func outputOf(t *testing.T, command ProcessCommand) string {
 	t.Helper()
 	for index, argument := range command.Arguments {
 		if argument == "-o" && index+1 < len(command.Arguments) {
@@ -177,17 +177,17 @@ func TestPreflightRefusesAnUnreadableDaemonArchitecture(t *testing.T) {
 
 	cases := []struct {
 		name   string
-		answer processResult
+		answer ProcessResult
 		fail   error
 	}{
-		{name: "empty answer", answer: processResult{Stdout: "\n"}},
-		{name: "a diagnostic sentence", answer: processResult{Stdout: "Cannot connect to the Docker daemon\n"}},
-		{name: "a shell fragment", answer: processResult{Stdout: "amd64; rm -rf /\n"}},
-		{name: "the daemon refused", answer: processResult{ExitCode: 1}, fail: errors.New("daemon unreachable")},
+		{name: "empty answer", answer: ProcessResult{Stdout: "\n"}},
+		{name: "a diagnostic sentence", answer: ProcessResult{Stdout: "Cannot connect to the Docker daemon\n"}},
+		{name: "a shell fragment", answer: ProcessResult{Stdout: "amd64; rm -rf /\n"}},
+		{name: "the daemon refused", answer: ProcessResult{ExitCode: 1}, fail: errors.New("daemon unreachable")},
 	}
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
-			runner := &recordingRunner{run: func(processCommand) (processResult, error) {
+			runner := &recordingRunner{run: func(ProcessCommand) (ProcessResult, error) {
 				return one.answer, one.fail
 			}}
 			err := StageBinaries(root, false, binary)(context.Background(), newDocker(runner))
@@ -250,7 +250,7 @@ func TestStagingRefusesAnIncompleteDeclarationAndANonPositiveBound(t *testing.T)
 	if labBuildTimeout <= 0 {
 		t.Fatalf("labBuildTimeout is %s, and a build bound must be positive", labBuildTimeout)
 	}
-	_, err = systemProcessRunner{}.Run(context.Background(), processCommand{Arguments: []string{"true"}})
+	_, err = systemProcessRunner{}.Run(context.Background(), ProcessCommand{Arguments: []string{"true"}})
 	if err == nil {
 		t.Error("a process with a zero bound ran; a non-positive bound must be refused before the command starts")
 	}

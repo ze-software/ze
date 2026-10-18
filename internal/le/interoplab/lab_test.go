@@ -77,15 +77,15 @@ func TestPreCleanRefusesLiveOrUnlabeledSameName(t *testing.T) {
 			message: []string{"lab-peer", "no Ze lab owner label", "_INTEROP_SUFFIX"}},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			runner := &recordingRunner{run: func(command processCommand) (processResult, error) {
+			runner := &recordingRunner{run: func(command ProcessCommand) (ProcessResult, error) {
 				joined := strings.Join(command.Arguments, " ")
 				switch {
 				case strings.HasPrefix(joined, "docker ps -a --no-trunc --filter name="):
-					return processResult{Stdout: fixtureContainerID + "\tlab-peer-other\n" + fixtureContainerID + "\tlab-peer\n"}, nil
+					return ProcessResult{Stdout: fixtureContainerID + "\tlab-peer-other\n" + fixtureContainerID + "\tlab-peer\n"}, nil
 				case strings.HasPrefix(joined, "docker container inspect"):
-					return processResult{Stdout: row.labels + "\n"}, nil
+					return ProcessResult{Stdout: row.labels + "\n"}, nil
 				}
-				return processResult{}, nil
+				return ProcessResult{}, nil
 			}}
 			docker := newDocker(runner)
 			docker.judge.lookup = lookupAnswering(row.lookup)

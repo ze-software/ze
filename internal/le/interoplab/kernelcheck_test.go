@@ -37,18 +37,18 @@ func TestMain(m *testing.M) {
 // scriptedKernel scripts the daemon: `docker info` answers the kernel release and
 // the probe container answers stdout with exit.
 func scriptedKernel(stdout string, exit int, runErr error) *recordingRunner {
-	return &recordingRunner{run: func(command processCommand) (processResult, error) {
+	return &recordingRunner{run: func(command ProcessCommand) (ProcessResult, error) {
 		if slices.Contains(command.Arguments, dockerSecurityOptionsFormat) {
-			return processResult{Stdout: noAppArmor}, nil
+			return ProcessResult{Stdout: noAppArmor}, nil
 		}
 		if slices.Contains(command.Arguments, "info") {
-			return processResult{Stdout: "6.8.0-117-generic\n"}, nil
+			return ProcessResult{Stdout: "6.8.0-117-generic\n"}, nil
 		}
 		// The orphan cleanup's labeled listings find nothing on this daemon.
 		if slices.Contains(command.Arguments, "label="+labelMarker) {
-			return processResult{}, nil
+			return ProcessResult{}, nil
 		}
-		return processResult{Stdout: stdout, ExitCode: exit}, runErr
+		return ProcessResult{Stdout: stdout, ExitCode: exit}, runErr
 	}}
 }
 
@@ -175,19 +175,19 @@ func TestDockerKernelUnknownRefuses(t *testing.T) {
 // command reaches run. A Suite test that is about something else uses it, and
 // the check adds three commands (docker info twice, the probe container) before the
 // first image build.
-func kernelAnswering(run func(processCommand) (processResult, error)) func(processCommand) (processResult, error) {
-	return func(command processCommand) (processResult, error) {
+func kernelAnswering(run func(ProcessCommand) (ProcessResult, error)) func(ProcessCommand) (ProcessResult, error) {
+	return func(command ProcessCommand) (ProcessResult, error) {
 		if slices.Contains(command.Arguments, dockerSecurityOptionsFormat) {
-			return processResult{Stdout: noAppArmor}, nil
+			return ProcessResult{Stdout: noAppArmor}, nil
 		}
 		if slices.Contains(command.Arguments, "{{.KernelVersion}}") {
-			return processResult{Stdout: "6.8.0-117-generic\n"}, nil
+			return ProcessResult{Stdout: "6.8.0-117-generic\n"}, nil
 		}
 		if slices.Contains(command.Arguments, "kernel-capabilities") {
-			return processResult{Stdout: allPresent}, nil
+			return ProcessResult{Stdout: allPresent}, nil
 		}
 		if run == nil {
-			return processResult{}, nil
+			return ProcessResult{}, nil
 		}
 		return run(command)
 	}
@@ -440,14 +440,14 @@ func appArmorKernel(t *testing.T, stdout, profiles string, readable bool) *recor
 	original := appArmorProfiles
 	t.Cleanup(func() { appArmorProfiles = original })
 	appArmorProfiles = func() (string, bool) { return profiles, readable }
-	return &recordingRunner{run: func(command processCommand) (processResult, error) {
+	return &recordingRunner{run: func(command ProcessCommand) (ProcessResult, error) {
 		if slices.Contains(command.Arguments, dockerSecurityOptionsFormat) {
-			return processResult{Stdout: withAppArmor}, nil
+			return ProcessResult{Stdout: withAppArmor}, nil
 		}
 		if slices.Contains(command.Arguments, "info") {
-			return processResult{Stdout: "6.8.0-117-generic\n"}, nil
+			return ProcessResult{Stdout: "6.8.0-117-generic\n"}, nil
 		}
-		return processResult{Stdout: stdout}, nil
+		return ProcessResult{Stdout: stdout}, nil
 	}}
 }
 
@@ -561,16 +561,16 @@ func TestDockerKernelDeniedRowWithoutAppArmorNamesThePolicyGrant(t *testing.T) {
 // PREVENTS: a probe run under the wrong profile because a failed query read as
 // "no AppArmor".
 func TestDockerKernelUnreadableSecurityOptionsRefuse(t *testing.T) {
-	for name, answer := range map[string]processResult{
+	for name, answer := range map[string]ProcessResult{
 		"not JSON": {Stdout: "permission denied\n"},
 		"failed":   {Stdout: "", ExitCode: 1, Stderr: "daemon gone"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			runner := &recordingRunner{run: func(command processCommand) (processResult, error) {
+			runner := &recordingRunner{run: func(command ProcessCommand) (ProcessResult, error) {
 				if slices.Contains(command.Arguments, dockerSecurityOptionsFormat) {
 					return answer, nil
 				}
-				return processResult{Stdout: allPresent}, nil
+				return ProcessResult{Stdout: allPresent}, nil
 			}}
 			if err := checkDockerKernel(context.Background(), newDocker(runner), kernelCheckZe); err == nil {
 				t.Fatal("unreadable security options proceeded")
@@ -614,9 +614,9 @@ const runcAppArmorRefusal = "docker: Error response from daemon: failed to creat
 func TestDockerKernelUnloadedProfileOnAnUnreadableListNamesTheFix(t *testing.T) {
 	runner := appArmorKernel(t, "", "", false)
 	probe := runner.run
-	runner.run = func(command processCommand) (processResult, error) {
+	runner.run = func(command ProcessCommand) (ProcessResult, error) {
 		if slices.Contains(command.Arguments, "run") {
-			return processResult{ExitCode: 127, Stderr: runcAppArmorRefusal}, nil
+			return ProcessResult{ExitCode: 127, Stderr: runcAppArmorRefusal}, nil
 		}
 		return probe(command)
 	}

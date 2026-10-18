@@ -35,11 +35,11 @@ func labDaemon(t *testing.T, options, profiles string) *recordingRunner {
 	original := appArmorProfiles
 	t.Cleanup(func() { appArmorProfiles = original })
 	appArmorProfiles = func() (string, bool) { return profiles, true }
-	return &recordingRunner{run: func(command processCommand) (processResult, error) {
+	return &recordingRunner{run: func(command ProcessCommand) (ProcessResult, error) {
 		if slices.Contains(command.Arguments, dockerSecurityOptionsFormat) {
-			return processResult{Stdout: options}, nil
+			return ProcessResult{Stdout: options}, nil
 		}
-		return processResult{}, nil
+		return ProcessResult{}, nil
 	}}
 }
 
@@ -124,14 +124,14 @@ func TestRunContainerMapsAnUnappliedProfileToItsLoadCommand(t *testing.T) {
 	appArmorProfiles = func() (string, bool) { return "", false }
 	stderr := "docker: Error response from daemon: failed to create task: unable to apply apparmor profile: " +
 		"apparmor failed to apply profile: write /proc/self/attr/apparmor/exec: no such file or directory"
-	runner := &recordingRunner{run: func(command processCommand) (processResult, error) {
+	runner := &recordingRunner{run: func(command ProcessCommand) (ProcessResult, error) {
 		if slices.Contains(command.Arguments, dockerSecurityOptionsFormat) {
-			return processResult{Stdout: withAppArmor}, nil
+			return ProcessResult{Stdout: withAppArmor}, nil
 		}
 		if slices.Contains(command.Arguments, "run") {
-			return processResult{ExitCode: 127, Stderr: stderr}, nil
+			return ProcessResult{ExitCode: 127, Stderr: stderr}, nil
 		}
-		return processResult{}, nil
+		return ProcessResult{}, nil
 	}}
 	err := newDocker(runner).runContainer(t.Context(), labNetwork(), labPeer())
 	if err == nil {
