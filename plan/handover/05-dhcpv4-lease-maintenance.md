@@ -91,3 +91,29 @@ Remaining:
 | A-3, A-4, A-5 | unvalidated (interop) |
 | Gates owed | `./le go lint run` (scoped to the dhcp package), `./le rfc check`, `./le test unit all`, `./le test functional gating` |
 | COMMIT NOT MADE: this update and the Phase 5 work are uncommitted | `./le commit create` refused: `./le arch iface-resolution` flags `net.InterfaceByName(attempt.device)` in `newV4UnicastClient` (`dhcp_v4_exchange_linux.go`), needed for the hardware address `nclient4.NewWithConn` takes. `attempt.device` is already `iface.ResolveDevice` output (`sendV4Extend`), so the fix is an `allowlist` entry in `internal/le/arch/ifaceresolution/ifaceresolution.go` for that file with that reason, or reading the MAC through an iface op. The DHCPv6 session's `dhcp_v6_exchange_linux.go` draws the same finding. Then commit the six files: `dhcp_v4_exchange_linux.go`, `rfc2131_dhcp_lease_maintenance_integration_linux_test.go`, `rfc/short/rfc2131.md`, `docs/features/interfaces.md`, the spec, this handover |
+
+## Update 2026-10-19, Phase 6 landed (third and fourth ze-implement agents)
+
+Every row of the table above is done except the gates. The Phase 5 Go work
+and the DNS agent's per-source resolver work landed in 75cbddde58.
+
+Done and committed with this update:
+
+| Item | Evidence |
+|------|----------|
+| dnsmasq sidecar: `test/interop/Dockerfile.dnsmasq` (alpine dnsmasq 2.90, tini), `dnsmasq.conf`/`dnsmasq-b.conf` selected by `internal/le/interoplab/bgp/prepare.go` on `.20`/`.21` with NET_ADMIN (D-19) | `prepare.go`, `run.go`, `names.go` |
+| `dhcpv4-renew-nak-dnsmasq` and `dhcpv4-rebind-two-servers-dnsmasq` scenarios and their checkers (`check_dhcp.go` lab I/O, `check_dhcp_predicate.go` pure verdicts over dnsmasq's `log-dhcp` text, `register_dhcp.go`) | green 2026-10-18: renew-nak 3m38s, rebind 3m25s, `INTEROP_SCENARIO=<name> ./le --name dhcp4 test integration interop` |
+| Red walk, by overlay with no file changed | `extendV4` ACK branch returning the old lease: renew-nak failed assertion 2 ("ze sent DHCPDISCOVER 2 times while its lease was held, want 1"). Rebinding branch of `v4ExtendAccepts` removed: rebind failed assertion 4 ("peer output is missing 172.30.0.50/24"), assertion 3 passed, hence D-18 |
+| A-3, A-4, A-5 confirmed; D-18, D-19 added; Interop Tests Status filled; Phase 6/6 | the spec |
+| 20 revert discrimination records (16 new tags, 4 re-recorded after `renewV4`/`handleV4Lease` were deleted), RFC2131-2-3 re-judged, `docs/features/rfc-status.md` regenerated | `rfc/discrimination/rfc2131.json`, `rfc/audit/rfc2131.json`. `./le rfc discriminate stem rfc2131` re-run 2026-10-19 after 75cbddde58: no stale record; its unproven list holds only `internal/plugins/dhcpserver` units, outside this spec |
+| Docs | `docs/architecture/testing/interop.md` (Optional sidecars row), `docs/features/interoperability-testing.md` (Target daemons row), `docs/functional-tests.md` (dnsmasq paragraph, see Remaining) |
+
+Remaining:
+
+| Item | Note |
+|------|------|
+| Gates owed, by the owner's ruling left as debt for the main thread | `./le test unit all`, `./le test functional gating`, `./le verify worktree`. A scoped `./le go lint run` over `internal/le/interoplab/bgp` and `internal/plugins/iface/dhcp` is reported in the commit body |
+| `docs/functional-tests.md` dnsmasq paragraph NOT committed | The file also carries another session's in-flight `./le verify` rename hunks (`verify current fast`, `verify list full`), which HEAD's `internal/le/verify/actions.go` does not define, so carrying them would publish false commands. The paragraph lands with that file once the rename commits, or alone if the rename is dropped |
+| Scoped lint 2026-10-19 | `internal/le/interoplab/bgp`: 0 issues. `internal/plugins/iface/dhcp`: the three v4 findings fixed (two godot on RFC-quoted declarations in `dhcp_v4_linux.go`, unparam on `newV4Rig`); the godot, unused and modernize findings left are all in `dhcp_v6_exchange_linux.go` and `dhcp_v6_lease_linux.go`, the DHCPv6 spec's (handover 01) |
+| Package reds walked into (journal rows written) | `TestCheckerPopulationMatchesProducer` and `TestAnnouncementPlanOrderAndTimingFixture` in `internal/le/interoplab/bgp`, both from `43d84584f8` (bgp-vpn-frr) |
+| `/ze-close` | in a fresh agent; the author does not review its own work |
