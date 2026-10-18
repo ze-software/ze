@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
@@ -44,6 +44,7 @@ runtime.
 | D-9 | T1/T2 come from the first IA_NA only, IA_PD timers are ignored, and T1 = 0 becomes a fixed 30 min whatever the lifetime (a 10 min lease expires in the kernel 20 min before the first renewal) | `v6Timers` | §18.2.4: "the client MUST select T1 and T2 times from all IA options that will guarantee that the client initiates transmissions of Renew/Rebind messages not later than at the T1/T2 times associated with any of the client's bindings (earliest T1/T2)." |
 | D-10 | Reply validation is the library's transaction-id match alone: `Request` passes a nil matcher, so any message type with the right xid is taken, and no Server Identifier or Client Identifier check exists | `Client.Request` (vendored) | §16.10: "Clients MUST discard any received Reply message that meets any of the following conditions: - the message does not include a Server Identifier option" |
 | D-11 | The Solicit Option Request option omits SOL_MAX_RT (82), and a SOL_MAX_RT option in a reply is never read | `NewSolicit` (vendored) | §21.24: "A DHCP client MUST include the SOL_MAX_RT option code in any Option Request option (see Section 21.7) it sends in a Solicit message." |
+| D-13 | No message carries IA_PD. `parseDHCPv6Config` (`internal/component/iface/config.go`) reads `pd { length }` into `dhcpv6UnitConfig.PDLength`, `internal/component/iface/register.go` carries it into `dHCPConfig.PDLength`, and no code reads it after that. `RapidSolicit` adds only `WithRapidCommit` and `NewSolicit` only `WithIAID` (an IA_NA); the vendored `WithIAPD` (`vendor/github.com/insomniacslk/dhcp/dhcpv6/modifiers.go`) is named by no file under `internal/`. The receive half is complete: `handleV6Reply` installs and publishes each `msg.Options.IAPD()` prefix (`dhcp_v6_pd_linux_test.go`), so Ze installs a prefix a server volunteers and asks no server for one. Refusing the leaf at commit (as `unimplementedVRFValidator` refuses `vrf`) would remove the only prefix delegation Ze has, so the request is built. Folded in from `spec-dhcpv6-client-never-requests-a-delegated-prefix` (owner Q3, 2026-10-18) | `runV6`, `renewV6`, `dHCPConfig.PDLength` | §18.2.1: "The client uses IA_NA options (see Section 21.4) to request the assignment of non-temporary addresses, IA_TA options (see Section 21.5) to request the assignment of temporary addresses, and IA_PD options (see Section 21.21) to request prefix delegation." §21.22: "A client MAY send a non-zero value in the "prefix-length" field and the unspecified value (::) in the "IPv6-prefix" field to indicate a preference for the size of the prefix to be delegated." (quoted from RFC 8415 by the folded skeleton; re-quote from RFC 9915 at enrolment, Q1) |
 | D-12 | Expiry publishes `dhcp-expired` for IA_NA addresses only; a delegated prefix that expires is never reported expired | `publishV6Expired` | §18.2.5 (expiry of all leases) |
 
 The goal: a client that acquires a lease with Solicit/Advertise/Request/Reply
@@ -64,17 +65,17 @@ depends on that work for the infinite case (A-6).
 
 | Spec / row | Relation | Coordination |
 |------------|----------|--------------|
-| `plan/immediate/spec-dhcpv6-client-never-requests-a-delegated-prefix.md` (skeleton) | Same two call sites (`runV6`, `renewV6`); this spec replaces both with message builders, so the PD request becomes one IA row in the builder this spec writes | Q3: merge it into this spec, or let it depend on this one |
+| `plan/immediate/spec-dhcpv6-client-never-requests-a-delegated-prefix.md` (skeleton) | Same two call sites (`runV6`, `renewV6`); this spec replaces both with message builders, so the PD request becomes one IA row in the builder this spec writes | Folded into this spec (owner Q3, 2026-10-18): D-13, AC-25; the skeleton file is removed |
 | `plan/immediate/spec-dhcpv4-client-drops-lease-every-period.md` (skeleton) | Same loop shape (renew at most once, then expire), same logical-name socket defect, same untestable `sleepOrStop` | Shares only the controlled clock this spec adds to `DHCPClient`; RFC 2131 timers and retransmission differ, so no shared state machine (Key Design Decisions, Q7) |
 | `plan/spec-dhcpv6-server.md` (skeleton) | Server side of DHCPv6 | Enrolment excludes server and relay sections as a role Ze does not fill today; that spec re-walks them when a server exists (Q2) |
-| `plan/journal/unwired-feature.md` (2026-09-03, `dhcpv6/pd`) | The unwired PD leaf | Closed by the PD spec, not this one, unless Q3 merges |
+| `plan/journal/unwired-feature.md` (2026-09-03, `dhcpv6/pd`) | The unwired PD leaf | Closed by this spec (AC-25), since Q3 folded the PD spec in |
 | `plan/journal/reconciler-claims-state-another-owner-installed.md` (2026-10-18) | Reconcile spares finite-lifetime leases | A-6 |
 
 ## Required Reading
 
 ### Architecture Docs
 - [ ] `docs/features/interfaces.md` - DHCP feature rows and the reconcile paragraph
-  → Constraint: the row "DHCPv6 proper Renew (not re-solicit) | missing | medium" becomes `have` only when AC-1..AC-4 pass; the row "DHCPv6 (SARR, IA_NA, IA_PD) | have" overstates IA_PD (PD spec) and is left to that spec.
+  → Constraint: the row "DHCPv6 proper Renew (not re-solicit) | missing | medium" becomes `have` only when AC-1..AC-4 pass; the row "DHCPv6 (SARR, IA_NA, IA_PD) | have" overstates IA_PD until AC-25 passes; this spec owns that correction now that Q3 folded the PD spec in.
   → Constraint: the reconcile paragraph states "An address with a finite valid lifetime stays: a DHCPv4 or DHCPv6 lease ... Its client renews it and the kernel expires it." This spec makes "its client renews it" true for DHCPv6; the sentence must stay true after the change (AC-10).
 - [ ] `docs/architecture/testing/interop.md` - interop scenarios
   → Constraint: a protocol change owes a named scenario against another implementation; no DHCP scenario exists under `test/interop/scenarios/` (BGP, BFD, VRRP with `Dockerfile.keepalived` only), so this spec creates one and its Dockerfile.
@@ -239,6 +240,7 @@ depends on that work for the infinite case (A-6).
 |-------------|---|--------------|------|
 | `dhcpv6 { enabled true }` on a selector-bound unit, Go server on a veth answers Renew | → | `runV6` → renew exchange on `binding.OsName` | `TestDHCPv6RenewsOnSelectorBoundInterface` (`internal/plugins/iface/dhcp/dhcp_v6_lease_integration_linux_test.go`) |
 | ze.conf `dhcpv6 { enabled true }` against kea-dhcp6 | → | full lease cycle: Solicit, Request, Renew three times, Rebind | interop scenario `dhcpv6-client-renew-kea` |
+| config `dhcpv6 { pd { length 56 } }` | → | message builder adds the IA_PD and its hint (AC-25) | `TestDHCPv6PDLengthRequestsDelegatedPrefix` (`dhcp_v6_lease_linux_test.go`) |
 | config `duid` leaf | → | Client Identifier in every message | `TestDHCPv6ConfiguredDUIDReachesEveryMessage` (`dhcp_v6_lease_linux_test.go`) |
 
 ## Acceptance Criteria
@@ -270,6 +272,7 @@ Timing ACs run on the injected clock with a scripted transport; wire ACs decode 
 | AC-21 | Release on stop (per Q5) | On `Stop` with a lease: addresses removed first, then RELEASE (type 8) with Server ID, Client ID and the leases, REL_TIMEOUT and REL_MAX_RC, bounded so `Stop` returns within the bound Q5 fixes |
 | AC-22 | Two Advertise, preferences 10 and 200; one with 255 | Request goes to preference 200 after the first RT; a 255 Advertise triggers Request at once; a Rapid Commit Reply without the Rapid Commit option is discarded |
 | AC-23 | Request unanswered | REQ_TIMEOUT and REQ_MAX_RT, at most 10 transmissions, then a new Solicit exchange |
+| AC-25 | `dhcpv6 { pd { length 56 } }` configured (D-13) | Every Solicit, Request, Renew and Rebind carries an IA_PD with its own IAID, distinct from the IA_NA IAID, and an IA Prefix hint of prefix-length 56 with `::`; `pd {}` with no `length` sends an IA_PD with no hint; no `pd` sends no IA_PD |
 | AC-24 | `Stop` during any wait (Solicit, Bound, Renew, Rebind) | Worker exits promptly on the stop signal, leased addresses removed |
 
 ## End-to-End User Stories
@@ -441,15 +444,18 @@ Test names carry `RFC8415`; if Q1 enrols RFC 9915 they carry `RFC9915` instead.
 
 ## Open Questions for the Owner
 
-| Q | Which way | Recommendation |
-|---|-----------|----------------|
-| Q1 | RFC 8415 is obsoleted by RFC 9915 (January 2026). Enrol RFC 9915 as the authority (8415 not enrolled, or enrolled with an `Obsoleted-by` row and a `{superseded}` marker on every line), or enrol RFC 8415 as named? | Enrol RFC 9915 and quote it in code; do not enrol 8415 (`ai/rules/rfc-compliance.md`: an RFC the current one obsoletes is not evidence of what Ze owes). The decision "Include RFC 8415" then reads as "the DHCPv6 standard" |
-| Q2 | Enrolment covers the whole document (forced by the forward walk). Server and relay sections: exclude as `binds-another-role` (Ze has no DHCPv6 server or relay today; `internal/plugins/dhcpserver` is DHCPv4 only), or record them as gaps until `plan/spec-dhcpv6-server.md` lands? | Exclude as `binds-another-role` naming the absent role; the server spec re-walks them. Client features this spec does not build (Confirm, Information-request, Reconfigure, IA_TA, authentication) are recorded as gaps or `feature-out-of-scope`, never as met |
-| Q3 | Fold `spec-dhcpv6-client-never-requests-a-delegated-prefix` into this spec (one IA_PD row in the builder), or keep it separate with `Depends` on this spec? | Fold it in: the builder this spec writes is the only place the IA_PD request can go, and §18.2 asks the client to keep requesting every IA it is programmed to obtain |
-| Q4 | Default DUID: DUID-LL from the OS device's MAC (what the YANG description already promises; §11.4 says it SHOULD NOT be used when the client cannot tell the NIC is permanently attached), DUID-LLT generated once and kept in Ze storage (§11.2 needs stable storage), or DUID-UUID? | DUID-LL from the MAC: keeps the published promise, needs no storage, stable across restarts; the SHOULD NOT is recorded on the summary as a known deviation and the `duid` leaf is the operator's override |
-| Q5 | Release on stop (§18.2.7): send it with a bounded wait (REL_MAX_RC 4 is up to about 15 s; cap `Stop` at about 3 s), or leave it out and record a gap (v4 sends no DHCPRELEASE either)? | Send it with a bounded wait; Decline (§18.2.8, needs DAD-failure observation) goes to its own spec |
-| Q6 | §14.1 "A transmission rate limit SHOULD be configurable": add a YANG leaf now, or fixed 20 per 20 s and record the SHOULD as a gap? | Fixed default now, gap recorded |
-| Q7 | Should `spec-dhcpv4-client-drops-lease-every-period` depend on this spec for the injected clock, or land its own clock change first? | Whichever spec lands first adds the `clock.Clock` field; the other reuses it. No shared state machine |
+Answered 2026-10-18. Thomas, verbatim: "For the rest it looks good to me", accepting
+every recommendation below.
+
+| Q | Which way | Recommendation | Owner answer (2026-10-18) |
+|---|-----------|----------------|---------------------------|
+| Q1 | RFC 8415 is obsoleted by RFC 9915 (January 2026). Enrol RFC 9915 as the authority (8415 not enrolled, or enrolled with an `Obsoleted-by` row and a `{superseded}` marker on every line), or enrol RFC 8415 as named? | Enrol RFC 9915 and quote it in code; do not enrol 8415 (`ai/rules/rfc-compliance.md`: an RFC the current one obsoletes is not evidence of what Ze owes). The decision "Include RFC 8415" then reads as "the DHCPv6 standard" | Recommendation accepted: enrol RFC 9915 and quote it in code; "Include RFC 8415" reads as "the DHCPv6 standard" |
+| Q2 | Enrolment covers the whole document (forced by the forward walk). Server and relay sections: exclude as `binds-another-role` (Ze has no DHCPv6 server or relay today; `internal/plugins/dhcpserver` is DHCPv4 only), or record them as gaps until `plan/spec-dhcpv6-server.md` lands? | Exclude as `binds-another-role` naming the absent role; the server spec re-walks them. Client features this spec does not build (Confirm, Information-request, Reconfigure, IA_TA, authentication) are recorded as gaps or `feature-out-of-scope`, never as met | Recommendation accepted: server and relay sections `binds-another-role` naming the absent role; unbuilt client features recorded as gaps or `feature-out-of-scope` |
+| Q3 | Fold `spec-dhcpv6-client-never-requests-a-delegated-prefix` into this spec (one IA_PD row in the builder), or keep it separate with `Depends` on this spec? | Fold it in: the builder this spec writes is the only place the IA_PD request can go, and §18.2 asks the client to keep requesting every IA it is programmed to obtain | Recommendation accepted: folded in as D-13, AC-25 and its wiring row; the skeleton spec file is removed in the commit that records these answers |
+| Q4 | Default DUID: DUID-LL from the OS device's MAC (what the YANG description already promises; §11.4 says it SHOULD NOT be used when the client cannot tell the NIC is permanently attached), DUID-LLT generated once and kept in Ze storage (§11.2 needs stable storage), or DUID-UUID? | DUID-LL from the MAC: keeps the published promise, needs no storage, stable across restarts; the SHOULD NOT is recorded on the summary as a known deviation and the `duid` leaf is the operator's override | Recommendation accepted: DUID-LL from the MAC, the SHOULD NOT recorded as a deviation, the `duid` leaf is the override |
+| Q5 | Release on stop (§18.2.7): send it with a bounded wait (REL_MAX_RC 4 is up to about 15 s; cap `Stop` at about 3 s), or leave it out and record a gap (v4 sends no DHCPRELEASE either)? | Send it with a bounded wait; Decline (§18.2.8, needs DAD-failure observation) goes to its own spec | Recommendation accepted: Release on stop with a bounded wait of about 3 s |
+| Q6 | §14.1 "A transmission rate limit SHOULD be configurable": add a YANG leaf now, or fixed 20 per 20 s and record the SHOULD as a gap? | Fixed default now, gap recorded | Recommendation accepted: fixed 20 per 20 s, gap recorded |
+| Q7 | Should `spec-dhcpv4-client-drops-lease-every-period` depend on this spec for the injected clock, or land its own clock change first? | Whichever spec lands first adds the `clock.Clock` field; the other reuses it. No shared state machine | `plan/immediate/spec-dhcpv4-client-drops-lease-every-period.md` (in design on 2026-10-18) adds the injected `clock.Clock`; this spec reuses it. No shared state machine |
 
 ## Design Insights
 

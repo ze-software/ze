@@ -13,6 +13,11 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
+**Folded, 2026-10-18.** Owner answer Q3 ("For the rest it looks good to me")
+folded this spec into `plan/immediate/spec-dhcpv6-client-lease-maintenance.md`
+as D-13 and AC-25. Work it there; this file is removed once the commit gate
+accepts the removal of a folded spec.
+
 **What the operator is promised.** `internal/component/iface/yang/ze-iface-conf.yang`
 declares `container pd` under `interface-unit/unit/ipv6/dhcpv6` with the
 description "Prefix delegation", and one leaf inside it, `length`, described as
