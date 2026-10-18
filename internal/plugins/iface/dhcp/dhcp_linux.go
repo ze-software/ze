@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/clock"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
@@ -24,14 +25,13 @@ import (
 
 // dHCPConfig holds optional DHCP client parameters parsed from config.
 type dHCPConfig struct {
-	Hostname             string // DHCPv4 option 12
-	ClientID             string // DHCPv4 option 61
-	PDRequested          bool   // DHCPv6 pd container configured: every message carries an IA_PD
-	PDLength             int    // DHCPv6 prefix-length hint of that IA_PD (0 = no hint, server decides)
-	DUID                 string // DHCPv6 DUID override
-	ResolvConfPath       string // path for DNS resolv.conf (empty = disabled)
-	HasStaticNameServers bool   // when true, DHCP does not write resolv.conf (static servers take priority)
-	RouteMetric          int    // metric for DHCP-installed default routes (0 = kernel default)
+	Hostname    string            // DHCPv4 option 12
+	ClientID    string            // DHCPv4 option 61
+	PDRequested bool              // DHCPv6 pd container configured: every message carries an IA_PD
+	PDLength    int               // DHCPv6 prefix-length hint of that IA_PD (0 = no hint, server decides)
+	DUID        string            // DHCPv6 DUID override
+	Resolvers   *system.Resolvers // resolv.conf writer the leases' DNS servers go to (nil = the process one)
+	RouteMetric int               // metric for DHCP-installed default routes (0 = kernel default)
 }
 
 // DHCPClient manages DHCP on a single interface unit.

@@ -3589,8 +3589,10 @@ The cache respects DNS response TTLs: entries expire at `min(response TTL, cache
 Records with TTL=0 from the server are not cached (per RFC 1035).
 
 When static name servers are configured, DHCP-discovered DNS servers do not
-overwrite resolv.conf. When no static servers are configured, DHCP writes DNS
-to resolv-conf-path as before.
+overwrite resolv.conf. When no static servers are configured, resolv-conf-path
+lists the servers of every DHCP lease, DHCPv4 before DHCPv6, and a lease whose
+renewal omits DNS, or that ends, takes only its own servers out
+(`docs/features/dns-resolver.md`, "DHCP interaction").
 
 The internal resolver never falls back to a public recursive resolver. If no
 static name server exists and the configured resolv.conf path is missing or

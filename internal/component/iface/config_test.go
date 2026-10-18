@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/config"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
 	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -4859,4 +4860,53 @@ func TestTunnelDefaultsRefuseAnUnresolvedSchema(t *testing.T) {
 	}, tunnelSchema{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), tunnelEncapSchemaPath)
+}
+
+// TestDHCPv6DUIDPatternRefusesMalformed parses a unit's dhcpv6 duid through
+// the YANG schema, the path a commit takes.
+//
+// VALIDATES: AC-20 -- a duid that is not colon-separated hex octets, or whose
+// identifier is shorter than 1 or longer than 128 octets after the 2-octet
+// type code (RFC 9915 Section 11.1), is refused, and the refusal names the
+// expected form; the shortest and longest valid DUIDs parse.
+// PREVENTS: a malformed duid accepted at commit and refused only when the
+// DHCPv6 worker starts, with the client then sending its default DUID.
+func TestDHCPv6DUIDPatternRefusesMalformed(t *testing.T) {
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+	octets := func(n int) string {
+		var b textbuf.Buffer
+		b.Reset()
+		for i := range n {
+			if i > 0 {
+				b.Byte(':')
+			}
+			b.Str("ab")
+		}
+		return b.String()
+	}
+	parse := func(duid string) error {
+		_, err := config.NewParser(schema).Parse(`interface {
+	ethernet eth0 {
+		unit 0 {
+			ipv6 {
+				dhcpv6 {
+					duid "` + duid + `";
+				}
+			}
+		}
+	}
+}
+`)
+		return err
+	}
+	for _, valid := range []string{octets(3), octets(130), "00:03:00:01:02:00:00:00:00:01", "AA:bb:Cc"} {
+		assert.NoError(t, parse(valid), "duid %q", valid)
+	}
+	for _, malformed := range []string{"", "00:01", octets(131), "0001aabb", "00:01:zz", "00:01:a", "00-01-aa", "00:01:aa:"} {
+		err := parse(malformed)
+		if assert.Error(t, err, "duid %q accepted", malformed) {
+			assert.Contains(t, err.Error(), "pattern", "duid %q", malformed)
+		}
+	}
 }

@@ -98,7 +98,6 @@ var fileAllowlist = map[string]string{
 	"cmd/ze/hub/service_ssh.go": "ephemeral ssh listen-address handoff file",
 	"cmd/ze/hub/main.go":        "test-readiness signal file (path from env)",
 	// --- artifacts produced for external consumers (not our state) ---
-	"internal/plugins/iface/dhcp/resolv_linux.go":             "system resolv.conf for libc/other daemons",
 	"internal/plugins/systemd/main.go":                        "systemd unit file consumed by systemd",
 	"internal/plugins/local/cmd_install.go":                   "installs the ze binary + config tree into a prefix",
 	"internal/plugins/provision/staging.go":                   "netboot kernel/initrd/iPXE artifacts for PXE clients",

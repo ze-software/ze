@@ -565,14 +565,9 @@ func (c *DHCPClient) installV4Lease(w *v4State, lease *v4Lease, topic string) bo
 	payload := c.v4Payload(lease.ack, lease.duration)
 	c.applyV4Route(&w.route, payload.Router)
 
-	// Write DNS servers from DHCP to resolv.conf (RFC 2132 Section 3.8).
-	// Static name-servers (system { name-server }) take priority.
-	if len(payload.DNSAll) > 0 && c.config.ResolvConfPath != "" && !c.config.HasStaticNameServers {
-		if err := writeResolvConfTo(c.config.ResolvConfPath, payload.DNSAll); err != nil {
-			logger.Warn("iface dhcp v4: resolv.conf write failed",
-				"iface", c.ifaceName, "path", c.config.ResolvConfPath, "err", err)
-		}
-	}
+	// RFC 2132 Section 3.8: the ACK's servers replace this lease's servers
+	// in resolv.conf; an ACK with none withdraws them.
+	c.setV4Resolvers(payload.DNSAll)
 
 	c.publishDHCP(topic, payload)
 
@@ -649,12 +644,8 @@ func (c *DHCPClient) teardownV4(w *v4State) {
 	}
 	c.removeV4Route(&w.route)
 	c.settleV4Address("")
-
-	// resolv.conf is NOT cleared on individual lease expiry. When multiple
-	// interfaces have DHCP enabled, each writes DNS on acquire/renew (last
-	// writer wins). Clearing here would remove DNS that another active
-	// lease provided. Stale DNS is better than no DNS; the next lease
-	// acquisition overwrites with fresh servers.
+	// The lease's DNS servers leave resolv.conf; other sources' stay.
+	c.setV4Resolvers(nil)
 }
 
 // claimV4Address registers cidr as this client's lease. The address it

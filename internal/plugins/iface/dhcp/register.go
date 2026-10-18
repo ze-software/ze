@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/clock"
@@ -45,16 +46,15 @@ func init() {
 // newDHCPClientFromFactory creates and starts a DHCPClient, returning it as
 // a dhcpStopper interface. This bridges the iface package's factory callback
 // to the ifacedhcp package's concrete type.
-func newDHCPClientFromFactory(ifaceName, unit string, eb ze.EventBus, v4, v6 bool, hostname, clientID string, pdRequested bool, pdLength int, duid, resolvConfPath string, hasStaticNameServers bool, routeMetric int) (iface.DHCPStopper, error) {
+func newDHCPClientFromFactory(ifaceName, unit string, eb ze.EventBus, v4, v6 bool, hostname, clientID string, pdRequested bool, pdLength int, duid string, routeMetric int) (iface.DHCPStopper, error) {
 	cfg := dHCPConfig{
-		Hostname:             hostname,
-		ClientID:             clientID,
-		PDRequested:          pdRequested,
-		PDLength:             pdLength,
-		DUID:                 duid,
-		ResolvConfPath:       resolvConfPath,
-		HasStaticNameServers: hasStaticNameServers,
-		RouteMetric:          routeMetric,
+		Hostname:    hostname,
+		ClientID:    clientID,
+		PDRequested: pdRequested,
+		PDLength:    pdLength,
+		DUID:        duid,
+		Resolvers:   system.ProcessResolvers(),
+		RouteMetric: routeMetric,
 	}
 	client, err := newDHCPClient(ifaceName, unit, eb, v4, v6, cfg, clock.RealClock{})
 	if err != nil {

@@ -66,7 +66,7 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | | IPv6 default route from RA with configurable metric | have | |
 | | Routes carry `proto 253` (`ze-iface`), so a teardown removes only its own | have | <!-- source: internal/plugins/iface/netlink/manage_linux.go -- AddRoute stamps rtm_protocol, RemoveRoute matches on it --> |
 | | Learned default routes rank at metric 254, clear of a static route's metric | have | <!-- source: internal/component/iface/config.go -- defaultLearnedRouteMetric --> |
-| | DNS from DHCP to `/tmp/resolv.conf` | have | |
+| | DNS from DHCP to `/tmp/resolv.conf`, tracked per lease: a renewal without DNS or a lease end removes that lease's servers only | have | <!-- source: internal/component/config/system/resolv.go -- Resolvers --> |
 | | Hostname in DHCPv4 (option 12) | have | |
 | | Client-ID in DHCPv4 (option 61) | have | |
 | | DHCPv4 flags bits 1 to 15 sent as zero, even when the server's OFFER or ACK sets them (RFC 2131 section 2) | have | |
@@ -367,11 +367,14 @@ every message carries an IA_PD, with a prefix-length hint when `pd { length }` i
 set. Every message carries one stable DUID: the `duid` leaf when set, otherwise a
 DUID-LL built from the device MAC. A DUID-LL is a known deviation from RFC 9915
 Section 11.4, which advises against it when the client cannot tell the interface is
-permanently attached; set `duid` where that matters. Ze changed from a fresh
+permanently attached; set `duid` where that matters. A `duid` is colon-separated
+hex octets, the 2-octet type code then 1 to 128 octets of identifier (RFC 9915
+Section 11.1), and a commit refuses any other form. Ze changed from a fresh
 time-stamped DUID per Solicit to this stable one, so a server hands out one new
 binding once after the upgrade. On stop the client removes its addresses, then sends
 a Release and waits at most 3 s for the answer.
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_linux.go -- runV6, v6Worker.maintain, v6Worker.extend, v6Worker.shutdown, v6Worker.identify -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf duid pattern -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go -- v6Worker.runExchange, v6Worker.admitTransmission, v6AdvertiseCollector, v6Worker.emptyIAPD -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_lease_linux.go -- v6Lease.apply, v6Lease.renewTimes -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- installV4Lease, v4AddressLifetime, teardownV4 -->

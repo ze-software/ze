@@ -303,6 +303,7 @@ func (w *v6Worker) maintain() {
 		w.expireDue()
 		if w.lease.empty() {
 			w.lease = nil
+			w.c.setV6Resolvers(nil)
 			return
 		}
 		t1, t2 := w.lease.renewTimes()
@@ -432,7 +433,7 @@ func (w *v6Worker) applyExtension(reply *dhcpv6.Message, at time.Time) v6End {
 }
 
 // effect installs, refreshes and removes what a Reply changed, publishes the
-// events, and writes the DNS servers.
+// events, and records the DNS servers.
 func (w *v6Worker) effect(applied v6Applied, topic string) {
 	logger := loggerPtr.Load()
 	if applied.discarded > 0 {
@@ -460,7 +461,9 @@ func (w *v6Worker) effect(applied v6Applied, topic string) {
 		}
 		w.c.publishDHCP(topic, w.payload(b, int(b.valid/time.Second)))
 	}
-	w.writeDNS()
+	// RFC 9915 Section 18.2.10.5: the Reply's servers replace the lease's;
+	// a Reply without the option withdraws them.
+	w.c.setV6Resolvers(w.lease.dns)
 }
 
 // v6Seconds is a lifetime as the kernel takes it: 0xffffffff is infinite.
@@ -479,24 +482,6 @@ func (w *v6Worker) payload(b v6Binding, leaseTime int) iface.DHCPPayload {
 		p.DNSAll = append([]string(nil), w.lease.dns...)
 	}
 	return p
-}
-
-// writeDNS writes the lease's DNS servers to resolv.conf unless static
-// name-servers are configured.
-func (w *v6Worker) writeDNS() {
-	if len(w.lease.dns) == 0 {
-		return
-	}
-	if w.c.config.ResolvConfPath == "" {
-		return
-	}
-	if w.c.config.HasStaticNameServers {
-		return
-	}
-	if err := writeResolvConfTo(w.c.config.ResolvConfPath, w.lease.dns); err != nil {
-		loggerPtr.Load().Warn("iface dhcp v6: resolv.conf write failed",
-			"iface", w.c.ifaceName, "path", w.c.config.ResolvConfPath, "err", err)
-	}
 }
 
 // registerLeased declares the lease's live addresses to the address
@@ -561,6 +546,7 @@ func (w *v6Worker) shutdown() {
 		}
 	}
 	w.lease = nil
+	w.c.setV6Resolvers(nil)
 	if err := w.registerLeased(); err != nil {
 		loggerPtr.Load().Debug("iface dhcp v6: leased-address registration failed", "iface", w.c.ifaceName, "err", err)
 	}

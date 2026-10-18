@@ -170,11 +170,12 @@ func (l *v6Lease) apply(m *dhcpv6.Message, received time.Time, iaidNA, iaidPD [4
 			l.timers[kind].retryAt = received.Add(v6RenTimeout)
 		}
 	}
-	if dns := m.Options.DNS(); len(dns) > 0 {
-		l.dns = l.dns[:0]
-		for _, s := range dns {
-			l.dns = append(l.dns, s.String())
-		}
+	// RFC 9915 Section 18.2.10.5: "the client SHOULD stop using the
+	// previously received configuration information": a Reply without the
+	// DNS Recursive Name Server option leaves the lease with no servers.
+	l.dns = l.dns[:0]
+	for _, s := range m.Options.DNS() {
+		l.dns = append(l.dns, s.String())
 	}
 	return out
 }

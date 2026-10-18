@@ -1,7 +1,7 @@
 // Design: docs/features/ai-first.md -- the readiness checks this component owns
 // Overview: register.go -- the init() that installs every entry below
 // Related: system.go -- ExtractSystemConfig, the parse of the leaves these checks read
-// Related: resolv_linux.go -- WriteResolvConf, the writer of the path the resolv.conf check judges
+// Related: resolv.go -- Resolvers, the writer of the path the resolv.conf check judges
 // Related: update.go, backend_gokrazy.go -- the update check and the platform that ignores its config
 //
 // These four checks lived in internal/component/doctor and the runner reached

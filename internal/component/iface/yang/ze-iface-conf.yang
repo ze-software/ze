@@ -499,10 +499,14 @@ module ze-iface-conf {
                     }
 
                     leaf duid {
-                        type string;
+                        type string {
+                            pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){2,129}';
+                        }
                         description "When the leaf is omitted, ze generates a DUID-LL from the interface
                                      MAC. Set the leaf when the DHCP server binds a lease to a specific
-                                     DUID.";
+                                     DUID. Write it as colon-separated hex octets, such as
+                                     00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to
+                                     128 octets of identifier (RFC 9915 Section 11.1).";
                         ze:help "Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).";
                     }
                 }

@@ -447,9 +447,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	// Phase 1b: Schema evolution. Apply registered evolutions newer than the
-	// config's stamped release, then re-stamp and write back.
+	// config's stamped release, then re-stamp and write back. The release is the
+	// stamp of the content LoadConfig parsed: after a recovery, data holds the
+	// rollback re-stamped with this binary's release, and scanning it would skip
+	// every evolution the rollback is owed.
 	evolveLogger := slogutil.Logger("hub.evolve")
-	outcome, evolveErr := applyEvolutions(evolveLogger, store, configPath, data, loadResult.Tree, zeconfig.ScanStampRelease(data))
+	outcome, evolveErr := applyEvolutions(evolveLogger, store, configPath, data, loadResult.Tree, loadResult.StampRelease)
 	if evolveErr != nil {
 		fmt.Fprintf(os.Stderr, "error: schema evolution failed: %v\n", evolveErr)
 		return 1
@@ -1053,7 +1056,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	// Create shared resolvers for web UI, looking glass, and MCP.
 	sc := system.ExtractSystemConfig(loadResult.Tree)
-	iface.SetDHCPSystemConfig(sc.ResolvConfPath, len(sc.NameServers) > 0)
 	resolvers := newResolvers(&sc)
 	defer resolvers.Close()
 	resolvecmd.SetResolvers(resolvers)
@@ -1065,10 +1067,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		command.SetOriginResolver(cymruOriginAdapter{resolvers.Cymru})
 	}
 
-	if len(sc.NameServers) > 0 {
-		if err := system.WriteResolvConf(sc.ResolvConfPath, sc.NameServers); err != nil {
-			slogutil.Logger("hub").Warn("resolv.conf write failed", "path", sc.ResolvConfPath, "err", err)
-		}
+	if err := system.ProcessResolvers().Configure(sc.ResolvConfPath, sc.NameServers); err != nil {
+		slogutil.Logger("hub").Warn("resolv.conf write failed", "path", sc.ResolvConfPath, "err", err)
 	}
 
 	applyHostTuning(&sc)

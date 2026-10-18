@@ -34,12 +34,13 @@ the phase agent at its 100-call budget.
   `TestDHCPv6LeaseBindingsCapped`. Names use `RFC9915`, carry NO
   `RFC requirement:` tags (RFC 9915 not enrolled yet).
 
-## Continuation 2026-10-18 (second phase agent): written, green, NOT committed
+## Continuation 2026-10-18 (second phase agent): written, green, committed
 
-Commit blocked: `cmd/ze/hub/main.go` carries another session's hunk
-(`loadResult.StampRelease` in `runYANGConfig`, Phase 1b) whose field lives in
-the uncommitted `internal/component/config/loader.go`, so the file cannot land
-without it. Commit the list below once that hunk is in HEAD.
+Committed in the change that carries this line ("feat(dhcp): resolv.conf
+tracks DNS servers per lease source; DUID pattern"). The earlier block,
+`cmd/ze/hub/main.go` carrying another session's `loadResult.StampRelease`
+hunk, lifted once `LoadResult.StampRelease` reached HEAD
+(`internal/component/config/loader.go`); that hunk rode along.
 
 - A-7 (owner, verbatim: "yes, track DNS servers per source"; spec Q8, Key
   Design Decisions, A-7 confirmed). `internal/component/config/system/resolv.go`
