@@ -80,7 +80,7 @@ func invokePluginDecodeRequest(pluginName, request string) map[string]any {
 		return nil
 	}
 
-	// Build plugin command - pluginName comes from lazy registry maps (capabilityMap, familyMap)
+	// Build plugin command - pluginName comes from the plugin registry (capabilityMap, lookupFamilyPlugin)
 	args := []string{zeCmdPlugin, pluginName, "--decode"}
 
 	// Create command with timeout context for subprocess decode operation.
@@ -445,12 +445,14 @@ func validateDecodeFamily(family string) error {
 	return nil
 }
 
-// lookupFamilyPlugin returns the plugin name for a family.
-// For families in familyMap(), the plugin is auto-invoked without requiring --plugin flag.
-// Family string is normalized to lowercase for lookup.
+// lookupFamilyPlugin returns the plugin name for a family, or "" when no
+// plugin claims it. A claimed family's plugin is auto-invoked without requiring
+// the --plugin flag. Family string is normalized to lowercase for lookup.
+//
+// It asks the registry on every call rather than caching a copy: a cache taken
+// on first use holds whatever the registry held at that moment, so a test that
+// registers a plugin and restores the registry afterwards left its claim in
+// the copy for every later lookup in the process.
 func lookupFamilyPlugin(family string) string {
-	if pluginName, ok := familyMap()[strings.ToLower(family)]; ok {
-		return pluginName
-	}
-	return ""
+	return registry.PluginForFamily(strings.ToLower(family))
 }

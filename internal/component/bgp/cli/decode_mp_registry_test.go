@@ -159,3 +159,42 @@ func TestParseNLRIByFamilyReadsUnclaimedFamilyAsPrefixes(t *testing.T) {
 		t.Errorf("want prefix 10.0.0.0/24, got %q", prefix)
 	}
 }
+
+// TestLookupFamilyPluginFollowsARestoredRegistry proves lookupFamilyPlugin
+// answers from the registry as it stands, both while a test claims a family
+// and after the test restores the registry.
+//
+// Method: claim a free family with a synthetic plugin, expect the lookup to
+// name it, restore the snapshot, expect the lookup to name nothing. A copy of
+// the family map cached on first use fails one of the two: taken before the
+// claim it misses the plugin, taken during it keeps the plugin after Restore.
+//
+// VALIDATES: a registration a test removes is gone from the decode lookup.
+// PREVENTS: a test's synthetic claim outliving it, so every later test in the
+// process reads that family as owned by a plugin that no longer exists.
+func TestLookupFamilyPluginFollowsARestoredRegistry(t *testing.T) {
+	claimable := unclaimedFamily(t)
+
+	snapshot := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snapshot) })
+
+	const name = "test-lookup-restore"
+	err := registry.Register(registry.Registration{
+		Name:        name,
+		Description: "synthetic NLRI plugin proving the lookup follows Restore",
+		Families:    []string{claimable},
+		RunEngine:   func(net.Conn) int { return 0 },
+		CLIHandler:  func([]string) int { return 0 },
+	})
+	if err != nil {
+		t.Fatalf("register synthetic plugin: %v", err)
+	}
+	if got := lookupFamilyPlugin(claimable); got != name {
+		t.Fatalf("while claimed: lookupFamilyPlugin(%q) = %q, want %q", claimable, got, name)
+	}
+
+	registry.Restore(snapshot)
+	if got := lookupFamilyPlugin(claimable); got != "" {
+		t.Errorf("after Restore: lookupFamilyPlugin(%q) = %q, want no plugin", claimable, got)
+	}
+}

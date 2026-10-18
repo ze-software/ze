@@ -21,10 +21,6 @@ var errDataTooShortForHeader = errors.New("data too short for header")
 // Lazy: all plugin init() functions must complete before first decode call.
 var capabilityMap = sync.OnceValue(registry.CapabilityMap)
 
-// familyMap returns address family to plugin name mapping.
-// Lazy: all plugin init() functions must complete before first decode call.
-var familyMap = sync.OnceValue(registry.FamilyMap)
-
 // decodeOpenMessage decodes a BGP OPEN message and returns Ze format.
 func decodeOpenMessage(data []byte, hasHeader bool) (map[string]any, error) {
 	body := data
