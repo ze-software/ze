@@ -22,6 +22,8 @@ import (
 
 	"context"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -686,13 +688,16 @@ func TestTheTestTempBaseIsShortAndUnderHome(t *testing.T) {
 // which fails every t.TempDir() call in the run, and a chown remedy offered for
 // a full or read-only disk.
 func TestTheTestTempDirIsMadePrivateAndWritable(t *testing.T) {
-	// The probe path is base + "/probe-" + at least one digit, so a base of
-	// 4090 bytes exists while every probe under it passes PATH_MAX (4096).
+	// The probe path is base + "/probe-" + at least one digit, so a base six
+	// bytes short of the platform's PATH_MAX exists while every probe under it
+	// passes PATH_MAX. PATH_MAX is 4096 on Linux and 1024 on Darwin, so the
+	// length comes from the platform rather than from a Linux constant.
+	baseLen := unix.PathMax - 6
 	deep := t.TempDir()
-	for len(deep) < 4090-201 {
+	for len(deep) < baseLen-201 {
 		deep = filepath.Join(deep, strings.Repeat("d", 200))
 	}
-	deep = filepath.Join(deep, strings.Repeat("e", 4090-len(deep)-1))
+	deep = filepath.Join(deep, strings.Repeat("e", baseLen-len(deep)-1))
 	err := makeTestTempDir(deep)
 	if err == nil {
 		t.Fatalf("makeTestTempDir(%d-byte base) answered no error", len(deep))

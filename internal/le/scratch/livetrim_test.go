@@ -331,6 +331,7 @@ func TestTrimSkipsLivenessWithoutSessions(t *testing.T) {
 	// A fresh HOME with no .zt, and longer than 19 bytes, so the test-temp row is a
 	// skip and nothing of the user's is trimmed.
 	t.Setenv("HOME", t.TempDir())
+	telemetryOffUnderHome(t)
 	report, _ := trimStoresScanning(root, storeTrimOn, func() ([]session.Process, error) { return noCLI, nil })
 	if got := rowNamed(t, report.Stores, checkoutCache); got.Skipped != "" || got.SizeBefore == 0 {
 		t.Errorf("checkout cache row = %+v, want it measured: the caches trim without a session", got)
@@ -344,6 +345,33 @@ func TestTrimSkipsLivenessWithoutSessions(t *testing.T) {
 		if !exists(t, path) {
 			t.Errorf("%s was removed with no session process visible", path)
 		}
+	}
+}
+
+// telemetryOffUnderHome turns Go telemetry off for the HOME the test set.
+//
+// trimStoresScanning runs `go env GOCACHE`, and the go command keeps its
+// telemetry under os.UserConfigDir, which follows HOME. In the default local
+// mode it forks a detached upload child (x/telemetry start.go, parent) that
+// outlives `go env` and keeps writing there. t.TempDir's cleanup then races
+// that child and fails with "directory not empty", which a loaded host makes
+// likely. With the mode file reading off, the go command writes nothing and
+// starts no child, so the HOME stays the test's own. XDG_CONFIG_HOME is
+// cleared first so that on Linux the mode file lands under the test HOME and
+// never in the developer's own config.
+func telemetryOffUnderHome(t *testing.T) {
+	t.Helper()
+	t.Setenv("XDG_CONFIG_HOME", "")
+	config, err := os.UserConfigDir()
+	if err != nil {
+		t.Fatalf("resolve the config dir under the test HOME: %v", err)
+	}
+	dir := filepath.Join(config, "go", "telemetry")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "mode"), []byte("off"), 0o600); err != nil {
+		t.Fatal(err)
 	}
 }
 
