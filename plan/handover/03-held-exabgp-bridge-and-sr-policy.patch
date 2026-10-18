@@ -1,0 +1,131 @@
+diff --git a/internal/exabgp/bridge/bridge_command.go b/internal/exabgp/bridge/bridge_command.go
+index fcc4d4bb79..c2eb798ebb 100644
+--- a/internal/exabgp/bridge/bridge_command.go
++++ b/internal/exabgp/bridge/bridge_command.go
+@@ -302,7 +302,7 @@ func (t Translator) Line(line string) (Translation, error) {
+ // Each mapping is to a command ze declares, checked against the live registry
+ // rather than assumed:
+ //
+-//	clear adj-rib in|out        -> clear bgp rib in|out       (ze-bgp:rib-clear-in/out)
++//	clear adj-rib in|out        -> clear bgp rib in|out <sel> (ze-bgp:rib-clear-in/out)
+ //	flush adj-rib [in|out]      -> request peer <sel> flush   (ze-bgp:peer-flush)
+ //	announce watchdog <name>    -> request bgp watchdog announce <name>
+ //	withdraw watchdog <name>    -> request bgp watchdog withdraw <name>
+@@ -332,8 +332,12 @@ func convertControl(selector, rest string) (Translation, bool) {
+ 		return Translation{Commands: textCommands("request shutdown"), Selector: selector}, true
+ 	case len(fields) == 3 && fields[0] == "clear" && fields[1] == "adj-rib" &&
+ 		(fields[2] == "in" || fields[2] == "out"):
++		// ze refuses `clear bgp rib in|out` without a selector, because the
++		// all-peers effect must be typed. ExaBGP's neighbor-less form means every
++		// peer the process serves, which is what selector already holds
++		// (everyPeer), so the selector is always written into the command.
+ 		return Translation{
+-			Commands: textCommands(tb.Str("clear bgp rib ").Str(fields[2]).String()),
++			Commands: textCommands(tb.Str("clear bgp rib ").Str(fields[2]).Str(" ").Str(selector).String()),
+ 			Selector: selector,
+ 		}, true
+ 	case fields[0] == "flush" && len(fields) >= 2 && fields[1] == "adj-rib":
+diff --git a/internal/exabgp/bridge/bridge_control_test.go b/internal/exabgp/bridge/bridge_control_test.go
+index e4aed8e345..fda2fa6d50 100644
+--- a/internal/exabgp/bridge/bridge_control_test.go
++++ b/internal/exabgp/bridge/bridge_control_test.go
+@@ -26,8 +26,8 @@ func TestBridgeTranslatesTheControlVocabulary(t *testing.T) {
+ 		line string
+ 		want string
+ 	}{
+-		{"clear adj-rib out", "clear bgp rib out"},
+-		{"clear adj-rib in", "clear bgp rib in"},
++		{"clear adj-rib out", "clear bgp rib out *"},
++		{"clear adj-rib in", "clear bgp rib in *"},
+ 		{"flush adj-rib out", "request peer * flush"},
+ 		{"announce watchdog dnsr", "request bgp watchdog announce dnsr"},
+ 		{"withdraw watchdog dnsr", "request bgp watchdog withdraw dnsr"},
+@@ -66,6 +66,16 @@ func TestBridgeTranslatesTheControlVocabulary(t *testing.T) {
+ 	translation, err := TranslateLine("neighbor 10.0.0.1 flush adj-rib out")
+ 	require.NoError(t, err)
+ 	assert.Equal(t, "request peer 10.0.0.1 flush", onlyCommand(translation))
++
++	// ze refuses a clear with no selector, so the neighbor-less ExaBGP form,
++	// which means every peer, is written with *, and a neighbor-scoped one with
++	// that neighbor.
++	translation, err = TranslateLine("neighbor 10.0.0.1 clear adj-rib out")
++	require.NoError(t, err)
++	assert.Equal(t, "clear bgp rib out 10.0.0.1", onlyCommand(translation))
++	translation, err = TranslateLine("neighbor 10.0.0.1 clear adj-rib in")
++	require.NoError(t, err)
++	assert.Equal(t, "clear bgp rib in 10.0.0.1", onlyCommand(translation))
+ }
+
+ // TestAckModeApplyTimesTheSilence pins the one thing the three ack words differ
+diff --git a/test/exabgp-compat/api/api-sr-policy.ci b/test/exabgp-compat/api/api-sr-policy.ci
+new file mode 100644
+index 0000000000..31b54d45d4
+--- /dev/null
++++ b/test/exabgp-compat/api/api-sr-policy.ci
+@@ -0,0 +1,9 @@
++option=file:api-sr-policy.conf
++# RFC 9830 Section 2.1: SR Policy NLRI in MP_REACH_NLRI, AFI 1 SAFI 73.
++1:cmd:announce ipv4 sr-policy distinguisher 0 color 300 endpoint 10.0.0.3 next-hop 192.0.2.1 preference 300 segment-list weight 1 segment type-a mpls 16001 segment-list weight 2 segment type-a mpls 16002
++1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0075020000005E4001010040020040050400000064800E1600014904C00002010060000000000000012C0A000003C01734000F00300C0600000000012C8000110009060000000000010106000003E810008000110009060000000000020106000003E82000
++1:cmd:announce eor ipv4 sr-policy
++1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000149
++# The withdrawal is MP_UNREACH_NLRI carrying the same NLRI.
++1:cmd:withdraw ipv4 sr-policy distinguisher 0 color 300 endpoint 10.0.0.3
++1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:002A:02:00000013800F1000014960000000000000012C0A000003
+diff --git a/test/exabgp-compat/etc/api-sr-policy.conf b/test/exabgp-compat/etc/api-sr-policy.conf
+new file mode 100644
+index 0000000000..acb60203f1
+--- /dev/null
++++ b/test/exabgp-compat/etc/api-sr-policy.conf
+@@ -0,0 +1,20 @@
++process announce-sr-policy {
++	run ./run/api-sr-policy.run;
++	encoder json;
++}
++
++neighbor 127.0.0.1 {
++	router-id 1.2.3.4;
++	local-address 127.0.0.1;
++	local-as 65533;
++	peer-as 65533;
++	group-updates false;
++
++	family {
++		ipv4 sr-policy;
++	}
++
++	api {
++		processes [ announce-sr-policy ];
++	}
++}
+diff --git a/test/exabgp-compat/etc/run/api-sr-policy.run b/test/exabgp-compat/etc/run/api-sr-policy.run
+new file mode 100755
+index 0000000000..ad8be2e312
+--- /dev/null
++++ b/test/exabgp-compat/etc/run/api-sr-policy.run
+@@ -0,0 +1,25 @@
++#!/usr/bin/env python3
++
++from exabgp_api import send, wait_for_ack, wait_for_shutdown
++
++
++def main() -> None:
++    # RFC 9830 Section 2.1: the SR Policy NLRI travels in MP_REACH_NLRI and
++    # MP_UNREACH_NLRI with SAFI 73.
++    messages = [
++        'announce ipv4 sr-policy distinguisher 0 color 300 endpoint 10.0.0.3 next-hop 192.0.2.1 preference 300 '
++        'segment-list weight 1 segment type-a mpls 16001 segment-list weight 2 segment type-a mpls 16002',
++        'withdraw ipv4 sr-policy distinguisher 0 color 300 endpoint 10.0.0.3',
++    ]
++
++    # One command per flush: the bridge nets an announce and a withdrawal of
++    # the same route that share a flush, and this case asserts both.
++    for message in messages:
++        send(message)
++        wait_for_ack(expected_count=1)
++
++    wait_for_shutdown()
++
++
++if __name__ == '__main__':
++    main()
