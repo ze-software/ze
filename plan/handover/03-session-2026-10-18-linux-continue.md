@@ -279,3 +279,38 @@ tests green with the feature tags, scoped lint 0 issues,
   then commit the json alone.
 - Independent re-review of 2e4be94ae3, and the audit re-judge of the rows
   `./le rfc check` marks STALE (8.3.3-2, 9.1-1, 9.1-2, 9.3.1-1, 9.5.1-1).
+
+## RS replacement Phase 3 package (b), part 1 (2026-10-18, Linux): production UNCOMMITTED
+
+The production half of package (b) is in the Linux working tree and is NOT
+committed: deleting the destination-wide sequence fence leaves 16 test
+references that the spec's "Guards of deleted code and their new carriers"
+table migrates, so the reactor package's tests do not compile until they are
+migrated. This work exists only on the Linux checkout (patch:
+`backups/rs-repl-phase3b-20261018-192817.patch` plus the new test file copy
+beside it). Do not move machines until it lands.
+
+What it does (all `internal/component/bgp/reactor/`): one owed record per key
+(`adjOutOwed` gains an excluded-source set, an epoch, WITHDRAW movers and a
+`done` waiter channel; later owes merge); the writer stages movers and refuses
+a bgp-rib replay of an owed key, counted once per write on the new
+`Peer.owedRefused`; `sentUpdateSequence` and `noteFilteredOperation` are
+deleted; the forward worker admits each key against its record, session,
+epoch and movers, and re-owes a key whose survivor's session ended
+(`errRelayNoSource`, `errForwardNoSource`, generation fence) with that source
+excluded; the departure (`recoverNLRIBatch`) owes only keys its ended session
+still owns (ADD-PATH: per prefix, the writer refuses identifiers a current
+session owns) and waits on the records; `relayRecovery` and
+`recoverySnapshot` are deleted. New tests, written first and not yet run:
+`recovery_owed_fence_test.go`.
+
+Owed by the continuation, in order: migrate relay_recovery_test.go (13 units),
+`TestRecoveryRefusesFilteredCandidateWithdrawalAfterLookup`,
+`TestRecoveryWaitsForFilteredReceivedPublication` and
+`TestFinalWriterMixedWithdrawalIntent` per that table (fixtures must start the
+destination's recovery worker, or the departure retires it as ownerless); run
+the new tests; assign or delete `recoveryKeyNothing`; the ADD-PATH departure
+test, stopped-source exclusion, `TestOwedKeyPurgeBetweenLookupAndAdmission`
+(needs package (c)'s recovery-write producer); update-building.md and
+rib-storage-design.md in the same commit. The MRT collision flake was not
+investigated. Full file list: the per-spec state file of session d75c882e.
