@@ -107,6 +107,17 @@ Of the 59, 5 carry an `owner-ruling` gate (#2, #16, #17, #31, #55; #50 and #51
 interact with #2's default), 14 a `scope` gate, and 1 sits outside Ze (#59). The
 39 with no gate can start as soon as their dependency is in.
 
+### Owner decisions, 2026-10-18
+
+| Row | Decision |
+|-----|----------|
+| #2 RFC4301-4.4.1-3 | Follow the RFC: R27 reversed, `unmatched` defaults to discard |
+| #16, #17 RFC9568-7.2-5, 5.2.8-2 | Do the work (RFC 9568 checksum; keepalived compatibility as an opt-in) |
+| #31 RFC3101-3.1-4 | Fix it: the wedge-avoidance deviation is reversed |
+| #55 RFC2328-8.1-1 | Unnumbered P2P: the operator selects the interface whose IP is borrowed; shape to follow Junos/Cisco practice (research pending) |
+| #7 RFC9830-2.4.2-12 | Bring up to date: the 2026-10-11 decline is reversed, implement the type-13 SRv6 form |
+| All other rows | Implement from easiest to hardest |
+
 ## Bundles that close several rows with one change
 
 | Bundle | Rows | Why one change |
