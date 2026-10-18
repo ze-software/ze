@@ -50,7 +50,7 @@ func rxCheckItem(spec GroupSpec, mutate rxCheckMutation) transport.RxItem {
 	}
 	buf := make([]byte, packet.MaxLenV3v6)
 	n := adv.WriteTo(buf, 0)
-	packet.FillChecksum(buf, 0, n, source, target)
+	packet.FillChecksum(buf, 0, n, source, target, packet.ChecksumRFC9568)
 	meta := packet.RxMeta{TTL: 255, Family: family, Src: source, Dst: target}
 	if mutate != nil {
 		n = mutate(buf, n, &meta)
@@ -63,7 +63,7 @@ func rxCheckItem(spec GroupSpec, mutate rxCheckMutation) transport.RxItem {
 func refilled(edit func(buf []byte)) rxCheckMutation {
 	return func(buf []byte, n int, meta *packet.RxMeta) int {
 		edit(buf)
-		packet.FillChecksum(buf, 0, n, meta.Src, meta.Dst)
+		packet.FillChecksum(buf, 0, n, meta.Src, meta.Dst, packet.ChecksumRFC9568)
 		return n
 	}
 }
@@ -79,7 +79,7 @@ func rxFixedFieldsShort(_ []byte, _ int, _ *packet.RxMeta) int { return packet.H
 // Authentication Data byte for VRRPv2) and recomputes the checksum over what
 // remains, so only the completeness check can refuse the packet.
 func rxTailShort(buf []byte, n int, meta *packet.RxMeta) int {
-	packet.FillChecksum(buf, 0, n-1, meta.Src, meta.Dst)
+	packet.FillChecksum(buf, 0, n-1, meta.Src, meta.Dst, packet.ChecksumRFC9568)
 	return n - 1
 }
 

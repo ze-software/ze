@@ -24,50 +24,70 @@ import (
 // advertisement for VRID 10, priority 100, 1000 ms and 192.0.2.1. The sent
 // frame is the 20-octet IPv4 header followed by the VRRP message. Every VRRP
 // field is compared with literals, and the checksum with an RFC 1071 sum this
-// test computes over the RFC 5798 Section 5.2.8 pseudo-header (source,
-// 224.0.0.18, zero, protocol 112, VRRP length) and the message with its
-// checksum field zeroed. The IPv6 case compares the fields only: on IPv6 the
+// test computes itself, with the checksum field zeroed: over the message alone
+// for a group in the default rfc9568 mode, and over the RFC 5798 Section 5.2.8
+// pseudo-header (source, 224.0.0.18, zero, protocol 112, VRRP length) and the
+// message for a group in rfc5798-compatible mode. Each mode must also differ
+// from the other form's sum, so a sender that ignored the mode reddens one of
+// the two cases. The IPv6 case compares the fields only: on IPv6 the
 // kernel writes the checksum (IPV6_CHECKSUM, backend_linux.go), so the frame
 // the transport hands over carries none.
 //
-// RFC requirement: RFC5798-7.2-1 positive -- the IPv4 VRRPv3 frame the transport sends (encodeLocked transport.go) carries Version 3, Type 1, VRID 10, Priority 100, Count 1, Max Adver Int 100 centiseconds and 192.0.2.1, and a checksum equal to an RFC 1071 sum computed by the test over the RFC 5798 Section 5.2.8 pseudo-header and the message.
+// RFC requirement: RFC5798-7.2-1 positive -- the IPv4 VRRPv3 frame the transport sends (encodeLocked transport.go) for a group in rfc5798-compatible mode carries Version 3, Type 1, VRID 10, Priority 100, Count 1, Max Adver Int 100 centiseconds and 192.0.2.1, and a checksum equal to an RFC 1071 sum computed by the test over the RFC 5798 Section 5.2.8 pseudo-header and the message.
+// RFC requirement: RFC9568-7.2-5 positive -- the IPv4 VRRPv3 frame the transport sends (encodeLocked transport.go) for a group in the default rfc9568 mode carries a checksum equal to an RFC 1071 sum computed by the test over the VRRP message alone, and not the pseudo-header sum.
+// RFC requirement: RFC9568-7.2-5 negative -- for a group in rfc5798-compatible mode the transport computes the pseudo-header sum instead, which differs from the message-only sum, so the RFC 9568 form is sent only when the group is in the default mode (encodeLocked transport.go, FillChecksum checksum.go).
 // RFC requirement: RFC9568-7.2-1 positive -- the IPv4 and IPv6 VRRPv3 frames the transport sends (encodeLocked transport.go) carry the Version, Type, VRID, Priority, Count, Reserve, Max Advertise Interval and address fields of the advertisement state handed to it, compared with literals.
 func TestSendAdvertFillsFieldsAndChecksum(t *testing.T) {
-	t.Run("ipv4", func(t *testing.T) {
-		withParentAddrs(t, []iface.AddrInfo{{Address: "192.0.2.251", Family: "ipv4"}})
-		fb := &fakeBackend{}
-		tr := New(fb)
-		key, err := tr.OpenInstance(v4Spec())
-		if err != nil {
-			t.Fatalf("OpenInstance: %v", err)
-		}
-		if err := tr.UpdateAdvert(key, v4Params()); err != nil {
-			t.Fatalf("UpdateAdvert: %v", err)
-		}
-		if err := tr.SendAdvert(key); err != nil {
-			t.Fatalf("SendAdvert: %v", err)
-		}
-		frame := fb.last().lastAdvert()
-		if len(frame) != ipv4HeaderLen+packet.HeaderLen+4 {
-			t.Fatalf("sent frame is %d octets, want %d", len(frame), ipv4HeaderLen+packet.HeaderLen+4)
-		}
-		message := frame[ipv4HeaderLen:]
-		assertAdvertFields(t, message, []byte{192, 0, 2, 1})
+	for _, mode := range []packet.ChecksumMode{packet.ChecksumRFC9568, packet.ChecksumRFC5798Compatible} {
+		t.Run("ipv4-"+mode.String(), func(t *testing.T) {
+			withParentAddrs(t, []iface.AddrInfo{{Address: "192.0.2.251", Family: "ipv4"}})
+			fb := &fakeBackend{}
+			tr := New(fb)
+			key, err := tr.OpenInstance(v4Spec())
+			if err != nil {
+				t.Fatalf("OpenInstance: %v", err)
+			}
+			params := v4Params()
+			params.Checksum = mode
+			if err := tr.UpdateAdvert(key, params); err != nil {
+				t.Fatalf("UpdateAdvert: %v", err)
+			}
+			if err := tr.SendAdvert(key); err != nil {
+				t.Fatalf("SendAdvert: %v", err)
+			}
+			frame := fb.last().lastAdvert()
+			if len(frame) != ipv4HeaderLen+packet.HeaderLen+4 {
+				t.Fatalf("sent frame is %d octets, want %d", len(frame), ipv4HeaderLen+packet.HeaderLen+4)
+			}
+			message := frame[ipv4HeaderLen:]
+			assertAdvertFields(t, message, []byte{192, 0, 2, 1})
 
-		source := netip.MustParseAddr("192.0.2.251").As4()
-		target := netip.MustParseAddr("224.0.0.18").As4()
-		pseudo := make([]byte, 0, 12+len(message))
-		pseudo = append(pseudo, source[:]...)
-		pseudo = append(pseudo, target[:]...)
-		pseudo = append(pseudo, 0, 112)
-		pseudo = binary.BigEndian.AppendUint16(pseudo, uint16(len(message)))
-		pseudo = append(pseudo, message...)
-		pseudo[12+6], pseudo[12+7] = 0, 0
-		want := rfc1071Checksum(pseudo)
-		if got := binary.BigEndian.Uint16(message[6:8]); got != want {
-			t.Fatalf("checksum = %#04x, want %#04x (RFC 5798 pseudo-header form)", got, want)
-		}
-	})
+			zeroed := slices.Clone(message)
+			zeroed[6], zeroed[7] = 0, 0
+			messageOnly := rfc1071Checksum(zeroed)
+
+			source := netip.MustParseAddr("192.0.2.251").As4()
+			target := netip.MustParseAddr("224.0.0.18").As4()
+			pseudo := make([]byte, 0, 12+len(zeroed))
+			pseudo = append(pseudo, source[:]...)
+			pseudo = append(pseudo, target[:]...)
+			pseudo = append(pseudo, 0, 112)
+			pseudo = binary.BigEndian.AppendUint16(pseudo, uint16(len(zeroed)))
+			pseudo = append(pseudo, zeroed...)
+			pseudoHeader := rfc1071Checksum(pseudo)
+			if messageOnly == pseudoHeader {
+				t.Fatalf("message-only and pseudo-header sums coincide (%#04x): the case cannot tell the modes apart", messageOnly)
+			}
+
+			want, form := messageOnly, "RFC 9568 Section 5.2.8 message-only form"
+			if mode == packet.ChecksumRFC5798Compatible {
+				want, form = pseudoHeader, "RFC 5798 Section 5.2.8 pseudo-header form"
+			}
+			if got := binary.BigEndian.Uint16(message[6:8]); got != want {
+				t.Fatalf("checksum = %#04x, want %#04x (%s)", got, want, form)
+			}
+		})
+	}
 	t.Run("ipv6", func(t *testing.T) {
 		fb := &fakeBackend{}
 		tr := New(fb)

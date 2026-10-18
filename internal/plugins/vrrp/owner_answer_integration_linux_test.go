@@ -97,7 +97,8 @@ func TestVRRPOwnerAnswersWithVirtualMACOnly(t *testing.T) {
 		}
 		t.Cleanup(func() { revertDataplaneSysctls(parent, group.device, group.family) })
 		spec := GroupSpec{
-			Family: group.family, VRID: 10, Version: 3, Priority: ownerPriority, IsOwner: true,
+			Checksum: packet.ChecksumRFC9568,
+			Family:   group.family, VRID: 10, Version: 3, Priority: ownerPriority, IsOwner: true,
 			VIPs: []netip.Addr{group.vip}, realAddresses: []netip.Addr{group.vip},
 			realPrefixes: []netip.Prefix{group.real},
 		}

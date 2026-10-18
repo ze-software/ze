@@ -30,7 +30,7 @@ func rxTTL(ttl uint8) rxCheckMutation {
 // IPvX Addr Count is 0: the fixed header alone, checksum recomputed.
 func rxCountZero(buf []byte, _ int, meta *packet.RxMeta) int {
 	buf[3] = 0
-	packet.FillChecksum(buf, 0, packet.HeaderLen, meta.Src, meta.Dst)
+	packet.FillChecksum(buf, 0, packet.HeaderLen, meta.Src, meta.Dst, packet.ChecksumRFC9568)
 	return packet.HeaderLen
 }
 

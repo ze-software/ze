@@ -24,6 +24,7 @@ import (
 	"strconv"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
 )
 
 // configRoot is the config section this plugin consumes. It is the iface
@@ -143,7 +144,13 @@ type GroupSpec struct {
 	AdvertIntervalMs    uint32
 	Version             uint8
 	AcceptMode          bool
-	IsOwner             bool // VIP equals a real address on the same unit+family.
+	// Checksum is the VRRPv3 IPv4 checksum form, from the `checksum` leaf:
+	// packet.ChecksumRFC9568 unless the group opts into
+	// packet.ChecksumRFC5798Compatible. Every spec the parser builds carries
+	// one of the two; IPv6 and version 2 groups carry the default, which
+	// changes nothing for them.
+	Checksum packet.ChecksumMode
+	IsOwner  bool // VIP equals a real address on the same unit+family.
 
 	// TrackedInterfaces are the interfaces whose loss lowers the priority this
 	// group advertises, sorted by name so one configuration always extracts to
@@ -449,6 +456,7 @@ func groupsForFamily(ifType, name, unit string, vlanID uint16, family string, fa
 			Preempt:          true,
 			AdvertIntervalMs: defaultAdvertIntervalMs,
 			Version:          versionV3,
+			Checksum:         packet.ChecksumRFC9568,
 			realAddresses:    real,
 			realPrefixes:     realPfx,
 		}
@@ -533,6 +541,13 @@ func applyGroupLeaves(spec *GroupSpec, groupCfg map[string]any) error {
 		}
 		spec.Version = n
 	}
+	if v, ok := groupCfg["checksum"]; ok {
+		mode, err := parseChecksumMode(v)
+		if err != nil {
+			return err
+		}
+		spec.Checksum = mode
+	}
 	tracked, err := trackedInterfaces(groupCfg["track"])
 	if err != nil {
 		return err
@@ -614,6 +629,21 @@ func parseVersion(v any) (uint8, error) {
 	default:
 		return 0, fmt.Errorf("version %v: configure 2 (RFC 3768) or 3 (RFC 9568)", v)
 	}
+}
+
+// parseChecksumMode maps the `checksum` enum to its packet.ChecksumMode.
+func parseChecksumMode(v any) (packet.ChecksumMode, error) {
+	t, ok := v.(string)
+	if !ok {
+		return packet.ChecksumUnspecified, fmt.Errorf("checksum %v: configure rfc9568 or rfc5798-compatible", v)
+	}
+	switch t {
+	case "rfc9568":
+		return packet.ChecksumRFC9568, nil
+	case "rfc5798-compatible":
+		return packet.ChecksumRFC5798Compatible, nil
+	}
+	return packet.ChecksumUnspecified, fmt.Errorf("checksum %q: configure rfc9568 or rfc5798-compatible", t)
 }
 
 // validateGroups applies every cross-leaf rule the YANG grammar cannot express.
@@ -702,6 +732,13 @@ func validateGroup(g GroupSpec) error {
 	// such concept, so accepting the leaf under version 2 would silently lie.
 	if g.Version == versionV2 && g.AcceptMode {
 		return fmt.Errorf("%s: accept-mode is a VRRPv3 feature and cannot be combined with version 2; remove accept-mode or configure version 3", where)
+	}
+
+	// RFC 3768 Section 5.3.7 fixes the v2 checksum to the message alone, so the
+	// RFC 5798 pseudo-header form is a VRRPv3 choice: under version 2 the leaf
+	// would be accepted and then do nothing.
+	if g.Version == versionV2 && g.Checksum == packet.ChecksumRFC5798Compatible {
+		return fmt.Errorf("%s: checksum rfc5798-compatible is a VRRPv3 setting and cannot be combined with version 2, whose checksum never covers a pseudo-header (RFC 3768 Section 5.3.7); remove checksum or configure version 3", where)
 	}
 
 	if err := validateTracking(g, where); err != nil {

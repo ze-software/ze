@@ -554,6 +554,7 @@ func (in *instance) execute(act fsm.Action) {
 func (in *instance) doSendAdvert(priority uint8, intervalMs int) {
 	params := transport.AdvertParams{
 		Version:         in.spec.Version,
+		Checksum:        in.spec.Checksum,
 		Priority:        priority,
 		AdverIntervalMS: uint32(intervalMs),
 		VIPs:            in.spec.VIPs,
@@ -789,13 +790,6 @@ func (in *instance) onPacket(item transport.RxItem) {
 		in.deps.recordRxError(in.key, packet.Reason(err))
 		return
 	}
-	// An accepted packet that matched only the RFC 9568 message-only checksum
-	// (not the RFC 5798 pseudo-header form ze and the deployed base send) is
-	// still counted, so operators can see a strict-RFC-9568 peer on the segment
-	// (spec-vrrp-1 dual-accept).
-	if adv.MsgOnlyChecksum {
-		in.deps.recordRxError(in.key, packet.ReasonMsgOnlyChecksum)
-	}
 	// RFC 3768 Section 7.1: "MUST verify that the VRID is configured on the
 	// receiving interface and the local router is not the IP Address owner
 	// (Priority equals 255 (decimal))." ... "If any one of the above checks
@@ -897,7 +891,11 @@ func (in *instance) lookup(vrid uint8) (packet.Local, bool) {
 	if vrid != in.spec.VRID {
 		return packet.Local{}, false
 	}
-	return packet.Local{Version: in.spec.Version, AdverIntervalMS: in.spec.AdvertIntervalMs}, true
+	return packet.Local{
+		Version:         in.spec.Version,
+		AdverIntervalMS: in.spec.AdvertIntervalMs,
+		Checksum:        in.spec.Checksum,
+	}, true
 }
 
 // snapshot is the show-command view of this instance. Called from the show

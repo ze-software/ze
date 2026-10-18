@@ -117,11 +117,6 @@ type Advertisement struct {
 	Count           uint8        // number of Virtual IP addresses (decode output)
 	AdverIntervalMS uint32       // MILLISECONDS ALWAYS (umbrella R-2)
 	VIPs            []netip.Addr // encode source; nil on decode
-	// MsgOnlyChecksum is set on decode when a v3/IPv4 packet matched only the
-	// RFC 9568 message-only checksum, not the RFC 5798 pseudo-header form ze and
-	// the deployed base send. Accepted either way; the flag exists so the engine
-	// can count strict-RFC-9568 peers (ReasonMsgOnlyChecksum).
-	MsgOnlyChecksum bool
 
 	// wireVIPs is the decode-side lazy view into the receive buffer. It is a
 	// sub-slice of the payload and is valid only until the next socket read

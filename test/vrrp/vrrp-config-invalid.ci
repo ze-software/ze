@@ -4,7 +4,8 @@
 # through the real entry point, and each rejection names the offending group so
 # an operator can find it: vrid range and mandatory-ness, duplicate vrid per
 # unit+family, priority range (255 is the owner's, assigned by ze), the
-# version-dependent interval encodings, accept-mode as a VRRPv3-only feature,
+# version-dependent interval encodings, accept-mode and the rfc5798-compatible
+# checksum as VRRPv3-only features, an unknown checksum form,
 # the IPv6 first-address link-local rule, duplicate virtual addresses, and the
 # VPP backend rejection.
 # PREVENTS: a config an operator wrote being silently ignored or half-applied.
@@ -340,3 +341,53 @@ EOF_TRKZERO
 cmd=foreground:seq=13:exec=ze config validate -:stdin=track-zero:exit=1
 expect=exit:code=1
 expect=stdout:contains=priority-decrement
+
+# --- checksum rfc5798-compatible is a VRRPv3 choice: a v2 checksum never ------
+# covers a pseudo-header (RFC 3768 Section 5.3.7), so the leaf would do nothing.
+stdin=checksum-v2:terminator=EOF_CKV2
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                vrrp {
+                    group bad {
+                        vrid 10;
+                        version 2;
+                        checksum rfc5798-compatible;
+                        virtual-address [ 192.0.2.1 ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_CKV2
+
+cmd=foreground:seq=14:exec=ze config validate -:stdin=checksum-v2:exit=1
+expect=exit:code=1
+expect=stdout:contains=checksum rfc5798-compatible is a VRRPv3 setting
+
+# --- An unknown checksum form is refused, never defaulted. --------------------
+stdin=checksum-unknown:terminator=EOF_CKUNK
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                vrrp {
+                    group bad {
+                        vrid 10;
+                        checksum rfc1071;
+                        virtual-address [ 192.0.2.1 ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_CKUNK
+
+cmd=foreground:seq=15:exec=ze config validate -:stdin=checksum-unknown:exit=1
+expect=exit:code=1
+expect=stdout:contains=checksum

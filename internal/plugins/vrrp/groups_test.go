@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
 	"github.com/ze-software/ze/internal/test/sim"
 )
 
@@ -478,6 +479,33 @@ func TestLeafShapesFromTextConfig(t *testing.T) {
 			check: func(t *testing.T, g GroupSpec) {
 				if g.Version != versionV2 {
 					t.Errorf("version = %d, want 2 from the numeric form", g.Version)
+				}
+			},
+		},
+		{
+			name:  "checksum absent is rfc9568",
+			group: map[string]any{"virtual-address": vips("10.0.0.1")},
+			check: func(t *testing.T, g GroupSpec) {
+				if g.Checksum != packet.ChecksumRFC9568 {
+					t.Errorf("checksum = %v, want rfc9568 when the leaf is absent", g.Checksum)
+				}
+			},
+		},
+		{
+			name:  "checksum rfc5798-compatible",
+			group: map[string]any{"virtual-address": vips("10.0.0.1"), "checksum": "rfc5798-compatible"},
+			check: func(t *testing.T, g GroupSpec) {
+				if g.Checksum != packet.ChecksumRFC5798Compatible {
+					t.Errorf("checksum = %v, want rfc5798-compatible", g.Checksum)
+				}
+			},
+		},
+		{
+			name:  "checksum rfc9568 explicit",
+			group: map[string]any{"virtual-address": vips("10.0.0.1"), "checksum": "rfc9568"},
+			check: func(t *testing.T, g GroupSpec) {
+				if g.Checksum != packet.ChecksumRFC9568 {
+					t.Errorf("checksum = %v, want rfc9568", g.Checksum)
 				}
 			},
 		},
@@ -1810,5 +1838,43 @@ func TestTrackOnOwnerGroupIsRejected(t *testing.T) {
 	}
 	if err := validateGroups(specs, backendNetlink); err != nil {
 		t.Errorf("track on a non-owner group must be accepted, got %v", err)
+	}
+}
+
+// TestValidateChecksumMode proves the checksum leaf is refused where it would do
+// nothing (version 2, whose checksum never covers a pseudo-header) and that an
+// unknown value is an error rather than a silent default.
+//
+// VALIDATES: v2 + rfc5798-compatible is refused naming the leaf; v3 +
+// rfc5798-compatible validates; an unknown enum value fails extraction.
+// PREVENTS: a keepalived-compatibility setting accepted and then ignored.
+func TestValidateChecksumMode(t *testing.T) {
+	v3 := map[string]any{"virtual-address": vips("10.0.0.1"), "checksum": "rfc5798-compatible"}
+	specs, err := extractGroupSpecs([]configSection{mkSection(t, oneGroup(familyIPv4, "5", v3))})
+	if err != nil {
+		t.Fatalf("extract v3: %v", err)
+	}
+	if err := validateGroups(specs, backendNetlink); err != nil {
+		t.Fatalf("v3 rfc5798-compatible: %v, want valid", err)
+	}
+
+	v2 := map[string]any{
+		"virtual-address":                 vips("10.0.0.1"),
+		"version":                         "2",
+		"advertise-interval-milliseconds": "1000",
+		"checksum":                        "rfc5798-compatible",
+	}
+	specs, err = extractGroupSpecs([]configSection{mkSection(t, oneGroup(familyIPv4, "5", v2))})
+	if err != nil {
+		t.Fatalf("extract v2: %v", err)
+	}
+	err = validateGroups(specs, backendNetlink)
+	if err == nil || !strings.Contains(err.Error(), "checksum rfc5798-compatible") {
+		t.Fatalf("v2 rfc5798-compatible: err = %v, want a refusal naming the checksum leaf", err)
+	}
+
+	bogus := map[string]any{"virtual-address": vips("10.0.0.1"), "checksum": "rfc1071"}
+	if _, err := extractGroupSpecs([]configSection{mkSection(t, oneGroup(familyIPv4, "5", bogus))}); err == nil {
+		t.Fatal("checksum rfc1071: extract succeeded, want an error")
 	}
 }

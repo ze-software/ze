@@ -1,17 +1,49 @@
-// RFC: rfc/short/rfc9568.md -- Section 5.2.8 (v3 checksum, IPv4 message-only) + rx RFC 5798 dual-accept
+// RFC: rfc/short/rfc9568.md -- Section 5.2.8 (v3 checksum, IPv4 message-only), Section 7.2 (compute on transmit)
+// RFC: rfc/short/rfc5798.md -- Section 5.2.8 (v3 checksum, IPv4 pseudo-header, the opt-in compatible mode)
 // RFC: rfc/short/rfc3768.md -- Section 5.3.7 (v2 checksum, no pseudo-header)
-// Design: (RFC 8200 Section 8.1 -- IPv6 upper-layer checksum pseudo-header)
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- checksum mode
 //
 // checksum.go implements the RFC 1071 one's-complement checksum used by VRRP,
 // the family-specific pseudo-headers, the tx backfill (FillChecksum) and the rx
-// verification. For v3/IPv4, tx sends the RFC 5798 pseudo-header form because
-// that is what the deployed base (keepalived and every pre-RFC-9568 peer)
-// requires on the wire; rx dual-accepts both that form and the RFC 9568
-// message-only form so a strict-RFC-9568 peer still interoperates. See
-// FillChecksum for the interop evidence.
+// verification. For v3/IPv4 the form is the group's ChecksumMode: the RFC 9568
+// message-only form by default, or the RFC 5798 pseudo-header form a group opts
+// into with `checksum rfc5798-compatible` to interoperate with keepalived and
+// the pre-RFC-9568 deployed base. Each side uses only the configured form.
 package packet
 
 import "net/netip"
+
+// ChecksumMode selects the VRRPv3 IPv4 checksum form of one group. It changes
+// nothing for VRRPv2 (RFC 3768, always message-only) or for IPv6 (RFC 8200
+// pseudo-header in both RFC 5798 and RFC 9568).
+type ChecksumMode uint8
+
+const (
+	// ChecksumUnspecified is the zero value. No group carries it, because the
+	// config parser always sets one of the two named modes. FillChecksum
+	// panics on it and verifyReceived refuses every v3/IPv4 packet under it,
+	// so a producer that forgot the mode cannot put a guessed form on the wire.
+	ChecksumUnspecified ChecksumMode = iota
+	// ChecksumRFC9568 is the default: the IPv4 checksum covers the VRRP
+	// message alone (RFC 9568 Section 5.2.8).
+	ChecksumRFC9568
+	// ChecksumRFC5798Compatible prepends the IPv4 pseudo-header as RFC 5798
+	// Section 5.2.8 did, which keepalived and the pre-RFC-9568 base require.
+	ChecksumRFC5798Compatible
+)
+
+// String names the mode with the config enum spelling.
+func (m ChecksumMode) String() string {
+	switch m {
+	case ChecksumRFC9568:
+		return "rfc9568"
+	case ChecksumRFC5798Compatible:
+		return "rfc5798-compatible"
+	case ChecksumUnspecified:
+		return "unspecified"
+	}
+	return "unknown"
+}
 
 // onesComplementSum accumulates the 16-bit one's-complement sum of data into a
 // 32-bit accumulator seeded with initial (a pseudo-header partial sum, or 0).
@@ -62,14 +94,23 @@ func pseudoSumV6(src, dst netip.Addr, upperLen int) uint32 {
 	return sum
 }
 
-// pseudoSumV4Legacy builds the RFC 5798 IPv4 pseudo-header partial sum: src
-// (4B) + dst (4B) + zero (1B) + protocol 112 (1B) + VRRP length (2B). RFC 9568
-// Section 5.2.8 no longer prepends this for IPv4, which is what "legacy" names,
-// but ze uses it on BOTH sides. FillChecksum computes every v3/IPv4 advert ze
-// transmits with it (the interop evidence is stated there), and verifyReceived
-// tries it first on rx because the deployed base -- pre-#2324 keepalived, FRR
-// pre-2022 and uvrrpd -- sends this form.
-func pseudoSumV4Legacy(src, dst netip.Addr, vrrpLen int) uint32 {
+// pseudoSumV4 builds the RFC 5798 IPv4 pseudo-header partial sum, used only in
+// ChecksumRFC5798Compatible mode:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                  IPv4 Source Address (0-3)                    |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                IPv4 Destination Address (4-7)                 |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|   Zero (8)    |Protocol 112(9)|      VRRP Length (10-11)      |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// RFC 5798 Section 5.2.8: "The checksum is the 16-bit one's complement of the
+// one's complement sum of the entire VRRP message starting with the version
+// field and a "pseudo-header" as defined in Section 8.1 of [RFC2460]."
+func pseudoSumV4(src, dst netip.Addr, vrrpLen int) uint32 {
 	s := src.As4()
 	d := dst.As4()
 	sum := onesComplementSum(s[:], 0)
@@ -79,40 +120,73 @@ func pseudoSumV4Legacy(src, dst netip.Addr, vrrpLen int) uint32 {
 	return sum
 }
 
-// FillChecksum computes the version/family-correct VRRP checksum over
-// buf[off:off+n] and backfills bytes off+6..7 (skip-and-backfill,
-// ai/rules/performance.md). The version is read from the message; the family
-// is inferred from src (an IPv6 source selects the RFC 8200 pseudo-header).
+// pseudoSumFor returns the pseudo-header partial sum the checksum of a v3
+// message covers, for the family and the group's mode. ok is false only for
+// v3/IPv4 under ChecksumUnspecified, which no config produces.
 //
-// RFC 9568 Section 5.2.8: for IPv4 "the checksum computation only includes the
-// VRRP message" (message-only); RFC 3768 Section 5.3.7: v2 is message-only too.
-func FillChecksum(buf []byte, off, n int, src, dst netip.Addr) {
+// The VRRPv3 message the sum always covers (RFC 9568 Section 5.1), with the
+// Checksum field at octets 6-7:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|Version| Type  | Virtual Rtr ID|   Priority    |Count IPvX Addr|  0-3
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|(rsvd) |     Max Adver Int     |          Checksum             |  4-7
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                     IPvX Address(es)                          |  8..
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+func pseudoSumFor(src, dst netip.Addr, n int, family uint8, mode ChecksumMode) (uint32, bool) {
+	if family == V6 {
+		// RFC 9568 Section 5.2.8: "For the IPv6 address family, the checksum
+		// calculation also includes a prepended "pseudo-header", as defined in
+		// Section 8.1 of [RFC8200]."
+		return pseudoSumV6(src, dst, n), true
+	}
+	switch mode {
+	case ChecksumRFC9568:
+		// RFC 9568 Section 5.2.8: "For the IPv4 address family, the checksum
+		// calculation only includes the VRRP message starting with the
+		// Version field and ending after the last IPv4 address (refer to
+		// Section 5.2)."
+		return 0, true
+	case ChecksumRFC5798Compatible:
+		// RFC 5798 Section 5.2.8 (pseudoSumV4), the form keepalived and the
+		// pre-RFC-9568 base send and require.
+		return pseudoSumV4(src, dst, n), true
+	case ChecksumUnspecified:
+		return 0, false
+	}
+	return 0, false
+}
+
+// FillChecksum computes the VRRP checksum over buf[off:off+n] and backfills
+// bytes off+6..7 (skip-and-backfill, ai/rules/performance.md). The version is
+// read from the message, the family is inferred from src (an IPv6 source
+// selects the RFC 8200 pseudo-header), and mode picks the v3/IPv4 form.
+//
+// RFC 9568 Section 7.2: "The following operations MUST be performed when
+// transmitting a VRRP packet: ... Compute the VRRP checksum".
+// RFC 9568 Section 5.2.8: "For computing the checksum, the Checksum field is
+// set to zero."
+func FillChecksum(buf []byte, off, n int, src, dst netip.Addr, mode ChecksumMode) {
 	msg := buf[off : off+n]
-	// The checksum field MUST be zero during computation.
 	msg[6] = 0
 	msg[7] = 0
 
+	// RFC 3768 Section 5.3.7: v2 covers the message alone, so initial stays 0.
 	var initial uint32
-	switch {
-	case msg[0]>>4 == VersionV3 && src.Is6():
-		// RFC 9568 Section 5.2.8: IPv6 includes the RFC 8200 pseudo-header.
-		initial = pseudoSumV6(src, dst, n)
-	case msg[0]>>4 == VersionV3:
-		// v3/IPv4. RFC 9568 Section 5.2.8 defines this as message-only (no
-		// pseudo-header), but that form does NOT interoperate. keepalived 2.3.1
-		// -- its own advert captured on the wire 2026-07-15, checksum 0xa102,
-		// which matches the pseudo-header sum and not the message-only sum
-		// 0x448e -- computes and REQUIRES the IPv4 pseudo-header, and rejects
-		// message-only as "Invalid VRRPv3 checksum". The rest of the RFC 5798
-		// deployed base (older FRR, hardware VRRP, uvrrpd) does the same. For a
-		// first-hop-redundancy feature, interoperating with the installed base
-		// outranks tracking the newest RFC's clarification, so ze transmits the
-		// pseudo-header form. ze's rx (verifyReceived) still dual-accepts both,
-		// so a future strict-RFC-9568 peer also interoperates. Proven by the
-		// keepalived QEMU interop lab (internal/le/test/qemu/vrrp_keepalived_linux.go).
-		initial = pseudoSumV4Legacy(src, dst, n)
+	if msg[0]>>4 == VersionV3 {
+		family := V4
+		if src.Is6() {
+			family = V6
+		}
+		sum, ok := pseudoSumFor(src, dst, n, family, mode)
+		if !ok {
+			panic("BUG: vrrp FillChecksum called with ChecksumUnspecified for a v3/IPv4 advertisement")
+		}
+		initial = sum
 	}
-	// v2 has no pseudo-header (RFC 3768 Section 5.3.7): initial stays 0.
 
 	cksum := checksum16(msg, initial)
 	msg[6] = byte(cksum >> 8)
@@ -120,35 +194,19 @@ func FillChecksum(buf []byte, off, n int, src, dst netip.Addr) {
 }
 
 // verifyReceived checks the received VRRP checksum over the FULL payload with
-// the actual src/dst from RxMeta. It returns whether the packet matched only
-// the RFC 9568 message-only sum (msgOnly) rather than the pseudo-header form ze
-// and the deployed base use, and whether it verified at all (ok).
-//
-// v3/IPv4 dual-accepts both forms. The RFC 5798 pseudo-header sum is PRIMARY
-// because that is what ze transmits (FillChecksum) and what keepalived and every
-// pre-RFC-9568 peer sends; the RFC 9568 message-only sum is the accepted-and-
-// flagged fallback for a strict-RFC-9568 peer. The ordering was reversed here
-// until the keepalived interop lab proved the pseudo-header form is the one on
-// the wire in practice.
-func verifyReceived(payload []byte, version, family uint8, src, dst netip.Addr) (msgOnly, ok bool) {
-	switch {
-	case version == VersionV2:
+// the actual src/dst from RxMeta, in the ONE form the group is configured for.
+// A v3/IPv4 packet carrying the other form fails: accepting both would keep a
+// message-only advertisement whose checksum is wrong whenever its pseudo-header
+// sum happened to match, which RFC 9568 Section 5.2.8 does not allow.
+func verifyReceived(payload []byte, version, family uint8, src, dst netip.Addr, mode ChecksumMode) bool {
+	if version == VersionV2 {
 		// RFC 3768 Section 5.3.7: entire VRRP message, no pseudo-header.
-		return false, verifyChecksumSum(payload, 0)
-	case family == V6:
-		// RFC 9568 Section 5.2.8 / RFC 8200 Section 8.1: IPv6 pseudo-header.
-		return false, verifyChecksumSum(payload, pseudoSumV6(src, dst, len(payload)))
-	default:
-		// RFC 5798 pseudo-header sum is primary: it is ze's own tx form and the
-		// deployed base's, so a normal packet matches here and is NOT flagged.
-		if verifyChecksumSum(payload, pseudoSumV4Legacy(src, dst, len(payload))) {
-			return false, true
-		}
-		// RFC 9568 message-only fallback: accepted, but flagged so an operator
-		// can see a strict-RFC-9568 peer on the segment.
-		if verifyChecksumSum(payload, 0) {
-			return true, true
-		}
-		return false, false
+		return verifyChecksumSum(payload, 0)
 	}
+	// RFC 9568 Section 5.2.8
+	initial, ok := pseudoSumFor(src, dst, len(payload), family, mode)
+	if !ok {
+		return false
+	}
+	return verifyChecksumSum(payload, initial)
 }

@@ -55,7 +55,8 @@ func TestVRRPRedirectSourceFollowsVirtualMAC(t *testing.T) {
 		}
 		t.Cleanup(func() { revertDataplaneSysctls(w.parent.Attrs().Name, group.device, familyIPv4) })
 		spec := GroupSpec{
-			Family: familyIPv4, VRID: group.vrid, Version: 2, Priority: 200,
+			Checksum: packet.ChecksumRFC9568,
+			Family:   familyIPv4, VRID: group.vrid, Version: 2, Priority: 200,
 			VIPs: []netip.Addr{group.vip}, realAddresses: []netip.Addr{netip.MustParseAddr("192.0.2.254")},
 			realPrefixes: []netip.Prefix{netip.MustParsePrefix("192.0.2.254/24")},
 		}

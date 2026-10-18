@@ -469,7 +469,7 @@ func TestIntegrationRxDeliversFromPeer(t *testing.T) {
 	adv := packet.Advertisement{Version: packet.VersionV3, Family: packet.V4, VRID: testVRID, Priority: 100, AdverIntervalMS: 1000, VIPs: []netip.Addr{netip.MustParseAddr("192.0.2.1")}}
 	pn := adv.WriteTo(payload[:], 20)
 	src := netip.MustParseAddr("192.0.2.2")
-	packet.FillChecksum(payload[:], 20, pn, src, packet.MulticastV4)
+	packet.FillChecksum(payload[:], 20, pn, src, packet.MulticastV4, packet.ChecksumRFC9568)
 	hdr := buildIPv4Header(payload[:], src.As4(), packet.MulticastV4.As4())
 	payload[8] = 254 // TTL 254
 

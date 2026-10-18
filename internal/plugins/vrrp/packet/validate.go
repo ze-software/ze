@@ -29,10 +29,13 @@ type RxMeta struct {
 }
 
 // Local is the per-group state the engine (spec-vrrp-5) supplies through Lookup:
-// the configured version (row 5) and configured interval in ms (v2 row 12).
+// the configured version (row 5), configured interval in ms (v2 row 12) and the
+// v3/IPv4 checksum form (row 6). Checksum MUST be one of the named modes for a
+// v3 IPv4 group: ChecksumUnspecified fails every such packet's checksum.
 type Local struct {
 	Version         uint8
 	AdverIntervalMS uint32
+	Checksum        ChecksumMode
 }
 
 // Lookup resolves a VRID to its Local group state on the receiving
@@ -65,10 +68,6 @@ var (
 
 // Accepted-outcome / engine-raised reason labels (NOT errors).
 const (
-	// ReasonMsgOnlyChecksum labels an ACCEPTED v3/IPv4 packet whose checksum
-	// matched only the RFC 9568 message-only sum, not the RFC 5798 pseudo-header
-	// form ze sends (MsgOnlyChecksum true). It marks a strict-RFC-9568 peer.
-	ReasonMsgOnlyChecksum = "checksum-rfc9568-message-only"
 	// ReasonAddressList is raised by the ENGINE (spec-vrrp-5) for the v2-only
 	// address-list comparison; it is not a Decode ladder outcome. It labels a
 	// discarded mismatch and, because RFC 3768 Section 7.1 continues processing
@@ -162,11 +161,10 @@ func Decode(payload []byte, meta RxMeta, lookup Lookup) (Advertisement, error) {
 		return Advertisement{}, ErrVersion
 	}
 	// Row 6: checksum over the FULL received payload, actual src/dst from meta.
-	// v3/IPv4 dual-accepts: RFC 5798 pseudo-header primary (ze's tx form and the
-	// deployed base's), RFC 9568 message-only accepted+flagged / RFC 3768
-	// Section 7.1 (v2).
-	msgOnly, checksumOK := verifyReceived(payload, version, meta.Family, meta.Src, meta.Dst)
-	if !checksumOK {
+	// v3/IPv4 accepts only the group's configured form (local.Checksum): RFC
+	// 9568 Section 5.2.8 message-only by default, RFC 5798 pseudo-header when
+	// the group opts in. RFC 3768 Section 7.1 (v2).
+	if !verifyReceived(payload, version, meta.Family, meta.Src, meta.Dst, local.Checksum) {
 		return Advertisement{}, ErrChecksum
 	}
 	// Row 7: TTL / hop-limit is 255 (GTSM, RFC 5082). RFC 9568 Section 5.1.1.3,
@@ -238,7 +236,6 @@ func Decode(payload []byte, meta RxMeta, lookup Lookup) (Advertisement, error) {
 		Priority:        priority,
 		Count:           count,
 		AdverIntervalMS: intervalMS,
-		MsgOnlyChecksum: msgOnly,
 		wireVIPs:        payload[HeaderLen : HeaderLen+int(count)*addrSize],
 	}
 

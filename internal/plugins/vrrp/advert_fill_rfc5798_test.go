@@ -46,7 +46,7 @@ func TestTransmittedAdvertFilledFromInstanceState(t *testing.T) {
 		buf := make([]byte, packet.MaxLenV3v4)
 		n := adv.WriteTo(buf, 0)
 		source := netip.MustParseAddr("192.0.2.251")
-		packet.FillChecksum(buf, 0, n, source, packet.MulticastV4)
+		packet.FillChecksum(buf, 0, n, source, packet.MulticastV4, packet.ChecksumRFC9568)
 		want := []byte{0x31, 10, 150, 2, 0x00, 0x64}
 		if !slices.Equal(buf[:6], want) || !slices.Equal(buf[8:n], []byte{192, 0, 2, 1, 192, 0, 2, 2}) {
 			t.Fatalf("encoded advert % x, want header % x .. and addresses 192.0.2.1, 192.0.2.2", buf[:n], want)
@@ -64,7 +64,7 @@ func TestTransmittedAdvertFilledFromInstanceState(t *testing.T) {
 		buf := make([]byte, packet.MaxLenV3v6)
 		n := adv.WriteTo(buf, 0)
 		source := netip.MustParseAddr("fe80::251")
-		packet.FillChecksum(buf, 0, n, source, packet.MulticastV6)
+		packet.FillChecksum(buf, 0, n, source, packet.MulticastV6, packet.ChecksumRFC9568)
 		want := []byte{0x31, 10, 150, 2, 0x00, 0x64}
 		wantVIPs := slices.Concat(spec.VIPs[0].AsSlice(), spec.VIPs[1].AsSlice())
 		if !slices.Equal(buf[:6], want) || !slices.Equal(buf[8:n], wantVIPs) {
@@ -118,7 +118,7 @@ func advertFilledFromTrackingInstance(t *testing.T, spec GroupSpec, family uint8
 func verifyEncodedAdvert(t *testing.T, frame []byte, meta packet.RxMeta) {
 	t.Helper()
 	lookup := func(uint8) (packet.Local, bool) {
-		return packet.Local{Version: packet.VersionV3, AdverIntervalMS: 1000}, true
+		return packet.Local{Version: packet.VersionV3, AdverIntervalMS: 1000, Checksum: packet.ChecksumRFC9568}, true
 	}
 	if _, err := packet.Decode(frame, meta, lookup); err != nil {
 		t.Fatalf("the encoded advert does not verify: %v", err)

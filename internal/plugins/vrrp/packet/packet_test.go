@@ -15,10 +15,10 @@ import (
 
 // Golden byte vectors from spec-vrrp-1-packet.md, checksums hand-verified via an
 // independent RFC 1071 computation (see TestChecksumRFC1071). G2 is the RFC 9568
-// message-only form, accepted on rx. G2c is the RFC 5798 pseudo-header form
-// (0xDEFB is the pseudo-header sum for src 192.0.2.251 -> dst 224.0.0.18): it is
-// what ze now TRANSMITS for v3/IPv4, because keepalived and the deployed base
-// require it (see checksum.go FillChecksum), and it is also accepted on rx.
+// message-only form, what a v3/IPv4 group sends and accepts by default. G2c is
+// the RFC 5798 pseudo-header form (0xDEFB is the pseudo-header sum for src
+// 192.0.2.251 -> dst 224.0.0.18), what a group configured `checksum
+// rfc5798-compatible` sends and accepts, for keepalived and the deployed base.
 const (
 	goldenV2Hex         = "210ac802000192edc0000201c00002020000000000000000"                                 // G1  v2 IPv4, cksum 0x92ED
 	goldenV3v4Hex       = "310ac8020064828ac0000201c0000202"                                                 // G2  v3 IPv4, cksum 0x828A message-only
@@ -48,7 +48,7 @@ func addr(t testing.TB, s string) netip.Addr {
 // lookupConst returns a Lookup that always resolves to the given local group.
 func lookupConst(version uint8, ms uint32) Lookup {
 	return func(uint8) (Local, bool) {
-		return Local{Version: version, AdverIntervalMS: ms}, true
+		return Local{Version: version, AdverIntervalMS: ms, Checksum: ChecksumRFC9568}, true
 	}
 }
 
@@ -88,7 +88,7 @@ func TestEncodeGoldenV2(t *testing.T) {
 	adv := advV2(t)
 	buf := make([]byte, MaxLenV2)
 	n := adv.WriteTo(buf, 0)
-	FillChecksum(buf, 0, n, addr(t, "192.0.2.251"), MulticastV4)
+	FillChecksum(buf, 0, n, addr(t, "192.0.2.251"), MulticastV4, ChecksumRFC9568)
 	want := mustHex(t, goldenV2Hex)
 	if n != len(want) {
 		t.Fatalf("wrote %d bytes, want %d", n, len(want))
@@ -98,33 +98,84 @@ func TestEncodeGoldenV2(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-2 -- v3 IPv4 encode produces exact G2c bytes (reserved nibble 0,
-// 12-bit interval = 100 cs, RFC 5798 pseudo-header checksum 0xDEFB -- ze's tx
-// form for keepalived interop).
-// PREVENTS: reserve-nibble leak, cs/ms confusion, checksum-form regression.
+// VALIDATES: AC-2 -- v3 IPv4 encode produces exact G2 bytes by default
+// (reserved nibble 0, 12-bit interval = 100 cs, RFC 9568 message-only checksum
+// 0x828A) and exact G2c bytes in rfc5798-compatible mode (pseudo-header 0xDEFB).
+// PREVENTS: reserve-nibble leak, cs/ms confusion, a checksum form other than the
+// group's configured one.
 //
 // RFC requirement: RFC9568-5.2.6-1 positive -- WriteTo writes the Reserve nibble as zero on transmission; only the low 12 bits of bytes 4-5 carry the interval (packet.go:269)
 // RFC requirement: RFC5798-5.2.6-1 positive -- WriteTo writes the rsvd nibble as zero on transmission, the first half of RFC 5798 Section 5.2.6; only the low 12 bits of bytes 4-5 carry the interval (packet.go:269)
-// RFC requirement: RFC9568-7.2-1 positive -- WriteTo fills the Version, Type, VRID, Priority, Count, Reserve, Max Advertise Interval and IPv4 address fields from the Virtual Router's advertisement state, each equal to the golden octets (packet.go:251); the checksum this golden carries is the RFC 5798 form, the interop deviation disclosed on RFC9568-7.2-5, and is not claimed here.
-// RFC requirement: RFC5798-7.2-1 positive -- WriteTo fills every VRRP field from the virtual router's advertisement state and FillChecksum computes the VRRP checksum, producing the exact golden bytes (packet.go:251, checksum.go:86).
+// RFC requirement: RFC9568-7.2-1 positive -- WriteTo fills the Version, Type, VRID, Priority, Count, Reserve, Max Advertise Interval and IPv4 address fields from the Virtual Router's advertisement state, each equal to the golden octets (packet.go:251).
+// RFC requirement: RFC9568-7.2-5 positive -- FillChecksum in the default ChecksumRFC9568 mode computes the VRRPv3 IPv4 checksum over the VRRP message alone, the golden G2 bytes with checksum 0x828A (FillChecksum checksum.go).
+// RFC requirement: RFC9568-5.2.8-2 positive -- the default IPv4 checksum covers only the VRRP message from the Version field to the last IPv4 address, so it equals 0x828A and not the pseudo-header sum 0xDEFB for the same source and destination (FillChecksum, pseudoSumFor checksum.go).
+// RFC requirement: RFC5798-7.2-1 positive -- WriteTo fills every VRRP field from the virtual router's advertisement state and FillChecksum in rfc5798-compatible mode computes the RFC 5798 pseudo-header checksum, producing the exact golden G2c bytes (packet.go:251, checksum.go).
 func TestEncodeGoldenV3IPv4(t *testing.T) {
-	adv := advV3v4(t)
-	buf := make([]byte, MaxLenV3v4)
-	n := adv.WriteTo(buf, 0)
-	FillChecksum(buf, 0, n, addr(t, "192.0.2.251"), MulticastV4)
-	if buf[4]&0xF0 != 0 {
-		t.Fatalf("Reserve nibble = %#x, want 0 on transmission", buf[4]&0xF0)
+	cases := []struct {
+		name string
+		mode ChecksumMode
+		want string
+	}{
+		{"rfc9568-message-only", ChecksumRFC9568, goldenV3v4Hex},
+		{"rfc5798-compatible-pseudo-header", ChecksumRFC5798Compatible, goldenV3v4CompatHex},
 	}
-	// Expect the pseudo-header form (G2c), not message-only (G2): ze transmits
-	// the RFC 5798 pseudo-header checksum for v3/IPv4 so keepalived and the
-	// deployed base accept it (checksum.go FillChecksum). 0xDEFB is the
-	// pseudo-header sum for this exact src (192.0.2.251) and dst (224.0.0.18).
-	want := mustHex(t, goldenV3v4CompatHex)
-	if n != len(want) {
-		t.Fatalf("wrote %d bytes, want %d", n, len(want))
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			adv := advV3v4(t)
+			buf := make([]byte, MaxLenV3v4)
+			n := adv.WriteTo(buf, 0)
+			FillChecksum(buf, 0, n, addr(t, "192.0.2.251"), MulticastV4, tc.mode)
+			if buf[4]&0xF0 != 0 {
+				t.Fatalf("Reserve nibble = %#x, want 0 on transmission", buf[4]&0xF0)
+			}
+			want := mustHex(t, tc.want)
+			if n != len(want) {
+				t.Fatalf("wrote %d bytes, want %d", n, len(want))
+			}
+			if !bytes.Equal(buf[:n], want) {
+				t.Fatalf("v3 IPv4 encode mismatch:\ngot:  % x\nwant: % x", buf[:n], want)
+			}
+		})
 	}
-	if !bytes.Equal(buf[:n], want) {
-		t.Fatalf("v3 IPv4 encode mismatch:\ngot:  % x\nwant: % x", buf[:n], want)
+}
+
+// VALIDATES: a v3 IPv4 advertisement is accepted only in the checksum form its
+// group is configured for: G2 (message-only) under the default mode, G2c
+// (pseudo-header) under rfc5798-compatible, and each is refused with
+// ErrChecksum under the other mode.
+// PREVENTS: the dual-accept that kept a message-only advertisement whose
+// checksum was wrong when its pseudo-header sum matched.
+//
+// RFC requirement: RFC9568-5.2.8-2 positive -- under the default mode an IPv4 advert carrying the message-only checksum (G2, 0x828A) decodes (verifyReceived checksum.go, Decode validate.go).
+// RFC requirement: RFC9568-5.2.8-2 negative -- under the default mode the same advert carrying the RFC 5798 pseudo-header checksum (G2c, 0xDEFB) is discarded with ErrChecksum, so a checksum that includes the pseudo-header is not accepted (verifyReceived checksum.go, Decode validate.go).
+// RFC requirement: RFC9568-7.2-5 negative -- a v3 IPv4 group configured rfc5798-compatible discards the message-only G2 advert with ErrChecksum and accepts only the pseudo-header G2c form it computes itself (verifyReceived, pseudoSumFor checksum.go).
+func TestDecodeV3IPv4ChecksumOnlyConfiguredForm(t *testing.T) {
+	cases := []struct {
+		name   string
+		mode   ChecksumMode
+		golden string
+		accept bool
+	}{
+		{"rfc9568-accepts-message-only", ChecksumRFC9568, goldenV3v4Hex, true},
+		{"rfc9568-refuses-pseudo-header", ChecksumRFC9568, goldenV3v4CompatHex, false},
+		{"rfc5798-compatible-accepts-pseudo-header", ChecksumRFC5798Compatible, goldenV3v4CompatHex, true},
+		{"rfc5798-compatible-refuses-message-only", ChecksumRFC5798Compatible, goldenV3v4Hex, false},
+		{"unspecified-refuses-message-only", ChecksumUnspecified, goldenV3v4Hex, false},
+		{"unspecified-refuses-pseudo-header", ChecksumUnspecified, goldenV3v4CompatHex, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			lookup := func(uint8) (Local, bool) {
+				return Local{Version: VersionV3, AdverIntervalMS: 1000, Checksum: tc.mode}, true
+			}
+			_, err := Decode(mustHex(t, tc.golden), metaV3v4(t), lookup)
+			if tc.accept && err != nil {
+				t.Fatalf("Decode: %v, want accept", err)
+			}
+			if !tc.accept && !errors.Is(err, ErrChecksum) {
+				t.Fatalf("Decode err = %v, want ErrChecksum", err)
+			}
+		})
 	}
 }
 
@@ -137,7 +188,7 @@ func TestEncodeGoldenV3IPv6(t *testing.T) {
 	adv := advV3v6(t)
 	buf := make([]byte, MaxLenV3v6)
 	n := adv.WriteTo(buf, 0)
-	FillChecksum(buf, 0, n, addr(t, "fe80::c8"), MulticastV6)
+	FillChecksum(buf, 0, n, addr(t, "fe80::c8"), MulticastV6, ChecksumRFC9568)
 	want := mustHex(t, goldenV3v6Hex)
 	if n != len(want) {
 		t.Fatalf("wrote %d bytes, want %d", n, len(want))
@@ -158,14 +209,14 @@ func TestWriteToOffset(t *testing.T) {
 	}
 	adv := advV3v4(t)
 	n := adv.WriteTo(buf, prefix)
-	FillChecksum(buf, prefix, n, addr(t, "192.0.2.251"), MulticastV4)
+	FillChecksum(buf, prefix, n, addr(t, "192.0.2.251"), MulticastV4, ChecksumRFC9568)
 	for i := range prefix {
 		if buf[i] != 0xAA {
 			t.Fatalf("byte %d clobbered: %#x", i, buf[i])
 		}
 	}
-	// Pseudo-header form (G2c), the v3/IPv4 tx checksum -- see TestEncodeGoldenV3IPv4.
-	want := mustHex(t, goldenV3v4CompatHex)
+	// Message-only form (G2), the default v3/IPv4 tx checksum -- see TestEncodeGoldenV3IPv4.
+	want := mustHex(t, goldenV3v4Hex)
 	if !bytes.Equal(buf[prefix:prefix+n], want) {
 		t.Fatalf("offset encode mismatch:\ngot:  % x\nwant: % x", buf[prefix:prefix+n], want)
 	}
@@ -217,7 +268,7 @@ func TestRoundTrip(t *testing.T) {
 						Priority: prio, AdverIntervalMS: 1000, VIPs: vips}
 					buf := make([]byte, fam.maxLen)
 					n := adv.WriteTo(buf, 0)
-					FillChecksum(buf, 0, n, fam.src, fam.meta.Dst)
+					FillChecksum(buf, 0, n, fam.src, fam.meta.Dst, ChecksumRFC9568)
 
 					got, err := Decode(buf[:n], fam.meta, lookupConst(fam.version, 1000))
 					if err != nil {
@@ -234,9 +285,6 @@ func TestRoundTrip(t *testing.T) {
 						if got.VIPAt(i) != vips[i] {
 							t.Fatalf("VIP[%d] = %v, want %v", i, got.VIPAt(i), vips[i])
 						}
-					}
-					if got.MsgOnlyChecksum {
-						t.Fatal("ze's own tx uses the pseudo-header form, so a round-tripped packet must not set MsgOnlyChecksum")
 					}
 				})
 			}
@@ -327,7 +375,7 @@ func TestBoundaryInterval(t *testing.T) {
 	adv.AdverIntervalMS = 40950
 	buf := make([]byte, MaxLenV3v4)
 	n := adv.WriteTo(buf, 0)
-	FillChecksum(buf, 0, n, addr(t, "192.0.2.251"), MulticastV4)
+	FillChecksum(buf, 0, n, addr(t, "192.0.2.251"), MulticastV4, ChecksumRFC9568)
 	got, err := Decode(buf[:n], metaV3v4(t), lookupConst(VersionV3, 40950))
 	if err != nil {
 		t.Fatalf("Decode: %v", err)
@@ -425,7 +473,7 @@ func BenchmarkEncode(b *testing.B) {
 	b.ResetTimer()
 	for range b.N {
 		n := adv.WriteTo(buf, 0)
-		FillChecksum(buf, 0, n, src, MulticastV4)
+		FillChecksum(buf, 0, n, src, MulticastV4, ChecksumRFC9568)
 	}
 }
 

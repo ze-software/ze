@@ -33,7 +33,7 @@ func v3AdvertItem(t *testing.T, priority uint8, source netip.Addr, vips ...netip
 	}
 	var buf [packet.MaxLenV3v4]byte
 	n := adv.WriteTo(buf[:], 0)
-	packet.FillChecksum(buf[:], 0, n, source, packet.MulticastV4)
+	packet.FillChecksum(buf[:], 0, n, source, packet.MulticastV4, packet.ChecksumRFC9568)
 	return transport.RxItem{
 		Meta:    packet.RxMeta{TTL: 255, Family: packet.V4, Src: source, Dst: packet.MulticastV4},
 		Payload: append([]byte(nil), buf[:n]...),

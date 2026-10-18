@@ -142,6 +142,30 @@ module ze-vrrp-conf {
                     ze:help "Protocol version.";
                 }
 
+                leaf checksum {
+                    type enumeration {
+                        enum "rfc9568" {
+                            ze:help "Checksum over the VRRP message alone (RFC 9568 Section 5.2.8).";
+                        }
+                        enum "rfc5798-compatible" {
+                            ze:help "Checksum over the IPv4 pseudo-header and the message, as keepalived sends.";
+                        }
+                    }
+                    default "rfc9568";
+                    description "Selects the VRRPv3 IPv4 checksum form. The group sends
+                                 and accepts only that form, and an advertisement in
+                                 the other form is dropped and counted as a checksum
+                                 error. RFC 9568 computes the IPv4 checksum over the
+                                 VRRP message alone. RFC 5798 also covered an IPv4
+                                 pseudo-header, and keepalived and other pre-RFC 9568
+                                 routers still send and require that form, so a group
+                                 sharing a segment with them needs rfc5798-compatible.
+                                 Version 2 always sums the message alone and refuses
+                                 rfc5798-compatible. IPv6 groups have no such leaf:
+                                 both RFCs cover the IPv6 pseudo-header.";
+                    ze:help "VRRPv3 IPv4 checksum form: rfc9568 or rfc5798-compatible.";
+                }
+
                 leaf accept-mode {
                     type boolean;
                     default "false";

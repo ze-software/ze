@@ -45,27 +45,40 @@ remains Initialize; stale-event handling and named state output are unchanged.
 
 ## Decisions
 
-### The v3 IPv4 checksum transmits the RFC 5798 pseudo-header form
+### The v3 IPv4 checksum form is a per-group setting
 
-<!-- source: internal/plugins/vrrp/packet/checksum.go -- FillChecksum, pseudoSumV4Legacy -->
+<!-- source: internal/plugins/vrrp/packet/checksum.go -- ChecksumMode, pseudoSumFor, FillChecksum, verifyReceived -->
+<!-- source: internal/plugins/vrrp/groups.go -- parseChecksumMode, validateGroup -->
 
-RFC 9568 Section 5.2.8, for IPv4: "the checksum computation only includes the
-VRRP message starting with the Version field and ending with the end of the last
-IPvX address".
+RFC 9568 Section 5.2.8: "For the IPv4 address family, the checksum calculation
+only includes the VRRP message starting with the Version field and ending after
+the last IPv4 address (refer to Section 5.2)." RFC 5798 Section 5.2.8 also
+covered an IPv4 pseudo-header (source, destination, zero, protocol 112, VRRP
+length).
 
-keepalived 2.3.1 computes and requires the RFC 5798 pseudo-header form, and
-rejects the message-only form with "Invalid VRRPv3 checksum". Ze transmits the
-pseudo-header form, because interop with the installed base outranks the RFC
-clarification here.
+A VRRPv3 IPv4 group computes the RFC 9568 message-only checksum by default. The
+`checksum rfc5798-compatible` leaf switches the group to the RFC 5798
+pseudo-header form. keepalived 2.3.1 computes and requires that form and
+rejects the message-only one with "Invalid VRRPv3 checksum", as does the rest of
+the pre-RFC 9568 deployed base, so a group that shares a segment with them
+needs the leaf. The `vrrp-mastership-keepalived` interop scenario and the QEMU
+keepalived lab both run with it.
 
-Receive dual-accepts. The pseudo-header form is canonical. The message-only form
-is accepted and flagged as `MsgOnlyChecksum`, counted under
-`checksum-rfc9568-message-only`, so a strict RFC 9568 peer is visible to the
-operator. The selection sits in one function in `checksum.go`. The decision
-flip-flopped twice during development and a live keepalived capture settled it.
+Receive accepts only the configured form. An advertisement carrying the other
+form fails the checksum row of the receive ladder and is counted under the
+`checksum` packet-error reason. An earlier design sent the pseudo-header form
+and accepted both, so a message-only advertisement whose checksum was wrong was
+kept whenever its pseudo-header sum matched; one form per group removes that.
 
-IPv6 includes the RFC 8200 Section 8.1 pseudo-header. VRRPv2 uses no
-pseudo-header, per RFC 3768 Section 5.3.7.
+The mode travels with the group spec into the advertisement parameters
+(`AdvertParams.Checksum`) and the receive lookup (`packet.Local.Checksum`), so a
+reconfigure changes both sides on the next advertisement. The zero value
+`ChecksumUnspecified` is never produced by the parser: `FillChecksum` panics on
+it and receive refuses every v3 IPv4 packet under it.
+
+IPv6 includes the RFC 8200 Section 8.1 pseudo-header in both RFCs, so the leaf
+exists only for IPv4 groups. VRRPv2 uses no pseudo-header, per RFC 3768 Section
+5.3.7, and refuses `checksum rfc5798-compatible`.
 
 ### GTSM on receive
 
@@ -344,8 +357,8 @@ state; a tracked route and a health-check script are not implemented.
   source. `encodeLocked` builds no advertisement in that state, `UpdateAdvert`
   counts `{reason=no-primary-v4}` and returns no upward error, and the next
   `UpdateAdvert` re-resolves. Writing the zero address instead put a source on the
-  wire the RFC does not allow, and it panicked in `pseudoSumV4Legacy`, which calls
-  `As4` on the address. When the parent loses its last IPv4 address the cached
+  wire the RFC does not allow, and it panicked in the IPv4 pseudo-header sum (now
+  `pseudoSumV4`), which calls `As4` on the address. When the parent loses its last IPv4 address the cached
   source is cleared and the prepared frame dropped with it, so no advertisement
   leaves from an address the interface no longer holds.
 - The equal-priority tie-break compares the sender with the source the transport

@@ -61,7 +61,7 @@ func TestTxAdvertV4OnWire(t *testing.T) {
 	tr, key := openTransportInstance(t, lab, packet.V4)
 
 	for _, version := range []uint8{packet.VersionV2, packet.VersionV3} {
-		params := AdvertParams{Version: version, Priority: 100, AdverIntervalMS: 1000, VIPs: []netip.Addr{netip.MustParseAddr("192.0.2.1")}}
+		params := AdvertParams{Version: version, Checksum: packet.ChecksumRFC9568, Priority: 100, AdverIntervalMS: 1000, VIPs: []netip.Addr{netip.MustParseAddr("192.0.2.1")}}
 		if err := tr.UpdateAdvert(key, params); err != nil {
 			t.Fatalf("v%d UpdateAdvert: %v", version, err)
 		}

@@ -5,7 +5,8 @@
 # in-process verifier, and every shape the design promises validates: named
 # groups with a mandatory vrid, multiple virtual addresses, v3 defaults, the v2
 # opt-in, an IPv6 group whose first address is link-local, the address-owner
-# case, the same vrid in both families, and a VLAN unit.
+# case, the same vrid in both families, a VLAN unit, and the keepalived
+# checksum opt-in (`checksum rfc5798-compatible`, and the explicit default).
 # PREVENTS: a regression where the 8 YANG augment paths are not wired (the vrrp
 # container would be an unknown field), where the vrrp plugin stops receiving the
 # shared `interface` config root, or where a legal group is rejected.
@@ -173,5 +174,36 @@ interface {
 EOF_TWO
 
 cmd=foreground:seq=6:exec=ze config validate -:stdin=vrrp-two-groups:exit=0
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- checksum: rfc5798-compatible opts a v3 IPv4 group into the RFC 5798 -----
+# pseudo-header checksum keepalived requires; rfc9568 is the default, spelled.
+stdin=vrrp-checksum:terminator=EOF_CKSUM
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                address [ 192.0.2.251/24 ];
+                vrrp {
+                    group keepalived {
+                        vrid 10;
+                        checksum rfc5798-compatible;
+                        virtual-address [ 192.0.2.1 ];
+                    }
+                    group strict {
+                        vrid 20;
+                        checksum rfc9568;
+                        virtual-address [ 192.0.2.2 ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_CKSUM
+
+cmd=foreground:seq=7:exec=ze config validate -:stdin=vrrp-checksum:exit=0
 expect=exit:code=0
 expect=stdout:contains=configuration valid

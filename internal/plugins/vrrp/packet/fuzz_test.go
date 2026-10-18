@@ -59,7 +59,14 @@ func FuzzDecode(f *testing.F) {
 			meta = RxMeta{TTL: 255, Src: src6, Dst: MulticastV6, Family: V6}
 			localVer = VersionV3
 		}
-		lookup := func(uint8) (Local, bool) { return Local{Version: localVer, AdverIntervalMS: 1000}, true }
+		// Both v3/IPv4 checksum modes are fuzzed: each accepts only its own form.
+		mode := ChecksumRFC9568
+		if sel&4 != 0 {
+			mode = ChecksumRFC5798Compatible
+		}
+		lookup := func(uint8) (Local, bool) {
+			return Local{Version: localVer, AdverIntervalMS: 1000, Checksum: mode}, true
+		}
 
 		adv, err := Decode(data, meta, lookup)
 		if err != nil {
@@ -87,9 +94,6 @@ func FuzzDecode(f *testing.F) {
 		if len(data) != wantLen {
 			t.Fatalf("accepted len %d, want exact %d", len(data), wantLen)
 		}
-		if adv.MsgOnlyChecksum && (localVer != VersionV3 || meta.Family != V4) {
-			t.Fatal("MsgOnlyChecksum set outside v3/IPv4")
-		}
 		for i := range adv.VIPCount() {
 			if !adv.VIPAt(i).IsValid() {
 				t.Fatalf("VIPAt(%d) invalid within bounds", i)
@@ -99,14 +103,14 @@ func FuzzDecode(f *testing.F) {
 			t.Fatal("VIPAt past bounds returned a valid address")
 		}
 
-		// Round-trip only encodable packets that used the canonical (pseudo-header)
-		// checksum form, since re-encoding produces that form.
-		if adv.VIPCount() <= MaxVIPs && !adv.MsgOnlyChecksum {
+		// Round-trip every encodable packet: re-encoding uses the same group
+		// mode, which is the only form Decode accepted.
+		if adv.VIPCount() <= MaxVIPs {
 			re := Advertisement{Version: adv.Version, Family: adv.Family, VRID: adv.VRID,
 				Priority: adv.Priority, AdverIntervalMS: adv.AdverIntervalMS, VIPs: adv.AppendVIPs(nil)}
 			buf := make([]byte, MaxLenV3v6)
 			n := re.WriteTo(buf, 0)
-			FillChecksum(buf, 0, n, meta.Src, meta.Dst)
+			FillChecksum(buf, 0, n, meta.Src, meta.Dst, mode)
 			got, err := Decode(buf[:n], meta, lookup)
 			if err != nil {
 				t.Fatalf("round-trip decode failed: %v", err)

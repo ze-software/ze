@@ -147,6 +147,7 @@ func vrrpZeConfig(names vrrpNames) []byte {
 		Str("                        priority ").Int(vrrpZePriority).Str(";\n").
 		Str("                        preempt true;\n").
 		Str("                        accept-mode true;\n").
+		Str("                        checksum rfc5798-compatible;\n").
 		Str("                        advertise-interval-milliseconds ").Int(vrrpAdvertMS).Str(";\n").
 		Str("                    }\n").
 		Str("                }\n").
@@ -175,6 +176,7 @@ func vrrpZeTrackConfig(names vrrpNames) []byte {
 		Str("                        priority ").Int(vrrpZePriority).Str(";\n").
 		Str("                        preempt true;\n").
 		Str("                        accept-mode true;\n").
+		Str("                        checksum rfc5798-compatible;\n").
 		Str("                        advertise-interval-milliseconds ").Int(vrrpAdvertMS).Str(";\n").
 		Str("                        track {\n").
 		Str("                            interface ").Str(names.trackVeth).Str(" {\n").

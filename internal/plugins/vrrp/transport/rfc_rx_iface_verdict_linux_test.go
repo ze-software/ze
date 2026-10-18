@@ -73,7 +73,7 @@ func peerSender(t *testing.T, peer, source string, version uint8) func() {
 	adv := packet.Advertisement{Version: version, Family: packet.V4, VRID: testVRID, Priority: 100, AdverIntervalMS: 1000, VIPs: []netip.Addr{netip.MustParseAddr("192.0.2.1")}}
 	n := adv.WriteTo(datagram[:], ipv4HeaderLen)
 	src := netip.MustParseAddr(source)
-	packet.FillChecksum(datagram[:], ipv4HeaderLen, n, src, packet.MulticastV4)
+	packet.FillChecksum(datagram[:], ipv4HeaderLen, n, src, packet.MulticastV4, packet.ChecksumRFC9568)
 	hdr := buildIPv4Header(datagram[:], src.As4(), packet.MulticastV4.As4())
 
 	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_RAW, int(packet.ProtoNumber))
@@ -147,7 +147,7 @@ func TestRxAdvertScopedToReceivingInterface(t *testing.T) {
 				if got != vrid {
 					return packet.Local{}, false
 				}
-				return packet.Local{Version: version, AdverIntervalMS: 1000}, true
+				return packet.Local{Version: version, AdverIntervalMS: 1000, Checksum: packet.ChecksumRFC9568}, true
 			}
 		}
 

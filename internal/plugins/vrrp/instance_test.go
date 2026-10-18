@@ -221,6 +221,7 @@ func (f *fakeDeps) snapshot() fakeDeps {
 
 func testSpec() GroupSpec {
 	return GroupSpec{
+		Checksum:         packet.ChecksumRFC9568,
 		IfType:           "ethernet",
 		Interface:        "eth0",
 		Unit:             "0",
@@ -567,7 +568,7 @@ func TestInstanceRxValidAdvertReachesFSM(t *testing.T) {
 	var buf [packet.MaxLenV3v4]byte
 	n := adv.WriteTo(buf[:], 0)
 	src := netip.MustParseAddr("192.0.2.9")
-	packet.FillChecksum(buf[:], 0, n, src, packet.MulticastV4)
+	packet.FillChecksum(buf[:], 0, n, src, packet.MulticastV4, packet.ChecksumRFC9568)
 
 	in.onPacket(transport.RxItem{
 		Meta:    packet.RxMeta{TTL: 255, Family: packet.V4, Src: src, Dst: packet.MulticastV4},
@@ -612,7 +613,7 @@ func TestInstanceV2AddressListMismatchDrops(t *testing.T) {
 	var buf [packet.MaxLenV2]byte
 	n := other.WriteTo(buf[:], 0)
 	src := netip.MustParseAddr("192.0.2.9")
-	packet.FillChecksum(buf[:], 0, n, src, packet.MulticastV4)
+	packet.FillChecksum(buf[:], 0, n, src, packet.MulticastV4, packet.ChecksumRFC9568)
 
 	in.onPacket(transport.RxItem{
 		Meta:    packet.RxMeta{TTL: 255, Family: packet.V4, Src: src, Dst: packet.MulticastV4},
@@ -651,7 +652,7 @@ func TestInstanceV2AddressListMatchReachesFSM(t *testing.T) {
 	var buf [packet.MaxLenV2]byte
 	n := adv.WriteTo(buf[:], 0)
 	src := netip.MustParseAddr("192.0.2.9")
-	packet.FillChecksum(buf[:], 0, n, src, packet.MulticastV4)
+	packet.FillChecksum(buf[:], 0, n, src, packet.MulticastV4, packet.ChecksumRFC9568)
 
 	in.onPacket(transport.RxItem{
 		Meta:    packet.RxMeta{TTL: 255, Family: packet.V4, Src: src, Dst: packet.MulticastV4},
@@ -1170,7 +1171,7 @@ func v2AdvertItem(t *testing.T, priority uint8, source netip.Addr, vips ...netip
 	}
 	var buf [packet.MaxLenV2]byte
 	n := adv.WriteTo(buf[:], 0)
-	packet.FillChecksum(buf[:], 0, n, source, packet.MulticastV4)
+	packet.FillChecksum(buf[:], 0, n, source, packet.MulticastV4, packet.ChecksumRFC9568)
 	return transport.RxItem{
 		Meta:    packet.RxMeta{TTL: 255, Family: packet.V4, Src: source, Dst: packet.MulticastV4},
 		Payload: append([]byte(nil), buf[:n]...),

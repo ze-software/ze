@@ -42,7 +42,8 @@ func TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly(t *testing.T) {
 	physical := w.parent.Attrs().HardwareAddr
 	vip := netip.MustParseAddr("2001:db8::50")
 	spec := GroupSpec{
-		Family: familyIPv6, VRID: 21, Version: 3, Priority: 200,
+		Checksum: packet.ChecksumRFC9568,
+		Family:   familyIPv6, VRID: 21, Version: 3, Priority: 200,
 		VIPs:          []netip.Addr{netip.MustParseAddr("fe80::1"), vip},
 		realAddresses: []netip.Addr{netip.MustParseAddr("2001:db8::254")},
 		realPrefixes:  []netip.Prefix{netip.MustParsePrefix("2001:db8::254/64")},

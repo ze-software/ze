@@ -38,7 +38,8 @@ func nonOwnerMacvlan(t *testing.T, w gatewayWire, device string, vrid uint8) net
 // nonOwnerCIDRs is the address list the product installs for nonOwnerVIP.
 func nonOwnerCIDRs() []string {
 	spec := GroupSpec{
-		Family: familyIPv4, VRID: 20, Version: 3, Priority: 200,
+		Checksum: packet.ChecksumRFC9568,
+		Family:   familyIPv4, VRID: 20, Version: 3, Priority: 200,
 		VIPs: []netip.Addr{nonOwnerVIP}, realAddresses: []netip.Addr{netip.MustParseAddr("192.0.2.254")},
 		realPrefixes: []netip.Prefix{netip.MustParsePrefix("192.0.2.254/24")},
 	}

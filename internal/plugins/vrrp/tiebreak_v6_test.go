@@ -31,7 +31,7 @@ func v6AdvertItem(spec GroupSpec, priority uint8, intervalMS uint32, source neti
 	}
 	buf := make([]byte, packet.MaxLenV3v6)
 	n := adv.WriteTo(buf, 0)
-	packet.FillChecksum(buf, 0, n, source, packet.MulticastV6)
+	packet.FillChecksum(buf, 0, n, source, packet.MulticastV6, packet.ChecksumRFC9568)
 	meta := packet.RxMeta{TTL: 255, Family: packet.V6, Src: source, Dst: packet.MulticastV6}
 	return transport.RxItem{Meta: meta, Payload: buf[:n]}
 }

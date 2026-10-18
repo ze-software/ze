@@ -133,6 +133,7 @@ func v6Spec() InstanceSpec {
 
 func v4Params() AdvertParams {
 	return AdvertParams{
+		Checksum:        packet.ChecksumRFC9568,
 		Version:         packet.VersionV3,
 		Priority:        100,
 		AdverIntervalMS: 1000,
@@ -282,6 +283,7 @@ func TestSendAdvertIPv4HeaderTTLProtoDst(t *testing.T) {
 	}
 	h := fb.last()
 	if err := tr.UpdateAdvert(key, AdvertParams{
+		Checksum:        packet.ChecksumRFC9568,
 		Version:         packet.VersionV2,
 		Priority:        100,
 		AdverIntervalMS: 1000,
@@ -325,6 +327,7 @@ func TestSendAdvertV3IPv4HeaderTTLProtoDst(t *testing.T) {
 	}
 	h := fb.last()
 	if err := tr.UpdateAdvert(key, AdvertParams{
+		Checksum:        packet.ChecksumRFC9568,
 		Version:         packet.VersionV3,
 		Priority:        100,
 		AdverIntervalMS: 1000,
@@ -415,6 +418,7 @@ func TestSendAdvertNoLinkLocalSkipsAndCounts(t *testing.T) {
 	}
 	h := fb.last()
 	if err := tr.UpdateAdvert(key, AdvertParams{
+		Checksum:        packet.ChecksumRFC9568,
 		Version:         packet.VersionV3,
 		Priority:        100,
 		AdverIntervalMS: 1000,

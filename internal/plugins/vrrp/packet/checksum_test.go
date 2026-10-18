@@ -61,11 +61,12 @@ func TestChecksumRFC1071(t *testing.T) {
 }
 
 // VALIDATES: FillChecksum backfills the message-only sum for v2, the RFC 5798
-// IPv4 pseudo-header sum for v3/IPv4 (the interoperable tx form), and the RFC
-// 8200 pseudo-header sum for v3/IPv6, matching the golden vectors.
-// PREVENTS: v3/IPv4 regressing to message-only (which keepalived rejects), the
-// v6 pseudo-header being dropped, or a pseudo-header leaking into v2.
-// RFC requirement: RFC5798-5.2.8-1 positive -- FillChecksum computes the RFC 5798 Section 5.2.8 form for BOTH address families -- the v3v4 case pins the IPv4 pseudo-header sum 0xDEFB and the v3v6 case the RFC 2460 / RFC 8200 pseudo-header sum, each with next header 112 and the checksum field zeroed (FillChecksum checksum.go:86, pseudoSumV4Legacy checksum.go:71, pseudoSumV6 checksum.go:55).
+// IPv4 pseudo-header sum for v3/IPv4 in rfc5798-compatible mode (the form
+// keepalived requires), and the RFC 8200 pseudo-header sum for v3/IPv6,
+// matching the golden vectors.
+// PREVENTS: the compatible mode losing its pseudo-header, the v6 pseudo-header
+// being dropped, or a pseudo-header leaking into v2.
+// RFC requirement: RFC5798-5.2.8-1 positive -- FillChecksum computes the RFC 5798 Section 5.2.8 form for BOTH address families -- the v3v4 case pins the IPv4 pseudo-header sum 0xDEFB and the v3v6 case the RFC 2460 / RFC 8200 pseudo-header sum, each with next header 112 and the checksum field zeroed (FillChecksum checksum.go:86, pseudoSumV4 checksum.go, pseudoSumV6 checksum.go:55).
 func TestFillChecksumFamilies(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -73,12 +74,13 @@ func TestFillChecksumFamilies(t *testing.T) {
 		src    string
 		dst    netip.Addr
 		maxLen int
+		mode   ChecksumMode
 	}{
-		{"v2", goldenV2Hex, "192.0.2.251", MulticastV4, MaxLenV2},
-		// v3/IPv4 tx is the pseudo-header form (G2c); 0xDEFB is its sum for
-		// src 192.0.2.251 -> dst 224.0.0.18 (checksum.go FillChecksum).
-		{"v3v4", goldenV3v4CompatHex, "192.0.2.251", MulticastV4, MaxLenV3v4},
-		{"v3v6", goldenV3v6Hex, "fe80::c8", MulticastV6, MaxLenV3v6},
+		{"v2", goldenV2Hex, "192.0.2.251", MulticastV4, MaxLenV2, ChecksumRFC9568},
+		// v3/IPv4 in rfc5798-compatible mode is the pseudo-header form (G2c);
+		// 0xDEFB is its sum for src 192.0.2.251 -> dst 224.0.0.18.
+		{"v3v4", goldenV3v4CompatHex, "192.0.2.251", MulticastV4, MaxLenV3v4, ChecksumRFC5798Compatible},
+		{"v3v6", goldenV3v6Hex, "fe80::c8", MulticastV6, MaxLenV3v6, ChecksumRFC9568},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -86,7 +88,7 @@ func TestFillChecksumFamilies(t *testing.T) {
 			buf := make([]byte, tc.maxLen)
 			copy(buf, want)
 			buf[6], buf[7] = 0, 0 // clear checksum then recompute
-			FillChecksum(buf, 0, len(want), addr(t, tc.src), tc.dst)
+			FillChecksum(buf, 0, len(want), addr(t, tc.src), tc.dst, tc.mode)
 			if buf[6] != want[6] || buf[7] != want[7] {
 				t.Fatalf("checksum: got %02x%02x, want %02x%02x", buf[6], buf[7], want[6], want[7])
 			}

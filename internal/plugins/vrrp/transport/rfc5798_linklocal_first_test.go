@@ -35,6 +35,7 @@ func TestSendAdvertIPv6LeadsWithLinkLocal(t *testing.T) {
 	linkLocal := netip.MustParseAddr("fe80::1")
 	global := netip.MustParseAddr("2001:db8::1")
 	if err := tr.UpdateAdvert(key, AdvertParams{
+		Checksum:        packet.ChecksumRFC9568,
 		Version:         packet.VersionV3,
 		Priority:        100,
 		AdverIntervalMS: 1000,

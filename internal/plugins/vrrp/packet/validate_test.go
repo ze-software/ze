@@ -19,14 +19,14 @@ func encodeValid(t testing.TB, adv Advertisement, src, dst netip.Addr) []byte {
 	t.Helper()
 	buf := make([]byte, MaxLenV3v6)
 	n := adv.WriteTo(buf, 0)
-	FillChecksum(buf, 0, n, src, dst)
+	FillChecksum(buf, 0, n, src, dst, ChecksumRFC9568)
 	return buf[:n]
 }
 
 // reChecksum zeroes and recomputes the checksum in place after a byte mutation.
 func reChecksum(buf []byte, src, dst netip.Addr) {
 	buf[6], buf[7] = 0, 0
-	FillChecksum(buf, 0, len(buf), src, dst)
+	FillChecksum(buf, 0, len(buf), src, dst, ChecksumRFC9568)
 }
 
 // -----------------------------------------------------------------------------
@@ -57,15 +57,11 @@ func TestDecodeGoldenV2(t *testing.T) {
 	if adv.VIPAt(0) != addr(t, "192.0.2.1") || adv.VIPAt(1) != addr(t, "192.0.2.2") {
 		t.Fatalf("VIPs: %v %v", adv.VIPAt(0), adv.VIPAt(1))
 	}
-	if adv.MsgOnlyChecksum {
-		t.Fatal("v2 must not set MsgOnlyChecksum")
-	}
 }
 
 // VALIDATES: AC-3 -- v3 IPv4 golden decodes field-equal, interval 1000 ms. Uses
-// the canonical pseudo-header golden (G2c), the form ze transmits, so the decode
-// is not flagged; the message-only form's flagging is covered by
-// TestDecodeV3IPv4MsgOnlyChecksumCompat.
+// the RFC 9568 message-only golden (G2), the form a default group sends and
+// accepts; the per-mode acceptance is TestDecodeV3IPv4ChecksumOnlyConfiguredForm.
 //
 // A conformant VRRPv3 IPv4 advertisement passes every Section 7.1 receive
 // check, so this golden decode is the positive case for each mandatory ladder
@@ -84,16 +80,13 @@ func TestDecodeGoldenV2(t *testing.T) {
 // RFC requirement: RFC9568-7.1-4 positive -- the VRID configured on the receiving interface resolves through lookup (Decode validate.go:143)
 // RFC requirement: RFC9568-7.1-5 positive -- a non-zero Max Advertise Interval (100 cs) is accepted (Decode validate.go:212).
 func TestDecodeGoldenV3IPv4(t *testing.T) {
-	adv, err := Decode(mustHex(t, goldenV3v4CompatHex), metaV3v4(t), lookupConst(VersionV3, 1000))
+	adv, err := Decode(mustHex(t, goldenV3v4Hex), metaV3v4(t), lookupConst(VersionV3, 1000))
 	if err != nil {
 		t.Fatalf("Decode: %v", err)
 	}
 	checkFields(t, adv, VersionV3, V4, 10, 200, 2, 1000)
 	if adv.VIPAt(0) != addr(t, "192.0.2.1") || adv.VIPAt(1) != addr(t, "192.0.2.2") {
 		t.Fatalf("VIPs: %v %v", adv.VIPAt(0), adv.VIPAt(1))
-	}
-	if adv.MsgOnlyChecksum {
-		t.Fatal("the pseudo-header golden is ze's canonical form; it must not set MsgOnlyChecksum")
 	}
 }
 
@@ -312,43 +305,6 @@ func TestDecodeV2ChecksumCorrupt(t *testing.T) {
 }
 
 // -----------------------------------------------------------------------------
-// v3/IPv4 legacy RFC 5798 dual-accept (AC-10, N1, N1b)
-// -----------------------------------------------------------------------------
-
-// VALIDATES: AC-10 -- v3/IPv4 dual-accept. G2c (RFC 5798 pseudo-header sum
-// 0xDEFB) is the CANONICAL form ze and the deployed base send: accepted, NOT
-// flagged. G2 (RFC 9568 message-only sum 0x828A) is accepted but flagged
-// MsgOnlyChecksum so an operator sees a strict-RFC-9568 peer. A payload failing
-// BOTH sums yields ErrChecksum.
-func TestDecodeV3IPv4MsgOnlyChecksumCompat(t *testing.T) {
-	// G2c (pseudo-header, src 192.0.2.251, dst 224.0.0.18) is the canonical form.
-	adv, err := Decode(mustHex(t, goldenV3v4CompatHex), metaV3v4(t), lookupConst(VersionV3, 1000))
-	if err != nil {
-		t.Fatalf("G2c (pseudo-header) must be accepted: %v", err)
-	}
-	if adv.MsgOnlyChecksum {
-		t.Fatal("G2c is the pseudo-header form ze sends; it must NOT set MsgOnlyChecksum")
-	}
-
-	// G2 (message-only) is accepted, and flagged as the strict-RFC-9568 form.
-	adv2, err := Decode(mustHex(t, goldenV3v4Hex), metaV3v4(t), lookupConst(VersionV3, 1000))
-	if err != nil {
-		t.Fatalf("G2 (message-only) must be accepted: %v", err)
-	}
-	if !adv2.MsgOnlyChecksum {
-		t.Fatal("G2 is the message-only form; it must set MsgOnlyChecksum (checksum-rfc9568-message-only)")
-	}
-
-	// A payload failing both the pseudo-header and message-only sums -> ErrChecksum.
-	bad := mustHex(t, goldenV3v4Hex)
-	bad[6], bad[7] = 0, 0
-	_, err = Decode(bad, metaV3v4(t), lookupConst(VersionV3, 1000))
-	if !errors.Is(err, ErrChecksum) {
-		t.Fatalf("both-fail payload: got %v, want ErrChecksum", err)
-	}
-}
-
-// -----------------------------------------------------------------------------
 // IPv4 header strip helper (AC-6, N3)
 // -----------------------------------------------------------------------------
 
@@ -416,8 +372,7 @@ func TestStripIPv4HeaderIHL(t *testing.T) {
 
 // VALIDATES: Reason() is total and injective over the receive-validation
 // taxonomy (ip-header intentionally shared by the two strip errors); the
-// accepted-outcome label checksum-rfc9568-message-only and the engine-raised
-// address-list label are present and collision-free; encode-side errors and nil
+// engine-raised address-list label is present and collision-free; encode-side errors and nil
 // are deliberately NOT rx reasons (mapping closed over the taxonomy).
 func TestErrorReasonMapping(t *testing.T) {
 	table := []struct {
@@ -456,14 +411,8 @@ func TestErrorReasonMapping(t *testing.T) {
 		}
 	}
 
-	if ReasonMsgOnlyChecksum != "checksum-rfc9568-message-only" {
-		t.Errorf("ReasonMsgOnlyChecksum = %q", ReasonMsgOnlyChecksum)
-	}
 	if ReasonAddressList != "address-list" {
 		t.Errorf("ReasonAddressList = %q", ReasonAddressList)
-	}
-	if _, dup := seen[ReasonMsgOnlyChecksum]; dup {
-		t.Error("compat label collides with an error reason")
 	}
 	if _, dup := seen[ReasonAddressList]; dup {
 		t.Error("address-list label collides with an error reason")
@@ -489,12 +438,14 @@ func TestNegativeReferenceBugs(t *testing.T) {
 	dst6 := MulticastV6
 
 	t.Run("N1 pseudo-header-checksum-accepted", func(t *testing.T) {
-		// The RFC 5798 pseudo-header form (G2c) must be accepted -- a reference
-		// implementation that rejected it could not talk to keepalived. It is
-		// ze's own tx form, so it is the canonical, unflagged case.
-		adv, err := Decode(mustHex(t, goldenV3v4CompatHex), metaV3v4(t), lookupConst(VersionV3, 1000))
-		if err != nil || adv.MsgOnlyChecksum {
-			t.Fatalf("G2c: err=%v msgOnly=%v, want accept+canonical", err, adv.MsgOnlyChecksum)
+		// The RFC 5798 pseudo-header form (G2c) must be accepted by a group
+		// configured rfc5798-compatible -- a reference implementation that
+		// rejected it could not talk to keepalived.
+		compat := func(uint8) (Local, bool) {
+			return Local{Version: VersionV3, AdverIntervalMS: 1000, Checksum: ChecksumRFC5798Compatible}, true
+		}
+		if _, err := Decode(mustHex(t, goldenV3v4CompatHex), metaV3v4(t), compat); err != nil {
+			t.Fatalf("G2c under rfc5798-compatible: err=%v, want accept", err)
 		}
 	})
 
@@ -570,7 +521,7 @@ func TestNegativeReferenceBugs(t *testing.T) {
 		b[5] = 0x64 // 100 cs
 		fe80 := addr(t, "fe80::1").As16()
 		copy(b[8:24], fe80[:]) // first VIP link-local
-		FillChecksum(b, 0, len(b), src6, dst6)
+		FillChecksum(b, 0, len(b), src6, dst6, ChecksumRFC9568)
 
 		var adv Advertisement
 		allocs := testing.AllocsPerRun(50, func() {

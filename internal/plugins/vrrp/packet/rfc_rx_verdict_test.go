@@ -152,23 +152,23 @@ func TestDecodeV2DiscardsIncompletePacket(t *testing.T) {
 func TestDecodeV3DiscardsIncompletePacket(t *testing.T) {
 	lookup := lookupConst(VersionV3, 1000)
 	meta4, meta6 := metaV3v4(t), metaV3v6(t)
-	if _, err := Decode(mustHex(t, goldenV3v4CompatHex), meta4, lookup); err != nil {
+	if _, err := Decode(mustHex(t, goldenV3v4Hex), meta4, lookup); err != nil {
 		t.Fatalf("complete v3 IPv4 packet: %v, want accepted", err)
 	}
 	if _, err := Decode(mustHex(t, goldenV3v6Hex), meta6, lookup); err != nil {
 		t.Fatalf("complete v3 IPv6 packet: %v, want accepted", err)
 	}
-	if _, err := Decode(mustHex(t, goldenV3v4CompatHex)[:7], meta4, lookup); !errors.Is(err, ErrTruncated) {
+	if _, err := Decode(mustHex(t, goldenV3v4Hex)[:7], meta4, lookup); !errors.Is(err, ErrTruncated) {
 		t.Errorf("v3 cut to 7 octets: got %v, want ErrTruncated", err)
 	}
 
-	oneAddr := mustHex(t, goldenV3v4CompatHex)[:12]
+	oneAddr := mustHex(t, goldenV3v4Hex)[:12]
 	reChecksum(oneAddr, meta4.Src, meta4.Dst)
 	if _, err := Decode(oneAddr, meta4, lookup); !errors.Is(err, ErrLength) {
 		t.Errorf("v3 IPv4 Count 2 carrying one address: got %v, want ErrLength", err)
 	}
 
-	countLie := mustHex(t, goldenV3v4CompatHex)
+	countLie := mustHex(t, goldenV3v4Hex)
 	countLie[3] = 3
 	reChecksum(countLie, meta4.Src, meta4.Dst)
 	if _, err := Decode(countLie, meta4, lookup); !errors.Is(err, ErrLength) {
@@ -196,7 +196,7 @@ func TestEncodeV3ReserveZeroOverDirtyBuffer(t *testing.T) {
 		adv    Advertisement
 		golden string
 	}{
-		{"ipv4", advV3v4(t), goldenV3v4CompatHex},
+		{"ipv4", advV3v4(t), goldenV3v4Hex},
 		{"ipv6", advV3v6(t), goldenV3v6Hex},
 	}
 	for _, tc := range cases {
@@ -210,7 +210,7 @@ func TestEncodeV3ReserveZeroOverDirtyBuffer(t *testing.T) {
 			if tc.adv.Family == V6 {
 				meta = metaV3v6(t)
 			}
-			FillChecksum(buf, 0, n, meta.Src, meta.Dst)
+			FillChecksum(buf, 0, n, meta.Src, meta.Dst, ChecksumRFC9568)
 			if want := mustHex(t, tc.golden); !bytes.Equal(buf[:n], want) {
 				t.Fatalf("encode over dirty buffer:\ngot:  % x\nwant: % x", buf[:n], want)
 			}
@@ -234,13 +234,16 @@ func TestEncodeV3ReserveZeroOverDirtyBuffer(t *testing.T) {
 // RFC requirement: RFC5798-5.2.8-1 negative -- an IPv6 advert whose checksum was computed with next header 58, or without the pseudo-header, is discarded with ErrChecksum (verifyReceived checksum.go, Decode validate.go).
 func TestFillChecksumZeroesFieldAndCoversPseudoHeader(t *testing.T) {
 	meta4, meta6 := metaV3v4(t), metaV3v6(t)
+	// The IPv4 pseudo-header form is the rfc5798-compatible mode; IPv6 carries
+	// the pseudo-header in every mode.
 	for _, tc := range []struct {
 		golden string
 		meta   RxMeta
-	}{{goldenV3v4CompatHex, meta4}, {goldenV3v6Hex, meta6}} {
+		mode   ChecksumMode
+	}{{goldenV3v4CompatHex, meta4, ChecksumRFC5798Compatible}, {goldenV3v6Hex, meta6, ChecksumRFC9568}} {
 		b := mustHex(t, tc.golden)
 		b[6], b[7] = 0xAB, 0xCD
-		FillChecksum(b, 0, len(b), tc.meta.Src, tc.meta.Dst)
+		FillChecksum(b, 0, len(b), tc.meta.Src, tc.meta.Dst, tc.mode)
 		if want := mustHex(t, tc.golden); !bytes.Equal(b, want) {
 			t.Errorf("FillChecksum over a stale field:\ngot:  % x\nwant: % x", b, want)
 		}
@@ -276,7 +279,7 @@ func TestFillChecksumZeroesFieldAndCoversPseudoHeader(t *testing.T) {
 // VRRPv3 checksum for IPv4 and for IPv6.
 //
 // Method: positive, the IPv4 advert carrying the RFC 9568 Section 5.2.8
-// message-only sum decodes (flagged MsgOnlyChecksum), and so does the IPv6
+// message-only sum decodes under the default mode, and so does the IPv6
 // golden. Negative, the IPv4 advert with a checksum that verifies under
 // neither form, and the IPv6 golden with one checksum bit flipped, are each
 // refused with ErrChecksum.
@@ -285,12 +288,8 @@ func TestFillChecksumZeroesFieldAndCoversPseudoHeader(t *testing.T) {
 // RFC requirement: RFC9568-5.2.8-1 negative -- an IPv4 advert whose checksum verifies under no accepted form, and an IPv6 advert with one checksum bit flipped, are each discarded with ErrChecksum (verifyReceived checksum.go, Decode validate.go).
 func TestDecodeVerifiesChecksumBothFamilies(t *testing.T) {
 	lookup := lookupConst(VersionV3, 1000)
-	adv, err := Decode(mustHex(t, goldenV3v4Hex), metaV3v4(t), lookup)
-	if err != nil {
+	if _, err := Decode(mustHex(t, goldenV3v4Hex), metaV3v4(t), lookup); err != nil {
 		t.Fatalf("IPv4 message-only checksum: %v, want accepted", err)
-	}
-	if !adv.MsgOnlyChecksum {
-		t.Fatalf("IPv4 message-only checksum accepted but not flagged")
 	}
 	if _, err := Decode(mustHex(t, goldenV3v6Hex), metaV3v6(t), lookup); err != nil {
 		t.Fatalf("IPv6 pseudo-header checksum: %v, want accepted", err)
