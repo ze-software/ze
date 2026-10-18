@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-14",
+  "audited": "2026-10-18",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -140,11 +140,23 @@
     },
     "RFC3579-3-2": {
       "code": {
-        "internal/component/radius/authenticator.go::exchange": "839b43223369950e"
+        "internal/component/radius/authenticator.go::exchange": "68a1263bc7da42de"
       },
-      "note": "Applicable SHOULD not met. Every EAP-bearing Access-Request ze sends is the admin login's, built by (*radiusAuthenticator).exchange, which appends Service-Type, NAS-Identifier, User-Name and NAS-IP-Address and never NAS-Port or NAS-Port-Id: an admin login over SSH, the web or the API has no NAS port. The L2TP subscriber Access-Request sends NAS-Port (session id) but carries no EAP-Message. Row carries {gap}; not counted conformant.",
+      "note": "Re-judged 2026-10-18 (independent auditor, after d12a30ef66). RFC 3579 Section 3: \"The NAS-Port or NAS-Port-Id attributes SHOULD be included by the NAS in Access-Request packets\"; every EAP-bearing Access-Request ze sends is an admin login's, built by (*radiusAuthenticator).exchange, which now appends NAS-Port-Id from AuthRequest.Service, and the only RADIUS-reaching logins name a channel (ssh/passwordauth.go \"ssh\", web/auth.go \"web\"; the API authenticates locally). The L2TP subscriber Access-Request is outside this RFC's scope because it never carries EAP-Message, and it sends NAS-Port anyway. The recorded discrimination breaks (exchange body replaced by panic) only fail the whole login, so they prove nothing about the attribute; auditor overlay mutants did: dropping the NAS-Port-Id append, or passing \"\" from Authenticate or authenticateEAP, turns the ssh/web EAP subtests and the PAP test red, and a constant \"ssh\" port turns the web and no-channel subtests red. The tagged negative (no channel, no attribute) checks RFC 2865 Section 5 more than this SHOULD, and its zero-length clause is discharged by EncodeTo, which drops empty attributes (an unconditional-append mutant survives as wire-equivalent); its real value is catching a fixed port. aaa-radius-admin.ci shows the mock server reading nas-port-id=ssh end to end, and web/auth_test.go TestWebLoginsNameTheWebChannel covers the web hand-off untagged.",
       "requirement_sha": "54081f847fd5c92e",
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRequestNamesThePort": "2b1b1ce908f454a5",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRequestNamesThePort#2": "2b1b1ce908f454a5",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminPapAccessRequestNamesThePort": "2b1b1ce908f454a5",
+        "test/plugin/aaa-radius-admin.ci": "3b4127f22a21a842"
+      },
+      "units": {
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRequestNamesThePort": "520c447c14e30c39",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRequestNamesThePort#2": "520c447c14e30c39",
+        "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminPapAccessRequestNamesThePort": "6928ebb7216a264c",
+        "test/plugin/aaa-radius-admin.ci": "3b4127f22a21a842"
+      },
+      "verdict": "enforced"
     },
     "RFC3579-3.1-1": {
       "note": "split at 253 in order (join reproduces the packet), no foreign attribute inside the run (Message-Authenticator and State after it), and receive-side concatenation around foreign attributes",
