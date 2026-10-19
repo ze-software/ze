@@ -103,8 +103,10 @@ type ImageBuild struct {
 	// NamedContexts are the additional build contexts a Dockerfile reads
 	// with `COPY --from=<name>`, such as a sibling source checkout.
 	NamedContexts []NamedBuildContext `json:"named-contexts,omitempty"`
-	// Timeout bounds this one build. Zero takes the machine budget, which
-	// dockerBuildTimeoutDefault answers for and BUILD_TIMEOUT overrides.
+	// Timeout lengthens the bound of this one build past the machine budget,
+	// which dockerBuildTimeoutDefault answers for and BUILD_TIMEOUT overrides.
+	// It only ever lengthens it: zero or a value below the machine budget
+	// keeps the machine budget.
 	Timeout  time.Duration `json:"timeout,omitempty"`
 	Required bool          `json:"required"`
 	Pull     bool          `json:"pull"`
@@ -382,10 +384,12 @@ func architectureToken(value string) bool {
 // after a successful Build. The shared Tag stays.
 func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, error) {
 	image := ImageResult{Name: build.Name, Tag: build.Tag}
-	timeout := build.Timeout
-	if timeout == 0 {
-		timeout = d.buildTimeout
+	if build.Timeout < 0 {
+		return image, errors.New("Docker build timeout must not be negative")
 	}
+	// The image's field only ever lengthens the machine bound, the same rule
+	// Pull applies to its caller's bound.
+	timeout := max(build.Timeout, d.buildTimeout)
 	if timeout <= 0 {
 		return image, errors.New("Docker build timeout must be positive")
 	}

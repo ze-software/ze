@@ -154,28 +154,36 @@ func TestDockerBuildRejectsEmptyImageID(t *testing.T) {
 	}
 }
 
-// VALIDATES: an image with a slower external build can set its own bounded timeout.
-// PREVENTS: a declared per-image budget collapsing to the machine build budget.
-// The field only ever LENGTHENS a bound past the machine budget, so no suite
-// declares one today: a number below that budget shortens it and kills a build
-// the machine would finish.
+// VALIDATES: an image's declared timeout only ever lengthens the machine bound:
+// a field above it is the bound, a field below it keeps the machine bound.
+// PREVENTS: a small per-image field cutting the bound that stops a wedged
+// daemon, which is how a one-minute field killed a build the machine finished.
 func TestDockerBuildUsesDeclaredTimeout(t *testing.T) {
 	runner := &recordingRunner{run: func(ProcessCommand) (ProcessResult, error) {
 		return ProcessResult{Stdout: "sha256:slow\n"}, nil
 	}}
 	docker := newDocker(runner)
-	_, err := docker.Build(t.Context(), ImageBuild{
-		Name:       "peer",
-		Tag:        "peer-image",
-		Dockerfile: "Dockerfile.peer",
-		Context:    "/peer",
-		Timeout:    15 * time.Minute,
-	})
-	if err != nil {
-		t.Fatalf("Build returned an error: %v", err)
+	answers := []struct {
+		declared time.Duration
+		want     time.Duration
+	}{
+		{declared: time.Minute, want: dockerBuildTimeoutDefault},
+		{declared: dockerBuildTimeoutDefault + time.Hour, want: dockerBuildTimeoutDefault + time.Hour},
 	}
-	if runner.commands[0].Timeout != 15*time.Minute {
-		t.Errorf("build timeout = %s, want 15m", runner.commands[0].Timeout)
+	for i, answer := range answers {
+		_, err := docker.Build(t.Context(), ImageBuild{
+			Name:       "peer",
+			Tag:        "peer-image",
+			Dockerfile: "Dockerfile.peer",
+			Context:    "/peer",
+			Timeout:    answer.declared,
+		})
+		if err != nil {
+			t.Fatalf("Build with timeout %s returned an error: %v", answer.declared, err)
+		}
+		if got := runner.commands[i].Timeout; got != answer.want {
+			t.Errorf("build timeout for declared %s = %s, want %s", answer.declared, got, answer.want)
+		}
 	}
 	if _, err := docker.Build(t.Context(), ImageBuild{Tag: "bad", Timeout: -time.Second}); err == nil {
 		t.Fatal("Build accepted a negative timeout")

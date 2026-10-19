@@ -648,3 +648,6 @@ covering the docker and live flavors (`internal/le/go/lint/matrix.go`),
 then `./le test unit all` and `./le test functional gating`. Already run:
 `go vet -tags docker ./internal/le/interoplab/` clean, and the post-write lint
 hook on each edited file.
+
+2026-10-19, build bound: `Docker.Build` now runs under max(`ImageBuild.Timeout`, machine bound), so the field only lengthens it, as `Pull` does (D-3); no non-test caller sets the field.
+Proof: `TestDockerBuildUsesDeclaredTimeout` red on the old code (1m field gave 1m, want 1h30m), green after; interop.md "Running" and the field comment state the rule once. Gates owed: lint scope on `internal/le/interoplab`.

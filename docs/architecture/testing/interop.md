@@ -2236,11 +2236,13 @@ at once and a generous bound costs nothing. A value that does not parse, or that
 is not positive, keeps the 90 minutes.
 
 An image that needs more than the machine bound declares its own
-`ImageBuild.Timeout`, and that field only ever LENGTHENS a bound. A number below
-the machine bound shortens it, which kills a build the machine would finish, so
-no suite declares one. The PPPoE suite did until 2026-09-04: 10 minutes for its
-ze image, 15 for accel-ppp and 10 for the client, each written when the shipped
-default was 10 minutes and each a cap once the default became 90.
+`ImageBuild.Timeout`. The build runs under the larger of that field and the
+machine bound, so the field only ever lengthens the bound and a value below it
+changes nothing; `BUILD_TIMEOUT` stays the one knob that lowers it. No suite
+declares one. The PPPoE suite did until 2026-09-04: 10 minutes for its ze image,
+15 for accel-ppp and 10 for the client, each written when the shipped default was
+10 minutes and each a cap once the default became 90, because the field then
+replaced the machine bound instead of raising it.
 
 Subsequent runs with `NO_BUILD=1` skip rebuilds. Once the images exist, the full
 suite takes roughly 5-10 minutes depending on session establishment times.
