@@ -14,7 +14,7 @@
 | RFCs | rfc7606, draft-ietf-bess-mup-safi |
 | Docs | docs/features/bgp-protocol.md |
 | Stub evidence | bgp/bgp-rfc7606-typed-nlri-discard |
-| Doc review | 2026-10-18: bgp-protocol.md gained the MUP Section 3.3.6 UPDATE-level check (a DSD route with no Prefix-SID is withdrawn), which this description now states. 2026-10-08: re-read after the 2026-10-08 bgp-protocol.md edit, which only rewrote the next-hop wire-form row (relayed link-local retention, VPN-IPv6 unspecified pair); no claim here names next-hop encoding; RFC 7606 Section 5.4 row untouched, 2026-10-07 review stands |
+| Doc review | 2026-10-19: re-read after the 2026-10-19 docs/features/bgp-protocol.md edits, which added the two RFC 9774 AS_SET rows and the draft-ietf-idr-linklocal-capability 32-octet next-hop row; no claim here names AS_PATH segments or a 32-octet next hop, so the earlier review stands. 2026-10-18: bgp-protocol.md gained the MUP Section 3.3.6 UPDATE-level check (a DSD route with no Prefix-SID is withdrawn), which this description now states. 2026-10-08: re-read after the 2026-10-08 bgp-protocol.md edit, which only rewrote the next-hop wire-form row (relayed link-local retention, VPN-IPv6 unspecified pair); no claim here names next-hop encoding; RFC 7606 Section 5.4 row untouched, 2026-10-07 review stands |
 | Defect review | 2026-10-07: no plan/immediate spec or journal row found naming these NLRI plugins |
 | Extra criteria | supported: MCAST-VPN unrecognized route type discarded through the daemon = test/plugin/rfc7606-54-discard-unrecognized-mcast-vpn-nlri.ci |
 

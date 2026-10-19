@@ -14,7 +14,7 @@
 | Interop | bgp/bgp-local-pref-strip-gobgp, bgp/bgp-med-across-as-gobgp, bgp/bgp-attribute-default-localpref-gobgp, bgp/bgp-relay-withdraw-shape-frr, bgp/bgp-attr-flags-low-nibble-gobgp, bgp/bgp-large-community-no-repeat-gobgp |
 | RFCs | rfc4271, rfc8092 |
 | Docs | docs/features/bgp-protocol.md |
-| Doc review | 2026-10-08: re-read after the 2026-10-08 bgp-protocol.md edit, which only rewrote the next-hop wire-form row (relayed link-local retention, VPN-IPv6 unspecified pair); no claim here names next-hop encoding; Section 5.1.3 own-address refusal still at egressNextHopIsPeerOwn and originatedNextHopIsPeerOwn in forward_next_hop.go; other anchors unchanged |
+| Doc review | 2026-10-19: re-read after the 2026-10-19 docs/features/bgp-protocol.md edits, which added the two RFC 9774 AS_SET rows and the draft-ietf-idr-linklocal-capability 32-octet next-hop row; no claim here names AS_PATH segments or a 32-octet next hop, so the earlier review stands. 2026-10-08: re-read after the 2026-10-08 bgp-protocol.md edit, which only rewrote the next-hop wire-form row (relayed link-local retention, VPN-IPv6 unspecified pair); no claim here names next-hop encoding; Section 5.1.3 own-address refusal still at egressNextHopIsPeerOwn and originatedNextHopIsPeerOwn in forward_next_hop.go; other anchors unchanged |
 | Defect review | 2026-10-07: plan/immediate/spec-rfc4271-med-ibgp-readvertisement.md open; journal NEXT_HOP rail and LOCAL_PREF producer rows taken as open |
 | Extra criteria | supported: each egress rule asserted on every rail that writes an UPDATE = test/plugin/egress-rules-every-rail.ci |
 

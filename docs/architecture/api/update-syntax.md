@@ -180,6 +180,14 @@ update b64 [attr set <b64-bytes>] [nhop set <b64-nhop>] nlri <family> add <b64-n
 
 Only `attr set` and `nhop set` supported (no `add`/`del` for wire bytes).
 
+The attribute blob still passes the session writer's checks. An `attr set` whose
+AS_PATH or AS4_PATH holds an AS_SET (type 1) or AS_CONFED_SET (type 4) segment is
+written as the withdrawal of the UPDATE's routes, logged as a warning naming RFC 9774
+Section 3 and counted on `ze_bgp_as_set_withdrawn_total`: RFC 9774 Section 3 forbids
+advertising a set. Only `send bgp <peer> raw` writes such bytes as given.
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody -->
+<!-- source: internal/component/bgp/reactor/session_rfc9774.go -- transmittedPathHoldsSet, writeUpdateAsWithdrawal -->
+
 ### Wire Mode Examples
 
 ```bash
