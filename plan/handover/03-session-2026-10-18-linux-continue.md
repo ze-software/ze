@@ -699,3 +699,43 @@ The main thread owes these gates: `./le go lint run` over
 `./le verify current`. Both commits named structural-red-ok: arch tier/check
 and arch iface-resolution were red only in a recorded verify run with no path
 attribution, and both passed when run on the tree.
+
+### Gap #55 continuation, 2026-10-20: items 1, 2, 3 landed; 4 to 7 owed
+
+Route form decided by the main thread: `via <neighbor donor address> dev <if>
+onlink` (the FRR form). `docs/guide/ospf.md` says the "interface-only next hop"
+wording was ours, not the owner's.
+
+- 41e11adf5c items 1 and 2. `spf/spf.go::v4NextHop.unnumberedNextHop`: a root
+  P2P link whose Link Data is an ifIndex resolves through `LinkAdjacency`
+  (the neighbor table's `NextHopOnLink`, keyed by ifIndex, which is the v2
+  `InterfaceID`); `NewV4Strategy(adj)` is wired in `spf_wiring.go`. LFA and
+  TI-LFA use the same source. The primary was already installed on-link when
+  the next hop names its device (`spf/install.go`). The backup lost its device:
+  `BackupInterface`/`BackupOnLink` now ride `locrib.Path`, the route-install
+  RPC (`pkg/plugin/rpc/types.go`), `ribevents`, sysrib and `ecmp.go::backupPaths`.
+  Tests: `spf/unnumbered_nexthop_test.go`, `sysrib_backup_test.go`.
+- a0d9424aa6 item 3. iface `unnumbered_donor.go::reconcileUnnumbered`
+  (level-triggered, worker in `register.go` runEngine, fed by link/addr events
+  and every apply) withdraws or restores the /32. OSPF
+  `transport/transport.go::addrWorker`: an IPv4 address leaving an open
+  interface closes and re-opens it; the re-open fails with no IPv4, so the link
+  stays out of OSPF until the address returns. The event carries the OS device
+  name, so it fires only when the OSPF interface name is the OS name
+  (documented). Tests: `unnumbered_donor_test.go`, `transport_addr_test.go`.
+
+Not run, owed by the main thread: the full `go test ./internal/component/iface/
+./internal/plugins/ospf/` (it failed to BUILD on a foreign uncommitted change in
+`internal/component/config` — `choiceMembers` undefined in schema.go and
+yang_schema.go — after the scoped tests had passed), `./le go lint run` over the
+touched packages (iface, ospf, sysrib, locrib, routeinstall, plugin/server,
+pkg/plugin/rpc), and `./le verify current`. `internal/component/plugin/server`
+fails 30 tests on unregistered BGP event types (keepalive, bgp rib cache),
+outside the two fields added there; `-run 'Route|Install'` passes.
+
+Still owed, in order: item 4 (netns or guest test of the donor IP source,
+RFC2328-8.1-1 tag, `./le rfc discriminate-record`), item 5 (doctor warning when
+the donor is not in OSPF), item 6 (`ospf-p2p-frr` variant with FRR `ip
+unnumbered`, prove red), item 7 (remove the `{gap}`, list ids for a judge, no
+audit stamps). Update the "Not yet complete" paragraph in `docs/guide/ospf.md`
+as each lands.
