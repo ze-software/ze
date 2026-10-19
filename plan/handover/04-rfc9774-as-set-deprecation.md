@@ -105,3 +105,13 @@ Still open, nothing dropped:
 4. Spec Goal Validation and audit tables, then step 11 (`verification`, commit, `./le spec release`). The spec's Phase is 5/5 and Status stays `in-progress` until the interop lands.
 5. Owed gates for the main thread: `./le go lint run` (the post-edit lint hook failed on a go/packages load timeout, not on a finding), `./le test unit all`, `./le test functional gating`.
 6. `bin/rfc9774-20123ea5/` is scratch (test ze/le builds and the overlay red binaries); delete it when done.
+
+## Handoff 2026-10-19, fifth ze-implement agent (at budget)
+
+Landed: 3ed26a4d8a (R-2 notes in rfc4271/5065/6793 summaries), 9255378b0d (interop `bgp-rfc9774-as-set-frr` plus checker, interop inventory, two bgp-protocol.md rows), 9c2ce591c9 (journal: `routeGroupKey` omits `RawAttributes` and `PrefixSIDBytes`). Items 1 and 3 green: `INTEROP_SCENARIO=bgp-rfc9774-as-set-frr ./le --name <x> test integration interop` gave 1 passed (plain `./le` runs a stale bin/le with no checker). A raw injector sends Ze the AS_SET route; FRR (`no bgp reject-as-sets`) receives only by relay. Receive half judged on Ze's RIB and the RFC 9774 verdict log line; send half on FRR's table. The AS_SET static route carries `med 1` only to dodge the grouping defect.
+
+Open:
+1. `routeGroupKey` (`internal/component/bgp/reactor/peer_static_routes.go`): routes differing only in raw attributes share one UPDATE, so the RFC 9774 send guard withdrew a clean route with its AS_SET twin (`routes=2`). It defeats AC-9's intent for configured routes: fix it (key on the raw attributes and Prefix-SID), test red then green, drop the `med 1` workaround, update the journal row to fixed.
+2. Red walk for AC-13, each run `GOFLAGS=-overlay=<abs> VERBOSE=1 INTEROP_SCENARIO=bgp-rfc9774-as-set-frr ./le --name <x> test integration interop` (8-10 min). The overlays were in the agent's machine-local scratch, so rebuild them: receive scan off (expect Ze's RIB to hold 10.97.74.0/24), send guard off (expect FRR to hold 10.97.76.0/24), both off (FRR holds 10.97.74.0/24 with its AS_SET, validates A-5). Record each red in the spec, then a final green.
+3. A-5, A-6, the Goal Validation table, step 11 (`verification`, commit, `./le spec release`).
+4. Owed gates (owner holds them): `./le go lint run`, `./le test unit all`, `./le test functional gating`.
