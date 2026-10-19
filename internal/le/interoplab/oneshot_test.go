@@ -61,8 +61,8 @@ func TestRunOneShotReportsANonZeroExitWithoutRemoval(t *testing.T) {
 	if result.ExitCode != 3 {
 		t.Errorf("ExitCode = %d, want 3", result.ExitCode)
 	}
-	if probeFailed(err) {
-		t.Errorf("probeFailed(%v) = true for a container that ran to an exit code", err)
+	if OneShotDidNotExit(err) {
+		t.Errorf("OneShotDidNotExit(%v) = true for a container that ran to an exit code", err)
 	}
 	if len(runner.commands) != 1 {
 		t.Errorf("recorded %d commands, want only the run", len(runner.commands))
@@ -88,5 +88,42 @@ func TestRunOneShotPassesTheCallerStreams(t *testing.T) {
 	}
 	if command.Stderr != &stderr {
 		t.Error("Stderr did not reach the runner")
+	}
+}
+
+// VALIDATES: a one-shot's network and bind mounts reach docker run before the
+// image, each typed field as its own flag, and a mount with no target is
+// refused before docker runs.
+// PREVENTS: a client container that cannot reach a host listener, or reads
+// no file the test wrote, because a typed field never reached the argv.
+func TestRunOneShotRendersNetworkAndMounts(t *testing.T) {
+	runner := &recordingRunner{}
+	spec := OneShotContainer{Image: "alpine", Network: "host", Timeout: time.Second,
+		Mounts:  []Mount{{Source: "/host/certs", Target: "/certs", ReadOnly: true}},
+		Command: []string{"true"}}
+	if _, err := newDocker(runner).RunOneShot(t.Context(), spec); err != nil {
+		t.Fatalf("RunOneShot: %v", err)
+	}
+	if len(runner.commands) != 1 {
+		t.Fatalf("recorded %d commands, want the run", len(runner.commands))
+	}
+	argv := runner.commands[0].Arguments
+	image := slices.Index(argv, "alpine")
+	network := slices.Index(argv, "--network")
+	if network < 0 || network+1 >= image || argv[network+1] != "host" {
+		t.Errorf("argv %v does not carry --network host before the image", argv)
+	}
+	mount := slices.Index(argv, "-v")
+	if mount < 0 || mount+1 >= image || argv[mount+1] != "/host/certs:/certs:ro" {
+		t.Errorf("argv %v does not carry -v /host/certs:/certs:ro before the image", argv)
+	}
+
+	refused := &recordingRunner{}
+	spec.Mounts = []Mount{{Source: "/host/certs"}}
+	if _, err := newDocker(refused).RunOneShot(t.Context(), spec); err == nil {
+		t.Error("RunOneShot accepted a mount with no target")
+	}
+	if len(refused.commands) != 0 {
+		t.Errorf("a refused one-shot still ran %d docker commands", len(refused.commands))
 	}
 }

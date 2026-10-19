@@ -248,20 +248,6 @@ func kernelProbeContainer(zePath string, appArmor bool) OneShotContainer {
 	return OneShotContainer{Image: kernelProbeImage, Arguments: arguments, Command: kernelProbeCommand, Timeout: kernelProbeTimeout}
 }
 
-// probeFailed reports a probe that did not run to an exit code: the docker
-// client failed or was stopped. A probe that exited non-zero is judged on its
-// answer, as the AppArmor refusal and the unreadable-answer error need.
-func probeFailed(err error) bool {
-	if err == nil {
-		return false
-	}
-	commandErr, ok := errors.AsType[*commandError](err)
-	if !ok {
-		return true
-	}
-	return commandErr.Cause != nil
-}
-
 // dockerAppArmor asks whether the daemon applies AppArmor to its containers. A
 // question it cannot answer is an error: the probe's argv depends on it.
 func dockerAppArmor(ctx context.Context, docker *Docker) (bool, error) {
@@ -372,7 +358,7 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 	var problem textbuf.Buffer
 	problem.Str("the Docker daemon's kernel (").Str(release).Str(") could not be checked: `").
 		Str(strings.Join(probe.Command, " ")).Str("` in ").Str(probe.Image).Str(" ")
-	if probeFailed(err) {
+	if OneShotDidNotExit(err) {
 		return errors.New(problem.Str("failed: ").Err(err).String())
 	}
 	if appArmor && appArmorProfileUnapplied(result.ExitCode, result.Stderr) {

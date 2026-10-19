@@ -117,7 +117,10 @@ func TestOwnerLabelsOnEveryCreate(t *testing.T) {
 	if _, err := docker.Build(ctx, ImageBuild{Name: "peer", Tag: "peer-image", Dockerfile: "Dockerfile", Context: "."}); err != nil {
 		t.Fatalf("Build: %v", err)
 	}
-	probe := docker.oneShotArguments(kernelProbeContainer("/staged/ze", false), fixtureOneShotName())
+	probe, err := docker.oneShotArguments(kernelProbeContainer("/staged/ze", false), fixtureOneShotName())
+	if err != nil {
+		t.Fatalf("oneShotArguments: %v", err)
+	}
 
 	creates := make([][]string, 0, 5)
 	for _, command := range runner.commands {

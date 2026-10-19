@@ -193,7 +193,14 @@ type PeerConfig struct {
 // OneShotContainer is a bounded foreground container: a host preflight, the
 // kernel probe, a release-candidate gate run or a terminal-demo render.
 type OneShotContainer struct {
-	Image     string        `json:"image"`
+	Image string `json:"image"`
+	// Network names the network the container joins (`--network`); empty
+	// keeps Docker's default bridge. "host" puts a client container in the
+	// host's namespace, where it reaches a listener a test opened on the host
+	// loopback.
+	Network string `json:"network,omitempty"`
+	// Mounts are bind mounts, rendered as `-v` like a detached container's.
+	Mounts    []Mount       `json:"mounts,omitempty"`
 	Arguments []string      `json:"arguments,omitempty"`
 	Command   []string      `json:"command,omitempty"`
 	Timeout   time.Duration `json:"timeout"`
@@ -454,7 +461,10 @@ func (d *Docker) RunOneShot(ctx context.Context, spec OneShotContainer) (Command
 		return CommandResult{}, errors.New("one-shot container timeout must be positive")
 	}
 	name := d.oneShotName()
-	argv := d.oneShotArguments(spec, name)
+	argv, err := d.oneShotArguments(spec, name)
+	if err != nil {
+		return CommandResult{}, err
+	}
 	result, err := d.runner.Run(ctx, ProcessCommand{
 		Arguments: argv, Timeout: spec.Timeout, Environment: d.environ,
 		Stdin: spec.Stdin, Stdout: spec.Stdout, Stderr: spec.Stderr,
@@ -485,17 +495,42 @@ func (d *Docker) oneShotError(argv []string, timeout time.Duration, result Proce
 	}
 }
 
+// OneShotDidNotExit reports a RunOneShot error that is not the container's own
+// exit code: the arguments were refused, or the docker client failed or was
+// stopped. A one-shot that exited non-zero is judged on its answer, as a
+// probe's AppArmor refusal and a client's refused request need.
+func OneShotDidNotExit(err error) bool {
+	if err == nil {
+		return false
+	}
+	commandErr, ok := errors.AsType[*commandError](err)
+	if !ok {
+		return true
+	}
+	return commandErr.Cause != nil
+}
+
 // oneShotArguments is every one-shot container's argv, the kernel probe's
 // included, so each carries the owner labels and the name a canceled run is
 // removed by.
-func (d *Docker) oneShotArguments(spec OneShotContainer, name string) []string {
+func (d *Docker) oneShotArguments(spec OneShotContainer, name string) ([]string, error) {
 	labels := d.owner.labelArguments()
-	argv := make([]string, 0, 6+len(spec.Arguments)+len(labels)+len(spec.Command))
+	argv := make([]string, 0, 8+2*len(spec.Mounts)+len(spec.Arguments)+len(labels)+len(spec.Command))
 	argv = append(argv, DockerExecutable, "run", "--rm", "--name", name)
 	argv = append(argv, labels...)
+	if spec.Network != "" {
+		argv = append(argv, "--network", spec.Network)
+	}
+	for _, mount := range spec.Mounts {
+		value, err := mountArgument(mount)
+		if err != nil {
+			return nil, err
+		}
+		argv = append(argv, "-v", value)
+	}
 	argv = append(argv, spec.Arguments...)
 	argv = append(argv, spec.Image)
-	return append(argv, spec.Command...)
+	return append(argv, spec.Command...), nil
 }
 
 // CreateNetwork tries each declared candidate once. Only overlap moves to the next candidate.
