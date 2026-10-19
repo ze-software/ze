@@ -63,7 +63,8 @@ func buildRRQ(filename string) []byte {
 
 // tftpFetch performs a minimal RFC 1350 client transfer against srvAddr,
 // following the server's transfer TID and ACKing each DATA block. It returns
-// the reassembled file, or an error if no DATA was ever received.
+// the reassembled file, or an error if no DATA was ever received. A first DATA
+// sent from srvAddr's own port fails the test: the server did not choose a TID.
 func tftpFetch(t *testing.T, srvAddr *net.UDPAddr, filename string) ([]byte, error) {
 	t.Helper()
 
@@ -102,6 +103,12 @@ func tftpFetch(t *testing.T, srvAddr *net.UDPAddr, filename string) ([]byte, err
 		}
 		block := binary.BigEndian.Uint16(buf[2:4])
 		if tid == nil {
+			// RFC 1350 Section 4: "each end of the connection chooses a TID for
+			// itself". The server's first DATA therefore comes from a port it
+			// chose for this transfer, never from the port the RRQ was sent to.
+			if from.Port == srvAddr.Port {
+				t.Fatalf("DATA block %d arrived from the listen port %d rather than from a transfer TID the server chose", block, from.Port)
+			}
 			tid = from // first DATA fixes the server transfer TID
 		}
 		if block != expect {
@@ -142,10 +149,10 @@ func createDummyForTest(t *testing.T, name string) {
 // SO_BINDTODEVICE and performs a real multi-block RRQ transfer over UDP.
 //
 // RFC requirement: RFC1350-4-3 positive -- the transfer completes over the server's distinct
-// transfer TID: handleRRQ dials a fresh socket per RRQ (internal/plugins/tftpserver/handler.go:287)
-// so DATA arrives from an ephemeral port rather than port 69, and tftpFetch fixes that TID
-// from the first DATA and ACKs to it (socket_integration_linux_test.go:104-118) to drive the
-// transfer to completion.
+// transfer TID: handleRRQ dials a fresh socket per RRQ (internal/plugins/tftpserver/handler.go:293)
+// so DATA arrives from an ephemeral port rather than port 69, which tftpFetch asserts on the
+// first DATA before it fixes that TID and ACKs every block to it to drive the transfer to
+// completion.
 func TestListenTFTPLoopbackRoundTrip(t *testing.T) {
 	conn, err := listenTFTP("lo")
 	if err != nil {
