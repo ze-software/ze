@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/qemu-integration.md -- the docker population and its verb
 // Related: ../buildtag/buildtag.go -- the tree scan this verb's package set comes from.
-// Related: gates.go -- the docker-peers row.
+// Related: gates.go -- the docker-peers and live-rpki rows.
 
 package testintegration
 
@@ -25,6 +25,9 @@ const (
 	requireDockerVariable = "ZE_REQUIRE_DOCKER"
 	// dockerPeersTimeout bounds the whole docker population.
 	dockerPeersTimeout = "900s"
+	// liveRPKIVerb runs the RPKI client against a real stayrtr serving real
+	// data: Docker and the internet.
+	liveRPKIVerb = "live-rpki"
 )
 
 func runDockerPeers(_ context.Context, root string) (any, int) {
@@ -33,13 +36,30 @@ func runDockerPeers(_ context.Context, root string) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
+	return runRequiringDocker(dockerPeersVerb, argv, root)
+}
+
+func runLiveRPKI(_ context.Context, root string) (any, int) {
+	return runRequiringDocker(liveRPKIVerb, liveRPKIArgv(), root)
+}
+
+// runRequiringDocker runs argv under the checkout's test toolchain with
+// ZE_REQUIRE_DOCKER=1, so labtest fails rather than skips when Docker, or a
+// live test's image, is absent.
+func runRequiringDocker(verb string, argv []string, root string) (any, int) {
 	tc, err := gotoolchain.New(root)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	return gaterun.Run(dockerPeersVerb, argv, root,
-		dockerPeersEnvironment(tc.Environment(gotoolchain.EnvOptions{Test: true})))
+	return gaterun.Run(verb, argv, root,
+		requireDockerEnvironment(tc.Environment(gotoolchain.EnvOptions{Test: true})))
+}
+
+// liveRPKIArgv runs the three live tests of the RPKI plugin.
+func liveRPKIArgv() []string {
+	return []string{goTool, "test", "-v", "-tags", "live", "-timeout", "180s", "-count=1",
+		"./internal/component/bgp/plugins/rpki/...", "-run", "TestLive"}
 }
 
 // dockerPeersArgv derives the population from the tree: every package under
@@ -65,8 +85,8 @@ func dockerPeersArgv(root string) ([]string, error) {
 	return argv, nil
 }
 
-// dockerPeersEnvironment adds the switch that makes an absent docker binary
+// requireDockerEnvironment adds the switch that makes an absent docker binary
 // fail rather than skip.
-func dockerPeersEnvironment(base []string) []string {
+func requireDockerEnvironment(base []string) []string {
 	return append(append(make([]string, 0, len(base)+1), base...), requireDockerVariable+"=1")
 }

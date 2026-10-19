@@ -150,6 +150,8 @@ must be run manually:
 | BGP interop | `./le test integration interop` (`INTEROP_SCENARIO=<name>` for one) | Requires Docker peer daemons and image builds. The runner fails when Docker is unavailable |
 | IPsec interop | `IPSEC_INTEROP_SCENARIO=<name> ./le test integration interop-ipsec` | Requires strongSwan in privileged Docker containers |
 | RADIUS interop | `RADIUS_INTEROP_SCENARIO=<name> ./le test integration interop-radius` | Ze's admin login against a real FreeRADIUS server at a pinned tag. Requires Docker, and no kernel module: the admin path is a UDP socket and ze's own listeners |
+| Live RPKI | `./le test integration live-rpki` | `TestLiveRPKIValidation`, `TestLiveASPAValidation` and `TestLiveRTRv2DowngradeToV1` (tag `live`) against a real stayrtr started through `labtest.Start`: Cloudflare's public RPKI data, and a synthetic ASPA set the test serves. Needs Docker and internet access. The verb sets `ZE_REQUIRE_DOCKER=1`, so an absent Docker or an unpullable image fails; run ad hoc with `go test -tags live`, either skips |
+| Docker peers | `./le test integration docker-peers` | Every package test tagged `docker`: a real server started through `labtest.Start`, with `ZE_REQUIRE_DOCKER=1`. Needs Docker and no Ze kernel |
 | Chaos web | `./le test functional web` | Browser and dashboard scenarios |
 
 Every suite action routes through `internal/le/job`, which runs it now,

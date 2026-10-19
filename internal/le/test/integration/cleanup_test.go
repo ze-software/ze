@@ -159,8 +159,38 @@ func TestDockerPeersVerbRunsEveryDockerPackage(t *testing.T) {
 		t.Errorf("a docker package added later is not run: %v", argv)
 	}
 
-	environment := dockerPeersEnvironment([]string{"PATH=/bin"})
+	environment := requireDockerEnvironment([]string{"PATH=/bin"})
 	if !slices.Contains(environment, requireDockerVariable+"=1") || !slices.Contains(environment, "PATH=/bin") {
 		t.Errorf("environment = %v, want PATH kept and %s=1 added", environment, requireDockerVariable)
+	}
+}
+
+// VALIDATES: AC-15: live-rpki runs the three live RPKI tests through the same
+// ZE_REQUIRE_DOCKER=1 path as docker-peers: its row is Native, never a bare
+// argv that would run without the switch.
+// PREVENTS: a nightly live-rpki run passing because Docker was absent and
+// every test skipped.
+func TestLiveRPKIRequiresDocker(t *testing.T) {
+	var row *Action
+	table := Table()
+	for i := range table {
+		if table[i].Verb == liveRPKIVerb {
+			row = &table[i]
+		}
+	}
+	if row == nil {
+		t.Fatalf("no %s row", liveRPKIVerb)
+	}
+	if row.Argv != nil {
+		t.Fatalf("%s runs a bare argv, which carries no %s", liveRPKIVerb, requireDockerVariable)
+	}
+	if row.Native == nil {
+		t.Fatalf("%s has no native runner", liveRPKIVerb)
+	}
+	argv := liveRPKIArgv()
+	for _, want := range []string{"live", "./internal/component/bgp/plugins/rpki/...", "TestLive"} {
+		if !slices.Contains(argv, want) {
+			t.Errorf("argv %v lacks %q", argv, want)
+		}
 	}
 }

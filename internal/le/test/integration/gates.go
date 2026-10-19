@@ -214,10 +214,11 @@ func Table() []Action {
 		},
 		// ── Live ─────────────────────────────────────────────────────────
 		{
-			Verb: "live-rpki",
-			Argv: fixed(goTool, "test", "-v", "-tags", "live", "-timeout", "180s", "-count=1",
-				"./internal/component/bgp/plugins/rpki/...", "-run", "TestLive"),
-			Why: "the RPKI validator against a real cache. Needs Docker and internet access",
+			Verb:   liveRPKIVerb,
+			Native: runLiveRPKI,
+			Why: "the RPKI validator against a real stayrtr cache started through labtest, with" +
+				" ZE_REQUIRE_DOCKER=1 so an absent Docker or an unpullable image fails. Needs Docker" +
+				" and internet access",
 		},
 		// ── Integration (network namespace) ───────────────────────────────
 		{
