@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-17",
+  "audited": "2026-10-19",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -59,12 +59,47 @@
     },
     "RFC4659-3.2.1.1-3": {
       "code": {
-        "internal/component/bgp/message/update_build_vpn.go::buildMPReachVPN": "6f16053847f7f08f",
-        "internal/component/bgp/reactor/peer_static_routes.go::buildStaticRouteUpdateNew": "27dd11ce802628c8"
+        "internal/component/bgp/message/update_build_vpn.go::buildMPReachVPN": "a1027fce5de9716b",
+        "internal/component/bgp/message/update_build_vpn.go::vpnNextHopOctets": "96921349031a3cec",
+        "internal/component/bgp/reactor/egress_inject_filter.go::normalizeOrdinaryNextHop": "c9a8fc537666fec5",
+        "internal/component/bgp/reactor/egress_inject_filter.go::normalizeVPNNextHop": "416ace221291cc43",
+        "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope": "df0e062e5a223b5a",
+        "internal/component/bgp/reactor/forward_next_hop.go::egressSpeakerLinkLocal": "5b7fce67cdd95c06",
+        "internal/component/bgp/reactor/link_scope.go::applyLinkLocalNextHop": "f35565091f8f6c06",
+        "internal/component/bgp/reactor/link_scope.go::linkLocalNextHopFor": "d5601a5e6b8a2070",
+        "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop": "827cafb11c24cdf6",
+        "internal/component/bgp/reactor/peer_forward_facts.go::precomputeVPNNextHop": "468cbe9b5e7a4fbd",
+        "internal/component/bgp/reactor/peer_static_routes.go::buildStaticRouteUpdateNew": "17438051a5999d71"
       },
-      "note": "Independent first judgment of RFC 4659 Section 3.2.1.1: The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to [BGP-IPv6]. Both directions remain SHALL obligations. buildMPReachVPN emits only one RD plus one address, using length 24 for an IPv6 next hop; it has no 48-octet two-VPN-address emission or recipient common-subnet decision. buildStaticRouteUpdateNew receives a linkLocal argument but its VPN branch does not pass it into VPNParams or BuildVPN. Consequently the required inclusion when the speaker and recipient share a common subnet is unimplemented. Always omitting the link-local address can satisfy the off-subnet exclusion case but does not implement the full iff. No tagged test proves this row. RFC2545 plain-unicast pair tests, preservation of the special received link-local-only VPN pair, and the configured global-only VPNv6 integration test do not establish this missing VPN origination behavior; the integration fixture deliberately uses distinct /128s. Retain the separate internal-peer stripping MAY and link-local-only unspecified-global exception without using either to erase the condition. The existing 48-octet/common-subnet implementation gap remains explicit; no new feature is commissioned.",
+      "note": "Re-judged 2026-10-19 (independent auditor, after 5a0190cb08). RFC 4659 Section 3.2.1.1: \"The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to [BGP-IPv6].\" and \"In all other cases, a BGP speaker shall advertise to its peer in the Next Hop Network Address field only the global IPv6 address of the next hop.\" Every Ze path that emits a SAFI 128 IPv6 Next Hop field was traced to one decision (linkScope.linkLocalNextHop over the destination's connected-prefix snapshot and the speaker-owned classification of the global): (1) configured routes: peer_static_wire calls buildStaticRouteUpdateNew with Peer.linkLocalNextHopFor, toStaticRouteVPNParams carries it, vpnNextHopOctets/buildMPReachVPN write 24 or 48 octets with a zero RD before each address; the session write gate then re-applies the same decision. (2) API announce: AnnounceNLRIBatch builds MPReachNLRI, the session egress gate exportFilterForBody -> normalizeOrdinaryNextHop routes the 24/48-octet SAFI 128 field to normalizeVPNNextHop -> applyEgressNextHopScope; forwarding facts are installed at setEncodingContexts before any route write. (3) relayed unchanged: both forwarding rails (forwardUpdateCore in reactor_api_forward.go and the RS fast path in forward_rs.go) call applyEgressNextHopScope, which raises a zero-RD 24-octet field only for a speaker-owned global on a common subnet and trims a received 48-octet pair off it, keeping the link-local-only unspecified-global peering exception (vpnIPv6LinkLocalPeering). (4) next-hop self and (5) explicit: applyLinkLocalNextHop decides nhModeSelfV6LL, precomputeVPNNextHop/applyFactsNextHop write nhVPNPair[:24] or [:48], then the same scope pass runs. Not Ze next-hop decisions and excluded: operator raw UPDATE bytes (SendRawMessage), the offline CLI encoder (nlri/vpn EncodeRoute via cli/encode.go), the chaos test peer. Tagged tests: TestRFC4659StaticVPNv6LinkLocalCommonSubnet, TestRFC4659APIVPNv6LinkLocalCommonSubnet (real AnnounceNLRIBatch with the production egress gate, recipient wire), TestRFC4659ForwardVPNv6LinkLocalCommonSubnet, TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD, test/encode/rfc4659-vpnv6-link-local-off-subnet.ci; each pair asserts the exact 48-octet field on the common subnet and the exact 24-octet field off it, so both directions of the iff are pinned. The recorded discrimination breaks are whole-body panics; the auditor added semantic overlay mutants (tags ze_core ze_bgp), all killed: no 24-octet raise (API and forward tests red), no 48-octet trim (forward test and RFC2545ReceivedPairSubnetConditions/vpn red), session gate skips SAFI 128 (API test red), raise ignoring the subnet (API, forward, rewrite off-link cases red), builder always 24 octets (static test red), and removing the applyEgressNextHopScope call from either forwarding rail or classifying every global as speaker-owned (red only in untagged RFC 2545 rail tests that include VPN subcases). Residual, not defects: the rail call sites and the third-party-global on-link case (no own link-local added) are proven by RFC 2545 tests rather than RFC4659-tagged ones; the explicit next hop is tested off-link only; the static tagged test drives the builder rather than the session writer. Open owner question, not judged: the link-local is omitted when the speaker's own global is not inside the prefix shared with the peer. The bgp-vpn-frr interop scenario was not run for this judgment.",
       "requirement_sha": "95532f9edd77514e",
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go::TestRFC4659APIVPNv6LinkLocalCommonSubnet": "72f681c152e7f1c0",
+        "internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go::TestRFC4659APIVPNv6LinkLocalCommonSubnet#2": "72f681c152e7f1c0",
+        "internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go::TestRFC4659ForwardVPNv6LinkLocalCommonSubnet": "80cc0c25832e93df",
+        "internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go::TestRFC4659ForwardVPNv6LinkLocalCommonSubnet#2": "80cc0c25832e93df",
+        "internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go::TestRFC4659StaticVPNv6LinkLocalCommonSubnet": "80cc0c25832e93df",
+        "internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go::TestRFC4659StaticVPNv6LinkLocalCommonSubnet#2": "80cc0c25832e93df",
+        "internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go::TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD": "e7a19e2dc761951d",
+        "internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go::TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD#2": "e7a19e2dc761951d",
+        "internal/le/interoplab/bgp/check_rfc.go::checkVPNFRR": "b58502562f088ed9",
+        "internal/le/interoplab/bgp/check_rfc.go::checkVPNFRR#2": "b58502562f088ed9",
+        "test/encode/rfc4659-vpnv6-link-local-off-subnet.ci": "c4916b25ffe67afa"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go::TestRFC4659APIVPNv6LinkLocalCommonSubnet": "c25ad90eab232cd1",
+        "internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go::TestRFC4659APIVPNv6LinkLocalCommonSubnet#2": "c25ad90eab232cd1",
+        "internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go::TestRFC4659ForwardVPNv6LinkLocalCommonSubnet": "69310b0ab0832a6d",
+        "internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go::TestRFC4659ForwardVPNv6LinkLocalCommonSubnet#2": "69310b0ab0832a6d",
+        "internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go::TestRFC4659StaticVPNv6LinkLocalCommonSubnet": "163d656148860586",
+        "internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go::TestRFC4659StaticVPNv6LinkLocalCommonSubnet#2": "163d656148860586",
+        "internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go::TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD": "7723cef64867b6a5",
+        "internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go::TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD#2": "7723cef64867b6a5",
+        "internal/le/interoplab/bgp/check_rfc.go::checkVPNFRR": "6432aaa077f2a813",
+        "internal/le/interoplab/bgp/check_rfc.go::checkVPNFRR#2": "6432aaa077f2a813",
+        "test/encode/rfc4659-vpnv6-link-local-off-subnet.ci": "c4916b25ffe67afa"
+      },
+      "verdict": "enforced"
     },
     "RFC4659-3.4-1": {
       "code": {},
