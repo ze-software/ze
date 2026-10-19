@@ -444,8 +444,12 @@ run's error. Its free-form `OneShotContainer.Arguments`, like a lab peer's
 `PeerConfig.Arguments`, are refused before docker runs when they carry
 `--name` (which would replace the name the removal finds it by), a `ze.lab`
 label in any spelling (which would override the owner labels), or
-`--label-file`, with a `BUG:` error naming the field.
-<!-- source: internal/le/interoplab/docker.go -- Docker.RunOneShot, refuseOwnedArguments -->
+`--label-file`, with a `BUG:` error naming the field. Any spelling includes
+`-l` at the end of a short-flag cluster such as `-dl <v>`, `-dl=<v>` or
+`-dl<v>`, read the way docker's flag parser reads one: past the value-free
+flags of `docker run` (`-d -i -P -q -t`), stopping at the first flag that takes
+a value. `--name` has no short form.
+<!-- source: internal/le/interoplab/docker.go -- Docker.RunOneShot, refuseOwnedArguments, labelFlagValue, clusterLabelValue -->
 
 A caller outside a lab Suite that needs a long-running container, such as the
 deployment proofs (`./le test deployment l2tp-test`, `vpp-iface-test`,

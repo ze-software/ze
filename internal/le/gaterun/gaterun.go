@@ -101,17 +101,25 @@ func StreamTee(argv []string, dir string, environ []string, tally io.Writer) int
 // alone and le's signal root does the stop. The child gets no stdin for the
 // same reason: a background group that reads the terminal is stopped by
 // SIGTTIN and would wait for a cancel that never comes.
-func StreamContext(ctx context.Context, argv []string, dir string, environ []string) int {
+//
+// It answers the group too: the cancel's SIGKILL reaches every member, but the
+// return waits for the child alone, so a caller that needs the grandchildren
+// gone MUST call ProcessGroup.AwaitExit after.
+func StreamContext(ctx context.Context, argv []string, dir string, environ []string) (int, ProcessGroup) {
 	if len(argv) == 0 {
 		Note("error: a gate declared no command to run")
-		return CannotStart
+		return CannotStart, ProcessGroup{}
 	}
 
 	//nolint:gosec // argv comes from an area's own table. le is a build-host tool controlled through a developer's argv
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
-	return finish(cmd, dir, environ, nil)
+	code := finish(cmd, dir, environ, nil)
+	if cmd.Process == nil {
+		return code, ProcessGroup{}
+	}
+	return code, ProcessGroup{leader: cmd.Process.Pid}
 }
 
 // finish gives cmd its directory, its whole environment and the terminal's
@@ -187,9 +195,10 @@ func Run(action string, argv []string, dir string, environ []string) (ActionRepo
 }
 
 // RunContext is Run with StreamContext: the command stops, process group and
-// all, when ctx is cancelled.
-func RunContext(ctx context.Context, action string, argv []string, dir string, environ []string) (ActionReport, int) {
+// all, when ctx is canceled. It answers the group StreamContext does, for a
+// caller that MUST see the killed members gone (ProcessGroup.AwaitExit).
+func RunContext(ctx context.Context, action string, argv []string, dir string, environ []string) (ActionReport, int, ProcessGroup) {
 	Announce(action)
-	code := StreamContext(ctx, argv, dir, environ)
-	return ActionReport{Action: action, Command: argv, Code: code}, code
+	code, group := StreamContext(ctx, argv, dir, environ)
+	return ActionReport{Action: action, Command: argv, Code: code}, code, group
 }

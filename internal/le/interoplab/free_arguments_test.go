@@ -15,6 +15,11 @@ var ownedFlagArguments = [][]string{
 	{"-l", labelPID + "=1"},
 	{"-l=" + labelPID + "=1"},
 	{"-l" + labelPID + "=1"},
+	{"-dl", labelRun + "=forged"},
+	{"-dl" + labelRun + "=forged"},
+	{"-dl=" + labelRun + "=forged"},
+	{"-itl", labelPID + "=1"},
+	{"-dPqtil" + labelMarker + "=1"},
 	{"--label", labelMarker + "=1"},
 	{"--label-file", "/tmp/labels"},
 }
@@ -43,10 +48,21 @@ func TestFreeArgumentsRefuseNameAndOwnerLabels(t *testing.T) {
 			}
 		})
 	}
-	runner := &recordingRunner{}
-	peer := PeerConfig{Name: "peer", Container: "lab-peer", Image: "peer-image", Host: 3,
-		Arguments: []string{"--label", "org.example=1", "--network-alias", "named"}}
-	if err := newDocker(runner).runContainer(t.Context(), labNetwork(), peer); err != nil {
-		t.Errorf("an unrelated label was refused: %v", err)
+	for _, arguments := range freeFlagArguments {
+		runner := &recordingRunner{}
+		peer := PeerConfig{Name: "peer", Container: "lab-peer", Image: "peer-image", Host: 3, Arguments: arguments}
+		if err := newDocker(runner).runContainer(t.Context(), labNetwork(), peer); err != nil {
+			t.Errorf("%q was refused: %v", arguments, err)
+		}
 	}
+}
+
+// freeFlagArguments sets no name and no owner label, though an l appears in a
+// short-flag cluster: there it is the value of the value-taking flag before it,
+// as docker's flag parser reads a cluster.
+var freeFlagArguments = [][]string{
+	{"--label", "org.example=1", "--network-alias", "named"},
+	{"-dl", "org.example=1"},
+	{"-el" + labelRun + "=1"},
+	{"-it"},
 }

@@ -117,7 +117,7 @@ func TestStreamContextKillsTheGroupOnCancel(t *testing.T) {
 	defer timer.Stop()
 
 	began := time.Now()
-	code := StreamContext(ctx, []string{"sh", "-c", "sleep 30 & echo $! > " + pidFile + "; sleep 30"}, dir, os.Environ())
+	code, _ := StreamContext(ctx, []string{"sh", "-c", "sleep 30 & echo $! > " + pidFile + "; sleep 30"}, dir, os.Environ())
 	if elapsed := time.Since(began); elapsed > 10*time.Second {
 		t.Fatalf("StreamContext came back after %v, want the cancel to stop it", elapsed)
 	}

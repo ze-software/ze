@@ -890,12 +890,18 @@ so `le` answers non-zero at once rather than waiting out the child's own
 then makes the call `./le test integration cleanup` makes, one non-dry orphan
 sweep on a context the signal did not cancel, bounded at 60 s, and prints its
 summary: the killed test binaries owned the containers, so the sweep proves
-them gone and removes them in the same invocation. A child that ends on its own
+them gone and removes them in the same invocation. Reaping `go test` does not
+reap the test binaries it started, which are members of its process group and
+may still be exiting, and a binary still exiting reads as a live owner. So the
+sweep first waits, for at most 10 s of its 60, until `kill(-group, 0)` answers
+`ESRCH`; a group still holding members then is swept anyway, and the summary
+names the pids left and the cleanup to run once they exit. A child that ends on its own
 ran its cleanups and gets no sweep. Both run on the hosted runner's own Docker
 in `evidence-nightly.yml`, because no container in either runs Ze, so the Docker
 host kernel check does not apply.
 <!-- source: internal/le/test/integration/dockerpeers.go -- dockerPeersArgv, runRequiringDocker, sweepAfterSignal, requireDockerEnvironment, liveRPKIArgv -->
 <!-- source: internal/le/gaterun/gaterun.go -- StreamContext, RunContext -->
+<!-- source: internal/le/gaterun/group.go -- ProcessGroup.AwaitExit -->
 <!-- source: internal/le/test/buildtag/buildtag.go -- TestFile.Needs, TestFile.Names, Packages -->
 <!-- source: internal/le/test/qemu/integration_coverage_test.go -- TestDockerTagNeverJoinsIntegration, dockerIntegrationOverlap -->
 <!-- source: internal/le/test/integration/gates.go -- Table, the docker-peers and live-rpki rows -->

@@ -741,25 +741,64 @@ func refuseOwnedArguments(field, nameSource string, arguments []string) error {
 }
 
 // labelFlagValue answers the label arguments[index] sets, in every spelling
-// docker accepts: --label <v>, --label=<v>, -l <v>, -l=<v> and -l<v>.
+// docker accepts: --label <v>, --label=<v>, and -l as the last flag of a
+// short-flag cluster, which takes <v> as the next argument, after an =, or
+// glued on (-l <v>, -l=<v>, -l<v>, -dl <v>, -dl=<v>, -dl<v>).
 func labelFlagValue(arguments []string, index int) (string, bool) {
 	argument := arguments[index]
-	if argument == "--label" || argument == "-l" {
-		if index+1 < len(arguments) {
-			return arguments[index+1], true
-		}
-		return "", true
+	if argument == "--label" {
+		return nextArgument(arguments, index), true
 	}
 	if value, found := strings.CutPrefix(argument, "--label="); found {
 		return value, true
 	}
-	if value, found := strings.CutPrefix(argument, "-l="); found {
-		return value, true
+	if strings.HasPrefix(argument, "--") {
+		return "", false
 	}
-	if value, found := strings.CutPrefix(argument, "-l"); found {
-		return value, true
+	cluster, found := strings.CutPrefix(argument, "-")
+	if !found {
+		return "", false
+	}
+	return clusterLabelValue(cluster, arguments, index)
+}
+
+// runBooleanShorthands is every short flag of `docker run` and `docker create`
+// that takes no value (-d -i -P -q -t), so a cluster reads on past it. Any other
+// letter takes the rest of the cluster as its value, as docker's flag parser
+// (spf13/pflag) reads one. --name has no short form.
+const runBooleanShorthands = "diPqt"
+
+// clusterLabelValue walks one short-flag cluster (the argument without its
+// leading -) the way pflag does: past each value-free flag, and stopping at the
+// first value-taking one. It answers the label when that flag is l, and false
+// when another flag, or an = after a value-free flag, takes the rest.
+func clusterLabelValue(cluster string, arguments []string, index int) (string, bool) {
+	for position := range len(cluster) {
+		letter := cluster[position]
+		rest := cluster[position+1:]
+		if letter == 'l' {
+			if rest == "" {
+				return nextArgument(arguments, index), true
+			}
+			return strings.TrimPrefix(rest, "="), true
+		}
+		if !strings.ContainsRune(runBooleanShorthands, rune(letter)) {
+			return "", false
+		}
+		if strings.HasPrefix(rest, "=") {
+			return "", false
+		}
 	}
 	return "", false
+}
+
+// nextArgument is the value a flag at arguments[index] takes from the next
+// argument: empty when none follows, which docker refuses on its own.
+func nextArgument(arguments []string, index int) string {
+	if index+1 < len(arguments) {
+		return arguments[index+1]
+	}
+	return ""
 }
 
 // containerNameTaken reports whether a failed `docker run` is the daemon

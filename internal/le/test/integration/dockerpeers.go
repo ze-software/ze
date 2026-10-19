@@ -36,6 +36,11 @@ const (
 	// The signal already fired, so a second Ctrl-C does not reach this sweep:
 	// the bound is what stops it.
 	signalSweepTimeout = 60 * time.Second
+	// groupExitTimeout bounds, inside signalSweepTimeout, the wait for the
+	// killed group's test binaries to finish exiting before the sweep judges
+	// their containers. A SIGKILLed process exits in milliseconds, so the bound
+	// is for a stuck one, and leaves the sweep most of its own.
+	groupExitTimeout = 10 * time.Second
 )
 
 func runDockerPeers(ctx context.Context, root string) (any, int) {
@@ -62,31 +67,44 @@ func runLiveRPKI(ctx context.Context, root string) (any, int) {
 // makes: the killed test binaries own their containers, so the sweep proves
 // them gone and removes them in this invocation rather than at the next lab
 // start. A child that ends on its own already ran its cleanups and gets none.
+//
+// The sweep waits for the child's process group to empty first: reaping `go
+// test` does not reap the test binaries it started, and a binary still exiting
+// reads as a live owner, whose containers the sweep would leave.
 func runRequiringDocker(ctx context.Context, verb string, argv []string, root string, cleaner labCleaner) (any, int) {
 	tc, err := gotoolchain.New(root)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	report, code := gaterun.RunContext(ctx, verb, argv, root,
+	report, code, group := gaterun.RunContext(ctx, verb, argv, root,
 		requireDockerEnvironment(tc.Environment(gotoolchain.EnvOptions{Test: true})))
 	if ctx.Err() == nil {
 		return report, code
 	}
-	gaterun.Note(sweepAfterSignal(ctx, verb, cleaner))
+	gaterun.Note(sweepAfterSignal(ctx, verb, cleaner, group, groupExitTimeout))
 	return report, code
 }
 
-// sweepAfterSignal runs one non-dry orphan sweep on a context that ctx's
-// cancellation does not reach, bounded by signalSweepTimeout, and answers the
-// operator's summary. A sweep the daemon refuses is reported with the fix: it
-// never changes the signalled run's non-zero answer.
-func sweepAfterSignal(ctx context.Context, verb string, cleaner labCleaner) string {
+// sweepAfterSignal waits, for at most groupBound, until the killed child's
+// process group is empty, then runs one non-dry orphan sweep, both on a
+// context that ctx's cancellation does not reach, bounded together by
+// signalSweepTimeout, and answers the operator's summary. A group still holding
+// members at its bound is swept anyway, and the summary names the pids left,
+// whose containers the sweep may have judged live. A sweep the daemon refuses
+// is reported with the fix: neither changes the signalled run's non-zero answer.
+func sweepAfterSignal(ctx context.Context, verb string, cleaner labCleaner, group gaterun.ProcessGroup, groupBound time.Duration) string {
 	sweep, cancel := context.WithTimeout(context.WithoutCancel(ctx), signalSweepTimeout)
 	defer cancel()
 
+	left := group.AwaitExit(sweep, groupBound)
 	report, err := cleaner.CleanupOrphans(sweep, false)
 	var text textbuf.Buffer
+	if left != nil {
+		text.Str(verb).Str(": the killed tests had not all exited (").Err(left).
+			Str("), so the sweep may have kept containers of theirs as live-owned. Fix: once they exit, run").
+			Str(" `./le test integration cleanup`\n")
+	}
 	if err != nil {
 		return text.Str(verb).Str(": stopped by a signal, and the sweep of its lab resources failed (").Err(err).
 			Str("), so its containers stay until a later sweep. Fix: run `./le test integration cleanup`").String()

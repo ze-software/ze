@@ -545,10 +545,11 @@ func (l *Lab) setPeers(peers []PeerConfig) {
 }
 
 // preClean clears this scenario's container and network names before it
-// creates them. A same-name resource goes only when its owner labels prove the
-// owner gone; a live, foreign, unjudgeable or unlabeled one fails the scenario
-// with the owner and the fix (Docker.claimName), which names suffixVariable
-// when the lab has one.
+// creates them. A same-name resource goes when every owner label equals this
+// run's own (an earlier scenario's leftover, ownerIdentity.created) or when its
+// owner labels prove the owner gone; a live, foreign, unjudgeable or unlabeled
+// one fails the scenario with the owner and the fix (Docker.claimName), which
+// names suffixVariable when the lab has one.
 func (l *Lab) preClean(ctx context.Context, network string, peers []PeerConfig, suffixVariable string) error {
 	for index := range peers {
 		if err := l.docker.claimName(ctx, resourceContainer, peers[index].Container, suffixVariable); err != nil {

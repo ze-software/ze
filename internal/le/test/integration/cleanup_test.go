@@ -2,6 +2,7 @@ package testintegration
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -22,6 +23,10 @@ type fakeCleaner struct {
 	canceled []bool
 	report   interoplab.OrphanReport
 	err      error
+	// group, when set, is a process group whose presence each sweep records
+	// in groupLive, so a test can tell whether the sweep ran before it emptied.
+	group     int
+	groupLive []bool
 }
 
 func (f *fakeCleaner) Probe(context.Context) error { f.probed = true; return nil }
@@ -29,6 +34,9 @@ func (f *fakeCleaner) Probe(context.Context) error { f.probed = true; return nil
 func (f *fakeCleaner) CleanupOrphans(ctx context.Context, dry bool) (interoplab.OrphanReport, error) {
 	f.dry = append(f.dry, dry)
 	f.canceled = append(f.canceled, ctx.Err() != nil)
+	if f.group > 0 {
+		f.groupLive = append(f.groupLive, !errors.Is(syscall.Kill(-f.group, 0), syscall.ESRCH))
+	}
 	f.report.Dry = dry
 	return f.report, f.err
 }

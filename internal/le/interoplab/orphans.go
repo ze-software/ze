@@ -1100,10 +1100,10 @@ func absentAnswer(err error, ref string) bool {
 }
 
 // claimName clears an existing resource of exactly this name before a
-// scenario creates its own: removed when its labels are this run's own (an
-// earlier scenario's leftover, ownerIdentity.created) or its owner is proven
-// gone, refused otherwise, unlabeled included. A run never force-removes a name another
-// live run may hold. The refusal's fix names suffixVariable, the lab's own
+// scenario creates its own: removed when every owner label equals this run's
+// own (an earlier scenario's leftover, ownerIdentity.created) or its owner is
+// proven gone, refused otherwise, unlabeled included. A run never force-removes
+// a name another live run may hold. The refusal's fix names suffixVariable, the lab's own
 // suffix variable, when it has one, and otherwise the verdict's own fix.
 func (d *Docker) claimName(ctx context.Context, kind resourceKind, name, suffixVariable string) error {
 	rows, err := d.listResources(ctx, kind, "name="+name)
