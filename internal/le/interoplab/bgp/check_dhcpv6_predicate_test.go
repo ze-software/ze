@@ -27,9 +27,8 @@ func (l *keaLog) received(client, tid, kind string) *keaLog {
 	return l
 }
 
-func (l *keaLog) leased(client, tid, message, address string) *keaLog {
+func (l *keaLog) leased(client, tid, message, address string) {
 	l.text.WriteString("2026-10-19 00:45:57.116 INFO  [kea-dhcp6.leases/7.2] " + message + "duid=[" + client + "], [no hwaddr info], tid=" + tid + ": lease for address " + address + " and iaid=304481633 has been allocated\n")
-	return l
 }
 
 // exchange logs one granted exchange of kind with a fresh tid.

@@ -104,19 +104,21 @@ func (o ownerIdentity) labelArguments(kind resourceKind) []string {
 // labelPairs is every owner label a create of kind carries, as key and value.
 // The pid namespace label is present only where the client has one (Linux).
 func (o ownerIdentity) labelPairs(kind resourceKind) [][2]string {
-	pairs := [][2]string{
-		{labelMarker, labelMarkerValue},
-		{labelKind, kind.labelValue()},
-		{labelRun, o.run},
-		{labelPID, strconv.Itoa(o.pid)},
-		{labelPIDStart, o.pidStart},
-		{labelBootID, o.bootID},
-		{labelMachineID, o.machineID},
-		{labelStarted, o.started.UTC().Format(timeLayoutRFC3339)},
-		{labelPurpose, o.purpose},
-		{labelUID, strconv.Itoa(o.uid)},
-		{labelOS, o.goos},
-	}
+	// Twelve: the eleven labels every create carries, and the pid namespace.
+	pairs := make([][2]string, 0, 12)
+	pairs = append(pairs,
+		[2]string{labelMarker, labelMarkerValue},
+		[2]string{labelKind, kind.labelValue()},
+		[2]string{labelRun, o.run},
+		[2]string{labelPID, strconv.Itoa(o.pid)},
+		[2]string{labelPIDStart, o.pidStart},
+		[2]string{labelBootID, o.bootID},
+		[2]string{labelMachineID, o.machineID},
+		[2]string{labelStarted, o.started.UTC().Format(timeLayoutRFC3339)},
+		[2]string{labelPurpose, o.purpose},
+		[2]string{labelUID, strconv.Itoa(o.uid)},
+		[2]string{labelOS, o.goos},
+	)
 	if o.pidNamespace == "" {
 		return pairs
 	}
@@ -672,7 +674,7 @@ func (k resourceKind) String() string {
 	case resourceUnspecified:
 		return "unspecified"
 	case resourceContainer:
-		return "container"
+		return dockerContainerObject
 	case resourceNetwork:
 		return dockerNetworkObject
 	case resourceImageTag:
@@ -685,7 +687,7 @@ func (k resourceKind) String() string {
 func (k resourceKind) labelValue() string {
 	switch k {
 	case resourceContainer:
-		return "container"
+		return dockerContainerObject
 	case resourceNetwork:
 		return dockerNetworkObject
 	case resourceImageTag:
@@ -1063,7 +1065,7 @@ func (d *Docker) resourcePresent(ctx context.Context, kind resourceKind, ref str
 func inspectCommand(kind resourceKind, format, ref string) ([]string, error) {
 	switch kind {
 	case resourceContainer:
-		return []string{DockerExecutable, "container", dockerInspectVerb, dockerFormatFlag, format, ref}, nil
+		return []string{DockerExecutable, dockerContainerObject, dockerInspectVerb, dockerFormatFlag, format, ref}, nil
 	case resourceNetwork:
 		return []string{DockerExecutable, dockerNetworkObject, dockerInspectVerb, dockerFormatFlag, format, ref}, nil
 	case resourceImageTag:

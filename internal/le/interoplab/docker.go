@@ -21,13 +21,14 @@ import (
 
 // The docker CLI words several command lines in this package repeat.
 const (
-	dockerFormatFlag    = "--format"
-	dockerFilterFlag    = "--filter"
-	dockerNoTruncFlag   = "--no-trunc"
-	dockerInspectVerb   = "inspect"
-	dockerImageObject   = "image"
-	dockerNetworkObject = "network"
-	dockerExecVerb      = "exec"
+	dockerFormatFlag      = "--format"
+	dockerFilterFlag      = "--filter"
+	dockerNoTruncFlag     = "--no-trunc"
+	dockerInspectVerb     = "inspect"
+	dockerImageObject     = "image"
+	dockerNetworkObject   = "network"
+	dockerContainerObject = "container"
+	dockerExecVerb        = "exec"
 )
 
 // DockerExecutable is the program every lab Docker command runs. grantcheck
@@ -706,6 +707,12 @@ func ContainerMayExist(err error) bool {
 	return !containerNameTaken(err)
 }
 
+// dockerFlagNamed reports whether argument is flag, as a separate word or in
+// its --flag=value form.
+func dockerFlagNamed(argument, flag string) bool {
+	return argument == flag || strings.HasPrefix(argument, flag+"=")
+}
+
 // refuseOwnedArguments refuses a free-form docker argument that would replace
 // what the client owns on a container: its name, which a canceled or torn-down
 // run removes the container by, and its ze.lab owner labels, which a later run
@@ -716,11 +723,11 @@ func ContainerMayExist(err error) bool {
 func refuseOwnedArguments(field, nameSource string, arguments []string) error {
 	var problem textbuf.Buffer
 	for index, argument := range arguments {
-		if argument == "--name" || strings.HasPrefix(argument, "--name=") {
+		if dockerFlagNamed(argument, "--name") {
 			return errors.New(problem.Str("BUG: ").Str(field).Str(" carries --name, which would replace the name").
 				Str(" the container is removed by: the name comes from ").Str(nameSource).Str(", so drop it").String())
 		}
-		if argument == "--label-file" || strings.HasPrefix(argument, "--label-file=") {
+		if dockerFlagNamed(argument, "--label-file") {
 			return errors.New(problem.Str("BUG: ").Str(field).Str(" carries --label-file, which could forge a ").
 				Str(labelMarker).Str(" owner label: pass each label as --label <key>=<value> outside ").
 				Str(labelMarker).String())

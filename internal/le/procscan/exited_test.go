@@ -90,7 +90,7 @@ func TestAnUnreapedChildIsAbsent(t *testing.T) {
 	if _, err := os.Stat(procRoot); err != nil {
 		t.Skip("no /proc on this host; TestParsePSLeavesOutExitedProcesses covers the ps path")
 	}
-	child := exec.Command("true")
+	child := exec.CommandContext(t.Context(), "true")
 	if err := child.Start(); err != nil {
 		t.Fatalf("start true: %v", err)
 	}
