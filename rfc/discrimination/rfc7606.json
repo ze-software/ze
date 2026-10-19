@@ -222,6 +222,61 @@
       "break": "line 266: \"mpReach != nil\" -\u003e \"false\""
     },
     {
+      "rid": "RFC7606-5.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/relay_payload_test.go::TestRelayPayloadLeadsWithMPReach",
+      "unit-sha": "7e5453a7d178c2f3",
+      "claim-sha": "ae2cb6a46802e758",
+      "route": "mutant",
+      "producer": "internal/component/bgp/reactor/relay_payload.go::writeRelayPayload",
+      "producer-sha": "d86b24bd0dafec33",
+      "break": "line 273: \"!legacyIPv4\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC7606-5.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardLeadingMPAttributeKeepsZeroCopy",
+      "unit-sha": "60b15d2aefa9ff84",
+      "claim-sha": "156ffed2369f0a9c",
+      "route": "mutant",
+      "producer": "internal/component/bgp/reactor/forward_body.go::buildFwdBody",
+      "producer-sha": "4fb1e47f2f5ded80",
+      "break": "line 260: \"peerWire.MPAttributesTrail()\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC7606-5.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardMovesTrailingMPAttributeFirstAcrossContexts",
+      "unit-sha": "df44b7378927d294",
+      "claim-sha": "fb021145f104965a",
+      "route": "mutant",
+      "producer": "internal/component/bgp/reactor/forward_body.go::buildFwdBody",
+      "producer-sha": "4fb1e47f2f5ded80",
+      "break": "line 317: \"peerWire.MPAttributesTrail()\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC7606-5.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardMovesTrailingMPAttributeFirstSameContext",
+      "unit-sha": "6cc9dc9e3babed9f",
+      "claim-sha": "247113ee91cce32c",
+      "route": "mutant",
+      "producer": "internal/component/bgp/reactor/forward_body.go::buildFwdBody",
+      "producer-sha": "4fb1e47f2f5ded80",
+      "break": "line 260: \"peerWire.MPAttributesTrail()\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC7606-5.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardRebuildMovesSourcedMPAttributeFirst",
+      "unit-sha": "7c4fa44ae19cf506",
+      "claim-sha": "169cbd9dc70faf23",
+      "route": "mutant",
+      "producer": "internal/component/bgp/reactor/forward_build.go::run",
+      "producer-sha": "b6907c502b7a642a",
+      "break": "line 761: \"isMPAttrCode(baseCode)\" -\u003e \"false\""
+    },
+    {
       "rid": "RFC7606-5.1-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/message/rfc7606_shape_test.go::TestNLRIBearingFieldCountEveryCombination",
