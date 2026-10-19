@@ -86,6 +86,10 @@ type Suite struct {
 	// against the checkout rather than against the process working directory,
 	// which `go test` sets to the package directory inside the source tree.
 	Checkout string
+	// SuffixVariable is the environment variable that sets this lab's
+	// container and network name suffix (Environment.SuffixVariable). A
+	// pre-clean refusal names it as the fix; empty when the lab has none.
+	SuffixVariable string
 	// Progress receives one line as each phase starts and as each scenario
 	// ends, WHILE the suite runs. The report prints only after the last
 	// scenario, so without these lines a suite that hangs is silent until its
@@ -388,7 +392,7 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 			result.CleanupErrors = append(result.CleanupErrors, err.Error())
 		}
 	}()
-	if err := lab.preClean(ctx, plan.Network.Name, cleanupPeers); err != nil {
+	if err := lab.preClean(ctx, plan.Network.Name, cleanupPeers, s.SuffixVariable); err != nil {
 		result.Error = err.Error()
 		return result
 	}
@@ -539,17 +543,18 @@ func (l *Lab) setPeers(peers []PeerConfig) {
 // preClean clears this scenario's container and network names before it
 // creates them. A same-name resource goes only when its owner labels prove the
 // owner gone; a live, foreign, unjudgeable or unlabeled one fails the scenario
-// with the owner and the fix (Docker.claimName).
-func (l *Lab) preClean(ctx context.Context, network string, peers []PeerConfig) error {
+// with the owner and the fix (Docker.claimName), which names suffixVariable
+// when the lab has one.
+func (l *Lab) preClean(ctx context.Context, network string, peers []PeerConfig, suffixVariable string) error {
 	for index := range peers {
-		if err := l.docker.claimName(ctx, resourceContainer, peers[index].Container); err != nil {
+		if err := l.docker.claimName(ctx, resourceContainer, peers[index].Container, suffixVariable); err != nil {
 			return err
 		}
 	}
 	if network == "" {
 		return nil
 	}
-	return l.docker.claimName(ctx, resourceNetwork, network)
+	return l.docker.claimName(ctx, resourceNetwork, network, suffixVariable)
 }
 
 // createdResources is what one scenario's own creates made, and so all its

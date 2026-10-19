@@ -203,8 +203,9 @@ func suiteFor(root string, environment interoplab.Environment, docker *interopla
 	}
 
 	return interoplab.Suite{
-		Docker:   docker,
-		StagedZe: interoplab.StagedZePath(root, LabBinaries()),
+		SuffixVariable: environment.SuffixVariable,
+		Docker:         docker,
+		StagedZe:       interoplab.StagedZePath(root, LabBinaries()),
 		// The only preflight this lab owns is the ze cross-compile. It loads
 		// no kernel module, because nothing on the admin login path needs one;
 		// Suite.Run still checks the daemon's kernel with the staged ze.

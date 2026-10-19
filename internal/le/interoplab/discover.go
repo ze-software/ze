@@ -45,6 +45,9 @@ type Environment struct {
 	Selector       string        `json:"selector,omitempty"`
 	Suffix         string        `json:"suffix"`
 	Image          string        `json:"image,omitempty"`
+	// SuffixVariable is EnvironmentOptions.SuffixVariable, carried so the
+	// lab's Suite names the real variable in a refusal (Suite.SuffixVariable).
+	SuffixVariable string `json:"-"`
 }
 
 // ReadEnvironment reads common lab settings. Invalid SESSION_TIMEOUT keeps the
@@ -90,6 +93,7 @@ func ReadEnvironment(options EnvironmentOptions) Environment {
 		Selector:       selector,
 		Suffix:         suffix,
 		Image:          image,
+		SuffixVariable: options.SuffixVariable,
 	}
 }
 

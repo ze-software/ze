@@ -90,7 +90,7 @@ func TestPreCleanRefusesLiveOrUnlabeledSameName(t *testing.T) {
 			docker := newDocker(runner)
 			docker.judge.lookup = lookupAnswering(row.lookup)
 			lab := newLab(docker, nil)
-			err := lab.preClean(t.Context(), "", []PeerConfig{{Name: "peer", Container: "lab-peer"}})
+			err := lab.preClean(t.Context(), "", []PeerConfig{{Name: "peer", Container: "lab-peer"}}, "ZE_TEST_INTEROP_SUFFIX")
 			removed := strings.Contains(recordedCommands(runner.commands), "docker rm -f "+fixtureContainerID)
 			if removed != row.removed {
 				t.Errorf("removed = %v, want %v:\n%s", removed, row.removed, recordedCommands(runner.commands))
@@ -218,6 +218,63 @@ func TestRunScenarioTakenNameIsNotTornDown(t *testing.T) {
 			for _, removal := range row.required {
 				if !strings.Contains(joined, removal) {
 					t.Errorf("teardown never ran %q for what this run created:\n%s", removal, joined)
+				}
+			}
+		})
+	}
+}
+
+// VALIDATES: user-facing-errors, AC-7: a pre-clean refusal names the lab's
+// real suffix variable from Suite.SuffixVariable, never a placeholder, and a
+// suite with none names the cleanup command and the owner pid instead.
+// PREVENTS: an operator told to set `ZE_<LAB>_INTEROP_SUFFIX`, which no lab reads.
+func TestPreCleanRefusalNamesTheRealSuffixVariable(t *testing.T) {
+	for _, row := range []struct {
+		name     string
+		variable string
+		want     []string
+		absent   []string
+	}{
+		{name: "lab with a suffix variable", variable: "ZE_L2TP_INTEROP_SUFFIX",
+			want: []string{"set ZE_L2TP_INTEROP_SUFFIX to", "./le test integration cleanup"}, absent: []string{"<LAB>"}},
+		{name: "suite with none", want: []string{"stop pid 4242", "./le test integration cleanup"},
+			absent: []string{"<LAB>", "INTEROP_SUFFIX"}},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			runner := &recordingRunner{}
+			runner.run = kernelAnswering(func(command ProcessCommand) (ProcessResult, error) {
+				joined := strings.Join(command.Arguments, " ")
+				if strings.HasPrefix(joined, "docker ps -a --no-trunc --filter name=") {
+					return ProcessResult{Stdout: fixtureContainerID + "\tlab-peer\n"}, nil
+				}
+				if strings.HasPrefix(joined, "docker container inspect") {
+					return ProcessResult{Stdout: labelJSON(fixtureLabels(nil)) + "\n"}, nil
+				}
+				return ProcessResult{}, nil
+			})
+			docker := newDocker(runner)
+			docker.judge.lookup = lookupAnswering("100")
+			suite := Suite{
+				Docker: docker, StagedZe: kernelCheckZe, NoBuild: true, SuffixVariable: row.variable,
+				Scenarios: []ScenarioPlan{{
+					Source:  ScenarioSource{Name: "one", Directory: "/scenarios/one", Checker: func(context.Context, *CheckContext) error { return nil }},
+					Network: NetworkSpec{Name: "lab-net", Candidates: []Subnet{{IPv4: netip.MustParsePrefix("172.29.0.0/24")}}},
+					Peers:   []PeerConfig{{Name: "peer", Container: "lab-peer", Image: "peer-image", Host: 3}},
+				}},
+			}
+			report := suite.Run(t.Context())
+			if len(report.Scenarios) != 1 {
+				t.Fatalf("Suite ran %d scenarios: %#v", len(report.Scenarios), report)
+			}
+			refusal := report.Scenarios[0].Error
+			for _, want := range row.want {
+				if !strings.Contains(refusal, want) {
+					t.Errorf("refusal %q does not name %q", refusal, want)
+				}
+			}
+			for _, absent := range row.absent {
+				if strings.Contains(refusal, absent) {
+					t.Errorf("refusal %q names %q", refusal, absent)
 				}
 			}
 		})

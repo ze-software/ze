@@ -820,8 +820,9 @@ func absentAnswer(err error, ref string) bool {
 // claimName clears an existing resource of exactly this name before a
 // scenario creates its own: removed when its owner is proven gone, refused
 // otherwise, unlabeled included. A run never force-removes a name another
-// live run may hold.
-func (d *Docker) claimName(ctx context.Context, kind resourceKind, name string) error {
+// live run may hold. The refusal's fix names suffixVariable, the lab's own
+// suffix variable, when it has one, and otherwise the verdict's own fix.
+func (d *Docker) claimName(ctx context.Context, kind resourceKind, name, suffixVariable string) error {
 	rows, err := d.listResources(ctx, kind, "name="+name)
 	if err != nil {
 		return err
@@ -846,8 +847,11 @@ func (d *Docker) claimName(ctx context.Context, kind resourceKind, name string) 
 		}
 		var refusal textbuf.Buffer
 		refusal.Str(kind.String()).Byte(' ').Str(name).Str(" already exists and is not this run's to remove: ").
-			Str(judgement.reason).Str(". Fix: set this lab's ZE_<LAB>_INTEROP_SUFFIX variable to a value no").
-			Str(" other run uses, or ").Str(judgement.fix)
+			Str(judgement.reason).Str(". Fix: ")
+		if suffixVariable != "" {
+			refusal.Str("set ").Str(suffixVariable).Str(" to a value no other run uses, or ")
+		}
+		refusal.Str(judgement.fix)
 		return errors.New(refusal.String())
 	}
 	return nil

@@ -443,7 +443,9 @@ prints each removal or skip as a progress line. A listing the daemon refuses is
 a setup error. Before a scenario creates its network and containers, its
 pre-clean removes an existing resource of the same name only on the same
 verdict, and otherwise fails the scenario naming the owner and the fix: set
-the lab's `ZE_<LAB>_INTEROP_SUFFIX` variable, or run the cleanup. The
+the lab's own suffix variable, which the message names from
+`Suite.SuffixVariable` (`ZE_L2TP_INTEROP_SUFFIX` for the L2TP lab), or the
+verdict's own fix: stop the owner pid it names, or run the cleanup. The
 scenario's teardown then removes nothing of that name: it removes only what
 the scenario itself created.
 <!-- source: internal/le/interoplab/orphans.go -- Docker.claimName -->

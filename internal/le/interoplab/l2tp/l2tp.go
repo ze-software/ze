@@ -105,12 +105,13 @@ func runAt(ctx context.Context, root, selector string, docker *interoplab.Docker
 
 	stage := interoplab.StageBinaries(root, environment.NoBuild, LabBinaries()...)
 	suite := interoplab.Suite{
-		Docker:    docker,
-		Preflight: stage,
-		StagedZe:  interoplab.StagedZePath(root, LabBinaries()),
-		Images:    imageBuilds(root, plans, environment.Image),
-		Scenarios: plans,
-		NoBuild:   environment.NoBuild,
+		SuffixVariable: environment.SuffixVariable,
+		Docker:         docker,
+		Preflight:      stage,
+		StagedZe:       interoplab.StagedZePath(root, LabBinaries()),
+		Images:         imageBuilds(root, plans, environment.Image),
+		Scenarios:      plans,
+		NoBuild:        environment.NoBuild,
 	}
 	// The kernel probe runs FIRST where it runs at all: a machine with no
 	// PPPoL2TP module cannot run this lab, and refusing it before the
