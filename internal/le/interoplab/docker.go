@@ -518,6 +518,9 @@ func OneShotDidNotExit(err error) bool {
 // included, so each carries the owner labels and the name a canceled run is
 // removed by.
 func (d *Docker) oneShotArguments(spec OneShotContainer, name string) ([]string, error) {
+	if err := refuseOwnedArguments("OneShotContainer.Arguments", "the client's own one-shot name", spec.Arguments); err != nil {
+		return nil, err
+	}
 	labels := d.owner.labelArguments(resourceContainer)
 	argv := make([]string, 0, 8+2*len(spec.Mounts)+len(spec.Arguments)+len(labels)+len(spec.Command))
 	argv = append(argv, DockerExecutable, "run", "--rm", "--name", name)
@@ -602,6 +605,9 @@ func (d *Docker) runContainer(ctx context.Context, network Network, peer PeerCon
 	}
 	if peer.Image == "" {
 		return errors.New("peer image is empty")
+	}
+	if err := refuseOwnedArguments("PeerConfig.Arguments", "PeerConfig.Container", peer.Arguments); err != nil {
+		return err
 	}
 	ipv4, err := addressAtHost(network.IPv4, peer.Host)
 	if err != nil {
@@ -698,6 +704,62 @@ func ContainerMayExist(err error) bool {
 		return false
 	}
 	return !containerNameTaken(err)
+}
+
+// refuseOwnedArguments refuses a free-form docker argument that would replace
+// what the client owns on a container: its name, which a canceled or torn-down
+// run removes the container by, and its ze.lab owner labels, which a later run
+// and `./le test integration cleanup` judge the owner by. A label file is
+// refused too, because what it carries cannot be read here. field names the
+// free-form field and nameSource the typed source of the container's name.
+// Either form is a Ze defect in the caller, never an operator input.
+func refuseOwnedArguments(field, nameSource string, arguments []string) error {
+	var problem textbuf.Buffer
+	for index, argument := range arguments {
+		if argument == "--name" || strings.HasPrefix(argument, "--name=") {
+			return errors.New(problem.Str("BUG: ").Str(field).Str(" carries --name, which would replace the name").
+				Str(" the container is removed by: the name comes from ").Str(nameSource).Str(", so drop it").String())
+		}
+		if argument == "--label-file" || strings.HasPrefix(argument, "--label-file=") {
+			return errors.New(problem.Str("BUG: ").Str(field).Str(" carries --label-file, which could forge a ").
+				Str(labelMarker).Str(" owner label: pass each label as --label <key>=<value> outside ").
+				Str(labelMarker).String())
+		}
+		label, isLabel := labelFlagValue(arguments, index)
+		if !isLabel {
+			continue
+		}
+		key, _, _ := strings.Cut(label, "=")
+		if key != labelMarker && !strings.HasPrefix(key, labelMarker+".") {
+			continue
+		}
+		return errors.New(problem.Str("BUG: ").Str(field).Str(" carries the owner label ").Str(key).
+			Str(", which would override the one this client writes from its own identity: drop it, and name").
+			Str(" any label the container needs outside ").Str(labelMarker).String())
+	}
+	return nil
+}
+
+// labelFlagValue answers the label arguments[index] sets, in every spelling
+// docker accepts: --label <v>, --label=<v>, -l <v>, -l=<v> and -l<v>.
+func labelFlagValue(arguments []string, index int) (string, bool) {
+	argument := arguments[index]
+	if argument == "--label" || argument == "-l" {
+		if index+1 < len(arguments) {
+			return arguments[index+1], true
+		}
+		return "", true
+	}
+	if value, found := strings.CutPrefix(argument, "--label="); found {
+		return value, true
+	}
+	if value, found := strings.CutPrefix(argument, "-l="); found {
+		return value, true
+	}
+	if value, found := strings.CutPrefix(argument, "-l"); found {
+		return value, true
+	}
+	return "", false
 }
 
 // containerNameTaken reports whether a failed `docker run` is the daemon
