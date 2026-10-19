@@ -10,6 +10,7 @@ import (
 	"path"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -25,40 +26,76 @@ const dockerProgram = "docker"
 // host process.
 const execPackage = "os/exec"
 
+// symbolDepthMax bounds how many constant-to-constant hops a program name is
+// followed through, so a cycle in broken source cannot loop the walk.
+const symbolDepthMax = 16
+
 // dockerExecSite is one exec.Command or exec.CommandContext call whose
-// program is docker, by literal or by a string constant.
+// program is docker, or one package-level var holding it. Action is what the
+// diagnosis says the line does: "runs", or "holds the docker program in".
 type dockerExecSite struct {
 	File    string
 	Line    int
+	Action  string
 	Program string
 }
 
-// pendingProgram is a call whose program is a constant the walk has not yet
-// read: Package is the module-relative directory, or the import path, that
-// declares Name.
-type pendingProgram struct {
-	File    string
-	Line    int
-	Package string
-	Name    string
+// fileImport is one module import of a file: the imported package's
+// tree-relative directory, and the alias the file gives it, empty for none.
+type fileImport struct {
+	Dir   string
+	Alias string
 }
 
-// dockerExecScan collects the docker exec sites of every parsed file. The
-// constants a program names can sit in a file the walk reads later, so
-// calls naming a constant are resolved once the walk ends.
+// sourceScope is where an expression was written: its package directory and
+// its file's module imports, which together resolve an identifier or a
+// selector in it.
+type sourceScope struct {
+	Dir     string
+	Imports []fileImport
+}
+
+// symbol is one package-level constant or var and the expression that
+// initializes it.
+type symbol struct {
+	Scope sourceScope
+	Value ast.Expr
+}
+
+// programUse is an expression naming a program that the walk judges once it
+// has read every file: the program of an exec call, or the initializer of a
+// package-level var.
+type programUse struct {
+	File   string
+	Line   int
+	Action string
+	Name   string
+	Scope  sourceScope
+	Value  ast.Expr
+}
+
+// dockerExecScan collects the docker exec sites of every parsed file. A
+// program can name a constant declared in a file the walk reads later, or
+// in a package whose name the walk has not read yet, so every use is resolved
+// once the walk ends.
 type dockerExecScan struct {
-	// constants maps a package directory to its string constants.
-	constants map[string]map[string]string
-	sites     []dockerExecSite
-	pending   []pendingProgram
+	// packages maps a package directory to the name its package clause
+	// declares, which is what an unaliased import of it is called.
+	packages map[string]string
+	// symbols maps a package directory to its package-level constants and vars.
+	symbols map[string]map[string]symbol
+	uses    []programUse
 }
 
-// scanFile records the string constants and the exec calls of one file.
-// module is the module path, rel the file's tree-relative path.
+// scanFile records the package name, the package-level constants and vars,
+// and the exec calls of one file. module is the module path, rel the file's
+// tree-relative path.
 func (s *dockerExecScan) scanFile(files *token.FileSet, module, rel string, file *ast.File) {
-	dir := path.Dir(rel)
-	s.recordConstants(dir, file)
+	scope := sourceScope{Dir: path.Dir(rel)}
 	execName, imports := fileImports(module, file)
+	scope.Imports = imports
+	s.recordPackage(scope.Dir, file.Name.Name)
+	s.recordSymbols(files, rel, scope, file)
 	if execName == "" {
 		return
 	}
@@ -71,20 +108,36 @@ func (s *dockerExecScan) scanFile(files *token.FileSet, module, rel string, file
 		if !ok {
 			return true
 		}
-		line := files.Position(call.Pos()).Line
-		s.recordProgram(rel, line, dir, imports, program)
+		s.uses = append(s.uses, programUse{
+			File: rel, Line: files.Position(call.Pos()).Line, Action: "runs",
+			Name: programName(program), Scope: scope, Value: program,
+		})
 		return true
 	})
 }
 
-// recordConstants keeps every string constant file declares.
-func (s *dockerExecScan) recordConstants(dir string, file *ast.File) {
+// recordPackage keeps the package name of dir. An external test package
+// (`name_test`) is not what an import of dir is called, so it is skipped.
+func (s *dockerExecScan) recordPackage(dir, name string) {
+	if strings.HasSuffix(name, "_test") {
+		return
+	}
+	if s.packages == nil {
+		s.packages = make(map[string]string)
+	}
+	s.packages[dir] = name
+}
+
+// recordSymbols keeps every package-level constant and var file declares with
+// its initializer, and keeps each var as a use: a var holding docker is
+// refused wherever it is read, because the scan cannot follow the var.
+func (s *dockerExecScan) recordSymbols(files *token.FileSet, rel string, scope sourceScope, file *ast.File) {
 	for _, decl := range file.Decls {
 		gen, ok := decl.(*ast.GenDecl)
 		if !ok {
 			continue
 		}
-		if gen.Tok != token.CONST {
+		if gen.Tok != token.CONST && gen.Tok != token.VAR {
 			continue
 		}
 		for _, spec := range gen.Specs {
@@ -96,45 +149,52 @@ func (s *dockerExecScan) recordConstants(dir string, file *ast.File) {
 				if i >= len(value.Values) {
 					break
 				}
-				text, ok := stringLiteral(value.Values[i])
-				if !ok {
-					continue
+				s.recordSymbol(scope, name.Name, value.Values[i])
+				if gen.Tok == token.VAR {
+					s.uses = append(s.uses, programUse{
+						File: rel, Line: files.Position(name.Pos()).Line, Action: "holds the docker program in",
+						Name: "var " + name.Name, Scope: scope, Value: value.Values[i],
+					})
 				}
-				if s.constants == nil {
-					s.constants = make(map[string]map[string]string)
-				}
-				if s.constants[dir] == nil {
-					s.constants[dir] = make(map[string]string)
-				}
-				s.constants[dir][name.Name] = text
 			}
 		}
 	}
 }
 
+// recordSymbol keeps one package-level name and its initializer.
+func (s *dockerExecScan) recordSymbol(scope sourceScope, name string, value ast.Expr) {
+	if s.symbols == nil {
+		s.symbols = make(map[string]map[string]symbol)
+	}
+	if s.symbols[scope.Dir] == nil {
+		s.symbols[scope.Dir] = make(map[string]symbol)
+	}
+	s.symbols[scope.Dir][name] = symbol{Scope: scope, Value: value}
+}
+
 // fileImports answers the local name file gives os/exec (empty when it does
-// not import it by name) and, for each module import, the local name the
-// file calls it by mapped to its tree-relative directory. An import without
-// an alias is called by its last path element, which is how every package
-// in this module is named.
-func fileImports(module string, file *ast.File) (string, map[string]string) {
+// not import it by name) and the file's module imports. The local name of an
+// unaliased module import is the package clause of its directory, which the
+// scan resolves once the walk ends, so a package named apart from its
+// directory is still followed.
+func fileImports(module string, file *ast.File) (string, []fileImport) {
 	execName := ""
-	imports := make(map[string]string)
+	var imports []fileImport
 	for _, spec := range file.Imports {
 		imported, err := strconv.Unquote(spec.Path.Value)
 		if err != nil {
 			continue
 		}
-		local := path.Base(imported)
+		alias := ""
 		if spec.Name != nil {
-			local = spec.Name.Name
+			alias = spec.Name.Name
 		}
 		if imported == execPackage {
-			execName = local
+			execName = cmp.Or(alias, path.Base(imported))
 			continue
 		}
 		if underDir(imported, module) && len(imported) > len(module) {
-			imports[local] = imported[len(module)+1:]
+			imports = append(imports, fileImport{Dir: imported[len(module)+1:], Alias: alias})
 		}
 	}
 	if execName == "_" {
@@ -173,30 +233,71 @@ func execProgram(call *ast.CallExpr, execName string) (ast.Expr, bool) {
 	return call.Args[index], true
 }
 
-// recordProgram keeps a literal docker program as a site, and a constant as
-// pending until the walk has read every constant.
-func (s *dockerExecScan) recordProgram(rel string, line int, dir string, imports map[string]string, program ast.Expr) {
+// programName is how the diagnosis names a program expression: a literal
+// quoted, an identifier or a selector by the name it reads.
+func programName(program ast.Expr) string {
 	if text, ok := stringLiteral(program); ok {
-		if dockerBinary(text) {
-			s.sites = append(s.sites, dockerExecSite{File: rel, Line: line, Program: strconv.Quote(text)})
-		}
-		return
+		return strconv.Quote(text)
 	}
 	if ident, ok := program.(*ast.Ident); ok {
-		s.pending = append(s.pending, pendingProgram{File: rel, Line: line, Package: dir, Name: ident.Name})
-		return
+		return ident.Name
 	}
-	selector, ok := program.(*ast.SelectorExpr)
+	if selector, ok := program.(*ast.SelectorExpr); ok {
+		return selector.Sel.Name
+	}
+	return "an expression"
+}
+
+// resolve answers the string an expression evaluates to when it is a literal
+// or a chain of package-level names ending in one, and whether it could
+// follow it. depth counts the hops taken, bounded by symbolDepthMax.
+func (s *dockerExecScan) resolve(scope sourceScope, expr ast.Expr, depth int) (string, bool) {
+	if depth > symbolDepthMax {
+		return "", false
+	}
+	if text, ok := stringLiteral(expr); ok {
+		return text, true
+	}
+	if ident, ok := expr.(*ast.Ident); ok {
+		target, found := s.symbols[scope.Dir][ident.Name]
+		if !found {
+			return "", false
+		}
+		return s.resolve(target.Scope, target.Value, depth+1)
+	}
+	selector, ok := expr.(*ast.SelectorExpr)
 	if !ok {
-		return
+		return "", false
 	}
 	receiver, ok := selector.X.(*ast.Ident)
 	if !ok {
-		return
+		return "", false
 	}
-	if target, ok := imports[receiver.Name]; ok {
-		s.pending = append(s.pending, pendingProgram{File: rel, Line: line, Package: target, Name: selector.Sel.Name})
+	dir, found := s.importedDir(scope, receiver.Name)
+	if !found {
+		return "", false
 	}
+	target, found := s.symbols[dir][selector.Sel.Name]
+	if !found {
+		return "", false
+	}
+	return s.resolve(target.Scope, target.Value, depth+1)
+}
+
+// importedDir answers the directory of the module import scope calls local:
+// by its alias, or by the package clause of its directory, or, for a
+// directory the walk never read, by its last path element.
+func (s *dockerExecScan) importedDir(scope sourceScope, local string) (string, bool) {
+	for _, imported := range scope.Imports {
+		name := imported.Alias
+		if name == "" {
+			name = cmp.Or(s.packages[imported.Dir], path.Base(imported.Dir))
+		}
+		if name == local {
+			return imported.Dir, true
+		}
+	}
+	return "", false
 }
 
 // stringLiteral answers the value of a string literal expression.
@@ -220,21 +321,22 @@ func dockerBinary(program string) bool {
 	return path.Base(program) == dockerProgram
 }
 
-// violations answers every docker exec site outside DockerRoute, the
-// constants resolved, sorted by file and line.
+// violations answers every docker exec site and docker-holding var outside
+// DockerRoute, the names resolved, sorted by file and line.
 func (s *dockerExecScan) violations() []dockerExecSite {
-	found := make([]dockerExecSite, 0, len(s.sites))
-	found = append(found, s.sites...)
-	for _, call := range s.pending {
-		value, ok := s.constants[call.Package][call.Name]
+	var found []dockerExecSite
+	for _, use := range s.uses {
+		if underDir(use.File, DockerRoute) {
+			continue
+		}
+		value, ok := s.resolve(use.Scope, use.Value, 0)
 		if !ok {
 			continue
 		}
 		if dockerBinary(value) {
-			found = append(found, dockerExecSite{File: call.File, Line: call.Line, Program: call.Name})
+			found = append(found, dockerExecSite{File: use.File, Line: use.Line, Action: use.Action, Program: use.Name})
 		}
 	}
-	found = slices.DeleteFunc(found, func(site dockerExecSite) bool { return underDir(site.File, DockerRoute) })
 	slices.SortFunc(found, func(a, b dockerExecSite) int {
 		return cmp.Or(cmp.Compare(a.File, b.File), cmp.Compare(a.Line, b.Line))
 	})
@@ -255,7 +357,7 @@ func dockerExecGate(scan *dockerExecScan) CheckResult {
 	}
 	tb.Str("FAIL: exec of the docker binary outside ").Str(DockerRoute).Str(":\n")
 	for _, site := range found {
-		tb.Str("  ").Str(site.File).Byte(':').Int(int64(site.Line)).Str(" runs ").Str(site.Program).Byte('\n')
+		tb.Str("  ").Str(site.File).Byte(':').Int(int64(site.Line)).Byte(' ').Str(site.Action).Byte(' ').Str(site.Program).Byte('\n')
 	}
 	tb.Str("  Rule: every docker command goes through interoplab.Docker, which labels what it creates so")
 	tb.Str(" `./le test integration cleanup` removes what a killed run left, and bounds each command")

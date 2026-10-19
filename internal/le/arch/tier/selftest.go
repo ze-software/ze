@@ -735,12 +735,22 @@ const dockerExecRoute = "internal/le/interoplab/docker.go"
 
 // dockerExecViolators are the fixture files that exec docker outside the
 // route: by literal, by a constant of their own package declared in another
-// file, and by the wrapper's exported constant.
+// file, by the wrapper's exported constant, by a constant defined from a local
+// constant, by a constant defined from the wrapper's, through a package whose
+// name differs from its directory, and by holding docker in package-level vars.
 var dockerExecViolators = [...]string{
 	"internal/component/bgp/filterapi/literal_test.go",
 	"internal/component/bgp/filterapi/local.go",
 	"internal/component/bgp/filterapi/wrapper.go",
+	"internal/component/bgp/filterapi/chained.go",
+	"internal/component/bgp/filterapi/crossconst.go",
+	"internal/component/bgp/filterapi/renamed.go",
+	"internal/component/bgp/filterapi/vars.go",
 }
+
+// dockerExecRenamed is a package under the route whose name, dockerbin,
+// differs from its directory, so an unaliased import is called dockerbin.
+const dockerExecRenamed = "internal/le/interoplab/dockername/name.go"
 
 // dockerExecFixture answers the ownership fixture plus the wrapper, an exec of
 // another program outside it, and, when violate is set, the three violators.
@@ -753,13 +763,24 @@ func dockerExecFixture(violate bool) map[string]string {
 	if !violate {
 		return fixture
 	}
-	fixture["internal/component/bgp/filterapi/names.go"] = "package filterapi\nconst binary = \"docker\"\n"
+	fixture["internal/component/bgp/filterapi/names.go"] = "package filterapi\nconst binary = \"docker\"\n" +
+		"const chainedBinary = binary\n"
+	fixture[dockerExecRenamed] = "package dockerbin\nconst Path = \"docker\"\n"
 	fixture[dockerExecViolators[0]] = "package filterapi\nimport (\n\t\"context\"\n\trun \"os/exec\"\n)\n" +
 		"func literal() { _ = run.CommandContext(context.Background(), \"/usr/bin/docker\", \"ps\") }\n"
 	fixture[dockerExecViolators[1]] = "package filterapi\nimport \"os/exec\"\n" +
 		"func local() { _ = exec.Command(binary, \"ps\") }\n"
 	fixture[dockerExecViolators[2]] = "package filterapi\nimport (\n\t\"os/exec\"\n\t\"" + fixtureModule +
 		"/internal/le/interoplab\"\n)\nfunc wrapper() { _ = exec.Command(interoplab.DockerExecutable, \"ps\") }\n"
+	fixture[dockerExecViolators[3]] = "package filterapi\nimport \"os/exec\"\n" +
+		"func chained() { _ = exec.Command(chainedBinary, \"ps\") }\n"
+	fixture[dockerExecViolators[4]] = "package filterapi\nimport (\n\t\"os/exec\"\n\t\"" + fixtureModule +
+		"/internal/le/interoplab\"\n)\nconst viaWrapper = interoplab.DockerExecutable\n" +
+		"func cross() { _ = exec.Command(viaWrapper, \"ps\") }\n"
+	fixture[dockerExecViolators[5]] = "package filterapi\nimport (\n\t\"os/exec\"\n\t\"" + fixtureModule +
+		"/internal/le/interoplab/dockername\"\n)\nfunc renamed() { _ = exec.Command(dockerbin.Path, \"ps\") }\n"
+	fixture[dockerExecViolators[6]] = "package filterapi\nimport \"" + fixtureModule +
+		"/internal/le/interoplab\"\nvar dockerBin = \"docker\"\nvar wrapperBin = interoplab.DockerExecutable\n"
 	return fixture
 }
 

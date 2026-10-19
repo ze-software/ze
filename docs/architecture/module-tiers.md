@@ -119,8 +119,13 @@ whose program is the docker binary, outside `internal/le/interoplab`, in any
 non-vendor Go file, tests included. The program is caught as a string literal
 (`"docker"` or a path ending in `/docker`), as a string constant of the file's
 own package, or as an imported package's constant such as
-`interoplab.DockerExecutable`. A program reached through a variable or a
-function parameter is not a call-site fact and is not judged. The route is
+`interoplab.DockerExecutable`, and through any chain of constants defined from
+one another (`const x = interoplab.DockerExecutable`). An unaliased import is
+matched by the package clause of its directory, so a package named apart from
+its directory is still followed. A package-level `var` initialized to the
+docker binary, by literal or by such a constant, is refused at its declaration,
+because what reads the var is not a call-site fact. A program reached through a
+local variable or a function parameter is not judged. The route is
 `interoplab.Docker`, which labels what it creates so
 `./le test integration cleanup` removes what a killed run left, and bounds
 every command; a package test starts its server with `labtest.Start`. The

@@ -8,8 +8,11 @@ import (
 // VALIDATES: AC-16: the tier check refuses an exec of docker outside
 // internal/le/interoplab by a literal (a bare name or a path, through an
 // aliased os/exec), by a constant of the file's own package declared in
-// another file, and by the wrapper's exported constant, naming each file and
-// line; the wrapper's own exec and an exec of another program pass.
+// another file, by the wrapper's exported constant, by a constant defined from
+// another constant (local or the wrapper's), through a package whose name
+// differs from its directory, and by a package-level var holding docker,
+// naming each file and line; the wrapper's own exec and an exec of another
+// program pass.
 // PREVENTS: a test or tool starting containers the cleanup cannot find,
 // because they carry no owner labels.
 func TestNoDockerExecOutsideInteroplab(t *testing.T) {
@@ -32,6 +35,11 @@ func TestNoDockerExecOutsideInteroplab(t *testing.T) {
 		dockerExecViolators[0] + ":6 runs \"/usr/bin/docker\"",
 		dockerExecViolators[1] + ":3 runs binary",
 		dockerExecViolators[2] + ":6 runs DockerExecutable",
+		dockerExecViolators[3] + ":3 runs chainedBinary",
+		dockerExecViolators[4] + ":7 runs viaWrapper",
+		dockerExecViolators[5] + ":6 runs Path",
+		dockerExecViolators[6] + ":3 holds the docker program in var dockerBin",
+		dockerExecViolators[6] + ":4 holds the docker program in var wrapperBin",
 		"interoplab.Docker", "labtest.Start",
 	} {
 		if !strings.Contains(diagnosis, want) {
