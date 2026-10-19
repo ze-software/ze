@@ -980,7 +980,7 @@
       "claim-sha": "07c96ff50def4bc3",
       "route": "revert",
       "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-      "producer-sha": "d49c1a4797eb9fc3",
+      "producer-sha": "222e2e233e9e8539",
       "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -991,7 +991,7 @@
       "claim-sha": "69fa694a96474321",
       "route": "revert",
       "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-      "producer-sha": "d49c1a4797eb9fc3",
+      "producer-sha": "222e2e233e9e8539",
       "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1002,7 +1002,7 @@
       "claim-sha": "b570629e4fc30447",
       "route": "revert",
       "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-      "producer-sha": "d49c1a4797eb9fc3",
+      "producer-sha": "222e2e233e9e8539",
       "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
