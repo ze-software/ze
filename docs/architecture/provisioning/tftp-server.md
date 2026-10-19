@@ -40,9 +40,10 @@ installs nothing. A reload that changes it closes the listeners and binds them
 again with a new transfer semaphore, and logs `tftpserver: config applied`. A
 request that arrives during the swap is lost and the client retransmits it.
 Every transfer runs under the generation of the config that started it. Once
-the new listeners serve, the replaced generation is cancelled, which closes
-the socket of every transfer still in flight: the transfer is cut, and the
-client fetches the file again under the new config. No file is served from a
+the new listeners serve, the replaced generation ends, which closes the socket
+of every transfer still in flight before the reload returns: the transfer is
+cut, and the client fetches the file again under the new config. A transfer
+that a replaced listener starts after that is refused. No file is served from a
 root directory the operator replaced, and `max-transfers` holds at once. A
 reload that sets `enabled false` stops serving the same way.
 

@@ -4,7 +4,6 @@
 package tftpserver
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -51,11 +50,10 @@ type tftpServer struct {
 	boot      bool
 	listeners []tftpListener
 	sem       chan struct{}
-	// generation is canceled when a new config serves or the server stops,
-	// which cuts every transfer started under the running config. cancel is
-	// nil until the first install.
-	generation context.Context
-	cancel     context.CancelFunc
+	// generation ends when a new config serves or the server stops, which
+	// cuts every transfer started under the running config. It is nil until
+	// the first install, and endTransfers names that guard.
+	generation *transferGeneration
 	log        *slog.Logger
 }
 
@@ -76,15 +74,15 @@ type tftpServer struct {
 func (s *tftpServer) install(cfg tftpConfig) error {
 	served := s.listeners
 	s.closeListeners()
-	generation, cancel := context.WithCancel(context.Background())
+	generation := newTransferGeneration()
 	sem := make(chan struct{}, cfg.MaxTransfers)
 	listeners, err := bindTFTP(generation, cfg, sem, s.log, !s.boot)
 	if err != nil {
-		cancel()
+		generation.end(s.log)
 		return s.restore(served, err)
 	}
 	s.endTransfers()
-	s.running, s.listeners, s.sem, s.generation, s.cancel = cfg, listeners, sem, generation, cancel
+	s.running, s.listeners, s.sem, s.generation = cfg, listeners, sem, generation
 	if !cfg.Enabled {
 		s.log.Debug("tftpserver: disabled in config")
 		return nil
@@ -163,7 +161,7 @@ func listenInterface(ifName string, log *slog.Logger) (*net.UDPConn, error) {
 // serve. A device ze's own `interface {}` config creates exists by then,
 // because the server starts after the interface plugin (StartAfter in init);
 // a device that appears later is served only after the next reload.
-func bindTFTP(generation context.Context, cfg tftpConfig, sem chan struct{}, log *slog.Logger, strict bool) ([]tftpListener, error) {
+func bindTFTP(generation *transferGeneration, cfg tftpConfig, sem chan struct{}, log *slog.Logger, strict bool) ([]tftpListener, error) {
 	if !cfg.Enabled {
 		return nil, nil
 	}
@@ -209,12 +207,14 @@ func (s *tftpServer) closeListeners() {
 	s.listeners = nil
 }
 
-// endTransfers cancels the running generation, which cuts every transfer it
-// started.
+// endTransfers ends the running generation, which closes the socket of every
+// transfer it started before it returns. Before the first install no
+// generation exists and no transfer runs, so there is nothing to cut.
 func (s *tftpServer) endTransfers() {
-	if s.cancel != nil {
-		s.cancel()
+	if s.generation == nil {
+		return
 	}
+	s.generation.end(s.log)
 }
 
 // stop closes every listener and cuts every transfer. It MUST be called only
