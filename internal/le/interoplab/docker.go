@@ -852,11 +852,14 @@ func (d *Docker) RemoveContainer(ctx context.Context, name string) error {
 
 // forceRemoveContainer runs one `docker rm -f name`. It answers true when
 // docker says no container holds the name, and otherwise false with the
-// removal's outcome as confirmRemoval settles it.
+// removal's outcome as confirmRemoval settles it. Docker 29.9 (checked on
+// 2026-10-19) answers an absent name with exit 0 and no output, and prints the
+// name only for a container it removed, so a success with no output is the
+// absent answer too.
 func (d *Docker) forceRemoveContainer(ctx context.Context, name string) (bool, error) {
-	_, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, "rm", "-f", name)
+	result, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, "rm", "-f", name)
 	if err == nil {
-		return false, nil
+		return strings.TrimSpace(result.Stdout) == "", nil
 	}
 	if commandErr, ok := errors.AsType[*commandError](err); ok {
 		var tb textbuf.Buffer

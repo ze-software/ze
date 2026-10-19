@@ -353,6 +353,10 @@ func TestPerfStartContainerRecordsOnlyWhatItMayHaveCreated(t *testing.T) {
 				if argv[1] == "run" && slices.Contains(argv, runner.containerName("ze")) {
 					return interoplab.ProcessResult{ExitCode: 125, Stderr: row.stderr}, nil
 				}
+				if argv[1] == "rm" {
+					// Docker prints the name of the created container it removed.
+					return interoplab.ProcessResult{Stdout: argv[len(argv)-1] + "\n"}, nil
+				}
 				return interoplab.ProcessResult{}, nil
 			}
 			runner.Execute(t.Context(), Steps{Test: true}, []string{"ze"})

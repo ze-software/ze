@@ -106,7 +106,8 @@ func TestFailedProofStartStillRemovesItsContainer(t *testing.T) {
 		if argv[1] == "run" {
 			return interoplab.ProcessResult{ExitCode: 127, Stderr: refusal}, nil
 		}
-		return interoplab.ProcessResult{}, nil
+		// Docker prints the name of the created container it removed.
+		return interoplab.ProcessResult{Stdout: argv[len(argv)-1] + "\n"}, nil
 	}}
 	docker := interoplab.NewFixtureDocker(recorder)
 

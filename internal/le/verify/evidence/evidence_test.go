@@ -48,6 +48,11 @@ func (rec *recorder) Run(ctx context.Context, command interoplab.ProcessCommand)
 	if command.Stderr != nil {
 		io.WriteString(command.Stderr, rec.stderr) //nolint:errcheck // the fixture's stderr is a test buffer
 	}
+	if len(command.Arguments) > 2 && command.Arguments[1] == "rm" {
+		// Docker prints the name of a container it removed; an empty answer
+		// is its absent answer (interoplab forceRemoveContainer).
+		return interoplab.ProcessResult{ExitCode: rec.code, Stdout: command.Arguments[len(command.Arguments)-1] + "\n"}, nil
+	}
 	return interoplab.ProcessResult{ExitCode: rec.code}, nil
 }
 

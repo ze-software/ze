@@ -474,8 +474,10 @@ exits 1.
 
 Killing the docker client does not cancel a create the daemon already
 accepted, so after a Ctrl-C during `docker run` the container can appear after
-the first `docker rm -f` answered that no container has that name. When a
-start failed or was canceled, `Docker.RemoveContainer` does not accept that
+the first `docker rm -f` answered that no container has that name. Docker
+29.9 gives that answer as exit 0 with no output, and prints the name only for a
+container it removed; older releases refuse with "No such container", and both
+answers count as absent. When a start failed or was canceled, `Docker.RemoveContainer` does not accept that
 first answer. It runs `docker rm -f` again every `createSettleInterval` until
 `createSettleWindow` ends, and removes the container if it appears. If the
 container appears and cannot be removed, or the wait is stopped, the error

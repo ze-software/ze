@@ -25,7 +25,9 @@ func TestRunOneShotRemovesACanceledContainerByName(t *testing.T) {
 				if command.Arguments[1] == "run" {
 					return ProcessResult{ExitCode: timeoutExitCode}, cause
 				}
-				return ProcessResult{}, nil
+				// Docker prints the name of a container it removed; an empty
+				// answer is its absent answer (forceRemoveContainer).
+				return ProcessResult{Stdout: fixtureOneShotName() + "\n"}, nil
 			}
 			docker := newDocker(runner)
 			_, err := docker.RunOneShot(t.Context(), OneShotContainer{Image: "alpine", Command: []string{"sleep", "60"}, Timeout: time.Second})

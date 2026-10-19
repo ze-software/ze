@@ -11,12 +11,16 @@ import (
 // `docker run` is canceled after the daemon accepted the create, so the
 // container appears only once the client is gone. Here it appears after the
 // first `rm -f`, which therefore answers that it does not exist. stuck makes
-// the appeared container refuse every removal. Not safe for concurrent use.
+// the appeared container refuse every removal. silentAbsent is Docker 29.9
+// (checked on 2026-10-19): `rm -f` of an absent name exits 0 with
+// no output, and only a removal prints the name; otherwise it is the older
+// "No such container" refusal. Not safe for concurrent use.
 type settlingDaemon struct {
-	present  bool
-	appeared bool
-	stuck    bool
-	removals int
+	silentAbsent bool
+	present      bool
+	appeared     bool
+	stuck        bool
+	removals     int
 }
 
 func (s *settlingDaemon) run(command ProcessCommand) (ProcessResult, error) {
@@ -32,11 +36,14 @@ func (s *settlingDaemon) run(command ProcessCommand) (ProcessResult, error) {
 		}
 		if s.present {
 			s.present = false
-			return ProcessResult{}, nil
+			return ProcessResult{Stdout: name + "\n"}, nil
 		}
 		if !s.appeared {
 			s.appeared = true
 			s.present = true
+		}
+		if s.silentAbsent {
+			return ProcessResult{}, nil
 		}
 		return ProcessResult{ExitCode: 1, Stderr: "Error response from daemon: No such container: " + name}, nil
 	case argv[1] == dockerContainerObject && argv[2] == dockerInspectVerb:
@@ -76,6 +83,22 @@ func unsettledStarts() map[string]func(context.Context, *Docker) (string, error)
 	}
 }
 
+// startDialect is one start path under one `rm -f` absent-answer dialect.
+type startDialect struct {
+	name         string
+	silentAbsent bool
+}
+
+// dialectStarts is every start path under both absent-answer dialects.
+func dialectStarts() map[startDialect]func(context.Context, *Docker) (string, error) {
+	starts := make(map[startDialect]func(context.Context, *Docker) (string, error))
+	for path, start := range unsettledStarts() {
+		starts[startDialect{name: path + "/no-such-container", silentAbsent: false}] = start
+		starts[startDialect{name: path + "/silent-exit-0", silentAbsent: true}] = start
+	}
+	return starts
+}
+
 // removalOutcome is the removal part of a one-shot's joined error: the run's
 // own cancel is expected, so only an error naming the removal counts.
 func removalOutcome(err error) error {
@@ -96,9 +119,9 @@ func removalOutcome(err error) error {
 // METHOD: settlingDaemon answers the run with a cancel and makes the container
 // appear only after the first `rm -f`; the test reads that it was removed.
 func TestCanceledStartRemovesAContainerThatAppearsLate(t *testing.T) {
-	for path, start := range unsettledStarts() {
-		t.Run(path, func(t *testing.T) {
-			daemon := &settlingDaemon{}
+	for path, start := range dialectStarts() {
+		t.Run(path.name, func(t *testing.T) {
+			daemon := &settlingDaemon{silentAbsent: path.silentAbsent}
 			docker := newDocker(&recordingRunner{run: daemon.run})
 			name, err := start(t.Context(), docker)
 			if err != nil {
@@ -118,9 +141,9 @@ func TestCanceledStartRemovesAContainerThatAppearsLate(t *testing.T) {
 // then cannot be removed is reported by name with the command that removes it.
 // PREVENTS: a left-behind container hidden behind an early "No such container".
 func TestCanceledStartNamesAnAppearedContainerItCannotRemove(t *testing.T) {
-	for path, start := range unsettledStarts() {
-		t.Run(path, func(t *testing.T) {
-			daemon := &settlingDaemon{stuck: true}
+	for path, start := range dialectStarts() {
+		t.Run(path.name, func(t *testing.T) {
+			daemon := &settlingDaemon{stuck: true, silentAbsent: path.silentAbsent}
 			docker := newDocker(&recordingRunner{run: daemon.run})
 			name, err := start(t.Context(), docker)
 			if err == nil {
