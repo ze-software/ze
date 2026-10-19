@@ -21,7 +21,7 @@ func nullESP(integ IntegrityTransform) ESPProposal {
 // PREVENTS: an ESP matcher that refuses a peer's integrity-only answer, which would
 // leave integrity-only ESP configurable but never negotiated.
 //
-// RFC requirement: RFC4303-1-2 negative -- for every implemented integrity transform, NegotiateESP accepts an ENCR_NULL proposal carrying no Key Length attribute beside that transform against a local policy of the same suite, and returns the null cipher and the integrity transform unchanged.
+// RFC requirement: RFC4303-1-2 positive -- for every implemented integrity transform, NegotiateESP accepts an ENCR_NULL proposal carrying no Key Length attribute beside that transform against a local policy of the same suite, and returns the null cipher and the integrity transform unchanged.
 func TestRFC4303IntegrityOnlyESPIsAccepted(t *testing.T) {
 	names := SupportedIntegrityNames()
 	if len(names) == 0 {
@@ -55,6 +55,8 @@ func TestRFC4303IntegrityOnlyESPIsAccepted(t *testing.T) {
 // TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher proves.
 // PREVENTS: the ESP admission of ENCR_NULL widening into ESP with no service, a keyed
 // null cipher, or a suite the initiator did not offer.
+//
+// RFC requirement: RFC4303-1-2 negative -- the null cipher NegotiateESP admits is integrity-only ESP and nothing wider: it refuses ENCR_NULL beside AUTH_NONE with ErrProposalIncomplete, an ENCR_NULL offer carrying a Key Length attribute of 128 with ErrNoProposalChosen, and an ENCR_NULL answer against a local policy of AES-CBC with SHA-256 with ErrNoProposalChosen.
 func TestIntegrityOnlyESPRefusals(t *testing.T) {
 	sha256, err := LookupIntegrity(hashNameSHA256)
 	if err != nil {
