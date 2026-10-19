@@ -118,6 +118,8 @@ interact with #2's default), 14 a `scope` gate, and 1 sits outside Ze (#59). The
 | #7 RFC9830-2.4.2-12 | Bring up to date: the 2026-10-11 decline is reversed, implement the type-13 SRv6 form |
 | #2 follow-up | Config migration writes `unmatched bypass` into configs saved before the discard default; boot with the leaf unset discards with an Error log; the RFC-tagged IPsec test changes are approved |
 | #15 RFC5216-5.3-5 | No AIA caIssuers retrieval (the fetch URL comes from an untrusted client); the configured intermediate pool is the implementation, and the row stays a disclosed gap |
+| #20 DRAFT-IETF-BESS-MUP-SAFI-3.3.6-4 | 2026-10-19: resolve the locator's originator from the IGP link-state snapshots; a locator in no snapshot keeps the route with a warning (that case recorded as partial); scheduled after the other medium rows |
+| #22 RFC4659-3.2.1.1-3 | 2026-10-19: follow the RFC literally: include the link-local whenever the peer shares a subnet, even when the speaker's own global (e.g. a loopback) is outside that subnet |
 | All other rows | Implement from easiest to hardest |
 
 ## Bundles that close several rows with one change
