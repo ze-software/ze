@@ -195,3 +195,82 @@ Scoped `./le go lint run` over `internal/le/interoplab`,
 the `integration` tag too: the post-write hook reported 23 issues in the
 package and printed one, fixed as `srcMount`), `./le test unit all`,
 `./le test functional gating`. Debt rows: `plan/verification-debt/85b2c17f.md`.
+
+## Phase 3, third agent (M-4), 2026-10-19
+
+### Landed
+
+| Commit | Subject | Covers |
+|--------|---------|--------|
+| see `git log --grep "perfrunner: DUTs, sender"` | perfrunner: DUTs, sender, network and builds run through interoplab | M-4, AC-12, AC-8 (`./le perf run`, `./le perf evidence-record` roots) |
+
+Tier boundary: `internal/test/` is in `NonFeaturePrefixes` and
+`DisableableNonProdPrefixes` (`internal/le/arch/tier/gates.go`), and
+`pluginNonProduction` treats it as non-production, so `perfrunner` importing
+`interoplab` is allowed; `./le arch tier check` exited 0 after the change. No
+import cycle (`interoplab` does not reach `perfrunner`).
+
+Wrapper extension, made once: `ImageBuild.NamedContexts []NamedBuildContext`
+(`--build-context name=path`, refused when either half is empty) for FreeRtr;
+`Docker.ContainerRunning` (`container inspect {{.State.Running}}`, an
+unreadable answer is an error); `createNetwork`, `removeNetwork`,
+`releaseImage` exported as `CreateNetwork`, `RemoveNetwork`, `ReleaseImage`
+(sed over the seven interoplab files naming them; tagged files vetted).
+
+perfrunner (`internal/test/perfrunner/run.go`): no `docker` argv is left;
+`CommandRunner` now runs only the `go build` of le and the reporter. DUTs and
+the sender are `RunDetached` (`dutContainer`, `senderContainer`; `DUT.IP` and
+the sender/receiver addresses are `netip.Addr`), execs are `Exec` (setup,
+failure now a warning, it was discarded) and `ExecAttached` (`perf send`, the
+pprof `http-get` into its file), images are `Build` then `ReleaseImage` (the
+buildx detection and the `buildx build --load` path are deleted: every build
+is the wrapper's `docker build`), FRR is `Pull`. `Runner.containers` records
+each container before its run; `removeContainer` and `cleanup` remove on
+`context.WithoutCancel`, print a failure with `./le test integration cleanup`,
+and `Runner.removalFailed` makes `Execute` answer 1. `Execute(ctx, ...)`: an
+ended root stops between DUTs, still cleans up, answers 1. An image inspect
+that fails is a failed DUT, never "skipped". `internal/le/perf`: `Bench.Run`,
+`EvidenceRecord` and the three seams take ctx; `signalRooted` in `actions.go`
+roots `perf run` and `perf evidence-record`.
+
+Pages: `docs/guide/benchmarking.md` (labels, Ctrl-C, removal failures),
+`docs/architecture/testing/interop.md` (the benchmark as a RunDetached caller,
+`ContainerRunning`, `NamedBuildContext`, `ReleaseImage`).
+
+### Evidence
+
+- `go test -race -count=1` over `internal/test/perfrunner`, `internal/le/perf`,
+  `internal/le/interoplab`, `internal/le/interoplab/grantcheck`: all ok.
+  `go vet -tags "integration docker"` over interoplab, perfrunner, perf: clean.
+- Red then green (mutation script, files restored and `cmp`-checked):
+  `TestPerfVerbsCancelOnSignal` FAILED "payload not canceled code 0" for
+  SIGINT and SIGTERM with the root on SIGKILL+SIGUSR1;
+  `TestPerfInterruptedRunRemovesWhatItStarted` FAILED "a removal failed under
+  the canceled root" with the removal on `ctx`;
+  `TestPerfRemovalFailureIsReportedAndFailsTheRun` FAILED "did not fail the
+  run" and "stderr lacks error: remove container" with the error discarded.
+  All PASS restored.
+- New, not mutation-discriminated: `TestPerfContainersCarryTheirFlagsAndLabels`,
+  `TestContainerRunningTellsStoppedFromUnknown`, `TestBuildRendersNamedContexts`.
+  `TestPerfRunnerMountsLinuxLe` keeps every assertion, now read from the
+  fixture docker's argv.
+- NOT run (forbidden here): `./le perf run` against Docker. Owed on the owner's
+  Mac: one `./le perf run dut ze`, a Ctrl-C mid-run, then
+  `docker ps -a --filter label=ze.lab` shows nothing of the run, and the
+  FreeRtr build with `--build-context` under plain `docker build`.
+- Lint: scoped lint over interoplab, grantcheck, deployment, perfrunner and
+  perf ends at 0 issues in the linux, linux+integration, darwin and
+  capability flavors (13 goconst in deployment, one misspelling in
+  `kernelcheck.go`, three `errors.AsType` in `docker.go`, all fixed).
+- Landed by the main thread: `f171a5d47c` (M-4) and `462bd8a060` (the
+  deployment goconst fix).
+
+### Next (phase 3 remainder, owner decisions D-1..D-4 recorded in the spec)
+
+- M-5 `verify/evidence` onto `RunOneShot` with a 4-hour bound (D-1); the
+  other session's rework landed in `839819ea2d`.
+- Terminal demo `docker build` / `image inspect` onto `Docker.Build` and
+  `ImagePresent` (D-2).
+- `Pull` takes a caller bound; deployment pulls back to 15 minutes (D-3).
+- The AC-16 gate, once nothing outside `internal/le/interoplab` execs docker
+  except the NOT rows.
