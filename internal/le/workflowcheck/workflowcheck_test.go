@@ -544,6 +544,7 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 		"test integration/interop", "test integration/interop-ipsec", "test integration/interop-radius",
 		"test deployment/docker-l2tp-ppp-test", "test deployment/docker-pppoe-accel-test",
 		"test qemu/docker-lab", "setup docker-kernel/check",
+		"test integration/docker-peers", "test integration/live-rpki",
 	}
 	actions := nativeActions(t, name)
 	for _, action := range want {
@@ -597,6 +598,30 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 		if job.name == "integration" && !strings.Contains(job.body, `sudo -E env "PATH=$PATH"`) {
 			t.Error("kernel integration must preserve the toolchain under sudo")
 		}
+	}
+	// The package-test containers run no Ze, so the Ze-kernel check does not
+	// apply and they use the hosted runner's own Docker (spec Q-10, AC-26):
+	// each verb has its own job, runs as the runner user, and stays out of the
+	// guest, which the loop above already refuses for any non-lab job.
+	ownDocker := map[string]string{
+		"docker-peers": "./le test integration docker-peers",
+		"live-rpki":    "./le test integration live-rpki",
+	}
+	for _, job := range jobBlocks(t, name) {
+		command, isOwnDocker := ownDocker[job.name]
+		if !isOwnDocker {
+			continue
+		}
+		delete(ownDocker, job.name)
+		if !strings.Contains(job.body, "run: "+command) {
+			t.Errorf("%s job %q does not run %q", name, job.name, command)
+		}
+		if strings.Contains(job.body, "sudo") {
+			t.Errorf("%s job %q runs under sudo; its containers need only the runner's Docker group", name, job.name)
+		}
+	}
+	for job := range ownDocker {
+		t.Errorf("%s has no %q job running on the hosted runner's own Docker", name, job)
 	}
 }
 

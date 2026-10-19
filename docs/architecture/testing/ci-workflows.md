@@ -11,6 +11,8 @@ need.
 |-------|------------------|---------|----------|
 | Every native verification stage. The job reads its list from `./le verify list full` and runs each stage as a native action | `verify.yml`, job `verify` | push and pull_request | yes |
 | `./le test fuzz run` | `evidence-nightly.yml`, job `fuzz` | schedule `17 3 * * *` | advisory |
+| `./le test integration docker-peers`: every package test tagged `docker`, on the hosted runner's own Docker, since no container runs Ze | `evidence-nightly.yml`, job `docker-peers` | schedule | advisory |
+| `./le test integration live-rpki`, against a real stayrtr on the hosted runner's own Docker | `evidence-nightly.yml`, job `live-rpki` | schedule | advisory |
 | `./le test integration iface`, `fib`, `firewall`, `traffic`, `gtsm`, `as112` | `evidence-nightly.yml`, job `integration`, under `sudo` | schedule | advisory |
 | `./le test integration interop`, inside `./le test qemu docker-lab` | `evidence-nightly.yml`, job `interop` | schedule | advisory |
 | `./le test integration interop-ipsec`, inside `./le test qemu docker-lab` | `evidence-nightly.yml`, job `ipsec-interop` | schedule | advisory |

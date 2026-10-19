@@ -31,6 +31,42 @@ jobs:
       - name: Run every native fuzz target
         run: ./le test fuzz run
 
+  # Package tests tagged docker start their own server container through
+  # labtest. No container runs Ze, so the Ze-kernel check does not apply and
+  # the hosted runner's own Docker serves them (spec Q-10). The verb sets
+  # ZE_REQUIRE_DOCKER=1: an absent daemon fails the job instead of skipping.
+  docker-peers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Package tests against real servers in Docker
+        run: ./le test integration docker-peers
+
+  # The RPKI client against a real stayrtr serving Cloudflare's public RPKI
+  # data, on the hosted runner's Docker. Without this job the live tests run
+  # nowhere (spec R-14). ZE_REQUIRE_DOCKER=1 makes an absent daemon or an
+  # unpullable image fail rather than skip.
+  live-rpki:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Live RPKI against a real stayrtr cache
+        run: ./le test integration live-rpki
+
   integration:
     runs-on: ubuntu-latest
     steps:
