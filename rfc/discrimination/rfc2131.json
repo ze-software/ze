@@ -394,7 +394,7 @@
       "claim-sha": "8de2045ee1721d64",
       "route": "revert",
       "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::v4LeaseTimers",
-      "producer-sha": "20059eef68a662d6",
+      "producer-sha": "4bf35d54c806f20c",
       "break": "body of v4LeaseTimers replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -405,7 +405,7 @@
       "claim-sha": "4a8d46c1a5e01f44",
       "route": "revert",
       "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::v4LeaseTimers",
-      "producer-sha": "20059eef68a662d6",
+      "producer-sha": "4bf35d54c806f20c",
       "break": "body of v4LeaseTimers replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -416,7 +416,7 @@
       "claim-sha": "1e8e7efcf70c919c",
       "route": "revert",
       "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::v4LeaseTimers",
-      "producer-sha": "20059eef68a662d6",
+      "producer-sha": "4bf35d54c806f20c",
       "break": "body of v4LeaseTimers replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -427,7 +427,7 @@
       "claim-sha": "609a5a053993d2c3",
       "route": "revert",
       "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::v4LeaseTimers",
-      "producer-sha": "20059eef68a662d6",
+      "producer-sha": "4bf35d54c806f20c",
       "break": "body of v4LeaseTimers replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
