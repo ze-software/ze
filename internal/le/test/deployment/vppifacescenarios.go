@@ -243,3 +243,14 @@ var vppScenarios = []vppScenario{
 		hostLinks:     true,
 	},
 }
+
+// VPPInterfaceFeatures names the interface features the proof runs, in the
+// order it runs them. A reader that judges a proof report derives its expected
+// scenario set from here, so a new row in vppScenarios needs no second edit.
+func VPPInterfaceFeatures() []string {
+	features := make([]string, 0, len(vppScenarios))
+	for i := range vppScenarios {
+		features = append(features, vppScenarios[i].feature)
+	}
+	return features
+}

@@ -12,6 +12,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	testdeployment "github.com/ze-software/ze/internal/le/test/deployment"
 )
 
 func init() {
@@ -205,9 +207,10 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 	if !ok {
 		return fmt.Errorf("the proof scenarios have unexpected type %T", iface["scenarios"])
 	}
-	if len(ifaceScenarios) != 4 {
-		return fmt.Errorf("the proof ran %d scenarios, want 4", len(ifaceScenarios))
-	}
+	// The expected features come from the scenario table the proof runs, so a
+	// new row is judged here without a second, hand-written copy of the table.
+	wantFeatures := testdeployment.VPPInterfaceFeatures()
+	ranFeatures := make([]string, 0, len(ifaceScenarios))
 	for _, raw := range ifaceScenarios {
 		one, ok := raw.(map[string]any)
 		if !ok {
@@ -216,10 +219,21 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 		if one["outcome"] != verdictPass {
 			return fmt.Errorf("scenario %v answered %v: %v", one["feature"], one["outcome"], one["detail"])
 		}
+		feature, ok := one["feature"].(string)
+		if !ok {
+			return fmt.Errorf("the proof returned a scenario with no feature name: %v", one)
+		}
+		ranFeatures = append(ranFeatures, feature)
+	}
+	if !slices.Equal(ranFeatures, wantFeatures) {
+		return fmt.Errorf("the proof ran features %v, want %v", ranFeatures, wantFeatures)
 	}
 	plugins, ok := iface["plugins"].([]any)
-	if !ok || len(plugins) != 3 {
-		return fmt.Errorf("the proof reported %d plugins, want 3", len(plugins))
+	if !ok {
+		return fmt.Errorf("the proof plugins have unexpected type %T", iface["plugins"])
+	}
+	if wantPlugins := testdeployment.VPPReportedPlugins(); len(plugins) != len(wantPlugins) {
+		return fmt.Errorf("the proof reported %d plugins, want %d: %v", len(plugins), len(wantPlugins), wantPlugins)
 	}
 	ifaceCalls, err := uiLeEvidenceVppAnswersRecorded(ifaceRecord)
 	if err != nil {
@@ -637,6 +651,7 @@ func dockerExec(args []string, joined string) {
         fmt.Println("wireguard_plugin.so")
         fmt.Println("linux_cp_plugin.so")
         fmt.Println("linux_nl_plugin.so")
+        fmt.Println("urpf_plugin.so")
     case strings.Contains(joined, "show version"):
         record(args)
         fmt.Println("vpp v24.02-release")
@@ -655,6 +670,7 @@ func dockerExec(args []string, joined string) {
         fmt.Println("msrc0    rx    mdst0")
     case strings.Contains(joined, "show interface features loop0"):
         record(args)
+        if hasState("urpf") { fmt.Println("ip4-rx-urpf-strict") }
         if hasState("pol-default") { fmt.Println("policer-output") }
         if hasState("pol-tcp") || hasState("pol-cs6") || hasState("pol-web") || hasState("pol-dns") { fmt.Println("policer-classify") }
     case strings.Contains(joined, "show interface"):
@@ -738,6 +754,9 @@ func dockerExec(args []string, joined string) {
         // for before it reads any config-specific line.
         fmt.Println("Ze running. Press Ctrl+C to stop.")
         switch conf {
+        case "urpf.conf":
+            if configHas(conf, "rpf-check strict") { setState("urpf") }
+            fmt.Fprintln(os.Stderr, "ze: interface backend vpp ready")
         case "traffic.conf":
             if configHas(conf, "interface loop0") { setState("pol-default") } else { setState("clear-pol-default") }
             fmt.Fprintln(os.Stderr, "traffic-control config applied")

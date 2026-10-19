@@ -30,6 +30,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -76,6 +77,15 @@ const (
 	LinuxCPPlugin   = "linux_cp_plugin.so"
 	LinuxNLPlugin   = "linux_nl_plugin.so"
 )
+
+// vppReportedPlugins is the order the report lists the four plugins in.
+var vppReportedPlugins = []string{WireguardPlugin, LinuxCPPlugin, LinuxNLPlugin, URPFPlugin}
+
+// VPPReportedPlugins names the plugins the interface proof reports on, in report
+// order. The returned slice is a copy, so a caller cannot change the run's list.
+func VPPReportedPlugins() []string {
+	return slices.Clone(vppReportedPlugins)
+}
 
 // Where the container sees the run's scratch directory, and the CLI socket VPP
 // creates in it. The checkout is mounted separately at /src, because the daemon
@@ -321,9 +331,8 @@ func (v *vppIface) Run(ctx context.Context) (report VPPIfaceReport, err error) {
 // daemon. A feature that the run was unable to program leaves that daemon in a state
 // that the next scenario would use for its verdict.
 func (v *vppIface) proveScenarios(report VPPIfaceReport) (VPPIfaceReport, error) {
-	reported := []string{WireguardPlugin, LinuxCPPlugin, LinuxNLPlugin, URPFPlugin}
-	loaded := make(map[string]bool, len(reported))
-	for _, plugin := range reported {
+	loaded := make(map[string]bool, len(vppReportedPlugins))
+	for _, plugin := range vppReportedPlugins {
 		state, err := v.pluginLoaded(report.Container, plugin)
 		if err != nil {
 			return report, err
