@@ -4,6 +4,7 @@
 package transport
 
 import (
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/netip"
@@ -12,6 +13,8 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/events"
+	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/plugins/ospf/wire"
@@ -19,7 +22,11 @@ import (
 )
 
 const (
-	rescanInterval      = 30 * time.Second
+	rescanInterval = 30 * time.Second
+	// addrQueueDepth bounds the address events waiting for the worker. A full
+	// queue drops the event with a warning; the periodic rescan still re-opens
+	// an interface whose address came back.
+	addrQueueDepth      = 64
 	socketsPerInterface = 2
 	dropMalformedIPv4   = "malformed-ipv4"
 )
@@ -205,6 +212,20 @@ func (t *Transport) subscribeIfaceEventsWithRescan(eb ze.EventBus, interval time
 		t.subscribeIface(n)
 	}
 
+	// The queue is never closed, only stopAddr is: a handler racing the
+	// unsubscribe can still send without panicking, and nobody drains it.
+	addrQueue := make(chan addrEvent, addrQueueDepth)
+	stopAddr := make(chan struct{})
+	t.wg.Go(func() { t.addrWorker(addrQueue, stopAddr) })
+	unsubAddr := []func(){
+		eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventAddrRemoved, events.AsString(func(data string) {
+			enqueueAddrEvent(addrQueue, data, true)
+		})),
+		eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventAddrAdded, events.AsString(func(data string) {
+			enqueueAddrEvent(addrQueue, data, false)
+		})),
+	}
+
 	stopRescan := make(chan struct{})
 	if interval > 0 {
 		t.wg.Go(func() {
@@ -235,6 +256,10 @@ func (t *Transport) subscribeIfaceEventsWithRescan(eb ze.EventBus, interval time
 			for _, c := range cancels {
 				c()
 			}
+			for _, u := range unsubAddr {
+				u()
+			}
+			close(stopAddr)
 			close(stopRescan)
 		})
 	}
@@ -268,6 +293,66 @@ func (t *Transport) subscribeIface(name string) {
 			}
 		}
 	})
+}
+
+// addrEvent is one IPv4 address change on a device, as the iface monitor
+// reports it.
+type addrEvent struct {
+	name    string
+	removed bool
+}
+
+// enqueueAddrEvent decodes an iface address event and queues the IPv4 ones.
+// It runs on the event bus, so it does no socket work and never blocks.
+func enqueueAddrEvent(queue chan<- addrEvent, data string, removed bool) {
+	var p iface.AddrPayload
+	if err := json.Unmarshal([]byte(data), &p); err != nil || p.Name == "" {
+		logger().Warn("ospf/transport: undecodable interface address event", "err", err)
+		return
+	}
+	if p.Family != "ipv4" {
+		return
+	}
+	select {
+	case queue <- addrEvent{name: p.Name, removed: removed}:
+	default:
+		logger().Warn("ospf/transport: address event queue full, event dropped; the periodic rescan re-opens the interface", "interface", p.Name)
+	}
+}
+
+// addrWorker applies queued address changes until stop closes.
+//
+// The OSPF socket of an interface is bound to an IPv4 source chosen at open.
+// When an IPv4 address leaves an open interface the worker closes it and opens
+// it again: the open fails when no IPv4 address remains, which takes the link
+// out of OSPF (InterfaceDown), and otherwise re-binds to an address the device
+// still holds. This is how an unnumbered link leaves OSPF when its donor goes
+// down: iface withdraws the borrowed /32. An added address opens an enabled
+// interface that is not open yet.
+func (t *Transport) addrWorker(queue <-chan addrEvent, stop <-chan struct{}) {
+	for {
+		var ev addrEvent
+		select {
+		case ev = <-queue:
+		case <-stop:
+			return
+		}
+		t.mu.Lock()
+		_, enabled := t.enabled[ev.name]
+		_, open := t.interfaces[ev.name]
+		t.mu.Unlock()
+		if !enabled {
+			continue
+		}
+		if ev.removed && open {
+			if err := t.HandleLinkDown(ev.name); err != nil {
+				logger().Warn("ospf/transport: close after address removal", "interface", ev.name, "err", err)
+			}
+		}
+		if err := t.HandleLinkUp(ev.name); err != nil {
+			logger().Info("ospf/transport: interface stays out of OSPF until it holds an IPv4 address", "interface", ev.name, "err", err)
+		}
+	}
 }
 
 func (t *Transport) RescanInterfaces() {

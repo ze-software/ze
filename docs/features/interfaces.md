@@ -207,7 +207,15 @@ the donor is not in the config, is disabled, is itself unnumbered or holds no
 IPv4 address, when `unnumbered-source` names an address the donor does not
 hold, and when `unnumbered-source` is set without `unnumbered`.
 
+The /32 is a copy of the donor's address, so Ze keeps it only while the donor
+holds that address on a device that is up. When the donor goes down or loses
+the address, Ze removes the /32 from the unnumbered unit; when the donor
+recovers, Ze installs it again. Every interface link or address event, and
+every config apply, re-checks this. A protocol on the unit sees the address go:
+OSPF takes the link out of service until the address returns.
+
 <!-- source: internal/component/iface/unnumbered.go -- parseIPv4Unnumbered, resolveUnnumbered, pickDonorAddress -->
+<!-- source: internal/component/iface/unnumbered_donor.go -- reconcileUnnumbered, donorLive -->
 
 ### Reverse-path check
 

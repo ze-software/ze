@@ -198,6 +198,12 @@ func UnnumberedDevices(sections []sdk.ConfigSection) (map[string]netip.Addr, err
 	if err != nil {
 		return nil, err
 	}
+	return cfg.unnumberedDevices(), nil
+}
+
+// unnumberedDevices maps the OS device of every enabled unnumbered unit to the
+// donor address it borrows.
+func (c *ifaceConfig) unnumberedDevices() map[string]netip.Addr {
 	devices := make(map[string]netip.Addr)
 	collect := func(device string, units []unitEntry) {
 		for i := range units {
@@ -208,7 +214,7 @@ func UnnumberedDevices(sections []sdk.ConfigSection) (map[string]netip.Addr, err
 			devices[unitOSName(device, u)] = u.IPv4.UnnumberedAddress
 		}
 	}
-	for _, e := range allIfaceEntries(cfg) {
+	for _, e := range allIfaceEntries(c) {
 		if e.Disable {
 			continue
 		}
@@ -218,8 +224,8 @@ func UnnumberedDevices(sections []sdk.ConfigSection) (map[string]netip.Addr, err
 		}
 		collect(device, e.Units)
 	}
-	if cfg.Loopback != nil {
-		collect("lo", cfg.Loopback.Units)
+	if c.Loopback != nil {
+		collect("lo", c.Loopback.Units)
 	}
-	return devices, nil
+	return devices
 }

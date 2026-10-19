@@ -453,6 +453,13 @@ func runEngine(conn net.Conn) int {
 		}
 	}()
 	setAddressOwnerReconcileTrigger(func() { nonBlockingNotify(registryReconcileCh) })
+	// unnumberedCh coalesces link and address events, and every config apply,
+	// into one pass that withdraws or restores each unnumbered unit's /32 from
+	// its donor's state (unnumbered_donor.go).
+	unnumberedCh := make(chan struct{}, 1)
+	unnumberedStop := make(chan struct{})
+	unnumberedDone := make(chan struct{})
+	go runUnnumberedWorker(unnumberedCh, unnumberedStop, unnumberedDone, &activeCfg)
 	// The owned-device registry (device_owner.go) shares the SAME reconcile
 	// channel and worker: reconcileOnReadyWithJournal reconciles BOTH
 	// registries from snapshots on every pass, so one worker serves both and a
@@ -518,6 +525,7 @@ func runEngine(conn net.Conn) int {
 			return joinApplyErrors("interface config", errs)
 		}
 		activeCfg.Store(cfg)
+		nonBlockingNotify(unnumberedCh)
 		// A deferred apply logged its own line (applyConfig), so "applied"
 		// is said only of an apply that reached the dataplane.
 		if !applyIsOwed() {
@@ -533,6 +541,7 @@ func runEngine(conn net.Conn) int {
 		// Bind the shared resolver to the event bus so monitor link events
 		// invalidate its cache and drive iface.Subscribe consumers. Idempotent.
 		bindResolverEvents(eb)
+		unsubscribers = append(unsubscribers, subscribeUnnumberedEvents(eb, unnumberedCh)...)
 
 		if err := b.StartMonitor(eb); err != nil {
 			if !errors.Is(err, ErrBackendNotReady) {
@@ -728,6 +737,7 @@ func runEngine(conn net.Conn) int {
 		}
 
 		activeCfg.Store(cfg)
+		nonBlockingNotify(unnumberedCh)
 		if !applyIsOwed() {
 			log.Info("interface config reloaded via transaction")
 		}
@@ -851,6 +861,7 @@ func runEngine(conn net.Conn) int {
 		if pendingCfg != nil {
 			activeCfg.Store(pendingCfg)
 			pendingCfg = nil
+			nonBlockingNotify(unnumberedCh)
 		}
 		log.Info("interface config operation journal committed")
 		return nil
@@ -904,6 +915,8 @@ func runEngine(conn net.Conn) int {
 	// it, which is the only way this reaches a consistent final state.
 	close(registryReconcileStop)
 	<-registryReconcileDone
+	close(unnumberedStop)
+	<-unnumberedDone
 
 	// Stop all PPPoE clients on shutdown.
 	pppoeMu.Lock()

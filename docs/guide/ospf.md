@@ -93,8 +93,19 @@ a true point-to-point device but, on Ethernet, needs proxy-ARP on the neighbor,
 so Ze uses the on-link gateway. A fast-reroute alternate (LFA or TI-LFA) across
 an unnumbered link carries its device and the same flag.
 
-Not yet complete (gap RFC2328-8.1-1 stays open): a donor that goes down does
-not yet take the link out of OSPF.
+A donor that goes down, or loses the borrowed address, takes the link out of
+OSPF: iface removes the /32, and OSPF closes the interface's socket when an
+IPv4 address leaves it, then re-opens it only while the device still holds an
+IPv4 address. The interface stays down (no Hellos, adjacencies torn down) until
+the donor recovers and iface restores the /32. The same rule re-binds a
+numbered interface that loses one of several IPv4 addresses, at the cost of one
+adjacency flap. The address event names the OS device, so the interface name in
+the OSPF config must be the OS device name for this to fire; the periodic
+30-second rescan re-opens an interface whose address came back either way.
+
+Not yet complete (gap RFC2328-8.1-1 stays open): the RFC test proving the IP
+source on a live link, the doctor warning when the donor is not in OSPF, and
+the FRR interop scenario.
 
 <!-- source: internal/plugins/ospf/interface_addr.go -- interfaceUnnumbered, helloNetworkMask -->
 <!-- source: internal/plugins/ospf/lsdb/origination.go -- p2pLinkData, routerLinks -->
@@ -102,6 +113,7 @@ not yet take the link out of OSPF.
 <!-- source: internal/plugins/ospf/spf/spf.go -- p2pNeighborAddress, unnumberedNextHop -->
 <!-- source: internal/plugins/ospf/spf/install.go -- insert -->
 <!-- source: internal/component/sysrib/ecmp.go -- backupPaths -->
+<!-- source: internal/plugins/ospf/transport/transport.go -- addrWorker -->
 
 ## Interface cost
 
