@@ -744,12 +744,6 @@ var scenarioOperations = map[string][]operation{
 		{kind: opFRRSession, argument: "172.30.0.4"},
 		{kind: opBIRDSession, argument: birdZeProtocol},
 	},
-	scenarioVPNFRR: {
-		{kind: opFRRSession, argument: zeLabAddress},
-		{kind: opFRRRoute, argument: peerPrefixFirst, family: frrFamilyIPv4VPN},
-		{kind: opFRRRoute, argument: peerPrefixSecond, family: frrFamilyIPv4VPN},
-		{kind: opFRRSession, argument: zeLabAddress},
-	},
 	scenarioVPNGoBGP: {
 		{kind: opGoBGPSession, argument: zeLabAddress},
 	},

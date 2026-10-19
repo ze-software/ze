@@ -610,8 +610,19 @@ func checkVPNFRR(ctx context.Context, check *interoplab.CheckContext) error {
 		offLinkPrefix  = "2001:db8:465a::/48"
 		offLinkNextHop = "2001:db8:ffff::1"
 	)
-	if err := checkScenario(ctx, check, scenarioVPNFRR); err != nil {
-		return err
+	// The VPN-IPv4 half of the scenario: the session, both VPN-IPv4 routes,
+	// the negotiated ipv4Vpn capability, and the session still up after them.
+	vpnIPv4 := []operation{
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opFRRRoute, argument: peerPrefixFirst, family: frrFamilyIPv4VPN},
+		{kind: opFRRRoute, argument: peerPrefixSecond, family: frrFamilyIPv4VPN},
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON}, contains: []string{"ipv4Vpn", frrCapabilityNegotiated}},
+	}
+	for index := range vpnIPv4 {
+		if err := runOperation(ctx, check.Network, check.Lab, &vpnIPv4[index]); err != nil {
+			return checkerFailure(ctx, check.Lab, scenarioVPNFRR, index+1, err)
+		}
 	}
 	if !check.Network.IPv6.IsValid() {
 		return errors.New("bgp-vpn-frr has no selected IPv6 network")

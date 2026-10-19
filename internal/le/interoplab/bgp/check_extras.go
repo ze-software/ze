@@ -144,9 +144,6 @@ var scenarioExtras = map[string][]operation{
 		{kind: opWaitJSONFields, peer: "ze", command: zeCommand("show bgp rib count"), minimum: map[string]int{"count": 1}, timeout: 30 * time.Second},
 		{kind: opFRRSession, argument: zeLabAddress},
 	},
-	scenarioVPNFRR: {
-		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON}, contains: []string{"ipv4Vpn", frrCapabilityNegotiated}},
-	},
 	scenarioVPNGoBGP: {
 		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", "vpnv4", "-j"}, contains: []string{peerPrefixFirst, peerPrefixSecond}, timeout: 30 * time.Second},
 	},
