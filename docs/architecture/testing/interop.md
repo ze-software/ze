@@ -352,14 +352,17 @@ images. For each scenario it then:
 5. Tears down the containers and the network this scenario created, including
    after setup or checker failure and after a Ctrl-C or SIGTERM, which cancel
    the run rather than end the process. A resource is recorded for teardown
-   only once its create succeeds (a failed `docker run` counts unless the
-   daemon refused the name as taken), so a name the pre-clean refused, or one
-   another run took first, is never removed. `Docker.CreateNetwork` refuses a
+   only once its create succeeds, or for a container once `docker run` was
+   issued and failed for a reason other than the daemon refusing the name as
+   taken (`ContainerMayExist`): the daemon may have created it. A failure
+   before docker ran (an address, a mount or an AppArmor option the wrapper
+   could not render) records nothing. So a name the pre-clean refused, one
+   another run took first, or one never created is never removed. `Docker.CreateNetwork` refuses a
    network name that already exists rather than join it. A SIGKILL, a lost
    machine or a panic runs no teardown; the next lab start, or
    `./le test integration cleanup`, removes what it left.
 <!-- source: internal/le/interoplab/lab.go -- Suite.Run, Lab.preClean, Lab.cleanup, createdResources -->
-<!-- source: internal/le/interoplab/docker.go -- Docker.CreateNetwork, containerNameTaken -->
+<!-- source: internal/le/interoplab/docker.go -- Docker.CreateNetwork, ContainerMayExist, containerNameTaken -->
 <!-- source: internal/le/test/integration/actions.go -- nativeRunner, signalContext -->
 
 ### Crash-safe teardown
@@ -405,15 +408,19 @@ the same boot with the pid held by a process with another start token; or
 another boot id with the owner started before this machine booted (`btime` in
 `/proc/stat`, `kern.boottime` on macOS). An owner under another boot id that
 started after this boot is a cloned machine sharing the machine id, which may
-still be running, so it is kept. It removes containers, then networks, then the
-run-owned `ze-interop-retained:` tag, each by the id the labeled listing gave.
+still be running, so it is kept. It removes containers, then networks, each by
+the id the labeled listing gave, then the run-owned `ze-interop-retained:` tag
+by its name (`Docker.ReleaseImage`). Removing a tag by name untags only that
+reference, never the image another tag holds, and only a tag in the
+`ze-interop-retained` repository is a candidate, so the shared cache tag is
+never named.
 Everything else is kept and reported with its reason and the command that
 resolves it: an owner still running, an owner on another machine (run the
 cleanup there), in another pid namespace (run it there) or under another uid
 (run it as that uid), labels it cannot read, a boot time it cannot read, or a
 network another run's container is still attached to. An unlabeled resource, a volume and the shared cache tag
 that `NO_BUILD=1` reuses are never candidates.
-<!-- source: internal/le/interoplab/orphans.go -- Docker.CleanupOrphans, ownerJudge.judge -->
+<!-- source: internal/le/interoplab/orphans.go -- Docker.CleanupOrphans, ownerJudge.judge, Docker.removeResource -->
 
 A removal call that fails, or that outlasts the 30 s client bound while the
 daemon completes it, is not reported failed on its own say. The wrapper
@@ -429,8 +436,12 @@ preflight, a terminal-demo render) runs in the foreground with `--rm` and a
 daemon runs, so when the caller's context is canceled or the one-shot's bound
 ends, the wrapper removes the container by that name on a context the
 cancellation does not reach, and reports the removal's outcome with the
-run's error.
-<!-- source: internal/le/interoplab/docker.go -- Docker.RunOneShot -->
+run's error. Its free-form `OneShotContainer.Arguments`, like a lab peer's
+`PeerConfig.Arguments`, are refused before docker runs when they carry
+`--name` (which would replace the name the removal finds it by), a `ze.lab`
+label in any spelling (which would override the owner labels), or
+`--label-file`, with a `BUG:` error naming the field.
+<!-- source: internal/le/interoplab/docker.go -- Docker.RunOneShot, refuseOwnedArguments -->
 
 A caller outside a lab Suite that needs a long-running container, such as the
 deployment proofs (`./le test deployment l2tp-test`, `vpp-iface-test`,
@@ -454,15 +465,21 @@ and each image through `Docker.Build` (a named build context, such as
 FreeRtr's source checkout, is a typed `NamedBuildContext`) followed by
 `Docker.ReleaseImage`, which drops the run-owned tag and keeps the DUT's own.
 `Docker.ContainerRunning` answers an inspect it cannot read as an error, never
-as "not running".
-<!-- source: internal/test/perfrunner/run.go -- Runner.measure, Runner.buildImages -->
+as "not running". It removes only a DUT or sender name it recorded, and records
+one only when `interoplab.ContainerMayExist` says its `RunDetached` may have
+left a container: never for a name the daemon refused as another container's.
+<!-- source: internal/test/perfrunner/run.go -- Runner.measure, Runner.buildImages, Runner.startContainer, Runner.removeContainer -->
 <!-- source: internal/le/interoplab/container.go -- Docker.ContainerRunning -->
 
 `Suite.Run` runs the cleanup after the Docker probe and before Preflight, and
 prints each removal or skip as a progress line. A listing the daemon refuses is
-a setup error. Before a scenario creates its network and containers, its
-pre-clean removes an existing resource of the same name only on the same
-verdict, and otherwise fails the scenario naming the owner and the fix: set
+a setup error that names the pre-run cleanup, why the run stops, and the fix:
+run the failing docker command by hand, then `./le test integration cleanup`
+or the run again. Before a scenario creates its network and containers, its
+pre-clean removes an existing resource of the same name when its labels are
+exactly the ones this run's own creates carry (an earlier scenario's shared
+network whose removal outlasted its bound, `ownerIdentity.created`) or on the
+same verdict, and otherwise fails the scenario naming the owner and the fix: set
 the lab's own suffix variable, which the message names from
 `Suite.SuffixVariable` (`ZE_L2TP_INTEROP_SUFFIX` for the L2TP lab), or the
 verdict's own fix: stop the owner pid it names, or run the cleanup. The
