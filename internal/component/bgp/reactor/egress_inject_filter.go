@@ -194,7 +194,7 @@ func (r *Reactor) normalizeOrdinaryNextHop(peer *Peer, facts *peerForwardFacts, 
 		// mutating this address, so no p.mu lock or duplicate snapshot is needed.
 		// RFC 2545 Section 3: append only this next-hop entity's own LL, and
 		// only when the same common-subnet predicate permits it.
-		ll = scope.linkLocalNextHop(peer.settings.LinkLocal, global, owners.classify(global))
+		ll = scope.linkLocalNextHop(peer.settings.LinkLocal, global, owners.classify(global), linkLocalConditionNextHopAndPeer)
 		if !ll.IsValid() {
 			return nil, modifyFailureNone
 		}

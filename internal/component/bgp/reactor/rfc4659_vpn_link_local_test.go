@@ -96,7 +96,7 @@ func TestRFC4659StaticVPNv6LinkLocalCommonSubnet(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			peer := vpnLLPeer(t, tc.recipient)
 			ub := message.NewUpdateBuilder(65000, true, true, false)
-			update, err := buildStaticRouteUpdateNew(ub, route, nextHop, peer.linkLocalNextHopFor(nil, nextHop), peer.sendCtx.Load(), false)
+			update, err := buildStaticRouteUpdateNew(ub, route, nextHop, peer.linkLocalNextHopFor(nil, nextHop, route.Family()), peer.sendCtx.Load(), false)
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, vpnLLNextHopField(t, update.PathAttributes))
 		})

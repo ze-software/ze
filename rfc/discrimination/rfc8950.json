@@ -42,7 +42,7 @@
       "claim-sha": "494b6a3d4642225b",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_static_wire.go::sendStaticRoutesGrouped",
-      "producer-sha": "4807174964e9cb70",
+      "producer-sha": "a4c121a932cd4c12",
       "break": "body of sendStaticRoutesGrouped replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

@@ -69,7 +69,7 @@ func (p *Peer) sendStaticRoutes(session *Session, routes []StaticRoute, group bo
 		}
 		addPath := p.addPathFor(fam)
 		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
-		update, buildErr := buildStaticRouteUpdateNew(ub, route, nextHop, p.linkLocalNextHopFor(session, nextHop), p.sendCtx.Load(), prefixSIDAllowed)
+		update, buildErr := buildStaticRouteUpdateNew(ub, route, nextHop, p.linkLocalNextHopFor(session, nextHop, fam), p.sendCtx.Load(), prefixSIDAllowed)
 		if buildErr != nil {
 			message.PutUpdateBuilder(ub)
 			routesLogger().Warn("static route not sent", "peer", addr, "prefix", route.Prefix, "error", buildErr)
@@ -155,14 +155,14 @@ func (p *Peer) sendStaticRoutesGrouped(session *Session, routes []StaticRoute, m
 					params = make([]message.UnicastParams, 0, len(grouped))
 					included = make([]StaticRoute, 0, len(grouped))
 				}
-				params = append(params, toStaticRouteUnicastParams(route, nextHop, p.linkLocalNextHopFor(session, nextHop), p.sendCtx.Load(), prefixSIDAllowed))
+				params = append(params, toStaticRouteUnicastParams(route, nextHop, p.linkLocalNextHopFor(session, nextHop, fam), p.sendCtx.Load(), prefixSIDAllowed))
 				included = append(included, *route)
 				continue
 			}
 
 			addPath := p.addPathFor(fam)
 			ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
-			update, buildErr := buildStaticRouteUpdateNew(ub, route, nextHop, p.linkLocalNextHopFor(session, nextHop), p.sendCtx.Load(), prefixSIDAllowed)
+			update, buildErr := buildStaticRouteUpdateNew(ub, route, nextHop, p.linkLocalNextHopFor(session, nextHop, fam), p.sendCtx.Load(), prefixSIDAllowed)
 			if buildErr != nil {
 				message.PutUpdateBuilder(ub)
 				routesLogger().Warn("static route not sent", "peer", addr, "prefix", route.Prefix, "error", buildErr)
@@ -317,7 +317,7 @@ func (p *Peer) withdrawStaticRoutes(session *Session, routes []StaticRoute, maxM
 		addPath := p.addPathFor(fam)
 
 		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
-		update, buildErr := buildStaticRouteUpdateNew(ub, route, nextHop, p.linkLocalNextHopFor(session, nextHop), p.sendCtx.Load(), prefixSIDAllowed)
+		update, buildErr := buildStaticRouteUpdateNew(ub, route, nextHop, p.linkLocalNextHopFor(session, nextHop, fam), p.sendCtx.Load(), prefixSIDAllowed)
 		if buildErr != nil {
 			message.PutUpdateBuilder(ub)
 			routesLogger().Warn("static route not withdrawn: its announcement does not build",

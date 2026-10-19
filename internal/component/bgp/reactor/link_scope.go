@@ -8,8 +8,41 @@ import (
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/network"
 )
+
+// linkLocalCondition names the common-subnet condition an address family's
+// RFC sets for including the speaker's link-local after the global next hop.
+// The zero value is unspecified, never a condition.
+type linkLocalCondition uint8
+
+const (
+	linkLocalConditionUnspecified linkLocalCondition = iota
+	// linkLocalConditionNextHopAndPeer is RFC 2545 Section 3's joint
+	// condition: ONE connected subnet holds the global next hop and the peer.
+	linkLocalConditionNextHopAndPeer
+	// linkLocalConditionPeer is RFC 4659 Section 3.2.1.1's condition: the
+	// speaker shares a connected subnet with the peer, wherever the global is.
+	linkLocalConditionPeer
+)
+
+// linkLocalConditionFor returns the condition fam's RFC sets.
+//
+// RFC 4659 Section 3.2.1.1: "The link-local address shall be included in the
+// Next Hop field if and only if the advertising BGP speaker shares a common
+// subnet with the peer the route is being advertised to [BGP-IPv6]." The
+// sentence names the peer alone, so VPN-IPv6 includes the link-local behind a
+// global the peer does not share a subnet with, such as a loopback (owner
+// decision 2026-10-19, plan/rfc-gap-difficulty-2026-10-18.md row 22). Every
+// other family carrying an IPv6 next hop keeps RFC 2545 Section 3's wording,
+// which names the next-hop entity too.
+func linkLocalConditionFor(fam family.Family) linkLocalCondition {
+	if fam == (family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIVPN}) {
+		return linkLocalConditionPeer
+	}
+	return linkLocalConditionNextHopAndPeer
+}
 
 // linkScope carries the host facts that decide RFC 2545 Section 3's inclusion
 // condition, read as one snapshot so every route of one session answers against
@@ -72,6 +105,31 @@ func (ls *linkScope) sharesNextHopSubnet(global netip.Addr) bool {
 	return false
 }
 
+// holdsCommonSubnet answers condition for global toward this scope's peer.
+// A nil scope has read no interface table and proves no common subnet.
+func (ls *linkScope) holdsCommonSubnet(global netip.Addr, condition linkLocalCondition) bool {
+	if ls == nil {
+		return false
+	}
+	if !ls.peerOnLink {
+		return false
+	}
+	switch condition {
+	case linkLocalConditionPeer:
+		// RFC 4659 Section 3.2.1.1: "shares a common subnet with the peer the
+		// route is being advertised to"; peerOnLink settled exactly that.
+		return true
+	case linkLocalConditionNextHopAndPeer:
+		// RFC 2545 Section 3: both entities must share ONE connected subnet
+		// with the speaker. Separate interfaces cannot establish that.
+		return ls.sharesNextHopSubnet(global)
+	case linkLocalConditionUnspecified:
+		panic("BUG: link-local condition unspecified")
+	default:
+		panic("BUG: invalid link-local condition")
+	}
+}
+
 // linkLocalNextHop returns the link-local address to write after globalNextHop in
 // the MP_REACH_NLRI Network Address of Next Hop field, or the zero Addr when the
 // field carries the global address alone.
@@ -92,7 +150,9 @@ func (ls *linkScope) sharesNextHopSubnet(global netip.Addr) bool {
 // router names whose address globalNextHop is (nextHopOwners.classify). The
 // configured address is the SPEAKER's own Link-Local, so it is appended only
 // where that is the right second address; see the comment at the check below.
-func (ls *linkScope) linkLocalNextHop(configured, globalNextHop netip.Addr, router nextHopRouter) netip.Addr {
+//
+// condition is the family's common-subnet condition (linkLocalConditionFor).
+func (ls *linkScope) linkLocalNextHop(configured, globalNextHop netip.Addr, router nextHopRouter, condition linkLocalCondition) netip.Addr {
 	if ls == nil || !ls.peerOnLink {
 		return netip.Addr{}
 	}
@@ -139,9 +199,9 @@ func (ls *linkScope) linkLocalNextHop(configured, globalNextHop netip.Addr, rout
 	if !global.Is6() || attribute.ValidateGlobalNextHop(global) != nil {
 		return netip.Addr{}
 	}
-	// RFC 2545 Section 3: both entities must share ONE connected subnet with
-	// the speaker. Separate interfaces cannot establish that joint condition.
-	if !ls.sharesNextHopSubnet(global) {
+	// RFC 2545 Section 3 asks for ONE subnet holding the global and the peer;
+	// RFC 4659 Section 3.2.1.1 asks for a subnet shared with the peer.
+	if !ls.holdsCommonSubnet(global, condition) {
 		return netip.Addr{}
 	}
 	return configured
@@ -180,7 +240,16 @@ func applyLinkLocalNextHop(s *PeerSettings, f *peerForwardFacts, scope *linkScop
 			owners.held = held.addresses
 		}
 	}
-	linkLocal := scope.linkLocalNextHop(s.LinkLocal, global, owners.classify(global))
+	router := owners.classify(global)
+	// RFC 4659 Section 3.2.1.1 decides the VPN-IPv6 pair on its own condition,
+	// which can hold where RFC 2545 Section 3's does not (a loopback global).
+	// precomputeVPNNextHop fills the global half of nhVPNPair.
+	if vpnLinkLocal := scope.linkLocalNextHop(s.LinkLocal, global, router, linkLocalConditionPeer); vpnLinkLocal.IsValid() {
+		f.nhVPNLinkLocal = true
+		ll := vpnLinkLocal.As16()
+		copy(f.nhVPNPair[32:], ll[:])
+	}
+	linkLocal := scope.linkLocalNextHop(s.LinkLocal, global, router, linkLocalConditionNextHopAndPeer)
 	if !linkLocal.IsValid() {
 		return
 	}
@@ -212,17 +281,18 @@ func (p *Peer) refreshLinkScopeFrom(connected []netip.Prefix) {
 }
 
 // linkLocalNextHopFor returns the link-local address to append after
-// globalNextHop for this peer over session, or the zero Addr when Section 3's
-// condition does not hold. session MAY be nil: the speaker's address is then
-// known from config and the interface table alone.
-func (p *Peer) linkLocalNextHopFor(session *Session, globalNextHop netip.Addr) netip.Addr {
+// globalNextHop for this peer over session, or the zero Addr when fam's
+// common-subnet condition does not hold (linkLocalConditionFor). session MAY be
+// nil: the speaker's address is then known from config and the interface table
+// alone.
+func (p *Peer) linkLocalNextHopFor(session *Session, globalNextHop netip.Addr, fam family.Family) netip.Addr {
 	owners := nextHopOwners{endpoint: connectedLocalAddress(session), configured: p.settings.LocalAddress}
 	if session != nil {
 		if held := session.nextHopScope.Load(); held != nil {
 			owners.held = held.addresses
 		}
 	}
-	return p.llScope.Load().linkLocalNextHop(p.settings.LinkLocal, globalNextHop, owners.classify(globalNextHop))
+	return p.llScope.Load().linkLocalNextHop(p.settings.LinkLocal, globalNextHop, owners.classify(globalNextHop), linkLocalConditionFor(fam))
 }
 
 // nextHopRouter names the router a global next hop belongs to, which decides

@@ -331,7 +331,7 @@
       "claim-sha": "b1a8a63522e0b4e4",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
-      "producer-sha": "08735861b57fa742",
+      "producer-sha": "1d62d7092f0bab86",
       "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -342,7 +342,7 @@
       "claim-sha": "bdd2fec81794b815",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
-      "producer-sha": "08735861b57fa742",
+      "producer-sha": "1d62d7092f0bab86",
       "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -529,7 +529,7 @@
       "claim-sha": "cff5c50259ee9a07",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
-      "producer-sha": "08735861b57fa742",
+      "producer-sha": "1d62d7092f0bab86",
       "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

@@ -1,26 +1,30 @@
-# Test: a configured VPN-IPv6 route keeps the 24-octet Next Hop field when the
-# speaker shares no subnet with both the recipient and the global next hop.
+# Test: a configured VPN-IPv6 route carries the speaker's link-local in the
+# 48-octet Next Hop field when the recipient shares a subnet with the speaker,
+# even though the global next hop is on no subnet the recipient shares.
 #
-# RFC requirement: RFC4659-3.2.1.1-3 negative -- the `link-local fe80::1` leaf is configured and the recipient ::1 is on the connected ::1/128, but the global next hop fd00::2 is on no prefix shared with it, so the MP_REACH_NLRI Next Hop field is 24 octets (zero RD plus fd00::2) and fe80::1 never appears.
+# RFC requirement: RFC4659-3.2.1.1-3 positive -- the `link-local fe80::1` leaf is configured, the recipient ::1 is on the connected ::1/128, and the global next hop fd00::2 (the speaker's own `local ip`) is on no prefix shared with it, so the MP_REACH_NLRI Next Hop field is 48 octets: zero RD, fd00::2, zero RD, fe80::1.
 #
 # RFC 4659 Section 3.2.1.1: "The link-local address shall be included in the
 # Next Hop field if and only if the advertising BGP speaker shares a common
-# subnet with the peer the route is being advertised to [BGP-IPv6]." The cited
-# RFC 2545 Section 3 condition is joint: the common subnet must hold the global
-# next hop and the recipient together (linkScope.linkLocalNextHop,
-# internal/component/bgp/reactor/link_scope.go). The leaf supplies the address;
-# it never decides inclusion, and this file fails if it does.
+# subnet with the peer the route is being advertised to [BGP-IPv6]." The
+# sentence names the peer alone, unlike RFC 2545 Section 3, which names the
+# global next hop's entity too. Ze follows RFC 4659 literally for VPN-IPv6
+# (owner decision 2026-10-19; linkLocalConditionFor,
+# internal/component/bgp/reactor/link_scope.go), so a loopback global no longer
+# withholds the link-local. This file fails if the RFC 2545 joint condition is
+# applied to VPN-IPv6 again.
 #
-# The positive (48-octet) form needs a recipient on a real shared /64, which the
-# loopback fixture cannot give: reactor/rfc4659_vpn_link_local_test.go and the
-# bgp-vpn-frr interop scenario carry it.
+# The negative (24-octet) form needs a recipient on no connected subnet, which
+# the loopback fixture cannot give: reactor/rfc4659_vpn_link_local_test.go
+# carries it.
 #
-# MP_REACH_NLRI value: AFI 0002, SAFI 80, length 18 (24), RD 0, fd00::2, reserved 00.
+# MP_REACH_NLRI value: AFI 0002, SAFI 80, length 30 (48), RD 0, fd00::2, RD 0,
+# fe80::1, reserved 00. The 24-octet form (length 18, RD 0, fd00::2) is rejected.
 
 stdin=peer:terminator=EOF_PEER
 option=bind:value=ipv6
-expect=bgp:conn=1:seq=1:contains=000280180000000000000000FD00000000000000000000000000000200
-reject=bgp:conn=1:pattern=FE800000000000000000000000000001
+expect=bgp:conn=1:seq=1:contains=000280300000000000000000FD0000000000000000000000000000020000000000000000FE80000000000000000000000000000100
+reject=bgp:conn=1:pattern=000280180000000000000000FD000000000000000000000000000002
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF

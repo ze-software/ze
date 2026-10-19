@@ -382,9 +382,12 @@ func egressNextHopLinkLocalOnlyRefused(dest *Peer, mods *filterapi.ModAccumulato
 // Link-Local on a common subnet, and a received pair must lose its Link-Local
 // outside that subnet. The last MP_REACH_NLRI Set wins over basePayload.
 //
-// The destination and effective Global must belong to ONE connected prefix.
-// Source-peer membership cannot substitute for either. A nil scope has read no
-// interface table and proves no common subnet, so the Link-Local is removed.
+// For the plain forms the destination and effective Global must belong to ONE
+// connected prefix (RFC 2545 Section 3). For VPN-IPv6 the destination alone must
+// share a connected prefix with the speaker, wherever the Global is (RFC 4659
+// Section 3.2.1.1; linkLocalConditionFor). Source-peer membership cannot
+// substitute for either. A nil scope has read no interface table and proves no
+// common subnet, so the Link-Local is removed.
 //
 // A pair with an invalid address in either slot MUST remain intact here:
 // trimming it would hide the pair's invalid form from egressNextHopWithheld,
@@ -397,9 +400,9 @@ func egressNextHopLinkLocalOnlyRefused(dest *Peer, mods *filterapi.ModAccumulato
 //
 // The single-address form ends at +16; the paired form ends at +32.
 //
-// VPN-IPv6 next-hop bytes (RFC 4659 Section 3.2.1.1), the same decision with a
-// zero RD before each address. The 24-octet form is raised and the 48-octet
-// form trimmed exactly as the plain forms are:
+// VPN-IPv6 next-hop bytes (RFC 4659 Section 3.2.1.1), a zero RD before each
+// address. The 24-octet form is raised and the 48-octet form trimmed as the
+// plain forms are, on the VPN-IPv6 condition above:
 //
 //	+0      +8                    +24     +32                   +48
 //	| RD=0  | Global IPv6 (16 B)  | RD=0  | Link-Local IPv6 (16 B) |
@@ -422,6 +425,7 @@ func applyEgressNextHopScope(dest *Peer, facts *peerForwardFacts, mods *filterap
 		// Preserve a wrong-width field instead of hiding it by RD stripping.
 		return
 	}
+	condition := linkLocalConditionFor(baseFamily)
 	var globalOctets int
 	switch len(field) {
 	case 16:
@@ -430,7 +434,7 @@ func applyEgressNextHopScope(dest *Peer, facts *peerForwardFacts, mods *filterap
 		}
 		// RFC 2545 Section 3: append only this entity's own Link-Local on
 		// the common subnet. Third-party discovery remains an absent feature.
-		ll := egressSpeakerLinkLocal(dest, facts, netip.AddrFrom16([16]byte(field)).Unmap())
+		ll := egressSpeakerLinkLocal(dest, facts, netip.AddrFrom16([16]byte(field)).Unmap(), condition)
 		if !ll.IsValid() {
 			return
 		}
@@ -447,14 +451,14 @@ func applyEgressNextHopScope(dest *Peer, facts *peerForwardFacts, mods *filterap
 		// RFC 4659 Section 3.2.1.1: "The link-local address shall be included
 		// in the Next Hop field if and only if the advertising BGP speaker
 		// shares a common subnet with the peer the route is being advertised
-		// to [BGP-IPv6]." The cited [BGP-IPv6] condition is RFC 2545 Section 3's,
-		// so the same decision as the 16-octet case raises RD+Global to the
-		// 48-octet RD+Global, RD+Link-Local form. The second RD is zero: the
-		// section says each address's "8-octet RD is set to zero".
+		// to [BGP-IPv6]." The sentence names the peer alone, so condition is
+		// the peer-only one even for a Global off that subnet, and RD+Global
+		// is raised to the 48-octet RD+Global, RD+Link-Local form. The second
+		// RD is zero: the section says each address's "8-octet RD is set to zero".
 		if [8]byte(field[:8]) != ([8]byte{}) {
 			return
 		}
-		ll := egressSpeakerLinkLocal(dest, facts, netip.AddrFrom16([16]byte(field[8:])).Unmap())
+		ll := egressSpeakerLinkLocal(dest, facts, netip.AddrFrom16([16]byte(field[8:])).Unmap(), condition)
 		if !ll.IsValid() {
 			return
 		}
@@ -492,8 +496,9 @@ func applyEgressNextHopScope(dest *Peer, facts *peerForwardFacts, mods *filterap
 					return
 				}
 			}
-			// RFC 2545 Section 3: require the joint common-subnet condition.
-			if scope.sharesNextHopSubnet(global) {
+			// RFC 2545 Section 3's joint condition, or RFC 4659 Section
+			// 3.2.1.1's peer-only one for VPN-IPv6.
+			if scope.holdsCommonSubnet(global, condition) {
 				return
 			}
 		}
@@ -506,12 +511,13 @@ func applyEgressNextHopScope(dest *Peer, facts *peerForwardFacts, mods *filterap
 const vpnNextHopPairOctets = 48
 
 // egressSpeakerLinkLocal returns the configured speaker Link-Local to follow
-// global toward dest, or the zero Addr when RFC 2545 Section 3's condition does
-// not hold for this destination (linkScope.linkLocalNextHop decides).
+// global toward dest, or the zero Addr when the family's common-subnet
+// condition does not hold for this destination (linkScope.linkLocalNextHop
+// decides; linkLocalConditionFor names the condition).
 //
 // Only an IPv6 global unicast address is raised: an unspecified, loopback or
 // multicast first address is judged by the egress gates, never paired here.
-func egressSpeakerLinkLocal(dest *Peer, facts *peerForwardFacts, global netip.Addr) netip.Addr {
+func egressSpeakerLinkLocal(dest *Peer, facts *peerForwardFacts, global netip.Addr, condition linkLocalCondition) netip.Addr {
 	if !global.Is6() {
 		return netip.Addr{}
 	}
@@ -533,7 +539,7 @@ func egressSpeakerLinkLocal(dest *Peer, facts *peerForwardFacts, global netip.Ad
 		return netip.Addr{}
 	}
 	owners := facts.nextHopOwners()
-	return scope.linkLocalNextHop(configured, global, owners.classify(global))
+	return scope.linkLocalNextHop(configured, global, owners.classify(global), condition)
 }
 
 // vpnUnspecifiedNextHopPair recognizes the exact 48-octet RFC 4659

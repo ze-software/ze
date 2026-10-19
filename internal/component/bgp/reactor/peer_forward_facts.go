@@ -104,6 +104,11 @@ type peerForwardFacts struct {
 	nhVPNv4     [12]byte                   // RD + IPv4
 	nhVPNMapped [24]byte                   // RD + IPv4-mapped IPv6
 	nhVPNPair   [vpnNextHopPairOctets]byte // RD + global, RD + link-local
+	// nhVPNLinkLocal records that applyLinkLocalNextHop wrote the speaker's
+	// link-local into nhVPNPair under RFC 4659 Section 3.2.1.1's condition,
+	// which holds wherever RFC 2545 Section 3's does and also where only the
+	// peer shares the subnet. False sends the 24-octet RD + global form.
+	nhVPNLinkLocal bool
 
 	scMask sendCommunityMask
 }
@@ -497,29 +502,36 @@ func applyFactsNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator, mpFa
 		}
 	case nhModeSelfV6, nhModeExplicitV6:
 		if mpFamily.SAFI == family.SAFIVPN {
-			// RFC 4659 Section 3.2.1.1: "The value of the Length of the Next
-			// Hop Network Address field in the MP_REACH_NLRI attribute shall be
-			// set to 24 when only a global address is present, and to 48 if a
-			// link-local address is also included in the Next Hop field."
-			mods.Op(14, filterapi.AttrModSet, f.nhVPNPair[:24])
+			mods.Op(14, filterapi.AttrModSet, f.vpnIPv6NextHop())
 			return
 		}
 		mods.Op(14, filterapi.AttrModSet, f.nhGlobal[:])
 	case nhModeSelfV6LL:
 		if mpFamily.SAFI == family.SAFIVPN {
-			// RFC 4659 Section 3.2.1.1: the 48-octet form, zero RD before the
-			// global and zero RD before the link-local applyLinkLocalNextHop
-			// decided.
-			mods.Op(14, filterapi.AttrModSet, f.nhVPNPair[:])
+			mods.Op(14, filterapi.AttrModSet, f.vpnIPv6NextHop())
 			return
 		}
 		mods.Op(14, filterapi.AttrModSet, f.nhGlobalLL[:])
 	}
 }
 
+// vpnIPv6NextHop returns the VPN-IPv6 Next Hop field for an IPv6 next hop.
+//
+// RFC 4659 Section 3.2.1.1: "The value of the Length of the Next Hop Network
+// Address field in the MP_REACH_NLRI attribute shall be set to 24 when only a
+// global address is present, and to 48 if a link-local address is also
+// included in the Next Hop field." applyLinkLocalNextHop decided the inclusion
+// on that section's own condition, independently of nhMode's RFC 2545 one.
+func (f *peerForwardFacts) vpnIPv6NextHop() []byte {
+	if f.nhVPNLinkLocal {
+		return f.nhVPNPair[:]
+	}
+	return f.nhVPNPair[:24]
+}
+
 // precomputeVPNNextHop writes the SAFI 128 forms of the configured next hop,
 // once per facts snapshot, so the forward rails slice them and copy nothing.
-// It MUST run after applyLinkLocalNextHop, whose decision fills nhGlobalLL.
+// The link-local half of nhVPNPair is written by applyLinkLocalNextHop.
 //
 // RFC 4659 Section 3.2.1.1: each VPN-IPv6 address of the Next Hop field has
 // its "8-octet RD is set to zero"; the RD slots keep the zero value.
@@ -531,9 +543,6 @@ func precomputeVPNNextHop(f *peerForwardFacts) {
 	copy(f.nhVPNv4[8:], f.nhLegacy[:])
 	copy(f.nhVPNMapped[8:], f.nhMapped[:])
 	copy(f.nhVPNPair[8:24], f.nhGlobal[:])
-	if f.nhMode == nhModeSelfV6LL {
-		copy(f.nhVPNPair[32:], f.nhGlobalLL[16:])
-	}
 }
 
 func applyFactsSendCommunity(f *peerForwardFacts, mods *filterapi.ModAccumulator) {

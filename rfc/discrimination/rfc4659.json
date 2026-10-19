@@ -92,12 +92,23 @@
     {
       "rid": "RFC4659-3.2.1.1-3",
       "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4659_vpn_link_local_loopback_test.go::TestRFC4659VPNv6LinkLocalLoopbackGlobal",
+      "unit-sha": "34aff22ceee2e467",
+      "claim-sha": "bc2b7a7c1113d74a",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/link_scope.go::linkLocalConditionFor",
+      "producer-sha": "3c87962292192525",
+      "break": "body of linkLocalConditionFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4659-3.2.1.1-3",
+      "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go::TestRFC4659ForwardVPNv6LinkLocalCommonSubnet",
       "unit-sha": "c0c53d884f135233",
       "claim-sha": "60762bf8767ca71a",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressSpeakerLinkLocal",
-      "producer-sha": "e5094d1fa0cd62d4",
+      "producer-sha": "a6a0800f72b5e6ca",
       "break": "body of egressSpeakerLinkLocal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -108,14 +119,14 @@
       "claim-sha": "c79cfda71b14f21b",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressSpeakerLinkLocal",
-      "producer-sha": "e5094d1fa0cd62d4",
+      "producer-sha": "a6a0800f72b5e6ca",
       "break": "body of egressSpeakerLinkLocal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4659-3.2.1.1-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go::TestRFC4659StaticVPNv6LinkLocalCommonSubnet",
-      "unit-sha": "7543ea42d7aa66ac",
+      "unit-sha": "b65edad76e35255d",
       "claim-sha": "04697b717757631e",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_build_vpn.go::vpnNextHopOctets",
@@ -126,23 +137,12 @@
       "rid": "RFC4659-3.2.1.1-3",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go::TestRFC4659StaticVPNv6LinkLocalCommonSubnet",
-      "unit-sha": "7543ea42d7aa66ac",
+      "unit-sha": "b65edad76e35255d",
       "claim-sha": "70bb98587c56ebb4",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_build_vpn.go::vpnNextHopOctets",
       "producer-sha": "31d4b6e028a403d5",
       "break": "body of vpnNextHopOctets replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC4659-3.2.1.1-3",
-      "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go::TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD",
-      "unit-sha": "f610d89cb8e17bd6",
-      "claim-sha": "4d4260d856d976a4",
-      "route": "revert",
-      "producer": "internal/component/bgp/reactor/peer_forward_facts.go::precomputeVPNNextHop",
-      "producer-sha": "10967c28054c7bae",
-      "break": "body of precomputeVPNNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4659-3.2.1.1-3",
@@ -152,20 +152,31 @@
       "claim-sha": "4c6abd49ac166c35",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_forward_facts.go::precomputeVPNNextHop",
-      "producer-sha": "10967c28054c7bae",
+      "producer-sha": "f3f9d9f794daf221",
       "break": "body of precomputeVPNNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4659-3.2.1.1-3",
       "polarity": "negative",
-      "unit": "test/encode/rfc4659-vpnv6-link-local-off-subnet.ci",
-      "unit-sha": "655dc6575634ddd6",
-      "claim-sha": "716943f235ba548b",
+      "unit": "internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go::TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD",
+      "unit-sha": "f610d89cb8e17bd6",
+      "claim-sha": "4d4260d856d976a4",
       "route": "revert",
-      "producer": "internal/component/bgp/message/update_build_vpn.go::vpnNextHopOctets",
-      "producer-sha": "0618b047ebce4049",
-      "break": "body of vpnNextHopOctets replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-      "citation": "expect=bgp:conn=1:seq=1:contains=000280180000000000000000FD00000000000000000000000000000200"
+      "producer": "internal/component/bgp/reactor/peer_forward_facts.go::precomputeVPNNextHop",
+      "producer-sha": "f3f9d9f794daf221",
+      "break": "body of precomputeVPNNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4659-3.2.1.1-3",
+      "polarity": "positive",
+      "unit": "test/encode/rfc4659-vpnv6-link-local-off-subnet.ci",
+      "unit-sha": "c58711eec3f5881f",
+      "claim-sha": "fbc36ddbbdf649d1",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/link_scope.go::linkLocalConditionFor",
+      "producer-sha": "3c87962292192525",
+      "break": "body of linkLocalConditionFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=1:seq=1:contains=000280300000000000000000FD0000000000000000000000000000020000000000000000FE80000000000000000000000000000100"
     },
     {
       "rid": "RFC4659-3.4-1",

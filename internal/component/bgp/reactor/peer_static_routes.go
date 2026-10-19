@@ -201,8 +201,9 @@ func toStaticRouteVPNParams(r *StaticRoute, nextHop, linkLocal netip.Addr, prefi
 func buildStaticRouteUpdateNew(ub *message.UpdateBuilder, route *StaticRoute, nextHop, linkLocal netip.Addr, sendCtx *bgpctx.EncodingContext, prefixSIDAllowed bool) (*message.Update, error) {
 	if route.IsVPN() {
 		// RFC 4659 Section 3.2.1.1: the link-local address is included if and
-		// only if the speaker shares a common subnet with the peer, the same
-		// RFC 2545 Section 3 decision the unicast branch carries.
+		// only if the speaker shares a common subnet with the peer; linkLocal
+		// was decided on that condition for the route's family, not on the
+		// unicast branch's RFC 2545 Section 3 one (linkLocalConditionFor).
 		p := toStaticRouteVPNParams(route, nextHop, linkLocal, prefixSIDAllowed)
 		return ub.BuildVPN(&p), nil
 	}

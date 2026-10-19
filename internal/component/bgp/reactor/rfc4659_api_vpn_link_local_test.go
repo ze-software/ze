@@ -169,7 +169,7 @@ func TestRFC4659StaticVPNv6IPv4NextHopIsMapped(t *testing.T) {
 	nextHop := netip.MustParseAddr("192.0.2.1")
 	peer := vpnLLPeer(t, vpnLLOnLink)
 	ub := message.NewUpdateBuilder(65000, true, true, false)
-	update, err := buildStaticRouteUpdateNew(ub, route, nextHop, peer.linkLocalNextHopFor(nil, nextHop), peer.sendCtx.Load(), false)
+	update, err := buildStaticRouteUpdateNew(ub, route, nextHop, peer.linkLocalNextHopFor(nil, nextHop, route.Family()), peer.sendCtx.Load(), false)
 	require.NoError(t, err)
 	assert.Equal(t, vpnLLRDZero+"00000000000000000000ffffc0000201", vpnLLNextHopField(t, update.PathAttributes))
 }

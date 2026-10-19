@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // TestLinkScopeLinkLocalNextHop drives RFC 2545 Section 3's inclusion condition
@@ -115,7 +117,7 @@ func TestLinkScopeLinkLocalNextHop(t *testing.T) {
 			// The global names the speaker in every row: these rows drive the
 			// Section 3 subnet condition, TestNextHopOwnersClassify drives whose
 			// address the global is.
-			got := tt.scope.linkLocalNextHop(tt.configured, tt.nextHop, nextHopRouterSpeaker)
+			got := tt.scope.linkLocalNextHop(tt.configured, tt.nextHop, nextHopRouterSpeaker, linkLocalConditionNextHopAndPeer)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -160,7 +162,7 @@ func TestNextHopOwnersClassify(t *testing.T) {
 			}
 			router := tt.owners.classify(global)
 			assert.Equal(t, tt.want, router)
-			got := scope.linkLocalNextHop(linkLocal, global, router)
+			got := scope.linkLocalNextHop(linkLocal, global, router, linkLocalConditionNextHopAndPeer)
 			if tt.wantLL {
 				assert.Equal(t, linkLocal, got, "own Link-Local follows a speaker global on the common subnet")
 				return
@@ -196,10 +198,10 @@ func TestPeerLinkLocalNextHopForBeforeRefresh(t *testing.T) {
 		LinkLocal:    netip.MustParseAddr("fe80::1"),
 	})
 
-	assert.False(t, peer.linkLocalNextHopFor(nil, netip.MustParseAddr("::1")).IsValid())
+	assert.False(t, peer.linkLocalNextHopFor(nil, netip.MustParseAddr("::1"), family.IPv6Unicast).IsValid())
 
 	peer.refreshLinkScope()
 	assert.Equal(t, netip.MustParseAddr("fe80::1"),
-		peer.linkLocalNextHopFor(nil, netip.MustParseAddr("::1")),
+		peer.linkLocalNextHopFor(nil, netip.MustParseAddr("::1"), family.IPv6Unicast),
 		"loopback next hop and loopback peer both sit on the local ::1/128 subnet")
 }

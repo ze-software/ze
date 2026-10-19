@@ -261,13 +261,21 @@ fallback under `next-hop auto` or `unchanged`. It uses the existing immutable
 ownership snapshot and accumulator storage, without rerunning policy.
 Third-party Link-Local discovery remains absent; the speaker's own address
 cannot substitute for another router's Link-Local.
-VPN-IPv6 takes the same decision (RFC 4659 Section 3.2.1.1): a configured
+VPN-IPv6 takes a narrower condition. RFC 4659 Section 3.2.1.1 includes the
+link-local "if and only if the advertising BGP speaker shares a common subnet
+with the peer the route is being advertised to", naming the peer alone, so Ze
+follows it literally (owner decision 2026-10-19): the recipient must share a
+connected prefix with the speaker, and the speaker-owned global need not be on
+it. A loopback global therefore gets the speaker's link-local toward an on-link
+recipient on VPN-IPv6 and none on plain IPv6. `linkLocalConditionFor` names the
+condition per family and `linkScope.holdsCommonSubnet` answers it. A configured
 VPN route's `VPNParams.LinkLocalNextHop` carries the address
-`Peer.linkLocalNextHopFor` chose, and `buildMPReachVPN` then writes the
-48-octet field (zero RD, global, zero RD, link-local) instead of 24 octets. On
-the forwarding rails a 24-octet RD-plus-global field naming the speaker's own
-global is raised to that 48-octet pair for an on-link destination, and a
-received 48-octet pair is cut to 24 octets for an off-link one. A route the
+`Peer.linkLocalNextHopFor` chose for the route's family, and `buildMPReachVPN`
+then writes the 48-octet field (zero RD, global, zero RD, link-local) instead
+of 24 octets. On the forwarding rails a 24-octet RD-plus-global field naming
+the speaker's own global is raised to that 48-octet pair for an on-link
+destination, and a received 48-octet pair is cut to 24 octets for an off-link
+one. A route the
 session writes through its egress gate, the API batch announce among them,
 reaches the same decision there (`normalizeVPNNextHop`), which asks
 `applyEgressNextHopScope` rather than decide again.
@@ -277,7 +285,8 @@ IPv4-mapped IPv6 address (RFC 4659 Section 3.2.1.2), by the configured builder
 (`MPReachNLRI.wireNextHop`); the 12-octet form is VPN-IPv4's alone.
 Under `next-hop self` or an explicit next hop, the forwarding rails write the
 SAFI 128 form of the configured address, never the plain one: 24 octets (zero
-RD, global), or 48 when the link-local decision holds; 12 octets (zero RD,
+RD, global), or 48 when the VPN-IPv6 link-local decision holds, which the
+facts snapshot records apart from the RFC 2545 one (`nhVPNLinkLocal`); 12 octets (zero RD,
 IPv4) for VPN-IPv4 and 24 (zero RD, IPv4-mapped IPv6, RFC 4659 Section 3.2.1.2)
 for VPN-IPv6 under an IPv4 next hop. The forms are built once per forwarding
 facts snapshot. The MP_REACH materializer keeps the received next hop rather
@@ -292,7 +301,10 @@ link-local in `LabeledUnicastParams.LinkLocalNextHop`, and
 <!-- source: internal/component/bgp/message/update_build_labeled.go -- buildMPReachLabeledUnicast -->
 <!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- normalizeVPNNextHop -->
 <!-- source: internal/core/bgp/attribute/mpnlri.go -- MPReachNLRI.wireNextHop -->
+<!-- source: internal/component/bgp/reactor/link_scope.go -- linkLocalConditionFor, linkScope.holdsCommonSubnet -->
 <!-- test: internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go TestRFC4659StaticVPNv6LinkLocalCommonSubnet -->
+<!-- test: internal/component/bgp/reactor/rfc4659_vpn_link_local_loopback_test.go TestRFC4659VPNv6LinkLocalLoopbackGlobal -->
+<!-- test: internal/component/bgp/reactor/rfc4659_vpn_link_local_loopback_test.go TestRFC2545IPv6LinkLocalLoopbackGlobalOmitted -->
 <!-- test: internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go TestRFC4659APIVPNv6LinkLocalCommonSubnet -->
 <!-- test: internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go TestRFC4659StaticVPNv6IPv4NextHopIsMapped -->
 <!-- test: internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go TestMPReachNextHopHandlerRefusesOffTableWidth -->
