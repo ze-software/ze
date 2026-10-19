@@ -434,6 +434,19 @@ the removal's error, and an inspect that fails too is "unknown", naming both
 errors.
 <!-- source: internal/le/interoplab/docker.go -- Docker.confirmRemoval -->
 
+A `docker rm -f` the daemon refuses with "removal of container <name> is
+already in progress" is not a failure either: the daemon is already removing
+it, as `--rm` does for a one-shot whose bound ended. The wrapper inspects the
+container at once, then every `createSettleInterval` until
+`createSettleWindow` ends (`Docker.awaitRemoval`). Gone is "removed", an
+inspect that fails is "unknown", and a container still present when the window
+ends is reported by name as still present, with `./le test integration
+cleanup`. Only a container removal gets that answer: it is the one "already in
+progress" refusal in the dockerd 29.9 binary, so a network or image removal
+keeps the single inspect above.
+<!-- source: internal/le/interoplab/startsettle.go -- removalInProgressAnswer, Docker.awaitRemoval, pendingRemovalError -->
+<!-- source: internal/le/interoplab/docker.go -- Docker.forceRemoveContainer -->
+
 A one-shot container (`Docker.RunOneShot`: the kernel probe, a host
 preflight, a terminal-demo render) runs in the foreground with `--rm` and a
 `ze-oneshot-<random>` name. Killing the docker client stops nothing the

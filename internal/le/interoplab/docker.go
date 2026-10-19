@@ -855,7 +855,8 @@ func (d *Docker) RemoveContainer(ctx context.Context, name string) error {
 // removal's outcome as confirmRemoval settles it. Docker 29.9 (checked on
 // 2026-10-19) answers an absent name with exit 0 and no output, and prints the
 // name only for a container it removed, so a success with no output is the
-// absent answer too.
+// absent answer too. A refusal because the daemon is already removing the
+// container (a --rm whose command ended) waits for it to go (awaitRemoval).
 func (d *Docker) forceRemoveContainer(ctx context.Context, name string) (bool, error) {
 	result, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, "rm", "-f", name)
 	if err == nil {
@@ -868,6 +869,9 @@ func (d *Docker) forceRemoveContainer(ctx context.Context, name string) (bool, e
 			if strings.HasSuffix(strings.TrimSpace(line), absent) {
 				return true, nil
 			}
+		}
+		if strings.Contains(commandErr.Stderr, removalInProgressAnswer(name)) {
+			return false, d.awaitRemoval(ctx, name, err)
 		}
 	}
 	return false, d.confirmRemoval(ctx, resourceContainer, name, err)

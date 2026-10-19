@@ -11,7 +11,9 @@ import (
 // `docker run` is canceled after the daemon accepted the create, so the
 // container appears only once the client is gone. Here it appears after the
 // first `rm -f`, which therefore answers that it does not exist. stuck makes
-// the appeared container refuse every removal. silentAbsent is Docker 29.9
+// the appeared container refuse every removal, and inProgress makes that
+// refusal docker's "already in progress" for a removal that never ends
+// (D-f). silentAbsent is Docker 29.9
 // (checked on 2026-10-19): `rm -f` of an absent name exits 0 with
 // no output, and only a removal prints the name; otherwise it is the older
 // "No such container" refusal. Not safe for concurrent use.
@@ -20,6 +22,7 @@ type settlingDaemon struct {
 	present      bool
 	appeared     bool
 	stuck        bool
+	inProgress   bool
 	removals     int
 }
 
@@ -31,8 +34,11 @@ func (s *settlingDaemon) run(command ProcessCommand) (ProcessResult, error) {
 		return ProcessResult{ExitCode: timeoutExitCode}, context.Canceled
 	case argv[1] == "rm":
 		s.removals++
-		if s.present && s.stuck {
+		if s.present && s.stuck && s.inProgress {
 			return ProcessResult{ExitCode: 1, Stderr: "Error response from daemon: removal of container " + name + " is already in progress"}, nil
+		}
+		if s.present && s.stuck {
+			return ProcessResult{ExitCode: 1, Stderr: "Error response from daemon: cannot remove container \"/" + name + "\": could not kill: tried to kill container, but did not receive an exit event"}, nil
 		}
 		if s.present {
 			s.present = false
@@ -155,6 +161,28 @@ func TestCanceledStartNamesAnAppearedContainerItCannotRemove(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// VALIDATES: D-f. A container that appears after a canceled start, and whose
+// removal docker then says is already in progress and never ends, is reported
+// once, by name, with the command that removes it.
+// PREVENTS: the settle error wrapping the in-progress one, so the reader is
+// told the same fix twice.
+func TestCanceledStartWithARemovalStuckInProgressNamesTheCleanupOnce(t *testing.T) {
+	daemon := &settlingDaemon{stuck: true, inProgress: true, silentAbsent: true}
+	docker := newDocker(&recordingRunner{run: daemon.run})
+	name, err := unsettledStarts()["one-shot"](t.Context(), docker)
+	if err == nil {
+		t.Fatalf("%s is still present and the removal answered success", name)
+	}
+	for _, want := range []string{name, "still present", cleanupCommand} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("removal error %q does not name %q", err, want)
+		}
+	}
+	if fixes := strings.Count(err.Error(), "Fix:"); fixes != 1 {
+		t.Errorf("removal error %q gives %d fixes, want 1", err, fixes)
 	}
 }
 
