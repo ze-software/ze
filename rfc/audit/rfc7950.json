@@ -109,9 +109,9 @@
     },
     "RFC7950-7.21.5-2": {
       "code": {
-        "internal/component/config/yang/validator.go::walkTree": "c63451f2e54c4865"
+        "internal/component/config/yang/validator.go::walkTree": "a1127b4c14f9746a"
       },
-      "note": "Re-judged 2026-10-12, second pass (independent auditor) after 60a74fc04b, 600996fb77, 975428e1b3, 3f1bec74f0 and 84382339ce. Section 7.21.5: \"There MUST NOT be any circular dependencies among \\\"when\\\" expressions.\" walkTree's changes (mandatory descent, choice message) add no when evaluation, so neither the evaluation order nor the cycle rule is applied; Ze's modules declare no when today. {gap} under owner ruling 4, recorded, not closed.",
+      "note": "Re-judged 2026-10-20 (independent judge, after 4bf9935e38). Section 7.21.5: \"There MUST NOT be any circular dependencies among \\\"when\\\" expressions.\" walkTree's change is the case-data descent through schemaChild and the mandatory checks in requireMandatoryChildren; no when expression is parsed, ordered or evaluated anywhere in config/yang, so neither the evaluation order nor the cycle rule is applied. Ze's modules declare no when today. {gap} stands. Owned by spec-config-yang-when-unique-choice.",
       "requirement_sha": "2950be598bb87418",
       "verdict": "unimplemented"
     },
@@ -161,13 +161,17 @@
       "verdict": "enforced"
     },
     "RFC7950-7.6.1-2": {
-      "code": {
-        "internal/component/config/schema_defaults.go::ApplyDefaults": "b860b9a6be8b5749",
-        "internal/component/config/yang_schema.go::flattenChoiceCases": "636f7a84f69d2e4e"
-      },
-      "note": "flattenChoiceCases yields the data nodes of every case with no case node left in the schema, so ApplyDefaults fills the defaults of every case whether or not a node of that case exists or it is the default case. Owned by plan/pre-release/spec-config-yang-when-unique-choice.md.",
+      "note": "Re-judged 2026-10-20 (independent judge, after 7f34543a08). Section 7.6.1: \"Otherwise, if this ancestor is a case node, the default value MUST be used if any node from the case exists in the data tree or the case node is the choice's default case, and if no nodes from any other case exist in the data tree.\" Producer: ApplyDefaults now asks choiceMembers.skipsDefaults before each child; yangToContainer and yangToList record the goyang entry of every child a choice holds (cases.record in both the container and the list choice branch), mergeContainer and mergeNode carry it (adopt), and skipsDefaults calls yang.CaseInEffect for leaves and non-presence containers, leaving presence containers and lists to their own existing-ancestor rule. CaseInEffect climbs every choice between the node and its data parent: in effect when exactly one case holds data and it is this one, or none does and this is the default case; two cases holding data put no case in effect. Positive TestRFC7950CaseDefaultsFollowTheCaseInEffect asserts exact defaults for the case holding data (a2, c2, inside a list entry) and the default case (b1 and the non-presence container bc/bd) with no data; negative TestRFC7950CaseDefaultsIgnoredOutsideTheCaseInEffect asserts exact maps: no other case's default, no non-default case without data, nothing when two cases hold data, nothing for a choice with no default case, list entry, merged container. Mutant records on skipsDefaults (data->nil; inverted predicate) verify. Judge probes via -overlay, all RFC-correct: nested choice in the default case (no data -> outer default case leaf and inner default case x; inner non-default case data -> its default plus the outer case's default; data in another outer case -> only that case's defaults; data in both outer cases -> none); default leaf in a non-presence container of a non-default case (not created with no data, created when a sibling of that case holds data, filled when the container itself is present); shorthand cases; nested choice inside a case container. Scope: no shipped ApplyDefaults caller defaults a node that holds a choice today (bgp peer, rib distance, filter-modify, the tunnel case container), so the proof is at ApplyDefaults over yangToNode, the converter the config schema uses; the reference walk reads the same CaseInEffect. go test ./internal/component/config/ ./internal/component/config/yang/ green at HEAD.",
       "requirement_sha": "872dde68a7369c85",
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/component/config/rfc7950_case_defaults_test.go::TestRFC7950CaseDefaultsFollowTheCaseInEffect": "9ee469b171b79869",
+        "internal/component/config/rfc7950_case_defaults_test.go::TestRFC7950CaseDefaultsIgnoredOutsideTheCaseInEffect": "9ee469b171b79869"
+      },
+      "units": {
+        "internal/component/config/rfc7950_case_defaults_test.go::TestRFC7950CaseDefaultsFollowTheCaseInEffect": "c98b6a927e5f9afa",
+        "internal/component/config/rfc7950_case_defaults_test.go::TestRFC7950CaseDefaultsIgnoredOutsideTheCaseInEffect": "66d97fc2848eb928"
+      },
+      "verdict": "enforced"
     },
     "RFC7950-7.6.1-3": {
       "note": "\u00a77.6.1 third branch, both polarities on one isolated unit (own schema build and map per subtest). Positive: an existing presence container and an existing list entry each receive their child leaf's default through ApplyDefaults. Negative: with both ancestors absent ApplyDefaults creates neither and the map stays empty. Records: positive on applyContainerDefault (revert); negative on the targeted mutant 'c.Presence' -> 'false' (a presence container treated as non-presence), observed red on the ancestor-absent subtest, so the negative discriminates the rule rather than a panic.",
@@ -184,9 +188,9 @@
     },
     "RFC7950-7.6.1-4": {
       "code": {
-        "internal/component/config/schema_defaults.go::ApplyDefaults": "b860b9a6be8b5749"
+        "internal/component/config/schema_defaults.go::ApplyDefaults": "fa2bd8d4621392ea"
       },
-      "note": "ApplyDefaults evaluates no 'when' and no 'if-feature', so a default whose leaf or ancestor has a false 'when' stays in use. Owned by plan/pre-release/spec-config-yang-when-unique-choice.md.",
+      "note": "Re-judged 2026-10-20 (independent judge, after 7f34543a08). Section 7.6.1: \"Note that if the leaf or any of its ancestors has a \\\"when\\\" condition or \\\"if-feature\\\" expression that evaluates to \\\"false\\\", then the default value is not in use.\" ApplyDefaults changed only to skip children whose case is not in effect (choiceMembers.skipsDefaults -> yang.CaseInEffect); it still evaluates no when and no if-feature, so a default under a false when stays in use. The {gap} annotation remains accurate. Owned by plan/pre-release/spec-config-yang-when-unique-choice.md.",
       "requirement_sha": "89d91d68b8cf1fa8",
       "verdict": "unimplemented"
     },
@@ -345,9 +349,9 @@
     },
     "RFC7950-8.1-1": {
       "code": {
-        "internal/component/config/yang/validator.go::walkTree": "c63451f2e54c4865"
+        "internal/component/config/yang/validator.go::walkTree": "a1127b4c14f9746a"
       },
-      "note": "Re-judged 2026-10-12, second pass (independent auditor) after 60a74fc04b, 600996fb77, 975428e1b3, 3f1bec74f0 and 84382339ce. Section 8.1: \"If the constraint is defined on configuration data, it MUST be true in a valid configuration data tree.\" ValidateCustomSections now runs the full walk over validatedSections, mandatoryFailures over every other top-level section the compiled schema declares that is present in the config (Validator.Sections), and bgpMandatoryFailures over the bgp global level; LoadConfig, ze config validate, the web editor commit and the SSH editor commit (cli ConfigValidator.sectionErrors) all reach it. The walk now covers every present section for mandatory, but walkTree still evaluates no unique (ze-iface-conf declares unique \"mac/address\" and \"mac/match\"), no choice exclusivity and no when, and skips data under a case, so a configuration violating those constraints is accepted. Owned by spec-config-yang-when-unique-choice.",
+      "note": "Re-judged 2026-10-20 (independent judge, after 4bf9935e38). Section 8.1: \"If the constraint is defined on configuration data, it MUST be true in a valid configuration data tree.\" walkTree now resolves data keys through schemaChild (case data is type-checked and walked) and moves the mandatory scan into requireMandatoryChildren, which also checks cases holding data. It still evaluates no unique (ListNode.Unique is read only by the web UI for display), no choice exclusivity and no when. Judge probe via -overlay: ValidateTree over a choice with data in two cases (alpha and gamma, mandatory leaves supplied) returns zero errors, so a configuration violating Section 8.1's choice constraint is accepted. {gap} stands. Owned by spec-config-yang-when-unique-choice.",
       "requirement_sha": "1ae9176c1fd50674",
       "verdict": "unimplemented"
     },
@@ -395,9 +399,9 @@
     },
     "RFC7950-8.1-4": {
       "code": {
-        "internal/component/config/yang/validator.go::walkTree": "c63451f2e54c4865"
+        "internal/component/config/yang/validator.go::walkTree": "a1127b4c14f9746a"
       },
-      "note": "Re-judged 2026-10-12, second pass (independent auditor) after 60a74fc04b, 600996fb77, 975428e1b3, 3f1bec74f0 and 84382339ce. Section 8.1 bullets: \"Nodes MUST be present for at most one case branch in all choices.\" and \"All \\\"unique\\\" constraints on lists MUST be satisfied.\" walkTree still evaluates neither: mandatoryPresent accepts a choice at the first case node and nothing compares cases, and the unique statements ze-iface-conf declares are read by no check. Ze modules carry no when or if-feature today, so those bullets have no live instance, and walkTree evaluates neither. Owned by spec-config-yang-when-unique-choice.",
+      "note": "Re-judged 2026-10-20 (independent judge, after 4bf9935e38). Section 8.1: \"Nodes MUST be present for at most one case branch in all choices.\" walkTree's change (schemaChild descent into case data, requireMandatoryChildren/requireMandatoryInPresentCases) checks each case holding data for its mandatory nodes but never counts the cases: judge probe ValidateTree(\"wrap\", {a-flag, a-need, g-one, g-need}) with two cases of one choice present returns no error. unique constraints are extracted into ListNode.Unique and consumed only by the web UI, never validated; Ze modules declare no when or if-feature, and walkTree evaluates neither. {gap} stands. Owned by spec-config-yang-when-unique-choice.",
       "requirement_sha": "db7a7bd15882fa47",
       "verdict": "unimplemented"
     },
