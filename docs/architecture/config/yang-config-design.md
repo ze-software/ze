@@ -589,6 +589,24 @@ absent from the config is not walked, which is the reading libyang's
 <!-- source: internal/component/bgp/reactor/reactor_peers.go -- createdPeerSettings -->
 <!-- source: internal/component/config/yang/validator_mandatory.go -- Sections -->
 
+A case of a choice is the closest ancestor of the mandatory nodes it holds,
+and RFC 7950 Section 7.6.5 owes them only once any node of that case exists in
+the data. A case never appears in the data under its own name: its nodes sit
+in the map of the node that holds the choice, while goyang keeps them under
+the choice and case entries. `walkTree` therefore finds a data key through
+`schemaChild`, which descends through each choice and case, so the data a case
+holds is type-checked like any other. `requireMandatoryChildren` checks each
+case that has a node present (`requireMandatoryInPresentCases`) and skips the
+others. A gre tunnel with no `remote ip` is refused with the path
+`interface/tunnel[<name>]/encapsulation/gre/remote/ip` and the `set` command
+that adds it. Defaults are not case-aware yet: `flattenChoiceCases` drops the
+case node, so `ApplyDefaults` fills every case's defaults (RFC 7950 Section
+7.6.1, a recorded gap).
+
+<!-- source: internal/component/config/yang/validator_mandatory.go -- requireMandatoryChildren, requireMandatoryInPresentCases -->
+<!-- source: internal/component/config/yang/reference_path.go -- schemaChild -->
+<!-- source: internal/component/config/yang/validator.go -- walkTree -->
+
 ### Layer 3: Plugin config verifiers
 
 A plugin declares `InProcessConfigVerifier` on its registration and receives its

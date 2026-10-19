@@ -443,17 +443,6 @@
     },
     {
       "rid": "RFC7950-7.6.5-1",
-      "polarity": "positive",
-      "unit": "internal/component/config/rfc7950_mandatory_bgp_test.go::TestRFC7950MandatoryRefusesBGPConfig",
-      "unit-sha": "426de4f0f8765c27",
-      "claim-sha": "c11480f157dd23c4",
-      "route": "revert",
-      "producer": "internal/component/config/yang/validator.go::walkTree",
-      "producer-sha": "f1f1d8fe60ff47c3",
-      "break": "body of walkTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC7950-7.6.5-1",
       "polarity": "negative",
       "unit": "internal/component/config/rfc7950_mandatory_bgp_test.go::TestRFC7950MandatoryRefusesBGPConfig",
       "unit-sha": "426de4f0f8765c27",
@@ -462,6 +451,17 @@
       "producer": "internal/component/config/validate_mandatory_bgp.go::bgpMandatoryFailures",
       "producer-sha": "d5c4d88d6b9499a9",
       "break": "body of bgpMandatoryFailures replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-7.6.5-1",
+      "polarity": "positive",
+      "unit": "internal/component/config/rfc7950_mandatory_bgp_test.go::TestRFC7950MandatoryRefusesBGPConfig",
+      "unit-sha": "426de4f0f8765c27",
+      "claim-sha": "c11480f157dd23c4",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator.go::walkTree",
+      "producer-sha": "617ed4e9d0378edb",
+      "break": "body of walkTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7950-7.6.5-1",
@@ -476,17 +476,6 @@
     },
     {
       "rid": "RFC7950-7.6.5-1",
-      "polarity": "positive",
-      "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField",
-      "unit-sha": "410cf385502adc7c",
-      "claim-sha": "a65ac29952d87ca7",
-      "route": "revert",
-      "producer": "internal/component/config/yang/validator.go::walkTree",
-      "producer-sha": "f1f1d8fe60ff47c3",
-      "break": "body of walkTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC7950-7.6.5-1",
       "polarity": "negative",
       "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField",
       "unit-sha": "410cf385502adc7c",
@@ -495,6 +484,17 @@
       "producer": "internal/component/config/validate_mandatory_bgp.go::bgpMandatoryFailures",
       "producer-sha": "d5c4d88d6b9499a9",
       "break": "body of bgpMandatoryFailures replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-7.6.5-1",
+      "polarity": "positive",
+      "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField",
+      "unit-sha": "410cf385502adc7c",
+      "claim-sha": "a65ac29952d87ca7",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator.go::walkTree",
+      "producer-sha": "617ed4e9d0378edb",
+      "break": "body of walkTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7950-7.6.5-1",
@@ -515,8 +515,30 @@
       "claim-sha": "e0ff290b8dc7ac13",
       "route": "revert",
       "producer": "internal/component/config/yang/validator.go::walkTree",
-      "producer-sha": "f1f1d8fe60ff47c3",
+      "producer-sha": "617ed4e9d0378edb",
       "break": "body of walkTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-7.6.5-2",
+      "polarity": "positive",
+      "unit": "internal/component/config/yang/rfc7950_mandatory_case_test.go::TestRFC7950MandatoryNotRequiredForAbsentCase",
+      "unit-sha": "458b10744cc4490d",
+      "claim-sha": "39d5bcadf82ede88",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator_mandatory.go::requireMandatoryInPresentCases",
+      "producer-sha": "76ac33e7ea07f0be",
+      "break": "body of requireMandatoryInPresentCases replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-7.6.5-2",
+      "polarity": "negative",
+      "unit": "internal/component/config/yang/rfc7950_mandatory_case_test.go::TestRFC7950MandatoryRequiredWhenCaseExists",
+      "unit-sha": "4a6e207340b6c840",
+      "claim-sha": "aee3c33f01d2a24b",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator_mandatory.go::requireMandatoryInPresentCases",
+      "producer-sha": "76ac33e7ea07f0be",
+      "break": "body of requireMandatoryInPresentCases replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7950-7.6.5-3",
@@ -537,7 +559,7 @@
       "claim-sha": "a3e83056325b777c",
       "route": "revert",
       "producer": "internal/component/config/yang/validator.go::walkTree",
-      "producer-sha": "f1f1d8fe60ff47c3",
+      "producer-sha": "617ed4e9d0378edb",
       "break": "body of walkTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -559,7 +581,7 @@
       "claim-sha": "5ecba524329959a5",
       "route": "revert",
       "producer": "internal/component/config/yang/validator.go::walkTree",
-      "producer-sha": "f1f1d8fe60ff47c3",
+      "producer-sha": "617ed4e9d0378edb",
       "break": "body of walkTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

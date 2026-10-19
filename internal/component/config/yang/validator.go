@@ -675,53 +675,17 @@ func (v *Validator) ValidateTreeAllModules(section string, data map[string]any) 
 	return errs
 }
 
-// walkTree recursively validates a container/list against its YANG entry.
+// walkTree recursively validates a container/list against its YANG entry. A
+// data node that a choice's case holds sits in the same data map as its
+// siblings, so schemaChild finds it through the choice and case entries.
 func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any, errs *[]ValidationError) {
 	var tb textbuf.Buffer
-	// Check mandatory children at this level.
-	for name, child := range entry.Dir {
-		if child.Mandatory == yang.TSTrue {
-			if !mandatoryPresent(name, child, data) {
-				*errs = append(*errs, missingMandatory(tb.Reset().Str(path).Byte('/').Str(name).String(), name, child))
-			}
-			continue
-		}
-		// RFC 7950 Section 7.6.5: an absent non-presence container does not end
-		// the mandatory check below it. The constraint is decided by the closest
-		// ancestor that is not a non-presence container (Section 7.5.1), and for
-		// everything under this child that ancestor is the node being walked,
-		// which exists.
-		if isNonPresenceContainer(child) {
-			if _, ok := data[name]; !ok {
-				requireMandatoryUnderAbsent(tb.Reset().Str(path).Byte('/').Str(name).String(), child, errs)
-			}
-		}
-		// An ABSENT leaf-list with min-elements > 0 violates its bound just as
-		// surely as an empty one, and NOTHING else catches it.
-		//
-		// The obvious assumption -- "absence is the mandatory check's business"
-		// above -- is FALSE for a leaf-list, and provably so at the producer:
-		// goyang's `case *LeafList:` (vendor/.../goyang/pkg/yang/entry.go)
-		// synthesizes a Leaf WITHOUT copying Mandatory, and *LeafList has no
-		// Mandatory field to copy (yang.go: it carries MaxElements/MinElements
-		// but no mandatory). So Entry.Mandatory is TSUnset forever for a
-		// leaf-list and the loop above can never fire on one.
-		//
-		// Omitting the leaf entirely is also the shape an operator is most
-		// likely to write, so checking only the explicitly-empty `foo [ ]` form
-		// would leave the common case inert -- which is the defect this spec is
-		// named for.
-		if child.IsLeafList() && child.ListAttr != nil && child.ListAttr.MinElements > 0 {
-			if _, ok := data[name]; !ok {
-				checkCardinality(tb.Reset().Str(path).Byte('/').Str(name).String(), child, 0, errs)
-			}
-		}
-	}
+	requireMandatoryChildren(path, entry, data, errs)
 
 	// Validate each provided value.
 	for key, value := range data {
-		child, ok := entry.Dir[key]
-		if !ok {
+		child := schemaChild(entry, key)
+		if child == nil {
 			continue // unknown field — handled elsewhere by config reader
 		}
 		childPath := tb.Reset().Str(path).Byte('/').Str(key).String()
@@ -771,7 +735,7 @@ func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any
 			//
 			// An ABSENT leaf-list does not reach this loop (it ranges over the
 			// data actually supplied); absence is handled by the min-elements
-			// scan over entry.Dir at the top of walkTree. Do NOT assume the
+			// scan in requireMandatoryChildren. Do NOT assume the
 			// mandatory check covers it -- it cannot, see the note there.
 			//
 			// Note this counts an UNINTERPRETABLE value as 0, because
