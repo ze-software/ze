@@ -443,6 +443,7 @@ Done (working tree, NOT committed), all in
 | `TestRFC2545EffectivePairPolicyAndMixedSibling` | source never negotiates 77 except new `cap77-source-invalid-second-withdrawn` (mixed layout: legacy sibling withdrawn too, RFC 7606 Section 2) |
 | Claims | RFC2545-3-1 claims of the three tests match their new cases; RFC2545-3-2 claims unchanged |
 | Discrimination | 8 records re-recorded (`route revert`, producer `forward_next_hop.go::egressNextHopWithheld`) in `rfc/discrimination/rfc2545.json` |
+| `TestRFC2545ReceivedPairSubnetConditions` (2026-10-19, after 990744517c) | `keepPair` split into `keepUnicast`/`keepVPN`; `vpn/global-off-link` now keeps the 48-octet pair (RFC 4659 Section 3.2.1.1 names the peer alone, owner decision 2026-10-19). RFC2545-3-3 negative claim narrowed to "on IPv6 unicast either off-link entity, and on VPN-IPv6 an off-link recipient"; the positive claim is unchanged. Approval recorded by `./le rfc approve unit reactor.TestRFC2545ReceivedPairSubnetConditions` (`tmp/commit-rfc-approved-3f5fcb0a.md`; re-run it if that file is gone when #13 commits). Both RFC2545-3-3 records re-recorded (`route revert`, producer `forward_next_hop.go::applyEgressNextHopScope`, overlay break). Reactor package green with the working tree as is (tags `ze_core ze_bgp`, 124s, no overlay needed: the untracked RFC 9774 files compile) |
 
 Verification (overlay mapping foreign dirty `internal/plugins/iface` and
 `internal/component/iface` files to HEAD): full reactor `-race` ok (144s),

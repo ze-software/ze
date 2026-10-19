@@ -598,11 +598,14 @@ func checkRFC2545NextHops(ctx context.Context, check *interoplab.CheckContext) e
 }
 
 // RFC requirement: RFC4659-3.2.1.1-3 positive -- an independent receiver (FRR) decodes the VPN-IPv6 route 2001:db8:4659::/48, whose global next hop is Ze's own address on the lab /64 FRR's session address shares, with two next hops: Ze's global and Ze's topology-owned link-local, so Ze sent the 48-octet Next Hop field.
-// RFC requirement: RFC4659-3.2.1.1-3 negative -- on the same session with the same `link-local` leaf, the VPN-IPv6 route 2001:db8:465a::/48 whose global 2001:db8:ffff::1 is on no connected prefix reaches FRR with that global as its sole next hop and no link-local entry.
+// RFC requirement: RFC4659-3.2.1.1-3 negative -- on the same session with the same `link-local` leaf, the VPN-IPv6 route 2001:db8:465a::/48 whose global 2001:db8:ffff::1 is no address of Ze's (a third party's, whose link-local Ze does not learn) reaches FRR with that global as its sole next hop and no link-local entry.
 //
 // UNRUN at authoring (2026-10-18): Docker was held by a full verify. The FRR
 // JSON shape for `show bgp ipv6 vpn rd <rd> <prefix> json` is assumed to match
-// the unicast one parseFRRNextHops reads; the first run settles it.
+// the unicast one parseFRRNextHops reads; the first run settles it. The first
+// run (2026-10-19) never reached it: Ze refused the IPv4 session with Bad BGP
+// Identifier, both sessions coming from one FRR identifier
+// (plan/journal/listener-refuses-the-peer-its-config-names.md).
 func checkVPNFRR(ctx context.Context, check *interoplab.CheckContext) error {
 	const (
 		rd             = "65001:100"
