@@ -36,6 +36,7 @@ func init() {
 	Register("plugin/rfc7606-relay-one-field", routeServerReplay13("shutdown-after-up", "10.0.0.0/24", true))
 	Register("plugin/rfc7606-reset", passivePlugin13("rfc7606-test"))
 	Register("plugin/rfc7606-withdraw", rfc7606Withdraw13)
+	Register("plugin/rfc9774-as-set-receive-treat-as-withdraw", routeServerReplay13("shutdown-after-up", "10.0.0.0/24", false))
 	Register("plugin/rfc9552-52-rs-opaque-withdraw-peer-down", opaqueWithdraw13)
 }
 

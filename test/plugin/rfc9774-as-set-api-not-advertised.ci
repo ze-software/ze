@@ -1,0 +1,76 @@
+# rfc9774-as-set-api-not-advertised -- RFC 9774 Section 3 send, on the API
+# announce rail.
+#
+# RFC 9774 Section 3: "BGP speakers: MUST NOT advertise BGP UPDATE messages
+# containing AS_SETs or AS_CONFED_SETs".
+#
+# VALIDATES: the fixture plugin below issues, over ze's own command dispatcher,
+#   send bgp * update hex attr set 4001010040020A01020000FDF20000FDF3
+#           nhop set 0A000001 nlri ipv4/unicast add 18C00002
+# (ORIGIN IGP, AS_PATH holding one AS_SET {65010 65011}, 192.0.2.0/24), then a
+# clean fence announce of 198.51.100.0/24. The eBGP receiver gets a withdrawal of
+# 192.0.2.0/24 in place of the set route, then the fence: no frame carries the set
+# segment, and the warning names the RFC section and the fix. The producer is
+# internal/test/fixture/register_rfc9774_api_announce.go.
+# PREVENTS: an API-supplied attribute block putting an AS_SET on the wire.
+
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=20s
+option=bind:value=0.0.0.0
+
+# Receiver (AS 65002). First the withdrawal the guard writes in place of the set
+# route. This rail does not track what the peer holds, so the withdrawal of a
+# never-held prefix is not suppressed; it announces nothing.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B02000418C000020000
+# Then the fence: ORIGIN, AS_SEQUENCE [65000] ze prepended, NEXT_HOP 10.0.0.1,
+# 198.51.100.0/24. An UPDATE announcing 192.0.2.0/24 fails the sequence at seq=1.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE84003040A00000118C63364
+
+# No frame carries the set segment, prepended or not.
+reject=bgp:conn=1:pattern=01020000FDF20000FDF3
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external rfc9774-api-announce {
+		run "le test fixture plugin/rfc9774-as-set-api-not-advertised"
+		encoder json
+	}
+}
+bgp {
+	peer receiver {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		attach process rfc9774-api-announce {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=RFC 9774 Section 3 forbids advertising an AS_SET or AS_CONFED_SET
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
