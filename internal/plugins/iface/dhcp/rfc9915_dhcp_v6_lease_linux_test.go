@@ -1,5 +1,5 @@
 // Design: docs/features/interfaces.md -- DHCPv6 client lifecycle
-// Related: dhcp_v6_exchange_linux_test.go -- the exchange engine tests
+// Related: rfc9915_dhcp_v6_exchange_linux_test.go -- the exchange engine tests
 // Related: dhcp_v4_rig_linux_test.go -- the loop backend and log capture this rig reuses
 // RFC: rfc/short/rfc9915.md
 

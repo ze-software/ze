@@ -1,5 +1,5 @@
 // Design: docs/features/interfaces.md -- DHCPv6 client lifecycle
-// Related: dhcp_v6_lease_linux_test.go -- the rig these tests drive
+// Related: rfc9915_dhcp_v6_lease_linux_test.go -- the rig these tests drive
 // RFC: rfc/short/rfc9915.md
 
 //go:build linux

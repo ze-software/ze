@@ -187,3 +187,24 @@ Findings for the next agent (read before starting):
 - Gates still owed for this file pair: none beyond item 7. The scoped
   `golangci-lint run --build-tags integration ./internal/component/iface/`
   reports 0 issues.
+
+## Continuation 2026-10-19 (RFC 9915 enrolment agent): item 1 done
+
+- `e96a8131d2` enrols RFC 9915: `rfc/short/rfc9915.md` (126 client rows,
+  verbatim quotes), `rfc/extraction/rfc9915.json` (218 sites: 126 mapped,
+  76 binds-another-role, 16 duplicate-of), `rfc/discrimination/rfc9915.json`
+  (70 records, route revert, each red observed). Rows: 70 proven (all
+  single-polarity), 50 not-applicable, 3 lower-layer, 2 gap
+  (RFC9915-18.2.10.1-1 no DAD outcome/Decline, RFC9915-18.2.12-2 no
+  link-change Rebind). New `rfc9915_dhcp_v6_messages_linux_test.go` (ten
+  tests). `// RFC:` headers on the three v6 source files.
+- Next commit renames `dhcp_v6_{exchange,lease,link}_linux_test.go` to
+  `rfc9915_dhcp_v6_*` (`./le rfc rename`, file-name rule); spec paths updated.
+- Item 5 (A-7) is already met: `75cbddde58` empties the v6 DNS list on a
+  Reply without the option; RFC9915-18.2.10.5-1 (NTP) is not-applicable.
+- Not done: SHOULD/MAY rows are not in the summary (the gate needs MUST-level
+  only); no `/ze-rfc-audit` verdicts yet; the selector-bound integration test
+  is untagged; `dhcp_v6_pd_linux_test.go` has no `// RFC:` header (no tag).
+- Owner decisions the summary records as not offered (disclosed in Support
+  remaining, not gated): Confirm, Information-request, Reconfigure, Auth,
+  DUID-LL default (Q4), fixed rate limit (Q6).

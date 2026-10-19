@@ -2,7 +2,7 @@
 // prefix length with /24 fallback, router, full ordered DNS list, NTP servers,
 // lease time), v4LeaseTime (absent and zero refused), and publishDHCP
 // name/unit backfill + unknown-topic no-emit. The DHCPv6 lease record and its
-// events are tested in dhcp_v6_lease_linux_test.go.
+// events are tested in rfc9915_dhcp_v6_lease_linux_test.go.
 // PREVENTS: a lease being installed with the wrong prefix length, DNS/NTP servers
 // dropped or reordered, expiry events missing addresses, or an event leaking with
 // an empty interface name.

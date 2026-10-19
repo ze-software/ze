@@ -203,7 +203,7 @@ depends on that work for the infinite case (A-6).
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The cited client sections and Table 1 values are the same in RFC 9915 as in RFC 8415 | heading and constant comparison of both texts, 2026-10-18 | quotes and timers differ by document | enrolment forward walk of the chosen document | unvalidated |
-| A-2 | `nclient6.Client` with `WithRetry(1)` sends exactly one datagram per `SendAndRead` and reuses `msg.TransactionID` | `retryFn`, `send` (vendored client.go) | retransmissions double or change xid | unit test with a recording `PacketConn` via `NewWithConn` | confirmed 2026-10-19: `TestDHCPv6LinkOneDatagramPerExchange` (`dhcp_v6_link_linux_test.go`) drives `nclient6Link.exchange` over a recording `PacketConn` with the dialer's own `v6ClientOptions()`: one datagram, same xid, answered or not. Forced red: options `WithRetry(3)`, `WithTimeout(50ms)` -> "a second datagram was written" |
+| A-2 | `nclient6.Client` with `WithRetry(1)` sends exactly one datagram per `SendAndRead` and reuses `msg.TransactionID` | `retryFn`, `send` (vendored client.go) | retransmissions double or change xid | unit test with a recording `PacketConn` via `NewWithConn` | confirmed 2026-10-19: `TestDHCPv6LinkOneDatagramPerExchange` (`rfc9915_dhcp_v6_link_linux_test.go`) drives `nclient6Link.exchange` over a recording `PacketConn` with the dialer's own `v6ClientOptions()`: one datagram, same xid, answered or not. Forced red: options `WithRetry(3)`, `WithTimeout(50ms)` -> "a second datagram was written" |
 | A-3 | A matcher that returns false keeps `SendAndRead` waiting until RT, so it can collect Advertise messages | `SendAndRead` loop (vendored) | Advertise collection needs its own receive path | unit test over `NewWithConn` | confirmed 2026-10-19: same test, subtest "answered after a refused message": the matcher refuses an Advertise and the exchange returns the later Reply in the same window |
 | A-4 | The kernel performs DAD on addresses `ReplaceAddressWithLifetime` installs (no IFA_F_NODAD), satisfying the §18.2.10.1 DAD MUST | netlink backend sets no NODAD flag | §18.2.10.1 DAD unmet | read `manage_linux.go` flags; integration test sees `tentative` then clear | confirmed 2026-10-19: `TestDHCPv6RenewsOnSelectorBoundInterface` (QEMU guest) sees the leased address first with IFA_F_TENTATIVE, then clear, never IFA_F_DADFAILED |
 | A-5 | Re-creating the `nclient6.Client` per exchange is harmless (port 546 rebind succeeds immediately) | today's code already does it per solicit | EADDRINUSE between exchanges | integration test runs at least 3 exchanges back to back | confirmed 2026-10-19: the same test runs six exchanges (Solicit, three Renews, Rebind, Release), each on a fresh port 546 socket, with no open failure |
@@ -240,8 +240,8 @@ depends on that work for the infinite case (A-6).
 |-------------|---|--------------|------|
 | `dhcpv6 { enabled true }` on a selector-bound unit, Go server on a veth answers Renew | → | `runV6` → renew exchange on `binding.OsName` | `TestDHCPv6RenewsOnSelectorBoundInterface` (`internal/component/iface/dhcp_v6_selector_renew_integration_linux_test.go`, package `iface_test`: the client starts through the factory `SetDHCPClientFactory` installs, the selector mapping through `export_test.go`, so no production API exists for the test) |
 | ze.conf `dhcpv6 { enabled true }` against kea-dhcp6 | → | full lease cycle: Solicit, Request, Renew three times, Rebind | interop scenario `dhcpv6-client-renew-kea` |
-| config `dhcpv6 { pd { length 56 } }` | → | message builder adds the IA_PD and its hint (AC-25) | `TestDHCPv6PDLengthRequestsDelegatedPrefix` (`dhcp_v6_lease_linux_test.go`) |
-| config `duid` leaf | → | Client Identifier in every message | `TestDHCPv6ConfiguredDUIDReachesEveryMessage` (`dhcp_v6_lease_linux_test.go`) |
+| config `dhcpv6 { pd { length 56 } }` | → | message builder adds the IA_PD and its hint (AC-25) | `TestDHCPv6PDLengthRequestsDelegatedPrefix` (`rfc9915_dhcp_v6_lease_linux_test.go`) |
+| config `duid` leaf | → | Client Identifier in every message | `TestDHCPv6ConfiguredDUIDReachesEveryMessage` (`rfc9915_dhcp_v6_lease_linux_test.go`) |
 
 ## Acceptance Criteria
 
@@ -288,11 +288,11 @@ Timing ACs run on the injected clock with a scripted transport; wire ACs decode 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRFC8415Section15RetransmissionTimeout` | `internal/plugins/iface/dhcp/dhcp_v6_exchange_linux_test.go` | AC-5 RT sequence, MRT cap, MRC/MRD end | |
+| `TestRFC8415Section15RetransmissionTimeout` | `internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go` | AC-5 RT sequence, MRT cap, MRC/MRD end | |
 | `TestRFC8415Section15ElapsedTimeUpdated` | same | AC-5 elapsed time and 0xffff saturation, xid unchanged | |
 | `TestRFC8415Section1821FirstSolicitRTAboveIRT` | same | AC-6 first RT > IRT, delay in [0, 1 s], ORO 82 | |
 | `TestDHCPv6SolicitBacksOffToSolMaxRT` | same | AC-6, AC-8 one Warn over 2 h | |
-| `TestRFC8415Section2124SolMaxRTRange` | `internal/plugins/iface/dhcp/dhcp_v6_lease_linux_test.go` | AC-7 | |
+| `TestRFC8415Section2124SolMaxRTRange` | `internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go` | AC-7 | |
 | `TestRFC8415Section1824RenewAtT1CarriesLease` | same | AC-1 | |
 | `TestDHCPv6LeaseHeldAcrossFiveRenewals` | same | AC-2 | |
 | `TestRFC8415Section1825RebindAtT2WithoutServerID` | same | AC-3 | |
@@ -306,14 +306,14 @@ Timing ACs run on the injected clock with a scripted transport; wire ACs decode 
 | `TestRFC8415Section77InfiniteT1NeverRenews` | same | AC-15 | |
 | `TestRFC8415Section182101NoBindingSendsRequest` | same | AC-16 | |
 | `TestRFC8415Section182101OmittedIAKept` | same | AC-17 | |
-| `TestRFC8415Section1610ReplyValidation` | `dhcp_v6_exchange_linux_test.go` | AC-18 | |
+| `TestRFC8415Section1610ReplyValidation` | `rfc9915_dhcp_v6_exchange_linux_test.go` | AC-18 | |
 | `TestRFC8415Section141PerInterfaceRateLimit` | same | AC-19 | |
-| `TestDHCPv6ConfiguredDUIDReachesEveryMessage` | `dhcp_v6_lease_linux_test.go` | AC-20 configured | |
+| `TestDHCPv6ConfiguredDUIDReachesEveryMessage` | `rfc9915_dhcp_v6_lease_linux_test.go` | AC-20 configured | |
 | `TestDHCPv6DefaultDUIDStable` | same | AC-20 default | |
 | `TestDHCPv6ReleaseOnStop` | same | AC-21 | |
-| `TestRFC8415Section1821AdvertiseSelection` | `dhcp_v6_exchange_linux_test.go` | AC-22 | |
+| `TestRFC8415Section1821AdvertiseSelection` | `rfc9915_dhcp_v6_exchange_linux_test.go` | AC-22 | |
 | `TestRFC8415Section1822RequestGivesUpAfterMRC` | same | AC-23 | |
-| `TestDHCPv6StopDuringEveryWait` | `dhcp_v6_lease_linux_test.go` | AC-24 | |
+| `TestDHCPv6StopDuringEveryWait` | `rfc9915_dhcp_v6_lease_linux_test.go` | AC-24 | |
 | `TestDHCPv6DUIDPatternRefusesMalformed` | `internal/component/iface/config_test.go` | AC-20 commit refusal | |
 
 Test names carry `RFC8415`; if Q1 enrols RFC 9915 they carry `RFC9915` instead.
@@ -350,7 +350,7 @@ Test names carry `RFC8415`; if Q1 enrols RFC 9915 they carry `RFC9915` instead.
 ## Files to Create
 - `internal/plugins/iface/dhcp/dhcp_v6_lease_linux.go` - lease record (DUID, server DUID, IAs, leases, reception time), Reply application (§18.2.10.1), timer selection (§14.2, §18.2.4, §21.4)
 - `internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go` - message builders (Solicit, Request, Renew, Rebind, Release), §15 engine, §16.10 matcher, Advertise collector, per-interface token bucket
-- `internal/plugins/iface/dhcp/dhcp_v6_lease_linux_test.go`, `dhcp_v6_exchange_linux_test.go`
+- `internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go`, `rfc9915_dhcp_v6_exchange_linux_test.go`
 - `internal/component/iface/dhcp_v6_selector_renew_integration_linux_test.go` (package `iface_test`) and `internal/component/iface/export_test.go` (test-only seams over `globalResolver.setMapping` and `dhcpClientFactory`)
 - `test/interop/Dockerfile.kea`, `test/interop/scenarios/dhcpv6-client-renew-kea/` (Kea config, ze.conf, assertions)
 
@@ -398,10 +398,10 @@ Test names carry `RFC8415`; if Q1 enrols RFC 9915 they carry `RFC9915` instead.
    - Files: `rfc/`, `dhcp_linux.go`, `register.go`
    - Verify: tests fail on the stub
 2. **Phase: Exchange engine** -- builders, §15 engine, matcher, Advertise collector, rate limit
-   - Tests: every `dhcp_v6_exchange_linux_test.go` row
+   - Tests: every `rfc9915_dhcp_v6_exchange_linux_test.go` row
    - Files: `dhcp_v6_exchange_linux.go`
 3. **Phase: Lease record and state machine** -- `runV6` rewrite, Reply application, timer selection, expiry, DUID, PD expiry; delete `renewV6` and `v6Timers`
-   - Tests: every `dhcp_v6_lease_linux_test.go` row
+   - Tests: every `rfc9915_dhcp_v6_lease_linux_test.go` row
    - Files: `dhcp_v6_lease_linux.go`, `dhcp_v6_linux.go`
 4. **Phase: Release on stop** (per Q5)
 5. **Phase: YANG `duid` pattern and docs** -- the page edits land with the code they describe

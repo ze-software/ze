@@ -4,7 +4,7 @@
     {
       "rid": "RFC9915-11-1",
       "polarity": "negative",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux_test.go::TestRFC9915Section1610ReplyValidation",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go::TestRFC9915Section1610ReplyValidation",
       "unit-sha": "ec5dd6729117f102",
       "claim-sha": "54788f00ad8ffde6",
       "route": "revert",
@@ -26,7 +26,7 @@
     {
       "rid": "RFC9915-11.4-1",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_lease_linux_test.go::TestRFC9915Section1824RenewAtT1CarriesLease",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go::TestRFC9915Section1824RenewAtT1CarriesLease",
       "unit-sha": "43f4a6202fdfcfc0",
       "claim-sha": "33ade5c545aaf6d5",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "RFC9915-12-1",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux_test.go::TestDHCPv6PDLengthRequestsDelegatedPrefix",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go::TestDHCPv6PDLengthRequestsDelegatedPrefix",
       "unit-sha": "24305395685bede3",
       "claim-sha": "52a819e02dc74566",
       "route": "revert",
@@ -59,7 +59,7 @@
     {
       "rid": "RFC9915-14.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux_test.go::TestRFC9915Section141PerInterfaceRateLimit",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go::TestRFC9915Section141PerInterfaceRateLimit",
       "unit-sha": "20a80265e0072482",
       "claim-sha": "50ad7487b08a7606",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC9915-14.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_lease_linux_test.go::TestRFC9915Section142ZeroTimersChosenByClient",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go::TestRFC9915Section142ZeroTimersChosenByClient",
       "unit-sha": "f2474bfa17933bee",
       "claim-sha": "88a33343e606b88c",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC9915-14.2-2",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_lease_linux_test.go::TestRFC9915Section142ZeroTimersChosenByClient",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go::TestRFC9915Section142ZeroTimersChosenByClient",
       "unit-sha": "f2474bfa17933bee",
       "claim-sha": "24b18ba2cf72f2b9",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC9915-15-1",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux_test.go::TestRFC9915Section15ElapsedTimeUpdated",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go::TestRFC9915Section15ElapsedTimeUpdated",
       "unit-sha": "3d528007b1526807",
       "claim-sha": "ec7fecb118150892",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "RFC9915-16-1",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux_test.go::TestRFC9915Section1610ReplyValidation",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go::TestRFC9915Section1610ReplyValidation",
       "unit-sha": "ec5dd6729117f102",
       "claim-sha": "b8aff57ee9c55656",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "RFC9915-16-2",
       "polarity": "negative",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux_test.go::TestRFC9915Section1610ReplyValidation",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go::TestRFC9915Section1610ReplyValidation",
       "unit-sha": "ec5dd6729117f102",
       "claim-sha": "bc3a12a9b9869c3b",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC9915-16.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux_test.go::TestRFC9915Section15ElapsedTimeUpdated",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go::TestRFC9915Section15ElapsedTimeUpdated",
       "unit-sha": "3d528007b1526807",
       "claim-sha": "c2c8dc3a7707b587",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC9915-16.10-1",
       "polarity": "negative",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux_test.go::TestRFC9915Section1610ReplyValidation",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go::TestRFC9915Section1610ReplyValidation",
       "unit-sha": "ec5dd6729117f102",
       "claim-sha": "a98eba78d7808d67",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "RFC9915-16.10-2",
       "polarity": "negative",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux_test.go::TestRFC9915Section1610ReplyValidation",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go::TestRFC9915Section1610ReplyValidation",
       "unit-sha": "ec5dd6729117f102",
       "claim-sha": "1b4eb600ce677620",
       "route": "revert",
@@ -301,7 +301,7 @@
     {
       "rid": "RFC9915-18-1",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_lease_linux_test.go::TestRFC9915Section1825ExpiryRemovesAndSolicits",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go::TestRFC9915Section1825ExpiryRemovesAndSolicits",
       "unit-sha": "6c97fab7ca55afca",
       "claim-sha": "aa4889be0d1c661d",
       "route": "revert",
@@ -345,7 +345,7 @@
     {
       "rid": "RFC9915-18.2.1-3",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux_test.go::TestRFC9915Section1821FirstSolicitRTAboveIRT",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go::TestRFC9915Section1821FirstSolicitRTAboveIRT",
       "unit-sha": "fad3051801551688",
       "claim-sha": "6a90a59cbaad7a23",
       "route": "revert",
@@ -367,7 +367,7 @@
     {
       "rid": "RFC9915-18.2.1-5",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux_test.go::TestRFC9915Section1821FirstSolicitRTAboveIRT",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go::TestRFC9915Section1821FirstSolicitRTAboveIRT",
       "unit-sha": "fad3051801551688",
       "claim-sha": "4d18a06d23531511",
       "route": "revert",
@@ -378,7 +378,7 @@
     {
       "rid": "RFC9915-18.2.1-6",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux_test.go::TestRFC9915Section1821AdvertiseSelection",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go::TestRFC9915Section1821AdvertiseSelection",
       "unit-sha": "6c1d92c7ebbace01",
       "claim-sha": "92ddb629dda9d35c",
       "route": "revert",
@@ -389,7 +389,7 @@
     {
       "rid": "RFC9915-18.2.10-1",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux_test.go::TestRFC9915Section2124SolMaxRTRange",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go::TestRFC9915Section2124SolMaxRTRange",
       "unit-sha": "2625e6cfa631e3f3",
       "claim-sha": "601731450fd13970",
       "route": "revert",
@@ -400,7 +400,7 @@
     {
       "rid": "RFC9915-18.2.10.1-3",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_lease_linux_test.go::TestDHCPv6LeaseHeldAcrossFiveRenewals",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go::TestDHCPv6LeaseHeldAcrossFiveRenewals",
       "unit-sha": "341b52e94f51a413",
       "claim-sha": "c89feb76accda3fb",
       "route": "revert",
@@ -466,7 +466,7 @@
     {
       "rid": "RFC9915-18.2.4-1",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_lease_linux_test.go::TestRFC9915Section1824EarliestT1AcrossIAs",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go::TestRFC9915Section1824EarliestT1AcrossIAs",
       "unit-sha": "3f4585412bcbad1b",
       "claim-sha": "3d5dc9c413992849",
       "route": "revert",
@@ -477,7 +477,7 @@
     {
       "rid": "RFC9915-18.2.4-4",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_lease_linux_test.go::TestRFC9915Section1824RenewAtT1CarriesLease",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go::TestRFC9915Section1824RenewAtT1CarriesLease",
       "unit-sha": "43f4a6202fdfcfc0",
       "claim-sha": "2399d94e81c45cb1",
       "route": "revert",
@@ -488,7 +488,7 @@
     {
       "rid": "RFC9915-18.2.4-5",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_lease_linux_test.go::TestRFC9915Section1824RenewAtT1CarriesLease",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go::TestRFC9915Section1824RenewAtT1CarriesLease",
       "unit-sha": "43f4a6202fdfcfc0",
       "claim-sha": "81cfd1f343a90756",
       "route": "revert",
@@ -499,7 +499,7 @@
     {
       "rid": "RFC9915-18.2.4-6",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_lease_linux_test.go::TestRFC9915Section1824RenewAtT1CarriesLease",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go::TestRFC9915Section1824RenewAtT1CarriesLease",
       "unit-sha": "43f4a6202fdfcfc0",
       "claim-sha": "09ed3ce636c3f23f",
       "route": "revert",
@@ -565,7 +565,7 @@
     {
       "rid": "RFC9915-18.2.7-6",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_lease_linux_test.go::TestDHCPv6ReleaseOnStop",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go::TestDHCPv6ReleaseOnStop",
       "unit-sha": "d38918d708805a0f",
       "claim-sha": "a8e728093ca3878c",
       "route": "revert",
@@ -576,7 +576,7 @@
     {
       "rid": "RFC9915-18.2.7-7",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_lease_linux_test.go::TestDHCPv6ReleaseOnStop",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go::TestDHCPv6ReleaseOnStop",
       "unit-sha": "d38918d708805a0f",
       "claim-sha": "ebbf1f4bb883f85e",
       "route": "revert",
@@ -620,7 +620,7 @@
     {
       "rid": "RFC9915-18.2.9-5",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_link_linux_test.go::TestDHCPv6LinkOneDatagramPerExchange",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_link_linux_test.go::TestDHCPv6LinkOneDatagramPerExchange",
       "unit-sha": "014c2d42ba578a0d",
       "claim-sha": "24b8c94cfec4c419",
       "route": "revert",
@@ -631,7 +631,7 @@
     {
       "rid": "RFC9915-18.3.5-1",
       "polarity": "negative",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_lease_linux_test.go::TestRFC9915Section182101ValidZeroDiscarded",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go::TestRFC9915Section182101ValidZeroDiscarded",
       "unit-sha": "802ccc33fbf6c502",
       "claim-sha": "1363b1e025d10e18",
       "route": "revert",
@@ -664,7 +664,7 @@
     {
       "rid": "RFC9915-21.24-3",
       "polarity": "negative",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux_test.go::TestRFC9915Section2124SolMaxRTRange",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go::TestRFC9915Section2124SolMaxRTRange",
       "unit-sha": "2625e6cfa631e3f3",
       "claim-sha": "81b25ed08b8188be",
       "route": "revert",
@@ -675,7 +675,7 @@
     {
       "rid": "RFC9915-21.24-4",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux_test.go::TestRFC9915Section2124SolMaxRTRange",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go::TestRFC9915Section2124SolMaxRTRange",
       "unit-sha": "2625e6cfa631e3f3",
       "claim-sha": "05a9e08da8abf763",
       "route": "revert",
@@ -686,7 +686,7 @@
     {
       "rid": "RFC9915-21.4-2",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_lease_linux_test.go::TestRFC9915Section1824RenewAtT1CarriesLease",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go::TestRFC9915Section1824RenewAtT1CarriesLease",
       "unit-sha": "43f4a6202fdfcfc0",
       "claim-sha": "3698a2bf816f4230",
       "route": "revert",
@@ -697,7 +697,7 @@
     {
       "rid": "RFC9915-21.6-3",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_lease_linux_test.go::TestDHCPv6LeaseHeldAcrossFiveRenewals",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go::TestDHCPv6LeaseHeldAcrossFiveRenewals",
       "unit-sha": "341b52e94f51a413",
       "claim-sha": "fb64a7449102f341",
       "route": "revert",
@@ -708,7 +708,7 @@
     {
       "rid": "RFC9915-21.6-4",
       "polarity": "negative",
-      "unit": "internal/plugins/iface/dhcp/dhcp_v6_lease_linux_test.go::TestRFC9915Section216PreferredAboveValidDiscarded",
+      "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go::TestRFC9915Section216PreferredAboveValidDiscarded",
       "unit-sha": "a0ec36a94c5b02ff",
       "claim-sha": "6ce04e4892f1f7cc",
       "route": "revert",
