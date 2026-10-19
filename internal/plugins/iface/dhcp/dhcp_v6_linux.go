@@ -509,6 +509,9 @@ func (w *v6Worker) effect(applied v6Applied, topic string) {
 // v6Seconds is a lifetime as the kernel takes it: 0xffffffff is infinite.
 func v6Seconds(d time.Duration) int { return int(d / time.Second) }
 
+// v6SecondsUp is v6Seconds rounded up to the next whole second.
+func v6SecondsUp(d time.Duration) int { return v6Seconds(d + time.Second - 1) }
+
 func (w *v6Worker) payload(b v6Binding, leaseTime int) iface.DHCPPayload {
 	p := iface.DHCPPayload{
 		Name:         w.c.ifaceName,

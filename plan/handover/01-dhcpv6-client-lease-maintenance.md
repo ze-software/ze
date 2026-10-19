@@ -272,3 +272,12 @@ Still owed (owner: not run here): `./le go lint run`, `./le test unit all`,
 `./le test functional gating`, and the QEMU integration tests under
 `internal/component/iface/` (`TestRFC9915LinkMoveRebindsThroughTheMonitor`
 now also runs the reinstall on a carrier flap).
+
+2026-10-19 review of 1cb92a54be (rv6): `noteMove` truncated a sub-second valid
+lifetime left to 0, and 0/0 reaches netlink as no lifetime (permanent); it now
+rounds the valid lifetime up (`v6SecondsUp`,
+`TestDHCPv6MoveReinstallsAnAddressNearExpiryAsFinite`). The four QEMU tests
+plus `TestDHCPv6CarrierFlapKeepsTheLeasedAddress` and
+`TestDHCPv6AdminFlapReinstallsTheLeasedAddress` (new, untagged) pass on the
+kernel. Two journal rows opened: the DAD/LinkDown race in `checkDAD`, and link
+events unread during an exchange.

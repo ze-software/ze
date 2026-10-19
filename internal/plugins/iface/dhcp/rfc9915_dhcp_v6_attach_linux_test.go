@@ -238,6 +238,47 @@ func TestDHCPv6AddressFlushedByLinkDownReinstalledNotDeclined(t *testing.T) {
 	}
 }
 
+// TestDHCPv6MoveReinstallsAnAddressNearExpiryAsFinite holds an address valid
+// for 2 s (preferred 1 s) beside a long delegated prefix, and moves the link
+// at 1.5 s, when half a second of the address is left.
+//
+// VALIDATES: the reinstall rounds the valid lifetime left up to 1 s, so the
+// kernel holds the address as finite; the spent preferred lifetime goes as 0.
+// The expired address is still removed, and no Decline is sent.
+// PREVENTS: a valid lifetime truncated to 0 s, which the backend reads as "no
+// lifetime" and the kernel installs as permanent (IFA_F_PERMANENT).
+func TestDHCPv6MoveReinstallsAnAddressNearExpiryAsFinite(t *testing.T) {
+	r := newV6Rig(t, dHCPConfig{PDRequested: true})
+	r.srv.serve = leaseServer(func() []dhcpv6.Option {
+		return []dhcpv6.Option{
+			testIANA(100*time.Second, 160*time.Second, testIAAddr(1*time.Second, 2*time.Second)),
+			testIAPD(100*time.Second, 160*time.Second, 200*time.Second, 300*time.Second),
+		}
+	}, false, false)
+	r.startWorker()
+	r.runUntil(1500 * time.Millisecond)
+	r.clk.Set(r.start.Add(1500 * time.Millisecond))
+	r.backend.mu.Lock()
+	r.backend.installed = nil // the kernel flushes the address with the down
+	r.backend.mu.Unlock()
+	r.move()
+	r.awaitSent(dhcpv6.MessageTypeRebind, 1)
+
+	if got := r.countOps("replace " + loopKernelDevice + " " + v6TestCIDR + " 0 "); got != 0 {
+		t.Errorf("address reinstalled with a valid lifetime of 0 s %d times: the kernel holds it as permanent", got)
+	}
+	if got := r.countOps("replace " + loopKernelDevice + " " + v6TestCIDR + " 1 0"); got != 1 {
+		t.Errorf("address reinstalled with 1/0 %d times after the move, want 1", got)
+	}
+	r.runUntil(15 * time.Second) // past the unanswered Rebind's CNF_MAX_RD
+	if got := r.countOps("remove-addr " + loopKernelDevice + " " + v6TestCIDR); got != 1 {
+		t.Errorf("expired address removed %d times, want 1", got)
+	}
+	if got := r.sentOf(dhcpv6.MessageTypeDecline); len(got) != 0 {
+		t.Errorf("%d DECLINE for an address the link change deleted: %s", len(got), r.describeSent())
+	}
+}
+
 // TestRFC9915Section18212MoveRebindsWithConfirmParameters holds an address
 // and a prefix, then the device goes down and up at 5 s; no server answers
 // the Rebind.

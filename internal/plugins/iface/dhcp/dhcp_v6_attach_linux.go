@@ -167,11 +167,16 @@ func (w *v6Worker) linkMoved(ev iface.LinkEvent) bool {
 // down kept changes nothing but its lifetimes, which are the lease's anyway.
 // Without it, the DAD read after the up would find the address gone with the
 // link up and decline it as a duplicate.
+//
+// The valid lifetime left rounds up to a whole second, the preferred one
+// down. A live address has more than 0 s left, and a valid 0 beside a
+// preferred 0 reaches the backend as no lifetime at all, which the kernel
+// installs as permanent; the worker still removes it at its expiry.
 func (w *v6Worker) noteMove() {
 	now := w.clock().Now()
 	clear(w.dadChecked)
 	for _, b := range w.lease.live(v6KindAddress, now) {
-		valid := v6Seconds(b.remainingAt(b.valid, now))
+		valid := v6SecondsUp(b.remainingAt(b.valid, now))
 		preferred := v6Seconds(b.remainingAt(b.preferred, now))
 		if err := iface.ReplaceAddressWithLifetime(w.c.ifaceName, b.prefix.String(), valid, preferred); err != nil {
 			loggerPtr.Load().Warn("iface dhcp v6: cannot install the leased address again after the link came back up",
