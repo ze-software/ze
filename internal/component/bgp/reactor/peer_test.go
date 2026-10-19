@@ -441,10 +441,18 @@ func TestPeerShouldQueue(t *testing.T) {
 	peer.sendingInitialRoutes.Store(0)
 	require.False(t, peer.shouldQueue(), "should not queue when established with empty queue")
 
-	// Queue has items → should queue (preserves insertion order)
+	// The gate is open, so the queue refuses: nothing would drain the route.
 	route := testRoute("10.0.0.0/8")
-	require.NoError(t, peer.QueueAnnounce(route, false, false))
+	require.ErrorIs(t, peer.QueueAnnounce(route, false, false), errQueueGateOpen)
+	require.ErrorIs(t, peer.QueueWithdraw(route.NLRI()), errQueueGateOpen)
+	require.False(t, peer.shouldQueue(), "a refused operation must not close the gate")
+
+	// Queue has items → should queue (preserves insertion order)
+	peer.mu.Lock()
+	peer.opQueue = append(peer.opQueue, peerOp{Type: PeerOpAnnounce, Route: route})
+	peer.mu.Unlock()
 	require.True(t, peer.shouldQueue(), "should queue when opQueue non-empty")
+	require.NoError(t, peer.QueueAnnounce(route, false, false), "a closed gate queues")
 
 	// Clear queue, still established → should not queue
 	peer.mu.Lock()

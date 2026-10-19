@@ -1653,7 +1653,11 @@ not hold Ze's own marker (owner ruling, 2026-09-18).
 7. **sendInitialRoutes writes what it owns:** config static routes,
    default-originate, the peer-up barrier, then the family routes.
 8. **drainAndCloseQueueGate:** the opQueue is drained and new work no longer
-   joins the engine's initial-sync queue. The separate live-forward replay fence
+   joins the engine's initial-sync queue. An announce or withdrawal that read
+   `shouldQueue()` before this point and reaches `QueueAnnounce` or
+   `QueueWithdraw` after it is refused with `errQueueGateOpen`, because nothing
+   drains the queue again, and the batch rail sends it directly instead
+   (`queueGateClosedLocked`, `reactor_api_batch.go`). The separate live-forward replay fence
    remains held until its named reporters finish. A teardown queued during this
    drain's sends stops it as it stops the first drain (`runQueuedTeardown`:
    End-of-RIB, then the NOTIFICATION, then the gate opens), and steps 9 and 10

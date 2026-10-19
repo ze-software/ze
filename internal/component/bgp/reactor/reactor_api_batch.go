@@ -400,11 +400,6 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 		// dynamic peer still resolving its ASN (sibling PeerAS read at :886 is guarded too).
 		isIBGP := peer.IsIBGP()
 
-		// Resolve next-hop per peer using RouteNextHop policy. A family that
-		// names no forwarding hop is not asked for one: RFC 8955 Section 4 sets
-		// the FlowSpec next-hop length to zero, so there is nothing to resolve
-		// and a failure to resolve it is not a reason to skip the peer
-		// (family.Family.NeedsNextHop).
 		queued := peer.shouldQueue()
 		if batch.SentOwnerMessage != 0 {
 			// A maintenance receipt names an existing session advertisement;
@@ -418,27 +413,11 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 			}
 			queued = false
 		}
-		target := announceTarget{peer: peer, source: initialSource, sourceGeneration: initialGeneration, sourceState: initialState}
-		if !queued {
-			target.session = peer.currentSession()
-		}
-		// A queued route keeps its policy and is resolved against the session
-		// that drains it (resolveQueuedNextHop): only that session's negotiated
-		// capabilities can license an explicit IPv6 next hop for IPv4 NLRI.
-		var nextHop netip.Addr
-		switch {
-		case !queued:
-			var nhErr error
-			nextHop, nhErr = peer.resolveNextHop(target.session, batch.NextHop, batch.Family)
-			if nhErr != nil && batch.Family.NeedsNextHop() {
-				routesLogger().Debug("next-hop resolution failed", "peer", peer.Settings().Address, "error", nhErr)
-				lastErr = nhErr
-				continue
-			}
-		case !batch.NextHop.IsSelf():
-			nextHop = batch.NextHop.Addr
-		}
-
+		// peerBatch is what this peer is sent directly. It is the whole batch
+		// unless the queueing gate opened partway through queueing it, and then
+		// it is the NLRIs the queue refused, which no update group shares.
+		peerBatch := batch
+		partial := false
 		if queued {
 			if !queuedEVPNChecked && batch.Wire == nil &&
 				batch.Family == (family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}) {
@@ -447,79 +426,88 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 				}
 				queuedEVPNChecked = true
 			}
-			// Session not established or queue draining: queue to preserve order
-			// Build AS_PATH only for queue path (iBGP vs eBGP); the established
-			// path builds AS_PATH inside the UPDATE wire bytes directly.
-			asPath := a.buildBatchASPathAttr(userASPath, batch.OriginAS, isIBGP, peer.Settings().RSClient, localASPrependFor(peer.Settings()))
-			// A queue that is full DROPS the route rather than delaying it, and
-			// the caller is told: past the cap this route never reaches the
-			// peer, so counting it as accepted would report success for a RIB
-			// the peer will never receive. The startup convergence hold is what
-			// made this reachable in normal operation, because it keeps the
-			// queueing gate closed for up to `max-delay` (update_delay.go).
-			queued := true
-			for _, n := range batch.NLRIs {
-				if err := ctx.Err(); err != nil {
-					return err
-				}
-				ribRoute := rib.NewRouteWithASPath(n, nextHop, attrs, asPath)
-				if err := peer.QueueAnnounce(ribRoute, batch.NextHop.IsSelf(), batch.Replay); err != nil {
-					lastErr = err
-					queued = false
-					break
-				}
+			// Session not established or queue draining: queue to preserve order.
+			refused, queueErr := a.queueAnnounceForPeer(ctx, peer, batch, attrs, userASPath, isIBGP)
+			if err := ctx.Err(); err != nil {
+				return err
 			}
-			if queued {
+			if queueErr == nil {
 				acceptedCount++ // Queued counts as accepted
-			}
-		} else {
-			// Check family negotiation
-			nc := peer.negotiated.Load()
-			if nc == nil || !nc.Has(batch.Family) {
-				continue // Skip peer that doesn't support this family
-			}
-
-			// LLGR stale readvertise (RFC 9494): run the per-peer readvertise
-			// egress filter so the route is kept+marked for LLGR-capable peers,
-			// depreferenced for non-LLGR iBGP, or withdrawn for non-LLGR eBGP.
-			// Rare (GR-expiry) path; the common Stale==0 path is untouched.
-			if batch.Stale > 0 && len(a.r.readvertiseEgressFilters) > 0 {
-				sent, failErr := a.sendStaleReadvertise(ctx, target, batch, nextHop, isIBGP, nc)
-				acceptedCount += sent
-				switch {
-				case failErr != nil:
-					// The readvertise could not be carried out: a filter crashed,
-					// or its modifications could not be built. Either way the peer
-					// decided nothing and the family IS negotiated, so
-					// ErrNoPeersAcceptedFamily would state a cause that is untrue
-					// (ai/rules/cli.md) and would be downgraded to a warning on
-					// that basis. failErr names which one it was.
-					lastErr = failErr
-				case sent == 0:
-					lastErr = route.ErrNoPeersAcceptedFamily
-				}
 				continue
 			}
+			if !errors.Is(queueErr, errQueueGateOpen) {
+				lastErr = queueErr
+				continue
+			}
+			// The initial sync drained the queue and opened the gate after
+			// shouldQueue answered: nothing drains an operation appended now, so
+			// the NLRIs the queue refused go out directly, after the ones the
+			// drain already sent.
+			if refused > 0 {
+				acceptedCount++ // The queued part counts as accepted.
+				peerBatch.NLRIs = batch.NLRIs[refused:]
+				partial = true
+			}
+		}
+		target := announceTarget{peer: peer, source: initialSource, sourceGeneration: initialGeneration, sourceState: initialState}
+		target.session = peer.currentSession()
+		// Resolve next-hop per peer using RouteNextHop policy. A family that
+		// names no forwarding hop is not asked for one: RFC 8955 Section 4 sets
+		// the FlowSpec next-hop length to zero, so there is nothing to resolve
+		// and a failure to resolve it is not a reason to skip the peer
+		// (family.Family.NeedsNextHop).
+		nextHop, nhErr := peer.resolveNextHop(target.session, peerBatch.NextHop, peerBatch.Family)
+		if nhErr != nil && peerBatch.Family.NeedsNextHop() {
+			routesLogger().Debug("next-hop resolution failed", "peer", peer.Settings().Address, "error", nhErr)
+			lastErr = nhErr
+			continue
+		}
+		// Check family negotiation
+		nc := peer.negotiated.Load()
+		if nc == nil || !nc.Has(peerBatch.Family) {
+			continue // Skip peer that doesn't support this family
+		}
 
-			facts := announceFactsFor(peer, batch.Family, nextHop, isIBGP, nc)
+		// LLGR stale readvertise (RFC 9494): run the per-peer readvertise
+		// egress filter so the route is kept+marked for LLGR-capable peers,
+		// depreferenced for non-LLGR iBGP, or withdrawn for non-LLGR eBGP.
+		// Rare (GR-expiry) path; the common Stale==0 path is untouched.
+		if peerBatch.Stale > 0 && len(a.r.readvertiseEgressFilters) > 0 {
+			sent, failErr := a.sendStaleReadvertise(ctx, target, peerBatch, nextHop, isIBGP, nc)
+			acceptedCount += sent
+			switch {
+			case failErr != nil:
+				// The readvertise could not be carried out: a filter crashed,
+				// or its modifications could not be built. Either way the peer
+				// decided nothing and the family IS negotiated, so
+				// ErrNoPeersAcceptedFamily would state a cause that is untrue
+				// (ai/rules/cli.md) and would be downgraded to a warning on
+				// that basis. failErr names which one it was.
+				lastErr = failErr
+			case sent == 0:
+				lastErr = route.ErrNoPeersAcceptedFamily
+			}
+			continue
+		}
 
-			if groupsEnabled {
-				// Collect peer into build group for deferred batch build.
-				bg, ok := buildGroups[facts]
-				if !ok {
-					bg = &announceBuildGroup{facts: facts}
-					buildGroups[facts] = bg
-				}
-				bg.targets = append(bg.targets, target)
-			} else {
-				// A single stack slot keeps the per-peer path allocation-free
-				// while binding resolution and delivery to the same session.
-				targets := [1]announceTarget{target}
-				n, sendErr := a.announceBatchToPeers(ctx, targets[:], batch, facts)
-				acceptedCount += n
-				if sendErr != nil {
-					lastErr = sendErr
-				}
+		facts := announceFactsFor(peer, peerBatch.Family, nextHop, isIBGP, nc)
+
+		if groupsEnabled && !partial {
+			// Collect peer into build group for deferred batch build.
+			bg, ok := buildGroups[facts]
+			if !ok {
+				bg = &announceBuildGroup{facts: facts}
+				buildGroups[facts] = bg
+			}
+			bg.targets = append(bg.targets, target)
+		} else {
+			// A single stack slot keeps the per-peer path allocation-free
+			// while binding resolution and delivery to the same session.
+			targets := [1]announceTarget{target}
+			n, sendErr := a.announceBatchToPeers(ctx, targets[:], peerBatch, facts)
+			acceptedCount += n
+			if sendErr != nil {
+				lastErr = sendErr
 			}
 		}
 	}
@@ -818,6 +806,41 @@ func logWithdrawWithheld(peer *Peer, unit bgptypes.NLRIBatch) {
 		"rfc", "RFC 4271 Section 4.3")
 }
 
+// queueAnnounceForPeer queues batch's NLRIs on peer's opQueue, in order. It
+// answers the error that stopped it and the index of the NLRI it stopped at,
+// so a caller told errQueueGateOpen sends batch.NLRIs[refused:] directly: the
+// NLRIs before it were queued and the drain that opened the gate sent them.
+//
+// A queued route keeps its policy and is resolved against the session that
+// drains it (resolveQueuedNextHop): only that session's negotiated capabilities
+// can license an explicit IPv6 next hop for IPv4 NLRI. AS_PATH is built here
+// for the same reason (iBGP vs eBGP); the established path builds it inside the
+// UPDATE wire bytes directly.
+//
+// A queue that is full DROPS the route rather than delaying it, and the caller
+// is told: past the cap this route never reaches the peer, so counting it as
+// accepted would report success for a RIB the peer will never receive. The
+// startup convergence hold is what made this reachable in normal operation,
+// because it keeps the queueing gate closed for up to `max-delay`
+// (update_delay.go).
+func (a *reactorAPIAdapter) queueAnnounceForPeer(ctx context.Context, peer *Peer, batch bgptypes.NLRIBatch, attrs []attribute.Attribute, userASPath *attribute.ASPath, isIBGP bool) (refused int, err error) {
+	var nextHop netip.Addr
+	if !batch.NextHop.IsSelf() {
+		nextHop = batch.NextHop.Addr
+	}
+	asPath := a.buildBatchASPathAttr(userASPath, batch.OriginAS, isIBGP, peer.Settings().RSClient, localASPrependFor(peer.Settings()))
+	for i, n := range batch.NLRIs {
+		if err := ctx.Err(); err != nil {
+			return i, err
+		}
+		ribRoute := rib.NewRouteWithASPath(n, nextHop, attrs, asPath)
+		if err := peer.QueueAnnounce(ribRoute, batch.NextHop.IsSelf(), batch.Replay); err != nil {
+			return i, err
+		}
+	}
+	return len(batch.NLRIs), nil
+}
+
 // WithdrawNLRIBatch withdraws a batch of NLRIs.
 // RFC 4271 Section 4.3: Withdrawn Routes field.
 // RFC 4760: MP_UNREACH_NLRI for non-IPv4-unicast families.
@@ -876,54 +899,71 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(ctx context.Context, sel *selector
 		// opQueue, which drains when the sync ends, before a replay the fence
 		// still holds. withdrawBehindForwards sends it to the forward queue
 		// instead, behind the replay (withdrawBatchFromPeers).
-		if batch.SentOwnerMessage != 0 || !peer.shouldQueue() || peer.withdrawBehindForwards() {
-			// Check family negotiation
-			nc := peer.negotiated.Load()
-			if nc == nil || !nc.Has(batch.Family) {
-				continue // Skip peer that doesn't support this family
-			}
-
-			// Guarded: this batch-withdraw path runs on an API/plugin goroutine and
-			// may read a dynamic peer still resolving its ASN, exactly as the
-			// announce rail's read at :306 does.
-			facts := withdrawFactsFor(peer, batch, peer.IsIBGP(), nc)
-
-			if groupsEnabled {
-				wg, ok := wdGroups[facts]
-				if !ok {
-					wg = &withdrawBuildGroup{facts: facts}
-					wdGroups[facts] = wg
-				}
-				wg.peers = append(wg.peers, peer)
-			} else {
-				// Per-peer path (update groups disabled). peers[i:i+1] is a view
-				// of the slice already in hand, so the one-peer set costs no
-				// allocation on the fan-out (ai/rules/performance.md).
-				n, peerWithheld, sendErr := a.withdrawBatchFromPeers(ctx, peers[i:i+1], batch, facts)
-				acceptedCount += n
-				withheld = append(withheld, peerWithheld...)
-				if sendErr != nil {
-					lastErr = sendErr
-				}
-			}
-		} else {
+		// peerBatch is what this peer is sent directly: the whole batch, or the
+		// NLRIs the queue refused once its gate opened partway through, which
+		// no update group shares.
+		peerBatch := batch
+		partial := false
+		if batch.SentOwnerMessage == 0 && peer.shouldQueue() && !peer.withdrawBehindForwards() {
 			// Session not established or queue draining: queue to preserve order
 			// A dropped withdrawal is worse than a dropped announce: the peer
 			// keeps forwarding to a prefix this speaker has taken back. Same
 			// contract as the announce rail above.
-			queued := true
-			for _, n := range batch.NLRIs {
+			refused := len(batch.NLRIs)
+			var queueErr error
+			for k, n := range batch.NLRIs {
 				if err := ctx.Err(); err != nil {
 					return err
 				}
 				if err := peer.QueueWithdraw(n); err != nil {
-					lastErr = err
-					queued = false
+					refused, queueErr = k, err
 					break
 				}
 			}
-			if queued {
+			if queueErr == nil {
 				acceptedCount++ // Queued counts as accepted
+				continue
+			}
+			if !errors.Is(queueErr, errQueueGateOpen) {
+				lastErr = queueErr
+				continue
+			}
+			// The initial sync drained the queue and opened the gate after
+			// shouldQueue answered, as on the announce rail: the withdrawals
+			// the queue refused go out directly.
+			if refused > 0 {
+				acceptedCount++ // The queued part counts as accepted.
+				peerBatch.NLRIs = batch.NLRIs[refused:]
+				partial = true
+			}
+		}
+		// Check family negotiation
+		nc := peer.negotiated.Load()
+		if nc == nil || !nc.Has(peerBatch.Family) {
+			continue // Skip peer that doesn't support this family
+		}
+
+		// Guarded: this batch-withdraw path runs on an API/plugin goroutine and
+		// may read a dynamic peer still resolving its ASN, exactly as the
+		// announce rail's read does.
+		facts := withdrawFactsFor(peer, peerBatch, peer.IsIBGP(), nc)
+
+		if groupsEnabled && !partial {
+			wg, ok := wdGroups[facts]
+			if !ok {
+				wg = &withdrawBuildGroup{facts: facts}
+				wdGroups[facts] = wg
+			}
+			wg.peers = append(wg.peers, peer)
+		} else {
+			// Per-peer path (update groups disabled). peers[i:i+1] is a view
+			// of the slice already in hand, so the one-peer set costs no
+			// allocation on the fan-out (ai/rules/performance.md).
+			n, peerWithheld, sendErr := a.withdrawBatchFromPeers(ctx, peers[i:i+1], peerBatch, facts)
+			acceptedCount += n
+			withheld = append(withheld, peerWithheld...)
+			if sendErr != nil {
+				lastErr = sendErr
 			}
 		}
 	}

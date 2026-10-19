@@ -1970,6 +1970,12 @@ func (s peerStop) run() {
 // teardown was silently dropped.
 var ErrOpQueueFull = errors.New("operation queue full")
 
+// errQueueGateOpen is QueueAnnounce's and QueueWithdraw's refusal when the
+// queueing gate opened after the caller's shouldQueue read: the initial sync
+// drained the opQueue and finished, so nothing would ever drain an operation
+// appended now. The caller MUST send the operation directly instead.
+var errQueueGateOpen = errors.New("queueing gate open: send directly")
+
 // Teardown sends a Cease NOTIFICATION with the given subcode and closes.
 // The session will send NOTIFICATION before closing the connection.
 // RFC 4486 defines Cease subcodes; RFC 8203 defines the shutdown message.
@@ -2104,13 +2110,34 @@ func (p *Peer) resetInitialSyncEOR() {
 // goroutine: setState closes the gate before it publishes PeerStateEstablished,
 // so an observer that sees Established already sees a non-zero flag. Reading the
 // state first and the flag second is therefore safe in either order.
+//
+// The answer is advisory: the gate can open between this read and a later
+// QueueAnnounce or QueueWithdraw, so those two re-ask under p.mu
+// (queueGateClosedLocked) and refuse with errQueueGateOpen rather than park an
+// operation behind a drain that has already finished.
 func (p *Peer) shouldQueue() bool {
 	if p.State() != PeerStateEstablished {
 		return true
 	}
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.sendingInitialRoutes.Load() != 0 || len(p.opQueue) > 0
+	return p.queueGateClosedLocked()
+}
+
+// queueGateClosedLocked is shouldQueue's answer for an Established peer, read
+// under p.mu. drainAndCloseQueueGate empties the opQueue and clears
+// sendingInitialRoutes under one p.mu hold, so a caller holding p.mu sees the
+// gate either closed with a drainer still owed or open with nothing to drain.
+// A peer that is not Established always queues: its next session's initial
+// sync drains the queue. MUST be called with p.mu held (read or write).
+func (p *Peer) queueGateClosedLocked() bool {
+	if p.State() != PeerStateEstablished {
+		return true
+	}
+	if p.sendingInitialRoutes.Load() != 0 {
+		return true
+	}
+	return len(p.opQueue) > 0
 }
 
 // initialSyncInProgress reports whether sendInitialRoutes is currently running for
@@ -2321,6 +2348,8 @@ func handshakeInFlight(session *Session) bool {
 // Used when session is not established to maintain operation order.
 // nextHopSelf retains the policy until the receiving session drains the queue.
 // If queue is full, the operation is dropped with a warning.
+// Returns errQueueGateOpen when the gate opened after the caller's shouldQueue
+// read, and the caller sends the route directly (see queueGateClosedLocked).
 // Returns ErrOpQueueFull when the queue is at its cap and the route was NOT
 // queued. The error is the point: past the cap this route reaches the peer
 // NEVER, because the queue is the only path while the gate is closed, and a
@@ -2328,6 +2357,10 @@ func handshakeInFlight(session *Session) bool {
 // a RIB the peer will never receive (ai/rules/principles.md).
 func (p *Peer) QueueAnnounce(route *rib.Route, nextHopSelf, replay bool) error {
 	p.mu.Lock()
+	if !p.queueGateClosedLocked() {
+		p.mu.Unlock()
+		return errQueueGateOpen
+	}
 	if len(p.opQueue) >= p.opQueueMax {
 		size := len(p.opQueue)
 		p.mu.Unlock()
@@ -2365,11 +2398,17 @@ func (p *Peer) raiseOpQueueFull(size int) {
 // QueueWithdraw queues a route withdrawal for when session establishes.
 // Used when session is not established to maintain operation order.
 // If queue is full, the operation is dropped with a warning.
+// Returns errQueueGateOpen when the gate opened after the caller's shouldQueue
+// read, and the caller sends the withdrawal directly.
 // Returns ErrOpQueueFull when the queue is at its cap and the withdrawal was
 // NOT queued. A dropped withdrawal is worse than a dropped announce: the peer
 // keeps forwarding to a prefix this speaker has taken back.
 func (p *Peer) QueueWithdraw(n nlri.NLRI) error {
 	p.mu.Lock()
+	if !p.queueGateClosedLocked() {
+		p.mu.Unlock()
+		return errQueueGateOpen
+	}
 	if len(p.opQueue) >= p.opQueueMax {
 		size := len(p.opQueue)
 		p.mu.Unlock()
