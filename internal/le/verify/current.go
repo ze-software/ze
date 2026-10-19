@@ -183,6 +183,23 @@ func slotFor(root string, ticket *job.Ticket) (verifyengine.Slot, func()) {
 // lifecycle `le verify worktree` runs; with `fast` it runs the changed-files
 // population in place.
 func currentHere(args leaction.Arguments) (any, int) {
+	return routeCurrent(args, currentRuns{worktree: runWorktree, inPlace: runInPlace})
+}
+
+// currentRuns holds the two runs `le verify current` can route to. They are
+// parameters rather than direct calls so a test can prove which one each
+// spelling reaches without creating a worktree or judging the checkout.
+type currentRuns struct {
+	// worktree runs the full population in a fresh detached worktree.
+	worktree func(Options) (any, int)
+	// inPlace runs the named population over the shared checkout.
+	inPlace func(certificateMode string) (any, int)
+}
+
+// routeCurrent decides where a `le verify current` line runs. Only the fast
+// population runs in place: the full one MUST go to a worktree, so local
+// development never moves the tree it judges.
+func routeCurrent(args leaction.Arguments, runs currentRuns) (any, int) {
 	certificateMode, err := population("le verify current", args)
 	if err != nil {
 		leaction.ReportError(err)
@@ -193,9 +210,13 @@ func currentHere(args leaction.Arguments) (any, int) {
 		text.Str("verify: le verify current runs the full population in a fresh detached worktree at HEAD, ").
 			Str("as le verify worktree does; le verify current fast runs the changed-files stages in place\n").
 			StdErr() //nolint:errcheck // CLI progress line
-		return runWorktree(Options{})
+		return runs.worktree(Options{})
 	}
+	return runs.inPlace(certificateMode)
+}
 
+// runInPlace runs the fast population over the shared checkout.
+func runInPlace(certificateMode string) (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
 		leaction.ReportError(err)

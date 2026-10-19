@@ -130,6 +130,64 @@ func TestRemovedModeSpellingNamesTheWorkingOnes(t *testing.T) {
 	}
 }
 
+// TestCurrentRoutesTheFullPopulationToAWorktree routes each `le verify current`
+// spelling through recording stand-ins for the two runs and proves bare and
+// `full` reach the worktree run with default Options, never the in-place run,
+// while `fast` reaches only the in-place run. No worktree is created and no
+// stage runs.
+//
+// The full population ran in place over the shared checkout until 839819ea2d,
+// so local edits moved the tree under the run that was judging it.
+func TestCurrentRoutesTheFullPopulationToAWorktree(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		args     leaction.Arguments
+		worktree bool
+	}{
+		{name: "bare", args: leaction.Arguments{}, worktree: true},
+		{name: "full", args: leaction.Arguments{keywordFull: {""}}, worktree: true},
+		{name: "fast", args: leaction.Arguments{keywordFast: {""}}, worktree: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var worktreeCalls, inPlaceCalls int
+			var options Options
+			var inPlaceMode string
+			runs := currentRuns{
+				worktree: func(given Options) (any, int) {
+					worktreeCalls++
+					options = given
+					return nil, 0
+				},
+				inPlace: func(certificateMode string) (any, int) {
+					inPlaceCalls++
+					inPlaceMode = certificateMode
+					return nil, 0
+				},
+			}
+			captureStderr(t, func() {
+				if _, code := routeCurrent(test.args, runs); code != 0 {
+					t.Errorf("routeCurrent answered %d, want 0", code)
+				}
+			})
+			if test.worktree {
+				if worktreeCalls != 1 || inPlaceCalls != 0 {
+					t.Fatalf("worktree runs %d, in-place runs %d; want 1 and 0", worktreeCalls, inPlaceCalls)
+				}
+				if options != (Options{}) {
+					t.Fatalf("worktree options = %#v, want HEAD and no keep", options)
+				}
+				return
+			}
+			if worktreeCalls != 0 || inPlaceCalls != 1 {
+				t.Fatalf("worktree runs %d, in-place runs %d; want 0 and 1", worktreeCalls, inPlaceCalls)
+			}
+			if inPlaceMode != verifyengine.FastMode {
+				t.Fatalf("in-place mode = %q, want %q", inPlaceMode, verifyengine.FastMode)
+			}
+		})
+	}
+}
+
 // TestVerifyCurrentEntersAdmission drives the entry point and reads the shared
 // job registry while a stage runs. It proves the run holds a slot of its own,
 // names that slot to every stage, and gives it back when the run ends.
