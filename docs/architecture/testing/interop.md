@@ -2265,6 +2265,7 @@ removes the container.
 | No `docker` binary | skips, naming the install route; fails under `ZE_REQUIRE_DOCKER=1` |
 | `docker info` fails | fails, naming the probe error |
 | The image cannot be pulled | fails; under the `live` tag it skips an ad hoc run and fails under `ZE_REQUIRE_DOCKER=1` (owner decision Q-6, `pull_live.go`) |
+| A `Spec.Dockerfile` image does not build | fails, naming the image, the Dockerfile and the `docker build` command that shows the failing step |
 | The container does not start, or `Ready` never accepts | fails, then the log tail follows |
 
 Two package tests start their server this way. The RPKI live tests start
@@ -2277,12 +2278,50 @@ server with no synchronised source (leap indicator 3, stratum 0 on the wire)
 is rejected with no clock step. The container reads the host's own kernel
 clock, so the offset is bounded, never a configured value.
 
+A server with no published image is built from its Dockerfile:
+`Spec.Dockerfile` names it from the module root, and `Start` then builds
+`Spec.Image` through `Docker.Build`, with the Dockerfile's directory as the
+context, instead of pulling it, and releases the tag the run owns after the
+container is removed; a build that fails fails the test. A server no probe from
+the host can observe, such as a UDP listener behind a published port that
+accepts datagrams before the server binds, names `Spec.ReadyInContainer`
+instead of `Spec.Ready`: a command run in the container whose exit 0 is ready.
+A test that reads what the server wrote calls `labtest.StartContainer`, which
+answers the `Container` with its address and `Container.Exec`. The flow-export
+collector tests run this way (`internal/plugins/flowexport/collectors_docker_test.go`,
+tag `docker`): nfcapd/nfdump and sflowtool built from
+`test/interop-flowexport/Dockerfile.collectors`, ready once the collector's
+socket is in the container's UDP table, their decoded records read with
+`docker exec` (`docs/architecture/flowexport/flow-export-1-counter-export.md`,
+"Independent collector tests").
+
+A package test whose real peer is a client, against a server the test runs
+in-process, runs it with `labtest.Run(t, client)`. `Run` pulls the image, runs
+one labeled container to its exit through `Docker.RunOneShot`, and answers the
+client's stdout, stderr and exit code, a non-zero exit included, so a test can
+assert a refused request. `Client.HostNetwork` puts the client in the host's
+network namespace (`OneShotContainer.Network`), where it reaches the test's
+listener on `127.0.0.1`, and `Client.Mounts` bind-mounts files the test wrote,
+such as a CA certificate (`OneShotContainer.Mounts`). The machine states in the
+table below are handled as `Start` handles them; a run the docker client did
+not finish (`interoplab.OneShotDidNotExit`), or an exit code `docker run` keeps
+for its own failure (125 to 127), fails the test. The gNMI server tests run
+gnmic this way (`internal/component/gnmi/gnmic_docker_test.go`, tag `docker`):
+Capabilities, Get, Subscribe ONCE and Set over TLS with a bearer token,
+decoded from gnmic's protojson output, and a request with no token or a wrong
+one refused `Unauthenticated`.
+
 `labtest` runs no Docker host kernel check: Ze runs in the test process on the
 host, and that check guards a containerised Ze. A peer that needs a Ze-kernel
 feature belongs in an `interoplab.Suite` lab. Only a `_test.go` file, or tooling
 under `internal/le`, imports `labtest` (`./le arch tier check`,
 `docs/architecture/module-tiers.md`).
 <!-- source: internal/le/interoplab/labtest/labtest.go -- Start, start, host.release -->
+<!-- source: internal/le/interoplab/labtest/container.go -- Container, host.build, host.readyInContainer -->
+<!-- source: internal/plugins/flowexport/collectors_docker_test.go -- TestFlowExportNFDumpInterop, TestFlowExportSFlowToolInterop -->
+<!-- source: internal/le/interoplab/labtest/labtest.go -- Run, run, Client -->
+<!-- source: internal/le/interoplab/docker.go -- OneShotContainer, OneShotDidNotExit -->
+<!-- source: internal/component/gnmi/gnmic_docker_test.go -- TestGnmicInterop -->
 <!-- source: internal/plugins/ntp/ntp_chrony_docker_test.go -- TestNTPClientSyncsFromChrony, TestNTPClientRejectsUnsynchronisedChrony -->
 <!-- source: internal/le/interoplab/container.go -- DetachedContainer.PublishedPorts, ContainerPort, Docker.PublishedPort -->
 

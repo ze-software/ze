@@ -1,5 +1,7 @@
-# Collector peers for internal/plugins/flowexport/interop_integration_linux_test.go.
-# Build from immutable upstream commits; the test binary is mounted at runtime.
+# Collector peers for internal/plugins/flowexport/collectors_docker_test.go.
+# Built from immutable upstream commits. The test builds this image through
+# labtest (Spec.Dockerfile), starts one container per collector with its own
+# `sh -c` command, and sends to the container's published UDP port.
 FROM debian:bookworm-slim AS build
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -36,5 +38,3 @@ COPY --from=build /src/nfdump/BSD-license.txt /usr/share/doc/nfdump/copyright
 COPY --from=build /src/sflowtool/COPYING /usr/share/doc/sflowtool/copyright
 ENV TZ=UTC
 USER 65532:65532
-ENTRYPOINT ["/flowexport.test"]
-CMD ["-test.v", "-test.timeout=2m", "-test.run=^TestFlowExport(NFDump|SFlowTool)Interop$", "-flowexport-peer-dir=/usr/local/bin"]

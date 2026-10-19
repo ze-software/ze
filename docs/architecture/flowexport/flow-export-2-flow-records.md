@@ -116,9 +116,9 @@ the unavailable-counter value, on every poll. IPFIX packet totals use separate
 
 ## Independent flow interpretation
 
-<!-- source: internal/plugins/flowexport/interop_integration_linux_test.go -- TestFlowExportNFDumpInterop, TestFlowExportSFlowToolInterop -->
+<!-- source: internal/plugins/flowexport/collectors_docker_test.go -- TestFlowExportNFDumpInterop, TestFlowExportSFlowToolInterop -->
 
-The [collector integration carrier](flow-export-1-counter-export.md#independent-collector-tests)
+The [collector carrier](flow-export-1-counter-export.md#independent-collector-tests)
 checks the records independent implementations decode from production encoder
 output. NetFlow v9 and IPFIX each export one IPv4 and one IPv6 flow alongside
 the counter record. The assertions require exact addresses, ports, protocol,

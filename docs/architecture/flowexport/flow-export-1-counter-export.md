@@ -114,10 +114,10 @@ detected from counter values alone.
 
 ## Independent collector tests
 
-<!-- source: internal/plugins/flowexport/interop_integration_linux_test.go -- TestFlowExportNFDumpInterop, TestFlowExportSFlowToolInterop -->
+<!-- source: internal/plugins/flowexport/collectors_docker_test.go -- TestFlowExportNFDumpInterop, TestFlowExportSFlowToolInterop -->
 <!-- source: test/interop-flowexport/Dockerfile.collectors -->
 
-The Linux integration carrier sends production encoder output through `Sender`
+The collector carrier sends production encoder output through `Sender`
 to independent collectors. `TestFlowExportNFDumpInterop` runs NetFlow v9 and
 IPFIX against `nfcapd`, then compares `nfdump` JSON records with the fixture's
 interface counters and IPv4/IPv6 flows. NetFlow's current counter template
@@ -129,21 +129,28 @@ including 64-bit octets and unavailable-counter sentinels. Its interface indexes
 exceed both compact sFlow limits, so the assertions detect truncation of the
 source index or the sampled packet's input/output ports.
 
-The carrier requires `-tags integration` and an explicit
-`-flowexport-peer-dir=<directory>` containing the peer executables. With no
-directory, generic integration discovery reports a prerequisite skip. With a
-directory, a missing executable fails the test. A skip supplies no
-interoperability evidence. The collector Dockerfile builds nfdump v1.7.10 at
-`9e47b47daa1c6a8a9a7ea92920b1b6b3ecb2ec7d` and sflowtool v6.11 at
-`c953cfe8991286457080938a29fc72019f64718a`; its default command supplies the
-installed peer directory and selects both tests.
+The carrier carries the build tag `docker`, so `./le test integration
+docker-peers` runs it, and it needs no privilege, namespace or guest kernel.
+`labtest` builds the collector image from `Dockerfile.collectors` (nfdump
+v1.7.10 at `9e47b47daa1c6a8a9a7ea92920b1b6b3ecb2ec7d`, sflowtool v6.11 at
+`c953cfe8991286457080938a29fc72019f64718a`) and starts one container per
+collector. The fixtures go to the container's UDP port, published on the host
+loopback. With no `docker` binary the test skips, and under
+`ZE_REQUIRE_DOCKER=1`, which `docker-peers` sets, it fails
+(`docs/architecture/testing/interop.md`, "A package test's own server
+container").
 
-Each collector gets a dynamic loopback UDP port. Readiness requires its socket
-inode to appear among its own file descriptors and its UDP table. The fixtures
-are sent once, and observation waits for completed rotation files or complete
-JSON datagrams. Cleanup terminates and reaps only the owned child, with bounded
-waits and a kill fallback. These tests cover encoder/transport interoperability;
-daemon counter collection remains a separate test surface.
+The collector runs as the child of the container's shell, so its files outlive
+its exit. Readiness is checked inside the container: the collector has recorded
+its pid and its UDP socket appears in the container's UDP table, which nothing
+else in that namespace holds. A published UDP port accepts datagrams before the
+collector binds, so no probe from the host can tell. The fixtures are sent
+once, and observation waits for completed rotation files or complete JSON
+datagrams, read with `docker exec`. The test then sends the collector SIGTERM,
+requires it to exit within three seconds with status 0 or by that signal, and
+reads the final output again, so a shutdown cannot hide an extra record. These
+tests cover encoder/transport interoperability; daemon counter collection
+remains a separate test surface.
 
 `TestFlowExportDaemonCounterGeneration` covers the separate producer path. It
 starts the supplied Ze executable in an isolated Linux network namespace and

@@ -534,3 +534,71 @@ refused `Unimplemented` (gNMI specification Section 3.3.1). Journal row in
 
 Shared files with S-4: `labtest.go`, `labtest_test.go` and the labtest
 section of `docs/architecture/testing/interop.md` carry both sessions' hunks.
+
+## Phase 5, S-4 (flow-export), 2026-10-19
+
+The `integration && linux` carrier
+`internal/plugins/flowexport/interop_integration_linux_test.go` is replaced
+(deleted, no-layering) by `internal/plugins/flowexport/collectors_docker_test.go`,
+tag `docker` alone. The split: nothing in it needs the QEMU guest. It drives the
+public encoders through `Sender` over UDP, with no namespace, privilege or
+kernel feature, so the whole file moved and none of it stays `integration`. The
+package stays in the guest population (`internal/le/test/qemu/alltests.go`
+unchanged) through `producer_integration_linux_test.go`
+(`TestFlowExportDaemonCounterGeneration`, which needs a namespace and a dummy
+interface). `-flowexport-peer-dir`, the host-process collectors, the
+`/proc` socket-ownership probe and the unprovisioned skip are gone.
+
+Image: `test/interop-flowexport/Dockerfile.collectors` (nfdump v1.7.10 at
+`9e47b47d`, sflowtool v6.11 at `c953cfe8`, unchanged pins), built by labtest as
+`ze-flowexport-collectors:test`. Its old `ENTRYPOINT ["/flowexport.test"]` and
+`CMD` (the test binary mounted into the image) are removed: the test runs on
+the host now.
+
+labtest gained (landed in `16051e7098`, carried by S-3): `Spec.Dockerfile`
+(build through `Docker.Build` instead of pull, run-owned tag released after the
+container), `Spec.ReadyInContainer` (a command whose exit 0 is ready, for a
+UDP server a host probe cannot observe; exactly one of it and `Ready`),
+`StartContainer` answering `Container{Address}` with `Container.Exec`; `Start`
+is `StartContainer(...).Address`. Unit tests: `TestLabtestBuildsADockerfileImage`,
+`TestLabtestFailsWhenTheBuildFails`, `TestLabtestReadyInContainer`, the
+"two ready" validate case.
+
+How the test runs a collector: entry point `sh`, which runs the collector as a
+child, records its pid and on exit its status, then `sleep infinity`, so the
+files survive the collector's exit. Ready = pid recorded and the port bound in
+the container's `/proc/net/udp` (only the collector is in that namespace). Ze
+sends to the published loopback port. nfdump runs per completed rotation file
+by `docker exec`; sflowtool's `-j` output is read with `cat`. Stop = SIGTERM to
+the recorded pid, exit within 3 s with status 0 or 143, then the final read.
+Every assertion function (`assertExportNFDumpRecords`,
+`assertExportSFlowDatagrams` and helpers) moved byte-identical.
+
+Green: `TestFlowExportNFDumpInterop` (netflow9, ipfix) and
+`TestFlowExportSFlowToolInterop`, 70.8 s with `ZE_REQUIRE_DOCKER=1`.
+No `RFC requirement:` tag in the file, so no discrimination record; the walk
+(`// MUTATION-APPLIED`, grep-verified, `-count=1`, restored from a pristine
+copy and `cmp`-checked, no marker left):
+
+| Mutation | Red | Failure | Stayed green |
+|----------|-----|---------|--------------|
+| `netflow9/flow_data.go` SrcAS +1 | `NFDump/netflow9` | `src_as=65552, want 65551` (and IPv6) | `NFDump/ipfix` |
+| `ipfix/data.go` packet total drops OutPackets | `NFDump/ipfix` | `in_packets=4294967307, want 12884901912` | `NFDump/netflow9` |
+| `sflow/counter.go` ifInOctets truncated to 32 bits | `SFlowTool` | `ifInOctets="5", want "4294967301"` | - |
+| `sflow/flow_adapter.go` output port masked to 30 bits | `SFlowTool` | `outputPort="573855352", want "3795080824"` | - |
+
+Restored: all three PASS (36.8 s).
+
+Found: the first run hit the 900 s test timeout inside `docker build`, with no
+output, because the daemon's pull of `debian:bookworm-slim` stalled (every
+`docker pull`, alpine included, hung until the stalled build client was
+stopped). The timed-out test binary left its `docker build` client running:
+the wrapper's process runner does not end a child when the test binary dies.
+Environmental, not reproduced since; not journaled as a code defect.
+
+Owed gates (not run here): scoped lint of `internal/plugins/flowexport` and
+`internal/le/interoplab/labtest` with `-tags docker` (`go vet -tags docker`
+passed), `./le test unit all`. The `docker-peers` journal row in
+`plan/journal/bound-too-small-for-its-own-burst.md` (a one-minute
+`TestDockerBuildRetainsImageAcrossRetag` bound overrun while flow-export built
+its image in parallel) concerns this population.

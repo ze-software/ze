@@ -1,10 +1,11 @@
-//go:build integration && linux
+//go:build docker
 
 // Design: docs/architecture/flowexport/flow-export-1-counter-export.md -- independent collector interpretation.
 // Design: docs/architecture/flowexport/flow-export-2-flow-records.md -- decoded flow records and sampled packets.
+// Related: ../../../test/interop-flowexport/Dockerfile.collectors -- the pinned nfdump and sflowtool image.
 //
-// These tests opt in with -flowexport-peer-dir pointing at the pinned peer tools.
-// test/interop-flowexport/Dockerfile.collectors pins the upstream implementations.
+// These tests build the pinned collectors from test/interop-flowexport/Dockerfile.collectors,
+// start each in its own container through labtest, and send to its published UDP port.
 // They exercise public encoders and Sender over UDP, without daemon ingestion,
 // network namespaces, privileges, or a Ze decoder acting as the oracle.
 package flowexport_test
@@ -15,21 +16,17 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
-	"net"
 	"net/netip"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/le/interoplab/labtest"
 	"github.com/ze-software/ze/internal/plugins/flowexport"
 	"github.com/ze-software/ze/internal/plugins/flowexport/ipfix"
 	"github.com/ze-software/ze/internal/plugins/flowexport/netflow9"
@@ -42,22 +39,45 @@ const (
 	exportInteropOutput  = uint32(0xe2345678)
 )
 
-var exportInteropPeerDir = flag.String("flowexport-peer-dir", "", "Directory containing pinned nfcapd, nfdump and sflowtool for collector interop")
+const (
+	// exportCollectorImage is the tag labtest builds from exportCollectorDockerfile.
+	exportCollectorImage      = "ze-flowexport-collectors:test"
+	exportCollectorDockerfile = "test/interop-flowexport/Dockerfile.collectors"
+	// The collector's own UDP port inside its container; the host side is
+	// whatever port Docker publishes it at.
+	exportNFCapdPort    = 2055
+	exportSFlowToolPort = 6343
+	// exportFlowDir is where nfcapd writes its rotation files in the container.
+	exportFlowDir = "/tmp/flows"
+	// exportOutputMax bounds what one read of collector output accepts.
+	exportOutputMax = 1 << 20
+	// exportPollInterval paces the observations; each one is a docker exec.
+	exportPollInterval = 100 * time.Millisecond
+	// exportReadTimeout bounds one docker exec that reads collector state.
+	exportReadTimeout = 10 * time.Second
+)
+
+// exportCollectorScript runs the collector as a child of the container's
+// shell, so the container, and the files the collector wrote, outlive its
+// exit: the test stops the collector itself, then reads the final rotation.
+// It records the child's pid and, on exit, its status ($? is 128+N for a
+// child killed by signal N).
+const exportCollectorScript = `mkdir -p ` + exportFlowDir + `
+"$@" >/tmp/collector.out 2>/tmp/collector.err &
+pid=$!
+echo "$pid" >/tmp/collector.pid
+wait "$pid"
+echo "$?" >/tmp/collector.exit
+exec sleep infinity`
 
 // MUTATION: a wrong template IE/width, truncated counter, swapped address or port,
 // or lost IPv6/ASN field changes nfdump's decoded records or prevents collection.
 func TestFlowExportNFDumpInterop(t *testing.T) {
-	nfcapd := exportInteropTool(t, "nfcapd")
-	nfdump := exportInteropTool(t, "nfdump")
 	for _, protocol := range []string{"netflow9", "ipfix"} {
 		t.Run(protocol, func(t *testing.T) {
-			flowDir := t.TempDir()
-			port := exportInteropPort(t)
-			peer := startExportCollector(t, nfcapd, "-4", "-b", "127.0.0.1", "-p", strconv.Itoa(port), "-w", flowDir, "-t", "2", "-C", "none")
-			peer.wait(t, "owned UDP listener", 5*time.Second, func(context.Context) (bool, error) {
-				return exportCollectorListening(peer.cmd.Process.Pid, port)
-			})
-			sender := exportInteropSender(t, port)
+			peer := startExportCollector(t, "nfcapd", exportNFCapdPort,
+				"nfcapd", "-4", "-p", strconv.Itoa(exportNFCapdPort), "-w", exportFlowDir, "-t", "2", "-C", "none")
+			sender := exportInteropSender(t, peer.container.Address)
 			now := time.Now().Truncate(time.Second)
 			start := now.Add(-time.Minute)
 			var counters flowexport.ProtocolEncoder
@@ -88,16 +108,16 @@ func TestFlowExportNFDumpInterop(t *testing.T) {
 			seenFiles := make(map[string]bool)
 			var records []map[string]json.RawMessage
 			collect := func(ctx context.Context) (bool, error) {
-				added, err := exportNFDumpRecords(ctx, nfdump, flowDir, seenFiles)
+				added, err := exportNFDumpRecords(ctx, peer.container, seenFiles)
 				records = append(records, added...)
 				return len(records) >= 3, err
 			}
 			peer.wait(t, "three nfdump records in completed files", 15*time.Second, collect)
-			if err := peer.stop(); err != nil {
+			if err := peer.stop(t.Context()); err != nil {
 				t.Fatalf("stop nfcapd: %v\n%s", err, peer.diagnostics())
 			}
 			// Include the final rotation, so shutdown cannot hide extra records.
-			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), exportReadTimeout)
 			defer cancel()
 			if _, err := collect(ctx); err != nil {
 				t.Fatalf("read final nfcapd rotation: %v", err)
@@ -111,13 +131,9 @@ func TestFlowExportNFDumpInterop(t *testing.T) {
 // MUTATION: compact samples truncate these indexes; a wrong sampled-header
 // length, FCS count, protocol or offset changes sflowtool's Ethernet/IP/UDP decode.
 func TestFlowExportSFlowToolInterop(t *testing.T) {
-	tool := exportInteropTool(t, "sflowtool")
-	port := exportInteropPort(t)
-	peer := startExportCollector(t, tool, "-4", "-b", "127.0.0.1", "-p", strconv.Itoa(port), "-j")
-	peer.wait(t, "owned UDP listener", 5*time.Second, func(context.Context) (bool, error) {
-		return exportCollectorListening(peer.cmd.Process.Pid, port)
-	})
-	sender := exportInteropSender(t, port)
+	peer := startExportCollector(t, "sflowtool", exportSFlowToolPort,
+		"sflowtool", "-4", "-p", strconv.Itoa(exportSFlowToolPort), "-j")
+	sender := exportInteropSender(t, peer.container.Address)
 	now := time.Now().Truncate(time.Second)
 	start := now.Add(-time.Minute)
 	agent := netip.MustParseAddr("192.0.2.9")
@@ -133,8 +149,8 @@ func TestFlowExportSFlowToolInterop(t *testing.T) {
 	if err := flows.EncodeFlowSample(sample, sender); err != nil {
 		t.Fatalf("send sampled frame: %v", err)
 	}
-	peer.wait(t, "two complete sflowtool JSON datagrams", 10*time.Second, func(context.Context) (bool, error) {
-		data, err := exportCollectorOutput(peer.stdout.Name())
+	peer.wait(t, "two complete sflowtool JSON datagrams", 10*time.Second, func(ctx context.Context) (bool, error) {
+		data, err := peer.read(ctx, "/tmp/collector.out")
 		if err != nil {
 			return false, err
 		}
@@ -144,10 +160,10 @@ func TestFlowExportSFlowToolInterop(t *testing.T) {
 		datagrams, err := exportSFlowDatagrams(complete)
 		return len(datagrams) >= 2, err
 	})
-	if err := peer.stop(); err != nil {
+	if err := peer.stop(t.Context()); err != nil {
 		t.Fatalf("stop sflowtool: %v\n%s", err, peer.diagnostics())
 	}
-	data, err := exportCollectorOutput(peer.stdout.Name())
+	data, err := peer.read(t.Context(), "/tmp/collector.out")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,42 +239,9 @@ func exportInteropEthernetFrame() []byte {
 	return frame
 }
 
-func exportInteropTool(t *testing.T, name string) string {
+func exportInteropSender(t *testing.T, address netip.AddrPort) *flowexport.Sender {
 	t.Helper()
-	if *exportInteropPeerDir == "" {
-		t.Skip("collector interop requires explicit -flowexport-peer-dir; an unprovisioned skip is not interoperability evidence")
-	}
-	directory, err := filepath.Abs(*exportInteropPeerDir)
-	if err != nil {
-		t.Fatalf("resolve -flowexport-peer-dir: %v", err)
-	}
-	path, err := exec.LookPath(filepath.Join(directory, name))
-	if err != nil {
-		t.Fatalf("explicit collector interop requires %s in %s: %v; build test/interop-flowexport/Dockerfile.collectors", name, directory, err)
-	}
-	return path
-}
-
-func exportInteropPort(t *testing.T) int {
-	t.Helper()
-	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
-	if err != nil {
-		t.Fatalf("allocate collector UDP port: %v", err)
-	}
-	udpAddr, ok := conn.LocalAddr().(*net.UDPAddr)
-	if !ok {
-		t.Fatalf("collector address is %T", conn.LocalAddr())
-	}
-	port := udpAddr.Port
-	if err := conn.Close(); err != nil {
-		t.Fatalf("release collector UDP port: %v", err)
-	}
-	return port
-}
-
-func exportInteropSender(t *testing.T, port int) *flowexport.Sender {
-	t.Helper()
-	sender, err := flowexport.NewSender("127.0.0.1", port, "", flowexport.DatagramSizeDefault)
+	sender, err := flowexport.NewSender(address.Addr().String(), int(address.Port()), "", flowexport.DatagramSizeDefault)
 	if err != nil {
 		t.Fatalf("create production UDP sender: %v", err)
 	}
@@ -270,65 +253,29 @@ func exportInteropSender(t *testing.T, port int) *flowexport.Sender {
 	return sender
 }
 
-// exportCollector owns exactly one foreground child and its Wait goroutine.
-// startExportProcess MUST register cleanup; stop MUST terminate and reap it.
-// File-backed output captures bytes before the stimulus and permits concurrent
-// observation without racing an exec writer against a bytes.Buffer reader.
+// exportCollector is one collector running as the child of its container's
+// shell (exportCollectorScript). labtest removes the container, and the
+// collector with it, in t.Cleanup; stop is the requested shutdown a test
+// MUST call before it reads the collector's final output. Not safe for
+// concurrent use: the test goroutine owns it.
 type exportCollector struct {
-	cmd     *exec.Cmd
-	done    chan struct{}
-	waitErr error // read only after done closes
-	cancel  context.CancelFunc
-	stdout  *os.File
-	stderr  *os.File
-	stopped bool
+	container labtest.Container
+	stopped   bool
 }
 
-func startExportCollector(t *testing.T, tool string, args ...string) *exportCollector {
+// startExportCollector starts argv in a container built from the pinned
+// collector image and returns once the collector's UDP socket is bound.
+func startExportCollector(t *testing.T, name string, port uint16, argv ...string) *exportCollector {
 	t.Helper()
-	// Cleanup must still work after testing cancels t.Context().
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	cmd := exec.CommandContext(ctx, tool, args...)
-	cmd.Env = append(os.Environ(), "TZ=UTC")
-	return startExportProcess(t, cmd, cancel)
-}
-
-func startExportProcess(t *testing.T, cmd *exec.Cmd, cancel context.CancelFunc) *exportCollector {
-	t.Helper()
-	t.Cleanup(cancel)
-	dir := t.TempDir()
-	stdout, err := os.Create(filepath.Join(dir, "stdout"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := stdout.Close(); err != nil {
-			t.Errorf("close collector stdout: %v", err)
-		}
+	command := append([]string{"-c", exportCollectorScript, "collector"}, argv...)
+	container := labtest.StartContainer(t, labtest.Spec{
+		Name: "flowexport-" + name, Image: exportCollectorImage, Dockerfile: exportCollectorDockerfile,
+		Entrypoint: "sh", Command: command, Port: interoplab.UDPPort(port),
+		ReadyInContainer: []string{"sh", "-c", exportCollectorBound(port)},
+		ReadyTimeout:     30 * time.Second, LogLines: 50,
 	})
-	stderr, err := os.Create(filepath.Join(dir, "stderr"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	peer := &exportCollector{container: container}
 	t.Cleanup(func() {
-		if err := stderr.Close(); err != nil {
-			t.Errorf("close collector stderr: %v", err)
-		}
-	})
-	cmd.Stdout, cmd.Stderr = stdout, stderr
-	peer := &exportCollector{cmd: cmd, done: make(chan struct{}), cancel: cancel, stdout: stdout, stderr: stderr}
-	if err := cmd.Start(); err != nil {
-		cancel()
-		t.Fatalf("start %s: %v", cmd.Path, err)
-	}
-	go func() {
-		peer.waitErr = cmd.Wait()
-		close(peer.done)
-	}()
-	t.Cleanup(func() {
-		if err := peer.stop(); err != nil {
-			t.Errorf("collector cleanup: %v", err)
-		}
 		if t.Failed() {
 			t.Log(peer.diagnostics())
 		}
@@ -336,65 +283,87 @@ func startExportProcess(t *testing.T, cmd *exec.Cmd, cancel context.CancelFunc) 
 	return peer
 }
 
-// stop MUST be called for every started collector, including failed tests.
-func (p *exportCollector) stop() error {
+// exportCollectorBound is the in-container readiness check: the collector
+// recorded its pid and an IPv4 UDP socket is bound on port. A UDP port
+// published through Docker accepts datagrams before the collector binds, so
+// no probe from the host can observe readiness. The container's network
+// namespace holds the collector alone, so the bound socket is the collector's.
+func exportCollectorBound(port uint16) string {
+	local := fmt.Sprintf(" 00000000:%04X 00000000:0000 07 ", port)
+	return "test -s /tmp/collector.pid && grep -q '" + local + "' /proc/net/udp"
+}
+
+// exited answers the collector's exit status, or false while it runs.
+func (p *exportCollector) exited(ctx context.Context) (string, bool, error) {
+	result, err := p.container.Exec(ctx, "sh", "-c", "cat /tmp/collector.exit 2>/dev/null || true")
+	if err != nil {
+		return "", false, fmt.Errorf("read collector exit status: %w", err)
+	}
+	status := strings.TrimSpace(result.Stdout)
+	return status, status != "", nil
+}
+
+// stop MUST be called before reading a collector's final output. It sends
+// SIGTERM to the collector and waits three seconds for it to exit.
+func (p *exportCollector) stop(ctx context.Context) error {
 	if p.stopped {
 		return nil
 	}
 	p.stopped = true
-	defer p.cancel()
-	select {
-	case <-p.done:
-		return errors.Join(fmt.Errorf("%s exited before requested shutdown", p.cmd.Path), p.waitErr)
-	default:
+	status, exited, err := p.exited(ctx)
+	if err != nil {
+		return err
 	}
-	signalErr := p.cmd.Process.Signal(syscall.SIGTERM)
-	if signalErr != nil {
-		p.cancel()
+	if exited {
+		return fmt.Errorf("collector exited with status %s before requested shutdown", status)
 	}
-	timer := time.NewTimer(3 * time.Second)
-	defer timer.Stop()
-	select {
-	case <-p.done:
-		if signalErr != nil {
-			return fmt.Errorf("terminate collector: %w", signalErr)
+	if _, err := p.container.Exec(ctx, "sh", "-c", `kill -TERM "$(cat /tmp/collector.pid)"`); err != nil {
+		return fmt.Errorf("terminate collector: %w", err)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		status, exited, err := p.exited(ctx)
+		if err != nil {
+			return err
 		}
-		if p.waitErr == nil {
-			return nil
+		if exited {
+			return exportCollectorShutdown(status)
 		}
-		if exit, ok := errors.AsType[*exec.ExitError](p.waitErr); ok {
-			if status, ok := exit.Sys().(syscall.WaitStatus); ok {
-				if status.Signaled() && status.Signal() == syscall.SIGTERM {
-					return nil // sflowtool exits on the requested signal.
-				}
-			}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(exportPollInterval):
 		}
-		return fmt.Errorf("collector shutdown: %w", p.waitErr)
-	case <-timer.C:
-		p.cancel() // CommandContext kills only this owned process.
 	}
-	timer.Reset(3 * time.Second)
-	select {
-	case <-p.done:
-		return errors.New("collector did not exit within three seconds of SIGTERM; killed and reaped")
-	case <-timer.C:
-		return errors.New("collector did not exit after kill")
+	return errors.New("collector did not exit within three seconds of SIGTERM; removing its container kills it")
+}
+
+// exportCollectorShutdown judges the status the container's shell recorded.
+func exportCollectorShutdown(status string) error {
+	if status == "0" {
+		return nil
 	}
+	if status == "143" {
+		return nil // 128+SIGTERM: sflowtool exits on the requested signal.
+	}
+	return fmt.Errorf("collector shutdown: exit status %s", status)
 }
 
 func (p *exportCollector) wait(t *testing.T, description string, timeout time.Duration, observe func(context.Context) (bool, error)) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(t.Context(), timeout)
 	defer cancel()
-	ticker := time.NewTicker(20 * time.Millisecond)
+	ticker := time.NewTicker(exportPollInterval)
 	defer ticker.Stop()
-	// Every iteration observes a socket or complete collector output. The timer
-	// bounds polling; elapsed time never substitutes for the observed condition.
+	// Every iteration observes the collector's status and its complete output.
+	// The timer bounds polling; elapsed time never substitutes for the observed condition.
 	for {
-		select {
-		case <-p.done:
-			t.Fatalf("collector exited while waiting for %s: %v\n%s", description, p.waitErr, p.diagnostics())
-		default:
+		status, exited, err := p.exited(ctx)
+		if err != nil {
+			t.Fatalf("observe %s: %v\n%s", description, err, p.diagnostics())
+		}
+		if exited {
+			t.Fatalf("collector exited with status %s while waiting for %s\n%s", status, description, p.diagnostics())
 		}
 		ready, err := observe(ctx)
 		if err != nil {
@@ -406,107 +375,68 @@ func (p *exportCollector) wait(t *testing.T, description string, timeout time.Du
 		select {
 		case <-ctx.Done():
 			t.Fatalf("wait for %s: %v\n%s", description, ctx.Err(), p.diagnostics())
-		case <-p.done:
-			t.Fatalf("collector exited while waiting for %s: %v\n%s", description, p.waitErr, p.diagnostics())
 		case <-ticker.C:
 		}
 	}
 }
 
-func exportCollectorListening(pid, port int) (bool, error) {
-	proc := "/proc/" + strconv.Itoa(pid)
-	fds, err := os.ReadDir(filepath.Join(proc, "fd"))
+// read answers one file the collector wrote in its container.
+func (p *exportCollector) read(ctx context.Context, path string) ([]byte, error) {
+	readCtx, cancel := context.WithTimeout(ctx, exportReadTimeout)
+	defer cancel()
+	result, err := p.container.Exec(readCtx, "cat", path)
 	if err != nil {
-		return false, fmt.Errorf("read collector descriptors: %w", err)
+		return nil, fmt.Errorf("read collector %s: %w", path, err)
 	}
-	inodes := make(map[string]bool)
-	for _, fd := range fds {
-		target, err := os.Readlink(filepath.Join(proc, "fd", fd.Name()))
-		if errors.Is(err, os.ErrNotExist) {
-			continue // A descriptor may close during the procfs snapshot.
-		}
-		if err != nil {
-			return false, fmt.Errorf("read collector descriptor %s: %w", fd.Name(), err)
-		}
-		if inode, ok := strings.CutPrefix(target, "socket:["); ok {
-			inodes[strings.TrimSuffix(inode, "]")] = true
-		}
-	}
-	table, err := os.ReadFile(filepath.Join(proc, "net", "udp"))
-	if err != nil {
-		return false, fmt.Errorf("read collector UDP table: %w", err)
-	}
-	local := fmt.Sprintf("%08X:%04X", binary.NativeEndian.Uint32([]byte{127, 0, 0, 1}), port)
-	// /proc/PID/net/udp is namespace-wide. The fd inode intersection is what
-	// proves this child owns the socket rather than another concurrent test.
-	for line := range strings.SplitSeq(string(table), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 10 {
-			continue
-		}
-		if fields[1] == local && inodes[fields[9]] {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func exportCollectorOutput(path string) ([]byte, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	data, readErr := io.ReadAll(io.LimitReader(file, (1<<20)+1))
-	closeErr := file.Close()
-	if err := errors.Join(readErr, closeErr); err != nil {
-		return nil, err
-	}
-	if len(data) > 1<<20 {
+	if len(result.Stdout) > exportOutputMax {
 		return nil, fmt.Errorf("collector output %s exceeded 1 MiB", path)
 	}
-	return data, nil
+	return []byte(result.Stdout), nil
 }
 
+// diagnostics runs from a failed test and from its cleanup, after the test's
+// context ends, so it reads under its own bound.
 func (p *exportCollector) diagnostics() string {
+	ctx, cancel := context.WithTimeout(context.Background(), exportReadTimeout)
+	defer cancel()
 	var out strings.Builder
-	for _, file := range []*os.File{p.stdout, p.stderr} {
-		data, err := exportCollectorOutput(file.Name())
-		fmt.Fprintf(&out, "%s (read error: %v):\n%s\n", filepath.Base(file.Name()), err, data)
+	for _, path := range []string{"/tmp/collector.out", "/tmp/collector.err"} {
+		data, err := p.read(ctx, path)
+		fmt.Fprintf(&out, "%s (read error: %v):\n%s\n", path, err, data)
 	}
 	return out.String()
 }
 
 var exportNFCapdFile = regexp.MustCompile(`^nfcapd\.\d{12}(\d{2})?$`)
 
-func exportNFDumpRecords(ctx context.Context, nfdump, dir string, seen map[string]bool) ([]map[string]json.RawMessage, error) {
-	files, err := os.ReadDir(dir)
+func exportNFDumpRecords(ctx context.Context, container labtest.Container, seen map[string]bool) ([]map[string]json.RawMessage, error) {
+	listing, err := container.Exec(ctx, "ls", "-1", exportFlowDir)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("list nfcapd files: %w", err)
 	}
 	var records []map[string]json.RawMessage
-	for _, file := range files {
-		if file.IsDir() || seen[file.Name()] || !exportNFCapdFile.MatchString(file.Name()) {
+	for name := range strings.SplitSeq(strings.TrimSpace(listing.Stdout), "\n") {
+		if seen[name] || !exportNFCapdFile.MatchString(name) {
 			continue
 		}
-		readCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-		cmd := exec.CommandContext(readCtx, nfdump, "-C", "none", "-r", filepath.Join(dir, file.Name()), "-o", "json")
-		cmd.Env = append(os.Environ(), "TZ=UTC")
-		data, err := cmd.CombinedOutput()
+		readCtx, cancel := context.WithTimeout(ctx, exportReadTimeout)
+		result, err := container.Exec(readCtx, "nfdump", "-C", "none", "-r", exportFlowDir+"/"+name, "-o", "json")
 		cancel()
 		if err != nil {
-			return nil, fmt.Errorf("nfdump %s: %w\n%s", file.Name(), err, data)
+			return nil, fmt.Errorf("nfdump %s: %w", name, err)
 		}
+		data := []byte(result.Stdout)
 		// nfdump 1.7.10 prints this non-JSON result for an empty rotation.
 		// It contributes no records; the caller still requires all three.
 		if string(bytes.TrimSpace(data)) == "[\nNo matching flows\n\n]" {
-			seen[file.Name()] = true
+			seen[name] = true
 			continue
 		}
 		var decoded []map[string]json.RawMessage
 		if err := json.Unmarshal(data, &decoded); err != nil {
-			return nil, fmt.Errorf("nfdump JSON from %s: %w\n%s", file.Name(), err, data)
+			return nil, fmt.Errorf("nfdump JSON from %s: %w\n%s\n%s", name, err, data, result.Stderr)
 		}
-		seen[file.Name()] = true
+		seen[name] = true
 		records = append(records, decoded...)
 	}
 	return records, nil
