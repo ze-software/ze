@@ -970,6 +970,7 @@ A scenario directory may also carry files that start extra containers before Ze:
 | `speaker-args` (and optional `speaker2-args`) | `le test interop-bgp speaker` (172.30.0.10; second at 172.30.0.11) | Dial Ze with an independent strict peer. The compiled speaker negotiates the requested families and ADD-PATH mode, frames BGP itself, applies the named native oracle, and writes a structured verdict to container logs. It catches wire output that Ze's own lenient decoder could accept. |
 | `vrps.json` | StayRTR (172.30.0.12:8282) | Serve RPKI VRPs from a real third-party cache, so Ze is the RTR client of an implementation that is not its own. The typed checker asserts each per-prefix validation answer, not merely the RTR session. |
 | `dnsmasq.conf` (and optional `dnsmasq-b.conf`) | dnsmasq DHCPv4 server (172.30.0.20; second at 172.30.0.21), `test/interop/Dockerfile.dnsmasq` | Serve Ze's DHCPv4 client from an implementation Ze did not write. The checkers of `dhcpv4-renew-nak-dnsmasq` and `dhcpv4-rebind-two-servers-dnsmasq` count the DHCP messages in dnsmasq's `log-dhcp` output and read Ze's eth0 addresses. The renew-NAK checker writes a reservation into the container's own `/run/dhcp-hosts` and reloads it with SIGHUP; the rebind checker stops the server that granted the lease. |
+| `kea-dhcp6.conf` | Kea DHCPv6 server `kea-dhcp6` (IPv6 host 22 of the lab /64; the file's `fd00:1e:0::` selects an IPv6 lab network), `test/interop/Dockerfile.kea` | Serve Ze's DHCPv6 client from an implementation Ze did not write. The checker of `dhcpv6-client-renew-kea` reads Kea's INFO log, one exchange per distinct transaction id (`DHCP6_PACKET_RECEIVED`, `DHCP6_LEASE_ALLOC`, `DHCP6_LEASE_RENEW`, and `DHCP6_USING_SERVERID` at each start), and samples Ze's eth0 every 2 s: the leased /128 must be present with a finite `valid_lft` of at most the 40 s lease at every sample. Over three lease periods Kea must see one Solicit and one Request, between 10 and 16 RENEW exchanges that each extended the lease, and no Rebind: a client that never renews, renews without extending its deadlines (it loses the address after one lease and solicits again) or renews at every chance fails one of those bounds. The pool is one address (host `0x50`), so the lease is known before the run. The image deletes Kea's persisted server DUID on every start, while the memfile lease database stays in the container: the checker stops and starts Kea to change the server's identity under a live lease, so Ze's next RENEW names a server that no longer exists and only its REBIND is answered. Ze must hold the address for two lease periods after the stop, with no Solicit, and then renew with the restarted server. |
 | `pmbmpd.conf` | pmacct `pmbmpd` (172.30.0.13:1790) | Read Ze's BMP stream with a collector Ze did not write. The file is also the selector: a scenario that carries it starts pmacct INSTEAD of Ze's own collector, because two collectors are two readings of one stream and only the third-party one is interop evidence. The typed checker greps pmacct's JSON msglog, so every needle is a field pmacct printed after decoding. |
 
 The `ospf-te-frr` and `ospf-te-interas-frr` scenarios keep their FRR adjacency,
@@ -2231,6 +2232,35 @@ suite takes roughly 5-10 minutes depending on session establishment times.
 <!-- source: internal/le/interoplab/zebuild.go -- StageBinaries, LabBinary -->
 
 
+### A package test's own server container (labtest)
+
+A package `_test.go` that needs one real server, such as stayrtr for the RPKI
+client, starts it with `labtest.Start(t, spec)` from
+`internal/le/interoplab/labtest`, never with its own `exec.Command("docker")`.
+`Start` pulls the image, starts one labeled container through
+`Docker.RunDetached` (so a sweep removes it when the test binary is killed),
+answers the host address the server listens on, and returns only once
+`Spec.Ready` accepts that address. The container either publishes `Spec.Port`
+on the host loopback at a port the daemon picks (`Docker.PublishedPort` reads
+which), or runs on the host network (`Spec.HostNetwork`) where it listens on
+`127.0.0.1:Port` and reaches a listener the test opened. `t.Cleanup` writes the
+log tail of a failed test, then removes the container.
+
+| Machine state | What the test does |
+|---------------|--------------------|
+| No `docker` binary | skips, naming the install route; fails under `ZE_REQUIRE_DOCKER=1` |
+| `docker info` fails | fails, naming the probe error |
+| The image cannot be pulled | fails; under the `live` tag it skips an ad hoc run and fails under `ZE_REQUIRE_DOCKER=1` (owner decision Q-6, `pull_live.go`) |
+| The container does not start, or `Ready` never accepts | fails, then the log tail follows |
+
+`labtest` runs no Docker host kernel check: Ze runs in the test process on the
+host, and that check guards a containerised Ze. A peer that needs a Ze-kernel
+feature belongs in an `interoplab.Suite` lab. Only a `_test.go` file, or tooling
+under `internal/le`, imports `labtest` (`./le arch tier check`,
+`docs/architecture/module-tiers.md`).
+<!-- source: internal/le/interoplab/labtest/labtest.go -- Start, start, host.release -->
+<!-- source: internal/le/interoplab/container.go -- DetachedContainer.PublishedPorts, Docker.PublishedPort -->
+
 ### Debugging Failures
 
 The shared orchestrator does not read container logs. Each suite's checker adds
@@ -2241,6 +2271,7 @@ them to the failure it returns:
 | BGP (`interop`) | the last 80 log lines of each peer the scenario started (`checkerFailure`, `internal/le/interoplab/bgp/check_engine.go`), and pmacct's message log |
 | IPsec (`interop-ipsec`) | the last 60 log lines of Ze, strongSwan, the NAT box and FRR, for each one the scenario started, read after the checker's own deadline has passed, all of them within one 20 s bound (`checkerFailure`, `internal/le/interoplab/ipsec/failure.go`) |
 | RSVP-TE (`interop-rsvpte`) | each peer's capture tail and the last 60 log lines (`diagnosticError`, `internal/le/interoplab/rsvpte/checkers.go`) |
+| A package test's own server (`labtest.Start`) | the last `Spec.LogLines` lines (1 to 1000) of its container, written to the test log by `t.Cleanup` when the test failed, before the container is removed (`host.release`, `internal/le/interoplab/labtest/labtest.go`) |
 
 A `docker exec` that runs past its 30 s bound names the container, the command it
 ran there (cut at its first line and at 160 bytes), and the bound

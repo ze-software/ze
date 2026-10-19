@@ -7,6 +7,7 @@ package interoplab
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/netip"
 	"strconv"
@@ -29,6 +30,11 @@ type DetachedContainer struct {
 	// Network.
 	Network string
 	Address netip.Addr
+	// PublishedPorts publishes each container TCP port on the host loopback
+	// at a port the daemon picks (`-p 127.0.0.1::<port>`); PublishedPort
+	// answers which. Loopback only, so a test server is never reachable from
+	// another host.
+	PublishedPorts []uint16
 	// Capabilities are added one by one; the container is never privileged.
 	Capabilities []string
 	// Devices are host device nodes passed through unchanged, such as
@@ -95,6 +101,12 @@ func (d *Docker) detachedArguments(spec DetachedContainer) ([]string, error) {
 	if spec.Address.IsValid() {
 		argv = append(argv, "--ip", spec.Address.String())
 	}
+	for _, port := range spec.PublishedPorts {
+		if port == 0 {
+			return nil, errors.New("detached container publishes container port 0, which names no port")
+		}
+		argv = append(argv, "-p", publishLoopback+strconv.Itoa(int(port)))
+	}
 	if spec.Platform != "" {
 		argv = append(argv, "--platform", spec.Platform)
 	}
@@ -126,6 +138,29 @@ func (d *Docker) detachedArguments(spec DetachedContainer) ([]string, error) {
 	}
 	argv = append(argv, spec.Image)
 	return append(argv, spec.Command...), nil
+}
+
+// publishLoopback binds a published port on the host loopback, at a host port
+// the daemon picks.
+const publishLoopback = "127.0.0.1::"
+
+// PublishedPort answers the host address the daemon published a container's
+// TCP port at. `docker port` prints one line per bound address (two on a
+// dual-stack daemon); the first is taken, and an answer that does not parse
+// is an error naming what the daemon printed, never port 0.
+func (d *Docker) PublishedPort(ctx context.Context, name string, port uint16) (netip.AddrPort, error) {
+	result, err := d.command(ctx, dockerCommandTimeout,
+		DockerExecutable, "port", name, strconv.Itoa(int(port))+"/tcp")
+	if err != nil {
+		return netip.AddrPort{}, err
+	}
+	line, _, _ := strings.Cut(strings.TrimSpace(result.Stdout), "\n")
+	address, err := netip.ParseAddrPort(strings.TrimSpace(line))
+	if err != nil {
+		return netip.AddrPort{}, fmt.Errorf("docker port %s %d/tcp answered %q, which is no address and port: %w",
+			name, port, result.Stdout, err)
+	}
+	return address, nil
 }
 
 // ExecAttached runs one command in a running container under its own bound,

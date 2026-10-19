@@ -189,3 +189,68 @@ func TestBuildRendersNamedContexts(t *testing.T) {
 		t.Errorf("an incomplete context still ran docker: %d commands", len(runner.commands))
 	}
 }
+
+// VALIDATES: AC-18: a published port is bound on the host loopback at a port
+// the daemon picks, after the network flags, and port 0 is refused.
+// PREVENTS: a test server published on every host interface, or `-p` with no
+// container port reaching the daemon as an opaque failure.
+func TestRunDetachedPublishesOnLoopback(t *testing.T) {
+	runner := &recordingRunner{}
+	docker := newDocker(runner)
+	err := docker.RunDetached(t.Context(), DetachedContainer{
+		Name: "ze-labtest-1", Image: "stayrtr:1", PublishedPorts: []uint16{3323, 8080},
+		Command: []string{"-bind", ":3323"},
+	})
+	if err != nil {
+		t.Fatalf("RunDetached: %v", err)
+	}
+	want := []string{DockerExecutable, "run", "-d", "--name", "ze-labtest-1"}
+	want = append(want, docker.owner.labelArguments()...)
+	want = append(want, "-p", "127.0.0.1::3323", "-p", "127.0.0.1::8080", "stayrtr:1", "-bind", ":3323")
+	if argv := runner.commands[0].Arguments; !slices.Equal(argv, want) {
+		t.Errorf("argv =\n%v\nwant\n%v", argv, want)
+	}
+
+	refused := &recordingRunner{}
+	if err := newDocker(refused).RunDetached(t.Context(), DetachedContainer{
+		Name: "x", Image: "alpine", PublishedPorts: []uint16{0},
+	}); err == nil {
+		t.Fatal("RunDetached accepted container port 0")
+	}
+	if len(refused.commands) != 0 {
+		t.Errorf("docker ran %v for a refused spec", refused.commands)
+	}
+}
+
+// VALIDATES: AC-18: PublishedPort asks `docker port` for the TCP port and
+// answers the first bound address; an answer that is no address is an error
+// naming what the daemon printed.
+// PREVENTS: a dual-stack answer read as one garbled address, or a parse
+// failure turned into port 0.
+func TestPublishedPortReadsTheFirstBinding(t *testing.T) {
+	runner := &recordingRunner{run: func(ProcessCommand) (ProcessResult, error) {
+		return ProcessResult{Stdout: "127.0.0.1:49153\n[::1]:49153\n"}, nil
+	}}
+	address, err := newDocker(runner).PublishedPort(t.Context(), "ze-labtest-1", 3323)
+	if err != nil {
+		t.Fatalf("PublishedPort: %v", err)
+	}
+	if want := netip.MustParseAddrPort("127.0.0.1:49153"); address != want {
+		t.Errorf("address = %v, want %v", address, want)
+	}
+	want := []string{DockerExecutable, "port", "ze-labtest-1", "3323/tcp"}
+	if argv := runner.commands[0].Arguments; !slices.Equal(argv, want) {
+		t.Errorf("argv = %v, want %v", argv, want)
+	}
+
+	garbled := &recordingRunner{run: func(ProcessCommand) (ProcessResult, error) {
+		return ProcessResult{Stdout: "no binding\n"}, nil
+	}}
+	_, err = newDocker(garbled).PublishedPort(t.Context(), "ze-labtest-1", 3323)
+	if err == nil {
+		t.Fatal("PublishedPort accepted an answer that is no address")
+	}
+	if !strings.Contains(err.Error(), "no binding") {
+		t.Errorf("error %q does not name what docker printed", err)
+	}
+}
