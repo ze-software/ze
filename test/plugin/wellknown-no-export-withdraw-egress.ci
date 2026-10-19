@@ -23,9 +23,11 @@
 #      is red.
 # The reject rule covers the leak in the other direction.
 #
-# ORDERING. The source sends the mixed UPDATE BEFORE the fence, on one TCP stream ze
-# processes in order on one goroutine. The observer waiting for the fence therefore proves
-# the mixed UPDATE was already decided.
+# NO CROSS-PREFIX ORDER. The source sends the mixed UPDATE before the fence, but ze owes no
+# delivery order between different prefixes: the withdrawal half can be decided after its
+# own announcement half and after the fence. Each destination therefore expects all three
+# prefixes in ONE seq group, which matches them in any order, so the test waits for the
+# withdrawal itself rather than inferring it from the fence.
 
 # Independent peer processes are required: conn_map executes complete scripts
 # serially, so a source waiting for another connection's receipt would deadlock.
@@ -66,11 +68,15 @@ option=linger:value=true
 expect=bgp:conn=1:seq=1:announced=18C63364
 action=rewrite:conn=1:seq=2:source=withdraw-seed.src:dest=withdraw-seed-2.received
 # CONTROL 3: an internal peer is inside the confederation boundary, so it receives BOTH
-# halves. ze splits the mixed shape before sending it (RFC 7606 Section 5.1), withdrawal
-# first, so the withdrawal and the announcement arrive as two messages in that order.
+# halves. ze splits the mixed shape before sending it (RFC 7606 Section 5.1); the observer's
+# count of four UPDATEs here proves they arrive as separate messages. No order is asserted
+# between the withdrawal, the announcement and the fence.
 expect=bgp:conn=1:seq=3:withdrawn=18C63364
-expect=bgp:conn=1:seq=4:announced=180A0000
-expect=bgp:conn=1:seq=5:announced=18C00002
+expect=bgp:conn=1:seq=3:announced=180A0000
+expect=bgp:conn=1:seq=3:announced=18C00002
+# The final receipt: written only once every seq=3 expectation matched, the withdrawal
+# among them. The observer waits for it before it counts.
+action=rewrite:conn=1:seq=4:source=withdraw-seed.src:dest=wellknown-withdraw-2.received
 EOF_INTERNAL
 
 # The EXTERNAL destination -- AS 65002, on 127.0.0.3.
@@ -87,8 +93,10 @@ expect=bgp:conn=1:seq=3:withdrawn=18C63364
 # The refused announcement also invalidates any previously advertised generation.
 expect=bgp:conn=1:seq=3:withdrawn=180A0000
 # CONTROL 2: the fence route reaches this session too, so control 1 cannot pass by way of
-# some unrelated message.
-expect=bgp:conn=1:seq=4:announced=18C00002
+# some unrelated message. It shares the withdrawals' seq group: no order is owed between them.
+expect=bgp:conn=1:seq=3:announced=18C00002
+# The final receipt, as on the internal session: the withdrawal has been received.
+action=rewrite:conn=1:seq=4:source=withdraw-seed.src:dest=wellknown-withdraw-3.received
 # THE ASSERTION: 10.0.0.0/24 is never announced to this external session.
 reject=bgp:conn=1:scope=announced:pattern=180A0000
 EOF_EXTERNAL
@@ -97,8 +105,8 @@ tmpfs=withdraw-seed.src:terminator=EOF_SEED
 received 198.51.100.0/24 from the original source
 EOF_SEED
 
-# Observer: hold the daemon up until the fence has been written to the external
-# destination, which proves the mixed UPDATE ahead of it was already decided.
+# Observer: hold the daemon up until both destinations wrote their final receipt, so the
+# withdrawal is waited for rather than inferred, then check each one's UPDATE count.
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {

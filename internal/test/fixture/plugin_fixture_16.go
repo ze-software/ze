@@ -726,12 +726,33 @@ func plugin16WellknownWithdraw(ctx context.Context, p *sdk.Plugin) error {
 	if err := withdrawSeedReceipts03(ctx, p); err != nil {
 		return err
 	}
+	if err := plugin16WellknownWithdrawReceipts(ctx); err != nil {
+		return err
+	}
 	// Include exactly one seed UPDATE on each destination, never a 10.0.0.0/24 seed.
-	if err := plugin16WellknownCounts(ctx, p, 4, 3, "internal peer was not sent the seed, both halves and the fence", "external peer was not sent the seed, withdrawal and fence"); err != nil {
+	// External: the seed, the 198.51.100.0/24 withdrawal, the 10.0.0.0/24
+	// withdrawal and the fence, each its own UPDATE.
+	if err := plugin16WellknownCounts(ctx, p, 4, 4, "internal peer was not sent the seed, both halves and the fence", "external peer was not sent the seed, both withdrawals and the fence"); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "OK: internal peer received both halves and the fence")
 	fmt.Fprintln(os.Stderr, "OK: external peer received the seed, withdrawal and fence, nothing else")
+	return nil
+}
+
+// plugin16WellknownWithdrawReceipts waits for the final receipt each
+// destination's peer script writes once its last expectation group matched,
+// the 198.51.100.0/24 withdrawal among them. ze owes no order between that
+// withdrawal and the fence, so the fence alone proves nothing about it.
+func plugin16WellknownWithdrawReceipts(ctx context.Context) error {
+	for _, path := range [...]string{"wellknown-withdraw-2.received", "wellknown-withdraw-3.received"} {
+		if !Poll(ctx, 40, 100*time.Millisecond, func() bool {
+			info, err := os.Stat(path)
+			return err == nil && info.Mode().IsRegular()
+		}) {
+			return fmt.Errorf("withdrawal receipt missing: %s", path)
+		}
+	}
 	return nil
 }
 
