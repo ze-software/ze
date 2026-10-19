@@ -9,6 +9,8 @@ import (
 	"errors"
 	"io"
 	"net/netip"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -168,4 +170,29 @@ func (d *Docker) ImagePresent(ctx context.Context, image string) (bool, error) {
 		return false, errors.New("image reference is empty")
 	}
 	return d.resourcePresent(ctx, resourceImageTag, image)
+}
+
+// ContainerRunning answers whether the named container's process is running.
+// A container that exited answers false; an inspect that fails, an absent
+// container included, is an error, so "not running" is never a guess.
+func (d *Docker) ContainerRunning(ctx context.Context, name string) (bool, error) {
+	if name == "" {
+		return false, errors.New("container name is empty")
+	}
+	argv, err := inspectCommand(resourceContainer, "{{.State.Running}}", name)
+	if err != nil {
+		return false, err
+	}
+	result, err := d.command(ctx, dockerCommandTimeout, argv...)
+	if err != nil {
+		return false, err
+	}
+	state := strings.TrimSpace(result.Stdout)
+	if state == "true" {
+		return true, nil
+	}
+	if state == "false" {
+		return false, nil
+	}
+	return false, errors.New("docker inspect answered no running state for " + name + ": " + strconv.Quote(state))
 }

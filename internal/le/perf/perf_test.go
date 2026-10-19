@@ -68,7 +68,7 @@ func TestPerfRunAcceptsRunnerOptionsAsKeywords(t *testing.T) {
 
 	// An unknown DUT is refused by validateDUTs, as RunCLI refused it.
 	bench, rec := fixtureBench(t)
-	if _, code := bench.Run(bothSteps(), []string{"zebra"}); code != 1 || len(rec.steps) != 0 {
+	if _, code := bench.Run(t.Context(), bothSteps(), []string{"zebra"}); code != 1 || len(rec.steps) != 0 {
 		t.Fatalf("an unknown DUT answered %d after %d steps, want 1 before any", code, len(rec.steps))
 	}
 }

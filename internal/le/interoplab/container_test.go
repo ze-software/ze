@@ -130,3 +130,62 @@ func TestImagePresentTellsAbsentFromUnknown(t *testing.T) {
 		t.Error("an unreachable daemon answered absent with no error")
 	}
 }
+
+// VALIDATES: ContainerRunning reads the inspect state and tells a stopped
+// container from one the daemon could not answer for.
+// PREVENTS: a failed inspect read as "not running yet", which a wait loop
+// would poll until its deadline and then blame the container.
+func TestContainerRunningTellsStoppedFromUnknown(t *testing.T) {
+	runner := &recordingRunner{}
+	docker := newDocker(runner)
+	runner.run = func(ProcessCommand) (ProcessResult, error) { return ProcessResult{Stdout: "true\n"}, nil }
+	if running, err := docker.ContainerRunning(t.Context(), "dut"); err != nil || !running {
+		t.Errorf("running container answered %v, %v", running, err)
+	}
+	want := []string{DockerExecutable, "container", "inspect", "--format", "{{.State.Running}}", "dut"}
+	if got := runner.commands[0].Arguments; !slices.Equal(got, want) {
+		t.Errorf("argv = %v, want %v", got, want)
+	}
+	runner.run = func(ProcessCommand) (ProcessResult, error) { return ProcessResult{Stdout: "false\n"}, nil }
+	if running, err := docker.ContainerRunning(t.Context(), "dut"); err != nil || running {
+		t.Errorf("exited container answered %v, %v", running, err)
+	}
+	runner.run = func(ProcessCommand) (ProcessResult, error) {
+		return ProcessResult{ExitCode: 1, Stderr: "Error: No such object: dut"}, nil
+	}
+	if _, err := docker.ContainerRunning(t.Context(), "dut"); err == nil {
+		t.Error("a failed inspect answered not running with no error")
+	}
+	runner.run = func(ProcessCommand) (ProcessResult, error) { return ProcessResult{Stdout: "\n"}, nil }
+	if _, err := docker.ContainerRunning(t.Context(), "dut"); err == nil {
+		t.Error("an empty inspect answer was read as a state")
+	}
+}
+
+// VALIDATES: a named build context renders as one --build-context before the
+// main context, and an incomplete one is refused before docker runs.
+// PREVENTS: a raw argv escape for the freertr build, or a context path lost.
+func TestBuildRendersNamedContexts(t *testing.T) {
+	runner := &recordingRunner{}
+	runner.run = func(ProcessCommand) (ProcessResult, error) { return ProcessResult{Stdout: "sha256:abc\n"}, nil }
+	docker := newDocker(runner)
+	build := ImageBuild{Name: "freertr", Tag: "freertr-interop", Dockerfile: "Dockerfile.freertr", Context: "/repo",
+		NamedContexts: []NamedBuildContext{{Name: "freertr", Path: "/src/rtr"}}}
+	if _, err := docker.Build(t.Context(), build); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	argv := runner.commands[0].Arguments
+	at := slices.Index(argv, "--build-context")
+	if at < 0 || argv[at+1] != "freertr=/src/rtr" || at > slices.Index(argv, "/repo") {
+		t.Errorf("argv %v lacks --build-context freertr=/src/rtr before the main context", argv)
+	}
+	for _, named := range []NamedBuildContext{{Path: "/src"}, {Name: "x"}} {
+		build.NamedContexts = []NamedBuildContext{named}
+		if _, err := docker.Build(t.Context(), build); err == nil {
+			t.Errorf("Build accepted the incomplete context %+v", named)
+		}
+	}
+	if len(runner.commands) != 1 {
+		t.Errorf("an incomplete context still ran docker: %d commands", len(runner.commands))
+	}
+}

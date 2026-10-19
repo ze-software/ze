@@ -124,7 +124,7 @@ func TestDockerNetworkOverlapSelectsUsableSubnet(t *testing.T) {
 	}
 	docker := newDocker(runner)
 
-	network, err := docker.createNetwork(t.Context(), NetworkSpec{
+	network, err := docker.CreateNetwork(t.Context(), NetworkSpec{
 		Name: "lab-net",
 		Candidates: []Subnet{
 			{IPv4: netip.MustParsePrefix("172.30.0.0/24")},
@@ -132,7 +132,7 @@ func TestDockerNetworkOverlapSelectsUsableSubnet(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Fatalf("createNetwork returned an error: %v", err)
+		t.Fatalf("CreateNetwork returned an error: %v", err)
 	}
 	if network.IPv4 != netip.MustParsePrefix("172.31.0.0/24") {
 		t.Errorf("selected subnet = %s, want second non-overlapping candidate", network.IPv4)

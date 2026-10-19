@@ -158,15 +158,15 @@ type suite struct {
 }
 
 // measureStep runs the multi-DUT Docker benchmark and answers its exit code.
-type measureStep func(run suite) int
+type measureStep func(ctx context.Context, run suite) int
 
 // kernelStep refuses a Docker daemon whose kernel lacks a feature Ze enrolls,
 // probing with the linux ze at zePath.
-type kernelStep func(zePath string) error
+type kernelStep func(ctx context.Context, zePath string) error
 
 // stageStep builds the linux ze the ze DUT image carries into the checkout at
 // root, for the Docker daemon's architecture.
-type stageStep func(root string) error
+type stageStep func(ctx context.Context, root string) error
 
 // Bench is one benchmark chain over a checkout. The two process seams are
 // fields so a package test pins what each verb runs without Docker, a compiler,
@@ -235,8 +235,8 @@ const dockerKernelTimeout = 3 * time.Minute
 
 // dockerKernel is the production kernelStep: the check every Docker run that
 // runs Ze makes (interoplab.DockerKernel), against the daemon in hand.
-func dockerKernel(zePath string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), dockerKernelTimeout)
+func dockerKernel(ctx context.Context, zePath string) error {
+	ctx, cancel := context.WithTimeout(ctx, dockerKernelTimeout)
 	defer cancel()
 
 	return interoplab.DockerKernel(zePath)(ctx, interoplab.NewDocker())
@@ -250,8 +250,8 @@ const stageZeTimeout = 10 * time.Minute
 // preflight runs (interoplab.StageBinaries over bgp.LabBinaries), so the ze the
 // kernel check probes with and the DUT image carries is built from this
 // checkout rather than left from an earlier run, or missing.
-func stageZe(root string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), stageZeTimeout)
+func stageZe(ctx context.Context, root string) error {
+	ctx, cancel := context.WithTimeout(ctx, stageZeTimeout)
 	defer cancel()
 
 	return interoplab.StageBinaries(root, false, bgp.LabBinaries()...)(ctx, interoplab.NewDocker())
@@ -266,10 +266,10 @@ func streamCommand(action string, argv []string, dir string, environ []string) i
 // measureDUTs runs the multi-DUT Docker benchmark in this process. The report
 // is rendered by the le running this command, so no host benchmark program is
 // built or looked up.
-func measureDUTs(run suite) int {
+func measureDUTs(ctx context.Context, run suite) int {
 	runner := perfrunner.New(run.Root, []string{run.Self, area, reportVerb}, os.Stdout, os.Stderr)
 	runner.LinuxTags = run.LinuxTags
-	return runner.Execute(run.Steps, run.DUTs)
+	return runner.Execute(ctx, run.Steps, run.DUTs)
 }
 
 // suite answers the runner call for these steps and DUTs over this checkout.
@@ -302,7 +302,10 @@ func fail(action string, code int, err error) (RunReport, int) {
 // Run runs the selected steps over the named DUTs. An empty list selects every
 // DUT. A run that measured records the marker that clears the nudge; a run
 // that only built the images records nothing, because nothing was measured.
-func (b *Bench) Run(steps perfrunner.Steps, duts []string) (RunReport, int) {
+//
+// ctx is the command's root: canceling it stops the chain, and the
+// benchmark still removes what it started.
+func (b *Bench) Run(ctx context.Context, steps perfrunner.Steps, duts []string) (RunReport, int) {
 	if err := validateDUTs(duts); err != nil {
 		return fail(runVerb, 1, err)
 	}
@@ -311,15 +314,15 @@ func (b *Bench) Run(steps perfrunner.Steps, duts []string) (RunReport, int) {
 	// D-4: a wrong kernel "should not be possible - fail"). A build alone, or a
 	// run of other DUTs only, starts no ze.
 	if steps.Test && runsZe(duts) {
-		if err := b.Stage(b.Root); err != nil {
+		if err := b.Stage(ctx, b.Root); err != nil {
 			return fail(runVerb, 1, err)
 		}
-		if err := b.Kernel(b.stagedZe()); err != nil {
+		if err := b.Kernel(ctx, b.stagedZe()); err != nil {
 			return fail(runVerb, 1, err)
 		}
 	}
 	gaterun.Announce(measureAction)
-	if code := b.Measure(b.suite(steps, duts)); code != 0 {
+	if code := b.Measure(ctx, b.suite(steps, duts)); code != 0 {
 		return fail(runVerb, code, errMeasure)
 	}
 	if !steps.Test {
@@ -353,8 +356,8 @@ func (b *Bench) HistoryRecord() (RunReport, int) {
 // EvidenceRecord measures the ze DUT, appends its result to the committed
 // history, and fails when that history shows a regression. It is the release
 // evidence gate the retired ze-evidence-perf-record target carried.
-func (b *Bench) EvidenceRecord() (RunReport, int) {
-	if report, code := b.Run(bothSteps(), []string{zeDUT}); code != 0 {
+func (b *Bench) EvidenceRecord(ctx context.Context) (RunReport, int) {
+	if report, code := b.Run(ctx, bothSteps(), []string{zeDUT}); code != 0 {
 		report.Action = evidenceVerb
 		return report, code
 	}

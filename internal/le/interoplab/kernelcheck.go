@@ -236,7 +236,7 @@ func StagedZePath(root string, binaries []LabBinary) string {
 // namespace, and gives the container its own network so nothing it creates
 // reaches the host's. On a daemon applying AppArmor it runs under Ze's profile,
 // because docker-default denies the MPLS probe's mount and sysctl write (D-7).
-// It runs through RunOneShot, so it carries the owner labels and a cancelled
+// It runs through RunOneShot, so it carries the owner labels and a canceled
 // probe is removed by name.
 func kernelProbeContainer(zePath string, appArmor bool) OneShotContainer {
 	arguments := make([]string, 0, 10)

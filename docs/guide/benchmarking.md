@@ -161,6 +161,16 @@ linux `le` built by the same recipe (`docs/contributing/gh-pages.md`).
 <!-- source: internal/test/perfrunner/run.go -- Execute -->
 <!-- source: internal/le/linuxle/linuxle.go -- Tags -->
 
+Every container, network and image tag the run creates carries the lab's
+owner labels. Ctrl-C (SIGINT) or SIGTERM stops the run, and the run still
+removes the DUT, the sender and the network before it exits 1. A removal that
+fails is printed on stderr with the resource's name, and the run exits 1; a
+run that died before its removals (SIGKILL, a crash) leaves resources that
+`./le test integration cleanup`, or the next lab start, removes. The DUT
+images themselves are kept, so the next `step test` finds them.
+<!-- source: internal/test/perfrunner/run.go -- Runner.removeContainer, Runner.cleanup -->
+<!-- source: internal/le/perf/actions.go -- signalRooted -->
+
 Results are written to `test/perf/results/` as JSON files. An HTML comparison report is generated automatically.
 
 ### Manual Reports

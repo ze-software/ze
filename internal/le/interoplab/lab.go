@@ -255,7 +255,7 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), dockerCommandTimeout)
 		defer cancel()
 		for _, image := range images {
-			if err := s.Docker.releaseImage(cleanupCtx, image); err != nil {
+			if err := s.Docker.ReleaseImage(cleanupCtx, image); err != nil {
 				report.CleanupErrors = append(report.CleanupErrors, err.Error())
 				report.Code = 1
 			}
@@ -388,7 +388,7 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 		result.Error = err.Error()
 		return result
 	}
-	network, err := s.Docker.createNetwork(ctx, plan.Network)
+	network, err := s.Docker.CreateNetwork(ctx, plan.Network)
 	if err != nil {
 		result.Error = err.Error()
 		return result
@@ -553,7 +553,7 @@ func (l *Lab) cleanup(ctx context.Context, network string, peers []PeerConfig) [
 	if network == "" {
 		return problems
 	}
-	if err := l.docker.removeNetwork(ctx, network); err != nil {
+	if err := l.docker.RemoveNetwork(ctx, network); err != nil {
 		problems = append(problems, err.Error())
 	}
 	return problems

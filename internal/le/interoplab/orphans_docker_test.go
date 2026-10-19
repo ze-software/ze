@@ -170,7 +170,7 @@ func runOrphanChild(t *testing.T, suffix string) {
 	for third := 240 + 8*subnet; third < 248+8*subnet; third++ {
 		candidates = append(candidates, Subnet{IPv4: netip.MustParsePrefix("172.31." + strconv.Itoa(third) + ".0/24")})
 	}
-	network, err := docker.createNetwork(ctx, NetworkSpec{Name: "ze-orphan-net-" + suffix, Candidates: candidates})
+	network, err := docker.CreateNetwork(ctx, NetworkSpec{Name: "ze-orphan-net-" + suffix, Candidates: candidates})
 	if err != nil {
 		t.Fatalf("child network: %v", err)
 	}

@@ -5,9 +5,9 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 1/5 |
+| Phase | 3/5 |
 | Handoff | - |
-| Updated | 2026-10-18 |
+| Updated | 2026-10-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

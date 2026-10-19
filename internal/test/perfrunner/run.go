@@ -5,27 +5,34 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
+	"net/netip"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/linuxle"
 )
 
-const (
-	subnet     = "172.31.0.0/24"
-	senderIP   = "172.31.0.10"
-	receiverIP = "172.31.0.11"
+// The benchmark network: one fixed /24 with the sender, the receiver address
+// the sender adds to its own interface, and one fixed address per DUT.
+var (
+	perfSubnet = netip.MustParsePrefix("172.31.0.0/24")
+	senderIP   = netip.MustParseAddr("172.31.0.10")
+	receiverIP = netip.MustParseAddr("172.31.0.11")
 )
 
 type DUT struct {
-	Name, Image, IP                string
+	Name, Image                    string
+	IP                             netip.Addr
 	Port, SenderPort, ReceiverPort int
 	Passive                        bool
 }
@@ -43,22 +50,25 @@ const (
 	dutOpenBGPd = "openbgpd"
 )
 
-// The docker arguments this file repeats across every image build.
-const (
-	dockerBuildx    = "buildx"
-	dockerBuild     = "build"
-	dockerLoadFlag  = "--load"
-	dockerQuietFlag = "--quiet"
-)
-
 // containerLe is where the sender container finds le. The file name MUST be
 // `le`: cmd/ze selects the personality from the name it was started as
 // (defaultDispatch), and only that name reaches the `perf send` command.
 const containerLe = "/usr/local/bin/le"
 
+// senderImage is the image the sender container runs: le is mounted into it,
+// so it needs nothing but ip, arping and a shell.
+const senderImage = "alpine:3.21"
+
 // linuxBuildTimeout bounds the cross-build of le. It links every feature the
 // launcher's le links, which is more than the perf personality it replaced.
 const linuxBuildTimeout = 10 * time.Minute
+
+// imageBuildTimeout bounds one DUT image build.
+const imageBuildTimeout = 10 * time.Minute
+
+// cleanupCommand is what an operator runs to remove a container or network
+// this run could not remove: every one carries the owner labels it matches.
+const cleanupCommand = "./le test integration cleanup"
 
 // Steps selects what one suite run does. The runner refuses a run that selects
 // neither, because it would do nothing and answer success.
@@ -73,14 +83,14 @@ func DUTs() []DUT {
 	frr := envOr("FRR_IMAGE", "quay.io/frrouting/frr:10.3.1")
 	rust := envOr("RUSTBGPD_IMAGE", "rustbgpd-interop")
 	return []DUT{
-		{Name: dutZE, Image: "ze-interop", IP: "172.31.0.2", Port: 179, SenderPort: 1790, ReceiverPort: 1791},
-		{Name: dutFRR, Image: frr, IP: "172.31.0.3", Port: 179},
-		{Name: dutBIRD, Image: "bird-interop", IP: "172.31.0.4", Port: 179},
-		{Name: dutGoBGP, Image: "gobgp-interop", IP: "172.31.0.5", Port: 179},
-		{Name: dutRustBGPd, Image: rust, IP: "172.31.0.6", Port: 179, Passive: true},
-		{Name: dutRustyBGP, Image: "rustybgp-interop", IP: "172.31.0.7", Port: 179},
-		{Name: dutFreeRtr, Image: "freertr-interop", IP: "172.31.0.8", Port: 179},
-		{Name: dutOpenBGPd, Image: "openbgpd-interop", IP: "172.31.0.9", Port: 179},
+		{Name: dutZE, Image: "ze-interop", IP: netip.MustParseAddr("172.31.0.2"), Port: 179, SenderPort: 1790, ReceiverPort: 1791},
+		{Name: dutFRR, Image: frr, IP: netip.MustParseAddr("172.31.0.3"), Port: 179},
+		{Name: dutBIRD, Image: "bird-interop", IP: netip.MustParseAddr("172.31.0.4"), Port: 179},
+		{Name: dutGoBGP, Image: "gobgp-interop", IP: netip.MustParseAddr("172.31.0.5"), Port: 179},
+		{Name: dutRustBGPd, Image: rust, IP: netip.MustParseAddr("172.31.0.6"), Port: 179, Passive: true},
+		{Name: dutRustyBGP, Image: "rustybgp-interop", IP: netip.MustParseAddr("172.31.0.7"), Port: 179},
+		{Name: dutFreeRtr, Image: "freertr-interop", IP: netip.MustParseAddr("172.31.0.8"), Port: 179},
+		{Name: dutOpenBGPd, Image: "openbgpd-interop", IP: netip.MustParseAddr("172.31.0.9"), Port: 179},
 	}
 }
 
@@ -105,10 +115,23 @@ func unmeasuredDUTs(resultFiles []string) []string {
 	return missing
 }
 
+// say writes one line made of parts to w. A write to the operator's terminal
+// that fails has nowhere left to be reported, so its error is dropped.
+func say(w io.Writer, parts ...string) {
+	var tb textbuf.Buffer
+	for _, part := range parts {
+		tb.Str(part)
+	}
+	tb.Byte('\n')
+	_, _ = io.WriteString(w, tb.String())
+}
+
+// CommandRunner runs one host program: the cross-build of le and the reporter.
+// Every Docker command goes through Runner.Docker instead.
 type CommandRunner func(context.Context, io.Writer, io.Writer, string, []string, []string) error
 
 func systemCommand(ctx context.Context, stdout, stderr io.Writer, dir string, env, args []string) error {
-	command := exec.CommandContext(ctx, args[0], args[1:]...) // #nosec G204 -- benchmark configuration deliberately selects Docker and Go arguments.
+	command := exec.CommandContext(ctx, args[0], args[1:]...) // #nosec G204 -- the runner passes the Go toolchain and the reporter it was given.
 	command.Dir, command.Stdout, command.Stderr = dir, stdout, stderr
 	if env != nil {
 		command.Env = env
@@ -119,13 +142,13 @@ func systemCommand(ctx context.Context, stdout, stderr io.Writer, dir string, en
 // generateToFile atomically replaces dest only after generator success.
 func generateToFile(ctx context.Context, run CommandRunner, command []string, dest string, stderr io.Writer) bool {
 	if err := os.MkdirAll(filepath.Dir(dest), 0o750); err != nil {
-		_, _ = fmt.Fprintf(stderr, "warning: %v\n", err)
+		say(stderr, "warning: ", err.Error())
 		return false
 	}
 	temporary := dest + ".new"
 	file, err := os.Create(temporary) // #nosec G304 -- destination is runner-owned scratch output.
 	if err != nil {
-		_, _ = fmt.Fprintf(stderr, "warning: %v\n", err)
+		say(stderr, "warning: ", err.Error())
 		return false
 	}
 	commandCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -134,12 +157,12 @@ func generateToFile(ctx context.Context, run CommandRunner, command []string, de
 	closeErr := file.Close()
 	if err != nil || closeErr != nil {
 		_ = os.Remove(temporary)
-		_, _ = fmt.Fprintf(stderr, "  warning: %s NOT updated: generator failed; existing file left untouched\n", filepath.Base(dest))
+		say(stderr, "  warning: ", filepath.Base(dest), " NOT updated: generator failed; existing file left untouched")
 		return false
 	}
 	if err := os.Rename(temporary, dest); err != nil {
 		_ = os.Remove(temporary)
-		_, _ = fmt.Fprintf(stderr, "warning: publish %s: %v\n", dest, err)
+		say(stderr, "warning: publish ", dest, ": ", err.Error())
 		return false
 	}
 	return true
@@ -151,7 +174,9 @@ func generateToFile(ctx context.Context, run CommandRunner, command []string, de
 // The sender inside the container is a linux le, cross-built at LinuxBinary
 // with LinuxTags and mounted at containerLe. Reporter is the argv prefix of
 // the host program that renders the results: `le perf run` passes the le that
-// is running.
+// is running. Docker runs every container, build and removal with the owner
+// labels, so a run this process did not finish is removed by the next lab
+// start or by cleanupCommand.
 type Runner struct {
 	Root, LinuxBinary, LinuxTags, ConfigOverlay                string
 	Reporter                                                   []string
@@ -161,9 +186,16 @@ type Runner struct {
 	PProfDir                                                   string
 	Stdout, Stderr                                             io.Writer
 	Run                                                        CommandRunner
+	Docker                                                     *interoplab.Docker
 	suffix, network, resultsDir, runDir, interopDir, configDir string
-	buildxOnce                                                 sync.Once
-	buildx                                                     bool
+	// containers holds every container this run started and has not removed
+	// yet; cleanup removes what is left.
+	containers map[string]struct{}
+	// networkCreated says cleanup owes the network's removal.
+	networkCreated bool
+	// removalFailed records that a container, a network or an image tag this
+	// run created could not be removed, which fails the run.
+	removalFailed bool
 }
 
 // New answers a Runner over the checkout at root. reporter is the argv prefix
@@ -183,39 +215,9 @@ func New(root string, reporter []string, stdout, stderr io.Writer) *Runner {
 	// The linux le lives under tmp/, never under bin/: bin/le-<name> is the
 	// launcher's namespace, and a perf artifact there would claim a name.
 	linux := filepath.Join(runDir, "linux-"+runtime.GOARCH, linuxle.Name)
-	return &Runner{Root: root, Reporter: reporter, LinuxBinary: linux, ConfigOverlay: os.Getenv("PERF_CONFIGS_DIR"), Routes: routes, Seed: seed, Repeat: repeat, NoBuild: os.Getenv("NO_BUILD") != "", PProf: os.Getenv("PPROF") != "", GCTrace: os.Getenv("GCTRACE") != "", PProfPort: pprofPort, PProfCPUSeconds: cpu, PProfDir: envOr("PPROF_DIR", filepath.Join(root, "tmp", "perf-run", "pprof")), Stdout: stdout, Stderr: stderr, Run: systemCommand, suffix: suffix, network: "le-perf-" + suffix, resultsDir: filepath.Join(root, "test", "perf", "results"), runDir: runDir, interopDir: filepath.Join(root, "test", "interop"), configDir: filepath.Join(root, "test", "perf", "configs")}
+	return &Runner{Root: root, Reporter: reporter, LinuxBinary: linux, ConfigOverlay: os.Getenv("PERF_CONFIGS_DIR"), Routes: routes, Seed: seed, Repeat: repeat, NoBuild: os.Getenv("NO_BUILD") != "", PProf: os.Getenv("PPROF") != "", GCTrace: os.Getenv("GCTRACE") != "", PProfPort: pprofPort, PProfCPUSeconds: cpu, PProfDir: envOr("PPROF_DIR", filepath.Join(root, "tmp", "perf-run", "pprof")), Stdout: stdout, Stderr: stderr, Run: systemCommand, Docker: interoplab.NewDocker(), suffix: suffix, network: "le-perf-" + suffix, resultsDir: filepath.Join(root, "test", "perf", "results"), runDir: runDir, interopDir: filepath.Join(root, "test", "interop"), configDir: filepath.Join(root, "test", "perf", "configs"), containers: make(map[string]struct{})}
 }
 
-func (runner *Runner) command(timeout time.Duration, capture bool, args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-	var output textbuf.Buffer
-	stdout := runner.Stdout
-	if capture {
-		stdout = &output
-	}
-	err := runner.Run(ctx, stdout, runner.Stderr, runner.Root, nil, args)
-	return output.String(), err
-}
-func (runner *Runner) docker(timeout time.Duration, capture bool, args ...string) (string, error) {
-	if len(args) >= 2 && args[0] == dockerBuildx && args[1] == dockerBuild && !runner.useBuildx() {
-		converted := []string{dockerBuild}
-		for _, arg := range args[2:] {
-			if arg != dockerLoadFlag {
-				converted = append(converted, arg)
-			}
-		}
-		args = converted
-	}
-	return runner.command(timeout, capture, append([]string{"docker"}, args...)...)
-}
-func (runner *Runner) useBuildx() bool {
-	runner.buildxOnce.Do(func() {
-		_, err := runner.command(5*time.Second, true, "docker", "buildx", "version")
-		runner.buildx = err == nil
-	})
-	return runner.buildx
-}
 func (runner *Runner) config(name string) string {
 	if runner.ConfigOverlay != "" {
 		candidate := filepath.Join(runner.ConfigOverlay, name)
@@ -228,11 +230,26 @@ func (runner *Runner) config(name string) string {
 func (runner *Runner) containerName(name string) string {
 	return "le-perf-" + name + "-" + runner.suffix
 }
+func (runner *Runner) senderName() string {
+	return "le-perf-runner-" + runner.suffix
+}
+
+// pause waits d, or less when ctx ends first, and then answers ctx's error.
+func pause(ctx context.Context, d time.Duration) error {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
 
 // buildLinuxBinary cross-builds le for the container by the linuxle recipe, for
 // the host's architecture because Docker runs the image natively. It prints the
 // build time, which is the cost this run pays before its first measurement.
-func (runner *Runner) buildLinuxBinary() error {
+func (runner *Runner) buildLinuxBinary(ctx context.Context) error {
 	if runner.LinuxTags == "" {
 		return errors.New("no build tags for the linux le: the caller MUST set LinuxTags")
 	}
@@ -240,138 +257,217 @@ func (runner *Runner) buildLinuxBinary() error {
 		return err
 	}
 	env := append(os.Environ(), linuxle.Overrides(runtime.GOARCH)...)
-	ctx, cancel := context.WithTimeout(context.Background(), linuxBuildTimeout)
+	buildCtx, cancel := context.WithTimeout(ctx, linuxBuildTimeout)
 	defer cancel()
 
 	started := time.Now()
 	argv := linuxle.Argv(runner.LinuxTags, runner.LinuxBinary)
-	if err := runner.Run(ctx, runner.Stdout, runner.Stderr, runner.Root, env, argv); err != nil {
+	if err := runner.Run(buildCtx, runner.Stdout, runner.Stderr, runner.Root, env, argv); err != nil {
 		return err
 	}
-	_, _ = fmt.Fprintf(runner.Stdout, "Built the linux le in %s\n", time.Since(started).Round(time.Second))
+	say(runner.Stdout, "Built the linux le in ", time.Since(started).Round(time.Second).String())
 	return nil
 }
 
-func (runner *Runner) buildImages(duts []DUT) {
+// buildImages makes every selected DUT's image: FRR is pulled, the others are
+// built. A failed build is a warning, because the test step skips a DUT whose
+// image is absent; a build tag this run could not release fails the run.
+func (runner *Runner) buildImages(ctx context.Context, duts []DUT) {
 	if runner.NoBuild {
-		_, _ = fmt.Fprintln(runner.Stdout, "  skipping image builds (NO_BUILD=1)")
+		say(runner.Stdout, "  skipping image builds (NO_BUILD=1)")
 		return
 	}
 	for _, dut := range duts {
-		var args []string
-		timeout := 10 * time.Minute
-		switch dut.Name {
-		case dutZE:
-			args = []string{dockerBuildx, dockerBuild, dockerLoadFlag, "-t", "ze-interop", "-f", filepath.Join(runner.interopDir, "Dockerfile.ze"), runner.Root, dockerQuietFlag}
-		case dutFRR:
-			args = []string{"pull", dut.Image, dockerQuietFlag}
-			timeout = 2 * time.Minute
-		case dutBIRD, dutGoBGP, dutRustBGPd, dutRustyBGP:
-			args = []string{dockerBuildx, dockerBuild, dockerLoadFlag, "-t", dut.Image, "-f", filepath.Join(runner.interopDir, "Dockerfile."+dut.Name), runner.interopDir, dockerQuietFlag}
-		case dutFreeRtr:
-			source := envOr("FREERTR_DIR", filepath.Join(filepath.Dir(runner.Root), "rtr"))
-			args = []string{dockerBuildx, dockerBuild, dockerLoadFlag, "-t", dut.Image, "-f", filepath.Join(runner.interopDir, "Dockerfile.freertr"), "--build-context", "freertr=" + source, dockerQuietFlag, runner.Root}
-		case dutOpenBGPd:
-			source := envOr("OPENBGPD_DIR", filepath.Join(filepath.Dir(runner.Root), "openbgpd-portable"))
-			args = []string{dockerBuildx, dockerBuild, dockerLoadFlag, "-t", dut.Image, "-f", filepath.Join(runner.interopDir, "Dockerfile.openbgpd"), source, dockerQuietFlag}
+		if ctx.Err() != nil {
+			return
 		}
-		_, _ = fmt.Fprintf(runner.Stdout, "Building %s image...\n", dut.Name)
-		if _, err := runner.docker(timeout, false, args...); err != nil {
-			_, _ = fmt.Fprintf(runner.Stderr, "  warning: %s image build failed: %v\n", dut.Name, err)
+		say(runner.Stdout, "Building ", dut.Name, " image...")
+		if dut.Name == dutFRR {
+			if err := runner.Docker.Pull(ctx, dut.Image); err != nil {
+				say(runner.Stderr, "  warning: ", dut.Name, " image pull failed: ", err.Error())
+			}
+			continue
+		}
+		build, err := runner.imageBuild(dut)
+		if err != nil {
+			say(runner.Stderr, "  warning: ", err.Error())
+			continue
+		}
+		image, err := runner.Docker.Build(ctx, build)
+		if err != nil {
+			say(runner.Stderr, "  warning: ", dut.Name, " image build failed: ", err.Error())
+			continue
+		}
+		if err := runner.Docker.ReleaseImage(context.WithoutCancel(ctx), image); err != nil {
+			runner.removalFailed = true
+			say(runner.Stderr, "  error: release the build tag of ", dut.Name, ": ", err.Error(), "; remove it with ", cleanupCommand)
 		}
 	}
 }
 
-func (runner *Runner) volumeArgs(name string) []string {
+// imageBuild answers the build of one DUT image other than FRR, which is pulled.
+func (runner *Runner) imageBuild(dut DUT) (interoplab.ImageBuild, error) {
+	build := interoplab.ImageBuild{Name: dut.Name, Tag: dut.Image, Dockerfile: filepath.Join(runner.interopDir, "Dockerfile."+dut.Name), Timeout: imageBuildTimeout}
+	switch dut.Name {
+	case dutZE:
+		build.Context = runner.Root
+	case dutBIRD, dutGoBGP, dutRustBGPd, dutRustyBGP:
+		build.Context = runner.interopDir
+	case dutFreeRtr:
+		build.Context = runner.Root
+		source := envOr("FREERTR_DIR", filepath.Join(filepath.Dir(runner.Root), "rtr"))
+		build.NamedContexts = []interoplab.NamedBuildContext{{Name: "freertr", Path: source}}
+	case dutOpenBGPd:
+		build.Context = envOr("OPENBGPD_DIR", filepath.Join(filepath.Dir(runner.Root), "openbgpd-portable"))
+	default:
+		return build, errors.New("no image build is declared for DUT " + dut.Name)
+	}
+	return build, nil
+}
+
+// dutMounts answers the read-only configuration files one DUT reads.
+func (runner *Runner) dutMounts(name string) []interoplab.Mount {
+	mount := func(source, target string) interoplab.Mount {
+		return interoplab.Mount{Source: source, Target: target, ReadOnly: true}
+	}
 	switch name {
 	case dutZE:
-		return []string{"-v", runner.config("ze.conf") + ":/etc/ze/bgp.conf:ro"}
+		return []interoplab.Mount{mount(runner.config("ze.conf"), "/etc/ze/bgp.conf")}
 	case dutFRR:
-		return []string{"-v", runner.config("frr.conf") + ":/etc/frr/frr.conf:ro", "-v", filepath.Join(runner.interopDir, "daemons") + ":/etc/frr/daemons:ro", "-v", filepath.Join(runner.interopDir, "vtysh.conf") + ":/etc/frr/vtysh.conf:ro"}
+		return []interoplab.Mount{mount(runner.config("frr.conf"), "/etc/frr/frr.conf"), mount(filepath.Join(runner.interopDir, "daemons"), "/etc/frr/daemons"), mount(filepath.Join(runner.interopDir, "vtysh.conf"), "/etc/frr/vtysh.conf")}
 	case dutBIRD:
-		return []string{"-v", runner.config("bird.conf") + ":/etc/bird/bird.conf:ro"}
+		return []interoplab.Mount{mount(runner.config("bird.conf"), "/etc/bird/bird.conf")}
 	case dutGoBGP:
-		return []string{"-v", runner.config("gobgp.toml") + ":/etc/gobgp/gobgp.toml:ro"}
+		return []interoplab.Mount{mount(runner.config("gobgp.toml"), "/etc/gobgp/gobgp.toml")}
 	case dutRustBGPd:
-		return []string{"-v", runner.config("rustbgpd.toml") + ":/etc/rustbgpd/config.toml:ro"}
+		return []interoplab.Mount{mount(runner.config("rustbgpd.toml"), "/etc/rustbgpd/config.toml")}
 	case dutRustyBGP:
-		return []string{"-v", runner.config("rustybgp.toml") + ":/etc/rustybgp/config.toml:ro"}
+		return []interoplab.Mount{mount(runner.config("rustybgp.toml"), "/etc/rustybgp/config.toml")}
 	case dutFreeRtr:
-		return []string{"-v", runner.config("freertr-hw.txt") + ":/etc/freertr/freertr-hw.txt:ro", "-v", runner.config("freertr-sw.txt") + ":/etc/freertr/freertr-sw.txt:ro"}
+		return []interoplab.Mount{mount(runner.config("freertr-hw.txt"), "/etc/freertr/freertr-hw.txt"), mount(runner.config("freertr-sw.txt"), "/etc/freertr/freertr-sw.txt")}
 	case dutOpenBGPd:
-		return []string{"-v", runner.config("openbgpd.conf") + ":/etc/bgpd.conf:ro"}
+		return []interoplab.Mount{mount(runner.config("openbgpd.conf"), "/etc/bgpd.conf")}
 	}
 	return nil
 }
-func (runner *Runner) startDUT(dut DUT) error {
-	args := []string{"run", "-d", "--name", runner.containerName(dut.Name), "--network", runner.network, "--ip", dut.IP, "--cap-add", "NET_ADMIN"}
-	if dut.Name == dutFRR {
-		args = append(args, "--cap-add", "SYS_ADMIN")
-	}
-	if dut.Name == dutFreeRtr {
-		args = append(args, "--cap-add", "NET_RAW")
-	}
-	if dut.Name == dutOpenBGPd {
-		args = append(args, "--cap-add", "SYS_CHROOT")
-	}
-	if dut.Name == dutZE && runner.GCTrace {
-		args = append(args, "-e", "GODEBUG=gctrace=1")
-	}
-	args = append(args, runner.volumeArgs(dut.Name)...)
-	args = append(args, dut.Image)
-	if dut.Name == dutZE {
-		if runner.PProf {
-			args = append(args, "--pprof", "127.0.0.1:"+strconv.Itoa(runner.PProfPort))
+
+// dutContainer answers the detached container one DUT runs in.
+func (runner *Runner) dutContainer(dut DUT) interoplab.DetachedContainer {
+	spec := interoplab.DetachedContainer{Name: runner.containerName(dut.Name), Image: dut.Image, Network: runner.network, Address: dut.IP, Capabilities: []string{"NET_ADMIN"}, Mounts: runner.dutMounts(dut.Name)}
+	switch dut.Name {
+	case dutFRR:
+		spec.Capabilities = append(spec.Capabilities, "SYS_ADMIN")
+	case dutFreeRtr:
+		spec.Capabilities = append(spec.Capabilities, "NET_RAW")
+	case dutOpenBGPd:
+		spec.Capabilities = append(spec.Capabilities, "SYS_CHROOT")
+	case dutZE:
+		if runner.GCTrace {
+			spec.Environment = []interoplab.EnvironmentVariable{{Name: "GODEBUG", Value: "gctrace=1"}}
 		}
-		args = append(args, "start", "/etc/ze/bgp.conf")
+		if runner.PProf {
+			spec.Command = append(spec.Command, "--pprof", "127.0.0.1:"+strconv.Itoa(runner.PProfPort))
+		}
+		spec.Command = append(spec.Command, "start", "/etc/ze/bgp.conf")
 	}
-	_, err := runner.docker(30*time.Second, false, args...)
-	return err
+	return spec
 }
-func (runner *Runner) waitDUT(name string) error {
+
+// startContainer runs spec detached and records it for removal first, so a
+// run that the daemon created but could not start is removed too.
+func (runner *Runner) startContainer(ctx context.Context, spec interoplab.DetachedContainer) error {
+	runner.containers[spec.Name] = struct{}{}
+	return runner.Docker.RunDetached(ctx, spec)
+}
+
+// removeContainer removes one container this run started, on a context the
+// run's cancellation does not reach, so an interrupted run still removes it.
+// A removal that fails is reported and fails the run.
+func (runner *Runner) removeContainer(ctx context.Context, name string) {
+	delete(runner.containers, name)
+	if err := runner.Docker.RemoveContainer(context.WithoutCancel(ctx), name); err != nil {
+		runner.removalFailed = true
+		say(runner.Stderr, "  error: remove container ", name, ": ", err.Error(), "; remove it with ", cleanupCommand)
+	}
+}
+
+func (runner *Runner) startDUT(ctx context.Context, dut DUT) error {
+	return runner.startContainer(ctx, runner.dutContainer(dut))
+}
+func (runner *Runner) waitDUT(ctx context.Context, name string) error {
 	limit := 30 * time.Second
 	if name == dutFreeRtr {
 		limit = 45 * time.Second
 	}
+	container := runner.containerName(name)
 	deadline := time.Now().Add(limit)
+	var last error
 	for time.Now().Before(deadline) {
-		out, err := runner.docker(10*time.Second, true, "inspect", runner.containerName(name), "--format", "{{.State.Running}}")
-		if err == nil && strings.Contains(out, "true") {
-			time.Sleep(5 * time.Second)
-			return nil
+		running, err := runner.Docker.ContainerRunning(ctx, container)
+		if err == nil && running {
+			return pause(ctx, 5*time.Second)
 		}
-		time.Sleep(time.Second)
+		last = err
+		if err := pause(ctx, time.Second); err != nil {
+			return err
+		}
 	}
-	_, _ = runner.docker(10*time.Second, false, "logs", runner.containerName(name), "--tail", "20")
-	return fmt.Errorf("%s did not start within %s", name, limit)
+	if logs, err := runner.Docker.Logs(ctx, container, 20); err == nil {
+		_, _ = io.WriteString(runner.Stdout, logs.Text)
+	} else {
+		say(runner.Stderr, "  warning: read the logs of ", container, ": ", err.Error())
+	}
+	if last != nil {
+		return errors.New(name + " did not start within " + limit.String() + ": " + last.Error())
+	}
+	return errors.New(name + " did not start within " + limit.String())
 }
-func (runner *Runner) imageExists(image string) bool {
-	_, err := runner.docker(10*time.Second, true, "image", "inspect", image)
-	return err == nil
-}
-func (runner *Runner) stop(name string) {
-	_, _ = runner.docker(30*time.Second, true, "rm", "-f", runner.containerName(name))
+func (runner *Runner) stop(ctx context.Context, name string) {
+	runner.removeContainer(ctx, runner.containerName(name))
 }
 
-func (runner *Runner) runPerf(dut DUT, senderFirst bool) bool {
-	container := "le-perf-runner-" + runner.suffix
-	_, err := runner.docker(30*time.Second, false, "run", "-d", "--name", container, "--network", runner.network, "--ip", senderIP, "--cap-add", "NET_ADMIN", "-v", runner.LinuxBinary+":"+containerLe+":ro", "-v", runner.resultsDir+":/results", "alpine:3.21", "sleep", "3600")
-	if err != nil {
+// prepareSender runs one setup command in the sender. A failure is a warning:
+// the measurement that follows says whether the sender works.
+func (runner *Runner) prepareSender(ctx context.Context, container string, argv ...string) {
+	if _, err := runner.Docker.Exec(ctx, container, argv, nil); err != nil {
+		say(runner.Stderr, "  warning: sender setup: ", err.Error())
+	}
+}
+
+// senderContainer answers the sender: le mounted read-only, the results
+// directory writable, and a sleep that keeps it up for the execs.
+func (runner *Runner) senderContainer() interoplab.DetachedContainer {
+	return interoplab.DetachedContainer{
+		Name: runner.senderName(), Image: senderImage, Network: runner.network, Address: senderIP,
+		Capabilities: []string{"NET_ADMIN"},
+		Mounts: []interoplab.Mount{
+			{Source: runner.LinuxBinary, Target: containerLe, ReadOnly: true},
+			{Source: runner.resultsDir, Target: "/results"},
+		},
+		Command: []string{"sleep", "3600"},
+	}
+}
+
+func (runner *Runner) runPerf(ctx context.Context, dut DUT, senderFirst bool) bool {
+	container := runner.senderName()
+	if err := runner.startContainer(ctx, runner.senderContainer()); err != nil {
+		say(runner.Stderr, "  error: start the sender: ", err.Error())
+		runner.removeContainer(ctx, container)
 		return false
 	}
-	defer func() { _, _ = runner.docker(30*time.Second, true, "rm", "-f", container) }()
-	_, _ = runner.docker(10*time.Second, true, "exec", container, "ip", "addr", "add", receiverIP+"/24", "dev", "eth0")
-	_, _ = runner.docker(5*time.Second, true, "exec", container, "arping", "-U", "-c", "1", "-I", "eth0", receiverIP)
+	defer runner.removeContainer(ctx, container)
+	runner.prepareSender(ctx, container, "ip", "addr", "add", netip.PrefixFrom(receiverIP, perfSubnet.Bits()).String(), "dev", "eth0")
+	runner.prepareSender(ctx, container, "arping", "-U", "-c", "1", "-I", "eth0", receiverIP.String())
 	if dut.Name == dutFreeRtr {
-		_, _ = runner.docker(30*time.Second, true, "exec", container, "apk", "add", "--no-cache", "ethtool")
-		_, _ = runner.docker(10*time.Second, true, "exec", container, "ethtool", "-K", "eth0", "tx", "off")
+		runner.prepareSender(ctx, container, "apk", "add", "--no-cache", "ethtool")
+		runner.prepareSender(ctx, container, "ethtool", "-K", "eth0", "tx", "off")
 	}
 	convergence := max(30, (runner.Routes/1000)*4+30)
 	result := dut.Name + ".json"
 	if senderFirst {
 		result = dut.Name + "-propagation.json"
 	}
-	args := []string{"exec", container, containerLe, "perf", "send", "--dut-addr", dut.IP, "--dut-port", strconv.Itoa(dut.Port), "--dut-asn", "65000", "--dut-name", dut.Name, "--sender-addr", senderIP, "--sender-asn", "65001", "--receiver-addr", receiverIP, "--receiver-asn", "65002", "--routes", strconv.Itoa(runner.Routes), "--seed", strconv.Itoa(runner.Seed), "--repeat", strconv.Itoa(runner.Repeat), "--warmup-runs", "1", "--iter-delay", "8s", "--warmup", "2s", "--connect-timeout", "20s", "--duration", strconv.Itoa(convergence) + "s", "--output", "/results/" + result}
+	args := []string{containerLe, "perf", "send", "--dut-addr", dut.IP.String(), "--dut-port", strconv.Itoa(dut.Port), "--dut-asn", "65000", "--dut-name", dut.Name, "--sender-addr", senderIP.String(), "--sender-asn", "65001", "--receiver-addr", receiverIP.String(), "--receiver-asn", "65002", "--routes", strconv.Itoa(runner.Routes), "--seed", strconv.Itoa(runner.Seed), "--repeat", strconv.Itoa(runner.Repeat), "--warmup-runs", "1", "--iter-delay", "8s", "--warmup", "2s", "--connect-timeout", "20s", "--duration", strconv.Itoa(convergence) + "s", "--output", "/results/" + result}
 	if dut.SenderPort != 0 {
 		args = append(args, "--sender-port", strconv.Itoa(dut.SenderPort))
 	}
@@ -385,20 +481,23 @@ func (runner *Runner) runPerf(dut DUT, senderFirst bool) bool {
 		args = append(args, "-sender-first")
 	}
 	timeout := time.Duration((1+runner.Repeat)*(convergence+40)+60) * time.Second
-	_, err = runner.docker(timeout, false, args...)
-	return err == nil
+	send := interoplab.ContainerExec{Container: container, Command: args, Stdout: runner.Stdout, Stderr: runner.Stderr, Timeout: timeout}
+	if _, err := runner.Docker.ExecAttached(ctx, send); err != nil {
+		say(runner.Stderr, "  error: measure ", dut.Name, ": ", err.Error())
+		return false
+	}
+	return true
 }
 
 // captureProfile writes one pprof endpoint of the running container to path.
-func (runner *Runner) captureProfile(container, endpoint, path string, timeout time.Duration) error {
+func (runner *Runner) captureProfile(ctx context.Context, container, endpoint, path string, timeout time.Duration) error {
 	file, err := os.Create(path) //nolint:gosec // path is PProfDir joined with one of this file's fixed profile names
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
 	url := "http://127.0.0.1:" + strconv.Itoa(runner.PProfPort) + "/debug/pprof/" + endpoint
-	runErr := runner.Run(ctx, file, runner.Stderr, runner.Root, nil, []string{"docker", "exec", container, "le", "test", "http-get", url})
+	capture := interoplab.ContainerExec{Container: container, Command: []string{"le", "test", "http-get", url}, Stdout: file, Stderr: runner.Stderr, Timeout: timeout}
+	_, runErr := runner.Docker.ExecAttached(ctx, capture)
 	closeErr := file.Close()
 	if runErr != nil {
 		return runErr
@@ -408,37 +507,58 @@ func (runner *Runner) captureProfile(container, endpoint, path string, timeout t
 
 // captureProfiles collects the CPU and the memory profiles. Profiling is
 // best-effort: a failed capture is reported and the benchmark continues.
-func (runner *Runner) captureProfiles(container, directory string) {
+func (runner *Runner) captureProfiles(ctx context.Context, container, directory string) {
 	if err := os.MkdirAll(directory, 0o750); err != nil {
-		_, _ = fmt.Fprintf(runner.Stderr, "perf: create profile directory %s: %v\n", directory, err)
+		say(runner.Stderr, "perf: create profile directory ", directory, ": ", err.Error())
 		return
 	}
-	time.Sleep(5 * time.Second)
+	if pause(ctx, 5*time.Second) != nil {
+		return
+	}
 	cpu := "profile?seconds=" + strconv.Itoa(runner.PProfCPUSeconds)
-	if err := runner.captureProfile(container, cpu, filepath.Join(directory, "cpu.pprof"), time.Duration(runner.PProfCPUSeconds+30)*time.Second); err != nil {
-		_, _ = fmt.Fprintf(runner.Stderr, "perf: capture cpu profile: %v\n", err)
+	if err := runner.captureProfile(ctx, container, cpu, filepath.Join(directory, "cpu.pprof"), time.Duration(runner.PProfCPUSeconds+30)*time.Second); err != nil {
+		say(runner.Stderr, "perf: capture cpu profile: ", err.Error())
 	}
 	for _, name := range []string{"heap", "allocs", "goroutine"} {
-		if err := runner.captureProfile(container, name, filepath.Join(directory, name+".pprof"), 15*time.Second); err != nil {
-			_, _ = fmt.Fprintf(runner.Stderr, "perf: capture %s profile: %v\n", name, err)
+		if err := runner.captureProfile(ctx, container, name, filepath.Join(directory, name+".pprof"), 15*time.Second); err != nil {
+			say(runner.Stderr, "perf: capture ", name, " profile: ", err.Error())
 		}
 	}
 }
-func (runner *Runner) cleanup() {
-	for _, dut := range DUTs() {
-		runner.stop(dut.Name)
+
+// cleanup removes every container this run started and still holds, then the
+// network, on a context the run's cancellation does not reach.
+func (runner *Runner) cleanup(ctx context.Context) {
+	for _, name := range slices.Sorted(maps.Keys(runner.containers)) {
+		runner.removeContainer(ctx, name)
 	}
-	_, _ = runner.docker(30*time.Second, true, "rm", "-f", "le-perf-runner-"+runner.suffix)
-	_, _ = runner.docker(30*time.Second, true, "network", "rm", runner.network)
+	if !runner.networkCreated {
+		return
+	}
+	runner.networkCreated = false
+	if err := runner.Docker.RemoveNetwork(context.WithoutCancel(ctx), runner.network); err != nil {
+		runner.removalFailed = true
+		say(runner.Stderr, "  error: remove network ", runner.network, ": ", err.Error(), "; remove it with ", cleanupCommand)
+	}
+}
+
+// measurement is what the test step found over the selected DUTs.
+type measurement struct {
+	passed  int
+	failed  []string
+	skipped []string
+	results []string
 }
 
 // Execute runs the selected steps over the named DUTs, or over every DUT when
 // names is empty. It answers 2 when steps selects nothing, 1 when no DUT
-// matches or a measurement fails, and 0 otherwise. A DUT whose image is absent
-// is skipped and reported, never measured.
-func (runner *Runner) Execute(steps Steps, names []string) int {
+// matches, a measurement fails, ctx ends the run, or a container, network or
+// build tag this run created could not be removed, and 0 otherwise. A DUT
+// whose image is absent is skipped and reported, never measured. ctx is the
+// command's root: canceling it stops the run, and the removals still run.
+func (runner *Runner) Execute(ctx context.Context, steps Steps, names []string) int {
 	if !steps.Build && !steps.Test {
-		_, _ = fmt.Fprintln(runner.Stderr, "error: a suite run needs the build step, the test step, or both")
+		say(runner.Stderr, "error: a suite run needs the build step, the test step, or both")
 		return 2
 	}
 	requested := make(map[string]bool)
@@ -452,100 +572,163 @@ func (runner *Runner) Execute(steps Steps, names []string) int {
 		}
 	}
 	if len(duts) == 0 {
-		_, _ = fmt.Fprintln(runner.Stderr, "error: no matching DUTs")
+		say(runner.Stderr, "error: no matching DUTs")
 		return 1
 	}
 	if steps.Build {
-		runner.buildImages(duts)
+		runner.buildImages(ctx, duts)
 	}
 	if !steps.Test {
-		return 0
+		return runner.verdict(ctx)
 	}
-	if err := runner.buildLinuxBinary(); err != nil {
-		_, _ = fmt.Fprintf(runner.Stderr, "build Linux binary: %v\n", err)
+	if err := runner.buildLinuxBinary(ctx); err != nil {
+		say(runner.Stderr, "build Linux binary: ", err.Error())
 		return 1
 	}
-	defer runner.cleanup()
-	_ = os.MkdirAll(runner.resultsDir, 0o750)
-	if _, err := runner.docker(10*time.Second, true, "network", "create", "--subnet", subnet, runner.network); err != nil {
+	if err := os.MkdirAll(runner.resultsDir, 0o750); err != nil {
+		say(runner.Stderr, "error: create the results directory: ", err.Error())
 		return 1
 	}
-	passed, failed, skipped := 0, 0, 0
-	failedNames := []string{}
-	skippedNames := []string{}
-	results := []string{}
+	found, err := runner.measure(ctx, duts)
+	runner.cleanup(ctx)
+	if err != nil {
+		say(runner.Stderr, "error: ", err.Error())
+		return 1
+	}
+	if ctx.Err() == nil {
+		runner.render(ctx, found.results)
+	}
+	runner.summarize(found)
+	if len(found.failed) > 0 {
+		return 1
+	}
+	return runner.verdict(ctx)
+}
+
+// verdict answers 0, or 1 when ctx ended the run or a removal failed:
+// either one leaves the run's outcome untrusted or a resource behind.
+func (runner *Runner) verdict(ctx context.Context) int {
+	if err := ctx.Err(); err != nil {
+		say(runner.Stderr, "FAIL  interrupted: ", err.Error())
+		return 1
+	}
+	if runner.removalFailed {
+		say(runner.Stderr, "FAIL  a resource of this run was not removed; run ", cleanupCommand)
+		return 1
+	}
+	return 0
+}
+
+// measure creates the network and measures each DUT whose image exists. It
+// answers an error when the network cannot be created or ctx ends the run
+// between two DUTs; a DUT under way when ctx ends fails. The caller MUST
+// call cleanup after it, whatever it answers.
+func (runner *Runner) measure(ctx context.Context, duts []DUT) (measurement, error) {
+	var found measurement
+	network := interoplab.NetworkSpec{Name: runner.network, Candidates: []interoplab.Subnet{{IPv4: perfSubnet}}}
+	if _, err := runner.Docker.CreateNetwork(ctx, network); err != nil {
+		return found, err
+	}
+	runner.networkCreated = true
 	for _, dut := range duts {
-		_, _ = fmt.Fprintf(runner.Stdout, "-- %s --\n", dut.Name)
-		if !runner.imageExists(dut.Image) {
-			skipped++
-			skippedNames = append(skippedNames, dut.Name)
-			continue
+		if err := ctx.Err(); err != nil {
+			return found, fmt.Errorf("the run was interrupted before %s: %w", dut.Name, err)
 		}
-		if err := runner.startDUT(dut); err != nil {
-			failed++
-			failedNames = append(failedNames, dut.Name)
-			continue
-		}
-		if err := runner.waitDUT(dut.Name); err != nil {
-			runner.stop(dut.Name)
-			failed++
-			failedNames = append(failedNames, dut.Name)
-			continue
-		}
-		var profile sync.WaitGroup
-		if dut.Name == dutZE && runner.PProf {
-			profile.Go(func() {
-				runner.captureProfiles(runner.containerName(dut.Name), filepath.Join(runner.PProfDir, strconv.Itoa(runner.Routes)))
-			})
-		}
-		ok := runner.runPerf(dut, false)
-		profile.Wait()
-		if ok {
-			passed++
-			results = append(results, filepath.Join(runner.resultsDir, dut.Name+".json"))
-			if dut.Name == dutZE && runner.runPerf(dut, true) {
-				results = append(results, filepath.Join(runner.resultsDir, "ze-propagation.json"))
-			}
-		} else {
-			failed++
-			failedNames = append(failedNames, dut.Name)
-		}
-		runner.stop(dut.Name)
+		say(runner.Stdout, "-- ", dut.Name, " --")
+		runner.measureIfPresent(ctx, dut, &found)
 	}
-	if len(results) > 0 {
-		ctx := context.Background()
-		_ = runner.Run(ctx, runner.Stdout, runner.Stderr, runner.Root, nil, runner.reportArgv("--md", results))
-		generateToFile(ctx, runner.Run, runner.reportArgv("--html", results), filepath.Join(runner.resultsDir, "report.html"), runner.Stderr)
-		snapshot := filepath.Join(runner.runDir, "performance.md")
-		if generateToFile(ctx, runner.Run, runner.reportArgv("--doc", results), snapshot, runner.Stderr) {
-			if missing := unmeasuredDUTs(results); len(missing) > 0 {
-				_, _ = fmt.Fprintf(runner.Stdout, "  covers this run only; no result for: %s\n", strings.Join(missing, ", "))
-			}
-			_, _ = fmt.Fprintf(runner.Stdout, "Performance doc snapshot: %s\n%s is NOT written by a benchmark run\n", snapshot, filepath.Join(runner.Root, "docs", "performance.md"))
-		}
+	return found, nil
+}
+
+// measureIfPresent measures one DUT into found when its image exists, skips
+// it when the image is absent, and fails it when the daemon cannot say.
+func (runner *Runner) measureIfPresent(ctx context.Context, dut DUT, found *measurement) {
+	present, err := runner.Docker.ImagePresent(ctx, dut.Image)
+	if err != nil {
+		say(runner.Stderr, "  error: inspect image ", dut.Image, ": ", err.Error())
+		found.failed = append(found.failed, dut.Name)
+		return
 	}
+	if !present {
+		found.skipped = append(found.skipped, dut.Name)
+		return
+	}
+	if !runner.measureDUT(ctx, dut, found) {
+		found.failed = append(found.failed, dut.Name)
+	}
+	runner.stop(ctx, dut.Name)
+}
+
+// measureDUT starts one DUT, waits for it, and measures it into found. It
+// answers false when the DUT did not start or its measurement failed; the
+// caller removes the DUT's container either way.
+func (runner *Runner) measureDUT(ctx context.Context, dut DUT, found *measurement) bool {
+	if err := runner.startDUT(ctx, dut); err != nil {
+		say(runner.Stderr, "  error: start ", dut.Name, ": ", err.Error())
+		return false
+	}
+	if err := runner.waitDUT(ctx, dut.Name); err != nil {
+		say(runner.Stderr, "  error: ", err.Error())
+		return false
+	}
+	var profile sync.WaitGroup
+	if dut.Name == dutZE && runner.PProf {
+		profile.Go(func() {
+			runner.captureProfiles(ctx, runner.containerName(dut.Name), filepath.Join(runner.PProfDir, strconv.Itoa(runner.Routes)))
+		})
+	}
+	ok := runner.runPerf(ctx, dut, false)
+	profile.Wait()
+	if !ok {
+		return false
+	}
+	found.passed++
+	found.results = append(found.results, filepath.Join(runner.resultsDir, dut.Name+".json"))
+	if dut.Name == dutZE && runner.runPerf(ctx, dut, true) {
+		found.results = append(found.results, filepath.Join(runner.resultsDir, "ze-propagation.json"))
+	}
+	return true
+}
+
+// render prints the comparison and writes the HTML report and the doc snapshot.
+func (runner *Runner) render(ctx context.Context, results []string) {
+	if len(results) == 0 {
+		return
+	}
+	if err := runner.Run(ctx, runner.Stdout, runner.Stderr, runner.Root, nil, runner.reportArgv("--md", results)); err != nil {
+		say(runner.Stderr, "  warning: render the comparison: ", err.Error())
+	}
+	generateToFile(ctx, runner.Run, runner.reportArgv("--html", results), filepath.Join(runner.resultsDir, "report.html"), runner.Stderr)
+	snapshot := filepath.Join(runner.runDir, "performance.md")
+	if generateToFile(ctx, runner.Run, runner.reportArgv("--doc", results), snapshot, runner.Stderr) {
+		if missing := unmeasuredDUTs(results); len(missing) > 0 {
+			say(runner.Stdout, "  covers this run only; no result for: ", strings.Join(missing, ", "))
+		}
+		say(runner.Stdout, "Performance doc snapshot: ", snapshot)
+		say(runner.Stdout, filepath.Join(runner.Root, "docs", "performance.md"), " is NOT written by a benchmark run")
+	}
+}
+
+// summarize prints the one verdict line over what the test step found.
+func (runner *Runner) summarize(found measurement) {
 	parts := []string{}
-	if passed > 0 {
-		parts = append(parts, fmt.Sprintf("%d passed", passed))
+	if found.passed > 0 {
+		parts = append(parts, strconv.Itoa(found.passed)+" passed")
 	}
-	if failed > 0 {
-		parts = append(parts, fmt.Sprintf("%d failed: %s", failed, strings.Join(failedNames, " ")))
+	if len(found.failed) > 0 {
+		parts = append(parts, strconv.Itoa(len(found.failed))+" failed: "+strings.Join(found.failed, " "))
 	}
-	if skipped > 0 {
-		parts = append(parts, fmt.Sprintf("%d skipped: %s", skipped, strings.Join(skippedNames, " ")))
+	if len(found.skipped) > 0 {
+		parts = append(parts, strconv.Itoa(len(found.skipped))+" skipped: "+strings.Join(found.skipped, " "))
 	}
 	if len(parts) == 0 {
 		parts = append(parts, "no DUTs ran")
 	}
 	verdict := "PASS"
-	if failed > 0 {
+	if len(found.failed) > 0 {
 		verdict = "FAIL"
 	}
-	_, _ = fmt.Fprintf(runner.Stdout, "%s  %s\n", verdict, strings.Join(parts, ", "))
-	if failed > 0 {
-		return 1
-	}
-	return 0
+	say(runner.Stdout, verdict, "  ", strings.Join(parts, ", "))
 }
 
 // reportArgv answers the Reporter command that renders results in one format.

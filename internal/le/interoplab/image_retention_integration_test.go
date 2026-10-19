@@ -29,7 +29,7 @@ func TestDockerBuildRetainsImageAcrossRetag(t *testing.T) {
 	cacheTag := "ze-interop-retention-test:" + rand.Text()
 	cleanup := func(image ImageResult) {
 		t.Helper()
-		if err := docker.releaseImage(context.Background(), image); err != nil {
+		if err := docker.ReleaseImage(context.Background(), image); err != nil {
 			t.Error(err)
 		}
 	}
@@ -64,7 +64,7 @@ func TestDockerBuildRetainsImageAcrossRetag(t *testing.T) {
 		}
 	}
 	for _, image := range images {
-		if err := docker.releaseImage(ctx, image); err != nil {
+		if err := docker.ReleaseImage(ctx, image); err != nil {
 			t.Fatal(err)
 		}
 		_, err := docker.command(ctx, dockerCommandTimeout,

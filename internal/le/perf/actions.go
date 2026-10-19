@@ -13,6 +13,11 @@
 package perf
 
 import (
+	"context"
+	"os"
+	"os/signal"
+	"syscall"
+
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	perfcli "github.com/ze-software/ze/internal/perf/cli"
@@ -161,7 +166,9 @@ func runHere(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return RunReport{Action: runVerb, Error: err.Error(), Code: 1}, 1
 	}
-	return bench.Run(steps, splitDUTs(args.One(dutKeyword)))
+	return signalRooted(func(ctx context.Context) (any, int) {
+		return bench.Run(ctx, steps, splitDUTs(args.One(dutKeyword)))
+	})
 }
 
 // historyHere appends the last measurement's results over this checkout.
@@ -181,7 +188,18 @@ func evidenceHere() (any, int) {
 		leaction.ReportError(err)
 		return RunReport{Action: evidenceVerb, Error: err.Error(), Code: 1}, 1
 	}
-	return bench.EvidenceRecord()
+	return signalRooted(func(ctx context.Context) (any, int) {
+		return bench.EvidenceRecord(ctx)
+	})
+}
+
+// signalRooted runs one benchmark verb under a root context that SIGINT or
+// SIGTERM cancels, so the containers and the network it started are removed
+// before the process exits, rather than left behind by the default action.
+func signalRooted(run func(context.Context) (any, int)) (any, int) {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return run(ctx)
 }
 
 // here answers a runner over the checkout this command was run in.

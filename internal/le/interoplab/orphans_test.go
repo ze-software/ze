@@ -111,8 +111,8 @@ func TestOwnerLabelsOnEveryCreate(t *testing.T) {
 	if _, err := docker.RunOneShot(ctx, OneShotContainer{Image: "alpine", Timeout: dockerRunTimeout}); err != nil {
 		t.Fatalf("RunOneShot: %v", err)
 	}
-	if _, err := docker.createNetwork(ctx, NetworkSpec{Name: "lab-net", Candidates: []Subnet{{IPv4: network.IPv4}}}); err != nil {
-		t.Fatalf("createNetwork: %v", err)
+	if _, err := docker.CreateNetwork(ctx, NetworkSpec{Name: "lab-net", Candidates: []Subnet{{IPv4: network.IPv4}}}); err != nil {
+		t.Fatalf("CreateNetwork: %v", err)
 	}
 	if _, err := docker.Build(ctx, ImageBuild{Name: "peer", Tag: "peer-image", Dockerfile: "Dockerfile", Context: "."}); err != nil {
 		t.Fatalf("Build: %v", err)

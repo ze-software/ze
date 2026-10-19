@@ -100,11 +100,21 @@ type ImageBuild struct {
 	Dockerfile string   `json:"dockerfile"`
 	Context    string   `json:"context"`
 	BuildArgs  []string `json:"build-args,omitempty"`
+	// NamedContexts are the additional build contexts a Dockerfile reads
+	// with `COPY --from=<name>`, such as a sibling source checkout.
+	NamedContexts []NamedBuildContext `json:"named-contexts,omitempty"`
 	// Timeout bounds this one build. Zero takes the machine budget, which
 	// dockerBuildTimeoutDefault answers for and BUILD_TIMEOUT overrides.
 	Timeout  time.Duration `json:"timeout,omitempty"`
 	Required bool          `json:"required"`
 	Pull     bool          `json:"pull"`
+}
+
+// NamedBuildContext is one `--build-context <name>=<path>` of a build: a
+// directory the Dockerfile reads by name rather than through the main context.
+type NamedBuildContext struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
 }
 
 // ImageResult records the immutable reference that containers in this run use.
@@ -360,7 +370,9 @@ func architectureToken(value string) bool {
 	return true
 }
 
-// Build retains a built image until Suite.Run releases its run-owned tag.
+// Build retains a built image until ReleaseImage drops its run-owned tag:
+// Suite.Run does that for a lab, and any other caller MUST call ReleaseImage
+// after a successful Build. The shared Tag stays.
 func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, error) {
 	image := ImageResult{Name: build.Name, Tag: build.Tag}
 	timeout := build.Timeout
@@ -377,6 +389,16 @@ func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, erro
 	for _, argument := range build.BuildArgs {
 		arguments = append(arguments, "--build-arg", argument)
 	}
+	for _, named := range build.NamedContexts {
+		if named.Name == "" {
+			return image, errors.New("Docker build context name is empty")
+		}
+		if named.Path == "" {
+			return image, errors.New("Docker build context path is empty")
+		}
+		var tb textbuf.Buffer
+		arguments = append(arguments, "--build-context", tb.Str(named.Name).Byte('=').Str(named.Path).String())
+	}
 	arguments = append(arguments, "-t", image.retainedTag, "-f", build.Dockerfile, build.Context, "-q")
 	result, err := d.command(ctx, timeout, arguments...)
 	if err != nil {
@@ -391,8 +413,9 @@ func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, erro
 	return image, nil
 }
 
-// releaseImage removes only the tag this build owns, never the shared cache tag.
-func (d *Docker) releaseImage(ctx context.Context, image ImageResult) error {
+// ReleaseImage removes only the tag this build owns, never the shared cache tag.
+// It MUST be called once after each successful Build.
+func (d *Docker) ReleaseImage(ctx context.Context, image ImageResult) error {
 	if image.retainedTag == "" {
 		return nil
 	}
@@ -400,8 +423,7 @@ func (d *Docker) releaseImage(ctx context.Context, image ImageResult) error {
 	if err == nil {
 		return nil
 	}
-	var commandErr *commandError
-	if errors.As(err, &commandErr) {
+	if commandErr, ok := errors.AsType[*commandError](err); ok {
 		var tb textbuf.Buffer
 		absent := tb.Str("No such image: ").Str(image.retainedTag).String()
 		for line := range strings.SplitSeq(commandErr.Stderr, "\n") {
@@ -472,8 +494,8 @@ func (d *Docker) oneShotArguments(spec OneShotContainer, name string) []string {
 	return append(argv, spec.Command...)
 }
 
-// createNetwork tries each declared candidate once. Only overlap moves to the next candidate.
-func (d *Docker) createNetwork(ctx context.Context, spec NetworkSpec) (Network, error) {
+// CreateNetwork tries each declared candidate once. Only overlap moves to the next candidate.
+func (d *Docker) CreateNetwork(ctx context.Context, spec NetworkSpec) (Network, error) {
 	if spec.Name == "" {
 		return Network{}, errors.New("Docker network name is empty")
 	}
@@ -503,15 +525,14 @@ func (d *Docker) createNetwork(ctx context.Context, spec NetworkSpec) (Network, 
 	return Network{}, fmt.Errorf("docker network create exhausted %d candidates: %w", len(spec.Candidates), last)
 }
 
-// removeNetwork removes a network. A name-specific not-found answer is
+// RemoveNetwork removes a network. A name-specific not-found answer is
 // success, and any other failure is settled by confirmRemoval.
-func (d *Docker) removeNetwork(ctx context.Context, name string) error {
+func (d *Docker) RemoveNetwork(ctx context.Context, name string) error {
 	_, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, dockerNetworkObject, "rm", name)
 	if err == nil {
 		return nil
 	}
-	var commandErr *commandError
-	if errors.As(err, &commandErr) {
+	if commandErr, ok := errors.AsType[*commandError](err); ok {
 		var tb textbuf.Buffer
 		absent := tb.Str("network ").Str(name).Str(" not found").String()
 		if strings.Contains(commandErr.Stderr, absent) {
@@ -608,8 +629,7 @@ func (d *Docker) RemoveContainer(ctx context.Context, name string) error {
 	if err == nil {
 		return nil
 	}
-	var commandErr *commandError
-	if errors.As(err, &commandErr) {
+	if commandErr, ok := errors.AsType[*commandError](err); ok {
 		var tb textbuf.Buffer
 		absent := tb.Str("No such container: ").Str(name).String()
 		for line := range strings.SplitSeq(commandErr.Stderr, "\n") {

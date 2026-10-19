@@ -655,9 +655,9 @@ func (d *Docker) removeResource(ctx context.Context, kind resourceKind, listed l
 		if !dockerID(listed.id) {
 			return errors.New("the network listing gave an id that is not hex: " + listed.id)
 		}
-		return d.removeNetwork(ctx, listed.id)
+		return d.RemoveNetwork(ctx, listed.id)
 	case resourceImageTag:
-		return d.releaseImage(ctx, ImageResult{retainedTag: listed.name})
+		return d.ReleaseImage(ctx, ImageResult{retainedTag: listed.name})
 	case resourceUnspecified:
 	}
 	return errors.New("BUG: removeResource called without a resource kind")

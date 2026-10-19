@@ -420,6 +420,18 @@ does not reach, and name a failed removal in the report's
 <!-- source: internal/le/interoplab/container.go -- Docker.RunDetached, Docker.ExecAttached -->
 <!-- source: internal/le/test/deployment/deployment.go -- removeContainer -->
 
+The multi-DUT benchmark (`./le perf run`, `./le perf evidence-record`) is the
+other such caller. Its network goes through `Docker.CreateNetwork` and
+`Docker.RemoveNetwork` with the owner labels, each DUT and the sender through
+`Docker.RunDetached`, the readiness wait through `Docker.ContainerRunning`,
+and each image through `Docker.Build` (a named build context, such as
+FreeRtr's source checkout, is a typed `NamedBuildContext`) followed by
+`Docker.ReleaseImage`, which drops the run-owned tag and keeps the DUT's own.
+`Docker.ContainerRunning` answers an inspect it cannot read as an error, never
+as "not running".
+<!-- source: internal/test/perfrunner/run.go -- Runner.measure, Runner.buildImages -->
+<!-- source: internal/le/interoplab/container.go -- Docker.ContainerRunning -->
+
 `Suite.Run` runs the cleanup after the Docker probe and before Preflight, and
 prints each removal or skip as a progress line. A listing the daemon refuses is
 a setup error. Before a scenario creates its network and containers, its
