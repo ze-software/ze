@@ -453,3 +453,146 @@ caller carries `// RFC 9774 Section 3`.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/spec-bgp-rfc9774-as-set-deprecation.md` only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- Receive: `ASPathSetSegment` (`internal/component/bgp/message/rfc9774.go`), a framed-only scan for segment types 1 and 4, called by `validateASPath` (`rfc7606.go`, after the structure walk and the AS 0 scan) and `validateAS4PathAttr` (`rfc7607.go`, ahead of the AS 0 discard). Verdict `asPathSetVerdict`: `RFC7606ActionTreatAsWithdraw`, description `RFC 9774 Section 3: <AS_SET|AS_CONFED_SET> in <AS_PATH|AS4_PATH>`.
+- Send: `Session.transmittedPathHoldsSet` and `Session.writeUpdateAsWithdrawal` (`internal/component/bgp/reactor/session_rfc9774.go`), called first in `Session.writeUpdateBody` (`session_write.go`) for every non-raw write; every AS_PATH and AS4_PATH occurrence is judged; the withdrawal is synthesized by `message.SynthesizeWithdrawFamilies` with the send-context ADD-PATH predicate and re-enters the writer; counter `ze_bgp_as_set_withdrawn_total` (`reactor_metrics.go`), rate-limited warning `asSetSendPhrase`.
+- `routeGroupKey` (`peer_static_routes.go`) keys on raw attributes, Prefix-SID and the aggregator flag, so a clean static route never shares the UPDATE of its AS_SET twin (f3cb2fe96f).
+- Enrolment `rfc/short/rfc9774.md`, `rfc/extraction/rfc9774.json`, `rfc/discrimination/rfc9774.json`; interop `bgp-rfc9774-as-set-frr` with its checker; three functional tests.
+
+### Bugs Found/Fixed
+- Static UPDATE grouping key omitted raw attributes, so the send guard withdrew a clean route with its AS_SET twin: fixed in f3cb2fe96f, covered by `TestRFC9774SendGroupedStaticRoutesKeepCleanTwin`, journal `key-omits-a-fact-the-builder-uses.md`.
+- A configured raw AS_PATH is written beside the typed one (two AS_PATH attributes): the guard judges every occurrence, case "AS_SET in a second AS_PATH"; journal `wire-carries-both-arms-of-an-either-or.md`.
+
+### Documentation Updates
+- `docs/architecture/wire/attributes.md`, `docs/architecture/wire/messages.md`, `docs/guide/monitoring.md`, `docs/guide/rpki.md`, `docs/features/bgp-protocol.md`, `docs/architecture/testing/interop.md`, `docs/architecture/update-building.md` (implementation commits).
+- Closure: `docs/architecture/api/update-syntax.md` wire-mode section states the `attr set` behavior (anchors `session_write.go -- writeUpdateBody`, `session_rfc9774.go -- transmittedPathHoldsSet, writeUpdateAsWithdrawal`); new feature declaration `features/rfc-9774-as-set-deprecation.md`; Doc review cells refreshed in `features/bgp-protocol.md`, `features/egress-attribute-conformance.md`, `features/protocol-event-capture-and-replay.md`, `features/typed-family-nlri-discard.md`.
+- `./le doc check verify` 2026-10-19: "checked 3025 anchors across 23 digests, all resolve", "Documentation tests PASSED".
+
+### Deviations from Plan
+- Receive `.ci` proves the receive half through the route-server relay and the stderr verdict line instead of `show bgp rib` (the send guard alone keeps the relayed frames clean).
+- Config and API rails are not ownership-tracked, so a never-held set route is written as a withdrawal (announces nothing; AC-9 holds); pinned in both `.ci`.
+- The feature evidence went to a new declaration `features/rfc-9774-as-set-deprecation.md`, following the RFC 1997 precedent, instead of an entry in `features/bgp-protocol.md`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-3 expected the ownership filter to suppress every never-held withdrawal | the config static-route and API rails are not ownership-tracked and write it | `test/encode/rfc9774-as-set-not-advertised.ci` | pinned in the `.ci`, page corrected (cc04a9a02c) |
+| approach | the interop scenario first dodged the grouping defect with `med 1` | the grouping key was the defect | the send warning read `routes=2` | key fixed (f3cb2fe96f), workaround removed |
+| approach | Documentation row 1 and row 4 were answered but not carried out by the implementation | no feature declaration listed rfc9774, and `update-syntax.md` was silent | closure review | both written at closure |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Section 3 receive: treat-as-withdraw on a set in AS_PATH or AS4_PATH | Done | `message/rfc7606.go` `validateASPath`, `message/rfc7607.go` `validateAS4PathAttr`, `message/rfc9774.go` `ASPathSetSegment` | Q-2 (a): every session |
+| Section 3 send: MUST NOT advertise | Done | `reactor/session_write.go` `writeUpdateBody`, `reactor/session_rfc9774.go` | Q-3 (a), Q-4 (b) raw exempt |
+| Enrol RFC 9774 | Done | `rfc/short/rfc9774.md` | `./le rfc check` prints no rfc9774 line |
+| Sections 5.2 / 6.1 out of scope | Done | `rfc/extraction/rfc9774.json` | `feature-out-of-scope` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRFC9774ReceiveASSetTreatAsWithdraw` (ebgp-2-octet, ebgp-4-octet) | description names RFC 9774 Section 3 and AS_PATH |
+| AC-2 | Done | same test, AS_CONFED_SET cases incl. `ibgp` | |
+| AC-3 | Done | `TestRFC9774ReceiveAS4PathSetTreatAsWithdraw` | |
+| AC-4 | Done | same test, 4-octet session | |
+| AC-5 | Done | `TestRFC9774ReceiveReannounceWithdraws`; receive `.ci` | |
+| AC-6 | Done | `TestRFC9774ReceiveReannounceWithdraws` MP case | |
+| AC-7 | Done | negative cases of the receive tests and `TestValidateASPathRejectsSetSegments` | |
+| AC-8 | Done | `TestValidateASPathStructureBeforeSet` | |
+| AC-9 | Done | `TestRFC9774SendASSetWrittenAsWithdrawal/*/never-held` (counter == 2); `test/encode/rfc9774-as-set-not-advertised.ci` | |
+| AC-10 | Done | `.../held-then-replaced` | |
+| AC-11 | Done | `test/plugin/rfc9774-as-set-api-not-advertised.ci` | |
+| AC-12 | Done | variants "AS_CONFED_SET in AS_PATH", "AS_SET in AS4_PATH" | |
+| AC-13 | Done | interop `bgp-rfc9774-as-set-frr`, red walk recorded above | |
+| AC-14 | Done | `rfc/short/rfc9774.md`, `rfc/discrimination/rfc9774.json` | |
+| AC-15 | Done | `TestRFC9774SendRawUntouched` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestValidateASPathRejectsSetSegments`, `TestValidateASPathStructureBeforeSet`, `TestValidateAS4PathRejectsSetSegments` | Done | `message/rfc9774_test.go` | |
+| `TestRFC9774Receive*` (4) | Done | `reactor/rfc9774_receive_test.go` | |
+| `TestRFC9774Send*` (5), `BenchmarkWriteUpdateBodyCleanPath` | Done | `reactor/rfc9774_send_test.go` | bench 0 B/op, 0 allocs/op |
+| three `.ci`, interop scenario | Done | `test/plugin/`, `test/encode/`, `test/interop/scenarios/bgp-rfc9774-as-set-frr/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every Files to Modify / Files to Create entry | Done | `features/bgp-protocol.md` entry Changed to a new declaration (Deviations) |
+
+### Audit Summary
+- **Total items:** 23 (4 requirements, 15 ACs, 4 test groups)
+- **Done:** 23
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (feature declaration home, recorded in Deviations)
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every in-scope item is done; route aggregation (Sections 5.2, 6.1) is outside the owner's scope and recorded as `feature-out-of-scope`, not an in-scope item | none |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-rfc9774-as-set-deprecation-20123ea5-a7dd-4d5e-aa9c-d2846361ee33.md` (13 files, verdict=clean) |
+| `./le spec review check` | clean: "review_gate: OK (7 code files, clean, hashes match ...)" |
+| Rounds | 2 |
+| Reviewer lenses used | wiring (every UPDATE write site in `session_write.go`), logic and aliasing (`writeBuf` reuse across the re-entry), RFC text (`rfc/full/rfc9774.txt` Section 3), style pass (six questions over every changed Go file), docs and feature declarations, test-relaxation audit |
+
+Run 1 (closure agent, did not author the code): 0 BLOCKER, 3 ISSUE, 2 NOTE. Run 2 over the fixes: 0 BLOCKER, 0 ISSUE.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | style pass, return type wider than needed: `writeUpdateAsWithdrawal` returned `(bool, error)` with the bool always false | `reactor/session_rfc9774.go` | returns `error`; `writeUpdateBody` returns `false, err` (refactor, no behavior change; scoped tests green) |
+| 2 | ISSUE | Documentation row 1 answered Yes with no feature declaration listing rfc9774, its `.ci` or its interop scenario | `features/` | `features/rfc-9774-as-set-deprecation.md`; `./le feature check` refuses nothing in it |
+| 3 | ISSUE | the RFC 9774 rows in `docs/features/bgp-protocol.md` staled the Doc review of four declarations (`./le feature check` refusals) | `features/bgp-protocol.md`, `egress-attribute-conformance.md`, `protocol-event-capture-and-replay.md`, `typed-family-nlri-discard.md` | descriptions re-read against the 2026-10-19 page edits, Doc review cells dated 2026-10-19; refusals gone |
+| 4 | ISSUE | Documentation row 4 named `docs/architecture/api/update-syntax.md` as carrying the `attr set` behavior; the page was silent | `docs/architecture/api/update-syntax.md` | wire-mode paragraph with source anchors |
+
+NOTE (fixed in passing): the interop checker comment quoted Section 3 with a comma the RFC text does not have (`internal/le/interoplab/bgp/checkers.go`). NOTE (owner item): `./le commit audit base ca4eae70a0~1` flags `message/rfc7606_test.go` `TestRFC7606ASPathValidSet` as an RFC-tagged test change; read, it is stronger (it now pins `RFC7606ActionTreatAsWithdraw` with the exact RFC 9774 description instead of `RFC7606ActionNone`), and the owner's `./le rfc approve` record for it is his to give. The other flagged files of this spec (`rfc9774_send_test.go`, `peer_test.go`) only add tests or swap `append` for `slices.Concat`.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `message/rfc9774.go`, `message/rfc9774_test.go`, `reactor/session_rfc9774.go`, `reactor/rfc9774_receive_test.go`, `reactor/rfc9774_send_test.go` | Yes | `ls` 2026-10-19 |
+| three `.ci`, `test/interop/scenarios/bgp-rfc9774-as-set-frr/` (frr.conf, inject-args, inject.msg, ze.conf) | Yes | `ls` 2026-10-19 |
+| `rfc/short/rfc9774.md`, `rfc/extraction/rfc9774.json`, `rfc/discrimination/rfc9774.json`, `features/rfc-9774-as-set-deprecation.md` | Yes | `ls` 2026-10-19 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-12, AC-15 | unit tests pass | `./le job run label c9774 command go test -race ./internal/component/bgp/message/ ./internal/component/bgp/reactor/` at HEAD a54ebdb26e+: `ok message`, `ok reactor 136.294s`; after the fixes, same command plus `./internal/le/interoplab/bgp/`: `ok message`, `ok reactor 137.841s`, `ok interoplab/bgp 6.090s` |
+| AC-13 | interop green and red walk | recorded above (2026-10-19, over f3cb2fe96f); closure changed no send or receive behavior |
+| AC-14 | enrolment gate | `./le rfc check` 2026-10-19 after the fixes: no rfc9774 line (exit 2 from other stems) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Config static route with raw AS_PATH | `test/encode/rfc9774-as-set-not-advertised.ci` | in HEAD, red with the send guard off (recorded) |
+| Peer sends AS_SET route | `test/plugin/rfc9774-as-set-receive-treat-as-withdraw.ci` | pins the RFC 9774 verdict line; red with the receive scan off |
+| API `update hex attr set` | `test/plugin/rfc9774-as-set-api-not-advertised.ci` | fixture sends `send bgp * update hex attr set 4001010040020A0102...`; red with the send guard off |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1, A-2, A-4, A-5, A-6, A-7 | confirmed | Assumptions table above; A-2 re-checked at closure: every `bufWriter.Write` in `session_write.go` (lines 183, 726, 1244, 1293) carries a non-UPDATE packet or sits behind `writeOriginatedRawUpdate` -> `writeUpdateBody` |
+| A-3 | partly broken | config and API rails write a never-held withdrawal; Mistake Log row 1 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `update-syntax.md` `attr set` paragraph | `writeUpdateBody` guard `!raw && s.transmittedPathHoldsSet(body)` | Yes |
+| feature declaration | `./le feature check`: no refusal names `rfc-9774-as-set-deprecation` | Yes |
+| comparison table | `grep -n -i '9774\|as_set' docs/comparison.md`: no hit, nothing owed | Yes |
+| anchors | `./le doc check verify`: all resolve | Yes |

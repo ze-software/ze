@@ -1,7 +1,7 @@
 # Handover: RFC 9774 AS_SET deprecation (spec-bgp-rfc9774-as-set-deprecation)
 
 Written 2026-10-18 by the ze-implement agent of session 20123ea5, at its tool budget.
-Spec: `plan/spec-bgp-rfc9774-as-set-deprecation.md` (status in-progress, Phase 1/5,
+Spec: `spec-bgp-rfc9774-as-set-deprecation` (status in-progress, Phase 1/5,
 claimed by session 20123ea5 with owner-authorised `ZE_SPEC_WIP_CAP=27`).
 
 ## State: code and unit tests written, NOT committed
@@ -121,3 +121,16 @@ Open:
 Landed: 7635488c04 (handover), f3cb2fe96f (`routeGroupKey` keys on raw attributes, Prefix-SID, aggregator flag; `TestRFC9774SendGroupedStaticRoutesKeepCleanTwin` red then green; scenario MED workaround removed; journal row `fixed:`), then the spec commit carrying the AC-13 red walk, A-5/A-6 confirmed, Goal Validation and Status `verification`. All three reds and the final green are recorded verbatim in the spec's Interop Tests section.
 
 Next: `/ze-close` reviews the work (Review Gate on the review model). Owed gates unchanged (item 4). The reactor package also shows 7 attribute-order reds (`TestWireFormat_UnicastIPv6` and others) caused by another session's uncommitted `internal/component/bgp/message/update_build*.go` edits, which put MP_REACH first; they are not this spec's.
+
+## Closed 2026-10-19 (ze-close agent, session 20123ea5)
+
+Review Gate clean in 2 rounds (4 ISSUEs fixed: `writeUpdateAsWithdrawal` return type,
+feature declaration `features/rfc-9774-as-set-deprecation.md`, four stale Doc review
+cells, `docs/architecture/api/update-syntax.md` `attr set` paragraph). Spec closed by
+commits A and B of one script. The 7 reactor attribute-order reds named above are gone:
+37f9650797 committed the `update_build*.go` edits with their test changes, and
+`go test -race` over `bgp/message` and `bgp/reactor` is green at HEAD.
+
+Still open for the owner: the `./le rfc approve` record for the strengthened
+`TestRFC7606ASPathValidSet`, and the owner-held gates (`./le go lint run`,
+`./le test unit all`, `./le test functional gating`, `./le verify worktree`).
