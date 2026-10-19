@@ -222,18 +222,18 @@
       "verdict": "enforced"
     },
     "RFC4301-4.4.1-4": {
-      "note": "TestSpdOperatorOrdersOverlappingPeers asserts the operator's priority reaches every entry in both directions and orders overlapping peers; negatives refuse an unstated order reaching the SPD as 0 and ranks that capture IKE (engine and ipsec). The mistagged mirroring unit (TestSPDPolicyMirrorsTheInboundSelector) moved to RFC4301-4.4.1-11/12.",
+      "note": "Re-judged 2026-10-19 (independent judge, after 4c41f84038, which replaced childPolicyParams with childPolicies: one inbound and one outbound policy per negotiated pair, all bound to the one SA, plus inboundStateSelector for the transport-mode state). RFC 4301 Section 4.4.1: \"Thus, a user or administrator MUST be able to order the entries to express a desired access control policy.\" Prior verdict enforced. The tagged units changed only by childPolicyParams(x, dir) becoming childPolicies(x, dir)[0]; their fixtures carry no selector set, so childPolicies returns exactly one policy and [0] is the same SPParams as before. childPairPolicy resolves Priority from child.PolicyPriority (zero to PriorityChildSA) for every pair, so a multi-pair Child SA carries the operator's rank on every policy. Assertions unchanged: operator rank reaches both directions and orders overlapping peers; unstated order is not 0 and a rekey keeps the default rank; an order capturing IKE is refused (engine and ipsec). All PASS at HEAD. Verdict stands. Owed by the author: the revert record on TestSpdOperatorOrdersOverlappingPeers names childPolicyParams and no longer verifies (unit-changed); re-record it on childPolicies.",
       "requirement_sha": "dafc8d3e6f262328",
       "tests": {
-        "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdOperatorOrdersOverlappingPeers": "4abe7bc229114752",
-        "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdOrderCannotCaptureTheIKEControlPlane": "4abe7bc229114752",
-        "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdUnstatedOrderTakesTheDefaultRank": "4abe7bc229114752",
+        "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdOperatorOrdersOverlappingPeers": "812d6a03f2aa02e6",
+        "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdOrderCannotCaptureTheIKEControlPlane": "812d6a03f2aa02e6",
+        "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdUnstatedOrderTakesTheDefaultRank": "812d6a03f2aa02e6",
         "internal/component/ike/ipsec/rfc4301_spd_discard_test.go::TestSPDPolicyOrderInsideBypassBandRefused": "a05a17c69692d82b"
       },
       "units": {
-        "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdOperatorOrdersOverlappingPeers": "d7157db96345a22b",
+        "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdOperatorOrdersOverlappingPeers": "6fb14365acae950d",
         "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdOrderCannotCaptureTheIKEControlPlane": "dbcfabb91c150a6f",
-        "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdUnstatedOrderTakesTheDefaultRank": "bdfafa744d8016bc",
+        "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdUnstatedOrderTakesTheDefaultRank": "220c5efd9c6cc96e",
         "internal/component/ike/ipsec/rfc4301_spd_discard_test.go::TestSPDPolicyOrderInsideBypassBandRefused": "6c06f4f886570ed0"
       },
       "verdict": "enforced"
@@ -290,12 +290,11 @@
     },
     "RFC4301-4.4.2-2": {
       "code": {
-        "internal/component/ike/engine/child.go::childPolicyParams": "79e7fdf87431de45",
-        "internal/component/ike/engine/child.go::installChildSA": "fc83ead5ea1ad480",
-        "internal/component/ike/engine/child.go::selectorPort": "2d78edccba92603c",
-        "internal/component/ike/engine/child.go::selectorProto": "d75eb4eb62bb8ee4"
+        "internal/component/ike/engine/child.go::childPolicies": "83dedc88e2afbbc5",
+        "internal/component/ike/engine/child.go::inboundStateSelector": "a159bd0822bbf061",
+        "internal/component/ike/engine/child.go::installChildSA": "0e3e715c86ba954a"
       },
-      "note": "Re-judged 2026-10-15 after b457ba88cf changed installChildSA: the change only drops the 4500 default for the UDP encapsulation ports, which now come from the IKE SA (childEncapPorts, RFC 3948 Section 2.1). The selector path is unchanged: the transport-mode inbound state still copies the one inbound policy from childPolicyParams, and selectorProto/selectorPort still read Selectors[0] only, so the gap stands. Independent source rejudgment against full RFC 4301 Section 4.4.2: \u2018For each of the selectors defined in Section 4.4.1.1, the entry for an inbound SA in the SAD MUST be initially populated with the value or values negotiated at the time the SA was created.\u2019 The assigned row isolates the plural-values obligation and retains its applicable gap. internal/component/ike/engine/ts_narrow.go records all accepted pairs in NegotiatedPairs but only pair zero in NegotiatedTSi/NegotiatedTSr. createFirstChildSA retains the pair list while deriving TSLocal/TSRemote from those first prefixes. In internal/component/ike/engine/child.go, selectorProto and selectorPort consume Selectors[0] only; childPolicyParams builds one policy per direction from that protocol/port pair and TSLocal/TSRemote. installChildSA installs one inbound policy and copies its selector onto a transport-mode inbound SA; the tunnel-mode state has no selector and delegates matching to that one require-policy. Additional negotiated values therefore remain absent from the installed selector representation. No tests tag this gap row; neighboring single-selector proofs do not establish the missing plurality. The enum edit preserves ANY/zero, exact-port and OPAQUE outcomes and adds a panic for unknown forms; it neither creates nor remedies this existing gap. No implementation expansion or runtime verification performed.",
+      "note": "Re-judged 2026-10-19 (independent judge, after 4c41f84038, which replaced childPolicyParams with childPolicies: one inbound and one outbound policy per negotiated pair, all bound to the one SA, plus inboundStateSelector for the transport-mode state). RFC 4301 Section 4.4.2: \"For each of the selectors defined in Section 4.4.1.1, the entry for an inbound SA in the SAD MUST be initially populated with the value or values negotiated at the time the SA was created.\" Prior verdict unimplemented (only Selectors[0] reached the dataplane). At HEAD, childPolicies builds one policy per pair in child.Selectors in both directions with that pair's prefixes, protocol (pair.I.Proto) and ports (selectorPort per side), every one carrying the child's ReqID/SAID; installChildSA installs all inbound then all outbound and rolls back what it installed on failure; removal, MOBIKE migration and samePolicySelector take the whole set. Tunnel mode: the state carries no selector and the per-pair require-policies with the SA's template are the entry's selectors, so every negotiated value is populated exactly (interop responder-two-subnets shows both pairs' policies on both kernels; TestRFC4301EveryNegotiatedPairGetsAPolicyPerDirection, untagged, PASS). Transport mode: one XFRM state holds one selector, so inboundStateSelector writes the narrowest single selector covering every pair (coverPrefix per side, protocol to any and ports to any when pairs differ; exact for one pair; TestRFC4301TransportStateSelectorCoversEveryPair and TestCoverPrefixIsTheLongestCommonPrefix, untagged, PASS). With several pairs whose union is not one selector the SAD entry therefore holds a superset of the values negotiated, so the {gap} stands, narrowed. Finding on the gap text: it conditions the delivery on `unmatched bypass`, but a decrypted transport-mode packet in the cover and in no pair is decided by the FIRST SPD-I entry it matches, which can be the IKE bypass (PriorityIKEBypass 100, UDP 500/4500 between the endpoints, which in transport mode are the inner addresses) or an operator `vpn ipsec policy` BYPASS entry (any order above 100, searched before the catch-all at PriorityUnmatched); an allow entry with no template accepts a transport-mode secpath, so such a packet is delivered under `unmatched discard` too (reasoned from Linux __xfrm_policy_check/secpath_has_nontransport, not observed by a test). The gap should say the entry is a superset regardless of the unmatched leaf and name every BYPASS entry that can then deliver. Transport pairs of two address families make coverPrefix refuse and the install fail with a named error, not widen. Row carries {gap}; the implemented scope (tunnel mode, single-pair transport) would be better expressed as {partial} with this residual as Gap, which the author may propose. No tests tag the row.",
       "requirement_sha": "36315016bf1c571b",
       "verdict": "unimplemented"
     },
@@ -603,10 +602,10 @@
     },
     "RFC4301-5.1-7": {
       "code": {
-        "internal/component/ike/engine/child.go::installChildSA": "fc83ead5ea1ad480",
+        "internal/component/ike/engine/child.go::installChildSA": "0e3e715c86ba954a",
         "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy": "9591a4573e493268"
       },
-      "note": "Re-judged 2026-10-15 after b457ba88cf changed installChildSA: the change only drops the 4500 default for the UDP encapsulation ports, which now come from the IKE SA (childEncapPorts). PROTECT is still installed only beside a negotiated Child SA and no Go code outside vendor/ references XfrmMonitor or XFRMNLGRP_ACQUIRE (grep, 2026-10-15), so the gap stands. RFC 4301 Section 5.1: \"If the SPD entry calls for PROTECT, i.e., creation of an SA, the key management mechanism (e.g., IKEv2) is invoked to create the SA.\" Step 3b PROTECT case: key management invoked by a packet. Checked at the producer: a PROTECT policy is installed only by installChildSA (engine/child.go, childPolicyParams) after both SAs of a negotiated Child SA are in the SAD; parseSPDPolicy (ipsec/spd_policy.go) refuses an operator protect entry; no Ze code subscribes to XFRM acquire (XfrmMonitor and XFRMNLGRP_ACQUIRE appear only in vendor/, the only NETLINK_XFRM users are request/response in xfrm_migrate_linux.go and kernelcap). So no outbound packet starts IKEv2. Gap disclosed on the row and in Support remaining; no spec schedules traffic-triggered SA creation.",
+      "note": "Re-judged 2026-10-19 (independent judge, after 4c41f84038, which replaced childPolicyParams with childPolicies: one inbound and one outbound policy per negotiated pair, all bound to the one SA, plus inboundStateSelector for the transport-mode state). RFC 4301 Section 5.1: \"If the SPD entry calls for PROTECT, i.e., creation of an SA, the key management mechanism (e.g., IKEv2) is invoked to create the SA.\" Prior verdict unimplemented. installChildSA changed only to install one policy per negotiated pair; PROTECT entries are still installed only beside an already negotiated Child SA, parseSPDPolicy still refuses an operator protect entry, and no Go file under internal/, cmd/ or pkg/ references XfrmMonitor or XFRMNLGRP_ACQUIRE (grep 2026-10-19), so no outbound packet invokes IKEv2. The {gap} text (createFirstChildSA, no acquire handling) remains accurate. Gap stands.",
       "requirement_sha": "fd7074473f3565e7",
       "verdict": "unimplemented"
     },
@@ -706,29 +705,29 @@
       "verdict": "unimplemented"
     },
     "RFC4301-7.1-2": {
-      "note": "Forbidden: a protocol-scoped SA carrying traffic without regard to ports whose installed selector constrains a port. TestRFC4301ProtocolScopedSASpecifiesPortsAsAny asserts, in both directions, UpperProto == 17 and SrcPort.IsAny() && DstPort.IsAny() on childPolicyParams output, red if either port is narrowed. TestRFC4301AnyPortFormNeverLeaksAPortNumber asserts no ExactPortMatch(8080/9090/0) under the ANY form, red if a stray Port value or a zero reaches the policy.",
+      "note": "Re-judged 2026-10-19 (independent judge, after 4c41f84038, which replaced childPolicyParams with childPolicies: one inbound and one outbound policy per negotiated pair, all bound to the one SA, plus inboundStateSelector for the transport-mode state). RFC 4301 Section 7.1: \"If the SA will carry traffic for specified protocols, the selector set for the SA MUST specify the port fields (or ICMP type/code or Mobility Header type) as ANY.\" Prior verdict enforced. selectorPort now takes the side (tsSelector) instead of (child, local); childPolicies picks local/remote by SelectorsLocalIsTSi exactly as the old side choice did, and the ANY/single/OPAQUE mapping is byte-identical. The units changed only to childPolicies(rfc4301ChildWith(pair), dir)[0]; rfc4301ChildWith carries one pair, so the slice holds one policy. Each negotiated pair now gets its own protocol and ports, so a multi-pair SA no longer inherits pair 0's. Positive asserts UpperProto 17 and both ports ANY in both directions; negative asserts no ExactPortMatch(8080/9090/0) leaks under ANY. PASS at HEAD. Verdict stands. Owed: both revert records (break on selectorPort) report unit-changed and must be re-observed.",
       "requirement_sha": "4ff77c81d0d34ac2",
       "tests": {
-        "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301AnyPortFormNeverLeaksAPortNumber": "40db2f12eb8c4869",
-        "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301ProtocolScopedSASpecifiesPortsAsAny": "40db2f12eb8c4869"
+        "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301AnyPortFormNeverLeaksAPortNumber": "c3e006762679b3ae",
+        "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301ProtocolScopedSASpecifiesPortsAsAny": "c3e006762679b3ae"
       },
       "units": {
-        "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301AnyPortFormNeverLeaksAPortNumber": "28916df2f257c19b",
-        "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301ProtocolScopedSASpecifiesPortsAsAny": "201169b0cdaba72b"
+        "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301AnyPortFormNeverLeaksAPortNumber": "62cd1055ba391c3b",
+        "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301ProtocolScopedSASpecifiesPortsAsAny": "b83447d4c770d951"
       },
       "verdict": "enforced"
     },
     "RFC4301-7.1-3": {
-      "note": "The previous wrong verdict (bypass SPD entries create no SA) is cured by units on the SA path. Positive: a protocol-ANY/ports-ANY proposal narrows (empty and configured policy) to one pair, and childPolicyParams in and out carry UpperProto 0 with both ports ANY. Negative: protocol ANY with a single port (443) or OPAQUE, on TSi or on TSr, narrows to no pair, so no Child SA is built. The producer programmableSelector (Proto 0 with a non-ANY port is refused) is shared through programmablePair by the responder path (narrowSelectors) and by the initiator's answer-adoption loop in ts_narrow.go, so both SA-building paths hold; only the responder path is driven. Revert records observed red (child.go::selectorPort for +, ts_narrow.go::programmableSelector for -). The two ipsec SPD-entry units still tagged 7.1-3 are supplementary: they prove the operator entry side, which creates no SA; moving them to a row they prove is owed when the ratchet allows.",
+      "note": "Re-judged 2026-10-19 (independent judge, after 4c41f84038, which replaced childPolicyParams with childPolicies: one inbound and one outbound policy per negotiated pair, all bound to the one SA, plus inboundStateSelector for the transport-mode state). RFC 4301 Section 7.1: \"If the SA will carry traffic without regard to a specific protocol value (i.e., ANY is specified as the (Next Layer) protocol selector value), then the port field values are undefined and MUST be set to ANY as well.\" Prior verdict enforced. TestRFC4301ProtocolAnyChildSACarriesAnyPorts changed only to childPolicies(child, dir)[0] over a one-pair narrowing result; it still asserts UpperProto 0 and both ports ANY in and out. The negative (programmableSelector refuses protocol ANY with a port) and the ipsec supplementary units are unchanged. The new transport-state cover also widens ports to ANY whenever the protocol widens to any (inboundStateSelector), consistent with this sentence. PASS at HEAD. Verdict stands. Owed: the positive's revert record (break on selectorPort) reports unit-changed and must be re-observed.",
       "requirement_sha": "4625ebd9c379b15c",
       "tests": {
-        "internal/component/ike/engine/rfc4301_protocol_any_sa_test.go::TestRFC4301ProtocolAnyChildSACarriesAnyPorts": "1ed83933ceedc7b1",
-        "internal/component/ike/engine/rfc4301_protocol_any_sa_test.go::TestRFC4301ProtocolAnyChildSARefusesAPort": "1ed83933ceedc7b1",
+        "internal/component/ike/engine/rfc4301_protocol_any_sa_test.go::TestRFC4301ProtocolAnyChildSACarriesAnyPorts": "47481f470ea02ddf",
+        "internal/component/ike/engine/rfc4301_protocol_any_sa_test.go::TestRFC4301ProtocolAnyChildSARefusesAPort": "47481f470ea02ddf",
         "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301ProtocolAnyEntryCarriesAnyPorts": "12c243c57454eddc",
         "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301ProtocolAnyEntryRefusesAPort": "12c243c57454eddc"
       },
       "units": {
-        "internal/component/ike/engine/rfc4301_protocol_any_sa_test.go::TestRFC4301ProtocolAnyChildSACarriesAnyPorts": "ad1f40a257c22d86",
+        "internal/component/ike/engine/rfc4301_protocol_any_sa_test.go::TestRFC4301ProtocolAnyChildSACarriesAnyPorts": "24790b055b29b9db",
         "internal/component/ike/engine/rfc4301_protocol_any_sa_test.go::TestRFC4301ProtocolAnyChildSARefusesAPort": "3663979f599f5472",
         "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301ProtocolAnyEntryCarriesAnyPorts": "9f1eed08e6c46528",
         "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301ProtocolAnyEntryRefusesAPort": "54ce6b4fc8f97c51"
