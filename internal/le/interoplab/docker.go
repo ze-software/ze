@@ -838,13 +838,16 @@ func containerNameTaken(err error) bool {
 // absent-container answer is an empty pre-clean state, and any other failure
 // is settled by confirmRemoval. After a start of name that failed or was
 // canceled, one absent answer is not enough: removeSettlingContainer looks
-// again over createSettleWindow (startsettle.go).
+// again over createSettleWindow (startsettle.go). The mark is taken before
+// the first removal, whatever it answers, so a container the first `rm -f`
+// removed leaves no mark behind for a later removal of the name to wait on.
 func (d *Docker) RemoveContainer(ctx context.Context, name string) error {
+	marked := d.unsettled.take(name)
 	absent, err := d.forceRemoveContainer(ctx, name)
 	if !absent {
 		return err
 	}
-	if !d.unsettled.take(name) {
+	if !marked {
 		return nil
 	}
 	return d.removeSettlingContainer(ctx, name)

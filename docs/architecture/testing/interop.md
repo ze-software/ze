@@ -498,8 +498,11 @@ names the container and `./le test integration cleanup`. This applies to every
 start that marks its name: `Docker.RunDetached` (the deployment proofs, the
 benchmark), a lab peer's run, and a one-shot container. A create that lands
 after the window still carries the owner labels, so the cleanup removes it.
-Removing a container whose start succeeded takes one `docker rm -f`.
+Removing a container whose start succeeded takes one `docker rm -f`. So does
+any later removal of a name: the first removal after a failed start uses the
+mark up, whatever its `docker rm -f` answered.
 <!-- source: internal/le/interoplab/startsettle.go -- createSettleWindow, Docker.removeSettlingContainer, Docker.markUnsettled -->
+<!-- source: internal/le/interoplab/docker.go -- Docker.RemoveContainer -->
 <!-- source: internal/le/interoplab/docker.go -- Docker.RemoveContainer, Docker.RunOneShot, Docker.runContainer -->
 <!-- source: internal/le/test/deployment/actions.go -- notReached, proofNotReached -->
 
