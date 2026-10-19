@@ -606,3 +606,45 @@ its image in parallel) concerns this population.
 Landed: `00ad396fd0`. `./le test integration docker-peers` after it: code 0,
 population gnmi (120.3 s), tacacs (36.1 s), interoplab (152.4 s),
 interoplab/labtest (28.9 s), plugins/flowexport (118.4 s), plugins/ntp (50.2 s).
+
+## Docker test bounds, 2026-10-19
+
+Landed: `3681720e48`. `TestDockerBuildRetainsImageAcrossRetag` no longer sets
+`Timeout: time.Minute` on its build or a 3-minute outer context. Its context is
+`testDeadlineContext` (new, `internal/le/interoplab/deadline_docker_test.go`),
+which ends 10 s before `t.Deadline()`. `TestKilledLabRunIsCleanedByNextStart`
+had the same pattern: a fixed 5-minute kill timer around a child that builds,
+and `-test.timeout=10m` on the child. It now kills the child at the parent's
+deadline and hands the child that deadline. Every assertion is unchanged.
+`interop.md` carries the sentence.
+
+The producer, read: `Docker.Build` takes a non-zero `ImageBuild.Timeout` in
+place of the machine bound and does not take the larger of the two
+(`Pull` does, through `max`). So the one-minute field shortened the 90-minute
+bound. "Only ever lengthens" in `interop.md` and in spec D-3 is a convention
+that no code enforces. Code left unchanged: making the field lengthen-only
+also changes how `BUILD_TIMEOUT` lowers a bound, so that is the owner's call.
+
+Other docker tests checked (labtest, tacacs, ntp, gnmi, flowexport): none sets
+a build or pull bound. labtest builds and pulls with the wrapper defaults
+(`labtest/container.go`, `Pull(ctx, image, 0)`). What remains are
+ready-probe and client-run bounds on containers already started or pulled:
+`ReadyTimeout` 30 to 60 s, `gnmicTimeout` 60 s, flowexport's `peer.wait` 10 to
+15 s. They are not build budgets and stayed green under docker-peers.
+
+Evidence (`./le job run`, `ZE_REQUIRE_DOCKER=1`, load average about 6): the
+retention test alone PASS 41.6 s, the orphan test alone PASS 26.5 s, and
+afterwards `docker ps -a` and `docker network ls --filter label=ze.lab` empty.
+`./le --name dockerpeers test integration docker-peers`: code 0, gnmi
+111.8 s, tacacs 37.1 s, interoplab 145.0 s, labtest 31.8 s, flowexport
+117.8 s, ntp 53.5 s. The red is the journal row's run before the fix. It was
+not re-forced: forcing it would put the one-minute bound back under a parallel
+population.
+
+Gates OWED. This agent's contract and `ai/rules/commands.md` forbid a
+subagent to run any command over five minutes. The main thread or a fresh
+`/ze-verify` agent runs: `./le go lint run scope "<the spec's packages>"`,
+covering the docker and live flavors (`internal/le/go/lint/matrix.go`),
+then `./le test unit all` and `./le test functional gating`. Already run:
+`go vet -tags docker ./internal/le/interoplab/` clean, and the post-write lint
+hook on each edited file.
