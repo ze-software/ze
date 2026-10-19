@@ -450,7 +450,7 @@ func parseIKEProposal(groupName, numStr string, t *config.Tree) (IKEProposal, er
 			groupName, num, encStr)
 	}
 	if !EncryptionImplemented(enc) {
-		return p, fmt.Errorf("ipsec ike-group %q proposal %d: encryption algorithm %q is not implemented by this build (implemented: %s)",
+		return p, fmt.Errorf("ipsec ike-group %q proposal %d: encryption algorithm %q is not implemented by this build for the IKE SA (implemented: %s)",
 			groupName, num, encStr, strings.Join(SupportedEncryptionNames(), ", "))
 	}
 	p.Encryption = enc

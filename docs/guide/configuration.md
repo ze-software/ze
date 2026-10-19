@@ -2229,6 +2229,14 @@ Transform ID. Section 7.2 recommends the 16 octet ICV for IKE.
 The AES CCM set is for an `ike-group` only. An `esp-group` proposal that names one is
 refused at commit, because no dataplane backend installs an AES CCM Security Association.
 
+`null` is the reverse: it is for an `esp-group` only. It selects integrity-only ESP, the
+ENCR_NULL transform, which RFC 4303 Section 1 requires to be negotiable. Ze offers it in
+IKE_AUTH and CREATE_CHILD_SA and accepts it from a peer that offers it, and the Child SA is
+installed with the null cipher and the proposal's integrity algorithm. A `null` proposal
+needs `hash`, because RFC 4303 Section 3.2 forbids ESP with neither confidentiality nor
+integrity. An `ike-group` proposal that names `null` is refused at commit, because RFC 7296
+Section 5 forbids ENCR_NULL for the IKE SA.
+
 The schema also names `chacha20poly1305` and `3des`, and no build carries a transform for
 either. A proposal that names one is refused at commit, and the refusal lists the
 implemented set.

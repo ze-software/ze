@@ -74,6 +74,12 @@ var espCipherWires = map[crypto.EncryptionID]espCipherWire{
 	// uses a block size of sixteen octets (128 bits). Padding is required by
 	// the AES to maintain a 16-octet (128-bit) blocksize."
 	crypto.ENCR_AES_CBC: {ivOctets: 16, blockOctets: 16},
+	// Integrity-only ESP (RFC 4303 Section 1). The null cipher carries no
+	// synchronization data, and RFC 4303 Section 2.3 puts an IV in the payload
+	// only "If the algorithm used to encrypt the payload requires cryptographic
+	// synchronization data". It imposes no block either, so the plaintext is
+	// padded to the 4-octet ESP boundary alone (RFC 4303 Section 2.4).
+	crypto.ENCR_NULL: {ivOctets: 0, blockOctets: espAlignOctets},
 }
 
 // espOverhead is what ESP adds to one packet a Child SA carries, split the way
@@ -157,10 +163,13 @@ func deriveESPOverhead(t *ipsecinventory.Tunnel) (espOverhead, error) {
 // espICVOctets answers the ICV one Child SA appends. An AEAD cipher carries
 // its own, and the crypto package declares it per transform id; a CBC cipher
 // carries its integrity transform's truncated MAC, which the same package
-// declares per integrity transform. AUTH_NONE beside a CBC cipher is refused:
-// RFC 4303 Section 2.8 makes integrity optional for ESP, but Ze negotiates no
-// ESP proposal without it (crypto.espProposalComplete), so such a row cannot
-// come from a live SA.
+// declares per integrity transform. AUTH_NONE beside a non-AEAD cipher (CBC or
+// the null cipher) is refused: RFC 4303 Section 2.8 makes integrity optional
+// for ESP, but no live Child SA carries that pair. crypto.espProposalComplete
+// refuses ENCR_NULL beside AUTH_NONE (RFC 4303 Section 3.2), and a CBC cipher
+// without a hash never matches, because crypto.acceptIntegrity requires the
+// peer's integrity id to equal local policy's and an esp-group proposal with
+// a non-AEAD cipher and no hash is refused at commit (ipsec.parseESPProposal).
 func espICVOctets(cipherID crypto.EncryptionID, integrityID crypto.IntegrityID) (uint16, error) {
 	if cipherID.IsAEAD() {
 		icv, err := crypto.AEADICVOctets(cipherID)

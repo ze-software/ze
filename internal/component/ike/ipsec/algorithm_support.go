@@ -29,21 +29,26 @@ func EncryptionImplemented(e EncryptionAlgo) bool {
 }
 
 // EncryptionImplementedESP reports whether this build can install the algorithm in an
-// ESP Security Association. It is narrower than EncryptionImplemented, and AES CCM is
-// the difference.
+// ESP Security Association. It differs from EncryptionImplemented in two ways.
 //
-// RFC 5282 carries AES CCM into the IKE SA's Encrypted payload, which ze implements in
-// software: SealIKEAEAD and OpenIKEAEAD (crypto/aead.go) produce and verify that ICV.
-// An ESP SA is installed into a dataplane instead, and neither backend names an AES CCM
-// transform: xfrmAEADNames (dataplane/xfrm_linux.go) holds no CCM entry, and VPP's
-// ipsec_types declares no CCM id (dataplane/vpp.go, vppCryptoAlg). Both backends refuse
-// a word they do not hold, so a CCM proposal that reached them would fail the install
-// and leave the tunnel carrying nothing.
+// It is wider by the ESP-only ciphers. RFC 4303 Section 1: "Integrity-only ESP MUST be
+// offered as a service selection option, e.g., it must be negotiable in SA management
+// protocols". The null cipher is resolved by crypto.LookupESPEncryption alone, because
+// RFC 7296 Section 5 forbids ENCR_NULL for the IKE SA, so EncryptionImplemented, which
+// an IKE proposal reads, refuses it.
+//
+// It is narrower by AES CCM. RFC 5282 carries AES CCM into the IKE SA's Encrypted
+// payload, which ze implements in software: SealIKEAEAD and OpenIKEAEAD (crypto/aead.go)
+// produce and verify that ICV. An ESP SA is installed into a dataplane instead, and
+// neither backend names an AES CCM transform: xfrmAEADNames (dataplane/xfrm_linux.go)
+// holds no CCM entry, and VPP's ipsec_types declares no CCM id (dataplane/vpp.go,
+// vppCryptoAlg). Both backends refuse a word they do not hold, so a CCM proposal that
+// reached them would fail the install and leave the tunnel carrying nothing.
 //
 // The refusal therefore belongs at config parse, where a wrong algorithm stops the load
 // rather than a tunnel that comes up empty (ai/rules/protocol.md).
 func EncryptionImplementedESP(e EncryptionAlgo) bool {
-	if !EncryptionImplemented(e) {
+	if _, err := crypto.LookupESPEncryption(e.String()); err != nil {
 		return false
 	}
 	return !e.IsAESCCM()
@@ -89,11 +94,11 @@ func integrityTransformFor(h HashAlgo) (crypto.IntegrityTransform, error) {
 func SupportedEncryptionNames() []string { return crypto.SupportedEncryptionNames() }
 
 // SupportedESPEncryptionNames names the set an ESP proposal may pick from, which is
-// SupportedEncryptionNames without the AES CCM transforms. EncryptionImplementedESP
-// states why the two sets differ, and this list is filtered through that same predicate
-// so the error can never name an algorithm the guard refuses.
+// crypto.SupportedESPEncryptionNames without the AES CCM transforms. EncryptionImplementedESP
+// states why the sets differ, and this list is filtered through that same predicate so
+// the error can never name an algorithm the guard refuses.
 func SupportedESPEncryptionNames() []string {
-	all := crypto.SupportedEncryptionNames()
+	all := crypto.SupportedESPEncryptionNames()
 	names := make([]string, 0, len(all))
 	for _, name := range all {
 		algo, ok := ParseEncryptionAlgo(name)

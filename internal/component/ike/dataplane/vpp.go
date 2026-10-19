@@ -685,6 +685,11 @@ func vppCryptoAlg(algo string, isAEAD bool) (ipsec_types.IpsecCryptoAlg, error) 
 		// 4 stood here, and 4 is AES_CTR_128. The operator configured 3DES and VPP
 		// encrypted with a different cipher.
 		return ipsec_types.IPSEC_API_CRYPTO_ALG_3DES_CBC, nil
+	case "null":
+		// RFC 4303 Section 1: "Integrity-only ESP MUST be offered as a service
+		// selection option". VPP's ipsec_crypto_alg_t names the null cipher NONE, and
+		// the SA keeps its integrity algorithm (vppIntegAlg).
+		return ipsec_types.IPSEC_API_CRYPTO_ALG_NONE, nil
 	}
 	return 0, fmt.Errorf(
 		"%w: vpp: cipher %q is not one this backend can name to VPP; installing it would encrypt with a different cipher",

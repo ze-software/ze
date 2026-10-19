@@ -752,7 +752,7 @@ func matchOfferedESP(offer *wire.PayloadSA, our ipsec.ESPProposal, dh espDHMatch
 	if offer == nil {
 		return wire.Proposal{}, false, nil
 	}
-	enc, err := lookupEncryption(our.Encryption)
+	enc, err := lookupESPEncryption(our.Encryption)
 	if err != nil {
 		return wire.Proposal{}, false, fmt.Errorf("esp proposal %d: %w", our.Number, err)
 	}

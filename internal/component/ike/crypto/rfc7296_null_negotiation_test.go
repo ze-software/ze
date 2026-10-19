@@ -21,7 +21,7 @@ func nullIKEProposals() map[string]IKEProposal {
 
 	encNull := ikePolicy()[0]
 	encNull.Number = 1
-	encNull.Encryption = EncryptionTransform{ID: encrNull}
+	encNull.Encryption = EncryptionTransform{ID: ENCR_NULL}
 	return map[string]IKEProposal{
 		"AUTH_NONE beside AES-CBC": integNone,
 		"ENCR_NULL":                encNull,

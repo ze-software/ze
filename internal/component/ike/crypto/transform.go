@@ -34,9 +34,14 @@ const (
 	ENCR_AES_GCM_16 EncryptionID = 20
 )
 
-// encrNull names the unsupported ENCR_NULL transform (RFC 7296 Section 3.3.2).
-// Naming it does not admit it to negotiation or provide an implementation.
-const encrNull EncryptionID = 11
+// ENCR_NULL is the null cipher of an integrity-only ESP SA (RFC 7296 Section 3.3.2,
+// Transform ID 11). RFC 4303 Section 1: "Integrity-only ESP MUST be offered as a service
+// selection option, e.g., it must be negotiable in SA management protocols". It is
+// offered for ESP only: espOnlyEncryptionRegistry names it and encryptionRegistry does
+// not, and specifiedEncryption leaves it out, so an IKE SA can neither be configured
+// with it nor negotiate it (RFC 7296 Section 5). acceptESPEncryption admits it for a
+// Child SA.
+const ENCR_NULL EncryptionID = 11
 
 // RFC 7296 Section 3.3.4: PRF Transform IDs.
 type PRFID uint16
@@ -88,7 +93,9 @@ func (id EncryptionID) String() string {
 		return "aes-ccm-12"
 	case ENCR_AES_CCM_16:
 		return "aes-ccm-16"
-	case encrAESCTR, encrNull:
+	case ENCR_NULL:
+		return "null"
+	case encrAESCTR:
 		return unknownAlgo
 	default:
 		// Algorithm IDs from peer proposals are an open set.
@@ -228,6 +235,20 @@ var dhGroupRegistry = map[uint8]DHGroupTransform{
 	20: {ID: DH_ECP_384},
 }
 
+// espOnlyEncryptionRegistry maps the encryption algorithms an ESP proposal may name and
+// an IKE proposal may not. RFC 4303 Section 1: "Integrity-only ESP MUST be offered as a
+// service selection option, e.g., it must be negotiable in SA management protocols".
+// RFC 7296 Section 5: "implementations MUST NOT negotiate ... ENCR_NULL as the IKE
+// encryption algorithm." The null cipher therefore lives here, where only
+// LookupESPEncryption reads it, so no IKE lookup can resolve it. It takes no key, so
+// the transform carries no Key Length attribute (the offer writes one only for a
+// non-zero length).
+var espOnlyEncryptionRegistry = map[string]EncryptionTransform{
+	"null": NewEncryptionTransform(ENCR_NULL, 0),
+}
+
+// LookupEncryption resolves an encryption algorithm for an IKE SA. An ESP proposal
+// resolves through LookupESPEncryption, which also knows the ESP-only ciphers.
 func LookupEncryption(name string) (EncryptionTransform, error) {
 	t, ok := encryptionRegistry[name]
 	if !ok {
@@ -241,6 +262,23 @@ func LookupEncryption(name string) (EncryptionTransform, error) {
 // algorithm it refuses, so the two can never disagree (ai/rules/evidence.md).
 func SupportedEncryptionNames() []string {
 	return sortedKeys(encryptionRegistry)
+}
+
+// LookupESPEncryption resolves an encryption algorithm for an ESP Security Association:
+// every cipher LookupEncryption knows, and the ESP-only ones of espOnlyEncryptionRegistry.
+func LookupESPEncryption(name string) (EncryptionTransform, error) {
+	if t, ok := espOnlyEncryptionRegistry[name]; ok {
+		return t, nil
+	}
+	return LookupEncryption(name)
+}
+
+// SupportedESPEncryptionNames lists every encryption algorithm LookupESPEncryption
+// resolves, in sorted order.
+func SupportedESPEncryptionNames() []string {
+	names := append(sortedKeys(encryptionRegistry), sortedKeys(espOnlyEncryptionRegistry)...)
+	slices.Sort(names)
+	return names
 }
 
 // SupportedIntegrityNames lists every integrity algorithm this build implements, in

@@ -34,6 +34,11 @@ const (
 	EncryptionAES256CCM12 // AES-CCM-256 with 12-byte ICV
 	EncryptionAES128CCM16 // AES-CCM-128 with 16-byte ICV
 	EncryptionAES256CCM16 // AES-CCM-256 with 16-byte ICV
+	// RFC 4303 Section 1: "Integrity-only ESP MUST be offered as a service selection
+	// option, e.g., it must be negotiable in SA management protocols". The null cipher
+	// (ENCR_NULL) is that option, for an ESP proposal only: an IKE proposal naming it is
+	// refused at parse (EncryptionImplemented, RFC 7296 Section 5).
+	EncryptionNull
 )
 
 // enumeration: gated by TestVocabularyMatchesModel
@@ -50,6 +55,7 @@ var encryptionNames = map[EncryptionAlgo]string{
 	EncryptionAES256CCM12:  "aes256ccm12",
 	EncryptionAES128CCM16:  "aes128ccm16",
 	EncryptionAES256CCM16:  "aes256ccm16",
+	EncryptionNull:         "null",
 }
 
 var encryptionByName map[string]EncryptionAlgo
@@ -89,7 +95,7 @@ func (e EncryptionAlgo) IsAEAD() bool {
 		// RFC 5282 Section 3.2: "AES CCM provides an encrypted ICV", so the transform
 		// carries its own integrity and the proposal offers INTEG NONE beside it.
 		return true
-	case EncryptionUnknown, EncryptionAES128, EncryptionAES256, Encryption3DES:
+	case EncryptionUnknown, EncryptionAES128, EncryptionAES256, Encryption3DES, EncryptionNull:
 		return false
 	}
 	return false
@@ -106,7 +112,8 @@ func (e EncryptionAlgo) IsAESCCM() bool {
 		EncryptionAES128CCM16, EncryptionAES256CCM16:
 		return true
 	case EncryptionUnknown, EncryptionAES128, EncryptionAES256,
-		EncryptionAES128GCM, EncryptionAES256GCM, EncryptionChaCha20Poly, Encryption3DES:
+		EncryptionAES128GCM, EncryptionAES256GCM, EncryptionChaCha20Poly, Encryption3DES,
+		EncryptionNull:
 		return false
 	}
 	return false

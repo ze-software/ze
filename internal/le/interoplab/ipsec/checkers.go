@@ -48,6 +48,7 @@ var scenarioCheckers = map[string]scenarioCheck{
 	"esn-both-offered":                                {run: checkESNBothOffered},
 	"esn-extended-only-refused":                       {run: checkESNExtendedOnlyRefused},
 	"esp-form-change":                                 {run: checkESPFormChange},
+	"esp-integrity-only-null":                         {run: checkESPIntegrityOnlyNull},
 	"ike-aes-ccm16":                                   {run: checkIKEAESCCM16},
 	"ike-padded-probe-strongswan":                     {run: checkIKEPaddedProbeStrongSwan, writesPeerSysctl: true},
 	"ike-rekey-retries-in-the-named-group":            {run: checkIKERekeyRetriesInTheNamedGroup},
@@ -200,6 +201,46 @@ func checkIKEAESCCM16(ctx context.Context, lab *scenarioLab) error {
 		return err
 	}
 	return lab.verifyTunnelTraffic(ctx, "traffic did not flow through the AES CCM tunnel")
+}
+
+// swanNullESPProposal is charon's record of the ESP proposal it selected: NULL
+// encryption beside HMAC-SHA2-256-128. It is charon DECODING ze's SAi2 Transform
+// Substructures, so it is a fact about the octets ze sent.
+const swanNullESPProposal = "selected proposal: ESP:NULL/HMAC_SHA2_256_128/"
+
+// zeNullESPEncryption is what `show vpn ipsec sa` reports as the Child SA's
+// esp-encryption field for the null cipher (ipsec.EncryptionAlgo.String).
+const zeNullESPEncryption = "null"
+
+// checkESPIntegrityOnlyNull proves RFC 4303 Section 1 against strongSwan:
+// "Integrity-only ESP MUST be offered as a service selection option, e.g., it must be
+// negotiable in SA management protocols". ze initiates with one ESP proposal, NULL
+// encryption with SHA-256 integrity, and charon accepts only that suite. charon's log
+// names the ESP proposal it selected, ze's Child SA names the null cipher, both kernels
+// hold the SAs, and the tunnel carries ESP in both directions, which proves the
+// integrity keys agree.
+func checkESPIntegrityOnlyNull(ctx context.Context, lab *scenarioLab) error {
+	if err := establish(ctx, lab); err != nil {
+		return err
+	}
+	if err := lab.waitLog(ctx, swanPeer, swanNullESPProposal, lab.timeout); err != nil {
+		return err
+	}
+	encryption, err := lab.zeChildESPEncryption(ctx, swanConfigPeer)
+	if err != nil {
+		return err
+	}
+	if encryption != zeNullESPEncryption {
+		return fmt.Errorf("ze reports the Child SA esp-encryption as %q, want the null cipher %q",
+			encryption, zeNullESPEncryption)
+	}
+	if _, err := lab.waitXFRM(ctx, zePeer); err != nil {
+		return err
+	}
+	if _, err := lab.waitXFRM(ctx, swanPeer); err != nil {
+		return err
+	}
+	return lab.verifyTunnelTraffic(ctx, "traffic did not flow through the integrity-only ESP tunnel")
 }
 
 // zeSecondESPProposal is what ze answers for the second configured ESP proposal of

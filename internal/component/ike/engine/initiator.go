@@ -627,6 +627,20 @@ func lookupEncryption(algo ipsec.EncryptionAlgo) (crypto.EncryptionTransform, er
 	return t, nil
 }
 
+// lookupESPEncryption is lookupEncryption for an ESP proposal. It also resolves the
+// ESP-only null cipher, which RFC 4303 Section 1 requires to be negotiable and RFC 7296
+// Section 5 forbids for the IKE SA, so every ESP site reads this one and every IKE site
+// reads lookupEncryption. Config parse refuses a name neither resolves
+// (ipsec.EncryptionImplementedESP).
+func lookupESPEncryption(algo ipsec.EncryptionAlgo) (crypto.EncryptionTransform, error) {
+	// RFC 4303 Section 1
+	t, err := crypto.LookupESPEncryption(algo.String())
+	if err != nil {
+		return crypto.EncryptionTransform{}, fmt.Errorf("esp encryption %s: %w", algo, err)
+	}
+	return t, nil
+}
+
 func lookupPRF(hash ipsec.HashAlgo) (crypto.PRFTransform, error) {
 	t, err := crypto.LookupPRF(hash.String())
 	if err != nil {
@@ -657,7 +671,7 @@ func lookupIntegrity(hash ipsec.HashAlgo) (crypto.IntegrityTransform, error) {
 // The verdict comes from the Transform ID, never from the IsAEAD field, for the reason
 // crypto.EncryptionID.IsAEAD gives.
 func resolveESPTransforms(p ipsec.ESPProposal) (crypto.EncryptionTransform, crypto.IntegrityTransform, error) {
-	enc, err := lookupEncryption(p.Encryption)
+	enc, err := lookupESPEncryption(p.Encryption)
 	if err != nil {
 		return crypto.EncryptionTransform{}, crypto.IntegrityTransform{}, err
 	}
@@ -836,7 +850,7 @@ const espESNNotExtended uint16 = 0
 // Type 4 entirely. An algorithm the crypto registry does not hold is an error, so the
 // proposal never carries Transform ID 0.
 func espProposalWire(p ipsec.ESPProposal, spi uint32, number uint8, dh crypto.DHGroupID) (wire.Proposal, error) {
-	enc, err := lookupEncryption(p.Encryption)
+	enc, err := lookupESPEncryption(p.Encryption)
 	if err != nil {
 		return wire.Proposal{}, fmt.Errorf("esp proposal %d: %w", p.Number, err)
 	}

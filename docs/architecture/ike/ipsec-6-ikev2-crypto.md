@@ -55,8 +55,21 @@ AES GCM. The `ike-aes-ccm16` interop scenario holds that split against strongSwa
 the IKE SA negotiates AES CCM and the Child SA negotiates AES GCM
 (`docs/architecture/testing/interop.md`).
 
+**ENCR_NULL is offered for ESP and refused for the IKE SA.** RFC 4303 Section 1
+requires integrity-only ESP to be "negotiable in SA management protocols", and RFC 7296
+Section 5 forbids ENCR_NULL as the IKE encryption algorithm. The null cipher therefore
+lives in `espOnlyEncryptionRegistry` (`transform.go`), which only `LookupESPEncryption`
+reads, so no IKE proposal can resolve it, and `specifiedEncryption` still leaves it out,
+so `matchIKE` refuses it on the wire. `acceptESPEncryption` admits it for a Child SA
+when local policy names it too and the offer carries no Key Length attribute, and
+`espProposalComplete` refuses it beside AUTH_NONE (RFC 4303 Section 3.2). The
+`esp-integrity-only-null` interop scenario negotiates it with strongSwan.
+
+<!-- source: internal/component/ike/crypto/transform.go -- espOnlyEncryptionRegistry, LookupESPEncryption -->
+<!-- source: internal/component/ike/crypto/proposal.go -- acceptESPEncryption, espProposalComplete -->
+
 **A flat map registry, not the registration pattern.** The algorithm set is
-small and fixed: ten encryption transforms, three PRFs, three integrity
+small and fixed: ten encryption transforms plus the ESP-only null cipher, three PRFs, three integrity
 transforms and three DH groups. A registry with `init()` hooks buys nothing at
 that size.
 

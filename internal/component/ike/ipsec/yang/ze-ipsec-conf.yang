@@ -41,6 +41,9 @@ module ze-ipsec-conf {
             enum 3des {
                 ze:help "Triple-DES-CBC (RFC 2451), deprecated. No build implements it.";
             }
+            enum null {
+                ze:help "NULL encryption (RFC 2410): integrity-only ESP, which needs a hash. ESP only.";
+            }
         }
     }
 
@@ -392,7 +395,10 @@ module ze-ipsec-conf {
                         description "No build carries a transform for chacha20poly1305
                             or 3des, so a proposal that names one is refused at
                             commit. The refusal lists the algorithms the build does
-                            implement.";
+                            implement. null selects integrity-only ESP, which RFC 4303
+                            Section 1 requires to be negotiable. RFC 4303 Section 3.2
+                            forbids ESP with neither confidentiality nor integrity, so a
+                            null proposal without a hash is refused at commit.";
                         ze:help "Encryption algorithm.";
                     }
 
@@ -552,8 +558,9 @@ module ze-ipsec-conf {
                         mandatory true;
                         description "No build carries a transform for chacha20poly1305
                             or 3des, so a proposal that names one is refused at
-                            commit. The refusal lists the algorithms the build does
-                            implement.";
+                            commit. RFC 7296 Section 5 forbids ENCR_NULL for the IKE
+                            SA, so null is refused here too. The refusal lists the
+                            algorithms the build does implement for the IKE SA.";
                         ze:help "Encryption algorithm.";
                     }
 

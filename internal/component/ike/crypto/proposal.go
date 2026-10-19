@@ -476,6 +476,36 @@ func espProposalComplete(p *ESPProposal) error {
 	if transformTypeMandatory(protoESP, TransformTypeENCR) && p.Encryption.ID == 0 {
 		return ErrProposalIncomplete
 	}
+	// RFC 4303 Section 3.2: "Note that although both confidentiality and integrity are
+	// optional, at least one of these services MUST be selected, hence both algorithms
+	// MUST NOT be simultaneously NULL." ENCR_NULL is accepted for integrity-only ESP, so
+	// a proposal pairing it with AUTH_NONE offers neither service and is refused.
+	if p.Encryption.ID == ENCR_NULL && p.Integrity.ID == AUTH_NONE {
+		return ErrProposalIncomplete
+	}
+	return nil
+}
+
+// acceptESPEncryption decides the encryption transform of an ESP proposal. It is
+// acceptEncryption plus the one transform ESP offers and the IKE SA does not: ENCR_NULL.
+//
+// RFC 4303 Section 1: "Integrity-only ESP MUST be offered as a service selection
+// option, e.g., it must be negotiable in SA management protocols". RFC 7296 Section 5
+// forbids ENCR_NULL for the IKE SA, so the null cipher stays out of specifiedEncryption,
+// which matchIKE reads, and is admitted here alone. The null cipher takes no key, so an
+// offer carrying a Key Length attribute names a transform Ze cannot key and is refused.
+// espProposalComplete has already refused ENCR_NULL beside AUTH_NONE.
+func acceptESPEncryption(remote, local EncryptionTransform, rule keyLengthRule) error {
+	if remote.ID != ENCR_NULL {
+		_, err := acceptEncryption(remote, local, rule)
+		return err
+	}
+	if local.ID != ENCR_NULL {
+		return ErrNoProposalChosen
+	}
+	if remote.KeyLength != 0 {
+		return ErrNoProposalChosen
+	}
 	return nil
 }
 
@@ -483,7 +513,8 @@ func espProposalComplete(p *ESPProposal) error {
 // integrity transform is optional for ESP (RFC 7296 Section 3.3.3), and an AEAD
 // cipher carries it as NONE.
 func matchESP(remote, local *ESPProposal, rule keyLengthRule) (ESPProposal, error) {
-	if _, err := acceptEncryption(remote.Encryption, local.Encryption, rule); err != nil {
+	// RFC 4303 Section 1
+	if err := acceptESPEncryption(remote.Encryption, local.Encryption, rule); err != nil {
 		return ESPProposal{}, err
 	}
 	if err := acceptIntegrity(remote.Integrity, local.Integrity); err != nil {

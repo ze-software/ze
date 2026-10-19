@@ -28,6 +28,7 @@ var ipsecScenarios = []string{
 	"esn-both-offered",
 	"esn-extended-only-refused",
 	"esp-form-change",
+	"esp-integrity-only-null",
 	"ike-aes-ccm16",
 	"ike-padded-probe-strongswan",
 	"ike-rekey-retries-in-the-named-group",

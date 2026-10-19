@@ -40,13 +40,18 @@ var espTransformCases = []espTransformCase{
 	{encryptionName: "aes256", integrityName: "sha256", wireOctets: 40, block: 16},
 	{encryptionName: "aes256", integrityName: "sha384", wireOctets: 48, block: 16},
 	{encryptionName: "aes256", integrityName: "sha512", wireOctets: 56, block: 16},
+	// NULL (integrity-only ESP, RFC 4303 Section 1): 8 ESP + no IV + the
+	// truncated HMAC, padded to the 4-octet ESP boundary alone.
+	{encryptionName: "null", integrityName: "sha256", wireOctets: 24, block: 4},
+	{encryptionName: "null", integrityName: "sha384", wireOctets: 32, block: 4},
+	{encryptionName: "null", integrityName: "sha512", wireOctets: 40, block: 4},
 }
 
 // upTunnel builds an installed tunnel-mode Child SA over the given endpoint
 // with the named transform pair.
 func upTunnel(t *testing.T, c *espTransformCase, remote netip.Addr, udp bool) ipsecinventory.Tunnel {
 	t.Helper()
-	enc, err := crypto.LookupEncryption(c.encryptionName)
+	enc, err := crypto.LookupESPEncryption(c.encryptionName)
 	if err != nil {
 		t.Fatalf("LookupEncryption(%q): %v", c.encryptionName, err)
 	}
@@ -88,7 +93,7 @@ func TestESPOverheadPerTransform(t *testing.T) {
 	}
 	var population [][2]string
 	for _, encName := range ipsec.SupportedESPEncryptionNames() {
-		enc, err := crypto.LookupEncryption(encName)
+		enc, err := crypto.LookupESPEncryption(encName)
 		if err != nil {
 			t.Fatalf("LookupEncryption(%q): %v", encName, err)
 		}

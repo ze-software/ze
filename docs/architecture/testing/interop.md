@@ -1553,6 +1553,20 @@ one algorithm and nothing else.
 <!-- source: test/interop-ipsec/scenarios/ike-aes-ccm16/ -- the AES CCM fixtures -->
 <!-- source: internal/le/interoplab/ipsec/checkers.go -- checkIKEAESCCM16 -->
 
+### Integrity-only ESP on the strongSwan peer
+
+`esp-integrity-only-null` negotiates the Child SA as ENCR_NULL with
+HMAC-SHA2-256-128, the integrity-only ESP that RFC 4303 Section 1 requires to be
+negotiable, over an ordinary AES GCM IKE SA (RFC 7296 Section 5 keeps ENCR_NULL
+out of the IKE SA). Ze initiates and charon's `esp_proposals = null-sha256`
+accepts nothing else. The checker reads charon's
+`selected proposal: ESP:NULL/HMAC_SHA2_256_128/` line, then Ze's Child SA
+`esp-encryption` field (`null`), then both kernels' SAs and ESP in both
+directions. The ESP datapath is the Linux kernel's `ecb(cipher_null)` on both
+ends, which needs `CONFIG_CRYPTO_NULL` on the Docker host kernel.
+<!-- source: test/interop-ipsec/scenarios/esp-integrity-only-null/ -- the integrity-only ESP fixtures -->
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkESPIntegrityOnlyNull -->
+
 ### The FreeRADIUS admin-login suite
 
 `internal/le/interoplab/radius/` runs ze's operator login against a real
