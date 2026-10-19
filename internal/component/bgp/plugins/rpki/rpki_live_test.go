@@ -3,22 +3,17 @@
 package rpki
 
 import (
-	"context"
-	"fmt"
 	"net"
 	"net/http"
-	"os/exec"
 	"runtime"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-)
 
-// containerName is the Docker container name used by live tests.
-const containerName = "ze-live-rpki-stayrtr"
+	"github.com/ze-software/ze/internal/le/interoplab/labtest"
+)
 
 // rpkiDataURL is Cloudflare's public RPKI JSON endpoint.
 const rpkiDataURL = "https://rpki.cloudflare.com/rpki.json"
@@ -26,98 +21,21 @@ const rpkiDataURL = "https://rpki.cloudflare.com/rpki.json"
 // stayrtrImage is the official stayrtr container image.
 const stayrtrImage = "docker.io/rpki/stayrtr:latest"
 
-// dockerTimeout bounds one docker invocation made from a cleanup path, where
-// the test's own context is already canceled and cannot bound anything.
-const dockerTimeout = 30 * time.Second
+// stayrtrLogLines is the stayrtr log tail a failed live test receives.
+const stayrtrLogLines = 100
 
-// probeTimeout bounds ONE TCP reachability probe. The caller polls, so this is
-// the bound on an attempt rather than on the wait.
-const probeTimeout = 2 * time.Second
-
-// dockerRM removes a container by name. The error is expected when the
-// container does not exist, which is every first run. There is nowhere to
-// report that error. The caller is sometimes a cleanup func with no *testing.T
-// in scope, so no reader exists to report to.
-func dockerRM(name string) {
-	// Its own context, not the test's. A cleanup runs after t.Context() is
-	// canceled, so the test's context would cancel this removal rather than
-	// bound it.
-	ctx, cancel := context.WithTimeout(context.Background(), dockerTimeout)
-	defer cancel()
-
-	_ = exec.CommandContext(ctx, "docker", "rm", "-f", name).Run()
-}
-
-// startStayRTR starts a stayrtr container and returns the host port.
-// Caller MUST call the returned cleanup function.
-func startStayRTR(t *testing.T) (port int, cleanup func()) {
+// startStayRTR starts stayrtr serving the live RPKI data through labtest,
+// published on the host loopback, and answers its port once it accepts a
+// connection. labtest skips the test with no docker binary or, run ad hoc,
+// with no image; its t.Cleanup removes the container.
+func startStayRTR(t *testing.T, name string) uint16 {
 	t.Helper()
-
-	// Remove any leftover container from a previous failed run.
-	dockerRM(containerName)
-
-	// Start stayrtr with a random host port mapped to 3323.
-	out, err := exec.CommandContext(t.Context(),
-		"docker", "run", "-d",
-		"--name", containerName,
-		"-p", "0:3323",
-		stayrtrImage,
-		"-cache", rpkiDataURL,
-		"-bind", ":3323",
-	).CombinedOutput()
-	require.NoError(t, err, "docker run failed: %s", string(out))
-
-	cleanup = func() { dockerRM(containerName) }
-
-	// Discover the mapped host port.
-	portOut, err := exec.CommandContext(t.Context(),
-		"docker", "port", containerName, "3323/tcp",
-	).Output()
-	if err != nil {
-		cleanup()
-		t.Fatalf("docker port failed: %v", err)
-	}
-
-	// Parse "0.0.0.0:NNNNN" or "[::]:NNNNN". Docker may return multiple lines
-	// (IPv4 + IPv6) on dual-stack hosts; take the first line only.
-	portStr := strings.TrimSpace(string(portOut))
-	if first, _, ok := strings.Cut(portStr, "\n"); ok {
-		portStr = first
-	}
-	idx := strings.LastIndex(portStr, ":")
-	if idx < 0 {
-		cleanup()
-		t.Fatalf("cannot parse docker port output: %s", portStr)
-	}
-	portPart := portStr[idx+1:]
-
-	var p int
-	_, err = fmt.Sscanf(portPart, "%d", &p)
-	if err != nil {
-		cleanup()
-		t.Fatalf("cannot parse port number %q: %v", portPart, err)
-	}
-
-	return p, cleanup
-}
-
-// waitForRTR waits until a TCP connection to the given port succeeds.
-func waitForRTR(t *testing.T, port int, timeout time.Duration) {
-	t.Helper()
-	addr := fmt.Sprintf("127.0.0.1:%d", port)
-
-	dialer := &net.Dialer{Timeout: probeTimeout}
-
-	require.Eventually(t, func() bool {
-		conn, err := dialer.DialContext(t.Context(), "tcp", addr)
-		if err != nil {
-			return false
-		}
-		if closeErr := conn.Close(); closeErr != nil {
-			t.Logf("probe connection close: %v", closeErr)
-		}
-		return true
-	}, timeout, 2*time.Second, "stayrtr did not become reachable on port %d within %s", port, timeout)
+	address := labtest.Start(t, labtest.Spec{
+		Name: name, Image: stayrtrImage,
+		Command: []string{"-cache", rpkiDataURL, "-bind", ":3323"},
+		Port:    3323, Ready: labtest.TCPReady, ReadyTimeout: 60 * time.Second, LogLines: stayrtrLogLines,
+	})
+	return address.Port()
 }
 
 // TestLiveRPKIValidation connects to a stayrtr container serving live RPKI data
@@ -127,37 +45,16 @@ func waitForRTR(t *testing.T, port int, timeout time.Duration) {
 // PREVENTS: RTR client incompatibility with real cache servers; validation logic
 // errors that only appear with real-world data scale (~300K VRPs).
 func TestLiveRPKIValidation(t *testing.T) {
-	// Check Docker is available.
-	if _, err := exec.LookPath("docker"); err != nil {
-		t.Skip("docker not available, skipping live RPKI test")
-	}
-	out, err := exec.CommandContext(t.Context(), "docker", "info").CombinedOutput()
-	if err != nil {
-		t.Skipf("docker not running: %s", string(out))
-	}
-
-	// Pull image if needed (may already be cached).
-	t.Log("pulling stayrtr image...")
-	pullOut, err := exec.CommandContext(t.Context(), "docker", "pull", stayrtrImage).CombinedOutput()
-	if err != nil {
-		t.Skipf("cannot pull stayrtr image (no internet?): %s", string(pullOut))
-	}
-
-	// Start stayrtr container.
+	// Start stayrtr. It needs time to fetch and parse rpki.json (~10-30s
+	// depending on network); labtest waits until it accepts a connection.
 	t.Log("starting stayrtr container...")
-	port, cleanup := startStayRTR(t)
-	defer cleanup()
-
-	// Wait for stayrtr to accept TCP connections.
-	// It needs time to fetch and parse rpki.json (~10-30s depending on network).
-	t.Logf("waiting for stayrtr on port %d...", port)
-	waitForRTR(t, port, 60*time.Second)
+	port := startStayRTR(t, "rpki-live")
 
 	// Create ROA cache and RTR session.
 	// Short retry for tests: stayrtr may need time to download RPKI data.
 	cache := newROACache()
 	stopCh := make(chan struct{})
-	session := newTestRTRSession(t, "127.0.0.1", uint16(port), 100, "", cache, newASPACache(), stopCh)
+	session := newTestRTRSession(t, "127.0.0.1", port, 100, "", cache, newASPACache(), stopCh)
 	session.retryInterval = 5 * time.Second
 
 	// Run session in background.
@@ -265,13 +162,6 @@ func TestLiveRPKIValidation(t *testing.T) {
 // VALIDATES: RTR v2 ASPA PDU interop with real server, end-to-end ASPA cache population.
 // PREVENTS: Wire format incompatibility with production RTR implementations.
 func TestLiveASPAValidation(t *testing.T) {
-	if _, err := exec.LookPath("docker"); err != nil {
-		t.Skip("docker not available")
-	}
-	if out, err := exec.CommandContext(t.Context(), "docker", "info").CombinedOutput(); err != nil {
-		t.Skipf("docker not running: %s", string(out))
-	}
-
 	// Synthetic RPKI JSON with ROA + ASPA records (rpki-client JSON format).
 	// stayrtr parses provider_authorizations and serves them as ASPA PDU type 11 over RTR v2.
 	const aspaJSON = `{
@@ -302,58 +192,31 @@ func TestLiveASPAValidation(t *testing.T) {
 	_, httpPort, _ := net.SplitHostPort(httpLn.Addr().String())
 
 	// On macOS, --network=host doesn't expose the host to containers.
-	// Use host.docker.internal to reach the test HTTP server.
+	// Use host.docker.internal to reach the test HTTP server, and publish the
+	// RTR port on the loopback instead.
 	cacheHost := "127.0.0.1"
-	rtrPort := 3324
-	networkArgs := []string{"--network", "host"}
 	if isDockerDesktop() {
 		cacheHost = "host.docker.internal"
-		networkArgs = []string{"-p", "0:3324"}
 	}
-
-	const aspaContainer = "ze-live-rpki-aspa"
-	dockerRM(aspaContainer)
-	defer dockerRM(aspaContainer)
-
-	args := append([]string{"run", "-d", "--name", aspaContainer}, networkArgs...)
-	args = append(args, stayrtrImage, "-cache", "http://"+cacheHost+":"+httpPort+"/rpki.json", "-bind", ":3324", "-checktime=false")
-	startOut, err := exec.CommandContext(t.Context(), "docker", args...).CombinedOutput()
-	if err != nil {
-		t.Skipf("cannot start stayrtr for ASPA: %s", string(startOut))
-	}
-
-	if isDockerDesktop() {
-		portOut, portErr := exec.CommandContext(t.Context(), "docker", "port", aspaContainer, "3324/tcp").Output()
-		if portErr != nil {
-			t.Skipf("cannot get stayrtr port: %v", portErr)
-		}
-		portStr := strings.TrimSpace(string(portOut))
-		if first, _, ok := strings.Cut(portStr, "\n"); ok {
-			portStr = first
-		}
-		idx := strings.LastIndex(portStr, ":")
-		if idx >= 0 {
-			if _, scanErr := fmt.Sscanf(portStr[idx+1:], "%d", &rtrPort); scanErr != nil {
-				t.Skipf("cannot parse port: %v", scanErr)
-			}
-		}
-	}
+	address := labtest.Start(t, labtest.Spec{
+		Name: "rpki-aspa", Image: stayrtrImage,
+		Command: []string{"-cache", "http://" + cacheHost + ":" + httpPort + "/rpki.json",
+			"-bind", ":3324", "-checktime=false"},
+		Port: 3324, HostNetwork: !isDockerDesktop(),
+		Ready: labtest.TCPReady, ReadyTimeout: 30 * time.Second, LogLines: stayrtrLogLines,
+	})
+	rtrPort := address.Port()
 
 	t.Logf("ASPA test: rtrPort=%d cacheHost=%s httpPort=%s", rtrPort, cacheHost, httpPort)
 
 	// Give stayrtr time to fetch the JSON before connecting.
 	time.Sleep(3 * time.Second)
-	if logs, logErr := exec.CommandContext(t.Context(), "docker", "logs", aspaContainer).CombinedOutput(); logErr == nil {
-		t.Logf("stayrtr logs: %s", string(logs))
-	}
-
-	waitForRTR(t, rtrPort, 30*time.Second)
 
 	// Connect our RTR client.
 	roaCache := newROACache()
 	aspaC := newASPACache()
 	stopCh := make(chan struct{})
-	sess := newTestRTRSession(t, "127.0.0.1", uint16(rtrPort), 100, "", roaCache, aspaC, stopCh) //nolint:gosec // port fits uint16
+	sess := newTestRTRSession(t, "127.0.0.1", rtrPort, 100, "", roaCache, aspaC, stopCh)
 	sess.retryInterval = 5 * time.Second
 
 	done := make(chan struct{})
