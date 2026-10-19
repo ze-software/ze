@@ -564,6 +564,9 @@ Counts: MUST 8, SHOULD 6, NOT 11. S-2 (NTP) and S-4 (flow-export) packages are a
 ## Known Limitations
 - A run whose machine is gone for good leaves resources this machine reports and never removes (R-3, Q-2).
 - Unlabeled leftovers from before this spec are not removed (R-8, Q-3).
+- In a container whose PID 1 does not reap orphans, the test binaries a signalled `docker-peers` or `live-rpki` run SIGKILLs stay zombies, so `kill(-group, 0)` keeps answering and `ProcessGroup.AwaitExit` waits its full 10 s and the summary warns. The sweep itself stays correct: `procscan.Scan`/`Lookup` count a `Z`/`X` pid absent (`d9dc1f561e`), so the zombies' containers are judged gone and removed in that same sweep. A group that empties while `ps` lists it draws no warning (`38ccef54f5`).
+- A resource labeled before `69dd08092b` carries no `ze.lab.kind`, `ze.lab.uid` or `ze.lab.os` label, so the sweep skips it as malformed (the safe direction); such a resource is removed by hand once.
+- A live clone whose owner started before this clone booted still reads as gone: no client-side fact tells that apart from a reboot (R-1 residual).
 
 ## Open Questions for the Owner (each a "which way")
 
@@ -631,3 +634,77 @@ Every recommended answer below is therefore the decision.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/spec-lab-docker-cleanup-and-go-test-containers.md` only, in the same `./le commit create` script
+
+---
+
+## Closure status (2026-10-19): blocked
+
+`/ze-close` stopped at its Assumptions Resolved step. The closure sections
+below are filled as far as the evidence reaches, and the spec stays open.
+What blocks closing, by the rule that demands it:
+
+| Blocker | Rule |
+|---------|------|
+| A-2, A-3, A-5 (Colima, Docker Desktop, the QEMU guest's dockerd) and A-8 are `unvalidated` | `/ze-close` step 1 "Assumptions Resolved (BLOCKING)"; `plan/TEMPLATE-CLOSURE.md` "`unvalidated` is not a valid final status"; this spec's Goal Gates "Every A-N confirmed or broken" |
+| The deliverable "docker-peers has a home" names the id of the first nightly run that executed it (AC-25); none exists before an owner-ordered push | `/ze-close` step 1: a missing deliverable returns to `/ze-implement` |
+| Work Not Done rows need an owning spec by path, written in the closure commit; homing the Mac and nightly validations in another spec moves scope | `/ze-close` step 6 "Work Not Done"; `ai/rules/completion.md` (scope is the owner's) |
+| `38ccef54f5` (the group-emptied fix) has had no independent review, and no hash-pinned review artifact is recorded | `/ze-close` step 5; `ai/rules/principles.md` (an author does not review their own work) |
+| The precondition gates were not run in this phase (owner: another session owns them) | `/ze-close` Precondition and step 3 |
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| G-1 crash-safe cleanup | functional, real daemon | `c2b69d6519` (labels, `Docker.CleanupOrphans`), `69dd08092b`, `008afd8b65`, `d9dc1f561e`. `TestKilledLabRunIsCleanedByNextStart` (`orphans_docker_test.go`, tag `docker`), run alone 2026-10-19 07:18 UTC at `dda6f2de0c` with `ZE_REQUIRE_DOCKER=1`: PASS in 65.8 s; the SIGKILLed child's network, container and retained tag removed beside a live child's kept set (3 removed / 3 kept), then the live child's set once it ended (3 removed / 0 kept). Real `cleanup dry` and `cleanup` on the shared daemon, 2026-10-18 (Functional Tests above): the dry run removed nothing and kept the seven resources of live pid 981084, naming it; the later `cleanup`, after that run exited, exited 0 and removed only its leftover tags |
+| G-2 clean interruption | unit tests over the real entry points | `TestNativeRunnerCancelsOnSIGINT`; `TestDeploymentVerbsCancelOnSignal` and `TestPerfVerbsCancelOnSignal` (each red under its recorded mutation, "payload not canceled code 0", green restored); `TestDockerChildStopsOnSignal` (`d83fb6a817`, `dda6f2de0c`: before, back after 30 s with code 0; after, the group is killed and one sweep runs); `TestSignalSweepWaitsForTheGroup`, `TestSignalSweepNamesMembersLeft` (`2fe96cdffe`); `TestAwaitExitGroupEmptiedDuringTheListing` (`38ccef54f5`). Not observed on a real `l2tp-test`, `vpp-test`, `vpp-iface-test`, `verify evidence release-candidate`, terminal-demo build or `./le perf run dut ze` stopped with Ctrl-C (Work Not Done) |
+| G-3 `go test`-native containers with a gating home | functional, real daemon | `f7c4cd8d92` (`labtest`), `3ea96e151f` (nightly jobs). `./le test integration docker-peers` exit 0 on this host after `321ca49ce1`, after `00ad396fd0`, and after `3681720e48` (gnmi 111.8 s, tacacs 37.1 s, interoplab 145.0 s, labtest 31.8 s, flowexport 117.8 s, ntp 53.5 s). `TestDockerPeersVerbRunsEveryDockerPackage`, `TestDockerTagNeverJoinsIntegration`, `TestEvidenceNightlyScheduleActionsAndPrivileges`. The first nightly run id is owed (AC-25) |
+| G-4 adoption | gate plus real-peer interop | MUST rows: `30ce614efd` (deployment), `f171a5d47c` (perfrunner), `a757147bb3` (evidence), `5cb877cbb6` (terminal demo), `fa4404fa13` (rpki live), `af1416e9b5` (image retention). AC-16 gate: `a73d572b19`, `e619f62e15`, `38739450f3`; `./le arch tier check` exit 0 on this tree, 2026-10-19. SHOULD rows S-1..S-4, each with a red walk (mutation, `-count=1`, red, restore, green) recorded in handover 06: TACACS+ against tac_plus-ng `321ca49ce1`, NTP against chrony `ead47ff0ce`, gNMI driven by gnmic `16051e7098`, flow-export against nfcapd and sflowtool `00ad396fd0` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| First nightly `docker-peers` (and `live-rpki`) run id: AC-25, A-8 | needs an owner-ordered push | none yet (closure blocker) |
+| On the owner's Mac: `./le perf run dut ze` with Ctrl-C, the FreeRtr `--build-context` build, A-2 (`kern.bootsessionuuid`), A-3 (IOPlatformUUID), A-5 (Colima, Docker Desktop) | needs the owner's Mac | none yet (closure blocker) |
+| A-5 on the QEMU guest's Alpine dockerd (`./le test qemu docker-lab`) | outlasts an agent's five-minute bound | none yet (closure blocker) |
+| Real runs stopped with Ctrl-C of `l2tp-test`, `vpp-test`, `vpp-iface-test`, `verify evidence release-candidate`, and the terminal-demo image build | not recorded in this spec or its handover | none yet (closure blocker) |
+| `./le go lint run` scoped over the packages each handover 06 section names (linux and darwin flavors), `./le test unit all`, `./le test functional gating`, `./le verify worktree` | another session owns them (owner, 2026-10-19) | owed gates, not scope |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | not recorded: the reviewers left no hash-pinned artifact, and recording one in this context would attribute a CLEAN verdict to a reader who did not reach it |
+| `./le spec review check` | not run |
+| Rounds | 4 independent reviews (main thread's report). The third, after `41d1cb7669`, and the fourth, on `2fe96cdffe` and `7fcdb3a4b3`, returned 0 BLOCKER and 0 ISSUE. `38ccef54f5` landed after them and is unreviewed |
+| Reviewer lenses used | AC conformance, docker.md destructive scope, user-facing errors, signal and teardown paths |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | teardown removed names `claimName` refused (R-1, AC-7) | `interoplab` `Lab.cleanup` | `62512fcace` |
+| 2 | ISSUE | a pre-clean refusal named a `ZE_<LAB>_INTEROP_SUFFIX` placeholder | `interoplab` pre-clean | `4c41912146` |
+| 3 | ISSUE | a hand-started container from a lab image was swept (AC-9) | `orphans.go` | `008afd8b65` |
+| 4 | ISSUE | gone was judged on machine id and boot id only (R-1) | `orphans.go` | `69dd08092b` |
+| 5 | ISSUE | docker-peers and live-rpki ran `go test` on `context.Background` (AC-8, AC-22) | `dockerpeers.go` | `d83fb6a817` |
+| 6 | ISSUE | buildtag counted negated terms | `internal/le/test/buildtag` | `976d74655a` |
+| 7 | ISSUE | the AC-16 gate missed const chains, package vars and renamed packages, then function-scoped declarations | `internal/le/arch/tier` | `e619f62e15`, `38739450f3` |
+| 8 | ISSUE | G-2: a signalled docker-peers left the killed tests' containers to the next sweep | `dockerpeers.go` | `dda6f2de0c` |
+| 9 | ISSUE | `claimName` refused this run's own leftover | `interoplab` | `2f74338d3f` |
+| 10 | ISSUE | a pre-run sweep listing failure was a bare docker error | `interoplab` `Suite.Run` | `055e1e91a2` |
+| 11 | ISSUE | the post-signal sweep ran before the killed group emptied; `-l` inside a short-flag cluster passed | `dockerpeers.go`, `interoplab` | `2fe96cdffe` |
+
+## Pre-Commit Verification
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed on Linux | `TestCleanupOrphansVerdictTable`; `TestKilledLabRunIsCleanedByNextStart` 2026-10-19 |
+| A-2 | Linux confirmed; macOS unvalidated | needs the owner's Mac |
+| A-3 | Linux confirmed; macOS unvalidated | needs the owner's Mac |
+| A-4 | confirmed | distinct image ids 4eba20710da2 and b382d29fd516 (2026-10-18) |
+| A-5 | Linux host confirmed; Colima, Docker Desktop and the guest dockerd unvalidated | the owner's Mac; a `docker-lab` run |
+| A-6 | broken | the scanner moved to `internal/le/procscan` (`ffd98a4193`) |
+| A-7 | confirmed | `./le arch tier check` exit 0, 2026-10-19 |
+| A-8 | unvalidated | the first nightly run (AC-25) |
+| A-9 | confirmed | `ZE_QEMU_LINUX_ONLY` is a plain constant, as `ZE_REQUIRE_DOCKER` is |
