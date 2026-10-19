@@ -368,14 +368,19 @@ causes a native withdrawal. Capability 77 does not legalize such a pair.
 The trimming boundary leaves an invalid pair intact for the shared withholding
 gate; it cannot silently turn it into a valid single-address form.
 
-For a valid pair, one locally connected prefix must contain both the recipient
-and the effective global address. Separate memberships in S's A and B prefixes
-do not establish a common subnet for all three entities. If no such prefix
-exists, the link-local half is dropped and the global goes alone, length 16
-(24 with the RD). Next-hop-self construction uses the same joint predicate.
-A filter-written field is judged after the rewrite, including `auto` and
-`unchanged`: a valid 16-octet speaker-owned global receives the configured
-speaker Link-Local when that same joint predicate permits it. The new pair is
+For a valid plain pair, one locally connected prefix must contain both the
+recipient and the effective global address (RFC 2545 Section 3). Separate
+memberships in S's A and B prefixes do not establish a common subnet for all
+three entities. If no such prefix exists, the link-local half is dropped and the
+global goes alone, length 16. A VPN-IPv6 pair answers RFC 4659 Section
+3.2.1.1's condition instead, which names only the peer: the pair is kept when
+the speaker shares a connected subnet with the recipient, wherever the global
+is, and is otherwise cut to its 24-octet RD+global half
+(`linkLocalConditionFor`). Next-hop-self construction uses the same
+per-family predicate. A filter-written field is judged after the rewrite,
+including `auto` and `unchanged`: a valid speaker-owned global, 16 octets or
+24 with the RD, receives the configured speaker Link-Local when its family's
+predicate permits it. The new pair is
 copied into the existing operation accumulator; trimming an existing pair
 aliases its global half. Both forward rails preserve cached input and do not
 rerun policy. The source peer's prefix cannot substitute for the effective
@@ -389,6 +394,7 @@ Real-topology fixtures independently establish who owns the advertised pair.
 The separate absent Link-Local source for third-party origination remains
 a gap; received-pair preservation does not implement it.
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- applyEgressNextHopScope -->
+<!-- source: internal/component/bgp/reactor/link_scope.go -- linkLocalConditionFor, linkScope.holdsCommonSubnet -->
 <!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545ReceivedPairSubnetConditions -->
 <!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545ReceivedPairSecondAddressValidated -->
 <!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545ReceivedPairFirstAddressValidated -->

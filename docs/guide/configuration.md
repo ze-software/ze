@@ -2817,7 +2817,11 @@ lookup in prerouting instead. Ze owns one table for it, `ip6 ze_iface_rpf`, and
 rebuilds it whole on every interface commit: each checked interface is a member
 of the `strict` or `loose` set, and a unit whose leaf, unit or interface leaves
 the config leaves the set with it. With no IPv6 `rpf-check` left, the table is
-deleted.
+deleted. nftables refuses that deletion to a ze running without CAP_NET_ADMIN:
+the interfaces still apply, and ze logs a warning that names the
+`nft delete table ip6 ze_iface_rpf` command to remove a table a privileged run
+left behind. A configured IPv6 check still fails to apply without the
+capability.
 
 | Value | nftables rule | Behavior |
 |-------|---------------|----------|

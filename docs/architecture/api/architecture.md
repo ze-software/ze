@@ -842,9 +842,12 @@ and IPv4-mapped forms, capability 77, RFC 8950 negotiation and peer-own next-hop
 refusal retain their existing rules. VPN and independently defined next-hop
 layouts are not converted into plain IPv6 fields. A 24- or 48-octet
 RD-prefixed VPN field takes the forwarding rails' own decision
-(`applyEgressNextHopScope`, RFC 4659 Section 3.2.1.1): a 24-octet field naming
-the speaker's global is raised to the 48-octet RD+global, RD+link-local pair on
-the common subnet, and a 48-octet pair is cut to 24 octets off it. End-of-RIB and already-filtered
+(`applyEgressNextHopScope`, RFC 4659 Section 3.2.1.1). That section asks only
+that the speaker share a connected subnet with the recipient, wherever the
+global is, so a loopback global still qualifies: a 24-octet field naming the
+speaker's global is raised to the 48-octet RD+global, RD+link-local pair when
+the speaker shares a subnet with the recipient, and a 48-octet pair is cut to
+24 octets when it does not. End-of-RIB and already-filtered
 forward/route-server/replay writes bypass this ordinary callback; their existing
 forwarding normalization is separate.
 <!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- exportFilterForBody, normalizeOrdinaryNextHop, normalizeVPNNextHop -->
