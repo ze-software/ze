@@ -44,7 +44,7 @@ func leaderExitsFirst(t *testing.T, sleep string) (ProcessGroup, int) {
 // alive and skipping its containers.
 func TestAwaitExitWaitsForEveryMember(t *testing.T) {
 	group, member := leaderExitsFirst(t, "0.5")
-	leader, started := group.Leader()
+	leader, started := group.LeaderForTest()
 	if !started {
 		t.Fatal("StreamContext answered no group for a child that ran")
 	}
@@ -84,7 +84,7 @@ func TestAwaitExitWithoutGroup(t *testing.T) {
 	if code != CannotStart {
 		t.Fatalf("code %d, want CannotStart", code)
 	}
-	if _, started := group.Leader(); started {
+	if _, started := group.LeaderForTest(); started {
 		t.Error("a child that never started answered a group")
 	}
 	if err := group.AwaitExit(t.Context(), time.Second); err != nil {
@@ -108,7 +108,7 @@ func TestAwaitExitGroupEmptiedDuringTheListing(t *testing.T) {
 			t.Errorf("kill member %d: %v", member, err)
 		}
 	})
-	leader, _ := group.Leader()
+	leader, _ := group.LeaderForTest()
 	bin := t.TempDir()
 	script := "#!/bin/sh\n" +
 		"echo \"" + strconv.Itoa(member) + " " + strconv.Itoa(leader) + "\"\n" +
@@ -150,7 +150,7 @@ func TestAwaitExitGroupPsListsNoMember(t *testing.T) {
 			t.Errorf("kill member %d: %v", member, err)
 		}
 	})
-	leader, _ := group.Leader()
+	leader, _ := group.LeaderForTest()
 	bin := t.TempDir()
 	if err := os.WriteFile(filepath.Join(bin, "ps"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatalf("fake ps: %v", err)

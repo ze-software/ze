@@ -1,7 +1,7 @@
 // Design: docs/architecture/testing/qemu-integration.md -- the docker population and its verb
 // Related: ../buildtag/buildtag.go -- the tree scan this verb's package set comes from.
 // Related: gates.go -- the docker-peers and live-rpki rows.
-// Related: cleanup.go -- labCleaner, the orphan sweep a signalled run ends with.
+// Related: cleanup.go -- labCleaner, the orphan sweep a signaled run ends with.
 
 package testintegration
 
@@ -32,7 +32,7 @@ const (
 	// liveRPKIVerb runs the RPKI client against a real stayrtr serving real
 	// data: Docker and the internet.
 	liveRPKIVerb = "live-rpki"
-	// signalSweepTimeout bounds the orphan sweep a signalled run ends with.
+	// signalSweepTimeout bounds the orphan sweep a signaled run ends with.
 	// The signal already fired, so a second Ctrl-C does not reach this sweep:
 	// the bound is what stops it.
 	signalSweepTimeout = 60 * time.Second
@@ -62,7 +62,7 @@ func runLiveRPKI(ctx context.Context, root string) (any, int) {
 // root, so a SIGINT or SIGTERM kills its process group and the verb answers
 // non-zero at once instead of waiting out the child's own bound.
 //
-// That SIGKILL skips every labtest t.Cleanup, so a signalled run ends with
+// That SIGKILL skips every labtest t.Cleanup, so a signaled run ends with
 // one orphan sweep through cleaner, the call `./le test integration cleanup`
 // makes: the killed test binaries own their containers, so the sweep proves
 // them gone and removes them in this invocation rather than at the next lab
@@ -92,7 +92,7 @@ func runRequiringDocker(ctx context.Context, verb string, argv []string, root st
 // signalSweepTimeout, and answers the operator's summary. A group still holding
 // members at its bound is swept anyway, and the summary names the pids left,
 // whose containers the sweep may have judged live. A sweep the daemon refuses
-// is reported with the fix: neither changes the signalled run's non-zero answer.
+// is reported with the fix: neither changes the signaled run's non-zero answer.
 func sweepAfterSignal(ctx context.Context, verb string, cleaner labCleaner, group gaterun.ProcessGroup, groupBound time.Duration) string {
 	sweep, cancel := context.WithTimeout(context.WithoutCancel(ctx), signalSweepTimeout)
 	defer cancel()

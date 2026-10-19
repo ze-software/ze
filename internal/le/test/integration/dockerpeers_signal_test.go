@@ -24,13 +24,13 @@ import (
 var sleeperArgv = []string{"sh", "-c", "sleep 30 & sleep 30"}
 
 // VALIDATES: AC-8 and AC-22 for docker-peers and live-rpki: SIGINT and SIGTERM
-// reach the `go test` child through the signal-cancelled root, so le kills the
+// reach the `go test` child through the signal-canceled root, so le kills the
 // child's process group and answers non-zero at once, rather than waiting out
 // the child's own 900 s bound.
 // METHOD: the verb's runner drives a child that would sleep for 30 s; the test
 // signals itself 300 ms in and requires the runner back within 10 s, non-zero.
 // G-2: the SIGKILL of the child's group means labtest's t.Cleanup never
-// runs, so after the signalled exit the verb runs one non-dry orphan sweep,
+// runs, so after the signaled exit the verb runs one non-dry orphan sweep,
 // on a context the signal did not cancel, in the same invocation.
 // PREVENTS: the root's NotifyContext swallowing the signal while the child,
 // run on context.Background, runs on; and a killed run's containers waiting
@@ -57,7 +57,7 @@ func TestDockerChildStopsOnSignal(t *testing.T) {
 			t.Errorf("%v: the runner came back after %v, want the child stopped on the signal", delivered, elapsed)
 		}
 		if code == 0 {
-			t.Errorf("%v: code 0, want a non-zero answer for a signalled run", delivered)
+			t.Errorf("%v: code 0, want a non-zero answer for a signaled run", delivered)
 		}
 		if !slices.Equal(cleaner.dry, []bool{false}) {
 			t.Errorf("%v: CleanupOrphans calls = %v, want one non-dry sweep after the signal", delivered, cleaner.dry)
@@ -80,7 +80,7 @@ func TestDockerChildExitRunsNoSweep(t *testing.T) {
 		t.Fatalf("code %d, want 0 for a child that exits 0", code)
 	}
 	if len(cleaner.dry) != 0 {
-		t.Errorf("CleanupOrphans calls = %v, want none for an unsignalled exit", cleaner.dry)
+		t.Errorf("CleanupOrphans calls = %v, want none for an unsignaled exit", cleaner.dry)
 	}
 }
 
@@ -134,7 +134,7 @@ func groupOutlivingLeader(t *testing.T, sleep string) (gaterun.ProcessGroup, int
 // leaving its containers.
 func TestSignalSweepWaitsForTheGroup(t *testing.T) {
 	group, member := groupOutlivingLeader(t, "0.5")
-	leader, started := group.Leader()
+	leader, started := group.LeaderForTest()
 	if !started {
 		t.Fatal("RunContext answered no group for a child that ran")
 	}

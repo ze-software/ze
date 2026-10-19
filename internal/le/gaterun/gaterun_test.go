@@ -103,7 +103,7 @@ func TestExitCodeOfACleanExitIsZero(t *testing.T) {
 }
 
 // VALIDATES: StreamContext stops the child and its grandchildren when ctx is
-// cancelled, and answers the shell's code for the kill rather than 0.
+// canceled, and answers the shell's code for the kill rather than 0.
 // METHOD: the child forks a sleeping grandchild that records its pid; the test
 // cancels 300 ms in, then requires the run back well inside the sleep and the
 // grandchild gone.

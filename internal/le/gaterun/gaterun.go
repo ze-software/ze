@@ -89,8 +89,8 @@ func StreamTee(argv []string, dir string, environ []string, tally io.Writer) int
 	return finish(cmd, dir, environ, tally)
 }
 
-// StreamContext is Stream under ctx, for a verb whose root is cancelled by
-// SIGINT or SIGTERM: a cancelled ctx kills the child's whole process group, so
+// StreamContext is Stream under ctx, for a verb whose root is canceled by
+// SIGINT or SIGTERM: a canceled ctx kills the child's whole process group, so
 // a `go test` child and every test binary it started stop at once and the
 // verb answers the shell's code for the kill (137), never 0.
 //

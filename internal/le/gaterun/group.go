@@ -1,4 +1,4 @@
-// Design: docs/architecture/testing/qemu-integration.md -- the docker population's signalled stop
+// Design: docs/architecture/testing/qemu-integration.md -- the docker population's signaled stop
 // Related: gaterun.go -- StreamContext, whose child heads the group this file awaits.
 
 package gaterun
@@ -30,8 +30,9 @@ type ProcessGroup struct {
 	leader int
 }
 
-// Leader answers the group id, and false for a child that never started.
-func (g ProcessGroup) Leader() (int, bool) {
+// LeaderForTest answers the group id, and false for a child that never
+// started. Only tests need the id: production code waits through AwaitExit.
+func (g ProcessGroup) LeaderForTest() (int, bool) {
 	return g.leader, g.leader > 0
 }
 
