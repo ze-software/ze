@@ -587,7 +587,7 @@
     {
       "rid": "RFC4301-4.4.2-2",
       "polarity": "positive",
-      "unit": "internal/component/ike/engine/child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair",
+      "unit": "internal/component/ike/engine/rfc4301_child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair",
       "unit-sha": "ce328c9ca41bb823",
       "claim-sha": "68c109e279d1bfef",
       "route": "mutant",
@@ -598,7 +598,7 @@
     {
       "rid": "RFC4301-4.4.2-2",
       "polarity": "negative",
-      "unit": "internal/component/ike/engine/child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair",
+      "unit": "internal/component/ike/engine/rfc4301_child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair",
       "unit-sha": "ce328c9ca41bb823",
       "claim-sha": "ff9722e94818689d",
       "route": "mutant",
@@ -1137,7 +1137,7 @@
     {
       "rid": "RFC4301-5.2-2",
       "polarity": "positive",
-      "unit": "internal/component/ike/engine/child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair",
+      "unit": "internal/component/ike/engine/rfc4301_child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair",
       "unit-sha": "ce328c9ca41bb823",
       "claim-sha": "265b2e2330f8bf4a",
       "route": "mutant",

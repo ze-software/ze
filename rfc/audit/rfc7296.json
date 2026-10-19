@@ -20,6 +20,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -75,8 +76,8 @@
       "note": "TestRFC7296ChildRekeyResponseCarriesTheSelectorsAndMayNarrow: ze's respondChildRekey response announces TSi/TSr equal to the installed scope, and ze as rekey initiator installs an answer narrowed to 10.1.0.0/25 from a /24 proposal (the may-be-a-subset clause). TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused (moved from 2.9-1): a response without TS payloads is refused and installs nothing, the same fixture with both payloads installs their scope.",
       "requirement_sha": "0b07c2440da39c79",
       "tests": {
-        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused": "0b7e3c55d84c210a",
-        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused#2": "0b7e3c55d84c210a",
+        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused": "898df03dba5c2897",
+        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused#2": "898df03dba5c2897",
         "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyResponseCarriesTheSelectorsAndMayNarrow": "bd9484104305f061"
       },
       "units": {
@@ -476,7 +477,7 @@
       "note": "Re-judged 2026-10-15 after b457ba88cf rewrote TestChildSANATTEncapPorts. RFC 7296 Section 2.23: 'However, if a NAT is detected, both devices MUST use UDP encapsulation for ESP.' With NATDetected and the IKE SA floated to its NAT-T socket, the test runs createFirstChildSA and requires exactly two installed states, inbound and outbound, each with UDPEncap true, so a NAT-detected Child SA installed without UDP encapsulation on either direction fails. The rewrite added port assertions (the IKE SA's ports, both fixtures off 4500) that serve RFC 3948 Section 2.1 and do not weaken the UDPEncap assertion. No receive-side refusal is legitimate (RFC7296-2.23-10 requires plain ESP to stay accepted), so TestChildSANoNATNoEncap stays a supplementary no-NAT guard. Rekey still carries NATDetected and UDPEncap from the old child (rekey.go newRekeyedChild), asserted by the untagged TestRekeyKeepsBothESPFormAcceptance outside this fingerprint.",
       "requirement_sha": "bb6afe31983215b2",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "eedc520e478ae909",
+        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "cde4b65c1f5b67d5",
         "internal/component/ike/engine/rfc7296_test.go::TestChildSANoNATNoEncap": "e032382b6fba7977"
       },
       "units": {
@@ -705,8 +706,8 @@
         "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationNoMatch": "a6de5fb37ffc1f6e",
         "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried": "c6cc102fdb5f482d",
         "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried#2": "c6cc102fdb5f482d",
-        "internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered": "7e97da8d025ec7e1",
-        "internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused": "7e97da8d025ec7e1"
+        "internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered": "d08d72f3d376e3b7",
+        "internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused": "d08d72f3d376e3b7"
       },
       "units": {
         "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationFirstMatch": "eb95e994924bfa94",

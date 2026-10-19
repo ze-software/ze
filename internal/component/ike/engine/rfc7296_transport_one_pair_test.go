@@ -1,6 +1,6 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- one policy per negotiated pair
 // Related: ts_narrow.go -- oneTransportPair and recordInitiatorSelectors, the producers under test
-// Related: child_multi_pair_test.go -- the transport-mode state selector these keep exact
+// Related: rfc4301_child_multi_pair_test.go -- the transport-mode state selector these keep exact
 // RFC: rfc/short/rfc7296.md -- Traffic Selector negotiation (Section 2.9)
 
 package engine
