@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-18",
+  "audited": "2026-10-19",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -227,15 +227,21 @@
       "verdict": "enforced"
     },
     "RFC9830-2.4.2-12": {
-      "code": {
-        "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildBindingSIDNullSubTLV": "d781b2653f726e07",
-        "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildBindingSIDSubTLV": "1cb5430ddbbdc76b",
-        "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildSRv6BindingSIDSubTLV": "5e4b79076052a458"
-      },
-      "no_code_path": "Length 18 binds only an SRv6 BSID carried in the type-13 sub-TLV. RFC 9830 Section 2.4.2 makes that form optional (\"It is RECOMMENDED that the SRv6 Binding SID sub-TLV, as defined in Section 2.4.3, be used when signaling an SRv6 BSID for an SR Policy CP\"; type 13 is retained primarily for backward compatibility) and the owner declined it on 2026-10-11. buildSRv6BindingSIDSubTLV emits type 20, and buildBindingSIDSubTLV / buildBindingSIDNullSubTLV emit type 13 only at lengths 6 and 2, so no Ze path can satisfy or violate the length-18 MUST.",
-      "note": "Judged by an independent auditor on 2026-10-18 after the row was re-annotated {feature-declined} under the owner's 2026-10-11 OUT decision (plan/immediate/spec-bgp-unowned-rfc-rows.md AC-6). Re-read RFC 9830 Section 2.4.2 and the three Binding SID producers in srpolicy/config.go. The length-18 obligation binds only the optional type-13 SRv6 BSID form, which Ze declined: buildSRv6BindingSIDSubTLV emits type 20, buildBindingSIDSubTLV emits type 13 length 6, and buildBindingSIDNullSubTLV emits type 13 length 2. No Ze path reaches the declined form, so the earlier 'unimplemented' verdict accused Ze of owing behavior the annotation records it does not owe.",
+      "note": "Re-judged 2026-10-19 (independent auditor, after 8d18d4c4c3). The earlier not-applicable verdict rested on the owner's 2026-10-11 decline of the type-13 SRv6 form; 8d18d4c4c3 records the owner's reversal, implements the form and removes the {feature-declined} annotation, so no_code_path no longer holds. RFC 9830 Section 2.4.2: \"Length:  Specifies the length of the value field (i.e., not including Type and Length fields) in terms of octets.  The value MUST be 18 when a SRv6 BSID is present, 6 when an SR-MPLS BSID is present, or 2 when no BSID is present.\" Producer: srpolicy/config.go::buildBindingSIDSRv6SubTLV, reached from parseConfigRoute via 'binding-sid srv6 <ipv6-address>' (buildTunnelEncap writes at most one type-13 sub-TLV); receive rendering srpolicy/attr_json.go::bindingSIDToJSON reads type 13 by length (2, 6, 18, else malformed). TestRFC9830BindingSIDSRv6Encode asserts the whole Tunnel Encapsulation TLV octet for octet (0d12 0000 + 16-octet SID); its negative tag (SR-MPLS written at Length 6) shows 18 is not a constant but strictly exercises the neighbouring RFC9830-2.4.2-4 form. TestRFC9830BindingSIDSRv6Decode asserts a Length-18 sub-TLV renders as the SRv6 SID and a Length-20 one carrying the same 16 octets is malformed and never an SRv6 SID, a genuine violating input of this row. Overlay mutants (tags ze_core ze_bgp): encoder writes Length 16 (Encode red); decoder accepts any length >= 18 as SRv6 (Decode red); decoder rejects 18 (Decode red). All killed. Note: when 'binding-sid mpls' and 'binding-sid srv6' are both configured the MPLS form silently wins (Section 2.4.2 single-instance rule); not this row.",
       "requirement_sha": "892563ceabbf007d",
-      "verdict": "not-applicable"
+      "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_bsid_srv6_test.go::TestRFC9830BindingSIDSRv6Decode": "bfeb5002a10564f8",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_bsid_srv6_test.go::TestRFC9830BindingSIDSRv6Decode#2": "bfeb5002a10564f8",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_bsid_srv6_test.go::TestRFC9830BindingSIDSRv6Encode": "bfeb5002a10564f8",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_bsid_srv6_test.go::TestRFC9830BindingSIDSRv6Encode#2": "bfeb5002a10564f8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_bsid_srv6_test.go::TestRFC9830BindingSIDSRv6Decode": "e1bb2f2a1ad9b1ae",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_bsid_srv6_test.go::TestRFC9830BindingSIDSRv6Decode#2": "e1bb2f2a1ad9b1ae",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_bsid_srv6_test.go::TestRFC9830BindingSIDSRv6Encode": "d8218003c9607ef2",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_bsid_srv6_test.go::TestRFC9830BindingSIDSRv6Encode#2": "d8218003c9607ef2"
+      },
+      "verdict": "enforced"
     },
     "RFC9830-2.4.2-2": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV. Forbidden: two Binding SID sub-TLVs. Red: assert.Len(srpAll(repeated, subTLVBindingSID), 1) for 'binding-sid mpls 24000 binding-sid null'. Negative: none configured, none emitted (assert.Empty).",
