@@ -122,11 +122,49 @@ func TestAwaitExitGroupEmptiedDuringTheListing(t *testing.T) {
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 
-	if err := group.AwaitExit(t.Context(), 0); err != nil {
-		t.Errorf("AwaitExit = %v, want nil: the group emptied during the listing", err)
-	}
+	left := group.AwaitExit(t.Context(), 0)
+	// The staging is checked first: a member left as a zombie (a subreaper
+	// that has not reaped it) keeps the group present, and the nil assertion
+	// would then fail for a reason it does not name.
 	if err := syscall.Kill(-leader, 0); !errors.Is(err, syscall.ESRCH) {
 		t.Fatalf("kill(-%d, 0) = %v, want ESRCH: the fake ps did not empty the group, so the race was not staged",
 			leader, err)
+	}
+	if left != nil {
+		t.Errorf("AwaitExit = %v, want nil: the group emptied during the listing", left)
+	}
+}
+
+// VALIDATES: a group still present whose members ps does not list answers the
+// "members that ps did not list" error, naming the group and the bound,
+// rather than nil or an empty "pids" list.
+// METHOD: a fake ps on PATH prints nothing and succeeds while the member
+// sleeps, so the group stays present across the listing. The bound is 0, so
+// AwaitExit lists at once.
+// PREVENTS: a member hidden from ps (another user's, or one that joined after
+// the listing) being reported as no member at all.
+func TestAwaitExitGroupPsListsNoMember(t *testing.T) {
+	group, member := leaderExitsFirst(t, "5")
+	t.Cleanup(func() {
+		if err := syscall.Kill(member, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
+			t.Errorf("kill member %d: %v", member, err)
+		}
+	})
+	leader, _ := group.Leader()
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "ps"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("fake ps: %v", err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	left := group.AwaitExit(t.Context(), 0)
+	if !groupPresent(leader) {
+		t.Fatalf("group %d emptied during the test: the member %d did not stay, so the branch was not reached",
+			leader, member)
+	}
+	want := "process group " + strconv.Itoa(leader) + " still holds members that ps did not list" +
+		" (one that joined after the listing, or one hidden from this user) after 0s"
+	if left == nil || left.Error() != want {
+		t.Errorf("AwaitExit = %v, want %q", left, want)
 	}
 }

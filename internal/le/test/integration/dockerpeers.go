@@ -101,9 +101,9 @@ func sweepAfterSignal(ctx context.Context, verb string, cleaner labCleaner, grou
 	report, err := cleaner.CleanupOrphans(sweep, false)
 	var text textbuf.Buffer
 	if left != nil {
-		text.Str(verb).Str(": the killed tests had not all exited (").Err(left).
-			Str("), so the sweep may have kept containers of theirs as live-owned. Fix: once they exit, run").
-			Str(" `./le test integration cleanup`\n")
+		text.Str(verb).Str(": the killed tests had not all exited, so the sweep may have kept containers of").
+			Str(" theirs as live-owned: ").Err(left).
+			Str(". Fix: once they exit, run `./le test integration cleanup`\n")
 	}
 	if err != nil {
 		return text.Str(verb).Str(": stopped by a signal, and the sweep of its lab resources failed (").Err(err).
