@@ -277,7 +277,10 @@ func (w *v6Worker) queueDAD(p netip.Prefix) {
 // link is down was flushed by the link change, and the move installs it again
 // (noteMove). The link events already queued are read first: the DAD poll and
 // a queued down can wake the wait together, and a flush judged before its
-// down is read would decline a unique address.
+// down is read would decline a unique address. A gone address is then judged
+// by goneDuplicates against the link state the same kernel read reported,
+// because the kernel deletes the addresses right after it reports the down,
+// and the read can land before the monitor delivers that down.
 func (w *v6Worker) checkDAD() bool {
 	if len(w.dadPending) == 0 {
 		return true
@@ -285,16 +288,16 @@ func (w *v6Worker) checkDAD() bool {
 	if w.drainLinks() {
 		w.noteMove()
 	}
-	addrs, err := iface.Addresses(w.c.ifaceName)
+	read, err := iface.ReadAddressState(w.c.ifaceName)
 	if err != nil {
 		loggerPtr.Load().Debug("iface dhcp v6: cannot read the DAD outcome, retrying",
 			"iface", w.c.ifaceName, "err", err)
 		return true
 	}
-	var duplicates []netip.Prefix
+	var duplicates, gone []netip.Prefix
 	pending := w.dadPending[:0]
 	for _, p := range w.dadPending {
-		outcome := v6DADOf(addrs, p.Addr())
+		outcome := v6DADOf(read.Addresses, p.Addr())
 		switch outcome {
 		case v6DADTentative:
 			pending = append(pending, p)
@@ -306,16 +309,61 @@ func (w *v6Worker) checkDAD() bool {
 			if w.linkDown {
 				continue // flushed with the link; noteMove queues it again
 			}
-			duplicates = append(duplicates, p)
+			gone = append(gone, p)
 		case v6DADUnspecified:
 			panic("BUG: v6DADOf answered no outcome")
 		}
 	}
 	w.dadPending = pending
+	if len(gone) > 0 {
+		duplicates = append(duplicates, w.goneDuplicates(gone, read.State)...)
+	}
 	if len(duplicates) == 0 {
 		return true
 	}
 	return w.decline(duplicates) != v6EndCanceled
+}
+
+// goneDuplicates judges the addresses gone from the device while no down
+// event had been read, against state, the link state the kernel reported in
+// the read that found them gone, and answers the ones that are duplicates.
+//
+// The kernel reports the down (RTM_NEWLINK) and then deletes every address
+// of finite lifetime (addrconf_ifdown), and the monitor delivers the down to
+// w.links later, so a DAD read can find the address gone and the device down
+// before the worker holds the down event. That address went with the link:
+// the worker records the down itself, so the up that follows completes the
+// move and noteMove installs it again even when the down event is late or
+// was dropped (iface.Subscribe keeps the newest event, not every one).
+//
+// With the device up, the link events queued since the first drain are read
+// again before the addresses are declined: a down and up that both happened
+// before the read leave the device up and the address gone, and the move
+// they complete installs it again.
+//
+// A state that is neither "up" nor "down" says nothing about why the address
+// is gone, so nothing is declined on it: the addresses stay pending, the
+// worker logs a Warn, and the next DAD poll reads again.
+func (w *v6Worker) goneDuplicates(gone []netip.Prefix, state string) []netip.Prefix {
+	switch state {
+	case iface.LinkStateUp:
+		if w.drainLinks() {
+			w.noteMove()
+			return nil
+		}
+		if w.linkDown {
+			return nil // the down arrived meanwhile; the up will install them again
+		}
+		return gone
+	case iface.LinkStateDown:
+		w.linkDown = true
+		return nil
+	default: // the backend's state string is open; an unknown one decides nothing
+		loggerPtr.Load().Warn("iface dhcp v6: an address left the device, but ze cannot read the link state to tell a duplicate from a link change, so it declines nothing and reads again",
+			"iface", w.c.ifaceName, "state", state, "addresses", gone)
+		w.dadPending = append(w.dadPending, gone...)
+		return nil
+	}
 }
 
 // v6DADOf is the DAD outcome of addr among the device's addresses.

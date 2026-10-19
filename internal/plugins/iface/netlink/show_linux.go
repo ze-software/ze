@@ -85,11 +85,11 @@ func (b *netlinkBackend) GetInterface(name string) (*iface.InterfaceInfo, error)
 
 func linkToInfo(link netlink.Link) iface.InterfaceInfo {
 	attrs := link.Attrs()
-	state := "down"
+	state := iface.LinkStateDown
 	if attrs.OperState == netlink.OperUp {
-		state = "up"
+		state = iface.LinkStateUp
 	} else if attrs.OperState == netlink.OperUnknown && (attrs.Flags&net.FlagUp != 0) {
-		state = "up"
+		state = iface.LinkStateUp
 	}
 	info := iface.InterfaceInfo{
 		Name:    attrs.Name,

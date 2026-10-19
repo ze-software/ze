@@ -386,14 +386,21 @@ kernel marks the address `dadfailed`, or deletes it (what it does to an address 
 finite lifetime whose DAD failed) while the link is up, the client removes it from
 the lease, logs a Warn naming the address, and sends a Decline for it to the server
 that leased it. The other bindings are kept, and when nothing is left the client
-solicits again. When the bound device goes down and comes back up, the client may
+solicits again. Whether the link is up is read from the kernel in the same read
+that found the address gone, not only from link events, because the kernel deletes
+the addresses of a device set down before the client can receive the down event. A
+device the kernel reports down deleted the address with the link, so nothing is
+declined, and the next up counts as a move. When the backend reports no link state
+the client can read, it declines nothing, logs a Warn, and reads again at the next
+DAD poll. When the bound device goes down and comes back up, the client may
 have moved to a new link: with a delegated prefix held it sends a Rebind for every
 lease, on the Confirm timers (RFC 9915 Section 18.2.12), at most once every 30 s,
 and it installs every leased address again with what is left of its lifetimes,
 because the kernel deletes them when the interface is set down, then runs DAD on
 them again. A lease of addresses alone sends nothing on a
 move, because Ze does not send Confirm.
-<!-- source: internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go -- v6Worker.checkDAD, v6Worker.decline, v6Worker.noteMove, v6Worker.rebindAfterMove -->
+<!-- source: internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go -- v6Worker.checkDAD, v6Worker.goneDuplicates, v6Worker.decline, v6Worker.noteMove, v6Worker.rebindAfterMove -->
+<!-- source: internal/component/iface/resolve.go -- ReadAddressState -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_linux.go -- runV6, v6Worker.maintain, v6Worker.extend, v6Worker.shutdown, v6Worker.identify -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf duid pattern -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go -- v6Worker.runExchange, v6Worker.admitTransmission, v6AdvertiseCollector, v6Worker.emptyIAPD -->

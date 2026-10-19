@@ -136,9 +136,10 @@ type InterfaceInfo struct {
 	OsName string `json:"os-name,omitempty"`
 	Index  int    `json:"index"`
 	Type   string `json:"type"`
-	State  string `json:"state"`
-	MTU    int    `json:"mtu"`
-	MAC    string `json:"mac-address,omitempty"`
+	// State is LinkStateUp or LinkStateDown from the kernel and VPP backends.
+	State string `json:"state"`
+	MTU   int    `json:"mtu"`
+	MAC   string `json:"mac-address,omitempty"`
 	// PermanentMAC is the NIC's factory/permanent hardware address
 	// (IFLA_PERM_ADDRESS), distinct from the operational MAC which an
 	// operator may override. Empty for virtual/created kinds that have no
@@ -176,6 +177,14 @@ type InterfaceInfo struct {
 	IngressQoSMap map[uint32]uint32 `json:"ingress-qos-map,omitempty"` // received PCP -> internal priority
 	EgressQoSMap  map[uint32]uint32 `json:"egress-qos-map,omitempty"`  // internal priority -> transmitted PCP
 }
+
+// The InterfaceInfo.State values the kernel and VPP backends report. The
+// kernel backend reports up for IF_OPER_UP, and for IF_OPER_UNKNOWN with
+// IFF_UP; VPP reports up for an admin-up interface. Every other state is down.
+const (
+	LinkStateUp   = "up"
+	LinkStateDown = "down"
+)
 
 // AddrInfo describes an IP address assigned to an interface.
 type AddrInfo struct {

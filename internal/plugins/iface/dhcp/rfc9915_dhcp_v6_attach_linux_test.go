@@ -8,6 +8,7 @@
 package ifacedhcp
 
 import (
+	"log/slog"
 	"net/netip"
 	"testing"
 	"time"
@@ -235,6 +236,100 @@ func TestDHCPv6AddressFlushedByLinkDownReinstalledNotDeclined(t *testing.T) {
 	}
 	if got := r.countOps("remove-addr"); got != 0 {
 		t.Errorf("address removed %d times, want 0", got)
+	}
+}
+
+// TestDHCPv6AddressGoneWithTheLinkBeforeItsDownEventNotDeclined holds an
+// address and a prefix whose address is tentative for 0.5 s; at 0.5 s the
+// device is set down and the kernel deletes the address, but no link event
+// reaches the worker: the DAD poll reads the device before the monitor
+// delivers the down. At 5 s the device is up again and only the up event
+// arrives.
+//
+// VALIDATES: the address gone while the same kernel read reports the device
+// down is judged flushed with the link, not a duplicate: no Decline goes
+// out, and the later up completes the move, so the address is installed
+// again with what is left of its lifetimes (valid 295 s, preferred 195 s).
+// PREVENTS: a unique address declined because the DAD poll outran the
+// LinkDown event (journal row of 2026-10-19 in
+// plan/journal/reconciler-repairs-against-a-stale-snapshot.md).
+func TestDHCPv6AddressGoneWithTheLinkBeforeItsDownEventNotDeclined(t *testing.T) {
+	r := newV6Rig(t, dHCPConfig{PDRequested: true})
+	r.srv.serve = leaseServer(leaseLongPD, false, false)
+	r.backend.addrsAt = func(at time.Duration) []iface.AddrInfo {
+		switch {
+		case at < 500*time.Millisecond:
+			return v6TestAddrInfo(true, false)
+		case at < seconds(5):
+			return nil // deleted with the down
+		default:
+			return v6TestAddrInfo(false, false) // installed again, DAD complete
+		}
+	}
+	r.backend.stateAt = func(at time.Duration) string {
+		if at >= 500*time.Millisecond && at < seconds(5) {
+			return "down"
+		}
+		return "up"
+	}
+	r.startWorker()
+	r.runUntil(seconds(5))
+
+	if got := r.sentOf(dhcpv6.MessageTypeDecline); len(got) != 0 {
+		t.Fatalf("%d DECLINE for an address deleted with the link: %s", len(got), r.describeSent())
+	}
+	r.clk.Set(r.start.Add(seconds(5)))
+	r.link(iface.LinkUp)
+	r.awaitSent(dhcpv6.MessageTypeRebind, 1)
+	r.runUntil(seconds(8))
+
+	if got := r.sentOf(dhcpv6.MessageTypeDecline); len(got) != 0 {
+		t.Errorf("%d DECLINE after the link came back: %s", len(got), r.describeSent())
+	}
+	if got := r.countOps("replace " + loopKernelDevice + " " + v6TestCIDR + " 295 195"); got != 1 {
+		t.Errorf("address reinstalled with 295/195 %d times after the up, want 1", got)
+	}
+	if got := r.countOps("remove-addr"); got != 0 {
+		t.Errorf("address removed %d times, want 0", got)
+	}
+}
+
+// TestDHCPv6AddressGoneWithAnUnreadableLinkStateNotDeclined holds an address
+// the kernel deletes at 0.5 s, from a device whose read reports a state that
+// is neither up nor down until 2 s, and up after.
+//
+// VALIDATES: a link state the worker cannot read declines nothing and logs a
+// Warn naming it; the address stays pending, so the read at 2 s that reports
+// the link up finds it gone and declines it then.
+// PREVENTS: an unreadable state answered as "up" (a unique address declined)
+// or as "down" (a duplicate address kept in use and never declined).
+func TestDHCPv6AddressGoneWithAnUnreadableLinkStateNotDeclined(t *testing.T) {
+	r := newV6Rig(t, dHCPConfig{PDRequested: true})
+	r.srv.serve = leaseServer(leaseLongPD, false, false)
+	r.backend.addrsAt = func(at time.Duration) []iface.AddrInfo {
+		if at < 500*time.Millisecond {
+			return v6TestAddrInfo(true, false)
+		}
+		return nil
+	}
+	r.backend.stateAt = func(at time.Duration) string {
+		if at < seconds(2) {
+			return ""
+		}
+		return "up"
+	}
+	r.startWorker()
+	r.runUntil(seconds(4))
+
+	declines := r.sentOf(dhcpv6.MessageTypeDecline)
+	if len(declines) == 0 {
+		t.Fatalf("no DECLINE once the link read up: %s", r.describeSent())
+	}
+	if declines[0].at < seconds(2) {
+		t.Errorf("DECLINE at %v, while the link state was unreadable", declines[0].at)
+	}
+	if got := r.logs.count(slog.LevelWarn, "cannot read the link state"); got == 0 {
+		t.Errorf("no Warn for the unreadable link state")
 	}
 }
 

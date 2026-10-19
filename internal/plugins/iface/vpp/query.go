@@ -219,9 +219,9 @@ func (b *vppBackendImpl) populateNameMap() error {
 // surfaced via StartMonitor events since InterfaceInfo exposes only a
 // single State field.
 func detailsToInfo(d *interfaces.SwInterfaceDetails) iface.InterfaceInfo {
-	state := "down"
+	state := iface.LinkStateDown
 	if d.Flags&interface_types.IF_STATUS_API_FLAG_ADMIN_UP != 0 {
-		state = "up"
+		state = iface.LinkStateUp
 	}
 	mtu := 0
 	if len(d.Mtu) > 0 {

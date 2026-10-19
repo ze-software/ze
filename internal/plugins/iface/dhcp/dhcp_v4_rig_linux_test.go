@@ -56,6 +56,9 @@ type loopBackend struct {
 	// addrsAt answers the device's addresses at a fake-clock offset; nil
 	// reports every installed address as DAD-complete.
 	addrsAt func(at time.Duration) []iface.AddrInfo
+	// stateAt answers the device's operational state at a fake-clock offset;
+	// nil reports the device up, as a device a lease is held on is.
+	stateAt func(at time.Duration) string
 	// installed is the addresses ReplaceAddressWithLifetime put on the device
 	// and RemoveAddress has not taken off.
 	installed []string
@@ -82,8 +85,12 @@ func (b *loopBackend) GetInterface(name string) (*iface.InterfaceInfo, error) {
 	}
 	b.mu.Lock()
 	addrsAt := b.addrsAt
+	stateAt := b.stateAt
 	b.mu.Unlock()
-	info := &iface.InterfaceInfo{Name: name, OsName: loopKernelDevice, Index: 7}
+	info := &iface.InterfaceInfo{Name: name, OsName: loopKernelDevice, Index: 7, State: "up"}
+	if stateAt != nil {
+		info.State = stateAt(b.now())
+	}
 	if addrsAt != nil {
 		info.Addresses = addrsAt(b.now())
 		return info, nil

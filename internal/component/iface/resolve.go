@@ -125,6 +125,28 @@ func ResolveVPPIndex(name string) (uint32, error) {
 // first. Returns an error if no backend is loaded or the device is absent.
 func Addresses(name string) ([]AddrInfo, error) { return globalResolver.addresses(name) }
 
+// AddressState is one backend read of a logical interface: its addresses,
+// classified as Addresses classifies them, and the operational state the
+// backend reported in the same read (InterfaceInfo.State, "up" or "down" from
+// the kernel and VPP backends). Both come from one dump, so they describe one
+// instant, which link events delivered later cannot.
+type AddressState struct {
+	Addresses []AddrInfo
+	State     string
+}
+
+// ReadAddressState reads the logical interface's addresses and its
+// operational state together. The logical name is translated as Addresses
+// translates it. Returns an error if no backend is loaded or the device is
+// absent.
+func ReadAddressState(name string) (AddressState, error) {
+	info, err := globalResolver.osDeviceFor(name)
+	if err != nil {
+		return AddressState{}, err
+	}
+	return AddressState{Addresses: classifyAddresses(info.Addresses), State: info.State}, nil
+}
+
 // Subscribe registers for link events on the logical name and returns a
 // buffered channel plus a cancel func. The channel receives appeared/up/down
 // events even for an interface that does not exist yet (it fires when the

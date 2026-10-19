@@ -9,6 +9,8 @@ package iface_test
 import (
 	"errors"
 	"net"
+	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -87,6 +89,93 @@ func TestDHCPv6AdminFlapReinstallsTheLeasedAddress(t *testing.T) {
 
 	lab.server.awaitRebindNoDecline(t, "after the admin flap")
 	v6lfRequireLeasedAddress(t, lab.device, "after the admin flap")
+}
+
+// TestDHCPv6AdminDownDuringDADBeforeItsEventNotDeclined sets the client's
+// own device down while the kernel still holds the leased address
+// tentative, with the netlink monitor not yet running, so no link event can
+// reach the client: its DAD poll reads the device before it holds the down,
+// which is the race a running monitor leaves open for a few milliseconds.
+// The monitor then starts and the device comes back up.
+//
+// VALIDATES: the address the kernel deleted with the down is not declined,
+// because the read that found it gone reports the device down; the up that
+// follows completes a move although no down event was ever delivered, so
+// the client installs the address again and sends a Rebind and no Decline.
+// PREVENTS: a unique address declined to the server because the DAD poll
+// outran the LinkDown event (journal row of 2026-10-19 in
+// plan/journal/reconciler-repairs-against-a-stale-snapshot.md).
+func TestDHCPv6AdminDownDuringDADBeforeItsEventNotDeclined(t *testing.T) {
+	device, peer, peerNS, server := v6sbSetupLabNS(t)
+	iface.SetResolverMappingForTest(map[string]string{v6sbLogical: device})
+	t.Cleanup(func() { iface.SetResolverMappingForTest(nil) })
+	// Ten probes hold the leased address tentative for about ten seconds, so
+	// the down below lands inside DAD on any schedule.
+	dadTransmits := "/proc/sys/net/ipv6/conf/" + device + "/dad_transmits"
+	if err := os.WriteFile(dadTransmits, []byte("10"), 0o644); err != nil {
+		t.Fatalf("lengthen DAD on %s: %v", device, err)
+	}
+
+	bus := newV6lmBus()
+	t.Cleanup(iface.BindResolverEventsForTest(bus))
+	links, cancel := iface.Subscribe(v6sbLogical)
+	t.Cleanup(cancel)
+	factory := iface.DHCPClientFactoryForTest()
+	if factory == nil {
+		t.Fatal("no DHCP client factory is installed: the ifacedhcp blank import did not run its init")
+	}
+	client, err := factory(v6sbLogical, "0", &v6sbBus{}, false, true, "", "", true, 56, "", 0)
+	if err != nil {
+		t.Fatalf("start the DHCPv6 client on %s: %v", v6sbLogical, err)
+	}
+	var stopOnce sync.Once
+	t.Cleanup(func() { stopOnce.Do(client.Stop) })
+	solicit := server.await(t, "the Solicit", dhcpv6.MessageTypeSolicit)
+	server.replyLeasePD(t, solicit)
+
+	deadline := time.Now().Add(v6sbKernelWait)
+	var a *netlink.Addr
+	for a == nil && time.Now().Before(deadline) {
+		a = v6sbFindAddress(t, device)
+		if a == nil {
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	if a == nil {
+		t.Fatalf("%s never received %s after the Reply", device, v6sbLeased)
+	}
+	if a.Flags&unix.IFA_F_TENTATIVE == 0 {
+		t.Fatalf("%s holds %s out of DAD already (flags %#x): the down cannot land inside DAD", device, v6sbLeased, a.Flags)
+	}
+	link, err := netlink.LinkByName(device)
+	if err != nil {
+		t.Fatalf("LinkByName(%s): %v", device, err)
+	}
+	if err := netlink.LinkSetDown(link); err != nil {
+		t.Fatalf("take %s down: %v", device, err)
+	}
+	if a := v6sbFindAddress(t, device); a != nil {
+		t.Fatalf("%s still holds %s while down: the kernel kept the address, so this test cannot see the race", device, v6sbLeased)
+	}
+	server.awaitNothing(t, "with the device down and no link event delivered", v6lmQuiet)
+
+	if err := os.WriteFile(dadTransmits, []byte("1"), 0o644); err != nil {
+		t.Fatalf("restore DAD on %s: %v", device, err)
+	}
+	backend := iface.GetBackend()
+	if err := backend.StartMonitor(bus); err != nil {
+		t.Fatalf("start the netlink monitor: %v", err)
+	}
+	t.Cleanup(backend.StopMonitor)
+	if err := netlink.LinkSetUp(link); err != nil {
+		t.Fatalf("bring %s back up: %v", device, err)
+	}
+	lab := &v6lmLab{device: device, peer: peer, peerNS: peerNS, server: server,
+		clientID: solicit.msg.Options.ClientID(), links: links}
+	lab.awaitLink(t, iface.LinkUp)
+
+	server.awaitRebindNoDecline(t, "after the up")
+	v6lfRequireLeasedAddress(t, device, "after the up")
 }
 
 // awaitRebindNoDecline reads every client message for v6lmQuiet past the

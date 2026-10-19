@@ -5,7 +5,7 @@ fact. `internal/component/iface/resolve.go` maps one to the other, so
 `isis { interface uplink {} }` with `interface { ethernet uplink { os-name eth0 } }`
 reaches kernel device `eth0`.
 
-<!-- source: internal/component/iface/resolve.go -- Resolve, Addresses, Subscribe, classifyAddresses -->
+<!-- source: internal/component/iface/resolve.go -- Resolve, Addresses, ReadAddressState, Subscribe, classifyAddresses -->
 
 Before this resolver, every consumer resolved a configured name straight
 against the kernel, which forced `name == kernel device`. The data model held a
@@ -250,3 +250,10 @@ mirrors production, where the iface component is always loaded.
 `AddrInfo` carries `LinkLocal`, set by `classifyAddresses`, so a consumer
 splits IPv4, IPv6 link-local and IPv6 global with no re-parsing.
 `classifyAddresses` is pure and host-testable.
+
+`iface.ReadAddressState` returns the same classified addresses with the
+operational state (`iface.LinkStateUp` or `iface.LinkStateDown`) the backend
+reported in the same read. A consumer that must judge an address change against
+the link uses it, because a link event can reach a subscriber after the kernel
+has already acted on the change: the DHCPv6 client tells an address deleted by
+a failed DAD from one deleted with a device set down this way.

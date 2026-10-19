@@ -281,3 +281,5 @@ plus `TestDHCPv6CarrierFlapKeepsTheLeasedAddress` and
 `TestDHCPv6AdminFlapReinstallsTheLeasedAddress` (new, untagged) pass on the
 kernel. Two journal rows opened: the DAD/LinkDown race in `checkDAD`, and link
 events unread during an exchange.
+
+2026-10-19 (dadfix): the `checkDAD` race row is fixed (owner option (a): kernel link state read with the addresses, `goneDuplicates`); QEMU `TestDHCPv6AdminDownDuringDADBeforeItsEventNotDeclined` red under a revert, green with the fix; three rfc9915 records re-taken.
