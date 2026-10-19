@@ -38,7 +38,8 @@ func (g ProcessGroup) Leader() (int, bool) {
 // AwaitExit waits until no process of the group is left, for at most bound and
 // never past ctx. It answers nil once the group is empty, and for a child that
 // never started. When it stops waiting with members left, the error names
-// their pids, or says why they could not be listed.
+// their pids, or says why they could not be listed. A group that empties while
+// those members are being listed is empty, so that answer is nil too.
 //
 // It polls kill(-group, 0), which POSIX answers with ESRCH once no member
 // remains, on Linux and Darwin alike. EPERM means a member exists that this
@@ -70,13 +71,23 @@ func groupPresent(group int) bool {
 	return !errors.Is(syscall.Kill(-group, 0), syscall.ESRCH)
 }
 
-// leftError names the members still in the group after bound.
+// leftError names the members still in the group after bound. The last
+// member can exit between the final poll and the ps listing, so the group is
+// asked again once the listing is in: empty then, it answers nil, since a
+// warning would name a pid nothing holds any more.
 func (g ProcessGroup) leftError(ctx context.Context, bound time.Duration) error {
+	members, err := g.members(ctx)
+	if !groupPresent(g.leader) {
+		return nil
+	}
 	var text textbuf.Buffer
 	text.Str("process group ").Int(int64(g.leader)).Str(" still holds ")
-	members, err := g.members(ctx)
 	if err != nil {
 		return errors.New(text.Str("members that could not be listed (").Err(err).Str(") after ").
+			Str(bound.String()).String())
+	}
+	if len(members) == 0 {
+		return errors.New(text.Str("members that ps did not list (one that joined after the listing, or one hidden from this user) after ").
 			Str(bound.String()).String())
 	}
 	text.Str("pids")

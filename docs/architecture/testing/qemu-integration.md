@@ -895,7 +895,9 @@ reap the test binaries it started, which are members of its process group and
 may still be exiting, and a binary still exiting reads as a live owner. So the
 sweep first waits, for at most 10 s of its 60, until `kill(-group, 0)` answers
 `ESRCH`; a group still holding members then is swept anyway, and the summary
-names the pids left and the cleanup to run once they exit. A child that ends on its own
+names the pids left and the cleanup to run once they exit. The group is asked
+again after `ps` lists its members, so a last member that exits during the
+listing counts as an empty group and draws no warning. A child that ends on its own
 ran its cleanups and gets no sweep. Both run on the hosted runner's own Docker
 in `evidence-nightly.yml`, because no container in either runs Ze, so the Docker
 host kernel check does not apply.

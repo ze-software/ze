@@ -91,3 +91,42 @@ func TestAwaitExitWithoutGroup(t *testing.T) {
 		t.Errorf("AwaitExit = %v, want nil for no group", err)
 	}
 }
+
+// VALIDATES: a group whose last member exits between the final poll and the
+// ps listing answers nil, the group being empty, rather than a "still holds
+// pids" warning that names no pid still running.
+// METHOD: a fake ps on PATH prints the member's line, then SIGKILLs it and
+// waits (at most 3 s) for the group to empty, which stages the race: the
+// listing saw a member the group no longer holds. The bound is 0, so
+// AwaitExit lists at once.
+// PREVENTS: the docker-peers post-signal summary warning about killed tests
+// that had in fact all exited.
+func TestAwaitExitGroupEmptiedDuringTheListing(t *testing.T) {
+	group, member := leaderExitsFirst(t, "5")
+	t.Cleanup(func() {
+		if err := syscall.Kill(member, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
+			t.Errorf("kill member %d: %v", member, err)
+		}
+	})
+	leader, _ := group.Leader()
+	bin := t.TempDir()
+	script := "#!/bin/sh\n" +
+		"echo \"" + strconv.Itoa(member) + " " + strconv.Itoa(leader) + "\"\n" +
+		"kill -KILL " + strconv.Itoa(member) + "\n" +
+		"tries=0\n" +
+		"while kill -0 -" + strconv.Itoa(leader) + " 2>/dev/null; do\n" +
+		"  tries=$((tries + 1)); [ $tries -gt 300 ] && exit 0; sleep 0.01\n" +
+		"done\n"
+	if err := os.WriteFile(filepath.Join(bin, "ps"), []byte(script), 0o755); err != nil {
+		t.Fatalf("fake ps: %v", err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	if err := group.AwaitExit(t.Context(), 0); err != nil {
+		t.Errorf("AwaitExit = %v, want nil: the group emptied during the listing", err)
+	}
+	if err := syscall.Kill(-leader, 0); !errors.Is(err, syscall.ESRCH) {
+		t.Fatalf("kill(-%d, 0) = %v, want ESRCH: the fake ps did not empty the group, so the race was not staged",
+			leader, err)
+	}
+}
