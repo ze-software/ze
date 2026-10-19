@@ -2,32 +2,32 @@
   "facts": {
     "interop.scenario_dirs_raw": {
       "category": "committed-data",
-      "value": 192,
+      "value": 193,
       "source": "git ls-files test/interop/scenarios/, counting the directories git holds a file under"
     },
     "interop.scenarios": {
       "category": "committed-data",
-      "value": 192,
+      "value": 193,
       "source": "git ls-files test/interop/scenarios/, counting the directories git holds a file under"
     },
     "interop.targets": {
       "category": "committed-data",
-      "value": 10,
+      "value": 11,
       "source": "git ls-files test/interop/Dockerfile.*, less Dockerfile.ze, plus the FRR image a run names by variable"
     },
     "repo.design_comments": {
       "category": "committed-data",
-      "value": 6750,
+      "value": 6779,
       "source": "git ls-files '*.go', counting the file-header annotations"
     },
     "repo.detail_comments": {
       "category": "committed-data",
-      "value": 6637,
+      "value": 6695,
       "source": "git ls-files '*.go', counting the file-header annotations"
     },
     "repo.go_packages": {
       "category": "committed-data",
-      "value": 891,
+      "value": 893,
       "source": "go list ./..., keeping the packages git holds a file for"
     }
   },
