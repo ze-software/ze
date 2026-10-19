@@ -206,9 +206,11 @@ func (in *Installer) insert(r RouteEntry) {
 		// is excluded from arbitration and installed by the FIB as a link-down/backup
 		// next-hop. Shared, never mutated, mirroring the primary Labels contract.
 		var backupNH netip.Addr
+		var backupIface string
 		var repair []uint32
 		if i < len(r.Backups) && r.Backups[i].Valid() {
 			backupNH = r.Backups[i].NextHop
+			backupIface = r.Backups[i].Interface
 			repair = r.Backups[i].RepairLabels
 		}
 		// Mirror BGP rib_bestchange.go: InsertForward with a value-typed Path and no
@@ -224,6 +226,11 @@ func (in *Installer) insert(r RouteEntry) {
 			Metric:             metric,
 			BackupNextHop:      backupNH,
 			BackupRepairLabels: repair,
+			// The backup follows the primary's rule: an adjacency that names its
+			// device is reached on-link, which an alternate across an unnumbered
+			// link (gateway outside the device's /32) needs.
+			BackupInterface: backupIface,
+			BackupOnLink:    backupIface != "",
 		})
 	}
 	if prev, ok := in.installed[r.Prefix]; ok && in.hasSink() {

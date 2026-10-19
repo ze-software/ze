@@ -90,6 +90,8 @@ func (s *Sink) InsertForward(fam family.Family, prefix netip.Prefix, p locrib.Pa
 		ECMP:               wireNextHops(p.ECMP),
 		BackupNextHop:      addrString(p.BackupNextHop),
 		BackupRepairLabels: p.BackupRepairLabels,
+		BackupInterface:    p.BackupInterface,
+		BackupOnLink:       p.BackupOnLink,
 	}
 	s.mu.Lock()
 	s.installs = append(s.installs, entry)

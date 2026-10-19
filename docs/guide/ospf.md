@@ -77,20 +77,31 @@ unnumbered (RFC 2328 Section 8.1):
 | Hello Network Mask | 0.0.0.0 (Section 9.5) | the interface mask |
 | Router-LSA Type 1 Link Data | the interface's ifIndex (Section 12.4.1.1) | the interface address |
 | Router-LSA stub link | none: the donor interface advertises the address | the interface subnet |
+| SPF next hop | the Full neighbor's Hello source on that interface | the neighbor's Link Data address |
+| Kernel route | `via <neighbor donor address> dev <interface> onlink` | `via <neighbor address> dev <interface>` |
 
 The commit is refused when OSPF runs on an unnumbered unit with any network
 type other than `point-to-point`, because a /32 gives a broadcast or NBMA
 election no subnet to share.
 
-Not yet complete (gap RFC2328-8.1-1 stays open): the SPF next hop through an
-unnumbered neighbor and its kernel route are not installed (Ze drops a next hop
-whose Link Data is an ifIndex rather than use it as an address), and a donor
-that goes down does not yet take the link out of OSPF.
+The route through an unnumbered neighbor names the neighbor's donor address as
+gateway, with the device and the kernel `onlink` flag, which is the form FRR
+installs. RFC 2328 Section 16.1.1 requires no next-hop address on a
+point-to-point link, and an earlier plan said "interface-only next hop": that
+wording was ours, not the owner's. A route with a device and no gateway works on
+a true point-to-point device but, on Ethernet, needs proxy-ARP on the neighbor,
+so Ze uses the on-link gateway. A fast-reroute alternate (LFA or TI-LFA) across
+an unnumbered link carries its device and the same flag.
+
+Not yet complete (gap RFC2328-8.1-1 stays open): a donor that goes down does
+not yet take the link out of OSPF.
 
 <!-- source: internal/plugins/ospf/interface_addr.go -- interfaceUnnumbered, helloNetworkMask -->
 <!-- source: internal/plugins/ospf/lsdb/origination.go -- p2pLinkData, routerLinks -->
 <!-- source: internal/plugins/ospf/unnumbered.go -- checkUnnumberedNetworkTypes -->
-<!-- source: internal/plugins/ospf/spf/spf.go -- p2pNeighborAddress -->
+<!-- source: internal/plugins/ospf/spf/spf.go -- p2pNeighborAddress, unnumberedNextHop -->
+<!-- source: internal/plugins/ospf/spf/install.go -- insert -->
+<!-- source: internal/component/sysrib/ecmp.go -- backupPaths -->
 
 ## Interface cost
 

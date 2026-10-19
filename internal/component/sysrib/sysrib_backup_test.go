@@ -38,3 +38,29 @@ func TestBackupNotFoldedIntoECMP(t *testing.T) {
 	assert.Equal(t, netip.MustParseAddr("192.168.9.9"), changes[0].Backup[0].NextHop)
 	assert.Equal(t, []uint32{16010}, changes[0].Backup[0].Labels)
 }
+
+// TestBackupCarriesDeviceAndOnLink proves the backup's outgoing device and
+// on-link flag reach the FIB: an OSPF alternate across an unnumbered link has a
+// gateway outside every prefix of its device, which the kernel refuses unless
+// the next hop names the device and carries the onlink flag (gap #55).
+func TestBackupCarriesDeviceAndOnLink(t *testing.T) {
+	bus := newTestEventBus()
+	setEventBus(bus)
+	t.Cleanup(clearEventBus)
+	s := newSysRIB()
+
+	payload := makePayload("ospf", family.IPv4Unicast, []incomingChange{{
+		Action:          routeaction.Add,
+		Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:         netip.MustParseAddr("198.51.100.2"),
+		Priority:        110,
+		BackupNextHop:   netip.MustParseAddr("198.51.100.3"),
+		BackupInterface: "eth13",
+		BackupOnLink:    true,
+	}})
+	_, changes := s.processEvent(payload)
+	require.Len(t, changes, 1)
+	require.Len(t, changes[0].Backup, 1)
+	assert.Equal(t, "eth13", changes[0].Backup[0].Interface)
+	assert.True(t, changes[0].Backup[0].OnLink, "an unnumbered alternate must be installed on-link")
+}

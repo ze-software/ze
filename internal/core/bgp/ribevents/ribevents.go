@@ -138,6 +138,10 @@ type BestChangeEntry struct {
 	// forwards it as a DEDICATED backup next-hop, never an ECMP sibling.
 	BackupNextHop      netip.Addr `json:"-"`
 	BackupRepairLabels []uint32   `json:"-"`
+	// BackupInterface and BackupOnLink are BackupNextHop's outgoing device and
+	// on-link flag, from locrib.Path. In-process hint only, like BackupNextHop.
+	BackupInterface string `json:"-"`
+	BackupOnLink    bool   `json:"-"`
 }
 
 // BestChangeBatch is the payload of (bgp-rib, best-change). One batch is

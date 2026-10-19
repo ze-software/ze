@@ -206,6 +206,8 @@ func applyRouteInstall(rib *locrib.RIB, input rpc.RouteInstallInput) ([]routeKey
 				ECMP:                ecmp,
 				BackupNextHop:       backup,
 				BackupRepairLabels:  e.BackupRepairLabels,
+				BackupInterface:     e.BackupInterface,
+				BackupOnLink:        e.BackupOnLink,
 			},
 		})
 	}

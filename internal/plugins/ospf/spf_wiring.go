@@ -21,7 +21,13 @@ func (e *engine) initSPF() {
 	if e.lsdb == nil {
 		return
 	}
-	var strategy ospfspf.AFPrefixStrategy
+	// OSPFv2: the neighbor table resolves the next hop across an unnumbered
+	// point-to-point link, whose Router-LSA Link Data is an ifIndex.
+	var adj ospfspf.LinkAdjacency
+	if e.neighbors != nil {
+		adj = e.neighbors
+	}
+	strategy := ospfspf.NewV4Strategy(adj)
 	if e.dispatch != nil && e.dispatch.codec.IsV6() {
 		// OSPFv3 family: decode the address-free v6 topology LSAs + the v6 prefix model
 		// (Intra-Area-Prefix LSAs) and resolve next-hops from the adjacency table,

@@ -949,6 +949,10 @@ type RouteInstallEntry struct {
 	ECMP               []RouteNextHop `json:"ecmp,omitempty"`
 	BackupNextHop      string         `json:"backup-next-hop,omitempty"`
 	BackupRepairLabels []uint32       `json:"backup-repair-labels,omitempty"`
+	// BackupInterface and BackupOnLink are BackupNextHop's outgoing device and
+	// on-link flag, as Interface and OnLink are NextHop's.
+	BackupInterface string `json:"backup-interface,omitempty"`
+	BackupOnLink    bool   `json:"backup-on-link,omitempty"`
 }
 
 // RouteNextHop is one member of a RouteInstallEntry's equal-cost next-hop set:

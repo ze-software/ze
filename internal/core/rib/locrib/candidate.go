@@ -143,6 +143,14 @@ type Path struct {
 	// change the FIB must observe is in Equal, not in the arbitration key).
 	BackupNextHop netip.Addr
 
+	// BackupInterface and BackupOnLink are BackupNextHop's outgoing device and
+	// on-link flag, on the contract Interface and OnLink hold for NextHop: an
+	// alternate across an unnumbered link has a gateway outside every prefix of
+	// its device, and the kernel refuses that gateway without the flag.
+	// Carry-through metadata, excluded from key() and compared by Equal.
+	BackupInterface string
+	BackupOnLink    bool
+
 	// BackupRepairLabels is the MPLS repair label stack to impose toward
 	// BackupNextHop (outermost first), for a Segment-Routing repair tunnel
 	// (TI-LFA). Empty for a plain IP backup. Built once per best-path change and
@@ -208,6 +216,8 @@ func (p Path) Equal(q Path) bool {
 		p.MetricRecursive == q.MetricRecursive &&
 		p.SRv6SID == q.SRv6SID &&
 		p.BackupNextHop == q.BackupNextHop &&
+		p.BackupInterface == q.BackupInterface &&
+		p.BackupOnLink == q.BackupOnLink &&
 		p.RouteType == q.RouteType &&
 		slices.Equal(p.Labels, q.Labels) &&
 		slices.Equal(p.BackupRepairLabels, q.BackupRepairLabels)

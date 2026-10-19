@@ -222,7 +222,13 @@ func backupPaths(route *protocolRoute) []sysribevents.ECMPPath {
 	if route == nil || !route.backupNextHop.IsValid() {
 		return nil
 	}
-	return []sysribevents.ECMPPath{{NextHop: route.backupNextHop, Weight: 1, Labels: route.backupLabels}}
+	return []sysribevents.ECMPPath{{
+		NextHop:   route.backupNextHop,
+		Interface: route.backupInterface,
+		OnLink:    route.backupOnLink,
+		Weight:    1,
+		Labels:    route.backupLabels,
+	}}
 }
 
 // dedupKey is the identity of one member of a multipath group: the gateway and

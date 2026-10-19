@@ -175,6 +175,10 @@ type protocolRoute struct {
 	// next-hop, never folded into the ECMP group.
 	backupNextHop netip.Addr
 	backupLabels  []uint32
+	// backupInterface and backupOnLink are the backup's outgoing device and
+	// on-link flag (an alternate across an unnumbered link).
+	backupInterface string
+	backupOnLink    bool
 
 	// osInstalled is true when the OPERATING SYSTEM creates this protocol's
 	// forwarding entry, so Ze MUST NOT program one of its own. The protocol
@@ -545,6 +549,8 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 				routeType:        c.RouteType,
 				backupNextHop:    c.BackupNextHop,
 				backupLabels:     c.BackupRepairLabels,
+				backupInterface:  c.BackupInterface,
+				backupOnLink:     c.BackupOnLink,
 				// Intra-protocol equal-cost siblings (isis-9 ECMP, umbrella A-2)
 				// are now carried on the Loc-RIB Change (computed at emit while the
 				// PathGroup is in hand under the shard lock), so there is no
@@ -766,6 +772,8 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 		prev.nextHopOnLink == winner.nextHopOnLink &&
 		prev.priority == winner.priority && prev.metric == winner.metric &&
 		prev.backupNextHop == winner.backupNextHop &&
+		prev.backupInterface == winner.backupInterface &&
+		prev.backupOnLink == winner.backupOnLink &&
 		labelsEqual(prev.backupLabels, winner.backupLabels) &&
 		prev.srv6SID == winner.srv6SID && prev.routeType == winner.routeType &&
 		labelsEqual(prev.labels, winner.labels) && !ecmpChanged(s.lastECMP[key], entry.ECMPPaths) &&
@@ -1621,6 +1629,8 @@ func changeToBatch(c *locrib.Change) *incomingBatch {
 			// ChangeRemove because c.Best is the zero Path there.
 			BackupNextHop:      c.Best.BackupNextHop,
 			BackupRepairLabels: c.Best.BackupRepairLabels,
+			BackupInterface:    c.Best.BackupInterface,
+			BackupOnLink:       c.Best.BackupOnLink,
 		}},
 	}
 }

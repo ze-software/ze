@@ -27,10 +27,16 @@ const DefaultMaxPaths = 8
 // it is inherited from the first hop. IPv6 link-local addresses require Interface
 // to identify the adjacency. Router drives the RFC 8665 §5 / RFC 8666 §6 SR-MPLS
 // label source (the next-hop router's SRGB, not the SID originator's).
+//
+// OnLink marks a gateway that is not inside any prefix of Interface: the
+// neighbor across an unnumbered point-to-point link. The FIB installs it with the
+// kernel onlink flag, so the gateway is reached on Interface without a covering
+// connected route.
 type NextHop struct {
 	Addr      netip.Addr
 	Interface string
 	Router    types.RouterID
+	OnLink    bool
 }
 
 // InterfaceResolver optionally fills an unscoped IPv4 next-hop's outgoing interface.
@@ -129,13 +135,63 @@ type NextHopSource interface {
 	TransitNextHop(g *Graph, router, root types.RouterID, link packet.RouterLink) (NextHop, bool)
 }
 
-// v4NextHop is the OSPFv2 NextHopSource: the next-hop is the neighbor's IPv4
-// interface address carried in the reciprocal Router-LSA link data.
-type v4NextHop struct{}
+// LinkAdjacency resolves the Full adjacency with router id on the local interface
+// whose Interface ID (the ifIndex for OSPFv2) is localID: its Hello source address
+// and the interface name. The neighbor table implements it.
+type LinkAdjacency interface {
+	NextHopOnLink(area types.AreaID, root types.RouterID, localID uint32, id types.RouterID) (netip.Addr, string, bool)
+}
 
-func (v4NextHop) P2PNextHop(g *Graph, neighbor, root types.RouterID, _ packet.RouterLink) (NextHop, bool) {
+// v4NextHop is the OSPFv2 NextHopSource: the next-hop is the neighbor's IPv4
+// interface address carried in the reciprocal Router-LSA link data. An unnumbered
+// root link names no address, so its next-hop comes from adj; a nil adj resolves
+// no unnumbered next-hop.
+type v4NextHop struct {
+	adj LinkAdjacency
+}
+
+func (n v4NextHop) P2PNextHop(g *Graph, neighbor, root types.RouterID, link packet.RouterLink) (NextHop, bool) {
+	if link.Type == packet.RouterLinkTypeP2P && linkDataIsIfIndex(link.LinkData) {
+		// RFC 2328 Section 16.1.1, Section 12.4.1.1
+		return n.unnumberedNextHop(g, neighbor, root, link)
+	}
 	addr, ok := p2pNeighborAddress(g, neighbor, root)
 	return NextHop{Addr: addr, Router: neighbor}, ok
+}
+
+// RFC 2328 Section 16.1.1: "If there is at least one intervening router in the
+// current shortest path between the destination and the root, the destination
+// simply inherits the set of next hops from the parent. Otherwise, there are two
+// cases. In the first case, the parent vertex is the root (the calculating router
+// itself). This means that the destination is either a directly connected network
+// or directly connected router. The outgoing interface in this case is simply the
+// OSPF interface connecting to the destination network/router." and "If the
+// destination is a directly connected network, or a router which connects to the
+// calculating router via a point-to-point interface, no next hop IP address is
+// required."
+//
+// The root's own unnumbered link carries its ifIndex (RFC 2328 Section 12.4.1.1),
+// so the outgoing interface is the one with that ifIndex. Ze still names the
+// address the Full neighbor sends its Hellos from (its donor address) as the
+// gateway, installed on-link: a gateway-less route on an Ethernet device would
+// need proxy-ARP on the neighbor, and the on-link gateway is the form FRR installs.
+func (n v4NextHop) unnumberedNextHop(g *Graph, neighbor, root types.RouterID, link packet.RouterLink) (NextHop, bool) {
+	if n.adj == nil {
+		return NextHop{}, false
+	}
+	ifIndex := uint32(link.LinkData[0])<<24 | uint32(link.LinkData[1])<<16 | uint32(link.LinkData[2])<<8 | uint32(link.LinkData[3])
+	addr, iface, ok := n.adj.NextHopOnLink(g.Area, root, ifIndex, neighbor)
+	if !ok {
+		return NextHop{}, false
+	}
+	return NextHop{Addr: addr, Interface: iface, Router: neighbor, OnLink: true}, true
+}
+
+// linkDataIsIfIndex reports whether a point-to-point Link Data holds an ifIndex
+// (RFC 2328 Section 12.4.1.1, unnumbered) rather than an interface address:
+// 0.0.0.0/8 holds no interface address, so a first octet of zero is an ifIndex.
+func linkDataIsIfIndex(data [4]byte) bool {
+	return data[0] == 0
 }
 
 func (v4NextHop) TransitNextHop(g *Graph, router, _ types.RouterID, link packet.RouterLink) (NextHop, bool) {
@@ -373,9 +429,8 @@ func p2pNeighborAddress(g *Graph, neighbor, root types.RouterID) (netip.Addr, bo
 	for _, l := range r.Links {
 		if (l.Type == packet.RouterLinkTypeP2P || l.Type == packet.RouterLinkTypeVirtual) && l.LinkID == want {
 			// Guard: RFC 2328 Section 12.4.1.1 puts the MIB-II ifIndex in the Link
-			// Data of an unnumbered link. 0.0.0.0/8 holds no interface address, so
-			// a first octet of zero is an ifIndex and names no next-hop address.
-			if l.Type == packet.RouterLinkTypeP2P && l.LinkData[0] == 0 {
+			// Data of an unnumbered link, which names no next-hop address.
+			if l.Type == packet.RouterLinkTypeP2P && linkDataIsIfIndex(l.LinkData) {
 				return netip.Addr{}, false
 			}
 			return addrFrom4(l.LinkData), true

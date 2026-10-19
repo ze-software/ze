@@ -54,8 +54,17 @@ type AFPrefixStrategy interface {
 // v4Strategy is the OSPFv2 AFPrefixStrategy. Each method delegates to the package
 // function that already implements the v2 behavior, so routing the Computer
 // through the seam is byte-for-byte identical to the prior direct calls (the v2
-// SPF suite is the proof).
-type v4Strategy struct{}
+// SPF suite is the proof). adj resolves the next hop across an unnumbered link;
+// the zero value resolves none.
+type v4Strategy struct {
+	adj LinkAdjacency
+}
+
+// NewV4Strategy returns the OSPFv2 strategy whose next hops across unnumbered
+// point-to-point links come from adj (the engine's neighbor table).
+func NewV4Strategy(adj LinkAdjacency) AFPrefixStrategy {
+	return v4Strategy{adj: adj}
+}
 
 func (v4Strategy) BuildGraph(src Source, area types.AreaID) *Graph { return BuildGraph(src, area) }
 
@@ -73,7 +82,7 @@ func (v4Strategy) OriginateSummaries(in SummaryInput) SummaryOriginResult {
 	return OriginateSummaries(in)
 }
 
-func (v4Strategy) NextHopSource() NextHopSource { return v4NextHop{} }
+func (s v4Strategy) NextHopSource() NextHopSource { return v4NextHop(s) }
 
 func (v4Strategy) SummaryReader(src Source) SummaryReader { return v4SummaryReader(src) }
 
