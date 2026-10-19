@@ -602,3 +602,7 @@ passed), `./le test unit all`. The `docker-peers` journal row in
 `plan/journal/bound-too-small-for-its-own-burst.md` (a one-minute
 `TestDockerBuildRetainsImageAcrossRetag` bound overrun while flow-export built
 its image in parallel) concerns this population.
+
+Landed: `00ad396fd0`. `./le test integration docker-peers` after it: code 0,
+population gnmi (120.3 s), tacacs (36.1 s), interoplab (152.4 s),
+interoplab/labtest (28.9 s), plugins/flowexport (118.4 s), plugins/ntp (50.2 s).
