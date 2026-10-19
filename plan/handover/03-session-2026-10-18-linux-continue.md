@@ -558,3 +558,27 @@ RFC9830-2.4.2-12 (8d18d4c4c3, plus no annotation); LINKLOCAL-CAPABILITY-6-1
 5.1-3 (839819ea2d); RFC8277-2.4-1 (f749025a61); RFC8654-5-4 (e30abc5e48).
 Staled by uncommitted edits: RFC1350-4-3, RFC2545-3-1, 3-2, RFC7606-3.c-1,
 5.2-1, 7.2-1, 7.16-1, RFC7950-9.1-1.
+
+### Known reds of the full verify over fc539a33f3 (2026-10-19)
+
+Ten red stages; each rerun targeted on HEAD 38ccef54f5 or later before acting.
+
+| Red | Cause | State |
+|-----|-------|-------|
+| plugin ddos-flowspec-announce | message mismatch in the loaded full run | passes alone on HEAD (693ms); no change |
+| plugin storage-ddos-restart | the fixture's ze inherited the in-memory test store, so the restart found no baselines | fixed: `option=storage:value=disk` (commit "test(plugin): storage-ddos-restart runs on the disk store"); red before, green after |
+| plugin wellknown-no-export-withdraw-egress | RFC-tagged .ci | owner decision pending; untouched |
+| ui le-evidence-vpp-answers | "the YAML VPP deployment proof exited 1"; the proof's own output is not in the log. 4ac8aea24d was already in fc539a33f3 | passes alone on HEAD; cause under load unknown |
+| ui web-user-removed-by-reload | observer: webuser not refused after reload, in the loaded run | passes alone on HEAD |
+| web 81 `test/web/set-value-persists.wb` | `agent-browser open` exited 1 at step 6 under load | passes alone on HEAD (13.7s) |
+| ospf TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent (race) | SPF timer goroutine read the test's plain-pointer clock through `LSDB.Summary` | fixed 0a197a7b75: helper stops SPF; -race -count=20 green |
+| doc wiring: fsm-established.md, peer-lifecycle.md, bgp-fsm.md | 96a24194eb (`Peer.forwardRevocation`), e30abc5e48 (`fwdBatchHandler` per-key) | fixed (commit "docs: Peer forwarding fences and per-key recovery staleness"); that page edit also silenced the fsm-established.md `writeUpdateBody` claim, which belongs to another session's uncommitted session_write.go |
+| doc wiring: still drifting, this session's commits | structural-forwarding.md (`adjOutPath`, `recoverNLRIBatch`), core-design.md (`fwdBatchHandler`), forward-congestion-pool.md (`fwdBatchHandler`, twice), rib-storage-design.md (`adjOutPath`, `queueRecoveryOutcome`, `adjOutWrite.allow`, `recoverNLRIBatch`, `fwdBatchHandler`), config-reload.md and plugins.md (`unbindProcesses`), route-reflection.md (`recoverNLRIBatch`) | owed by 3f5fcb0a; not done |
+| doc wiring: other sessions | iface/management.md `AddrInfo`, dhcp-server.md `findOption`, resolve.md and command-reference.md `configuredDelegationSources`, configuration.md `ReplaceIPv6RPF`, 001-pull-model-metrics.md `reactorMetrics`, core-design.md `validateRFC7606Attrs`, gaterun `Leader` (wiring) | theirs |
+| interoplab TestCheckerPopulationMatchesProducer | 43d84584f8 made bgp-vpn-frr bespoke (`checkVPNFRR`) and left its `scenarioOperations` and `scenarioExtras` entries | fix written and backed out: `checkVPNFRR` is RFC-tagged and `./le commit create` refuses without `./le rfc approve unit bgp.checkVPNFRR`. The fix moves the five generic operations (two FRR session checks around two VPN-IPv4 routes, then the ipv4Vpn capability check) into `checkVPNFRR`, in the same order, and deletes both map entries. Needs the owner's approval |
+| interoplab TestAnnouncementPlanOrderAndTimingFixture | 0411b53e91 added the overlay-index update to the evpn plan and did not repin the digest | fixed (commit "interoplab: repin the announcement plan digest for overlay-index") |
+| lint orphans.go goconst, gaterun misspell, dockerpeers_signal_test misspell; wiring gaterun `Leader`; TestDockerDeploymentRefusesMissingKernelFeature | lab Docker cleanup, session d8e7dbbf (commits 2fe96cdffe, 9cbce6f200, 4f054354a3; state written 09:28) | active; left |
+| compound guard in `zeV6LeaseVerdict`, unparam `keaLog.leased`, site facts interop.targets 10 vs 11 (Dockerfile.kea, 8bd003c1ce) | DHCPv6 lease maintenance, session 20123ea5 (state written 09:20) | active; left |
+| labtest `TCPReady` wiring | 7edc3e7e89 | no longer reported by `./le doc wiring` on HEAD |
+| TestExaBGPCaseReadsEveryFixture | spec-exabgp-6 scope | left |
+| lint: session.go `asSetSendLog` unused, flowexport undefined `startExportProcess`, dhcp `v6Rig.awaitSent` unparam | in-flight work of other sessions | not investigated |
