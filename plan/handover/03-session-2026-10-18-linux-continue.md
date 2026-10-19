@@ -583,3 +583,24 @@ Ten red stages; each rerun targeted on HEAD 38ccef54f5 or later before acting.
 | labtest `TCPReady` wiring | 7edc3e7e89 | no longer reported by `./le doc wiring` on HEAD |
 | TestExaBGPCaseReadsEveryFixture | spec-exabgp-6 scope | left |
 | lint: session.go `asSetSendLog` unused, flowexport undefined `startExportProcess`, dhcp `v6Rig.awaitSent` unparam | in-flight work of other sessions | not investigated |
+
+### Known reds of the full verify over 31f8aedb30 (2026-10-19)
+
+Logs: `tmp/verify-worktree-logs/20261019T084431*/full-494414736/` (local only;
+the causes are summarized here).
+
+| Red | Cause | State |
+|-----|-------|-------|
+| unit cmd/ze/hub TestSIGHUPQueuedBehindTransactionRunsWhenItEnds/runs_once (310s, package 1170s) | test sequencing: it released the holder once the worker's first `load()` ran, but the worker loads before `tryAcquire`, so a descheduled worker took the freed lock on its first attempt and loaded once. Not a deadlock; the product reloaded correctly | fixed 5b409e1054: the test waits for the refused attempt to clear its staged candidate before releasing. Red forced with a temporary 300ms sleep after `load()` (exact verify message), green with the fix under the same sleep; -count=20 green |
+| plugin as112-probe-anycast-not-loopback | fixture took its SSH port from a closed `127.0.0.1:0` listener; another process bound it first (`bind SSH server: ... 127.0.0.1:35439: address already in use`) | fixed eb1c0368f2: the .ci passes the leased `$PORT2`; passes |
+| appliance crash-capture-ota-unaffected-qemu | appliance build: `e2fsck -f -n` on the perm image aborted (exit 12) during the loaded run | passes alone on HEAD (191s); recorded as load |
+| appliance vpp-hugepages-qemu | appliance did not answer SSH within the bound (accel=kvm) in the loaded run | passes alone on HEAD (121s); recorded as load |
+| plugin wellknown-no-export-withdraw-egress | product defect | fixed d44cc5dc98 |
+| 11 ExaBGP api cases, TestExaBGPCaseReadsEveryFixture | spec-exabgp-6 scope | left |
+| interoplab lint, guard and site-facts reds | sessions d8e7dbbf, 20123ea5 | theirs |
+
+Open question, not verified: a SIGHUP reload reads the config before it asks
+for the transaction lock, so a commit that takes and releases the lock in that
+gap is followed by a reload of a tree read before the commit. Whether the
+staged-candidate check (`ErrCandidateExists`) already refuses that case was not
+checked.
