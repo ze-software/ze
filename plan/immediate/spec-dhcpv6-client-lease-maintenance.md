@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | 3/6 (phases 2, 3, 4 code landed, A-7 per-source DNS landed; 1 enrolment, 5 duid pattern, 6 interop owed) |
 | Handoff | verify |
-| Updated | 2026-10-18 |
+| Updated | 2026-10-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

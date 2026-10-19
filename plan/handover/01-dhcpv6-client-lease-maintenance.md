@@ -81,6 +81,59 @@ Still owed from the list below: 1 (enrolment, tags, discrimination records,
 `// RFC:` headers), 3 (veth test), 4 (Kea interop), 6 for the phase-2..4 unit
 tests, 7 (gates), 8 (A-1, A-2, A-3, A-8, A-9).
 
+## Continuation 2026-10-19 (third phase agent): two commits, then handoff
+
+- `b9405b0b6d` dhcp: scoped lint cleared in `dhcp_v6_exchange_linux.go` and
+  `dhcp_v6_lease_linux.go` (godot: closing sentence after each RFC quote;
+  `v6EndUnspecified`/`v6KindUnspecified` keep a reasoned `//nolint:unused`;
+  `v6ElapsedTime` uses `min`). `./le job run ... golangci-lint run
+  ./internal/plugins/iface/dhcp/...` exits 0. (`./le go lint run scope ...`
+  refused: "lint inputs changed during planning", other sessions editing.)
+- `ec35ab9a2c` A-2, A-3 confirmed by `TestDHCPv6LinkOneDatagramPerExchange`
+  (`dhcp_v6_link_linux_test.go`, recording `PacketConn` under
+  `nclient6.NewWithConn`); `dialV6Link` and the test share
+  `v6ClientOptions()`. Forced red recorded (WithRetry(3), 50 ms timeout ->
+  second datagram). A-8 confirmed by reading (no `dhcp-expired` subscriber;
+  `syncWorker.handleDHCPEvent` in `internal/plugins/ntp/ntp.go` takes
+  `dhcp-acquired` only). Spec rows updated.
+- Both commits used `structural-red-ok` after `./le --name dhcp6c arch tier
+  check` and `arch iface-resolution` exited 0.
+
+Findings for the next agent (read before starting):
+
+- Item 3 has a design gap: `iface.Resolve` is the only way the worker finds
+  the OS device (`v6Worker.openOnce`), and the logical-to-OS mapping is set
+  only by the unexported `resolver.setMapping` via `setResolverConfig`
+  (`internal/component/iface/resolve.go`). No exported seam exists for a test
+  in `ifacedhcp` to bind a logical name to a veth (the v4 labs pass the veth
+  name itself, so they never test a selector). Choose: an exported test seam
+  in `iface` (a production API added for a test) or driving the iface config
+  apply path. A third route needs no production API: an `export_test.go` in
+  package `iface` that exposes `globalResolver.setMapping` and the installed
+  `dhcpClientFactory` (unexported var, `register.go`), used by an
+  external `package iface_test` integration test in
+  `internal/component/iface/` (precedent: `netlink_integration_import_test.go`)
+  that blank-imports `ifacedhcp` and starts the client through the factory
+  `register.go` `SetDHCPClientFactory` installs (the real entry point). The
+  test file then lives under `internal/component/iface/`, not the path the
+  spec's Wiring row names: update the row. Template lab: `sfSetupLab` (`dhcp_shortframe_integration_linux_test.go`),
+  `lmStart` (`rfc2131_dhcp_lease_maintenance_integration_linux_test.go`); a v6
+  server can be a UDP socket on the peer joined to ff02::1:2 port 547. The
+  test is `//go:build integration && linux` and runs in QEMU
+  (`docs/architecture/testing/qemu-integration.md`, one-test recipe), never
+  with sudo here.
+- Item 4 is a package of its own: the DHCPv4 precedent `cc69746db8` (dnsmasq)
+  added a Go checker under `internal/le/interoplab/bgp/` (`check_dhcp.go`,
+  `check_dhcp_predicate.go` + test, `names.go`, `prepare.go`,
+  `register_dhcp.go`, `run.go`), the Dockerfile, the scenario files and the
+  `docs/architecture/testing/interop.md` rows: about 700 lines.
+- Item 1 is a package of its own: `rfc/full/rfc9915.txt` is 6391 lines with
+  353 normative lines; `rfc/short/rfc9915.md` does not exist. `./le rfc check`
+  judges every row in the corpus, so do not land a half-written summary.
+  Discrimination records (`./le rfc discriminate-record`) need the tags,
+  which need the summary.
+- A-1 and A-9 stay `unvalidated` (enrolment walk; Kea run).
+
 ## Remaining (nothing here is optional)
 
 1. Phase 1: enrol RFC 9915 per `/ze-rfc` (whole document; server/relay
@@ -102,6 +155,7 @@ tests, 7 (gates), 8 (A-1, A-2, A-3, A-8, A-9).
 7. Gates owed: `./le go lint run`, `./le test unit all`,
    `./le test functional gating` (verification debt
    `plan/verification-debt/65b935c4.md`).
-8. A-1, A-2, A-3, A-8, A-9 still `unvalidated` in the spec table.
+8. A-1, A-9 still `unvalidated` in the spec table (A-2, A-3, A-8 confirmed
+   2026-10-19).
 9. `plan/journal/reconciler-claims-state-another-owner-installed.md` row and
    `plan/journal/silent-fall-through.md` 2026-10-18 row: status updates owed.
