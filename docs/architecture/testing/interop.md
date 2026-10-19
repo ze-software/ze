@@ -2267,12 +2267,23 @@ removes the container.
 | The image cannot be pulled | fails; under the `live` tag it skips an ad hoc run and fails under `ZE_REQUIRE_DOCKER=1` (owner decision Q-6, `pull_live.go`) |
 | The container does not start, or `Ready` never accepts | fails, then the log tail follows |
 
+Two package tests start their server this way. The RPKI live tests start
+stayrtr over TCP (`internal/component/bgp/plugins/rpki/rpki_live_test.go`, tag
+`live`). The NTP client tests start chrony (`dockurr/chrony:4.9`) over UDP
+(`internal/plugins/ntp/ntp_chrony_docker_test.go`, tag `docker`) and run
+`syncWorker.doSync` with the real query: a server on its local reference at
+stratum 7 is accepted and reported at stratum 7 with a near-zero offset, and a
+server with no synchronised source (leap indicator 3, stratum 0 on the wire)
+is rejected with no clock step. The container reads the host's own kernel
+clock, so the offset is bounded, never a configured value.
+
 `labtest` runs no Docker host kernel check: Ze runs in the test process on the
 host, and that check guards a containerised Ze. A peer that needs a Ze-kernel
 feature belongs in an `interoplab.Suite` lab. Only a `_test.go` file, or tooling
 under `internal/le`, imports `labtest` (`./le arch tier check`,
 `docs/architecture/module-tiers.md`).
 <!-- source: internal/le/interoplab/labtest/labtest.go -- Start, start, host.release -->
+<!-- source: internal/plugins/ntp/ntp_chrony_docker_test.go -- TestNTPClientSyncsFromChrony, TestNTPClientRejectsUnsynchronisedChrony -->
 <!-- source: internal/le/interoplab/container.go -- DetachedContainer.PublishedPorts, ContainerPort, Docker.PublishedPort -->
 
 ### Debugging Failures
