@@ -403,5 +403,18 @@ falls to the next server and to local accounts. Documented in
 final `sendToServers` error drops the per-server cause, journal row in
 `plan/journal/error-names-no-fix-command.md`.
 
+Landed: `321ca49ce1` (test, guide, this section), `1c1410c010` (journal row).
+
+`./le test integration docker-peers`, 2026-10-19 after `321ca49ce1`: code 0,
+population `internal/component/tacacs` (36.8s), `internal/le/interoplab`
+(153.7s), `internal/le/interoplab/labtest` (30.9s), `internal/plugins/ntp`
+(46.2s, the S-2 session's uncommitted test).
+
+Not committed: the spec's S-1 row (Implementation Phases audit table) is
+written in the working tree, true against HEAD now. It was held back because
+the same file carries the running S-2 session's row naming
+`ntp_chrony_docker_test.go`, which is not in HEAD; whoever commits the S-2 row
+carries the S-1 row with it.
+
 Owed gates: scoped lint of `internal/component/tacacs` with the docker tag
 (`go vet -tags docker` passed), `./le test unit all`.
