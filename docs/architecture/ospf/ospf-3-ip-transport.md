@@ -17,9 +17,14 @@ the OSPF multicast groups and carries datagrams to and from the engine.
 - **Interface names resolve through the iface resolver, never
   `net.InterfaceByName`.** OSPF config names are Ze logical names, so the
   `os-name` and `mac/match` selectors must keep working.
-- **Multicast membership uses `IPMreq` bound to the interface IPv4 address, not
-  `IPMreqn`.** QEMU raw multicast receive matched the address-bound membership
-  path.
+- **Multicast membership and the multicast egress use `IPMreqn`, naming the
+  device by ifindex and the source by the interface IPv4 address.** An address
+  alone selects the first device holding it. On an unnumbered link the donor
+  holds the same address as the borrowed /32, so an address-bound membership
+  lands on the donor and `IP_MULTICAST_IF` by address is refused with EINVAL
+  on a socket bound to the unnumbered device. The ifindex comes from the iface
+  resolver, whose cache a link event clears when a device is re-created.
+  <!-- source: internal/plugins/ospf/transport/backend_linux.go -- multicastDevice, joinGroup, setMulticastOptions -->
   <!-- source: internal/plugins/ospf/transport/multicast.go -- AllSPFRouters, AllDRouters -->
 - **Transport metrics label packet TYPE only, and do not validate.**
   Common-header dispatch and validation belong to the runtime packages. The

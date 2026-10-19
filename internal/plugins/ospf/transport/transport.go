@@ -306,8 +306,12 @@ type addrEvent struct {
 // It runs on the event bus, so it does no socket work and never blocks.
 func enqueueAddrEvent(queue chan<- addrEvent, data string, removed bool) {
 	var p iface.AddrPayload
-	if err := json.Unmarshal([]byte(data), &p); err != nil || p.Name == "" {
+	if err := json.Unmarshal([]byte(data), &p); err != nil {
 		logger().Warn("ospf/transport: undecodable interface address event", "err", err)
+		return
+	}
+	if p.Name == "" {
+		logger().Warn("ospf/transport: interface address event names no device")
 		return
 	}
 	if p.Family != "ipv4" {

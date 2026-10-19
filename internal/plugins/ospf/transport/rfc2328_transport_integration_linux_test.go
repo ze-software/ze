@@ -11,6 +11,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -176,6 +177,15 @@ type ospfVethLab struct {
 
 func withVethPeerNamespace(t *testing.T, fn func(ospfVethLab)) {
 	t.Helper()
+	withVethPair(t, "192.0.2.1/24", "192.0.2.2/24", fn)
+}
+
+// withVethPair builds a veth whose B end sits in a fresh peer namespace, gives
+// each end its address (an empty CIDR leaves that end with none, up), and runs
+// fn with the thread in the original namespace. Cleanup restores the namespace
+// and deletes the veth and the peer namespace.
+func withVethPair(t *testing.T, cidrA, cidrB string, fn func(ospfVethLab)) {
+	t.Helper()
 	runtime.LockOSThread()
 	unlocked := false
 	unlock := func() {
@@ -202,8 +212,13 @@ func withVethPeerNamespace(t *testing.T, fn func(ospfVethLab)) {
 		unlock()
 		t.Fatalf("restore original namespace after create %s: %v", nsName, err)
 	}
-	nameA := fmt.Sprintf("zeospa%d", osPidSuffix())
-	nameB := fmt.Sprintf("zeospb%d", osPidSuffix())
+	// Each lab takes fresh names: the iface resolver caches a name's ifindex
+	// until a link event clears it, and no link monitor runs in a test binary,
+	// so a veth re-created under an earlier lab's name would resolve to the
+	// deleted device's ifindex.
+	lab := vethLabSequence.Add(1)
+	nameA := fmt.Sprintf("zeospa%d-%d", osPidSuffix(), lab)
+	nameB := fmt.Sprintf("zeospb%d-%d", osPidSuffix(), lab)
 	t.Cleanup(func() {
 		if rerr := netns.Set(origNS); rerr != nil {
 			t.Errorf("restore namespace: %v", rerr)
@@ -227,9 +242,9 @@ func withVethPeerNamespace(t *testing.T, fn func(ospfVethLab)) {
 	if err := netlink.LinkSetNsFd(linkB, int(peerNS)); err != nil {
 		t.Fatalf("LinkSetNsFd(%s): %v", nameB, err)
 	}
-	setupVethAddr(t, nameA, "192.0.2.1/24")
+	setupVethAddr(t, nameA, cidrA)
 	runInNS(t, peerNS, func() {
-		setupVethAddr(t, nameB, "192.0.2.2/24")
+		setupVethAddr(t, nameB, cidrB)
 	})
 	fn(ospfVethLab{nameA: nameA, nameB: nameB, peerNS: peerNS})
 }
@@ -270,6 +285,9 @@ func ospfNSName(testName string) string {
 
 func osPidSuffix() int { return os.Getpid() % 10000 }
 
+// vethLabSequence numbers the veth labs of one test binary.
+var vethLabSequence atomic.Int32
+
 func expectOSPFPacket(t *testing.T, h InterfaceHandle, src netip.Addr, payload []byte) {
 	t.Helper()
 	select {
@@ -287,6 +305,12 @@ func setupVethAddr(t *testing.T, name, cidr string) {
 	link, err := netlink.LinkByName(name)
 	if err != nil {
 		t.Fatalf("LinkByName(%s): %v", name, err)
+	}
+	if cidr == "" {
+		if err := netlink.LinkSetUp(link); err != nil {
+			t.Fatalf("LinkSetUp(%s): %v", name, err)
+		}
+		return
 	}
 	addr, err := netlink.ParseAddr(cidr)
 	if err != nil {

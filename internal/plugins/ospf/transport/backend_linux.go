@@ -322,7 +322,13 @@ func setMulticastOptions(fd, ifindex int, local [4]byte) error {
 	if err := unix.SetsockoptInt(fd, unix.IPPROTO_IP, unix.IP_MULTICAST_LOOP, 0); err != nil {
 		return fmt.Errorf("ospf/transport: setsockopt IP_MULTICAST_LOOP: %w", err)
 	}
-	if err := unix.SetsockoptInet4Addr(fd, unix.IPPROTO_IP, unix.IP_MULTICAST_IF, local); err != nil {
+	// The device is named by ifindex and the source by address, never by the
+	// address alone: on an unnumbered link the donor device holds the same
+	// address, so the kernel would resolve it to the donor and refuse the
+	// socket bound to this device (EINVAL). RFC 2328 Section 8.1: "On these
+	// interfaces, the IP source should be set to any of the other IP addresses
+	// belonging to the router."
+	if err := unix.SetsockoptIPMreqn(fd, unix.IPPROTO_IP, unix.IP_MULTICAST_IF, multicastDevice(ifindex, local, [4]byte{})); err != nil {
 		return fmt.Errorf("ospf/transport: setsockopt IP_MULTICAST_IF ifindex %d: %w", ifindex, err)
 	}
 	return nil
@@ -336,8 +342,7 @@ func joinGroup(fd, ifindex int, local [4]byte, group netip.Addr) error {
 	if !group.Is4() || !isOSPFMulticast(group) {
 		return ErrInvalidDestination
 	}
-	mreq := unix.IPMreq{Multiaddr: group.As4(), Interface: local}
-	if err := unix.SetsockoptIPMreq(fd, unix.IPPROTO_IP, unix.IP_ADD_MEMBERSHIP, &mreq); err != nil {
+	if err := unix.SetsockoptIPMreqn(fd, unix.IPPROTO_IP, unix.IP_ADD_MEMBERSHIP, multicastDevice(ifindex, local, group.As4())); err != nil {
 		return fmt.Errorf("ospf/transport: join %s on ifindex %d: %w", group, ifindex, err)
 	}
 	return nil
@@ -347,11 +352,18 @@ func leaveGroup(fd, ifindex int, local [4]byte, group netip.Addr) error {
 	if !group.Is4() || !isOSPFMulticast(group) {
 		return ErrInvalidDestination
 	}
-	mreq := unix.IPMreq{Multiaddr: group.As4(), Interface: local}
-	if err := unix.SetsockoptIPMreq(fd, unix.IPPROTO_IP, unix.IP_DROP_MEMBERSHIP, &mreq); err != nil {
+	if err := unix.SetsockoptIPMreqn(fd, unix.IPPROTO_IP, unix.IP_DROP_MEMBERSHIP, multicastDevice(ifindex, local, group.As4())); err != nil {
 		return fmt.Errorf("ospf/transport: leave %s on ifindex %d: %w", group, ifindex, err)
 	}
 	return nil
+}
+
+// multicastDevice names the device by ifindex for a membership or the
+// multicast egress. An address alone selects the first device holding it, and
+// the borrowed /32 of an unnumbered link is also held by its donor, so a
+// membership would land on the donor and the egress would be refused.
+func multicastDevice(ifindex int, local, group [4]byte) *unix.IPMreqn {
+	return &unix.IPMreqn{Multiaddr: group, Address: local, Ifindex: int32(ifindex)} //nolint:gosec // a kernel ifindex fits int32
 }
 
 func closeFD(fd int) {
