@@ -320,8 +320,14 @@ func runHostCommand(ctx context.Context, spec commandSpec) (commandResult, error
 	if err == nil {
 		return result, nil
 	}
-	if ctx.Err() != nil {
+	// A deadline and a cancel are told apart: a Ctrl-C cancels the run's signal
+	// root, and naming that a timeout sends the operator after a bound they
+	// never hit.
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return result, fmt.Errorf("command %s exceeded its deadline: %w", spec.Name, ctx.Err())
+	}
+	if ctx.Err() != nil {
+		return result, fmt.Errorf("command %s was canceled before it finished, by an interrupt or by the run stopping: %w", spec.Name, ctx.Err())
 	}
 	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.Code = exit.ExitCode()
