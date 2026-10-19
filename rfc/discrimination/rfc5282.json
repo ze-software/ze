@@ -449,7 +449,7 @@
       "claim-sha": "b5da258a9e6f0b36",
       "route": "revert",
       "producer": "internal/component/ike/crypto/proposal.go::matchESP",
-      "producer-sha": "6a3d9c3594489bd8",
+      "producer-sha": "dd6c6d9bbdc60051",
       "break": "body of matchESP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -460,7 +460,7 @@
       "claim-sha": "4506eba43095764f",
       "route": "revert",
       "producer": "internal/component/ike/crypto/proposal.go::matchESP",
-      "producer-sha": "6a3d9c3594489bd8",
+      "producer-sha": "dd6c6d9bbdc60051",
       "break": "body of matchESP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -537,7 +537,7 @@
       "claim-sha": "8a86576e581760d1",
       "route": "revert",
       "producer": "internal/component/ike/engine/initiator.go::espProposalWire",
-      "producer-sha": "45e5f1b4f57f775e",
+      "producer-sha": "556059c9898aebda",
       "break": "body of espProposalWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -548,7 +548,7 @@
       "claim-sha": "19a0905e33795aaf",
       "route": "revert",
       "producer": "internal/component/ike/engine/initiator.go::espProposalWire",
-      "producer-sha": "45e5f1b4f57f775e",
+      "producer-sha": "556059c9898aebda",
       "break": "body of espProposalWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
