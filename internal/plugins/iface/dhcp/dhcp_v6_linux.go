@@ -13,6 +13,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -47,6 +48,14 @@ type v6Worker struct {
 	lease   *v6Lease         // nil when the client holds no lease
 	device  string           // kernel device of the last opened socket
 	lastMAC net.HardwareAddr // link-layer address of that device
+
+	links    <-chan iface.LinkEvent // link events of the logical name; nil once closed
+	linkDown bool                   // a down event was seen and no up since
+	moveDue  v6Instant              // when the link-change Rebind is owed; never when none is
+	moveLast v6Instant              // when the last link-change Rebind started; never before the first
+
+	dadPending []netip.Prefix        // installed addresses whose DAD outcome is not read yet
+	dadChecked map[netip.Prefix]bool // addresses whose DAD outcome was read since their install
 }
 
 func (w *v6Worker) clock() clock.Clock { return w.c.clock }
@@ -70,8 +79,16 @@ func (c *DHCPClient) runV6() {
 		owner:    "iface-dhcp-v6 " + c.ifaceName + " unit " + c.unit,
 		solMaxRT: v6SolMaxRT,
 		backoff:  v6SolTimeout,
+		moveDue:  v6Never(),
+		moveLast: v6Never(),
+
+		dadChecked: make(map[netip.Prefix]bool),
 	}
 	defer iface.UnregisterLeasedAddresses(w.owner)
+
+	links, unsubscribe := c.v6Links(c.ifaceName)
+	defer unsubscribe()
+	w.links = links
 
 	if !w.identify() {
 		return
@@ -298,39 +315,54 @@ func (w *v6Worker) takeLease(reply *dhcpv6.Message, at time.Time) bool {
 // maintain keeps the lease until every binding has expired, or Stop.
 func (w *v6Worker) maintain() {
 	logger := loggerPtr.Load()
-	// The bound: each pass waits for a timer or an exchange; the lease ends
-	// when its bindings expire.
+	// A link event queued while acquiring describes the link the fresh lease
+	// was obtained on, so it is no move.
+	w.drainLinks()
+	// The bound: each pass waits for a timer, a link move or an exchange; the
+	// lease ends when its bindings expire.
 	for {
 		w.expireDue()
+		if !w.checkDAD() {
+			return
+		}
 		if w.lease.empty() {
 			w.lease = nil
+			w.moveDue = v6Never()
 			w.c.setV6Resolvers(nil)
 			return
 		}
 		t1, t2 := w.lease.renewTimes()
-		next := t1.earlier(w.lease.nextExpiry())
-		if next.never {
-			// RFC 9915 Section 7.7: an infinite T1 is never renewed, and an
-			// infinite lease never expires: wait for Stop.
-			<-w.ctx.Done()
+		next := t1.earlier(w.lease.nextExpiry()).earlier(w.moveDue)
+		wake := w.waitLease(next)
+		switch wake {
+		case v6WakeStop:
 			return
-		}
-		if !w.waitUntil(w.ctx, next.at) {
-			return
+		case v6WakeMoved:
+			w.noteMove()
+			continue
+		case v6WakeTimer:
+		case v6WakeUnspecified:
+			panic("BUG: waitLease answered no wake reason")
 		}
 		now := w.clock().Now()
+		if w.moveOwed(now) {
+			if w.rebindAfterMove(now) == v6EndCanceled {
+				return
+			}
+			continue
+		}
 		if t1.never {
-			continue // a binding expired first
+			continue // a binding expired first, or a DAD poll was due
 		}
 		if now.Before(t1.at) {
-			continue // a binding expired first
+			continue // a binding expired first, or a DAD poll was due
 		}
 
 		// RFC 9915 Section 18.2.4: "At time T1, the client initiates a
 		// Renew/Reply message exchange to extend the lifetimes on any leases
 		// in the IA."
 		if t2.never || now.Before(t2.at) {
-			end := w.extend(dhcpv6.MessageTypeRenew, t2.earlier(w.lease.lastExpiry()))
+			end := w.extend(dhcpv6.MessageTypeRenew, v6Retransmission{irt: v6RenTimeout, mrt: v6RenMaxRT}, t2.earlier(w.lease.lastExpiry()))
 			if end == v6EndCanceled {
 				return
 			}
@@ -345,7 +377,7 @@ func (w *v6Worker) maintain() {
 		// the server to which the Renew message was sent starting at time T1
 		// has not responded), the client initiates a Rebind/Reply message
 		// exchange with any available server."
-		end := w.extend(dhcpv6.MessageTypeRebind, w.lease.lastExpiry())
+		end := w.extend(dhcpv6.MessageTypeRebind, v6Retransmission{irt: v6RebTimeout, mrt: v6RebMaxRT}, w.lease.lastExpiry())
 		if end != v6EndExhausted {
 			if end == v6EndCanceled {
 				return
@@ -358,26 +390,29 @@ func (w *v6Worker) maintain() {
 	}
 }
 
-// extend runs a Renew or Rebind whose MRD ends at until, and applies its
-// answer.
+// extend runs a Renew or Rebind with params, its MRD cut at until, and
+// applies its answer.
 //
 // RFC 9915 Section 18.2.4: Renew uses IRT REN_TIMEOUT, MRT REN_MAX_RT, MRC 0
 // and MRD the "Remaining time until earliest T2"; RFC 9915 Section 18.2.5:
 // Rebind uses IRT REB_TIMEOUT, MRT REB_MAX_RT, MRC 0 and MRD the "Remaining
-// time until valid lifetimes of all leases in all IAs have expired".
-func (w *v6Worker) extend(kind dhcpv6.MessageType, until v6Instant) v6End {
+// time until valid lifetimes of all leases in all IAs have expired". A
+// link-change Rebind passes the Confirm parameters (rebindAfterMove).
+func (w *v6Worker) extend(kind dhcpv6.MessageType, params v6Retransmission, until v6Instant) v6End {
 	now := w.clock().Now()
-	params := v6Retransmission{irt: v6RenTimeout, mrt: v6RenMaxRT}
 	name := "Renew"
 	if kind == dhcpv6.MessageTypeRebind {
-		params = v6Retransmission{irt: v6RebTimeout, mrt: v6RebMaxRT}
 		name = "Rebind"
 	}
 	if !until.never {
-		params.mrd = until.at.Sub(now)
-		if params.mrd <= 0 {
+		remaining := until.at.Sub(now)
+		if remaining <= 0 {
 			return v6EndExhausted
 		}
+		if params.mrd == 0 {
+			params.mrd = remaining
+		}
+		params.mrd = min(params.mrd, remaining)
 	}
 	msg, err := w.buildFromLease(kind, w.lease, now)
 	if err != nil {
@@ -462,6 +497,7 @@ func (w *v6Worker) effect(applied v6Applied, topic string) {
 					"iface", w.c.ifaceName, "addr", b.prefix.String(), "err", err)
 				continue
 			}
+			w.queueDAD(b.prefix)
 		}
 		w.c.publishDHCP(topic, w.payload(b, int(b.valid/time.Second)))
 	}
@@ -508,6 +544,7 @@ func (w *v6Worker) registerLeased() error {
 // valid lifetimes of all leases across all IAs have expired"; each lease that
 // expires is reported, an IA_PD prefix included.
 func (w *v6Worker) drop(b v6Binding) {
+	delete(w.dadChecked, b.prefix)
 	if b.kind == v6KindAddress {
 		if err := iface.RemoveAddress(w.c.ifaceName, b.prefix.String()); err != nil {
 			loggerPtr.Load().Debug("iface dhcp v6: address removal failed",
@@ -579,16 +616,24 @@ func (w *v6Worker) shutdown() {
 		link:   link,
 		msg:    msg,
 		params: v6Retransmission{irt: v6RelTimeout, mrc: v6RelMaxRC},
-		accept: w.releaseMatcher(),
+		accept: w.completionMatcher(),
 	})
 	if out.end != v6EndAnswered {
 		loggerPtr.Load().Debug("iface dhcp v6: Release unanswered", "iface", w.c.ifaceName)
 	}
 }
 
-// releaseMatcher accepts any identified Reply: a Release Reply's status does
-// not change what the client does.
-func (w *v6Worker) releaseMatcher() func(*dhcpv6.Message) bool {
+// completionMatcher accepts any identified Reply: the status of a Release or
+// Decline Reply does not change what the client does.
+//
+// RFC 9915 Section 18.2.10.2: "When the client receives a valid Reply message
+// in response to a Release message, the client considers the Release event
+// completed, regardless of the Status Code option (see Section 21.13)
+// returned by the server." "When the client receives a valid Reply message in
+// response to a Decline message, the client considers the Decline event
+// completed, regardless of the Status Code option(s) returned by the server."
+// Neither exchange retransmits once such a Reply arrives.
+func (w *v6Worker) completionMatcher() func(*dhcpv6.Message) bool {
 	return func(m *dhcpv6.Message) bool {
 		if m.MessageType != dhcpv6.MessageTypeReply {
 			return false

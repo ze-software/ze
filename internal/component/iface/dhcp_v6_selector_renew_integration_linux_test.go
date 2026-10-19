@@ -153,6 +153,14 @@ func TestDHCPv6RenewsOnSelectorBoundInterface(t *testing.T) {
 // peer namespace, and a socket stays in the namespace it was created in.
 func v6sbSetupLab(t *testing.T) (string, *v6sbServer) {
 	t.Helper()
+	device, _, _, server := v6sbSetupLabNS(t)
+	return device, server
+}
+
+// v6sbSetupLabNS is v6sbSetupLab, also answering the peer end's name and the
+// namespace it lives in, for a test that configures the peer.
+func v6sbSetupLabNS(t *testing.T) (string, string, netns.NsHandle, *v6sbServer) {
+	t.Helper()
 	if iface.GetBackend() == nil {
 		if err := iface.LoadBackend("netlink"); err != nil {
 			t.Fatalf("load iface backend: %v", err)
@@ -190,7 +198,7 @@ func v6sbSetupLab(t *testing.T) (string, *v6sbServer) {
 	// The client's messages leave from the device's link-local address, which
 	// the kernel does not use while DAD holds it tentative.
 	v6sbAwaitLinkLocal(t, link)
-	return device, server
+	return device, peer, peerNS, server
 }
 
 // v6sbMovePeer moves the peer end into a new namespace, brings it up, and gives

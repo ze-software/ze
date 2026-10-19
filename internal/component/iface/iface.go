@@ -193,6 +193,12 @@ type AddrInfo struct {
 	// address only when the interface has no other link-local).
 	// Always false for IPv4. Omitted from JSON when false.
 	Tentative bool `json:"tentative,omitempty"`
+	// DADFailed is true when Duplicate Address Detection found the IPv6
+	// address in use by another node on the link (kernel IFA_F_DADFAILED).
+	// The DHCPv6 client declines such a lease (RFC 9915 Section 18.2.10.1).
+	// A backend that runs no DAD leaves it false. Always false for IPv4.
+	// Omitted from JSON when false.
+	DADFailed bool `json:"dad-failed,omitempty"`
 	// Origin classifies how the kernel assigned the address, so status/CLI can
 	// distinguish a stateless-autoconfigured (SLAAC/RA) address from a static
 	// one (spec followup-subsystem AC-6). One of:

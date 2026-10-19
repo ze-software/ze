@@ -102,6 +102,9 @@ type v6Rig struct {
 	logs    *logCapture
 	client  *DHCPClient
 	stopped bool
+	// links delivers link events to the worker. It is unbuffered, so a send
+	// returns once the worker has taken the event.
+	links chan iface.LinkEvent
 }
 
 func newV6Rig(t *testing.T, cfg dHCPConfig) *v6Rig {
@@ -134,7 +137,9 @@ func newV6Rig(t *testing.T, cfg dHCPConfig) *v6Rig {
 	if err != nil {
 		t.Fatalf("newDHCPClient: %v", err)
 	}
-	r := &v6Rig{t: t, clk: clk, start: start, backend: backend, bus: bus, logs: logs, client: client}
+	r := &v6Rig{t: t, clk: clk, start: start, backend: backend, bus: bus, logs: logs, client: client,
+		links: make(chan iface.LinkEvent)}
+	client.v6Links = func(string) (<-chan iface.LinkEvent, func()) { return r.links, func() {} }
 	r.srv = &v6Server{rig: r}
 	backend.now = func() time.Duration { return r.offset(clk.Now()) }
 	client.v6Dial = func(device string) (v6Link, net.HardwareAddr, error) {

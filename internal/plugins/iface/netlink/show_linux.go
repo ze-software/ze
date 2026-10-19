@@ -218,6 +218,10 @@ func parseLinkSpeedDuplex(speedRaw, duplexRaw string) (int, string) {
 // completing Duplicate Address Detection and is not yet a usable source.
 const ifaFlagTentative = 0x40
 
+// ifaFlagDADFailed is the kernel IFA_F_DADFAILED address flag: Duplicate Address
+// Detection found the IPv6 address in use by another node on the link.
+const ifaFlagDADFailed = 0x08
+
 func addrList(link netlink.Link) []iface.AddrInfo {
 	addrs, err := netlink.AddrList(link, netlink.FAMILY_ALL)
 	if err != nil {
@@ -238,6 +242,8 @@ func addrList(link netlink.Link) []iface.AddrInfo {
 			Family:       fam,
 			// Surface IFA_F_TENTATIVE so OSPFv3 can prefer a DAD-complete link-local source.
 			Tentative: a.Flags&ifaFlagTentative != 0,
+			// Surface IFA_F_DADFAILED so the DHCPv6 client can decline a duplicate.
+			DADFailed: a.Flags&ifaFlagDADFailed != 0,
 			// Classify SLAAC/RA vs static from the kernel IFA_F_* flags, and
 			// surface the RA/lease lifetimes (AC-6).
 			Origin:            addrOrigin(isV6, a.Flags),

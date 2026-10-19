@@ -64,6 +64,11 @@ type DHCPClient struct {
 	// v6Random is the DHCPv6 retransmission random source, uniform in [0, 1).
 	// A test pins it before Start.
 	v6Random func() float64
+	// v6Links subscribes to the link events of the logical name, which tell
+	// the v6 worker that the client may have moved to a new link. The
+	// production source is iface.Subscribe; a test replaces it before Start.
+	// The caller MUST call the returned cancel.
+	v6Links func(name string) (<-chan iface.LinkEvent, func())
 
 	// v4Owner names this client in the leased-address registry
 	// (iface.RegisterLeasedAddresses). One client serves one unit.
@@ -104,6 +109,7 @@ func newDHCPClient(ifaceName, unit string, eventBus ze.EventBus, v4, v6 bool, cf
 		v4Exchange: nclient4Exchanger{clock: clk},
 		v6Dial:     dialV6Link,
 		v6Random:   rand.Float64,
+		v6Links:    iface.Subscribe,
 	}, nil
 }
 

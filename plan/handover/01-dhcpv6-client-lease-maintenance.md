@@ -208,3 +208,35 @@ Findings for the next agent (read before starting):
 - Owner decisions the summary records as not offered (disclosed in Support
   remaining, not gated): Confirm, Information-request, Reconfigure, Auth,
   DUID-LL default (Q4), fixed rate limit (Q6).
+
+## Status of the Remaining list, 2026-10-19 (v6gap agent)
+
+| Item | Status |
+|------|--------|
+| 1 RFC 9915 enrolment | DONE: `e96a8131d2` (summary, extraction, 70 records), `aad1449529` (test files renamed `rfc9915_*`) |
+| 2 duid pattern | DONE (`75cbddde58`) |
+| 3 selector-bound veth test | DONE: `7d9e1819aa` |
+| 4 Kea interop | DONE: `8bd003c1ce`, scenario `dhcpv6-client-renew-kea`; A-9 confirmed in the spec |
+| 5 A-7 stop using omitted DNS | DONE: already implemented by `75cbddde58` |
+| 6 discrimination for unit tests | DONE for every tagged test (enrolment records + this agent's 13) |
+| 7 gates | OWED: `./le go lint run`, `./le test unit all`, `./le test functional gating` (not run: owner said scoped only) |
+| 8 A-1 | still `unvalidated` |
+
+## The two RFC 9915 MUST gaps (owner ruling 2026-10-18), v6gap agent
+
+Spec AC-26..AC-29 added. Code: `internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go`
+(new: `checkDAD`, `v6DADOf`, `decline`, `buildDecline`, `waitLease`,
+`linkMoved`, `noteMove`, `rebindAfterMove`), `dhcp_v6_linux.go` (`maintain`
+waits through `waitLease`; `extend` takes its retransmission parameters;
+`releaseMatcher` renamed `completionMatcher`), `dhcp_linux.go`
+(`DHCPClient.v6Links`, default `iface.Subscribe`), `iface.AddrInfo.DADFailed`
+set from IFA_F_DADFAILED in `internal/plugins/iface/netlink/show_linux.go`.
+Finding: the kernel DELETES a finite-lifetime address whose DAD failed
+(`addrconf_dad_stop`, no DADFAILED flag in the RTM_DELADDR); only an infinite
+one keeps `dadfailed`. So an installed address gone while the link is up
+counts as a duplicate. Proven on a real kernel in QEMU by
+`internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go`
+(peer holds the leased address nodad; the Decline arrives from fe80::).
+Not done: a kernel-level test of the link-move Rebind (unit tests inject
+`iface.LinkEvent`s; the monitor-to-resolver-to-Subscribe chain is not driven
+in a test).

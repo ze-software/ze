@@ -274,6 +274,10 @@ Timing ACs run on the injected clock with a scripted transport; wire ACs decode 
 | AC-23 | Request unanswered | REQ_TIMEOUT and REQ_MAX_RT, at most 10 transmissions, then a new Solicit exchange |
 | AC-25 | `dhcpv6 { pd { length 56 } }` configured (D-13) | Every Solicit, Request, Renew and Rebind carries an IA_PD with its own IAID, distinct from the IA_NA IAID, and an IA Prefix hint of prefix-length 56 with `::`; `pd {}` with no `length` sends an IA_PD with no hint; no `pd` sends no IA_PD |
 | AC-24 | `Stop` during any wait (Solicit, Bound, Renew, Rebind) | Worker exits promptly on the stop signal, leased addresses removed |
+| AC-26 | Owner ruling 2026-10-18 ("We want to pass all the MUST checks of the RFC"), RFC9915-18.2.10.1-1, 18.2.8-1..6, 18.2.10.2: the kernel marks a leased address IFA_F_DADFAILED | The address is removed from the device and from the lease first, then a DECLINE (type 9) goes to ff02::1:2 with Server ID, Client ID, Elapsed Time and one IA_NA holding only the declined address (lifetimes 0), no IA_PD, IRT DEC_TIMEOUT and MRC DEC_MAX_RC; any identified Reply ends the exchange whatever its status; the other bindings are kept; later messages never carry the declined address |
+| AC-27 | Same ruling: the address finishes DAD (tentative clears) | No Decline; DAD is judged once per address per Reply that first installs it, and again after a link move |
+| AC-28 | Same ruling, RFC9915-18.2.12-2: the bound device reports down then up while the lease holds a valid delegated prefix | A REBIND carrying the IA_NA and IA_PD leases goes out with Confirm parameters (first delay in [0, CNF_MAX_DELAY], IRT CNF_TIMEOUT, MRT CNF_MAX_RT, MRD CNF_MAX_RD); an up with no preceding down, or a lease without a delegated prefix, sends nothing |
+| AC-29 | Same ruling, RFC9915-18.2.12-4: two down/up moves 5 s apart | The second link-change Rebind starts no earlier than 30 s after the first |
 
 ## End-to-End User Stories
 

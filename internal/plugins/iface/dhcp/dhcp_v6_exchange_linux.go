@@ -37,6 +37,12 @@ const (
 	v6RebMaxRT    = 600 * time.Second
 	v6RelTimeout  = 1 * time.Second
 	v6RelMaxRC    = 4
+	v6DecTimeout  = 1 * time.Second
+	v6DecMaxRC    = 4
+	v6CnfMaxDelay = 1 * time.Second
+	v6CnfTimeout  = 1 * time.Second
+	v6CnfMaxRT    = 4 * time.Second
+	v6CnfMaxRD    = 10 * time.Second
 )
 
 const (

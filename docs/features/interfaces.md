@@ -379,6 +379,19 @@ Section 11.1), and a commit refuses any other form. Ze changed from a fresh
 time-stamped DUID per Solicit to this stable one, so a server hands out one new
 binding once after the upgrade. On stop the client removes its addresses, then sends
 a Release and waits at most 3 s for the answer.
+
+The kernel runs duplicate address detection on every leased address the client
+installs. The client reads the outcome while the address is tentative: when the
+kernel marks the address `dadfailed`, or deletes it (what it does to an address of
+finite lifetime whose DAD failed) while the link is up, the client removes it from
+the lease, logs a Warn naming the address, and sends a Decline for it to the server
+that leased it. The other bindings are kept, and when nothing is left the client
+solicits again. When the bound device goes down and comes back up, the client may
+have moved to a new link: with a delegated prefix held it sends a Rebind for every
+lease, on the Confirm timers (RFC 9915 Section 18.2.12), at most once every 30 s,
+and it runs DAD on its addresses again. A lease of addresses alone sends nothing on a
+move, because Ze does not send Confirm.
+<!-- source: internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go -- v6Worker.checkDAD, v6Worker.decline, v6Worker.noteMove, v6Worker.rebindAfterMove -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_linux.go -- runV6, v6Worker.maintain, v6Worker.extend, v6Worker.shutdown, v6Worker.identify -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf duid pattern -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go -- v6Worker.runExchange, v6Worker.admitTransmission, v6AdvertiseCollector, v6Worker.emptyIAPD -->

@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -51,6 +53,12 @@ type loopBackend struct {
 	// routeFailures fails that many AddRoute calls before one succeeds.
 	routeFailures int
 	replaceErr    error
+	// addrsAt answers the device's addresses at a fake-clock offset; nil
+	// reports every installed address as DAD-complete.
+	addrsAt func(at time.Duration) []iface.AddrInfo
+	// installed is the addresses ReplaceAddressWithLifetime put on the device
+	// and RemoveAddress has not taken off.
+	installed []string
 }
 
 // loopOp is one backend effect and the fake-clock instant it happened at.
@@ -72,7 +80,21 @@ func (b *loopBackend) GetInterface(name string) (*iface.InterfaceInfo, error) {
 	if name != b.logical {
 		return nil, fmt.Errorf("loop backend: no interface %q", name)
 	}
-	return &iface.InterfaceInfo{Name: name, OsName: loopKernelDevice, Index: 7}, nil
+	b.mu.Lock()
+	addrsAt := b.addrsAt
+	b.mu.Unlock()
+	info := &iface.InterfaceInfo{Name: name, OsName: loopKernelDevice, Index: 7}
+	if addrsAt != nil {
+		info.Addresses = addrsAt(b.now())
+		return info, nil
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for _, cidr := range b.installed {
+		p := netip.MustParsePrefix(cidr)
+		info.Addresses = append(info.Addresses, iface.AddrInfo{Address: p.Addr().String(), PrefixLength: p.Bits(), Family: "ipv6"})
+	}
+	return info, nil
 }
 
 func (b *loopBackend) record(op string) {
@@ -89,11 +111,19 @@ func (b *loopBackend) ReplaceAddressWithLifetime(dev, cidr string, valid, prefer
 		return err
 	}
 	b.record(fmt.Sprintf("replace %s %s %d %d", dev, cidr, valid, preferred))
+	b.mu.Lock()
+	if !slices.Contains(b.installed, cidr) {
+		b.installed = append(b.installed, cidr)
+	}
+	b.mu.Unlock()
 	return nil
 }
 
 func (b *loopBackend) RemoveAddress(dev, cidr string) error {
 	b.record("remove-addr " + dev + " " + cidr)
+	b.mu.Lock()
+	b.installed = slices.DeleteFunc(b.installed, func(c string) bool { return c == cidr })
+	b.mu.Unlock()
 	return nil
 }
 
