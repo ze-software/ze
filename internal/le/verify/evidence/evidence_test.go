@@ -3,19 +3,27 @@
 package verifyevidence
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/interoplab/grantcheck"
 )
 
 // recorder is a Runner whose two outside effects are captured rather than made:
-// what git was asked, and what docker was started with.
+// what git was asked, and what docker was started with. It is the fixture
+// Docker client's process boundary, so the argv it records is the one
+// interoplab.Docker.RunOneShot renders.
 type recorder struct {
 	asked   [][]string
 	started [][]string
+	// bounds holds each docker command's timeout, index for index with started.
+	bounds  []time.Duration
 	missing string
 	status  string
 	fail    error
@@ -26,6 +34,21 @@ type recorder struct {
 	// the checks made.
 	kernelErr    error
 	kernelChecks int
+}
+
+// Run answers one docker command: the container exits rec.code after writing
+// rec.stderr, and a command whose context has ended is killed the way the
+// system runner kills it.
+func (rec *recorder) Run(ctx context.Context, command interoplab.ProcessCommand) (interoplab.ProcessResult, error) {
+	rec.started = append(rec.started, command.Arguments)
+	rec.bounds = append(rec.bounds, command.Timeout)
+	if err := ctx.Err(); err != nil {
+		return interoplab.ProcessResult{ExitCode: 124}, err
+	}
+	if command.Stderr != nil {
+		io.WriteString(command.Stderr, rec.stderr) //nolint:errcheck // the fixture's stderr is a test buffer
+	}
+	return interoplab.ProcessResult{ExitCode: rec.code}, nil
 }
 
 // checkout is the tree every case in this file judges. Its value never
@@ -47,10 +70,8 @@ func (rec *recorder) runner() *Runner {
 			rec.asked = append(rec.asked, args)
 			return rec.status, rec.fail
 		},
-		Start: func(args ...string) (int, string) {
-			rec.started = append(rec.started, args)
-			return rec.code, rec.stderr
-		},
+		Docker:   interoplab.NewFixtureDocker(rec),
+		Progress: io.Discard,
 		Kernel: func() error {
 			rec.kernelChecks++
 			return rec.kernelErr
@@ -66,7 +87,7 @@ func (rec *recorder) runner() *Runner {
 // a feature Ze enrolls (owner D-4: every Docker run that runs Ze).
 func TestRunChecksTheDockerKernelBeforeTheContainer(t *testing.T) {
 	rec := &recorder{}
-	if _, err := rec.runner().Run(); err != nil {
+	if _, err := rec.runner().Run(t.Context()); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 	if rec.kernelChecks != 1 || len(rec.started) != 1 {
@@ -74,7 +95,7 @@ func TestRunChecksTheDockerKernelBeforeTheContainer(t *testing.T) {
 	}
 
 	refused := &recorder{kernelErr: errors.New("the Docker daemon's kernel lacks CONFIG_XFRM_MIGRATE")}
-	_, err := refused.runner().Run()
+	_, err := refused.runner().Run(t.Context())
 	if err == nil || !strings.Contains(err.Error(), "CONFIG_XFRM_MIGRATE") {
 		t.Errorf("err = %v, want the kernel refusal", err)
 	}
@@ -90,7 +111,7 @@ func TestRunChecksTheDockerKernelBeforeTheContainer(t *testing.T) {
 func TestACleanTreeStartsOneContainer(t *testing.T) {
 	rec := &recorder{}
 
-	report, err := rec.runner().Run()
+	report, err := rec.runner().Run(t.Context())
 	if err != nil {
 		t.Fatalf("a clean tree answered an error: %v", err)
 	}
@@ -104,7 +125,7 @@ func TestACleanTreeStartsOneContainer(t *testing.T) {
 	argv := rec.started[0]
 	line := strings.Join(argv, " ")
 	for _, want := range []string{
-		"run --rm", "--platform linux/amd64",
+		"run --rm", "--label ze.lab=1", "--platform linux/amd64",
 		"-v " + checkout + ":/host:ro", "golang:1.27", "bash -lc",
 	} {
 		if !strings.Contains(line, want) {
@@ -143,7 +164,7 @@ func TestACleanTreeStartsOneContainer(t *testing.T) {
 func TestADirtyTreeStartsNothing(t *testing.T) {
 	rec := &recorder{status: " M internal/a.go\n?? tmp/b.txt\n"}
 
-	report, err := rec.runner().Run()
+	report, err := rec.runner().Run(t.Context())
 	if !errors.Is(err, ErrDirtyTree) {
 		t.Fatalf("a dirty tree answered %v, want ErrDirtyTree", err)
 	}
@@ -178,7 +199,7 @@ func TestAMissingCommandStopsTheRun(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			rec := &recorder{missing: name}
 
-			_, err := rec.runner().Run()
+			_, err := rec.runner().Run(t.Context())
 			if err == nil {
 				t.Fatal("a missing command answered no error")
 			}
@@ -199,7 +220,7 @@ func TestTheContainerExitStatusIsTheAnswer(t *testing.T) {
 	for _, code := range []int{0, 1, 2, 3, 125} {
 		rec := &recorder{code: code}
 
-		report, err := rec.runner().Run()
+		report, err := rec.runner().Run(t.Context())
 		if err != nil {
 			t.Fatalf("the run answered an error: %v", err)
 		}
@@ -218,7 +239,7 @@ func TestTheContainerExitStatusIsTheAnswer(t *testing.T) {
 func TestGitFailingToAnswerIsNotACleanTree(t *testing.T) {
 	rec := &recorder{fail: errors.New("not a git repository")}
 
-	if _, err := rec.runner().Run(); err == nil {
+	if _, err := rec.runner().Run(t.Context()); err == nil {
 		t.Fatal("git failing to answer was read as a clean tree")
 	}
 	if len(rec.started) != 0 {
@@ -249,7 +270,7 @@ func TestTheContainerScriptClonesAndVerifies(t *testing.T) {
 func TestTheReportIsStructuredData(t *testing.T) {
 	rec := &recorder{status: " M a.go\n", code: 1}
 
-	report, _ := rec.runner().Run()
+	report, _ := rec.runner().Run(t.Context())
 
 	raw, err := json.Marshal(report)
 	if err != nil {
@@ -281,7 +302,7 @@ func TestAHostWithoutAContainerDeviceNamesTheModule(t *testing.T) {
 	rec := &recorder{code: 125, stderr: "docker: Error response from daemon: error gathering device " +
 		"information while adding custom device \"/dev/ppp\": no such file or directory.\n" +
 		"Run 'docker run --help' for more information\n"}
-	report, err := rec.runner().Run()
+	report, err := rec.runner().Run(t.Context())
 	if err == nil {
 		t.Fatal("a host without /dev/ppp answered no error")
 	}
@@ -296,7 +317,50 @@ func TestAHostWithoutAContainerDeviceNamesTheModule(t *testing.T) {
 	}
 
 	rec = &recorder{code: 125, stderr: "docker: Error response from daemon: pull access denied\n"}
-	if _, err := rec.runner().Run(); err != nil {
+	if _, err := rec.runner().Run(t.Context()); err != nil {
 		t.Errorf("an unrelated docker failure answered an error: %v", err)
+	}
+}
+
+// VALIDATES: the release-candidate container runs under the four-hour bound
+// (owner D-1), far past any gate run, so only a wedged daemon reaches it.
+// PREVENTS: the run going unbounded again, or a bound short enough to kill a
+// normal 25 to 53 minute gate.
+func TestTheContainerRunsUnderTheFourHourBound(t *testing.T) {
+	rec := &recorder{}
+	if _, err := rec.runner().Run(t.Context()); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if len(rec.bounds) != 1 || rec.bounds[0] != 4*time.Hour {
+		t.Errorf("container bounds = %v, want one of 4h", rec.bounds)
+	}
+}
+
+// VALIDATES: a run whose root context ends is an error, not a verdict, and the
+// container is removed by name while the three cache volumes stay.
+// PREVENTS: a Ctrl-C leaving the privileged build container running inside
+// the daemon, or being reported as a failed gate.
+func TestAnInterruptedRunRemovesTheContainerAndKeepsTheCaches(t *testing.T) {
+	rec := &recorder{}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	report, err := rec.runner().Run(ctx)
+	if err == nil {
+		t.Fatal("an interrupted run answered no error")
+	}
+	if report.Passed || report.Code != 0 {
+		t.Errorf("report = %+v, an interrupted run is no verdict", report)
+	}
+	if len(rec.started) != 2 {
+		t.Fatalf("commands = %v, want the run and its removal", rec.started)
+	}
+	removal := strings.Join(rec.started[1], " ")
+	if !strings.Contains(removal, "rm") || !strings.Contains(removal, "ze-oneshot-fixture") {
+		t.Errorf("second command = %q, want the container removed by name", removal)
+	}
+	for _, argv := range rec.started {
+		if strings.Contains(strings.Join(argv, " "), "volume") {
+			t.Errorf("a command touched a volume: %v", argv)
+		}
 	}
 }

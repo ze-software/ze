@@ -626,7 +626,17 @@ never loads a kernel module, so a Docker host without one of those nodes makes
 Docker refuse the start; the run then answers an error naming the node and the
 host command that creates it (`sudo modprobe ppp_generic` for `/dev/ppp`)
 rather than a bare exit code.
-<!-- source: internal/le/verify/evidence/evidence.go -- Runner.Run, Runner.dockerArgs, deviceRefusal, dockerKernel, kernelZeRel -->
+
+The container is a `Docker.RunOneShot`, so it carries the owner labels and a
+name, and runs under a four-hour bound (owner D-1, 2026-10-19): the gate takes
+25 to 53 minutes, so the bound never ends a normal run and only stops a wedged
+daemon. SIGINT and SIGTERM cancel the action's root context; the wrapper then
+removes the container by name, and the run answers the interruption as an
+error, never as a failed gate. The three named cache volumes
+(`ze-gomod-cache`, `ze-gobuild-cache`, `ze-apt-cache`) are mounted, never
+removed: they are what keeps a second run minutes long.
+<!-- source: internal/le/verify/evidence/evidence.go -- Runner.Run, Runner.container, evidenceContainerTimeout, deviceRefusal, dockerKernel, kernelZeRel -->
+<!-- source: internal/le/verify/evidence/actions.go -- signalRooted -->
 <!-- source: internal/test/runner/caps.go -- capsRequired, capDockerName, capsAltersHost, ContainerCapsDockerNames -->
 <!-- source: internal/test/runner/devices.go -- containerDevices, ContainerDevicePaths, DeviceHostModule -->
 

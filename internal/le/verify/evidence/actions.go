@@ -6,6 +6,11 @@
 package verifyevidence
 
 import (
+	"context"
+	"os"
+	"os/signal"
+	"syscall"
+
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
@@ -44,14 +49,25 @@ func runReleaseCandidateHere() (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	return runReleaseCandidate(NewRunner(root))
+	return signalRooted(func(ctx context.Context) (any, int) {
+		return runReleaseCandidate(ctx, NewRunner(root))
+	})
+}
+
+// signalRooted runs the release-candidate gate under a root context that
+// SIGINT or SIGTERM cancels, so RunOneShot removes the container before the
+// process exits rather than leaving it to the default action.
+func signalRooted(run func(context.Context) (any, int)) (any, int) {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return run(ctx)
 }
 
 // runReleaseCandidate answers the run over one runner. A refusal is an error
 // and answers 1 with the report, so the operator sees which paths are dirty; a
 // container that ran answers its own exit status.
-func runReleaseCandidate(runner *Runner) (Report, int) {
-	report, err := runner.Run()
+func runReleaseCandidate(ctx context.Context, runner *Runner) (Report, int) {
+	report, err := runner.Run(ctx)
 	if err != nil {
 		if len(report.Dirty) == 0 {
 			leaction.ReportError(err)

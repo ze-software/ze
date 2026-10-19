@@ -140,10 +140,10 @@ var ErrDirtyTree = errors.New("clean release-candidate evidence requires a clean
 // Runner is one release-candidate run, and it holds every effect the run has
 // outside its own process.
 //
-// Look, Ask and Start are parameters rather than calls because the run's whole
-// behavior is which container it starts, and a test that reached the real
-// docker would take an hour and need a network. NewRunner fills them with the
-// production three.
+// Look, Ask, Docker and Kernel are parameters rather than calls because the
+// run's whole behavior is which container it starts, and a test that reached
+// the real docker would take an hour and need a network. NewRunner fills them
+// with the production ones; a test hands Docker interoplab.NewFixtureDocker.
 //
 // Safe for concurrent use: a Runner is built for one run and read by one
 // goroutine.
@@ -159,11 +159,15 @@ type Runner struct {
 	Look func(name string) error
 	// Ask runs one git query about the tree and answers its standard output.
 	Ask func(args ...string) (string, error)
-	// Start runs docker to completion, with the container's output going to
-	// the operator's terminal, and answers its exit status and the last bytes
-	// docker wrote to stderr, which is where Docker's own refusal to start
-	// the container lands.
-	Start func(args ...string) (int, string)
+	// Docker runs the container (Docker.RunOneShot): labeled, named, removed
+	// by name when the run's context ends or its bound passes.
+	Docker *interoplab.Docker
+	// Stdin and Progress are the container's input and where its output goes.
+	// The output is progress, not the answer: production sends it to stderr,
+	// so `le verify evidence release-candidate | json` still answers one JSON
+	// document on stdout.
+	Stdin    io.Reader
+	Progress io.Writer
 	// Kernel refuses a Docker daemon whose kernel lacks a feature Ze enrolls.
 	Kernel func() error
 }
@@ -177,7 +181,9 @@ func NewRunner(tree string) *Runner {
 		Platform: setting(platformEntry.Key, DefaultPlatform),
 		Look:     lookPath,
 		Ask:      askGit(tree),
-		Start:    startDocker,
+		Docker:   interoplab.NewDocker(),
+		Stdin:    os.Stdin,
+		Progress: os.Stderr,
 		Kernel:   dockerKernel(tree),
 	}
 }
@@ -226,7 +232,10 @@ func setting(key, fallback string) string {
 // can be. A container that ran
 // and failed is NOT an error. It is the verdict this command exists to deliver,
 // and it travels in the report's own code.
-func (r *Runner) Run() (Report, error) {
+//
+// ctx is the run's root: when it ends, RunOneShot removes the container and
+// Run answers the interruption as an error, never as a verdict.
+func (r *Runner) Run(ctx context.Context) (Report, error) {
 	report := Report{Image: r.Image, Platform: r.Platform, Tree: r.Tree}
 
 	for _, name := range requiredCommands {
@@ -253,17 +262,30 @@ func (r *Runner) Run() (Report, error) {
 		return report, err
 	}
 
-	args, err := r.dockerArgs()
+	container, err := r.container()
 	if err != nil {
 		return report, err
 	}
-	code, stderrTail := r.Start(args...)
-	report.Code = code
-	report.Passed = report.Code == 0
-	if report.Passed {
+	stderrTail := tail.New(stderrTailOctets)
+	container.Stderr = io.MultiWriter(r.Progress, stderrTail)
+	result, err := r.Docker.RunOneShot(ctx, container)
+	// An ended root or the bound stopped the run: the container was removed
+	// (or its removal failure is joined in), and no gate verdict exists.
+	if errors.Is(err, context.Canceled) {
+		return report, err
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return report, err
+	}
+	if result.ExitCode == 0 {
+		if err != nil {
+			return report, err
+		}
+		report.Passed = true
 		return report, nil
 	}
-	if refusal := deviceRefusal(code, stderrTail); refusal != nil {
+	report.Code = result.ExitCode
+	if refusal := deviceRefusal(result.ExitCode, stderrTail.String()); refusal != nil {
 		return report, refusal
 	}
 	return report, nil
@@ -271,7 +293,7 @@ func (r *Runner) Run() (Report, error) {
 
 // deviceRefusal answers the operator's fix when Docker refused to start the
 // container because the Docker host lacks a device node the container is
-// given (dockerArgs, runner.ContainerDevicePaths), and nil for any other
+// given (Runner.container, runner.ContainerDevicePaths), and nil for any other
 // failure. Docker answers that case only with "error gathering device
 // information" and the path; the gate never ran, so an exit code alone would
 // read as a failed gate and name nothing to do.
@@ -301,9 +323,15 @@ func deviceRefusal(code int, stderrTail string) error {
 	return nil
 }
 
-// dockerArgs answers the invocation, in the order the shell script wrote it.
-// The order is preserved because it is what a reader compares against the
-// script for as long as both exist.
+// evidenceContainerTimeout bounds the release-candidate container (owner D-1,
+// 2026-10-19). The gate takes 25 to 53 minutes on this hardware and the
+// container adds a toolchain install, so four hours never ends a normal run:
+// it only stops a wedged daemon, which RunOneShot then removes by name.
+const evidenceContainerTimeout = 4 * time.Hour
+
+// container answers the one-shot the gate runs in. RunOneShot adds `run --rm`,
+// the name and the owner labels; the grants and mounts keep the order the
+// shell script wrote them in.
 //
 // The container never runs --privileged (spec-lab-containers-least-privilege,
 // site 6). The gate inside it runs every test in the tree. A test that needs
@@ -317,37 +345,43 @@ func deviceRefusal(code int, stderrTail string) error {
 // storage-ntp-restart.ci skips here through its own caps gate. Docker's
 // default capability set already holds NET_BIND_SERVICE, so its --cap-add is
 // redundant and harmless; it is kept because it comes from the table.
-func (r *Runner) dockerArgs() ([]string, error) {
+func (r *Runner) container() (interoplab.OneShotContainer, error) {
 	capabilities, err := runner.ContainerCapsDockerNames()
 	if err != nil {
-		return nil, err
+		return interoplab.OneShotContainer{}, err
 	}
 	devices := runner.ContainerDevicePaths()
 
 	var tb textbuf.Buffer
 	mount := tb.Str(r.Tree).Str(":/host:ro").String()
 
-	args := make([]string, 0, 2+2*len(capabilities)+2*len(devices)+12)
-	args = append(args, "run", "--rm")
+	args := make([]string, 0, 2*len(capabilities)+2*len(devices)+10)
 	for _, capability := range capabilities {
 		args = append(args, "--cap-add", capability)
 	}
 	for _, device := range devices {
 		args = append(args, "--device", device)
 	}
-	return append(args,
+	args = append(args,
 		"--platform", r.Platform,
 		"-v", mount,
 		// The three named volumes are caches. They survive between runs, which
 		// is what keeps a second release-candidate run minutes rather than the
 		// better part of an hour, and none can carry the developer's source:
-		// each is a toolchain or package cache the container fills.
+		// each is a toolchain or package cache the container fills. Removing
+		// the container never touches them.
 		"-v", "ze-gomod-cache:/go/pkg/mod",
 		"-v", "ze-gobuild-cache:/root/.cache/go-build",
 		"-v", "ze-apt-cache:/var/cache/apt",
-		r.Image,
-		"bash", "-lc", ContainerScript,
-	), nil
+	)
+	return interoplab.OneShotContainer{
+		Image:     r.Image,
+		Arguments: args,
+		Command:   []string{"bash", "-lc", ContainerScript},
+		Timeout:   evidenceContainerTimeout,
+		Stdin:     r.Stdin,
+		Stdout:    r.Progress,
+	}, nil
 }
 
 // statusLines answers one entry per line git wrote, with the trailing newline
@@ -388,39 +422,7 @@ func askGit(tree string) func(args ...string) (string, error) {
 	}
 }
 
-// startDocker answers the production Start: it runs the container with the
-// operator's terminal attached, so the gate's output arrives while it runs
-// rather than in one block at the end.
-//
-// The run is unbounded in time, deliberately. The gate it starts takes between
-// 25 and 53 minutes on this hardware, the container adds a toolchain install to
-// that, and a bound short enough to catch a hang would kill a normal run.
-func startDocker(args ...string) (int, string) {
-	// Background rather than a deadline: the gate this starts takes between 25
-	// and 53 minutes on this hardware, the container adds a toolchain install
-	// to that, and a bound short enough to catch a hang would kill a normal
-	// run. The operator's own interrupt is the stop path.
-	cmd := exec.CommandContext(context.Background(), "docker", args...) //nolint:gosec // the argv is built by dockerArgs, never by an operator
-	cmd.Stdin = os.Stdin
-	// The container's own output is progress, not the answer. It goes to
-	// stderr so that `le verify evidence release-candidate-check | json` still
-	// answers one JSON document on stdout.
-	cmd.Stdout = os.Stderr
-	stderrTail := tail.New(stderrTailOctets)
-	cmd.Stderr = io.MultiWriter(os.Stderr, stderrTail)
-
-	if err := cmd.Run(); err != nil {
-		if exit, ok := errors.AsType[*exec.ExitError](err); ok {
-			return exit.ExitCode(), stderrTail.String()
-		}
-		var tb textbuf.Buffer
-		tb.Str("error: docker run: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI output
-		return 1, stderrTail.String()
-	}
-	return 0, stderrTail.String()
-}
-
-// stderrTailOctets bounds what startDocker keeps of docker's stderr. Docker's
+// stderrTailOctets bounds what Run keeps of docker's stderr. Docker's
 // refusal to start a container is one line written just before it exits, so
 // the last few kilobytes always hold it, and a 50-minute gate's output is
 // never held whole.
