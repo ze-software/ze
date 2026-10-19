@@ -58,7 +58,7 @@ func runStart(t *testing.T, tester *fakeTester, h host, spec Spec) netip.AddrPor
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		address = start(tester, h, spec)
+		address = start(tester, h, spec).Address
 	}()
 	<-done
 	for _, cleanup := range slices.Backward(tester.cleanups) {
@@ -71,17 +71,24 @@ func runStart(t *testing.T, tester *fakeTester, h host, spec Spec) netip.AddrPor
 type scriptedRunner struct {
 	commands [][]string
 	fail     map[string]bool
+	// exits answers a verb with its exit code, before fail is read.
+	exits map[string]int
 }
 
 func (r *scriptedRunner) Run(_ context.Context, command interoplab.ProcessCommand) (interoplab.ProcessResult, error) {
 	r.commands = append(r.commands, command.Arguments)
 	verb := command.Arguments[1]
+	if code, ok := r.exits[verb]; ok {
+		return interoplab.ProcessResult{Stderr: verb + " exited by the fixture", ExitCode: code}, nil
+	}
 	if r.fail[verb] {
 		return interoplab.ProcessResult{Stderr: verb + " refused by the fixture", ExitCode: 1}, nil
 	}
 	switch verb {
 	case "port":
 		return interoplab.ProcessResult{Stdout: "127.0.0.1:49153\n[::1]:49153\n"}, nil
+	case "build":
+		return interoplab.ProcessResult{Stdout: "sha256:fixture\n"}, nil
 	case "logs":
 		return interoplab.ProcessResult{Stdout: "stayrtr: fetched cache\n"}, nil
 	}
@@ -109,7 +116,8 @@ func fixtureHost(runner *scriptedRunner, docker bool, environment map[string]str
 			value, ok := environment[name]
 			return value, ok
 		},
-		suffix: func() string { return "fixture" },
+		moduleRoot: func() (string, error) { return "/module", nil },
+		suffix:     func() string { return "fixture" },
 	}
 }
 
@@ -305,6 +313,7 @@ func TestLabtestRefusesAnUnusableSpec(t *testing.T) {
 		"port 0":         func(s *Spec) { s.Port.Number = 0 },
 		"no transport":   func(s *Spec) { s.Port.Transport = interoplab.TransportUnspecified },
 		"no ready":       func(s *Spec) { s.Ready = nil },
+		"two ready":      func(s *Spec) { s.ReadyInContainer = []string{"true"} },
 		"ready timeout":  func(s *Spec) { s.ReadyTimeout = 0 },
 		"no name":        func(s *Spec) { s.Name = "" },
 		"name uppercase": func(s *Spec) { s.Name = "StayRTR" },
@@ -317,5 +326,168 @@ func TestLabtestRefusesAnUnusableSpec(t *testing.T) {
 				t.Fatal("validate accepted the spec")
 			}
 		})
+	}
+}
+
+// runClient drives run on its own goroutine, as runStart drives start.
+func runClient(t *testing.T, tester *fakeTester, h host, client Client) interoplab.CommandResult {
+	t.Helper()
+	var result interoplab.CommandResult
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		result = run(tester, h, client)
+	}()
+	<-done
+	return result
+}
+
+func fixtureClient() Client {
+	return Client{
+		Name: "gnmic", Image: "ghcr.io/openconfig/gnmic:fixture", Command: []string{"capabilities"},
+		HostNetwork: true, Mounts: []interoplab.Mount{{Source: "/host/certs", Target: "/certs", ReadOnly: true}},
+		Timeout: time.Second,
+	}
+}
+
+// VALIDATES: a client's own non-zero exit is answered to the test, not
+// failed, with the host network and the mount on the one run it made.
+// PREVENTS: a test asserting a refused request failing before it can read the
+// refusal, or a client that cannot reach the in-process server.
+func TestLabtestClientAnswersItsOwnExit(t *testing.T) {
+	runner := &scriptedRunner{exits: map[string]int{"run": 1}}
+	tester := &fakeTester{ctx: t.Context()}
+	result := runClient(t, tester, fixtureHost(runner, true, nil), fixtureClient())
+	if tester.failed {
+		t.Fatalf("a client exit 1 failed the test: %q", tester.fatal)
+	}
+	if result.ExitCode != 1 {
+		t.Errorf("ExitCode = %d, want the client's 1", result.ExitCode)
+	}
+	if !slices.Equal(runner.verbs(), []string{"info", "pull", "run"}) {
+		t.Fatalf("docker verbs = %v, want info, pull, run", runner.verbs())
+	}
+	argv := strings.Join(runner.commands[2], " ")
+	if !strings.Contains(argv, "--network host") {
+		t.Errorf("run argv %q carries no --network host", argv)
+	}
+	if !strings.Contains(argv, "-v /host/certs:/certs:ro") {
+		t.Errorf("run argv %q carries no read-only mount", argv)
+	}
+}
+
+// VALIDATES: an exit code docker keeps for itself fails the test, and so does
+// a client that names no timeout, before any docker command runs.
+// PREVENTS: a refused mount or a missing image read as the client refusing.
+func TestLabtestClientFailsWhenDockerFails(t *testing.T) {
+	runner := &scriptedRunner{exits: map[string]int{"run": 125}}
+	tester := &fakeTester{ctx: t.Context()}
+	runClient(t, tester, fixtureHost(runner, true, nil), fixtureClient())
+	if !strings.Contains(tester.fatal, "docker run exited 125") {
+		t.Errorf("fatal = %q, want it to name docker's exit 125", tester.fatal)
+	}
+
+	unbounded := fixtureClient()
+	unbounded.Timeout = 0
+	refused := &scriptedRunner{}
+	tester = &fakeTester{ctx: t.Context()}
+	runClient(t, tester, fixtureHost(refused, true, nil), unbounded)
+	if !strings.Contains(tester.fatal, "no positive timeout") {
+		t.Errorf("fatal = %q, want it to name the missing timeout", tester.fatal)
+	}
+	if len(refused.commands) != 0 {
+		t.Errorf("a refused client ran docker verbs %v", refused.verbs())
+	}
+}
+
+// VALIDATES: a Spec.Dockerfile image is built from the module root, with the
+// Dockerfile's directory as its context, never pulled, and the tag the run
+// owns is released after the container is removed.
+// PREVENTS: a test of a locally built peer failing on `docker pull` of a tag
+// no registry holds, or a run-owned image tag outliving the test.
+func TestLabtestBuildsADockerfileImage(t *testing.T) {
+	runner := &scriptedRunner{}
+	tester := &fakeTester{ctx: t.Context()}
+	spec := fixtureSpec()
+	spec.Image = "ze-collectors:test"
+	spec.Dockerfile = "test/interop-collectors/Dockerfile"
+	runStart(t, tester, fixtureHost(runner, true, nil), spec)
+	if tester.fatal != "" {
+		t.Fatalf("start failed: %s", tester.fatal)
+	}
+	if want := []string{"info", "build", "run", "port", "rm", "image"}; !slices.Equal(runner.verbs(), want) {
+		t.Fatalf("docker verbs = %v, want exactly %v", runner.verbs(), want)
+	}
+	build := strings.Join(runner.commands[1], " ")
+	if !strings.Contains(build, "-f /module/test/interop-collectors/Dockerfile /module/test/interop-collectors") {
+		t.Errorf("build argv %q does not build the Dockerfile from the module root in its own directory", build)
+	}
+	if !strings.Contains(build, "-t ze-collectors:test") {
+		t.Errorf("build argv %q does not tag the spec's image", build)
+	}
+}
+
+// VALIDATES: a failed build fails the test, naming the image and the
+// Dockerfile, and starts no container.
+// PREVENTS: a run that reports a missing container when the build was what
+// failed.
+func TestLabtestFailsWhenTheBuildFails(t *testing.T) {
+	runner := &scriptedRunner{fail: map[string]bool{"build": true}}
+	tester := &fakeTester{ctx: t.Context()}
+	spec := fixtureSpec()
+	spec.Image = "ze-collectors:test"
+	spec.Dockerfile = "test/interop-collectors/Dockerfile"
+	runStart(t, tester, fixtureHost(runner, true, nil), spec)
+	if !strings.Contains(tester.fatal, "cannot build ze-collectors:test from test/interop-collectors/Dockerfile") {
+		t.Fatalf("failure %q does not name the image and its Dockerfile", tester.fatal)
+	}
+	if want := []string{"info", "build"}; !slices.Equal(runner.verbs(), want) {
+		t.Fatalf("docker verbs = %v, want exactly %v", runner.verbs(), want)
+	}
+}
+
+// VALIDATES: ReadyInContainer runs its command in the started container,
+// ready on exit 0 and never ready on a non-zero exit; the answered Container
+// runs commands in the same container.
+// PREVENTS: a UDP server judged ready by a host probe the published port
+// answers before the server binds, or an Exec that reaches another container.
+func TestLabtestReadyInContainer(t *testing.T) {
+	spec := fixtureSpec()
+	spec.Ready = nil
+	spec.ReadyInContainer = []string{"sh", "-c", "grep -q bound /proc/net/udp"}
+
+	runner := &scriptedRunner{}
+	tester := &fakeTester{ctx: t.Context()}
+	var container Container
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		container = start(tester, fixtureHost(runner, true, nil), spec)
+		if _, err := container.Exec(t.Context(), "cat", "/srv/collector.out"); err != nil {
+			tester.Errorf("exec: %v", err)
+		}
+	}()
+	<-done
+	if tester.fatal != "" {
+		t.Fatalf("start failed: %s", tester.fatal)
+	}
+	if want := []string{"info", "pull", "run", "port", "exec", "exec"}; !slices.Equal(runner.verbs(), want) {
+		t.Fatalf("docker verbs = %v, want exactly %v", runner.verbs(), want)
+	}
+	for _, index := range []int{4, 5} {
+		if exec := strings.Join(runner.commands[index], " "); !strings.Contains(exec, "ze-labtest-stayrtr-fixture") {
+			t.Errorf("exec argv %q does not run in the started container", exec)
+		}
+	}
+	if probe := strings.Join(runner.commands[4], " "); !strings.HasSuffix(probe, "sh -c grep -q bound /proc/net/udp") {
+		t.Errorf("ready argv %q is not the spec's command", probe)
+	}
+
+	failing := &scriptedRunner{fail: map[string]bool{"exec": true}}
+	refused := &fakeTester{ctx: t.Context()}
+	spec.ReadyTimeout = 50 * time.Millisecond
+	runStart(t, refused, fixtureHost(failing, true, nil), spec)
+	if !strings.Contains(refused.fatal, "exec refused by the fixture") {
+		t.Fatalf("failure %q does not name the in-container probe's error", refused.fatal)
 	}
 }

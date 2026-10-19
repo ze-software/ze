@@ -474,3 +474,63 @@ tacacs, interoplab, interoplab/labtest, plugins/ntp (ntp `ok` 50.1s).
 Owed gates: scoped lint of `internal/plugins/ntp`, `internal/le/interoplab`,
 `internal/le/interoplab/labtest` and rpki with the docker and live tags
 (`go vet -tags docker` / `"docker live"` passed); `./le test unit all`.
+
+## Phase 5, S-3 (gNMI), 2026-10-19
+
+Client: `ghcr.io/openconfig/gnmic:0.42.1@sha256:3e135878f555772653a278742d2c7460b47c20e2907e07f611ecf4cc5a2261cf`
+(gnmic 0.42.1, commit 6b35566f, Apache-2.0). Ze is the server, so the peer is
+a client container: `labtest.Run` (new, `labtest.go`: `Client`, `run`) runs
+gnmic to its exit through `Docker.RunOneShot` on the host network, with the
+test's CA bind-mounted read-only, and answers its stdout, stderr and exit
+code. `35ebe6a7a9` gave `OneShotContainer` typed `Network` and `Mounts` and
+exported `OneShotDidNotExit` (was `probeFailed`); red walk for it: the
+`--network` rendering removed reddens `TestRunOneShotRendersNetworkAndMounts`.
+
+Test: `TestGnmicInterop` in `internal/component/gnmi/gnmic_docker_test.go`
+(tag `docker`, no RFC tag). Ze's real server (`NewServer` + `Serve`, as the
+package's own tests start it) listens on `127.0.0.1:0` with TLS (CA and
+127.0.0.1 server certificate generated in the test, gnmic verifies with
+`--tls-ca`) and a bearer token; Set goes through a real
+`api.ConfigSessionManager` over the package's recording editor. gnmic prints
+`--format protojson`, which the test decodes into the gNMI messages:
+
+| Subtest | Asserts |
+|---------|---------|
+| capabilities | encodings exactly [JSON_IETF], gNMI version 0.10.0, model set equal to `yangloader.DefaultLoader` (13 modules) |
+| get | one notification, path [bgp router-id], string value 192.0.2.1 |
+| get of an absent path | gnmic stderr `code = NotFound desc = path not found: /bgp/no-such-leaf` |
+| subscribe once | exactly two responses: the update with that value, then sync_response true |
+| set | one result, op UPDATE, path [bgp router-id]; the commit holds the new value |
+| no token / wrong token | gnmic fails with `code = Unauthenticated desc = missing authorization` / `invalid token` |
+
+Green: all seven, 233s on a loaded host (each container start ~30s while S-4
+ran beside it; 49s unloaded).
+
+Red walk (scripted, each mutation marked `// MUTATION-APPLIED`, marker count
+1 verified, `-count=1`, restored from a saved copy and `cmp`-checked, no
+marker left in `internal/component/gnmi`):
+
+| Mutation | Red subtest | Failure |
+|----------|-------------|---------|
+| `capabilities.go` encodings add JSON | capabilities | `supported encodings = [JSON_IETF JSON], want [JSON_IETF]` |
+| `capabilities.go` `loadModels` keeps only the first module | capabilities | `gnmic decoded 1 models, the loader holds 13` |
+| `get.go` `treeToTypedValue` leaf value suffixed | get, subscribe once | `update value = "192.0.2.1-mutated"` in both (shared producer) |
+| `get.go` absent path answered InvalidArgument | get of an absent path | stderr does not name the NotFound status |
+| `subscribe.go` final sync_response false | subscribe once | `second response sync_response:false is not sync_response true` |
+| `set.go` update result op REPLACE | set | `Set result op = REPLACE, want UPDATE` |
+| `server.go` `checkAuth` missing authorization returns nil | no token | `gnmic succeeded, want the refusal` |
+| `server.go` token compare never mismatches | wrong token | `gnmic succeeded, want the refusal` |
+| `server.go` `Serve` installs no TLS credentials | capabilities | `gnmic exited 1, want 0` (handshake) |
+
+One equivalent mutation, recorded: blanking `ModelData.Organization` stayed
+green, because no module the gnmi test binary loads declares an organization
+(10 of 242 Ze YANG files do, none of the 13 loaded here); the model-set
+assertion still compares organization when a module carries one.
+
+Defect found, not fixed (does not block S-3): `Server.Get` never reads
+`GetRequest.encoding`, so an unadvertised encoding is answered instead of
+refused `Unimplemented` (gNMI specification Section 3.3.1). Journal row in
+`plan/journal/silent-fall-through.md`.
+
+Shared files with S-4: `labtest.go`, `labtest_test.go` and the labtest
+section of `docs/architecture/testing/interop.md` carry both sessions' hunks.
