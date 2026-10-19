@@ -319,7 +319,9 @@ store trim (see "When the disk is full") removes a directory only when those sam
 rules call it dead AND its mtime is more than a day old. Inside a directory it
 keeps, the trim removes a `testbin-pid-<pid>-<label>/` that is more than six hours
 old and whose run is over: the pid is not running, or the process now running
-under that pid started after the directory was made. A `testbin-<suffix>/`
+under that pid started after the directory was made. A process that has exited
+and is not yet reaped (a zombie) is not running, here and in every rule that
+reads the process table (`internal/le/procscan`). A `testbin-<suffix>/`
 (an explicit `ze.suffix`) leaves only with its session; a suffix starting with
 `pid-` is refused, because it would name a throwaway set. When the process table
 shows no Claude CLI, as inside a QEMU guest or a container, the trim cannot tell a

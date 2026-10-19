@@ -49,7 +49,8 @@ type Process struct {
 }
 
 // Scan answers every running process: /proc where it exists, else
-// one `ps` call. It is the only process scanner the session-liveness rules use.
+// one `ps` call. An exited process whose pid is not yet reaped (a zombie) is
+// not running and is left out. It is the only process scanner the session-liveness rules use.
 func Scan() ([]Process, error) {
 	entries, err := os.ReadDir(procRoot)
 	if err != nil {
@@ -61,29 +62,44 @@ func Scan() ([]Process, error) {
 		if err != nil {
 			continue
 		}
-		fact, ok := procFact(pid)
-		if ok {
+		fact, state := procFact(pid)
+		if state == procRunning {
 			processes = append(processes, fact)
 		}
 	}
 	return processes, nil
 }
 
-func procFact(pid int) (Process, bool) {
+// procState is what one /proc/<pid>/stat read answers.
+type procState uint8
+
+const (
+	// procUnreadable: the stat file did not read or did not parse. It is the
+	// zero value, so a forgotten assignment reads as "unknown", never as an answer.
+	procUnreadable procState = iota
+	// procRunning: the pid holds a process that has not exited.
+	procRunning
+	// procExited: the process has exited and only its unreaped pid entry is
+	// left, a zombie (Z) or dead (X). It owns nothing any more, so every
+	// liveness judgement reads it as absent: an orphan sweep that kept a
+	// killed `go test` child's lab resources until its parent reaped it would
+	// leave them for the next sweep.
+	procExited
+)
+
+func procFact(pid int) (Process, procState) {
 	base := filepath.Join(procRoot, strconv.Itoa(pid))
 	stat, err := os.ReadFile(filepath.Join(base, "stat")) //nolint:gosec // a numeric pid directory under /proc
 	if err != nil {
-		return Process{}, false
+		return Process{}, procUnreadable
 	}
-	_, remainder, found := bytes.CutLast(stat, []byte{')'})
-	if !found {
-		return Process{}, false
+	start, exited, ok := parseProcStat(stat)
+	if !ok {
+		return Process{}, procUnreadable
 	}
-	fields := bytes.Fields(remainder)
-	if len(fields) <= 19 {
-		return Process{}, false
+	if exited {
+		return Process{}, procExited
 	}
-	start := string(fields[19])
 	cmdline, _ := os.ReadFile(filepath.Join(base, "cmdline")) //nolint:gosec // a numeric pid directory under /proc
 	parts := bytes.Split(cmdline, []byte{0})
 	argv := make([]string, 0, len(parts))
@@ -108,7 +124,33 @@ func procFact(pid int) (Process, bool) {
 	if cli {
 		startedAt = StartTime(pid)
 	}
-	return Process{PID: pid, Start: start, StartedAt: startedAt, Argv: argv, CLI: cli}, true
+	return Process{PID: pid, Start: start, StartedAt: startedAt, Argv: argv, CLI: cli}, procRunning
+}
+
+// parseProcStat reads the state and the start token out of one
+// /proc/<pid>/stat line. The comm field is parenthesized and may itself hold
+// spaces and parentheses, so the fields are counted from the last ')'. exited
+// is true for a zombie (Z) or a dead (X, or x before Linux 3.13) process.
+func parseProcStat(stat []byte) (start string, exited, ok bool) {
+	_, remainder, found := bytes.CutLast(stat, []byte{')'})
+	if !found {
+		return "", false, false
+	}
+	fields := bytes.Fields(remainder)
+	if len(fields) <= 19 {
+		return "", false, false
+	}
+	return string(fields[19]), exitedState(string(fields[0])), true
+}
+
+// exitedState answers whether a process state, as /proc or `ps -o state=`
+// prints it, is a process that has exited but whose pid is not yet reaped.
+// ps may append flags (`Z+`), so only the first letter decides.
+func exitedState(state string) bool {
+	if strings.HasPrefix(state, "Z") {
+		return true
+	}
+	return strings.HasPrefix(state, "X") || strings.HasPrefix(state, "x")
 }
 
 // StartTime measures one process's wall-clock start from its `ps`
@@ -178,27 +220,37 @@ func elapsedSeconds(value string) (int64, bool) {
 func scanProcessesWithPS() ([]Process, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), processQueryTimeout)
 	defer cancel()
-	output, err := exec.CommandContext(ctx, "ps", "-eo", "pid=,lstart=,etime=,comm=,args=").Output()
+	output, err := exec.CommandContext(ctx, "ps", "-eo", "pid=,state=,lstart=,etime=,comm=,args=").Output()
 	if err != nil {
 		return nil, err
 	}
+	return parsePS(string(output)), nil
+}
+
+// parsePS reads the output of `ps -eo pid=,state=,lstart=,etime=,comm=,args=`.
+// lstart prints five words, so etime is the eighth field and comm the ninth.
+// A zombie or dead line is left out, as procExited is on the /proc path.
+func parsePS(output string) []Process {
 	var processes []Process
-	for line := range strings.SplitSeq(string(output), "\n") {
+	for line := range strings.SplitSeq(output, "\n") {
 		fields := strings.Fields(line)
-		if len(fields) < 8 {
+		if len(fields) < 9 {
 			continue
 		}
 		pid, pidErr := strconv.Atoi(fields[0])
-		age, ageOK := elapsedSeconds(fields[6])
+		age, ageOK := elapsedSeconds(fields[7])
 		if pidErr != nil {
 			continue
 		}
 		if !ageOK {
 			continue
 		}
-		start := processPathToken(strings.Join(fields[1:6], " "))
-		argv := fields[8:]
-		cli := filepath.Base(fields[7]) == claudeProcess
+		if exitedState(fields[1]) {
+			continue
+		}
+		start := processPathToken(strings.Join(fields[2:7], " "))
+		argv := fields[9:]
+		cli := filepath.Base(fields[8]) == claudeProcess
 		if !cli {
 			for _, argument := range argv {
 				for component := range strings.SplitSeq(argument, "/") {
@@ -213,7 +265,7 @@ func scanProcessesWithPS() ([]Process, error) {
 			Argv: argv, CLI: cli,
 		})
 	}
-	return processes, nil
+	return processes
 }
 
 func processPathToken(value string) string {
@@ -241,7 +293,8 @@ func processPathToken(value string) string {
 }
 
 // Lookup answers one pid. found is false only when the host answered and no
-// process holds that pid. An error means the host could not be asked, and a
+// running process holds that pid: a pid held by an exited, unreaped process
+// (a zombie) is absent too, because that process owns nothing any more. An error means the host could not be asked, and a
 // caller MUST read it as "unknown", never as "absent": the lab cleanup removes
 // a resource whose owner is absent, so a failed question read as absence would
 // remove a live run's containers.
@@ -256,8 +309,13 @@ func Lookup(pid int) (Process, bool, error) {
 		}
 		return Process{}, false, err
 	}
-	fact, ok := procFact(pid)
-	if !ok {
+	fact, state := procFact(pid)
+	switch state {
+	case procRunning:
+		return fact, true, nil
+	case procExited:
+		return Process{}, false, nil
+	case procUnreadable:
 		// The directory exists but its stat did not read: the process may
 		// have exited between the two calls, or /proc refuses this reader.
 		// Only a second look that finds the directory gone is an absence.
@@ -268,7 +326,7 @@ func Lookup(pid int) (Process, bool, error) {
 		return Process{}, false, errors.New(problem.Str("the start token of pid ").Int(int64(pid)).
 			Str(" is unreadable under ").Str(procRoot).String())
 	}
-	return fact, true, nil
+	panic("BUG: procscan: a procState with no case in Lookup")
 }
 
 func lookupWithPS(pid int) (Process, bool, error) {

@@ -406,7 +406,10 @@ under another uid (a `/proc` mounted `hidepid=2`) sees a live owner's pid as
 absent. Then one of three paths proves it: the same boot with the pid absent;
 the same boot with the pid held by a process with another start token; or
 another boot id with the owner started before this machine booted (`btime` in
-`/proc/stat`, `kern.boottime` on macOS). An owner under another boot id that
+`/proc/stat`, `kern.boottime` on macOS). A pid held by a process that has
+exited and is not yet reaped (a zombie, `Z` or `X` in `/proc/<pid>/stat` or in
+`ps -o state=`) is absent: the `go test` child a docker-peers Ctrl-C kills is
+one until `le` reaps it, and it owns nothing. An owner under another boot id that
 started after this boot is a cloned machine sharing the machine id, which may
 still be running, so it is kept. It removes containers, then networks, each by
 the id the labeled listing gave, then the run-owned `ze-interop-retained:` tag
@@ -421,6 +424,7 @@ cleanup there), in another pid namespace (run it there) or under another uid
 network another run's container is still attached to. An unlabeled resource, a volume and the shared cache tag
 that `NO_BUILD=1` reuses are never candidates.
 <!-- source: internal/le/interoplab/orphans.go -- Docker.CleanupOrphans, ownerJudge.judge, Docker.removeResource -->
+<!-- source: internal/le/procscan/procscan.go -- Lookup, parseProcStat, exitedState -->
 
 A removal call that fails, or that outlasts the 30 s client bound while the
 daemon completes it, is not reported failed on its own say. The wrapper

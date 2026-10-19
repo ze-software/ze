@@ -743,3 +743,6 @@ Unrelated reds seen in scoped runs, not caused here: `interoplab/bgp`
 
 Gates owed (not run here): `./le go lint run` over `internal/le/interoplab` and
 `internal/test/perfrunner`; `./le test unit all`.
+
+Zombie owners (commit "procscan: an exited, unreaped process is absent"): `procscan.Scan`/`Lookup` now read a `Z`/`X` pid as absent on /proc and ps (`state=` column); red then green on `TestAnUnreapedChildIsAbsent` (real unreaped `true` child), `TestParseProcStatReadsTheExitedStates`, `TestParsePSLeavesOutExitedProcesses`; callers session, scratch, interoplab unchanged and green.
+Gates owed for it: scoped `./le go lint run` over `internal/le/procscan` (linux and darwin flavors), `./le test unit all`.
