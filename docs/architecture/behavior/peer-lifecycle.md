@@ -13,7 +13,16 @@ drops?", "where does backoff come from?", "where does the FSM state
 callback fire?", or "where are inbound connection collisions resolved?",
 this is the page.
 
+A peer outlives its sessions, so the `Peer` also carries the two counters
+that fence its forwarded routes across them. `forwardGeneration` advances
+when a new session reaches Established and when the peer is stopped. `forwardRevocation` advances when a
+reload unbinds processes from a session that stays up (`unbindProcesses`),
+because that targeted down moves no generation. An Adj-RIB-Out path is still
+owned by its source only while both counters match the values it recorded.
+
 <!-- source: internal/component/bgp/reactor/peer.go — Peer, NewPeer, Start, Stop -->
+<!-- source: internal/component/bgp/reactor/peer_derived_bindings.go — unbindProcesses -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go — adjOutOwnerCurrent -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — run, safeRunOnce, runOnce -->
 <!-- source: internal/component/bgp/reactor/peer_connection.go — Accept/Pending/Inbound connection helpers -->
 
@@ -579,7 +588,7 @@ asserting `p.mu` is free at that boundary.
 
 | Concern | File | Symbol |
 |---------|------|--------|
-| Peer struct, constructor, state enum | `internal/component/bgp/reactor/peer.go` | `Peer`, `NewPeer`, `PeerState`, `setState` |
+| Peer struct, constructor, state enum, forwarding fences | `internal/component/bgp/reactor/peer.go` | `Peer`, `NewPeer`, `PeerState`, `setState`, `forwardGeneration`, `forwardRevocation` |
 | Start / Stop / Teardown API | `internal/component/bgp/reactor/peer.go` | `Start`, `StartWithContext`, `Stop`, `Teardown` |
 | Reconnect defaults and overrides | `internal/component/bgp/reactor/peer.go` | `DefaultReconnectMin`, `DefaultReconnectMax`, `setReconnectDelay` |
 | Outer run loop and backoff | `internal/component/bgp/reactor/peer_run.go` | `run`, `safeRunOnce` |

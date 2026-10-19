@@ -167,8 +167,10 @@ runbook).
 <!-- source: internal/component/bgp/reactor/session_write.go — startSendHoldTimer, stopSendHoldTimer, flushWrites -->
 
 A successful writer call is not necessarily a sent message. Export-policy
-suppression, duplicate or ownership filtering, PATHS-LIMIT withholding, and
-stale forward batches can return without emitting a frame. Those attempts,
+suppression, duplicate or ownership filtering, PATHS-LIMIT withholding, stale
+forward batches, and a recovery key whose ownership record went stale (the key
+stays owed and is re-decided on its own record) can return without emitting a
+frame. Those attempts,
 including an empty flush, leave the SendHold deadline unchanged. A successful
 flush credits newly written messages even when the buffer already wrote them
 directly to the transport. KEEPALIVE and ROUTE-REFRESH messages, including BoRR

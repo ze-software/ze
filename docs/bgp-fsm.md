@@ -152,7 +152,10 @@ Each peer has a run-loop goroutine and creates a new Session and FSM per
 connection cycle. Session publication checks the stopping flag under the peer
 lock; socket publication separately rejects a sealed Session. The FSM callback
 notifies the reactor on ESTABLISHED transitions (triggering initial route sends)
-and on session close (triggering peer-down events to plugins).
+and on session close (triggering peer-down events to plugins). A session loss
+alone advances nothing on the `Peer`: the next session moves its forward
+generation when it reaches Established, and so does stopping the peer; a reload that unbinds processes from a live
+session moves the separate revocation epoch instead.
 <!-- source: internal/component/bgp/reactor/peer.go -- Peer, StartWithContext -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- run, runOnce, SetCallback closure -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyPeerEstablished, notifyPeerClosed -->
