@@ -87,8 +87,8 @@ consumers and `./le repo feature-tags check` refuses drift.
 ## What the gate enforces
 
 `./le arch tier check` enforces engine placement, the non-engine manifest, core
-import direction, disable-ability, build-tag drift, plugin import ownership, and
-test-only helper imports.
+import direction, disable-ability, build-tag drift, plugin import ownership,
+test-only helper imports, and the docker route.
 Grandfathered core import pairs are non-code data in
 `internal/le/arch/tier/testdata/core_import_baseline.txt`; a new pair and a stale
 row both fail. Plugin ownership has **no baseline**.
@@ -111,6 +111,21 @@ shipped file outside `internal/le` that imports one, naming the file and the
 package. A `_test.go` file anywhere may import it, and so may tooling under
 `internal/le`, which is outside production. The check has no baseline.
 <!-- source: internal/le/arch/tier/testonly.go -- TestOnlyPackages, testOnlyImportGate -->
+
+### The docker route
+
+The `docker-exec-route` check refuses an `exec.Command` or `exec.CommandContext`
+whose program is the docker binary, outside `internal/le/interoplab`, in any
+non-vendor Go file, tests included. The program is caught as a string literal
+(`"docker"` or a path ending in `/docker`), as a string constant of the file's
+own package, or as an imported package's constant such as
+`interoplab.DockerExecutable`. A program reached through a variable or a
+function parameter is not a call-site fact and is not judged. The route is
+`interoplab.Docker`, which labels what it creates so
+`./le test integration cleanup` removes what a killed run left, and bounds
+every command; a package test starts its server with `labtest.Start`. The
+check has no exemption list and no baseline.
+<!-- source: internal/le/arch/tier/dockerexec.go -- DockerRoute, dockerExecScan, dockerExecGate -->
 
 ### Plugin import ownership
 

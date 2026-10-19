@@ -218,6 +218,7 @@ func Selftest() (leroot.SelftestReport, error) {
 	var results []leroot.SelftestResult
 	for _, stage := range []func() ([]leroot.SelftestResult, error){
 		runPlacementCases, runManifestCases, runCoreCases, runOwnershipCases, runTestOnlyCases,
+		runDockerExecCases,
 	} {
 		rows, err := stage()
 		if err != nil {
@@ -729,3 +730,70 @@ func runTestOnlyCases() ([]leroot.SelftestResult, error) {
 	}, nil
 }
 
+// dockerExecRoute is the fixture's wrapper file, which may exec docker.
+const dockerExecRoute = "internal/le/interoplab/docker.go"
+
+// dockerExecViolators are the fixture files that exec docker outside the
+// route: by literal, by a constant of their own package declared in another
+// file, and by the wrapper's exported constant.
+var dockerExecViolators = [...]string{
+	"internal/component/bgp/filterapi/literal_test.go",
+	"internal/component/bgp/filterapi/local.go",
+	"internal/component/bgp/filterapi/wrapper.go",
+}
+
+// dockerExecFixture answers the ownership fixture plus the wrapper, an exec of
+// another program outside it, and, when violate is set, the three violators.
+func dockerExecFixture(violate bool) map[string]string {
+	fixture := ownershipFixture()
+	fixture[dockerExecRoute] = "package interoplab\nimport \"os/exec\"\nconst DockerExecutable = \"docker\"\n" +
+		"func run() { _ = exec.Command(DockerExecutable, \"info\") }\n"
+	fixture["internal/component/bgp/filterapi/ip.go"] = "package filterapi\nimport \"os/exec\"\n" +
+		"func ip() { _ = exec.Command(\"ip\", \"link\") }\n"
+	if !violate {
+		return fixture
+	}
+	fixture["internal/component/bgp/filterapi/names.go"] = "package filterapi\nconst binary = \"docker\"\n"
+	fixture[dockerExecViolators[0]] = "package filterapi\nimport (\n\t\"context\"\n\trun \"os/exec\"\n)\n" +
+		"func literal() { _ = run.CommandContext(context.Background(), \"/usr/bin/docker\", \"ps\") }\n"
+	fixture[dockerExecViolators[1]] = "package filterapi\nimport \"os/exec\"\n" +
+		"func local() { _ = exec.Command(binary, \"ps\") }\n"
+	fixture[dockerExecViolators[2]] = "package filterapi\nimport (\n\t\"os/exec\"\n\t\"" + fixtureModule +
+		"/internal/le/interoplab\"\n)\nfunc wrapper() { _ = exec.Command(interoplab.DockerExecutable, \"ps\") }\n"
+	return fixture
+}
+
+// runDockerExecCases proves the complete check accepts the wrapper's own exec
+// and an exec of another program, and refuses each way of naming docker
+// outside the wrapper.
+func runDockerExecCases() ([]leroot.SelftestResult, error) {
+	clean, err := checkFixture("tier-selftest-docker-clean", dockerExecFixture(false))
+	if err != nil {
+		return nil, err
+	}
+	bad, err := checkFixture("tier-selftest-docker-bad", dockerExecFixture(true))
+	if err != nil {
+		return nil, err
+	}
+	named := bad.Failed == 2
+	for _, file := range dockerExecViolators {
+		named = named && strings.Contains(bad.Diagnosis(), file)
+	}
+	return []leroot.SelftestResult{
+		caseResult("docker-exec-in-wrapper-passes", clean.Failed == 0, clean.Diagnosis()),
+		caseResult("docker-exec-outside-wrapper-refused", named, bad.Diagnosis()),
+	}, nil
+}
+
+// checkFixture writes fixture into a fresh checkout and runs Check over it.
+func checkFixture(name string, fixture map[string]string) (CheckReport, error) {
+	root, err := os.MkdirTemp("", name)
+	if err != nil {
+		return CheckReport{}, err
+	}
+	defer os.RemoveAll(root) //nolint:errcheck // temp fixture
+	if err := writeFixture(root, fixture); err != nil {
+		return CheckReport{}, err
+	}
+	return Check(root)
+}

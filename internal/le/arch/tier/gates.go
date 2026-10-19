@@ -4,7 +4,8 @@
 //
 // The tier gate checks engine placement, non-engine categories, core imports,
 // disableable-feature imports, lint build-tag drift, plugin ownership, and
-// test-only helper imports (testonly.go).
+// test-only helper imports (testonly.go), and the docker route
+// (dockerexec.go).
 //
 // Each check answers its page and code. The run uses the FIRST nonzero code, so
 // callers act on the first failure.
@@ -938,7 +939,7 @@ func Check(tree string) (CheckReport, error) {
 		return CheckReport{}, err
 	}
 	report.Checks = append(report.Checks, pluginOwnershipGate(module, graph),
-		testOnlyImportGate(module, graph.edges))
+		testOnlyImportGate(module, graph.edges), dockerExecGate(&graph.docker))
 	report.Failed = firstFailure(report.Checks)
 	return report, nil
 }

@@ -137,6 +137,8 @@ type sourceGraph struct {
 	edges         Edges
 	registrations map[corePair]bool
 	declared      []string
+	// docker holds the docker exec sites dockerExecGate judges.
+	docker dockerExecScan
 }
 
 // collectSourceEdges retains the actual blank-import edges at composition roots.
@@ -172,6 +174,7 @@ func collectSourceEdges(tree, module string) (sourceGraph, error) {
 		if parseErr != nil {
 			return parseErr
 		}
+		graph.docker.scanFile(files, module, rel, file)
 		if path.Base(rel) == "register.go" {
 			dir := path.Dir(rel)
 			if path.Base(dir) != schemaDirName && path.Base(dir) != "schema" {
