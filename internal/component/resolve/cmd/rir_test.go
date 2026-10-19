@@ -498,3 +498,46 @@ func TestTheConfigFileSourceReachesTheRefreshReader(t *testing.T) {
 		t.Errorf("the config names one source and the reader answers %v", sources)
 	}
 }
+
+// TestTheBootConfigReachesTheRefreshReaderBeforeItIsRecorded proves the
+// refresh reads the configuration the daemon booted from while the boot record
+// has not landed yet. Goal: the daemon serves before its boot configuration is
+// durable in the store (storage.BootRecord), so the file/active mirror does not
+// exist yet, and a reader that opens the mirror refused `update resolve rir`
+// with "no such file" (storage-rir-restart.ci). Method: bind a store to the
+// explicit file, arm a boot record that is never started, and require the
+// source the boot bytes name.
+func TestTheBootConfigReachesTheRefreshReaderBeforeItIsRecorded(t *testing.T) {
+	const mirror = "https://mirror.example.net/delegated-ripencc-extended-latest"
+	dir := t.TempDir()
+	bs, err := storage.Create(dir)
+	if err != nil {
+		t.Fatalf("storage.Create: %v", err)
+	}
+	t.Cleanup(func() {
+		statestore.SetStore(nil)
+		bs.Close() //nolint:errcheck // best-effort cleanup of a temp-dir store
+	})
+	configPath := filepath.Join(dir, "router.conf")
+	bound := storage.BindConfigSource(bs, configPath, storage.ConfigSourceFile)
+	boot := "system {\n\trir {\n\t\tdelegation-source ripencc {\n\t\t\turl \"" + mirror + "\";\n\t\t}\n\t}\n}\n"
+	if _, err := storage.DeferBootRecord(bound, []byte(boot)); err != nil {
+		t.Fatalf("arm the boot record: %v", err)
+	}
+	statestore.SetStore(bound)
+
+	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{ConfigPath: configPath}, nil)
+	if err != nil {
+		t.Fatalf("plugin server: %v", err)
+	}
+	sources, err := configuredDelegationSources(&pluginserver.CommandContext{Server: srv})
+	if err != nil {
+		t.Fatalf("read the boot sources before the record: %v", err)
+	}
+	if sources["ripencc"] != mirror {
+		t.Errorf("ripencc reads from %q, want the booted %q", sources["ripencc"], mirror)
+	}
+	if len(sources) != 1 {
+		t.Errorf("the boot config names one source and the reader answers %v", sources)
+	}
+}

@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -169,9 +170,21 @@ func configuredDelegationSources(cc *pluginserver.CommandContext) (map[string]st
 		return none, nil
 	}
 
-	ed, err := cli.NewEditorWithStorage(statestore.Store(), configPath)
+	// ReadActiveConfig, not the file/active mirror: the daemon records its
+	// boot configuration only after its listeners start, and until that
+	// record lands the mirror does not exist while the read gate answers the
+	// bytes the daemon booted from (storage.BootRecord).
+	store := statestore.Store()
+	if store == nil {
+		return nil, fmt.Errorf("read the config at %s: %w; run ze init", configPath, storage.ErrNoStore)
+	}
+	data, err := storage.ReadActiveConfig(store, configPath)
 	if err != nil {
 		return nil, fmt.Errorf("read the config at %s: %w", configPath, err)
+	}
+	ed, err := cli.NewEditorFromContent(data, configPath)
+	if err != nil {
+		return nil, fmt.Errorf("parse the config at %s: %w", configPath, err)
 	}
 	defer func() { _ = ed.Close() }()
 
