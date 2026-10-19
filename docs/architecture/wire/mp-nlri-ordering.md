@@ -16,38 +16,74 @@ Path attributes (ORIGIN, AS_PATH, NEXT_HOP, COMMUNITIES, etc.) **apply to** NLRI
 Attributes → describe → NLRI
 ```
 
-This was the original argument for placing MP_REACH_NLRI after the attributes
-that describe it. Ze no longer does that: see Generation Strategy.
+That was the original argument for placing MP_REACH_NLRI after the attributes
+that describe it. RFC 7606 Section 5.1 settles the question the other way, and
+Ze follows it: see Generation Strategy.
 
 ## Generation Strategy
 
-When building UPDATE messages, `attribute.OrderAttributes` decides the order:
+Every UPDATE Ze composes puts the MP attributes first. `attribute.OrderAttributes`
+decides the order:
 
-1. **MP_UNREACH_NLRI first** (withdrawals)
-2. **Every other attribute in type-code order**, MP_REACH_NLRI included
+1. **MP_UNREACH_NLRI** (withdrawals), if present
+2. **MP_REACH_NLRI** (announcements), if present
+3. **Every other attribute in ascending type-code order**
+
+RFC 7606 Section 5.1: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if
+present) SHALL be encoded as the very first path attribute in an UPDATE
+message."
 
 ```
-┌─────────────────────────────────────────┐
-│ MP_UNREACH_NLRI (15) - withdrawals      │
-├─────────────────────────────────────────┤
-│ Other attributes, by type code          │
-│   - ORIGIN (1)                          │
-│   - AS_PATH (2)                         │
-│   - NEXT_HOP (3) - for IPv4 only        │
-│   - ... CLUSTER_LIST (10) ...           │
-│   - MP_REACH_NLRI (14) - announcements  │
-│   - EXTENDED_COMMUNITIES (16) ...       │
-└─────────────────────────────────────────┘
++-----------------------------------------+  first path attribute
+| MP_UNREACH_NLRI (15) - withdrawals      |
+| MP_REACH_NLRI (14) - announcements      |
++-----------------------------------------+
+| Other attributes, by type code          |
+|   - ORIGIN (1)                          |
+|   - AS_PATH (2)                         |
+|   - NEXT_HOP (3) - for IPv4 only        |
+|   - ... CLUSTER_LIST (10) ...           |
+|   - EXTENDED_COMMUNITIES (16) ...       |
++-----------------------------------------+
 ```
+
+Every builder that writes a block from scratch reaches this order: the message
+package through `WriteAttributesOrdered`, the reactor announce rails through
+`attrEmitter`, and the splitters by writing each MP chunk ahead of the base
+attributes. A route therefore leaves the daemon as one byte string whichever
+builder produced it.
 
 <!-- source: internal/core/bgp/attribute/origin.go -- OrderAttributes, WriteAttributesOrdered -->
 <!-- source: internal/component/bgp/message/update_build.go -- BuildUnicast writes through WriteAttributesOrdered -->
 <!-- source: internal/core/bgp/attribute/mpnlri.go -- MP_REACH_NLRI, MP_UNREACH_NLRI encoding -->
+<!-- source: internal/component/bgp/message/rfc7606_mp_first_test.go -- TestRFC7606Section51MPAttributeEncodedFirst -->
 
-**Rationale:** Withdrawals logically precede announcements. MP_REACH_NLRI once
-went last, but the three builders that emit the same route disagreed on it, so
-one route left the daemon as two byte strings. It now takes its type-code
-position in every builder, and the comment above `OrderAttributes` records why.
+**Rationale:** RFC 7606 updates RFC 4271, so its SHALL wins for codes 14 and 15
+and RFC 4271's SHOULD orders the rest. MP_UNREACH_NLRI leads MP_REACH_NLRI
+because a withdrawal precedes an announcement, as Withdrawn Routes precede NLRI
+in RFC 4271 Section 4.3. Section 5.1 also forbids the two in one UPDATE, so that
+choice only matters for a block a caller has not yet split.
+
+### Relayed UPDATEs keep the sender's order
+
+A relayed UPDATE is not reordered. The zero-copy forward hands the received
+bytes on as they arrived, and a rebuilt relay keeps every attribute the source
+carries in its source position (`attrEmitter.emitNewMP` only places an MP
+attribute the rebuild ADDS). An UPDATE from a speaker that puts MP_REACH_NLRI
+after ORIGIN therefore leaves Ze with MP_REACH_NLRI after ORIGIN.
+
+This is an owner ruling of 2026-10-19: "do not reorder if the update can be
+passed to the peer as it, it is not a MUST".
+
+RFC 2119 Section 1 does read SHALL as MUST: "This word, or the terms
+"REQUIRED" or "SHALL", mean that the definition is an absolute requirement of
+the specification." The relay case is therefore a disclosed deviation from RFC
+7606 Section 5.1, and it is not counted as conformant. What Ze composes itself
+complies; what Ze relays unchanged does not when its sender did not.
+
+<!-- source: internal/component/bgp/reactor/forward_body.go -- buildFwdBody, the zero-copy relay branch -->
+<!-- source: internal/component/bgp/reactor/forward_build.go -- attrEmitter.emitNewMP, sourced MP attributes keep their position -->
+<!-- source: internal/component/bgp/reactor/relay_payload_test.go -- TestRelayPayloadKeepsSourceAttributeOrder -->
 
 ## RFC Compliance Analysis
 
@@ -193,19 +229,14 @@ it. A withdrawal loses the record of the discard, never the discard.
 <!-- source: test/interop/scenarios/bgp-relay-withdraw-nexthop-self-frr -- FRR accepts the withdrawal with next-hop-self on -->
 <!-- source: test/interop/scenarios/bgp-relay-withdraw-reflector-frr -- FRR accepts the reflected withdrawal -->
 
-**Ze meets requirement 2 and diverges on half of requirement 1:**
+**Ze meets requirement 2, and requirement 1 for every UPDATE it composes:**
 
 - **MP_UNREACH first:** Compliant. Withdrawal is the first attribute, matching
   both RFC 7606's SHALL and RFC 4271's withdrawal-first wire format.
 
-- **MP_REACH at its type-code position:** Non-compliant. RFC 7606 says it
-  SHALL be first, but ze places it after ORIGIN, AS_PATH and every other
-  attribute with a lower type code. Receivers are optimized for MP_REACH first
-  (what RFC 7606 mandates and what other implementations send), so Ze's order
-  can prevent those fast-path optimizations. `rfc/short/rfc7606.md` keeps
-  RFC7606-5.1-1 annotated `{gap}`, and
-  `TestRFC7606Section51MPAttributeEncodedFirst` demonstrates the gap: it
-  asserts the RFC order and fails the day Ze encodes MP_REACH first.
+- **MP_REACH first:** Compliant for every UPDATE Ze composes. A relayed UPDATE
+  keeps its sender's order by owner ruling, a disclosed deviation that is not
+  counted conformant (see "Relayed UPDATEs keep the sender's order").
 
 <!-- source: internal/component/bgp/message/rfc7606_mp_first_test.go -- TestRFC7606Section51MPAttributeEncodedFirst -->
 
@@ -218,7 +249,8 @@ prepared to receive these fields in any position or combination."
 
 For ze's own outbound UPDATEs, the ordering is:
 1. RFC 4271 Section 5: receivers MUST accept attributes in any order
-2. RFC 7606 Section 5.1: MP attributes SHALL be first (ze complies)
+2. RFC 7606 Section 5.1: MP attributes SHALL be first (ze complies for what it
+   composes; a relayed UPDATE keeps its sender's order)
 3. The SHOULD for type-code ordering is overridden by the SHALL in RFC 7606
 
 ## Implementation Notes
