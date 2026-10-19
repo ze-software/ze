@@ -144,7 +144,7 @@ type v6Retransmission struct {
 type v6End uint8
 
 const (
-	v6EndUnspecified v6End = iota
+	v6EndUnspecified v6End = iota //nolint:unused // Zero value reserved as Unspecified; no exchange ends with it.
 	// v6EndAnswered: an answer was accepted.
 	v6EndAnswered
 	// v6EndExhausted: MRC or MRD ended the exchange unanswered.
@@ -301,10 +301,7 @@ func v6Scale(d time.Duration, factor float64) time.Duration {
 // RFC 9915 Section 21.9 defines the field as hundredths of a second, with
 // 0xffff representing any value of 0xffff or more.
 func v6ElapsedTime(elapsed time.Duration) time.Duration {
-	hundredths := elapsed / (10 * time.Millisecond) // rounds toward zero
-	if hundredths > v6ElapsedMax {
-		hundredths = v6ElapsedMax
-	}
+	hundredths := min(elapsed/(10*time.Millisecond), v6ElapsedMax) // the division rounds toward zero
 	return hundredths * 10 * time.Millisecond
 }
 
@@ -410,6 +407,8 @@ func v6Preference(m *dhcpv6.Message) int {
 //
 // RFC 9915 Section 21.24: "A DHCP client MUST ignore any SOL_MAX_RT option
 // values that are less than 60 or more than 86400."
+//
+// The range check below is that rule.
 func v6SolMaxRTOption(m *dhcpv6.Message) (time.Duration, bool) {
 	g, ok := m.Options.GetOne(dhcpv6.OptionSolMaxRT).(*dhcpv6.OptionGeneric)
 	if !ok {
@@ -435,6 +434,8 @@ func v6SolMaxRTOption(m *dhcpv6.Message) (time.Duration, bool) {
 // SOL_MAX_RT option that has a valid value for SOL_MAX_RT, the client MUST set
 // its internal SOL_MAX_RT parameter to the value contained in the SOL_MAX_RT
 // option."
+//
+// Callers pass every identified answer, so a failure Reply counts too.
 func (w *v6Worker) noteSolMaxRT(m *dhcpv6.Message) {
 	if v, ok := v6SolMaxRTOption(m); ok {
 		w.solMaxRT = v
@@ -479,6 +480,8 @@ func (w *v6Worker) replyMatcher() nclient6.Matcher {
 // RFC 9915 Section 18.2.1: "A client MUST collect valid Advertise messages
 // for the first RT seconds, unless it receives a valid Advertise message with
 // a preference value of 255."
+//
+// This type holds that collection window.
 type v6AdvertiseCollector struct {
 	w         *v6Worker
 	best      *dhcpv6.Message
@@ -534,6 +537,8 @@ func (a *v6AdvertiseCollector) accept(m *dhcpv6.Message) bool {
 // RFC 9915 Section 18.2.1: "If the first RT elapses and the client has
 // received a valid Advertise message, the client SHOULD continue with a
 // client-initiated message exchange by sending a Request message."
+//
+// The Advertise it answers is the one the Request goes to.
 func (a *v6AdvertiseCollector) windowClosed() *dhcpv6.Message {
 	a.firstOver = true
 	return a.best
@@ -562,6 +567,8 @@ func (w *v6Worker) newV6Message(kind dhcpv6.MessageType) (*dhcpv6.Message, error
 // RFC 9915 Section 21.24: "A DHCP client MUST include the SOL_MAX_RT option
 // code in any Option Request option (see Section 21.7) it sends in a Solicit
 // message."
+//
+// One option list serves every exchange, so Solicit always carries it.
 func requestOptions() dhcpv6.Option {
 	return dhcpv6.OptRequestedOption(dhcpv6.OptionDNSRecursiveNameServer, dhcpv6.OptionSolMaxRT)
 }
@@ -572,6 +579,8 @@ func requestOptions() dhcpv6.Option {
 // RFC 9915 Section 18.2.1: "The client uses IA_NA options (see Section 21.4)
 // to request the assignment of non-temporary addresses ... and IA_PD options
 // (see Section 21.21) to request prefix delegation."
+//
+// Ze requests no IA_TA.
 func (w *v6Worker) buildSolicit() (*dhcpv6.Message, error) {
 	m, err := w.newV6Message(dhcpv6.MessageTypeSolicit)
 	if err != nil {
@@ -621,6 +630,8 @@ func (w *v6Worker) buildRequest(advertise *dhcpv6.Message) (*dhcpv6.Message, err
 // described in Section 18.2.4, with the following differences: - The client
 // sets the "msg-type" field to REBIND. - The client does not include the
 // Server Identifier option (see Section 21.3) in the Rebind message."
+//
+// Every other kind carries the Server Identifier.
 func (w *v6Worker) buildFromLease(kind dhcpv6.MessageType, lease *v6Lease, now time.Time) (*dhcpv6.Message, error) {
 	m, err := w.newV6Message(kind)
 	if err != nil {
@@ -706,6 +717,8 @@ func v6PrefixOption(b v6Binding) *dhcpv6.OptIAPrefix {
 // RFC 9915 Section 21.22: "A client MAY send a non-zero value in the
 // "prefix-length" field and the unspecified value (::) in the "IPv6-prefix"
 // field to indicate a preference for the size of the prefix to be delegated."
+//
+// Ze sends the hint only when a length is configured.
 func (w *v6Worker) emptyIAPD() *dhcpv6.OptIAPD {
 	if !w.c.config.PDRequested {
 		return nil

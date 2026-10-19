@@ -18,6 +18,8 @@ import (
 //
 // RFC 9915 Section 7.7: "The value 0xffffffff is taken to mean "infinity"
 // when used as a lifetime (as in [RFC4861]) or a value for T1 or T2."
+//
+// Lifetimes and timers both compare against this constant.
 const v6Infinity = time.Duration(0xffffffff) * time.Second
 
 const (
@@ -35,7 +37,7 @@ const (
 type v6Kind uint8
 
 const (
-	v6KindUnspecified v6Kind = iota
+	v6KindUnspecified v6Kind = iota //nolint:unused // Zero value reserved as Unspecified; no binding has it.
 	// v6KindAddress: an IA Address inside the IA_NA, installed as a /128.
 	v6KindAddress
 	// v6KindPrefix: an IA Prefix inside the IA_PD, published, not installed.
@@ -128,6 +130,8 @@ type v6Applied struct {
 // the IA Address or IA Prefix option." "Leave unchanged any information about
 // leases the client has recorded in the IA but that were not included in the
 // IA from the server."
+//
+// apply performs those steps on the lease record.
 func (l *v6Lease) apply(m *dhcpv6.Message, received time.Time, iaidNA, iaidPD [4]byte) v6Applied {
 	var out v6Applied
 	seen := [3]bool{}
@@ -229,6 +233,8 @@ func (l *v6Lease) applyIA(kind v6Kind, t1, t2 time.Duration, status *dhcpv6.OptS
 //
 // RFC 9915 Section 21.6: "The client MUST discard any addresses for which the
 // preferred lifetime is greater than the valid lifetime."
+//
+// The false answer is that discard.
 func v6AddressBinding(a *dhcpv6.OptIAAddress, received time.Time) (v6Binding, bool) {
 	addr, ok := netip.AddrFromSlice(a.IPv6Addr)
 	if !ok {
@@ -253,6 +259,8 @@ func v6AddressBinding(a *dhcpv6.OptIAAddress, received time.Time) (v6Binding, bo
 //
 // RFC 9915 Section 21.22: "The client MUST discard any prefixes for which the
 // preferred lifetime is greater than the valid lifetime."
+//
+// The false answer is that discard.
 func v6PrefixBinding(p *dhcpv6.OptIAPrefix, received time.Time) (v6Binding, bool) {
 	if p.Prefix == nil {
 		return v6Binding{}, false
@@ -382,6 +390,8 @@ func (l *v6Lease) lastExpiry() v6Instant {
 // IA options that will guarantee that the client initiates transmissions of
 // Renew/Rebind messages not later than at the T1/T2 times associated with any
 // of the client's bindings (earliest T1/T2)."
+//
+// Infinity stays infinity in both answers.
 func (l *v6Lease) renewTimes() (t1, t2 v6Instant) {
 	t1, t2 = v6Never(), v6Never()
 	for _, kind := range []v6Kind{v6KindAddress, v6KindPrefix} {
@@ -400,6 +410,8 @@ func (l *v6Lease) renewTimes() (t1, t2 v6Instant) {
 // of any addresses in an IA with T1 set to 0xffffffff. A client will never
 // attempt to use a Rebind message to locate a different server to extend the
 // lifetimes of any addresses in an IA with T2 set to 0xffffffff."
+//
+// An infinite T1 or T2 is answered as never.
 func (l *v6Lease) iaTimes(kind v6Kind) (t1, t2 v6Instant) {
 	tm := l.timers[kind]
 	d1, d2 := tm.t1, tm.t2
