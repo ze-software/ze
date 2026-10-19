@@ -533,6 +533,7 @@ Two patterns, choose based on what the test needs:
 |-----------|----------|---------|
 | `//go:build linux` | Test imports linux-only types but needs no kernel capabilities | `host/cpu_linux_test.go` |
 | `//go:build integration && linux` | Test needs root, devices, namespaces, ioctls | `iface/config_integration_linux_test.go` |
+| `//go:build docker` | Test starts a real server container through `labtest.Start`, on the host's Docker; never together with `integration`, because the guest has no Docker ("The docker population") | `interoplab/labtest/labtest_docker_test.go` |
 
 Tests tagged `integration && linux` run through the applicable `./le test qemu`
 action, which supplies `-tags integration`. Tests tagged only `linux` also run
@@ -661,6 +662,11 @@ if err != nil {
 
 This keeps the same test file usable in environments with different
 capabilities.
+
+The one exception is a missing `docker` binary under `ZE_REQUIRE_DOCKER=1`,
+which `./le test integration docker-peers` and `live-rpki` set: the test fails,
+because a run that skipped every container would report a pass it never earned.
+<!-- source: internal/le/interoplab/labtest/labtest.go -- Start, dockerRequired -->
 
 ### Registering a New Package
 
@@ -851,3 +857,23 @@ package that is not in the tree. Read the Go list rather than a copy of it.
 
 <!-- source: internal/le/test/qemu/alltests.go -- integrationPackages -->
 <!-- source: internal/le/test/qemu/integration_coverage_test.go -- TestEveryIntegrationPackageIsNamed, TestEveryNamedIntegrationPackageExists -->
+
+A package holding `integration` tests that cannot run in the guest is named in
+`excludedIntegrationPackages` instead, against a reason a reader can check.
+`internal/le/interoplab` is one: `TestDockerKernelCheckOnThisHost` judges the
+kernel of the host's own Docker daemon, which the guest cannot stand in for.
+
+## The docker population
+
+The guest has no Docker, so a package test that starts a real server container
+through `labtest.Start` carries the build tag `docker` and never `integration`.
+`./le test integration docker-peers` runs that population on the host: it
+derives every package under `internal/` and `cmd/` holding a `docker`-tagged test file
+from the tree, so a package added later runs with no edit, and it sets
+`ZE_REQUIRE_DOCKER=1`, under which an absent `docker` binary fails the test
+instead of skipping it. `./le test integration live-rpki` runs the `live`-tagged
+RPKI tests through the same switch. Both run on the hosted runner's own Docker
+in `evidence-nightly.yml`, because no container in either runs Ze, so the Docker
+host kernel check does not apply.
+<!-- source: internal/le/test/integration/dockerpeers.go -- dockerPeersArgv, runRequiringDocker, requireDockerEnvironment, liveRPKIArgv -->
+<!-- source: internal/le/test/integration/gates.go -- Table, the docker-peers and live-rpki rows -->

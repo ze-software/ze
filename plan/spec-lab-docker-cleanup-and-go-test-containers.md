@@ -522,7 +522,7 @@ Counts: MUST 8, SHOULD 6, NOT 11. S-2 (NTP) and S-4 (flow-export) packages are a
 | truthful removal verdicts | `TestCleanupOrphansTimedOutRemovalOfGoneResourceIsRemoved`, `...PresentResourceFails`, `...RecheckFailureIsUnknown`, `TestRemoveContainerTimedOutReobservesPresence` (red before `confirmRemoval`, green after); the post-fix `cleanup` run pasted under Functional Tests |
 | no stray docker exec | the AC-16 gate green, and red when its fixture adds one |
 | `labtest` | `TestLabtestStartsServerAndCleansUp` and the converted rpki tests, pasted |
-| `docker-peers` has a home | a pasted `./le test integration docker-peers` run, and the id of the first nightly run that executed it |
+| `docker-peers` has a home | a pasted `./le test integration docker-peers` run, and the id of the first nightly run that executed it. 2026-10-19 on the Linux workstation: exit 0, `internal/le/interoplab` ok in 108.5s, `internal/le/interoplab/labtest` ok in 24.4s. Nightly job `docker-peers` added in `3ea96e151f`; its first run id is owed once the owner orders a push. The "no `docker` file also carries `integration`" row is enforced by `TestDockerTagNeverJoinsIntegration` (`internal/le/test/qemu/integration_coverage_test.go`) |
 
 ### Security Review Checklist
 | Check | What to look for |

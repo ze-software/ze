@@ -245,7 +245,11 @@ They are not part of the normal development cycle.
 A package test that starts a real peer container carries `//go:build docker`,
 never `docker` and `integration` together: the integration population runs in
 the QEMU guest, which has no Docker. `docker-peers` derives its packages from
-the tree and sets `ZE_REQUIRE_DOCKER=1`.
+the tree and sets `ZE_REQUIRE_DOCKER=1`. Such a test starts its server with
+`labtest.Start(t, spec)` from `internal/le/interoplab/labtest`, never with its
+own `exec.Command("docker")`, which `./le arch tier check` refuses outside
+`internal/le/interoplab`; the contract is `docs/architecture/testing/interop.md`,
+"A package test's own server container (labtest)".
 
 
 ## When a test must be weakened
@@ -632,4 +636,6 @@ Reproducing a load-dependent flake is
 | Run all fuzz targets | `./le test fuzz run` |
 | Check the commit compiles | `./le repo compiles check` |
 | Check web behavior | `./le test functional web` |
+| Run every package test that starts a real server container (`docker` tag) | `./le test integration docker-peers` |
+| List, then remove, Docker resources a killed lab run left behind | `./le test integration cleanup dry`, then `./le test integration cleanup` |
 | Check that every `*_templ.go` matches its `.templ` source | `./le doc check templ-output`. No `./le` action writes the output back (`./le repo generate` carries no templ stage), so bring it back in step with the checker's own invocation minus `-check`: `./le job run label templ-gen command go run -mod=vendor github.com/a-h/templ/cmd/templ generate -keep-orphaned-files -path "$PWD/internal"`. Both walk `internal/` only. Never run a bare `templ generate`, and switch off an editor's on-save templ integration: a bare run walks from the repo root, writes that root into every generated file, and reds the gate |
