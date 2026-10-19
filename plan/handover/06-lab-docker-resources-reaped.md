@@ -704,3 +704,24 @@ M-3 red `TestDockerDeploymentRefusesMissingKernelFeature` (2026-10-19): a false 
 Open real defect: the l2tp, pppoe, radiussubscriber and rsvpte preflights put `--name ze-*-preflight-<suffix>` in `OneShotContainer.Arguments` on top of RunOneShot's `--name ze-oneshot-*`. Docker keeps the last one, so a canceled preflight's removal-by-name misses. The fix is to drop the suffix parameter and the name from those four producers. The new exactly-one-`--name` assertion stays red until it lands. In `pppoe.RunAt`, `preflight()` must go back to `preflight(options.Suffix)`: the permission classifier refused the restore edit.
 Overlap guard (2026-10-19): `TestDockerTagNeverJoinsIntegration` now refuses any `_test.go` whose constraint NAMES both `docker` and `integration` (`buildtag.TestFile.Names`, negation included), not only one that needs both; red observed on the new fixtures (`docker || integration`, `(docker && linux) || integration`, `!docker && integration`, `integration && !docker`), green after, the real tree holds no such file.
 Gates owed by the main thread for that change: `./le go lint run` over `internal/le/test/buildtag` and `internal/le/test/qemu`; qemu-integration.md "The docker population" carries the new rule.
+
+## 2026-10-19: re-review findings (docker route locals, G-2 for docker-peers, spec record)
+
+| Finding | Commit | Red before, green after |
+|---------|--------|-------------------------|
+| ISSUE AC-16: a function-scoped `const`, `:=`, `=` or `var` holding docker passed the gate | `38739450f3` | `TestNoDockerExecOutsideInteroplab`: five new sites unreported (local const, `:=`, `=`, `var` chained to `interoplab.DockerExecutable`, an implicitly repeated const spec) and a local shadowing a package docker const falsely refused; now each top-level declaration's local assignments are followed before package names. `./le arch tier check` green on the real tree; module-tiers.md "The docker route" updated |
+| G-2: Ctrl-C of docker-peers / live-rpki left the killed tests' containers to the next sweep | `dda6f2de0c` | `TestDockerChildStopsOnSignal` (now asserts one non-dry sweep on an uncanceled context), `TestDockerChildExitRunsNoSweep`, `TestSignalSweepReports`: red on the signature, green after. `runRequiringDocker` runs `CleanupOrphans` after a signalled exit, bounded at 60 s, and prints its summary; qemu-integration.md updated |
+| Spec record | this commit | Data Flow step 4 matches the code (only `Suite.Run` sweeps at start, plus the cleanup verb and the docker-peers post-signal sweep); A-7 and A-9 confirmed; A-2, A-3, A-5 (Colima, Docker Desktop) open for the owner's Mac; A-5's guest dockerd and A-8 open but not Mac items (a `docker-lab` run over five minutes; the first nightly run after an owner-ordered push); the TestDockerTagNeverJoinsIntegration row names the names-both rule |
+
+`TestKilledLabRunIsCleanedByNextStart`, run alone 2026-10-19 07:18 UTC at
+`dda6f2de0c` with `ZE_REQUIRE_DOCKER=1`, tag docker: PASS in 65.8 s (3 removed
+/ 3 kept, then 3 removed / 0 kept).
+
+Known window in the post-signal sweep: a SIGKILLed test binary is judged by
+`procscan.Lookup` reading `/proc/<pid>`, and until init reaps it a zombie
+still has that directory, so a resource can be reported "kept, owner still
+running" by this sweep and removed by the next one. Not observed; noted, not
+fixed (the judge is in `orphans.go`, which another agent owns).
+
+Gates owed (not run here): `./le go lint run` over `internal/le/arch/tier` and
+`internal/le/test/integration`; `./le test unit all`.
