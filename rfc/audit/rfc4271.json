@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-18",
+  "audited": "2026-10-19",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -292,19 +292,27 @@
       "verdict": "enforced"
     },
     "RFC4271-5-7": {
-      "note": "RFC 4271 Section 5: \u201cThe sender of an UPDATE message SHOULD order path attributes within the UPDATE message in ascending order of attribute type.\u201d All six tagged covers were independently re-read. Unicast, grouped and labeled origination builders order raw and ordinary attributes together; batch and queued announcement rails pin exact ascending sequences, including AS4_PATH before LARGE_COMMUNITY. The changed split unit retains non-ADD-PATH framing, requires more than one emitted chunk and checks each chunk for exactly [1,2,5,14,16]. Actual producers order contributions and insert MP_REACH between lower- and higher-coded base attributes. The retained claim is the existing originating-builder recommendation and split preservation; forwarding deliberately preserves received block order rather than globally sorting it. This is not evidence that MP_REACH is first, and does not close RFC7606-5.1-1's separately disclosed stronger requirement. No selective semantic proof is inferred from a renewed whole-producer halt.",
+      "code": {
+        "internal/component/bgp/message/update_build.go::BuildUnicast": "5e8187cc39fce66d",
+        "internal/component/bgp/message/update_build.go::appendRawAttributes": "024a7f660ced2720",
+        "internal/component/bgp/message/update_build_grouped.go::packGroupedAttributes": "2eabb0d5fd5bf30e",
+        "internal/component/bgp/message/update_build_labeled.go::BuildLabeledUnicast": "1debe9575ebf6630",
+        "internal/component/bgp/message/update_split.go::splitUpdateWithMP": "9746df057576ec4a",
+        "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate": "eaa568bb4cb54653"
+      },
+      "note": "Re-judged 2026-10-19 (independent auditor, after a9628fd589). RFC 4271 Section 5: \"The sender of an UPDATE message SHOULD order path attributes within the UPDATE message in ascending order of attribute type.\" a9628fd589 replaces value-as-presence for MED and LOCAL_PREF with HasMED/HasLocalPreference flags through appendMED and appendLocalPref. In BuildUnicast, packGroupedAttributes and BuildLabeledUnicast the helpers are called at the same positions the inline code held (after AS_PATH/NEXT_HOP 1-3, before ATOMIC_AGGREGATE 6), so the emitted sequence is unchanged and only whether type 4 appears for a value of 0 changed. The tagged unit TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes gains HasMED: true (and passes it into the labeled params) beside MED: 10, so its fixture still carries MULTI_EXIT_DISC as its claim names; requireAscendingAttributes is unchanged (strictly ascending codes, LARGE_COMMUNITY 32, raw 20 and 26 kept). It passes at HEAD (overlay restoring HEAD for foreign dirty files, tags ze_core ze_bgp). The other five tagged units and the split producer are untouched. Mechanical for this row; prior verdict holds, still bounded to originating builders and split preservation, not forwarding of received order and not RFC7606-5.1-1.",
       "requirement_sha": "63c781a1e915d623",
       "tests": {
-        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes": "65ed9271dab3a1ea",
-        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes#2": "65ed9271dab3a1ea",
+        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes": "5fb69de8b91c1df5",
+        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes#2": "5fb69de8b91c1df5",
         "internal/component/bgp/message/rfc4271_update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "6d5f1ebef2af18e4",
         "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity": "775d197b2c06317e",
         "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AscendingTypeCodeOrder": "775d197b2c06317e",
         "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceQueuedRail_AscendingTypeCodeOrder": "775d197b2c06317e"
       },
       "units": {
-        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes": "1b2ce2e6c980df3e",
-        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes#2": "1b2ce2e6c980df3e",
+        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes": "775b75386c4967e8",
+        "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes#2": "775b75386c4967e8",
         "internal/component/bgp/message/rfc4271_update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "7896ab097ea86fb3",
         "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity": "2323a119f1a1422a",
         "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AscendingTypeCodeOrder": "2ad378772013fadb",

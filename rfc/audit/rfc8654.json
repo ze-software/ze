@@ -1,6 +1,8 @@
 {
-  "audited": "2026-10-18",
+  "audited": "2026-10-19",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -15,10 +17,10 @@
       "tests": {
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "669936946251c215",
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted": "669936946251c215",
-        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654ExtendedTwoFamilyWithdrawalRecovery": "0846ca73bbcf6eb9",
-        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654ExtendedTwoFamilyWithdrawalRecovery#2": "0846ca73bbcf6eb9",
-        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654TreatAsWithdrawRemovesInstalledRoutes": "0846ca73bbcf6eb9",
-        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654TreatAsWithdrawRemovesInstalledRoutes#2": "0846ca73bbcf6eb9",
+        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654ExtendedTwoFamilyWithdrawalRecovery": "89e692fbf16e0e31",
+        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654ExtendedTwoFamilyWithdrawalRecovery#2": "89e692fbf16e0e31",
+        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654TreatAsWithdrawRemovesInstalledRoutes": "89e692fbf16e0e31",
+        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654TreatAsWithdrawRemovesInstalledRoutes#2": "89e692fbf16e0e31",
         "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedAttributeDiscard": "593a50cf663b99d0",
         "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedAttributeDiscard#2": "593a50cf663b99d0",
         "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateAttributes": "593a50cf663b99d0",
@@ -79,8 +81,8 @@
       "requirement_sha": "a3e1fd65268f54e7",
       "tests": {
         "internal/component/bgp/message/rfc8654_update_split_test.go::TestSplitUpdate_VPNChunksFitMaxMessageSize": "ecb979ab4ffb5948",
-        "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_Fits": "468f4d4a5f404a50",
-        "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_TooLarge": "468f4d4a5f404a50",
+        "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_Fits": "f5138754643db9ae",
+        "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_TooLarge": "f5138754643db9ae",
         "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesBoundsAnOversizeGroup": "ced3ad313c9ae5a7",
         "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesLeavesAFittingGroupWhole": "ced3ad313c9ae5a7",
         "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesTracksTheNegotiatedMaximum": "ced3ad313c9ae5a7",
@@ -146,7 +148,15 @@
       "verdict": "enforced"
     },
     "RFC8654-5-4": {
-      "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 4e731b2d96 (owner-approved lint-only reactor test edits). The tagged unit is byte-identical (gate-verified); the file-level changes are comment punctuation, slices.Concat over the same bytes, joined appends, strings.SplitSeq, newDefaultOriginatePeer taking its fixed addresses from constants with the same values, and registerTypeLenRecognizer losing a lo every caller passed as 1, none of which changes what a helper this unit calls produces. Verdict stands. Independent ReceiveWholeClauseFinal renewal: current controls assert exact NOTIFICATION 1/2 with erroneous Length 0x1001 followed by EOF, real Adj-RIB-In/Loc-RIB cleanup and resource release, actual recipient withdrawals, a valid-4096 retention control, and alternate-best replacement with exact survivor attributes, one Loc-RIB ChangeUpdate and no transient withdrawal. readAndProcessCoalesced rejects the fatal header before reading its body; handleStructuredState purges and invokes re-election outside peerMu; the RS retains detached withdrawal identities throughout its joined DOWN operation; recoverNLRIBatch waits for received-event publication and applied delivery before lookup, fences destination/source ownership at the actual writer, and receives completion after write/flush or fails closed. This ownership trace, not cross-plugin timestamp ordering, supports RFC4271 Section6 lifetime obligations. Fatal-length, valid-length, alternate-election and recovery controls pass in job-ownership-final-complete-packages-race-a95e6797.log; current full reactor/message race passes in job-receive-final-reactor-message-race-7d820229.log. Native bindings are separate proof; unchanged header-only missing bindings are standing metadata debt, not a new semantic gap.",
+      "code": {
+        "internal/component/bgp/message/header.go::ValidateLengthWithMax": "f5edfc67f79c21f7",
+        "internal/component/bgp/reactor/reactor_notify.go::notifyPeerClosed": "5c28951551d0524c",
+        "internal/component/bgp/reactor/relay_recovery.go::departedOwner": "fe09c29dcdbb222b",
+        "internal/component/bgp/reactor/relay_recovery.go::oweDeparture": "e0a93550d3b5ca4a",
+        "internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced": "72de2ad357c956ed",
+        "internal/component/bgp/reactor/session_read.go::readAndProcessMessage": "35c41b3fd034c3a1"
+      },
+      "note": "Re-judged 2026-10-19 (independent auditor, after e30abc5e48). RFC 8654 Section 5: \"Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271].\" e30abc5e48 rewrites departure recovery (oweDeparture owes only keys whose adj-out entry the departed source owns through a non-current session; departedOwner decides it) and, with owner approval recorded in the commit (2026-10-18), narrows TestRFC8654FatalLengthReelectsAlternateBest: it no longer requires the alternate to be re-advertised after the fatal header, and instead requires, before the fatal event, that the recipient already holds the alternate's own AS_PATH and NEXT_HOP 192.0.2.3, and after it that nothing carrying the alternate's AS_PATH is re-sent, the route with no survivor is withdrawn, the surviving prefix is never withdrawn, Loc-RIB shows exactly one ChangeUpdate and the alternate's stored attributes are exact. This matches RFC 4271 behaviour: the recipient's last UPDATE for that prefix already advertises the alternate, so re-election changes nothing it must be told. Independent overlay mutant (HEAD baseline for foreign dirty files, tags ze_core ze_bgp): disabling the departedOwner test in oweDeparture (owe every key) turned the unit red at the new assertion (\"Should be zero, but was 1\"); baseline green. So the narrowed claim is discriminated by the deciding logic, beyond the recorded readAndProcessCoalesced halt (reach only). The other tagged units (NOTIFICATION 1/2 with Length 0x1001 then EOF, resource release, valid-4096 retention) were not touched by the commit. Verdict holds over the narrowed claim; the re-advertisement of a changed best to a recipient that does not already hold it is no longer asserted by this row's tests.",
       "requirement_sha": "df841e66398cf2dd",
       "tests": {
         "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "4eb31663a97bb3a8",
@@ -155,7 +165,7 @@
         "internal/component/bgp/reactor/rfc8654_bad_length_session_test.go::TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling": "a1acece001388bd1",
         "internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go::TestRFC8654FatalLengthReleasesInstalledRoutes": "2d1638e2334a8ae9",
         "internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go::TestRFC8654ValidLengthRetainsInstalledRoutes": "2d1638e2334a8ae9",
-        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654FatalLengthReelectsAlternateBest": "0846ca73bbcf6eb9"
+        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654FatalLengthReelectsAlternateBest": "89e692fbf16e0e31"
       },
       "units": {
         "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "6d34dfe53245e5aa",
@@ -164,7 +174,7 @@
         "internal/component/bgp/reactor/rfc8654_bad_length_session_test.go::TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling": "9b1834b1126fc396",
         "internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go::TestRFC8654FatalLengthReleasesInstalledRoutes": "6977650dc6f62081",
         "internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go::TestRFC8654ValidLengthRetainsInstalledRoutes": "60cc6cdfeb223acc",
-        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654FatalLengthReelectsAlternateBest": "7f871dd21c8f1fd1"
+        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654FatalLengthReelectsAlternateBest": "5e259526228ec8c1"
       },
       "verdict": "enforced"
     },

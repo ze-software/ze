@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-17",
+  "audited": "2026-10-19",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -91,7 +91,14 @@
       "verdict": "enforced"
     },
     "RFC8277-2.4-1": {
-      "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by d7b31e5a1b (lint in bgp plugins): rrLabeledCompatibilityMatrix and rsLabeledCompatibilityMatrix subtests gained t.Parallel; each subtest builds its own routeReflector or routeServer from per-iteration loop values, so no state is shared and no assertion changed. Tagged units byte-identical. Verdict stands. Read full RFC8277 Section 2.4, all 17 current tagged functions and their shared matrices and actual consumers. The current 29 polarity covers require recommended, zero, S-set and other Compatibility values to produce the same withdrawal identity without rejection or label interpretation. Real direct/filtered JSON, registered codec and bidirectional SDK consumers require exact RD/prefix/Path Identifier identities, adjacent-route boundaries and negotiated identifiers zero/17; announcement controls retain labels. Expanded labeled/VPN RIB matrices exercise IPv4/IPv6 with and without ADD-PATH, exact surviving native routes and labels, and exactly one correct withdrawal or replacement publication. Cross-PE promotion requires exactly Update with the surviving PE's own native NLRI, identifier and next hop. RR/RS matrices require exact retained inventories, and VPN peer-down carriers capture and reparse native survivor commands. Withdrawal splitters, canonical keys, storage removal/election and decoder/SDK dispatch carry withdrawal context rather than decoding Compatibility as a stack. The previous family/ADD-PATH and non-exact-promotion gaps are closed. This is real consumer/state evidence, not only encoder coverage; it does not claim independent VPP or remote-session acceptance. The mechanically renamed IPC carrier and its stored records already use internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go. No residual obligation in this reception sentence was found; transmission SHOULD and absent Multiple Labels Capability work remain outside this judgment.",
+      "code": {
+        "internal/component/bgp/format/text_json.go::appendNLRIJSONValue": "4b3cd42fc533bc82",
+        "internal/component/bgp/plugins/rib/storage/familyrib.go::LabeledWithdrawnPrefix": "4833aee21bf0ca6c",
+        "internal/component/bgp/plugins/rib/storage/familyrib.go::Withdraw": "5c8e029bf666ca5c",
+        "internal/component/bgp/plugins/rs/server_handlers.go::sendBatchedWithdrawals": "d73d5dcac58c1217",
+        "internal/component/bgp/wireu/mpwire.go::wrapNLRI": "6ea06148bd40b74d"
+      },
+      "note": "Re-judged 2026-10-19 (independent auditor, after f749025a61). RFC 8277 Section 2.4: \"Upon reception, the value of the Compatibility field MUST be ignored.\" f749025a61 deletes the departure cut: sendBatchedWithdrawals, sendPeerDown, handleStateDown and recoverRouteSel lose the cut uint64 parameter and the recovery-cut meta key. Nothing that builds the withdrawal command text, the withdrawal identity or the Compatibility handling changed. The only tagged unit touched, TestVPNRouteServerPeerDownEmitsOnlyRetainedNativeRoutes, changes only its call (drops the trailing 0 cut argument); its assertions (exactly one command, reparsed native survivor routes) are unchanged and it passes at HEAD (overlay restoring HEAD for foreign dirty files, tags ze_core ze_bgp). The rib changes in the commit are in rib_recovery.go, not in the familyrib withdrawal producers the rib tagged units drive. Mechanical for this row; the prior whole-clause judgment holds.",
       "requirement_sha": "712d43a16c62b1a7",
       "tests": {
         "internal/component/bgp/format/rfc8277_vpn_consumer_test.go::TestVPNWithdrawalJSONConsumersIgnoreCompatibility": "9ec0fc1f10e92674",
@@ -112,9 +119,9 @@
         "internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactReflectorInventory#2": "8e2182d79ca99e4e",
         "internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap": "41a682b0d6c419c7",
         "internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap#2": "41a682b0d6c419c7",
-        "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNRouteServerPeerDownEmitsOnlyRetainedNativeRoutes": "c3d6fd21f62aca5b",
-        "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactRouteServerInventory": "c3d6fd21f62aca5b",
-        "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactRouteServerInventory#2": "c3d6fd21f62aca5b",
+        "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNRouteServerPeerDownEmitsOnlyRetainedNativeRoutes": "014a87f5bd604c00",
+        "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactRouteServerInventory": "014a87f5bd604c00",
+        "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactRouteServerInventory#2": "014a87f5bd604c00",
         "internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheRouteServerSet": "1e2c799cb059da97",
         "internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheRouteServerSet#2": "1e2c799cb059da97",
         "internal/component/bgp/server/rfc8277_labeled_consumer_test.go::TestLabeledWithdrawalCodecConsumersIgnoreCompatibility": "e01b89d8a37c843b",
@@ -143,7 +150,7 @@
         "internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactReflectorInventory#2": "0860d96735285b3f",
         "internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap": "1f8f496d46a78b7e",
         "internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap#2": "1f8f496d46a78b7e",
-        "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNRouteServerPeerDownEmitsOnlyRetainedNativeRoutes": "4dd217a7e0e0297c",
+        "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNRouteServerPeerDownEmitsOnlyRetainedNativeRoutes": "c554644082e7556c",
         "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactRouteServerInventory": "832b3dfb42222760",
         "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactRouteServerInventory#2": "832b3dfb42222760",
         "internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheRouteServerSet": "9bbd715e86cf606f",
