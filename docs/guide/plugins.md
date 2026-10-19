@@ -429,8 +429,10 @@ plugin through the ROUTE-REFRESH Ze sends after the up.
 
 A reload that detaches a plugin sends it a `state down` for that peer alone,
 and the session stays up for every other plugin. The plugin drops what it holds
-for the peer. A plugin whose grant changed receives a down, then an `attached`
-up.
+for the peer. When that plugin is `bgp-rs`, the other peers lose the routes it
+forwarded from that peer: each is replaced by the best remaining route or
+withdrawn, although the peer's session never went down. A plugin whose grant
+changed receives a down, then an `attached` up.
 
 <!-- source: pkg/plugin/rpc/enums.go -- ReasonAttached -->
 <!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- bindProcesses, unbindProcesses -->

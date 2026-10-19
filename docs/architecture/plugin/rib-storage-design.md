@@ -199,14 +199,15 @@ ADD-PATH destinations run no election: the outcome is WITHDRAW and `Sent` lists
 every identifier the failed source owns at the destination for the prefix,
 including zero, and including one its reconnected session advertised, because
 the RIB holds no session generation. The writer withdraws only an identifier
-whose owner's session is no longer current, so the reconnected session's path
-stays. The external
+whose owner is no longer current: the session that wrote it has ended, or a
+reload has since unbound processes from that still-running session
+(`Peer.forwardRevocation`). The reconnected session's path stays. The external
 command takes one argument per key in `ribevents.FormatRecoveryKey`'s form,
 `<nlri-hex>=<excluded>,<excluded>`. This remains the cold lookup's retained
 sent projection; final writer admission still requires its live owner receipt.
 <!-- source: internal/core/bgp/ribevents/recovery.go -- RecoveryRequest, RecoveryOutcome, CheckRecoveryAnswer, FormatRecoveryKey -->
 <!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoverySurvivorsLocked, recoverySentAddPathLocked -->
-<!-- source: internal/component/bgp/reactor/relay_recovery.go -- queueRecoveryOutcome, departedOwner -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- queueRecoveryOutcome, departedOwner, adjOutOwnerCurrent -->
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- adjOutWrite.allow -->
 
 A lifecycle purge can remove the chosen survivor between the lookup and the
@@ -310,9 +311,13 @@ DOWN operation using its plugin lifecycle context, without an unrelated
 60-second command expiry. Unrelated output never cancels a
 required repair, and a newer target owner is protected at owe time: a
 departure owes nothing where another source, or the source's current session,
-owns the key. A hard projection, lookup or writer failure retires the
+owns the key, unless a reload unbound processes from that session after it
+wrote the key. A hard projection, lookup or writer failure retires the
 affected destination session through the existing AutomaticStop/Cease path
-rather than leaving known-invalid advertisements installed. Fail-close ownership
+rather than leaving known-invalid advertisements installed. An admission that
+reaches a destination with no Established session, or no connection, writes
+nothing and retires nothing: that session is already closing, and its close
+drops the owed records. Fail-close ownership
 follows the destination session the owed records name: the worker retires only
 its own session, and a reconnect never inherits a record, so an unrelated
 subsequent reconnect is not retired by the old session's failure.
@@ -320,9 +325,10 @@ Replacement UPDATEs pass ordinary egress policy and reflection rules; a
 policy-denied replacement withdraws the obsolete advertised identity.
 
 <!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoveryRoutes, recoveryCandidate, recoverySentNLRI -->
-<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, oweDeparture, drainRecoverySources, recoveryAdmission.admit, settle -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, oweDeparture, departedOwner, drainRecoverySources, recoveryAdmission.admit, settle -->
 <!-- source: internal/component/plugin/process/delivery.go -- DrainEventsApplied -->
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler, releaseItem -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler, closeRecoveryWrites, releaseItem -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryWorker.run -->
 <!-- source: internal/component/bgp/plugins/rs/server.go -- recoverRouteSel, RunRouteServer -->
 
 ### Supersedes
