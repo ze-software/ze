@@ -23,6 +23,11 @@ import (
 
 var errRecoveryNotWritten = errors.New("source-DOWN recovery operation was not written")
 
+// errRecoveryDestinationClosed: the destination had no Established session
+// when the admission reached its worker, so nothing was written. The session
+// owning the keys is closing, and its close drops the owed set.
+var errRecoveryDestinationClosed = errors.New("source-DOWN recovery destination session closed before the write")
+
 // errRecoverySourceAdvanced: the candidate's live source accepted UPDATEs
 // after the round's cut, so the lookup may predate one of them. The key is
 // decided again from a fresh cut, and no source is excluded: the source still

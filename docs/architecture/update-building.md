@@ -528,7 +528,12 @@ reconstruction or at the final writer, is owed again with that source excluded. 
 survivor as the new owner, or the withdrawal when no candidate survives. A
 written decision removes its record when its epoch has not moved, and that
 completes its waiters; a table reset drops every record and completes them too.
-Every teardown path seals the session, and sealing stops the worker without
+An admission that reaches the forward worker when the destination has no
+Established session, or no connection, writes nothing and settles as
+destination-closed; the worker then ends without resetting the session, because
+that session is already closing and its close drops the owed set. Any other
+admission the worker cannot decide resets the destination session. Every
+teardown path seals the session, and sealing stops the worker without
 waiting. `Peer.runOnce`'s deferred cleanup, after the down has been announced,
 joins it. Every write that installs an owner also records the owner's source
 session generation, which ownership equality ignores.
@@ -536,6 +541,7 @@ session generation, which ownership equality ignores.
 <!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjOutOwed, owe, exclude, removeOwed, dropOwed -->
 <!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, oweDeparture, recoveryAdmission.admit, settle -->
 <!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryWorker -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler, closeRecoveryWrites -->
 
 Ordinary UPDATE sizing follows the final policy and next-hop result, after AIGP
 stripping. A body that still fits goes directly to the existing writer without

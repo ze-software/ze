@@ -199,6 +199,14 @@ func (w *recoveryWorker) run() {
 		if w.ctx.Err() != nil {
 			return
 		}
+		if errors.Is(err, errRecoveryDestinationClosed) {
+			// The session already left Established: its close drops the owed
+			// set and stops this worker, so a reset here would only report a
+			// failure that did not happen.
+			fwdLogger().Debug("recovery stopped: destination session closed",
+				"peer", w.peer.Settings().Address)
+			return
+		}
 		if err != nil {
 			w.retire(err)
 			return

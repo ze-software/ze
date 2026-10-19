@@ -173,7 +173,10 @@ func fwdWriteDeadline() time.Duration {
 // Acquires the session write lock once, writes all messages to bufWriter, flushes once.
 // On first write error, remaining items in the batch are skipped.
 // Errors are logged; recovery admissions also receive the hard failure so their
-// owner can fail closed. Ordinary forwarding relies on FSM disconnect.
+// owner can fail closed. Ordinary forwarding relies on FSM disconnect. A batch
+// whose destination has no Established session writes nothing, and each of
+// its recovery admissions is settled with errRecoveryDestinationClosed: no
+// return leaves an admission for releaseItem to report as not written.
 //
 // Sets a write deadline on the TCP connection before writing to prevent a stuck
 // peer from blocking the worker goroutine indefinitely. The deadline is cleared
@@ -206,6 +209,7 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 	peer.mu.RUnlock()
 
 	if session == nil {
+		closeRecoveryWrites(items)
 		return
 	}
 
@@ -220,7 +224,12 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 	conn := session.conn
 	session.mu.RUnlock()
 
-	if state != fsm.StateEstablished || conn == nil {
+	if state != fsm.StateEstablished {
+		closeRecoveryWrites(items)
+		return
+	}
+	if conn == nil {
+		closeRecoveryWrites(items)
 		return
 	}
 
@@ -348,6 +357,20 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 	for i := range items {
 		if recovery := items[i].recovery; recovery != nil && !recovery.settled && recovery.err == nil {
 			recovery.settle()
+		}
+	}
+}
+
+// closeRecoveryWrites settles every recovery admission of a batch whose
+// destination has no Established session to write on. The session that owns
+// the admission's keys is ending, or has ended, and its close drops its owed
+// set (adjRIBOut.dropOwed), so nothing here is left for a later round. The
+// named error tells the recovery worker the destination closed under it,
+// rather than that a decision was lost (errRecoveryNotWritten).
+func closeRecoveryWrites(items []fwdItem) {
+	for i := range items {
+		if recovery := items[i].recovery; recovery != nil {
+			recovery.err = errRecoveryDestinationClosed
 		}
 	}
 }
