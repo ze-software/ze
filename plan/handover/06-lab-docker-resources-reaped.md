@@ -725,3 +725,21 @@ fixed (the judge is in `orphans.go`, which another agent owns).
 
 Gates owed (not run here): `./le go lint run` over `internal/le/arch/tier` and
 `internal/le/test/integration`; `./le test unit all`.
+
+## 2026-10-19: re-review findings (own-run reclaim, sweep error, teardown recording, free-form args)
+
+| Finding | Commit | Red before, green after |
+|---------|--------|-------------------------|
+| ISSUE: claimName refused this run's own leftover ("stop pid <self>") | `2f74338d3f` | `TestClaimNameReclaimsThisRunsOwnLeftover`: own labels refused, red; now `ownerIdentity.created` (every owner label equal, run id included) removes it; another run id or uid is still refused. The preClean fixtures standing for another live run now carry run id `run-other` |
+| ISSUE: pre-run sweep listing failure was a bare docker error | `055e1e91a2` | `TestSuiteRunOrphanSweepFailureNamesWhatWhyAndFix`: red on "pre-run", "Fix:", the cleanup command; green after |
+| NOTE: teardown rm -f'd a name docker never ran; perfrunner recorded before RunDetached and ignored name-taken | `075674363e` | `TestRunScenarioPreRunFailureRemovesNoContainer` (Host 0) and `TestPerfStartContainerRecordsOnlyWhatItMayHaveCreated/name_taken`: red, green after `issuedRunError` + `ContainerMayExist`; perf `removeContainer` now leaves an unrecorded name alone |
+| NOTE: free-form args could carry `--name` or `ze.lab.*` labels | `8f6d5722eb` | `TestFreeArgumentsRefuseNameAndOwnerLabels`: nine spellings over PeerConfig and OneShotContainer, red, green. `DetachedContainer` has no free-form docker-argument field |
+| Docs: tag removed "by the listing's id" | `8c112f5591` | interop.md: tag released by name, only a `ze-interop-retained` tag a candidate; plus the four behaviors above |
+
+Unrelated reds seen in scoped runs, not caused here: `interoplab/bgp`
+`TestCheckerPopulationMatchesProducer` (bgp-vpn-frr fallback),
+`TestAnnouncementPlanOrderAndTimingFixture` (digest), and `interoplab/pppoe`
+`TestPPPoELabPeersRunWithoutPrivilege` (ipv6cp-missing-option has no checker).
+
+Gates owed (not run here): `./le go lint run` over `internal/le/interoplab` and
+`internal/test/perfrunner`; `./le test unit all`.
