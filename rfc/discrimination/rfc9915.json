@@ -405,7 +405,7 @@
       "claim-sha": "28a715ccdd6d020b",
       "route": "revert",
       "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::checkDAD",
-      "producer-sha": "833aaf43780bdfcb",
+      "producer-sha": "febd31a76ea089e4",
       "break": "body of checkDAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -416,7 +416,7 @@
       "claim-sha": "46f31c84b939b321",
       "route": "revert",
       "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::checkDAD",
-      "producer-sha": "833aaf43780bdfcb",
+      "producer-sha": "febd31a76ea089e4",
       "break": "body of checkDAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
