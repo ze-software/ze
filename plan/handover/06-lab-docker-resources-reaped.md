@@ -418,3 +418,59 @@ carries the S-1 row with it.
 
 Owed gates: scoped lint of `internal/component/tacacs` with the docker tag
 (`go vet -tags docker` passed), `./le test unit all`.
+
+## Phase 5, S-2 (NTP), 2026-10-19
+
+Landed: `6480a1ad5c` (interoplab: `DetachedContainer.PublishedPorts` and
+`Docker.PublishedPort` take a typed `ContainerPort` (`TCPPort`, `UDPPort`),
+the zero transport refused before docker runs; `labtest.Spec.Port` is that
+type and `labtest.Spec` gains `Entrypoint`; rpki live tests name
+`interoplab.TCPPort`), `ead47ff0ce` (the NTP tests, the interop.md paragraph,
+the journal row).
+
+Server: `dockurr/chrony:4.9` (chrony 4.9, digest
+`sha256:f584829f268b26b26b351000b60aa7c3507933873b6a6d77ffe9dcabcfdc7025`).
+Its entry point writes chrony.conf from its environment and ignores the
+command, so the test sets `Entrypoint: "sh"` and writes its own config.
+
+Tests in `internal/plugins/ntp/ntp_chrony_docker_test.go` (tag `docker`, no
+RFC tag) drive `syncWorker.doSync` with the real `ntp.Query`; only
+`setClockFn` is a recorder. Each first queries chrony directly to confirm the
+premise:
+
+| Test | chrony config | Ze reports |
+|------|---------------|------------|
+| `TestNTPClientSyncsFromChrony` | `local stratum 7` | synced, source = server, stratum 7, reach 1, offset within 500ms, rtt in (0, 2s], root delay 0, one clock step |
+| `TestNTPClientRejectsUnsynchronisedChrony` | `server 192.0.2.1` only | not synced, no source, reach 0, last error set, no clock step |
+
+Red walk (`// MUTATION-APPLIED`, verified by grep, `-count=1`, restored from a
+saved copy and `cmp`-checked, no marker left):
+
+| Mutation in `ntp.go` `doSync` | Red test | Failure |
+|-------------------------------|----------|---------|
+| `resp.Validate()` result ignored | Rejects | "doSync synced from an unsynchronised server", one clock step, reach 00000001, empty last error |
+| `ps.Stratum = resp.Stratum` dropped | Syncs | "published stratum = 0, want 7", "server stratum = 0, want 7" |
+
+The other test stayed green under each. Restored: both PASS (12.9s, 7.7s).
+Wrapper mutations (UDP rendered `/tcp`; unspecified rendered `/tcp`) turned
+`TestRunDetachedPublishesOnLoopback` and `TestPublishedPortReadsTheFirstBinding` red.
+
+Assumptions corrected: an unsynchronised chrony sends stratum 0, not 16, with
+leap 3 and reference id 0. RFC 5905 Section 11.1: "Remember that MAXSTRAT is
+mapped to zero in the transmitted packet." chrony serves no stratum 16, so
+the reject test covers stratum 0 with leap 3. Ze does not store the reference
+id or the leap indicator (`serverState`, `state.go`), so the tests cannot
+assert them. The container reads the host kernel clock, so the offset can only
+be bounded. A dropped offset copy would still pass the bound.
+
+Defect found, not fixed (does not block S-2): Ze's last error for that reply
+is "kiss of death received", because beevik/ntp `Response.Validate` tests
+stratum 0 before leap 3. Journal row in
+`plan/journal/error-answered-with-another-errors-code.md`.
+
+`./le test integration docker-peers` on this host: exit 0, population
+tacacs, interoplab, interoplab/labtest, plugins/ntp (ntp `ok` 50.1s).
+
+Owed gates: scoped lint of `internal/plugins/ntp`, `internal/le/interoplab`,
+`internal/le/interoplab/labtest` and rpki with the docker and live tags
+(`go vet -tags docker` / `"docker live"` passed); `./le test unit all`.
