@@ -592,6 +592,21 @@ func TestSIGHUPQueuedBehindTransactionRunsWhenItEnds(t *testing.T) {
 			close(reactor.release)
 			t.Fatal("the reload worker did not start the SIGHUP reload")
 		}
+		// The worker loads the config before it asks for the transaction lock,
+		// so a load seen here does not yet mean the attempt was refused.
+		// Releasing the holder now let a descheduled worker take the free lock
+		// on its first attempt, and the queued path this test exists for never
+		// ran (verify of 31f8aedb30, under full package load). The refused
+		// attempt clears the candidate it staged, and while the holder runs
+		// nothing else clears it, so its absence proves the refusal.
+		candidateKey := zefs.KeyConfigCandidate.Key(filepath.Base(configPath))
+		if !assert.Eventually(t, func() bool {
+			_, err := store.ReadFile(candidateKey)
+			return errors.Is(err, fs.ErrNotExist)
+		}, storeWriteBound(t), 10*time.Millisecond) {
+			close(reactor.release)
+			t.Fatal("the SIGHUP reload was not refused while the holder held the lock")
+		}
 
 		close(reactor.release)
 		require.NoError(t, <-held)
