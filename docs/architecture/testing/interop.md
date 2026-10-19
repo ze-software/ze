@@ -2285,7 +2285,10 @@ suite takes roughly 5-10 minutes depending on session establishment times.
 A package `_test.go` that needs one real server, such as stayrtr for the RPKI
 client, starts it with `labtest.Start(t, spec)` from
 `internal/le/interoplab/labtest`, never with its own `exec.Command("docker")`.
-`Start` pulls the image, starts one labeled container through
+`Start` pulls the image unless it is digest-pinned (`name:tag@sha256:...`)
+and the daemon already holds it, since the digest makes the local copy exactly
+the named image and a host holding it then runs offline; a tag can move, so a
+tag reference is always pulled. It then starts one labeled container through
 `Docker.RunDetached` (so a sweep removes it when the test binary is killed),
 answers the host address the server listens on, and returns only once
 `Spec.Ready` accepts that address. `Spec.Port` names the container port with
@@ -2335,7 +2338,8 @@ socket is in the container's UDP table, their decoded records read with
 "Independent collector tests").
 
 A package test whose real peer is a client, against a server the test runs
-in-process, runs it with `labtest.Run(t, client)`. `Run` pulls the image, runs
+in-process, runs it with `labtest.Run(t, client)`. `Run` pulls the image as
+`Start` does, runs
 one labeled container to its exit through `Docker.RunOneShot`, and answers the
 client's stdout, stderr and exit code, a non-zero exit included, so a test can
 assert a refused request. `Client.HostNetwork` puts the client in the host's
@@ -2355,7 +2359,7 @@ host, and that check guards a containerised Ze. A peer that needs a Ze-kernel
 feature belongs in an `interoplab.Suite` lab. Only a `_test.go` file, or tooling
 under `internal/le`, imports `labtest` (`./le arch tier check`,
 `docs/architecture/module-tiers.md`).
-<!-- source: internal/le/interoplab/labtest/labtest.go -- Start, start, host.release -->
+<!-- source: internal/le/interoplab/labtest/labtest.go -- Start, start, host.prepare, digestPinned, host.release -->
 <!-- source: internal/le/interoplab/labtest/container.go -- Container, host.build, host.readyInContainer -->
 <!-- source: internal/plugins/flowexport/collectors_docker_test.go -- TestFlowExportNFDumpInterop, TestFlowExportSFlowToolInterop -->
 <!-- source: internal/le/interoplab/labtest/labtest.go -- Run, run, Client -->

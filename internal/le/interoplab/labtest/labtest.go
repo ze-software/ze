@@ -353,6 +353,12 @@ func start(t tester, h host, spec Spec) Container {
 // prepare answers true once Docker answers and image is local, pulled or,
 // when dockerfile is set, built from it, and otherwise skips or fails the
 // test as Start documents and answers false.
+//
+// A digest-pinned image the daemon already holds is not pulled: the digest
+// names the content, so the local copy is exactly the image the test names,
+// and a host holding it runs offline. A tag can move, so a tag reference is
+// always pulled. An inspect that fails for a reason other than absence fails
+// the test, because a daemon that did not answer is not an absent image.
 func (h host) prepare(t tester, name, image, dockerfile string) bool {
 	t.Helper()
 	required := dockerRequired(h.lookupEnv)
@@ -369,12 +375,29 @@ func (h host) prepare(t tester, name, image, dockerfile string) bool {
 	if dockerfile != "" {
 		return h.build(t, name, image, dockerfile)
 	}
+	if digestPinned(image) {
+		present, err := h.docker.ImagePresent(ctx, image)
+		if err != nil {
+			t.Fatalf("labtest %s: cannot tell whether %s is on this host: %v. Fix: check that"+
+				" `docker image inspect %s` answers", name, image, err, image)
+			return false
+		}
+		if present {
+			return true
+		}
+	}
 	if err := h.docker.Pull(ctx, image, 0); err != nil {
 		h.unpullable(t, required, image, err)
 		return false
 	}
 	return true
 }
+
+// digestMarker separates a reference from the content digest that pins it.
+const digestMarker = "@sha256:"
+
+// digestPinned reports whether image names its content by digest.
+func digestPinned(image string) bool { return strings.Contains(image, digestMarker) }
 
 // dockerRequired reports whether ZE_REQUIRE_DOCKER=1 makes a missing Docker
 // a failure.

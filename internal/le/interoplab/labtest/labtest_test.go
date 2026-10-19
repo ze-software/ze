@@ -73,11 +73,18 @@ type scriptedRunner struct {
 	fail     map[string]bool
 	// exits answers a verb with its exit code, before fail is read.
 	exits map[string]int
+	// absent answers a verb the way the daemon answers an inspect of a
+	// reference it does not hold, before exits is read.
+	absent map[string]bool
 }
 
 func (r *scriptedRunner) Run(_ context.Context, command interoplab.ProcessCommand) (interoplab.ProcessResult, error) {
 	r.commands = append(r.commands, command.Arguments)
 	verb := command.Arguments[1]
+	if r.absent[verb] {
+		reference := command.Arguments[len(command.Arguments)-1]
+		return interoplab.ProcessResult{Stderr: "Error response from daemon: No such image: " + reference, ExitCode: 1}, nil
+	}
 	if code, ok := r.exits[verb]; ok {
 		return interoplab.ProcessResult{Stderr: verb + " exited by the fixture", ExitCode: code}, nil
 	}
@@ -489,5 +496,73 @@ func TestLabtestReadyInContainer(t *testing.T) {
 	runStart(t, refused, fixtureHost(failing, true, nil), spec)
 	if !strings.Contains(refused.fatal, "exec refused by the fixture") {
 		t.Fatalf("failure %q does not name the in-container probe's error", refused.fatal)
+	}
+}
+
+// pinnedImage is a digest-pinned reference: the local copy, when present, is
+// exactly the image the test names.
+const pinnedImage = "rpki/stayrtr:0.6@sha256:f584829f268b26b26b351000b60aa7c3507933873b6a6d77ffe9dcabcfdc7025"
+
+// VALIDATES: a digest-pinned image already on the host starts with no pull, so
+// a host that holds it runs offline; an absent pinned image is pulled; an
+// absent pinned image that cannot be pulled keeps the Q-6 failure; a tag
+// reference, which can move, is still pulled without an inspect.
+// METHOD: the fake runner answers `docker image inspect` present or absent and
+// the test reads the docker verbs the start ran.
+// PREVENTS: a docker-tagged test failing offline on a `docker pull` of an image
+// the host already holds byte for byte.
+func TestLabtestPullsAPinnedImageOnlyWhenAbsent(t *testing.T) {
+	cases := []struct {
+		name      string
+		image     string
+		absent    bool
+		pullFails bool
+		want      []string
+		wantFatal string
+	}{
+		{name: "pinned present", image: pinnedImage, want: []string{"info", "image", "run", "port", "rm"}},
+		{name: "pinned absent", image: pinnedImage, absent: true,
+			want: []string{"info", "image", "pull", "run", "port", "rm"}},
+		{name: "pinned absent unpullable", image: pinnedImage, absent: true, pullFails: true,
+			want: []string{"info", "image", "pull"}, wantFatal: "pull refused by the fixture"},
+		{name: "tag", image: "rpki/stayrtr:latest", want: []string{"info", "pull", "run", "port", "rm"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			runner := &scriptedRunner{absent: map[string]bool{"image": tc.absent}, fail: map[string]bool{"pull": tc.pullFails}}
+			spec := fixtureSpec()
+			spec.Image = tc.image
+			tester := &fakeTester{ctx: t.Context()}
+			runStart(t, tester, fixtureHost(runner, true, map[string]string{}), spec)
+			if !slices.Equal(runner.verbs(), tc.want) {
+				t.Errorf("docker verbs = %v, want %v", runner.verbs(), tc.want)
+			}
+			if tester.skipped != "" {
+				t.Errorf("skipped %q, want no skip under the docker tag", tester.skipped)
+			}
+			if tc.wantFatal == "" && tester.fatal != "" {
+				t.Errorf("fatal %q, want a start", tester.fatal)
+			}
+			if !strings.Contains(tester.fatal, tc.wantFatal) {
+				t.Errorf("fatal %q, want it to name %q", tester.fatal, tc.wantFatal)
+			}
+		})
+	}
+}
+
+// VALIDATES: an inspect that fails for a reason other than absence fails the
+// test naming that reason, and never pulls or starts a container.
+// PREVENTS: a daemon that does not answer being read as an absent image.
+func TestLabtestFailsWhenThePinnedInspectFails(t *testing.T) {
+	runner := &scriptedRunner{exits: map[string]int{"image": 1}}
+	spec := fixtureSpec()
+	spec.Image = pinnedImage
+	tester := &fakeTester{ctx: t.Context()}
+	runStart(t, tester, fixtureHost(runner, true, map[string]string{}), spec)
+	if !strings.Contains(tester.fatal, "image exited by the fixture") {
+		t.Errorf("fatal %q, want it to name the inspect failure", tester.fatal)
+	}
+	if want := []string{"info", "image"}; !slices.Equal(runner.verbs(), want) {
+		t.Errorf("docker verbs = %v, want %v", runner.verbs(), want)
 	}
 }

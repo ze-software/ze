@@ -21,7 +21,7 @@ import (
 
 const (
 	// chronyImage is the real NTP server, pinned to one chrony release.
-	chronyImage = "dockurr/chrony:4.9"
+	chronyImage = "dockurr/chrony:4.9@sha256:f584829f268b26b26b351000b60aa7c3507933873b6a6d77ffe9dcabcfdc7025"
 	// chronyLocalStratum is the stratum the synchronised server is configured
 	// to serve (`local stratum 7`). Seven is neither chrony's default local
 	// stratum (10) nor a value Ze could produce on its own.
