@@ -326,6 +326,11 @@ func (c *sessionEndCase) sendTruncatedUpdate(t *testing.T) {
 // round 7 I-2, round 8 B-1 and I-3, rounds 9 and 10).
 // PREVENTS: a plugin hearing a session down before that session's UPDATEs,
 // a session that ends with no down, and a leave arm that blocks its drainer.
+//
+// test-asserts-nothing: this function only dispatches. Each subtest is a
+// named function passed to t.Run, and it fails through the sessionEndCase
+// methods (leftWithoutDown, finish); the sensitivity scan follows a closure
+// and one helper call, not a function value, so it cannot see them.
 func TestSessionDownFollowsBufferedDeliveries(t *testing.T) {
 	t.Run("remote close", sessionDownRemoteClose)
 	t.Run("contended local teardown", sessionDownContendedTeardown)
