@@ -91,7 +91,20 @@ type ownerIdentity struct {
 // the object the argv creates, recorded so a container that inherited a lab
 // image's labels (kind image) is never judged as one a lab run created.
 func (o ownerIdentity) labelArguments(kind resourceKind) []string {
-	pairs := [...][2]string{
+	pairs := o.labelPairs(kind)
+	argv := make([]string, 0, 2*len(pairs))
+	var pair textbuf.Buffer
+	for _, label := range pairs {
+		pair.Reset()
+		argv = append(argv, "--label", pair.Str(label[0]).Byte('=').Str(label[1]).String())
+	}
+	return argv
+}
+
+// labelPairs is every owner label a create of kind carries, as key and value.
+// The pid namespace label is present only where the client has one (Linux).
+func (o ownerIdentity) labelPairs(kind resourceKind) [][2]string {
+	pairs := [][2]string{
 		{labelMarker, labelMarkerValue},
 		{labelKind, kind.labelValue()},
 		{labelRun, o.run},
@@ -104,17 +117,32 @@ func (o ownerIdentity) labelArguments(kind resourceKind) []string {
 		{labelUID, strconv.Itoa(o.uid)},
 		{labelOS, o.goos},
 	}
-	argv := make([]string, 0, 2*len(pairs)+2)
-	var pair textbuf.Buffer
-	for _, label := range pairs {
-		pair.Reset()
-		argv = append(argv, "--label", pair.Str(label[0]).Byte('=').Str(label[1]).String())
-	}
 	if o.pidNamespace == "" {
-		return argv
+		return pairs
 	}
-	pair.Reset()
-	return append(argv, "--label", pair.Str(labelPIDNamespace).Byte('=').Str(o.pidNamespace).String())
+	return append(pairs, [2]string{labelPIDNamespace, o.pidNamespace})
+}
+
+// created reports whether labels are exactly the ones this client's own
+// creates of kind carry: the same run id, pid, pid start token, boot, machine,
+// uid, OS, pid namespace and start time. Only this process writes that set, so
+// a resource carrying it is this run's own leftover, such as a shared lab
+// network a previous scenario's removal left behind while it outlasted its
+// bound. An identity with no run id answers false: it names no run.
+func (o ownerIdentity) created(kind resourceKind, labels map[string]string) bool {
+	if o.run == "" {
+		return false
+	}
+	pairs := o.labelPairs(kind)
+	for _, label := range pairs {
+		if labels[label[0]] != label[1] {
+			return false
+		}
+	}
+	if o.pidNamespace != "" {
+		return true
+	}
+	return labels[labelPIDNamespace] == ""
 }
 
 func fixtureOwner() ownerIdentity {
@@ -1072,8 +1100,9 @@ func absentAnswer(err error, ref string) bool {
 }
 
 // claimName clears an existing resource of exactly this name before a
-// scenario creates its own: removed when its owner is proven gone, refused
-// otherwise, unlabeled included. A run never force-removes a name another
+// scenario creates its own: removed when its labels are this run's own (an
+// earlier scenario's leftover, ownerIdentity.created) or its owner is proven
+// gone, refused otherwise, unlabeled included. A run never force-removes a name another
 // live run may hold. The refusal's fix names suffixVariable, the lab's own
 // suffix variable, when it has one, and otherwise the verdict's own fix.
 func (d *Docker) claimName(ctx context.Context, kind resourceKind, name, suffixVariable string) error {
@@ -1091,6 +1120,12 @@ func (d *Docker) claimName(ctx context.Context, kind resourceKind, name, suffixV
 		}
 		if labelErr != nil {
 			return labelErr
+		}
+		if d.owner.created(kind, labels) {
+			if removeErr := d.removeResource(ctx, kind, row); removeErr != nil {
+				return removeErr
+			}
+			continue
 		}
 		judgement := d.judge.judge(kind, labels)
 		if judgement.verdict == ownerGone {

@@ -70,8 +70,8 @@ func TestPreCleanRefusesLiveOrUnlabeledSameName(t *testing.T) {
 		removed bool
 		message []string
 	}{
-		{name: "gone owner is removed", labels: labelJSON(fixtureLabels(nil)), removed: true},
-		{name: "live owner is refused", labels: labelJSON(fixtureLabels(nil)), lookup: "100",
+		{name: "gone owner is removed", labels: labelJSON(otherRunLabels()), removed: true},
+		{name: "live owner is refused", labels: labelJSON(otherRunLabels()), lookup: "100",
 			message: []string{"lab-peer", "4242", "_INTEROP_SUFFIX", "./le test integration cleanup"}},
 		{name: "unlabeled is refused", labels: "null",
 			message: []string{"lab-peer", "no Ze lab owner label", "_INTEROP_SUFFIX"}},
@@ -139,7 +139,7 @@ func TestRunScenarioRefusedClaimRemovesNothingForeign(t *testing.T) {
 					return ProcessResult{Stdout: fixtureContainerID + "\t" + row.refused + "\n"}, nil
 				}
 				if strings.HasPrefix(joined, row.inspect) {
-					return ProcessResult{Stdout: labelJSON(fixtureLabels(nil)) + "\n"}, nil
+					return ProcessResult{Stdout: labelJSON(otherRunLabels()) + "\n"}, nil
 				}
 				return ProcessResult{}, nil
 			})
@@ -248,7 +248,7 @@ func TestPreCleanRefusalNamesTheRealSuffixVariable(t *testing.T) {
 					return ProcessResult{Stdout: fixtureContainerID + "\tlab-peer\n"}, nil
 				}
 				if strings.HasPrefix(joined, "docker container inspect") {
-					return ProcessResult{Stdout: labelJSON(fixtureLabels(nil)) + "\n"}, nil
+					return ProcessResult{Stdout: labelJSON(otherRunLabels()) + "\n"}, nil
 				}
 				return ProcessResult{}, nil
 			})
