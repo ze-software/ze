@@ -1,0 +1,46 @@
+# Test: ze doctor warns when an unnumbered OSPF interface borrows from an
+# interface OSPF does not run on.
+# VALIDATES: gap #55 (RFC2328-8.1-1) -- eth0 borrows the loopback address and
+#            runs OSPF point-to-point, the loopback is not an OSPF interface,
+#            and ze doctor reports doctor-ospf-unnumbered-donor-absent naming
+#            eth0, the donor, and the set commands that add it as passive.
+# PREVENTS: an unnumbered link that forms adjacencies while no router
+#           advertises the borrowed address, with nothing telling the operator.
+
+tmpfs=ospf-unnumbered-donor.conf:terminator=EOF_CONF
+interface {
+	backend netlink;
+	loopback {
+		unit 0 {
+			ipv4 {
+				address [ 192.0.2.1/32 ];
+			}
+		}
+	}
+	ethernet eth0 {
+		unit 0 {
+			ipv4 {
+				unnumbered loopback;
+			}
+		}
+	}
+}
+ospf {
+	router-id 192.0.2.1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			network-type point-to-point
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json config ospf-unnumbered-donor.conf
+expect=stdout:contains=doctor-ospf-unnumbered-donor-absent
+expect=stdout:contains=borrows its address from
+expect=stdout:contains=set ospf interfaces interface lo area 0.0.0.0
+expect=stdout:contains=set ospf interfaces interface lo passive true

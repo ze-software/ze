@@ -113,3 +113,33 @@ func TestUnnumberedDevicesNamesOSDevice(t *testing.T) {
 		t.Fatalf("UnnumberedDevices = %v, want eth0.7 -> 10.255.0.1", got)
 	}
 }
+
+// TestUnnumberedDonorsOfNamesDonor proves the exported donor view names each
+// borrower's OS device and its donor in config and OS device form, the
+// loopback block answering as `loopback` and `lo`.
+func TestUnnumberedDonorsOfNamesDonor(t *testing.T) {
+	data := `{"interface": {
+		"loopback": {"unit": {"0": {"ipv4": {"address": ["192.0.2.1/32"]}}}},
+		"dummy": {"dummy0": {"unit": {"0": {"ipv4": {"address": ["10.255.0.1/32"]}}}}},
+		"ethernet": {
+			"eth0": {"unit": {"0": {"vlan-id": "7", "ipv4": {"unnumbered": "dummy0"}}}},
+			"eth1": {"unit": {"0": {"ipv4": {"unnumbered": "loopback"}}}}
+		}
+	}}`
+	got, err := UnnumberedDonorsOf([]sdk.ConfigSection{{Root: configRootInterface, Data: data}})
+	if err != nil {
+		t.Fatalf("UnnumberedDonorsOf: %v", err)
+	}
+	want := map[string]UnnumberedDonor{
+		"eth0.7": {Name: "dummy0", Device: "dummy0"},
+		"eth1":   {Name: "loopback", Device: "lo"},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("UnnumberedDonorsOf = %v, want %v", got, want)
+	}
+	for device, donor := range want {
+		if got[device] != donor {
+			t.Errorf("UnnumberedDonorsOf[%s] = %+v, want %+v", device, got[device], donor)
+		}
+	}
+}

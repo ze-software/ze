@@ -103,13 +103,16 @@ adjacency flap. The address event names the OS device, so the interface name in
 the OSPF config must be the OS device name for this to fire; the periodic
 30-second rescan re-opens an interface whose address came back either way.
 
-Not yet complete (gap RFC2328-8.1-1 stays open): the RFC test proving the IP
-source on a live link, the doctor warning when the donor is not in OSPF, and
-the FRR interop scenario.
+The donor must run OSPF too, usually as a passive interface, because the
+unnumbered link advertises no route to the borrowed address. `ze doctor` warns
+with `doctor-ospf-unnumbered-donor-absent` when it does not, and prints the two
+`set ospf interfaces interface <donor> ...` commands that add it.
+
+Not yet complete (gap RFC2328-8.1-1 stays open): the FRR interop scenario.
 
 <!-- source: internal/plugins/ospf/interface_addr.go -- interfaceUnnumbered, helloNetworkMask -->
 <!-- source: internal/plugins/ospf/lsdb/origination.go -- p2pLinkData, routerLinks -->
-<!-- source: internal/plugins/ospf/unnumbered.go -- checkUnnumberedNetworkTypes -->
+<!-- source: internal/plugins/ospf/unnumbered.go -- checkUnnumberedNetworkTypes, unnumberedDonorDiagnostics -->
 <!-- source: internal/plugins/ospf/spf/spf.go -- p2pNeighborAddress, unnumberedNextHop -->
 <!-- source: internal/plugins/ospf/spf/install.go -- insert -->
 <!-- source: internal/component/sysrib/ecmp.go -- backupPaths -->

@@ -16,9 +16,11 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/config"
+	ifcomp "github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 const (
@@ -36,6 +38,10 @@ const (
 	// codeOSPFGracefulRestartNVS reports an enabled restarter whose durable
 	// restart state is unavailable, unreadable or corrupt (RFC 3623 sec 2.1).
 	codeOSPFGracefulRestartNVS = "doctor-ospf-graceful-restart-nvs"
+	// codeOSPFUnnumberedDonorAbsent fires when an unnumbered OSPFv2 interface
+	// borrows its address from an interface OSPF does not run on: the borrowed
+	// address is then advertised by no router (RFC 2328 Section 8.1).
+	codeOSPFUnnumberedDonorAbsent = "doctor-ospf-unnumbered-donor-absent"
 )
 
 // checkOSPFGracefulRestartNVS is the registered doctor check for the Graceful Restart NVS
@@ -210,5 +216,27 @@ func checkOSPFConfigSanity(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagn
 	if err != nil {
 		return nil // a structural error is the per-leaf YANG validator's job to report.
 	}
-	return ospfConfigDiagnostics(cfg)
+	diags := ospfConfigDiagnostics(cfg)
+	if !cfg.present {
+		return diags
+	}
+	borrowers, err := treeUnnumberedDonors(tree)
+	if err != nil {
+		return diags // the interface section's own verify reports its error.
+	}
+	return append(diags, unnumberedDonorDiagnostics(cfg, borrowers)...)
+}
+
+// treeUnnumberedDonors reads the unnumbered borrowers of the interface section
+// in tree. No interface section means no borrower.
+func treeUnnumberedDonors(tree *config.Tree) (map[string]ifcomp.UnnumberedDonor, error) {
+	ifaceTree := tree.GetContainer(ifcomp.ConfigRoot)
+	if ifaceTree == nil {
+		return map[string]ifcomp.UnnumberedDonor{}, nil
+	}
+	data, err := json.Marshal(map[string]any{ifcomp.ConfigRoot: ifaceTree.ToMap()})
+	if err != nil {
+		return nil, err
+	}
+	return ifcomp.UnnumberedDonorsOf([]sdk.ConfigSection{{Root: ifcomp.ConfigRoot, Data: string(data)}})
 }

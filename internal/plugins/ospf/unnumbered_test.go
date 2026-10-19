@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	ifcomp "github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
@@ -64,6 +65,49 @@ func TestUnnumberedNetworkTypeRefusedAtCommit(t *testing.T) {
 			}
 			if err == nil || !strings.Contains(err.Error(), "unnumbered") {
 				t.Fatalf("err = %v, want the unnumbered refusal", err)
+			}
+		})
+	}
+}
+
+// TestUnnumberedDonorAbsentWarns proves the doctor warns once for an
+// unnumbered OSPF interface whose donor OSPF does not run on, names the fix,
+// and stays silent when the donor is in OSPF under its config name or its OS
+// device name, or when the interface is numbered.
+func TestUnnumberedDonorAbsentWarns(t *testing.T) {
+	borrowers := map[string]ifcomp.UnnumberedDonor{"eth0": {Name: "loopback", Device: "lo"}}
+	area := types.AreaID{0, 0, 0, 1}
+	p2p := interfaceConfig{Name: "eth0", AreaID: area, NetworkType: types.NetworkPointToPoint}
+	for _, tc := range []struct {
+		name       string
+		interfaces []interfaceConfig
+		warned     bool
+	}{
+		{"donor absent", []interfaceConfig{p2p}, true},
+		{"donor by os device", []interfaceConfig{p2p, {Name: "lo", AreaID: area}}, false},
+		{"donor by config name", []interfaceConfig{p2p, {Name: "loopback", AreaID: area}}, false},
+		{"numbered interface", []interfaceConfig{{Name: "eth1", AreaID: area}}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			diags := unnumberedDonorDiagnostics(ospfConfig{present: true, Interfaces: tc.interfaces}, borrowers)
+			if !tc.warned {
+				if len(diags) != 0 {
+					t.Fatalf("diagnostics = %+v, want none", diags)
+				}
+				return
+			}
+			if len(diags) != 1 || diags[0].Code != codeOSPFUnnumberedDonorAbsent {
+				t.Fatalf("diagnostics = %+v, want one %s", diags, codeOSPFUnnumberedDonorAbsent)
+			}
+			for _, want := range []string{`"eth0"`, `"loopback"`, "is not an ospf interface"} {
+				if !strings.Contains(diags[0].Message, want) {
+					t.Errorf("message %q does not name %s", diags[0].Message, want)
+				}
+			}
+			for _, want := range []string{"set ospf interfaces interface lo area 0.0.0.1", "set ospf interfaces interface lo passive true"} {
+				if !strings.Contains(diags[0].Help, want) {
+					t.Errorf("help %q does not carry %q", diags[0].Help, want)
+				}
 			}
 		})
 	}

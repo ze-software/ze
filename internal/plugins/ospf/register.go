@@ -181,6 +181,12 @@ var ospfDiagnosticCodes = []diagnostic.CodeMeta{
 		Description: "BFD (RFC 5880 / RFC 5881) is enabled on an OSPF interface but the BFD plugin is not loaded in this process. OSPF still forms adjacencies and detects loss on the Hello/Dead timers; sub-second BFD failure detection is unavailable until the `bfd` plugin runs.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ospf-bfd-plugin-absent"},
 	},
+	{
+		Code:        codeOSPFUnnumberedDonorAbsent,
+		Title:       "OSPF unnumbered interface borrows from an interface outside OSPF",
+		Description: "An OSPFv2 interface on an `ipv4 unnumbered` unit borrows the address of a donor interface that OSPF does not run on. The unnumbered link advertises no route to the borrowed address, so no other router can reach this router at that address. Add the donor to OSPF, usually as a passive interface: `set ospf interfaces interface <donor> area <area>` and `set ospf interfaces interface <donor> passive true`.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ospf-unnumbered-donor-absent"},
+	},
 }
 
 func registerOSPFDiagnosticCodes() {
@@ -200,7 +206,7 @@ func registerOSPFDoctor() {
 		Component:    Namespace,
 		Dependencies: []string{dependencyConfigTree},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{codeOSPFRouterIDMissing, codeOSPFInterfaceAreaUnbound, codeOSPFBFDPluginAbsent},
+		Codes:        []string{codeOSPFRouterIDMissing, codeOSPFInterfaceAreaUnbound, codeOSPFBFDPluginAbsent, codeOSPFUnnumberedDonorAbsent},
 		Check:        checkOSPFConfigSanity,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {

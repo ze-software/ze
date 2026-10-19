@@ -229,3 +229,57 @@ func (c *ifaceConfig) unnumberedDevices() map[string]netip.Addr {
 	}
 	return devices
 }
+
+// UnnumberedDonor names the interface an unnumbered unit borrows from, in the
+// config form the operator wrote and the OS device form a protocol may list.
+type UnnumberedDonor struct {
+	Name   string // the config interface name in `ipv4 unnumbered`, `loopback` for the loopback block
+	Device string // the donor's OS device: its os-name, its name, or `lo`
+}
+
+// UnnumberedDonorsOf parses the interface section among sections and maps the
+// OS device of every enabled unnumbered unit to the interface it borrows from.
+// A protocol that must advertise the borrowed address elsewhere (OSPF gives an
+// unnumbered link no stub, so the donor carries it) asks whether it runs on
+// the donor too.
+func UnnumberedDonorsOf(sections []sdk.ConfigSection) (map[string]UnnumberedDonor, error) {
+	c, err := parseIfaceSections(sections)
+	if err != nil {
+		return nil, err
+	}
+	devices := make(map[string]string)
+	for _, e := range allIfaceEntries(c) {
+		devices[e.Name] = e.Name
+		if e.OSName != "" {
+			devices[e.Name] = e.OSName
+		}
+	}
+	devices[loopbackConfigName] = "lo"
+	borrowers := make(map[string]UnnumberedDonor)
+	collect := func(device string, units []unitEntry) {
+		for i := range units {
+			u := &units[i]
+			if u.Disable {
+				continue
+			}
+			if u.IPv4 == nil {
+				continue
+			}
+			if u.IPv4.Unnumbered == "" {
+				continue
+			}
+			donor := u.IPv4.Unnumbered
+			borrowers[unitOSName(device, u)] = UnnumberedDonor{Name: donor, Device: devices[donor]}
+		}
+	}
+	for _, e := range allIfaceEntries(c) {
+		if e.Disable {
+			continue
+		}
+		collect(devices[e.Name], e.Units)
+	}
+	if c.Loopback != nil {
+		collect("lo", c.Loopback.Units)
+	}
+	return borrowers, nil
+}
