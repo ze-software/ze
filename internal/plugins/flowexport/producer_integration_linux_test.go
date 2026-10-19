@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -113,7 +114,7 @@ func TestFlowExportDaemonCounterGeneration(t *testing.T) {
 		}
 	}
 	cmd.Env = append(cmd.Env, "ZE_CONFIG_DIR="+work)
-	daemon := startExportProcess(t, cmd, cancel)
+	daemon := startExportDaemon(t, cmd, cancel)
 	// A failed assertion while paused must not strand the owned child.
 	t.Cleanup(func() { _ = daemon.cmd.Process.Signal(syscall.SIGCONT) })
 	first := exportProducerCounter(t, daemon, sflow, false, 1, 2)
@@ -216,7 +217,7 @@ func exportProducerListener(t *testing.T) net.PacketConn {
 	return pc
 }
 
-func exportPauseDaemon(t *testing.T, daemon *exportCollector) {
+func exportPauseDaemon(t *testing.T, daemon *exportDaemon) {
 	t.Helper()
 	if err := daemon.cmd.Process.Signal(syscall.SIGSTOP); err != nil {
 		t.Fatal(err)
@@ -256,7 +257,7 @@ type exportProducerReading struct {
 	packets, bytes   uint64
 }
 
-func exportProducerCounter(t *testing.T, daemon *exportCollector, pc net.PacketConn, ipfix bool, packets uint64, minSample uint32) exportProducerReading {
+func exportProducerCounter(t *testing.T, daemon *exportDaemon, pc net.PacketConn, ipfix bool, packets uint64, minSample uint32) exportProducerReading {
 	t.Helper()
 	var result exportProducerReading
 	description := fmt.Sprintf("counter0 raw totals: packets=%d bytes=%d ipfix=%t", packets, packets*60, ipfix)
@@ -374,4 +375,163 @@ func exportProducerIPFIX(t *testing.T, data []byte) (exportProducerReading, bool
 		}
 	}
 	return exportProducerReading{}, false
+}
+
+// exportDaemon owns exactly one foreground child and its Wait goroutine.
+// startExportDaemon MUST register cleanup; stop MUST terminate and reap it.
+// File-backed output captures bytes before the stimulus and permits concurrent
+// observation without racing an exec writer against a bytes.Buffer reader.
+type exportDaemon struct {
+	cmd     *exec.Cmd
+	done    chan struct{}
+	waitErr error // read only after done closes
+	cancel  context.CancelFunc
+	stdout  *os.File
+	stderr  *os.File
+	stopped bool
+}
+
+func startExportDaemon(t *testing.T, cmd *exec.Cmd, cancel context.CancelFunc) *exportDaemon {
+	t.Helper()
+	t.Cleanup(cancel)
+	dir := t.TempDir()
+	stdout, err := os.Create(filepath.Join(dir, "stdout"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := stdout.Close(); err != nil {
+			t.Errorf("close daemon stdout: %v", err)
+		}
+	})
+	stderr, err := os.Create(filepath.Join(dir, "stderr"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := stderr.Close(); err != nil {
+			t.Errorf("close daemon stderr: %v", err)
+		}
+	})
+	cmd.Stdout, cmd.Stderr = stdout, stderr
+	peer := &exportDaemon{cmd: cmd, done: make(chan struct{}), cancel: cancel, stdout: stdout, stderr: stderr}
+	if err := cmd.Start(); err != nil {
+		cancel()
+		t.Fatalf("start %s: %v", cmd.Path, err)
+	}
+	go func() {
+		peer.waitErr = cmd.Wait()
+		close(peer.done)
+	}()
+	t.Cleanup(func() {
+		if err := peer.stop(); err != nil {
+			t.Errorf("daemon cleanup: %v", err)
+		}
+		if t.Failed() {
+			t.Log(peer.diagnostics())
+		}
+	})
+	return peer
+}
+
+// stop MUST be called for every started daemon, including failed tests.
+func (p *exportDaemon) stop() error {
+	if p.stopped {
+		return nil
+	}
+	p.stopped = true
+	defer p.cancel()
+	select {
+	case <-p.done:
+		return errors.Join(fmt.Errorf("%s exited before requested shutdown", p.cmd.Path), p.waitErr)
+	default:
+	}
+	signalErr := p.cmd.Process.Signal(syscall.SIGTERM)
+	if signalErr != nil {
+		p.cancel()
+	}
+	timer := time.NewTimer(3 * time.Second)
+	defer timer.Stop()
+	select {
+	case <-p.done:
+		if signalErr != nil {
+			return fmt.Errorf("terminate daemon: %w", signalErr)
+		}
+		if p.waitErr == nil {
+			return nil
+		}
+		if exit, ok := errors.AsType[*exec.ExitError](p.waitErr); ok {
+			if status, ok := exit.Sys().(syscall.WaitStatus); ok {
+				if status.Signaled() && status.Signal() == syscall.SIGTERM {
+					return nil // The daemon may exit on the requested signal.
+				}
+			}
+		}
+		return fmt.Errorf("daemon shutdown: %w", p.waitErr)
+	case <-timer.C:
+		p.cancel() // CommandContext kills only this owned process.
+	}
+	timer.Reset(3 * time.Second)
+	select {
+	case <-p.done:
+		return errors.New("daemon did not exit within three seconds of SIGTERM; killed and reaped")
+	case <-timer.C:
+		return errors.New("daemon did not exit after kill")
+	}
+}
+
+func (p *exportDaemon) wait(t *testing.T, description string, timeout time.Duration, observe func(context.Context) (bool, error)) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), timeout)
+	defer cancel()
+	ticker := time.NewTicker(20 * time.Millisecond)
+	defer ticker.Stop()
+	// Every iteration observes a socket or complete daemon output. The timer
+	// bounds polling; elapsed time never substitutes for the observed condition.
+	for {
+		select {
+		case <-p.done:
+			t.Fatalf("daemon exited while waiting for %s: %v\n%s", description, p.waitErr, p.diagnostics())
+		default:
+		}
+		ready, err := observe(ctx)
+		if err != nil {
+			t.Fatalf("observe %s: %v\n%s", description, err, p.diagnostics())
+		}
+		if ready {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("wait for %s: %v\n%s", description, ctx.Err(), p.diagnostics())
+		case <-p.done:
+			t.Fatalf("daemon exited while waiting for %s: %v\n%s", description, p.waitErr, p.diagnostics())
+		case <-ticker.C:
+		}
+	}
+}
+
+func exportDaemonOutput(path string) ([]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	data, readErr := io.ReadAll(io.LimitReader(file, (1<<20)+1))
+	closeErr := file.Close()
+	if err := errors.Join(readErr, closeErr); err != nil {
+		return nil, err
+	}
+	if len(data) > 1<<20 {
+		return nil, fmt.Errorf("daemon output %s exceeded 1 MiB", path)
+	}
+	return data, nil
+}
+
+func (p *exportDaemon) diagnostics() string {
+	var out strings.Builder
+	for _, file := range []*os.File{p.stdout, p.stderr} {
+		data, err := exportDaemonOutput(file.Name())
+		fmt.Fprintf(&out, "%s (read error: %v):\n%s\n", filepath.Base(file.Name()), err, data)
+	}
+	return out.String()
 }
