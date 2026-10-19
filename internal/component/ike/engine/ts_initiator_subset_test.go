@@ -223,7 +223,7 @@ func TestTisWidenedAnswerTearsTheSADown(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	sa := tisInitiator(t, tisPeer(t))
 
-	adopted, notify := adoptAuthResponseNegotiation(sa, false,
+	adopted, notify := adoptAuthResponseNegotiation(sa, false, true,
 		tsPayload(t, wire.PayloadTypeTSi, "0.0.0.0/0"),
 		tsPayload(t, wire.PayloadTypeTSr, "0.0.0.0/0"), log)
 	if adopted {
@@ -240,7 +240,7 @@ func TestTisWidenedAnswerTearsTheSADown(t *testing.T) {
 	// The discriminator: a narrowed answer is adopted through the same entry point, so the
 	// teardown above is a decision about that answer.
 	ok := tisInitiator(t, tisPeer(t))
-	if adopted, _ := adoptAuthResponseNegotiation(ok, false,
+	if adopted, _ := adoptAuthResponseNegotiation(ok, false, true,
 		tsPayload(t, wire.PayloadTypeTSi, "10.1.1.0/24"),
 		tsPayload(t, wire.PayloadTypeTSr, "10.2.1.0/24"), log); !adopted {
 		t.Error("a narrowed answer tore the SA down; the check is unconditional")

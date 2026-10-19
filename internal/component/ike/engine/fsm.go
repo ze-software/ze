@@ -936,7 +936,7 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 	// Section 2.21.2 applies: an error the initiator finds while processing the response
 	// is reported in a separate INFORMATIONAL, and neither error below is in the closed
 	// set that deletes an SA without a Delete payload. Both therefore SEND before dying.
-	if ok, notify := adoptAuthResponseNegotiation(sa, transportAccepted, respTSi, respTSr, log); !ok {
+	if ok, notify := adoptAuthResponseNegotiation(sa, transportAccepted, childOffer != nil, respTSi, respTSr, log); !ok {
 		sendIKESATeardown(sa, tr, notify, log)
 		sa.State = StateDead
 		return

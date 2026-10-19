@@ -347,7 +347,7 @@ func TestSubstitutionStillRefusesAWidenedAnswer(t *testing.T) {
 	// The same answer through the production adoption path: the SA is torn down and the
 	// peer is owed TS_UNACCEPTABLE, exactly as it was before the substitution existed.
 	viaEntry := natInitiatorSA(true, false)
-	ok, notify := adoptAuthResponseNegotiation(viaEntry, true,
+	ok, notify := adoptAuthResponseNegotiation(viaEntry, true, true,
 		tsPayload(t, wire.PayloadTypeTSi, natClientPublic+"/32"),
 		tsPayload(t, wire.PayloadTypeTSr, "198.51.100.9/32"), slogutil.DiscardLogger())
 	if ok {

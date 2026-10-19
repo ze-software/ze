@@ -111,6 +111,15 @@ that answers several TSi/TSr pairs negotiated several values, and `childPolicies
 builds one inbound and one outbound policy per pair, all protecting with the one SA:
 XFRM resolves each to the state through its template, VPP through the SAD id.
 
+**An IKE_AUTH response that accepts a Child SA without naming its traffic is
+refused.** RFC 7296 Appendix C.2 lists the response as `SA, TSi, TSr` together, so
+a response carrying SAr2 and no TSi or no TSr negotiated no selector at all.
+`adoptAuthResponseNegotiation` deletes the IKE SA with INVALID_SYNTAX and logs
+`childResponseFixNoTS`, rather than install the Child SA with host-to-host selectors
+for every protocol and port, which is wider than the pairs Ze proposed. A response
+with no SAr2 (an EAP round, a childless answer) carries no selector and is not
+refused for it.
+
 **A transport-mode Child SA carries exactly one pair.** An XFRM state holds one
 selector and one SPI names one state, so a transport-mode inbound state holds the
 negotiated values exactly only when one pair was negotiated. Several pairs whose
@@ -145,6 +154,7 @@ SAD data item Ze installs is asserted one item at a time in
 
 <!-- source: internal/component/ike/engine/child.go -- installChildSA, childPolicies, inboundStateSelector -->
 <!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectors, oneTransportPair, recordInitiatorSelectors -->
+<!-- source: internal/component/ike/engine/transport_mode.go -- adoptAuthResponseNegotiation -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams -->
 
 **The XFRM interface id comes from the interface the peer's `vti { bind }` names.**

@@ -122,7 +122,10 @@ func decideResponderTransportMode(sa *SA) {
 // Every caller runs it AFTER the response's AUTH is verified. An unauthenticated message
 // must be unable to tear the SA down by omitting a notification, and must be unable to
 // choose the traffic the SA protects by naming its own selectors.
-func adoptAuthResponseNegotiation(sa *SA, transportAccepted bool, tsi, tsr *wire.PayloadTS, log *slog.Logger) (ok bool, notify uint16) {
+//
+// childOffered says the response carried SAr2. A response that accepts a Child SA and
+// names no traffic selector is refused here (see below), never adopted with none.
+func adoptAuthResponseNegotiation(sa *SA, transportAccepted, childOffered bool, tsi, tsr *wire.PayloadTS, log *slog.Logger) (ok bool, notify uint16) {
 	if recordInitiatorTransportMode(sa, transportAccepted) {
 		log.Warn("ike: peer declined transport mode and transport-required is set, deleting the SA",
 			"peer", sa.PeerName)
@@ -139,14 +142,41 @@ func adoptAuthResponseNegotiation(sa *SA, transportAccepted bool, tsi, tsr *wire
 	// The floor is nil: this is the FIRST Child SA of the IKE SA, so no scope is in use yet
 	// for RFC 7296 Section 2.9.2 to protect. applyChildRekeyResponse (rekey.go) passes the
 	// SA being replaced.
-	if tsi != nil && tsr != nil {
-		if err := recordInitiatorSelectors(sa, tsi, tsr, nil); err != nil {
-			log.Warn("ike: the responder's traffic selectors cannot be adopted, deleting the SA",
-				"peer", sa.PeerName, "error", err)
-			// RFC 7296 Section 2.9 names the notification for a traffic-selector answer
-			// this node will not accept: TS_UNACCEPTABLE.
-			return false, wire.NotifyTSUnacceptable
-		}
+	//
+	// A response carrying no Child SA carries no selector to adopt: an EAP round, or a
+	// childless answer (RFC 7296 Section 2.21.2). A response carrying SAr2 MUST carry both
+	// TS payloads. RFC 7296 Appendix C.2 lists the IKE_AUTH response as "IDr, [CERT+,]
+	// AUTH, ... SA, TSi, TSr", the three together, and Section 1.2 has the responder
+	// complete the Child SA "with the additional fields described below in the
+	// CREATE_CHILD_SA exchange". Accepting such a response with no selector left
+	// NegotiatedPairs nil, and the Child SA was then installed with host-to-host selectors
+	// for every protocol and port, wider than the pairs ze proposed. RFC 4301 Section
+	// 4.4.2: "the entry for an inbound SA in the SAD MUST be initially populated with the
+	// value or values negotiated at the time the SA was created". Nothing was negotiated,
+	// so there is no value to populate it with and the Child SA is refused.
+	//
+	// INVALID_SYNTAX is the notification RFC 7296 Section 3.10.1 gives a message that "was
+	// invalid because some type, length, or value was out of range", and a missing
+	// mandatory payload is such a message. Section 2.21.2 makes it end the IKE SA.
+	if !childOffered {
+		return true, 0
+	}
+	if tsi == nil {
+		log.Warn("ike: the responder accepted the Child SA with no TSi payload, deleting the SA",
+			"peer", sa.PeerName, "fix", childResponseFixNoTS)
+		return false, wire.NotifyInvalidSyntax
+	}
+	if tsr == nil {
+		log.Warn("ike: the responder accepted the Child SA with no TSr payload, deleting the SA",
+			"peer", sa.PeerName, "fix", childResponseFixNoTS)
+		return false, wire.NotifyInvalidSyntax
+	}
+	if err := recordInitiatorSelectors(sa, tsi, tsr, nil); err != nil {
+		log.Warn("ike: the responder's traffic selectors cannot be adopted, deleting the SA",
+			"peer", sa.PeerName, "error", err)
+		// RFC 7296 Section 2.9 names the notification for a traffic-selector answer
+		// this node will not accept: TS_UNACCEPTABLE.
+		return false, wire.NotifyTSUnacceptable
 	}
 	return true, 0
 }

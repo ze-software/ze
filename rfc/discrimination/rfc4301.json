@@ -586,6 +586,17 @@
     },
     {
       "rid": "RFC4301-4.4.2-2",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4301_auth_response_no_ts_test.go::TestRFC4301AuthResponseWithoutTSIsRefused",
+      "unit-sha": "4709d4aa00050344",
+      "claim-sha": "ba95246d0de5c01a",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/transport_mode.go::adoptAuthResponseNegotiation",
+      "producer-sha": "8136af0800c1a317",
+      "break": "line 161: \"!childOffered\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC4301-4.4.2-2",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc4301_child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair",
       "unit-sha": "ce328c9ca41bb823",

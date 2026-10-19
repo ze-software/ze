@@ -90,7 +90,7 @@ func TestRFC4301TransportInitiatorRefusesSeveralPairs(t *testing.T) {
 	}
 
 	auth := &SA{PeerCfg: transportPeer(), IsInitiator: true}
-	ok, notify := adoptAuthResponseNegotiation(auth, true, tsi, tsr, slogutil.DiscardLogger())
+	ok, notify := adoptAuthResponseNegotiation(auth, true, true, tsi, tsr, slogutil.DiscardLogger())
 	if ok || notify != wire.NotifyTSUnacceptable {
 		t.Errorf("IKE_AUTH adoption = (%v, %d), want (false, TS_UNACCEPTABLE %d)", ok, notify, wire.NotifyTSUnacceptable)
 	}
