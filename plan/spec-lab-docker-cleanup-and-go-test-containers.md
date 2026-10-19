@@ -578,6 +578,10 @@ Every recommended answer below is therefore the decision.
 | Q-6 | In `labtest`, an image that cannot be pulled: skip or fail? (The rpki live tests skip today.) | Fail under `docker`; under `live`, skip when run ad hoc and fail when `ZE_REQUIRE_DOCKER=1` is set; a failing `Probe` fails under both |
 | Q-7 | The NOT rows, especially N-4 (the appliance kernel builder in `ze-host`, journal row open): confirm NOT for this spec? | Confirm every NOT row; N-4 stays on its journal row because `ze-host` is shipped and must not import `internal/le` |
 | Q-8 | Label key prefix: `ze.lab.*` or reverse-DNS `io.ze-software.lab.*`? | `ze.lab.*`: short and greppable |
+| D-1 | DECIDED 2026-10-19 ("ok to all suggestions"): the `verify evidence` container's time limit once it runs through `RunOneShot`, which refuses a zero bound | 4 hours: far beyond any build, it only stops a wedged daemon |
+| D-2 | DECIDED 2026-10-19: do the terminal demo's own `docker build` and `image inspect` fall under the AC-16 refusal? | Yes: they move onto `Docker.Build` and `ImagePresent`, so the gate needs no exemption for them |
+| D-3 | DECIDED 2026-10-19: deployment image pulls dropped from 15 to the wrapper's 10 minutes | Restore 15: `Pull` takes a caller bound the way `ImageBuild.Timeout` does, and it only ever lengthens the default |
+| D-4 | DECIDED 2026-10-19: the one-hour `demoContainerTimeout` added in 4fa80099f6 | Keep it |
 | Q-9 | Names for the package-test build tag and its verb? | Tag `docker`, verb `./le test integration docker-peers` |
 | Q-10 | Where the `docker-peers` nightly runs: the hosted runner's own Docker, or inside `./le test qemu docker-lab`? | The hosted runner's Docker: no container runs Ze, so the Ze-kernel check does not apply (AC-26), and the guest may lack a Go toolchain (A-8) |
 | Q-11 | Give `live-rpki` a nightly job? | Yes: without one the converted rpki tests still run nowhere (R-14) |
