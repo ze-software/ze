@@ -1,0 +1,2204 @@
+{
+  "schema-version": 1,
+  "stem": "rfc9915",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc9915.txt",
+  "source-sha": "b882e4301dde4616",
+  "signed-off": "2026-10-19",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.2",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "12.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "13.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "15",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "16",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.5",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.6",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.7",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.8",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.9",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.10",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.11",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.12",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.13",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.14",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "17",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "17.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "17.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "18",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.2.1",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.2.2",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.2.3",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.2.4",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.2.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.2.6",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.2.7",
+      "sites": 9,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.2.8",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.2.9",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.2.10",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.2.10.1",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.2.10.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.2.10.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.2.10.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.2.10.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.2.11",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.2.12",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.2.13",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.3.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.3.2",
+      "sites": 8,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.3.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.3.4",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.3.5",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.3.6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.3.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.3.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.3.9",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.3.10",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "18.3.11",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "19",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "19.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "19.1.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "19.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "19.1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "19.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "19.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "19.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "20",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "20.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "20.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "20.3",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "20.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "20.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "20.4.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "20.4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "21",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.4",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.6",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.7",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.9",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.12",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.13",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.14",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.15",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.16",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.17",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.18",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.19",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.20",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.21",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.22",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.23",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.24",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.25",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "22",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "22.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "22.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "22.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "22.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "23",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "24",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "25",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "25.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "25.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "B",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "C",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "6.3:1",
+      "quote": "If the client uses a delegated prefix to configure addresses on interfaces on itself or other nodes behind it, the preferred and valid lifetimes of those addresses MUST be no longer than the remaining preferred and valid lifetimes, respectively, for the delegated prefix at any time.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-6.3-1"
+    },
+    {
+      "id": "6.3:2",
+      "quote": "In particular, if the delegated prefix or a prefix derived from it is advertised for stateless address autoconfiguration [RFC4862], the advertised preferred and valid lifetimes MUST NOT exceed the corresponding remaining lifetimes of the delegated prefix.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-6.3-2"
+    },
+    {
+      "id": "6.3:3",
+      "quote": "A client that has delegated any of the address space received through DHCP Prefix Delegation MUST NOT issue a DHCP Release on the relevant delegated prefix while any of the address space is outstanding.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-6.3-3"
+    },
+    {
+      "id": "7.2:1",
+      "quote": "Clients MUST listen for DHCP messages on UDP port 546.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-7.2-1"
+    },
+    {
+      "id": "7.2:2",
+      "quote": "Servers and relay agents MUST listen for DHCP messages on UDP port 547.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "7.2:3",
+      "quote": "Therefore, clients MUST send DHCP messages to UDP destination port 547.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-7.2-3"
+    },
+    {
+      "id": "7.2:4",
+      "quote": "Servers MUST send Relay-reply messages to UDP destination port 547 and client messages to UDP destination port 546.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "7.2:5",
+      "quote": "Relay agents MUST send Relay-forward and Relay-reply messages to UDP destination port 547 and client messages to UDP destination port 546.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 relay agent, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 relay agent."
+    },
+    {
+      "id": "9.1:1",
+      "quote": "options: MUST include a Relay Message option (see Section 21.10); MAY include other options, such as the Interface-Id option (see Section 21.18), added by the relay agent.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 relay agent, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 relay agent."
+    },
+    {
+      "id": "9.2:1",
+      "quote": "options: MUST include a Relay Message option (see Section 21.10); MAY include other options, such as the Interface-Id option (see Section 21.18).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 relay agent, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 relay agent."
+    },
+    {
+      "id": "10:1",
+      "quote": "The message compression scheme in Section 4.1.4 of [RFC1035] MUST NOT be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-10-1"
+    },
+    {
+      "id": "11:1",
+      "quote": "Clients and servers MUST treat DUIDs as opaque values and MUST only compare DUIDs for equality.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-11-1"
+    },
+    {
+      "id": "11:2",
+      "quote": "Clients and servers MUST NOT restrict DUIDs to the types defined in this document, as additional DUID types may be defined in the future.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-11-2"
+    },
+    {
+      "id": "11.2:1",
+      "quote": "The hardware type MUST be a valid hardware type assigned by IANA; see [IANA-HARDWARE-TYPES].",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-11.2-1"
+    },
+    {
+      "id": "11.2:2",
+      "quote": "Clients and servers using this type of DUID MUST store the DUID-LLT in stable storage and MUST continue to use this DUID-LLT even if the network interface used to generate the DUID-LLT is removed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-11.2-2"
+    },
+    {
+      "id": "11.2:3",
+      "quote": "Clients and servers that do not have any stable storage MUST NOT use this type of DUID.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-11.2-3"
+    },
+    {
+      "id": "11.2:4",
+      "quote": "Clients and servers that use this DUID SHOULD attempt to configure the time prior to generating the DUID, if that is possible, and MUST use some sort of time source (for example, a real-time clock) in generating the DUID, even if that time source could not be configured prior to generating the DUID.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-11.2-4"
+    },
+    {
+      "id": "11.2:5",
+      "quote": "A DHCP client that generates a DUID-LLT using this mechanism MUST provide an administrative interface that replaces the existing DUID with a newly generated DUID-LLT.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-11.2-5"
+    },
+    {
+      "id": "11.3:1",
+      "quote": "The source of the identifier is left up to the vendor defining it, but each identifier part of each DUID-EN MUST be unique to the device that is using it, and MUST be assigned to the device no later than at the first usage and stored in some form of non-volatile storage.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-11.3-1"
+    },
+    {
+      "id": "11.4:1",
+      "quote": "The hardware type MUST be a valid hardware type assigned by IANA; see [IANA-HARDWARE-TYPES].",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-11.4-1"
+    },
+    {
+      "id": "12:1",
+      "quote": "The IAID uniquely identifies the IA and MUST be chosen to be unique among the IAIDs for that IA type on the client (e.g., an IA_NA with an IAID of 0 and an IA_PD with an IAID of 0 are each considered unique).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-12-1"
+    },
+    {
+      "id": "12:2",
+      "quote": "For any given use of an IA by the client, the IAID for that IA MUST be consistent across restarts of the DHCP client.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-12-2"
+    },
+    {
+      "id": "13.1:1",
+      "quote": "According to [RFC6221], the server MUST ignore any link-address field whose value is zero.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "13.1:2",
+      "quote": "A server MUST NOT assign an address that is otherwise reserved for some other purpose.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "13.1:3",
+      "quote": "For example, a server MUST NOT assign addresses that use a reserved IPv6 Interface Identifier [RFC5453] [RFC7136] [IANA-RESERVED-IID].",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "14.1:1",
+      "quote": "A DHCPv6 client MUST limit the rate of DHCP messages it transmits or retransmits.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-14.1-1"
+    },
+    {
+      "id": "14.1:2",
+      "quote": "For a device that has multiple interfaces, the limit MUST be enforced on a per-interface basis.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-14.1-2"
+    },
+    {
+      "id": "14.2:1",
+      "quote": "When T1 and/or T2 values are set to 0, the client MUST choose a time to avoid message storms.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-14.2-1"
+    },
+    {
+      "id": "14.2:2",
+      "quote": "In particular, it MUST NOT transmit immediately.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-14.2-2"
+    },
+    {
+      "id": "14.2:3",
+      "quote": "The client MUST choose renew and rebind times to not violate rate-limiting restrictions as defined in Section 14.1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates RFC9915-14.1-1: this sentence applies the section 14.1 limit to the renewal schedule; every Renew and Rebind passes the same per-interface limiter (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::admitTransmission).",
+      "mapped-to": "RFC9915-14.1-1"
+    },
+    {
+      "id": "15:1",
+      "quote": "The client MUST update an \"elapsed-time\" value within an Elapsed Time option (see Section 21.9) in the retransmitted message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-15-1"
+    },
+    {
+      "id": "15:2",
+      "quote": "Of course, a client MUST listen for a Reconfigure if it has negotiated for its use with the server.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-15-2"
+    },
+    {
+      "id": "16:1",
+      "quote": "Clients, relay agents, and servers MUST NOT discard messages that contain unknown options (or instances of vendor options with unknown enterprise-number values).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-16-1"
+    },
+    {
+      "id": "16:2",
+      "quote": "A client or server MUST discard any received DHCP messages with an unknown message type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-16-2"
+    },
+    {
+      "id": "16.1:1",
+      "quote": "A client MUST leave the transaction ID unchanged in retransmissions of a message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-16.1-1"
+    },
+    {
+      "id": "16.2:1",
+      "quote": "Clients MUST discard any received Solicit messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-16.2-1"
+    },
+    {
+      "id": "16.2:2",
+      "quote": "Servers MUST discard any Solicit messages that do not include a Client Identifier option or that do include a Server Identifier option.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "16.3:1",
+      "quote": "Clients MUST discard any received Advertise message that meets any of the following conditions:",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-16.3-1"
+    },
+    {
+      "id": "16.3:2",
+      "quote": "Servers and relay agents MUST discard any received Advertise messages.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server and relay agent, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server and relay agent."
+    },
+    {
+      "id": "16.4:1",
+      "quote": "Clients MUST discard any received Request messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-16.4-1"
+    },
+    {
+      "id": "16.4:2",
+      "quote": "Servers MUST discard any received Request message that meets any of the following conditions:",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "16.5:1",
+      "quote": "Clients MUST discard any received Confirm messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-16.5-1"
+    },
+    {
+      "id": "16.5:2",
+      "quote": "Servers MUST discard any received Confirm messages that do not include a Client Identifier option (see Section 21.2) or that do include a Server Identifier option (see Section 21.3).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "16.6:1",
+      "quote": "Clients MUST discard any received Renew messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-16.6-1"
+    },
+    {
+      "id": "16.6:2",
+      "quote": "Servers MUST discard any received Renew message that meets any of the following conditions:",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "16.7:1",
+      "quote": "Clients MUST discard any received Rebind messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-16.7-1"
+    },
+    {
+      "id": "16.7:2",
+      "quote": "Servers MUST discard any received Rebind messages that do not include a Client Identifier option (see Section 21.2) or that do include a Server Identifier option (see Section 21.3).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "16.8:1",
+      "quote": "Clients MUST discard any received Decline messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-16.8-1"
+    },
+    {
+      "id": "16.8:2",
+      "quote": "Servers MUST discard any received Decline message that meets any of the following conditions:",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "16.9:1",
+      "quote": "Clients MUST discard any received Release messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-16.9-1"
+    },
+    {
+      "id": "16.9:2",
+      "quote": "Servers MUST discard any received Release message that meets any of the following conditions:",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "16.10:1",
+      "quote": "Clients MUST discard any received Reply message that meets any of the following conditions:",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-16.10-1"
+    },
+    {
+      "id": "16.10:2",
+      "quote": "If the client included a Client Identifier option (see Section 21.2) in the original message, the Reply message MUST include a Client Identifier option, and the contents of the Client Identifier option MUST match the DUID of the client.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-16.10-2"
+    },
+    {
+      "id": "16.10:3",
+      "quote": "If the client did not include a Client Identifier option in the original message, the Reply message MUST NOT include a Client Identifier option.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-16.10-3"
+    },
+    {
+      "id": "16.10:4",
+      "quote": "Servers and relay agents MUST discard any received Reply messages.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server and relay agent, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server and relay agent."
+    },
+    {
+      "id": "16.11:1",
+      "quote": "Servers and relay agents MUST discard any received Reconfigure messages.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server and relay agent, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server and relay agent."
+    },
+    {
+      "id": "16.11:2",
+      "quote": "Clients MUST discard any Reconfigure message that meets any of the following conditions:",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-16.11-2"
+    },
+    {
+      "id": "16.12:1",
+      "quote": "Clients MUST discard any received Information-request messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-16.12-1"
+    },
+    {
+      "id": "16.12:2",
+      "quote": "Servers MUST discard any received Information-request message that meets any of the following conditions:",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "16.13:1",
+      "quote": "Clients MUST discard any received Relay-forward messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-16.13-1"
+    },
+    {
+      "id": "16.14:1",
+      "quote": "Clients and servers MUST discard any received Relay-reply messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-16.14-1"
+    },
+    {
+      "id": "18:1",
+      "quote": "The client MUST NOT be using any of the addresses or delegated prefixes for which it tries to obtain the bindings by sending the Solicit message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18-1"
+    },
+    {
+      "id": "18:2",
+      "quote": "In particular, if the client had some valid bindings and has chosen to start the server discovery process to obtain the same bindings from a different server, the client MUST stop using the addresses and delegated prefixes for the bindings that it had obtained from the previous server (see Section 18.2.7 for more details on what \"stop using\" means in this context) and that it is now trying to obtain from a new server.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates RFC9915-18-1: this sentence is the case of the same prohibition where bindings were valid; ze starts a Solicit only once every lease has expired (internal/plugins/iface/dhcp/dhcp_v6_linux.go::expireDue).",
+      "mapped-to": "RFC9915-18-1"
+    },
+    {
+      "id": "18.1:1",
+      "quote": "To facilitate a client's use of a single transaction for all IA options, servers MUST return the same T1/T2 values for all IA options in a Reply (see Sections 18.3.2, 18.3.4, and 18.3.5) so that the client will generate a single transaction when renewing or rebinding its leases.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.1:2",
+      "quote": "However, because some servers may not yet conform to this requirement, a client MUST be prepared to select appropriate T1/T2 times as described in Section 18.2.4.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates RFC9915-18.2.4-1: this sentence names the section 18.2.4 rule that row RFC9915-18.2.4-1 carries.",
+      "mapped-to": "RFC9915-18.2.4-1"
+    },
+    {
+      "id": "18.2:1",
+      "quote": "The client SHOULD be suspicious of the Reconfigure message (they may be faked), and it MUST NOT abandon any resources it might have already obtained.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2-1"
+    },
+    {
+      "id": "18.2.1:1",
+      "quote": "The client MUST include a Client Identifier option (see Section 21.2) to identify itself to the server.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.1-1"
+    },
+    {
+      "id": "18.2.1:2",
+      "quote": "The client MUST include an Elapsed Time option (see Section 21.9) to indicate how long the client has been trying to complete the current DHCP message exchange.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.1-2"
+    },
+    {
+      "id": "18.2.1:3",
+      "quote": "The client MUST include an Option Request option (ORO) (see Section 21.7) to request the SOL_MAX_RT option (see Section 21.24) and any other options the client is interested in receiving.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.1-3"
+    },
+    {
+      "id": "18.2.1:4",
+      "quote": "The client MUST NOT include any other options in the Solicit message, except as specifically allowed in the definition of individual options.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.1-4"
+    },
+    {
+      "id": "18.2.1:5",
+      "quote": "Also, the first RT MUST be selected to be strictly greater than IRT by choosing RAND to be strictly greater than 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.1-5"
+    },
+    {
+      "id": "18.2.1:6",
+      "quote": "A client MUST collect valid Advertise messages for the first RT seconds, unless it receives a valid Advertise message with a preference value of 255.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.1-6"
+    },
+    {
+      "id": "18.2.1:7",
+      "quote": "If the DHCP client is configured with either MRC or MRD set to a value other than 0, it MUST stop trying to configure the interface if the message exchange fails.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.1-7"
+    },
+    {
+      "id": "18.2.2:1",
+      "quote": "The client MUST include the identifier of the destination server in a Server Identifier option (see Section 21.3).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.2-1"
+    },
+    {
+      "id": "18.2.2:2",
+      "quote": "The client MUST include a Client Identifier option (see Section 21.2) to identify itself to the server.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.2-2"
+    },
+    {
+      "id": "18.2.2:3",
+      "quote": "The client MUST include an Elapsed Time option (see Section 21.9) to indicate how long the client has been trying to complete the current DHCP message exchange.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.2-3"
+    },
+    {
+      "id": "18.2.2:4",
+      "quote": "The client MUST include an Option Request option (see Section 21.7) to request the SOL_MAX_RT option (see Section 21.24) and any other options the client is interested in receiving.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.2-4"
+    },
+    {
+      "id": "18.2.3:1",
+      "quote": "The client MUST include a Client Identifier option (see Section 21.2) to identify itself to the server.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.3-1"
+    },
+    {
+      "id": "18.2.3:2",
+      "quote": "The client MUST include an Elapsed Time option (see Section 21.9) to indicate how long the client has been trying to complete the current DHCP message exchange.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.3-2"
+    },
+    {
+      "id": "18.2.3:3",
+      "quote": "The first Confirm message from the client on the interface MUST be delayed by a random amount of time between 0 and CNF_MAX_DELAY.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.3-3"
+    },
+    {
+      "id": "18.2.4:1",
+      "quote": "However, as the client SHOULD renew/ rebind all IAs from the server at the same time, the client MUST select T1 and T2 times from all IA options that will guarantee that the client initiates transmissions of Renew/Rebind messages not later than at the T1/T2 times associated with any of the client's bindings (earliest T1/T2).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.4-1"
+    },
+    {
+      "id": "18.2.4:2",
+      "quote": "A client MUST also initiate a Renew/Reply message exchange before time T1 if the client's link-local address used in previous interactions with the server is no longer valid and it is willing to receive Reconfigure messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.4-2"
+    },
+    {
+      "id": "18.2.4:3",
+      "quote": "The client MUST follow the rules defined in Section 14.2.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates RFC9915-14.2-1: this sentence names the section 14.2 rule that rows RFC9915-14.2-1 and RFC9915-14.2-2 carry.",
+      "mapped-to": "RFC9915-14.2-1"
+    },
+    {
+      "id": "18.2.4:4",
+      "quote": "The client MUST include a Server Identifier option (see Section 21.3) in the Renew message, identifying the server with which the client most recently communicated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.4-4"
+    },
+    {
+      "id": "18.2.4:5",
+      "quote": "The client MUST include a Client Identifier option (see Section 21.2) to identify itself to the server.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.4-5"
+    },
+    {
+      "id": "18.2.4:6",
+      "quote": "The client MUST include an Elapsed Time option (see Section 21.9) to indicate how long the client has been trying to complete the current DHCP message exchange.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.4-6"
+    },
+    {
+      "id": "18.2.4:7",
+      "quote": "The client MUST NOT include addresses and prefixes in any IA option that the client did not obtain from the server or that are no longer valid (that have a valid lifetime of 0).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.4-7"
+    },
+    {
+      "id": "18.2.6:1",
+      "quote": "The client MUST include an Elapsed Time option (see Section 21.9) to indicate how long the client has been trying to complete the current DHCP message exchange.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.6-1"
+    },
+    {
+      "id": "18.2.6:2",
+      "quote": "The client MUST include an Option Request option (see Section 21.7) to request the INF_MAX_RT option (see Section 21.25), the Information Refresh Time option (see Section 21.23), and any other options the client is interested in receiving.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.6-2"
+    },
+    {
+      "id": "18.2.6:3",
+      "quote": "When responding to a Reconfigure, the client MUST include a Server Identifier option (see Section 21.3) with the identifier from the Reconfigure message to which the client is responding.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.6-3"
+    },
+    {
+      "id": "18.2.6:4",
+      "quote": "The first Information-request message from the client on the interface MUST be delayed by a random amount of time between 0 and INF_MAX_DELAY.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.6-4"
+    },
+    {
+      "id": "18.2.7:1",
+      "quote": "The client MUST include a Server Identifier option (see Section 21.3) in the Renew message, identifying the server that allocated the lease(s).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.7-1"
+    },
+    {
+      "id": "18.2.7:2",
+      "quote": "The client MUST include a Client Identifier option (see Section 21.2) to identify itself to the server.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.7-2"
+    },
+    {
+      "id": "18.2.7:3",
+      "quote": "The client MUST include an Elapsed Time option (see Section 21.9) to indicate how long the client has been trying to complete the current DHCP message exchange.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.7-3"
+    },
+    {
+      "id": "18.2.7:4",
+      "quote": "The leases to be released MUST be included in the IAs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.7-4"
+    },
+    {
+      "id": "18.2.7:5",
+      "quote": "Any leases for the IAs the client wishes to continue to use MUST NOT be added to the IAs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.7-5"
+    },
+    {
+      "id": "18.2.7:6",
+      "quote": "The client MUST stop using all of the leases being released before the client begins the Release message exchange process.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.7-6"
+    },
+    {
+      "id": "18.2.7:7",
+      "quote": "For an address, this means the address MUST have been removed from the interface.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.7-7"
+    },
+    {
+      "id": "18.2.7:8",
+      "quote": "For a delegated prefix, this means the prefix MUST have been advertised with a Preferred Lifetime and a Valid Lifetime of 0 in a Router Advertisement message as described in part (e) of Section 5.5.3 of [RFC4862]; also see requirement L-13 in Section 4.3 of [RFC7084].",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.7-8"
+    },
+    {
+      "id": "18.2.7:9",
+      "quote": "The client MUST NOT use any of the addresses it is releasing as the source address in the Release message or in any subsequently transmitted message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates RFC9915-18.2.7-7: this sentence follows from it: internal/plugins/iface/dhcp/dhcp_v6_linux.go::shutdown removes every released address from the interface before the Release socket opens, so a released address cannot be a source.",
+      "mapped-to": "RFC9915-18.2.7-7"
+    },
+    {
+      "id": "18.2.8:1",
+      "quote": "The Decline message is not used in prefix delegation; thus, the client MUST NOT include IA_PD options (see Section 21.21) in the Decline message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.8-1"
+    },
+    {
+      "id": "18.2.8:2",
+      "quote": "The client MUST include a Server Identifier option (see Section 21.3) in the Decline message, identifying the server that allocated the lease(s).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.8-2"
+    },
+    {
+      "id": "18.2.8:3",
+      "quote": "The client MUST include a Client Identifier option (see Section 21.2) to identify itself to the server.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.8-3"
+    },
+    {
+      "id": "18.2.8:4",
+      "quote": "The client MUST include an Elapsed Time option (see Section 21.9) to indicate how long the client has been trying to complete the current DHCP message exchange.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.8-4"
+    },
+    {
+      "id": "18.2.8:5",
+      "quote": "The addresses to be declined MUST be included in the IAs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.8-5"
+    },
+    {
+      "id": "18.2.8:6",
+      "quote": "The client MUST NOT use any of the addresses it is declining as the source address in the Decline message or in any subsequently transmitted message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.8-6"
+    },
+    {
+      "id": "18.2.9:1",
+      "quote": "The client MUST process any SOL_MAX_RT option (see Section 21.24) and INF_MAX_RT option (see Section 21.25) present in an Advertise message, even if the message contains a Status Code option (see Section 21.13) indicating a failure, and the Advertise message will be discarded by the client.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.9-1"
+    },
+    {
+      "id": "18.2.9:2",
+      "quote": "The client MUST ignore any Advertise message that contains no addresses (IA Address options (see Section 21.6) encapsulated in IA_NA options (see Section 21.4)) and no delegated prefixes (IA Prefix options (see Section 21.22) encapsulated in IA_PD options (see Section 21.21)), with the exception that the client:",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.9-2"
+    },
+    {
+      "id": "18.2.9:3",
+      "quote": "* MUST process an included SOL_MAX_RT option and",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.9-3"
+    },
+    {
+      "id": "18.2.9:4",
+      "quote": "* MUST process an included INF_MAX_RT option.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.9-4"
+    },
+    {
+      "id": "18.2.9:5",
+      "quote": "The client ignoring an Advertise message MUST NOT restart the Solicit retransmission timer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.9-5"
+    },
+    {
+      "id": "18.2.10:1",
+      "quote": "The client MUST process any SOL_MAX_RT option (see Section 21.24) and INF_MAX_RT option (see Section 21.25) present in a Reply message, even if the message contains a Status Code option indicating a failure.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.10-1"
+    },
+    {
+      "id": "18.2.10:2",
+      "quote": "If the client retransmits the original message to the same server to retry the desired operation, the client MUST limit the rate at which it retransmits the message and limit the duration of the time during which it retransmits the message (see Section 14.1).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates RFC9915-14.1-1: this sentence applies the section 14.1 limit to a retried exchange; every retransmission passes the same per-interface limiter (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::admitTransmission).",
+      "mapped-to": "RFC9915-14.1-1"
+    },
+    {
+      "id": "18.2.10.1:1",
+      "quote": "* The client MUST perform duplicate address detection as per Section 5.4 of [RFC4862], which does list some exceptions, on each of the received addresses in any IAs on which it has not performed duplicate address detection during processing of any of the previous Reply messages from the server.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.10.1-1"
+    },
+    {
+      "id": "18.2.10.1:2",
+      "quote": "* For each assigned address that does not have any associated reachability information (see the definition of \"on-link\" in Section 2.1 of [RFC4861]), in order to avoid the problems described in [RFC4943], the client MUST NOT assume that any addresses are reachable on-link as a result of receiving an IA Address option (see Section 21.6).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates RFC9915-18.2.10.1-3: this sentence is met by the same /128 installation: an address installed as a /128 carries no on-link prefix.",
+      "mapped-to": "RFC9915-18.2.10.1-3"
+    },
+    {
+      "id": "18.2.10.1:3",
+      "quote": "Addresses obtained from an IA Address option MUST NOT be used to form an implicit prefix with a length other than 128.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.10.1-3"
+    },
+    {
+      "id": "18.2.10.1:4",
+      "quote": "If the client uses a delegated prefix to configure addresses on interfaces on itself or other nodes behind it, the preferred and valid lifetimes of those addresses MUST be no longer than the remaining preferred and valid lifetimes, respectively, for the delegated prefix at any time.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates RFC9915-6.3-1: this sentence repeats section 6.3 word for word.",
+      "mapped-to": "RFC9915-6.3-1"
+    },
+    {
+      "id": "18.2.10.1:5",
+      "quote": "In particular, if the delegated prefix or a prefix derived from it is advertised for stateless address autoconfiguration [RFC4862], the advertised preferred and valid lifetimes MUST NOT exceed the corresponding remaining lifetimes of the delegated prefix.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates RFC9915-6.3-2: this sentence repeats section 6.3 word for word.",
+      "mapped-to": "RFC9915-6.3-2"
+    },
+    {
+      "id": "18.2.10.1:6",
+      "quote": "Therefore, the client MUST rate-limit its transmissions (see Section 14.1) and MAY just wait for the normal retransmission time (as if the Reply message had not been received).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates RFC9915-14.1-1: this sentence applies the section 14.1 limit to the UseMulticast retry; every retransmission passes the same per-interface limiter (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::admitTransmission).",
+      "mapped-to": "RFC9915-14.1-1"
+    },
+    {
+      "id": "18.2.10.5:1",
+      "quote": "As a counterexample, a client that previously received an NTP server address from the DHCP server and does not receive it anymore MUST stop using the configured NTP server address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.10.5-1"
+    },
+    {
+      "id": "18.2.11:1",
+      "quote": "The message MUST be dropped if it doesn't pass the validation, as explained in Section 16.11, particularly in cases where the authentication is missing or fails.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.11-1"
+    },
+    {
+      "id": "18.2.11:2",
+      "quote": "Once the client has received a Reconfigure, the client proceeds with the message exchange (retransmitting the Renew, Rebind, or Information-request message if necessary); the client MUST ignore any additional Reconfigure messages until the exchange is complete.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.11-2"
+    },
+    {
+      "id": "18.2.12:1",
+      "quote": "The client MUST include any IAs assigned to the interface that may have moved to a new link, along with the addresses associated with those IAs, in its Confirm message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.12-1"
+    },
+    {
+      "id": "18.2.12:2",
+      "quote": "If the client has any valid delegated prefixes obtained from the DHCP server, the client MUST initiate a Rebind/Reply message exchange as described in Section 18.2.5, with the exception that the retransmission parameters should be set as for the Confirm message (see Section 18.2.3).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.12-2"
+    },
+    {
+      "id": "18.2.12:3",
+      "quote": "If the client has only obtained network information using Information-request/Reply message exchanges, the client MUST initiate an Information-request/Reply message exchange as described in Section 18.2.6.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.12-3"
+    },
+    {
+      "id": "18.2.12:4",
+      "quote": "However, a client MUST rate- limit such initiation attempts to avoid flooding a server with requests when there are link issues (for example, only doing one of these at most every 30 seconds).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.2.12-4"
+    },
+    {
+      "id": "18.3:1",
+      "quote": "These Advertise and Reply messages MUST always contain the Server Identifier option (see Section 21.3) containing the server's DUID and the Client Identifier option (see Section 21.2) from the client message if one was present.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3:2",
+      "quote": "The server MUST use the received message to construct the proper Relay-reply message to allow the response to the received message to be relayed through the same relay agents (in reverse order) as the original client message; see Section 19.3 for more details.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.1:1",
+      "quote": "The server MUST commit the assignment of any addresses and delegated prefixes or other configuration information before sending a Reply message to a client.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.2:1",
+      "quote": "The server MUST include in the Reply message a Server Identifier option (see Section 21.3) containing the server's DUID and the Client Identifier option (see Section 21.2) from the Request message.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.2:2",
+      "quote": "If any of the prefixes of the included addresses are not appropriate for the link to which the client is connected, the server MUST return the IA to the client with a Status Code option (see Section 21.13) with the value NotOnLink.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.2:3",
+      "quote": "If the server does not send the NotOnLink status code but it cannot assign any IP addresses to an IA, the server MUST return the IA option in the Reply message with no addresses in the IA and a Status Code option containing status code NoAddrsAvail in the IA.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.2:4",
+      "quote": "For any IA_PD option (see Section 21.21) in the Request message to which the server cannot assign any delegated prefixes, the server MUST return the IA_PD option in the Reply message with no prefixes in the IA_PD and with a Status Code option containing status code NoPrefixAvail in the IA_PD.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.2:5",
+      "quote": "The server MUST NOT include any addresses or delegated prefixes in the IA that the server does not assign to the client.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.2:6",
+      "quote": "The T1/T2 times set in each applicable IA option for a Reply MUST be the same values across all IAs.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.2:7",
+      "quote": "The server MUST determine the T1/T2 times across all of the applicable client's bindings in the Reply.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.2:8",
+      "quote": "The server MUST NOT cache its responses.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.3:1",
+      "quote": "If the server is unable to perform this test (for example, the server does not have information about prefixes on the link to which the client is connected) or there were no addresses in any of the IAs sent by the client, the server MUST NOT send a Reply to the client.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.3:2",
+      "quote": "The server MUST include in the Reply message a Server Identifier option (see Section 21.3) containing the server's DUID and the Client Identifier option (see Section 21.2) from the Confirm message.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.4:1",
+      "quote": "The server MUST include in the Reply message a Server Identifier option (see Section 21.3) containing the server's DUID and the Client Identifier option (see Section 21.2) from the Renew message.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.4:2",
+      "quote": "The T1/T2 values set in each applicable IA option for a Reply MUST be the same across all IAs.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.4:3",
+      "quote": "The server MUST determine the T1/T2 values across all of the applicable client's bindings in the Reply.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.5:1",
+      "quote": "The Reply with lifetimes of 0 constitutes an explicit notification to the client that the specific addresses and delegated prefixes are no longer valid and MUST NOT be used by the client.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-18.3.5-1"
+    },
+    {
+      "id": "18.3.5:2",
+      "quote": "The server MUST NOT return any addresses or delegated prefixes in the IA that the server does not assign to the client.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.5:3",
+      "quote": "The server MUST include in the Reply message a Server Identifier option (see Section 21.3) containing the server's DUID and the Client Identifier option (see Section 21.2) from the Rebind message.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.5:4",
+      "quote": "The T1 or T2 values set in each applicable IA option for a Reply MUST be the same values across all IAs.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.5:5",
+      "quote": "The server MUST determine the T1 or T2 values across all of the applicable client's bindings in the Reply.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.6:1",
+      "quote": "The server MUST include a Server Identifier option (see Section 21.3) containing the server's DUID in the Reply message.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.9:1",
+      "quote": "The server preference value MUST default to 0 unless otherwise configured by the server administrator.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.9:2",
+      "quote": "The server MUST include options in the Advertise message containing configuration parameters for all of the options identified in the Option Request option (see Section 21.7) in the Solicit message that the server has been configured to return to the client.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.9:3",
+      "quote": "If the Option Request option includes a container option, the server MUST include all the options that are eligible to be encapsulated in the container.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.9:4",
+      "quote": "The server MUST include IA options in the Advertise message containing any addresses and/or delegated prefixes that would be assigned to IAs contained in the Solicit message from the client.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.9:5",
+      "quote": "If the server is not going to assign an address or delegated prefix received as a hint in the Solicit message, the server MUST NOT include this address or delegated prefix in the Advertise message.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.9:6",
+      "quote": "If the server will not assign any addresses to an IA_NA in subsequent Request messages from the client, the server MUST include the IA option in the Advertise message with no addresses in that IA and a Status Code option (see Section 21.13) encapsulated in the IA option containing status code NoAddrsAvail.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.9:7",
+      "quote": "If the server will not assign any prefixes to an IA_PD in subsequent Request messages from the client, the server MUST include the IA_PD option (see Section 21.21) in the Advertise message with no prefixes in the IA_PD option and a Status Code option encapsulated in the IA_PD containing status code NoPrefixAvail.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.10:1",
+      "quote": "The Advertise or Reply message MUST be unicast through the interface on which the original message was received.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.11:1",
+      "quote": "The server MUST use DHCP authentication in the Reconfigure message (see Section 20.4).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.11:2",
+      "quote": "The server MUST include a Reconfigure Message option (see Section 21.19) to select whether the client responds with a Renew message, a Rebind message, or an Information-request message.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "18.3.11:3",
+      "quote": "The server MUST NOT include any other options in the Reconfigure message, except as specifically allowed in the definition of individual options.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "19:1",
+      "quote": "If the relay agent has not been explicitly configured, it MUST use the All_DHCP_Servers multicast address as the default.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 relay agent, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 relay agent."
+    },
+    {
+      "id": "19:2",
+      "quote": "If the relay agent receives a message other than Relay-forward and Relay-reply and the relay agent does not recognize its message type, it MUST forward the message as described in Section 19.1.1.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 relay agent, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 relay agent."
+    },
+    {
+      "id": "19.1.1:1",
+      "quote": "If the relay agent cannot use the address in the link-address field to identify the interface through which the response to the client will be relayed, the relay agent MUST include an Interface-Id option (see Section 21.18) in the Relay-forward message.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 relay agent, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 relay agent."
+    },
+    {
+      "id": "19.2:1",
+      "quote": "Relay agents MUST NOT modify the message.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 relay agent, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 relay agent."
+    },
+    {
+      "id": "19.2:2",
+      "quote": "If the relay agent receives a Relay-reply message, it MUST process the message as defined above, regardless of the type of message encapsulated in the Relay Message option.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 relay agent, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 relay agent."
+    },
+    {
+      "id": "19.3:1",
+      "quote": "A response to the client MUST be relayed through the same relay agents as the original client message.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 relay agent, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 relay agent."
+    },
+    {
+      "id": "19.4:1",
+      "quote": "Each relay is allowed to insert additional options on the encapsulation level it added but MUST NOT change anything in the message being encapsulated.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 relay agent, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 relay agent."
+    },
+    {
+      "id": "20.2:1",
+      "quote": "Any DHCP message MUST NOT include more than one Authentication option.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-20.2-1"
+    },
+    {
+      "id": "20.3:1",
+      "quote": "If the RDM field contains 0x00, the replay detection field MUST be set to the value of a strictly monotonically increasing 64-bit unsigned integer (modulo 2^64).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "20.3:2",
+      "quote": "This method MUST be supported by all Authentication option protocols.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the Authentication option protocol designer, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the Authentication option protocol designer."
+    },
+    {
+      "id": "20.3:3",
+      "quote": "A client that receives a message with the RDM field set to 0x00 MUST compare its replay detection field with the previous value sent by that same server (based on the Server Identifier option; see Section 21.3) and only accept the message if the received value is greater and record this as the new value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-20.3-3"
+    },
+    {
+      "id": "20.3:4",
+      "quote": "If this is the first time a client processes an Authentication option sent by a server, the client MUST record the replay detection value and skip the replay detection check.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-20.3-4"
+    },
+    {
+      "id": "20.3:5",
+      "quote": "Servers that support the reconfigure mechanism MUST ensure that the replay detection value is retained between restarts.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "20.4.2:1",
+      "quote": "The reconfigure key is 128 bits long and MUST be a cryptographically strong random or pseudorandom number that cannot easily be predicted.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "21:1",
+      "quote": "If an option does appear multiple times, each instance is considered separate and the data areas of the options MUST NOT be concatenated or otherwise combined.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21-1"
+    },
+    {
+      "id": "21.4:1",
+      "quote": "The server MUST ignore any values in these fields in messages received from a client.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "21.4:2",
+      "quote": "In a message sent by a server to a client, the client MUST use the values in the T1 and T2 fields for the T1 and T2 times, unless values in those fields are 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.4-2"
+    },
+    {
+      "id": "21.4:3",
+      "quote": "The client MUST follow the rules defined in Section 14.2.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates RFC9915-14.2-1: this sentence names the section 14.2 rule that rows RFC9915-14.2-1 and RFC9915-14.2-2 carry.",
+      "mapped-to": "RFC9915-14.2-1"
+    },
+    {
+      "id": "21.6:1",
+      "quote": "A client MUST NOT form an implicit prefix with a length other than 128 for this address.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates RFC9915-18.2.10.1-3: this sentence states the same /128 rule as section 18.2.10.1.",
+      "mapped-to": "RFC9915-18.2.10.1-3"
+    },
+    {
+      "id": "21.6:2",
+      "quote": "The server MUST ignore any received values.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "21.6:3",
+      "quote": "In a message sent by a server to a client, the client MUST use the values in the preferred-lifetime and valid-lifetime fields for the preferred and valid lifetimes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.6-3"
+    },
+    {
+      "id": "21.6:4",
+      "quote": "The client MUST discard any addresses for which the preferred lifetime is greater than the valid lifetime.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.6-4"
+    },
+    {
+      "id": "21.7:1",
+      "quote": "A client MUST include an Option Request option in a Solicit, Request, Renew, Rebind, or Information-request message to inform the server about options the client wants the server to send to the client.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.7-1"
+    },
+    {
+      "id": "21.7:2",
+      "quote": "The Option Request option MUST NOT include the following option codes:",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.7-2"
+    },
+    {
+      "id": "21.7:3",
+      "quote": "Other top-level option codes MUST appear in the Option Request option or they will not be sent by the server.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates RFC9915-21.7-1: this sentence states the consequence of the client obligation row RFC9915-21.7-1 carries.",
+      "mapped-to": "RFC9915-21.7-1"
+    },
+    {
+      "id": "21.9:1",
+      "quote": "A client MUST include an Elapsed Time option in messages to indicate how long the client has been trying to complete a DHCP message exchange.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.9-1"
+    },
+    {
+      "id": "21.12:1",
+      "quote": "The server MUST NOT send this option.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "21.13:1",
+      "quote": "MUST NOT be NUL-terminated.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "21.14:1",
+      "quote": "A server MUST include this option in a Reply message sent in response to a Solicit message when completing the Solicit/Reply message exchange.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "21.15:1",
+      "quote": "The user class information carried in this option MUST be configurable on the client.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.15-1"
+    },
+    {
+      "id": "21.15:2",
+      "quote": "The data area of the User Class option MUST contain one or more instances of user-class-data information.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.15-2"
+    },
+    {
+      "id": "21.16:1",
+      "quote": "Servers and clients MUST NOT include more than one instance of OPTION_VENDOR_CLASS with the same Enterprise Number.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.16-1"
+    },
+    {
+      "id": "21.17:1",
+      "quote": "The vendor-option-data field MUST be encoded as a sequence of code/length/value fields of format identical to the DHCP options (see Section 21.1).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.17-1"
+    },
+    {
+      "id": "21.17:2",
+      "quote": "Servers and clients MUST NOT send more than one instance of the Vendor-specific Information option with the same Enterprise Number.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.17-2"
+    },
+    {
+      "id": "21.17:3",
+      "quote": "* MUST specify the Vendor-specific Information option in an Option Request option.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.17-3"
+    },
+    {
+      "id": "21.18:1",
+      "quote": "The server MUST copy the Interface-Id option from the Relay-forward message into the Relay-reply message the server sends to the relay agent in response to the Relay-forward message.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "21.18:2",
+      "quote": "This option MUST NOT appear in any message except a Relay-forward or Relay-reply message.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 relay agent, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 relay agent."
+    },
+    {
+      "id": "21.21:1",
+      "quote": "The server MUST ignore any values in these fields in messages received from a client.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "21.21:2",
+      "quote": "In a message sent by a server to a client, the client MUST use the values in the T1 and T2 fields for the T1 and T2 timers, unless values in those fields are 0.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates RFC9915-21.4-2: this sentence states for IA_PD the T1/T2 rule section 21.4 states for IA_NA; internal/plugins/iface/dhcp/dhcp_v6_lease_linux.go::iaTimes reads both through one path.",
+      "mapped-to": "RFC9915-21.4-2"
+    },
+    {
+      "id": "21.21:3",
+      "quote": "The client MUST follow the rules defined in Section 14.2.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates RFC9915-14.2-1: this sentence names the section 14.2 rule that rows RFC9915-14.2-1 and RFC9915-14.2-2 carry.",
+      "mapped-to": "RFC9915-14.2-1"
+    },
+    {
+      "id": "21.22:1",
+      "quote": "The server MUST ignore any received values in these lifetime fields.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "21.22:2",
+      "quote": "The client MUST discard any prefixes for which the preferred lifetime is greater than the valid lifetime.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.22-2"
+    },
+    {
+      "id": "21.23:1",
+      "quote": "A DHCP client MUST request this option in the Option Request option (see Section 21.7) when sending Information-request messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.23-1"
+    },
+    {
+      "id": "21.23:2",
+      "quote": "A client MUST NOT request this option in the Option Request option in any other messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.23-2"
+    },
+    {
+      "id": "21.23:3",
+      "quote": "The option value MUST NOT be smaller than IRT_MINIMUM.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "21.23:4",
+      "quote": "This option MUST only appear in the top-level options area of Reply messages.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "21.23:5",
+      "quote": "If the Reply to an Information-request message does not contain this option, the client MUST behave as if the option with the value IRT_DEFAULT was provided.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.23-5"
+    },
+    {
+      "id": "21.23:6",
+      "quote": "A client MUST use the refresh time IRT_MINIMUM if it receives the option with a value less than IRT_MINIMUM.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.23-6"
+    },
+    {
+      "id": "21.23:7",
+      "quote": "When the client detects that the refresh time has expired, it SHOULD try to update its configuration data by sending an Information- request as specified in Section 18.2.6, except that the client MUST delay sending the first Information-request by a random amount of time between 0 and INF_MAX_DELAY.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.23-7"
+    },
+    {
+      "id": "21.24:1",
+      "quote": "SOL_MAX_RT value: Overriding value for SOL_MAX_RT in seconds; MUST be in this range: 60 <= \"value\" <= 86400 (1 day).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "21.24:2",
+      "quote": "A DHCP client MUST include the SOL_MAX_RT option code in any Option Request option (see Section 21.7) it sends in a Solicit message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates RFC9915-18.2.1-3: this sentence states the SOL_MAX_RT request row RFC9915-18.2.1-3 carries.",
+      "mapped-to": "RFC9915-18.2.1-3"
+    },
+    {
+      "id": "21.24:3",
+      "quote": "A DHCP client MUST ignore any SOL_MAX_RT option values that are less than 60 or more than 86400.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.24-3"
+    },
+    {
+      "id": "21.24:4",
+      "quote": "If a DHCP client receives a message containing a SOL_MAX_RT option that has a valid value for SOL_MAX_RT, the client MUST set its internal SOL_MAX_RT parameter to the value contained in the SOL_MAX_RT option.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.24-4"
+    },
+    {
+      "id": "21.25:1",
+      "quote": "INF_MAX_RT value: Overriding value for INF_MAX_RT in seconds; MUST be in this range: 60 <= \"value\" <= 86400 (1 day).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DHCPv6 server, not the client; ze implements the client role only: internal/plugins/iface/dhcp/ holds the DHCPv6 client and internal/plugins/dhcpserver/ answers DHCPv4 alone, so no ze code acts as the DHCPv6 server."
+    },
+    {
+      "id": "21.25:2",
+      "quote": "A DHCP client MUST include the INF_MAX_RT option code in any Option Request option (see Section 21.7) it sends in an Information-request message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.25-2"
+    },
+    {
+      "id": "21.25:3",
+      "quote": "A DHCP client MUST ignore any INF_MAX_RT option values that are less than 60 or more than 86400.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.25-3"
+    },
+    {
+      "id": "21.25:4",
+      "quote": "If a DHCP client receives a message containing an INF_MAX_RT option that has a valid value for INF_MAX_RT, the client MUST set its internal INF_MAX_RT parameter to the value contained in the INF_MAX_RT option.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-21.25-4"
+    },
+    {
+      "id": "22.3:1",
+      "quote": "Because of the opportunity for attack through the Reconfigure message, a DHCP client MUST discard any Reconfigure message that does not include authentication or that does not pass the validation process for the authentication protocol.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-22.3-1"
+    },
+    {
+      "id": "A:1",
+      "quote": "Legacy implementations MAY support them, but implementations conformant to this document MUST NOT rely on them.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9915-A-1"
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 // Design: docs/features/interfaces.md -- DHCPv6 client lifecycle
 // Related: dhcp_v6_lease_linux_test.go -- the rig these tests drive
+// RFC: rfc/short/rfc9915.md
 
 //go:build linux
 
@@ -57,6 +58,8 @@ func TestRFC9915Section15RetransmissionTimeout(t *testing.T) {
 // saturates at 0xffff.
 // PREVENTS: D-5, identical bytes retransmitted with Elapsed Time 0.
 func TestRFC9915Section15ElapsedTimeUpdated(t *testing.T) {
+	// RFC requirement: RFC9915-15-1 positive -- each retransmitted Solicit carries an Elapsed Time equal to the time since the first transmission, saturating at 0xffff hundredths.
+	// RFC requirement: RFC9915-16.1-1 positive -- every retransmitted Solicit of one exchange carries the transaction ID of the first.
 	r := newV6Rig(t, dHCPConfig{})
 	r.startWorker()
 	r.runUntil(seconds(1000))
@@ -85,6 +88,8 @@ func TestRFC9915Section15ElapsedTimeUpdated(t *testing.T) {
 // RT is above IRT, and the Option Request option carries SOL_MAX_RT (82).
 // PREVENTS: D-11.
 func TestRFC9915Section1821FirstSolicitRTAboveIRT(t *testing.T) {
+	// RFC requirement: RFC9915-18.2.1-3 positive -- the first Solicit's Option Request option lists SOL_MAX_RT.
+	// RFC requirement: RFC9915-18.2.1-5 positive -- with RAND pinned at the middle of its range the first Solicit RT is strictly above SOL_TIMEOUT.
 	r := newV6Rig(t, dHCPConfig{})
 	r.client.v6Random = func() float64 { return 0.5 }
 	r.startWorker()
@@ -171,6 +176,9 @@ func testWorkerAnswer(w *v6Worker, kind dhcpv6.MessageType, opts ...dhcpv6.Optio
 // VALIDATES: AC-7 -- 60 and 86400 replace SOL_MAX_RT, 59 and 86401 are
 // ignored, and a Reply with a failure status is still read for it.
 func TestRFC9915Section2124SolMaxRTRange(t *testing.T) {
+	// RFC requirement: RFC9915-21.24-3 negative -- SOL_MAX_RT values 59 and 86401 leave the internal SOL_MAX_RT at its default.
+	// RFC requirement: RFC9915-21.24-4 positive -- SOL_MAX_RT values 60 and 86400 become the internal SOL_MAX_RT.
+	// RFC requirement: RFC9915-18.2.10-1 positive -- a Reply with Status Code UnspecFail still sets the internal SOL_MAX_RT from its SOL_MAX_RT option, while the Reply is not taken as the answer.
 	for _, tc := range []struct {
 		value uint32
 		want  time.Duration
@@ -194,6 +202,11 @@ func TestRFC9915Section2124SolMaxRTRange(t *testing.T) {
 // message type is discarded.
 // PREVENTS: D-10, any message with the right xid taken.
 func TestRFC9915Section1610ReplyValidation(t *testing.T) {
+	// RFC requirement: RFC9915-16-1 positive -- a Reply carrying an option of unknown code 65000 is accepted.
+	// RFC requirement: RFC9915-16-2 negative -- a message of unknown type 250 carrying valid Server and Client IDs is refused.
+	// RFC requirement: RFC9915-16.10-1 negative -- a Reply with no Server ID is refused.
+	// RFC requirement: RFC9915-16.10-2 negative -- a Reply whose Client ID is another DUID is refused.
+	// RFC requirement: RFC9915-11-1 negative -- a Reply whose Client ID is a DUID unequal to the client's is refused, and one with an equal DUID is accepted.
 	w := testWorker(t, dHCPConfig{})
 	accept := w.replyMatcher()
 
@@ -222,6 +235,7 @@ func TestRFC9915Section1610ReplyValidation(t *testing.T) {
 //
 // VALIDATES: AC-19 -- the 21st waits until the first leaves the 20 s window.
 func TestRFC9915Section141PerInterfaceRateLimit(t *testing.T) {
+	// RFC requirement: RFC9915-14.1-1 positive -- after 20 transmissions at one instant the 21st waits until the first leaves the 20 s window.
 	w := testWorker(t, dHCPConfig{})
 	clk, ok := w.c.clock.(*sim.FakeClock)
 	if !ok {
@@ -259,6 +273,7 @@ func (w *v6Worker) admitAsync(admitted chan<- time.Time) {
 // first RT ends; a 255 is taken at once; a Reply without Rapid Commit is
 // discarded.
 func TestRFC9915Section1821AdvertiseSelection(t *testing.T) {
+	// RFC requirement: RFC9915-18.2.1-6 positive -- Advertises of preference 10 and 200 do not end the first RT and the 200 is chosen when it ends, while preference 255 is taken at once.
 	w := testWorker(t, dHCPConfig{})
 	pref := func(v byte) dhcpv6.Option {
 		return &dhcpv6.OptionGeneric{OptionCode: dhcpv6.OptionPreference, OptionData: []byte{v}}
@@ -323,6 +338,7 @@ func TestRFC9915Section1822RequestGivesUpAfterMRC(t *testing.T) {
 // sends no IA_PD.
 // PREVENTS: D-13, the pd leaf reaching no message.
 func TestDHCPv6PDLengthRequestsDelegatedPrefix(t *testing.T) {
+	// RFC requirement: RFC9915-12-1 positive -- each Solicit, Request, Renew and Rebind carries an IA_PD whose IAID differs from the IA_NA's.
 	build := func(w *v6Worker) []*dhcpv6.Message {
 		t.Helper()
 		solicit, err := w.buildSolicit()

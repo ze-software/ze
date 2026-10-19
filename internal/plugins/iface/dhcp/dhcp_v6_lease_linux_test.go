@@ -1,6 +1,7 @@
 // Design: docs/features/interfaces.md -- DHCPv6 client lifecycle
 // Related: dhcp_v6_exchange_linux_test.go -- the exchange engine tests
 // Related: dhcp_v4_rig_linux_test.go -- the loop backend and log capture this rig reuses
+// RFC: rfc/short/rfc9915.md
 
 //go:build linux
 
@@ -349,6 +350,11 @@ func lease10x16x30() []dhcpv6.Option {
 // device (eth7), never the logical name.
 // PREVENTS: D-1 (renewal by a fresh Solicit), D-2 (logical-name socket).
 func TestRFC9915Section1824RenewAtT1CarriesLease(t *testing.T) {
+	// RFC requirement: RFC9915-18.2.4-4 positive -- the Renew sent at T1 carries the leasing server's Server ID.
+	// RFC requirement: RFC9915-18.2.4-5 positive -- the Renew sent at T1 carries the Client ID of the Solicit.
+	// RFC requirement: RFC9915-18.2.4-6 positive -- the Renew sent at T1 carries an Elapsed Time of 0.
+	// RFC requirement: RFC9915-21.4-2 positive -- with server T1 10 s the Renew goes out at 10 s.
+	// RFC requirement: RFC9915-11.4-1 positive -- the default Client ID is a DUID-LL of hardware type Ethernet and the interface MAC.
 	r := newV6Rig(t, dHCPConfig{})
 	r.srv.serve = leaseServer(lease10x16x30, true, false)
 	r.startWorker()
@@ -400,6 +406,8 @@ func TestRFC9915Section1824RenewAtT1CarriesLease(t *testing.T) {
 // Reply; the address reinstalled with the lease's lifetimes each time.
 // PREVENTS: D-3, the address removed after two renewals.
 func TestDHCPv6LeaseHeldAcrossFiveRenewals(t *testing.T) {
+	// RFC requirement: RFC9915-18.2.10.1-3 positive -- the leased address is installed as a /128 on every Reply.
+	// RFC requirement: RFC9915-21.6-3 positive -- the leased address is installed with valid 30 s and preferred 20 s, the IA Address lifetimes, on every Reply.
 	r := newV6Rig(t, dHCPConfig{})
 	r.srv.serve = leaseServer(lease10x16x30, true, false)
 	r.startWorker()
@@ -470,6 +478,7 @@ func TestRFC9915Section1825RebindAtT2WithoutServerID(t *testing.T) {
 // removed, one dhcp-expired is published per lease (the /128 and the /56),
 // and a SOLICIT exchange starts. D-12: the prefix expiry is reported.
 func TestRFC9915Section1825ExpiryRemovesAndSolicits(t *testing.T) {
+	// RFC requirement: RFC9915-18-1 positive -- when every valid lifetime has run out the address is removed once and the new Solicit starts at 30 s, after it.
 	r := newV6Rig(t, dHCPConfig{PDRequested: true})
 	acquired := false
 	r.srv.serve = func(req *dhcpv6.Message) []*dhcpv6.Message {
@@ -629,6 +638,8 @@ func TestDHCPv6DefaultDUIDStable(t *testing.T) {
 // Client ID and the lease goes out; with no answer Stop returns within the
 // 3 s bound after at most REL_MAX_RC transmissions.
 func TestDHCPv6ReleaseOnStop(t *testing.T) {
+	// RFC requirement: RFC9915-18.2.7-6 positive -- on Stop the leased address is removed once and a Release carrying the lease goes out.
+	// RFC requirement: RFC9915-18.2.7-7 positive -- on Stop the leased address is removed from the interface once and a Release goes out.
 	r := newV6Rig(t, dHCPConfig{})
 	r.srv.serve = leaseServer(lease10x16x30, true, false)
 	r.startWorker()
@@ -712,6 +723,7 @@ func applyReply(l *v6Lease, at time.Time, opts ...dhcpv6.Option) v6Applied {
 // lease answered with valid 0 is removed.
 // PREVENTS: D-7, a valid-0 lease installed permanent.
 func TestRFC9915Section182101ValidZeroDiscarded(t *testing.T) {
+	// RFC requirement: RFC9915-18.3.5-1 negative -- a new lease with valid lifetime 0 is not recorded and a held lease answered with valid 0 is removed.
 	now := time.Unix(1000, 0)
 	l := &v6Lease{}
 	a := applyReply(l, now, testIANA(10*time.Second, 16*time.Second, testIAAddr(0, 0)))
@@ -729,6 +741,7 @@ func TestRFC9915Section182101ValidZeroDiscarded(t *testing.T) {
 //
 // VALIDATES: AC-12 -- the address is not recorded.
 func TestRFC9915Section216PreferredAboveValidDiscarded(t *testing.T) {
+	// RFC requirement: RFC9915-21.6-4 negative -- an IA Address with preferred lifetime above valid lifetime is not recorded.
 	l := &v6Lease{}
 	a := applyReply(l, time.Unix(0, 0), testIANA(10*time.Second, 16*time.Second, testIAAddr(31*time.Second, 30*time.Second)))
 	if !l.empty() || a.discarded != 1 {
@@ -758,6 +771,8 @@ func TestRFC9915Section214T1AboveT2DiscardsIA(t *testing.T) {
 // VALIDATES: AC-13 -- T1 is 0.5 and T2 0.8 of the shortest preferred
 // lifetime; an infinite preferred lifetime means no renewal.
 func TestRFC9915Section142ZeroTimersChosenByClient(t *testing.T) {
+	// RFC requirement: RFC9915-14.2-1 positive -- with T1 and T2 of 0 the client sets T1 to 0.5 and T2 to 0.8 of the shortest preferred lifetime.
+	// RFC requirement: RFC9915-14.2-2 positive -- with T1 and T2 of 0 the chosen T1 is 50 s, not an immediate transmission.
 	at := time.Unix(0, 0)
 	l := &v6Lease{}
 	applyReply(l, at, testIANA(0, 0, testIAAddr(100*time.Second, 200*time.Second)))
@@ -781,6 +796,7 @@ func TestRFC9915Section142ZeroTimersChosenByClient(t *testing.T) {
 // VALIDATES: AC-14 -- the renewal time is 40 s.
 // PREVENTS: D-9, timers read from the first IA_NA only.
 func TestRFC9915Section1824EarliestT1AcrossIAs(t *testing.T) {
+	// RFC requirement: RFC9915-18.2.4-1 positive -- with IAs carrying different T1/T2 the client renews at the earliest, 40 s, and rebinds at 64 s.
 	at := time.Unix(0, 0)
 	l := &v6Lease{}
 	applyReply(l, at,

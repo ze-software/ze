@@ -1,6 +1,7 @@
 // Design: docs/features/interfaces.md -- DHCPv6 client lifecycle
 // Overview: dhcp_v6_linux.go -- DHCPv6 lease state machine
 // Related: dhcp_v6_lease_linux.go -- the lease record the builders read
+// RFC: rfc/short/rfc9915.md
 
 //go:build linux
 

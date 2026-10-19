@@ -1,5 +1,6 @@
 // Design: docs/features/interfaces.md -- DHCPv6 client lifecycle
 // Related: dhcp_v6_exchange_linux.go -- nclient6Link, the production link
+// RFC: rfc/short/rfc9915.md
 
 //go:build linux
 
@@ -105,6 +106,7 @@ func answerTo(msg *dhcpv6.Message, kind dhcpv6.MessageType) []byte {
 // matcher that refuses an answer keeps the exchange listening, so the
 // Advertise collector can see a later message in the same window.
 func TestDHCPv6LinkOneDatagramPerExchange(t *testing.T) {
+	// RFC requirement: RFC9915-18.2.9-5 positive -- a message the matcher refuses leaves the exchange listening, and no second datagram is written within the window.
 	t.Run("answered after a refused message", func(t *testing.T) {
 		link, conn := newRecordingLink(t)
 		msg := newTestSolicit(t)

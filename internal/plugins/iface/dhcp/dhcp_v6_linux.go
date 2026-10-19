@@ -2,6 +2,7 @@
 // Overview: dhcp_linux.go -- DHCP client types and lifecycle
 // Detail: dhcp_v6_exchange_linux.go -- message builders and the retransmission engine
 // Detail: dhcp_v6_lease_linux.go -- the lease record and its timers
+// RFC: rfc/short/rfc9915.md
 
 //go:build linux
 
