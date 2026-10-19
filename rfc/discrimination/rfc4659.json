@@ -53,7 +53,7 @@
       "claim-sha": "2b90ef467a3004c4",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_build_vpn.go::buildMPReachVPN",
-      "producer-sha": "7ca6f0f3f9f54c23",
+      "producer-sha": "815a9df79ab891a0",
       "break": "body of buildMPReachVPN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
