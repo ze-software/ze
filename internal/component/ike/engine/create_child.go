@@ -587,6 +587,11 @@ const (
 		"ze deleted the pair; no traffic is protected until a Child SA exists, and ze asks again " +
 		"after retry-after; the error names what the kernel refused: make the esp-group algorithms " +
 		"ones this kernel supports, then reload the configuration: ze signal reload"
+	childRekeyFixAnswer = "the peer's rekey answer is malformed or outside what ze offered, so ze " +
+		"deleted the new pair and keeps the Child SA in use, which rekeys again before it " +
+		"expires; make the esp-group proposals and traffic selectors match the peer's, then " +
+		"reload the configuration: ze signal reload; if they already match, the peer's IKE " +
+		"implementation sent a defective answer and its own logs name why"
 	childResponseFixAnswer = "the peer's answer is malformed or outside what ze offered, so ze deleted " +
 		"the pair; no traffic is protected until a Child SA exists, and ze asks again after " +
 		"retry-after; make the esp-group proposals and traffic selectors match the peer's, then " +

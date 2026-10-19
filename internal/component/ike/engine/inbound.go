@@ -444,7 +444,21 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 					log.Warn("child-sa: rekey response refused, no UDP encapsulation port, deleting the new pair",
 						"peer", ps.peerName, "error", err, "fix", childResponseFixEncapPort)
 				default:
-					log.Warn("ike: child rekey response failed", "peer", ps.peerName, "error", err)
+					// rekeyRefusal (rekey.go) found no error notification, so the peer
+					// answered with a new Child SA and installed its half of the pair.
+					// This node refused that answer, so the new pair is closed the way
+					// every other pair is, by a Delete naming this node's inbound SPI.
+					// The old Child SA stays in use.
+					//
+					// RFC 7296 Section 1.4.1: "ESP and AH SAs always exist in pairs, with
+					// one SA in each direction.  When an SA is closed, both members of the
+					// pair MUST be closed (that is, deleted).  Each endpoint MUST close its
+					// incoming SAs and allow the other endpoint to close the other SA in
+					// each pair." Without the Delete the peer kept a new SA this node never
+					// installed, and could move its traffic onto it (Section 2.8).
+					ps.sendDeleteESP(sa, tr, p.newInboundSPI, log)
+					log.Warn("child-sa: rekey response refused, deleting the new pair",
+						"peer", ps.peerName, "error", err, "fix", childRekeyFixAnswer)
 				}
 				p.clear()
 				ps.pendingRekey = nil

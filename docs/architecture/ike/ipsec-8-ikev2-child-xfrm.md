@@ -491,7 +491,14 @@ Child or IKE rekey hold. An answer this node refuses after the peer accepted it
 success that arrives after the peer created the session's Child SA meanwhile. The
 schedule lives on the session, so an IKE SA rekey keeps it.
 
-<!-- source: internal/component/ike/engine/inbound.go -- inbound message classification, handleNewChildRequest, hasTSPayload -->
+A Child SA rekey answer behaves the same way. An answer carrying an error
+notification is the peer's refusal and is routed by the notification. An answer
+carrying none means the peer installed the new pair, so when this node refuses it
+(no Nr, a selector answer it will not adopt, an offer it never made), the rekey
+response handler sends a Delete listing its own inbound SPI of the new pair (RFC
+7296 Section 1.4.1), logs `childRekeyFixAnswer`, and keeps the Child SA in use.
+
+<!-- source: internal/component/ike/engine/inbound.go -- inbound message classification, handleNewChildRequest, hasTSPayload, handleCreateChildSAOwned -->
 <!-- source: internal/component/ike/engine/create_child.go -- respondNewChild, newChildSA, parseNewChildRequest, serviceChildCreate, finishChildCreate, childCreateSchedule -->
 <!-- source: internal/component/ike/engine/delete.go -- Child SA teardown over INFORMATIONAL -->
 <!-- source: internal/component/ike/engine/bypass.go -- IKE control-plane bypass policies -->
