@@ -295,11 +295,12 @@ func interfaceIPv4(name string) ([4]byte, error) {
 			continue
 		}
 		ip, err := netip.ParseAddr(addr.Address)
-		// Ze sources OSPF packets from the interface's own IPv4 address, so an
-		// interface needs one. RFC 2328 section 8.1 lets an unnumbered
-		// point-to-point interface source from another router address, and Ze
-		// does not implement unnumbered interfaces (RFC2328-8.1-1 is a {gap}).
-		// An unspecified, multicast or broadcast value cannot be a source.
+		// Ze sources OSPF packets from the interface's IPv4 address, so an
+		// interface needs one. On an unnumbered unit (iface `ipv4 unnumbered`)
+		// that address is the donor's, installed as a /32, which is how this
+		// satisfies RFC 2328 section 8.1: "On these interfaces, the IP source
+		// should be set to any of the other IP addresses belonging to the
+		// router." An unspecified, multicast or broadcast value cannot be a source.
 		if err == nil && ip.Is4() && !ip.IsUnspecified() && !ip.IsMulticast() && ip.As4() != [4]byte{255, 255, 255, 255} {
 			return ip.As4(), nil
 		}

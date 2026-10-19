@@ -33,6 +33,10 @@ var (
 		"set `ipv4 unnumbered <donor-interface>` or delete unnumbered-source")
 )
 
+// ConfigRoot is the config section the interface component owns. A component
+// that reads the candidate interface section (ConfigReads) names it here.
+const ConfigRoot = configRootInterface
+
 // loopbackConfigName is the name the loopback block answers to as a donor.
 const loopbackConfigName = "loopback"
 

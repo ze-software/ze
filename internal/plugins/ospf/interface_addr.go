@@ -14,6 +14,7 @@ import (
 	"net/netip"
 
 	ifcomp "github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 const (
@@ -140,4 +141,30 @@ func maskFromPrefixLength(prefix int) [4]byte {
 		mask = ^uint32(0) << uint(32-prefix)
 	}
 	return [4]byte{byte(mask >> 24), byte(mask >> 16), byte(mask >> 8), byte(mask)}
+}
+
+// allOnesMask is the /32 network mask.
+var allOnesMask = [4]byte{255, 255, 255, 255}
+
+// interfaceUnnumbered reports whether an OSPFv2 interface is an unnumbered
+// point-to-point link: a point-to-point network whose IPv4 address is a /32.
+// That is the shape iface `ipv4 unnumbered <donor>` installs (the donor address
+// as a /32, as FRR does), and a /32 holds no subnet a neighbor can share, so
+// the link has no address of its own in the RFC 2328 sense.
+func interfaceUnnumbered(network networkType, mask [4]byte) bool {
+	if network != types.NetworkPointToPoint {
+		return false
+	}
+	return mask == allOnesMask
+}
+
+// helloNetworkMask is the Network Mask an OSPFv2 Hello carries on an interface.
+//
+// RFC 2328 Section 9.5: "On unnumbered point-to-point networks and on virtual
+// links this field should be set to 0.0.0.0."
+func helloNetworkMask(network networkType, mask [4]byte) [4]byte {
+	if interfaceUnnumbered(network, mask) {
+		return [4]byte{}
+	}
+	return mask
 }

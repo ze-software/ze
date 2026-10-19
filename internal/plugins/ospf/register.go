@@ -15,6 +15,7 @@ import (
 	bfdapi "github.com/ze-software/ze/internal/component/bfd/api"
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
+	ifcomp "github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -121,7 +122,9 @@ func registerOSPF() {
 		// An interface's `bfd { enabled true }` opts into BFD, so commit hands
 		// OSPF the candidate bfd section to refuse the opt-in while BFD is
 		// absent or disabled (checkBFDOptIns). A read never auto-loads OSPF.
-		ConfigReads:             []string{bfdapi.ConfigRoot},
+		// The interface section is read so commit refuses OSPF on an unnumbered
+		// unit that is not point-to-point (checkUnnumberedNetworkTypes).
+		ConfigReads:             []string{bfdapi.ConfigRoot, ifcomp.ConfigRoot},
 		Dependencies:            []string{"interface", "fib-kernel", "sysctl"},
 		RFCs:                    []string{"2328", "5709", "7474", "9129"},
 		RunEngine:               runOSPFEngine,
@@ -315,6 +318,9 @@ func verifyOSPFConfigSections(sections []rpc.ConfigSection) error {
 	if err := checkBFDOptIns(cfg, ospfSections); err != nil {
 		return err
 	}
+	if err := checkUnnumberedNetworkTypes(cfg, ospfSections); err != nil {
+		return err
+	}
 	return validateConfig(cfg)
 }
 
@@ -424,6 +430,9 @@ func runOSPFEngine(conn net.Conn) int {
 			return err
 		}
 		if err := checkBFDOptIns(cfg, sdkConfigSections(sections)); err != nil {
+			return err
+		}
+		if err := checkUnnumberedNetworkTypes(cfg, sdkConfigSections(sections)); err != nil {
 			return err
 		}
 		// spec-ospf-ext-5: validate the SR ranges (SRGB/SRLB Range Size > 0,

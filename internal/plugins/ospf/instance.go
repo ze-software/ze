@@ -1037,7 +1037,7 @@ func (e *engine) interfaceRuntimeConfigLocked(ic interfaceConfig) ospfiface.Conf
 		AreaID:             ic.AreaID,
 		AreaType:           areaKind,
 		NetworkType:        string(ic.NetworkType),
-		NetworkMask:        interfaceNetworkMask(ic.Name),
+		NetworkMask:        helloNetworkMask(ic.NetworkType, interfaceNetworkMask(ic.Name)),
 		InterfaceAddress:   interfaceIPv4Address(ic.Name),
 		Cost:               interfaceCost(ic, e.cfg.ReferenceBandwidth),
 		HelloInterval:      ic.HelloInterval,
@@ -1506,6 +1506,12 @@ func (e *engine) lsdbTopology() []ospflsdb.InterfaceInfo {
 			IPv6LinkLocal:      interfaceIPv6LinkLocal(ic.Name),
 			IPv6Prefixes:       interfaceIPv6Prefixes(ic.Name),
 			IPv6Addresses:      interfaceIPv6Addresses(ic.Name),
+		}
+		// RFC 2328 Section 12.4.1.1: an unnumbered point-to-point link carries the
+		// interface's MIB-II ifIndex as its Link Data and no stub link.
+		if !info.IsV6 && interfaceUnnumbered(ic.NetworkType, info.NetworkMask) {
+			info.Unnumbered = true
+			info.IfIndex = interfaceIndex(ic.Name)
 		}
 		// RFC 5443 / RFC 6138 LDP-IGP sync: while an ldp-sync interface is not yet
 		// synchronized, force the P2P link metric to LSInfinity, or (broadcast, non-

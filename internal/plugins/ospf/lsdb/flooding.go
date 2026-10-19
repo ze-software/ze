@@ -70,6 +70,12 @@ type InterfaceInfo struct {
 	// Intra-Area-Prefix-LSA (RFC 5340 App A.4.10); other network types use the masked
 	// IPv6Prefixes subnet.
 	IPv6Addresses []netip.Addr
+	// Unnumbered marks an OSPFv2 point-to-point interface with no subnet of its
+	// own: it borrows another router address as a /32 (iface `ipv4 unnumbered`).
+	// Its Router-LSA link carries IfIndex as Link Data and no stub link
+	// (RFC 2328 Section 12.4.1.1). IfIndex is meaningful only when it is set.
+	Unnumbered bool
+	IfIndex    uint32
 	// LDPSyncWithholdTransit, when set, suppresses this interface's transit (Link
 	// Type 2) link in the Router-LSA: RFC 6138 §4 withholds the link-to-pseudonode
 	// advertisement for a broadcast segment until LDP is synchronized with all peers,

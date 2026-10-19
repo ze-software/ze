@@ -372,6 +372,12 @@ func p2pNeighborAddress(g *Graph, neighbor, root types.RouterID) (netip.Addr, bo
 	want := linkStateIDFromRouterID(root)
 	for _, l := range r.Links {
 		if (l.Type == packet.RouterLinkTypeP2P || l.Type == packet.RouterLinkTypeVirtual) && l.LinkID == want {
+			// Guard: RFC 2328 Section 12.4.1.1 puts the MIB-II ifIndex in the Link
+			// Data of an unnumbered link. 0.0.0.0/8 holds no interface address, so
+			// a first octet of zero is an ifIndex and names no next-hop address.
+			if l.Type == packet.RouterLinkTypeP2P && l.LinkData[0] == 0 {
+				return netip.Addr{}, false
+			}
 			return addrFrom4(l.LinkData), true
 		}
 	}

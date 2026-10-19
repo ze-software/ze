@@ -63,6 +63,35 @@ and `ze_ospf_ptmp_host_routes{interface,af}` metrics track NBMA/PtMP operation.
 <!-- source: internal/plugins/ospf/lsdb/origination.go -- routerLinks PtMP host route -->
 <!-- source: internal/plugins/ospf/origination_v6.go -- v6RouterLSABody, v6InterfacePrefixes /128 host route -->
 
+## Unnumbered point-to-point interfaces
+
+An interface can run OSPFv2 without a subnet of its own by borrowing the
+address of another interface, usually the loopback (`ipv4 unnumbered`, see
+`docs/features/interfaces.md`). Ze installs the borrowed address as a /32, and
+OSPF treats a point-to-point interface whose IPv4 address is a /32 as
+unnumbered (RFC 2328 Section 8.1):
+
+| Behavior | Unnumbered | Numbered point-to-point |
+|----------|------------|-------------------------|
+| IP source of OSPF packets | the borrowed donor address | the interface address |
+| Hello Network Mask | 0.0.0.0 (Section 9.5) | the interface mask |
+| Router-LSA Type 1 Link Data | the interface's ifIndex (Section 12.4.1.1) | the interface address |
+| Router-LSA stub link | none: the donor interface advertises the address | the interface subnet |
+
+The commit is refused when OSPF runs on an unnumbered unit with any network
+type other than `point-to-point`, because a /32 gives a broadcast or NBMA
+election no subnet to share.
+
+Not yet complete (gap RFC2328-8.1-1 stays open): the SPF next hop through an
+unnumbered neighbor and its kernel route are not installed (Ze drops a next hop
+whose Link Data is an ifIndex rather than use it as an address), and a donor
+that goes down does not yet take the link out of OSPF.
+
+<!-- source: internal/plugins/ospf/interface_addr.go -- interfaceUnnumbered, helloNetworkMask -->
+<!-- source: internal/plugins/ospf/lsdb/origination.go -- p2pLinkData, routerLinks -->
+<!-- source: internal/plugins/ospf/unnumbered.go -- checkUnnumberedNetworkTypes -->
+<!-- source: internal/plugins/ospf/spf/spf.go -- p2pNeighborAddress -->
+
 ## Interface cost
 
 The cost an interface advertises in its Router-LSA link is the `cost` leaf when the interface sets one. An interface that sets none is priced by the auto-cost convention: `reference-bandwidth` divided by the speed of the link, both in Mbit/s. Under the default reference bandwidth of 100000 a 10 Gbit/s link costs 10, a 1 Gbit/s link costs 100 and a 100 Mbit/s link costs 1000, so a faster path wins with no per-interface configuration. Raise `reference-bandwidth` to spread the costs of a fast network further apart; lower it to compress them.

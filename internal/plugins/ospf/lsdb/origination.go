@@ -205,6 +205,19 @@ func virtualLinkFull(iface InterfaceInfo) bool {
 	return false
 }
 
+// p2pLinkData is the Link Data of a Type 1 link on iface.
+//
+// RFC 2328 Section 12.4.1.1: "For numbered point-to-point networks, the Link
+// Data should specify the IP interface address. For unnumbered point-to-point
+// networks, the Link Data field should specify the interface's MIB-II [Ref8]
+// ifIndex value."
+func p2pLinkData(iface *InterfaceInfo, local [4]byte) [4]byte {
+	if !iface.Unnumbered {
+		return local
+	}
+	return [4]byte{byte(iface.IfIndex >> 24), byte(iface.IfIndex >> 16), byte(iface.IfIndex >> 8), byte(iface.IfIndex)}
+}
+
 func routerLinks(in OriginInput) []packet.RouterLink {
 	links := make([]packet.RouterLink, 0, len(in.Interfaces)*2)
 	for idx := range in.Interfaces {
@@ -249,8 +262,15 @@ func routerLinks(in OriginInput) []packet.RouterLink {
 				if in.MaxMetric || iface.LDPSyncMaxMetric {
 					m = LSInfinity
 				}
-				links = append(links, packet.RouterLink{LinkID: types.LinkStateID(nbr.RouterID), LinkData: local, Type: packet.RouterLinkTypeP2P, Metric: m})
+				links = append(links, packet.RouterLink{LinkID: types.LinkStateID(nbr.RouterID), LinkData: p2pLinkData(iface, local), Type: packet.RouterLinkTypeP2P, Metric: m})
 			}
+		}
+		// RFC 2328 Section 12.4.1.1: the stub link's two forms need the neighbor's
+		// address or a subnet assigned to the link, and an unnumbered link has no
+		// subnet. Ze advertises none for it (owner decision 2026-10-18, gap #55),
+		// as FRR does: the donor address is advertised by the donor interface.
+		if iface.Unnumbered && !isPtMP {
+			continue
 		}
 		// PtMP advertises a host route (its own interface address, mask 255.255.255.255,
 		// cost 0) instead of a subnet stub so other routers can reach the interface; it
