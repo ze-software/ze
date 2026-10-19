@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-05",
+  "audited": "2026-10-19",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -225,12 +225,17 @@
       "verdict": "enforced"
     },
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1": {
-      "code": {
-        "internal/component/bgp/message/rfc7606.go::validateMPReachNextHop": "ab5b2ab48a8ad1c7"
-      },
-      "note": "Re-judged 2026-10-02 (BGP c22 judge). Gap unchanged; the {gap} annotation is now aimed at the content half as the c21 judge required: on a capability-77 session no receive producer inspects the addresses of an admitted 32-octet Next Hop field, so a field that is not Global followed by Link-Local is never treated as withdrawn. A wrong Length stays an RFC 7606 Section 7.11 session reset in validateMPReachNextHop, which is correct and named here as the producer that admits the field without inspecting it. Dated correction in rfc/corrections.",
+      "note": "Re-judged 2026-10-19 (independent auditor, after ca4eae70a0). Prior verdict 'unimplemented' is void: the code now exists and the row correctly carries no {gap}. Section 6: \"These procedures apply only when the Link-Local Next Hop Capability has been negotiated for a BGP session.\" and \"If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of \"treat-as- withdraw\", as described in section 7.3 of [RFC7606].\" Producer: validateLinkLocalNextHopPair (rfc7606_linklocal.go) runs in ValidateUpdateRFC7606AddPath after validateMPNLRIField when linkLocalNextHop is true, and Session.validateRFC7606Attrs (session_validation_receive.go) passes neg.LinkLocalNextHop; well-formed is Global(non-4in6)+LL, ::+LL, or LL+LL, the shapes Section 6 tells a receiver to use, so the malformed reading is sound. The tagged units are message-level only: TestLinkLocalCapabilityMalformedThirtyTwoOctet asserts exact TreatAsWithdraw, AttrCode 14 and the draft description for LL+Global, Global+Global, Global+::, multicast+LL; TestLinkLocalCapabilityWellFormedThirtyTwoOctet asserts exact None for the three admitted shapes; each input isolates the field (valid ORIGIN, 4-octet AS_PATH, one /48). Both call ValidateUpdateRFC7606AddPath with a literal true, so they cannot fail if the session stops passing the negotiated capability (linkLocalNextHop always false in validateRFC7606Attrs), nor if the verdict stops withdrawing at Session receipt: the obligation is to handle the UPDATE, and no 6-1 tag crosses processMessage. That half is proven in the tree, but under RFC2545-3-1 tags: the cap77-source cases of TestRFC2545ReceivedPairSecondAddressValidated, TestRFC2545ReceivedPairFirstAddressValidated and TestRFC2545EffectivePairPolicyAndMixedSibling (rfc2545_forward_subnet_test.go) assert via rfc2545AssertWithdrawnAtReceipt the exact MP_UNREACH withdrawal, the legacy sibling's withdrawal, and no recipient announcement, and would go red under the plumbing break. Fix to reach enforced: tag those cap77-source cases DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 negative (and the cap77-source well-formed controls positive) with a discrimination record against validateRFC7606Attrs, then re-judge.",
       "requirement_sha": "a3805533ad750bdf",
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go::TestLinkLocalCapabilityMalformedThirtyTwoOctet": "457a2ef6fe4d17e0",
+        "internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go::TestLinkLocalCapabilityWellFormedThirtyTwoOctet": "457a2ef6fe4d17e0"
+      },
+      "units": {
+        "internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go::TestLinkLocalCapabilityMalformedThirtyTwoOctet": "73db372fb94e901c",
+        "internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go::TestLinkLocalCapabilityWellFormedThirtyTwoOctet": "4539e5df11664b7f"
+      },
+      "verdict": "weak"
     }
   },
   "rfc": "draft-ietf-idr-linklocal-capability"
