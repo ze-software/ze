@@ -82,8 +82,9 @@ var errIfaceSelectorUnresolved = errors.New("resolved device has no name")
 
 // Package-level functions that delegate to the active backend. By-name
 // mutation/query ops translate the logical name to its kernel device via
-// ResolveDevice first; Create* / GetInterface / ListInterfaces stay raw (see
-// ResolveDevice).
+// ResolveDevice first, and CreateVLAN resolves its parent. CreateDummy /
+// CreateVeth / CreateBridge (which name a new device), GetInterface, GetLink
+// and ListInterfaces stay raw (see ResolveDevice).
 
 func CreateDummy(name string) error {
 	b, err := backendOrErr()

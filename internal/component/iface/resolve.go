@@ -214,9 +214,10 @@ func (r *resolver) addresses(name string) ([]AddrInfo, error) {
 // binds to the one carrying the configured hardware MAC (matchByMAC). Without a
 // MAC selector the os-name selector (or the logical name itself) is looked up
 // directly through read: GetLink for a caller that needs only link facts,
-// GetInterface for one that needs the addresses. On success it records the resolved kernel device so a later down
-// event for it can reach this logical name. The backend call runs outside the
-// lock; only the small map reads/writes are locked.
+// GetInterface for one that needs the addresses. On success it records the
+// resolved kernel device so a later down event for it can reach this logical
+// name. The backend call runs outside the lock; only the small map
+// reads/writes are locked.
 func (r *resolver) osDeviceFor(name string, read func(string) (*InterfaceInfo, error)) (*InterfaceInfo, error) {
 	r.mu.Lock()
 	wantMAC := r.permMACs[name]
