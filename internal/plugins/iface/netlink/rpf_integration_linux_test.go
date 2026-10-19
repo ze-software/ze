@@ -82,11 +82,11 @@ func newRPFLab(t *testing.T) *rpfLab {
 	})
 
 	lab.enter(router)
-	veth := &netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: "r0"}, PeerName: "p0", PeerNamespace: netlink.NsFd(int(peer))}
+	veth := &netlink.Veth{Name: "r0", PeerName: "p0", PeerNamespace: netlink.NsFd(int(peer))}
 	if err := netlink.LinkAdd(veth); err != nil {
 		t.Fatalf("add veth: %v", err)
 	}
-	if err := netlink.LinkAdd(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "other"}}); err != nil {
+	if err := netlink.LinkAdd(&netlink.Dummy{Name: "other"}); err != nil {
 		t.Fatalf("add dummy: %v", err)
 	}
 	lab.up("lo")

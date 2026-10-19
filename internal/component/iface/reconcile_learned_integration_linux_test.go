@@ -51,11 +51,9 @@ func TestIntegrationReconcileKeepsLearnedAddresses(t *testing.T) {
 		previous := &ifaceConfig{
 			Backend: "netlink",
 			Veth: []vethEntry{{
-				ifaceEntry: ifaceEntry{
-					Name:  dev,
-					Units: []unitEntry{{Addresses: []string{static, dropped}}},
-				},
-				Peer: peer,
+				Name:  dev,
+				Units: []unitEntry{{Addresses: []string{static, dropped}}},
+				Peer:  peer,
 			}},
 		}
 		t.Cleanup(func() { _ = DeleteInterface(dev) })
@@ -96,8 +94,9 @@ func TestIntegrationReconcileKeepsLearnedAddresses(t *testing.T) {
 		current := &ifaceConfig{
 			Backend: "netlink",
 			Veth: []vethEntry{{
-				ifaceEntry: ifaceEntry{Name: dev, Units: []unitEntry{{Addresses: []string{static}}}},
-				Peer:       peer,
+				Name:  dev,
+				Units: []unitEntry{{Addresses: []string{static}}},
+				Peer:  peer,
 			}},
 			Dummy: []ifaceEntry{{Name: "ze1"}},
 		}

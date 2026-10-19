@@ -361,6 +361,7 @@ func parseAuthConfig(profileName string, fields map[string]any) (*authConfig, er
 // management interface by which the key is configured MUST accept ASCII
 // strings, and SHOULD also allow for the configuration of any arbitrary
 // binary string in hexadecimal form."
+// Both forms are accepted here.
 func parseAuthSecret(profileName string, fields map[string]any) ([]byte, error) {
 	ascii := stringField(fields, "secret")
 	written := stringField(fields, "secret-hex")

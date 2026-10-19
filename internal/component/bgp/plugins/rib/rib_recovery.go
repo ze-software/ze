@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strconv"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
@@ -103,12 +104,7 @@ func recoveryExcludes(key *ribevents.RecoveryKey, sourcePeer string) bool {
 		// An entry without parsable provenance names no source to exclude.
 		return false
 	}
-	for _, excluded := range key.Excluded {
-		if owner == excluded {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(key.Excluded, owner)
 }
 
 // recoveryIdentity normalizes each affected native identity once per batch.
@@ -200,10 +196,8 @@ func (r *RIBManager) recoveryEligibleLocked(request *ribevents.RecoveryRequest, 
 	if candidate.PeerIP == request.Destination {
 		return false
 	}
-	for _, excluded := range key.Excluded {
-		if candidate.PeerIP == excluded {
-			return false
-		}
+	if slices.Contains(key.Excluded, candidate.PeerIP) {
+		return false
 	}
 	if up, known := r.peerUp[candidate.PeerIP]; known && !up {
 		return false
@@ -304,7 +298,7 @@ func recoverySentNLRI(fam family.Family, key ribOutKey, entry ribOutEntry) []byt
 // Each key argument is ribevents.FormatRecoveryKey's form.
 func (r *RIBManager) recoveryCommand(_ string, args []string) (string, any, error) {
 	if len(args) < 6 {
-		return statusError, nil, fmt.Errorf("usage: request bgp rib recovery <destination> <family> <add-path> <prefix-only> <sent-add-path> <nlri-hex>=<excluded,...>...")
+		return statusError, nil, fmt.Errorf("request bgp rib recovery needs at least 6 arguments, got %d: usage: request bgp rib recovery <destination> <family> <add-path> <prefix-only> <sent-add-path> <nlri-hex>=<excluded,...> [<nlri-hex>=<excluded,...> ...]", len(args))
 	}
 	destination, err := netip.ParseAddr(args[0])
 	if err != nil {

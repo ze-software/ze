@@ -185,8 +185,7 @@ func (b *vppBackendImpl) setLinkMTU(idx interface_types.InterfaceIndex, mtu int)
 	req := &interfaces.HwInterfaceSetMtu{SwIfIndex: idx, Mtu: uint16(mtu)}
 	reply := &interfaces.HwInterfaceSetMtuReply{}
 	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
-		var refusal api.VPPApiError
-		if errors.As(err, &refusal) {
+		if refusal, ok := errors.AsType[api.VPPApiError](err); ok {
 			return refusal
 		}
 		return fmt.Errorf("ifacevpp: HwInterfaceSetMtu: %w", err)

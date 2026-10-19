@@ -83,19 +83,19 @@ func TestApplyFailsCreateThatLeavesDeviceBehind(t *testing.T) {
 			Name: "eth0", Units: []unitEntry{{Label: "v100", VLANID: 100}},
 		}}}},
 		{"dummy", "dum0", &ifaceConfig{Dummy: []ifaceEntry{{Name: "dum0"}}}},
-		{"veth", "veth0", &ifaceConfig{Veth: []vethEntry{{ifaceEntry: ifaceEntry{Name: "veth0"}, Peer: "veth1"}}}},
-		{"bridge", "br0", &ifaceConfig{Bridge: []bridgeEntry{{ifaceEntry: ifaceEntry{Name: "br0"}}}}},
+		{"veth", "veth0", &ifaceConfig{Veth: []vethEntry{{Name: "veth0", Peer: "veth1"}}}},
+		{"bridge", "br0", &ifaceConfig{Bridge: []bridgeEntry{{Name: "br0"}}}},
 		{"tunnel", "gre0", &ifaceConfig{Tunnel: []tunnelEntry{{
-			ifaceEntry: ifaceEntry{Name: "gre0"},
-			Spec:       TunnelSpec{Kind: TunnelKindGRE, Name: "gre0"},
+			Name: "gre0",
+			Spec: TunnelSpec{Kind: TunnelKindGRE, Name: "gre0"},
 		}}}},
 		{"wireguard", "wg0", &ifaceConfig{Wireguard: []wireguardEntry{{
-			ifaceEntry: ifaceEntry{Name: "wg0"},
-			Spec:       WireguardSpec{Name: "wg0"},
+			Name: "wg0",
+			Spec: WireguardSpec{Name: "wg0"},
 		}}}},
 		{"xfrm", "xfrm0", &ifaceConfig{XFRM: []xfrmEntry{{
-			ifaceEntry: ifaceEntry{Name: "xfrm0"},
-			Spec:       XFRMSpec{Name: "xfrm0", IfID: 7},
+			Name: "xfrm0",
+			Spec: XFRMSpec{Name: "xfrm0", IfID: 7},
 		}}}},
 	}
 	for _, tc := range cases {
