@@ -886,10 +886,15 @@ runners, so it is refused too. Split such a file into a `docker` file and an
 RPKI tests through the same switch. Both run their `go test` child under the
 verb's signal root: a SIGINT or SIGTERM kills the child's whole process group,
 so `le` answers non-zero at once rather than waiting out the child's own
-900 s bound. Both run on the hosted runner's own Docker
+900 s bound. That kill skips every `labtest` `t.Cleanup`, so a signalled run
+then makes the call `./le test integration cleanup` makes, one non-dry orphan
+sweep on a context the signal did not cancel, bounded at 60 s, and prints its
+summary: the killed test binaries owned the containers, so the sweep proves
+them gone and removes them in the same invocation. A child that ends on its own
+ran its cleanups and gets no sweep. Both run on the hosted runner's own Docker
 in `evidence-nightly.yml`, because no container in either runs Ze, so the Docker
 host kernel check does not apply.
-<!-- source: internal/le/test/integration/dockerpeers.go -- dockerPeersArgv, runRequiringDocker, requireDockerEnvironment, liveRPKIArgv -->
+<!-- source: internal/le/test/integration/dockerpeers.go -- dockerPeersArgv, runRequiringDocker, sweepAfterSignal, requireDockerEnvironment, liveRPKIArgv -->
 <!-- source: internal/le/gaterun/gaterun.go -- StreamContext, RunContext -->
 <!-- source: internal/le/test/buildtag/buildtag.go -- TestFile.Needs, TestFile.Names, Packages -->
 <!-- source: internal/le/test/qemu/integration_coverage_test.go -- TestDockerTagNeverJoinsIntegration, dockerIntegrationOverlap -->

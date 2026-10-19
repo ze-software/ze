@@ -1,15 +1,19 @@
 // Design: docs/architecture/testing/qemu-integration.md -- the docker population and its verb
 // Related: ../buildtag/buildtag.go -- the tree scan this verb's package set comes from.
 // Related: gates.go -- the docker-peers and live-rpki rows.
+// Related: cleanup.go -- labCleaner, the orphan sweep a signalled run ends with.
 
 package testintegration
 
 import (
 	"context"
 	"errors"
+	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/interoplab"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	"github.com/ze-software/ze/internal/le/test/buildtag"
 )
@@ -28,6 +32,10 @@ const (
 	// liveRPKIVerb runs the RPKI client against a real stayrtr serving real
 	// data: Docker and the internet.
 	liveRPKIVerb = "live-rpki"
+	// signalSweepTimeout bounds the orphan sweep a signalled run ends with.
+	// The signal already fired, so a second Ctrl-C does not reach this sweep:
+	// the bound is what stops it.
+	signalSweepTimeout = 60 * time.Second
 )
 
 func runDockerPeers(ctx context.Context, root string) (any, int) {
@@ -36,11 +44,11 @@ func runDockerPeers(ctx context.Context, root string) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	return runRequiringDocker(ctx, dockerPeersVerb, argv, root)
+	return runRequiringDocker(ctx, dockerPeersVerb, argv, root, interoplab.NewDocker())
 }
 
 func runLiveRPKI(ctx context.Context, root string) (any, int) {
-	return runRequiringDocker(ctx, liveRPKIVerb, liveRPKIArgv(), root)
+	return runRequiringDocker(ctx, liveRPKIVerb, liveRPKIArgv(), root, interoplab.NewDocker())
 }
 
 // runRequiringDocker runs argv under the checkout's test toolchain with
@@ -48,14 +56,43 @@ func runLiveRPKI(ctx context.Context, root string) (any, int) {
 // live test's image, is absent. The child runs under ctx, the verb's signal
 // root, so a SIGINT or SIGTERM kills its process group and the verb answers
 // non-zero at once instead of waiting out the child's own bound.
-func runRequiringDocker(ctx context.Context, verb string, argv []string, root string) (any, int) {
+//
+// That SIGKILL skips every labtest t.Cleanup, so a signalled run ends with
+// one orphan sweep through cleaner, the call `./le test integration cleanup`
+// makes: the killed test binaries own their containers, so the sweep proves
+// them gone and removes them in this invocation rather than at the next lab
+// start. A child that ends on its own already ran its cleanups and gets none.
+func runRequiringDocker(ctx context.Context, verb string, argv []string, root string, cleaner labCleaner) (any, int) {
 	tc, err := gotoolchain.New(root)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	return gaterun.RunContext(ctx, verb, argv, root,
+	report, code := gaterun.RunContext(ctx, verb, argv, root,
 		requireDockerEnvironment(tc.Environment(gotoolchain.EnvOptions{Test: true})))
+	if ctx.Err() == nil {
+		return report, code
+	}
+	gaterun.Note(sweepAfterSignal(ctx, verb, cleaner))
+	return report, code
+}
+
+// sweepAfterSignal runs one non-dry orphan sweep on a context that ctx's
+// cancellation does not reach, bounded by signalSweepTimeout, and answers the
+// operator's summary. A sweep the daemon refuses is reported with the fix: it
+// never changes the signalled run's non-zero answer.
+func sweepAfterSignal(ctx context.Context, verb string, cleaner labCleaner) string {
+	sweep, cancel := context.WithTimeout(context.WithoutCancel(ctx), signalSweepTimeout)
+	defer cancel()
+
+	report, err := cleaner.CleanupOrphans(sweep, false)
+	var text textbuf.Buffer
+	if err != nil {
+		return text.Str(verb).Str(": stopped by a signal, and the sweep of its lab resources failed (").Err(err).
+			Str("), so its containers stay until a later sweep. Fix: run `./le test integration cleanup`").String()
+	}
+	return text.Str(verb).Str(": stopped by a signal; swept the lab resources its killed tests left:\n").
+		Str(report.Text()).String()
 }
 
 // liveRPKIArgv runs the three live tests of the RPKI plugin.

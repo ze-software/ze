@@ -14,18 +14,23 @@ import (
 )
 
 // fakeCleaner records how the cleanup verb drove the orphan cleanup.
+// canceled records, per CleanupOrphans call, whether its context was already
+// done, and err is what every call answers.
 type fakeCleaner struct {
-	probed bool
-	dry    []bool
-	report interoplab.OrphanReport
+	probed   bool
+	dry      []bool
+	canceled []bool
+	report   interoplab.OrphanReport
+	err      error
 }
 
 func (f *fakeCleaner) Probe(context.Context) error { f.probed = true; return nil }
 
-func (f *fakeCleaner) CleanupOrphans(_ context.Context, dry bool) (interoplab.OrphanReport, error) {
+func (f *fakeCleaner) CleanupOrphans(ctx context.Context, dry bool) (interoplab.OrphanReport, error) {
 	f.dry = append(f.dry, dry)
+	f.canceled = append(f.canceled, ctx.Err() != nil)
 	f.report.Dry = dry
-	return f.report, nil
+	return f.report, f.err
 }
 
 // VALIDATES: the wiring row "./le test integration cleanup [dry] -> the
