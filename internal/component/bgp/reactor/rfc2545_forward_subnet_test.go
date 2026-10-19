@@ -214,8 +214,13 @@ func TestRFC2545ReceivedUnusableGlobalRefused(t *testing.T) {
 // RFC 2545 Section 3: "A BGP speaker shall advertise to its peer in the Network
 // Address of Next Hop field the global IPv6 address of the next hop, potentially
 // followed by the link-local IPv6 address of the next hop."
-// RFC requirement: RFC2545-3-1 negative -- a usable first global never licenses a non-link-local second address, whether the pair would otherwise be preserved or trimmed; a receiving session with capability 77 withdraws that pair at receipt and the recipient is sent no announcement.
-// RFC requirement: RFC2545-3-1 positive -- a global/link-local pair remains usable whether or not the receiving session negotiated capability 77, and capability 77 retains its separate negotiated single-address exception.
+// draft-ietf-idr-linklocal-capability Section 6: "If the Next Hop field is
+// malformed, the implementation MUST handle the malformed UPDATE message using
+// the approach of "treat-as-withdraw", as described in section 7.3 of [RFC7606]."
+// RFC requirement: RFC2545-3-1 negative -- on a receiving session without capability 77, a usable first global never licenses a global, unspecified or multicast second address: the recipient is sent a withdrawal, whether the pair would otherwise be preserved or trimmed, whichever side of the sending session negotiated capability 77.
+// RFC requirement: RFC2545-3-1 positive -- on a receiving session without capability 77, a global/link-local pair is announced, whole or trimmed to its global half by the configured prefix predicates, whichever side of the sending session negotiated capability 77.
+// RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 negative -- on a receiving session that negotiated capability 77, a 32-octet Next Hop whose second address is global, unspecified or multicast is malformed and treated as withdraw at receipt: the Session publishes the withdrawal and the recipient is sent no announcement.
+// RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 positive -- on a receiving session that negotiated capability 77, the well-formed Next Hops are not withdrawn at receipt: a global/link-local pair is announced, whole or trimmed to its global half, and a single link-local is announced when the sending session negotiated capability 77 on both sides and the peer is on link, and the recipient is sent a withdrawal otherwise.
 // MUTATION: validate only the first address, or trim before checking the second;
 // alternatively reject all pairs or let capability 77 license malformed pairs.
 func TestRFC2545ReceivedPairSecondAddressValidated(t *testing.T) {
@@ -594,8 +599,13 @@ func rfc2545AssertNative(t *testing.T, update *message.Update, hop, raw []byte, 
 // RFC 2545 Section 3: "A BGP speaker shall advertise to its peer in the Network
 // Address of Next Hop field the global IPv6 address of the next hop, potentially
 // followed by the link-local IPv6 address of the next hop."
-// RFC requirement: RFC2545-3-1 negative -- a valid second link-local cannot license an unusable first address, even when trimming would hide the original pair; a receiving session with capability 77 withdraws a loopback, multicast or IPv4-mapped first address at receipt and the recipient is sent no announcement.
+// draft-ietf-idr-linklocal-capability Section 6: "If the Next Hop field is
+// malformed, the implementation MUST handle the malformed UPDATE message using
+// the approach of "treat-as-withdraw", as described in section 7.3 of [RFC7606]."
+// RFC requirement: RFC2545-3-1 negative -- a valid second link-local cannot license an unusable first address, even when trimming would hide the original pair: a link-local or unspecified first address, and on a receiving session without capability 77 also a loopback, multicast or IPv4-mapped one, draws a withdrawal to the recipient.
 // RFC requirement: RFC2545-3-1 positive -- a usable global first address retains the valid pair or only its global half according to configured prefix predicates, whichever session negotiated capability 77.
+// RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 negative -- on a receiving session that negotiated capability 77, a loopback, multicast or IPv4-mapped first address is malformed and treated as withdraw at receipt: the Session publishes the withdrawal and the recipient is sent no announcement.
+// RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 positive -- on a receiving session that negotiated capability 77, a global, unspecified or link-local first address is not withdrawn at receipt: the recipient is sent one native decision: the global pair announced, whole or trimmed to its global half, and the others withdrawn.
 // MUTATION: check only unspecified/multicast first addresses, or permit a
 // paired link-local first address under capability 77's single-address exception.
 func TestRFC2545ReceivedPairFirstAddressValidated(t *testing.T) {
@@ -661,10 +671,14 @@ func TestRFC2545ReceivedPairFirstAddressValidated(t *testing.T) {
 // RFC 2545 Section 3: "A BGP speaker shall advertise to its peer in the Network
 // Address of Next Hop field the global IPv6 address of the next hop, potentially
 // followed by the link-local IPv6 address of the next hop."
-// RFC requirement: RFC2545-3-1 negative -- on a receiving session without capability 77, an effective invalid pair is withdrawn after policy, without withdrawing an independently valid legacy sibling; with capability 77 a received non-link-local second address withdraws every route of the UPDATE at receipt, legacy sibling included, and the recipient is sent no announcement.
+// draft-ietf-idr-linklocal-capability Section 6: "If the Next Hop field is
+// malformed, the implementation MUST handle the malformed UPDATE message using
+// the approach of "treat-as-withdraw", as described in section 7.3 of [RFC7606]."
+// RFC requirement: RFC2545-3-1 negative -- on a receiving session without capability 77, an effective invalid pair is withdrawn after policy, without withdrawing an independently valid legacy sibling.
 // RFC requirement: RFC2545-3-1 positive -- on a receiving session without capability 77, a valid policy replacement of an obsolete malformed received pair is announced with exact native bytes.
 // RFC requirement: RFC2545-3-2 negative -- effective native IPv4 and VPN-shaped next-hop fields cannot leave under IPv6-unicast AFI/SAFI, including policy pairs whose off-link trim would hide their original width.
 // RFC requirement: RFC2545-3-2 positive -- a later legal sixteen- or thirty-two-octet policy replacement supersedes an obsolete wrong-width operation, with valid legacy siblings unchanged.
+// RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 negative -- on a receiving session that negotiated capability 77, a received global/global pair is malformed and treated as withdraw at receipt, before any policy runs: the Session publishes the withdrawal of every route of the UPDATE, legacy sibling included, and the recipient is sent no announcement.
 // MUTATION: validate the obsolete received pair instead of its replacement,
 // trust every policy-written pair, or withdraw the whole mixed UPDATE.
 func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
