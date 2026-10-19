@@ -393,7 +393,10 @@ func (w *v6Worker) goneDuplicates(gone []netip.Prefix, state string) []netip.Pre
 // up, the link events queued since the first drain are read again before the
 // addresses are declined: a down and up that both happened before the read
 // leave the device up and the address gone, and the move they complete
-// installs it again.
+// installs it again. That holds only once the monitor has delivered both
+// events to w.links. A down and up between the first and the second read
+// whose events are not yet delivered find nothing to drain, so a unique
+// address the kernel deleted with the down is declined as a duplicate.
 func (w *v6Worker) goneWhileUp(gone []netip.Prefix) []netip.Prefix {
 	later, err := iface.ReadAddressState(w.c.ifaceName)
 	if err != nil {
