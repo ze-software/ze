@@ -188,6 +188,12 @@ one per unit and address family, and hands it to the backend whole:
 left the config is absent from the set, so the backend removes it, and the
 apply journal restores the previous set when a later step fails.
 
+nftables refuses even the removal of `ip6 ze_iface_rpf` to a process without
+CAP_NET_ADMIN. When the config asks for no IPv6 check, the netlink backend
+therefore accepts that refusal with a warning, so an unprivileged ze still
+applies its interfaces. A config that asks for an IPv6 check still fails
+without the capability.
+
 | Family | netlink backend | vpp backend |
 |--------|-----------------|-------------|
 | IPv4 | `net.ipv4.conf.<dev>.rp_filter`, written by the sysctl phase; `ReplaceIPv4RPF` installs nothing more | `urpf_update` on the receive path of the VPP interface (strict or loose), read back with `urpf_interface_dump` so a check no longer configured is turned off. The sysctl still reaches the Linux Control Plane tap, which judges only what VPP punts to the host |

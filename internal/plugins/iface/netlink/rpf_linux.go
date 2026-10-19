@@ -6,7 +6,9 @@
 package ifacenetlink
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/google/nftables"
@@ -59,10 +61,24 @@ func (b *netlinkBackend) ReplaceIPv6RPF(checks []iface.RPFCheck) error {
 	if err := queueIPv6RPF(conn, checks); err != nil {
 		return err
 	}
-	if err := conn.Flush(); err != nil {
-		return fmt.Errorf("ipv6 rpf-check: program nftables table %s: %w", rpfTableName, err)
+	err = conn.Flush()
+	if err == nil {
+		return nil
 	}
-	return nil
+	if len(checks) == 0 && errors.Is(err, os.ErrPermission) {
+		// Guard: an empty set asks only that no table remain, and every
+		// config without an IPv6 rpf-check sends one. nftables refuses even
+		// the delete without CAP_NET_ADMIN, so refusing here would abort
+		// every interface apply of an unprivileged ze over a check nobody
+		// configured. Such a process cannot remove a table a privileged run
+		// left behind either, so the warning names the residue it cannot see.
+		logger().Warn("ipv6 rpf-check: cannot confirm no stale nftables table remains, "+
+			"no check is configured and removing one needs CAP_NET_ADMIN; "+
+			"if a privileged run left it, remove it with `nft delete table ip6 "+rpfTableName+"`",
+			"error", err)
+		return nil
+	}
+	return fmt.Errorf("ipv6 rpf-check: program nftables table %s: %w", rpfTableName, err)
 }
 
 // ReplaceIPv4RPF accepts the IPv4 set and installs nothing for it, because

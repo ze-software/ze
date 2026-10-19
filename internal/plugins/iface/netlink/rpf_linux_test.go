@@ -4,10 +4,14 @@ package ifacenetlink
 
 import (
 	"bytes"
+	"errors"
+	"os"
 	"testing"
 
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
+
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // VALIDATES: the strict rule restricts the fib lookup to the arrival
@@ -101,5 +105,26 @@ func TestIfnameKey(t *testing.T) {
 	}
 	if string(key[:8]) != "eth0.100" || key[8] != 0 || key[15] != 0 {
 		t.Fatalf("key = %q, want eth0.100 NUL padded", key)
+	}
+}
+
+// VALIDATES: an unprivileged ze applies a config with no IPv6 rpf-check,
+// because the empty set only asks that no table remain, while a config that
+// asks for a check is still refused with the kernel's permission error. Before
+// the guard, the refused delete of the empty set aborted every interface apply
+// of an unprivileged ze and took the plugin startup down with it.
+// METHOD: run ReplaceIPv6RPF without CAP_NET_ADMIN; skipped as root, where
+// the call would program the host's nftables.
+func TestReplaceIPv6RPFUnprivileged(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("runs only without CAP_NET_ADMIN; as root it would program the host nftables")
+	}
+	b := &netlinkBackend{}
+	if err := b.ReplaceIPv6RPF(nil); err != nil {
+		t.Fatalf("empty set without privilege: got %v, want nil", err)
+	}
+	err := b.ReplaceIPv6RPF([]iface.RPFCheck{{Interface: "eth0", Mode: iface.RPFStrict}})
+	if !errors.Is(err, os.ErrPermission) {
+		t.Fatalf("configured check without privilege: got %v, want a permission error", err)
 	}
 }
