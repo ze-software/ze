@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-19",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -329,43 +329,68 @@
       "verdict": "enforced"
     },
     "RFC3101-3.1-2": {
-      "note": "Re-judged 2026-09-30 (OSPF judge, continuation 5): the row now quotes the verbatim span through 'reachable both over the NSSA' (R3 split); the transit-topology ASBR condition is gap row RFC3101-3.1-5, so no clause of this row is untested. electNSSATranslator skips a router the NSSA's completed SPF does not reach (ReachabilitySnapshot.RouterReachable). TestRFC3101UnreachableBorderRouterIsNotListed / TestRFC3101ReachableBorderRouterIsListed are an isolated pair differing only in reachability (translated 1 vs 0); TestOSPFNSSATranslatorElection adds the unreachable-higher case; five observed-red records re-recorded after the nssa.go comment edit.",
+      "code": {
+        "internal/plugins/ospf/nssa.go::electNSSATranslator": "35d82a8159155cfa",
+        "internal/plugins/ospf/spf/reachability.go::RouterReachable": "6e6d220804218e30"
+      },
+      "note": "Re-judged 2026-10-19 (independent judge, after 12454d4ac5). Section 3.1: \"An NSSA border router whose NSSA's NSSATranslatorRole is set to Candidate must maintain a list of the NSSA's border routers that are reachable both over the NSSA and as ASBRs over the AS's transit topology.\" The row quotes the span through 'reachable both over the NSSA'. electNSSATranslator (nssa.go) still skips a border router for which reach.RouterReachable(list.nssa, r) is false, before any Nt or Router ID test, so an unreached router can disable nothing. The election now takes a translatorList (border = B-bit routers, nt = B|Nt routers, transit areas) and skips self explicitly; the reachability filter is unchanged in substance. TestRFC3101UnreachableBorderRouterIsNotListed / TestRFC3101ReachableBorderRouterIsListed remain an isolated pair: fixedReachability with asbr nil answers ASBRReachableIn true everywhere, so only NSSA reachability differs (1 vs 0 Type-5). Hand mutation: dropping the RouterReachable check turns the positive to 0. Both pass at HEAD. Finding (no verdict change): the tags on TestOSPFNSSATranslatorElection (positive/negative) and TestOSPFNSSANoTranslateWhenNotElected assert the Router-ID/Nt election rule under reachEvery, which is RFC3101-3.1-4's content, not list membership; the unreachable-higher assertion inside TestOSPFNSSATranslatorElection is untagged. The isolating pair carries the row. Records for all five units are panic-route reverts, which red any unit calling the producer; they do not by themselves prove this condition.",
       "requirement_sha": "d6068455a61452de",
       "tests": {
-        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected": "a977f5140de4f2b1",
-        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection": "a977f5140de4f2b1",
-        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection#2": "a977f5140de4f2b1",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected": "7e7aa3bcfc8314b2",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection": "7e7aa3bcfc8314b2",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection#2": "7e7aa3bcfc8314b2",
         "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101ReachableBorderRouterIsListed": "0b44af4f77ddfa37",
         "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101UnreachableBorderRouterIsNotListed": "0b44af4f77ddfa37"
       },
       "units": {
         "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected": "384f0c6935a2fc5b",
-        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection": "1fd77b8549e7f82c",
-        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection#2": "1fd77b8549e7f82c",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection": "1877a15bd8eeb701",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection#2": "1877a15bd8eeb701",
         "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101ReachableBorderRouterIsListed": "866e564e59384946",
         "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101UnreachableBorderRouterIsNotListed": "59a51d09756da274"
       },
-      "upgrade_reason": "The tagged units are byte-identical; the row text changed. The earlier weak verdict rested only on the 'as ASBRs over the AS's transit topology' half, which the narrowed row no longer quotes (moved to gap RFC3101-3.1-5). The NSSA-reachability half was already judged enforced with an overlay mutant, re-read here: the pair still isolates the one condition the row states.",
       "verdict": "enforced"
     },
     "RFC3101-3.1-4": {
       "code": {
-        "internal/plugins/ospf/instance.go::setConfig": "4eb674d4ebe43b3c",
-        "internal/plugins/ospf/nssa.go::electNSSATranslator": "e2310d1864e6b905",
-        "internal/plugins/ospf/nssa.go::nssaABRs": "a21bbd9987ddcf17"
+        "internal/plugins/ospf/instance.go::setConfig": "2fc75a6ed43d8658",
+        "internal/plugins/ospf/nssa.go::electNSSATranslator": "35d82a8159155cfa",
+        "internal/plugins/ospf/nssa.go::nssaABRs": "aa07e762e50db18a",
+        "internal/plugins/ospf/nssa.go::nssaABRsV6": "5e3c5b8fc560caa2",
+        "internal/plugins/ospf/nssa.go::nssaTranslatorEnabled": "092205a0017c470f"
       },
-      "note": "Re-judged 2026-09-30 (continuation 5): electNSSATranslator changed only in a comment (3.1-2 quote narrowed, names gap 3.1-5); the deviation is unchanged. Section 3.1 disables a candidate when another listed border router 'has bit Nt set or who has a higher router ID', and sets Nt only when NSSATranslatorState is enabled (Always role). Ze sets Nt on every non-never NSSA border router (setConfig ntAreas, instance.go) and nssaABRs lists only B|Nt routers, so a higher-RID Nt-clear router never disables the candidate. Gap demo TestRFC3101HigherRouterIDWithoutNtDisablesCandidate (rfcgap.Demonstrate) observes Ze translating; TestOSPFNSSANonCandidateDoesNotWedge pins the chosen behaviour untagged. Disclosed deviation, not counted conformant; OWNER-GATE item.",
+      "note": "Re-judged 2026-10-19 (independent judge, after 12454d4ac5); was unimplemented (disclosed deviation, owner reversal #31 of 2026-10-18). Section 3.1: \"If there exists another border router in this list whose router-LSA has bit Nt set or who has a higher router ID, then its NSSATranslatorState is disabled.  Otherwise its NSSATranslatorState is elected.\" And: \"However, when an NSSA border router has its NSSATranslatorState enabled, it sets bit Nt in the router-LSA it originates into the NSSA.\" Producer: for each listed member r (B-bit router-LSA in the NSSA, reached over the NSSA, ASBR over transit, r != self) electNSSATranslator returns disabled if r is in list.nt (B|Nt) or bytes.Compare(r, self) > 0 (unsigned big-endian Router ID, correct tie-break); otherwise elected, including with no other candidate, which matches 'Otherwise its NSSATranslatorState is elected'. Nt origination: nssaTranslatorEnabled is true only for role always on an NSSA, used by setConfig (OSPFv2 ntAreas) and v6NSSATranslatorArea (OSPFv3); the LSDB adds the ABR check. So a candidate, elected or not, leaves Nt clear and a higher-Router-ID 'translate never' border router now disables the candidate. TestRFC3101ElectionRuleDisablesCandidate: lower-RID Nt-set member -> 0, higher-RID Nt-clear member -> 0, lower-RID Nt-clear member -> 1. Hand mutants: dropping the Nt test reds case 1, dropping or inverting the Router ID test reds case 2 (and 3 when inverted). TestRFC3101OnlyAlwaysRoleSetsNtBit (untagged) pins the Nt decision. OSPFv3: shared electNSSATranslator; TestOSPFv6NSSAHigherBorderRouterDisablesCandidate (untagged) drives translateNSSAV6 for the higher-RID case only; the v6 Nt-member case has no test. Defect in the population: TestRFC3101HigherRouterIDWithoutNtDisablesCandidate (rfc3101_translator_list_test.go) still wraps a correct RFC assertion in rfcgap.Demonstrate and now FAILS 'gap RFC3101-3.1-4 closed'; its doc comment ('disclosed deviation', 'which Ze does not produce') is false at HEAD. It duplicates case 2 of TestRFC3101ElectionRuleDisablesCandidate. All carriers pass at HEAD except that stale demo.",
       "requirement_sha": "2badb24d248e7b97",
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101ElectionRuleDisablesCandidate": "382e18427d531673",
+        "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101ElectionRuleDisablesCandidate#2": "382e18427d531673",
+        "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101ElectionRuleDisablesCandidate#3": "382e18427d531673"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101ElectionRuleDisablesCandidate": "7237fc701317ed17",
+        "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101ElectionRuleDisablesCandidate#2": "7237fc701317ed17",
+        "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101ElectionRuleDisablesCandidate#3": "7237fc701317ed17"
+      },
+      "verdict": "enforced"
     },
     "RFC3101-3.1-5": {
       "code": {
-        "internal/plugins/ospf/nssa.go::electNSSATranslator": "e2310d1864e6b905",
-        "internal/plugins/ospf/nssa.go::nssaABRs": "a21bbd9987ddcf17"
+        "internal/plugins/ospf/nssa.go::asbrReachedOverTransit": "7438f2fc474ceda3",
+        "internal/plugins/ospf/nssa.go::electNSSATranslator": "35d82a8159155cfa",
+        "internal/plugins/ospf/nssa.go::transitAreas": "fc50a9bfb32ee06a",
+        "internal/plugins/ospf/spf/reachability.go::ASBRReachableIn": "85e72bd5e6cb30d7"
       },
-      "note": "Judged 2026-09-30 (R3 split of 3.1-2): the list's second membership condition, 'as ASBRs over the AS's transit topology', is not implemented. electNSSATranslator lists every NSSA border router with B and Nt that the NSSA's completed SPF reaches and never consults the transit topology's ASBR reachability. Gap demo TestRFC3101BorderRouterNotReachedAsASBROverTransitIsNotListed (rfcgap.Demonstrate): 10.0.6.9 is reached in the NSSA, originates no router-LSA outside it and sets no E-bit, the body asserts the RFC outcome (candidate translates, 1 Type-5) and Ze gives 0. Disclosed on the row, the Support remaining text, docs/architecture/ospf/ospf-11-stub-nssa.md and rfc/corrections/rfc3101.md. Not counted conformant.",
+      "note": "Re-judged 2026-10-19 (independent judge, after 12454d4ac5); was unimplemented. Section 3.1: \"An NSSA border router whose NSSA's NSSATranslatorRole is set to Candidate must maintain a list of the NSSA's border routers that are reachable both over the NSSA and as ASBRs over the AS's transit topology.\" Producer: electNSSATranslator requires, after NSSA reachability, asbrReachedOverTransit(reach, list.transit, r), which asks ReachabilitySnapshot.ASBRReachableIn per area; transitAreas(cfg) is the backbone plus every regular (AreaTypeNormal) area, excluding stub and NSSA. ASBRReachableIn answers only for an ASBR routing-table entry of that area with finite metric and a next hop; intraAreaBorderRouters creates one for an intra-area router whose router-LSA sets E, and inter-area entries come from Type-4 summaries in the backbone. RFC3101-3.1-1 (E-bit in every non-stub area, enforced v2 and v3) makes a listed border router appear as an ASBR in the backbone, as the RFC intends ('This allows other NSSA border routers to see their ASBR status across the AS's transit topology'). Both conditions are ANDed, matching 'both over the NSSA and as ASBRs'. TestRFC3101TransitASBRReachabilityDecidesListing (reached over NSSA in all cases): no ASBR entry -> 1, ASBR entry only in the NSSA -> 1, ASBR entry in the backbone -> 0. Hand mutants: removing the transit check reds case 1, counting the NSSA as transit reds case 2, an empty transit set reds case 3 (the fixture's backbone has no area-type, so it also proves the default resolves to normal). TestASBRReachableIn (spf, untagged) covers the per-area, no-next-hop and ABR-kind exclusions. Limits (no verdict change): the tagged unit uses the fixedReachability seam, so the real SPF -> ASBRReachableIn chain is proven only by reading plus the untagged spf test; no OSPFv3 test drives translateNSSAV6 with a transit-unreached border router. Defect in the population: TestRFC3101BorderRouterNotReachedAsASBROverTransitIsNotListed still carries an rfcgap.Demonstrate tag and PASSES as 'gap RFC3101-3.1-5 stands', a false claim: its fixture translatorListCase leaves fixedReachability.asbr nil, which answers ASBRReachableIn true in every area, so 10.0.6.9 IS an ASBR over transit there despite the comment ('sets no E-bit, so no transit area reaches it as an ASBR'), and Ze correctly lists it (0 Type-5). It contradicts the producer and must be deleted or rewritten with an empty asbr map before stamping.",
       "requirement_sha": "21fec89cd188b4a1",
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101TransitASBRReachabilityDecidesListing": "382e18427d531673",
+        "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101TransitASBRReachabilityDecidesListing#2": "382e18427d531673"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101TransitASBRReachabilityDecidesListing": "a533672cfb43f608",
+        "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101TransitASBRReachabilityDecidesListing#2": "a533672cfb43f608"
+      },
+      "verdict": "enforced"
     },
     "RFC3101-3.2-1": {
       "note": "Re-judged 2026-09-29. TestOSPFNSSATranslation now asserts the network mask as well as metric, E1, tag and FA, and the advertising router through the lookup key (translator Router ID) and the network through the Link State ID. New TestRFC3101TranslatedType5FollowsSourceFields re-originates the Type-7 with a new mask, E2, metric, FA and tag (clock advanced past MinLSInterval) and reads each new value in the translated Type-5, so a translator that hardcodes, defaults or keeps stale fields goes red. Revert records on translateNSSA for both. The withdraw and P=0 negatives stay (neighbouring section 3.2 steps).",
