@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-19",
+  "audited": "2026-10-20",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -102,15 +102,15 @@
       "verdict": "enforced"
     },
     "RFC3948-3.1.1-1": {
-      "note": "Re-judged 2026-10-19 (independent judge, after 4c41f84038, which replaced childPolicyParams with childPolicies: one inbound and one outbound policy per negotiated pair, all bound to the one SA, plus inboundStateSelector for the transport-mode state). RFC 3948 Section 3.1.1: \"If a valid source IP address space has been defined in the policy for the encapsulated packets from the peer, check that the source IP address of the inner packet is valid according to the policy.\" Prior verdict enforced (single-polarity, option 1 through the kernel). TestChildInboundPolicyDefinesTheValidInnerSourceSpace changed only in comments; it still drives createFirstChildSA and asserts the inbound policy is SPActionProtect with Src the negotiated remote selector 10.2.0.0/24 and Dst the local one; TestChildSAInboundPolicyUsesNegotiatedTS unchanged. With several pairs every tunnel-mode inbound require-policy carries its own pair's remote prefix as Src, so the defined source space is the union of the negotiated remote selectors, exact (no cover in tunnel mode). PASS at HEAD. Verdict stands. Findings: the comment at rfc3948_inner_source_policy_test.go:25 says installChildSA calls InstallPolicy(childPolicies(child, SADirIn)[0]), but it installs every element in a loop (stale comment). The revert record names the retired childPolicyParams (producer-gone) and must be re-recorded on childPolicies.",
+      "note": "Re-judged 2026-10-20 (independent judge, after 13c1b058ed, f9d98e8ab1, 6f87487816 and the rename to rfc4301_child_multi_pair_test.go). Section 3.1.1: \"Depending on local policy, one of the following MUST be done:\" and option 1: \"If a valid source IP address space has been defined in the policy for the encapsulated packets from the peer, check that the source IP address of the inner packet is valid according to the policy.\" TestChildInboundPolicyDefinesTheValidInnerSourceSpace changed only in its comment, which now matches installChildSA (one inbound policy per pair, one here), closing the prior judge's stale-comment finding; it still drives createFirstChildSA and asserts the protect inbound policy Src is the negotiated remote selector. In transport mode the inbound state selector is now exactly that one pair, so the defined source space is no longer widened by a cover. TestChildSAInboundPolicyUsesNegotiatedTS unchanged. Both PASS at HEAD. Verdict stands.",
       "requirement_sha": "5cc3af212139b3f1",
       "tests": {
         "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "cde4b65c1f5b67d5",
-        "internal/component/ike/engine/rfc3948_inner_source_policy_test.go::TestChildInboundPolicyDefinesTheValidInnerSourceSpace": "9f8372f011738613"
+        "internal/component/ike/engine/rfc3948_inner_source_policy_test.go::TestChildInboundPolicyDefinesTheValidInnerSourceSpace": "34fb5dd58579c3b0"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "93a9bdfaf157d80d",
-        "internal/component/ike/engine/rfc3948_inner_source_policy_test.go::TestChildInboundPolicyDefinesTheValidInnerSourceSpace": "d7a3356bd5115ff9"
+        "internal/component/ike/engine/rfc3948_inner_source_policy_test.go::TestChildInboundPolicyDefinesTheValidInnerSourceSpace": "5614e0a01d648c1d"
       },
       "verdict": "enforced"
     },

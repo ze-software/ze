@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-19",
+  "audited": "2026-10-20",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -733,23 +733,42 @@
       "verdict": "enforced"
     },
     "RFC7296-2.9-1": {
-      "note": "Re-judged 2026-10-19 (independent judge, after 4c41f84038, which replaced childPolicyParams with childPolicies: one inbound and one outbound policy per negotiated pair, all bound to the one SA, plus inboundStateSelector for the transport-mode state). RFC 7296 Section 2.9: \"When the responder chooses a subset of the traffic proposed by the initiator, it narrows the Traffic Selectors to some subset of the initiator's proposal (provided the set does not become the null set).\" Prior verdict enforced, carried by TestResponderNarrowsBothSelectorsToPolicy and TestTSUnacceptableIsSentWhenNothingIsAcceptable, both unchanged and PASS. The stale-flagged unit TestChildRekeyInitiatorInstallsTheAnsweredSelectors (supporting evidence only) changed only in a comment and an error string. Finding: its helper installedPolicyScope reads child.TSLocal/TSRemote and its comment (rfc7296_child_rekey_initiator_answer_test.go:88-90) says childPolicies builds the policy from those 'never from Selectors'; at HEAD childPolicies builds from child.Selectors whenever the set is non-empty, so that comment and the 'childPolicies reads TSLocal and TSRemote' error message are false, and the 'kernel policy selector' assertion no longer reads what the kernel gets (the first assertion on Selectors now does). It can only false-red, not false-green; correct the comment and have the helper read childPolicies output. Verdict stands.",
+      "note": "Re-judged 2026-10-20 (independent judge, after 13c1b058ed, f9d98e8ab1, 6f87487816 and the rename to rfc4301_child_multi_pair_test.go). Section 2.9: \"When the responder chooses a subset of the traffic proposed by the initiator, it narrows the Traffic Selectors to some subset of the initiator's proposal (provided the set does not become the null set).\" oneTransportPair takes narrowed[:1] of a set narrowSelectors already built as a subset, after the empty-set refusal, so the transport answer is still a non-null subset. The stale unit TestChildRekeyInitiatorInstallsTheAnsweredSelectors changed only its helper: installedPolicyScope now reads the outbound policies the dataplane received (by SAID), which fixes the prior judge's false-comment finding and strengthens the assertion. Primary carriers TestResponderNarrowsBothSelectorsToPolicy and TestTSUnacceptableIsSentWhenNothingIsAcceptable unchanged; all PASS at HEAD. Verdict stands. The open owner question (transport initiator proposes every pair, refuses an all-pairs answer) concerns the initiator and does not touch this responder obligation.",
       "requirement_sha": "c05dbf88d2b667b3",
       "tests": {
-        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors": "dab7da2e19d22763",
-        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors#2": "dab7da2e19d22763",
+        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors": "898df03dba5c2897",
+        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors#2": "898df03dba5c2897",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestResponderNarrowsBothSelectorsToPolicy": "8731c5a2d354ba07",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestResponderNarrowsBothSelectorsToPolicy#2": "8731c5a2d354ba07",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable": "8731c5a2d354ba07",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable#2": "8731c5a2d354ba07"
       },
       "units": {
-        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors": "410f3b2ecde4166e",
-        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors#2": "410f3b2ecde4166e",
+        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors": "5e722d58e9accc2b",
+        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors#2": "5e722d58e9accc2b",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestResponderNarrowsBothSelectorsToPolicy": "6d7e563cac21a8a0",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestResponderNarrowsBothSelectorsToPolicy#2": "6d7e563cac21a8a0",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable": "799b2ff1ee595ed2",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable#2": "799b2ff1ee595ed2"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.9-2": {
+      "note": "Re-judged 2026-10-20 (independent judge, after 13c1b058ed, f9d98e8ab1, 6f87487816 and the rename to rfc4301_child_multi_pair_test.go). Section 2.9: \"If the responder's policy allows it to accept the first selector of TSi and TSr, then the responder MUST narrow the Traffic Selectors to a subset that includes the initiator's first choices.\" narrowSelectors leads the answer with the first-choice intersections, keepSingleAddress filters in order and oneTransportPair keeps the first, so the transport answer is the first choice; dropping the others is permitted by the same section: \"When narrowing is done, there may be several subsets that are acceptable but their union is not. In this case, the responder arbitrarily chooses one of them\", and the second bullet's \"can return the same\" is not a MUST. New TestRFC7296TransportResponderNarrowsToFirstPair (keeps TCP/179 of a two-pair proposal, tunnel control keeps both), TestNarrowingIncludesFirstChoice and TestPeerInitiatedRekeyIsNarrowedInTheExchangeOrientation PASS. Caveat, verdict-neutral: on a rekey narrowSelectors answers the floor before the first choice (RFC 7296 Section 2.9.2), unchanged by this commit. No prior audit entry existed for this id.",
+      "requirement_sha": "30ccb42f9f5fd42e",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_child_rekey_orientation_test.go::TestPeerInitiatedRekeyIsNarrowedInTheExchangeOrientation": "936446b574e018e5",
+        "internal/component/ike/engine/rfc7296_transport_one_pair_test.go::TestRFC7296TransportResponderNarrowsToFirstPair": "2c7de49a0efc6acd",
+        "internal/component/ike/engine/rfc7296_transport_test.go::TestAuthResponsePayloadsCarryTheNarrowedSelectors": "8731c5a2d354ba07",
+        "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice": "7ec56b7d86f07a26",
+        "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice#2": "7ec56b7d86f07a26"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_child_rekey_orientation_test.go::TestPeerInitiatedRekeyIsNarrowedInTheExchangeOrientation": "c0a9c8efaeaceeca",
+        "internal/component/ike/engine/rfc7296_transport_one_pair_test.go::TestRFC7296TransportResponderNarrowsToFirstPair": "80f18c772867f0db",
+        "internal/component/ike/engine/rfc7296_transport_test.go::TestAuthResponsePayloadsCarryTheNarrowedSelectors": "b2194a3f02562d55",
+        "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice": "597e8416c536f5bc",
+        "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice#2": "597e8416c536f5bc"
       },
       "verdict": "enforced"
     },
