@@ -65,7 +65,8 @@ func liveRPKIArgv() []string {
 }
 
 // dockerPeersArgv derives the population from the tree: every package under
-// internal/ and cmd/ holding a _test.go whose constraint names the docker tag.
+// internal/ and cmd/ holding a _test.go whose constraint needs the docker tag
+// (buildtag.TestFile.Needs), so a `!docker` file never joins it.
 // An empty population is refused, because a verb that runs nothing proves
 // nothing.
 func dockerPeersArgv(root string) ([]string, error) {

@@ -8,6 +8,8 @@
 package buildtag
 
 import (
+	"errors"
+	"go/build/constraint"
 	"os"
 	"path/filepath"
 	"slices"
@@ -17,23 +19,39 @@ import (
 // scannedAreas are the checkout roots holding Go packages.
 var scannedAreas = []string{"internal", "cmd"}
 
-// TestFile is one _test.go file and the terms of its //go:build constraint.
+// identifiersMax bounds the tags one constraint may name. Needs decides by
+// trying every assignment of the other tags, 2^(n-1) evaluations, so the bound
+// keeps one hand-written constraint under a few thousand.
+const identifiersMax = 12
+
+// TestFile is one _test.go file and its //go:build constraint.
 type TestFile struct {
 	// Path is the file, relative to the checkout and slash-separated.
 	Path string
 	// Dir is the file's package directory, in the same form.
 	Dir string
-	// Terms are the identifiers the constraint names, negated ones included.
-	Terms []string
+	// Constraint is the file's parsed //go:build expression, never nil.
+	Constraint constraint.Expr
 }
 
-// Names reports whether the file's constraint names tag as a term. The tag
-// is matched as a whole word, so `integration_slow` never counts as
-// `integration`.
-func (f TestFile) Names(tag string) bool { return slices.Contains(f.Terms, tag) }
+// Needs reports whether the file builds only with tag set: some assignment of
+// the other tags it names selects it with tag set, and none selects it without.
+// So `docker && linux` needs docker, while `!docker`, `integration && !docker`
+// and `docker || integration` do not. The tag is matched as a whole word, so
+// `integration_slow` never counts as `integration`.
+func (f TestFile) Needs(tag string) bool {
+	others := otherIdentifiers(f.Constraint, tag)
+	if !satisfiable(f.Constraint, tag, true, others) {
+		return false
+	}
+	return !satisfiable(f.Constraint, tag, false, others)
+}
 
 // TestFiles answers every _test.go file under internal/ and cmd/ that carries
-// a //go:build constraint, skipping testdata and node_modules.
+// a //go:build constraint, skipping testdata and node_modules. A constraint
+// that does not parse, or names more than identifiersMax tags, is an error
+// naming the file: the go tool refuses the first, and Needs cannot judge the
+// second within its bound.
 //
 // The constraint is read from the file's leading comment block: a //go:build
 // line must appear before the package clause, so a bounded read of the head is
@@ -65,16 +83,25 @@ func TestFiles(root string) ([]TestFile, error) {
 			if readErr != nil {
 				return readErr
 			}
-			terms := constraintTerms(string(data))
-			if len(terms) == 0 {
-				return nil
-			}
 			rel, relErr := filepath.Rel(root, path)
 			if relErr != nil {
 				return relErr
 			}
 			rel = filepath.ToSlash(rel)
-			files = append(files, TestFile{Path: rel, Dir: filepath.ToSlash(filepath.Dir(rel)), Terms: terms})
+			line, found := buildLine(string(data))
+			if !found {
+				return nil
+			}
+			expression, parseErr := constraint.Parse(line)
+			if parseErr != nil {
+				return errors.New(rel + ": " + parseErr.Error() +
+					". Fix: correct the //go:build line, which the go tool refuses too")
+			}
+			if len(otherIdentifiers(expression, "")) > identifiersMax {
+				return errors.New(rel + ": the //go:build line names more than 12 tags, which the" +
+					" build-tag scan cannot judge. Fix: split the constraint across files")
+			}
+			files = append(files, TestFile{Path: rel, Dir: filepath.ToSlash(filepath.Dir(rel)), Constraint: expression})
 			return nil
 		})
 		if err != nil {
@@ -85,7 +112,7 @@ func TestFiles(root string) ([]TestFile, error) {
 }
 
 // Packages answers, sorted, every package directory holding a _test.go file
-// whose constraint names tag.
+// that needs tag (TestFile.Needs).
 func Packages(root, tag string) ([]string, error) {
 	files, err := TestFiles(root)
 	if err != nil {
@@ -93,7 +120,7 @@ func Packages(root, tag string) ([]string, error) {
 	}
 	var dirs []string
 	for _, file := range files {
-		if file.Names(tag) && !slices.Contains(dirs, file.Dir) {
+		if file.Needs(tag) && !slices.Contains(dirs, file.Dir) {
 			dirs = append(dirs, file.Dir)
 		}
 	}
@@ -101,19 +128,61 @@ func Packages(root, tag string) ([]string, error) {
 	return dirs, nil
 }
 
-// constraintTerms answers the identifiers of the //go:build lines before the
-// package clause.
-func constraintTerms(source string) []string {
+// buildLine answers the first //go:build line before the package clause, and
+// whether there is one. The go tool reads only the first.
+func buildLine(source string) (string, bool) {
 	head, _, _ := strings.Cut(source, "\npackage ")
-	var terms []string
 	for line := range strings.SplitSeq(head, "\n") {
-		expression, found := strings.CutPrefix(line, "//go:build ")
-		if !found {
-			continue
+		if constraint.IsGoBuild(line) {
+			return line, true
 		}
-		terms = append(terms, strings.FieldsFunc(expression, func(r rune) bool {
-			return r == ' ' || r == '(' || r == ')' || r == '&' || r == '|' || r == '!' || r == ','
-		})...)
 	}
-	return terms
+	return "", false
+}
+
+// otherIdentifiers answers the distinct tags expression names, except tag.
+func otherIdentifiers(expression constraint.Expr, tag string) []string {
+	var names []string
+	collectIdentifiers(expression, func(name string) {
+		if name != tag && !slices.Contains(names, name) {
+			names = append(names, name)
+		}
+	})
+	return names
+}
+
+// collectIdentifiers calls visit for each tag in expression. The recursion is
+// bounded by the nesting of one //go:build line in a repository file, which
+// constraint.Parse already limits.
+func collectIdentifiers(expression constraint.Expr, visit func(string)) {
+	switch node := expression.(type) {
+	case *constraint.TagExpr:
+		visit(node.Tag)
+	case *constraint.NotExpr:
+		collectIdentifiers(node.X, visit)
+	case *constraint.AndExpr:
+		collectIdentifiers(node.X, visit)
+		collectIdentifiers(node.Y, visit)
+	case *constraint.OrExpr:
+		collectIdentifiers(node.X, visit)
+		collectIdentifiers(node.Y, visit)
+	}
+}
+
+// satisfiable reports whether some assignment of others makes expression hold
+// with tag fixed to tagSet. TestFiles refuses a constraint naming more than
+// identifiersMax tags, so the 2^len(others) walk is bounded.
+func satisfiable(expression constraint.Expr, tag string, tagSet bool, others []string) bool {
+	for assignment := range 1 << len(others) {
+		holds := expression.Eval(func(name string) bool {
+			if name == tag {
+				return tagSet
+			}
+			return assignment&(1<<slices.Index(others, name)) != 0
+		})
+		if holds {
+			return true
+		}
+	}
+	return false
 }

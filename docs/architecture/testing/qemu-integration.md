@@ -868,10 +868,14 @@ kernel of the host's own Docker daemon, which the guest cannot stand in for.
 The guest has no Docker, so a package test that starts a real server container
 through `labtest.Start` carries the build tag `docker` and never `integration`.
 `./le test integration docker-peers` runs that population on the host: it
-derives every package under `internal/` and `cmd/` holding a `docker`-tagged test file
-from the tree, so a package added later runs with no edit, and it sets
+derives every package under `internal/` and `cmd/` holding a test file that needs
+the `docker` tag from the tree, so a package added later runs with no edit, and it sets
 `ZE_REQUIRE_DOCKER=1`, under which an absent `docker` binary fails the test
-instead of skipping it. `./le test integration live-rpki` runs the `live`-tagged
+instead of skipping it. A file needs a tag when its `//go:build` constraint
+holds with the tag set and cannot hold without it, whatever the other tags:
+`docker && linux` needs `docker`, while `!docker`, `integration && !docker` and
+`docker || integration` do not. The integration population is derived the same
+way, and only a file that needs both `docker` and `integration` is refused. `./le test integration live-rpki` runs the `live`-tagged
 RPKI tests through the same switch. Both run their `go test` child under the
 verb's signal root: a SIGINT or SIGTERM kills the child's whole process group,
 so `le` answers non-zero at once rather than waiting out the child's own
@@ -880,4 +884,5 @@ in `evidence-nightly.yml`, because no container in either runs Ze, so the Docker
 host kernel check does not apply.
 <!-- source: internal/le/test/integration/dockerpeers.go -- dockerPeersArgv, runRequiringDocker, requireDockerEnvironment, liveRPKIArgv -->
 <!-- source: internal/le/gaterun/gaterun.go -- StreamContext, RunContext -->
+<!-- source: internal/le/test/buildtag/buildtag.go -- TestFile.Needs, Packages -->
 <!-- source: internal/le/test/integration/gates.go -- Table, the docker-peers and live-rpki rows -->
