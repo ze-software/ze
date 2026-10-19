@@ -57,6 +57,8 @@ func TestRFC4303IntegrityOnlyESPIsAccepted(t *testing.T) {
 // null cipher, or a suite the initiator did not offer.
 //
 // RFC requirement: RFC4303-1-2 negative -- the null cipher NegotiateESP admits is integrity-only ESP and nothing wider: it refuses ENCR_NULL beside AUTH_NONE with ErrProposalIncomplete, an ENCR_NULL offer carrying a Key Length attribute of 128 with ErrNoProposalChosen, and an ENCR_NULL answer against a local policy of AES-CBC with SHA-256 with ErrNoProposalChosen.
+//
+// RFC requirement: RFC4303-3.2-1 negative -- NegotiateESP refuses an ESP proposal pairing ENCR_NULL with AUTH_NONE, which selects neither confidentiality nor integrity, with ErrProposalIncomplete.
 func TestIntegrityOnlyESPRefusals(t *testing.T) {
 	sha256, err := LookupIntegrity(hashNameSHA256)
 	if err != nil {

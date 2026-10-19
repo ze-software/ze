@@ -299,6 +299,17 @@
       "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4303-3.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/crypto/rfc4303_integrity_only_test.go::TestIntegrityOnlyESPRefusals",
+      "unit-sha": "49ce76a4f10010c9",
+      "claim-sha": "1beda471f805b3c9",
+      "route": "mutant",
+      "producer": "internal/component/ike/crypto/proposal.go::espProposalComplete",
+      "producer-sha": "d52445483cc45687",
+      "break": "line 483: \"p.Encryption.ID == ENCR_NULL \u0026\u0026 p.Integrity.ID == AUTH_NONE\" -\u003e \"false\""
+    },
+    {
       "rid": "RFC4303-3.4.3-2",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/child_test.go::TestChildSAReplayRequiresIntegrity",
