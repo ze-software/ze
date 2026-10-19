@@ -390,7 +390,10 @@ var (
 // the lease in the DHCPACK message." T1 and T2 are measured from the same
 // instant.
 func v4LeaseFromAck(ack *dhcpv4.DHCPv4, sent time.Time, fallbackServer net.IP) (*v4Lease, *v4Refusal) {
-	if ack.YourIPAddr == nil || ack.YourIPAddr.IsUnspecified() {
+	if ack.YourIPAddr == nil {
+		return nil, errV4NoAddress
+	}
+	if ack.YourIPAddr.IsUnspecified() {
 		return nil, errV4NoAddress
 	}
 	duration, refusal := v4LeaseTime(ack)
@@ -456,10 +459,19 @@ func v4LeaseTimers(lease time.Duration, serverT1, serverT2 []byte) (t1, t2 time.
 	}
 	t1, ok1 := v4OptionSeconds(serverT1, defaultT1)
 	t2, ok2 := v4OptionSeconds(serverT2, defaultT2)
-	if !ok1 || !ok2 {
+	if !ok1 {
 		return defaultT1, defaultT2, true
 	}
-	if t1 <= 0 || t1 >= t2 || t2 >= lease {
+	if !ok2 {
+		return defaultT1, defaultT2, true
+	}
+	if t1 <= 0 {
+		return defaultT1, defaultT2, true
+	}
+	if t1 >= t2 {
+		return defaultT1, defaultT2, true
+	}
+	if t2 >= lease {
 		return defaultT1, defaultT2, true
 	}
 	return t1, t2, false

@@ -600,7 +600,10 @@ func listEntryKey(node dataNode, name string) (string, bool) {
 	}
 	keys := listKeys(node.entries[0])
 	fields := strings.Fields(node.key)
-	if len(keys) == 0 || len(fields) == 0 {
+	if len(keys) == 0 {
+		return "", false
+	}
+	if len(fields) == 0 {
 		return "", false
 	}
 	if keys[0] == name {
@@ -755,7 +758,10 @@ func canonicalDecimal64(value string) (string, bool) {
 // allDigits reports whether text holds only the digits 0 to 9.
 func allDigits(text string) bool {
 	for i := range len(text) {
-		if text[i] < '0' || text[i] > '9' {
+		if text[i] < '0' {
+			return false
+		}
+		if text[i] > '9' {
 			return false
 		}
 	}

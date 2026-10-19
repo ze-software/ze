@@ -179,7 +179,10 @@ func (c *FakeClock) NextTimer() (time.Time, bool) {
 	var earliest time.Time
 	found := false
 	for _, t := range c.timers {
-		if t.stopped || t.fired {
+		if t.stopped {
+			continue
+		}
+		if t.fired {
 			continue
 		}
 		if !found || t.deadline.Before(earliest) {

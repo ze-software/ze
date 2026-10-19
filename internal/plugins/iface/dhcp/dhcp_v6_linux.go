@@ -318,7 +318,10 @@ func (w *v6Worker) maintain() {
 			return
 		}
 		now := w.clock().Now()
-		if t1.never || now.Before(t1.at) {
+		if t1.never {
+			continue // a binding expired first
+		}
+		if now.Before(t1.at) {
 			continue // a binding expired first
 		}
 

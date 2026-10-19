@@ -158,7 +158,10 @@ func parseInstanceIdentifier(text string) ([]instanceStep, bool) {
 // quoted-string", "pos = "[" *WSP positive-integer-value *WSP "]"".
 func readInstancePredicates(text string, at int, step *instanceStep) (int, bool) {
 	for at < len(text) && text[at] == '[' {
-		if step.hasValue || step.pos > 0 {
+		if step.hasValue {
+			return at, false
+		}
+		if step.pos > 0 {
 			return at, false
 		}
 		at = skipWSP(text, at+1)
@@ -202,7 +205,10 @@ func readInstancePredicates(text string, at int, step *instanceStep) (int, bool)
 			step.keys = append(step.keys, key)
 		}
 		at = skipWSP(text, at)
-		if at >= len(text) || text[at] != ']' {
+		if at >= len(text) {
+			return at, false
+		}
+		if text[at] != ']' {
 			return at, false
 		}
 		at++
@@ -216,7 +222,10 @@ func readInstancePredicates(text string, at int, step *instanceStep) (int, bool)
 // string SQUOTE)".
 func readEqualsQuoted(text string, at int) (string, int, bool) {
 	at = skipWSP(text, at)
-	if at >= len(text) || text[at] != '=' {
+	if at >= len(text) {
+		return "", at, false
+	}
+	if text[at] != '=' {
 		return "", at, false
 	}
 	at = skipWSP(text, at+1)
@@ -347,7 +356,13 @@ func checkInstancePredicates(node *yang.Entry, step instanceStep) error {
 		}
 		return nil
 	default:
-		if len(step.keys) > 0 || step.hasValue || step.pos > 0 {
+		if len(step.keys) > 0 {
+			return refError(tb.Str("node ").Quoted(node.Name).Str(" is not a list or leaf-list and takes no predicate: remove it"))
+		}
+		if step.hasValue {
+			return refError(tb.Str("node ").Quoted(node.Name).Str(" is not a list or leaf-list and takes no predicate: remove it"))
+		}
+		if step.pos > 0 {
 			return refError(tb.Str("node ").Quoted(node.Name).Str(" is not a list or leaf-list and takes no predicate: remove it"))
 		}
 		return nil

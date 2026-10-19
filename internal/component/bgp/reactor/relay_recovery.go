@@ -95,19 +95,30 @@ func (admission *recoveryAdmission) mark(k int) {
 	}
 }
 
+// settleGone settles the admission with every key gone: nothing it holds is
+// written.
+func (admission *recoveryAdmission) settleGone() {
+	admission.settled = true
+	for k := range admission.keys {
+		admission.keys[k].outcome = recoveryKeyGone
+	}
+}
+
 // admit decides, under the destination's writeMu, which keys of the admission
 // are written. Per key the owed record must still be the one the round read,
 // belong to this session, and carry the round's epoch; the chosen candidate
 // must not have withdrawn since the snapshot, and its source must still be the
 // session the round captured, with nothing accepted since the round's cut. It
 // reports false when the admission belongs to
-// another session, whose table reset dropped every key.
+// another session, whose table reset dropped every key, or when the session
+// is tearing down.
 func (admission *recoveryAdmission) admit(session *Session) bool {
-	if admission.session != session || session.tearingDown.Load() {
-		admission.settled = true
-		for k := range admission.keys {
-			admission.keys[k].outcome = recoveryKeyGone
-		}
+	if admission.session != session {
+		admission.settleGone()
+		return false
+	}
+	if session.tearingDown.Load() {
+		admission.settleGone()
 		return false
 	}
 	table := &admission.peer.adjOut
@@ -292,7 +303,10 @@ func (a *reactorAPIAdapter) recoverNLRIBatch(ctx context.Context, batch bgptypes
 			continue
 		}
 		nc := destination.negotiated.Load()
-		if nc == nil || !nc.Has(batch.Family) {
+		if nc == nil {
+			continue
+		}
+		if !nc.Has(batch.Family) {
 			continue
 		}
 		session := destination.currentSession()
@@ -500,7 +514,11 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 		key.outcome = recoveryKeyLeftOwed
 		return nil
 	}
-	if errors.Is(err, errRelayNoSource) || errors.Is(err, errForwardNoSource) {
+	if errors.Is(err, errRelayNoSource) {
+		key.outcome, key.gone = recoveryKeyReowed, survivor.Source
+		return nil
+	}
+	if errors.Is(err, errForwardNoSource) {
 		key.outcome, key.gone = recoveryKeyReowed, survivor.Source
 		return nil
 	}

@@ -51,7 +51,10 @@ func findOption(pkt []byte, code byte) ([]byte, bool) {
 			return data, true
 		}
 	}
-	if overload == overloadSname || overload == overloadBoth {
+	if overload == overloadSname {
+		return findFieldOption(pkt[snameStart:fileStart], code)
+	}
+	if overload == overloadBoth {
 		return findFieldOption(pkt[snameStart:fileStart], code)
 	}
 	return nil, false

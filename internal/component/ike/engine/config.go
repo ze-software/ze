@@ -93,7 +93,10 @@ func (c *candidatePKISet) hasCert(name string) bool { return c.cfg.Certificates[
 
 func (c *candidatePKISet) certCN(name string) string {
 	entry := c.cfg.Certificates[name]
-	if entry == nil || entry.Certificate == nil {
+	if entry == nil {
+		return ""
+	}
+	if entry.Certificate == nil {
 		return ""
 	}
 	return entry.Certificate.Subject.CommonName
