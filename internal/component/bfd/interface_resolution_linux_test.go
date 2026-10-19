@@ -48,6 +48,18 @@ func (b *bfdBindingBackend) GetInterface(name string) (*ifcomp.InterfaceInfo, er
 	return &info, nil
 }
 
+// GetLink answers GetInterface's link facts with the addresses unread, as
+// Backend.GetLink specifies: the resolver reads a Binding through it.
+func (b *bfdBindingBackend) GetLink(name string) (*ifcomp.InterfaceInfo, error) {
+	info, err := b.GetInterface(name)
+	if err != nil {
+		return nil, err
+	}
+	info.Addresses = nil
+	info.AddressesRead = false
+	return info, nil
+}
+
 func (b *bfdBindingBackend) ListInterfaces() ([]ifcomp.InterfaceInfo, error) {
 	return []ifcomp.InterfaceInfo{b.link}, nil
 }

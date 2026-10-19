@@ -41,6 +41,18 @@ func (*onLinkBackend) GetInterface(name string) (*iface.InterfaceInfo, error) {
 	return &iface.InterfaceInfo{Name: name, OsName: name, State: "up", MTU: 1500, Addresses: addresses}, nil
 }
 
+// GetLink answers GetInterface's link facts with the addresses unread, as
+// Backend.GetLink specifies: the resolver reads a Binding through it.
+func (b *onLinkBackend) GetLink(name string) (*iface.InterfaceInfo, error) {
+	info, err := b.GetInterface(name)
+	if err != nil {
+		return nil, err
+	}
+	info.Addresses = nil
+	info.AddressesRead = false
+	return info, nil
+}
+
 func (*onLinkBackend) Close() error { return nil }
 
 var registerOnLinkBackend = sync.OnceValue(func() error {

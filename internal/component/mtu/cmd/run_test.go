@@ -121,7 +121,7 @@ func (f *fakeDeps) install(t *testing.T) {
 			}
 			return f.underlay, nil
 		},
-		getInterface: func(name string) (*iface.InterfaceInfo, error) {
+		getLink: func(name string) (*iface.InterfaceInfo, error) {
 			return &iface.InterfaceInfo{Name: name, Type: f.underlayType, MTU: f.underlayMTU, State: interfaceStateUp}, nil
 		},
 		xfrmInterfaces:  func() ([]xfrmInterface, error) { return f.xfrms, nil },

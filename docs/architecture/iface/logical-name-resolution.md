@@ -23,6 +23,15 @@ consumer does not couple to `vishvananda/netlink`. It carries exactly what the
 older per-consumer ioctl wrappers produced, which is what let those wrappers be
 deleted.
 
+A `Binding` holds no address, so `Resolve`, `ResolveIndex` and `ResolveDevice`
+read the device's link alone (`GetLink`): an address dump that fails, or keeps
+changing past its retries, cannot make a present device unresolvable.
+`Addresses` and `ReadAddressState` read the addresses too (`GetInterface`) and
+report that failure. A `mac/match` selector still scans the full interface
+listing, addresses included.
+
+<!-- source: internal/component/iface/resolve.go -- resolve, addresses, osDeviceFor -->
+
 <!-- source: internal/component/iface/iface.go -- Binding, AddrInfo, LinkEvent -->
 
 The kernel device is never renamed. The binding is a map only.

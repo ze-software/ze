@@ -1,6 +1,6 @@
 // Design: docs/architecture/iface/logical-name-resolution.md -- shared logical-name resolver
 // Overview: iface.go -- Binding / LinkEvent value types
-// Related: dispatch.go -- GetInterface backend dispatch this builds on
+// Related: dispatch.go -- GetLink / GetInterface backend dispatch this builds on
 // Related: package internal/core/iface/events -- monitor event namespace and constants
 
 package iface
@@ -152,7 +152,7 @@ var ErrAddressesNotReported = errors.New("the active iface backend does not repo
 // device is absent, or the addresses were not read: wrapping
 // ErrAddressesNotReported when the backend does not report them.
 func ReadAddressState(name string) (AddressState, error) {
-	info, err := globalResolver.osDeviceFor(name)
+	info, err := globalResolver.osDeviceFor(name, GetInterface)
 	if err != nil {
 		return AddressState{}, err
 	}
@@ -186,7 +186,10 @@ func (r *resolver) resolve(name string) (Binding, error) {
 	}
 	r.mu.Unlock()
 
-	info, err := r.osDeviceFor(name)
+	// A Binding holds no address, so the link read answers it: an address
+	// dump that fails or churns past its retries cannot make a present
+	// device unresolvable (Backend.GetLink).
+	info, err := r.osDeviceFor(name, GetLink)
 	if err != nil {
 		return Binding{}, err
 	}
@@ -199,7 +202,7 @@ func (r *resolver) resolve(name string) (Binding, error) {
 }
 
 func (r *resolver) addresses(name string) ([]AddrInfo, error) {
-	info, err := r.osDeviceFor(name)
+	info, err := r.osDeviceFor(name, GetInterface)
 	if err != nil {
 		return nil, err
 	}
@@ -210,10 +213,11 @@ func (r *resolver) addresses(name string) ([]AddrInfo, error) {
 // mac/match selector wins when set: the resolver scans every interface and
 // binds to the one carrying the configured hardware MAC (matchByMAC). Without a
 // MAC selector the os-name selector (or the logical name itself) is looked up
-// directly. On success it records the resolved kernel device so a later down
+// directly through read: GetLink for a caller that needs only link facts,
+// GetInterface for one that needs the addresses. On success it records the resolved kernel device so a later down
 // event for it can reach this logical name. The backend call runs outside the
 // lock; only the small map reads/writes are locked.
-func (r *resolver) osDeviceFor(name string) (*InterfaceInfo, error) {
+func (r *resolver) osDeviceFor(name string, read func(string) (*InterfaceInfo, error)) (*InterfaceInfo, error) {
 	r.mu.Lock()
 	wantMAC := r.permMACs[name]
 	osn := r.osNames[name]
@@ -232,7 +236,7 @@ func (r *resolver) osDeviceFor(name string) (*InterfaceInfo, error) {
 	if osName == "" {
 		osName = name
 	}
-	info, err := GetInterface(osName)
+	info, err := read(osName)
 	if err != nil {
 		return nil, err
 	}

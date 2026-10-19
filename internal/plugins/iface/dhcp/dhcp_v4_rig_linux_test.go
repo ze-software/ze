@@ -59,7 +59,8 @@ type loopBackend struct {
 	// stateAt answers the device's operational state at a fake-clock offset;
 	// nil reports the device up, as a device a lease is held on is.
 	stateAt func(at time.Duration) string
-	// readErr fails every GetInterface, as a backend whose read cannot answer.
+	// readErr fails every GetInterface, as a backend whose address dump cannot
+	// answer; GetLink, which reads no address, still answers.
 	readErr error
 	// addressesUnread answers GetInterface without reading the addresses, as
 	// the VPP backend does (InterfaceInfo.AddressesRead false).
@@ -114,6 +115,23 @@ func (b *loopBackend) GetInterface(name string) (*iface.InterfaceInfo, error) {
 	for _, cidr := range b.installed {
 		p := netip.MustParsePrefix(cidr)
 		info.Addresses = append(info.Addresses, iface.AddrInfo{Address: p.Addr().String(), PrefixLength: p.Bits(), Family: "ipv6"})
+	}
+	return info, nil
+}
+
+// GetLink answers the device's link facts with the addresses unread, as
+// Backend.GetLink specifies. readErr models a failed address dump, so it does
+// not fail the link read.
+func (b *loopBackend) GetLink(name string) (*iface.InterfaceInfo, error) {
+	if name != b.logical {
+		return nil, fmt.Errorf("loop backend: no interface %q", name)
+	}
+	b.mu.Lock()
+	stateAt := b.stateAt
+	b.mu.Unlock()
+	info := &iface.InterfaceInfo{Name: name, OsName: loopKernelDevice, Index: 7, State: iface.LinkStateUp}
+	if stateAt != nil {
+		info.State = stateAt(b.now())
 	}
 	return info, nil
 }

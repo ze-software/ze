@@ -168,12 +168,14 @@ type xfrmInterface struct {
 // handleShowMTU. liveDeps is the production set; each field names its
 // producer.
 type mtuDeps struct {
-	tunnels         func() ([]ipsecinventory.Tunnel, error)
-	openProber      func(ctx context.Context, target netip.Addr, df probe.DFMode) (targetProber, error)
-	probeIKE        ikeprobe.Prober
-	kernelPathMTU   func(ctx context.Context, target netip.Addr) (uint32, error)
-	routeInterface  func(target netip.Addr) (string, error)
-	getInterface    func(name string) (*iface.InterfaceInfo, error)
+	tunnels        func() ([]ipsecinventory.Tunnel, error)
+	openProber     func(ctx context.Context, target netip.Addr, df probe.DFMode) (targetProber, error)
+	probeIKE       ikeprobe.Prober
+	kernelPathMTU  func(ctx context.Context, target netip.Addr) (uint32, error)
+	routeInterface func(target netip.Addr) (string, error)
+	// getLink reads the underlay's link facts (MTU, kind) without its
+	// addresses, so a failed address dump cannot hide the underlay.
+	getLink         func(name string) (*iface.InterfaceInfo, error)
 	xfrmInterfaces  func() ([]xfrmInterface, error)
 	fragmentation   func() (fragmentationCounters, error)
 	tcpMTUProbing   func() (tcpMTUProbing, error)
@@ -194,7 +196,7 @@ var liveDeps = mtuDeps{
 	probeIKE:        ikeprobe.Probe,
 	kernelPathMTU:   probe.KernelPathMTU,
 	routeInterface:  routeInterfaceOf,
-	getInterface:    iface.GetInterface,
+	getLink:         iface.GetLink,
 	xfrmInterfaces:  listXFRMInterfaces,
 	fragmentation:   func() (fragmentationCounters, error) { return readFragmentationCounters(procMountPoint) },
 	tcpMTUProbing:   readTCPMTUProbing,
@@ -483,7 +485,7 @@ func (r *mtuRun) readUnderlay() (row map[string]any, link underlayLink, mtu uint
 		r.note(noteSeverityFault, "the underlay interface could not be found: "+err.Error())
 		return nil, underlayLink{}, 0
 	}
-	info, err := r.deps.getInterface(name)
+	info, err := r.deps.getLink(name)
 	if err != nil {
 		r.note(noteSeverityFault, "the underlay interface "+name+" could not be read: "+err.Error())
 		return nil, underlayLink{}, 0

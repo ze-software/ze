@@ -55,8 +55,8 @@ func backendOrErr() (Backend, error) {
 // to carry that name, which is the same wrong-port landing the config-apply path
 // refuses through bindDevices.
 //
-// GetInterface / ListInterfaces are deliberately NOT routed through here: the
-// resolver is built on them (resolve.go osDeviceFor), so translating them would
+// GetInterface / GetLink / ListInterfaces are deliberately NOT routed through
+// here: the resolver is built on them (resolve.go osDeviceFor), so translating them would
 // recurse. The Create* ops are also raw -- a created device's name IS its
 // kernel name.
 func ResolveDevice(name string) (string, error) {

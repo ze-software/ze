@@ -19,10 +19,11 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 )
 
-// fakeIfaceBackend is a minimal iface.Backend serving GetInterface from an
-// in-memory name->index map so the VPP static translation is host-testable
-// without a live VPP. The embedded Backend is nil; any other method panics if a
-// test reaches it (none should) -- the resolve path only calls GetInterface.
+// fakeIfaceBackend is a minimal iface.Backend serving GetInterface and GetLink
+// from an in-memory name->index map so the VPP static translation is
+// host-testable without a live VPP. The embedded Backend is nil; any other
+// method panics if a test reaches it (none should) -- the resolve path only
+// calls GetLink.
 type fakeIfaceBackend struct {
 	iface.Backend
 	mu     sync.Mutex
@@ -46,6 +47,18 @@ func (f *fakeIfaceBackend) GetInterface(name string) (*iface.InterfaceInfo, erro
 		return &iface.InterfaceInfo{Name: name, OsName: name, Index: idx}, nil
 	}
 	return nil, fmt.Errorf("fake iface backend: interface %q not found", name)
+}
+
+// GetLink answers GetInterface's link facts with the addresses unread, as
+// Backend.GetLink specifies: the resolver reads a Binding through it.
+func (b *fakeIfaceBackend) GetLink(name string) (*iface.InterfaceInfo, error) {
+	info, err := b.GetInterface(name)
+	if err != nil {
+		return nil, err
+	}
+	info.Addresses = nil
+	info.AddressesRead = false
+	return info, nil
 }
 
 var (

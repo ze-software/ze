@@ -52,6 +52,18 @@ func (*rfc7474AddressBackend) GetInterface(name string) (*iface.InterfaceInfo, e
 	return &info, nil
 }
 
+// GetLink answers GetInterface's link facts with the addresses unread, as
+// Backend.GetLink specifies: the resolver reads a Binding through it.
+func (b *rfc7474AddressBackend) GetLink(name string) (*iface.InterfaceInfo, error) {
+	info, err := b.GetInterface(name)
+	if err != nil {
+		return nil, err
+	}
+	info.Addresses = nil
+	info.AddressesRead = false
+	return info, nil
+}
+
 func (*rfc7474AddressBackend) ListInterfaces() ([]iface.InterfaceInfo, error) {
 	return []iface.InterfaceInfo{rfc7474Eth0()}, nil
 }

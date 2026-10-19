@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 )
 
@@ -63,12 +65,63 @@ func (b *resolveStubBackend) GetInterface(name string) (*InterfaceInfo, error) {
 	return nil, fmt.Errorf("interface %s not found", name)
 }
 
+// GetLink answers what GetInterface answers with the addresses unread, as
+// Backend.GetLink specifies.
+func (b *resolveStubBackend) GetLink(name string) (*InterfaceInfo, error) {
+	info, ok := b.ifaces[name]
+	if !ok {
+		return nil, fmt.Errorf("interface %s not found", name)
+	}
+	link := *info
+	link.Addresses = nil
+	link.AddressesRead = false
+	return &link, nil
+}
+
 func (b *resolveStubBackend) ListInterfaces() ([]InterfaceInfo, error) {
 	out := make([]InterfaceInfo, 0, len(b.ifaces))
 	for _, v := range b.ifaces {
 		out = append(out, *v)
 	}
 	return out, nil
+}
+
+// errResolveAddressDump is the failure addressDumpFailingResolveBackend answers.
+var errResolveAddressDump = errors.New("address dump failed")
+
+// addressDumpFailingResolveBackend fails every address read, as the netlink
+// backend does when its RTM_GETADDR dump fails or churns past its retries:
+// GetInterface returns the error, while GetLink, which reads no address,
+// still answers.
+type addressDumpFailingResolveBackend struct {
+	*resolveStubBackend
+}
+
+func (b *addressDumpFailingResolveBackend) GetInterface(string) (*InterfaceInfo, error) {
+	return nil, errResolveAddressDump
+}
+
+// TestResolveAnswersWhenAddressDumpFails proves the resolve path reads the
+// link alone. Method: eth0 is present and every address read fails. resolve,
+// which Resolve, ResolveIndex and ResolveDevice share, must still answer the
+// full Binding, while addresses, which needs the address read, must report
+// the failure.
+//
+// VALIDATES: a present device resolves while its address dump fails.
+// PREVENTS: ldp, vrrp, isis, tftpserver and route next-hop lookups reading a
+// present device as unavailable whenever an address table churns.
+func TestResolveAnswersWhenAddressDumpFails(t *testing.T) {
+	withResolveBackend(t, &addressDumpFailingResolveBackend{&resolveStubBackend{ifaces: map[string]*InterfaceInfo{
+		"eth0": {Name: "eth0", OsName: "eth0", Index: 7, State: "up", MTU: 1500, MAC: "02:00:00:00:00:01"},
+	}}})
+	r := freshResolver()
+
+	b, err := r.resolve("eth0")
+	require.NoError(t, err, "resolve reads the link, not the addresses")
+	require.Equal(t, Binding{Ifindex: 7, OsName: "eth0", OperMAC: "02:00:00:00:00:01", MTU: 1500, State: "up"}, b)
+
+	_, err = r.addresses("eth0")
+	require.ErrorIs(t, err, errResolveAddressDump, "addresses still need the address read")
 }
 
 // withResolveBackend installs b as the active backend for the test and restores
@@ -525,6 +578,13 @@ func (b *countingBackend) GetInterface(name string) (*InterfaceInfo, error) {
 	b.calls++
 	b.mu.Unlock()
 	return b.resolveStubBackend.GetInterface(name)
+}
+
+func (b *countingBackend) GetLink(name string) (*InterfaceInfo, error) {
+	b.mu.Lock()
+	b.calls++
+	b.mu.Unlock()
+	return b.resolveStubBackend.GetLink(name)
 }
 
 func (b *countingBackend) ListInterfaces() ([]InterfaceInfo, error) {

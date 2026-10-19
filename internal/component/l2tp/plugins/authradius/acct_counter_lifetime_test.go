@@ -72,6 +72,18 @@ func (b *acctCounterBackend) GetInterface(name string) (*iface.InterfaceInfo, er
 	return &iface.InterfaceInfo{Name: name, OsName: name, Index: 4242}, nil
 }
 
+// GetLink answers GetInterface's link facts with the addresses unread, as
+// Backend.GetLink specifies: the resolver reads a Binding through it.
+func (b *acctCounterBackend) GetLink(name string) (*iface.InterfaceInfo, error) {
+	info, err := b.GetInterface(name)
+	if err != nil {
+		return nil, err
+	}
+	info.Addresses = nil
+	info.AddressesRead = false
+	return info, nil
+}
+
 func (b *acctCounterBackend) ResetCounters(string) error { return iface.ErrCountersNotResettable }
 func (b *acctCounterBackend) Close() error               { return nil }
 

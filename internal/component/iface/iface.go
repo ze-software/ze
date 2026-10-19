@@ -153,9 +153,11 @@ type InterfaceInfo struct {
 	Addresses []AddrInfo `json:"addresses,omitempty"`
 	// AddressesRead is true when the backend read the device's addresses into
 	// Addresses, so an empty Addresses means the device holds none. It is
-	// false from a backend that does not report addresses (VPP), where an
-	// empty Addresses means nothing: ReadAddressState refuses such a read
-	// with ErrAddressesNotReported rather than report every address gone.
+	// false from a backend that does not report addresses (VPP), and on
+	// every GetLink answer from any backend, since GetLink never reads
+	// addresses. Where it is false an empty Addresses means nothing:
+	// ReadAddressState refuses such a read with ErrAddressesNotReported
+	// rather than report every address gone.
 	AddressesRead bool            `json:"-"`
 	Stats         *InterfaceStats `json:"stats,omitempty"`
 	// CounterGeneration is an opaque raw-counter continuity token. Zero means
