@@ -9,9 +9,14 @@
 package gaterun
 
 import (
+	"context"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 )
 
 // TestStreamAnswersTheChildsOwnCode is the exit-code rule at its smallest.
@@ -94,5 +99,44 @@ func TestStreamTeeWithNoReaderIsStream(t *testing.T) {
 func TestExitCodeOfACleanExitIsZero(t *testing.T) {
 	if got := ExitCode(nil); got != 0 {
 		t.Fatalf("ExitCode(nil) = %d, want 0", got)
+	}
+}
+
+// VALIDATES: StreamContext stops the child and its grandchildren when ctx is
+// cancelled, and answers the shell's code for the kill rather than 0.
+// METHOD: the child forks a sleeping grandchild that records its pid; the test
+// cancels 300 ms in, then requires the run back well inside the sleep and the
+// grandchild gone.
+// PREVENTS: a cancel that kills only the direct child, leaving a test binary
+// running and holding the terminal.
+func TestStreamContextKillsTheGroupOnCancel(t *testing.T) {
+	dir := t.TempDir()
+	pidFile := filepath.Join(dir, "grandchild")
+	ctx, cancel := context.WithCancel(t.Context())
+	timer := time.AfterFunc(300*time.Millisecond, cancel)
+	defer timer.Stop()
+
+	began := time.Now()
+	code := StreamContext(ctx, []string{"sh", "-c", "sleep 30 & echo $! > " + pidFile + "; sleep 30"}, dir, os.Environ())
+	if elapsed := time.Since(began); elapsed > 10*time.Second {
+		t.Fatalf("StreamContext came back after %v, want the cancel to stop it", elapsed)
+	}
+	if code != 128+int(syscall.SIGKILL) {
+		t.Errorf("StreamContext answered %d, want %d for a killed child", code, 128+int(syscall.SIGKILL))
+	}
+	raw, err := os.ReadFile(pidFile)
+	if err != nil {
+		t.Fatalf("grandchild pid: %v", err)
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(raw)))
+	if err != nil {
+		t.Fatalf("grandchild pid %q: %v", raw, err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for syscall.Kill(pid, 0) == nil {
+		if time.Now().After(deadline) {
+			t.Fatalf("grandchild %d still runs after the cancel", pid)
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
 }

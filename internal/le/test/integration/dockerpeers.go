@@ -30,29 +30,31 @@ const (
 	liveRPKIVerb = "live-rpki"
 )
 
-func runDockerPeers(_ context.Context, root string) (any, int) {
+func runDockerPeers(ctx context.Context, root string) (any, int) {
 	argv, err := dockerPeersArgv(root)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	return runRequiringDocker(dockerPeersVerb, argv, root)
+	return runRequiringDocker(ctx, dockerPeersVerb, argv, root)
 }
 
-func runLiveRPKI(_ context.Context, root string) (any, int) {
-	return runRequiringDocker(liveRPKIVerb, liveRPKIArgv(), root)
+func runLiveRPKI(ctx context.Context, root string) (any, int) {
+	return runRequiringDocker(ctx, liveRPKIVerb, liveRPKIArgv(), root)
 }
 
 // runRequiringDocker runs argv under the checkout's test toolchain with
 // ZE_REQUIRE_DOCKER=1, so labtest fails rather than skips when Docker, or a
-// live test's image, is absent.
-func runRequiringDocker(verb string, argv []string, root string) (any, int) {
+// live test's image, is absent. The child runs under ctx, the verb's signal
+// root, so a SIGINT or SIGTERM kills its process group and the verb answers
+// non-zero at once instead of waiting out the child's own bound.
+func runRequiringDocker(ctx context.Context, verb string, argv []string, root string) (any, int) {
 	tc, err := gotoolchain.New(root)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	return gaterun.Run(verb, argv, root,
+	return gaterun.RunContext(ctx, verb, argv, root,
 		requireDockerEnvironment(tc.Environment(gotoolchain.EnvOptions{Test: true})))
 }
 

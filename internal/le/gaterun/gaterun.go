@@ -85,9 +85,41 @@ func StreamTee(argv []string, dir string, environ []string, tally io.Writer) int
 	// this failure.
 	//nolint:gosec // argv comes from an area's own table. le is a build-host tool controlled through a developer's argv
 	cmd := exec.CommandContext(context.Background(), argv[0], argv[1:]...)
+	cmd.Stdin = os.Stdin
+	return finish(cmd, dir, environ, tally)
+}
+
+// StreamContext is Stream under ctx, for a verb whose root is cancelled by
+// SIGINT or SIGTERM: a cancelled ctx kills the child's whole process group, so
+// a `go test` child and every test binary it started stop at once and the
+// verb answers the shell's code for the kill (137), never 0.
+//
+// The child heads a process group of its own (Setpgid), which is what lets the
+// cancel reach the grandchildren that a plain CommandContext kill would leave
+// holding the output pipe, the failure StreamTee's comment describes. The
+// group is no longer the terminal's foreground group, so a Ctrl-C reaches le
+// alone and le's signal root does the stop. The child gets no stdin for the
+// same reason: a background group that reads the terminal is stopped by
+// SIGTTIN and would wait for a cancel that never comes.
+func StreamContext(ctx context.Context, argv []string, dir string, environ []string) int {
+	if len(argv) == 0 {
+		Note("error: a gate declared no command to run")
+		return CannotStart
+	}
+
+	//nolint:gosec // argv comes from an area's own table. le is a build-host tool controlled through a developer's argv
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+	return finish(cmd, dir, environ, nil)
+}
+
+// finish gives cmd its directory, its whole environment and the terminal's
+// output streams, runs it, and answers its exit code, or CannotStart for a
+// child that never ran. The caller sets cmd.Stdin.
+func finish(cmd *exec.Cmd, dir string, environ []string, tally io.Writer) int {
 	cmd.Dir = dir
 	cmd.Env = environ
-	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if tally != nil {
@@ -98,7 +130,7 @@ func StreamTee(argv []string, dir string, environ []string, tally io.Writer) int
 		var exit *exec.ExitError
 		if !errors.As(err, &exit) {
 			var tb textbuf.Buffer
-			Note(tb.Str("  cannot run ").Str(argv[0]).Str(": ").Err(err).String())
+			Note(tb.Str("  cannot run ").Str(cmd.Args[0]).Str(": ").Err(err).String())
 			return CannotStart
 		}
 		return ExitCode(exit)
@@ -151,5 +183,13 @@ type ActionReport struct {
 func Run(action string, argv []string, dir string, environ []string) (ActionReport, int) {
 	Announce(action)
 	code := Stream(argv, dir, environ)
+	return ActionReport{Action: action, Command: argv, Code: code}, code
+}
+
+// RunContext is Run with StreamContext: the command stops, process group and
+// all, when ctx is cancelled.
+func RunContext(ctx context.Context, action string, argv []string, dir string, environ []string) (ActionReport, int) {
+	Announce(action)
+	code := StreamContext(ctx, argv, dir, environ)
 	return ActionReport{Action: action, Command: argv, Code: code}, code
 }

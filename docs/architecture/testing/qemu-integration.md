@@ -872,8 +872,12 @@ derives every package under `internal/` and `cmd/` holding a `docker`-tagged tes
 from the tree, so a package added later runs with no edit, and it sets
 `ZE_REQUIRE_DOCKER=1`, under which an absent `docker` binary fails the test
 instead of skipping it. `./le test integration live-rpki` runs the `live`-tagged
-RPKI tests through the same switch. Both run on the hosted runner's own Docker
+RPKI tests through the same switch. Both run their `go test` child under the
+verb's signal root: a SIGINT or SIGTERM kills the child's whole process group,
+so `le` answers non-zero at once rather than waiting out the child's own
+900 s bound. Both run on the hosted runner's own Docker
 in `evidence-nightly.yml`, because no container in either runs Ze, so the Docker
 host kernel check does not apply.
 <!-- source: internal/le/test/integration/dockerpeers.go -- dockerPeersArgv, runRequiringDocker, requireDockerEnvironment, liveRPKIArgv -->
+<!-- source: internal/le/gaterun/gaterun.go -- StreamContext, RunContext -->
 <!-- source: internal/le/test/integration/gates.go -- Table, the docker-peers and live-rpki rows -->
