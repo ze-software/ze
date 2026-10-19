@@ -454,6 +454,28 @@
     },
     {
       "rid": "RFC9915-18.2.12-2",
+      "polarity": "negative",
+      "unit": "internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go::TestRFC9915LinkChangeWithoutDownSendsNothing",
+      "unit-sha": "be8b5980d1ec67b9",
+      "claim-sha": "e55f7940b16ad94b",
+      "route": "mutant",
+      "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::linkMoved",
+      "producer-sha": "aee73540f36a66e3",
+      "break": "line 137: \"!w.linkDown\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC9915-18.2.12-2",
+      "polarity": "positive",
+      "unit": "internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go::TestRFC9915LinkMoveRebindsThroughTheMonitor",
+      "unit-sha": "e9f343069daf53ee",
+      "claim-sha": "55428c3175ee5b6d",
+      "route": "revert",
+      "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::rebindAfterMove",
+      "producer-sha": "1526eeeb416e4805",
+      "break": "body of rebindAfterMove replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9915-18.2.12-2",
       "polarity": "positive",
       "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go::TestRFC9915Section18212MoveRebindsWithConfirmParameters",
       "unit-sha": "f1286a15c974bf38",
@@ -469,10 +491,10 @@
       "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go::TestRFC9915Section18212NoMoveNoRebind",
       "unit-sha": "0bb37723bd70ad4c",
       "claim-sha": "1e510abff5ddc135",
-      "route": "revert",
+      "route": "mutant",
       "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::linkMoved",
       "producer-sha": "aee73540f36a66e3",
-      "break": "body of linkMoved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "break": "line 137: \"!w.linkDown\" -\u003e \"false\""
     },
     {
       "rid": "RFC9915-18.2.12-4",
@@ -636,7 +658,7 @@
       "claim-sha": "a8e728093ca3878c",
       "route": "revert",
       "producer": "internal/plugins/iface/dhcp/dhcp_v6_linux.go::shutdown",
-      "producer-sha": "e67be23e078c4029",
+      "producer-sha": "6a08352640b3198a",
       "break": "body of shutdown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -647,7 +669,7 @@
       "claim-sha": "ebbf1f4bb883f85e",
       "route": "revert",
       "producer": "internal/plugins/iface/dhcp/dhcp_v6_linux.go::shutdown",
-      "producer-sha": "e67be23e078c4029",
+      "producer-sha": "6a08352640b3198a",
       "break": "body of shutdown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

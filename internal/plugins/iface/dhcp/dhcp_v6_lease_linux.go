@@ -244,9 +244,9 @@ func v6AddressBinding(a *dhcpv6.OptIAAddress, received time.Time) (v6Binding, bo
 	if a.PreferredLifetime > a.ValidLifetime {
 		return v6Binding{}, false
 	}
-	// RFC 9915 Section 18.2.10.1: "Addresses obtained from an IA_NA or IA_TA
-	// MUST NOT be used to form an implicit prefix with a length other than
-	// 128."
+	// RFC 9915 Section 18.2.10.1: "Addresses obtained from an IA Address
+	// option MUST NOT be used to form an implicit prefix with a length other
+	// than 128."
 	return v6Binding{
 		kind:      v6KindAddress,
 		prefix:    netip.PrefixFrom(addr.Unmap(), 128),

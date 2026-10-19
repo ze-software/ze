@@ -374,7 +374,7 @@ func (w *v6Worker) waitUntil(ctx context.Context, deadline time.Time) bool {
 // v6Identified reports whether m names a server and this client.
 //
 // RFC 9915 Section 16.10: "Clients MUST discard any received Reply message
-// that meets any of the following conditions: - the message does not include
+// that meets any of the following conditions: * the message does not include
 // a Server Identifier option" and "the Reply message MUST include a Client
 // Identifier option, and the contents of the Client Identifier option MUST
 // match the DUID of the client."
@@ -591,7 +591,7 @@ func requestOptions() dhcpv6.Option {
 // when prefix delegation is configured.
 //
 // RFC 9915 Section 18.2.1: "The client uses IA_NA options (see Section 21.4)
-// to request the assignment of non-temporary addresses ... and IA_PD options
+// to request the assignment of non-temporary addresses and IA_PD options
 // (see Section 21.21) to request prefix delegation."
 //
 // Ze requests no IA_TA.
@@ -641,8 +641,8 @@ func (w *v6Worker) buildRequest(advertise *dhcpv6.Message) (*dhcpv6.Message, err
 // carries no Option Request option.
 //
 // RFC 9915 Section 18.2.5: "The client constructs the Rebind message as
-// described in Section 18.2.4, with the following differences: - The client
-// sets the "msg-type" field to REBIND. - The client does not include the
+// described in Section 18.2.4, with the following differences: * The client
+// sets the "msg-type" field to REBIND. * The client does not include the
 // Server Identifier option (see Section 21.3) in the Rebind message."
 //
 // Every other kind carries the Server Identifier.

@@ -22,3 +22,23 @@ func SetResolverMappingForTest(logicalToOS map[string]string) {
 func DHCPClientFactoryForTest() func(string, string, ze.EventBus, bool, bool, string, string, bool, int, string, int) (DHCPStopper, error) {
 	return dhcpClientFactory
 }
+
+// BindResolverEventsForTest subscribes the shared resolver to eb, the binding a
+// config apply makes through bindResolverEvents, so a test that starts the
+// backend's monitor on eb drives Subscribe consumers through the real chain:
+// netlink monitor, bus, resolver, subscriber. The returned function removes the
+// subscriptions and lets a later test bind again; a test MUST call it in its
+// cleanup, because the resolver is process-wide and binds only once.
+func BindResolverEventsForTest(eb ze.EventBus) func() {
+	globalResolver.bindEvents(eb)
+	return func() {
+		globalResolver.mu.Lock()
+		unsub := globalResolver.unsub
+		globalResolver.unsub = nil
+		globalResolver.bound = false
+		globalResolver.mu.Unlock()
+		for _, u := range unsub {
+			u()
+		}
+	}
+}

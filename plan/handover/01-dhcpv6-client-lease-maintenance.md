@@ -240,3 +240,18 @@ counts as a duplicate. Proven on a real kernel in QEMU by
 Not done: a kernel-level test of the link-move Rebind (unit tests inject
 `iface.LinkEvent`s; the monitor-to-resolver-to-Subscribe chain is not driven
 in a test).
+
+## Hand-off for verification, 2026-10-19 (v6fin agent)
+
+Spec status is now `verification`. Nothing in the implementation list is open.
+
+| Item | Result |
+|------|--------|
+| Kernel link-move test | `rfc9915_dhcp_v6_link_move_integration_linux_test.go`: the netlink monitor runs on a bus the resolver is bound to (`BindResolverEventsForTest`, `export_test.go`). A carrier flap of the peer end brings a Rebind with IA_NA and IA_PD; an MTU change (up, no down) sends nothing. Green in QEMU; red under a revert of `rebindAfterMove` and under the mutant `!w.linkDown` -> `false`, both recorded with `kernel` |
+| 18.2.12-2 negative | The mutant record replaces the weak revert record on `TestRFC9915Section18212NoMoveNoRebind` |
+| A-1 | Broken, no behavior effect: Table 1 and the constants match; 18.2.10.5 exists in 9915 only; four 8415-text quotes fixed, 52/52 now verbatim |
+| Stale records | RFC9915-18.2.7-6/-7 on `shutdown` re-recorded; RFC2131-4.4.5 x4 in `6e2a3936bf` |
+
+Owed by the verifier: `./le go lint run`, `./le test unit all`,
+`./le test functional gating` (debt `65b935c4`, `38d8187a`). `./le rfc check`
+has no finding on rfc9915 or iface/dhcp.

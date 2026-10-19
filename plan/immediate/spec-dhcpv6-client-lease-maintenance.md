@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | verification |
 | Scope | protocol |
 | Depends | - |
-| Phase | 3/6 (phases 2, 3, 4 code landed, A-7 per-source DNS landed; 1 enrolment, 5 duid pattern, 6 interop owed) |
+| Phase | 6/6 (every phase landed; the whole-tree gates of `plan/verification-debt/65b935c4.md` are the verifier's) |
 | Handoff | verify |
 | Updated | 2026-10-19 |
 
@@ -202,7 +202,7 @@ depends on that work for the infinite case (A-6).
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The cited client sections and Table 1 values are the same in RFC 9915 as in RFC 8415 | heading and constant comparison of both texts, 2026-10-18 | quotes and timers differ by document | enrolment forward walk of the chosen document | unvalidated |
+| A-1 | The cited client sections and Table 1 values are the same in RFC 9915 as in RFC 8415 | heading and constant comparison of both texts, 2026-10-18 | quotes and timers differ by document | enrolment forward walk of the chosen document | broken 2026-10-19, no effect on behavior: Table 1 (Section 7.6) holds the same 27 parameters with the same values in both texts, and the 18 constants in `dhcp_v6_exchange_linux.go` match RFC 9915. Of the 29 sections the v6 code and this spec cite, 27 carry the same heading in both, 21.4 differs in case only, and 18.2.10.5 "Revoking Previously Provided Options" exists in RFC 9915 alone. Four code quotes labeled RFC 9915 were RFC 8415 text (18.2.10.1 "IA_NA or IA_TA", the 18.2.1 elision of IA_TA, the bullet marks of 16.10 and 18.2.5); they now quote `rfc/full/rfc9915.txt`, and all 52 quotes in the v6 source files are verbatim RFC 9915. The summary rows are verbatim RFC 9915 by `./le rfc check` |
 | A-2 | `nclient6.Client` with `WithRetry(1)` sends exactly one datagram per `SendAndRead` and reuses `msg.TransactionID` | `retryFn`, `send` (vendored client.go) | retransmissions double or change xid | unit test with a recording `PacketConn` via `NewWithConn` | confirmed 2026-10-19: `TestDHCPv6LinkOneDatagramPerExchange` (`rfc9915_dhcp_v6_link_linux_test.go`) drives `nclient6Link.exchange` over a recording `PacketConn` with the dialer's own `v6ClientOptions()`: one datagram, same xid, answered or not. Forced red: options `WithRetry(3)`, `WithTimeout(50ms)` -> "a second datagram was written" |
 | A-3 | A matcher that returns false keeps `SendAndRead` waiting until RT, so it can collect Advertise messages | `SendAndRead` loop (vendored) | Advertise collection needs its own receive path | unit test over `NewWithConn` | confirmed 2026-10-19: same test, subtest "answered after a refused message": the matcher refuses an Advertise and the exchange returns the later Reply in the same window |
 | A-4 | The kernel performs DAD on addresses `ReplaceAddressWithLifetime` installs (no IFA_F_NODAD), satisfying the §18.2.10.1 DAD MUST | netlink backend sets no NODAD flag | §18.2.10.1 DAD unmet | read `manage_linux.go` flags; integration test sees `tentative` then clear | confirmed 2026-10-19: `TestDHCPv6RenewsOnSelectorBoundInterface` (QEMU guest) sees the leased address first with IFA_F_TENTATIVE, then clear, never IFA_F_DADFAILED |
@@ -241,6 +241,7 @@ depends on that work for the infinite case (A-6).
 | `dhcpv6 { enabled true }` on a selector-bound unit, Go server on a veth answers Renew | → | `runV6` → renew exchange on `binding.OsName` | `TestDHCPv6RenewsOnSelectorBoundInterface` (`internal/component/iface/dhcp_v6_selector_renew_integration_linux_test.go`, package `iface_test`: the client starts through the factory `SetDHCPClientFactory` installs, the selector mapping through `export_test.go`, so no production API exists for the test) |
 | ze.conf `dhcpv6 { enabled true }` against kea-dhcp6 | → | full lease cycle: Solicit, Request, Renew three times, Rebind | interop scenario `dhcpv6-client-renew-kea` |
 | config `dhcpv6 { pd { length 56 } }` | → | message builder adds the IA_PD and its hint (AC-25) | `TestDHCPv6PDLengthRequestsDelegatedPrefix` (`rfc9915_dhcp_v6_lease_linux_test.go`) |
+| carrier loss then return on the bound veth, lease holding a delegated prefix | → | netlink monitor → bus → resolver → `iface.Subscribe` → v6 worker `linkMoved`, `noteMove`, `rebindAfterMove` (AC-28) | `TestRFC9915LinkMoveRebindsThroughTheMonitor`, `TestRFC9915LinkChangeWithoutDownSendsNothing` (`internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go`, QEMU guest) |
 | config `duid` leaf | → | Client Identifier in every message | `TestDHCPv6ConfiguredDUIDReachesEveryMessage` (`rfc9915_dhcp_v6_lease_linux_test.go`) |
 
 ## Acceptance Criteria
@@ -335,6 +336,7 @@ Test names carry `RFC8415`; if Q1 enrols RFC 9915 they carry `RFC9915` instead.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `TestDHCPv6RenewsOnSelectorBoundInterface` | `internal/component/iface/dhcp_v6_selector_renew_integration_linux_test.go` (integration, veth lab, Go server in a peer namespace) | selector-bound uplink keeps its lease across three Renews and one Rebind; kernel lifetimes match | green in the QEMU guest 2026-10-19 (11.4 s). Forced red: a Go overlay making `extend` dial `w.c.ifaceName` (the logical name) instead of the resolved device gave `waiting for Renew 1: the client sent SOLICIT` (FAIL, 7.35 s); restored, PASS. Untagged: RFC 9915 is not enrolled yet |
+| `TestRFC9915LinkMoveRebindsThroughTheMonitor`, `TestRFC9915LinkChangeWithoutDownSendsNothing` | `internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go` (integration, the same veth lab, the netlink monitor started on a bus the resolver is bound to) | AC-28 on a real kernel: a carrier flap of the peer end starts a Rebind carrying the IA_NA and IA_PD; an MTU change (an up with no down) sends nothing | green in QEMU 2026-10-19 (8.4 s, 9.9 s); red under a revert of `rebindAfterMove` ("no REBIND within 8s") and under the mutant `!w.linkDown` -> `false` ("the client sent REBIND, want nothing within 3s"), both recorded |
 | `.ci` | N-A | the `.ci` harness has no DHCPv6 server; the user path from config is proven by the interop scenario below (A-9) | |
 
 ### Interop Tests (Scope: protocol)
@@ -356,6 +358,7 @@ Test names carry `RFC8415`; if Q1 enrols RFC 9915 they carry `RFC9915` instead.
 - `internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go` - message builders (Solicit, Request, Renew, Rebind, Release), §15 engine, §16.10 matcher, Advertise collector, per-interface token bucket
 - `internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go`, `rfc9915_dhcp_v6_exchange_linux_test.go`
 - `internal/component/iface/dhcp_v6_selector_renew_integration_linux_test.go` (package `iface_test`) and `internal/component/iface/export_test.go` (test-only seams over `globalResolver.setMapping` and `dhcpClientFactory`)
+- `internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go` (package `iface_test`) and `BindResolverEventsForTest` in `export_test.go`
 - `test/interop/Dockerfile.kea`, `test/interop/scenarios/dhcpv6-client-renew-kea/` (Kea config, ze.conf, assertions)
 
 ### Integration Checklist
