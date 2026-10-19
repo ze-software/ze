@@ -274,3 +274,27 @@ Pages: `docs/guide/benchmarking.md` (labels, Ctrl-C, removal failures),
 - `Pull` takes a caller bound; deployment pulls back to 15 minutes (D-3).
 - The AC-16 gate, once nothing outside `internal/le/interoplab` execs docker
   except the NOT rows.
+
+## Phase 3, fourth agent (D-1..D-3, M-5, M-6 remainder), 2026-10-19
+
+### Landed
+
+| Commit | Subject | Covers |
+|--------|---------|--------|
+| `8a91aa8ebb` | interoplab: Pull takes a bound that only lengthens the default | D-3: `Docker.Pull(ctx, image, boundMin)` runs under `max(boundMin, dockerPullTimeout)`; deployment's `ensureImage` passes `deploymentPullTimeout` (15m); lab and perfrunner pass 0 |
+| `5cb877cbb6` | terminaldemo: image build and check go through interoplab.Docker | D-2, M-6 remainder: `Engine.BuildImage` is `Docker.Build` then `ReleaseImage`; `Engine.requireRendererImage` is `Docker.ImagePresent` (an unanswered inspect is an error, not "not built"); the Executor runs ffmpeg and go only; `dockerCommandBuild`/`dockerCommandImage` deleted; `docs/contributing/gh-pages.md` |
+| `a757147bb3` | verify evidence: the build container runs through RunOneShot | M-5, AC-13, AC-8, D-1: `Runner.Start`/`startDocker` deleted; `Runner.container` is the `OneShotContainer` (same caps, devices, mounts, three cache volumes); `Run(ctx)` under `evidenceContainerTimeout` (4h); interruption is an error, never a verdict; `signalRooted` in `actions.go`; `docs/architecture/testing/interop.md` |
+
+### Evidence
+
+- `go test -race -count=1` over `internal/le/interoplab`, `internal/le/test/deployment` (the new test), `internal/le/site/terminaldemo`, `internal/le/verify/evidence`, `internal/le/verify`: ok. `go vet` (plain and `integration docker`) over interoplab, perfrunner, deployment: clean.
+- Red then green by mutation, files restored and `cmp`-checked: `TestPullBoundOnlyLengthensTheDefault` (bound ignored: "10m0s, want 15m0s"; `cmp.Or` for `max`: "1m0s, want 10m0s"), `TestEnsureImagePullsUnderTheDeploymentBound` (bound ignored), `TestBuildImageTagsTheImageTheManifestNames` (release skipped: "commands = 1"), `TestRenderReportsAnImageCheckTheDaemonDidNotAnswer` (error read as absent), `TestTheContainerRunsUnderTheFourHourBound` (1h), `TestAnInterruptedRunRemovesTheContainerAndKeepsTheCaches` (Canceled guard removed), `TestReleaseCandidateCancelsOnSignal` (root on SIGKILL+SIGUSR1).
+- NOT run (forbidden here): a real `./le verify evidence release-candidate` with a Ctrl-C, then `docker ps -a --filter label=ze.lab` empty; a real `./le site terminal-demo image-build`.
+
+### AC-16 gate: not built, blocked on spec D-5
+
+Survivor census (grep of every `exec.Command*` naming `docker` by literal or by a constant valued `docker`, outside `internal/le/interoplab`, after the three commits): only M-7, `internal/component/bgp/plugins/rpki/rpki_live_test.go` (lines 48, 134, 141, 271, 320, 326, 346) and `rtr_downgrade_test.go` (26, 31, 49). M-7 converts in phase 4 (AC-15, `labtest`). No NOT row trips a call-site check: N-4 `kernelbuilder` passes `backendDocker` to `runCommand(ctx, req, name, ...)`; `deployment/gokrazyimage.go` execs `ze-host`; N-6 (`setup/tools.go`, `toolstub`, `fixture`) names `docker` as a stub file or a tool name; N-7 `setup/dockerkernel` execs `step.Argv[0]`. So the gate needs no exemption at all once M-7 lands. Host: `internal/le/arch/tier`, per the spec; a red there is charged on every session's commit, which is why it was not landed red.
+
+### Gates owed (not run here: the five-minute rule)
+
+Scoped `./le go lint run` over `internal/le/interoplab`, `internal/le/test/deployment`, `internal/test/perfrunner`, `internal/le/site/terminaldemo`, `internal/le/verify/evidence`; `./le test unit all`; `./le test functional gating`.
