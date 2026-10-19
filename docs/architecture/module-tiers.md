@@ -87,7 +87,8 @@ consumers and `./le repo feature-tags check` refuses drift.
 ## What the gate enforces
 
 `./le arch tier check` enforces engine placement, the non-engine manifest, core
-import direction, disable-ability, build-tag drift, and plugin import ownership.
+import direction, disable-ability, build-tag drift, plugin import ownership, and
+test-only helper imports.
 Grandfathered core import pairs are non-code data in
 `internal/le/arch/tier/testdata/core_import_baseline.txt`; a new pair and a stale
 row both fail. Plugin ownership has **no baseline**.
@@ -100,6 +101,16 @@ The **placement** check excludes nested sub-plugin namespaces, which it reads
 from `PluginSearchRoots` in `internal/le/plugin/imports/pluginimports.go`.
 The **ownership** check includes them. Both use the composition generator's
 policy roots rather than maintaining another list.
+
+### Test-only helpers
+
+`TestOnlyPackages` in `internal/le/arch/tier/testonly.go` names the helper
+packages that import `testing` and start real containers:
+`internal/le/interoplab/labtest` today. The `test-only-imports` check refuses a
+shipped file outside `internal/le` that imports one, naming the file and the
+package. A `_test.go` file anywhere may import it, and so may tooling under
+`internal/le`, which is outside production. The check has no baseline.
+<!-- source: internal/le/arch/tier/testonly.go -- TestOnlyPackages, testOnlyImportGate -->
 
 ### Plugin import ownership
 

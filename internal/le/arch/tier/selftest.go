@@ -217,7 +217,7 @@ func caseResult(name string, ok bool, detail string) leroot.SelftestResult {
 func Selftest() (leroot.SelftestReport, error) {
 	var results []leroot.SelftestResult
 	for _, stage := range []func() ([]leroot.SelftestResult, error){
-		runPlacementCases, runManifestCases, runCoreCases, runOwnershipCases,
+		runPlacementCases, runManifestCases, runCoreCases, runOwnershipCases, runTestOnlyCases,
 	} {
 		rows, err := stage()
 		if err != nil {
@@ -690,3 +690,42 @@ func runOwnershipCases() ([]leroot.SelftestResult, error) {
 		caseResult("plugin-ownership-platform-helper-refused", bad.Failed == 2 && strings.Contains(bad.Diagnosis(), importer), bad.Diagnosis()),
 	}, nil
 }
+
+// runTestOnlyCases proves the complete check refuses a shipped importer of a
+// test-only helper, and accepts a _test.go importer and one under internal/le.
+func runTestOnlyCases() ([]leroot.SelftestResult, error) {
+	root, err := os.MkdirTemp("", "tier-selftest-testonly")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(root) //nolint:errcheck // temp fixture
+	fixture := ownershipFixture()
+	fixture["internal/le/interoplab/labtest/labtest.go"] = "package labtest\nconst Value = 1\n"
+	fixture["internal/component/bgp/filterapi/api_test.go"] = blankImport("filterapi", "internal/le/interoplab/labtest")
+	fixture["internal/le/tool/tool.go"] = blankImport("tool", "internal/le/interoplab/labtest")
+	if err := writeFixture(root, fixture); err != nil {
+		return nil, err
+	}
+	clean, err := Check(root)
+	if err != nil {
+		return nil, err
+	}
+	const importer = "internal/component/bgp/filterapi/peer.go"
+	if err := writeFixture(root, map[string]string{
+		importer: blankImport("filterapi", "internal/le/interoplab/labtest"),
+	}); err != nil {
+		return nil, err
+	}
+	bad, err := Check(root)
+	if err != nil {
+		return nil, err
+	}
+	return []leroot.SelftestResult{
+		caseResult("test-only-import-from-test-and-le-passes", clean.Failed == 0, clean.Diagnosis()),
+		caseResult("test-only-import-from-shipped-file-refused",
+			bad.Failed == 2 && strings.Contains(bad.Diagnosis(), importer) &&
+				strings.Contains(bad.Diagnosis(), "internal/le/interoplab/labtest"),
+			bad.Diagnosis()),
+	}, nil
+}
+

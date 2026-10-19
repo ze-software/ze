@@ -3,7 +3,8 @@
 // Overview: tier.go -- the import audit these checks read
 //
 // The tier gate checks engine placement, non-engine categories, core imports,
-// disableable-feature imports, lint build-tag drift, and plugin ownership.
+// disableable-feature imports, lint build-tag drift, plugin ownership, and
+// test-only helper imports (testonly.go).
 //
 // Each check answers its page and code. The run uses the FIRST nonzero code, so
 // callers act on the first failure.
@@ -936,7 +937,8 @@ func Check(tree string) (CheckReport, error) {
 	if err != nil {
 		return CheckReport{}, err
 	}
-	report.Checks = append(report.Checks, pluginOwnershipGate(module, graph))
+	report.Checks = append(report.Checks, pluginOwnershipGate(module, graph),
+		testOnlyImportGate(module, graph.edges))
 	report.Failed = firstFailure(report.Checks)
 	return report, nil
 }
