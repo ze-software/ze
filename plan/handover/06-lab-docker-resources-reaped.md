@@ -298,3 +298,46 @@ Survivor census (grep of every `exec.Command*` naming `docker` by literal or by 
 ### Gates owed (not run here: the five-minute rule)
 
 Scoped `./le go lint run` over `internal/le/interoplab`, `internal/le/test/deployment`, `internal/test/perfrunner`, `internal/le/site/terminaldemo`, `internal/le/verify/evidence`; `./le test unit all`; `./le test functional gating`.
+
+## Phase 4, first agent (written by the main thread from the agent's report)
+
+Landed: `f7c4cd8d92` (labtest helper: `Start`, AC-18, AC-19, AC-26; Q-6 by
+build tag, `pull_docker.go` fails an unpullable image, `pull_live.go` skips it
+ad hoc; the wrapper gains loopback-only `DetachedContainer.PublishedPorts` and
+`Docker.PublishedPort`), `783143daaf` (AC-17: arch tier refuses a shipped
+importer of labtest), `fa4404fa13` (M-7, AC-15: rpki live tests start stayrtr
+through labtest, no docker exec left, assertions unchanged, no RFC tag),
+`a73d572b19` (AC-16: arch tier refuses a docker exec outside interoplab, no
+exemptions, green over the tree). Every new test was shown red by mutation.
+
+Real daemon: `TestLabtestStartsServerAndCleansUp` passed in 42s (two earlier
+runs overran the 60s run and 30s rm bounds at load about 25, leaving nothing).
+Live RPKI with `ZE_REQUIRE_DOCKER=1`: Validation passed, Downgrade passed
+(750092 IPv4 + 249908 IPv6 VRPs), ASPA skipped by its own existing check.
+
+Main-thread reading of AC-18: labtest offers a published port or the host
+network and creates no network of its own, which the AC's "a network or
+published port" allows; its cleanup removes the container only.
+
+Uncommitted, untested in the working tree: the spec (Phase 4/5, D-5 DECIDED
+(a)); `internal/le/test/integration` (`runLiveRPKI`, `runRequiringDocker`,
+`liveRPKIArgv`, `requireDockerEnvironment`; the live-rpki row is Native so it
+sets `ZE_REQUIRE_DOCKER=1`; `TestLiveRPKIRequiresDocker` unrun); and
+`docs/functional-tests.md` rows for Live RPKI and Docker peers.
+
+Next:
+1. Run `TestLiveRPKIRequiresDocker` and show it red by mutation.
+2. M-8: retag `image_retention_integration_test.go` to `docker` (rename to
+   `_docker_test.go` through remove + file) with the `ZE_REQUIRE_DOCKER` fail
+   arm; update the `internal/le/interoplab` reason in
+   `excludedIntegrationPackages` (`internal/le/test/qemu/alltests.go`); its only
+   remaining integration test is `TestDockerKernelCheckOnThisHost`.
+3. Lint coverage: add `docker` to the `capability` flavor in `flavorMatrix`
+   (`internal/le/go/lint/matrix.go`) and to the pinned row in `parity_test.go`.
+4. `evidence-nightly.yml`: `docker-peers` and `live-rpki` jobs, and both in
+   `want` of `TestEvidenceNightlyScheduleActionsAndPrivileges`.
+5. Run `./le test integration docker-peers` once and paste its summary.
+6. Docs: qemu-integration.md, ci-workflows.md, a labtest sentence in
+   testing.md, ai/INDEX.md rows.
+7. Gates owed: scoped lint over interoplab/..., arch/tier and rpki (tags docker
+   and live); `./le test unit all`; `./le test functional gating`.
