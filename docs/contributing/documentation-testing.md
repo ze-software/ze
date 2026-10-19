@@ -39,6 +39,17 @@ checks needed for the current diff and is included in `./le verify current`.
 command help gates, and source-anchor validation. `./le doc wiring` is the changed-file-aware
 pre-commit gate.
 
+Among its checks, the added-symbol wiring check refuses an exported symbol the
+change adds under `internal/` or `cmd/` when no non-test Go file names it. Three
+kinds of symbol are exempt: an entry in the reviewed allowlist, a name ending
+in `ForTest`, and an export of a test-only helper package. The test-only
+packages are the list the `test-only-imports` tier check reads
+(`docs/architecture/module-tiers.md`, "Test-only helpers"). That check refuses
+any non-test importer, so such an export can never have a non-test reference.
+<!-- source: internal/le/doc/wiring/wiring.go -- checkWiring -->
+<!-- source: internal/le/doc/wiring/allowlist.go -- wiringAllowlist -->
+<!-- source: internal/le/arch/testonly/testonly.go -- Packages -->
+
 <!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
 <!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
 <!-- source: internal/le/doc/index/actions.go -- Answer -->

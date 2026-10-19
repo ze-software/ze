@@ -746,3 +746,6 @@ Gates owed (not run here): `./le go lint run` over `internal/le/interoplab` and
 
 Zombie owners (commit "procscan: an exited, unreaped process is absent"): `procscan.Scan`/`Lookup` now read a `Z`/`X` pid as absent on /proc and ps (`state=` column); red then green on `TestAnUnreapedChildIsAbsent` (real unreaped `true` child), `TestParseProcStatReadsTheExitedStates`, `TestParsePSLeavesOutExitedProcesses`; callers session, scratch, interoplab unchanged and green.
 Gates owed for it: scoped `./le go lint run` over `internal/le/procscan` (linux and darwin flavors), `./le test unit all`.
+
+Wiring vs tier contradiction (commit "doc wiring: a test-only package's export needs no production reference"): the test-only list moved (not copied) from `archtier.TestOnlyPackages` to the leaf `internal/le/arch/testonly` (`Packages`, `Owner`); `test-only-imports` and `checkWiring` both read it, so `labtest.TCPReady` no longer reports. Red then green on `TestATestOnlyPackageExportNeedsNoProductionReference` (the same unreferenced export is exempt in labtest, still reported in an ordinary package).
+Gates owed for it: scoped `./le go lint run` over `internal/le/arch/...` and `internal/le/doc/wiring`, `./le test unit all`.

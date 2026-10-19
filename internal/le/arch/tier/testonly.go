@@ -1,5 +1,6 @@
 // Design: docs/architecture/module-tiers.md -- test-only helper packages
 // Overview: tier.go -- the import audit this check reads
+// Related: ../testonly/testonly.go -- the declaration of the test-only packages
 
 package archtier
 
@@ -9,15 +10,11 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/arch/testonly"
 )
 
 // leTree is the development tooling tree, which is outside production.
 const leTree = "internal/le"
-
-// TestOnlyPackages are helper packages that import `testing` and start real
-// containers. A _test.go file imports them, and so may tooling under
-// internal/le; a shipped file elsewhere never does.
-var TestOnlyPackages = [...]string{"internal/le/interoplab/labtest"}
 
 // testOnlyViolations answers each shipped file outside internal/le that
 // imports a test-only package, sorted by file.
@@ -45,14 +42,15 @@ func testOnlyViolations(module string, edges Edges) []corePair {
 }
 
 // testOnlyHelper answers the module-relative test-only package imported
-// names, when it is one.
+// names, when it is one. testonly.Packages is the declaration.
 func testOnlyHelper(module, imported string) (string, bool) {
-	for _, helper := range TestOnlyPackages {
-		if underDir(imported, module+"/"+helper) {
-			return helper, true
-		}
+	if !underDir(imported, module) {
+		return "", false
 	}
-	return "", false
+	if imported == module {
+		return "", false
+	}
+	return testonly.Owner(imported[len(module)+1:])
 }
 
 // testFile reports whether rel is a Go test file.

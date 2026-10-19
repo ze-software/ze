@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/arch/testonly"
 )
 
 // Symbol is one exported declaration a file makes.
@@ -115,7 +116,8 @@ func leadingExportedIdents(code string) []string {
 }
 
 // checkWiring answers one issue line per exported symbol this change adds that
-// no non-test file in internal/ or cmd/ names.
+// no non-test file in internal/ or cmd/ names. An allowlisted symbol, a
+// *ForTest helper and an export of a declared test-only package are exempt.
 //
 // base is the commit the change is judged against, the last pushed commit
 // behind HEAD. A path's content there is what the change started from.
@@ -184,6 +186,11 @@ func checkWiring(root, base string, changed []string) ([]string, error) {
 		// exported *ForTest helper exists for a cross-package test, not for a
 		// production caller. Do not require a fake production reference here.
 		if strings.HasSuffix(sym.Name, "ForTest") {
+			continue
+		}
+		// A declared test-only package can have no non-test importer: the
+		// tier gate test-only-imports refuses one. Both read testonly.Packages.
+		if _, ok := testonly.Owner(sym.Path); ok {
 			continue
 		}
 		if hasProductionReference(root, sym) {
