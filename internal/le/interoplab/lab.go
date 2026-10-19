@@ -425,8 +425,9 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 		peer := &peers[index]
 		runErr := s.Docker.runContainer(ctx, network, *peer)
 		// A failed `docker run -d` can leave the container it created, so the
-		// name is this run's to remove unless the daemon refused it as taken.
-		if !containerNameTaken(runErr) {
+		// name is this run's to remove once docker ran, unless the daemon
+		// refused it as taken; a failure before docker ran created nothing.
+		if ContainerMayExist(runErr) {
 			created.containers = append(created.containers, peer.Container)
 		}
 		if runErr != nil {

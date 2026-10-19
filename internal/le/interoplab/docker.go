@@ -656,11 +656,16 @@ func (d *Docker) runContainer(ctx context.Context, network Network, peer PeerCon
 	if err == nil {
 		return nil
 	}
+	return &issuedRunError{err: d.runContainerFailure(peer, confined, err)}
+}
+
+// runContainerFailure names a failed `docker run` of peer: under a Ze
+// AppArmor profile the run itself is where an unloaded profile shows, because
+// the profile list was unreadable or the daemon's kernel differs from this one.
+func (d *Docker) runContainerFailure(peer PeerConfig, confined bool, err error) error {
 	if !confined {
 		return err
 	}
-	// The profile list was unreadable or the daemon's kernel differs from
-	// this one, so the run itself is where an unloaded profile shows.
 	profile, registered := LookupAppArmorProfile(peer.AppArmorProfile)
 	if !registered {
 		return err
@@ -669,6 +674,30 @@ func (d *Docker) runContainer(ctx context.Context, network Network, peer PeerCon
 		return unapplied
 	}
 	return err
+}
+
+// issuedRunError is a `docker run -d` that was issued and failed. The daemon
+// may have created the container before the failure, so the name may be the
+// caller's to remove; an error of any other type came before docker ran.
+type issuedRunError struct{ err error }
+
+func (e *issuedRunError) Error() string { return e.err.Error() }
+
+func (e *issuedRunError) Unwrap() error { return e.err }
+
+// ContainerMayExist reports whether a detached run that answered err
+// (RunDetached, or a lab peer's run) may have left a container under its name,
+// so the caller owes its removal: true on success, and on a failure of the
+// issued `docker run` itself unless the daemon refused the name as another
+// container's. A refusal before docker ran created nothing and answers false.
+func ContainerMayExist(err error) bool {
+	if err == nil {
+		return true
+	}
+	if _, issued := errors.AsType[*issuedRunError](err); !issued {
+		return false
+	}
+	return !containerNameTaken(err)
 }
 
 // containerNameTaken reports whether a failed `docker run` is the daemon

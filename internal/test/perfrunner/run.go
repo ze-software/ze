@@ -373,17 +373,30 @@ func (runner *Runner) dutContainer(dut DUT) interoplab.DetachedContainer {
 	return spec
 }
 
-// startContainer runs spec detached and records it for removal first, so a
-// run that the daemon created but could not start is removed too.
+// startContainer runs spec detached and records it for removal whenever the
+// run may have left a container (interoplab.ContainerMayExist), so a run that
+// the daemon created but could not start is removed too, while a run refused
+// before docker ran, or refused because another container holds the name, is
+// not. That last guard is the one cleanup relies on: the names carry this
+// process's pid, and the single fixed perfSubnet makes a second concurrent
+// perf run fail CreateNetwork on overlap before it starts any container, but
+// neither stops a leftover of an earlier process that had the same pid.
 func (runner *Runner) startContainer(ctx context.Context, spec interoplab.DetachedContainer) error {
-	runner.containers[spec.Name] = struct{}{}
-	return runner.Docker.RunDetached(ctx, spec)
+	err := runner.Docker.RunDetached(ctx, spec)
+	if interoplab.ContainerMayExist(err) {
+		runner.containers[spec.Name] = struct{}{}
+	}
+	return err
 }
 
 // removeContainer removes one container this run started, on a context the
 // run's cancellation does not reach, so an interrupted run still removes it.
+// A name startContainer never recorded is not this run's, and is left alone.
 // A removal that fails is reported and fails the run.
 func (runner *Runner) removeContainer(ctx context.Context, name string) {
+	if _, started := runner.containers[name]; !started {
+		return
+	}
 	delete(runner.containers, name)
 	if err := runner.Docker.RemoveContainer(context.WithoutCancel(ctx), name); err != nil {
 		runner.removalFailed = true

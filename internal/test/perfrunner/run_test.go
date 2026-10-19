@@ -332,3 +332,34 @@ func TestExecuteRefusesARunWithNoStep(t *testing.T) {
 		t.Fatalf("Execute(no step) = %d, want 2", code)
 	}
 }
+
+// VALIDATES: a DUT run the daemon refuses because another container holds the
+// name records nothing for cleanup, while a run docker issued and failed for
+// another reason is still removed (the daemon may have created it).
+// Method: the DUT's `docker run` answered with each failure over the recorder.
+// PREVENTS: cleanup rm -f'ing a container another process owns.
+func TestPerfStartContainerRecordsOnlyWhatItMayHaveCreated(t *testing.T) {
+	for _, row := range []struct {
+		name    string
+		stderr  string
+		removed bool
+	}{
+		{name: "name taken", stderr: `Conflict. The container name "/x" is already in use by container "c0".`},
+		{name: "start failed", stderr: "OCI runtime create failed", removed: true},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			runner, recorder := fixtureRunner(t, io.Discard)
+			recorder.answer = func(argv []string) (interoplab.ProcessResult, error) {
+				if argv[1] == "run" && slices.Contains(argv, runner.containerName("ze")) {
+					return interoplab.ProcessResult{ExitCode: 125, Stderr: row.stderr}, nil
+				}
+				return interoplab.ProcessResult{}, nil
+			}
+			runner.Execute(t.Context(), Steps{Test: true}, []string{"ze"})
+			removed := slices.Contains(recorder.recorded(), "docker rm -f "+runner.containerName("ze"))
+			if removed != row.removed {
+				t.Errorf("removed = %v, want %v: %q", removed, row.removed, recorder.recorded())
+			}
+		})
+	}
+}

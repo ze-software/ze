@@ -70,14 +70,17 @@ type ContainerExec struct {
 
 // RunDetached starts one labeled detached container. The owner labels are what
 // let a later start or `./le test integration cleanup` remove it when this
-// process dies before its own RemoveContainer runs.
+// process dies before its own RemoveContainer runs. ContainerMayExist on its
+// answer says whether the caller owes that RemoveContainer.
 func (d *Docker) RunDetached(ctx context.Context, spec DetachedContainer) error {
 	argv, err := d.detachedArguments(spec)
 	if err != nil {
 		return err
 	}
-	_, err = d.command(ctx, dockerRunTimeout, argv...)
-	return err
+	if _, err = d.command(ctx, dockerRunTimeout, argv...); err != nil {
+		return &issuedRunError{err: err}
+	}
+	return nil
 }
 
 // detachedArguments renders spec in a fixed order: the run verb, the name,
