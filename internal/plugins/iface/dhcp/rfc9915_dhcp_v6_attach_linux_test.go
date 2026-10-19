@@ -43,17 +43,17 @@ func leaseLongPD() []dhcpv6.Option {
 	}
 }
 
-// awaitSent waits, in real time, until the worker has sent n messages of kind.
-func (r *v6Rig) awaitSent(kind dhcpv6.MessageType, n int) {
+// awaitRebind waits, in real time, until the worker has sent a Rebind.
+func (r *v6Rig) awaitRebind() {
 	r.t.Helper()
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		if got := r.sentOf(kind); len(got) >= n {
+		if len(r.sentOf(dhcpv6.MessageTypeRebind)) > 0 {
 			return
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	r.t.Fatalf("waiting for %d %s: sent %s", n, kind, r.describeSent())
+	r.t.Fatalf("waiting for a %s: sent %s", dhcpv6.MessageTypeRebind, r.describeSent())
 }
 
 // link hands one link event to the worker, failing the test when the worker
@@ -225,7 +225,7 @@ func TestDHCPv6AddressFlushedByLinkDownReinstalledNotDeclined(t *testing.T) {
 	r.backend.installed = nil // the kernel flushes the address with the down
 	r.backend.mu.Unlock()
 	r.move()
-	r.awaitSent(dhcpv6.MessageTypeRebind, 1)
+	r.awaitRebind()
 	r.runUntil(seconds(8))
 
 	if got := r.sentOf(dhcpv6.MessageTypeDecline); len(got) != 0 {
@@ -280,7 +280,7 @@ func TestDHCPv6AddressGoneWithTheLinkBeforeItsDownEventNotDeclined(t *testing.T)
 	}
 	r.clk.Set(r.start.Add(seconds(5)))
 	r.link(iface.LinkUp)
-	r.awaitSent(dhcpv6.MessageTypeRebind, 1)
+	r.awaitRebind()
 	r.runUntil(seconds(8))
 
 	if got := r.sentOf(dhcpv6.MessageTypeDecline); len(got) != 0 {
@@ -374,7 +374,7 @@ func TestDHCPv6MoveReinstallsAnAddressNearExpiryAsFinite(t *testing.T) {
 	r.backend.installed = nil // the kernel flushes the address with the down
 	r.backend.mu.Unlock()
 	r.move()
-	r.awaitSent(dhcpv6.MessageTypeRebind, 1)
+	r.awaitRebind()
 
 	if got := r.countOps("replace " + loopKernelDevice + " " + v6TestCIDR + " 0 "); got != 0 {
 		t.Errorf("address reinstalled with a valid lifetime of 0 s %d times: the kernel holds it as permanent", got)
@@ -407,7 +407,7 @@ func TestRFC9915Section18212MoveRebindsWithConfirmParameters(t *testing.T) {
 	r.runUntil(seconds(5))
 	r.clk.Set(r.start.Add(seconds(5)))
 	r.move()
-	r.awaitSent(dhcpv6.MessageTypeRebind, 1)
+	r.awaitRebind()
 	r.runUntil(seconds(30))
 
 	rebinds := r.sentOf(dhcpv6.MessageTypeRebind)
@@ -494,7 +494,7 @@ func TestRFC9915Section18212MoveRebindRateLimited(t *testing.T) {
 	r.runUntil(seconds(5))
 	r.clk.Set(r.start.Add(seconds(5)))
 	r.move()
-	r.awaitSent(dhcpv6.MessageTypeRebind, 1)
+	r.awaitRebind()
 	r.awaitTimerAt(seconds(105))
 	r.clk.Set(r.start.Add(seconds(10)))
 	r.move()

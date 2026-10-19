@@ -60,7 +60,7 @@ func TestDHCPv6AddressGoneBehindAStaleUpReadNotDeclined(t *testing.T) {
 	}
 	r.clk.Set(r.start.Add(seconds(5)))
 	r.link(iface.LinkUp)
-	r.awaitSent(dhcpv6.MessageTypeRebind, 1)
+	r.awaitRebind()
 	r.runUntil(seconds(8))
 
 	if got := r.sentOf(dhcpv6.MessageTypeDecline); len(got) != 0 {
