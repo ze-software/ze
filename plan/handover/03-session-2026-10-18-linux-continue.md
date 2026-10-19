@@ -527,3 +527,34 @@ stages 01, 04, 13, 31, 43. Each gate was rerun on the current HEAD.
 | sensitivity `TestTheRealCheckoutPassesTheRatchet` (49, 52) | 115 > 114 after 9886507d51 | fixed cb20f4bddc and b8125bceb6 |
 | tftpserver `TestConfigTxReloadCutsTransferInFlight` (51), 3/20 | real: reload left an async socket close, a block from the old root could go out | fixed 0f3ca7969b, 30/30; RFC-tagged call-site edit, owner approval owed |
 | interoplab/bgp `TestExaBGPCaseReadsEveryFixture` (49, 52) | spec-exabgp-6 AC-4 (a)(b) | open, spec scope |
+
+### Doc and RFC gate reds of the 9fe7a1cfe0 full verify: stages 03, 23, 24, 37, 44 (2026-10-19)
+
+Fixed: bab8668f8a (five renamed-symbol anchors), 0696cb63b2 (repo facts),
+doc-reviewed shard `plan/doc-reviewed/3f5fcb0a.md` (three f171a5d47c claims),
+reseal of nine audit files, 43837676a0 (179 discrimination records re-taken),
+and the three untagged RFC-named test files renamed. `./le doc index check` and
+`./le site facts check` are green on HEAD.
+
+| Red | Cause | State |
+|-----|-------|-------|
+| doc wiring: claims on `writeUpdateBody` (fsm-established.md), `validateRFC7606Attrs` (core-design.md), `reactorMetrics` (001-pull-model-metrics.md) | other sessions' uncommitted edits to session_write.go, session_validation_receive.go, reactor_metrics.go | theirs |
+| doc wiring: `ReplaceIPv6RPF` claim in guide/configuration.md | cef2dda105 (fresh commit by another session) | theirs, unreviewed |
+| doc check verify: interop.md anchor `Runner.dockerArgs` | another session's uncommitted evidence.go removes it | theirs |
+| doc check verify in place: 229 drift issues, ../gh-pages CLI catalog | gh-pages last published 2026-10-16, before the YANG clear-command changes of 10-17; the worktree verify does not see ../gh-pages | needs `./le site build` and a gh-pages commit |
+| rfc: 40 Linux-guest discrimination records (VRRP rfc3768/5798/9568, rfc4659 configured transport) | `discriminate-record` needs `kernel <vmlinuz>` (`ze appliance kernel`) | owed, fresh agent |
+| rfc: RFC8092-6-3 TestRFC8092DuplicateLargeCommunityIsNotMalformed, RFC4271-8.2.2-11 TestRFC4271OpenConfirmKeepaliveKeepsTheConnection | the unit is red before any break on the working tree | undiagnosed |
+| rfc: RFC4271-8.2.2-10 TestRFC4271OpenSentWellFormedOpenKeepsTheConnection | red under the break without a FAIL line naming the unit | owed |
+| rfc: RFC2918-4-3 refresh-config-static.ci, RFC4659-3.2.1.1-3 rfc4659-vpnv6-link-local-off-subnet.ci | isolated binaries fail to build: `undefined: testdeployment` in another session's ui_fixture_le_evidence_vpp_answers.go | retake once it lands |
+| rfc: 3 RFC8669 mutant records on applyRFC7606 | mutant route: needs the mutant site re-chosen | owed |
+| rfc: SHIFTED rfc7606, rfc1350, rfc2348, rfc7440 | rfc7606.json holds another session's hunks; tftpserver handler_test.go is uncommitted | reseal written, not committed |
+| rfc: STALE verdicts and unannotated unimplemented/not-applicable rows | listed below | need an independent judge (ze-rfc-audit) |
+
+STALE, by the commit that staled them: MUP-3.3.6-5 (691bd048e9, plus no {gap});
+RFC9830-2.4.2-12 (8d18d4c4c3, plus no annotation); LINKLOCAL-CAPABILITY-6-1
+(test in an uncommitted file, plus no {gap}); RFC4659-8-5 (5a0190cb08,
+4109986b04); RFC8277-3.2.2-3 and RFC2545-3-3 (4109986b04); RFC4271-5-7
+(a9628fd589); RFC5880-6.7.2-2, 6.7.3-14, 6.7.4-8 (95fae5058f); RFC7606-5.1-2,
+5.1-3 (839819ea2d); RFC8277-2.4-1 (f749025a61); RFC8654-5-4 (e30abc5e48).
+Staled by uncommitted edits: RFC1350-4-3, RFC2545-3-1, 3-2, RFC7606-3.c-1,
+5.2-1, 7.2-1, 7.16-1, RFC7950-9.1-1.
