@@ -815,6 +815,14 @@ labeled/VPN routes use their existing per-route builders instead. Each such
 successful send is recorded independently; a refused route does not suppress
 its usable siblings. Genuine legacy batches keep their all-or-nothing recording.
 The IPv4-unicast test reads the route's family from `StaticRoute.Family`.
+A legacy batch is written with its first route's attributes, so the grouping
+key names every attribute the builder writes: the typed ones, the Prefix-SID,
+the aggregator flag, and each raw attribute's code, flags and value in
+configured order. Two routes that differ only in a raw attribute, such as a raw
+AS_PATH holding an AS_SET, leave in separate UPDATEs, and the RFC 9774 send
+guard withdraws only the route that carries the set.
+<!-- source: internal/component/bgp/reactor/peer_static_routes.go -- routeGroupKey -->
+<!-- test: internal/component/bgp/reactor/rfc9774_send_test.go TestRFC9774SendGroupedStaticRoutesKeepCleanTwin -->
 <!-- source: internal/component/bgp/reactor/peer_static_wire.go -- sendStaticRoutesGrouped -->
 <!-- test: internal/component/bgp/reactor/peer_static_group_next_hop_test.go TestStaticGroupedResolvedNextHopWire -->
 

@@ -343,7 +343,8 @@ func routeGroupKey(r *StaticRoute) string {
 	})
 
 	// Key includes: nexthop, origin, localpref, med, communities, large-communities, ext-communities, vpn, ipv4/ipv6,
-	// as-path, atomic-aggregate, aggregator, originator-id, cluster-list.
+	// as-path, atomic-aggregate, aggregator, originator-id, cluster-list, prefix-sid,
+	// raw attributes, aigp.
 	// For IPv6 routes, include prefix in key to prevent grouping (each needs separate MP_REACH_NLRI UPDATE).
 	// IPv4 routes can be grouped since multiple NLRIs can be in one UPDATE.
 	prefixKey := ""
@@ -389,6 +390,22 @@ func routeGroupKey(r *StaticRoute) string {
 	b.Uint(uint64(r.OriginatorID))
 	b.Sep()
 	b.uint32Slice(r.ClusterList)
+	b.Sep()
+	b.Bool(r.HasAggregator)
+	b.Sep()
+	b.Hex(r.PrefixSIDBytes)
+	// Raw attributes in configured order: the grouped UPDATE writes the first
+	// route's list as given, so two routes share an UPDATE only when their lists
+	// are byte-identical. A raw AS_PATH holding an AS_SET must not pull a clean
+	// route into the UPDATE the RFC 9774 send guard withdraws.
+	for i := range r.RawAttributes {
+		b.Sep()
+		b.Uint(uint64(r.RawAttributes[i].Code))
+		b.Sep()
+		b.Uint(uint64(r.RawAttributes[i].Flags))
+		b.Sep()
+		b.Hex(r.RawAttributes[i].Value)
+	}
 	if r.AIGPMetric != nil {
 		b.Sep()
 		b.Uint(*r.AIGPMetric)

@@ -1038,6 +1038,41 @@ func TestRouteGroupKey_IncludesClusterList(t *testing.T) {
 		"Routes with different ClusterList should have different keys")
 }
 
+// TestRouteGroupKey_IncludesEmittedAttrs verifies every attribute the grouped
+// UPDATE writes from the first route takes part in the key.
+//
+// VALIDATES: Routes differing only in raw attributes, Prefix-SID or the
+// aggregator flag get different keys; identical raw lists share one.
+// PREVENTS: One route's attributes written for another prefix, which also let
+// the RFC 9774 send guard withdraw a clean route with its AS_SET twin.
+func TestRouteGroupKey_IncludesEmittedAttrs(t *testing.T) {
+	base := StaticRoute{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+	}
+	raw := []RawAttribute{{Code: 2, Flags: 0x40, Value: []byte{1, 1, 0xfd, 0xea}}}
+	variants := map[string]StaticRoute{
+		"raw attribute": {RawAttributes: raw},
+		"raw flags":     {RawAttributes: []RawAttribute{{Code: 2, Flags: 0x50, Value: raw[0].Value}}},
+		"raw code":      {RawAttributes: []RawAttribute{{Code: 3, Flags: 0x40, Value: raw[0].Value}}},
+		"prefix-sid":    {PrefixSIDBytes: []byte{1, 0, 7, 0, 0, 0, 0, 0, 0, 100}},
+		"aggregator":    {HasAggregator: true},
+	}
+	baseKey := routeGroupKey(&base)
+	for name, variant := range variants {
+		variant.Prefix = netip.MustParsePrefix("10.0.1.0/24")
+		variant.NextHop = base.NextHop
+		require.NotEqual(t, baseKey, routeGroupKey(&variant), "%s must split the group", name)
+	}
+
+	same := base
+	same.Prefix = netip.MustParsePrefix("10.0.2.0/24")
+	withRaw := base
+	withRaw.RawAttributes = raw
+	same.RawAttributes = []RawAttribute{{Code: 2, Flags: 0x40, Value: []byte{1, 1, 0xfd, 0xea}}}
+	require.Equal(t, routeGroupKey(&withRaw), routeGroupKey(&same), "identical raw lists still group")
+}
+
 // =============================================================================
 // RouteNextHop Resolution Tests
 // =============================================================================

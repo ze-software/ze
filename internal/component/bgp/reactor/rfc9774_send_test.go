@@ -17,10 +17,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // rfc9774SentBodies splits what the session wrote into UPDATE bodies.
@@ -236,6 +238,52 @@ func TestRFC9774SendRawUntouched(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []byte{24, 203, 0, 113}, sections.NLRI(bodies[0]), "the raw UPDATE is announced as given")
 	assert.True(t, bytes.Contains(sections.Attrs(bodies[0]), set), "the AS_SET reaches the wire")
+}
+
+// TestRFC9774SendGroupedStaticRoutesKeepCleanTwin drives two configured routes
+// through the grouping send rail (sendStaticRoutes with group set). They share
+// every typed attribute, and only one carries a raw AS_PATH holding an AS_SET.
+// The grouping key must keep them in separate UPDATEs, so the send guard
+// withdraws the set route alone and the clean one is advertised.
+// PREVENTS: routeGroupKey ignoring RawAttributes, which packed both prefixes
+// under the first route's attributes and withdrew the clean route with its
+// AS_SET twin.
+func TestRFC9774SendGroupedStaticRoutesKeepCleanTwin(t *testing.T) {
+	peer, conn := newAnnouncePeer(t, "192.0.2.2")
+	peer.negotiated.Store(&NegotiatedCapabilities{
+		families: map[family.Family]bool{family.IPv4Unicast: true},
+	})
+	registry := newSpyRegistry()
+	peer.session.prefixMetrics = initReactorMetrics(registry, "test", "192.0.2.2", "65001")
+
+	set := append(rfc9774Segment(rfc9774SegSequence, 2, 65000), rfc9774Segment(rfc9774SegSet, 2, 65010, 65011)...)
+	nextHop := bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.254"))
+	routes := []StaticRoute{
+		{
+			Prefix:        netip.MustParsePrefix("10.97.74.0/24"),
+			NextHop:       nextHop,
+			RawAttributes: []RawAttribute{{Code: 2, Flags: 0x40, Value: set}},
+		},
+		{Prefix: netip.MustParsePrefix("10.97.75.0/24"), NextHop: nextHop},
+	}
+
+	peer.sendStaticRoutes(peer.currentSession(), routes, true, 4096, false)
+
+	setNLRI := []byte{24, 10, 97, 74}
+	cleanNLRI := []byte{24, 10, 97, 75}
+	var announced [][]byte
+	for _, body := range rfc9774SentBodies(t, conn.written()) {
+		sections, err := wire.ParseUpdateSections(body)
+		require.NoError(t, err)
+		assert.False(t, bytes.Contains(sections.Withdrawn(body), cleanNLRI), "the clean route is never withdrawn: %x", body)
+		if nlri := sections.NLRI(body); len(nlri) != 0 {
+			announced = append(announced, nlri)
+		}
+	}
+	assert.Equal(t, [][]byte{cleanNLRI}, announced, "only the clean route is advertised, alone; %x is not", setNLRI)
+	counter := registry.counters["ze_bgp_as_set_withdrawn_total"]
+	require.NotNil(t, counter, "ze_bgp_as_set_withdrawn_total is registered")
+	assert.Equal(t, float64(1), counter.Value(), "the send guard withdraws the AS_SET route alone")
 }
 
 // BenchmarkWriteUpdateBodyCleanPath measures the guard's cost on a body with no set
