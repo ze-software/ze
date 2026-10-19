@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | ready |
 | Scope | protocol |
-| Depends | `plan/pre-release/spec-dhcpv6-client-1-gap-annotations.md`, `plan/spec-dhcpv6-client-3-stateless.md` |
+| Depends | spec-dhcpv6-client-1-gap-annotations (closed 2026-10-19), `plan/spec-dhcpv6-client-3-stateless.md` |
 | Phase | 4/4 of `plan/spec-dhcpv6-client-0-umbrella.md` |
 | Handoff | - |
 | Updated | 2026-10-19 |

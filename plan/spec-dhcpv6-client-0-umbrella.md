@@ -46,7 +46,7 @@ without Reconfigure, which is why authentication and Reconfigure are one child.
 
 | Spec | Bucket | Delivers | Depends |
 |------|--------|----------|---------|
-| `plan/pre-release/spec-dhcpv6-client-1-gap-annotations.md` | pre-release | The 23 rows of the four features re-annotated `{gap}`, the Meta rows and the Purpose paragraph corrected | - |
+| spec-dhcpv6-client-1-gap-annotations (closed 2026-10-19) | pre-release | The 23 rows of the four features re-annotated `{gap}`, the Meta rows and the Purpose paragraph corrected | - |
 | `plan/spec-dhcpv6-client-2-confirm.md` | plan | Confirm on a possible link move of an addresses-only lease | child 1 |
 | `plan/spec-dhcpv6-client-3-stateless.md` | plan | Stateless DHCPv6: Information-request, Information Refresh Time, INF_MAX_RT | child 1 |
 | `plan/spec-dhcpv6-client-4-reconfigure.md` | plan | Reconfigure Accept, the always-listening socket, RKAP authentication and replay detection, Reconfigure-triggered Renew, Rebind and Information-request | children 1 and 3 |
