@@ -658,8 +658,10 @@ that replays routes toward a peer when it comes up must skip that replay on an
 plugin through the ROUTE-REFRESH Ze sends after the up.</p>
 <p>A reload that detaches a plugin sends it a <code>state down</code> for that peer alone,
 and the session stays up for every other plugin. The plugin drops what it holds
-for the peer. A plugin whose grant changed receives a down, then an <code>attached</code>
-up.</p>
+for the peer. When that plugin is <code>bgp-rs</code>, the other peers lose the routes it
+forwarded from that peer: each is replaced by the best remaining route or
+withdrawn, although the peer's session never went down. A plugin whose grant
+changed receives a down, then an <code>attached</code> up.</p>
 <!-- source: pkg/plugin/rpc/enums.go -- ReasonAttached -->
 <!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- bindProcesses, unbindProcesses -->
 <h2 id="invocation-modes">Invocation Modes</h2>
@@ -1347,14 +1349,14 @@ resolves to the same plugin via the filter-type registration, and a bare
 </tr>
 </tbody>
 </table>
-<p>The mixed case supports only IPv4 unicast legacy NLRI in v1. For
-multiprotocol families (MP_REACH_NLRI), the plugin falls back to whole-
-update accept when any prefix passes -- implementing per-NLRI rewriting for
-MP_REACH requires declaring <code>raw=true</code> on the filter registration and
-rewriting the attribute value directly.</p>
-<!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- handleFilterUpdate, cmd-4 phase 1 & 2 -->
+<p>The mixed case is judged block by block: the legacy NLRI and Withdrawn Routes,
+and each MP_REACH_NLRI and MP_UNREACH_NLRI, so an IPv6 UPDATE or IPv4 unicast
+carried in MP_REACH_NLRI loses its denied prefixes the same way. A FlowSpec
+UPDATE with a denied destination is rejected whole, because the engine does
+not rewrite a FlowSpec NLRI.</p>
+<!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- handleFilterUpdate, buildModifyDelta -->
 <!-- source: internal/component/bgp/plugins/filter_prefix/match.go -- partitionUpdate -->
-<!-- source: internal/component/bgp/reactor/filter_delta.go -- extractLegacyNLRIOverride -->
+<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- sectionNLRIDelta -->
 <h3 id="as-path-filter-bgp-filter-aspath">AS-Path Filter (<code>bgp-filter-aspath</code>)</h3>
 <p><code>bgp-filter-aspath</code> matches the UPDATE's AS-path against ordered regex
 entries defined in <code>bgp { policy { as-path-list NAME { entry REGEX { action accept|reject; } } } }</code>. Each entry's regex is matched against the AS-path
@@ -1705,12 +1707,12 @@ changed attributes. See the <a href="../command-reference/">command reference</a
 <!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- VPN family types -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPN family types -->
 <!-- source: internal/component/bgp/plugins/nlri/vpls/types.go -- VPLS family types -->
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowSpec family types -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/register.go -- FlowSpec family types -->
 <!-- source: internal/component/bgp/plugins/nlri/labeled/types.go -- labeled unicast family types -->
 <!-- source: internal/component/bgp/plugins/nlri/mup/types.go -- MUP family types -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/types.go -- MVPN family types -->
 <!-- source: internal/component/bgp/plugins/nlri/rtc/types.go -- RTC family types -->
-<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGP-LS family types -->
+<!-- source: internal/core/bgp/nlri/bgpls/types.go -- BGP-LS family types -->
 <!-- source: internal/core/family/registry.go -- family registry -->
 <h2 id="hub-configuration">Hub Configuration</h2>
 <p>For external plugins that connect over TLS (non-internal mode), configure the hub:</p>
@@ -2034,7 +2036,7 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -11,7 +11,13 @@ listener rebinds it, and one that changes the sender bounces the collector
 sessions, so neither reports success over a change it did not make. A Peer Down
 carries the Data its reason code requires: RFC 7854 Section 4.9 draws the field
 as present for reasons 1, 2 and 3, so a session ze closed by NOTIFICATION
-carries that PDU and one closed without carries the two-octet FSM event code.
+carries that PDU and one ze closed without carries the two-octet code of the
+RFC 4271 FSM event that closed it (Event 8, AutomaticStop, is `0008`). A session
+whose transport ended with no NOTIFICATION is reason 4, which RFC 7854 says
+"includes any unexpected termination of the transport session", and carries no
+Data. A Graceful Restart peer that ze drops because its forwarding is congested
+is reason 2 with Event 18 (`0012`): ze closed that transport itself, with no
+NOTIFICATION, and the peer keeps its routes under Graceful Restart.
 
 ## Configuration
 

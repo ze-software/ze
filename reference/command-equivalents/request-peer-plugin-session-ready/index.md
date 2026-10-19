@@ -27,7 +27,7 @@ The daemon closes this sending process\'s share of the peer\'s live\-forward rep
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. \'pause\' and \'resume\' refuse a selector that matches more than one peer\, and the other commands act on each peer it matches\. |
+| `selector` | string | yes | any value of this type | \* for every peer\, or an address\, a peer name or an AS pattern | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. \'pause\' and \'resume\' refuse a selector that matches more than one peer\, and the other commands act on each peer it matches\. |
 | `session` | string | no | any value of this type | Captured peer\-UP initial\-replay token\. | The opaque nonzero uint64 initial\-replay token captured from the peer\-UP event whose replay this process finished\. Never fetch a new token to finish old replay work\. |
 
 ## Mapping intents

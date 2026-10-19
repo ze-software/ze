@@ -160,9 +160,9 @@ for i in $(seq 2 $((peers+1))); do
   sudo ifconfig lo0 alias 127.0.0.$i
 done
 </code></pre>
-<p><code>./le setup install</code> adds 127.0.0.2 through 127.0.0.5 (and the IPv6 address the
+<p><code>./le setup install</code> adds 127.0.0.2 through 127.0.0.6 (and the IPv6 address the
 functional suite binds), so the loop above is needed only for a run with more
-than four peers. <code>./le setup check</code> reports which addresses are missing.
+than five peers. <code>./le setup check</code> reports which addresses are missing.
 Neither route survives a reboot; re-run <code>./le setup install</code> after one.</p>
 <!-- source: internal/le/setup/actions.go -- Answer -->
 <h4 id="running-via-docker">Running via Docker</h4>
@@ -338,7 +338,7 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

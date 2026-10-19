@@ -716,7 +716,10 @@ package.</p>
 <h3 id="what-yang-provides">What YANG Provides</h3>
 <ul>
 <li>Type validation (ranges, patterns, enums)</li>
-<li>Cross-reference validation (leafref)</li>
+<li>Cross-reference validation by <code>leafref</code> and <code>instance-identifier</code>, whose
+referred instance must exist in the whole config (RFC 7950 Section 9.9.3);
+a reference no YANG path can express is a string a <code>ze:validate</code> function
+checks</li>
 <li>Schema-driven config routing</li>
 </ul>
 <h3 id="schema-registration">Schema Registration</h3>
@@ -998,7 +1001,7 @@ $ kill -TERM $(pgrep -f "ze start config.conf")
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

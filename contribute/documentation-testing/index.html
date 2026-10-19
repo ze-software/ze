@@ -81,7 +81,7 @@ change.</p>
 <p><code>./le doc check verify</code> runs every documentation checker and returns non-zero if any of
 them report drift. Run it after editing documentation files, after adding or
 removing plugins, or as part of review. <code>./le doc wiring</code> selects the
-checks needed for the current diff and is included in <code>./le verify current mode full</code>.</p>
+checks needed for the current diff and is included in <code>./le verify current</code>.</p>
 <h2 id="what-gets-checked">What gets checked</h2>
 <table>
 <thead>
@@ -136,6 +136,16 @@ checks needed for the current diff and is included in <code>./le verify current 
 <p><code>./le doc check verify</code> combines documentation drift, command validation, the two
 command help gates, and source-anchor validation. <code>./le doc wiring</code> is the changed-file-aware
 pre-commit gate.</p>
+<p>Among its checks, the added-symbol wiring check refuses an exported symbol the
+change adds under <code>internal/</code> or <code>cmd/</code> when no non-test Go file names it. Three
+kinds of symbol are exempt: an entry in the reviewed allowlist, a name ending
+in <code>ForTest</code>, and an export of a test-only helper package. The test-only
+packages are the list the <code>test-only-imports</code> tier check reads
+(<code>docs/architecture/module-tiers.md</code>, "Test-only helpers"). That check refuses
+any non-test importer, so such an export can never have a non-test reference.</p>
+<!-- source: internal/le/doc/wiring/wiring.go -- checkWiring -->
+<!-- source: internal/le/doc/wiring/allowlist.go -- wiringAllowlist -->
+<!-- source: internal/le/arch/testonly/testonly.go -- Packages -->
 <!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
 <!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
 <!-- source: internal/le/doc/index/actions.go -- Answer -->
@@ -195,7 +205,7 @@ pre-commit gate.</p>
 </tbody>
 </table>
 <p>The full <code>./le doc check verify</code> remains the explicit documentation review target.
-<code>./le verify current mode full</code> runs <code>./le doc wiring</code>, which invokes the relevant doc,
+<code>./le verify current</code> runs <code>./le doc wiring</code>, which invokes the relevant doc,
 command, inventory, and wiring checks for changed files.</p>
 <!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
 <p>The change is the unpushed range. The base is the merge base of HEAD and the
@@ -723,7 +733,7 @@ command validation, and changed-file wiring</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

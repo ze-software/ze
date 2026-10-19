@@ -27,7 +27,7 @@ The command forwards to the RIB plugin with the peer selector attached\, so the 
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. Every command under \'show bgp peer\' reads the peers it matches\, except \'list\'\, which reads every peer\. |
+| `selector` | string | yes | any value of this type | \* for every peer\, or an address\, a peer name or an AS pattern | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. Every command under \'show bgp peer\' reads the peers it matches\, except \'list\'\, which reads every peer\. |
 
 ## Mapping intents
 

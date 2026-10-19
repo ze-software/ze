@@ -27,7 +27,7 @@ The encoding word says how the rest of the line is read\. text is the route synt
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, a comma\-separated list of those\, or \* for every peer\. The message goes to each session the selector matches\. |
+| `selector` | string | yes | any value of this type | \* for every peer\, or an address\, a peer name or an AS pattern | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, a comma\-separated list of those\, or \* for every peer\. The message goes to each session the selector matches\. |
 | `encoding` | enum | yes | `text`, `hex`, `b64`, `cursor` | How the tokens after this word are read\. | The word is required and any other word there is refused before the handler runs\. hex and b64 keep the structure of text with the octets in place of the words\. cursor keeps the attributes of the last command per process and peer\, so a later command names only what changed\, and \'cursor done\' clears them\. |
 
 ## Mapping intents

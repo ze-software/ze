@@ -240,7 +240,7 @@ that rate), while <code>discard</code> drops the whole characterized flow. A <co
 of <code>0</code> is valid and is equivalent to <code>discard</code>; <code>action rate-limit</code> without a
 <code>rate-limit-bytes</code> is a configuration error (no rate is fabricated).</p>
 <!-- source: internal/plugins/ddos/flowspec/config.go -- Validate: action mandatory; rate-limit requires rate-limit-bytes; 0 == discard -->
-<!-- source: internal/plugins/ddos/flowspec/responder.go -- renderFlowspecCommand emits update text extended-community [rate-limit:<bps>] nlri <fam> add <components> -->
+<!-- source: internal/plugins/ddos/flowspec/responder.go -- renderFlowspecCommand emits update text extended-community [rate-limit:<bps>] mp <fam> add <components> -->
 <p><strong>Blackhole fallback.</strong> With <code>blackhole-fallback true</code>, a <code>critical</code>-severity
 attack (peak &gt;= 5x threshold) engages an immediate upstream <code>discard</code> on the fast
 signal without waiting for characterization -- the escape hatch when local
@@ -954,7 +954,7 @@ degrades to a coarse generic-flood drop.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -150,6 +150,19 @@ cancellation is observed. Failure retains the last measured state or probe
 error and does not start dependent peers or the scenario checker.
 <!-- source: internal/le/interoplab/wait.go -- Wait -->
 
+A failed check names what the peer printed, not only what the checker
+expected. A wait that measured the peer but timed out ends its error with
+`last output:` and the last value its probe returned: text as the peer printed
+it, any other value in Go's `%v` form. A wait whose value is a verdict, such as
+a bool or a count, also ends with `last answer:` and the text its probe last
+read. A one-shot assertion over an answer it read ends with `searched output:`
+and that answer. Every quoted answer is trimmed and cut to its last 40 lines and
+its last 4096 bytes, with a note on its first line saying how much was cut, so
+a full routing table cannot flood the report. An empty answer is named as
+empty.
+<!-- source: internal/le/interoplab/output.go -- OutputExcerpt, WithSearchedOutput, WithLastAnswer -->
+<!-- source: internal/le/interoplab/wait.go -- waitNotReadyError, waitValueExcerpt -->
+
 The FRR readiness producers are
 [`peer_unshut_after_cfg`](https://github.com/FRRouting/frr/blob/frr-10.3.1/bgpd/bgpd.c),
 [`bgp_start`](https://github.com/FRRouting/frr/blob/frr-10.3.1/bgpd/bgp_fsm.c), and
@@ -202,6 +215,7 @@ fifteen-second bound.
 | Docker | Interop tests | Containers for FRR, BIRD, GoBGP, Ze |
 | A Docker daemon kernel with every feature Ze enrolls | Interop tests, `docker-*` deployment proofs, the `l2tp-test`, `vpp-test` and `vpp-iface-test` proofs, `TestVPPSRv6ServiceRoute`, the terminal-demo render and validate mode, the `./le perf` ze DUT, `./le verify evidence release-candidate` | Checked before any image build or container start; see "The Docker host kernel check" |
 | ~1.5 GB disk | Interop tests | Docker images (Go builder, FRR, Alpine) |
+| Docker | `./le test integration cleanup`, `./le test integration docker-peers` | No Ze kernel: neither runs Ze in a container |
 
 The interop test network uses `172.30.0.0/24`. MD5 authentication scenarios require
 `NET_ADMIN` capability (granted automatically by the orchestrator).
@@ -232,7 +246,7 @@ These Docker-host integration tests are excluded from the QEMU guest package
 population: the guest has no Docker daemon. The native admission command above
 runs their real container and packet probes rather than substituting guest mocks.
 <!-- source: internal/le/test/qemu/alltests.go -- excludedIntegrationPackages -->
-<!-- source: internal/le/test/deployment/vppiface.go -- newVPPIface, containerArgs -->
+<!-- source: internal/le/test/deployment/vppiface.go -- newVPPIface, containerSpec -->
 
 The compiled peer sends IPv4/unicast MP_REACH with an IPv6 next hop and an
 RFC 9252 L3 Service TLV through a real BGP session. Only Ze installs service
@@ -322,16 +336,168 @@ via each daemon's native CLI.
 
 The native `internal/le/interoplab/bgp` package discovers scenario directories in
 `test/interop/scenarios/`. Before any scenario, the shared `interoplab.Suite`
-engine runs the lab's preflight (which stages ze), checks the Docker daemon's
+engine removes what a killed earlier run left behind ("Crash-safe teardown"
+below), runs the lab's preflight (which stages ze), checks the Docker daemon's
 kernel with that ze ("The Docker host kernel check" below), and builds the
 images. For each scenario it then:
 
-1. Creates an isolated Docker network.
+1. Creates an isolated Docker network, after refusing an existing container or
+   network of the same name that it cannot prove abandoned.
 2. Starts Ze and the peer daemons declared by the scenario's config files.
 3. Waits for every declared readiness probe.
 4. Runs the scenario's typed checker from the package-local BGP registry.
-5. Tears down every container and network, including after setup or checker failure.
-<!-- source: internal/le/interoplab/lab.go -- suite lifecycle -->
+5. Tears down the containers and the network this scenario created, including
+   after setup or checker failure and after a Ctrl-C or SIGTERM, which cancel
+   the run rather than end the process. A resource is recorded for teardown
+   only once its create succeeds, or for a container once `docker run` was
+   issued and failed for a reason other than the daemon refusing the name as
+   taken (`ContainerMayExist`): the daemon may have created it. A failure
+   before docker ran (an address, a mount or an AppArmor option the wrapper
+   could not render) records nothing. So a name the pre-clean refused, one
+   another run took first, or one never created is never removed. `Docker.CreateNetwork` refuses a
+   network name that already exists rather than join it. A SIGKILL, a lost
+   machine or a panic runs no teardown; the next lab start, or
+   `./le test integration cleanup`, removes what it left.
+<!-- source: internal/le/interoplab/lab.go -- Suite.Run, Lab.preClean, Lab.cleanup, createdResources -->
+<!-- source: internal/le/interoplab/docker.go -- Docker.CreateNetwork, ContainerMayExist, containerNameTaken -->
+<!-- source: internal/le/test/integration/actions.go -- nativeRunner, signalContext -->
+
+### Crash-safe teardown
+
+Every container, one-shot container (the kernel probe included), network and
+built image the wrapper (`interoplab.Docker`) creates carries owner labels, all
+from one helper, `ownerIdentity.labelArguments`:
+
+| Label | Value |
+|-------|-------|
+| `ze.lab` | `1`, the marker. The cleanup lists only resources carrying it |
+| `ze.lab.run` | a random id for the run |
+| `ze.lab.pid` | the creating process's pid |
+| `ze.lab.pid-start` | that pid's start token, which changes when the pid is reused (`procscan`) |
+| `ze.lab.boot-id` | the client machine's boot id |
+| `ze.lab.machine-id` | the client machine's id (`/etc/machine-id`, or the Mac's IOPlatformUUID) |
+| `ze.lab.started` | when the run started, RFC 3339 |
+| `ze.lab.purpose` | the creating command line, for the operator |
+| `ze.lab.kind` | the object the create made: `container`, `network` or `image` |
+| `ze.lab.uid` | the creating process's uid |
+| `ze.lab.os` | the client's operating system, as Go names it (`linux`, `darwin`) |
+| `ze.lab.pid-ns` | on Linux, the inode of the creating process's pid namespace (`/proc/self/ns/pid`). Absent on macOS, which has no pid namespace |
+<!-- source: internal/le/interoplab/orphans.go -- labelMarker, ownerIdentity.labelArguments -->
+
+A container inherits the labels of its image, so one a person starts by hand
+from a lab-built image carries the builder's owner labels with `ze.lab.kind`
+`image`. The wrapper sets the kind on every create, overriding the inherited
+one, and the cleanup judges a resource only when its kind label names the
+object it is: such a container is kept and reported as carrying image labels
+only, not created by a lab run.
+<!-- source: internal/le/interoplab/orphans.go -- ownerJudge.judge, resourceKind.labelValue -->
+
+Every owner fact is read on the client, the machine running `le`, never from
+the daemon: on a Mac the daemon runs in a VM whose pids are not the Mac's.
+
+`Docker.CleanupOrphans` removes a labeled resource only when its owner is
+provably gone. Every path to "gone" first requires the owner's machine id,
+operating system, uid and pid namespace to equal this client's: a client in
+another pid namespace (a devcontainer mounting the host's `docker.sock`) or
+under another uid (a `/proc` mounted `hidepid=2`) sees a live owner's pid as
+absent. Then one of three paths proves it: the same boot with the pid absent;
+the same boot with the pid held by a process with another start token; or
+another boot id with the owner started before this machine booted (`btime` in
+`/proc/stat`, `kern.boottime` on macOS). A pid held by a process that has
+exited and is not yet reaped (a zombie, `Z` or `X` in `/proc/<pid>/stat` or in
+`ps -o state=`) is absent: the `go test` child a docker-peers Ctrl-C kills is
+one until `le` reaps it, and it owns nothing. An owner under another boot id that
+started after this boot is a cloned machine sharing the machine id, which may
+still be running, so it is kept. It removes containers, then networks, each by
+the id the labeled listing gave, then the run-owned `ze-interop-retained:` tag
+by its name (`Docker.ReleaseImage`). Removing a tag by name untags only that
+reference, never the image another tag holds, and only a tag in the
+`ze-interop-retained` repository is a candidate, so the shared cache tag is
+never named.
+Everything else is kept and reported with its reason and the command that
+resolves it: an owner still running, an owner on another machine (run the
+cleanup there), in another pid namespace (run it there) or under another uid
+(run it as that uid), labels it cannot read, a boot time it cannot read, or a
+network another run's container is still attached to. An unlabeled resource, a volume and the shared cache tag
+that `NO_BUILD=1` reuses are never candidates.
+<!-- source: internal/le/interoplab/orphans.go -- Docker.CleanupOrphans, ownerJudge.judge, Docker.removeResource -->
+<!-- source: internal/le/procscan/procscan.go -- Lookup, parseProcStat, exitedState -->
+
+A removal call that fails, or that outlasts the 30 s client bound while the
+daemon completes it, is not reported failed on its own say. The wrapper
+inspects that exact resource again under the same bound
+(`Docker.confirmRemoval`): gone is "removed", still present is "failed" with
+the removal's error, and an inspect that fails too is "unknown", naming both
+errors.
+<!-- source: internal/le/interoplab/docker.go -- Docker.confirmRemoval -->
+
+A one-shot container (`Docker.RunOneShot`: the kernel probe, a host
+preflight, a terminal-demo render) runs in the foreground with `--rm` and a
+`ze-oneshot-<random>` name. Killing the docker client stops nothing the
+daemon runs, so when the caller's context is canceled or the one-shot's bound
+ends, the wrapper removes the container by that name on a context the
+cancellation does not reach, and reports the removal's outcome with the
+run's error. Its free-form `OneShotContainer.Arguments`, like a lab peer's
+`PeerConfig.Arguments`, are refused before docker runs when they carry
+`--name` (which would replace the name the removal finds it by), a `ze.lab`
+label in any spelling (which would override the owner labels), or
+`--label-file`, with a `BUG:` error naming the field. Any spelling includes
+`-l` at the end of a short-flag cluster such as `-dl <v>`, `-dl=<v>` or
+`-dl<v>`, read the way docker's flag parser reads one: past the value-free
+flags of `docker run` (`-d -i -P -q -t`), stopping at the first flag that takes
+a value. `--name` has no short form.
+<!-- source: internal/le/interoplab/docker.go -- Docker.RunOneShot, refuseOwnedArguments, labelFlagValue, clusterLabelValue -->
+
+A caller outside a lab Suite that needs a long-running container, such as the
+deployment proofs (`./le test deployment l2tp-test`, `vpp-iface-test`,
+`vpp-test`), starts it with `Docker.RunDetached`. Its typed spec
+(`DetachedContainer`: platform, network and address, capabilities, devices,
+mounts, environment, working directory, entrypoint, command) carries no raw
+docker flag, and the container carries the same owner labels, so a run killed
+before its own removal is reaped like a lab's. Commands inside it run through
+`Docker.ExecAttached`, with attached streams and their own bound. Those verbs
+root on SIGINT and SIGTERM, remove their container on a context the signal
+does not reach, and name a failed removal in the report's
+`container-removal-error`, exiting 1.
+<!-- source: internal/le/interoplab/container.go -- Docker.RunDetached, Docker.ExecAttached -->
+<!-- source: internal/le/test/deployment/deployment.go -- removeContainer -->
+
+The multi-DUT benchmark (`./le perf run`, `./le perf evidence-record`) is the
+other such caller. Its network goes through `Docker.CreateNetwork` and
+`Docker.RemoveNetwork` with the owner labels, each DUT and the sender through
+`Docker.RunDetached`, the readiness wait through `Docker.ContainerRunning`,
+and each image through `Docker.Build` (a named build context, such as
+FreeRtr's source checkout, is a typed `NamedBuildContext`) followed by
+`Docker.ReleaseImage`, which drops the run-owned tag and keeps the DUT's own.
+`Docker.ContainerRunning` answers an inspect it cannot read as an error, never
+as "not running". It removes only a DUT or sender name it recorded, and records
+one only when `interoplab.ContainerMayExist` says its `RunDetached` may have
+left a container: never for a name the daemon refused as another container's.
+<!-- source: internal/test/perfrunner/run.go -- Runner.measure, Runner.buildImages, Runner.startContainer, Runner.removeContainer -->
+<!-- source: internal/le/interoplab/container.go -- Docker.ContainerRunning -->
+
+`Suite.Run` runs the cleanup after the Docker probe and before Preflight, and
+prints each removal or skip as a progress line. A listing the daemon refuses is
+a setup error that names the pre-run cleanup, why the run stops, and the fix:
+run the failing docker command by hand, then `./le test integration cleanup`
+or the run again. Before a scenario creates its network and containers, its
+pre-clean removes an existing resource of the same name when its labels are
+exactly the ones this run's own creates carry (an earlier scenario's shared
+network whose removal outlasted its bound, `ownerIdentity.created`) or on the
+same verdict, and otherwise fails the scenario naming the owner and the fix: set
+the lab's own suffix variable, which the message names from
+`Suite.SuffixVariable` (`ZE_L2TP_INTEROP_SUFFIX` for the L2TP lab), or the
+verdict's own fix: stop the owner pid it names, or run the cleanup. The
+scenario's teardown then removes nothing of that name: it removes only what
+the scenario itself created.
+<!-- source: internal/le/interoplab/orphans.go -- Docker.claimName -->
+
+`./le test integration cleanup` runs the cleanup by hand and exits 1 when a
+removal failed, naming the failing command. `./le test integration cleanup
+dry` lists what would go and what stays, removes nothing, and also lists
+`ze-interop-retained:` tags left from before the labels existed, which no mode
+removes. Both render through `| json`.
+<!-- source: internal/le/test/integration/cleanup.go -- labCleanup -->
 
 ### The Docker host kernel check
 
@@ -380,7 +546,7 @@ options query that fails or prints no JSON refuses, because the argv depends on
 it. Ze's own kernel carries no AppArmor, so the QEMU guest's daemon lists none
 and the guest route is unchanged.
 
-<!-- source: internal/le/interoplab/kernelcheck.go -- dockerAppArmor, appArmorProfileMissing, appArmorProfileUnapplied, appArmorRefusal, kernelProbeArgv -->
+<!-- source: internal/le/interoplab/kernelcheck.go -- dockerAppArmor, appArmorProfileMissing, appArmorProfileUnapplied, appArmorRefusal, kernelProbeContainer -->
 
 The probe is the first container to run under a Ze profile, and the same rule
 holds for every lab container: one that needs more than docker-default grants
@@ -512,7 +678,17 @@ never loads a kernel module, so a Docker host without one of those nodes makes
 Docker refuse the start; the run then answers an error naming the node and the
 host command that creates it (`sudo modprobe ppp_generic` for `/dev/ppp`)
 rather than a bare exit code.
-<!-- source: internal/le/verify/evidence/evidence.go -- Runner.Run, Runner.dockerArgs, deviceRefusal, dockerKernel, kernelZeRel -->
+
+The container is a `Docker.RunOneShot`, so it carries the owner labels and a
+name, and runs under a four-hour bound (owner D-1, 2026-10-19): the gate takes
+25 to 53 minutes, so the bound never ends a normal run and only stops a wedged
+daemon. SIGINT and SIGTERM cancel the action's root context; the wrapper then
+removes the container by name, and the run answers the interruption as an
+error, never as a failed gate. The three named cache volumes
+(`ze-gomod-cache`, `ze-gobuild-cache`, `ze-apt-cache`) are mounted, never
+removed: they are what keeps a second run minutes long.
+<!-- source: internal/le/verify/evidence/evidence.go -- Runner.Run, Runner.container, evidenceContainerTimeout, deviceRefusal, dockerKernel, kernelZeRel -->
+<!-- source: internal/le/verify/evidence/actions.go -- signalRooted -->
 <!-- source: internal/test/runner/caps.go -- capsRequired, capDockerName, capsAltersHost, ContainerCapsDockerNames -->
 <!-- source: internal/test/runner/devices.go -- containerDevices, ContainerDevicePaths, DeviceHostModule -->
 
@@ -581,23 +757,48 @@ nothing else, and judges the verdict against the rows it read. On colima's
 <!-- source: internal/le/test/deployment/vppiface.go -- vppIface.prepareDaemon -->
 <!-- source: internal/le/site/terminaldemo/render.go -- Engine.preflightContainers, Engine.validationCheckAll, Engine.validateAndRender, Engine.checkKernel -->
 
+The report prints only after the last scenario, so `Suite.Run` also writes
+progress lines while it runs: one as image preparation starts, one when the
+images are ready with the time it took, and two for each scenario, `interop: [i/n] name:
+running` and then `pass` or `FAIL` with its elapsed time and error. They go to
+`Suite.Progress`, or to stderr when that is nil, which is the job log in CI. A
+suite that hangs then names the scenario that holds it. A failed progress write
+does not fail the suite.
+<!-- source: internal/le/interoplab/lab.go -- Suite.Run, Suite.progress, scenarioLine -->
+
 Each local image build also creates a unique, run-owned tag. This keeps its
 image ID available when another build replaces the shared cache tag.
 The suite removes its tags after the scenarios, including after setup failure.
 Image cleanup errors appear in `cleanup-errors` and make the suite fail.
-<!-- source: internal/le/interoplab/docker.go -- Docker.Build, releaseImage -->
+<!-- source: internal/le/interoplab/docker.go -- Docker.Build, Docker.ReleaseImage -->
 
 One `./le test integration <action>` invocation returns that action's full report.
 Multiple action names return a combined summary.
 
-The image-retention regression requires the host Docker daemon, not the QEMU
-guest. Run it through native admission:
+The image-retention regression, `TestDockerBuildRetainsImageAcrossRetag`,
+carries the build tag `docker`, so `./le test integration docker-peers` runs it
+against the host Docker daemon with `ZE_REQUIRE_DOCKER=1`. Run it alone through
+native admission:
 
 ```bash
-CGO_ENABLED=0 ./le --name image-retention job run label image-retention command \
-  go test -tags integration -count=1 ./internal/le/interoplab \
+ZE_REQUIRE_DOCKER=1 CGO_ENABLED=0 ./le --name image-retention job run label image-retention command \
+  go test -tags docker -count=1 ./internal/le/interoplab \
   -run '^TestDockerBuildRetainsImageAcrossRetag$'
 ```
+
+Neither it nor `TestKilledLabRunIsCleanedByNextStart` sets a bound of its own.
+Each build takes the wrapper's machine bound, and the test's context ends ten
+seconds before the deadline that `go test -timeout` sets. A one-minute build
+bound once failed the retention test under `docker-peers`, which runs every
+docker package in parallel.
+<!-- source: internal/le/interoplab/image_retention_docker_test.go -- TestDockerBuildRetainsImageAcrossRetag -->
+<!-- source: internal/le/interoplab/deadline_docker_test.go -- testDeadlineContext -->
+<!-- source: internal/le/test/integration/dockerpeers.go -- dockerPeersArgv, requireDockerEnvironment -->
+
+`internal/le/interoplab` stays out of the QEMU guest population because of
+`TestDockerKernelCheckOnThisHost` alone: it judges the kernel of the daemon the
+host uses, which a guest cannot stand in for.
+<!-- source: internal/le/test/qemu/alltests.go -- excludedIntegrationPackages -->
 
 Daemons start conditionally: FRR if `frr.conf` exists, BIRD if `bird.conf` exists,
 GoBGP if `gobgp.toml` exists. This means each scenario only runs the daemons it needs.
@@ -738,8 +939,8 @@ The root daemon cannot use a database directory beneath a mount owned by another
 user. A scenario's disable-and-restart check recopies the new input into the
 same private directory before each start.
 <!-- source: internal/le/test/deployment/l2tppppinputs.go -- writeInputs -->
-<!-- source: internal/le/test/deployment/vppiface.go -- writeScratch, stageConfig, daemonArgs -->
-<!-- source: internal/le/test/deployment/vppevidence.go -- writeConfig, evidenceDaemonArgs -->
+<!-- source: internal/le/test/deployment/vppiface.go -- writeScratch, stageConfig, daemonExec -->
+<!-- source: internal/le/test/deployment/vppevidence.go -- writeConfig, evidenceDaemonExec -->
 
 After the native L2TP PPP proof has negotiated IPCP and carried traffic, it
 injects an LCP Configure-Request from the peer namespace into the existing
@@ -836,6 +1037,8 @@ A scenario directory may also carry files that start extra containers before Ze:
 | `inject.msg` | `le test peer` (raw injector, 172.30.0.9) | Drive Ze with wire bytes no conforming daemon would emit. An optional `inject-args` file adds flags. Because the injector and Ze start before the peer daemons, an early route exercises Ze's replay-on-peer-up path. |
 | `speaker-args` (and optional `speaker2-args`) | `le test interop-bgp speaker` (172.30.0.10; second at 172.30.0.11) | Dial Ze with an independent strict peer. The compiled speaker negotiates the requested families and ADD-PATH mode, frames BGP itself, applies the named native oracle, and writes a structured verdict to container logs. It catches wire output that Ze's own lenient decoder could accept. |
 | `vrps.json` | StayRTR (172.30.0.12:8282) | Serve RPKI VRPs from a real third-party cache, so Ze is the RTR client of an implementation that is not its own. The typed checker asserts each per-prefix validation answer, not merely the RTR session. |
+| `dnsmasq.conf` (and optional `dnsmasq-b.conf`) | dnsmasq DHCPv4 server (172.30.0.20; second at 172.30.0.21), `test/interop/Dockerfile.dnsmasq` | Serve Ze's DHCPv4 client from an implementation Ze did not write. The checkers of `dhcpv4-renew-nak-dnsmasq` and `dhcpv4-rebind-two-servers-dnsmasq` count the DHCP messages in dnsmasq's `log-dhcp` output and read Ze's eth0 addresses. The renew-NAK checker writes a reservation into the container's own `/run/dhcp-hosts` and reloads it with SIGHUP; the rebind checker stops the server that granted the lease. |
+| `kea-dhcp6.conf` | Kea DHCPv6 server `kea-dhcp6` (IPv6 host 22 of the lab /64; the file's `fd00:1e:0::` selects an IPv6 lab network), `test/interop/Dockerfile.kea` | Serve Ze's DHCPv6 client from an implementation Ze did not write. The checker of `dhcpv6-client-renew-kea` reads Kea's INFO log, one exchange per distinct transaction id (`DHCP6_PACKET_RECEIVED`, `DHCP6_LEASE_ALLOC`, `DHCP6_LEASE_RENEW`, and `DHCP6_USING_SERVERID` at each start), and samples Ze's eth0 every 2 s: the leased /128 must be present with a finite `valid_lft` of at most the 40 s lease at every sample. Over three lease periods Kea must see one Solicit and one Request, between 10 and 16 RENEW exchanges that each extended the lease, and no Rebind: a client that never renews, renews without extending its deadlines (it loses the address after one lease and solicits again) or renews at every chance fails one of those bounds. The pool is one address (host `0x50`), so the lease is known before the run. The image deletes Kea's persisted server DUID on every start, while the memfile lease database stays in the container: the checker stops and starts Kea to change the server's identity under a live lease, so Ze's next RENEW names a server that no longer exists and only its REBIND is answered. Ze must hold the address for two lease periods after the stop, with no Solicit, and then renew with the restarted server. |
 | `pmbmpd.conf` | pmacct `pmbmpd` (172.30.0.13:1790) | Read Ze's BMP stream with a collector Ze did not write. The file is also the selector: a scenario that carries it starts pmacct INSTEAD of Ze's own collector, because two collectors are two readings of one stream and only the third-party one is interop evidence. The typed checker greps pmacct's JSON msglog, so every needle is a field pmacct printed after decoding. |
 
 The `ospf-te-frr` and `ospf-te-interas-frr` scenarios keep their FRR adjacency,
@@ -843,7 +1046,9 @@ TED and flooded-LSA assertions and add a BGP-LS speaker sidecar. Ze exports its
 native OSPF database through `bgp-ls-export`; the collector records actual
 negotiated SAFI 71 UPDATEs, not injected substitutes. The checker reconstructs
 the final received inventory, including withdrawals, with the native UPDATE
-and BGP-LS decoders. It requires exact Node and bidirectional Link auxiliary
+and BGP-LS decoders: the wire types and TLV codes come from the core codec
+`internal/core/bgp/nlri/bgpls`, and the attribute decode runs through the
+plugin's registered `bgp-nlri-ls` decoder. It requires exact Node and bidirectional Link auxiliary
 IPv4 Router-ID TLVs for ordinary TE, and local IPv4 plus remote IPv4/IPv6 IDs
 for the configured inter-AS link. It rejects missing, swapped, duplicate or
 invented local IPv6 IDs. The bounded capture must finish successfully and
@@ -1227,8 +1432,19 @@ The rebind step (`natRebind`) replaces the port rule with one to a second public
 port and deletes the box's UDP conntrack entries with `conntrack -D -p udp`
 (`conntrack-tools` in `Dockerfile.nat`). The flush is needed because a NAT rule
 applies to a flow's first packet only, and the peer's keepalives and DPD keep the
-old entry alive. The peer's next DPD then reaches Ze from the new port, Ze adopts
-it, and the checker waits for exactly one of Ze's four rebind log lines.
+old entry alive. The step fails when conntrack prints no deleted count, and when
+`conntrack -L` afterwards still holds a flow from strongSwan's UDP 4500 mapped to
+the first public port (`conntrackDeletedCount`, `conntrackStaleMapping`). A flush
+that did nothing then fails at once, rather than as a 90 s wait for a move that
+cannot come. The peer's next DPD then reaches Ze from the new port, Ze adopts it,
+and the checker waits for exactly one of Ze's four rebind log lines.
+
+The two rebind scenarios set `mobike = no` in `swanctl.conf`. strongSwan offers
+MOBIKE by default. When MOBIKE is negotiated, Ze correctly refuses to adopt the new
+source of an authenticated IKE packet, because RFC 4555 Section 3.8 says "The host
+not behind a NAT MUST NOT use these dynamic updates for IKEv2 packets". The peer
+must send UPDATE_SA_ADDRESSES instead. Ze logs that refusal at Debug, so a
+scenario that loses the setting shows the reason in Ze's log.
 
 | Scenario | Proves |
 |----------|--------|
@@ -1237,12 +1453,18 @@ it, and the checker waits for exactly one of Ze's four rebind log lines.
 | `real-nat-port-translated-eap-ze-responder` | the EAP-TLS responder's first Child SA encapsulates to dport 14500 |
 | `responder-eap-tls12` (no NAT) | a strongSwan EAP-TLS client pinned to TLS 1.2 authenticates and traffic crosses |
 
-None of the four has run yet: the Docker host kernel check refuses the host they
-were written on before any scenario starts, so each still owes its first run and
-its revert, rebuild and red walk.
+All four have run in the nightly ipsec-interop suite. In the 2026-10-17 run the
+two rebind scenarios and `responder-eap-tls12` were red, and
+`real-nat-port-translated-eap-ze-responder` passed, possibly vacuously (see the
+next sentence). On 2026-10-17 the two rebind scenarios got `mobike = no`. In the same change,
+`waitZeOutboundEncap` stopped accepting an outbound state at any port: it had
+read a drained `textbuf.Buffer` inside its poll and so matched "". No run since
+these fixes is recorded, and `responder-eap-tls12` waits on an owner decision.
+Each scenario still owes a green run and its revert, rebuild and red walk.
 
 <!-- source: internal/le/interoplab/ipsec/nat.go -- readNATConfig, natSetupScript, natPortRule -->
-<!-- source: internal/le/interoplab/ipsec/natport.go -- natPortEstablish, natRebind, waitRebindLine -->
+<!-- source: internal/le/interoplab/ipsec/natport.go -- natPortEstablish, natRebind, conntrackDeletedCount, conntrackStaleMapping, waitRebindLine, waitZeOutboundEncap -->
+<!-- source: internal/component/ike/engine/sa.go -- adoptAuthenticatedEndpoint, the MOBIKE refusal -->
 
 Two more scenarios reuse the tunnel-control topology to drive `show mtu` across a
 real NAT. `mtu-tunnel-sizing-strongswan` binds the tunnel to an xfrm interface,
@@ -1780,6 +2002,13 @@ ICMPv6 error ze's kernel generates about the session, and its TCPMinTTLDrop coun
 what goes red when ze's host-route metric is absent), AS112, the RFC 7454 Section 9 transit leak
 (`bgp-path-asn-leak-frr` gives FRR two prefixes that differ only in their AS_PATH, and requires
 ze to drop the one reached through a listed transit ASN, keep the other, and keep the session),
+an import prefix-list over multiprotocol UPDATEs (`bgp-policy-modify-mp-frr`: the raw injector
+sends each case as one UPDATE, an IPv6 MP_REACH_NLRI with one prefix kept and one refused, IPv4
+unicast inside MP_REACH_NLRI, an all-refused MP_REACH_NLRI, and thirty kept /64s with one refused
+so the rebuilt attribute is 291 octets, then an MP_UNREACH_NLRI for the kept /48; FRR, behind
+the OPEN-only relay at .11, must hold exactly the kept prefixes and lose the withdrawn one, and
+the relay's capture of Ze's frames must show the extended-length MP_REACH_NLRI and no
+MP_REACH_NLRI without NLRI),
 next-hop self under `local ip auto` (`bgp-nexthop-self-local-auto-frr` configures no local
 address toward FRR, and requires FRR to hold both ze's own route and a route relayed from a raw
 injector with NEXT_HOP 172.30.0.2, ze's connected endpoint, never the injector's 172.30.0.9),
@@ -1990,7 +2219,7 @@ is not packet-forwarding evidence.
 | 42 | bgp-mup-malformed-t1st-withdraw-gobgp | Ze, GoBGP, raw injector | draft-ietf-bess-mup-safi Section 3.1.3.1: a malformed T1ST withdraws the earlier generation at GoBGP, a well-formed sibling stays, the session stays up |
 | 43 | bgp-role-rs-client-learned-not-upward-frr | Ze, FRR 10.4.1, raw injector | RFC 9234 Section 3.1: a route learned on a session where Ze is the Route Server never reaches FRR, Ze's Provider; Ze's own control route does |
 | 44 | bgp-rfc7999-blackhole-readvertise-frr | Ze, BIRD, FRR 10.4.1 | RFC 7999 Section 3.1: a BLACKHOLE-tagged route from BIRD is never re-advertised to FRR, an eBGP neighbor with no agreement; the untagged control is |
-| 45 | bgp-sr-policy-gobgp | Ze, GoBGP | RFC 9830: GoBGP's text RIB holds Ze's configured IPv4 and IPv6 SR Policies with their distinguisher, color and endpoint, Binding SID label 1048575 and Type A segment labels 16 and 1048575. Goal validation for origination: in-range labels never reach the 20-bit range check, so no revert turns it red |
+| 45 | bgp-sr-policy-gobgp | Ze, GoBGP | RFC 9830: GoBGP's text RIB holds Ze's configured IPv4 and IPv6 SR Policies with their distinguisher, color and endpoint, Binding SID label 1048575 and Type A segment labels 16 and 1048575, and a third IPv4 policy (color 300) whose SRv6 BSID 2001:db8::b5 rides the type-13 Binding SID sub-TLV at Length 18 (RFC 9830 Section 2.4.2), which GoBGP prints through its type-13 decoder with no B-Flag. Goal validation for origination: in-range labels never reach the 20-bit range check, so no revert turns the label checks red |
 | 46 | bgp-sr-policy-malformed-receive-gobgp | Ze, GoBGP, raw injector | RFC 9830 Section 5: after policies A, B and control C reach GoBGP, A beside a 13-octet NLRI and then B without its Tunnel Encapsulation attribute are each treat-as-withdraw, so GoBGP loses A, then B, keeps C, and its session with Ze stays up (GoBGP resets a session that carries an SR Policy NLRI whose length is neither 96 nor 192 bits) |
 | 47 | bfd-link-local-frr | Ze, FRR bfdd | RFC 5881 Section 3: a BFD-plugin-pinned single-hop session to FRR's IPv6 link-local on `eth0` reaches Up, each side holding the other's discriminator. Acceptance, not discrimination (see "BFD over link-local") |
 | 48 | bfd-link-local-two-links-frr | Ze, FRR bfdd | RFC 5881 Section 3: two sessions to ONE link-local address, one each on `eth1` and `eth2`, reach Up on their own link with their own discriminators crossed, while Ze's Your-Discriminator-zero sends are dropped. Discriminates the receive-side zone reconciliation and the send-side link pinning (see "BFD over link-local") |
@@ -2059,11 +2288,13 @@ at once and a generous bound costs nothing. A value that does not parse, or that
 is not positive, keeps the 90 minutes.
 
 An image that needs more than the machine bound declares its own
-`ImageBuild.Timeout`, and that field only ever LENGTHENS a bound. A number below
-the machine bound shortens it, which kills a build the machine would finish, so
-no suite declares one. The PPPoE suite did until 2026-09-04: 10 minutes for its
-ze image, 15 for accel-ppp and 10 for the client, each written when the shipped
-default was 10 minutes and each a cap once the default became 90.
+`ImageBuild.Timeout`. The build runs under the larger of that field and the
+machine bound, so the field only ever lengthens the bound and a value below it
+changes nothing; `BUILD_TIMEOUT` stays the one knob that lowers it. No suite
+declares one. The PPPoE suite did until 2026-09-04: 10 minutes for its ze image,
+15 for accel-ppp and 10 for the client, each written when the shipped default was
+10 minutes and each a cap once the default became 90, because the field then
+replaced the machine bound instead of raising it.
 
 Subsequent runs with `NO_BUILD=1` skip rebuilds. Once the images exist, the full
 suite takes roughly 5-10 minutes depending on session establishment times.
@@ -2071,9 +2302,112 @@ suite takes roughly 5-10 minutes depending on session establishment times.
 <!-- source: internal/le/interoplab/zebuild.go -- StageBinaries, LabBinary -->
 
 
+### A package test's own server container (labtest)
+
+A package `_test.go` that needs one real server, such as stayrtr for the RPKI
+client, starts it with `labtest.Start(t, spec)` from
+`internal/le/interoplab/labtest`, never with its own `exec.Command("docker")`.
+`Start` pulls the image unless it is digest-pinned (`name:tag@sha256:...`)
+and the daemon already holds it, since the digest makes the local copy exactly
+the named image and a host holding it then runs offline; a tag can move, so a
+tag reference is always pulled. It then starts one labeled container through
+`Docker.RunDetached` (so a sweep removes it when the test binary is killed),
+answers the host address the server listens on, and returns only once
+`Spec.Ready` accepts that address. `Spec.Port` names the container port with
+its transport, `interoplab.TCPPort(3323)` or `interoplab.UDPPort(123)`, and a
+port with no transport is refused before any docker command runs. The
+container either publishes that port on the host loopback at a port the daemon
+picks (`Docker.PublishedPort` reads which, under the same transport), or runs
+on the host network (`Spec.HostNetwork`) where it listens on `127.0.0.1:Port`
+and reaches a listener the test opened. `Spec.Entrypoint` replaces the image's
+entry point, for an image whose entry point writes its own configuration and
+ignores the command. `t.Cleanup` writes the log tail of a failed test, then
+removes the container.
+
+| Machine state | What the test does |
+|---------------|--------------------|
+| No `docker` binary | skips, naming the install route; fails under `ZE_REQUIRE_DOCKER=1` |
+| `docker info` fails | fails, naming the probe error |
+| The image cannot be pulled | fails; under the `live` tag it skips an ad hoc run and fails under `ZE_REQUIRE_DOCKER=1` (owner decision Q-6, `pull_live.go`) |
+| A `Spec.Dockerfile` image does not build | fails, naming the image, the Dockerfile and the `docker build` command that shows the failing step |
+| The container does not start, or `Ready` never accepts | fails, then the log tail follows |
+
+Two package tests start their server this way. The RPKI live tests start
+stayrtr over TCP (`internal/component/bgp/plugins/rpki/rpki_live_test.go`, tag
+`live`). The NTP client tests start chrony (`dockurr/chrony:4.9`) over UDP
+(`internal/plugins/ntp/ntp_chrony_docker_test.go`, tag `docker`) and run
+`syncWorker.doSync` with the real query: a server on its local reference at
+stratum 7 is accepted and reported at stratum 7 with a near-zero offset, and a
+server with no synchronised source (leap indicator 3, stratum 0 on the wire)
+is rejected with no clock step. The container reads the host's own kernel
+clock, so the offset is bounded, never a configured value.
+
+A server with no published image is built from its Dockerfile:
+`Spec.Dockerfile` names it from the module root, and `Start` then builds
+`Spec.Image` through `Docker.Build`, with the Dockerfile's directory as the
+context, instead of pulling it, and releases the tag the run owns after the
+container is removed; a build that fails fails the test. A server no probe from
+the host can observe, such as a UDP listener behind a published port that
+accepts datagrams before the server binds, names `Spec.ReadyInContainer`
+instead of `Spec.Ready`: a command run in the container whose exit 0 is ready.
+A test that reads what the server wrote calls `labtest.StartContainer`, which
+answers the `Container` with its address and `Container.Exec`. The flow-export
+collector tests run this way (`internal/plugins/flowexport/collectors_docker_test.go`,
+tag `docker`): nfcapd/nfdump and sflowtool built from
+`test/interop-flowexport/Dockerfile.collectors`, ready once the collector's
+socket is in the container's UDP table, their decoded records read with
+`docker exec` (`docs/architecture/flowexport/flow-export-1-counter-export.md`,
+"Independent collector tests").
+
+A package test whose real peer is a client, against a server the test runs
+in-process, runs it with `labtest.Run(t, client)`. `Run` pulls the image as
+`Start` does, runs
+one labeled container to its exit through `Docker.RunOneShot`, and answers the
+client's stdout, stderr and exit code, a non-zero exit included, so a test can
+assert a refused request. `Client.HostNetwork` puts the client in the host's
+network namespace (`OneShotContainer.Network`), where it reaches the test's
+listener on `127.0.0.1`, and `Client.Mounts` bind-mounts files the test wrote,
+such as a CA certificate (`OneShotContainer.Mounts`). The machine states in the
+table below are handled as `Start` handles them; a run the docker client did
+not finish (`interoplab.OneShotDidNotExit`), or an exit code `docker run` keeps
+for its own failure (125 to 127), fails the test. The gNMI server tests run
+gnmic this way (`internal/component/gnmi/gnmic_docker_test.go`, tag `docker`):
+Capabilities, Get, Subscribe ONCE and Set over TLS with a bearer token,
+decoded from gnmic's protojson output, and a request with no token or a wrong
+one refused `Unauthenticated`.
+
+`labtest` runs no Docker host kernel check: Ze runs in the test process on the
+host, and that check guards a containerised Ze. A peer that needs a Ze-kernel
+feature belongs in an `interoplab.Suite` lab. Only a `_test.go` file, or tooling
+under `internal/le`, imports `labtest` (`./le arch tier check`,
+`docs/architecture/module-tiers.md`).
+<!-- source: internal/le/interoplab/labtest/labtest.go -- Start, start, host.prepare, digestPinned, host.release -->
+<!-- source: internal/le/interoplab/labtest/container.go -- Container, host.build, host.readyInContainer -->
+<!-- source: internal/plugins/flowexport/collectors_docker_test.go -- TestFlowExportNFDumpInterop, TestFlowExportSFlowToolInterop -->
+<!-- source: internal/le/interoplab/labtest/labtest.go -- Run, run, Client -->
+<!-- source: internal/le/interoplab/docker.go -- OneShotContainer, OneShotDidNotExit -->
+<!-- source: internal/component/gnmi/gnmic_docker_test.go -- TestGnmicInterop -->
+<!-- source: internal/plugins/ntp/ntp_chrony_docker_test.go -- TestNTPClientSyncsFromChrony, TestNTPClientRejectsUnsynchronisedChrony -->
+<!-- source: internal/le/interoplab/container.go -- DetachedContainer.PublishedPorts, ContainerPort, Docker.PublishedPort -->
+
 ### Debugging Failures
 
-On failure, the orchestrator automatically dumps the last 20 lines of container logs.
+The shared orchestrator does not read container logs. Each suite's checker adds
+them to the failure it returns:
+
+| Suite | What a failed checker carries |
+|-------|-------------------------------|
+| BGP (`interop`) | the last 80 log lines of each peer the scenario started (`checkerFailure`, `internal/le/interoplab/bgp/check_engine.go`), and pmacct's message log |
+| IPsec (`interop-ipsec`) | the last 60 log lines of Ze, strongSwan, the NAT box and FRR, for each one the scenario started, read after the checker's own deadline has passed, all of them within one 20 s bound (`checkerFailure`, `internal/le/interoplab/ipsec/failure.go`) |
+| RSVP-TE (`interop-rsvpte`) | each peer's capture tail and the last 60 log lines (`diagnosticError`, `internal/le/interoplab/rsvpte/checkers.go`) |
+| A package test's own server (`labtest.Start`) | the last `Spec.LogLines` lines (1 to 1000) of its container, written to the test log by `t.Cleanup` when the test failed, before the container is removed (`host.release`, `internal/le/interoplab/labtest/labtest.go`) |
+
+A `docker exec` that runs past its 30 s bound names the container, the command it
+ran there (cut at its first line and at 160 bytes), and the bound
+(`execOperation`, `internal/le/interoplab/docker.go`).
+<!-- source: internal/le/interoplab/ipsec/failure.go -- checkerFailure, checkerFailureReport -->
+<!-- source: internal/le/interoplab/docker.go -- execOperation, commandError -->
+
 For more detail:
 
 - `VERBOSE=1` enables debug output (polling status, container commands, raw CLI output)

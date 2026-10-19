@@ -399,7 +399,8 @@ the answer cannot vary with the health of the box being diagnosed.</p>
 registers with <code>command.MustRegisterLocalData(path, handler, meta, command.RenderLocalAnswer)</code> and returns DATA, which is what lets <code>| json</code>,
 <code>| yaml</code> and <code>| table</code> be three renderings of one payload. The handler
 (<code>command.LocalDataHandler</code>) takes the <code>command.ValidatedArgs</code> the validator
-returned, never a token slice, and reads <code>Tokens()</code> or <code>Positional(leaf)</code>. The
+returned, never a token slice, and reads <code>Tokens()</code>, <code>Positional(leaf)</code>, or
+<code>Value(leaf)</code>. The
 data-handler and local-handler registries live in package <code>command</code> rather than
 in <code>command/registry</code>, because that package cannot import <code>command</code> and so
 cannot name the value.</p>
@@ -1364,25 +1365,40 @@ draft are not supported — the draft never became an RFC.</p>
 <p>All route operations use unified <code>update text</code> syntax with flat attribute declarations
 (no <code>set</code> keyword) and keyword aliases (short forms accepted, see Keyword Aliases below):</p>
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- ParseUpdateText -->
-<pre><code class="language-bash"># Announce routes (flat attributes, no 'set')
-send bgp &lt;selector&gt; update text next &lt;ip&gt; [attributes...] nlri &lt;family&gt; add prefix &lt;prefix&gt;...
+<pre><code class="language-bash"># Announce IPv4 unicast routes (flat attributes, no 'set')
+send bgp &lt;selector&gt; update text next &lt;ip&gt; [attributes...] nlri add prefix &lt;prefix&gt;...
+
+# Announce routes of any other family
+send bgp &lt;selector&gt; update text next &lt;ip&gt; [attributes...] mp &lt;family&gt; add prefix &lt;prefix&gt;...
 
 # Withdraw routes
-send bgp &lt;selector&gt; update text nlri &lt;family&gt; del prefix &lt;prefix&gt;...
+send bgp &lt;selector&gt; update text nlri del prefix &lt;prefix&gt;...
+send bgp &lt;selector&gt; update text mp &lt;family&gt; del prefix &lt;prefix&gt;...
 
 # End-of-RIB marker (RFC 4724)
-send bgp &lt;selector&gt; update text nlri &lt;family&gt; eor
+send bgp &lt;selector&gt; update text nlri eor
+send bgp &lt;selector&gt; update text mp &lt;family&gt; eor
 
 # VPLS (L2VPN/VPLS)
-send bgp &lt;selector&gt; update text nlri l2vpn/vpls add rd &lt;rd&gt; ve-id &lt;n&gt; ve-block-offset &lt;n&gt; ve-block-size &lt;n&gt; label-base &lt;n&gt;
+send bgp &lt;selector&gt; update text mp l2vpn/vpls add rd &lt;rd&gt; ve-id &lt;n&gt; ve-block-offset &lt;n&gt; ve-block-size &lt;n&gt; label-base &lt;n&gt;
 
 # EVPN (L2VPN/EVPN)
-send bgp &lt;selector&gt; update text nlri l2vpn/evpn add mac-ip rd &lt;rd&gt; mac &lt;mac&gt; [ip &lt;ip&gt;] label &lt;n&gt;
-send bgp &lt;selector&gt; update text nlri l2vpn/evpn add ip-prefix rd &lt;rd&gt; prefix &lt;prefix&gt; label &lt;n&gt;
-send bgp &lt;selector&gt; update text nlri l2vpn/evpn add multicast rd &lt;rd&gt; ip &lt;ip&gt;
+send bgp &lt;selector&gt; update text mp l2vpn/evpn add mac-ip rd &lt;rd&gt; mac &lt;mac&gt; [ip &lt;ip&gt;] label &lt;n&gt;
+send bgp &lt;selector&gt; update text mp l2vpn/evpn add ip-prefix rd &lt;rd&gt; prefix &lt;prefix&gt; label &lt;n&gt;
+send bgp &lt;selector&gt; update text mp l2vpn/evpn add multicast rd &lt;rd&gt; ip &lt;ip&gt;
 </code></pre>
+<p>The section keyword names the UPDATE section the routes travel in, the same two
+keywords the filter text protocol uses. <code>nlri</code> takes no family: it is IPv4
+unicast in the NLRI and Withdrawn Routes fields (RFC 4271 Section 4.3). <code>mp &lt;family&gt;</code> is MP_REACH_NLRI and MP_UNREACH_NLRI (RFC 4760). IPv4 unicast takes
+<code>mp ipv4/unicast add</code> only with an explicit IPv6 next hop (RFC 8950 Section 3);
+its <code>del</code>, its <code>eor</code> and any other next hop are refused with the <code>nlri</code> form to
+write. The removed form <code>nlri &lt;family&gt;</code> is refused by name, with the form to
+write instead:</p>
+<pre><code>nlri ipv6/unicast is no longer accepted: nlri means IPv4 unicast in the NLRI and Withdrawn Routes fields, and ipv6/unicast travels in MP_REACH_NLRI and MP_UNREACH_NLRI, so write: mp ipv6/unicast add|del ..., or mp ipv6/unicast eor
+</code></pre>
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseNLRISection, removedFamilyFormError, checkMPIPv4Unicast -->
 <h4 id="a-withdrawal-can-be-answered-with-the-peers-it-was-withheld-from">A withdrawal can be answered with the peers it was withheld from</h4>
-<p><code>send bgp &lt;selector&gt; update text ... nlri &lt;family&gt; del ...</code> names no route to a
+<p><code>send bgp &lt;selector&gt; update text ... mp &lt;family&gt; del ...</code> (or <code>nlri del</code>) names no route to a
 peer whose session has advertised nothing, because RFC 4271 Section 4.3
 identifies a withdrawn route in the context of the connection it was previously
 advertised on. Such a peer is written the withdrawal's path attributes with no
@@ -1404,22 +1420,22 @@ changed attributes (delta encoding), reducing per-call overhead.</p>
 <!-- source: internal/component/bgp/plugins/cmd/update/cursor.go -- handleUpdateCursor -->
 <pre><code class="language-bash"># First command: establish full attribute state + announce NLRIs
 send bgp &lt;selector&gt; update cursor origin igp as-path [65001] med 100 \
-  next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24
+  next-hop 10.0.0.1 nlri add 10.0.0.0/24 10.0.1.0/24
 
 # Delta: only changed attributes, rest inherited from cursor
 send bgp &lt;selector&gt; update cursor as-path [65001 65003] \
-  nlri ipv4/unicast add 10.1.0.0/24
+  nlri add 10.1.0.0/24
 
 # NLRIs only (all attributes inherited)
-send bgp &lt;selector&gt; update cursor nlri ipv4/unicast add 10.2.0.0/24
+send bgp &lt;selector&gt; update cursor nlri add 10.2.0.0/24
 
 # Remove an attribute from cursor
-send bgp &lt;selector&gt; update cursor del med nlri ipv4/unicast add 10.3.0.0/24
+send bgp &lt;selector&gt; update cursor del med nlri add 10.3.0.0/24
 
 # Clear cursor state (call after replay completes)
 send bgp &lt;selector&gt; update cursor done
 </code></pre>
-<p>Cursor mode supports announce-only (<code>nlri &lt;family&gt; add</code>). Withdrawals are not
+<p>Cursor mode supports announce-only (<code>nlri add</code>, <code>mp &lt;family&gt; add</code>). Withdrawals are not
 supported because replay re-sends stored routes, never withdrawals.</p>
 <h3 id="removed-commands-use-update-text-instead">Removed Commands (use update text instead)</h3>
 <p>The following legacy commands have been removed:</p>
@@ -1433,39 +1449,39 @@ supported because replay re-sends stored routes, never withdrawals.</p>
 <tbody>
 <tr>
 <td><code>announce ipv4/unicast &lt;p&gt; next-hop &lt;nh&gt;</code></td>
-<td><code>update text next &lt;nh&gt; nlri ipv4/unicast add prefix &lt;p&gt;</code></td>
+<td><code>update text next &lt;nh&gt; nlri add prefix &lt;p&gt;</code></td>
 </tr>
 <tr>
 <td><code>announce ipv6/unicast &lt;p&gt; next-hop &lt;nh&gt;</code></td>
-<td><code>update text next &lt;nh&gt; nlri ipv6/unicast add prefix &lt;p&gt;</code></td>
+<td><code>update text next &lt;nh&gt; mp ipv6/unicast add prefix &lt;p&gt;</code></td>
 </tr>
 <tr>
 <td><code>announce eor &lt;afi&gt; &lt;safi&gt;</code></td>
-<td><code>update text nlri &lt;family&gt; eor</code></td>
+<td><code>update text mp &lt;family&gt; eor</code> (<code>update text nlri eor</code> for IPv4 unicast)</td>
 </tr>
 <tr>
 <td><code>announce vpls ...</code></td>
-<td><code>update text nlri l2vpn/vpls add ...</code></td>
+<td><code>update text mp l2vpn/vpls add ...</code></td>
 </tr>
 <tr>
 <td><code>announce l2vpn ...</code></td>
-<td><code>update text nlri l2vpn/evpn add ...</code></td>
+<td><code>update text mp l2vpn/evpn add ...</code></td>
 </tr>
 <tr>
 <td><code>withdraw ipv4/unicast &lt;p&gt;</code></td>
-<td><code>update text nlri ipv4/unicast del prefix &lt;p&gt;</code></td>
+<td><code>update text nlri del prefix &lt;p&gt;</code></td>
 </tr>
 <tr>
 <td><code>withdraw ipv6/unicast &lt;p&gt;</code></td>
-<td><code>update text nlri ipv6/unicast del prefix &lt;p&gt;</code></td>
+<td><code>update text mp ipv6/unicast del prefix &lt;p&gt;</code></td>
 </tr>
 <tr>
 <td><code>withdraw vpls ...</code></td>
-<td><code>update text nlri l2vpn/vpls del ...</code></td>
+<td><code>update text mp l2vpn/vpls del ...</code></td>
 </tr>
 <tr>
 <td><code>withdraw l2vpn ...</code></td>
-<td><code>update text nlri l2vpn/evpn del ...</code></td>
+<td><code>update text mp l2vpn/evpn del ...</code></td>
 </tr>
 </tbody>
 </table>
@@ -1474,7 +1490,7 @@ supported because replay re-sends stored routes, never withdrawals.</p>
 request bgp watchdog withdraw &lt;name&gt; [peer]            # Withdraw all routes in pool from peers
 </code></pre>
 <p>Routes are tagged with a pool when announced:</p>
-<pre><code class="language-bash">update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 watchdog set mypool
+<pre><code class="language-bash">update text nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24 watchdog set mypool
 </code></pre>
 <blockquote>
 <p><strong>Note:</strong> <code>watchdog set</code> in wire-mode updates is parsed but not yet
@@ -1490,7 +1506,7 @@ pool commands work independently of this tagging.</p>
 show bgp rib best [filters...] [terminal]   # Best-path per prefix (RFC 4271 §9.1.2)
 show bgp rib status                         # RIB status (peer/route counts)
 clear bgp rib in &lt;selector&gt;                  # Clear Adj-RIB-In (* for all peers)
-clear bgp rib out &lt;selector&gt; [family]        # Resend Adj-RIB-Out (* for all, optional family)
+clear bgp rib out &lt;selector&gt; [family &lt;family&gt;] # Resend Adj-RIB-Out (* for all, optional family)
 request bgp rib inject &lt;peer&gt; &lt;family&gt; &lt;prefix&gt; [attrs] # Insert route into Adj-RIB-In (no session needed)
 request bgp rib withdraw &lt;peer&gt; &lt;family&gt; &lt;prefix&gt;       # Remove route from Adj-RIB-In
 show bgp rib rpf &lt;family&gt; &lt;source-addr&gt;      # RPF lookup (longest-prefix-match in Loc-RIB)
@@ -1588,9 +1604,12 @@ show adj-rib out [&lt;afi&gt; &lt;safi&gt;]
 </code></pre>
 <h3 id="announcewithdraw">Announce/Withdraw</h3>
 <p>All route operations now use <code>update text</code> syntax:</p>
-<pre><code class="language-bash">update text next &lt;ip&gt; [attributes...] nlri &lt;family&gt; add prefix &lt;prefix&gt;
-update text nlri &lt;family&gt; del prefix &lt;prefix&gt;
-update text nlri &lt;family&gt; eor
+<pre><code class="language-bash">update text next &lt;ip&gt; [attributes...] nlri add prefix &lt;prefix&gt;
+update text next &lt;ip&gt; [attributes...] mp &lt;family&gt; add prefix &lt;prefix&gt;
+update text nlri del prefix &lt;prefix&gt;
+update text mp &lt;family&gt; del prefix &lt;prefix&gt;
+update text nlri eor
+update text mp &lt;family&gt; eor
 </code></pre>
 <blockquote>
 <p><strong>Note:</strong> Legacy <code>announce</code>/<code>withdraw</code> commands have been removed.
@@ -1780,7 +1799,7 @@ originator-id &lt;ip&gt;               # Originator ID
 cluster-list &lt;ip&gt;,&lt;ip&gt;,...       # Cluster list
 label &lt;label&gt;                    # MPLS label (per-NLRI-section modifier)
 rd &lt;rd&gt;                          # Route distinguisher (per-NLRI-section modifier)
-info &lt;id&gt;                        # ADD-PATH path ID (per-NLRI-section modifier) — long: path-information
+info &lt;id&gt;                        # ADD-PATH path ID, decimal or dotted a.b.c.d (per-NLRI-section modifier) — long: path-information
 atomic-aggregate                 # Atomic aggregate flag
 aggregator &lt;asn&gt; &lt;ip&gt;            # Aggregator
 aigp &lt;value&gt;                     # AIGP
@@ -1850,19 +1869,19 @@ split /&lt;len&gt;                     # Ze: prefix expansion (see below)
 </code></pre>
 <h3 id="example">Example</h3>
 <pre><code># Announce 2 prefixes with one command
-update text next 1.2.3.4 nlri ipv4/unicast add prefix 10.0.0.0/23 split /24
+update text next 1.2.3.4 nlri add prefix 10.0.0.0/23 split /24
 # → 10.0.0.0/24 next-hop 1.2.3.4
 # → 10.0.1.0/24 next-hop 1.2.3.4
 
 # With MPLS label - label applies to each prefix
-update text next 1.2.3.4 nlri ipv4/nlri-mpls label 100 add prefix 10.0.0.0/22 split /24
+update text next 1.2.3.4 mp ipv4/nlri-mpls label 100 add prefix 10.0.0.0/22 split /24
 # → 10.0.0.0/24 label 100
 # → 10.0.1.0/24 label 100
 # → 10.0.2.0/24 label 100
 # → 10.0.3.0/24 label 100
 
 # With L3VPN - RD and label apply to each prefix
-update text next 1.2.3.4 nlri ipv4/mpls-vpn rd 100:1 label 200 add prefix 10.0.0.0/23 split /24
+update text next 1.2.3.4 mp ipv4/mpls-vpn rd 100:1 label 200 add prefix 10.0.0.0/23 split /24
 # → 10.0.0.0/24 rd 100:1 label 200
 # → 10.0.1.0/24 rd 100:1 label 200
 </code></pre>
@@ -1911,18 +1930,18 @@ update text next 1.2.3.4 nlri ipv4/mpls-vpn rd 100:1 label 200 add prefix 10.0.0
 <hr>
 <h2 id="flowspec-commands">FlowSpec Commands</h2>
 <p>FlowSpec rules use the unified <code>update text</code> syntax. The match components are
-the FlowSpec NLRI (<code>nlri ipv4/flow add &lt;components&gt;</code>); the action is carried as
+the FlowSpec NLRI (<code>mp ipv4/flow add &lt;components&gt;</code>); the action is carried as
 a FlowSpec extended community declared with the <code>extended-community</code> attribute
-before the <code>nlri</code> section (<code>discard</code> is sugar for <code>traffic-rate 0</code>).</p>
+before the <code>mp</code> section (<code>discard</code> is sugar for <code>traffic-rate 0</code>).</p>
 <pre><code># Match TCP traffic to 10.0.0.0/8 port 80 and drop it
 update text extended-community discard \
-  nlri ipv4/flow add \
+  mp ipv4/flow add \
   destination 10.0.0.0/8 \
   protocol tcp \
   destination-port =80
 
 # Withdraw the same FlowSpec rule (match components identify it)
-update text nlri ipv4/flow del \
+update text mp ipv4/flow del \
   destination 10.0.0.0/8 \
   protocol tcp \
   destination-port =80
@@ -2416,6 +2435,13 @@ is judged only at a path that model declares. Every shipped plugin command that
 declares an argument is also served by a builtin, which judges first (R1);
 <code>test/ui/cli-argument-refused-plugin-route.ci</code> reaches R9 alone through a test
 plugin serving <code>show config cat</code>, which no daemon builtin serves.</p>
+<p>R9 judges the forwarded tokens with the selectors the context carries, so a
+builtin proxy that puts the selector back into its tokens hands off a context
+with none bound. The <code>clear bgp rib in</code> and <code>out</code> forwarders do this: the
+bgp-rib plugin reads <code>&lt;selector&gt; [&lt;family&gt;]</code> positionally, the form the GR
+plugin sends on the args route, and with the selector also pre-matched R9
+would judge the positional one as the family.</p>
+<!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- ribClearHandoff -->
 <p>R6 and R7 run their handler through <code>command.InvokeLocal(path, handler, args)</code>,
 which judges the tokens with <code>ValidateModelArgs</code> and runs the handler on the
 value it returned; a process that registered no definition source refuses both.</p>
@@ -2430,7 +2456,11 @@ and its rollback the value judged against the ancestor's definitions, R8 hands
 a streaming handler the value <code>GetStreamingHandlerForCommand</code> answered, R2
 hands a data handler the value it judged, R6 and R7 hand a local handler, and
 through it the plain form of a data handler (R3), the value <code>InvokeLocal</code>
-judged, and the handler reads <code>Tokens()</code> or <code>Positional(leaf)</code>. A handler that
+judged, and the handler reads <code>Tokens()</code>, <code>Positional(leaf)</code> or <code>Value(leaf)</code>.
+<code>Positional</code> answers only a leaf the lone spare token filled; <code>Value</code> also
+answers a leaf typed after its own keyword (<code>peer name site-b</code>) or bound by the
+token matcher, so a handler reading a leaf by name accepts both spellings the
+grammar allows. A handler that
 passes part of its tokens on (the <code>update</code> command hands the words after the
 encoding to that encoding's parser) passes a token slice to a helper that is
 not a handler type. A test that calls a handler directly builds its value with
@@ -4012,7 +4042,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

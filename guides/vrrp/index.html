@@ -60,6 +60,7 @@ over, and the hosts on the segment never change their default gateway.</p>
 <ol>
 <li><a href="#tracking-an-interface">Tracking an interface</a></li>
 <li><a href="#choosing-a-version">Choosing a version</a></li>
+<li><a href="#running-beside-keepalived">Running beside keepalived</a></li>
 <li><a href="#ipv6">IPv6</a></li>
 <li><a href="#the-address-owner">The address owner</a></li>
 </ol></li>
@@ -215,6 +216,11 @@ to win the higher number.</p>
 <td><code>2</code> opts this group into VRRPv2.</td>
 </tr>
 <tr>
+<td><code>checksum</code></td>
+<td>rfc9568</td>
+<td>IPv4 VRRPv3 only. <code>rfc5798-compatible</code> computes the checksum over the IPv4 pseudo-header as RFC 5798 did, which keepalived requires. See <a href="#running-beside-keepalived">Running beside keepalived</a>.</td>
+</tr>
+<tr>
 <td><code>track</code></td>
 <td>absent</td>
 <td>Interfaces whose loss lowers the priority this group advertises. See <a href="#tracking-an-interface">Tracking an interface</a>.</td>
@@ -323,6 +329,26 @@ it, because a rounded interval is a timing mismatch you would only discover as a
 flapping election.</p>
 <p>RFC 3768's authentication types are deliberately not implemented: RFC 9568
 Section 9 removed them, as they protect against no real attack.</p>
+<h3 id="running-beside-keepalived">Running beside keepalived</h3>
+<p>RFC 9568 computes the IPv4 VRRPv3 checksum over the VRRP message alone, and ze
+does the same by default. keepalived, and other routers written to RFC 5798,
+compute it over an IPv4 pseudo-header as well and drop an advertisement in the
+other form, so the two routers never hear each other and both take the virtual
+IP. Set <code>checksum rfc5798-compatible</code> on a group that shares its segment with
+them:</p>
+<pre><code>vrrp {
+    group gateway {
+        vrid 10;
+        checksum rfc5798-compatible;
+        virtual-address [ 192.0.2.1 ];
+    }
+}
+</code></pre>
+<p>A group accepts only the form it is configured for, so every router in the
+group needs the same choice. A mismatch shows up as a rising <code>checksum</code> count
+in <code>show vrrp statistics</code> and the <code>ze_vrrp_packet_errors_total</code> metric. The leaf
+exists only for IPv4: IPv6 covers a pseudo-header in both RFCs. Version 2 always
+sums the message alone and refuses <code>rfc5798-compatible</code>.</p>
 <h3 id="ipv6">IPv6</h3>
 <p>An IPv6 group's first virtual address must be the link-local one, because
 RFC 9568 Section 5.2.9 makes the first address the advert's source identity:</p>
@@ -492,8 +518,8 @@ has no such race (Neighbor Solicitation is not a broadcast).</li>
 <td>Per-group counters, including rejected packets and why.</td>
 </tr>
 <tr>
-<td><code>clear vrrp statistics</code></td>
-<td>Resets those counters.</td>
+<td><code>clear vrrp statistics all</code></td>
+<td>Resets every group's counters. <code>clear vrrp statistics</code> alone is refused.</td>
 </tr>
 </tbody>
 </table>
@@ -681,7 +707,7 @@ filters link-local multicast will break the election.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

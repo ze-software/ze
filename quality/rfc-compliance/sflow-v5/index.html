@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>SFLOW-V5 requirement ledger - Ze</title>
-        <meta name="description" content="SFLOW-V5: sFlow: A Method for Monitoring Traffic in Switched and Routed Networks. 32 gated MUST-level requirements, 8 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="SFLOW-V5: sFlow: A Method for Monitoring Traffic in Switched and Routed Networks. 32 gated MUST-level requirements, 7 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="SFLOW-V5 requirement ledger - Ze" />
-        <meta property="og:description" content="SFLOW-V5: sFlow: A Method for Monitoring Traffic in Switched and Routed Networks. 32 gated MUST-level requirements, 8 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="SFLOW-V5: sFlow: A Method for Monitoring Traffic in Switched and Routed Networks. 32 gated MUST-level requirements, 7 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="SFLOW-V5 requirement ledger - Ze" />
-        <meta name="twitter:description" content="SFLOW-V5: sFlow: A Method for Monitoring Traffic in Switched and Routed Networks. 32 gated MUST-level requirements, 8 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="SFLOW-V5: sFlow: A Method for Monitoring Traffic in Switched and Routed Networks. 32 gated MUST-level requirements, 7 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>28.1%</strong><b>9 of 32 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>57 of 57 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>60 of 60 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -219,7 +219,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>1</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>8</td>
+<td>7</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -231,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>57</td>
+<td>60</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>57</td>
+<td>60</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>26</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>57</td>
+<td>60</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/sflow-v5.md</code></td>
@@ -263,7 +263,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
 <ul class="rfc-prose">
 <li>Flow export alongside NetFlow v9 and IPFIX. Unavailable counters carry the maximum-value sentinel. Counter and flow encoders share a datagram sequence</li>
-<li>all sources use expanded sample formats with full-width interface indexes. Counter generation changes restart source sample sequences. Ze runs no SNMP agent, so the agent address provides no SNMP connectivity (<a href="#sflow-v5-4.3-1"><code>SFLOW-V5-4.3-1</code></a>, gap), and nothing checks that the configured agent address is a loopback address (<a href="#sflow-v5-4.3-2"><code>SFLOW-V5-4.3-2</code></a>, gap). Other uncovered obligations remain in the checklist. Statistical sampling requirements SFLOW-V5-x-37 through x-41 remain unverified. Linux filter installation/readback tests cover configuration and lifecycle, not RNG range, packet-selection probability, one consideration per packet, independent sampling draws or long-term convergence. Current exporter and privileged kernel scenarios must be run before publishing verified coverage.</li>
+<li>all sources use expanded sample formats with full-width interface indexes. Counter generation changes restart source sample sequences. Ze runs no SNMP agent, so the agent address provides no SNMP connectivity (<a href="#sflow-v5-4.3-1"><code>SFLOW-V5-4.3-1</code></a>, gap). When the router has more than one routed interface, Ze warns at config apply that an agent address off a loopback or dummy interface is not a loopback address. Other uncovered obligations remain in the checklist. Statistical sampling requirements SFLOW-V5-x-37 through x-41 remain unverified. Linux filter installation/readback tests cover configuration and lifecycle, not RNG range, packet-selection probability, one consideration per packet, independent sampling draws or long-term convergence. Current exporter and privileged kernel scenarios must be run before publishing verified coverage.</li>
 </ul>
 </details>
 <p><strong>What the ledger says remains:</strong></p>
@@ -339,9 +339,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHOULD</td>
 <td>4.3 - Definitions</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-4.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze writes the configured agent-address leaf into every datagram header and checks only that it is a specified address, the same on every sflow collector (internal/plugins/flowexport/sflow/register.go::validateSFlowCollectors). Nothing checks that the address belongs to a loopback interface; docs/guide/flow-export.md recommends one to the operator</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go#L42" title="internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go" target="_blank" rel="noopener"><code>TestSFlowV5AgentAddressOnLoopbackWhenMultiHomed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go#L43" title="internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go" target="_blank" rel="noopener"><code>TestSFlowV5AgentAddressOnLoopbackWhenMultiHomed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go#L90" title="internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go" target="_blank" rel="noopener"><code>TestSFlowV5AgentAddressSingleHomedNoAdvice</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-3">SFLOW-V5-x-3</code></td><td colspan="3"><span class="rfc-subject">address agent_address /* IP address of sampling agent, sFlowAgentAddress. */ unsigned int sub_agent_id; /* Used to distinguishing between datagram streams from separate agent sub entities within an device. */ (§5)</span></td></tr>
 <tr><td></td>
@@ -728,10 +729,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#sflow-v5-4.3-2"><code>SFLOW-V5-4.3-2</code></a> In the case of a multi-homed agent, this should be the loopback address of the agent. (§4.3)</td>
-<td>{gap}</td>
-<td>Ze writes the configured agent-address leaf into every datagram header and checks only that it is a specified address, the same on every sflow collector (internal/plugins/flowexport/sflow/register.go::validateSFlowCollectors). Nothing checks that the address belongs to a loopback interface; docs/guide/flow-export.md recommends one to the operator</td>
-</tr>
 <tr><td><a href="#sflow-v5-x-13"><code>SFLOW-V5-x-13</code></a> Applications receiving sFlow data must always use the opaque length information when decoding opaque&lt;&gt; structures so that encountering extended structures will not cause decoding errors. (§5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: skipping unknown formats on receive is a collector behavior; ze is an sFlow exporter only with no sFlow decode path, though it does emit the length prefixes that let a collector skip (internal/plugins/flowexport/sflow/counter.go:60-61, flow.go:131-132)</td>
@@ -825,8 +822,29 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#sflow-v5-4.3-2"><code>SFLOW-V5-4.3-2</code></a></h3>
 <p>In the case of a multi-homed agent, this should be the loopback address of the agent. (§4.3)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. SHOULD: on a multi-homed agent the address should be the loopback address. validateSFlowCollectors checks a specified address, equal on every sflow collector, and nothing checks it belongs to a loopback interface; only docs/guide/flow-export.md recommends one. {gap} annotation and Meta Support coverage disclose it.</p>
-<p>No test carries SFLOW-V5-4.3-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Re-judged 2026-10-18 (independent auditor, after 24c32c00b8). sFlow v5 Section 4.3, sFlowAgentAddress: &#34;In the case of a multi-homed agent, this should be the loopback address of the agent.&#34; adviseSFlowCollectors classifies the agent address against the interface list and returns a warning naming the interface and the dummy-interface fix; flowexport runEngine logs each advice at Warn and refuses nothing. The tagged unit tests discriminate the classifier and the advice text (lo, dummy, routed, single-homed, IPv6 spelling) and claim no more than they assert, but no tagged test reaches the operator: deleting RegisterCollectorsAdvisor(&#34;sflow&#34;, ...) or the Warn loop in runEngine leaves every tag green, and test/flow-export/sflow-agent-address-warning.ci is untagged and covers only the absent-address case. The discrimination records replace classifyAgentAddress with a panic, proving reach, not logic.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go#L43" title="internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go" target="_blank" rel="noopener"><code>TestSFlowV5AgentAddressOnLoopbackWhenMultiHomed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go#L90" title="internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go" target="_blank" rel="noopener"><code>TestSFlowV5AgentAddressSingleHomedNoAdvice</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go#L42" title="internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go" target="_blank" rel="noopener"><code>TestSFlowV5AgentAddressOnLoopbackWhenMultiHomed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#sflow-v5-x-3"><code>SFLOW-V5-x-3</code></a></h3>
 <p>address agent_address /* IP address of sampling agent, sFlowAgentAddress. */ unsigned int sub_agent_id; /* Used to distinguishing between datagram streams from separate agent sub entities within an device. */ (§5)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. single-polarity: agent_address and sub_agent_id 7 both decode to the distinct values written, so the pair the header carries names the sub-agent&#39;s datagram stream</p>
@@ -1759,7 +1777,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

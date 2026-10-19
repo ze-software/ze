@@ -464,7 +464,8 @@ show isis interface           # circuits: type, metric, hello/hold, passive, DIS
 show isis hostname            # system-id -&gt; dynamic hostname (TLV 137, RFC 5301)
 show isis spf-log             # recent SPF runs: time, level, trigger, duration, node count
 
-clear isis adjacency          # tear down all adjacencies; they re-form from the next Hello
+clear isis adjacency all      # tear down every adjacency; they re-form from the next Hello
+                              # (clear isis adjacency alone is refused: everything needs all)
 clear isis counters           # reset the SPF-run log
 </code></pre>
 <h3 id="which-lsps-are-this-nodes-own">Which LSPs are this node's own</h3>
@@ -550,7 +551,7 @@ authentication.</p>
 every own-LSP origination, refreshes and regenerations included.</p>
 <p>Every <code>show isis ...</code> command routes its JSON through the pipe machinery, so you
 can append <code>| json</code>, <code>| table</code>, <code>| text</code>, <code>| count</code>, <code>| match &lt;pat&gt;</code>,
-<code>| resolve</code>, or <code>| origin</code>. <code>clear isis adjacency</code> forces a full re-learn (LSP
+<code>| resolve</code>, or <code>| origin</code>. <code>clear isis adjacency all</code> forces a full re-learn (LSP
 re-origination + SPF re-run) without closing the circuit; <code>clear isis counters</code>
 clears only the observational SPF-run history (the Prometheus series are
 monotonic process counters and are intentionally not reset).</p>
@@ -625,7 +626,7 @@ System ID embedded in the first NET.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

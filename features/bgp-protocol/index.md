@@ -36,6 +36,30 @@ not add generic text/API BGP-LS encoding or SAFI 72 origination.
 SR-Policy route encoding leaves the Binding SID's unassigned flag bits clear
 (RFC 9830 Section 2.4.2). It does not request S-Flag or I-Flag behavior.
 
+An SR-Policy route carries an SRv6 Binding SID in one of two sub-TLVs, and the
+operator chooses which:
+
+| Route keyword | Sub-TLV written | Value |
+|---------------|-----------------|-------|
+| `srv6-binding-sid <ipv6-address>` | SRv6 Binding SID, type 20 (RFC 9830 Section 2.4.3) | Length 18: Flags, RESERVED, the 16-octet SID |
+| `binding-sid srv6 <ipv6-address>` | Binding SID, type 13 (RFC 9830 Section 2.4.2) | Length 18: Flags, RESERVED, the 16-octet SID |
+| `binding-sid mpls <label>` | Binding SID, type 13 | Length 6: Flags, RESERVED, the label entry |
+| `binding-sid null` | Binding SID, type 13 | Length 2: Flags, RESERVED, no BSID |
+
+RFC 9830 recommends type 20 for an SRv6 BSID and keeps the type-13 form for
+speakers that followed early drafts, so use `binding-sid srv6` only toward such a
+peer. `binding-sid srv6` takes an IPv6 address; an IPv4, IPv4-mapped or zoned
+address is refused at load with the token and the fix. One Binding SID
+sub-TLV is written per route: when a route names several `binding-sid` forms,
+`mpls` wins over `srv6`, which wins over `null`.
+
+`ze bgp decode --json` shows a received Tunnel Encapsulation attribute under
+`tunnel-encapsulation`, one entry per tunnel TLV. A Binding SID sub-TLV is shown
+with its `flags` and its `mpls-label` (Length 6), its `srv6-sid` (Length 18), or
+neither (Length 2); any other length is shown `malformed` with its value octets
+in hex. The SRv6 Binding SID sub-TLV (type 20) is shown the same way with its
+`srv6-sid`. Every other sub-TLV is shown as its `type` and its `value` in hex.
+
 An SR-Policy route configured in `nlri { ipv4/sr-policy add ... }` or encoded
 with `ze bgp encode -f ipv4/sr-policy` carries only labels it can send as
 written. `binding-sid mpls` accepts 16 to 1048575: 0 to 15 are the reserved
@@ -251,6 +275,11 @@ forwarding and RIB readvertisement. An LLGR-capable peer receives the stale
 route unchanged. A non-LLGR eBGP peer receives a withdrawal. A non-LLGR iBGP
 peer receives the route with `NO_EXPORT` and `LOCAL_PREF=0`, allowing partial
 deployments to retain reachability without preferring stale information.
+This applies to a route at the LLGR stale level, one Ze marked LLGR stale or one
+received with LLGR_STALE from a neighbor Ze sent LLGR to, on every path that
+advertises it: live forwarding, RIB replay and route refresh, and the
+`bgp-adj-rib-in` replay. A route in its conventional GR period carries no
+LLGR_STALE and is advertised like any other.
 
 Only the LLGR filter runs during stale readvertisement. Other export policy has
 already run on the original announcement and is not applied twice.
@@ -284,6 +313,7 @@ rail did not.
 | One attribute order for every builder | 4271 Section 5 | Path attributes are inserted by type code in ascending order on every rail. MP_UNREACH_NLRI stays first, out of type-code order, so a withdrawal precedes an announcement in one message. |
 | The next-hop wire form matches its length octet | 4760, 2545 Section 3 | The MP_REACH Next Hop length and the bytes written derive from one value. The IPv6 link-local address is appended after the global one only when this speaker shares a locally connected subnet with the peer and with the entity the global next hop names, and only when that global is this speaker's own address: the link-local is this speaker's, so it is never paired with another router's global. A next hop Ze writes that names another router on the shared link (an explicit `session next-hop`, a static or API route) is sent as its global alone, because Ze holds no source for that router's link-local (a recorded RFC 2545 gap). A relayed pair must have an IPv6 global unicast first address and an IPv6 link-local unicast second address, apart from the canonical VPN exception below; otherwise the native route is withdrawn before the pair can be advertised or silently reduced to a single address. These checks judge effective policy output, not obsolete received addresses, and preserve an independently valid legacy sibling. For valid pairs, the implemented prefix-membership predicates retain the received link-local only when both the destination and the effective global address belong to locally connected prefixes. Otherwise the link-local half is removed and the global goes alone. This is not proof of next-hop-entity identity or whole RFC2545-3-3 adjacency. The global-unicast requirement also covers unpaired IPv6 globals: loopback, unspecified, multicast and IPv4-mapped next hops in an IPv6-family MP_REACH cause a withdrawal even toward an on-link peer. Native IPv4-family MP next hops and negotiated standalone link-local IPv6 retain separate handling. RFC 4659 Section 3.2.1.1 permits its canonical 48-octet VPN-IPv6 unspecified-global/link-local pair on an established link-local-only peering; that pair is preserved with zero RDs. The `link-local` leaf supplies the address; it does not decide that the address is sent. The second address rides on the NEXT HOP being IPv6 rather than on the prefix, so IPv4 NLRI carried behind an IPv6 next hop (RFC 8950 Section 3) gets the same 32-octet field. |
 | A 16-octet link-local next hop needs capability 77 | draft-ietf-idr-linklocal-capability Sections 2, 3 and 5 | The Link-Local-only form is sent only where the session negotiated the capability, and for IPv4 NLRI only where RFC 8950 Extended Next Hop Encoding was negotiated as well. A route whose next hop is link-local is left out of the announcement on any other session, and logged, rather than encoded in a form RFC 2545 Section 3 forbids. This holds for originated and forwarded routes alike, including `next-hop self` on a session that runs over a link-local address. |
+| A malformed 32-octet next hop on a capability-77 session is withdrawn | draft-ietf-idr-linklocal-capability Section 6 | A received Next Hop field of 32 octets must be a Global (or `::`) followed by a Link-Local, or two Link-Locals. Any other pair makes the UPDATE treat-as-withdraw (RFC 7606 Section 7.3). Without the capability, only the length is judged |
 | A reflected link-local-only next hop stays on its own segment | draft-ietf-idr-linklocal-capability Section 4 | A route reflector withholds such a route from a client that shares no connected subnet with the original advertiser, and logs the suppression. A client the operator configured next-hop-self for receives it with this speaker's address instead, which is the other answer Section 4 allows. A link-local prefix is never read as evidence of a shared segment. |
 | A modification that cannot be applied suppresses the route | none | The route is withheld from that destination rather than forwarded unmodified. Counted on `ze_bgp_update_modify_failed_total{reason}`. |
 
@@ -291,6 +321,7 @@ rail did not.
 <!-- source: internal/component/bgp/reactor/forward_med.go -- medPropagationAllowedTo, applyFactsMED -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopIsPeerOwn, originatedNextHopIsPeerOwn, egressNextHopIsLinkLocalOnly -->
 <!-- source: internal/component/bgp/reactor/link_scope.go -- sameLinkLayerSegment -->
+<!-- source: internal/component/bgp/message/rfc7606_linklocal.go -- validateLinkLocalNextHopPair -->
 <!-- source: internal/component/bgp/reactor/peer.go -- linkLocalOnlyNextHopPermitted -->
 <!-- source: internal/component/bgp/plugins/rib/rib_self_nexthop.go -- refreshSelfNextHopsLocked, isSelfNextHop -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- planAttr, buildModifiedPayload -->
@@ -309,7 +340,7 @@ plugin out removes both the advertisement and the obligation.
 |--------|--------|
 | `l2vpn/evpn` | Discard an unrecognized route type |
 | `ipv4/mvpn`, `ipv6/mvpn` | Discard an unrecognized route type (RFC 6514 Section 4 framing) |
-| `ipv4/mup`, `ipv6/mup` | Discard an unrecognized route type (draft-ietf-bess-mup-safi Section 3.1 framing). Treat a malformed route of an implemented type as withdrawn (Section 3.1.3.1) |
+| `ipv4/mup`, `ipv6/mup` | Discard an unrecognized route type (draft-ietf-bess-mup-safi Section 3.1 framing). Treat a malformed route of an implemented type as withdrawn (Section 3.1.3.1). Treat a Direct Segment Discovery route announced with no Prefix-SID attribute as withdrawn (Section 3.3.6) |
 | `bgp-ls/bgp-ls`, `bgp-ls/bgp-ls-vpn` | No discard. RFC 9552 Section 5.2 requires an unknown Link-State NLRI type to be preserved and propagated |
 | Every other family | No discard. A family nobody has ruled on discards nothing |
 
@@ -326,6 +357,14 @@ instead, because no withdrawal can name it. Both are logged at debug with the
 NLRI bytes and counted in `ze_bgp_update_nlri_malformed_total`
 (`docs/guide/monitoring.md`).
 
+A family can also register an UPDATE-level check beside its recognizer, for a
+rule that judges a route by the UPDATE carrying it. BGP-MUP registers one for
+draft-ietf-bess-mup-safi Section 3.3.6: a Direct Segment Discovery route in an
+MP_REACH_NLRI whose UPDATE carries no Prefix-SID attribute is withdrawn the same
+way, and the other routes of the UPDATE are kept. A Prefix-SID that RFC 7606
+attribute-discard removes counts as absent, so a DSD route from an EBGP peer not
+configured to accept the Prefix-SID (RFC 8669 Section 4) is withdrawn too.
+
 When the length fields do not agree with the section the NLRI boundaries are
 unknowable, so no decision is made rather than one being guessed, and RFC 7606
 Section 5.3 resets the session.
@@ -334,8 +373,9 @@ Section 5.3 resets the session.
 <!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- EVPN recognizer -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- MCAST-VPN recognizer -->
 <!-- source: internal/component/bgp/plugins/nlri/mup/register.go -- MUP recognizer -->
-<!-- source: internal/component/bgp/plugins/nlri/mup/rfc7606.go -- recognizerFor -->
-<!-- source: internal/component/bgp/reactor/session_validation_nlritype.go -- applyTypedNLRIDiscard -->
+<!-- source: internal/component/bgp/plugins/nlri/mup/rfc7606.go -- recognizerFor, CheckDSDPrefixSID -->
+<!-- source: internal/core/bgp/nlri/nlritype/update_check.go -- RegisterUpdateCheck, UpdateAttrs -->
+<!-- source: internal/component/bgp/reactor/session_validation_nlritype.go -- applyTypedNLRIDiscard, typedNLRIUpdateAttrs -->
 
 ### RFC 7911 Path Identifier regeneration
 
@@ -400,8 +440,8 @@ le test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-fi
 | ORIGIN | 1 | `origin` | igp / egp / incomplete |
 | AS_PATH | 2 | `as-path` | AS path segments |
 | NEXT_HOP | 3 | `next-hop` | Next hop IP address |
-| MED | 4 | `med` | Multi-Exit Discriminator |
-| LOCAL_PREF | 5 | `local-preference` | Local preference |
+| MED | 4 | `med` | Multi-Exit Discriminator. A configured `med 0` is sent as 0; a route that configures no `med` carries none |
+| LOCAL_PREF | 5 | `local-preference` | Local preference, sent to iBGP peers only. A configured `local-preference 0` is sent as 0; a route that configures none carries 100 |
 | ATOMIC_AGGREGATE | 6 | `atomic-aggregate` | Atomic aggregate flag |
 | AGGREGATOR | 7 | `aggregator` | Aggregator ASN:IP |
 | COMMUNITY | 8 | `community` | Standard communities |
@@ -414,6 +454,7 @@ le test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-fi
 | PREFIX_SID | 40 | `prefix-sid` | Segment Routing prefix SID |
 
 <!-- source: internal/core/bgp/attribute/attribute.go -- attribute code constants -->
+<!-- source: internal/component/bgp/message/update_build.go -- appendMED, appendLocalPref -->
 <!-- source: internal/core/bgp/attribute/origin.go -- ORIGIN -->
 <!-- source: internal/core/bgp/attribute/aspath.go -- AS_PATH -->
 <!-- source: internal/core/bgp/attribute/community.go -- Communities, ExtendedCommunities, LargeCommunities -->

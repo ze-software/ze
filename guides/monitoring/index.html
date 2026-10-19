@@ -78,6 +78,7 @@
 <li><a href="#attribute-index">Attribute Index</a></li>
 <li><a href="#egress-modification-failures">Egress Modification Failures</a></li>
 <li><a href="#well-known-community-suppressions">Well-Known Community Suppressions</a></li>
+<li><a href="#as-set-withdrawals">AS_SET Withdrawals</a></li>
 <li><a href="#announces-refused-for-size">Announces Refused For Size</a></li>
 <li><a href="#sends-refused-by-the-attach-permission">Sends Refused By The Attach Permission</a></li>
 <li><a href="#prefix-limits-rfc-4486">Prefix Limits (RFC 4486)</a></li>
@@ -953,6 +954,31 @@ observation is one destination, so a route withheld from 20 peers counts 20. The
 suppression is not configurable and is never logged per route, so this counter is
 the only place an operator sees it.</p>
 <!-- source: internal/component/bgp/reactor/forward_wellknown.go -- wellKnownAllowsEgress -->
+<h4 id="as-set-withdrawals">AS_SET Withdrawals</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_bgp_as_set_withdrawn_total</code></td>
+<td>counter</td>
+<td>none</td>
+<td>A route was written to a peer as a withdrawal because its AS_PATH or AS4_PATH held an AS_SET or AS_CONFED_SET</td>
+</tr>
+</tbody>
+</table>
+<p>RFC 9774 Section 3 forbids advertising a set, so the writer sends the
+withdrawal form of such an UPDATE instead, whatever produced it (a static route
+with a raw <code>attribute</code>, <code>update hex</code>, a plugin). The counter adds the number of
+routes the UPDATE announced. A warning line, at most one a second for each
+peer, names the peer and the route count and says to remove the set segment.</p>
+<!-- source: internal/component/bgp/reactor/session_rfc9774.go -- writeUpdateAsWithdrawal -->
 <p>The <code>community</code> label set is closed and holds three values: <code>no-advertise</code>,
 <code>no-export-subconfed</code>, <code>no-export</code>. A route carrying more than one is counted
 under the strictest, so one suppressed route is always one observation.</p>
@@ -1140,7 +1166,7 @@ ze cli -c "show bgp rpki status"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

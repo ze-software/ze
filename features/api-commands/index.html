@@ -121,8 +121,8 @@
 </thead>
 <tbody>
 <tr>
-<td><code>send bgp * update text &lt;attrs&gt; nlri &lt;family&gt; &lt;op&gt; &lt;prefix&gt;</code></td>
-<td>Text-format UPDATE</td>
+<td>`send bgp * update text <attrs> (nlri</td>
+<td>mp <family>) <op> <prefix>`</td>
 </tr>
 <tr>
 <td><code>send bgp * update hex &lt;hex&gt;</code></td>
@@ -152,12 +152,12 @@
 <td>Show Adj-RIB-Out</td>
 </tr>
 <tr>
-<td><code>clear bgp rib in [peer] [family]</code></td>
-<td>Clear Adj-RIB-In</td>
+<td><code>clear bgp rib in &lt;selector&gt;</code></td>
+<td>Clear Adj-RIB-In (<code>*</code> for all peers)</td>
 </tr>
 <tr>
-<td><code>clear bgp rib out [peer] [family]</code></td>
-<td>Clear Adj-RIB-Out</td>
+<td><code>clear bgp rib out &lt;selector&gt; [family &lt;family&gt;]</code></td>
+<td>Resend Adj-RIB-Out (<code>*</code> for all peers)</td>
 </tr>
 <tr>
 <td><code>request bgp rib inject &lt;peer&gt; &lt;family&gt; &lt;prefix&gt; [attrs...]</code></td>
@@ -329,7 +329,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

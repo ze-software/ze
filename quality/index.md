@@ -83,8 +83,8 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --
 Use the shared gate before handing over normal work.
 
 ```
-./le verify current mode full
-./le verify current mode changed
+./le verify current
+./le verify current fast
 ./le repo check
 ```
 
@@ -101,7 +101,7 @@ Use the wider gates only when the behavior needs Linux, real peers, or release e
 
 ## How a failure becomes useful
 
-`./le verify current mode full` is more than a command wrapper. It takes a lock so two heavy runs do not corrupt each other, writes per-stage logs under `tmp/`, groups related failures, and prints the rerun commands. The functional runner adds per-step traces for `.ci`, `.wb`, and `.et` files. BGP expectations decode wire messages before showing differences, so a failed UPDATE is reported as protocol structure instead of a long hex string.
+`./le verify current` is more than a command wrapper. It takes a lock so two heavy runs do not corrupt each other, writes per-stage logs under `tmp/`, groups related failures, and prints the rerun commands. The functional runner adds per-step traces for `.ci`, `.wb`, and `.et` files. BGP expectations decode wire messages before showing differences, so a failed UPDATE is reported as protocol structure instead of a long hex string.
 
 ### The rule
 

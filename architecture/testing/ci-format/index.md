@@ -249,7 +249,7 @@ text was never executed.
 
 **Single-line text:**
 ```
-stdin=cmd:text=update text nhop set 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24
+stdin=cmd:text=update text nhop set 10.0.0.1 nlri add 10.0.0.0/24
 ```
 
 ### Where the block goes
@@ -476,7 +476,9 @@ The native derivation corpus gate rejects **every** native `.ci` parse failure,
 including failures before AS derivation. It does not feed other execution
 dialects into the native parser: `test/decode` uses `DecodingTests.parseCIFile`,
 and `test/exabgp-compat` uses `parseExaBGPCI`. The latter's
-`option=file:<name>` selects an `etc`-relative predecessor configuration; it is
+`option=file:<name>` selects a predecessor configuration relative to the
+population's own `etc/` when it has one (`old-4.2`, `old-5.0`), else the shared
+`test/exabgp-compat/etc/`; it is
 not the native `option=file:path=<name>` directive. Those populations are chosen
 by their execution owners, not by tolerating parser errors. Native scenarios
 that intentionally submit invalid Ze configuration remain in the gate: their
@@ -745,7 +747,7 @@ cmd=api:conn=<N>:seq=<N>:text=<command>
 ### Example
 
 ```
-cmd=api:conn=1:seq=1:text=update text origin set igp nhop set 10.0.1.1 nlri ipv4/unicast add 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=update text origin set igp nhop set 10.0.1.1 nlri add 10.0.0.0/24
 ```
 
 ### Process Commands (Foreground/Background)
@@ -1180,7 +1182,7 @@ IPv6 works differently, because a host carries exactly one IPv6 loopback
 address. A fixture that needs a second one uses `fd00::2`, which is unique-local
 (RFC 4193) and never globally routable. `./le setup install` adds it, and
 `./le setup check` reports whether it is there. The runner never adds it:
-the ioctl returns EPERM to an unprivileged process, and `./le verify current mode full` runs as
+the ioctl returns EPERM to an unprivileged process, and `./le verify current` runs as
 an ordinary user. A test that binds an address this host does not carry fails at
 once with `loopback_address_missing` and the command to run, rather than timing
 out on a bind that could not succeed.
@@ -2178,7 +2180,7 @@ option=file:path=test.conf
 option=asn:value=65000
 
 # Expected API command and wire output
-cmd=api:conn=1:seq=1:text=update text origin set igp nhop set 10.0.1.254 nlri ipv4/unicast add 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=update text origin set igp nhop set 10.0.1.254 nlri add 10.0.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FFFD4003040A0001FE180A0000
 
 # EOR
@@ -2368,7 +2370,10 @@ Named keys `input=key:name=<key>` accepts: `tab`, `enter`, `esc`, `escape`,
 <!-- source: internal/component/cli/testing/runner_store.go -- createRunnerStore -->
 
 Editor tests use a tree store by default; `option=storage:value=tree` states
-that choice explicitly. `option=storage:value=blob` runs the test on a backup
+that choice explicitly. The tree mode is held in memory (`storage.CreateMemory`),
+not on disk: it is the live store's contract (name mapping, guards, versions,
+metadata, observers) over a map, so no commit waits on a sync, and it closes
+with the test. `option=storage:value=blob` runs the test on an on-disk backup
 artifact the way `ze config edit --backup` opens one: the runner creates
 `backup.zefs`, seeds it, closes it, reopens it writable through
 `storage.OpenBlob`, and builds each session with

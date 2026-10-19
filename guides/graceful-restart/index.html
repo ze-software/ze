@@ -219,7 +219,7 @@ re-establishment rather than waiting for Ze to re-advertise.</p>
 </ol>
 <h3 id="peer-restarts">Peer Restarts</h3>
 <ol>
-<li><strong>Peer goes down</strong> -- GR plugin sends <code>retain-routes</code> with the received GR families plus exchanged LLGR families whose received LLST is nonzero</li>
+<li><strong>Peer goes down</strong> -- unless the session ended by a NOTIFICATION, sent or received. RFC 4724 Section 4 says "the normal BGP procedures MUST be followed when the TCP session terminates due to the sending or receiving of a BGP NOTIFICATION message", so that down (reason <code>notification</code>) retains nothing. Ze never advertises the RFC 8538 N bit, so no NOTIFICATION is graceful. For any other down (<code>tcp-failure</code>, <code>local-close</code>) the GR plugin sends <code>retain-routes</code> with the received GR families plus exchanged LLGR families whose received LLST is nonzero</li>
 <li><strong>RIB marks routes as stale</strong> -- routes kept in forwarding but flagged</li>
 <li><strong>Restart timer starts</strong> -- countdown from <code>restart-time</code> seconds</li>
 <li><strong>Peer reconnects</strong> -- new session established, fresh routes received. A family whose Forwarding State bit is clear in the new OPEN, a family the new capability omits, and every family when the new OPEN carries no Graceful Restart Capability at all, are purged with <code>purge-stale</code> at once (RFC 4724 Section 4.2)</li>
@@ -354,8 +354,9 @@ tuples can still carry different times, and Ze tracks those timers by family.</p
 </li>
 <li><strong>During LLGR</strong> -- LLGR-stale routes lose to any non-stale route in best-path selection. Between two LLGR-stale routes, normal tiebreaking applies.</li>
 <li><strong>LLST timer expires</strong> -- stale routes for that family are purged</li>
-<li><strong>Peer reconnects during LLGR</strong> -- standard RFC 4724 procedures apply; families with F-bit=0 or missing from the new OPEN are purged</li>
+<li><strong>Peer reconnects during LLGR</strong> -- standard RFC 4724 procedures apply; families with F-bit=0 or missing from the new OPEN are purged. A family whose LLGR period has begun must also pass the new LLGR Capability: if that capability clears the family's F bit, omits the family, or is absent, the family's stale routes are purged at once, whatever the GR Capability says (RFC 9494 Section 4.2). A family still in its conventional GR period is judged by the GR Capability alone. A configuration with a Restart Time of zero therefore keeps its stale routes across a reconnect only when the new GR Capability also lists the family with its F bit set</li>
 </ol>
+<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- onSessionReestablished, reconnectKeepsFamily -->
 <p>The LLST expiry uses the time in the <strong>remote peer's received OPEN</strong>, not the
 <code>long-lived-stale-time</code> Ze advertises from its local configuration. Different
 peers can therefore expire at different times even when their local
@@ -457,8 +458,25 @@ plugin's dependency edges merely by sharing its name.</p>
 </tr>
 </tbody>
 </table>
+<p>A route a neighbor sends carrying LLGR_STALE is least preferred too, when Ze
+sent that neighbor the LLGR Capability (RFC 9494 Section 4.3 binds "A BGP
+speaker that has advertised the Long-Lived Graceful Restart Capability to a
+neighbor"). From any other neighbor the route competes normally. The GR
+plugin decides this as the UPDATE arrives, before any import policy runs, and
+best path treats the route as level 2. That mark is separate from the stale
+level above: <code>mark-stale</code> and <code>purge-stale</code> act on the stale level alone, so
+such a route is retained at a TCP loss and survives an EOR like a fresh route.
+A refresh without the community makes it a normal route again. When the route
+is advertised, the LLGR egress decision applies to it as to a route Ze marked
+itself: withdrawn toward an EBGP neighbor without LLGR, sent with NO_EXPORT and
+LOCAL_PREF 0 toward an IBGP one. That holds on every path that advertises it,
+listed under "Readvertising a Stale Route" below. The <code>show bgp rib</code> stale
+level still shows only the retention mark.</p>
+<!-- source: internal/component/bgp/plugins/gr/gr_ingress.go -- LLGRIngressFilter, llgrStaleFromSource -->
+<!-- source: internal/component/bgp/plugins/rib/rib_structured.go -- receivedLLGRStaleFromMeta -->
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- extractCandidate -->
 <h3 id="readvertising-a-stale-route">Readvertising a Stale Route</h3>
-<p>RFC 9494 Section 4.3 governs a stale route that ze forwards on to a neighbor from which the LLGR Capability was not received. The stale level on the ROUTE decides, not the restart state, so a route staled by <code>request bgp rib mark-stale</code> takes the same treatment as one staled by a peer restart.</p>
+<p>RFC 9494 Section 4.3 governs a route at the LLGR stale level (2), whether Ze marked it or it arrived with LLGR_STALE, that ze forwards on to a neighbor from which the LLGR Capability was not received. The stale level on the ROUTE decides, not the restart state, so a route raised to level 2 by <code>request bgp rib mark-stale</code> takes the same treatment as one raised by a peer's LLGR period.</p>
 <table>
 <thead>
 <tr>
@@ -483,6 +501,43 @@ plugin's dependency edges merely by sharing its name.</p>
 </table>
 <p>The filter fails closed. When it cannot read the peer capability state, it answers "LLGR was not received" for every destination. It raises one warning per process and then withdraws or depreferences. An unread state used to accept, which put a long-lived stale route into a neighbor that never agreed to hold one.</p>
 <!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter, egressState -->
+<p>Only a route at the LLGR stale level takes this treatment: one Ze marked LLGR
+stale, or one received with LLGR_STALE as described above. A route in its
+conventional GR period (stale level 1) carries no LLGR_STALE, so it is
+advertised like any other route when the RIB replays it to a re-established
+neighbor or resends it on a route refresh.</p>
+<p>Every path that advertises a route reaches the same decision, and each carries
+the received LLGR_STALE fact its own way:</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>How the fact arrives</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Live forward and route server forward</td>
+<td>The GR plugin's ingress step marks the route as it arrives</td>
+</tr>
+<tr>
+<td>RIB replay to a re-established neighbor, <code>clear bgp rib out</code>, route refresh</td>
+<td>The RIB reads the source route the copy was sent from, so a mark-stale on the copy does not hide it</td>
+</tr>
+<tr>
+<td><code>bgp-adj-rib-in</code> replay and relay recovery</td>
+<td>The rebuilt route is marked <code>rebuilt</code>, and the GR plugin re-runs its ingress test on the source session and the stored COMMUNITIES</td>
+</tr>
+<tr>
+<td>AIGP metric re-advertisement</td>
+<td>The route keeps the mark it was given on arrival</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- advertisedStaleLevel -->
+<!-- source: internal/component/bgp/plugins/rib/sent_owner.go -- sentSourceState, replayStaleLevel -->
+<!-- source: internal/component/bgp/plugins/rib/storage/routeentry.go -- AdvertisedStaleLevel -->
+<!-- source: internal/component/bgp/reactor/reactor_api_relay.go -- buildRelayUpdate, resolveRelaySource -->
 <p>The one arrangement that leaves the state permanently unread is <code>run "ze plugin bgp-gr"</code>. See <a href="#keep-the-bgp-gr-engine-in-the-daemon-process">Keep the bgp-gr engine in the daemon process</a>.</p>
 <h3 id="special-case-skip-gr">Special Case: Skip GR</h3>
 <p>If <code>restart-time</code> is 0 but <code>long-lived-stale-time</code> is nonzero, the GR period is skipped entirely. On session drop, LLGR begins immediately, after the routes are retained and marked stale: the LLGR steps above run last, so the routes they mark LLGR-stale are the retained ones. When both times are 0 the peer's routes are released at once, as in base BGP.</p>
@@ -609,7 +664,7 @@ A family omitted from GR with zero or unexchanged LLST is not retained.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

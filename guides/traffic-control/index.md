@@ -37,6 +37,13 @@ An interface entry with no `qdisc` block attaches no root discipline. Once a
 `qdisc` block is present, its `type` is required, and a config that omits it is
 refused naming `traffic/control/interface[<name>]/qdisc/type`.
 
+`default-class` names the class that takes the traffic no filter classifies. It
+must name a class of the same qdisc: the leaf is a YANG leafref to
+`../class/name`, so a config naming a class that is not configured is refused
+when it is validated or committed, with a message naming the missing class and
+the classes that exist. A `default-class` naming no class used to be accepted,
+and the netlink backend then ignored it in silence.
+
 <!-- source: internal/component/traffic/yang/ze-traffic-control-conf.yang -- YANG schema -->
 <!-- source: internal/component/traffic/config.go -- parseInterfaceQoS -->
 

@@ -1012,15 +1012,17 @@ Runtime actions that reset IS-IS operational state without changing the
 configuration.
 
 ```
-ze clear isis adjacency                 # Tear down every adjacency; neighbors re-form from the next Hello
+ze clear isis adjacency all             # Tear down every adjacency; neighbors re-form from the next Hello
 ze clear isis counters                  # Reset the SPF-run log (observational state)
 ```
 
-`clear isis adjacency` drops the adjacency records so each neighbour re-learns
+`clear isis adjacency all` drops the adjacency records so each neighbour re-learns
 from the next Hello, triggering LSP re-origination and an SPF re-run; the
 circuit is not closed. `clear isis counters` clears the SPF-run history surfaced
 by `show isis spf-log`; the monotonic Prometheus series are process counters and
-are not reset (resetting them mid-process breaks `rate()`).
+are not reset (resetting them mid-process breaks `rate()`). The bare
+`clear isis adjacency` is refused and names the `all` form: a prefix typed by
+mistake never tears down every adjacency.
 
 <!-- source: internal/plugins/isis/cmd_show.go -- ze-isis:clear-* RPC proxies -->
 <!-- source: internal/plugins/isis/show.go -- clearAdjacencies/clearCounters -->
@@ -1283,7 +1285,9 @@ a padded exchange (`ike-confirmed` is the largest size it proved; `path-mtu`
 stays the ICMP figure unless IKE refuted it), `prober: icmp` otherwise, with
 `ike-declined` saying why a live SA was not used and each row's `caveats`
 naming what its prober cannot see. The
-reference address is the `environment { mtu { reference-address } }` leaf. The
+reference address is the `environment { mtu { reference-address } }` leaf, or
+the first `system { name-server }` when the leaf is not set; with neither, a run
+over the peers is refused before any probe is sent. The
 payload keys, the run and its outcomes are
 `docs/architecture/diagnostics/path-mtu.md`. The command changes nothing on
 the router: the commands it lists are for the operator to apply.
@@ -1443,16 +1447,54 @@ ze show dns cache record example.com  # Show cached entries for a specific name
 
 <!-- source: internal/component/resolve/cmd/show_dns.go -- handleDNSCacheStats, handleDNSCacheList, handleDNSCacheRecord -->
 
-### clear dns cache / stats / record
+### clear dns cache all / stats / record
+
+`clear dns cache` alone is refused and lists these forms: flushing everything
+needs the word `all`.
 
 ```
-clear dns cache                                     # Flush all entries and reset all counters
+clear dns cache all                                 # Flush all entries and reset all counters
 clear dns cache stats                               # Zero counters without removing entries
 clear dns cache record example.com                  # Delete all entries matching name (all types)
 clear dns cache record example.com type AAAA        # Delete a single entry by name and type
 ```
 
 <!-- source: internal/component/resolve/cmd/dns.go -- handleClearDNSCache, handleClearDNSCacheStats, handleClearDNSCacheRecord -->
+
+### clear peeringdb cache / clear irr cache / clear cymru cache
+
+Each owner of a resolver client clears the client it uses now. The hub clears
+the one `resolve peeringdb`, `resolve irr` or `resolve cymru` uses, and every
+plugin that declared that cache clears its own: `bgp-filter-irr` and
+`firewall-irr` hold an IRR and a PeeringDB client, inside the daemon or as their
+own process. A client a plugin replaced on a reload is not cleared or counted.
+The client `bgp peer prefix update` builds lives for one command, so no clear
+reaches it. The bare form is refused and lists the two forms: clearing
+everything needs the word `all`.
+
+```
+clear peeringdb cache all                           # Remove every cached PeeringDB answer
+clear peeringdb cache asn 65001                     # Remove one AS number (decimal or asdot)
+clear irr cache all                                 # Remove every cached AS-SET expansion and prefix list
+clear irr cache as-set AS-EXAMPLE                   # Remove one AS-SET, matched exactly
+clear cymru cache all                               # Remove every cached origin and AS name
+clear cymru cache address 2001:db8::1               # Remove the origin of one address
+```
+
+Every answer carries `removed`, the entries removed in total, and `owners`, one
+row per owner with its `owner` name and its `removed` count. A keyed form also
+answers `found`, true when any owner held the key. An owner that does not answer
+makes the command an error that names it, says how many entries the others
+removed, and points at `show plugin list`. The IRR filters' stored prefix lists
+are not a cache and stay.
+
+```
+clear irr cache all | json
+{"action":"clear-all","removed":3,"owners":[{"owner":"hub","removed":0},{"owner":"bgp-filter-irr","removed":3}]}
+```
+
+<!-- source: internal/component/resolve/cmd/clear_caches.go -- handleClearPeeringDBCacheAll, handleClearPeeringDBCacheASN, handleClearIRRCacheAll, handleClearIRRCacheASSet, handleClearCymruCacheAll, handleClearCymruCacheAddress, clearAnswer -->
+<!-- source: internal/component/resolve/irr/store/clear.go -- ClearResolverCache -->
 
 ### show resolve rir
 
@@ -1540,19 +1582,21 @@ than reading it as "every SPI".
 ### clear vpn ipsec sa
 
 ```
-clear vpn ipsec sa                          # Terminate all IPsec SAs
+clear vpn ipsec sa all                      # Terminate all IPsec SAs
 clear vpn ipsec sa peer <name>              # Terminate SAs for one peer (1-255 chars)
 ```
 
-Without arguments, terminates every active Security Association and
+`clear vpn ipsec sa all` terminates every active Security Association and
 returns the count. With `peer <name>`, terminates only the named
-peer's SAs and returns the peer name. Peers configured with `connection-type initiate` re-establish
+peer's SAs and returns the peer name. The bare `clear vpn ipsec sa` is
+refused and names both forms, so a prefix typed by mistake never
+terminates every SA. Peers configured with `connection-type initiate` re-establish
 automatically; `respond`-only peers wait for the remote side.
 
 Peer name must be 1-255 characters. A missing name after `peer`
 returns an error. An unknown peer name returns "peer not found".
 
-<!-- source: internal/component/ike/cmd/ipsec.go -- handleClearIPsecSA -->
+<!-- source: internal/component/ike/cmd/ipsec.go -- handleClearIPsecSAAll -->
 
 ### show system profile
 
@@ -1838,16 +1882,16 @@ Three `ze doctor` checks report the same facts with stable diagnostic codes:
 ### clear interface counters
 
 ```
-ze clear interface counters                # Reset counters on every managed interface
-ze clear interface counters <name>         # Reset counters on one interface
+ze clear interface counters all            # Reset counters on every managed interface
+ze clear interface name <name> counters    # Reset counters on one interface
 ```
 
-Grammar uses action-before-identifier: `counters` keyword first, then the
-optional interface name. Bare `ze clear interface counters` (no name) clears
-all interfaces. The old forms `clear interface <name> counters` and
-`clear interface <name>` are still accepted with a deprecation warning.
-Errors in argument shape (unknown trailing keyword, three or more tokens)
-reject with the usage line rather than silently defaulting to "all".
+Every interface is reset only when `all` is typed. The bare
+`ze clear interface counters` is refused and names the `all` form, so a
+prefix typed by mistake never resets every counter. One interface is
+selected with the `name` keyword before its value, as `show interface name
+<name>` does. A trailing token after either form is refused with the usage
+line rather than silently defaulting to "all".
 
 The `clear` verb resets runtime/operational state without touching
 configuration. Backends that expose a real counter-reset syscall
@@ -2746,7 +2790,7 @@ declares that `delete bgp peer` removed is taken out of it.
 ### Route Injection
 
 ```
-send bgp <sel> update text <attrs> nlri <family> <op> <prefixes>
+send bgp <sel> update text <attrs> (nlri | mp <family>) <op> <prefixes>
 send bgp <sel> update hex <hex-data>
 send bgp <sel> update b64 <b64-data>
 send bgp <sel> raw <hex|b64> <data> [type <type>]
@@ -2782,8 +2826,9 @@ Text format attributes:
 | `large-community` | `large-community set [ 65000:1:1 ]` |
 | `extended-community` | `extended-community set [ rt:65000:100 ]` |
 
-NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
-`nlri <family> eor`.
+NLRI operations: `nlri add <prefixes>`, `nlri del <prefixes>` and `nlri eor` for IPv4
+unicast; `mp <family> add <prefixes>`, `mp <family> del <prefixes>` and
+`mp <family> eor` for every other family.
 <!-- source: internal/component/bgp/plugins/cmd/update/ -- update text/hex/b64 parsing; internal/component/bgp/plugins/cmd/raw/ -- raw message injection -->
 
 ### RIB Commands
@@ -2797,8 +2842,8 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | `show bgp rib \| peer <selector>` | read-only | Stream routes for one peer selector |
 | `show bgp rib best` | read-only | Best-path per prefix |
 | `show bgp rib best status` | read-only | Best-path computation status |
-| `clear bgp rib in <selector>` | write | Clear Adj-RIB-In (`*` for all peers) |
-| `clear bgp rib out <selector> [family]` | write | Regenerate and re-advertise Adj-RIB-Out (`*` for all peers, optional family filter) |
+| `clear bgp rib in <selector>` | write | Clear Adj-RIB-In for the peers the selector matches (`*` for all peers; the bare `clear bgp rib in` is refused) |
+| `clear bgp rib out <selector> [family <family>]` | write | Regenerate and re-advertise Adj-RIB-Out (`*` for all peers; the bare `clear bgp rib out` is refused). `family` limits the replay to one family, typed after its keyword: `clear bgp rib out * family ipv4/unicast`; a family with no keyword is refused |
 | `request bgp rib inject <peer> <family> <prefix> [attrs...]` | write | Insert route into Adj-RIB-In as if received from peer |
 | `request bgp rib withdraw <peer> <family> <prefix>` | write | Remove route from Adj-RIB-In |
 | `show bgp rib rpf <family> <source-addr>` | read | RPF lookup: longest-prefix-match against Loc-RIB for CIDR families <!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/rib/ -- RIB plugin --> |

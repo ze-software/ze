@@ -102,8 +102,14 @@ The container holds the plugin switch, the reusable profiles, and the sessions a
     RFC 5880 Section 6.7 authentication parameters. Sessions inheriting this profile sign every outgoing Control packet with the configured type, and verify incoming packets with the same key. There is no default type, and authentication runs only on the type the operator names here.
     - **key-id** `uint8`: Auth Key ID (RFC 5880 Section 6.7.1).
       Ze writes the value into the authentication section of every Control packet it sends. Ze discards a received packet that carries another value, which RFC 5880 Section 6.7.2 requires for Simple Password. Both ends must name the same key-id and the same secret. The range is 0 to 255.
-    - **secret** `string`: Shared secret, redacted from `ze config show` output.
-      Shared secret. Redacted from `ze config show` output. The MD5 variants take a secret of up to 16 bytes (RFC 5880 Section 6.7.3) and the SHA1 variants one of up to 20 bytes (Section 6.7.4). Both pad a shorter secret with zeros, and a longer one is refused at parse time. The simple-password type carries the secret itself on the wire, so it must be 1 to 16 bytes, and a longer one is refused at parse time too (RFC 5880 Section 6.7.2).
+    - **secret-form** `choice`: The shared secret, as an ASCII string or in hexadecimal.
+      Name the shared secret in exactly one form. secret takes an ASCII string and uses its bytes as the key. secret-hex takes any binary string written in hexadecimal, so a key holding a zero byte or a byte above 0x7F can be configured (RFC 5880 Sections 6.7.2, 6.7.3 and 6.7.4). Ze refuses a profile that names both forms or neither.
+      - **secret** `case`
+        - **secret** `string`: Shared secret as an ASCII string, redacted from `ze config show` output.
+          Shared secret as an ASCII string, whose bytes are the key. Redacted from `ze config show` output. The MD5 variants take a secret of up to 16 bytes (RFC 5880 Section 6.7.3) and the SHA1 variants one of up to 20 bytes (Section 6.7.4). Both pad a shorter secret with zeros, and a longer one is refused at parse time. The simple-password type carries the secret itself on the wire, so it must be 1 to 16 bytes, and a longer one is refused at parse time too (RFC 5880 Section 6.7.2).
+      - **secret-hex** `case`
+        - **secret-hex** `string`: Shared secret as hexadecimal digits, two for each byte, redacted from output.
+          Shared secret as a binary string in hexadecimal, two digits for each byte with no 0x prefix, upper or lower case. Redacted from `ze config show` output. The decoded key obeys the same limits as secret: 1 to 16 bytes for simple-password, up to 16 bytes for the MD5 variants and up to 20 bytes for the SHA1 variants (RFC 5880 Sections 6.7.2, 6.7.3 and 6.7.4).
     - **type** `enumeration`: Authentication type, which the operator must name.
       Authentication type. There is no default. The operator names the type, and simple-password is never selected on their behalf. simple-password is RFC 5880 Section 6.7.2 Simple Password. The password travels in clear in every Control packet and the section never changes, so it protects against a misconfigured peer and against nothing else. It does not protect against a listener on the path, who reads the password from one packet, and it carries no Sequence Number, so a captured packet can be replayed. Choose a keyed type wherever the path is not already trusted.
       - `keyed-md5`: RFC 5880 Section 6.7.3 Keyed MD5.
@@ -2405,7 +2411,7 @@ The api-server container under it is the shared parent of the REST and gRPC tran
 - **mtu** `container`: Settings of the path MTU diagnostic.
   The settings of show mtu. The command is operator-invoked and never scheduled, so nothing here starts a measurement.
   - **reference-address** `ip-address`: Address show mtu measures to tell a clamped circuit from a clamped peer path.
-    show mtu measures the path MTU to this address beside the peers. A reference outside the tunnels is what tells a clamped access circuit from a clamped peer path: when it measures the full interface MTU the circuit is not clamped, and when it measures the same as the peers the whole circuit is. The default is 1.1.1.1. The environment variable ze.mtu.reference-address overrides this leaf.
+    show mtu measures the path MTU to this address beside the peers. A reference outside the tunnels is what tells a clamped access circuit from a clamped peer path: when it measures the full interface MTU the circuit is not clamped, and when it measures the same as the peers the whole circuit is. When the leaf is not set, the first system name-server is the reference. When neither is set, show mtu refuses to run. The environment variable ze.mtu.reference-address overrides this leaf.
 - **ntp** `container`: Settings of the NTP client.
   *Provided by `ntp` ([ze-ntp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ntp/yang/ze-ntp-cmd.yang), [ze-ntp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ntp/yang/ze-ntp-conf.yang))*
   The presence of these settings does not start the client. Set the enabled leaf to true.
@@ -2908,7 +2914,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
   - **member** `string[]`: Member port interface names
     Ze enslaves each named port with the netlink call LinkSetMaster. A port that leaves the list is released with LinkSetNoMaster on the next apply. Each name must be an interface the config or the OS already carries.
   - **mtu** `uint16`: Maximum transmission unit
-    The range is 68 to 16000 bytes and the default is 1500. Ze applies the value with the netlink call LinkSetMTU after it creates the interface. Ze restores the previous value when a later step of the same apply fails.
+    The range is 68 to 16000 bytes. Ze applies the value with the netlink call LinkSetMTU after it creates the interface. Ze restores the previous value when a later step of the same apply fails. When the leaf is omitted, ze makes no MTU call and the device keeps its current MTU. For a device ze creates that is the kernel's default for the kind: 1500 for a dummy, veth or bridge, 1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel. Each kind has its own value, so the schema declares no single default.
   - **offload** `container`: Network offload and packet steering features.
     Ze applies these features through a kernel ioctl, the ethtool SIOCETHTOOL interface, or a sysfs write, after it creates the interface. The ethtool(8) CLI program is not required, because ze talks to the kernel directly. For a boolean leaf, true enables the feature explicitly, false disables it explicitly, and an absent leaf preserves the OS default with no kernel call. Offload availability depends on the NIC driver and the kernel version. Ze logs an unsupported feature as a warning, and the config commit still succeeds.
     - **gro** `boolean`: Generic Receive Offload: aggregate small incoming packets before the network stack.
@@ -2972,7 +2978,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       - **proxy-arp** `boolean`: Answer ARP requests for other hosts that are reachable through this router.
         The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface.
       - **rpf-check** `enumeration`: Reverse path filtering mode
-        Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all.
+        Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all. With backend vpp, Ze also enables VPP uRPF in the same mode on the interface's receive path.
         - `disable`: No source address check, rp_filter 0.
         - `loose`: Drop a packet whose source address has no route at all, rp_filter 2.
         - `strict`: Drop a packet whose source does not route back through this interface, rp_filter 1.
@@ -2984,6 +2990,10 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
             A non-owner Active router accepts packets addressed to the virtual addresses. The leaf carries version 3 semantics only, and the plugin verifier rejects true beside version 2. The dataplane enforces the leaf. With false on a non-owner, the router still answers ARP and Neighbor Discovery for the virtual addresses, and still forwards for the virtual MAC. It does not accept packets addressed to them, so a ping to a virtual address gets no reply. The address owner accepts whatever this leaf says.
           - **advertise-interval-milliseconds** `uint32`: Advertisement interval in milliseconds.
             The native range spans both versions, and the plugin verifier narrows it per version. Version 3 takes multiples of 10 ms within 10..40950, and the wire carries centiseconds (RFC 9568 erratum 8301). Version 2 takes whole seconds within 1000..255000, and the wire carries seconds.
+          - **checksum** `enumeration`: VRRPv3 IPv4 checksum form: rfc9568 or rfc5798-compatible.
+            Selects the VRRPv3 IPv4 checksum form. The group sends and accepts only that form, and an advertisement in the other form is dropped and counted as a checksum error. RFC 9568 computes the IPv4 checksum over the VRRP message alone. RFC 5798 also covered an IPv4 pseudo-header, and keepalived and other pre-RFC 9568 routers still send and require that form, so a group sharing a segment with them needs rfc5798-compatible. Version 2 always sums the message alone and refuses rfc5798-compatible. IPv6 groups have no such leaf: both RFCs cover the IPv6 pseudo-header.
+            - `rfc5798-compatible`: Checksum over the IPv4 pseudo-header and the message, as keepalived sends.
+            - `rfc9568`: Checksum over the VRRP message alone (RFC 9568 Section 5.2.8).
           - **preempt** `boolean`: Preempt_Mode (RFC 9568 Section 6.4.2).
             A Backup router with a higher priority takes over from a live Active router with a lower priority.
           - **preempt-delay-seconds** `uint16`: Preemption hold-time, in Junos semantics.
@@ -3014,14 +3024,14 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
         The kernel learns an address only when a Router Advertisement reaches the device it owns, so this leaf needs the netlink backend. On the vpp backend, the NIC belongs to VPP, and no advertisement reaches the Linux Control Plane tap.
       - **dhcpv6** `container`: DHCPv6 stateful client (RFC 8415).
         The client requests addresses, delegated prefixes, or both, from a DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.
-        - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).
-          When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID.
+        - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).
+          When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID. Write it as colon-separated hex octets, such as 00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to 128 octets of identifier (RFC 9915 Section 11.1).
         - **enabled** `boolean`: Enable DHCPv6 client
           Ze starts a DHCPv6 client on this unit when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
         - **pd** `container`: Prefix delegation
-          Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no server for a delegated prefix. Ze does install a prefix that a server sends on its own in the IA_PD option of a Reply. Ze publishes that prefix as a lease on this unit. The length leaf below reaches no message Ze sends.
+          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this unit.
           - **length** `uint8`: Requested prefix length
-            The prefix length ze asks for, from 48 to 64. Ze reads the leaf into the DHCP client configuration and then sends no IA_PD option, so the value reaches no server and changes nothing. A prefix that a server sends on its own keeps the length that server assigned.
+            The prefix length ze asks for, from 48 to 64, sent as an IA Prefix hint (::/length) in the IA_PD. Without it the IA_PD carries no hint and the server chooses the length.
       - **forwarding** `boolean`: Allow this interface to forward IPv6 packets between interfaces.
         The leaf sets net.ipv6.conf.<iface>.forwarding. Forwarding disables RA acceptance, unless accept-ra is set to 2.
       - **router-advertisement** `container`: Router Advertisement sender (RFC 4861).
@@ -3060,7 +3070,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
           RFC 4861 Section 6.2.1 defines AdvRetransTimer. 0 means that this router states no value.
         - **router-lifetime** `uint16`: How long a host keeps Ze in its default router list (AdvDefaultLifetime).
           RFC 4861 Section 6.2.1 defines AdvDefaultLifetime. 0 says that Ze is not a default router, and the prefixes and the resolvers in the advertisement still apply. Any other value must be at least maximum-interval, and config verify rejects a smaller one.
-      - **rpf-check** `enumeration`: Reverse path filtering mode, on the VPP data plane only for IPv6.
+      - **rpf-check** `enumeration`: Reverse path filtering mode, enforced by an nftables fib lookup.
         strict drops a packet whose source address would not be routed back through this interface. loose drops a packet whose source address has no route at all. disable performs no source address validation.
         - `disable`: No source address validation.
         - `loose`: Drop a packet whose source address has no route at all.
@@ -3124,7 +3134,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
     - **match** `string`: Bind this logical interface to the kernel device that carries this hardware MAC.
       The binding is by MAC rather than by name. The resolver matches the device's permanent factory address (IFLA_PERM_ADDRESS) when the device reports one, so the binding survives an operational MAC override. For a virtual device that reports no permanent address, the resolver matches the current address. This leaf takes precedence over os-name. It applies to the ethernet kind only, which is the matched physical kind. Ze identifies the kinds it creates (dummy, veth, bridge and the rest) by the name ze assigns. When the matching device is absent, the binding waits until the device appears.
   - **mtu** `uint16`: Maximum transmission unit
-    The range is 68 to 16000 bytes and the default is 1500. Ze applies the value with the netlink call LinkSetMTU after it creates the interface. Ze restores the previous value when a later step of the same apply fails.
+    The range is 68 to 16000 bytes. Ze applies the value with the netlink call LinkSetMTU after it creates the interface. Ze restores the previous value when a later step of the same apply fails. When the leaf is omitted, ze makes no MTU call and the device keeps its current MTU. For a device ze creates that is the kernel's default for the kind: 1500 for a dummy, veth or bridge, 1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel. Each kind has its own value, so the schema declares no single default.
   - **offload** `container`: Network offload and packet steering features.
     Ze applies these features through a kernel ioctl, the ethtool SIOCETHTOOL interface, or a sysfs write, after it creates the interface. The ethtool(8) CLI program is not required, because ze talks to the kernel directly. For a boolean leaf, true enables the feature explicitly, false disables it explicitly, and an absent leaf preserves the OS default with no kernel call. Offload availability depends on the NIC driver and the kernel version. Ze logs an unsupported feature as a warning, and the config commit still succeeds.
     - **gro** `boolean`: Generic Receive Offload: aggregate small incoming packets before the network stack.
@@ -3186,7 +3196,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       - **proxy-arp** `boolean`: Answer ARP requests for other hosts that are reachable through this router.
         The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface.
       - **rpf-check** `enumeration`: Reverse path filtering mode
-        Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all.
+        Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all. With backend vpp, Ze also enables VPP uRPF in the same mode on the interface's receive path.
         - `disable`: No source address check, rp_filter 0.
         - `loose`: Drop a packet whose source address has no route at all, rp_filter 2.
         - `strict`: Drop a packet whose source does not route back through this interface, rp_filter 1.
@@ -3198,6 +3208,10 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
             A non-owner Active router accepts packets addressed to the virtual addresses. The leaf carries version 3 semantics only, and the plugin verifier rejects true beside version 2. The dataplane enforces the leaf. With false on a non-owner, the router still answers ARP and Neighbor Discovery for the virtual addresses, and still forwards for the virtual MAC. It does not accept packets addressed to them, so a ping to a virtual address gets no reply. The address owner accepts whatever this leaf says.
           - **advertise-interval-milliseconds** `uint32`: Advertisement interval in milliseconds.
             The native range spans both versions, and the plugin verifier narrows it per version. Version 3 takes multiples of 10 ms within 10..40950, and the wire carries centiseconds (RFC 9568 erratum 8301). Version 2 takes whole seconds within 1000..255000, and the wire carries seconds.
+          - **checksum** `enumeration`: VRRPv3 IPv4 checksum form: rfc9568 or rfc5798-compatible.
+            Selects the VRRPv3 IPv4 checksum form. The group sends and accepts only that form, and an advertisement in the other form is dropped and counted as a checksum error. RFC 9568 computes the IPv4 checksum over the VRRP message alone. RFC 5798 also covered an IPv4 pseudo-header, and keepalived and other pre-RFC 9568 routers still send and require that form, so a group sharing a segment with them needs rfc5798-compatible. Version 2 always sums the message alone and refuses rfc5798-compatible. IPv6 groups have no such leaf: both RFCs cover the IPv6 pseudo-header.
+            - `rfc5798-compatible`: Checksum over the IPv4 pseudo-header and the message, as keepalived sends.
+            - `rfc9568`: Checksum over the VRRP message alone (RFC 9568 Section 5.2.8).
           - **preempt** `boolean`: Preempt_Mode (RFC 9568 Section 6.4.2).
             A Backup router with a higher priority takes over from a live Active router with a lower priority.
           - **preempt-delay-seconds** `uint16`: Preemption hold-time, in Junos semantics.
@@ -3228,14 +3242,14 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
         The kernel learns an address only when a Router Advertisement reaches the device it owns, so this leaf needs the netlink backend. On the vpp backend, the NIC belongs to VPP, and no advertisement reaches the Linux Control Plane tap.
       - **dhcpv6** `container`: DHCPv6 stateful client (RFC 8415).
         The client requests addresses, delegated prefixes, or both, from a DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.
-        - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).
-          When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID.
+        - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).
+          When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID. Write it as colon-separated hex octets, such as 00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to 128 octets of identifier (RFC 9915 Section 11.1).
         - **enabled** `boolean`: Enable DHCPv6 client
           Ze starts a DHCPv6 client on this unit when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
         - **pd** `container`: Prefix delegation
-          Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no server for a delegated prefix. Ze does install a prefix that a server sends on its own in the IA_PD option of a Reply. Ze publishes that prefix as a lease on this unit. The length leaf below reaches no message Ze sends.
+          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this unit.
           - **length** `uint8`: Requested prefix length
-            The prefix length ze asks for, from 48 to 64. Ze reads the leaf into the DHCP client configuration and then sends no IA_PD option, so the value reaches no server and changes nothing. A prefix that a server sends on its own keeps the length that server assigned.
+            The prefix length ze asks for, from 48 to 64, sent as an IA Prefix hint (::/length) in the IA_PD. Without it the IA_PD carries no hint and the server chooses the length.
       - **forwarding** `boolean`: Allow this interface to forward IPv6 packets between interfaces.
         The leaf sets net.ipv6.conf.<iface>.forwarding. Forwarding disables RA acceptance, unless accept-ra is set to 2.
       - **router-advertisement** `container`: Router Advertisement sender (RFC 4861).
@@ -3274,7 +3288,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
           RFC 4861 Section 6.2.1 defines AdvRetransTimer. 0 means that this router states no value.
         - **router-lifetime** `uint16`: How long a host keeps Ze in its default router list (AdvDefaultLifetime).
           RFC 4861 Section 6.2.1 defines AdvDefaultLifetime. 0 says that Ze is not a default router, and the prefixes and the resolvers in the advertisement still apply. Any other value must be at least maximum-interval, and config verify rejects a smaller one.
-      - **rpf-check** `enumeration`: Reverse path filtering mode, on the VPP data plane only for IPv6.
+      - **rpf-check** `enumeration`: Reverse path filtering mode, enforced by an nftables fib lookup.
         strict drops a packet whose source address would not be routed back through this interface. loose drops a packet whose source address has no route at all. disable performs no source address validation.
         - `disable`: No source address validation.
         - `loose`: Drop a packet whose source address has no route at all.
@@ -3336,7 +3350,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
     - **match** `string`: Bind this logical interface to the kernel device that carries this hardware MAC.
       The binding is by MAC rather than by name. The resolver matches the device's permanent factory address (IFLA_PERM_ADDRESS) when the device reports one, so the binding survives an operational MAC override. For a virtual device that reports no permanent address, the resolver matches the current address. This leaf takes precedence over os-name. It applies to the ethernet kind only, which is the matched physical kind. Ze identifies the kinds it creates (dummy, veth, bridge and the rest) by the name ze assigns. When the matching device is absent, the binding waits until the device appears.
   - **mtu** `uint16`: Maximum transmission unit
-    The range is 68 to 16000 bytes and the default is 1500. Ze applies the value with the netlink call LinkSetMTU after it creates the interface. Ze restores the previous value when a later step of the same apply fails.
+    The range is 68 to 16000 bytes. Ze applies the value with the netlink call LinkSetMTU after it creates the interface. Ze restores the previous value when a later step of the same apply fails. When the leaf is omitted, ze makes no MTU call and the device keeps its current MTU. For a device ze creates that is the kernel's default for the kind: 1500 for a dummy, veth or bridge, 1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel. Each kind has its own value, so the schema declares no single default.
   - **offload** `container`: Network offload and packet steering features.
     Ze applies these features through a kernel ioctl, the ethtool SIOCETHTOOL interface, or a sysfs write, after it creates the interface. The ethtool(8) CLI program is not required, because ze talks to the kernel directly. For a boolean leaf, true enables the feature explicitly, false disables it explicitly, and an absent leaf preserves the OS default with no kernel call. Offload availability depends on the NIC driver and the kernel version. Ze logs an unsupported feature as a warning, and the config commit still succeeds.
     - **gro** `boolean`: Generic Receive Offload: aggregate small incoming packets before the network stack.
@@ -3398,7 +3412,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       - **proxy-arp** `boolean`: Answer ARP requests for other hosts that are reachable through this router.
         The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface.
       - **rpf-check** `enumeration`: Reverse path filtering mode
-        Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all.
+        Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all. With backend vpp, Ze also enables VPP uRPF in the same mode on the interface's receive path.
         - `disable`: No source address check, rp_filter 0.
         - `loose`: Drop a packet whose source address has no route at all, rp_filter 2.
         - `strict`: Drop a packet whose source does not route back through this interface, rp_filter 1.
@@ -3410,6 +3424,10 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
             A non-owner Active router accepts packets addressed to the virtual addresses. The leaf carries version 3 semantics only, and the plugin verifier rejects true beside version 2. The dataplane enforces the leaf. With false on a non-owner, the router still answers ARP and Neighbor Discovery for the virtual addresses, and still forwards for the virtual MAC. It does not accept packets addressed to them, so a ping to a virtual address gets no reply. The address owner accepts whatever this leaf says.
           - **advertise-interval-milliseconds** `uint32`: Advertisement interval in milliseconds.
             The native range spans both versions, and the plugin verifier narrows it per version. Version 3 takes multiples of 10 ms within 10..40950, and the wire carries centiseconds (RFC 9568 erratum 8301). Version 2 takes whole seconds within 1000..255000, and the wire carries seconds.
+          - **checksum** `enumeration`: VRRPv3 IPv4 checksum form: rfc9568 or rfc5798-compatible.
+            Selects the VRRPv3 IPv4 checksum form. The group sends and accepts only that form, and an advertisement in the other form is dropped and counted as a checksum error. RFC 9568 computes the IPv4 checksum over the VRRP message alone. RFC 5798 also covered an IPv4 pseudo-header, and keepalived and other pre-RFC 9568 routers still send and require that form, so a group sharing a segment with them needs rfc5798-compatible. Version 2 always sums the message alone and refuses rfc5798-compatible. IPv6 groups have no such leaf: both RFCs cover the IPv6 pseudo-header.
+            - `rfc5798-compatible`: Checksum over the IPv4 pseudo-header and the message, as keepalived sends.
+            - `rfc9568`: Checksum over the VRRP message alone (RFC 9568 Section 5.2.8).
           - **preempt** `boolean`: Preempt_Mode (RFC 9568 Section 6.4.2).
             A Backup router with a higher priority takes over from a live Active router with a lower priority.
           - **preempt-delay-seconds** `uint16`: Preemption hold-time, in Junos semantics.
@@ -3440,14 +3458,14 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
         The kernel learns an address only when a Router Advertisement reaches the device it owns, so this leaf needs the netlink backend. On the vpp backend, the NIC belongs to VPP, and no advertisement reaches the Linux Control Plane tap.
       - **dhcpv6** `container`: DHCPv6 stateful client (RFC 8415).
         The client requests addresses, delegated prefixes, or both, from a DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.
-        - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).
-          When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID.
+        - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).
+          When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID. Write it as colon-separated hex octets, such as 00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to 128 octets of identifier (RFC 9915 Section 11.1).
         - **enabled** `boolean`: Enable DHCPv6 client
           Ze starts a DHCPv6 client on this unit when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
         - **pd** `container`: Prefix delegation
-          Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no server for a delegated prefix. Ze does install a prefix that a server sends on its own in the IA_PD option of a Reply. Ze publishes that prefix as a lease on this unit. The length leaf below reaches no message Ze sends.
+          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this unit.
           - **length** `uint8`: Requested prefix length
-            The prefix length ze asks for, from 48 to 64. Ze reads the leaf into the DHCP client configuration and then sends no IA_PD option, so the value reaches no server and changes nothing. A prefix that a server sends on its own keeps the length that server assigned.
+            The prefix length ze asks for, from 48 to 64, sent as an IA Prefix hint (::/length) in the IA_PD. Without it the IA_PD carries no hint and the server chooses the length.
       - **forwarding** `boolean`: Allow this interface to forward IPv6 packets between interfaces.
         The leaf sets net.ipv6.conf.<iface>.forwarding. Forwarding disables RA acceptance, unless accept-ra is set to 2.
       - **router-advertisement** `container`: Router Advertisement sender (RFC 4861).
@@ -3486,7 +3504,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
           RFC 4861 Section 6.2.1 defines AdvRetransTimer. 0 means that this router states no value.
         - **router-lifetime** `uint16`: How long a host keeps Ze in its default router list (AdvDefaultLifetime).
           RFC 4861 Section 6.2.1 defines AdvDefaultLifetime. 0 says that Ze is not a default router, and the prefixes and the resolvers in the advertisement still apply. Any other value must be at least maximum-interval, and config verify rejects a smaller one.
-      - **rpf-check** `enumeration`: Reverse path filtering mode, on the VPP data plane only for IPv6.
+      - **rpf-check** `enumeration`: Reverse path filtering mode, enforced by an nftables fib lookup.
         strict drops a packet whose source address would not be routed back through this interface. loose drops a packet whose source address has no route at all. disable performs no source address validation.
         - `disable`: No source address validation.
         - `loose`: Drop a packet whose source address has no route at all.
@@ -3566,7 +3584,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       - **proxy-arp** `boolean`: Answer ARP requests for other hosts that are reachable through this router.
         The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface.
       - **rpf-check** `enumeration`: Reverse path filtering mode
-        Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all.
+        Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all. With backend vpp, Ze also enables VPP uRPF in the same mode on the interface's receive path.
         - `disable`: No source address check, rp_filter 0.
         - `loose`: Drop a packet whose source address has no route at all, rp_filter 2.
         - `strict`: Drop a packet whose source does not route back through this interface, rp_filter 1.
@@ -3580,14 +3598,14 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
         The kernel learns an address only when a Router Advertisement reaches the device it owns, so this leaf needs the netlink backend. On the vpp backend, the NIC belongs to VPP, and no advertisement reaches the Linux Control Plane tap.
       - **dhcpv6** `container`: DHCPv6 stateful client (RFC 8415).
         The client requests addresses, delegated prefixes, or both, from a DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.
-        - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).
-          When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID.
+        - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).
+          When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID. Write it as colon-separated hex octets, such as 00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to 128 octets of identifier (RFC 9915 Section 11.1).
         - **enabled** `boolean`: Enable DHCPv6 client
           Ze starts a DHCPv6 client on this unit when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
         - **pd** `container`: Prefix delegation
-          Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no server for a delegated prefix. Ze does install a prefix that a server sends on its own in the IA_PD option of a Reply. Ze publishes that prefix as a lease on this unit. The length leaf below reaches no message Ze sends.
+          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this unit.
           - **length** `uint8`: Requested prefix length
-            The prefix length ze asks for, from 48 to 64. Ze reads the leaf into the DHCP client configuration and then sends no IA_PD option, so the value reaches no server and changes nothing. A prefix that a server sends on its own keeps the length that server assigned.
+            The prefix length ze asks for, from 48 to 64, sent as an IA Prefix hint (::/length) in the IA_PD. Without it the IA_PD carries no hint and the server chooses the length.
       - **forwarding** `boolean`: Allow this interface to forward IPv6 packets between interfaces.
         The leaf sets net.ipv6.conf.<iface>.forwarding. Forwarding disables RA acceptance, unless accept-ra is set to 2.
       - **router-advertisement** `container`: Router Advertisement sender (RFC 4861).
@@ -3626,7 +3644,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
           RFC 4861 Section 6.2.1 defines AdvRetransTimer. 0 means that this router states no value.
         - **router-lifetime** `uint16`: How long a host keeps Ze in its default router list (AdvDefaultLifetime).
           RFC 4861 Section 6.2.1 defines AdvDefaultLifetime. 0 says that Ze is not a default router, and the prefixes and the resolvers in the advertisement still apply. Any other value must be at least maximum-interval, and config verify rejects a smaller one.
-      - **rpf-check** `enumeration`: Reverse path filtering mode, on the VPP data plane only for IPv6.
+      - **rpf-check** `enumeration`: Reverse path filtering mode, enforced by an nftables fib lookup.
         strict drops a packet whose source address would not be routed back through this interface. loose drops a packet whose source address has no route at all. disable performs no source address validation.
         - `disable`: No source address validation.
         - `loose`: Drop a packet whose source address has no route at all.
@@ -3668,7 +3686,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
   - **disable** `empty`: Administratively disable this interface
     Ze skips a disabled interface at every apply step, so it creates no device, it installs no address, it starts no DHCP client and it sends no router advertisement. A DHCP client that is already running stops, and it takes away the address and the default route its lease installed. A device ze created before is deleted, because a disabled interface leaves the managed set. The config block stays in place.
   - **mtu** `uint16`: Maximum transmission unit
-    The range is 68 to 16000 bytes and the default is 1500. Ze applies the value with the netlink call LinkSetMTU after it creates the interface. Ze restores the previous value when a later step of the same apply fails.
+    The range is 68 to 16000 bytes. Ze applies the value with the netlink call LinkSetMTU after it creates the interface. Ze restores the previous value when a later step of the same apply fails. When the leaf is omitted, ze makes no MTU call and the device keeps its current MTU. For a device ze creates that is the kernel's default for the kind: 1500 for a dummy, veth or bridge, 1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel. Each kind has its own value, so the schema declares no single default.
   - **no-default-route** `empty`: Do not install a default route through the PPP interface.
     When the leaf is absent, which is the default, ze installs a default route after IPCP completes.
   - **os-name** `string`: OS device this logical interface name binds to.
@@ -3880,7 +3898,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
           - **vni** `uint32`: VXLAN Network Identifier (24-bit, 1..16777215)
             The VNI separates overlays that share one underlay, so two VXLAN tunnels between the same endpoints need different values. Ze refuses 0 and any value more than 16777215, in the netlink backend and in the VPP backend.
   - **mtu** `uint16`: Maximum transmission unit
-    The range is 68 to 16000 bytes and the default is 1500. Ze applies the value with the netlink call LinkSetMTU after it creates the interface. Ze restores the previous value when a later step of the same apply fails.
+    The range is 68 to 16000 bytes. Ze applies the value with the netlink call LinkSetMTU after it creates the interface. Ze restores the previous value when a later step of the same apply fails. When the leaf is omitted, ze makes no MTU call and the device keeps its current MTU. For a device ze creates that is the kernel's default for the kind: 1500 for a dummy, veth or bridge, 1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel. Each kind has its own value, so the schema declares no single default.
   - **os-name** `string`: OS device this logical interface name binds to.
     When this leaf is omitted, ze uses the logical name as the OS device name, so every interface whose name already matches its kernel device resolves unchanged. Set the leaf to alias a readable interface name to a different kernel device. The iface resolver then maps the logical name to this OS device. ze init records the discovered OS name here.
   - **unit <name>** `list`: Logical interface unit
@@ -3914,7 +3932,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       - **proxy-arp** `boolean`: Answer ARP requests for other hosts that are reachable through this router.
         The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface.
       - **rpf-check** `enumeration`: Reverse path filtering mode
-        Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all.
+        Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all. With backend vpp, Ze also enables VPP uRPF in the same mode on the interface's receive path.
         - `disable`: No source address check, rp_filter 0.
         - `loose`: Drop a packet whose source address has no route at all, rp_filter 2.
         - `strict`: Drop a packet whose source does not route back through this interface, rp_filter 1.
@@ -3928,14 +3946,14 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
         The kernel learns an address only when a Router Advertisement reaches the device it owns, so this leaf needs the netlink backend. On the vpp backend, the NIC belongs to VPP, and no advertisement reaches the Linux Control Plane tap.
       - **dhcpv6** `container`: DHCPv6 stateful client (RFC 8415).
         The client requests addresses, delegated prefixes, or both, from a DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.
-        - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).
-          When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID.
+        - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).
+          When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID. Write it as colon-separated hex octets, such as 00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to 128 octets of identifier (RFC 9915 Section 11.1).
         - **enabled** `boolean`: Enable DHCPv6 client
           Ze starts a DHCPv6 client on this unit when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
         - **pd** `container`: Prefix delegation
-          Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no server for a delegated prefix. Ze does install a prefix that a server sends on its own in the IA_PD option of a Reply. Ze publishes that prefix as a lease on this unit. The length leaf below reaches no message Ze sends.
+          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this unit.
           - **length** `uint8`: Requested prefix length
-            The prefix length ze asks for, from 48 to 64. Ze reads the leaf into the DHCP client configuration and then sends no IA_PD option, so the value reaches no server and changes nothing. A prefix that a server sends on its own keeps the length that server assigned.
+            The prefix length ze asks for, from 48 to 64, sent as an IA Prefix hint (::/length) in the IA_PD. Without it the IA_PD carries no hint and the server chooses the length.
       - **forwarding** `boolean`: Allow this interface to forward IPv6 packets between interfaces.
         The leaf sets net.ipv6.conf.<iface>.forwarding. Forwarding disables RA acceptance, unless accept-ra is set to 2.
       - **router-advertisement** `container`: Router Advertisement sender (RFC 4861).
@@ -3974,7 +3992,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
           RFC 4861 Section 6.2.1 defines AdvRetransTimer. 0 means that this router states no value.
         - **router-lifetime** `uint16`: How long a host keeps Ze in its default router list (AdvDefaultLifetime).
           RFC 4861 Section 6.2.1 defines AdvDefaultLifetime. 0 says that Ze is not a default router, and the prefixes and the resolvers in the advertisement still apply. Any other value must be at least maximum-interval, and config verify rejects a smaller one.
-      - **rpf-check** `enumeration`: Reverse path filtering mode, on the VPP data plane only for IPv6.
+      - **rpf-check** `enumeration`: Reverse path filtering mode, enforced by an nftables fib lookup.
         strict drops a packet whose source address would not be routed back through this interface. loose drops a packet whose source address has no route at all. disable performs no source address validation.
         - `disable`: No source address validation.
         - `loose`: Drop a packet whose source address has no route at all.
@@ -4012,7 +4030,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
     - **match** `string`: Bind this logical interface to the kernel device that carries this hardware MAC.
       The binding is by MAC rather than by name. The resolver matches the device's permanent factory address (IFLA_PERM_ADDRESS) when the device reports one, so the binding survives an operational MAC override. For a virtual device that reports no permanent address, the resolver matches the current address. This leaf takes precedence over os-name. It applies to the ethernet kind only, which is the matched physical kind. Ze identifies the kinds it creates (dummy, veth, bridge and the rest) by the name ze assigns. When the matching device is absent, the binding waits until the device appears.
   - **mtu** `uint16`: Maximum transmission unit
-    The range is 68 to 16000 bytes and the default is 1500. Ze applies the value with the netlink call LinkSetMTU after it creates the interface. Ze restores the previous value when a later step of the same apply fails.
+    The range is 68 to 16000 bytes. Ze applies the value with the netlink call LinkSetMTU after it creates the interface. Ze restores the previous value when a later step of the same apply fails. When the leaf is omitted, ze makes no MTU call and the device keeps its current MTU. For a device ze creates that is the kernel's default for the kind: 1500 for a dummy, veth or bridge, 1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel. Each kind has its own value, so the schema declares no single default.
   - **offload** `container`: Network offload and packet steering features.
     Ze applies these features through a kernel ioctl, the ethtool SIOCETHTOOL interface, or a sysfs write, after it creates the interface. The ethtool(8) CLI program is not required, because ze talks to the kernel directly. For a boolean leaf, true enables the feature explicitly, false disables it explicitly, and an absent leaf preserves the OS default with no kernel call. Offload availability depends on the NIC driver and the kernel version. Ze logs an unsupported feature as a warning, and the config commit still succeeds.
     - **gro** `boolean`: Generic Receive Offload: aggregate small incoming packets before the network stack.
@@ -4076,7 +4094,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       - **proxy-arp** `boolean`: Answer ARP requests for other hosts that are reachable through this router.
         The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface.
       - **rpf-check** `enumeration`: Reverse path filtering mode
-        Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all.
+        Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all. With backend vpp, Ze also enables VPP uRPF in the same mode on the interface's receive path.
         - `disable`: No source address check, rp_filter 0.
         - `loose`: Drop a packet whose source address has no route at all, rp_filter 2.
         - `strict`: Drop a packet whose source does not route back through this interface, rp_filter 1.
@@ -4088,6 +4106,10 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
             A non-owner Active router accepts packets addressed to the virtual addresses. The leaf carries version 3 semantics only, and the plugin verifier rejects true beside version 2. The dataplane enforces the leaf. With false on a non-owner, the router still answers ARP and Neighbor Discovery for the virtual addresses, and still forwards for the virtual MAC. It does not accept packets addressed to them, so a ping to a virtual address gets no reply. The address owner accepts whatever this leaf says.
           - **advertise-interval-milliseconds** `uint32`: Advertisement interval in milliseconds.
             The native range spans both versions, and the plugin verifier narrows it per version. Version 3 takes multiples of 10 ms within 10..40950, and the wire carries centiseconds (RFC 9568 erratum 8301). Version 2 takes whole seconds within 1000..255000, and the wire carries seconds.
+          - **checksum** `enumeration`: VRRPv3 IPv4 checksum form: rfc9568 or rfc5798-compatible.
+            Selects the VRRPv3 IPv4 checksum form. The group sends and accepts only that form, and an advertisement in the other form is dropped and counted as a checksum error. RFC 9568 computes the IPv4 checksum over the VRRP message alone. RFC 5798 also covered an IPv4 pseudo-header, and keepalived and other pre-RFC 9568 routers still send and require that form, so a group sharing a segment with them needs rfc5798-compatible. Version 2 always sums the message alone and refuses rfc5798-compatible. IPv6 groups have no such leaf: both RFCs cover the IPv6 pseudo-header.
+            - `rfc5798-compatible`: Checksum over the IPv4 pseudo-header and the message, as keepalived sends.
+            - `rfc9568`: Checksum over the VRRP message alone (RFC 9568 Section 5.2.8).
           - **preempt** `boolean`: Preempt_Mode (RFC 9568 Section 6.4.2).
             A Backup router with a higher priority takes over from a live Active router with a lower priority.
           - **preempt-delay-seconds** `uint16`: Preemption hold-time, in Junos semantics.
@@ -4118,14 +4140,14 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
         The kernel learns an address only when a Router Advertisement reaches the device it owns, so this leaf needs the netlink backend. On the vpp backend, the NIC belongs to VPP, and no advertisement reaches the Linux Control Plane tap.
       - **dhcpv6** `container`: DHCPv6 stateful client (RFC 8415).
         The client requests addresses, delegated prefixes, or both, from a DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.
-        - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).
-          When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID.
+        - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).
+          When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID. Write it as colon-separated hex octets, such as 00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to 128 octets of identifier (RFC 9915 Section 11.1).
         - **enabled** `boolean`: Enable DHCPv6 client
           Ze starts a DHCPv6 client on this unit when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
         - **pd** `container`: Prefix delegation
-          Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no server for a delegated prefix. Ze does install a prefix that a server sends on its own in the IA_PD option of a Reply. Ze publishes that prefix as a lease on this unit. The length leaf below reaches no message Ze sends.
+          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this unit.
           - **length** `uint8`: Requested prefix length
-            The prefix length ze asks for, from 48 to 64. Ze reads the leaf into the DHCP client configuration and then sends no IA_PD option, so the value reaches no server and changes nothing. A prefix that a server sends on its own keeps the length that server assigned.
+            The prefix length ze asks for, from 48 to 64, sent as an IA Prefix hint (::/length) in the IA_PD. Without it the IA_PD carries no hint and the server chooses the length.
       - **forwarding** `boolean`: Allow this interface to forward IPv6 packets between interfaces.
         The leaf sets net.ipv6.conf.<iface>.forwarding. Forwarding disables RA acceptance, unless accept-ra is set to 2.
       - **router-advertisement** `container`: Router Advertisement sender (RFC 4861).
@@ -4164,7 +4186,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
           RFC 4861 Section 6.2.1 defines AdvRetransTimer. 0 means that this router states no value.
         - **router-lifetime** `uint16`: How long a host keeps Ze in its default router list (AdvDefaultLifetime).
           RFC 4861 Section 6.2.1 defines AdvDefaultLifetime. 0 says that Ze is not a default router, and the prefixes and the resolvers in the advertisement still apply. Any other value must be at least maximum-interval, and config verify rejects a smaller one.
-      - **rpf-check** `enumeration`: Reverse path filtering mode, on the VPP data plane only for IPv6.
+      - **rpf-check** `enumeration`: Reverse path filtering mode, enforced by an nftables fib lookup.
         strict drops a packet whose source address would not be routed back through this interface. loose drops a packet whose source address has no route at all. disable performs no source address validation.
         - `disable`: No source address validation.
         - `loose`: Drop a packet whose source address has no route at all.
@@ -4222,7 +4244,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
   - **listen-port** `port`: UDP port WireGuard binds on 0.0.0.0 and :: for handshake and data traffic.
     When the leaf is unset, the kernel chooses an ephemeral port on the first outbound handshake.
   - **mtu** `uint16`: Maximum transmission unit
-    The range is 68 to 16000 bytes and the default is 1500. Ze applies the value with the netlink call LinkSetMTU after it creates the interface. Ze restores the previous value when a later step of the same apply fails.
+    The range is 68 to 16000 bytes. Ze applies the value with the netlink call LinkSetMTU after it creates the interface. Ze restores the previous value when a later step of the same apply fails. When the leaf is omitted, ze makes no MTU call and the device keeps its current MTU. For a device ze creates that is the kernel's default for the kind: 1500 for a dummy, veth or bridge, 1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel. Each kind has its own value, so the schema declares no single default.
   - **os-name** `string`: OS device this logical interface name binds to.
     When this leaf is omitted, ze uses the logical name as the OS device name, so every interface whose name already matches its kernel device resolves unchanged. Set the leaf to alias a readable interface name to a different kernel device. The iface resolver then maps the logical name to this OS device. ze init records the discovered OS name here.
   - **peer <name>** `list`: WireGuard peer, identified by its public key.
@@ -4276,7 +4298,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       - **proxy-arp** `boolean`: Answer ARP requests for other hosts that are reachable through this router.
         The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface.
       - **rpf-check** `enumeration`: Reverse path filtering mode
-        Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all.
+        Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all. With backend vpp, Ze also enables VPP uRPF in the same mode on the interface's receive path.
         - `disable`: No source address check, rp_filter 0.
         - `loose`: Drop a packet whose source address has no route at all, rp_filter 2.
         - `strict`: Drop a packet whose source does not route back through this interface, rp_filter 1.
@@ -4290,14 +4312,14 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
         The kernel learns an address only when a Router Advertisement reaches the device it owns, so this leaf needs the netlink backend. On the vpp backend, the NIC belongs to VPP, and no advertisement reaches the Linux Control Plane tap.
       - **dhcpv6** `container`: DHCPv6 stateful client (RFC 8415).
         The client requests addresses, delegated prefixes, or both, from a DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.
-        - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).
-          When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID.
+        - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).
+          When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID. Write it as colon-separated hex octets, such as 00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to 128 octets of identifier (RFC 9915 Section 11.1).
         - **enabled** `boolean`: Enable DHCPv6 client
           Ze starts a DHCPv6 client on this unit when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
         - **pd** `container`: Prefix delegation
-          Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no server for a delegated prefix. Ze does install a prefix that a server sends on its own in the IA_PD option of a Reply. Ze publishes that prefix as a lease on this unit. The length leaf below reaches no message Ze sends.
+          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this unit.
           - **length** `uint8`: Requested prefix length
-            The prefix length ze asks for, from 48 to 64. Ze reads the leaf into the DHCP client configuration and then sends no IA_PD option, so the value reaches no server and changes nothing. A prefix that a server sends on its own keeps the length that server assigned.
+            The prefix length ze asks for, from 48 to 64, sent as an IA Prefix hint (::/length) in the IA_PD. Without it the IA_PD carries no hint and the server chooses the length.
       - **forwarding** `boolean`: Allow this interface to forward IPv6 packets between interfaces.
         The leaf sets net.ipv6.conf.<iface>.forwarding. Forwarding disables RA acceptance, unless accept-ra is set to 2.
       - **router-advertisement** `container`: Router Advertisement sender (RFC 4861).
@@ -4336,7 +4358,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
           RFC 4861 Section 6.2.1 defines AdvRetransTimer. 0 means that this router states no value.
         - **router-lifetime** `uint16`: How long a host keeps Ze in its default router list (AdvDefaultLifetime).
           RFC 4861 Section 6.2.1 defines AdvDefaultLifetime. 0 says that Ze is not a default router, and the prefixes and the resolvers in the advertisement still apply. Any other value must be at least maximum-interval, and config verify rejects a smaller one.
-      - **rpf-check** `enumeration`: Reverse path filtering mode, on the VPP data plane only for IPv6.
+      - **rpf-check** `enumeration`: Reverse path filtering mode, enforced by an nftables fib lookup.
         strict drops a packet whose source address would not be routed back through this interface. loose drops a packet whose source address has no route at all. disable performs no source address validation.
         - `disable`: No source address validation.
         - `loose`: Drop a packet whose source address has no route at all.
@@ -4370,7 +4392,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
   - **if-id** `uint32`: XFRM identifier that binds security associations to this interface.
     A bound security association carries the same if_id. The value must be non- zero, because 0 means unset in the kernel.
   - **mtu** `uint16`: Maximum transmission unit
-    The range is 68 to 16000 bytes and the default is 1500. Ze applies the value with the netlink call LinkSetMTU after it creates the interface. Ze restores the previous value when a later step of the same apply fails.
+    The range is 68 to 16000 bytes. Ze applies the value with the netlink call LinkSetMTU after it creates the interface. Ze restores the previous value when a later step of the same apply fails. When the leaf is omitted, ze makes no MTU call and the device keeps its current MTU. For a device ze creates that is the kernel's default for the kind: 1500 for a dummy, veth or bridge, 1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel. Each kind has its own value, so the schema declares no single default.
   - **os-name** `string`: OS device this logical interface name binds to.
     When this leaf is omitted, ze uses the logical name as the OS device name, so every interface whose name already matches its kernel device resolves unchanged. Set the leaf to alias a readable interface name to a different kernel device. The iface resolver then maps the logical name to this OS device. ze init records the discovered OS name here.
   - **unit <name>** `list`: Logical interface unit
@@ -4404,7 +4426,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       - **proxy-arp** `boolean`: Answer ARP requests for other hosts that are reachable through this router.
         The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets that have no L2 connectivity between them, or for an unnumbered interface.
       - **rpf-check** `enumeration`: Reverse path filtering mode
-        Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all.
+        Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable is 0, strict is 1 and loose is 2. strict drops a packet whose source address would not route back through this interface. loose drops a packet whose source address has no route at all. With backend vpp, Ze also enables VPP uRPF in the same mode on the interface's receive path.
         - `disable`: No source address check, rp_filter 0.
         - `loose`: Drop a packet whose source address has no route at all, rp_filter 2.
         - `strict`: Drop a packet whose source does not route back through this interface, rp_filter 1.
@@ -4418,14 +4440,14 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
         The kernel learns an address only when a Router Advertisement reaches the device it owns, so this leaf needs the netlink backend. On the vpp backend, the NIC belongs to VPP, and no advertisement reaches the Linux Control Plane tap.
       - **dhcpv6** `container`: DHCPv6 stateful client (RFC 8415).
         The client requests addresses, delegated prefixes, or both, from a DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.
-        - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).
-          When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID.
+        - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).
+          When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID. Write it as colon-separated hex octets, such as 00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to 128 octets of identifier (RFC 9915 Section 11.1).
         - **enabled** `boolean`: Enable DHCPv6 client
           Ze starts a DHCPv6 client on this unit when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
         - **pd** `container`: Prefix delegation
-          Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no server for a delegated prefix. Ze does install a prefix that a server sends on its own in the IA_PD option of a Reply. Ze publishes that prefix as a lease on this unit. The length leaf below reaches no message Ze sends.
+          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this unit.
           - **length** `uint8`: Requested prefix length
-            The prefix length ze asks for, from 48 to 64. Ze reads the leaf into the DHCP client configuration and then sends no IA_PD option, so the value reaches no server and changes nothing. A prefix that a server sends on its own keeps the length that server assigned.
+            The prefix length ze asks for, from 48 to 64, sent as an IA Prefix hint (::/length) in the IA_PD. Without it the IA_PD carries no hint and the server chooses the length.
       - **forwarding** `boolean`: Allow this interface to forward IPv6 packets between interfaces.
         The leaf sets net.ipv6.conf.<iface>.forwarding. Forwarding disables RA acceptance, unless accept-ra is set to 2.
       - **router-advertisement** `container`: Router Advertisement sender (RFC 4861).
@@ -4464,7 +4486,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
           RFC 4861 Section 6.2.1 defines AdvRetransTimer. 0 means that this router states no value.
         - **router-lifetime** `uint16`: How long a host keeps Ze in its default router list (AdvDefaultLifetime).
           RFC 4861 Section 6.2.1 defines AdvDefaultLifetime. 0 says that Ze is not a default router, and the prefixes and the resolvers in the advertisement still apply. Any other value must be at least maximum-interval, and config verify rejects a smaller one.
-      - **rpf-check** `enumeration`: Reverse path filtering mode, on the VPP data plane only for IPv6.
+      - **rpf-check** `enumeration`: Reverse path filtering mode, enforced by an nftables fib lookup.
         strict drops a packet whose source address would not be routed back through this interface. loose drops a packet whose source address has no route at all. disable performs no source address validation.
         - `disable`: No source address validation.
         - `loose`: Drop a packet whose source address has no route at all.
@@ -4719,9 +4741,11 @@ L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any con
 - **hello-interval** `uint16`: Seconds of peer silence before Ze sends HELLO.
   Seconds of peer silence before sending HELLO. RFC 2661 recommends 60s. A value more than 3600, which is one hour, is rejected, because it disables keepalive.
 - **hello-retries** `uint8`: Unanswered HELLO intervals tolerated before the peer is declared dead.
-  Dead-peer detection threshold: consecutive unanswered HELLO keepalive intervals tolerated before an established tunnel's peer is declared dead and the tunnel is torn down. The effective detection time is hello-retries x hello-interval, measured from the last proof of peer liveness. That proof is a delivered control message, or an acknowledgement of one of our messages, including a ZLB ACK of a HELLO. A value of 0 disables dead-peer detection, and reliable-transport retransmit exhaustion, about 31s, is then the only teardown signal. The default is 2.
+  Dead-peer detection threshold: consecutive unanswered HELLO keepalive intervals tolerated before an established tunnel's peer is declared dead and the tunnel is torn down. The effective detection time is hello-retries x hello-interval, measured from the last proof of peer liveness. That proof is a delivered control message, or an acknowledgement of one of our messages, including a ZLB ACK of a HELLO. A value of 0 disables dead-peer detection, and reliable-transport retransmit exhaustion, about 31s with the default max-retransmit, is then the only teardown signal. The default is 2.
 - **max-logins** `uint32`: Maximum concurrent PPP logins the CQM observer tracks.
   Maximum concurrent PPP logins tracked by the CQM observer. The value controls the size of the pre-allocated sample ring pool. When the maximum is exceeded, the least recently used login's data is evicted.
+- **max-retransmit** `uint8`: Retransmissions of an unacknowledged control message before the tunnel is cleared.
+  Retransmissions of an unacknowledged control message before the tunnel and all its sessions are cleared, as RFC 2661 Section 5.8 requires. The first retransmission waits 1s and each later one doubles the wait up to 16s, so each retransmission above the default 5 adds 16s to the time a silent tunnel takes to clear. The value applies to tunnels created after it is set; a reload leaves established tunnels on the count they started with.
 - **max-sessions** `uint16`: Maximum concurrent sessions per tunnel.
   Maximum concurrent sessions per tunnel. The default is a finite deployment safety cap. A value of 0 explicitly requests unbounded admission on each tunnel. A new ICRQ or OCRQ beyond a positive limit is rejected with CDN Result Code 4 (no resources).
 - **max-tunnels** `uint16`: Maximum concurrent L2TP tunnels.
@@ -6440,11 +6464,11 @@ The container holds the system-wide settings. This module attaches the local use
   - **filename** `string`: Filename format with token substitution.
     The tokens are {name} for the config basename, {host}, {domain}, {date} as YYYYMMDD, {time} as HHMMSS, and {archive} for the block name. Ze appends .conf.
   - **location** `string`: Archive destination URL (file://, http://, https://).
-    A file:// URL writes to the local filesystem. An http:// or https:// URL uploads the config with an HTTP request.
+    A file:// URL writes to the local filesystem. An http:// or https:// URL uploads the config with an HTTP request. Any other scheme is refused when the config is validated.
   - **on-change** `boolean`: Time-based only: skip if config unchanged since last archive.
     With true, Ze skips a daily or hourly archive when the config did not change since the last one. The leaf changes nothing for the commit trigger and the manual trigger.
   - **timeout** `string`: HTTP upload timeout, in Go duration format, for example 30s.
-    Ze gives up on an upload that passes this timeout. The format is the Go duration format, such as 30s or 2m.
+    Ze gives up on an upload that passes this timeout. The format is the Go duration format, such as 30s or 2m, and the value must be above zero. An absent timeout is 30s.
   - **trigger** `enumeration`: When to archive.
     The triggers are commit, manual, daily and hourly.
     - `commit`: Archive on every config commit.
@@ -6725,7 +6749,7 @@ The container holds the system-wide settings. This module attaches the local use
 - **host** `string`: System hostname, supports $ENV_VAR expansion.
   Ze expands a $ENV_VAR reference in the value when it reads the config.
 - **name-server** `ip-address[]`: Static DNS name servers, written to resolv.conf and used by ze internal resolver.
-  Ze writes each address to the resolv.conf file named by dns/resolv-conf-path, and its own resolver asks these servers.
+  Ze writes each address to the resolv.conf file named by dns/resolv-conf-path, and its own resolver asks these servers. When environment mtu reference-address is not set, show mtu measures the first server as its reference address.
 - **peeringdb** `container`: PeeringDB API configuration for prefix data lookups.
   The container holds the API base URL and the prefix-limit margin. Ze asks PeeringDB for the prefix counts of a peer.
   - **margin** `uint8`: Percentage margin above PeeringDB count for prefix maximum (0-100).
@@ -6866,8 +6890,8 @@ Two subtrees sit under it, and they are independent. control programs the queuei
           The value 0 is the highest priority.
         - **rate** `rate-bps`: Rate this class is guaranteed.
           The value is a number and a unit, for example 10mbit or 100kbps.
-      - **default-class** `string`: Name of the class that takes the unclassified traffic.
-        The value is the name of a class in the class list of this qdisc.
+      - **default-class** `leafref`: Name of the class that takes the unclassified traffic.
+        The value is the name of a class in the class list of this qdisc. The leafref refuses a name no class of this qdisc carries.
       - **type** `qdisc-type`: Type of the queueing discipline.
         The commit-time gate rejects a type the configured backend does not support.
         - `fq`: The Fair Queue qdisc.
@@ -7080,6 +7104,8 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
           Destinations a certificate URL received from this peer CAN resolve to, beyond the fetcher's defaults. The fetcher refuses loopback, private, link-local and multicast addresses, and the cloud metadata address. It refuses them because the daemon runs on a router and holds routes an internet host does not. Naming a prefix here permits it.
         - **hash-and-url** `boolean`: Use the Hash and URL certificate encodings of RFC 7296 Section 3.6.
           When it is true Ze sends its certificate as a SHA-1 hash plus certificate-url, advertises HTTP_CERT_LOOKUP_SUPPORTED, and resolves a peer's Hash and URL payload. It defaults to false, and that default is a security property. Resolving a peer's payload fetches a URL that peer chose, and Ze must do that before it CAN authenticate the peer. With this leaf false Ze advertises nothing, a conforming peer sends no such payload, a non-conforming one is dropped, and no fetch is reachable. The enabled fetch takes the http scheme only, a 64 KiB cap, a 5 second timeout, no redirects, denied destinations, and SHA-1 verification before any parser.
+        - **intermediate-certificate** `string[]`: PKI CA certificates that complete an EAP-TLS client chain.
+          Names of intermediate CA certificates held as ca entries in the PKI store. Read in eap-tls mode only. When ze is the EAP-TLS authenticator, it adds these certificates to path validation of the client's certificate chain, beside the intermediates the client sends. A client that sends its certificate alone then still validates, as RFC 5216 Section 5.3 asks of an authenticator that cannot fetch the intermediates a path needs. The certificates complete a path and never end one: ca-certificate stays the only trust anchor. Commit refuses a name that is not a PKI ca entry, an entry that is not a CA certificate, and the list on a peer whose mode is not eap-tls.
         - **local-id** `string`: Local identity for IKE negotiation.
           Ze derives the ID type it sends from the shape of the value. An IP address literal goes out as ID_IPV4_ADDR or ID_IPV6_ADDR, and every other value as ID_FQDN. There is no ID_DER_ASN1_DN form, so commit refuses a distinguished name. Commit also refuses a subtree or an address range, because this leaf names the one identity Ze asserts. An empty leaf sends the peer name.
         - **mode** `enumeration`: Authentication mode.
@@ -7160,7 +7186,7 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
         - **bind** `string`: VTI interface name to bind this peer's traffic to.
           Route-based IPsec encrypts the traffic the routing table forwards into the named XFRM interface. Commit refuses a name beside mode transport, because an XFRM interface carries tunnel-mode encapsulation. Ze installs the Child SA with the if-id of the named interface. A name that is not an XFRM interface, or one whose if-id is 0, refuses the Child SA, so the tunnel stays down rather than coming up unbound.
   - **unmatched** `enumeration`: Disposition of traffic no SPD entry matches: discard or bypass.
-    The disposition of the catch-all entry Ze installs last in the Security Policy Database, in every direction and for both address families. RFC 4301 Section 5: 'If no policy is found in the SPD that matches a packet (for either inbound or outbound traffic), the packet MUST be discarded.' The catch-all is that policy, so a packet no other entry names always meets one. The default is bypass, because a router's own control plane (BGP, SSH, DNS) crosses the IPsec boundary in the clear, and a default of discard would stop it the moment vpn ipsec was configured. Set discard to get the disposition the RFC names, and write a bypass entry under policy for every flow that must still cross in the clear. The IKE control plane keeps its own bypass at order 100 either way.
+    The disposition of the catch-all entry Ze installs last in the Security Policy Database, in every direction and for both address families. RFC 4301 Section 5: 'If no policy is found in the SPD that matches a packet (for either inbound or outbound traffic), the packet MUST be discarded.' The catch-all is that policy, so a packet no other entry names always meets one. The default is discard, the entry RFC 4301 Section 4.4.1 asks for: 'Every SPD SHOULD have a nominal, final entry that matches anything that is otherwise unmatched, and discards it.' It also drops the router's own traffic where it crosses in the clear: BGP, SSH, DNS, NTP, ICMP (ping, traceroute, show mtu probes and path-MTU errors) and IPv6 neighbor discovery, which is ICMPv6 (protocol 58). So write a bypass entry under policy for every flow that must still cross in the clear, or set bypass to pass all of it. A commit that would turn the discard on while this leaf is unset is refused until the leaf is written. The IKE control plane keeps its own bypass at order 100 either way.
     - `bypass`: Pass traffic no SPD entry matches in the clear.
     - `discard`: Discard traffic no SPD entry matches (RFC 4301 Section 5).
 

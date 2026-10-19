@@ -164,7 +164,7 @@ The route enters Ze&#39;s BGP RIB, wins best-path selection, reaches the protoco
     local-preference 200 \
     as-path [ 65001 65002 ] \
     community [ 65000:100 no-export ] \
-    nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24"
+    nlri add 10.0.0.0/24 10.0.1.0/24"
 </code></pre>
 <h3 id="attribute-keywords">Attribute Keywords</h3>
 <p>Attributes are flat: keyword followed by value. No <code>set</code>/<code>add</code>/<code>del</code> on attributes.
@@ -345,7 +345,7 @@ in <code>update text</code> and in config alike, from one keyword table both par
 <pre><code class="language-bash">ze cli -c "send bgp upstream update text \
     origin igp nhop self \
     extended-community [ discard ] \
-    nlri ipv4/flow add &lt;flowspec-nlri&gt;"
+    mp ipv4/flow add &lt;flowspec-nlri&gt;"
 </code></pre>
 <p><code>copy-to-nexthop</code> and <code>redirect-to-nexthop-draft</code> differ in one bit of the last
 octet, which is the copy semantic. An unknown keyword is refused with an error
@@ -427,14 +427,22 @@ before its announces.</p>
 <p>Two commands written in two separate writes never cancel each other, whatever
 the interval between them. See <code>docs/architecture/exabgp-bridge.md</code>.</p>
 <h3 id="nlri-operations">NLRI Operations</h3>
-<p><code>add</code> and <code>del</code> are NLRI operations (MP_REACH and MP_UNREACH):</p>
-<pre><code class="language-bash">nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24    # Announce prefixes
-nlri ipv4/unicast del 10.0.2.0/24                  # Withdraw prefix
-nlri ipv4/unicast eor                               # End-of-RIB marker
+<p>The section keyword names the UPDATE section the routes travel in. <code>nlri</code>
+takes no family: it is IPv4 unicast in the NLRI and Withdrawn Routes fields.
+<code>mp &lt;family&gt;</code> is every other family, in MP_REACH_NLRI and MP_UNREACH_NLRI.
+<code>add</code> announces and <code>del</code> withdraws:</p>
+<pre><code class="language-bash">nlri add 10.0.0.0/24 10.0.1.0/24                 # Announce IPv4 unicast prefixes
+nlri del 10.0.2.0/24                             # Withdraw an IPv4 unicast prefix
+nlri eor                                         # IPv4 unicast End-of-RIB marker
+mp ipv6/unicast add 2001:db8::/32                # Announce an IPv6 unicast prefix
+mp ipv6/unicast eor                              # IPv6 unicast End-of-RIB marker
 </code></pre>
+<p>IPv4 unicast with an IPv6 next hop travels in MP_REACH_NLRI (RFC 8950), so it
+is written <code>next-hop &lt;ipv6-address&gt; mp ipv4/unicast add &lt;prefix&gt;</code>. The removed
+form <code>nlri &lt;family&gt;</code> is refused, and the error names the form to write.</p>
 <p>Multiple families in one command:</p>
-<pre><code class="language-bash">nlri ipv4/unicast add 10.0.0.0/24 \
-nlri ipv6/unicast add 2001:db8::/32
+<pre><code class="language-bash">nlri add 10.0.0.0/24 \
+mp ipv6/unicast add 2001:db8::/32
 </code></pre>
 <h2 id="hex-format">Hex Format</h2>
 <p>Wire-encoded bytes for debugging or replay:</p>
@@ -511,7 +519,7 @@ rail drops the work for a peer whose session is not established:</p>
 hub. The wire protocol is language-independent; the repository no longer
 ships a Python launcher or helper.</p>
 <p>Go plugins use the SDK method:</p>
-<pre><code class="language-go">p.UpdateRoute(ctx, "*", "update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24")
+<pre><code class="language-go">p.UpdateRoute(ctx, "*", "update text nhop 10.0.0.1 nlri add 10.0.0.0/24")
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk.go -- Plugin -->
 
@@ -556,7 +564,7 @@ ships a Python launcher or helper.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

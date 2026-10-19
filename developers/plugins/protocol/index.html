@@ -67,7 +67,10 @@ plugins connect back via TLS.</p>
 <li><a href="#what-the-sdk-guarantees">What the SDK guarantees</a></li>
 <li><a href="#what-it-does-not-guarantee">What it does not guarantee</a></li>
 </ol></li>
-<li><a href="#runtime-callbacks-engine-to-plugin">Runtime Callbacks (Engine to Plugin)</a></li>
+<li><a href="#runtime-callbacks-engine-to-plugin">Runtime Callbacks (Engine to Plugin)</a>
+<ol>
+<li><a href="#the-filter-text-an-onfilterupdate-handler-reads">The Filter Text an OnFilterUpdate Handler Reads</a></li>
+</ol></li>
 <li><a href="#runtime-rpcs-plugin-to-engine">Runtime RPCs (Plugin to Engine)</a></li>
 <li><a href="#message-flow-example">Message Flow Example</a></li>
 <li><a href="#error-handling">Error Handling</a></li>
@@ -380,6 +383,11 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 <td><code>doctor-checks</code></td>
 <td><code>[]DoctorCheckDecl</code></td>
 <td>Doctor checks the plugin provides</td>
+</tr>
+<tr>
+<td><code>resolver-caches</code></td>
+<td><code>[]string</code></td>
+<td>Resolver caches the plugin holds clients for: <code>peeringdb</code>, <code>irr</code>, <code>cymru</code>. Set by <code>OnResolverCacheClear</code>; any other name is refused</td>
 </tr>
 <tr>
 <td><code>enrichers</code></td>
@@ -1000,7 +1008,7 @@ each wire method to its registered handler.</p>
 <td><code>OnFilterUpdate</code></td>
 <td><code>FilterUpdateInput</code></td>
 <td><code>FilterUpdateOutput</code></td>
-<td>Filter a route update</td>
+<td>Filter a route update. The reactor waits <code>rpc.FilterUpdateTimeout</code> (5 s) for the answer, then applies the filter's <code>on-error</code> policy, so a handler that waits MUST bound the wait below it</td>
 </tr>
 <tr>
 <td><code>ze-plugin-callback:doctor-check</code></td>
@@ -1008,6 +1016,13 @@ each wire method to its registered handler.</p>
 <td><code>DoctorCheckInput</code></td>
 <td><code>DoctorCheckOutput</code></td>
 <td>Run a doctor check</td>
+</tr>
+<tr>
+<td><code>ze-plugin-callback:resolver-cache-clear</code></td>
+<td><code>OnResolverCacheClear</code></td>
+<td><code>ResolverCacheClearInput</code></td>
+<td><code>ResolverCacheClearOutput</code></td>
+<td>Clear a declared resolver cache of the plugin's current clients, answering the entries removed</td>
 </tr>
 <tr>
 <td><code>ze-plugin-callback:enrich-show</code></td>
@@ -1039,6 +1054,47 @@ each wire method to its registered handler.</p>
 </tr>
 </tbody>
 </table>
+<h3 id="the-filter-text-an-onfilterupdate-handler-reads">The Filter Text an <code>OnFilterUpdate</code> Handler Reads</h3>
+<p><code>FilterUpdateInput.Update</code> is the UPDATE as text: <code>&lt;name&gt; &lt;value&gt;</code> attribute
+pairs, then one NLRI block for each section the UPDATE carries.</p>
+<table>
+<thead>
+<tr>
+<th>Block</th>
+<th>UPDATE section</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nlri add &lt;prefix&gt;...</code></td>
+<td>The legacy NLRI field, always IPv4 unicast</td>
+</tr>
+<tr>
+<td><code>nlri del &lt;prefix&gt;...</code></td>
+<td>The legacy Withdrawn Routes, always IPv4 unicast</td>
+</tr>
+<tr>
+<td><code>mp &lt;family&gt; add &lt;prefix&gt;...</code></td>
+<td>An MP_REACH_NLRI attribute, any family, IPv4 unicast included</td>
+</tr>
+<tr>
+<td><code>mp &lt;family&gt; del &lt;prefix&gt;...</code></td>
+<td>An MP_UNREACH_NLRI attribute</td>
+</tr>
+</tbody>
+</table>
+<p>For example: <code>origin igp as-path [65001] nlri add 10.0.0.0/24 mp ipv6/unicast add 2001:db8::/32</code>.
+Split the NLRI value at every <code>nlri</code> and <code>mp</code> token, and read the family only
+from an <code>mp</code> block. A family whose NLRI is not a CIDR prefix renders a marker
+block with no prefix (<code>mp l2vpn/evpn add</code>).</p>
+<p>A <code>FilterModify</code> answer that changes NLRI returns the whole NLRI value, in the
+same keywords, with prefixes removed and the rest in the order given. The
+engine refuses, and drops the route, an answer that adds or reorders a prefix,
+names a section the UPDATE does not carry, or changes a non-CIDR block. The
+full contract is in <code>docs/architecture/api/process-protocol.md</code>, "NLRI Blocks
+and the Modify Answer".</p>
+<!-- source: internal/component/bgp/reactor/filter_format.go -- AppendUpdateForFilter -->
+<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- sectionNLRIDelta -->
 <h2 id="runtime-rpcs-plugin-to-engine">Runtime RPCs (Plugin to Engine)</h2>
 <p>Plugins call the engine during runtime through these SDK methods:</p>
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- UpdateRoute through DecodeUpdate -->
@@ -1270,7 +1326,7 @@ config-verify, etc.) and bye.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

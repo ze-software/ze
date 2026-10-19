@@ -314,6 +314,14 @@ the harness inspects retained VPP state. A policer or ACL left by the previous
 daemon therefore cannot make a failed replacement look like a successful restart.</p>
 <!-- source: internal/le/test/deployment/vppevidence.go -- startEvidenceDaemon -->
 <!-- source: internal/le/test/deployment/deployment.go -- running.stop -->
+<p><code>vpp-test</code> and <code>vpp-iface-test</code> start their container through the lab Docker
+wrapper, which labels it with the run that owns it. Ctrl-C or SIGTERM ends the
+run and still removes the container. When the removal fails, the report's
+<code>container-removal-error</code> names the reason and the verb exits 1; run
+<code>./le test integration cleanup</code> to remove it. A run killed outright leaves a
+labeled container that the next lab start or that cleanup removes.</p>
+<!-- source: internal/le/test/deployment/actions.go -- signalRooted -->
+<!-- source: internal/le/test/deployment/deployment.go -- removeContainer -->
 <h2 id="configuring-vpp">Configuring VPP</h2>
 <p>The <code>vpp { ... }</code> container lives in the main ze config. Minimal example:</p>
 <pre><code>vpp {
@@ -650,7 +658,7 @@ still available through the CLI socket ze writes to <code>/run/vpp/cli.sock</cod
 <tr>
 <td>vpp-4</td>
 <td>VPP-native <code>iface.Backend</code>: managing interfaces directly via GoVPP instead of through the kernel</td>
-<td><strong>In tree.</strong> Backend registers as <code>"vpp"</code> and loads cleanly under <code>interface { backend vpp; }</code>. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (<code>ListInterfaces</code>, <code>GetInterface</code>, <code>GetMACAddress</code>, <code>SetMACAddress</code>), and monitor (<code>WantInterfaceEvents</code> -&gt; EventBus) all wired against vendored GoVPP. Tunnels (GRE/GRETAP/IPIP + VXLAN as a new kind), mirror (SPAN), wireguard, and LCP TAP pairs are now implemented (<code>spec-followup-vpp-iface</code>, GoVPP binapi vendored). GRE tunnels and wireguard interfaces are proven against real VPP 25.10 by; LCP pairs are unit- and wiring-tested but their real-VPP proof needs a VPP build shipping <code>linux_cp_plugin.so</code>/<code>linux_nl_plugin.so</code> (the <code>ligato/vpp-base</code> image does not). Iface-component reconciliation still races the vpp handshake at startup and degrades to additive-only -- tracked in <code>spec-iface-vpp-ready-gate</code>. <!-- source: internal/plugins/iface/vpp/tunnel.go -- CreateTunnel gre/gretap/ipip --> <!-- source: internal/plugins/iface/vpp/mirror.go -- SetupMirror via SPAN --> <!-- source: internal/plugins/iface/vpp/wireguard.go -- wireguard plugin binary API --> <!-- source: internal/plugins/iface/vpp/lcp.go -- SetupLCPPair via lcp_itf_pair_add_del -->. <span class="ev-src"><span class="ev-ref"><code>internal/le/test/deployment.Answer</code></span></span></td>
+<td><strong>In tree.</strong> Backend registers as <code>"vpp"</code> and loads cleanly under <code>interface { backend vpp; }</code>. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (<code>ListInterfaces</code>, <code>GetInterface</code>, <code>GetMACAddress</code>, <code>SetMACAddress</code>), and monitor (<code>WantInterfaceEvents</code> -&gt; EventBus) all wired against vendored GoVPP. Tunnels (GRE/GRETAP/IPIP + VXLAN as a new kind), mirror (SPAN), wireguard, and LCP TAP pairs are now implemented (<code>spec-followup-vpp-iface</code>, GoVPP binapi vendored). GRE tunnels and wireguard interfaces are proven against real VPP 25.10 by; LCP pairs are unit- and wiring-tested but their real-VPP proof needs a VPP build shipping <code>linux_cp_plugin.so</code>/<code>linux_nl_plugin.so</code> (the <code>ligato/vpp-base</code> image does not). An interface apply that runs before the vpp handshake completes is deferred whole and performed when <code>EventConnected</code> fires (VPP backend). <!-- source: internal/component/iface/config_apply.go -- applyConfig, applyOwedConfig --> <!-- source: internal/plugins/iface/vpp/tunnel.go -- CreateTunnel gre/gretap/ipip --> <!-- source: internal/plugins/iface/vpp/mirror.go -- SetupMirror via SPAN --> <!-- source: internal/plugins/iface/vpp/wireguard.go -- wireguard plugin binary API --> <!-- source: internal/plugins/iface/vpp/lcp.go -- SetupLCPPair via lcp_itf_pair_add_del -->. <span class="ev-src"><span class="ev-ref"><code>internal/le/test/deployment.Answer</code></span><span class="ev-ref"><code>docs/features/interfaces.md</code></span></span></td>
 </tr>
 <tr>
 <td>vpp-5</td>
@@ -763,7 +771,7 @@ and converging sub-second on a full table.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

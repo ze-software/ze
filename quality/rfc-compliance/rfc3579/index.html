@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3579 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3579: RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP). 31 gated MUST-level requirements, 15 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 3579: RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP). 31 gated MUST-level requirements, 14 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 3579 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3579: RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP). 31 gated MUST-level requirements, 15 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 3579: RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP). 31 gated MUST-level requirements, 14 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 3579 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3579: RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP). 31 gated MUST-level requirements, 15 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 3579: RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP). 31 gated MUST-level requirements, 14 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 31 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 31 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 31 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>95.3%</strong><b>41 of 43 tagged units, 2 escaped and 0 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>95.7%</strong><b>45 of 47 tagged units, 2 escaped and 0 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,7 +136,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>45.2%</strong><b>14 of 31 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>18</strong><b>of 31 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 31 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -190,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -219,7 +218,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>15</td>
+<td>14</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -231,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>43</td>
+<td>47</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>43</td>
+<td>47</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>18</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>43</td>
+<td>47</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc3579.md</code></td>
@@ -264,7 +263,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 Ze is the NAS and runs the RADIUS/EAP conversation for operator login, with <code>auth-method eap-md5</code> or <code>eap-mschapv2</code>. It encapsulates one EAP packet per RADIUS packet in consecutive EAP-Message attributes split at 253 octets (<code>appendEAPMessage</code>, <code>eapPacketFrom</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/eap.go" target="_blank" rel="noopener"><code>internal/component/radius/eap.go</code></a>), signs every EAP-bearing Access-Request (<code>SignMessageAuthenticator</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet.go" target="_blank" rel="noopener"><code>internal/component/radius/packet.go</code></a>), silently discards a reply whose Message-Authenticator does not verify (<code>(*Client).dispatchResponse</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/client.go" target="_blank" rel="noopener"><code>internal/component/radius/client.go</code></a>), and answers each Access-Challenge with the peer&#39;s EAP-Response and the challenge&#39;s State unmodified (<code>authenticateEAP</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap.go" target="_blank" rel="noopener"><code>internal/component/radius/authenticator_eap.go</code></a>). It copies the peer&#39;s own EAP-Response/Identity Type-Data into User-Name on every request of the conversation, validates each server EAP header before the peer sees it, processes the EAP-Message attributes before it reads the reply code, and never offers a password credential in place of the configured EAP method. Ze answers EAP itself, as the peer, rather than passing frames through.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Fifteen MUST and SHOULD requirements are unproven, unreached or unmet: fourteen at the MUST level, none of which changes what an operator can configure, and one SHOULD, <code>RFC3579-3-2</code>, NAS-Port or NAS-Port-Id in an Access-Request, which is not met. The EAP-bearing Access-Requests ze sends are the admin login&#39;s, built by <code>(*radiusAuthenticator).exchange</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator.go" target="_blank" rel="noopener"><code>internal/component/radius/authenticator.go</code></a>), and an admin login over SSH, the web or the API has no NAS port, so they carry neither; the L2TP subscriber Access-Request, which carries no EAP-Message, sends NAS-Port as the L2TP session id (<code>buildAuthAttrs</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/handler.go" target="_blank" rel="noopener"><code>internal/component/l2tp/plugins/authradius/handler.go</code></a>). The pass-through architecture accounts for most: ze answers EAP for the operator and forwards no EAP frame, so Section 2.1&#39;s EAP-Start and the Nak relay have no path, and the Section 2.2 Error-Cause 202 branch cannot fire because ze holds no queue of EAP-Responses for its antecedent to match. Four prohibitions hold by construction and are tagged by nothing, because a test would have to observe a packet no code path can build: Sections 2.1, 2.6.3 and 2.6.5. EAP-TLS is implemented in the peer (<code>internal/core/eap</code>) and not offered by <code>auth-method</code>, which needs an operator certificate and key. Ze&#39;s PPP NAS never negotiates EAP, so the Section 4.3.6 obligations that bind a NAS whose peers require EAP are unreached. The IPsec-for-RADIUS profile of Section 4.2 is absent: ze offers no way to run RADIUS over an IPsec SA and no zero-length shared secret. Section 4.3.4&#39;s ban on sharing a secret between an EAP NAS and a User-Password NAS is not checked at config load.
+Fourteen MUST requirements are unproven, unreached or unmet, none of which changes what an operator can configure. The EAP-bearing Access-Requests ze sends are the admin login&#39;s, built by <code>(*radiusAuthenticator).exchange</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator.go" target="_blank" rel="noopener"><code>internal/component/radius/authenticator.go</code></a>), and each carries NAS-Port-Id naming the access channel the login arrived on, taken from the login&#39;s <code>AuthRequest.Service</code>: <code>ssh</code> for an SSH login and <code>web</code> for a web login (<code>RFC3579-3-2</code>); the L2TP subscriber Access-Request, which carries no EAP-Message, sends NAS-Port as the L2TP session id (<code>buildAuthAttrs</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/handler.go" target="_blank" rel="noopener"><code>internal/component/l2tp/plugins/authradius/handler.go</code></a>). The pass-through architecture accounts for most: ze answers EAP for the operator and forwards no EAP frame, so Section 2.1&#39;s EAP-Start and the Nak relay have no path, and the Section 2.2 Error-Cause 202 branch cannot fire because ze holds no queue of EAP-Responses for its antecedent to match. Four prohibitions hold by construction and are tagged by nothing, because a test would have to observe a packet no code path can build: Sections 2.1, 2.6.3 and 2.6.5. EAP-TLS is implemented in the peer (<code>internal/core/eap</code>) and not offered by <code>auth-method</code>, which needs an operator certificate and key. Ze&#39;s PPP NAS never negotiates EAP, so the Section 4.3.6 obligations that bind a NAS whose peers require EAP are unreached. The IPsec-for-RADIUS profile of Section 4.2 is absent: ze offers no way to run RADIUS over an IPsec SA and no zero-length shared secret. Section 4.3.4&#39;s ban on sharing a secret between an EAP NAS and a User-Password NAS is not checked at config load.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -677,9 +676,11 @@ Fifteen MUST and SHOULD requirements are unproven, unreached or unmet: fourteen 
 <td>SHOULD</td>
 <td>3 - Attributes</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3579-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the EAP-bearing Access-Requests ze sends are the admin login&#39;s, built by `(*radiusAuthenticator).exchange` (internal/component/radius/authenticator.go), and an admin login over SSH, the web or the API has no NAS port, so they carry neither NAS-Port nor NAS-Port-Id. The L2TP subscriber Access-Request, which carries no EAP-Message, sends NAS-Port as the L2TP session id (`buildAuthAttrs`, internal/component/l2tp/plugins/authradius/handler.go)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L617" title="internal/component/radius/rfc3579_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapAccessRequestNamesThePort</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L656" title="internal/component/radius/rfc3579_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminPapAccessRequestNamesThePort</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L621" title="internal/component/radius/rfc3579_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapAccessRequestNamesThePort</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/aaa-radius-admin.ci#L5" title="test/plugin/aaa-radius-admin.ci" target="_blank" rel="noopener"><code>aaa-radius-admin.ci</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-3.1-5">RFC3579-3.1-5</code></td><td colspan="3"><span class="rfc-subject">When RADIUS is used to enable EAP authentication, Access-Request, Access-Challenge, Access-Accept, and Access-Reject packets SHOULD contain one or more EAP-Message attributes. (§3.1)</span></td></tr>
 <tr><td></td>
@@ -835,10 +836,6 @@ Fifteen MUST and SHOULD requirements are unproven, unreached or unmet: fourteen 
 <tr><td><a href="#rfc3579-4.3.6-5"><code>RFC3579-4.3.6-5</code></a> If EAP is negotiated but is not supported by the RADIUS proxy or server, then the server or proxy MUST respond with an Access-Reject. In these cases, a PPP NAS MUST send an LCP-Terminate and disconnect the peer. (§4.3.6)</td>
 <td>{gap}, no test</td>
 <td>ze&#39;s PPP NAS never negotiates EAP, so the branch that would send LCP-Terminate on an EAP-incapable server does not exist; spec-radius-admin-eap</td>
-</tr>
-<tr><td><a href="#rfc3579-3-2"><code>RFC3579-3-2</code></a> The NAS-Port or NAS-Port-Id attributes SHOULD be included by the NAS in Access-Request packets (§3)</td>
-<td>{gap}</td>
-<td>the EAP-bearing Access-Requests ze sends are the admin login&#39;s, built by `(*radiusAuthenticator).exchange` (internal/component/radius/authenticator.go), and an admin login over SSH, the web or the API has no NAS port, so they carry neither NAS-Port nor NAS-Port-Id. The L2TP subscriber Access-Request, which carries no EAP-Message, sends NAS-Port as the L2TP session id (`buildAuthAttrs`, internal/component/l2tp/plugins/authradius/handler.go)</td>
 </tr>
 </tbody>
 </table>
@@ -1289,8 +1286,34 @@ Fifteen MUST and SHOULD requirements are unproven, unreached or unmet: fourteen 
 <p>No test carries RFC3579-4.3.6-5, so no unit is bound to it.</p>
 <h3><a href="#rfc3579-3-2"><code>RFC3579-3-2</code></a></h3>
 <p>The NAS-Port or NAS-Port-Id attributes SHOULD be included by the NAS in Access-Request packets (§3)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Applicable SHOULD not met. Every EAP-bearing Access-Request ze sends is the admin login&#39;s, built by (*radiusAuthenticator).exchange, which appends Service-Type, NAS-Identifier, User-Name and NAS-IP-Address and never NAS-Port or NAS-Port-Id: an admin login over SSH, the web or the API has no NAS port. The L2TP subscriber Access-Request sends NAS-Port (session id) but carries no EAP-Message. Row carries {gap}; not counted conformant.</p>
-<p>No test carries RFC3579-3-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after d12a30ef66). RFC 3579 Section 3: &#34;The NAS-Port or NAS-Port-Id attributes SHOULD be included by the NAS in Access-Request packets&#34;; every EAP-bearing Access-Request ze sends is an admin login&#39;s, built by (*radiusAuthenticator).exchange, which now appends NAS-Port-Id from AuthRequest.Service, and the only RADIUS-reaching logins name a channel (ssh/passwordauth.go &#34;ssh&#34;, web/auth.go &#34;web&#34;; the API authenticates locally). The L2TP subscriber Access-Request is outside this RFC&#39;s scope because it never carries EAP-Message, and it sends NAS-Port anyway. The recorded discrimination breaks (exchange body replaced by panic) only fail the whole login, so they prove nothing about the attribute; auditor overlay mutants did: dropping the NAS-Port-Id append, or passing &#34;&#34; from Authenticate or authenticateEAP, turns the ssh/web EAP subtests and the PAP test red, and a constant &#34;ssh&#34; port turns the web and no-channel subtests red. The tagged negative (no channel, no attribute) checks RFC 2865 Section 5 more than this SHOULD, and its zero-length clause is discharged by EncodeTo, which drops empty attributes (an unconditional-append mutant survives as wire-equivalent); its real value is catching a fixed port. aaa-radius-admin.ci shows the mock server reading nas-port-id=ssh end to end, and web/auth_test.go TestWebLoginsNameTheWebChannel covers the web hand-off untagged.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L621" title="internal/component/radius/rfc3579_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapAccessRequestNamesThePort</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L617" title="internal/component/radius/rfc3579_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapAccessRequestNamesThePort</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L656" title="internal/component/radius/rfc3579_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminPapAccessRequestNamesThePort</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/aaa-radius-admin.ci#L5" title="test/plugin/aaa-radius-admin.ci" target="_blank" rel="noopener"><code>aaa-radius-admin.ci</code></a></td>
+<td>functional/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -1737,7 +1760,7 @@ Fifteen MUST and SHOULD requirements are unproven, unreached or unmet: fourteen 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

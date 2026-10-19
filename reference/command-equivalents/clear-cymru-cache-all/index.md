@@ -1,13 +1,13 @@
-# `clear ospf process`
+# `clear cymru cache all`
 
-Full OSPF reset\: tear down every adjacency and re\-run SPF\.
+Remove every cached Cymru answer\.
 
 ## Ze command
 
-- Registry path: `clear ospf process`
-- Usage: `clear ospf process`
+- Registry path: `clear cymru cache all`
+- Usage: `clear cymru cache all`
 - Mode: Daemon
-- Wire method: `ze-ospf:clear-process`
+- Wire method: `ze-resolve:clear-cymru-cache-all`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -21,7 +21,7 @@ Full OSPF reset\: tear down every adjacency and re\-run SPF\.
 - Command pipes: none
 - Pipe aliases: none
 
-Adjacencies re\-form from the next Hello\; the configuration is unchanged\.
+Removes the address origins and the AS names\. The answer gives removed\, the entries removed in total\, and owners\, one row per owner\. The next lookup asks DNS again\.
 
 ## Arguments
 
@@ -29,9 +29,7 @@ No command-specific arguments listed.
 
 ## Mapping intents
 
-### Clear OSPF process, counters, or neighbor state
-
-Category: Routing protocols
+No vendor equivalent has been curated yet for this Ze command.
 
 ## Vendor equivalents
 

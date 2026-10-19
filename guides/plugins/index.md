@@ -429,8 +429,10 @@ plugin through the ROUTE-REFRESH Ze sends after the up.
 
 A reload that detaches a plugin sends it a `state down` for that peer alone,
 and the session stays up for every other plugin. The plugin drops what it holds
-for the peer. A plugin whose grant changed receives a down, then an `attached`
-up.
+for the peer. When that plugin is `bgp-rs`, the other peers lose the routes it
+forwarded from that peer: each is replaced by the best remaining route or
+withdrawn, although the peer's session never went down. A plugin whose grant
+changed receives a down, then an `attached` up.
 
 <!-- source: pkg/plugin/rpc/enums.go -- ReasonAttached -->
 <!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- bindProcesses, unbindProcesses -->
@@ -812,15 +814,15 @@ resolves to the same plugin via the filter-type registration, and a bare
 | Multi-prefix, all denied | `reject` (update dropped) |
 | Multi-prefix, mixed | `modify` -- rewrites the UPDATE NLRI section to carry only the accepted prefixes, denied prefixes are silently removed. cmd-4 phase 2. |
 
-The mixed case supports only IPv4 unicast legacy NLRI in v1. For
-multiprotocol families (MP_REACH_NLRI), the plugin falls back to whole-
-update accept when any prefix passes -- implementing per-NLRI rewriting for
-MP_REACH requires declaring `raw=true` on the filter registration and
-rewriting the attribute value directly.
+The mixed case is judged block by block: the legacy NLRI and Withdrawn Routes,
+and each MP_REACH_NLRI and MP_UNREACH_NLRI, so an IPv6 UPDATE or IPv4 unicast
+carried in MP_REACH_NLRI loses its denied prefixes the same way. A FlowSpec
+UPDATE with a denied destination is rejected whole, because the engine does
+not rewrite a FlowSpec NLRI.
 
-<!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- handleFilterUpdate, cmd-4 phase 1 & 2 -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- handleFilterUpdate, buildModifyDelta -->
 <!-- source: internal/component/bgp/plugins/filter_prefix/match.go -- partitionUpdate -->
-<!-- source: internal/component/bgp/reactor/filter_delta.go -- extractLegacyNLRIOverride -->
+<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- sectionNLRIDelta -->
 
 ### AS-Path Filter (`bgp-filter-aspath`)
 
@@ -1154,12 +1156,12 @@ NLRI plugins register address family support at init time via `family.MustRegist
 <!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- VPN family types -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPN family types -->
 <!-- source: internal/component/bgp/plugins/nlri/vpls/types.go -- VPLS family types -->
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowSpec family types -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/register.go -- FlowSpec family types -->
 <!-- source: internal/component/bgp/plugins/nlri/labeled/types.go -- labeled unicast family types -->
 <!-- source: internal/component/bgp/plugins/nlri/mup/types.go -- MUP family types -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/types.go -- MVPN family types -->
 <!-- source: internal/component/bgp/plugins/nlri/rtc/types.go -- RTC family types -->
-<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGP-LS family types -->
+<!-- source: internal/core/bgp/nlri/bgpls/types.go -- BGP-LS family types -->
 <!-- source: internal/core/family/registry.go -- family registry -->
 
 ## Hub Configuration

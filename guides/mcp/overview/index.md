@@ -180,6 +180,9 @@ identifier (`audience`): an audience of
 `https://mcp.example/mcp` publishes at
 `https://mcp.example/.well-known/oauth-protected-resource/mcp`, and
 `https://mcp.example/` at `https://mcp.example/.well-known/oauth-protected-resource`.
+Only the slash that ends the host is dropped, so `https://mcp.example/mcp/`
+keeps its trailing slash and publishes at
+`https://mcp.example/.well-known/oauth-protected-resource/mcp/`.
 The 401 challenge names that URL in `resource_metadata`, so clients discover
 the AS through it. Set `audience` to the URL clients use for the MCP endpoint:
 a client checks the `resource` field against its own URL (RFC 9728 Section 3.3).
@@ -530,7 +533,7 @@ ze --mcp 8080 config.conf &
 
 # Send commands
 echo 'wait-established
-send bgp * update text origin igp next-hop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24' | le test mcp --port 8080
+send bgp * update text origin igp next-hop 1.1.1.1 nlri add 10.0.0.0/24' | le test mcp --port 8080
 ```
 
 Every message it sends is its own POST to `/mcp`, with the required headers and

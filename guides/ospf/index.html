@@ -558,7 +558,7 @@ show ospf border-routers
 <!-- source: internal/plugins/ospf/register.go -- OnExecuteCommand show ospf route/spf/border-routers -->
 <!-- source: internal/plugins/ospf/cmd_show.go -- ze-ospf:show-* RPC proxies -->
 <!-- source: internal/plugins/ospf/show_summary.go -- processSummary -->
-<p>The runtime can be reset without reconfiguring via <code>clear ospf process</code> (tear down adjacencies and re-run SPF), <code>clear ospf neighbor</code> (re-form adjacencies), and <code>clear ospf counters</code> (reset the SPF-run log). The neighbor and database views are also available in the web UI at <code>/ospf</code> and <code>/ospf/database</code>, with live updates over SSE.</p>
+<p>The runtime can be reset without reconfiguring via <code>clear ospf process all</code> (tear down every adjacency and re-run SPF), <code>clear ospf neighbor all</code> (re-form every adjacency; <code>clear ospf neighbor</code> and <code>clear ospf process</code> alone are refused, because everything is never the default), and <code>clear ospf counters</code> (reset the SPF-run log). The neighbor and database views are also available in the web UI at <code>/ospf</code> and <code>/ospf/database</code>, with live updates over SSE.</p>
 <figure class="terminal-demo" data-terminal-demo="ospf-adjacency">
   <div class="terminal-demo__intro">
     <div>
@@ -659,7 +659,7 @@ The recording uses `ze cli` directly. No output wrapper or synthetic summary sit
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

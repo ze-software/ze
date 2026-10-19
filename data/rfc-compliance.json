@@ -1,36 +1,296 @@
 {
   "gate": {
-    "ok": true,
-    "error-count": 0,
-    "gated-must": 4140,
-    "enrolled-rfcs": 175,
-    "test-tags": 8689,
-    "message": "rfc-requirements OK: 4148 gated MUST-level requirement(s) across 175 enrolled RFC(s); 8689 test tag(s) resolved."
+    "ok": false,
+    "error-count": 64,
+    "gated-must": 4266,
+    "enrolled-rfcs": 176,
+    "test-tags": 8980,
+    "message": "rfc-requirements: 64 violation(s)",
+    "violations": [
+      "internal/component/bgp/message/rfc9774_test.go: test file name: it is named for rfc9774 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- \u003creason\u003e`, or name it after what it covers (./le rfc rename from internal/component/bgp/message/rfc9774_test.go to internal/component/bgp/message/\u003ctopic\u003e_test.go)",
+      "internal/component/bgp/reactor/rfc9774_receive_test.go: test file name: it is named for rfc9774 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- \u003creason\u003e`, or name it after what it covers: ./le rfc rename from internal/component/bgp/reactor/rfc9774_receive_test.go to internal/component/bgp/reactor/receive_test.go",
+      "internal/component/bgp/reactor/rfc9774_send_test.go: test file name: it is named for rfc9774 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- \u003creason\u003e`, or name it after what it covers: ./le rfc rename from internal/component/bgp/reactor/rfc9774_send_test.go to internal/component/bgp/reactor/send_test.go",
+      "rfc/audit/draft-ietf-idr-linklocal-capability.json: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 is 'unimplemented' but rfc/short/draft-ietf-idr-linklocal-capability.md:129 carries no {gap} or {not-applicable} annotation. The record and the checklist must agree: a divergence Ze knows about must be declared where a reader of the summary will meet it",
+      "rfc/short/draft-ietf-idr-linklocal-capability.md:129: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 has a STALE audit verdict -- what it judged changed: a tagged test is gone. This is NOT a line shift and ./le rfc reseal will refuse it. Re-read draft-ietf-idr-linklocal-capability with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1350.md:333: RFC1350-4-3 has a STALE audit verdict -- what it judged changed: internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1350 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1997.md:227: RFC1997-Well-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary#2 (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2 (func-scoped), test/plugin/wellknown-no-export-withdraw-egress.ci (file-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1997 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc2131.md:477: RFC2131-4.1-7 has a STALE audit verdict -- what it judged changed: internal/plugins/dhcpserver/options.go::findOption (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2131 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc2131.md:478: RFC2131-4.1-15 has a STALE audit verdict -- what it judged changed: internal/plugins/dhcpserver/options.go::findOption (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2131 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc2545.md:204: RFC2545-3-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling (func-scoped), internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling#2 (func-scoped), internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairFirstAddressValidated (func-scoped), internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairFirstAddressValidated#2 (func-scoped), internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSecondAddressValidated (func-scoped), internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSecondAddressValidated#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2545 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc2545.md:205: RFC2545-3-2 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling (func-scoped), internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2545 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc2545.md:206: RFC2545-3-3 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/link_scope.go::linkLocalNextHop (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2545 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc2545.md:207: RFC2545-3-6 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/link_scope.go::linkLocalNextHop (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2545 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc3101.md:349: RFC3101-2.4-5 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkNSSADefault (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkNoFamilyEndOfRIB (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc3101 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc3101.md:351: RFC3101-2.3-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent, internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportReoriginatesAfterForwardingInterfaceDown), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
+      "rfc/short/rfc3101.md:363: RFC3101-x-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationCannotOverrideType5, internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationDisabled, internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationEnabled), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
+      "rfc/short/rfc4271.md:777: RFC4271-5.1.3-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRouteServerASPath (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkRouteServerASPath#2 (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4271 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc4271.md:780: RFC4271-5.1.4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS, internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
+      "rfc/short/rfc4271.md:784: RFC4271-5.1.5-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
+      "rfc/short/rfc4271.md:844: RFC4271-5.1.2-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape, internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
+      "rfc/short/rfc4659.md:367: RFC4659-3.2.1.1-3 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/egress_inject_filter.go::normalizeOrdinaryNextHop (func-scoped), internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope (func-scoped), internal/component/bgp/reactor/forward_next_hop.go::egressSpeakerLinkLocal (func-scoped), internal/component/bgp/reactor/link_scope.go::applyLinkLocalNextHop (func-scoped), internal/component/bgp/reactor/link_scope.go::linkLocalNextHopFor (func-scoped), internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop (func-scoped), internal/component/bgp/reactor/peer_forward_facts.go::precomputeVPNNextHop (func-scoped), internal/component/bgp/reactor/peer_static_routes.go::buildStaticRouteUpdateNew (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4659 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc4724.md:403: RFC4724-4-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkISISDynamicHostname (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkNoFamilyEndOfRIB (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4724 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc7606.md:328: RFC7606-3.c-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606ImplementedAttributeFlagConflicts (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc7606.md:340: RFC7606-5.1-3 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate (func-scoped), internal/le/interoplab/bgp/check_rfc.go::untilDecoded (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc7606.md:341: RFC7606-5.2-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606EmptyMPReachEscalatesToReset (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc7606.md:342: RFC7606-5.4-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc7606.md:344: RFC7606-7.2-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathValidSet (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc7606.md:362: RFC7606-7.16-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606AttrSetMalformedInnerAttributes (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc7911.md:272: RFC7911-2-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_rfc.go::checkAddPathReadvertiseCollision), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
+      "rfc/short/rfc7947.md:59: RFC7947-x-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkRouteServerASPath (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7947 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc7950.md:376: RFC7950-9.1-1 has a STALE audit verdict -- what it judged changed: internal/component/config/yang/validator_instance.go::instanceExists (func-scoped), internal/component/config/yang/validator_reference.go::readEqualsQuoted (func-scoped), internal/component/config/yang/validator_reference.go::readInstancePredicates (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7950 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc7999.md:192: RFC7999-3.3-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard#2 (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7999 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc7999.md:193: RFC7999-3.3-2 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go (file-scoped), internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7999 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc9234.md:267: RFC9234-5-4 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal#2 (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc9234 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/discrimination/rfc1350.json: the revert record for RFC1350-4-3 positive at internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of handleRRQ replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/tftpserver/handler.go::handleRRQ. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc1350.json: the revert record for RFC1350-4-3 positive at internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350ServerChoosesOneTIDForTheTransfer no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleRRQ replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/tftpserver/handler.go::handleRRQ. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc2131.json: the revert record for RFC2131-4.1-15 negative at internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadAbsentFieldsIgnored no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of findOption replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/dhcpserver/options.go::findOption. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc2131.json: the revert record for RFC2131-4.1-15 positive at internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadFieldsCarryOptions no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of findOption replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/dhcpserver/options.go::findOption. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc2131.json: the revert record for RFC2131-4.1-15 positive at internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of findOption replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/dhcpserver/options.go::findOption. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc2131.json: the revert record for RFC2131-4.1-7 positive at internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadFieldsCarryOptions no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of findOption replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/dhcpserver/options.go::findOption. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc2131.json: the revert record for RFC2131-4.1-7 positive at internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of findOption replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/dhcpserver/options.go::findOption. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc2347.json: the revert record for RFC2347-x-1 negative at internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleRRQ replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/tftpserver/handler.go::handleRRQ. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc2347.json: the revert record for RFC2347-x-1 negative at internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleRRQ replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/tftpserver/handler.go::handleRRQ. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc2347.json: the revert record for RFC2347-x-3 positive at internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleRRQ replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/tftpserver/handler.go::handleRRQ. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc2347.json: the revert record for RFC2347-x-3 negative at internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleRRQ replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/tftpserver/handler.go::handleRRQ. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc2347.json: the revert record for RFC2347-x-3 negative at internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleRRQ replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/tftpserver/handler.go::handleRRQ. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc2347.json: the revert record for RFC2347-x-3 positive at internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleRRQ replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/tftpserver/handler.go::handleRRQ. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc2918.json: the revert record for RFC2918-4-3 positive at test/plugin/refresh-config-static.ci no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleSentStructured replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/plugins/rib/rib_structured.go::handleSentStructured. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc5798.json: the revert record for RFC5798-7.2-2 positive at internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of openV4 replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/transport/backend_linux.go::openV4. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc5798.json: the revert record for RFC5798-7.2-3 positive at internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of resolveParentPrimaryV4 replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/transport/transport.go::resolveParentPrimaryV4. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc7950.json: the revert record for RFC7950-9.1-1 positive at internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierLeafListPredicate no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of readInstancePredicates replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/config/yang/validator_reference.go::readInstancePredicates. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc7950.json: the revert record for RFC7950-9.1-1 negative at internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierLeafListPredicateAbsent no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of instanceExists replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/config/yang/validator_instance.go::instanceExists. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc7950.json: the revert record for RFC7950-9.13-1 positive at internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950InstanceIdentifierExists no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of instanceExists replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/config/yang/validator_instance.go::instanceExists. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc7950.json: the revert record for RFC7950-9.13-1 positive at internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierDefaultInUse no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of absentLeafInUse replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/config/yang/validator_instance.go::absentLeafInUse. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.1.1-2 positive at internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of applyDataplaneSysctls replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.2.1-2 negative at internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of applyDataplaneSysctls replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.2.2-1 positive at internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of applyDataplaneSysctls replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.2.2-1 negative at internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of applyDataplaneSysctls replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.2.2-1 positive at internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of ownerNDAdvertTerm replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/ownerfilter.go::ownerNDAdvertTerm. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.2.2-1 negative at internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of ownerFilterTables replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/ownerfilter.go::ownerFilterTables. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.2.2-8 positive at internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of applyDataplaneSysctls replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.2.2-8 negative at internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of applyDataplaneSysctls replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.2.2-8 positive at internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of ownerNDAdvertTerm replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/ownerfilter.go::ownerNDAdvertTerm. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.2.2-8 negative at internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of ownerFilterTables replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/ownerfilter.go::ownerFilterTables. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+    ],
+    "findings": [
+      {
+        "message": "internal/component/bgp/message/rfc9774_test.go: test file name: it is named for rfc9774 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- \u003creason\u003e`, or name it after what it covers (./le rfc rename from internal/component/bgp/message/rfc9774_test.go to internal/component/bgp/message/\u003ctopic\u003e_test.go)"
+      },
+      {
+        "message": "internal/component/bgp/reactor/rfc9774_receive_test.go: test file name: it is named for rfc9774 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- \u003creason\u003e`, or name it after what it covers: ./le rfc rename from internal/component/bgp/reactor/rfc9774_receive_test.go to internal/component/bgp/reactor/receive_test.go"
+      },
+      {
+        "message": "internal/component/bgp/reactor/rfc9774_send_test.go: test file name: it is named for rfc9774 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- \u003creason\u003e`, or name it after what it covers: ./le rfc rename from internal/component/bgp/reactor/rfc9774_send_test.go to internal/component/bgp/reactor/send_test.go"
+      },
+      {
+        "message": "rfc/audit/draft-ietf-idr-linklocal-capability.json: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 is 'unimplemented' but rfc/short/draft-ietf-idr-linklocal-capability.md:129 carries no {gap} or {not-applicable} annotation. The record and the checklist must agree: a divergence Ze knows about must be declared where a reader of the summary will meet it"
+      },
+      {
+        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:129: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 has a STALE audit verdict -- what it judged changed: a tagged test is gone. This is NOT a line shift and ./le rfc reseal will refuse it. Re-read draft-ietf-idr-linklocal-capability with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc1350.md:333: RFC1350-4-3 has a STALE audit verdict -- what it judged changed: internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1350 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc1997.md:227: RFC1997-Well-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary#2 (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2 (func-scoped), test/plugin/wellknown-no-export-withdraw-egress.ci (file-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1997 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc2131.md:477: RFC2131-4.1-7 has a STALE audit verdict -- what it judged changed: internal/plugins/dhcpserver/options.go::findOption (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2131 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc2131.md:478: RFC2131-4.1-15 has a STALE audit verdict -- what it judged changed: internal/plugins/dhcpserver/options.go::findOption (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2131 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc2545.md:204: RFC2545-3-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling (func-scoped), internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling#2 (func-scoped), internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairFirstAddressValidated (func-scoped), internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairFirstAddressValidated#2 (func-scoped), internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSecondAddressValidated (func-scoped), internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSecondAddressValidated#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2545 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc2545.md:205: RFC2545-3-2 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling (func-scoped), internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2545 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc2545.md:206: RFC2545-3-3 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/link_scope.go::linkLocalNextHop (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2545 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc2545.md:207: RFC2545-3-6 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/link_scope.go::linkLocalNextHop (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2545 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc3101.md:349: RFC3101-2.4-5 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkNSSADefault (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkNoFamilyEndOfRIB (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc3101 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc3101.md:351: RFC3101-2.3-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent, internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportReoriginatesAfterForwardingInterfaceDown), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
+      },
+      {
+        "message": "rfc/short/rfc3101.md:363: RFC3101-x-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationCannotOverrideType5, internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationDisabled, internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationEnabled), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
+      },
+      {
+        "message": "rfc/short/rfc4271.md:777: RFC4271-5.1.3-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRouteServerASPath (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkRouteServerASPath#2 (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4271 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc4271.md:780: RFC4271-5.1.4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS, internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
+      },
+      {
+        "message": "rfc/short/rfc4271.md:784: RFC4271-5.1.5-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
+      },
+      {
+        "message": "rfc/short/rfc4271.md:844: RFC4271-5.1.2-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape, internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
+      },
+      {
+        "message": "rfc/short/rfc4659.md:367: RFC4659-3.2.1.1-3 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/egress_inject_filter.go::normalizeOrdinaryNextHop (func-scoped), internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope (func-scoped), internal/component/bgp/reactor/forward_next_hop.go::egressSpeakerLinkLocal (func-scoped), internal/component/bgp/reactor/link_scope.go::applyLinkLocalNextHop (func-scoped), internal/component/bgp/reactor/link_scope.go::linkLocalNextHopFor (func-scoped), internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop (func-scoped), internal/component/bgp/reactor/peer_forward_facts.go::precomputeVPNNextHop (func-scoped), internal/component/bgp/reactor/peer_static_routes.go::buildStaticRouteUpdateNew (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4659 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc4724.md:403: RFC4724-4-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkISISDynamicHostname (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkNoFamilyEndOfRIB (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4724 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc7606.md:328: RFC7606-3.c-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606ImplementedAttributeFlagConflicts (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc7606.md:340: RFC7606-5.1-3 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate (func-scoped), internal/le/interoplab/bgp/check_rfc.go::untilDecoded (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc7606.md:341: RFC7606-5.2-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606EmptyMPReachEscalatesToReset (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc7606.md:342: RFC7606-5.4-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc7606.md:344: RFC7606-7.2-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathValidSet (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc7606.md:362: RFC7606-7.16-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606AttrSetMalformedInnerAttributes (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc7911.md:272: RFC7911-2-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_rfc.go::checkAddPathReadvertiseCollision), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
+      },
+      {
+        "message": "rfc/short/rfc7947.md:59: RFC7947-x-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkRouteServerASPath (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7947 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc7950.md:376: RFC7950-9.1-1 has a STALE audit verdict -- what it judged changed: internal/component/config/yang/validator_instance.go::instanceExists (func-scoped), internal/component/config/yang/validator_reference.go::readEqualsQuoted (func-scoped), internal/component/config/yang/validator_reference.go::readInstancePredicates (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7950 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc7999.md:192: RFC7999-3.3-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard#2 (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7999 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc7999.md:193: RFC7999-3.3-2 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go (file-scoped), internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7999 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc9234.md:267: RFC9234-5-4 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal#2 (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc9234 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/discrimination/rfc1350.json: the revert record for RFC1350-4-3 positive at internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of handleRRQ replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/tftpserver/handler.go::handleRRQ. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc1350.json: the revert record for RFC1350-4-3 positive at internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350ServerChoosesOneTIDForTheTransfer no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleRRQ replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/tftpserver/handler.go::handleRRQ. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc2131.json: the revert record for RFC2131-4.1-15 negative at internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadAbsentFieldsIgnored no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of findOption replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/dhcpserver/options.go::findOption. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc2131.json: the revert record for RFC2131-4.1-15 positive at internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadFieldsCarryOptions no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of findOption replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/dhcpserver/options.go::findOption. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc2131.json: the revert record for RFC2131-4.1-15 positive at internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of findOption replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/dhcpserver/options.go::findOption. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc2131.json: the revert record for RFC2131-4.1-7 positive at internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadFieldsCarryOptions no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of findOption replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/dhcpserver/options.go::findOption. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc2131.json: the revert record for RFC2131-4.1-7 positive at internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of findOption replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/dhcpserver/options.go::findOption. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc2347.json: the revert record for RFC2347-x-1 negative at internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleRRQ replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/tftpserver/handler.go::handleRRQ. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc2347.json: the revert record for RFC2347-x-1 negative at internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleRRQ replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/tftpserver/handler.go::handleRRQ. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc2347.json: the revert record for RFC2347-x-3 positive at internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleRRQ replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/tftpserver/handler.go::handleRRQ. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc2347.json: the revert record for RFC2347-x-3 negative at internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleRRQ replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/tftpserver/handler.go::handleRRQ. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc2347.json: the revert record for RFC2347-x-3 negative at internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleRRQ replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/tftpserver/handler.go::handleRRQ. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc2347.json: the revert record for RFC2347-x-3 positive at internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleRRQ replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/tftpserver/handler.go::handleRRQ. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc2918.json: the revert record for RFC2918-4-3 positive at test/plugin/refresh-config-static.ci no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleSentStructured replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/plugins/rib/rib_structured.go::handleSentStructured. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc5798.json: the revert record for RFC5798-7.2-2 positive at internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of openV4 replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/transport/backend_linux.go::openV4. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc5798.json: the revert record for RFC5798-7.2-3 positive at internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of resolveParentPrimaryV4 replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/transport/transport.go::resolveParentPrimaryV4. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc7950.json: the revert record for RFC7950-9.1-1 positive at internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierLeafListPredicate no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of readInstancePredicates replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/config/yang/validator_reference.go::readInstancePredicates. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc7950.json: the revert record for RFC7950-9.1-1 negative at internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierLeafListPredicateAbsent no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of instanceExists replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/config/yang/validator_instance.go::instanceExists. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc7950.json: the revert record for RFC7950-9.13-1 positive at internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950InstanceIdentifierExists no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of instanceExists replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/config/yang/validator_instance.go::instanceExists. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc7950.json: the revert record for RFC7950-9.13-1 positive at internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierDefaultInUse no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of absentLeafInUse replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/config/yang/validator_instance.go::absentLeafInUse. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.1.1-2 positive at internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of applyDataplaneSysctls replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.2.1-2 negative at internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of applyDataplaneSysctls replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.2.2-1 positive at internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of applyDataplaneSysctls replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.2.2-1 negative at internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of applyDataplaneSysctls replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.2.2-1 positive at internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of ownerNDAdvertTerm replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/ownerfilter.go::ownerNDAdvertTerm. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.2.2-1 negative at internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of ownerFilterTables replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/ownerfilter.go::ownerFilterTables. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.2.2-8 positive at internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of applyDataplaneSysctls replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.2.2-8 negative at internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of applyDataplaneSysctls replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.2.2-8 positive at internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of ownerNDAdvertTerm replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/ownerfilter.go::ownerNDAdvertTerm. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc9568.json: the revert record for RFC9568-8.2.2-8 negative at internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of ownerFilterTables replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/plugins/vrrp/ownerfilter.go::ownerFilterTables. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      }
+    ]
   },
   "share": {
-    "proven": 2610,
-    "gated": 4011,
-    "rfcs": 152,
-    "inspected": 171,
-    "gated-inspected": 4140,
-    "percent": "65.1"
+    "proven": 2717,
+    "gated": 4137,
+    "rfcs": 153,
+    "inspected": 172,
+    "gated-inspected": 4266,
+    "percent": "65.7"
   },
   "satisfaction": [
     {
       "key": "both_polarities",
-      "count": 2261
+      "count": 2293
     },
     {
       "key": "single_polarity",
-      "count": 349
+      "count": 424
     },
     {
       "key": "gap",
-      "count": 644
+      "count": 619
     },
     {
       "key": "partial-scope",
-      "count": 11
+      "count": 12
     },
     {
       "key": "one_polarity_unexcused",
@@ -42,15 +302,15 @@
     },
     {
       "key": "not_applicable",
-      "count": 671
+      "count": 672
     },
     {
       "key": "lower_layer",
-      "count": 41
+      "count": 44
     },
     {
       "key": "feature_declined",
-      "count": 34
+      "count": 73
     },
     {
       "key": "rollup",
@@ -58,7 +318,7 @@
     }
   ],
   "gaps": {
-    "requirements": 644,
+    "requirements": 619,
     "rfcs": 77,
     "status-counts": [
       {
@@ -92,7 +352,7 @@
       },
       {
         "rfc": "RFC 7950",
-        "count": 56,
+        "count": 48,
         "status": "Partial"
       },
       {
@@ -107,22 +367,17 @@
       },
       {
         "rfc": "RFC 4301",
-        "count": 34,
-        "status": "Partial"
-      },
-      {
-        "rfc": "DRAFT-IETF-BESS-MUP-SAFI",
-        "count": 31,
+        "count": 35,
         "status": "Partial"
       },
       {
         "rfc": "RFC 3209",
-        "count": 31,
+        "count": 32,
         "status": "Experimental"
       },
       {
-        "rfc": "RFC 2131",
-        "count": 21,
+        "rfc": "DRAFT-IETF-BESS-MUP-SAFI",
+        "count": 30,
         "status": "Partial"
       },
       {
@@ -136,7 +391,7 @@
         "status": "Partial"
       },
       {
-        "rfc": "RFC 7432",
+        "rfc": "RFC 2131",
         "count": 15,
         "status": "Partial"
       },
@@ -144,19 +399,24 @@
         "rfc": "RFC 3579",
         "count": 14,
         "status": "Partial"
+      },
+      {
+        "rfc": "RFC 8665",
+        "count": 14,
+        "status": "Partial"
       }
     ]
   },
   "audit": {
-    "verdicts": 2241,
-    "fresh": 2241,
-    "shifted": 0,
-    "stale": 0,
-    "missing": 1899
+    "verdicts": 2243,
+    "fresh": 2214,
+    "shifted": 14,
+    "stale": 15,
+    "missing": 2023
   },
   "verify": {
     "command": "./le rfc check",
-    "stages": 53,
+    "stages": 55,
     "gate-stages": 1
   }
 }

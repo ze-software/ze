@@ -137,6 +137,9 @@ it: ze logs <code>tunnel now established (initiator)</code>, and xl2tpd logs
 <code>Connection established ... LNS session is 'default'</code>. ze is triggered to dial
 by the <code>request l2tp outgoing-call</code> RPC over its token-guarded REST API.</p>
 <p>The typed plan starts <code>xl2tpd</code> and Ze in containers on the isolated lab bridge.
+Ze's L2TP listener binds <code>0.0.0.0</code>, because Ze dials from its listener socket
+and a loopback listener cannot reach the LNS on the bridge;
+<code>TestZeL2TPListenerReachesTheLabBridge</code> refuses a fixture that binds one.
 The checker triggers Ze through its REST API and requires both peers to report
 the established tunnel. The PPPoL2TP preflight is skipped when this
 control-plane-only scenario is selected alone. <code>xl2tpd</code> cannot answer the OCRQ
@@ -260,7 +263,7 @@ specific to this protocol.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

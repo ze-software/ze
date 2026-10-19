@@ -267,6 +267,51 @@ plugin originates standard SAFI 71 routes from native IGP or EPE state. It does
 not add generic text/API BGP-LS encoding or SAFI 72 origination.</p>
 <p>SR-Policy route encoding leaves the Binding SID's unassigned flag bits clear
 (RFC 9830 Section 2.4.2). It does not request S-Flag or I-Flag behavior.</p>
+<p>An SR-Policy route carries an SRv6 Binding SID in one of two sub-TLVs, and the
+operator chooses which:</p>
+<table>
+<thead>
+<tr>
+<th>Route keyword</th>
+<th>Sub-TLV written</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>srv6-binding-sid &lt;ipv6-address&gt;</code></td>
+<td>SRv6 Binding SID, type 20 (RFC 9830 Section 2.4.3)</td>
+<td>Length 18: Flags, RESERVED, the 16-octet SID</td>
+</tr>
+<tr>
+<td><code>binding-sid srv6 &lt;ipv6-address&gt;</code></td>
+<td>Binding SID, type 13 (RFC 9830 Section 2.4.2)</td>
+<td>Length 18: Flags, RESERVED, the 16-octet SID</td>
+</tr>
+<tr>
+<td><code>binding-sid mpls &lt;label&gt;</code></td>
+<td>Binding SID, type 13</td>
+<td>Length 6: Flags, RESERVED, the label entry</td>
+</tr>
+<tr>
+<td><code>binding-sid null</code></td>
+<td>Binding SID, type 13</td>
+<td>Length 2: Flags, RESERVED, no BSID</td>
+</tr>
+</tbody>
+</table>
+<p>RFC 9830 recommends type 20 for an SRv6 BSID and keeps the type-13 form for
+speakers that followed early drafts, so use <code>binding-sid srv6</code> only toward such a
+peer. <code>binding-sid srv6</code> takes an IPv6 address; an IPv4, IPv4-mapped or zoned
+address is refused at load with the token and the fix. One Binding SID
+sub-TLV is written per route: when a route names several <code>binding-sid</code> forms,
+<code>mpls</code> wins over <code>srv6</code>, which wins over <code>null</code>.</p>
+<p><code>ze bgp decode --json</code> shows a received Tunnel Encapsulation attribute under
+<code>tunnel-encapsulation</code>, one entry per tunnel TLV. A Binding SID sub-TLV is shown
+with its <code>flags</code> and its <code>mpls-label</code> (Length 6), its <code>srv6-sid</code> (Length 18), or
+neither (Length 2); any other length is shown <code>malformed</code> with its value octets
+in hex. The SRv6 Binding SID sub-TLV (type 20) is shown the same way with its
+<code>srv6-sid</code>. Every other sub-TLV is shown as its <code>type</code> and its <code>value</code> in hex.</p>
 <p>An SR-Policy route configured in <code>nlri { ipv4/sr-policy add ... }</code> or encoded
 with <code>ze bgp encode -f ipv4/sr-policy</code> carries only labels it can send as
 written. <code>binding-sid mpls</code> accepts 16 to 1048575: 0 to 15 are the reserved
@@ -526,7 +571,12 @@ from a neighbor that already has them.</p>
 forwarding and RIB readvertisement. An LLGR-capable peer receives the stale
 route unchanged. A non-LLGR eBGP peer receives a withdrawal. A non-LLGR iBGP
 peer receives the route with <code>NO_EXPORT</code> and <code>LOCAL_PREF=0</code>, allowing partial
-deployments to retain reachability without preferring stale information.</p>
+deployments to retain reachability without preferring stale information.
+This applies to a route at the LLGR stale level, one Ze marked LLGR stale or one
+received with LLGR_STALE from a neighbor Ze sent LLGR to, on every path that
+advertises it: live forwarding, RIB replay and route refresh, and the
+<code>bgp-adj-rib-in</code> replay. A route in its conventional GR period carries no
+LLGR_STALE and is advertised like any other.</p>
 <p>Only the LLGR filter runs during stale readvertisement. Other export policy has
 already run on the original announcement and is not applied twice.</p>
 <!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter -->
@@ -623,6 +673,11 @@ rail did not.</p>
 <td>The Link-Local-only form is sent only where the session negotiated the capability, and for IPv4 NLRI only where RFC 8950 Extended Next Hop Encoding was negotiated as well. A route whose next hop is link-local is left out of the announcement on any other session, and logged, rather than encoded in a form RFC 2545 Section 3 forbids. This holds for originated and forwarded routes alike, including <code>next-hop self</code> on a session that runs over a link-local address.</td>
 </tr>
 <tr>
+<td>A malformed 32-octet next hop on a capability-77 session is withdrawn</td>
+<td>draft-ietf-idr-linklocal-capability Section 6</td>
+<td>A received Next Hop field of 32 octets must be a Global (or <code>::</code>) followed by a Link-Local, or two Link-Locals. Any other pair makes the UPDATE treat-as-withdraw (RFC 7606 Section 7.3). Without the capability, only the length is judged</td>
+</tr>
+<tr>
 <td>A reflected link-local-only next hop stays on its own segment</td>
 <td>draft-ietf-idr-linklocal-capability Section 4</td>
 <td>A route reflector withholds such a route from a client that shares no connected subnet with the original advertiser, and logs the suppression. A client the operator configured next-hop-self for receives it with this speaker's address instead, which is the other answer Section 4 allows. A link-local prefix is never read as evidence of a shared segment.</td>
@@ -638,6 +693,7 @@ rail did not.</p>
 <!-- source: internal/component/bgp/reactor/forward_med.go -- medPropagationAllowedTo, applyFactsMED -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopIsPeerOwn, originatedNextHopIsPeerOwn, egressNextHopIsLinkLocalOnly -->
 <!-- source: internal/component/bgp/reactor/link_scope.go -- sameLinkLayerSegment -->
+<!-- source: internal/component/bgp/message/rfc7606_linklocal.go -- validateLinkLocalNextHopPair -->
 <!-- source: internal/component/bgp/reactor/peer.go -- linkLocalOnlyNextHopPermitted -->
 <!-- source: internal/component/bgp/plugins/rib/rib_self_nexthop.go -- refreshSelfNextHopsLocked, isSelfNextHop -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- planAttr, buildModifiedPayload -->
@@ -667,7 +723,7 @@ plugin out removes both the advertisement and the obligation.</p>
 </tr>
 <tr>
 <td><code>ipv4/mup</code>, <code>ipv6/mup</code></td>
-<td>Discard an unrecognized route type (draft-ietf-bess-mup-safi Section 3.1 framing). Treat a malformed route of an implemented type as withdrawn (Section 3.1.3.1)</td>
+<td>Discard an unrecognized route type (draft-ietf-bess-mup-safi Section 3.1 framing). Treat a malformed route of an implemented type as withdrawn (Section 3.1.3.1). Treat a Direct Segment Discovery route announced with no Prefix-SID attribute as withdrawn (Section 3.3.6)</td>
 </tr>
 <tr>
 <td><code>bgp-ls/bgp-ls</code>, <code>bgp-ls/bgp-ls-vpn</code></td>
@@ -691,6 +747,13 @@ session stays up. A malformed route whose route key cannot form is discarded
 instead, because no withdrawal can name it. Both are logged at debug with the
 NLRI bytes and counted in <code>ze_bgp_update_nlri_malformed_total</code>
 (<code>docs/guide/monitoring.md</code>).</p>
+<p>A family can also register an UPDATE-level check beside its recognizer, for a
+rule that judges a route by the UPDATE carrying it. BGP-MUP registers one for
+draft-ietf-bess-mup-safi Section 3.3.6: a Direct Segment Discovery route in an
+MP_REACH_NLRI whose UPDATE carries no Prefix-SID attribute is withdrawn the same
+way, and the other routes of the UPDATE are kept. A Prefix-SID that RFC 7606
+attribute-discard removes counts as absent, so a DSD route from an EBGP peer not
+configured to accept the Prefix-SID (RFC 8669 Section 4) is withdrawn too.</p>
 <p>When the length fields do not agree with the section the NLRI boundaries are
 unknowable, so no decision is made rather than one being guessed, and RFC 7606
 Section 5.3 resets the session.</p>
@@ -698,8 +761,9 @@ Section 5.3 resets the session.</p>
 <!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- EVPN recognizer -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- MCAST-VPN recognizer -->
 <!-- source: internal/component/bgp/plugins/nlri/mup/register.go -- MUP recognizer -->
-<!-- source: internal/component/bgp/plugins/nlri/mup/rfc7606.go -- recognizerFor -->
-<!-- source: internal/component/bgp/reactor/session_validation_nlritype.go -- applyTypedNLRIDiscard -->
+<!-- source: internal/component/bgp/plugins/nlri/mup/rfc7606.go -- recognizerFor, CheckDSDPrefixSID -->
+<!-- source: internal/core/bgp/nlri/nlritype/update_check.go -- RegisterUpdateCheck, UpdateAttrs -->
+<!-- source: internal/component/bgp/reactor/session_validation_nlritype.go -- applyTypedNLRIDiscard, typedNLRIUpdateAttrs -->
 <h3 id="rfc-7911-path-identifier-regeneration">RFC 7911 Path Identifier regeneration</h3>
 <p>RFC 7911 Section 2 requires a speaker that re-advertises a route to generate its
 own Path Identifier, assigned so that (prefix, identifier) uniquely names a path
@@ -776,13 +840,13 @@ whether an enabled peer's capture directory is usable
 <td>MED</td>
 <td>4</td>
 <td><code>med</code></td>
-<td>Multi-Exit Discriminator</td>
+<td>Multi-Exit Discriminator. A configured <code>med 0</code> is sent as 0; a route that configures no <code>med</code> carries none</td>
 </tr>
 <tr>
 <td>LOCAL_PREF</td>
 <td>5</td>
 <td><code>local-preference</code></td>
-<td>Local preference</td>
+<td>Local preference, sent to iBGP peers only. A configured <code>local-preference 0</code> is sent as 0; a route that configures none carries 100</td>
 </tr>
 <tr>
 <td>ATOMIC_AGGREGATE</td>
@@ -847,6 +911,7 @@ whether an enabled peer's capture directory is usable
 </tbody>
 </table>
 <!-- source: internal/core/bgp/attribute/attribute.go -- attribute code constants -->
+<!-- source: internal/component/bgp/message/update_build.go -- appendMED, appendLocalPref -->
 <!-- source: internal/core/bgp/attribute/origin.go -- ORIGIN -->
 <!-- source: internal/core/bgp/attribute/aspath.go -- AS_PATH -->
 <!-- source: internal/core/bgp/attribute/community.go -- Communities, ExtendedCommunities, LargeCommunities -->
@@ -884,7 +949,7 @@ whether an enabled peer's capture directory is usable
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

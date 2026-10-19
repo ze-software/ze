@@ -1,12 +1,12 @@
 # Verify and Debugging Workflow
 
-Use this page when `./le verify current mode full` fails, when a test needs to be rerun narrowly, or when debug logging should be enabled without turning the whole run into noise.
+Use this page when `./le verify current` fails, when a test needs to be rerun narrowly, or when debug logging should be enabled without turning the whole run into noise.
 
-`./le verify current mode full` is the normal pre-handoff gate. It is staged, locked, and designed to tell a developer where to rerun. The changed-only command is useful during development, but a finished change should pass the shared gate that would catch cross-package and functional regressions.
+`./le verify current` is the normal pre-handoff gate. It is staged, locked, and designed to tell a developer where to rerun. The changed-only command is useful during development, but a finished change should pass the shared gate that would catch cross-package and functional regressions.
 
 ```
-./le verify current mode changed
-./le verify current mode full
+./le verify current fast
+./le verify current
 ```
 
 ## What verify does

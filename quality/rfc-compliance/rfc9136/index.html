@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9136 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9136: IP Prefix Advertisement in Ethernet VPN (EVPN). 14 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 9136: IP Prefix Advertisement in Ethernet VPN (EVPN). 14 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 9136 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9136: IP Prefix Advertisement in Ethernet VPN (EVPN). 14 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 9136: IP Prefix Advertisement in Ethernet VPN (EVPN). 14 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9136 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9136: IP Prefix Advertisement in Ethernet VPN (EVPN). 14 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 9136: IP Prefix Advertisement in Ethernet VPN (EVPN). 14 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -117,11 +117,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>14.3%</strong><b>2 of 14 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>28.6%</strong><b>4 of 14 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>14.3%</strong><b>2 of 14 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>25.0%</strong><b>3 of 12 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>43.8%</strong><b>7 of 16 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -135,8 +135,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>35.7%</strong><b>5 of 14 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>4</strong><b>of 14 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>21.4%</strong><b>3 of 14 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -190,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -219,7 +218,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>5</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>5</td>
+<td>3</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -231,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>13</td>
+<td>25</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>12</td>
+<td>16</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>4</td>
+<td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>3</td>
+<td>7</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9136.md</code></td>
@@ -264,7 +263,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 RT-5 (IP Prefix) NLRI encode/decode for IPv4 (len 34) and IPv6 (len 58): RD, ESI, Ethernet Tag, prefix-length bounds (&lt;=32/&lt;=128), prefix, gateway, and MPLS label stack, with length-field and prefix-length validation (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/nlri/evpn/types.go</code></a>).
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc9136.md" target="_blank" rel="noopener"><code>rfc/short/rfc9136.md</code></a> (<a href="#rfc9136-3.1-4"><code>RFC9136-3.1-4</code></a>/3.1-6 ESI/GW-IP zero-unless-overlay-index, 3.2-1 ESI/GW mutual exclusion, 3.1-7/3.1-9 zero-label-without-overlay-index treat-as-withdraw): ze models no overlay index. Five further MUSTs (3.1-8, 3.2-2, 3-1, 3.2-3, 3.2-4) bind the ingress-NVE/PE forwarding, IP-VRF install, and EVPN Router&#39;s-MAC Extended Community roles ze does not play.
+Three MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc9136.md" target="_blank" rel="noopener"><code>rfc/short/rfc9136.md</code></a> (<a href="#rfc9136-3.2-1"><code>RFC9136-3.2-1</code></a> ESI/GW mutual exclusion, 3.1-7/3.1-9 zero-label-without-overlay-index treat-as-withdraw): ze models the Overlay Index only on origination: the <code>overlay-index</code> keyword (none, esi, gateway-ip) selects it and <a href="#rfc9136-3.1-4"><code>RFC9136-3.1-4</code></a> and 3.1-6 refuse an ESI or a GW IP that contradicts it. Five further MUSTs (3.1-8, 3.2-2, 3-1, 3.2-3, 3.2-4) bind the ingress-NVE/PE forwarding, IP-VRF install, and EVPN Router&#39;s-MAC Extended Community roles ze does not play.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -273,11 +272,11 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>2</strong></td>
+<td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>12</strong></td>
+<td><strong>10</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -304,8 +303,8 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (2):</strong> <a href="#rfc9136-3.1-1"><code>RFC9136-3.1-1</code></a>, <a href="#rfc9136-3.1-5"><code>RFC9136-3.1-5</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (12):</strong> <a href="#rfc9136-3.1-2"><code>RFC9136-3.1-2</code></a>, <a href="#rfc9136-3.1-3"><code>RFC9136-3.1-3</code></a>, <a href="#rfc9136-3.1-4"><code>RFC9136-3.1-4</code></a>, <a href="#rfc9136-3.1-6"><code>RFC9136-3.1-6</code></a>, <a href="#rfc9136-3.2-1"><code>RFC9136-3.2-1</code></a>, <a href="#rfc9136-3.1-7"><code>RFC9136-3.1-7</code></a>, <a href="#rfc9136-3.1-8"><code>RFC9136-3.1-8</code></a>, <a href="#rfc9136-3.1-9"><code>RFC9136-3.1-9</code></a>, <a href="#rfc9136-3.2-2"><code>RFC9136-3.2-2</code></a>, <a href="#rfc9136-3-1"><code>RFC9136-3-1</code></a>, <a href="#rfc9136-3.2-3"><code>RFC9136-3.2-3</code></a>, <a href="#rfc9136-3.2-4"><code>RFC9136-3.2-4</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc9136-3.1-1"><code>RFC9136-3.1-1</code></a>, <a href="#rfc9136-3.1-4"><code>RFC9136-3.1-4</code></a>, <a href="#rfc9136-3.1-5"><code>RFC9136-3.1-5</code></a>, <a href="#rfc9136-3.1-6"><code>RFC9136-3.1-6</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (10):</strong> <a href="#rfc9136-3.1-2"><code>RFC9136-3.1-2</code></a>, <a href="#rfc9136-3.1-3"><code>RFC9136-3.1-3</code></a>, <a href="#rfc9136-3.2-1"><code>RFC9136-3.2-1</code></a>, <a href="#rfc9136-3.1-7"><code>RFC9136-3.1-7</code></a>, <a href="#rfc9136-3.1-8"><code>RFC9136-3.1-8</code></a>, <a href="#rfc9136-3.1-9"><code>RFC9136-3.1-9</code></a>, <a href="#rfc9136-3.2-2"><code>RFC9136-3.2-2</code></a>, <a href="#rfc9136-3-1"><code>RFC9136-3-1</code></a>, <a href="#rfc9136-3.2-3"><code>RFC9136-3.2-3</code></a>, <a href="#rfc9136-3.2-4"><code>RFC9136-3.2-4</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -349,9 +348,9 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.1-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze decodes and carries the 10-octet ESI but models no overlay-index concept, so it never enforces the zero-unless-used-as-overlay-index constraint (internal/component/bgp/plugins/nlri/evpn/types.go::parseEVPNType5 and EVPNType5.WriteTo).</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go#L44" title="internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go" target="_blank" rel="noopener"><code>TestRFC9136OverlayIndexESINonZeroOnlyAsIndex</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go#L83" title="internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go" target="_blank" rel="noopener"><code>TestRFC9136OverlayIndexESIRefusedOtherwise</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-5">RFC9136-3.1-5</code></td><td colspan="3"><span class="rfc-subject">The value MUST NOT be greater than 128. (S3.1)</span></td></tr>
 <tr><td></td>
@@ -368,9 +367,9 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.1-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze decodes and re-encodes the gateway field verbatim but has no overlay-index model, so it never enforces gateway-zero-unless-used-as-overlay-index (internal/component/bgp/plugins/nlri/evpn/types.go:788, :798, :854, :863)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go#L50" title="internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go" target="_blank" rel="noopener"><code>TestRFC9136OverlayIndexESINonZeroOnlyAsIndex</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go#L95" title="internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go" target="_blank" rel="noopener"><code>TestRFC9136OverlayIndexESIRefusedOtherwise</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.2-1">RFC9136-3.2-1</code></td><td colspan="3"><span class="rfc-subject">However, they MUST NOT both be non-zero at the same time. (S3.2)</span></td></tr>
 <tr><td></td>
@@ -507,14 +506,6 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc9136-3.1-4"><code>RFC9136-3.1-4</code></a> * The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of &#34;Overlay Index&#34; in Section 3.2). It MUST be all bytes zero otherwise. (§3.1)</td>
-<td>{gap}, no test</td>
-<td>ze decodes and carries the 10-octet ESI but models no overlay-index concept, so it never enforces the zero-unless-used-as-overlay-index constraint (internal/component/bgp/plugins/nlri/evpn/types.go::parseEVPNType5 and EVPNType5.WriteTo).</td>
-</tr>
-<tr><td><a href="#rfc9136-3.1-6"><code>RFC9136-3.1-6</code></a> The GW IP field MUST be all bytes zero if it is not used as an Overlay Index. (S3.1)</td>
-<td>{gap}, no test</td>
-<td>ze decodes and re-encodes the gateway field verbatim but has no overlay-index model, so it never enforces gateway-zero-unless-used-as-overlay-index (internal/component/bgp/plugins/nlri/evpn/types.go:788, :798, :854, :863)</td>
-</tr>
 <tr><td><a href="#rfc9136-3.2-1"><code>RFC9136-3.2-1</code></a> However, they MUST NOT both be non-zero at the same time. (S3.2)</td>
 <td>{gap}, no test</td>
 <td>parseEVPNType5 reads both ESI and gateway without any mutual-exclusion validation, so it never treats a both-non-zero RT-5 as a withdraw (internal/component/bgp/plugins/nlri/evpn/types.go:770, :788-800)</td>
@@ -630,8 +621,24 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 </div>
 <h3><a href="#rfc9136-3.1-4"><code>RFC9136-3.1-4</code></a></h3>
 <p>* The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of &#34;Overlay Index&#34; in Section 3.2). It MUST be all bytes zero otherwise. (§3.1)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. RFC 9136 Section 3.1 states: &#34;The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of &#34;Overlay Index&#34; in Section 3.2). It MUST be all bytes zero otherwise.&#34; parseEVPNType5 copies the ten ESI octets and EVPNType5.WriteTo copies them back; EVPNType5 has no Overlay Index selection state. The reachable l2vpnRouteToEVPNParams originator likewise carries explicitly supplied ESI bytes without that selection. Byte preservation establishes neither conditional semantic obligation. Retain the existing overlay-index gap without commissioning its implementation. This verdict does not require an intermediate propagating speaker to perform IP-VRF recursive resolution or clear received ESI merely because it does not locally resolve it.</p>
-<p>No test carries RFC9136-3.1-4, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after 0411b53e91). Was unimplemented; now enforced on origination. RFC 9136 Section 3.1: &#34;The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of &#34;Overlay Index&#34; in Section 3.2).  It MUST be all bytes zero otherwise.&#34; Producers: every IP Prefix origination reaches checkOverlayIndex before newEVPNType5 writes a byte: route command (EncodeRoute -&gt; l2vpnRouteToEVPNParams), native config (parseConfigRoute -&gt; l2vpnRouteToEVPNParams), update text (parseEVPNSection -&gt; encodeViaRegistry -&gt; EncodeNLRIHex -&gt; buildEVPNFromParams); newEVPNType5 has no other caller. RFC 9136 Section 3.2: &#34;The Overlay Index for a given IP prefix is set by local policy at the NVE that originates an RT-5 for that IP prefix&#34;, which the overlay-index none|esi|gateway-ip keyword is; Table 1 (&#34;Non-Zero | Zero | ... | ESI&#34;, &#34;Zero | Non-Zero | ... | GW IP&#34;, &#34;Zero | Zero | Zero | Non-Zero | None&#34;) matches the three selectors, and an omitted keyword is held to both-zero (stricter than the RFC, never non-conforming). update text&#39;s deleted esi/gateway exclusion loses nothing: with any selector at most one field may be non-zero, so every both-non-zero origination is still refused (asserted with exact text by TestParseUpdateText_EVPNType5ESIGatewayMutualExclusion); the old check also refused gateway 0.0.0.0 beside an ESI, which is all bytes zero and now correctly allowed. Scope: this is a sender encoding rule. parseEVPNType5 still accepts any received ESI/GW pair and a propagated RT-5 is re-sent as received; that receive side is RFC9136-3.2-1 and 3.1-7/3.1-9, which stay gaps. Owed and not judged here: INTEROP bgp-evpn-frr has not run, so FRR&#39;s reading of the emitted route is unproven; the route-command/config test TestRFC9136OverlayIndexRouteCommandAndConfig and test/encode/evpn-ip-prefix-overlay-index.ci are untagged reach evidence only. The recorded revert tuples panic checkOverlayIndex/parseOverlayIndex and prove reach only. Tests: positive TestRFC9136OverlayIndexESINonZeroOnlyAsIndex pins the full NLRI hex for overlay-index esi (ESI 00010203040506070809 at octets 8-17), gateway-ip, none and omitted (ten zero octets); negative TestRFC9136OverlayIndexESIRefusedOtherwise asserts the exact refusal and an empty encoding for a non-zero ESI with no keyword, with none, with gateway-ip, and for esi with an all-zero ESI. Independent overlay mutants on checkOverlayIndex (tags ze_core ze_bgp), each red on exactly its own subtest: unspecified-branch ESI refusal removed, none-branch ESI refusal removed, gateway-ip-branch ESI refusal removed, esi-branch non-zero requirement removed; esi selector always refused reddens the positive. Both clauses (non-zero when index, zero otherwise) are covered.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go#L83" title="internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go" target="_blank" rel="noopener"><code>TestRFC9136OverlayIndexESIRefusedOtherwise</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go#L44" title="internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go" target="_blank" rel="noopener"><code>TestRFC9136OverlayIndexESINonZeroOnlyAsIndex</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9136-3.1-5"><code>RFC9136-3.1-5</code></a></h3>
 <p>The value MUST NOT be greater than 128. (S3.1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: accepting an IP Prefix Length above 128; (b) TestEVPNType5PrefixLengthTooLong/ipv6 require.ErrorIs(err, ErrEVPNInvalidPrefix) on length 129 goes red if parseEVPNType5 accepts it; positive TestEVPNType5IPv6 decodes 64. The send side cannot exceed 128 (netip.Prefix). The ipv4 subtest&#39;s tag (33 &gt; 32) proves the non-normative &#39;can be set to a value between 0 and 32&#39; sentence, not this MUST NOT: a misplaced tag, listed as a finding.</p>
@@ -659,8 +666,24 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 </div>
 <h3><a href="#rfc9136-3.1-6"><code>RFC9136-3.1-6</code></a></h3>
 <p>The GW IP field MUST be all bytes zero if it is not used as an Overlay Index. (S3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9136-3.1-6, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after 0411b53e91). New verdict (none before). RFC 9136 Section 3.1: &#34;The GW IP field MUST be all bytes zero if it is not used as an Overlay Index.&#34; Producers: every IP Prefix origination reaches checkOverlayIndex before newEVPNType5 writes a byte: route command (EncodeRoute -&gt; l2vpnRouteToEVPNParams), native config (parseConfigRoute -&gt; l2vpnRouteToEVPNParams), update text (parseEVPNSection -&gt; encodeViaRegistry -&gt; EncodeNLRIHex -&gt; buildEVPNFromParams); newEVPNType5 has no other caller. RFC 9136 Section 3.2: &#34;The Overlay Index for a given IP prefix is set by local policy at the NVE that originates an RT-5 for that IP prefix&#34;, which the overlay-index none|esi|gateway-ip keyword is; Table 1 (&#34;Non-Zero | Zero | ... | ESI&#34;, &#34;Zero | Non-Zero | ... | GW IP&#34;, &#34;Zero | Zero | Zero | Non-Zero | None&#34;) matches the three selectors, and an omitted keyword is held to both-zero (stricter than the RFC, never non-conforming). update text&#39;s deleted esi/gateway exclusion loses nothing: with any selector at most one field may be non-zero, so every both-non-zero origination is still refused (asserted with exact text by TestParseUpdateText_EVPNType5ESIGatewayMutualExclusion); the old check also refused gateway 0.0.0.0 beside an ESI, which is all bytes zero and now correctly allowed. Scope: this is a sender encoding rule. parseEVPNType5 still accepts any received ESI/GW pair and a propagated RT-5 is re-sent as received; that receive side is RFC9136-3.2-1 and 3.1-7/3.1-9, which stay gaps. Owed and not judged here: INTEROP bgp-evpn-frr has not run, so FRR&#39;s reading of the emitted route is unproven; the route-command/config test TestRFC9136OverlayIndexRouteCommandAndConfig and test/encode/evpn-ip-prefix-overlay-index.ci are untagged reach evidence only. The recorded revert tuples panic checkOverlayIndex/parseOverlayIndex and prove reach only. Tests: positive TestRFC9136OverlayIndexESINonZeroOnlyAsIndex pins GW IP 00000000 under overlay-index none and esi; negative TestRFC9136OverlayIndexESIRefusedOtherwise asserts the exact refusal and empty encoding for gateway 10.1.2.1 with overlay-index esi, none, and no keyword. Independent overlay mutants on checkOverlayIndex, each red on exactly its own subtest: unspecified-branch GW refusal removed, none-branch GW refusal removed, esi-branch GW refusal removed. The gateway-ip case needing a non-zero GW is untagged and is not this MUST (the RFC&#39;s &#34;will encode a valid IP address&#34; is not a MUST).</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go#L95" title="internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go" target="_blank" rel="noopener"><code>TestRFC9136OverlayIndexESIRefusedOtherwise</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go#L50" title="internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go" target="_blank" rel="noopener"><code>TestRFC9136OverlayIndexESINonZeroOnlyAsIndex</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9136-3.2-1"><code>RFC9136-3.2-1</code></a></h3>
 <p>However, they MUST NOT both be non-zero at the same time. (S3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -918,7 +941,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -27,7 +27,7 @@ Queries PeeringDB for each matched peer\'s ASN\, applies the configured margin\,
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. \'prefix\' refreshes the maximums of each peer it matches\. |
+| `selector` | string | yes | any value of this type | \* for every peer\, or an address\, a peer name or an AS pattern | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. \'prefix\' refreshes the maximums of each peer it matches\. |
 
 ## Mapping intents
 

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3209 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3209: RSVP-TE: Extensions to RSVP for LSP Tunnels. 59 gated MUST-level requirements, 31 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 3209: RSVP-TE: Extensions to RSVP for LSP Tunnels. 59 gated MUST-level requirements, 32 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 3209 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3209: RSVP-TE: Extensions to RSVP for LSP Tunnels. 59 gated MUST-level requirements, 31 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 3209: RSVP-TE: Extensions to RSVP for LSP Tunnels. 59 gated MUST-level requirements, 32 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 3209 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3209: RSVP-TE: Extensions to RSVP for LSP Tunnels. 59 gated MUST-level requirements, 31 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 3209: RSVP-TE: Extensions to RSVP for LSP Tunnels. 59 gated MUST-level requirements, 32 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -118,10 +118,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>32.2%</strong><b>19 of 59 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>11.9%</strong><b>7 of 59 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>10.2%</strong><b>6 of 59 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>88.3%</strong><b>53 of 60 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>89.8%</strong><b>53 of 59 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -135,7 +135,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>52.5%</strong><b>31 of 59 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>54.2%</strong><b>32 of 59 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>17</strong><b>of 59 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 59 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
@@ -219,7 +219,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>31</td>
+<td>32</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -231,10 +231,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>60</td>
+<td>59</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>60</td>
+<td>59</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>17</td>
@@ -317,7 +317,7 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>4.6.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-4.6.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L59" title="internal/plugins/rsvpte/literals_rfc_test.go" target="_blank" rel="noopener"><code>TestRFC3209SessionReservedZeroOverDirtyBuffer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L342" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPSessionObjectEncoding</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L341" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPSessionObjectEncoding</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the encoder writes the SESSION reserved octet as 0 on every SESSION it emits, but the decoder never reads that octet, so a non-zero-reserved reject test is not meaningful (internal/plugins/rsvpte/wire.go:238, :243)</p></td>
 </tr>
@@ -326,7 +326,7 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>MUST</td>
 <td>4.6.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-4.6.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L372" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPSenderTemplateReservedZeroOnSend</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L371" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPSenderTemplateReservedZeroOnSend</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the encoder zeroes the 2-byte reserved field before LSP ID on every SENDER_TEMPLATE, and decodeSenderTemplate never inspects it (internal/plugins/rsvpte/wire.go:270, :275-276)</p></td>
 </tr>
@@ -335,9 +335,9 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>MUST</td>
 <td>4.6.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-4.6.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L341" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPSessionObjectEncoding</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> Ze emits no LSP_TUNNEL_IPv6 SESSION (wire.go::encodeSessionIPv4 writes C-Type 7 only), so no output of Ze can carry a non-zero IPv6 reserved field to refuse; the tagged test proves the IPv4 object and the IPv6 codec is scheduled in plan/spec-rsvpte-ipv6-lsp-tunnel.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no IPv6 SESSION encoder; internal/plugins/rsvpte/wire.go holds only encodeSessionIPv4, which writes the LSP_TUNNEL_IPv4 SESSION (C-Type 7), so Ze emits no LSP_TUNNEL_IPv6 SESSION (C-Type 8) and no test can observe its reserved field; the IPv6 codec is scheduled in plan/spec-rsvpte-ipv6-lsp-tunnel.md; the tag on TestRSVPSessionObjectEncoding, which proves only the IPv4 object, was moved off by owner ruling 2026-10-18</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3209-4.2-1">RFC3209-4.2-1</code></td><td colspan="3"><span class="rfc-subject">To establish an LSP tunnel the sender creates a Path message with a LABEL_REQUEST object. The LABEL_REQUEST object indicates that a label binding for this path is requested and provides an indication of the network layer protocol that is to be carried over this path. (§4.2.4)</span></td></tr>
 <tr><td></td>
@@ -891,6 +891,10 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
+<tr><td><a href="#rfc3209-4.6.1-2"><code>RFC3209-4.6.1-2</code></a> | IPv6 tunnel end point address | + + | (16 bytes) | + + | | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | MUST be zero | Tunnel ID | (§4.6.1.2)</td>
+<td>{gap}, no test</td>
+<td>no IPv6 SESSION encoder; internal/plugins/rsvpte/wire.go holds only encodeSessionIPv4, which writes the LSP_TUNNEL_IPv4 SESSION (C-Type 7), so Ze emits no LSP_TUNNEL_IPv6 SESSION (C-Type 8) and no test can observe its reserved field; the IPv6 codec is scheduled in plan/spec-rsvpte-ipv6-lsp-tunnel.md; the tag on TestRSVPSessionObjectEncoding, which proves only the IPv4 object, was moved off by owner ruling 2026-10-18</td>
+</tr>
 <tr><td><a href="#rfc3209-2.6-1"><code>RFC3209-2.6-1</code></a> an LSR MUST execute the following algorithm (§2.6)</td>
 <td>{gap}, no test</td>
 <td>labeled forwarding at a transit LSR is Linux MPLS (net/mpls/af_mpls.c) on the label routes Ze installs, no Ze code fragments a labeled datagram, and no evidence shows the kernel path running the Section 2.6 algorithm; Ze programs path MTU (internal/plugins/rsvpte/mtu.go) but nothing shows that a layer executes the labeled-datagram forwarding algorithm</td>
@@ -1031,7 +1035,7 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc3209-4.6.1-1"><code>RFC3209-4.6.1-1</code></a></h3>
 <p>| IPv4 tunnel end point address | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | MUST be zero | Tunnel ID | (§4.6.1.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-08 after the tagged units shifted byte-identical; re-read against rfc/full/rfc3209.txt and the current producers. Section 4.6.1.1 diagram: the field before Tunnel ID is &#34;MUST be zero&#34;. TestRFC3209SessionReservedZeroOverDirtyBuffer encodes over a 0xFF-prefilled buffer and asserts buf[8:10] zero, so encodeSessionIPv4 skipping its buf[8]=0, buf[9]=0 goes red. TestRSVPSessionObjectEncoding encodes into a zeroed buffer and alone would not discriminate the write; the dirty-buffer test carries the verdict.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after c85342c940). Section 4.6.1.1 LSP_TUNNEL_IPv4 Session Object diagram: the 16 bits before Tunnel ID are &#34;MUST be zero&#34;. TestRSVPSessionObjectEncoding changed only by the deleted RFC3209-4.6.1-2 tag line; its body is identical and still encodes into a zeroed buffer, so alone it would not discriminate a skipped write. TestRFC3209SessionReservedZeroOverDirtyBuffer carries the verdict: it prefills 0xFF and asserts buf[8:10] zero, the header 0,16,1,7, the endpoint and Tunnel ID, so encodeSessionIPv4 (internal/plugins/rsvpte/wire.go) dropping buf[8]=0, buf[9]=0 goes red. Single polarity as annotated: no decoder reads the field.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1042,7 +1046,7 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L342" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPSessionObjectEncoding</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L341" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPSessionObjectEncoding</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1057,7 +1061,7 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L372" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPSenderTemplateReservedZeroOnSend</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L371" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPSenderTemplateReservedZeroOnSend</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1066,19 +1070,8 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 </div>
 <h3><a href="#rfc3209-4.6.1-2"><code>RFC3209-4.6.1-2</code></a></h3>
 <p>| IPv6 tunnel end point address | + + | (16 bytes) | + + | | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | MUST be zero | Tunnel ID | (§4.6.1.2)</p>
-<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. Rejudged 2026-10-08 after the tagged units shifted byte-identical; re-read against rfc/full/rfc3209.txt and the current producers. The row is the LSP_TUNNEL_IPv6 SESSION (Section 4.6.1.2, C-Type 8) reserved field. TestRSVPSessionObjectEncoding encodes only the IPv4 SESSION via encodeSessionIPv4 (C-Type 7) and proves RFC3209-4.6.1-1. Ze has no IPv6 SESSION encoder, so the tag claims a row its test cannot observe.</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L341" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPSessionObjectEncoding</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-18 (independent auditor, after c85342c940). Section 4.6.1.2 LSP_TUNNEL_IPv6 Session Object, C_Type = 8: the 16 bits before Tunnel ID are &#34;MUST be zero&#34;. The row is now {gap} and no test tags it: the wrong tag on TestRSVPSessionObjectEncoding, which proved only the IPv4 object, was moved off by owner ruling. The gap is real: internal/plugins/rsvpte/wire.go defines CTypeLSPTunnelIPv6 = 8 but no non-test code uses it, and encodeSessionIPv4 is the only SESSION encoder, so Ze emits no IPv6 SESSION object whose reserved field could be zero or not. Scheduled in plan/spec-rsvpte-ipv6-lsp-tunnel.md. Recording this gap authorizes no implementation.</p>
+<p>No test carries RFC3209-4.6.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc3209-4.2-1"><code>RFC3209-4.2-1</code></a></h3>
 <p>To establish an LSP tunnel the sender creates a Path message with a LABEL_REQUEST object. The LABEL_REQUEST object indicates that a label binding for this path is requested and provides an indication of the network layer protocol that is to be carried over this path. (§4.2.4)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-08 after the tagged units shifted byte-identical; re-read against rfc/full/rfc3209.txt and the current producers. Section 4.2.4: &#34;To establish an LSP tunnel the sender creates a Path message with a LABEL_REQUEST object.&#34; TestRFC3209IngressPathCarriesLabelRequest reads the PATH the ingress engine sends and asserts LABEL_REQUEST with L3PID 0x0800; TestRFC3209IngressPathNeverWithoutLabelRequest asserts it on the originated PATH, two refreshes and the make-before-break PATH. TestBuildPathRoundTrip proves buildPath appends the object; TestRFC3209NoLabelWithoutLabelRequest proves the neighbouring receiver rule.</p>
@@ -2393,7 +2386,7 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -211,7 +211,7 @@ ZE_SSH_PASSWORD='CHANGE_ME_OPERATOR' \
 </code></pre>
 <p>Test that NOC is refused a command its profile denies. The <code>read-only</code> profile above denies the <code>clear</code> prefix:</p>
 <pre><code class="language-bash">ZE_SSH_PASSWORD='CHANGE_ME_NOC' \
-  /usr/local/bin/ze cli --user noc -c "clear interface counters"
+  /usr/local/bin/ze cli --user noc -c "clear interface counters all"
 </code></pre>
 <p>Authorization refuses it, and says so:</p>
 <pre><code>error: command restricted by access control
@@ -390,7 +390,7 @@ list, which never authenticated it.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -375,6 +375,34 @@ the peer certificate first, and Ze reads every later CERT payload as a link
 toward the anchor. Ze sends its own chain the same way: the <code>certificate</code> entry
 first, then the intermediate that PKI entry carries. A refusal names the anchor
 and the number of intermediate certificates the peer supplied.</p>
+<p>An <code>eap-tls</code> peer whose EAP-TLS client sends its certificate without the
+intermediate that issued it can still authenticate. Store that intermediate as a
+PKI <code>ca</code> entry and name it in <code>intermediate-certificate</code>, a list. When Ze is the
+EAP-TLS authenticator, it builds the client's path from the certificates the
+client sent plus this list, anchored at <code>ca-certificate</code> only: an intermediate
+completes a path and never ends one. On TLS 1.3 the client certificate's
+revocation status must be read, so give the intermediate entry its own <code>crl</code>.
+RFC 5216 Section 5.3 asks the authenticator to obtain the intermediates a path
+needs. Ze does not fetch them from the Authority Information Access URL, so
+that SHOULD is not met; this list is the pre-configuration the same section
+names for a server that cannot retrieve them.</p>
+<pre><code>pki {
+    ca corp-root { certificate "&lt;pem&gt;"; crl "&lt;pem&gt;"; }
+    ca corp-sub  { certificate "&lt;pem&gt;"; crl "&lt;pem&gt;"; }
+}
+vpn ipsec site-to-site peer branch authentication {
+    mode eap-tls
+    certificate ze-server
+    ca-certificate corp-root
+    intermediate-certificate corp-sub
+}
+</code></pre>
+<p>Commit and reload refuse a name that is not a PKI <code>ca</code> entry, an entry that is
+not a CA certificate, and the list on a peer whose mode is not <code>eap-tls</code>, where
+nothing would read it.</p>
+<!-- source: internal/component/ike/ipsec/validate.go -- ValidateIntermediateRefs -->
+<!-- source: internal/core/eap/client_chain.go -- clientChainVerifier.verify -->
+<!-- source: internal/component/ike/engine/responder_eap.go -- eapTLSServerConfig reads intermediate-certificate -->
 <p>Ze refuses a config that names no <code>ca-certificate</code> at commit and at reload. It
 does NOT refuse it under <code>ze config validate</code>, which reads the schema and does
 not run a plugin's config verifier.</p>
@@ -1168,26 +1196,122 @@ leaf:</p>
 </thead>
 <tbody>
 <tr>
-<td><code>bypass</code> (default)</td>
-<td>Traffic no entry matches crosses the boundary in the clear, which is what the kernel did before the entry existed</td>
+<td><code>discard</code> (default)</td>
+<td>Traffic no entry matches is dropped, the disposition Section 5 names</td>
 </tr>
 <tr>
-<td><code>discard</code></td>
-<td>Traffic no entry matches is dropped, the disposition Section 5 names</td>
+<td><code>bypass</code></td>
+<td>Traffic no entry matches crosses the boundary in the clear, which is what the kernel did before the entry existed</td>
 </tr>
 </tbody>
 </table>
-<p>The default is <code>bypass</code> because a router's own control plane (BGP, SSH, DNS)
-crosses the IPsec boundary in the clear, and a default of <code>discard</code> would stop
-it the moment <code>vpn ipsec</code> was configured. That default deviates from RFC 4301
-Section 4.4.1: "Every SPD SHOULD have a nominal, final entry that matches
-anything that is otherwise unmatched, and discards it." With <code>bypass</code>, the
-final entry passes that traffic instead, so Ze does not meet the SHOULD out of
-the box and the RFC 4301 page lists it as a gap. <code>set vpn ipsec unmatched discard</code> gives the behavior the section asks for. With <code>discard</code>, write a <code>bypass</code>
-entry under <code>policy</code> for every flow that must still cross in the clear. The IKE
-control-plane bypass at order 100 is installed either way, so the tunnels can
-still be negotiated. The entry is re-asserted on every apply and removed when
-the engine stops.</p>
+<p>The default is <code>discard</code>, the entry RFC 4301 Section 4.4.1 asks for: "Every
+SPD SHOULD have a nominal, final entry that matches anything that is otherwise
+unmatched, and discards it." Until 2026-10-18 the default was <code>bypass</code>; the
+owner reversed that ruling (R27) to follow the RFC.</p>
+<p>The catch-all also drops the router's own traffic wherever it crosses in
+the clear:</p>
+<ul>
+<li>BGP sessions, SSH and web logins, DNS and NTP.</li>
+<li>ICMP: ping, traceroute, the probes of <code>show mtu</code>, and the path-MTU errors
+("fragmentation needed", "packet too big") that tell the router to send
+smaller packets.</li>
+<li>IPv6 neighbor discovery. It is ICMPv6 (protocol 58), and the catch-all
+matches every protocol, so with no bypass the router cannot resolve an IPv6
+neighbor on a link and sends it nothing.</li>
+</ul>
+<p>Only IKE (UDP 500 and 4500, the control-plane bypass at order 100), the
+negotiated tunnels and your <code>policy</code> entries stay open. So write a <code>bypass</code>
+entry under <code>policy</code> for every flow that must still cross in the clear, for
+example a BGP neighbor:</p>
+<pre><code>set vpn ipsec policy frr-bgp action bypass
+set vpn ipsec policy frr-bgp local prefix 172.28.0.2/32
+set vpn ipsec policy frr-bgp remote prefix 172.28.0.4/32
+</code></pre>
+<p>and ICMP for both address families, which keeps ping, traceroute, <code>show mtu</code>,
+path-MTU errors and IPv6 neighbor discovery working:</p>
+<pre><code>set vpn ipsec policy icmp4 action bypass
+set vpn ipsec policy icmp4 protocol 1
+set vpn ipsec policy icmp4 order 3000
+set vpn ipsec policy icmp4 local prefix 0.0.0.0/0
+set vpn ipsec policy icmp4 remote prefix 0.0.0.0/0
+set vpn ipsec policy icmp6 action bypass
+set vpn ipsec policy icmp6 protocol 58
+set vpn ipsec policy icmp6 order 3000
+set vpn ipsec policy icmp6 local prefix ::/0
+set vpn ipsec policy icmp6 remote prefix ::/0
+</code></pre>
+<p>Order 3000 ranks these entries after a tunnel's default 2000, so ICMP that a
+tunnel's traffic selectors cover still goes through the tunnel. The refusal and
+the start-up log below print the same ICMP example.</p>
+<p>Or write <code>set vpn ipsec unmatched bypass</code> to pass all of that traffic.</p>
+<p>Ze cannot list those flows for you: they live in every other part of the
+configuration and in the routing table, and an exemption list that missed one
+would cut it with nobody told. Instead, a commit that would turn the discard on
+while <code>unmatched</code> is unset is refused, so nobody configuring <code>vpn ipsec</code> over
+SSH cuts their own session by default:</p>
+<pre><code>ike config: this commit turns on the SPD catch-all DISCARD without saying so: `vpn ipsec unmatched` is not set and its default is discard (RFC 4301 Section 4.4.1). ...
+</code></pre>
+<p>The refusal names what stays open, including how many <code>policy</code> bypass entries
+you have, and the two commands that settle it: add the <code>bypass</code> entries, then
+<code>set vpn ipsec unmatched discard</code>; or <code>set vpn ipsec unmatched bypass</code>. It
+fires only when the commit would turn the discard on: a written <code>unmatched</code>
+leaf, either value, always passes, and so does a commit to a box whose catch-all
+already discards.</p>
+<p>The check runs on commit only. A configuration the daemon starts with is not
+verified, so start-up decides from the file's schema stamp (its first line,
+<code># ze-schema: YY.MM.DD</code>, naming the release that saved it) which default the
+file was written under:</p>
+<table>
+<thead>
+<tr>
+<th>The file</th>
+<th>At start</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stamped 26.10.18 or earlier, <code>vpn ipsec</code> present, <code>unmatched</code> unset</td>
+<td>The schema evolution <code>ipsec-unmatched-keeps-bypass</code> writes <code>unmatched bypass</code> into it. A config file is saved back, re-stamped; a config piped on stdin is changed in memory only, so the evolution runs again at every start. The router keeps the catch-all it ran with, and the start log says so at warning level</td>
+</tr>
+<tr>
+<td>Stamped 26.10.19 or later, <code>unmatched</code> unset</td>
+<td>Discard, the default, with the error log below</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td>Discard, the default, with the error log below</td>
+</tr>
+<tr>
+<td><code>unmatched</code> written, either value</td>
+<td>As written</td>
+</tr>
+</tbody>
+</table>
+<p>A file with no stamp proves no release, so it gets the RFC default rather than
+a guess: write <code>unmatched bypass</code> into it to keep passing unmatched traffic. The
+release is the build date, so a binary built on 2026-10-18 may hold either
+default; every build made that day stamps 26.10.18, and every file it saved is
+read as old. The cost falls on one
+case: a file a 26.10.18 build saved with the leaf unset while the discard was
+already in force also gains <code>unmatched bypass</code>, so write <code>unmatched discard</code> in
+it to keep the discard. The evolution runs at start only, never on a reload.
+After a downgrade recovers a rollback from history, the evolution reads the
+stamp the rollback was saved with, not the one recovery writes over it.</p>
+<p>When the evolution applies, the start log says so at warning level, which the
+default log level shows:</p>
+<pre><code>level=WARN msg="config evolution changed behavior" config=/etc/ze/ze.conf evolution=ipsec-unmatched-keeps-bypass change="wrote `vpn ipsec unmatched bypass`: ... then run `set vpn ipsec unmatched discard` and commit" saved="saved: ..."
+</code></pre>
+<p>When the daemon starts with the discard in force by default, it logs it at
+error level, with the same facts and commands as the refusal, so the console
+says why BGP or SSH went quiet:</p>
+<pre><code>ike: the SPD catch-all DISCARD is in force because `vpn ipsec unmatched` is not set and its default is discard (RFC 4301 Section 4.4.1): ... bypass-entries=0
+</code></pre>
+<p>A box with no <code>vpn ipsec</code> block keeps a <code>bypass</code> catch-all: it configured no
+IPsec boundary.</p>
+<p>The IKE control-plane bypass at order 100 is installed either way, so the
+tunnels can still be negotiated. The entry is re-asserted on every apply and
+removed when the engine stops.</p>
 <h4 id="when-the-entry-is-not-there">When the entry is not there</h4>
 <p>A <code>discard</code> entry that is not installed would let the kernel pass exactly the
 traffic you asked it to drop, so Ze never reports such a configuration as
@@ -1203,7 +1327,7 @@ applied:</p>
 <tbody>
 <tr>
 <td>The dataplane cannot hold an entry bound to no interface: the VPP backend, a build off Linux, or a kernel without XFRM</td>
-<td>Refused at commit</td>
+<td>Refused at commit. A configuration the daemon starts with is not verified, so a start with <code>unmatched</code> unset (or <code>discard</code>) fails instead: installing the discard entry fails, and the configure step returns that error. Fix: <code>set vpn ipsec unmatched bypass</code> in the configuration file, then start again</td>
 <td>Accepted; no entry is installed, and the kernel passes the traffic</td>
 </tr>
 <tr>
@@ -1238,7 +1362,8 @@ the entries are then already installed when the catch-all starts dropping. A
 <code>bypass</code> entry added or changed once <code>discard</code> is in force always crosses the
 window.</p>
 <!-- source: internal/component/ike/ipsec/config.go -- parseUnmatched -->
-<!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched, verifyUnmatchedEnforceable -->
+<!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched, verifyUnmatchedEnforceable, refuseImplicitDiscard, warnImplicitDiscardAtStart -->
+<!-- source: internal/component/ike/ipsec/unmatched_evolution.go -- unmatchedBypassEvolution -->
 <!-- source: internal/component/ike/engine/apply.go -- applyConfig -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- CatchAllInstaller -->
 <!-- source: internal/component/ike/ipsec/spd_policy.go -- SPDPolicy, parseSPDPolicy, ValidateSPDPolicies -->
@@ -1517,8 +1642,8 @@ and carries no traffic.</p>
 <td>Child SAs the engine expects that the kernel does not hold. Exits non-zero on drift</td>
 </tr>
 <tr>
-<td><code>clear vpn ipsec sa [peer &lt;name&gt;]</code></td>
-<td>Tear down and re-establish SAs, optionally for one peer</td>
+<td><code>clear vpn ipsec sa all</code>, <code>clear vpn ipsec sa peer &lt;name&gt;</code></td>
+<td>Tear down and re-establish every SA, or one peer's. The bare <code>clear vpn ipsec sa</code> is refused and names both forms</td>
 </tr>
 <tr>
 <td><code>monitor vpn ipsec</code></td>
@@ -1547,7 +1672,7 @@ port, and <code>remote-address</code> is the endpoint the SA was installed
 on, which behind a NAT differs from the configured <code>remote-address</code> of the peer. Those
 three, with the transform, are what size an ESP packet on the tunnel.</p>
 <!-- source: internal/component/ike/cmd/show_ipsec.go -- saToMap -->
-<p><code>clear vpn ipsec sa</code> sends a best-effort encrypted IKE Delete before removing
+<p>Both <code>clear vpn ipsec sa</code> forms send a best-effort encrypted IKE Delete before removing
 local state. Initiator peers then re-establish immediately. If the UDP Delete is
 lost, the normal DPD path still removes the stale remote SA.</p>
 <!-- source: internal/component/ike/engine/established.go -- graceful stop and sendDeleteIKE -->
@@ -1684,7 +1809,7 @@ boundaries; neither is a claim that every IKE extension is implemented.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

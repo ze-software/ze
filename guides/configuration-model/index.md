@@ -1625,6 +1625,14 @@ data in zefs (not in the config tree) and survive restarts.
 | `update bgp irr asn <asn>` | Refresh a specific ASN |
 | `update bgp irr as-set <as-set>` | Refresh peers using a specific AS-SET |
 
+A route that the filter rejected before its list arrived, or that the old list did not hold, is evaluated again when a new list authorizes it. The filter asks the peer for the route with a ROUTE-REFRESH, so each IRR-filtered peer needs this line in its block:
+
+```text
+attach process bgp-filter-irr { send [ refresh ] }
+```
+
+The page [IRR filtering](../irr-filtering/index.md) describes how this works.
+
 <!-- source: internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang -- IRR filter YANG schema -->
 <!-- source: internal/component/bgp/plugins/filter_irr/config.go -- parseIRRConfig -->
 <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- runFilterIRR, handleFilterUpdate, handleConfigure -->
@@ -1969,11 +1977,15 @@ family. A route whose family the peer did not advertise, an `ipv6/mpls-vpn`
 route to a peer without the AFI 2 / SAFI 128 Multiprotocol capability for
 example, is not sent on that session, and Ze logs a warning naming the peer,
 the prefix and the family (RFC 4659 Section 3.4, RFC 4760). A VPN route also
-needs at least one `label`: config load refuses one without.
+needs at least one `label`: config load refuses one without. Config load also
+refuses a `bgp-prefix-sid-srv6` whose SID structure declares a transposition the
+route's family cannot carry: any transposition on a family without a label
+field, such as `ipv6/unicast`, and a transposition length above 20 bits on a VPN
+family (RFC 9252 Sections 5 and 7).
 
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- static route config, update/attribute/nlri blocks -->
 <!-- source: internal/component/bgp/reactor/peer_static_wire.go -- negotiatedStaticRoutes, the negotiated-family filter -->
-<!-- source: internal/component/bgp/config/peers.go -- patchStaticRoutes, a VPN route requires at least one label -->
+<!-- source: internal/component/bgp/config/peers.go -- patchStaticRoutes, a VPN route requires at least one label, and the SRv6 transposition must fit the route family -->
 
 ## MPLS
 
@@ -2797,14 +2809,47 @@ interface {
 }
 ```
 
-IPv6 `rpf-check` is accepted in config but only enforced with the VPP data plane.
-On Linux without VPP, a warning is logged and the setting has no effect.
+Linux has no IPv6 `rp_filter` sysctl, so IPv6 `rpf-check` is an nftables fib
+lookup in prerouting instead. Ze owns one table for it, `ip6 ze_iface_rpf`, and
+rebuilds it whole on every interface commit: each checked interface is a member
+of the `strict` or `loose` set, and a unit whose leaf, unit or interface leaves
+the config leaves the set with it. With no IPv6 `rpf-check` left, the table is
+deleted.
+
+| Value | nftables rule | Behavior |
+|-------|---------------|----------|
+| `disable` | none | No source address validation |
+| `strict` | `iifname @strict fib saddr . iif oif missing counter drop` | Drop a packet whose source does not route back through the arrival interface |
+| `loose` | `iifname @loose fib saddr oif missing counter drop` | Drop a packet whose source has no route at all; a default route counts |
+
+Two sources are accepted before either check: link-local (`fe80::/10`) and the
+unspecified address (`::`). Neighbor discovery, duplicate address detection
+and DHCPv6 send from them, and a router never forwards them. `nft list table
+ip6 ze_iface_rpf` shows the sets and the drop counters.
+
+With `backend vpp`, VPP forwards outside the Linux kernel, so the `rp_filter`
+sysctl alone would judge only what VPP hands the host. Ze therefore also turns
+on VPP's uRPF for IPv4 on the interface's receive path, in the same mode:
+`strict` drops a packet whose source does not route back through the arrival
+interface, `loose` one whose source has no route with a real path (a default
+route counts). Removing the leaf or the interface turns the check off. Packets
+to a multicast address or to 255.255.255.255 always pass, so DHCP works.
+`vppctl show interface features <vpp-name>` lists `ip4-rx-urpf-strict` or
+`ip4-rx-urpf-loose`, and `vppctl show errors` counts the drops as `uRPF Drop`.
+
+IPv6 `rpf-check` is implemented on the netlink backend only. With `backend vpp`
+a commit that sets it is refused, naming the leaf, because VPP's uRPF drops
+every unicast packet from a link-local source, which would break neighbor
+discovery.
 
 The legacy `rp-filter 0|1|2` integer syntax is still accepted for backward
 compatibility but emits a deprecation warning. Use `rpf-check` in new configs.
 
 <!-- source: internal/component/iface/config.go -- parseIPv4Settings, parseIPv6Settings, rpfMode -->
 <!-- source: internal/component/iface/config_sysctl.go -- applySysctl -->
+<!-- source: internal/component/iface/rpf6.go -- desiredIPv6RPF -->
+<!-- source: internal/plugins/iface/vpp/rpf.go -- ReplaceIPv4RPF, errIPv6RPFUnsupported -->
+<!-- source: internal/plugins/iface/netlink/rpf_linux.go -- ReplaceIPv6RPF, rpfDropExprs, rpfExemptRules -->
 
 ### IPv6 Router Advertisements
 
@@ -3310,7 +3355,7 @@ environment {
         transcript enabled;  # record session commands and output to local file
     }
     mtu {
-        reference-address 1.1.1.1;  # the address show mtu measures beside the peers
+        reference-address 198.51.100.1;  # the address show mtu measures beside the peers
     }
 }
 ```
@@ -3347,13 +3392,17 @@ command that echoes a config value masks it where it is written.
 
 The `mtu { reference-address }` leaf names the address `show mtu` measures
 beside the IPsec peers. A reference outside the tunnels is what tells a clamped
-access circuit from a clamped peer path. The value is one IPv4 or IPv6 address
-and the default is `1.1.1.1`. The environment variable
+access circuit from a clamped peer path. The value is one IPv4 or IPv6 address.
+The leaf has no fixed default: when it is not set, the first `system {
+name-server }` is the reference, because the host must already reach it. When
+neither is set, `show mtu` refuses to run and names both leaves; `show mtu host
+<address>` measures one host and needs no reference. The environment variable
 `ze.mtu.reference-address` overrides the leaf. The command is described in
 `docs/architecture/diagnostics/path-mtu.md`.
 
 <!-- source: internal/component/config/environment.go -- environment block parsing; internal/core/slogutil/slogutil.go -- log level config -->
 <!-- source: internal/component/mtu/cmd/mtu.go -- referenceAddress, the reader of the reference-address leaf -->
+<!-- source: internal/component/config/system/nameservers.go -- NameServers, the published system name-server list -->
 <!-- source: internal/core/version/version.go -- HTTPHeaderHidden, the leaf both HTTP servers read -->
 <!-- source: internal/component/command/pipe.go -- configuredDefault -->
 <!-- source: internal/component/cli/transcript.go -- TranscriptWriter, OpenTranscriptFile -->
@@ -3527,7 +3576,7 @@ system {
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `name-server` | leaf-list ip-address | (none) | Static DNS servers. First server used by ze internal resolver. All written to resolv.conf at startup and after every config commit/reload. |
+| `name-server` | leaf-list ip-address | (none) | Static DNS servers. First server used by ze internal resolver, and measured by `show mtu` as its reference address when `environment { mtu { reference-address } }` is not set. All written to resolv.conf at startup and after every config commit/reload. |
 | `resolv-conf-path` | string | `/tmp/resolv.conf` | Path for resolv.conf output. Default suits gokrazy (read-only rootfs). Empty disables. |
 | `timeout` | uint16 | `5` | Query timeout in seconds. Range: 1-60. |
 | `cache-size` | uint32 | `10000` | Maximum cached entries. 0 disables caching entirely. |
@@ -3537,8 +3586,10 @@ The cache respects DNS response TTLs: entries expire at `min(response TTL, cache
 Records with TTL=0 from the server are not cached (per RFC 1035).
 
 When static name servers are configured, DHCP-discovered DNS servers do not
-overwrite resolv.conf. When no static servers are configured, DHCP writes DNS
-to resolv-conf-path as before.
+overwrite resolv.conf. When no static servers are configured, resolv-conf-path
+lists the servers of every DHCP lease, DHCPv4 before DHCPv6, and a lease whose
+renewal omits DNS, or that ends, takes only its own servers out
+(`docs/features/dns-resolver.md`, "DHCP interaction").
 
 The internal resolver never falls back to a public recursive resolver. If no
 static name server exists and the configured resolv.conf path is missing or

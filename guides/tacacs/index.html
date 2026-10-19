@@ -233,11 +233,16 @@ than sixteen characters; keys of thirty-two characters or longer are supported.<
 <!-- source: internal/component/tacacs/packet.go -- MarshalInto, ErrNoSharedSecret -->
 <h2 id="authentication-flow">Authentication flow</h2>
 <ol>
-<li>SSH client connects with username + password.</li>
+<li>An SSH client, or a web login (form or HTTP Basic auth), supplies a
+username and password.</li>
 <li>Daemon's AAA chain calls <code>TacacsAuthenticator</code> first (priority 100; local
 bcrypt is priority 200).</li>
 <li>The client opens TCP to the first configured server and sends a PAP
-AUTHEN START. The MD5 pseudo-pad obfuscates the body using the shared secret.</li>
+AUTHEN START. The MD5 pseudo-pad obfuscates the body using the shared secret.
+Its <code>port</code> field names the access channel the login arrived on: <code>ssh</code> for an
+SSH login, <code>web</code> for a web login (the login form and HTTP Basic auth). A
+login whose caller names no channel reports <code>ssh</code>. The session
+authorization of step 4 carries the same port.</li>
 <li><strong>PASS</strong> -- Ze requests shell-session authorization with <code>service=shell</code> and
 an empty <code>cmd</code>. The server returns a decimal <code>priv-lvl</code> argument, which maps
 through <code>tacacs-profile &lt;priv-lvl&gt;.profile</code>. Missing privilege uses level one.
@@ -253,6 +258,20 @@ chain falls through to the local bcrypt authenticator.</li>
 <p>RESTART, FOLLOW and a reply whose unencrypted flag disagrees with the configured
 shared secret are terminal denials. A backup server or local password cannot
 override them.</p>
+<p>A shared secret that differs from the server's is not a denial. The reply's
+lengths do not add up once de-obfuscated, which RFC 8907 Section 4.5 makes an
+ERROR, so Ze treats that server as unreachable (step 6): the next server is
+tried, then the local accounts. The log line <code>TACACS+ server unreachable</code> names
+the cause as <code>bad secret: body length mismatch after decryption</code>; correct
+<code>tacacs.server &lt;ip&gt;.key</code> to the secret the server holds for this device.</p>
+<p><code>TestTacPlusNGInterop</code> (<code>internal/component/tacacs</code>, build tag <code>docker</code>, run by
+<code>./le test integration docker-peers</code>) checks these outcomes against
+tac_plus-ng: a PAP login and its priv-lvl mapping, a wrong password, a wrong
+shared secret, command authorization in both directions, and an accounting
+START.</p>
+<!-- source: internal/component/tacacs/tacplusng_docker_test.go -- TestTacPlusNGInterop -->
+<!-- source: internal/component/tacacs/reply.go -- validateReplyBody, ErrBadSecret -->
+<!-- source: internal/component/tacacs/client.go -- sendToServers -->
 <p>The web login fallback follows the same terminal-rejection rule for ordinary
 local accounts. The separate ZeFS super-admin remains a recovery path through
 its reserved local profile; assigning a normal <code>admin</code> profile does not grant
@@ -529,7 +548,7 @@ Local summary: <code>rfc/short/rfc8907.md</code>.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -103,7 +103,8 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#show-system-file-descriptors">show system file-descriptors</a></li>
 <li><a href="#show-dns-lookup">show dns lookup</a></li>
 <li><a href="#show-dns-cache-stats-list-record">show dns cache stats / list / record</a></li>
-<li><a href="#clear-dns-cache-stats-record">clear dns cache / stats / record</a></li>
+<li><a href="#clear-dns-cache-all-stats-record">clear dns cache all / stats / record</a></li>
+<li><a href="#clear-peeringdb-cache-clear-irr-cache-clear-cymru-cache">clear peeringdb cache / clear irr cache / clear cymru cache</a></li>
 <li><a href="#show-resolve-rir">show resolve rir</a></li>
 <li><a href="#update-resolve-rir">update resolve rir</a></li>
 <li><a href="#show-vpn-ipsec-dataplane">show vpn ipsec dataplane</a></li>
@@ -1445,14 +1446,16 @@ and <code>/isis/database</code>, with live updates over SSE.</p>
 <h3 id="clear-isis">clear isis</h3>
 <p>Runtime actions that reset IS-IS operational state without changing the
 configuration.</p>
-<pre><code>ze clear isis adjacency                 # Tear down every adjacency; neighbors re-form from the next Hello
+<pre><code>ze clear isis adjacency all             # Tear down every adjacency; neighbors re-form from the next Hello
 ze clear isis counters                  # Reset the SPF-run log (observational state)
 </code></pre>
-<p><code>clear isis adjacency</code> drops the adjacency records so each neighbour re-learns
+<p><code>clear isis adjacency all</code> drops the adjacency records so each neighbour re-learns
 from the next Hello, triggering LSP re-origination and an SPF re-run; the
 circuit is not closed. <code>clear isis counters</code> clears the SPF-run history surfaced
 by <code>show isis spf-log</code>; the monotonic Prometheus series are process counters and
-are not reset (resetting them mid-process breaks <code>rate()</code>).</p>
+are not reset (resetting them mid-process breaks <code>rate()</code>). The bare
+<code>clear isis adjacency</code> is refused and names the <code>all</code> form: a prefix typed by
+mistake never tears down every adjacency.</p>
 <!-- source: internal/plugins/isis/cmd_show.go -- ze-isis:clear-* RPC proxies -->
 <!-- source: internal/plugins/isis/show.go -- clearAdjacencies/clearCounters -->
 <h3 id="is-is-offline-tools">IS-IS (Offline Tools)</h3>
@@ -1654,7 +1657,9 @@ a padded exchange (<code>ike-confirmed</code> is the largest size it proved; <co
 stays the ICMP figure unless IKE refuted it), <code>prober: icmp</code> otherwise, with
 <code>ike-declined</code> saying why a live SA was not used and each row's <code>caveats</code>
 naming what its prober cannot see. The
-reference address is the <code>environment { mtu { reference-address } }</code> leaf. The
+reference address is the <code>environment { mtu { reference-address } }</code> leaf, or
+the first <code>system { name-server }</code> when the leaf is not set; with neither, a run
+over the peers is refused before any probe is sent. The
 payload keys, the run and its outcomes are
 <code>docs/architecture/diagnostics/path-mtu.md</code>. The command changes nothing on
 the router: the commands it lists are for the operator to apply.</p>
@@ -1770,13 +1775,42 @@ ze show dns cache record example.com  # Show cached entries for a specific name
 <code>list</code> returns each entry with name, type, records, and ttl-seconds.
 <code>record &lt;name&gt;</code> filters cached entries by name (all types for that name).</p>
 <!-- source: internal/component/resolve/cmd/show_dns.go -- handleDNSCacheStats, handleDNSCacheList, handleDNSCacheRecord -->
-<h3 id="clear-dns-cache-stats-record">clear dns cache / stats / record</h3>
-<pre><code>clear dns cache                                     # Flush all entries and reset all counters
+<h3 id="clear-dns-cache-all-stats-record">clear dns cache all / stats / record</h3>
+<p><code>clear dns cache</code> alone is refused and lists these forms: flushing everything
+needs the word <code>all</code>.</p>
+<pre><code>clear dns cache all                                 # Flush all entries and reset all counters
 clear dns cache stats                               # Zero counters without removing entries
 clear dns cache record example.com                  # Delete all entries matching name (all types)
 clear dns cache record example.com type AAAA        # Delete a single entry by name and type
 </code></pre>
 <!-- source: internal/component/resolve/cmd/dns.go -- handleClearDNSCache, handleClearDNSCacheStats, handleClearDNSCacheRecord -->
+<h3 id="clear-peeringdb-cache-clear-irr-cache-clear-cymru-cache">clear peeringdb cache / clear irr cache / clear cymru cache</h3>
+<p>Each owner of a resolver client clears the client it uses now. The hub clears
+the one <code>resolve peeringdb</code>, <code>resolve irr</code> or <code>resolve cymru</code> uses, and every
+plugin that declared that cache clears its own: <code>bgp-filter-irr</code> and
+<code>firewall-irr</code> hold an IRR and a PeeringDB client, inside the daemon or as their
+own process. A client a plugin replaced on a reload is not cleared or counted.
+The client <code>bgp peer prefix update</code> builds lives for one command, so no clear
+reaches it. The bare form is refused and lists the two forms: clearing
+everything needs the word <code>all</code>.</p>
+<pre><code>clear peeringdb cache all                           # Remove every cached PeeringDB answer
+clear peeringdb cache asn 65001                     # Remove one AS number (decimal or asdot)
+clear irr cache all                                 # Remove every cached AS-SET expansion and prefix list
+clear irr cache as-set AS-EXAMPLE                   # Remove one AS-SET, matched exactly
+clear cymru cache all                               # Remove every cached origin and AS name
+clear cymru cache address 2001:db8::1               # Remove the origin of one address
+</code></pre>
+<p>Every answer carries <code>removed</code>, the entries removed in total, and <code>owners</code>, one
+row per owner with its <code>owner</code> name and its <code>removed</code> count. A keyed form also
+answers <code>found</code>, true when any owner held the key. An owner that does not answer
+makes the command an error that names it, says how many entries the others
+removed, and points at <code>show plugin list</code>. The IRR filters' stored prefix lists
+are not a cache and stay.</p>
+<pre><code>clear irr cache all | json
+{"action":"clear-all","removed":3,"owners":[{"owner":"hub","removed":0},{"owner":"bgp-filter-irr","removed":3}]}
+</code></pre>
+<!-- source: internal/component/resolve/cmd/clear_caches.go -- handleClearPeeringDBCacheAll, handleClearPeeringDBCacheASN, handleClearIRRCacheAll, handleClearIRRCacheASSet, handleClearCymruCacheAll, handleClearCymruCacheAddress, clearAnswer -->
+<!-- source: internal/component/resolve/irr/store/clear.go -- ClearResolverCache -->
 <h3 id="show-resolve-rir">show resolve rir</h3>
 <pre><code>ze show resolve rir 15169                      # Which registry holds AS15169
 ze show resolve rir 15169 | json               # The same answer as structured data
@@ -1840,16 +1874,18 @@ than reading it as "every SPI".</p>
 <!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneSA, handleShowVPNIPsecDataplanePolicy, handleShowVPNIPsecDataplaneDrift -->
 <!-- source: internal/component/ike/yang/ze-ipsec-cmd.yang -- show/vpn/ipsec/dataplane -->
 <h3 id="clear-vpn-ipsec-sa">clear vpn ipsec sa</h3>
-<pre><code>clear vpn ipsec sa                          # Terminate all IPsec SAs
+<pre><code>clear vpn ipsec sa all                      # Terminate all IPsec SAs
 clear vpn ipsec sa peer &lt;name&gt;              # Terminate SAs for one peer (1-255 chars)
 </code></pre>
-<p>Without arguments, terminates every active Security Association and
+<p><code>clear vpn ipsec sa all</code> terminates every active Security Association and
 returns the count. With <code>peer &lt;name&gt;</code>, terminates only the named
-peer's SAs and returns the peer name. Peers configured with <code>connection-type initiate</code> re-establish
+peer's SAs and returns the peer name. The bare <code>clear vpn ipsec sa</code> is
+refused and names both forms, so a prefix typed by mistake never
+terminates every SA. Peers configured with <code>connection-type initiate</code> re-establish
 automatically; <code>respond</code>-only peers wait for the remote side.</p>
 <p>Peer name must be 1-255 characters. A missing name after <code>peer</code>
 returns an error. An unknown peer name returns "peer not found".</p>
-<!-- source: internal/component/ike/cmd/ipsec.go -- handleClearIPsecSA -->
+<!-- source: internal/component/ike/cmd/ipsec.go -- handleClearIPsecSAAll -->
 <h3 id="show-system-profile">show system profile</h3>
 <pre><code>ze show system profile heap                     # Heap profile
 ze show system profile cpu duration 10s         # CPU profile (1s-60s)
@@ -2090,15 +2126,14 @@ and <code>docs/guide/configuration.md</code> for the config leaves.</p>
 <!-- source: internal/plugins/crashes/cmd/show.go -- show crashes command -->
 <!-- source: internal/plugins/crashes/crashes.go -- crash storage commands -->
 <h3 id="clear-interface-counters">clear interface counters</h3>
-<pre><code>ze clear interface counters                # Reset counters on every managed interface
-ze clear interface counters &lt;name&gt;         # Reset counters on one interface
+<pre><code>ze clear interface counters all            # Reset counters on every managed interface
+ze clear interface name &lt;name&gt; counters    # Reset counters on one interface
 </code></pre>
-<p>Grammar uses action-before-identifier: <code>counters</code> keyword first, then the
-optional interface name. Bare <code>ze clear interface counters</code> (no name) clears
-all interfaces. The old forms <code>clear interface &lt;name&gt; counters</code> and
-<code>clear interface &lt;name&gt;</code> are still accepted with a deprecation warning.
-Errors in argument shape (unknown trailing keyword, three or more tokens)
-reject with the usage line rather than silently defaulting to "all".</p>
+<p>Every interface is reset only when <code>all</code> is typed. The bare
+<code>ze clear interface counters</code> is refused and names the <code>all</code> form, so a
+prefix typed by mistake never resets every counter. One interface is
+selected with the <code>name</code> keyword before its value, as <code>show interface name &lt;name&gt;</code> does. A trailing token after either form is refused with the usage
+line rather than silently defaulting to "all".</p>
 <p>The <code>clear</code> verb resets runtime/operational state without touching
 configuration. Backends that expose a real counter-reset syscall
 (VPP's <code>sw_interface_clear_stats</code>, once wired) zero the kernel
@@ -3575,7 +3610,7 @@ declares that <code>delete bgp peer</code> removed is taken out of it.</p>
 </tbody>
 </table>
 <h3 id="route-injection">Route Injection</h3>
-<pre><code>send bgp &lt;sel&gt; update text &lt;attrs&gt; nlri &lt;family&gt; &lt;op&gt; &lt;prefixes&gt;
+<pre><code>send bgp &lt;sel&gt; update text &lt;attrs&gt; (nlri | mp &lt;family&gt;) &lt;op&gt; &lt;prefixes&gt;
 send bgp &lt;sel&gt; update hex &lt;hex-data&gt;
 send bgp &lt;sel&gt; update b64 &lt;b64-data&gt;
 send bgp &lt;sel&gt; raw &lt;hex|b64&gt; &lt;data&gt; [type &lt;type&gt;]
@@ -3636,8 +3671,9 @@ names that word, so <code>discard rate-limit 500</code> announces nothing.</p>
 </tr>
 </tbody>
 </table>
-<p>NLRI operations: <code>nlri &lt;family&gt; add &lt;prefixes&gt;</code>, <code>nlri &lt;family&gt; del &lt;prefixes&gt;</code>,
-<code>nlri &lt;family&gt; eor</code>.</p>
+<p>NLRI operations: <code>nlri add &lt;prefixes&gt;</code>, <code>nlri del &lt;prefixes&gt;</code> and <code>nlri eor</code> for IPv4
+unicast; <code>mp &lt;family&gt; add &lt;prefixes&gt;</code>, <code>mp &lt;family&gt; del &lt;prefixes&gt;</code> and
+<code>mp &lt;family&gt; eor</code> for every other family.</p>
 <!-- source: internal/component/bgp/plugins/cmd/update/ -- update text/hex/b64 parsing; internal/component/bgp/plugins/cmd/raw/ -- raw message injection -->
 <h3 id="rib-commands">RIB Commands</h3>
 <table>
@@ -3687,12 +3723,12 @@ names that word, so <code>discard rate-limit 500</code> announces nothing.</p>
 <tr>
 <td><code>clear bgp rib in &lt;selector&gt;</code></td>
 <td>write</td>
-<td>Clear Adj-RIB-In (<code>*</code> for all peers)</td>
+<td>Clear Adj-RIB-In for the peers the selector matches (<code>*</code> for all peers; the bare <code>clear bgp rib in</code> is refused)</td>
 </tr>
 <tr>
-<td><code>clear bgp rib out &lt;selector&gt; [family]</code></td>
+<td><code>clear bgp rib out &lt;selector&gt; [family &lt;family&gt;]</code></td>
 <td>write</td>
-<td>Regenerate and re-advertise Adj-RIB-Out (<code>*</code> for all peers, optional family filter)</td>
+<td>Regenerate and re-advertise Adj-RIB-Out (<code>*</code> for all peers; the bare <code>clear bgp rib out</code> is refused). <code>family</code> limits the replay to one family, typed after its keyword: <code>clear bgp rib out * family ipv4/unicast</code>; a family with no keyword is refused</td>
 </tr>
 <tr>
 <td><code>request bgp rib inject &lt;peer&gt; &lt;family&gt; &lt;prefix&gt; [attrs...]</code></td>
@@ -4663,7 +4699,7 @@ reaches, where the daemon expands the chain.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,16 +1,16 @@
-# `clear dns cache`
+# `clear ospf process all`
 
-Flush all DNS cache entries and reset all DNS cache counters\.
+Full OSPF reset\: tear down every adjacency and re\-run SPF\.
 
 ## Ze command
 
-- Registry path: `clear dns cache`
-- Usage: `clear dns cache`
+- Registry path: `clear ospf process all`
+- Usage: `clear ospf process all`
 - Mode: Daemon
-- Wire method: `ze-resolve:clear-dns-cache`
+- Wire method: `ze-ospf:clear-process`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
-- Subcommands: `record`, `stats`
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
@@ -21,7 +21,7 @@ Flush all DNS cache entries and reset all DNS cache counters\.
 - Command pipes: none
 - Pipe aliases: none
 
-The entries and the four counters go together\. Use clear dns cache stats to zero the counters and keep the entries\, or clear dns cache record to evict one name\.
+Every adjacency\, in every configured instance\, is torn down and SPF re\-runs over every area\. Adjacencies re\-form from the next Hello\; the configuration is unchanged\.
 
 ## Arguments
 
@@ -29,7 +29,9 @@ No command-specific arguments listed.
 
 ## Mapping intents
 
-No vendor equivalent has been curated yet for this Ze command.
+### Clear OSPF process, counters, or neighbor state
+
+Category: Routing protocols
 
 ## Vendor equivalents
 

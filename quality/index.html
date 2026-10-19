@@ -147,8 +147,8 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --
   <article class="quality-command">
     <h3>Handoff gate</h3>
     <p>Use the shared gate before handing over normal work.</p>
-    <pre><code>./le verify current mode full
-./le verify current mode changed
+    <pre><code>./le verify current
+./le verify current fast
 ./le repo check</code></pre>
   </article>
   <article class="quality-command">
@@ -161,7 +161,7 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --
   </article>
 </div>
 <h2 id="how-a-failure-becomes-useful">How a failure becomes useful</h2>
-<p><code>./le verify current mode full</code> is more than a command wrapper. It takes a lock so two heavy runs do not corrupt each other, writes per-stage logs under <code>tmp/</code>, groups related failures, and prints the rerun commands. The functional runner adds per-step traces for <code>.ci</code>, <code>.wb</code>, and <code>.et</code> files. BGP expectations decode wire messages before showing differences, so a failed UPDATE is reported as protocol structure instead of a long hex string.</p>
+<p><code>./le verify current</code> is more than a command wrapper. It takes a lock so two heavy runs do not corrupt each other, writes per-stage logs under <code>tmp/</code>, groups related failures, and prints the rerun commands. The functional runner adds per-step traces for <code>.ci</code>, <code>.wb</code>, and <code>.et</code> files. BGP expectations decode wire messages before showing differences, so a failed UPDATE is reported as protocol structure instead of a long hex string.</p>
 <div class="quality-panel">
   <h3>The rule</h3>
   <p>Do not hide a failure with a skip or a loose assertion. Move the proof to the layer that can see the real behavior, rerun the narrow command, then rerun the gate that should have caught the regression.</p>
@@ -214,7 +214,7 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

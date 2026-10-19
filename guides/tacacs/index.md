@@ -102,11 +102,16 @@ than sixteen characters; keys of thirty-two characters or longer are supported.
 
 ## Authentication flow
 
-1. SSH client connects with username + password.
+1. An SSH client, or a web login (form or HTTP Basic auth), supplies a
+   username and password.
 2. Daemon's AAA chain calls `TacacsAuthenticator` first (priority 100; local
    bcrypt is priority 200).
 3. The client opens TCP to the first configured server and sends a PAP
    AUTHEN START. The MD5 pseudo-pad obfuscates the body using the shared secret.
+   Its `port` field names the access channel the login arrived on: `ssh` for an
+   SSH login, `web` for a web login (the login form and HTTP Basic auth). A
+   login whose caller names no channel reports `ssh`. The session
+   authorization of step 4 carries the same port.
 4. **PASS** -- Ze requests shell-session authorization with `service=shell` and
    an empty `cmd`. The server returns a decimal `priv-lvl` argument, which maps
    through `tacacs-profile <priv-lvl>.profile`. Missing privilege uses level one.
@@ -122,6 +127,22 @@ than sixteen characters; keys of thirty-two characters or longer are supported.
 RESTART, FOLLOW and a reply whose unencrypted flag disagrees with the configured
 shared secret are terminal denials. A backup server or local password cannot
 override them.
+
+A shared secret that differs from the server's is not a denial. The reply's
+lengths do not add up once de-obfuscated, which RFC 8907 Section 4.5 makes an
+ERROR, so Ze treats that server as unreachable (step 6): the next server is
+tried, then the local accounts. The log line `TACACS+ server unreachable` names
+the cause as `bad secret: body length mismatch after decryption`; correct
+`tacacs.server <ip>.key` to the secret the server holds for this device.
+
+`TestTacPlusNGInterop` (`internal/component/tacacs`, build tag `docker`, run by
+`./le test integration docker-peers`) checks these outcomes against
+tac_plus-ng: a PAP login and its priv-lvl mapping, a wrong password, a wrong
+shared secret, command authorization in both directions, and an accounting
+START.
+<!-- source: internal/component/tacacs/tacplusng_docker_test.go -- TestTacPlusNGInterop -->
+<!-- source: internal/component/tacacs/reply.go -- validateReplyBody, ErrBadSecret -->
+<!-- source: internal/component/tacacs/client.go -- sendToServers -->
 
 The web login fallback follows the same terminal-rejection rule for ordinary
 local accounts. The separate ZeFS super-admin remains a recovery path through

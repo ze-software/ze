@@ -181,8 +181,8 @@ what <code>show | blame</code> reports for the changes the console commits.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>send bgp &lt;sel&gt; update text &lt;attrs&gt; nlri &lt;family&gt; &lt;op&gt; &lt;prefix&gt;</code></td>
-<td>Text-format UPDATE</td>
+<td>`send bgp <sel> update text <attrs> (nlri</td>
+<td>mp <family>) <op> <prefix>`</td>
 </tr>
 <tr>
 <td><code>send bgp &lt;sel&gt; update hex &lt;hex&gt;</code></td>
@@ -197,12 +197,12 @@ what <code>show | blame</code> reports for the changes the console commits.</p>
 <td>Show Adj-RIB-Out</td>
 </tr>
 <tr>
-<td><code>clear bgp rib in [peer]</code></td>
-<td>Clear Adj-RIB-In</td>
+<td><code>clear bgp rib in &lt;selector&gt;</code></td>
+<td>Clear Adj-RIB-In (<code>*</code> for all peers)</td>
 </tr>
 <tr>
-<td><code>clear bgp rib out [peer]</code></td>
-<td>Clear Adj-RIB-Out</td>
+<td><code>clear bgp rib out &lt;selector&gt; [family &lt;family&gt;]</code></td>
+<td>Resend Adj-RIB-Out (<code>*</code> for all peers)</td>
 </tr>
 </tbody>
 </table>
@@ -508,6 +508,10 @@ one carries the summary.</p>
 <td>Completes, as Tab does</td>
 </tr>
 <tr>
+<td><code>?</code>, inside a double-quoted value</td>
+<td>Types a <code>?</code>. Quote any value that carries one, such as a URL with a query string: <code>description "https://example.net/a?b=1"</code></td>
+</tr>
+<tr>
 <td>Enter, with the menu open</td>
 <td>Puts the selected command in the input</td>
 </tr>
@@ -533,7 +537,7 @@ one carries the summary.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/cli/model_keys.go -- handleTab, revealExplanation, revealCandidateExplanation, handleEnter -->
+<!-- source: internal/component/cli/model_keys.go -- handleTab, revealExplanation, revealCandidateExplanation, handleEnter, cursorInQuote -->
 <!-- source: internal/component/cli/model_render.go -- warningText -->
 <p>Escape removes one thing for each press. The explanation goes first, and the
 typed command stays until the next press.</p>
@@ -584,7 +588,7 @@ none says so.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

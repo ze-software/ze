@@ -50,20 +50,28 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | | DHCPv6 (SARR, IA_NA, IA_PD) | have | |
 | | Concurrent v4+v6 | have | |
 | | Direct netlink install | have | |
+| | DHCPv4 address lifetime equals the lease, refreshed by every renewal; an infinite lease (0xffffffff) installs as infinite and is not renewed | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- v4AddressLifetime, installV4Lease, holdV4 --> |
+| | DHCPv4 lease kept for as long as a server answers: RENEW unicast to the leasing server at every T1, REBIND broadcast to any server at T2, both retransmitted on the RFC 2131 Section 4.4.5 schedule (half the time left, at least 60 s); the address goes only when the lease expires. Deadlines count from the instant the REQUEST was sent | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- holdV4, extendV4, v4NextAttempt, v4LeaseFromAck --> |
+| | DHCPv4 T1 and T2 from the server (options 58 and 59) when T1 < T2 < lease, otherwise the defaults (half and seven eighths of the lease) | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- v4LeaseTimers --> |
+| | DHCPv4 DHCPNAK to a RENEW or REBIND removes the address and route and restarts DORA at once. The RENEW is sent from the leased address but its answer is read from the device, so a DHCPNAK the server broadcasts is seen as well as a DHCPACK it unicasts | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- extendV4 --> <!-- source: internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go -- newV4UnicastClient, v4UnicastConn --> |
+| | DHCPv4 ACK without a lease time (option 51), or with 0, is refused: nothing is installed and DORA retries after 10 s; during a renewal it counts as no answer. The Warn names the server and says option 51 is missing | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- v4LeaseTime, logV4Refusal --> |
+| | DHCPv4 DORA, RENEW and REBIND open their sockets on the kernel device the interface name resolves to (`os-name`, `mac/match`) | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- acquireV4, sendV4Extend --> |
+| | DHCPv4 RENEW and REBIND carry the same client-id (option 61) and hostname (option 12) as the DORA REQUEST | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- v4ExtendRequest --> |
+| | DHCPv4 lease registered as leased, so a commit keeps it; `iface-dhcp` refuses to run as an external plugin, because the registry is a same-process call | have | <!-- source: internal/plugins/iface/dhcp/register.go -- runDHCPPlugin --> |
 | | Bus events (acquired/renewed/expired) | have | |
 | | Config-driven (`dhcp { enabled true }`) | have | |
-| | Default route from DHCP Router option | have | |
+| | Default route from DHCP Router option; a failed install is retried while the lease is held (5 s, doubling to 60 s), and a renewal naming another router, or none, removes the old route | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- applyV4Route, installV4Route --> |
 | | Route priority per unit (`route-priority`) | have | |
 | | Link-down route deprioritization (metric + 1024) | have | |
 | | IPv6 default route from RA with configurable metric | have | |
 | | Routes carry `proto 253` (`ze-iface`), so a teardown removes only its own | have | <!-- source: internal/plugins/iface/netlink/manage_linux.go -- AddRoute stamps rtm_protocol, RemoveRoute matches on it --> |
 | | Learned default routes rank at metric 254, clear of a static route's metric | have | <!-- source: internal/component/iface/config.go -- defaultLearnedRouteMetric --> |
-| | DNS from DHCP to `/tmp/resolv.conf` | have | |
+| | DNS from DHCP to `/tmp/resolv.conf`, tracked per lease: a renewal without DNS or a lease end removes that lease's servers only | have | <!-- source: internal/component/config/system/resolv.go -- Resolvers --> |
 | | Hostname in DHCPv4 (option 12) | have | |
 | | Client-ID in DHCPv4 (option 61) | have | |
 | | DHCPv4 flags bits 1 to 15 sent as zero, even when the server's OFFER or ACK sets them (RFC 2131 section 2) | have | |
 | | NTP servers from DHCP (option 42) | have | |
-| | DHCPv6 proper Renew (not re-solicit) | missing | medium |
+| | DHCPv6 proper Renew (not re-solicit) | have | |
 | | DHCP relay | missing | lower |
 | | DHCP server | missing | lower |
 | **Monitoring** | Netlink multicast (link + addr + neigh) | have | |
@@ -78,7 +86,7 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | | IPv6 forwarding | have | |
 | | Proxy ARP | have | |
 | | ARP announce / ARP ignore | have | |
-| | RPF / source validation | have | |
+| | RPF / source validation (IPv4 `rp_filter` sysctl, plus VPP uRPF on backend vpp; IPv6 nftables fib lookup in `ip6 ze_iface_rpf`, netlink backend only) | have | See "Reverse-path check" |
 | | TCP MSS clamping (v4+v6) | missing | medium |
 | | Directed broadcast | missing | lower |
 | **IPv6 Extended** | EUI-64 address generation | missing | medium |
@@ -160,6 +168,52 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go — DHCPv4 worker -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_linux.go — DHCPv6 worker -->
 <!-- source: internal/component/bgp/reactor/reactor_iface.go — BGP integration -->
+
+### Creating a device
+
+Each apply creates the devices the config names: dummy, veth, bridge, tunnel,
+wireguard, xfrm, and the VLAN of each unit with a `vlan-id`. Whether a device
+exists is read before its create, never after. A device that existed is kept,
+and the undo of a failed apply leaves it in place. A create that fails for a
+device that did not exist fails the commit, even when the backend left a
+partial device behind, and the undo deletes only the devices the apply created.
+
+<!-- source: internal/component/iface/config_apply.go — applyConfig create steps, interfaceExists -->
+
+### Reverse-path check
+
+Each apply builds the complete set of reverse-path checks the config asks for,
+one per unit and address family, and hands it to the backend whole:
+`ReplaceIPv4RPF` and `ReplaceIPv6RPF`. A check whose leaf, unit or interface
+left the config is absent from the set, so the backend removes it, and the
+apply journal restores the previous set when a later step fails.
+
+nftables refuses even the removal of `ip6 ze_iface_rpf` to a process without
+CAP_NET_ADMIN. When the config asks for no IPv6 check, the netlink backend
+therefore accepts that refusal with a warning, so an unprivileged ze still
+applies its interfaces. A config that asks for an IPv6 check still fails
+without the capability.
+
+| Family | netlink backend | vpp backend |
+|--------|-----------------|-------------|
+| IPv4 | `net.ipv4.conf.<dev>.rp_filter`, written by the sysctl phase; `ReplaceIPv4RPF` installs nothing more | `urpf_update` on the receive path of the VPP interface (strict or loose), read back with `urpf_interface_dump` so a check no longer configured is turned off. The sysctl still reaches the Linux Control Plane tap, which judges only what VPP punts to the host |
+| IPv6 | nftables table `ip6 ze_iface_rpf` | refused at commit (`ze:backend "netlink"`) and by the backend |
+
+VPP's uRPF (`urpf_plugin.so`, always enabled in the startup.conf ze writes)
+passes a packet to a multicast destination or to 255.255.255.255, so DHCP from
+0.0.0.0 passes. Loose accepts a source whose route has a real path, a default
+route included, and drops one that only VPP's drop default covers. IPv6 is not
+offered on VPP because VPP's `fe80::/10` entry carries an empty uRPF list:
+measured on VPP 26.06 with the packet generator, strict and loose both drop a
+unicast packet from a link-local source, which would break neighbor discovery,
+DHCPv6 and link-local BGP. An external VPP without the plugin accepts a config
+with no IPv4 `rpf-check` and refuses one that sets it, naming the plugin.
+
+<!-- source: internal/component/iface/rpf.go -- RPFCheck, desiredRPF -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfigPass, the two rpf-check phases -->
+<!-- source: internal/plugins/iface/vpp/rpf.go -- ReplaceIPv4RPF, ReplaceIPv6RPF, errIPv6RPFUnsupported -->
+<!-- source: internal/plugins/iface/netlink/rpf_linux.go -- ReplaceIPv4RPF, ReplaceIPv6RPF -->
+<!-- source: internal/component/vpp/startupconf.go -- plugin urpf_plugin.so -->
 
 ## Architecture
 
@@ -286,6 +340,95 @@ device appears, and a config is validated on machines that will never run it.
 - **Per-family addresses.** Addresses live inside `ipv4 { address [...]; }` and
   `ipv6 { address [...]; }` containers within each unit, following the Junos/Nokia model.
 - **DAD-aware.** IPv6 addresses with `IFA_F_TENTATIVE` flag are held until DAD completes.
+- **The config owns its addresses, not every address on the unit.** Every commit, VPP
+  connect and owned-address change reconciles each enabled unit: it adds the addresses
+  the config and the owned-address registry name, and removes the other addresses on the
+  unit, such as one an operator added by hand or one a dropped config line left behind.
+  Three kinds stay in place. A DHCPv4 lease stays because its client registers it as
+  leased while it holds it, finite or infinite: an infinite lease (RFC 2131 lease time
+  0xffffffff) is installed with the kernel's infinite lifetime, which makes it permanent like
+  a static address, so only the registration tells the two apart. The reconcile never
+  installs a leased address and never changes its lifetime, so a lease its client removed
+  is not put back. A DHCPv6 lease stays the same way: its client registers every leased
+  address, finite or infinite, and installs it with exactly the lifetimes the lease
+  carries. An address with a finite valid lifetime stays: a SLAAC address. Its owner renews
+  it and the kernel expires it. An IPv6 link-local address the replaced config did not name stays, because the
+  kernel generates one on every IPv6 link (RFC 4291 Section 2.1). A link-local the operator
+  configured and then dropped is removed.
+<!-- source: internal/component/iface/config_apply.go -- reconcileOnReadyWithJournal, learnedAddrSet, addrLearned -->
+<!-- source: internal/component/iface/address_owner.go -- RegisterLeasedAddresses, leasedAddressSet -->
+
+The DHCPv6 client follows RFC 9915. It acquires a lease with Solicit, Advertise,
+Request and Reply, or with a Rapid Commit Reply. It extends the lease with Renew to
+the leasing server at the earliest T1 of its IAs and with Rebind to any server at
+the earliest T2, for as long as a server answers. When every valid lifetime has run
+out it removes the addresses, publishes one `dhcp-expired` per lease (a delegated
+prefix included) and solicits again. Each exchange retransmits on the RFC 9915
+Section 15 schedule, with Solicit backing off to SOL_MAX_RT (3600 s, or the value a
+server sends between 60 and 86400) and never stopping, and at most 20 messages in
+any 20 s per interface. One Warn reports an outage, and retransmissions log at
+Debug. A valid lifetime of 0 removes the lease; an address with a preferred lifetime
+above its valid lifetime, or an IA with T1 above T2, is discarded. With `pd` set,
+every message carries an IA_PD, with a prefix-length hint when `pd { length }` is
+set. Every message carries one stable DUID: the `duid` leaf when set, otherwise a
+DUID-LL built from the device MAC. A DUID-LL is a known deviation from RFC 9915
+Section 11.4, which advises against it when the client cannot tell the interface is
+permanently attached; set `duid` where that matters. A `duid` is colon-separated
+hex octets, the 2-octet type code then 1 to 128 octets of identifier (RFC 9915
+Section 11.1), and a commit refuses any other form. Ze changed from a fresh
+time-stamped DUID per Solicit to this stable one, so a server hands out one new
+binding once after the upgrade. On stop the client removes its addresses, then sends
+a Release and waits at most 3 s for the answer.
+
+The kernel runs duplicate address detection on every leased address the client
+installs. The client reads the outcome while the address is tentative: when the
+kernel marks the address `dadfailed`, or deletes it (what it does to an address of
+finite lifetime whose DAD failed) while the link is up, the client removes it from
+the lease, logs a Warn naming the address, and sends a Decline for it to the server
+that leased it. The other bindings are kept, and when nothing is left the client
+solicits again. Whether the link is up is read from the kernel, not only from link
+events, because the kernel deletes the addresses of a device set down before the
+client can receive the down event. The kernel backend reads the link before the
+addresses, so an address found gone with the link up is declined only when a second
+read, whose link state is read after those addresses, still reports the link up. A
+device the kernel reports down deleted the address with the link, so nothing is
+declined, and the next up counts as a move. When the backend reports a link state
+that is neither up nor down, the client declines nothing, logs one Warn for each such
+state naming it and the interface, and reads again at the next DAD poll. A read that
+fails declines nothing either. The VPP backend does not report interface addresses,
+so on it the client cannot read a DAD outcome: it declines nothing and logs one Warn
+saying so. When the bound device goes down and comes back up, the client may
+have moved to a new link: with a delegated prefix held it sends a Rebind for every
+lease, on the Confirm timers (RFC 9915 Section 18.2.12), at most once every 30 s,
+and it installs every leased address again with what is left of its lifetimes,
+because the kernel deletes them when the interface is set down, then runs DAD on
+them again. A lease of addresses alone sends nothing on a
+move, because Ze does not send Confirm.
+<!-- source: internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go -- v6Worker.checkDAD, v6Worker.goneDuplicates, v6Worker.goneWhileUp, v6Worker.warnLinkState, v6Worker.dadUnreported, v6Worker.decline, v6Worker.noteMove, v6Worker.rebindAfterMove -->
+<!-- source: internal/component/iface/resolve.go -- ReadAddressState -->
+<!-- source: internal/plugins/iface/dhcp/dhcp_v6_linux.go -- runV6, v6Worker.maintain, v6Worker.extend, v6Worker.shutdown, v6Worker.identify -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf duid pattern -->
+<!-- source: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go -- v6Worker.runExchange, v6Worker.admitTransmission, v6AdvertiseCollector, v6Worker.emptyIAPD -->
+<!-- source: internal/plugins/iface/dhcp/dhcp_v6_lease_linux.go -- v6Lease.apply, v6Lease.renewTimes -->
+<!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- installV4Lease, v4AddressLifetime, teardownV4 -->
+- **A VLAN unit carries its parent's MTU.** A unit has no `mtu` leaf, so every
+  commit sets each VLAN sub-interface of an ethernet entry with an `mtu` to that
+  MTU, and a VLAN already at it gets no call. Neither backend does it alone: Linux
+  gives a VLAN its parent's MTU when it is created and keeps it when the parent's
+  later rises (it caps it when the parent's falls), and VPP rewrites a
+  sub-interface's MTU only when its parent's link MTU changes, not when the
+  parent takes a protocol MTU alone. An entry with no `mtu` leaf leaves its VLANs
+  alone; each backend still creates a VLAN at its parent's MTU. A commit that
+  fails after changing a parent's MTU puts the parent's old MTU back first, then
+  the MTU each existing VLAN held before the commit: Linux caps a VLAN when its
+  parent falls and refuses a VLAN above its parent, so a VLAN restored first, or
+  read after the parent changed, would stay capped.
+- **An omitted `mtu` leaves the device's MTU alone.** The schema declares no MTU
+  default, because each kind has its own: a device ze creates keeps the kernel's
+  value, 1500 for a dummy, veth or bridge, 1420 for wireguard, and the underlay
+  MTU less the encapsulation for a tunnel (1476 for gre).
+<!-- source: internal/component/iface/config_apply.go -- applyConfig, applyVLANMTU, readVLANMTUs, restoreVLANMTUs -->
+<!-- source: internal/component/iface/config.go -- parseIfaceEntry -->
 - **Make-before-break.** Migration adds new address, waits for BGP readiness, then removes old.
   Prevents session loss during address moves.
 - **Same-subnet renumbers keep working.** Because the new address is added first, a renumber
@@ -999,7 +1142,7 @@ underlying mechanism. Cells with a footnote carry a caveat.
 | | `ListKernelRoutes` | real | err [3] | err |
 | **Link state** | `SetAdminUp` | real | real (SwInterfaceSetFlags) | err |
 | | `SetAdminDown` | real | real (SwInterfaceSetFlags) | err |
-| **Properties** | `SetMTU` | real | real (SwInterfaceSetMtu) | err |
+| **Properties** | `SetMTU` | real | real (HwInterfaceSetMtu, then SwInterfaceSetMtu) | err |
 | | `SetMACAddress` | real | real (SwInterfaceSetMacAddress) | err |
 | | `GetMACAddress` | real | real (via SwInterfaceDump) | err |
 | | `GetStats` | real | err (pending GoVPP stats API) | err |
@@ -1097,8 +1240,63 @@ Selected by the `backend vpp` leaf. 17 methods drive the VPP binary API
 through GoVPP; 16 return `errNotSupported` with a string naming the
 missing GoVPP call or the plugin gap. The channel to VPP is acquired
 lazily on first method call; before the first successful acquire, every
-method returns `iface.ErrBackendNotReady` so the reconciliation phase can
-retry.
+method returns `iface.ErrBackendNotReady`.
+
+Nothing makes the interface plugin wait for the GoVPP handshake, so its first
+apply can run before VPP answers. An apply whose step meets that answer is
+deferred whole rather than failed: it creates nothing, reports no error, logs
+`iface config: apply deferred, the vpp backend has not connected yet` at info
+level, and the plugin performs it in full (loopbacks and their LCP pairs, MTU,
+admin state, addresses) when `vppevents.EventConnected` fires, then logs
+`iface config: deferred apply performed` at info level. A commit that arrives
+first replaces the deferred apply. Any other error still fails the apply. A
+deferred apply that then fails is logged as a warning that names the error and
+the fix, and stays deferred, so the next commit is measured against what the
+dataplane was last told. Nothing retries it on a timer: only a VPP restart
+(`vppevents.EventReconnected`) or the next commit does. After a VPP restart,
+`vppevents.EventReconnected` reloads the backend to drop the dead channel and
+its name map, then performs a deferred apply or reconciles the addresses.
+
+<!-- source: internal/component/iface/config_apply.go -- applyConfig, applyOwedConfig, reconcileOnVPPConnected, reconcileOnVPPReady -->
+
+An MTU on a NIC goes to its link first (`hw_interface_set_mtu`), which hands
+the frame size to the driver, so a NIC that takes no larger frame refuses it and
+the commit fails naming the interface, the asked MTU, the link MTU VPP reports
+and the `set interface ethernet <name> mtu <link MTU>` command that fits it. VPP
+then writes the new MTU on every sub-interface of that NIC. The protocol MTUs
+(`sw_interface_set_mtu`) follow, with the per-protocol values left at 0 so each
+tracks the L3 MTU. That message alone is never enough: VPP stores it without
+reading the link, so it would accept `mtu 9000` over a NIC capped at 1500. An
+interface whose frame size VPP cannot change (a loopback, a tunnel) takes the
+protocol MTU alone, up to the link MTU it reports, and a sub-interface is bounded
+by its parent's link MTU.
+
+Some DPDK drivers change the frame size of a stopped port only: i40e answers
+`EBUSY` while the port runs, and VPP relays it as `Busy`. A raise that meets that
+answer on an interface that is admin up is retried with the port stopped: Ze sets
+the interface down, raises the link, and sets it up again, which interrupts the
+link for that moment. An MTU the link already carries never stops the port, since
+the protocol MTU serves it, and an interface left down because VPP would not set
+it up again fails the commit saying so.
+
+A VLAN sub-interface Ze creates in VPP takes its parent's MTU: VPP creates it with
+an MTU of 0, which it reads as 9000, so without this a parent with no `mtu` leaf
+at 1500 would carry a 9000 VLAN. A sub-interface whose MTU VPP refuses is deleted
+and the create fails. So is one whose `ingress-qos-map` or `egress-qos-map` VPP
+refuses to program: left in place, the existing VLAN would let the commit succeed
+with its QoS maps not applied.
+
+Ze sets no MTU on a linux-cp tap itself. With `lcp sync` true, the default, VPP's
+linux-cp copies every MTU change of a paired interface to its tap, on the VPP
+side and on the Linux side, and gives a sub-interface with no MTU its parent's
+(`lcp_itf_mtu_change` and `lcp_itf_pair_sync_state` in
+`src/plugins/linux-cp/lcp_interface_sync.c`, VPP 25.10). With `lcp sync false`
+the tap keeps the MTU it was created with, which is the drift that leaf
+describes.
+
+<!-- source: internal/plugins/iface/vpp/mtu.go -- SetMTU, setLinkMTU, setProtocolMTU, linkRefusal, raiseStoppedLink, inheritParentMTU -->
+<!-- source: internal/plugins/iface/vpp/ifacevpp.go -- CreateVLAN -->
+<!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf -->
 
 Use the VPP backend when VPP owns the dataplane. Use netlink elsewhere.
 Routes, stats, counter reset, neighbour table, mirrors, and STP are the

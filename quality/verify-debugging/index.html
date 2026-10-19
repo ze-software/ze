@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Quality</span>
     <h1 id="verify-and-debugging-workflow">Verify and Debugging Workflow</h1>
-    <p>Use this page when <code>./le verify current mode full</code> fails, when a test needs to be rerun narrowly, or when debug logging should be enabled without turning the whole run into noise.</p>
+    <p>Use this page when <code>./le verify current</code> fails, when a test needs to be rerun narrowly, or when debug logging should be enabled without turning the whole run into noise.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#what-verify-does">What verify does</a></li>
@@ -62,9 +62,9 @@
 <!-- source: ../main/internal/test/runner/failure_group.go -- failure grouping -->
 <!-- source: ../main/internal/test/trace/trace.go -- per-step trace output -->
 <!-- source: ../main/docs/guide/debugging-tools.md -- debugging tools -->
-<p><code>./le verify current mode full</code> is the normal pre-handoff gate. It is staged, locked, and designed to tell a developer where to rerun. The changed-only command is useful during development, but a finished change should pass the shared gate that would catch cross-package and functional regressions.</p>
-<pre><code class="language-bash">./le verify current mode changed
-./le verify current mode full
+<p><code>./le verify current</code> is the normal pre-handoff gate. It is staged, locked, and designed to tell a developer where to rerun. The changed-only command is useful during development, but a finished change should pass the shared gate that would catch cross-package and functional regressions.</p>
+<pre><code class="language-bash">./le verify current fast
+./le verify current
 </code></pre>
 <h2 id="what-verify-does">What verify does</h2>
 <table>
@@ -136,7 +136,7 @@ VERIFY STEP: {"file":"test/web/foo.wb","step":13,"kind":"expect","status":"fail"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

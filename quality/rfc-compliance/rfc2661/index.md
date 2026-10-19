@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 21.3% | 20 of 94 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 94 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 94 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 97.5% | 194 of 199 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 97.5% | 196 of 201 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -35,7 +35,6 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 9.6% | 9 of 94 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 22 | of 94 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 8 shares marked as a part above are the whole of the 94 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -54,7 +53,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -65,14 +64,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 103 |
 | Gated MUST-level | 94 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 10 |
+| Declared gaps | 9 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 200 |
-| Tagged units | 199 |
+| Test tags | 202 |
+| Tagged units | 201 |
 | Recorded audit verdicts | 22 |
-| Discrimination records | 194 |
+| Discrimination records | 196 |
 | Summary | `rfc/short/rfc2661.md` |
 | Requirement shard | `rfc/requirements/rfc2661.md` |
 | RFC text | `rfc/full/rfc2661.txt` |
@@ -91,7 +90,7 @@ LNS/LAC tunnel lifecycle (answerer and **initiator**: ze dials SCCRQ, verifies S
 
 **What the ledger says remains**
 
-Partial. Ten MUST and SHOULD rows carry {gap}: nine of them at MUST level, and one SHOULD row because the retransmit count is not configurable. The hidden-AVP MD5 codec is not wired into message encoding or decoding, so Random Vector precedence is not enforced. The existing proxy-authentication and new-AVP specs describe conditional features that have not been selected or declined. Control-plane tests exercise tunnel/session establishment, mandatory AVPs, header fields and unknown mandatory Message Types. Linux-boundary tests check session-setup timing, sequencing/LNS-mode flags and UDP checksum settings; they do not by themselves demonstrate kernel sequence adaptation or PPP data-plane forwarding. LNS/LAC interoperability, the LAC bridge and kernel behavior still need the corresponding privileged interop/QEMU runs before this batch is reported verified.
+Partial. Nine MUST rows carry {gap}; the retransmit count before a tunnel is cleared is configurable through `l2tp max-retransmit`. The hidden-AVP MD5 codec is not wired into message encoding or decoding, so Random Vector precedence is not enforced. The existing proxy-authentication and new-AVP specs describe conditional features that have not been selected or declined. Control-plane tests exercise tunnel/session establishment, mandatory AVPs, header fields and unknown mandatory Message Types. Linux-boundary tests check session-setup timing, sequencing/LNS-mode flags and UDP checksum settings; they do not by themselves demonstrate kernel sequence adaptation or PPP data-plane forwarding. LNS/LAC interoperability, the LAC bridge and kernel behavior still need the corresponding privileged interop/QEMU runs before this batch is reported verified.
 
 ## Coverage
 
@@ -212,7 +211,7 @@ Partial. Ten MUST and SHOULD rows carry {gap}: nine of them at MUST level, and o
 | `RFC2661-8.1-3` | An L2TP implementation running on a system which does not support L2F MUST silently discard all L2F packets (§8.1) | MUST | 8.1 | **positive:** `unit/verify` [`TestRFC2661UnknownVersionRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L100). **negative:** `unit/verify` [`TestRFC2661KnownVersionAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L116) |
 | `RFC2661-8.2-1` | When operating in IP environments, L2TP MUST offer the UDP encapsulation described in 8.1 as its default configuration for IP operation (§8.2) | MUST | 8.2 | **positive:** `unit/verify` [`TestRFC2661UDPEncapsulationOffered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L829). **negative:** no negative test. **{single-polarity}:** UDP is the only transport listener.go::newUDPListener offers, so there is nothing to refuse |
 | `RFC2661-9.5-2` | If the LNS chooses to implement proxy authentication, it MUST be able to be configured off, requiring a new round a PPP authentication initiated by the LNS (which may or may not include a new round of LCP negotiation) (§9.5) | MUST | 9.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no LNS proxy authentication exists to configure off; plan/spec-l2tp-proxy-authentication.md |
-| `RFC2661-5.8-8` | If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable) (§5.8) | SHOULD | 5.8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the retransmit count is not configurable: the l2tp YANG has no leaf for it and the reactor passes only RecvWindow to the tunnel, so every tunnel uses the built-in default of 5 |
+| `RFC2661-5.8-8` | If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable) (§5.8) | SHOULD | 5.8 | **positive:** `unit/verify` [`TestRFC2661ConfiguredMaxRetransmitClearsTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go#L78). **negative:** `unit/verify` [`TestRFC2661ConfiguredMaxRetransmitClearsTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go#L81) |
 | `RFC2661-x-2` | When retransmitting control messages, a slow start and congestion avoidance window adjustment procedure SHOULD be utilized. The recommended procedure for this is described in Appendix A. (§5.8) | SHOULD | 5.8 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2661-15-1` | Keepalives for the tunnel MAY be implemented by sending a HELLO if a period of time (a recommended default is 60 seconds, but SHOULD be configurable) has passed without receiving any message (data or control) from the peer. (§6.5) | SHOULD | 6.5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2661-4.2-1` | L2TP incorporates a simple, optional, CHAP-like [RFC1994] tunnel authentication system during control connection establishment. If an LAC or LNS wishes to authenticate the identity of the peer it is contacting or being contacted by, a Challenge AVP is included in the SCCRQ or SCCRP message. (§5.1.1) | MAY | 5.1.1 | **positive:** no positive test. **negative:** no negative test |
@@ -235,7 +234,6 @@ Partial. Ten MUST and SHOULD rows carry {gap}: nine of them at MUST level, and o
 | [`RFC2661-4.4.5-6`](#rfc2661-4.4.5-6) This AVP MUST be present for Proxy authen types 1, 2, 3 and 5 (§4.4.5) | {gap}, no test | Ze offers no proxy authentication in either role, so the AVP is never emitted and never consumed; plan/spec-l2tp-proxy-authentication.md |
 | [`RFC2661-6.0-1`](#rfc2661-6.0-1) Any "reserved" or "empty" fields MUST be sent as 0 values to allow for protocol extensibility (§6.0) | no test | no test carries this requirement id; annotated {rollup}: RFC2661-x-1, RFC2661-4.1-1, RFC2661-4.4.6-1; the sentence restates the reserved-field sender obligations those rows carry and asserts nothing of its own |
 | [`RFC2661-9.5-2`](#rfc2661-9.5-2) If the LNS chooses to implement proxy authentication, it MUST be able to be configured off, requiring a new round a PPP authentication initiated by the LNS (which may or may not include a new round of LCP negotiation) (§9.5) | {gap}, no test | no LNS proxy authentication exists to configure off; plan/spec-l2tp-proxy-authentication.md |
-| [`RFC2661-5.8-8`](#rfc2661-5.8-8) If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable) (§5.8) | {gap} | the retransmit count is not configurable: the l2tp YANG has no leaf for it and the reactor passes only RecvWindow to the tunnel, so every tunnel uses the built-in default of 5 |
 
 ## Proof state
 
@@ -1297,9 +1295,12 @@ No test carries RFC2661-9.5-2, so no unit is bound to it.
 
 If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable) (§5.8)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. The retransmit count is fixed at DefaultMaxRetransmit (5): ReliableConfig.MaxRetransmit exists, but both tunnel constructors, reactor.go::locateTunnelLocked and reactor_dial.go::handleDial, pass ReliableConfig{RecvWindow} only, and the l2tp YANG carries no leaf for it. The recommended default of 5 is met; 'SHOULD be configurable' is not. {gap} annotation on the row agrees.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after cb8e90f006). RFC 2661 Section 5.8: "If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable), the tunnel and all sessions within MUST be cleared." The leaf l2tp max-retransmit (uint8, 1..255, default 5) is read by ExtractParameters and passes through Subsystem.tunnelDefaults and setMaxRetransmit into reliableConfig, which both tunnel constructors (locateTunnelLocked, handleDial) call; ReliableEngine.Tick tears the tunnel down once attempts exceed it. TestRFC2661ConfiguredMaxRetransmitClearsTunnel uses a budget of 2: the tunnel stays Established through both retransmissions and is Closed, with a StopCCN, on the next deadline. The auditor's overlay mutants of reliableConfig turned it red at the deciding assertions (MaxRetransmit dropped to 0 fails the Closed check; MaxRetransmit-1 fails the Established loop); the stored records use the revert route. Parse and reload are pinned by TestConfig_MaxRetransmit and TestReloadAppliesMaxRetransmit; the startup path reaches tunnelDefaults only through the reload test.
 
-No test carries RFC2661-5.8-8, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2661ConfiguredMaxRetransmitClearsTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go#L81) | unit/verify | revert, verified |
+| positive | [`TestRFC2661ConfiguredMaxRetransmitClearsTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go#L78) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

@@ -634,7 +634,10 @@ package.
 ### What YANG Provides
 
 - Type validation (ranges, patterns, enums)
-- Cross-reference validation (leafref)
+- Cross-reference validation by `leafref` and `instance-identifier`, whose
+  referred instance must exist in the whole config (RFC 7950 Section 9.9.3);
+  a reference no YANG path can express is a string a `ze:validate` function
+  checks
 - Schema-driven config routing
 
 ### Schema Registration

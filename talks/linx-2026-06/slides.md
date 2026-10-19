@@ -431,7 +431,7 @@ Ze Engine Core (event bus for components and plugins)
 
 ### Gate
 
-- `./le verify current mode full`: 28 linters + unit + functional + ExaBGP tests
+- `./le verify current`: 28 linters + unit + functional + ExaBGP tests
 - Full gate takes over 15 minutes, so day-to-day work uses targeted checks first
 
 ---

@@ -366,7 +366,7 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9086-5.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> LinkDescriptor.WriteTo emits TLV 258 but no origination path builds a PeerAdj SID advertisement (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:203-206)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> LinkDescriptor.WriteTo emits TLV 258 but no origination path builds a PeerAdj SID advertisement (internal/core/bgp/nlri/bgpls/types_descriptor.go:203-206)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9086-5-2">RFC9086-5-2</code></td><td colspan="3"><span class="rfc-subject">A 3-octet local label where the 20 rightmost bits are used for encoding the label value. In this case, the V- and L-Flags MUST be SET. (S5)</span></td></tr>
 <tr><td></td>
@@ -384,8 +384,8 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9086-5-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L366" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerSIDReservedFlagsZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go#L57" title="internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go" target="_blank" rel="noopener"><code>TestRFC9086OriginatedPeerSIDRsvdBitsZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L855" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9086PeerSIDIgnoresReservedFields</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go#L26" title="internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L857" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9086PeerSIDIgnoresReservedFields</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go#L28" title="internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L369" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerSIDReservedFlagsZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go#L65" title="internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go" target="_blank" rel="noopener"><code>TestRFC9086SourceRsvdBitsNeverOriginated</code></a></span></div>
 </div></td>
@@ -509,7 +509,7 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <tbody>
 <tr><td><a href="#rfc9086-5.2-1"><code>RFC9086-5.2-1</code></a> Link Descriptors MUST include the following TLV, as defined in [RFC7752]: - Link Local/Remote Identifiers (TLV 258) contains the 4-octet Link Local Identifier followed by the 4-octet Link Remote Identifier. (S5.2)</td>
 <td>{gap}, no test</td>
-<td>LinkDescriptor.WriteTo emits TLV 258 but no origination path builds a PeerAdj SID advertisement (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:203-206)</td>
+<td>LinkDescriptor.WriteTo emits TLV 258 but no origination path builds a PeerAdj SID advertisement (internal/core/bgp/nlri/bgpls/types_descriptor.go:203-206)</td>
 </tr>
 <tr><td><a href="#rfc9086-5-2"><code>RFC9086-5-2</code></a> A 3-octet local label where the 20 rightmost bits are used for encoding the label value. In this case, the V- and L-Flags MUST be SET. (S5)</td>
 <td>{gap}, no test</td>
@@ -649,7 +649,7 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <p>No test carries RFC9086-5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9086-5-3"><code>RFC9086-5-3</code></a></h3>
 <p>- Rsvd bits: Reserved for future use and MUST be zero when originated and ignored when received. (S5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 9086 Section 5: &#34;Rsvd bits: Reserved for future use and MUST be zero when originated and ignored when received.&#34; All six current covers read. TestRFC9086OriginatedPeerSIDRsvdBitsZero and TestRFC9086SourceRsvdBitsNeverOriginated compare emitted flags for conforming 0xc0 and forbidden-source 0xcf. TestRFC9086NativePeerSIDReservedFlagsZero checks defined flags/weight/SID survive while reserved bits/field clear. TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived drives all three registered SID decoders with BOTH conforming seven-octet label and eight-octet index forms, with reserved flags set/clear, requiring equal meaningful flags, weight and SID. The older TestRFC9086PeerSIDIgnoresReservedFields additionally accepts nonzero reserved field; its eight-octet V/L-set fixture is not relied on as the conforming receive witness. clearOriginatedReserved handles 1101/1102/1103; decodePeerSID reads flags without rejecting reserved bits and decodes SID independently. Both originate and receive clauses are genuinely exercised in historical supported scope; no PeerAdj/PeerSet origin feature is claimed. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV-&gt;WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9086 Section 5: &#34;Rsvd bits: Reserved for future use and MUST be zero when originated and ignored when received.&#34; Originate: ls_export 0xc0/0xcf pair and the native PeerNode reserved-flags unit (unchanged). Receive: TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived iterates bgpls.TLVPeerNodeSID/AdjSID/SetSID (same codes 1101-1103) over the registered decoders with reserved set and clear, requiring equal flags, weight and SID; decodePeerSID unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -675,12 +675,12 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L855" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9086PeerSIDIgnoresReservedFields</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L857" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9086PeerSIDIgnoresReservedFields</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go#L26" title="internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go#L28" title="internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -955,7 +955,7 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -45,7 +45,7 @@ in the repository.
 
 - **Tests come with it.** Ze is test-driven; a change without tests is not
   finished.
-- **`./le verify current mode full` passes.** That is the gate the maintainer runs, so run it
+- **`./le verify current` passes.** That is the gate the maintainer runs, so run it
   yourself before you submit.
 - **It arrives in one piece.** Code, tests, and documentation together, not a
   code change now with the docs to follow.

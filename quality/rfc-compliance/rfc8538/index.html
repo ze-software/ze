@@ -258,8 +258,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Status:</strong> Unsupported</p>
 <p><strong>What the ledger says is covered:</strong></p>
 Cease Hard Reset subcode (9) name is known.
-<p><strong>What the ledger says remains:</strong></p>
-The GR N-bit is decoded but not acted upon; routes are dropped on any NOTIFICATION, so RFC 8538 route retention is not implemented.
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+Ze decodes a peer&#39;s GR N bit but never advertises its own, so the N bit is never exchanged, and RFC 8538 Section 4 then leaves every NOTIFICATION, sent or received, under the RFC 4724 normal procedures: routes are dropped. Retention across a NOTIFICATION, Hard Reset and the mandatory stale timer are not implemented.
+</details>
 </section>
 <section><h2>Coverage</h2>
 <p>RFC 8538 declares no MUST-level requirement, so the gate counts nothing here.</p>
@@ -308,7 +309,7 @@ The GR N-bit is decoded but not acted upon; routes are dropped on any NOTIFICATI
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

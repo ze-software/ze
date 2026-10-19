@@ -2038,6 +2038,10 @@ data in zefs (not in the config tree) and survive restarts.</p>
 </tr>
 </tbody>
 </table>
+<p>A route that the filter rejected before its list arrived, or that the old list did not hold, is evaluated again when a new list authorizes it. The filter asks the peer for the route with a ROUTE-REFRESH, so each IRR-filtered peer needs this line in its block:</p>
+<pre><code class="language-text">attach process bgp-filter-irr { send [ refresh ] }
+</code></pre>
+<p>The page <a href="../irr-filtering/">IRR filtering</a> describes how this works.</p>
 <!-- source: internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang -- IRR filter YANG schema -->
 <!-- source: internal/component/bgp/plugins/filter_irr/config.go -- parseIRRConfig -->
 <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- runFilterIRR, handleFilterUpdate, handleConfigure -->
@@ -2400,10 +2404,14 @@ family. A route whose family the peer did not advertise, an <code>ipv6/mpls-vpn<
 route to a peer without the AFI 2 / SAFI 128 Multiprotocol capability for
 example, is not sent on that session, and Ze logs a warning naming the peer,
 the prefix and the family (RFC 4659 Section 3.4, RFC 4760). A VPN route also
-needs at least one <code>label</code>: config load refuses one without.</p>
+needs at least one <code>label</code>: config load refuses one without. Config load also
+refuses a <code>bgp-prefix-sid-srv6</code> whose SID structure declares a transposition the
+route's family cannot carry: any transposition on a family without a label
+field, such as <code>ipv6/unicast</code>, and a transposition length above 20 bits on a VPN
+family (RFC 9252 Sections 5 and 7).</p>
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- static route config, update/attribute/nlri blocks -->
 <!-- source: internal/component/bgp/reactor/peer_static_wire.go -- negotiatedStaticRoutes, the negotiated-family filter -->
-<!-- source: internal/component/bgp/config/peers.go -- patchStaticRoutes, a VPN route requires at least one label -->
+<!-- source: internal/component/bgp/config/peers.go -- patchStaticRoutes, a VPN route requires at least one label, and the SRv6 transposition must fit the route family -->
 <h2 id="mpls">MPLS</h2>
 <p>Enable MPLS label processing on an interface (Linux LSR). This sets
 <code>net.mpls.conf.&lt;iface&gt;.input=1</code>; the global label-table size is set via
@@ -3210,12 +3218,61 @@ Reverse Path Forwarding verification. Three modes are available:</p>
     }
 }
 </code></pre>
-<p>IPv6 <code>rpf-check</code> is accepted in config but only enforced with the VPP data plane.
-On Linux without VPP, a warning is logged and the setting has no effect.</p>
+<p>Linux has no IPv6 <code>rp_filter</code> sysctl, so IPv6 <code>rpf-check</code> is an nftables fib
+lookup in prerouting instead. Ze owns one table for it, <code>ip6 ze_iface_rpf</code>, and
+rebuilds it whole on every interface commit: each checked interface is a member
+of the <code>strict</code> or <code>loose</code> set, and a unit whose leaf, unit or interface leaves
+the config leaves the set with it. With no IPv6 <code>rpf-check</code> left, the table is
+deleted.</p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>nftables rule</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>disable</code></td>
+<td>none</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td><code>strict</code></td>
+<td><code>iifname @strict fib saddr . iif oif missing counter drop</code></td>
+<td>Drop a packet whose source does not route back through the arrival interface</td>
+</tr>
+<tr>
+<td><code>loose</code></td>
+<td><code>iifname @loose fib saddr oif missing counter drop</code></td>
+<td>Drop a packet whose source has no route at all; a default route counts</td>
+</tr>
+</tbody>
+</table>
+<p>Two sources are accepted before either check: link-local (<code>fe80::/10</code>) and the
+unspecified address (<code>::</code>). Neighbor discovery, duplicate address detection
+and DHCPv6 send from them, and a router never forwards them. <code>nft list table ip6 ze_iface_rpf</code> shows the sets and the drop counters.</p>
+<p>With <code>backend vpp</code>, VPP forwards outside the Linux kernel, so the <code>rp_filter</code>
+sysctl alone would judge only what VPP hands the host. Ze therefore also turns
+on VPP's uRPF for IPv4 on the interface's receive path, in the same mode:
+<code>strict</code> drops a packet whose source does not route back through the arrival
+interface, <code>loose</code> one whose source has no route with a real path (a default
+route counts). Removing the leaf or the interface turns the check off. Packets
+to a multicast address or to 255.255.255.255 always pass, so DHCP works.
+<code>vppctl show interface features &lt;vpp-name&gt;</code> lists <code>ip4-rx-urpf-strict</code> or
+<code>ip4-rx-urpf-loose</code>, and <code>vppctl show errors</code> counts the drops as <code>uRPF Drop</code>.</p>
+<p>IPv6 <code>rpf-check</code> is implemented on the netlink backend only. With <code>backend vpp</code>
+a commit that sets it is refused, naming the leaf, because VPP's uRPF drops
+every unicast packet from a link-local source, which would break neighbor
+discovery.</p>
 <p>The legacy <code>rp-filter 0|1|2</code> integer syntax is still accepted for backward
 compatibility but emits a deprecation warning. Use <code>rpf-check</code> in new configs.</p>
 <!-- source: internal/component/iface/config.go -- parseIPv4Settings, parseIPv6Settings, rpfMode -->
 <!-- source: internal/component/iface/config_sysctl.go -- applySysctl -->
+<!-- source: internal/component/iface/rpf6.go -- desiredIPv6RPF -->
+<!-- source: internal/plugins/iface/vpp/rpf.go -- ReplaceIPv4RPF, errIPv6RPFUnsupported -->
+<!-- source: internal/plugins/iface/netlink/rpf_linux.go -- ReplaceIPv6RPF, rpfDropExprs, rpfExemptRules -->
 <h3 id="ipv6-router-advertisements">IPv6 Router Advertisements</h3>
 <p>The <code>router-advertisement</code> container in a unit's <code>ipv6</code> container makes Ze send
 IPv6 Router Advertisements on that unit (RFC 4861). Hosts on the link build
@@ -3934,7 +3991,7 @@ is unavailable.</p>
         transcript enabled;  # record session commands and output to local file
     }
     mtu {
-        reference-address 1.1.1.1;  # the address show mtu measures beside the peers
+        reference-address 198.51.100.1;  # the address show mtu measures beside the peers
     }
 }
 </code></pre>
@@ -3966,12 +4023,15 @@ before the line reaches the file. The answer needs no pass of its own: a
 command that echoes a config value masks it where it is written.</p>
 <p>The <code>mtu { reference-address }</code> leaf names the address <code>show mtu</code> measures
 beside the IPsec peers. A reference outside the tunnels is what tells a clamped
-access circuit from a clamped peer path. The value is one IPv4 or IPv6 address
-and the default is <code>1.1.1.1</code>. The environment variable
-<code>ze.mtu.reference-address</code> overrides the leaf. The command is described in
-<code>docs/architecture/diagnostics/path-mtu.md</code>.</p>
+access circuit from a clamped peer path. The value is one IPv4 or IPv6 address.
+The leaf has no fixed default: when it is not set, the first <code>system { name-server }</code> is the reference, because the host must already reach it. When
+neither is set, <code>show mtu</code> refuses to run and names both leaves; `show mtu host</p>
+<address>` measures one host and needs no reference. The environment variable
+`ze.mtu.reference-address` overrides the leaf. The command is described in
+`docs/architecture/diagnostics/path-mtu.md`.
 <!-- source: internal/component/config/environment.go -- environment block parsing; internal/core/slogutil/slogutil.go -- log level config -->
 <!-- source: internal/component/mtu/cmd/mtu.go -- referenceAddress, the reader of the reference-address leaf -->
+<!-- source: internal/component/config/system/nameservers.go -- NameServers, the published system name-server list -->
 <!-- source: internal/core/version/version.go -- HTTPHeaderHidden, the leaf both HTTP servers read -->
 <!-- source: internal/component/command/pipe.go -- configuredDefault -->
 <!-- source: internal/component/cli/transcript.go -- TranscriptWriter, OpenTranscriptFile -->
@@ -4223,7 +4283,7 @@ env var &gt; CLI flag &gt; config file &gt; YANG default.</p>
 <td><code>name-server</code></td>
 <td>leaf-list ip-address</td>
 <td>(none)</td>
-<td>Static DNS servers. First server used by ze internal resolver. All written to resolv.conf at startup and after every config commit/reload.</td>
+<td>Static DNS servers. First server used by ze internal resolver, and measured by <code>show mtu</code> as its reference address when <code>environment { mtu { reference-address } }</code> is not set. All written to resolv.conf at startup and after every config commit/reload.</td>
 </tr>
 <tr>
 <td><code>resolv-conf-path</code></td>
@@ -4254,8 +4314,10 @@ env var &gt; CLI flag &gt; config file &gt; YANG default.</p>
 <p>The cache respects DNS response TTLs: entries expire at <code>min(response TTL, cache-ttl)</code>.
 Records with TTL=0 from the server are not cached (per RFC 1035).</p>
 <p>When static name servers are configured, DHCP-discovered DNS servers do not
-overwrite resolv.conf. When no static servers are configured, DHCP writes DNS
-to resolv-conf-path as before.</p>
+overwrite resolv.conf. When no static servers are configured, resolv-conf-path
+lists the servers of every DHCP lease, DHCPv4 before DHCPv6, and a lease whose
+renewal omits DNS, or that ends, takes only its own servers out
+(<code>docs/features/dns-resolver.md</code>, "DHCP interaction").</p>
 <p>The internal resolver never falls back to a public recursive resolver. If no
 static name server exists and the configured resolv.conf path is missing or
 empty, DNS queries fail with <code>no DNS server configured</code> until DHCP or config
@@ -5323,7 +5385,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -314,9 +314,9 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td>MUST</td>
 <td>2.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.1.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L38" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L42" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L78" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L929" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L933" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L96" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverOriginated</code></a></span></div>
 </div></td>
 </tr>
@@ -325,10 +325,10 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td>MUST</td>
 <td>2.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.1.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L39" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L43" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_test.go#L78" title="internal/plugins/isis/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISOriginatedCapabilitiesReservedZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L79" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L939" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L943" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_test.go#L96" title="internal/plugins/isis/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISAllOnesSourceNeverReachesReserved</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L97" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverOriginated</code></a></span></div>
 </div></td>
@@ -338,7 +338,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td>MUST</td>
 <td>2.1.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.1.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L40" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L44" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L80" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L98" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverOriginated</code></a></span></div>
 </div></td>
@@ -348,7 +348,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td>MUST</td>
 <td>2.1.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.1.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L41" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L45" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_test.go#L79" title="internal/plugins/isis/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISOriginatedCapabilitiesReservedZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L81" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_test.go#L97" title="internal/plugins/isis/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISAllOnesSourceNeverReachesReserved</code></a></span></div>
@@ -362,7 +362,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.2.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L97" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISOriginatedSIDReservedZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L245" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedSIDReservedZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L68" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDReceiptIgnoresReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L72" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDReceiptIgnoresReserved</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L119" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L259" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverReachesSIDReserved</code></a></span></div>
 </div></td>
@@ -374,7 +374,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.2.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L98" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISOriginatedSIDReservedZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L246" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedSIDReservedZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L104" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085UndecodedSIDReceiptKeepsReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L108" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085UndecodedSIDReceiptKeepsReserved</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L120" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L260" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverReachesSIDReserved</code></a></span></div>
 </div></td>
@@ -386,7 +386,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.3.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L99" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISOriginatedSIDReservedZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L247" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedSIDReservedZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L69" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDReceiptIgnoresReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L73" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDReceiptIgnoresReserved</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L121" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L261" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverReachesSIDReserved</code></a></span></div>
 </div></td>
@@ -398,7 +398,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.3.5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L100" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISOriginatedSIDReservedZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L248" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedSIDReservedZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L105" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085UndecodedSIDReceiptKeepsReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L109" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085UndecodedSIDReceiptKeepsReserved</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L122" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L262" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverReachesSIDReserved</code></a></span></div>
 </div></td>
@@ -409,7 +409,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td>2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.1.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_test.go#L112" title="internal/plugins/isis/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OriginatedSRGBLabelTwentyBits</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L889" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDLabelMasksLeftmostFourBits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L891" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDLabelMasksLeftmostFourBits</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_test.go#L125" title="internal/plugins/isis/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OriginatedSRGBLabelHighBitsCleared</code></a></span></div>
 </div></td>
 </tr>
@@ -479,7 +479,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc9085-2.1.2-1"><code>RFC9085-2.1.2-1</code></a></h3>
 <p>The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt. (§2.1.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. rejudge 2026-09-30 (independent): RFC9085-2.1.2-4 merged in (D-2, same §2.1.2 sentence). Set-0: ospf TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero (+, exact TLV 1034 bytes) / TestRFC9085OSPFSourceReservedNeverOriginated (-, native RI reserved ff), duplicate -4 tag lines removed, bodies unchanged; earlier judge targeted break (Flags &lt;- native reserved) turned the negative red. Ignored on receipt: nlri/ls TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved and attr_test TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags (undefined flag 0x02 stored, I-flag intact, range decodes; retagged from -4), single-polarity by nature (any received value conforms); records observed red (revert decodeSRCapabilities). IS-IS 1034 flags are RFC 8667 flags, outside this OSPF clause.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV-&gt;WriteTLV and field-export renames (TLV code constants verified unchanged). The receipt units now reach bgpls.DecodeSRCapabilities through the TLV 1034 decoder the plugin registers (lookupLsAttrTLVDecoder), so the adapter is exercised too; DecodeSRCapabilities is byte-identical to the old decodeSRCapabilities (len&lt;2 refused, Flags stored, ranges from data[2:]). RFC 9085 Section 2.1.2: &#34;The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt.&#34; Set-0: ospf TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero / TestRFC9085OSPFSourceReservedNeverOriginated (unchanged). Ignored: Flags ff and 0x82 accepted, range 1000@16000 intact, I flag intact; single-polarity by nature on receipt.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -490,12 +490,12 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L929" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L933" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L38" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L42" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -509,7 +509,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 </div>
 <h3><a href="#rfc9085-2.1.2-2"><code>RFC9085-2.1.2-2</code></a></h3>
 <p>Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.1.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. rejudge 2026-09-30 (independent): RFC9085-2.1.2-3 merged in (D-2, same §2.1.2 sentence). Set-0: ospf TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero (+) / TestRFC9085OSPFSourceReservedNeverOriginated (-, native reserved ff); isis TestRFC9085ISISOriginatedCapabilitiesReservedZero (+) / TestRFC9085ISISAllOnesSourceNeverReachesReserved (-, flags ff, range ffffff); duplicate -3 tag lines removed, bodies unchanged; earlier judge targeted breaks turned each negative red. Receipt: nlri/ls TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved and attr_test TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags (Reserved ff skipped, range 1000 at 16000; retagged from -3), single-polarity by nature; records observed red.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV-&gt;WriteTLV and field-export renames (TLV code constants verified unchanged). The receipt units now reach bgpls.DecodeSRCapabilities through the TLV 1034 decoder the plugin registers (lookupLsAttrTLVDecoder), so the adapter is exercised too; DecodeSRCapabilities is byte-identical to the old decodeSRCapabilities (len&lt;2 refused, Flags stored, ranges from data[2:]). RFC 9085 Section 2.1.2: &#34;Reserved: 1 octet that MUST be set to 0 and ignored on receipt.&#34; Set-0: ospf and isis originated-zero / poisoned-source pairs (unchanged). Ignored: Reserved ff skipped, not read as range data (Range 1000, FirstSID 16000 asserted exactly).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -525,12 +525,12 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L939" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L943" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L39" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L43" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -549,7 +549,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 </div>
 <h3><a href="#rfc9085-2.1.4-1"><code>RFC9085-2.1.4-1</code></a></h3>
 <p>The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt. (§2.1.4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. rejudge 2026-09-30 (independent): units changed only by removal of the retired 2.1.2-3/-4 tag lines. Set-0: ospf TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero (+, exact TLV 1036 bytes) / TestRFC9085OSPFSourceReservedNeverOriginated (-, native SRLB reserved ff); earlier judge targeted break (Flags &lt;- native reserved) turned the negative red. Receipt: nlri/ls TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved (Flags ff, Reserved ff decode), single-polarity by nature.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV-&gt;WriteTLV and field-export renames (TLV code constants verified unchanged). The receipt units now reach bgpls.DecodeSRCapabilities through the TLV 1034 decoder the plugin registers (lookupLsAttrTLVDecoder), so the adapter is exercised too; DecodeSRCapabilities is byte-identical to the old decodeSRCapabilities (len&lt;2 refused, Flags stored, ranges from data[2:]). RFC 9085 Section 2.1.4: &#34;The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt.&#34; Set-0: ospf SRLB TLV 1036 pair (unchanged). Receipt: decodeSRLocalBlock (unchanged body) decodes Flags ff to the intact range.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -560,7 +560,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L40" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L44" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -574,7 +574,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 </div>
 <h3><a href="#rfc9085-2.1.4-2"><code>RFC9085-2.1.4-2</code></a></h3>
 <p>Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.1.4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. rejudge 2026-09-30 (independent): units changed only by removal of the retired 2.1.2-3/-4 tag lines. Set-0: ospf TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero (+) / TestRFC9085OSPFSourceReservedNeverOriginated (-, native reserved ff); isis TestRFC9085ISISOriginatedCapabilitiesReservedZero (+) / TestRFC9085ISISAllOnesSourceNeverReachesReserved (-) on the SRLB, exact TLV 1036 bytes. Receipt: nlri/ls TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved, single-polarity by nature.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV-&gt;WriteTLV and field-export renames (TLV code constants verified unchanged). The receipt units now reach bgpls.DecodeSRCapabilities through the TLV 1034 decoder the plugin registers (lookupLsAttrTLVDecoder), so the adapter is exercised too; DecodeSRCapabilities is byte-identical to the old decodeSRCapabilities (len&lt;2 refused, Flags stored, ranges from data[2:]). RFC 9085 Section 2.1.4: &#34;Reserved: 1 octet that MUST be set to 0 and ignored on receipt.&#34; Set-0: isis and ospf TLV 1036 pairs (unchanged). Receipt: Reserved ff on TLV 1036 decodes to the intact range.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -590,7 +590,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L41" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L45" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -625,7 +625,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L68" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDReceiptIgnoresReserved</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L72" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDReceiptIgnoresReserved</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -660,7 +660,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L104" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085UndecodedSIDReceiptKeepsReserved</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L108" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085UndecodedSIDReceiptKeepsReserved</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -695,7 +695,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L69" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDReceiptIgnoresReserved</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L73" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDReceiptIgnoresReserved</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -730,7 +730,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L105" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085UndecodedSIDReceiptKeepsReserved</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L109" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085UndecodedSIDReceiptKeepsReserved</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -760,7 +760,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L889" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDLabelMasksLeftmostFourBits</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L891" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDLabelMasksLeftmostFourBits</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1159,7 +1159,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

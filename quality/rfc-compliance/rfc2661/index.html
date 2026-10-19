@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2661 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2661: Layer Two Tunneling Protocol &#34;L2TP&#34;. 94 gated MUST-level requirements, 10 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 2661: Layer Two Tunneling Protocol &#34;L2TP&#34;. 94 gated MUST-level requirements, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2661 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2661: Layer Two Tunneling Protocol &#34;L2TP&#34;. 94 gated MUST-level requirements, 10 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 2661: Layer Two Tunneling Protocol &#34;L2TP&#34;. 94 gated MUST-level requirements, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2661 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2661: Layer Two Tunneling Protocol &#34;L2TP&#34;. 94 gated MUST-level requirements, 10 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 2661: Layer Two Tunneling Protocol &#34;L2TP&#34;. 94 gated MUST-level requirements, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>21.3%</strong><b>20 of 94 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 94 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 94 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>97.5%</strong><b>194 of 199 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>97.5%</strong><b>196 of 201 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,7 +136,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>9.6%</strong><b>9 of 94 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>22</strong><b>of 94 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 94 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -190,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -219,7 +218,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>10</td>
+<td>9</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -231,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>200</td>
+<td>202</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>199</td>
+<td>201</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>22</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>194</td>
+<td>196</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2661.md</code></td>
@@ -264,7 +263,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 LNS/LAC tunnel lifecycle (answerer and <strong>initiator</strong>: ze dials SCCRQ, verifies SCCRP, sends SCCCN), AVP codec, hidden-AVP MD5 codec (present but not wired into message encode/decode), challenge/response, reliable control channel, HELLO, StopCCN, data sessions, <strong>LNS-side outgoing call (OCRQ/OCRP/OCCN) via <code>request l2tp outgoing-call</code></strong>, dial-target config, LAC PPPoE→L2TP relay (control plane).
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Partial. Ten MUST and SHOULD rows carry {gap}: nine of them at MUST level, and one SHOULD row because the retransmit count is not configurable. The hidden-AVP MD5 codec is not wired into message encoding or decoding, so Random Vector precedence is not enforced. The existing proxy-authentication and new-AVP specs describe conditional features that have not been selected or declined. Control-plane tests exercise tunnel/session establishment, mandatory AVPs, header fields and unknown mandatory Message Types. Linux-boundary tests check session-setup timing, sequencing/LNS-mode flags and UDP checksum settings; they do not by themselves demonstrate kernel sequence adaptation or PPP data-plane forwarding. LNS/LAC interoperability, the LAC bridge and kernel behavior still need the corresponding privileged interop/QEMU runs before this batch is reported verified.
+Partial. Nine MUST rows carry {gap}; the retransmit count before a tunnel is cleared is configurable through <code>l2tp max-retransmit</code>. The hidden-AVP MD5 codec is not wired into message encoding or decoding, so Random Vector precedence is not enforced. The existing proxy-authentication and new-AVP specs describe conditional features that have not been selected or declined. Control-plane tests exercise tunnel/session establishment, mandatory AVPs, header fields and unknown mandatory Message Types. Linux-boundary tests check session-setup timing, sequencing/LNS-mode flags and UDP checksum settings; they do not by themselves demonstrate kernel sequence adaptation or PPP data-plane forwarding. LNS/LAC interoperability, the LAC bridge and kernel behavior still need the corresponding privileged interop/QEMU runs before this batch is reported verified.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -1231,9 +1230,9 @@ Partial. Ten MUST and SHOULD rows carry {gap}: nine of them at MUST level, and o
 <td>SHOULD</td>
 <td>5.8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2661-5.8-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the retransmit count is not configurable: the l2tp YANG has no leaf for it and the reactor passes only RecvWindow to the tunnel, so every tunnel uses the built-in default of 5</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go#L78" title="internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go" target="_blank" rel="noopener"><code>TestRFC2661ConfiguredMaxRetransmitClearsTunnel</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go#L81" title="internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go" target="_blank" rel="noopener"><code>TestRFC2661ConfiguredMaxRetransmitClearsTunnel</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-x-2">RFC2661-x-2</code></td><td colspan="3"><span class="rfc-subject">When retransmitting control messages, a slow start and congestion avoidance window adjustment procedure SHOULD be utilized. The recommended procedure for this is described in Appendix A. (§5.8)</span></td></tr>
 <tr><td></td>
@@ -1341,10 +1340,6 @@ Partial. Ten MUST and SHOULD rows carry {gap}: nine of them at MUST level, and o
 <tr><td><a href="#rfc2661-9.5-2"><code>RFC2661-9.5-2</code></a> If the LNS chooses to implement proxy authentication, it MUST be able to be configured off, requiring a new round a PPP authentication initiated by the LNS (which may or may not include a new round of LCP negotiation) (§9.5)</td>
 <td>{gap}, no test</td>
 <td>no LNS proxy authentication exists to configure off; plan/spec-l2tp-proxy-authentication.md</td>
-</tr>
-<tr><td><a href="#rfc2661-5.8-8"><code>RFC2661-5.8-8</code></a> If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable) (§5.8)</td>
-<td>{gap}</td>
-<td>the retransmit count is not configurable: the l2tp YANG has no leaf for it and the reactor passes only RecvWindow to the tunnel, so every tunnel uses the built-in default of 5</td>
 </tr>
 </tbody>
 </table>
@@ -3243,8 +3238,24 @@ Partial. Ten MUST and SHOULD rows carry {gap}: nine of them at MUST level, and o
 <p>No test carries RFC2661-9.5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc2661-5.8-8"><code>RFC2661-5.8-8</code></a></h3>
 <p>If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable) (§5.8)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. The retransmit count is fixed at DefaultMaxRetransmit (5): ReliableConfig.MaxRetransmit exists, but both tunnel constructors, reactor.go::locateTunnelLocked and reactor_dial.go::handleDial, pass ReliableConfig{RecvWindow} only, and the l2tp YANG carries no leaf for it. The recommended default of 5 is met; &#39;SHOULD be configurable&#39; is not. {gap} annotation on the row agrees.</p>
-<p>No test carries RFC2661-5.8-8, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after cb8e90f006). RFC 2661 Section 5.8: &#34;If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable), the tunnel and all sessions within MUST be cleared.&#34; The leaf l2tp max-retransmit (uint8, 1..255, default 5) is read by ExtractParameters and passes through Subsystem.tunnelDefaults and setMaxRetransmit into reliableConfig, which both tunnel constructors (locateTunnelLocked, handleDial) call; ReliableEngine.Tick tears the tunnel down once attempts exceed it. TestRFC2661ConfiguredMaxRetransmitClearsTunnel uses a budget of 2: the tunnel stays Established through both retransmissions and is Closed, with a StopCCN, on the next deadline. The auditor&#39;s overlay mutants of reliableConfig turned it red at the deciding assertions (MaxRetransmit dropped to 0 fails the Closed check; MaxRetransmit-1 fails the Established loop); the stored records use the revert route. Parse and reload are pinned by TestConfig_MaxRetransmit and TestReloadAppliesMaxRetransmit; the startup path reaches tunnelDefaults only through the reload test.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go#L81" title="internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go" target="_blank" rel="noopener"><code>TestRFC2661ConfiguredMaxRetransmitClearsTunnel</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go#L78" title="internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go" target="_blank" rel="noopener"><code>TestRFC2661ConfiguredMaxRetransmitClearsTunnel</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -4070,7 +4081,7 @@ Partial. Ten MUST and SHOULD rows carry {gap}: nine of them at MUST level, and o
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

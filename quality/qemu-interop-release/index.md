@@ -2,7 +2,7 @@
 
 Use this page when the proof needs a Linux kernel, a real peer daemon, Docker, QEMU, internet data, performance evidence, or the full release matrix. These checks are slower because they leave the local unit-test world and exercise the environment Ze is meant to run in.
 
-`./le verify current mode full` stays local on purpose. It should be fast enough to run often and safe enough for a normal developer machine. QEMU and interop jobs are the next layer when a local run would skip the real contract.
+`./le verify current` stays local on purpose. It should be fast enough to run often and safe enough for a normal developer machine. QEMU and interop jobs are the next layer when a local run would skip the real contract.
 
 ## When QEMU is required
 

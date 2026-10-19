@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9252 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9252: BGP Overlay Services Based on Segment Routing over IPv6 (SRv6). 25 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 9252: BGP Overlay Services Based on Segment Routing over IPv6 (SRv6). 25 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 9252 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9252: BGP Overlay Services Based on Segment Routing over IPv6 (SRv6). 25 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 9252: BGP Overlay Services Based on Segment Routing over IPv6 (SRv6). 25 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9252 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9252: BGP Overlay Services Based on Segment Routing over IPv6 (SRv6). 25 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 9252: BGP Overlay Services Based on Segment Routing over IPv6 (SRv6). 25 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -117,10 +117,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>52.0%</strong><b>13 of 25 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>56.0%</strong><b>14 of 25 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>20.0%</strong><b>5 of 25 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>80.0%</strong><b>44 of 55 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>82.8%</strong><b>53 of 64 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,8 +134,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>8.0%</strong><b>2 of 25 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>20.0%</strong><b>5 of 25 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>12.0%</strong><b>3 of 25 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>12.0%</strong><b>3 of 25 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>18</strong><b>of 25 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 25 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
@@ -219,7 +219,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>5</td>
+<td>3</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -231,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>55</td>
+<td>64</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>55</td>
+<td>64</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>18</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>44</td>
+<td>53</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9252.md</code></td>
@@ -272,7 +272,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
 <p><a href="#rfc9252-3.3-2"><code>RFC9252-3.3-2</code></a> is partial: changed-next-hop forwarding removes unrecognized nested fields with the received Service TLVs, but does not produce locally allocated SRv6 SID information to rebuild them. Local SID allocation and rebuilding remain absent and uncommissioned.</p>
-<p class="rfc-prose"><strong>EVPN transposition is not implemented:</strong> Section 6 puts the label field at a different NLRI offset per route type, in the PMSI Tunnel Attribute for Route Type 3 and in the ESI Label extended community for Route Type 1 per-ES, and Route Type 2 has two label fields bound to different Service TLVs. An EVPN route whose Prefix-SID declares a transposition therefore yields no SID rather than the partial one. Seven MUST-level rows carry gap or partial annotations in this checklist, counted once per requirement rather than per protocol obligation: <a href="#rfc9252-3.3-2"><code>RFC9252-3.3-2</code></a> above; <a href="#rfc9252-4.1-1"><code>RFC9252-4.1-1</code></a>/6.1-1/6.2-1 -- Transposition Length is bounded against the 20-bit VPN and 24-bit EVPN label field widths but still not against FL or AL; <a href="#rfc9252-3.2.1-2"><code>RFC9252-3.2.1-2</code></a> -- enforced on receive, but origination does not refuse a configured structure that breaks it; <a href="#rfc9252-3.2-6"><code>RFC9252-3.2-6</code></a> -- ze knows no SRv6 Endpoint Behavior, so no behavior is known and there is no AL to validate against one (every SID with a non-zero AL is ignored under <a href="#rfc9252-3.2-5"><code>RFC9252-3.2-5</code></a>); and <a href="#rfc9252-5-2"><code>RFC9252-5-2</code></a> -- ze installs the received Service SID into the Linux FIB (kernel SEG6 encap at <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/nexthop_linux.go" target="_blank" rel="noopener"><code>internal/plugins/fib/kernel/nexthop_linux.go</code></a>) but performs no Section 5 resolvability check on the SID locator before best-path computation (isSRv6Ineligible gates on SID validity for the family only). VPP policy installation and packet qualification belong to the separate SRv6 FIB work described in <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/fib/fib-depth-4-srv6.md" target="_blank" rel="noopener"><code>docs/architecture/fib/fib-depth-4-srv6.md</code></a>; this BGP forwarding proof makes no VPP dataplane claim. The former eight-row figure omitted the newly partial <a href="#rfc9252-3.3-2"><code>RFC9252-3.3-2</code></a>; the former fourteen figure added six historical extraction findings rather than counting current gap annotations. The former nine-row figure still counted <a href="#rfc9252-3.2.1-1"><code>RFC9252-3.2.1-1</code></a> and <a href="#rfc9252-3.2-5"><code>RFC9252-3.2-5</code></a>, which receive now enforces and origination already refused. None of these figures is a current conformance total.</p>
+<p class="rfc-prose"><strong>EVPN transposition is not implemented:</strong> Section 6 puts the label field at a different NLRI offset per route type, in the PMSI Tunnel Attribute for Route Type 3 and in the ESI Label extended community for Route Type 1 per-ES, and Route Type 2 has two label fields bound to different Service TLVs. An EVPN route whose Prefix-SID declares a transposition therefore yields no SID rather than the partial one. Six MUST-level rows carry gap or partial annotations in this checklist, counted once per requirement rather than per protocol obligation: <a href="#rfc9252-3.3-2"><code>RFC9252-3.3-2</code></a> above; <a href="#rfc9252-4.1-1"><code>RFC9252-4.1-1</code></a>/6.1-1/6.2-1 -- Transposition Length is bounded against the 20-bit VPN and 24-bit EVPN label field widths, on receive and on origination, but still not against FL or AL; <a href="#rfc9252-3.2-6"><code>RFC9252-3.2-6</code></a> -- ze knows no SRv6 Endpoint Behavior, so no behavior is known and there is no AL to validate against one (every SID with a non-zero AL is ignored under <a href="#rfc9252-3.2-5"><code>RFC9252-3.2-5</code></a>); and <a href="#rfc9252-5-2"><code>RFC9252-5-2</code></a> -- ze installs the received Service SID into the Linux FIB (kernel SEG6 encap at <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/nexthop_linux.go" target="_blank" rel="noopener"><code>internal/plugins/fib/kernel/nexthop_linux.go</code></a>) but performs no Section 5 resolvability check on the SID locator before best-path computation (isSRv6Ineligible gates on SID validity for the family only). VPP policy installation and packet qualification belong to the separate SRv6 FIB work described in <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/fib/fib-depth-4-srv6.md" target="_blank" rel="noopener"><code>docs/architecture/fib/fib-depth-4-srv6.md</code></a>; this BGP forwarding proof makes no VPP dataplane claim. The former seven-row figure still counted <a href="#rfc9252-3.2.1-2"><code>RFC9252-3.2.1-2</code></a>, which origination now refuses as well: CheckSRv6TranspositionForFamily (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/prefixsid.go" target="_blank" rel="noopener"><code>internal/core/bgp/attribute/prefixsid.go</code></a>) judges the configured structure against the route family at config load and in update text. The former eight-row figure omitted the newly partial <a href="#rfc9252-3.3-2"><code>RFC9252-3.3-2</code></a>; the former fourteen figure added six historical extraction findings rather than counting current gap annotations. The former nine-row figure still counted <a href="#rfc9252-3.2.1-1"><code>RFC9252-3.2.1-1</code></a> and <a href="#rfc9252-3.2-5"><code>RFC9252-3.2-5</code></a>, which receive now enforces and origination already refused. None of these figures is a current conformance total.</p>
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -281,11 +281,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>13</strong></td>
+<td><strong>14</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>12</strong></td>
+<td><strong>11</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -297,7 +297,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
-<td><strong>2</strong></td>
+<td><strong>3</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -312,9 +312,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (13):</strong> <a href="#rfc9252-3.1-2"><code>RFC9252-3.1-2</code></a>, <a href="#rfc9252-3.2.1-1"><code>RFC9252-3.2.1-1</code></a>, <a href="#rfc9252-3.2.1-3"><code>RFC9252-3.2.1-3</code></a>, <a href="#rfc9252-3.2-5"><code>RFC9252-3.2-5</code></a>, <a href="#rfc9252-5-1"><code>RFC9252-5-1</code></a>, <a href="#rfc9252-3.3-1"><code>RFC9252-3.3-1</code></a>, <a href="#rfc9252-3.4-1"><code>RFC9252-3.4-1</code></a>, <a href="#rfc9252-3.2.1-4"><code>RFC9252-3.2.1-4</code></a>, <a href="#rfc9252-3.2.1-5"><code>RFC9252-3.2.1-5</code></a>, <a href="#rfc9252-3.2.1-6"><code>RFC9252-3.2.1-6</code></a>, <a href="#rfc9252-5-3"><code>RFC9252-5-3</code></a>, <a href="#rfc9252-7-1"><code>RFC9252-7-1</code></a>, <a href="#rfc9252-7-2"><code>RFC9252-7-2</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (12):</strong> <a href="#rfc9252-3.1-1"><code>RFC9252-3.1-1</code></a>, <a href="#rfc9252-3.2-1"><code>RFC9252-3.2-1</code></a>, <a href="#rfc9252-3.2-2"><code>RFC9252-3.2-2</code></a>, <a href="#rfc9252-3.2-3"><code>RFC9252-3.2-3</code></a>, <a href="#rfc9252-3.2.1-2"><code>RFC9252-3.2.1-2</code></a>, <a href="#rfc9252-4.1-1"><code>RFC9252-4.1-1</code></a>, <a href="#rfc9252-6.1-1"><code>RFC9252-6.1-1</code></a>, <a href="#rfc9252-6.2-1"><code>RFC9252-6.2-1</code></a>, <a href="#rfc9252-3.2-4"><code>RFC9252-3.2-4</code></a>, <a href="#rfc9252-3.2-6"><code>RFC9252-3.2-6</code></a>, <a href="#rfc9252-5-2"><code>RFC9252-5-2</code></a>, <a href="#rfc9252-3.3-2"><code>RFC9252-3.3-2</code></a></p>
-<p class="rfc-id-list"><strong>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (2):</strong> <a href="#rfc9252-3.2.1-2"><code>RFC9252-3.2.1-2</code></a>, <a href="#rfc9252-3.3-2"><code>RFC9252-3.3-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (14):</strong> <a href="#rfc9252-3.1-2"><code>RFC9252-3.1-2</code></a>, <a href="#rfc9252-3.2.1-1"><code>RFC9252-3.2.1-1</code></a>, <a href="#rfc9252-3.2.1-2"><code>RFC9252-3.2.1-2</code></a>, <a href="#rfc9252-3.2.1-3"><code>RFC9252-3.2.1-3</code></a>, <a href="#rfc9252-3.2-5"><code>RFC9252-3.2-5</code></a>, <a href="#rfc9252-5-1"><code>RFC9252-5-1</code></a>, <a href="#rfc9252-3.3-1"><code>RFC9252-3.3-1</code></a>, <a href="#rfc9252-3.4-1"><code>RFC9252-3.4-1</code></a>, <a href="#rfc9252-3.2.1-4"><code>RFC9252-3.2.1-4</code></a>, <a href="#rfc9252-3.2.1-5"><code>RFC9252-3.2.1-5</code></a>, <a href="#rfc9252-3.2.1-6"><code>RFC9252-3.2.1-6</code></a>, <a href="#rfc9252-5-3"><code>RFC9252-5-3</code></a>, <a href="#rfc9252-7-1"><code>RFC9252-7-1</code></a>, <a href="#rfc9252-7-2"><code>RFC9252-7-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (11):</strong> <a href="#rfc9252-3.1-1"><code>RFC9252-3.1-1</code></a>, <a href="#rfc9252-3.2-1"><code>RFC9252-3.2-1</code></a>, <a href="#rfc9252-3.2-2"><code>RFC9252-3.2-2</code></a>, <a href="#rfc9252-3.2-3"><code>RFC9252-3.2-3</code></a>, <a href="#rfc9252-4.1-1"><code>RFC9252-4.1-1</code></a>, <a href="#rfc9252-6.1-1"><code>RFC9252-6.1-1</code></a>, <a href="#rfc9252-6.2-1"><code>RFC9252-6.2-1</code></a>, <a href="#rfc9252-3.2-4"><code>RFC9252-3.2-4</code></a>, <a href="#rfc9252-3.2-6"><code>RFC9252-3.2-6</code></a>, <a href="#rfc9252-5-2"><code>RFC9252-5-2</code></a>, <a href="#rfc9252-3.3-2"><code>RFC9252-3.3-2</code></a></p>
+<p class="rfc-id-list"><strong>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (3):</strong> <a href="#rfc9252-4.1-1"><code>RFC9252-4.1-1</code></a>, <a href="#rfc9252-6.2-1"><code>RFC9252-6.2-1</code></a>, <a href="#rfc9252-3.3-2"><code>RFC9252-3.3-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -380,9 +380,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-3.2.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L23" title="internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go" target="_blank" rel="noopener"><code>TestCheckSRv6TranspositionForFamily</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go#L105" title="internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go" target="_blank" rel="noopener"><code>TestSRv6TranspositionOnFamilyWithoutLabelIsIneligible</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/update/rfc9252_update_text_srv6_transposition_test.go#L26" title="internal/component/bgp/plugins/cmd/update/rfc9252_update_text_srv6_transposition_test.go" target="_blank" rel="noopener"><code>TestUpdateTextSRv6TranspositionNeedsALabelField</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L24" title="internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go" target="_blank" rel="noopener"><code>TestCheckSRv6TranspositionForFamily</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go#L104" title="internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go" target="_blank" rel="noopener"><code>TestSRv6TranspositionOnFamilyWithoutLabelIsIneligible</code></a></span></div>
-</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;The transposition offset and length MUST be 0&#34;; gap &#34;when the Sub-Sub-TLV is advertised along with routes where the Transposition Scheme is not applicable&#34;; receive is enforced by internal/component/bgp/plugins/rib/rib_bestchange.go::srv6SIDValidForFamily, which bounds the transposition by nlrisplit.TranspositionLabelWidth, 0 off the VPN and EVPN families, so isSRv6Ineligible excludes the path; origination encodes the configured structure with no route family and does not refuse it, internal/core/bgp/attribute/prefixsid.go::validateSRv6OriginStructure</p><p class="rfc-mark"><strong>Scoped evidence:</strong> Tests and tag-claim records apply only to Tested; zero whole-requirement credit. not audited: no reader has judged these tests</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/update/rfc9252_update_text_srv6_transposition_test.go#L27" title="internal/component/bgp/plugins/cmd/update/rfc9252_update_text_srv6_transposition_test.go" target="_blank" rel="noopener"><code>TestUpdateTextSRv6TranspositionNeedsALabelField</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/parse/srv6-transposition-refused-unicast.ci#L12" title="test/parse/srv6-transposition-refused-unicast.ci" target="_blank" rel="noopener"><code>srv6-transposition-refused-unicast.ci</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9252-3.2.1-3">RFC9252-3.2.1-3</code></td><td colspan="3"><span class="rfc-subject">As defined in [RFC8986], the sum of the Locator Block Length (LBL), Locator Node Length (LNL), Function Length (FL), and Argument Length (AL) fields MUST be less than or equal to 128 and greater than or equal to the sum of Transposition Offset and Transposition Length. (S3.2.1, errata 7817)</span></td></tr>
 <tr><td></td>
@@ -401,9 +406,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the 20-bit half is enforced -- srv6SIDFromResult refuses to reconstruct and isSRv6Ineligible makes the path ineligible when Transposition Length exceeds nlrisplit.TranspositionLabelWidth (internal/component/bgp/plugins/rib/rib_bestchange.go) -- but neither they nor parseSIDStructure bound it against the Function Length (internal/component/bgp/plugins/rib/pool/srv6sid.go)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L78" title="internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go" target="_blank" rel="noopener"><code>TestCheckSRv6TranspositionLabelWidth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L79" title="internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go" target="_blank" rel="noopener"><code>TestCheckSRv6TranspositionLabelWidth</code></a></span></div>
+</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;the Transposition Length MUST be less than or equal to 20&#34;; gap &#34;less than or equal to the FL&#34;; the 20-bit half is enforced on receive, where srv6SIDFromResult refuses to reconstruct and isSRv6Ineligible makes the path ineligible when Transposition Length exceeds nlrisplit.TranspositionLabelWidth (internal/component/bgp/plugins/rib/rib_bestchange.go), and on origination, where internal/core/bgp/attribute/prefixsid.go::CheckSRv6TranspositionForFamily refuses it; neither side nor parseSIDStructure bounds it against the Function Length (internal/component/bgp/plugins/rib/pool/srv6sid.go)</p><p class="rfc-mark"><strong>Scoped evidence:</strong> Tests and tag-claim records apply only to Tested; zero whole-requirement credit. not audited: no reader has judged these tests</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9252-6.1-1">RFC9252-6.1-1</code></td><td colspan="3"><span class="rfc-subject">When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the AL. (§6.1.1)</span></td></tr>
 <tr><td></td>
@@ -419,9 +424,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-6.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the 24-bit half is enforced by nlrisplit.TranspositionLabelWidth through srv6SIDFromResult and isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go), but the Function Length is never bounded and no EVPN label field is read at all -- TranspositionLabel answers only the VPN families, so an EVPN transposition yields no SID rather than a reconstructed one (internal/core/bgp/nlri/nlrisplit/transposition.go)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L80" title="internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go" target="_blank" rel="noopener"><code>TestCheckSRv6TranspositionLabelWidth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L81" title="internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go" target="_blank" rel="noopener"><code>TestCheckSRv6TranspositionLabelWidth</code></a></span></div>
+</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;the Transposition Length MUST be less than or equal to 24&#34;; gap &#34;less than or equal to the FL&#34;; the 24-bit half is enforced by nlrisplit.TranspositionLabelWidth through srv6SIDFromResult and isSRv6Ineligible on receive (internal/component/bgp/plugins/rib/rib_bestchange.go) and through internal/core/bgp/attribute/prefixsid.go::CheckSRv6TranspositionForFamily on origination, but the Function Length is never bounded and no EVPN label field is read at all -- TranspositionLabel answers only the VPN families, so an EVPN transposition yields no SID rather than a reconstructed one (internal/core/bgp/nlri/nlrisplit/transposition.go)</p><p class="rfc-mark"><strong>Scoped evidence:</strong> Tests and tag-claim records apply only to Tested; zero whole-requirement credit. not audited: no reader has judged these tests</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9252-3.2-4">RFC9252-3.2-4</code></td><td colspan="3"><span class="rfc-subject">An unrecognized SRv6 Endpoint Behavior MUST NOT be considered invalid by the receiver, except for behaviors that involve the use of arguments (§3.1)</span></td></tr>
 <tr><td></td>
@@ -500,13 +505,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-3.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2404" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidatePrefixSIDAttr_Valid</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2407" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidatePrefixSIDAttr_Valid</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go#L119" title="internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go" target="_blank" rel="noopener"><code>TestRFC7606PrefixSIDFramingErrorAfterServiceTLV</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go#L98" title="internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go" target="_blank" rel="noopener"><code>TestRFC9252SIDInformationStrayOctetsTreatAsWithdraw</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go#L31" title="internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go" target="_blank" rel="noopener"><code>TestRFC9252ServiceTLVOverrunTreatAsWithdraw</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go#L60" title="internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go" target="_blank" rel="noopener"><code>TestRFC9252ZeroLengthServiceTLVTreatAsWithdraw</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2473" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidateSRv6ServiceTLV_SIDInfoTooShort</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2433" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidateSRv6ServiceTLV_TrailingBytes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2476" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidateSRv6ServiceTLV_SIDInfoTooShort</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2436" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidateSRv6ServiceTLV_TrailingBytes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-malformed-receive.ci#L8" title="test/plugin/prefixsid-malformed-receive.ci" target="_blank" rel="noopener"><code>prefixsid-malformed-receive.ci</code></a></span></div>
 </div></td>
 </tr>
@@ -620,21 +625,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc9252-3.2.1-2"><code>RFC9252-3.2.1-2</code></a> The transposition offset and length MUST be 0 when the Sub-Sub-TLV is advertised along with routes where the Transposition Scheme is not applicable (e.g., for global IPv6 service [RFC2545] where there is no label field). (§7)</td>
-<td>{partial}, Partial proof; remaining gap</td>
-<td>tested &#34;The transposition offset and length MUST be 0&#34;; gap &#34;when the Sub-Sub-TLV is advertised along with routes where the Transposition Scheme is not applicable&#34;; receive is enforced by internal/component/bgp/plugins/rib/rib_bestchange.go::srv6SIDValidForFamily, which bounds the transposition by nlrisplit.TranspositionLabelWidth, 0 off the VPN and EVPN families, so isSRv6Ineligible excludes the path; origination encodes the configured structure with no route family and does not refuse it, internal/core/bgp/attribute/prefixsid.go::validateSRv6OriginStructure</td>
-</tr>
 <tr><td><a href="#rfc9252-4.1-1"><code>RFC9252-4.1-1</code></a> When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 20 and less than or equal to the FL. (§5.1, §5.2)</td>
-<td>{gap}, no test</td>
-<td>the 20-bit half is enforced -- srv6SIDFromResult refuses to reconstruct and isSRv6Ineligible makes the path ineligible when Transposition Length exceeds nlrisplit.TranspositionLabelWidth (internal/component/bgp/plugins/rib/rib_bestchange.go) -- but neither they nor parseSIDStructure bound it against the Function Length (internal/component/bgp/plugins/rib/pool/srv6sid.go)</td>
+<td>{partial}, Partial proof; remaining gap</td>
+<td>tested &#34;the Transposition Length MUST be less than or equal to 20&#34;; gap &#34;less than or equal to the FL&#34;; the 20-bit half is enforced on receive, where srv6SIDFromResult refuses to reconstruct and isSRv6Ineligible makes the path ineligible when Transposition Length exceeds nlrisplit.TranspositionLabelWidth (internal/component/bgp/plugins/rib/rib_bestchange.go), and on origination, where internal/core/bgp/attribute/prefixsid.go::CheckSRv6TranspositionForFamily refuses it; neither side nor parseSIDStructure bounds it against the Function Length (internal/component/bgp/plugins/rib/pool/srv6sid.go)</td>
 </tr>
 <tr><td><a href="#rfc9252-6.1-1"><code>RFC9252-6.1-1</code></a> When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the AL. (§6.1.1)</td>
 <td>{gap}, no test</td>
 <td>the 24-bit half is enforced by nlrisplit.TranspositionLabelWidth through srv6SIDFromResult and isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go), but the Argument Length is never bounded, the ESI Label extended community that carries these bits is never read, and the EVPN encoder carries no SRv6 ESI-label SID (internal/component/bgp/plugins/rib/pool/srv6sid.go)</td>
 </tr>
 <tr><td><a href="#rfc9252-6.2-1"><code>RFC9252-6.2-1</code></a> When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the FL. (§6.2, §6.3, §6.5)</td>
-<td>{gap}, no test</td>
-<td>the 24-bit half is enforced by nlrisplit.TranspositionLabelWidth through srv6SIDFromResult and isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go), but the Function Length is never bounded and no EVPN label field is read at all -- TranspositionLabel answers only the VPN families, so an EVPN transposition yields no SID rather than a reconstructed one (internal/core/bgp/nlri/nlrisplit/transposition.go)</td>
+<td>{partial}, Partial proof; remaining gap</td>
+<td>tested &#34;the Transposition Length MUST be less than or equal to 24&#34;; gap &#34;less than or equal to the FL&#34;; the 24-bit half is enforced by nlrisplit.TranspositionLabelWidth through srv6SIDFromResult and isSRv6Ineligible on receive (internal/component/bgp/plugins/rib/rib_bestchange.go) and through internal/core/bgp/attribute/prefixsid.go::CheckSRv6TranspositionForFamily on origination, but the Function Length is never bounded and no EVPN label field is read at all -- TranspositionLabel answers only the VPN families, so an EVPN transposition yields no SID rather than a reconstructed one (internal/core/bgp/nlri/nlrisplit/transposition.go)</td>
 </tr>
 <tr><td><a href="#rfc9252-3.2-6"><code>RFC9252-3.2-6</code></a> For SIDs corresponding to an SRv6 Endpoint Behavior that is known, a receiver MUST validate that the consistency of the AL with the specific SRv6 Endpoint Behavior definition. (S3.2)</td>
 <td>{gap}, no test</td>
@@ -756,19 +757,43 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc9252-3.2.1-2"><code>RFC9252-3.2.1-2</code></a></h3>
 <p>The transposition offset and length MUST be 0 when the Sub-Sub-TLV is advertised along with routes where the Transposition Scheme is not applicable (e.g., for global IPv6 service [RFC2545] where there is no label field). (§7)</p>
-<p>Scoped tag-claim records only: tested &#34;The transposition offset and length MUST be 0&#34;; gap &#34;when the Sub-Sub-TLV is advertised along with routes where the Transposition Scheme is not applicable&#34;; receive is enforced by internal/component/bgp/plugins/rib/rib_bestchange.go::srv6SIDValidForFamily, which bounds the transposition by nlrisplit.TranspositionLabelWidth, 0 off the VPN and EVPN families, so isSRv6Ineligible excludes the path; origination encodes the configured structure with no route family and does not refuse it, internal/core/bgp/attribute/prefixsid.go::validateSRv6OriginStructure; zero whole-requirement credit.</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/update/rfc9252_update_text_srv6_transposition_test.go#L27" title="internal/component/bgp/plugins/cmd/update/rfc9252_update_text_srv6_transposition_test.go" target="_blank" rel="noopener"><code>TestUpdateTextSRv6TranspositionNeedsALabelField</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go#L104" title="internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go" target="_blank" rel="noopener"><code>TestSRv6TranspositionOnFamilyWithoutLabelIsIneligible</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L24" title="internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go" target="_blank" rel="noopener"><code>TestCheckSRv6TranspositionForFamily</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/parse/srv6-transposition-refused-unicast.ci#L12" title="test/parse/srv6-transposition-refused-unicast.ci" target="_blank" rel="noopener"><code>srv6-transposition-refused-unicast.ci</code></a></td>
+<td>functional/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/update/rfc9252_update_text_srv6_transposition_test.go#L26" title="internal/component/bgp/plugins/cmd/update/rfc9252_update_text_srv6_transposition_test.go" target="_blank" rel="noopener"><code>TestUpdateTextSRv6TranspositionNeedsALabelField</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go#L105" title="internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go" target="_blank" rel="noopener"><code>TestSRv6TranspositionOnFamilyWithoutLabelIsIneligible</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L23" title="internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go" target="_blank" rel="noopener"><code>TestCheckSRv6TranspositionForFamily</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -812,16 +837,50 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc9252-4.1-1"><code>RFC9252-4.1-1</code></a></h3>
 <p>When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 20 and less than or equal to the FL. (§5.1, §5.2)</p>
+<p>Scoped tag-claim records only: tested &#34;the Transposition Length MUST be less than or equal to 20&#34;; gap &#34;less than or equal to the FL&#34;; the 20-bit half is enforced on receive, where srv6SIDFromResult refuses to reconstruct and isSRv6Ineligible makes the path ineligible when Transposition Length exceeds nlrisplit.TranspositionLabelWidth (internal/component/bgp/plugins/rib/rib_bestchange.go), and on origination, where internal/core/bgp/attribute/prefixsid.go::CheckSRv6TranspositionForFamily refuses it; neither side nor parseSIDStructure bounds it against the Function Length (internal/component/bgp/plugins/rib/pool/srv6sid.go); zero whole-requirement credit.</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9252-4.1-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L79" title="internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go" target="_blank" rel="noopener"><code>TestCheckSRv6TranspositionLabelWidth</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L78" title="internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go" target="_blank" rel="noopener"><code>TestCheckSRv6TranspositionLabelWidth</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9252-6.1-1"><code>RFC9252-6.1-1</code></a></h3>
 <p>When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the AL. (§6.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9252-6.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9252-6.2-1"><code>RFC9252-6.2-1</code></a></h3>
 <p>When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the FL. (§6.2, §6.3, §6.5)</p>
+<p>Scoped tag-claim records only: tested &#34;the Transposition Length MUST be less than or equal to 24&#34;; gap &#34;less than or equal to the FL&#34;; the 24-bit half is enforced by nlrisplit.TranspositionLabelWidth through srv6SIDFromResult and isSRv6Ineligible on receive (internal/component/bgp/plugins/rib/rib_bestchange.go) and through internal/core/bgp/attribute/prefixsid.go::CheckSRv6TranspositionForFamily on origination, but the Function Length is never bounded and no EVPN label field is read at all -- TranspositionLabel answers only the VPN families, so an EVPN transposition yields no SID rather than a reconstructed one (internal/core/bgp/nlri/nlrisplit/transposition.go); zero whole-requirement credit.</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9252-6.2-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L81" title="internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go" target="_blank" rel="noopener"><code>TestCheckSRv6TranspositionLabelWidth</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L80" title="internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go" target="_blank" rel="noopener"><code>TestCheckSRv6TranspositionLabelWidth</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9252-3.2-4"><code>RFC9252-3.2-4</code></a></h3>
 <p>An unrecognized SRv6 Endpoint Behavior MUST NOT be considered invalid by the receiver, except for behaviors that involve the use of arguments (§3.1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a receiver treating a SID with an unrecognized, argument-free Endpoint Behavior as invalid. (b) TestExtractSRv6SID_UnknownEndpointBehavior feeds behavior 0xFEED with no SID Structure and asserts the SID is returned. validateSRv6ServiceTLV never reads the behavior. The argument exception is the gap row RFC9252-3.2-5. Single-polarity marker present.</p>
@@ -979,12 +1038,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2473" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidateSRv6ServiceTLV_SIDInfoTooShort</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2476" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidateSRv6ServiceTLV_SIDInfoTooShort</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2433" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidateSRv6ServiceTLV_TrailingBytes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2436" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidateSRv6ServiceTLV_TrailingBytes</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1014,7 +1073,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2404" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidatePrefixSIDAttr_Valid</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2407" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidatePrefixSIDAttr_Valid</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1533,7 +1592,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

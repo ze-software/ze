@@ -54,6 +54,7 @@
 <ol>
 <li><a href="#fields">Fields</a></li>
 <li><a href="#location-schemes">Location Schemes</a></li>
+<li><a href="#validation">Validation</a></li>
 <li><a href="#triggers">Triggers</a></li>
 <li><a href="#filename-tokens">Filename Tokens</a></li>
 </ol></li>
@@ -130,7 +131,7 @@
 <td><code>timeout</code></td>
 <td>duration</td>
 <td><code>30s</code></td>
-<td>HTTP upload timeout</td>
+<td>HTTP upload timeout, a positive Go duration such as <code>30s</code> or <code>2m</code></td>
 </tr>
 <tr>
 <td><code>on-change</code></td>
@@ -164,7 +165,37 @@
 </tbody>
 </table>
 <p>Use absolute paths for <code>file://</code> locations. <code>file://./relative</code> does not work correctly in Go's URL parser.</p>
-<!-- source: internal/component/config/archive/archive.go -- ToFile, ToHTTP, ValidateLocation -->
+<!-- source: internal/component/config/archive/archive.go -- ToFile, ToHTTP -->
+<h3 id="validation">Validation</h3>
+<p><code>ze config validate</code> and every commit check each archive entry, so an entry
+the uploader cannot use never reaches the running config:</p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Refused when</th>
+<th>Example refusal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>location</code></td>
+<td>Its scheme is not <code>file</code>, <code>http</code> or <code>https</code>, or it has no scheme</td>
+<td><code>archive location "ftp://h/" uses scheme "ftp", which Ze cannot upload to</code></td>
+</tr>
+<tr>
+<td><code>timeout</code></td>
+<td>It is not a Go duration, or it is not above zero</td>
+<td><code>archive timeout "5 minutes" is not a Go duration; write a number and a unit, such as 30s or 2m</code></td>
+</tr>
+</tbody>
+</table>
+<p>Each refusal names the entry and ends with the accepted forms. A refused
+location never echoes the password of a URL with credentials in it. An entry
+with no <code>timeout</code> uses <code>30s</code>; an invalid <code>timeout</code> is refused rather than
+replaced by <code>30s</code>.</p>
+<!-- source: internal/component/config/validators_archive.go -- ValidateArchiveLocation, ParseArchiveTimeout -->
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- ze:validate archive-location, archive-timeout -->
 <h3 id="triggers">Triggers</h3>
 <table>
 <thead>
@@ -469,7 +500,7 @@ file you name in the same shape, such as <code>20260101.conf</code> beside the f
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 8.1% | 9 of 111 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 111 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 111 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 79.9% | 231 of 289 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 80.3% | 237 of 295 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -35,7 +35,6 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 9.9% | 11 of 111 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 104 | of 111 gated MUSTs judged | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 8 shares marked as a part above are the whole of the 111 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -54,7 +53,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -65,14 +64,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 137 |
 | Gated MUST-level | 111 |
 | Not applicable, so out of scope | 1 |
-| Declared gaps | 14 |
+| Declared gaps | 11 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 289 |
-| Tagged units | 289 |
+| Test tags | 295 |
+| Tagged units | 295 |
 | Recorded audit verdicts | 104 |
-| Discrimination records | 231 |
+| Discrimination records | 237 |
 | Summary | `rfc/short/rfc5880.md` |
 | Requirement shard | `rfc/requirements/rfc5880.md` |
 | RFC text | `rfc/full/rfc5880.txt` |
@@ -93,9 +92,7 @@ Enrolled: Bidirectional Forwarding Detection (BFD)
 
 **What the ledger says remains**
 
-Fourteen MUST and SHOULD gaps, gated in [`rfc/short/rfc5880.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc5880.md), eleven of them at MUST level: Demand mode is not driven -- bfd.DemandMode has no writer and the stored remote D bit is never read, so no Poll is raised on a D-bit or content change and periodic transmission is never suppressed ([`RFC5880-6.6-2`](#rfc5880-6.6-2), 6.6-3, 6.8.6-14, 6.8.7-7, 6.8.17-1); periodic transmission also continues when bfd.RemoteMinRxInterval is zero ([`RFC5880-6.8.7-6`](#rfc5880-6.8.7-6)); bfd.XmitAuthSeq starts at zero rather than a random value and bfd.AuthSeqKnown is never cleared after twice the Detection Time ([`RFC5880-6.8.1-11`](#rfc5880-6.8.1-11), 6.8.1-13); there is no forwarding-plane-reset hook, so diagnostic 4 has no producer ([`RFC5880-6.8.15-1`](#rfc5880-6.8.15-1)); and no congestion-control mechanism governs the transmit rate ([`RFC5880-7-1`](#rfc5880-7-1), 7-2).
-
-- **The three SHOULD gaps:** the password and key management accepts no hexadecimal form for a Simple Password, a Keyed MD5 key or a Keyed SHA1 key ([`RFC5880-6.7.2-2`](#rfc5880-6.7.2-2), 6.7.3-14, 6.7.4-8). Final-packet rate limiting is absent by design and annotated not-applicable. IPv6 transport coverage is tracked with BFD.
+Eleven MUST gaps, gated in [`rfc/short/rfc5880.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc5880.md): Demand mode is not driven -- bfd.DemandMode has no writer and the stored remote D bit is never read, so no Poll is raised on a D-bit or content change and periodic transmission is never suppressed ([`RFC5880-6.6-2`](#rfc5880-6.6-2), 6.6-3, 6.8.6-14, 6.8.7-7, 6.8.17-1); periodic transmission also continues when bfd.RemoteMinRxInterval is zero ([`RFC5880-6.8.7-6`](#rfc5880-6.8.7-6)); bfd.XmitAuthSeq starts at zero rather than a random value and bfd.AuthSeqKnown is never cleared after twice the Detection Time ([`RFC5880-6.8.1-11`](#rfc5880-6.8.1-11), 6.8.1-13); there is no forwarding-plane-reset hook, so diagnostic 4 has no producer ([`RFC5880-6.8.15-1`](#rfc5880-6.8.15-1)); and no congestion-control mechanism governs the transmit rate ([`RFC5880-7-1`](#rfc5880-7-1), 7-2). Final-packet rate limiting is absent by design and annotated not-applicable. IPv6 transport coverage is tracked with BFD.
 
 ## Coverage
 
@@ -212,11 +209,11 @@ Fourteen MUST and SHOULD gaps, gated in [`rfc/short/rfc5880.md`](https://github.
 | `RFC5880-6.8.7-9` | A BFD Control packet SHOULD be transmitted during the interval between periodic Control packet transmissions when the contents of that packet would differ from that in the previously transmitted packet (other than the Poll and Final bits) in order to more rapidly communicate a change in state. (§6.8.7) | SHOULD | 6.8.7 - Transmitting BFD Control Packets | **positive:** no positive test. **negative:** no negative test |
 | `RFC5880-6.7.1-1` | In order to avoid security risks, implementations using this method SHOULD only allow the authentication state to be changed at most once without some form of intervention (so that authentication cannot be turned on and off repeatedly simply based on the receipt of BFD Control packets from remote systems). (§6.7.1) | SHOULD | 6.7.1 - Enabling and Disabling Authentication | **positive:** no positive test. **negative:** no negative test |
 | `RFC5880-6.7.1-2` | Unless it is desired to enable or disable authentication, an implementation SHOULD NOT allow the authentication state to change based on the receipt of BFD Control packets. (§6.7.1) | SHOULD NOT | 6.7.1 - Enabling and Disabling Authentication | **positive:** no positive test. **negative:** no negative test |
-| `RFC5880-6.7.2-2` | the management interface by which the password is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.2) | SHOULD | 6.7.2 - Simple Password Authentication | **positive:** no positive test. **negative:** no negative test. **{gap}:** parseAuthConfig reads the secret leaf as a string and uses its bytes as the password (internal/component/bfd/config.go:299); no hexadecimal form is parsed, so a binary Simple Password cannot be configured |
+| `RFC5880-6.7.2-2` | the management interface by which the password is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.2) | SHOULD | 6.7.2 - Simple Password Authentication | **positive:** `unit/verify` [`TestRFC5880KeyManagementConfigEntryAcceptsHexBinaryStrings`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_key_management_hex_test.go#L87). **negative:** `unit/verify` [`TestRFC5880KeyManagementConfigEntryKeepsEveryBinaryByte`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_key_management_hex_test.go#L118) |
 | `RFC5880-6.7.3-5` | bfd.XmitAuthSeq SHOULD be incremented when the session state changes, or when the transmitted BFD Control packet carries different contents than the previously transmitted packet. (§6.7.3) | SHOULD | 6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication | **positive:** no positive test. **negative:** no negative test |
 | `RFC5880-6.7.4-9` | bfd.XmitAuthSeq SHOULD be incremented when the session state changes, or when the transmitted BFD Control packet carries different contents than the previously transmitted packet. (§6.7.4) | SHOULD | 6.7.4 - Keyed SHA1 and Meticulous Keyed SHA1 Authentication | **positive:** `unit/verify` [`TestRFC5880XmitAuthSeqAdvancesOnStateAndContentChange`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_xmit_auth_seq_test.go#L144). **negative:** `unit/verify` [`TestRFC5880XmitAuthSeqAdvancesForAnOutOfTimerFinal`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_xmit_auth_seq_test.go#L194) |
-| `RFC5880-6.7.3-14` | SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.3) | SHOULD | 6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication | **positive:** no positive test. **negative:** no negative test. **{gap}:** parseAuthConfig reads the secret leaf as a string and uses its bytes as the key (internal/component/bfd/config.go:299); no hexadecimal form is parsed, so a binary Keyed MD5 key cannot be configured |
-| `RFC5880-6.7.4-8` | SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.4) | SHOULD | 6.7.4 - Keyed SHA1 and Meticulous Keyed SHA1 Authentication | **positive:** no positive test. **negative:** no negative test. **{gap}:** parseAuthConfig reads the secret leaf as a string and uses its bytes as the key (internal/component/bfd/config.go:299); no hexadecimal form is parsed, so a binary Keyed SHA1 key cannot be configured |
+| `RFC5880-6.7.3-14` | SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.3) | SHOULD | 6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication | **positive:** `unit/verify` [`TestRFC5880KeyManagementConfigEntryAcceptsHexBinaryStrings`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_key_management_hex_test.go#L93). **negative:** `unit/verify` [`TestRFC5880KeyManagementConfigEntryKeepsEveryBinaryByte`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_key_management_hex_test.go#L124) |
+| `RFC5880-6.7.4-8` | SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.4) | SHOULD | 6.7.4 - Keyed SHA1 and Meticulous Keyed SHA1 Authentication | **positive:** `unit/verify` [`TestRFC5880KeyManagementConfigEntryAcceptsHexBinaryStrings`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_key_management_hex_test.go#L96). **negative:** `unit/verify` [`TestRFC5880KeyManagementConfigEntryKeepsEveryBinaryByte`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_key_management_hex_test.go#L126) |
 | `RFC5880-6.8.16-2` | BFD Control packets SHOULD be transmitted for at least a Detection Time after transitioning to AdminDown state in order to ensure that the remote system is aware of the state change. (§6.8.16) | SHOULD | 6.8.16 - Administrative Control | **positive:** `unit/verify` [`TestRFC5880AdminDownControlTransmittedForADetectionTime`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_admindown_transmit_test.go#L55). **negative:** no negative test. **{single-polarity}:** the obligation is to keep sending, and no input or peer behaviour exists for Ze to refuse: stopping once the window has passed is what RFC5880-6.8.16-3 leaves optional ("MAY be transmitted indefinitely"), so silence after it is no violation a negative could catch. Loop.tick (internal/component/bfd/engine/loop.go) sends AdminDown Control packets until Machine.AdminDownTransmitEnd, set by Machine.AdminDown to three times the longer of the local and the remote Detection Time (owner ruling 2026-09-30, see RFC5880-6.8.16-3) |
 | `RFC5880-7-3` | As such, a congestion control algorithm SHOULD be used even across single hops in order to avoid the possibility of catastrophic system collapse, as such failures have been seen repeatedly in other periodic Hello-based protocols. (§7) | SHOULD | 7 - Operational Considerations | **positive:** no positive test. **negative:** no negative test |
 | `RFC5880-9-1` | If BFD is run across multiple hops or an insecure tunnel (such as Generic Routing Encapsulation (GRE)), the Authentication Section SHOULD be utilized. (§9) | SHOULD | 9 - Security Considerations | **positive:** no positive test. **negative:** no negative test |
@@ -271,9 +268,6 @@ Fourteen MUST and SHOULD gaps, gated in [`rfc/short/rfc5880.md`](https://github.
 | [`RFC5880-6.8.15-1`](#rfc5880-6.8.15-1) When the forwarding plane in the local system is reset for some reason, such that the remote system can no longer rely on the local forwarding state, the local system MUST set bfd.LocalDiag to 4 (Forwarding Plane Reset), and set bfd.SessionState to Down. (§6.8.15) | {gap}, no test | packet.DiagForwardingPlaneReset (internal/component/bfd/packet/diag.go:21) has no producer, and the only external state-forcing entry points are AdminDown and AdminEnable (internal/component/bfd/session/fsm.go:180,192), which move the session to AdminDown or Down carrying the caller's diagnostic and are never called with code 4 |
 | [`RFC5880-7-1`](#rfc5880-7-1) When BFD is used across multiple hops, a congestion control mechanism MUST be implemented (§7) | {gap}, no test | the transmit rate is derived solely from TransmitInterval plus jitter (internal/component/bfd/engine/loop.go:197-200) with no congestion-feedback input, and no congestion-control producer exists anywhere under internal/component/bfd |
 | [`RFC5880-7-2`](#rfc5880-7-2) When BFD is used across multiple hops, a congestion control mechanism MUST be implemented, and when congestion is detected, the BFD implementation MUST reduce the amount of traffic it generates. (§7) | {gap}, no test | the same rate producer (internal/component/bfd/engine/loop.go:197-200) is the only authority over generated traffic and nothing reduces it in response to detected congestion |
-| [`RFC5880-6.7.2-2`](#rfc5880-6.7.2-2) the management interface by which the password is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.2) | {gap} | parseAuthConfig reads the secret leaf as a string and uses its bytes as the password (internal/component/bfd/config.go:299); no hexadecimal form is parsed, so a binary Simple Password cannot be configured |
-| [`RFC5880-6.7.3-14`](#rfc5880-6.7.3-14) SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.3) | {gap} | parseAuthConfig reads the secret leaf as a string and uses its bytes as the key (internal/component/bfd/config.go:299); no hexadecimal form is parsed, so a binary Keyed MD5 key cannot be configured |
-| [`RFC5880-6.7.4-8`](#rfc5880-6.7.4-8) SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.4) | {gap} | parseAuthConfig reads the secret leaf as a string and uses its bytes as the key (internal/component/bfd/config.go:299); no hexadecimal form is parsed, so a binary Keyed SHA1 key cannot be configured |
 | [`RFC5880-6.8.17-1`](#rfc5880-6.8.17-1) If Demand mode is active on the remote system (the local system is not transmitting periodic BFD Control packets), a Poll Sequence MUST be initiated to ensure that the diagnostic code is transmitted. (§6.8.17) | {gap}, no test | packet.DiagConcatPathDown (internal/component/bfd/packet/diag.go:23) has no producer and the remote Demand state stored at internal/component/bfd/session/fsm.go:58 is never read, so a concatenated-path failure neither sets the diagnostic nor initiates a Poll Sequence |
 
 ## Proof state
@@ -731,7 +725,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 The authentication key value is a binary string of up to 16 bytes, and MUST be placed into the Auth Key/Digest field, padded with trailing zero bytes as necessary. (§6.7.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive: TestRFC5880ShortKeyZeroPaddedIntoDigestField computes MD5 independently over the signed packet with the Auth Key/Digest field replaced by the 11-byte key and five zero bytes and requires Sign's transmitted digest to equal it; TestKeyedSecretLongerThanSlotRefused (NewSigner, NewVerifier) and TestParseAuthConfigKeyedSecretLength (parseAuthConfig) accept a 16-byte key for both MD5 types. Negative: the same two refuse a 17-byte key, NewSigner and NewVerifier with ErrKeyLengthInvalid, so no key longer than the field is truncated into it.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after 97686ea267). RFC 5880 Section 6.7.3: "The authentication key value is a binary string of up to 16 bytes, and MUST be placed into the Auth Key/Digest field, padded with trailing zero bytes as necessary." parseAuthConfig now takes the secret from parseAuthSecret (ASCII or decoded hex) and still refuses a decoded MD5 key over packet.KeyedMD5KeyLenMax before any session exists; NewSigner and NewVerifier refuse the same at the auth boundary and newDigestSigner copies the key into a zero-filled 16-byte slot. Positive: TestRFC5880ShortKeyZeroPaddedIntoDigestField recomputes MD5 independently over the packet with the 11-byte key plus five zero bytes and requires Sign's digest to match; TestParseAuthConfigKeyedSecretLength and TestKeyedSecretLongerThanSlotRefused accept 16 bytes. Negative: both refuse 17 bytes. An overlay mutation disabling the MD5 length check in current parseAuthConfig turned TestParseAuthConfigKeyedSecretLength red (and the untagged hex refusal case), so the change did not weaken the parser-side check.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -806,7 +800,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 The authentication key value is a binary string of up to 20 bytes, and MUST be placed into the Auth Key/Hash field, padding with trailing zero bytes as necessary. (§6.7.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive: TestRFC5880ShortKeyZeroPaddedIntoDigestField computes SHA1 independently over the signed packet with the Auth Key/Hash field replaced by the 11-byte key and nine zero bytes and requires Sign's transmitted hash to equal it; TestKeyedSecretLongerThanSlotRefused and TestParseAuthConfigKeyedSecretLength accept a 20-byte key for both SHA1 types. Negative: the same two refuse a 21-byte key.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after 97686ea267). RFC 5880 Section 6.7.4: "The authentication key value is a binary string of up to 20 bytes, and MUST be placed into the Auth Key/Hash field, padding with trailing zero bytes as necessary." parseAuthConfig applies the packet.KeyedSHA1KeyLenMax refusal to the secret parseAuthSecret returns, so the ASCII and hex forms meet the same limit (a hex form over 20 bytes is also refused earlier by the YANG length 2..40); NewSigner and NewVerifier refuse it again and newDigestSigner zero-pads into the 20-byte slot. Positive: TestRFC5880ShortKeyZeroPaddedIntoDigestField recomputes SHA1 over the packet with the 11-byte key plus nine zero bytes and requires Sign's hash to match; TestParseAuthConfigKeyedSecretLength and TestKeyedSecretLongerThanSlotRefused accept 20 bytes. Negative: both refuse 21 bytes, and by inspection removing the SHA1 check in parseAuthConfig leaves the 21-byte case accepted, which the test fails on.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1278,9 +1272,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 the management interface by which the password is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.2)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. Recorded 2026-10-11 from independent review round 1, ISSUE 1. Confirmed at the producer: parseAuthConfig reads the secret leaf with stringField and stores []byte(secret) for every Auth Type, Simple Password included (config.go); the YANG leaf secret is type string with no hex form, so a binary Simple Password cannot be configured. The ASCII half of the sentence is met by the same string leaf; the hexadecimal SHOULD is the gap. The {gap} annotation is accurate; disclosed in Support remaining.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor, after 95fae5058f). RFC 5880 Section 6.7.2: "For interoperability, the management interface by which the password is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form." 95fae5058f adds one comment line ("Both forms are accepted here.") above parseAuthSecret to satisfy godot; no statement of parseAuthConfig or parseAuthSecret changed, and the tagged units in rfc5880_key_management_hex_test.go are untouched. The comment is true: parseAuthSecret takes either the ASCII secret leaf or the secret-hex leaf (hex.DecodeString). Both tagged tests pass at HEAD (go test -overlay restoring HEAD for foreign dirty files, tags ze_core ze_bgp). The prior judgment stands unchanged: the positive test requires decoded Simple Password (0x00, 0xFF, 16-byte) keys byte for byte in the resolved session request, the negative sweeps every byte 0x00-0xFF, and an overlay replacing hex.DecodeString with []byte(written) turned both red. Mechanical shift; verdict holds.
 
-No test carries RFC5880-6.7.2-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC5880KeyManagementConfigEntryKeepsEveryBinaryByte`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_key_management_hex_test.go#L118) | unit/verify | revert, verified |
+| positive | [`TestRFC5880KeyManagementConfigEntryAcceptsHexBinaryStrings`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_key_management_hex_test.go#L87) | unit/verify | revert, verified |
 
 ### [`RFC5880-6.7.4-9`](#rfc5880-6.7.4-9)
 
@@ -1297,17 +1294,23 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.3)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. Judge 2026-09-30 (phase 8). Confirmed at the producer: parseAuthConfig reads the secret leaf with stringField and stores []byte(secret) (config.go); the YANG leaf secret is type string with no hex form, so a binary Keyed MD5 key cannot be configured. The {gap} annotation is accurate; disclosed in Support remaining.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor, after 95fae5058f). RFC 5880 Section 6.7.3: "For interoperability, the management interface by which the key is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form." 95fae5058f adds one comment line ("Both forms are accepted here.") above parseAuthSecret to satisfy godot; no statement of parseAuthConfig or parseAuthSecret changed, and the tagged units in rfc5880_key_management_hex_test.go are untouched. The comment is true: parseAuthSecret takes either the ASCII secret leaf or the secret-hex leaf (hex.DecodeString). Both tagged tests pass at HEAD (go test -overlay restoring HEAD for foreign dirty files, tags ze_core ze_bgp). The prior judgment stands unchanged: the positive test requires decoded Keyed MD5 (1-byte and 16-byte) keys byte for byte in the resolved session request, the negative sweeps every byte 0x00-0xFF, and an overlay replacing hex.DecodeString with []byte(written) turned both red. Mechanical shift; verdict holds.
 
-No test carries RFC5880-6.7.3-14, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC5880KeyManagementConfigEntryKeepsEveryBinaryByte`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_key_management_hex_test.go#L124) | unit/verify | revert, verified |
+| positive | [`TestRFC5880KeyManagementConfigEntryAcceptsHexBinaryStrings`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_key_management_hex_test.go#L93) | unit/verify | revert, verified |
 
 ### [`RFC5880-6.7.4-8`](#rfc5880-6.7.4-8)
 
 SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.4)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. Judge 2026-09-30 (phase 8). Confirmed at the producer: parseAuthConfig stores []byte(secret) of the string leaf; no hexadecimal form is parsed, so a binary Keyed SHA1 key cannot be configured. The {gap} annotation is accurate; disclosed in Support remaining.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor, after 95fae5058f). RFC 5880 Section 6.7.4: "For interoperability, the management interface by which the key is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form." 95fae5058f adds one comment line ("Both forms are accepted here.") above parseAuthSecret to satisfy godot; no statement of parseAuthConfig or parseAuthSecret changed, and the tagged units in rfc5880_key_management_hex_test.go are untouched. The comment is true: parseAuthSecret takes either the ASCII secret leaf or the secret-hex leaf (hex.DecodeString). Both tagged tests pass at HEAD (go test -overlay restoring HEAD for foreign dirty files, tags ze_core ze_bgp). The prior judgment stands unchanged: the positive test requires decoded Keyed SHA1 (1-byte and 20-byte) keys byte for byte in the resolved session request, the negative sweeps every byte 0x00-0xFF, and an overlay replacing hex.DecodeString with []byte(written) turned both red. Mechanical shift; verdict holds.
 
-No test carries RFC5880-6.7.4-8, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC5880KeyManagementConfigEntryKeepsEveryBinaryByte`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_key_management_hex_test.go#L126) | unit/verify | revert, verified |
+| positive | [`TestRFC5880KeyManagementConfigEntryAcceptsHexBinaryStrings`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_key_management_hex_test.go#L96) | unit/verify | revert, verified |
 
 ### [`RFC5880-6.8.16-2`](#rfc5880-6.8.16-2)
 

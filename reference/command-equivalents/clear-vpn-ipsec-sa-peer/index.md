@@ -1,13 +1,13 @@
-# `clear isis adjacency`
+# `clear vpn ipsec sa peer`
 
-Tear down every IS\-IS adjacency so neighbors re\-form\.
+Tear down one peer\'s IKE Security Associations\.
 
 ## Ze command
 
-- Registry path: `clear isis adjacency`
-- Usage: `clear isis adjacency`
+- Registry path: `clear vpn ipsec sa peer`
+- Usage: `clear vpn ipsec sa peer <name>`
 - Mode: Daemon
-- Wire method: `ze-isis:clear-adjacency`
+- Wire method: `ze-ike:clear-vpn-ipsec-sa-peer`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -21,11 +21,13 @@ Tear down every IS\-IS adjacency so neighbors re\-form\.
 - Command pipes: none
 - Pipe aliases: none
 
-Adjacencies re\-learn from the next Hello\; the circuit is not closed and the configuration is unchanged\.
+Only the named peer\'s SAs are terminated\. A name that matches no configured peer is refused\.
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Peer name\. | The peer name as configured under the IPsec connection\. |
 
 ## Mapping intents
 

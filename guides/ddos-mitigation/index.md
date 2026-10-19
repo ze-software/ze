@@ -165,7 +165,7 @@ that rate), while `discard` drops the whole characterized flow. A `rate-limit-by
 of `0` is valid and is equivalent to `discard`; `action rate-limit` without a
 `rate-limit-bytes` is a configuration error (no rate is fabricated).
 <!-- source: internal/plugins/ddos/flowspec/config.go -- Validate: action mandatory; rate-limit requires rate-limit-bytes; 0 == discard -->
-<!-- source: internal/plugins/ddos/flowspec/responder.go -- renderFlowspecCommand emits update text extended-community [rate-limit:<bps>] nlri <fam> add <components> -->
+<!-- source: internal/plugins/ddos/flowspec/responder.go -- renderFlowspecCommand emits update text extended-community [rate-limit:<bps>] mp <fam> add <components> -->
 
 
 **Blackhole fallback.** With `blackhole-fallback true`, a `critical`-severity

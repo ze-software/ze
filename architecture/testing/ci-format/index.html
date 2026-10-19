@@ -510,7 +510,7 @@ text was never executed.</p>
 <!-- source: internal/test/runner/decoding.go -- decodingRunner.runTest -->
 <!-- test: internal/test/runner/decoding_exec_test.go TestDecodeRunnerExecutesExecLine, TestDecodeRunnerFailsWhenCommandRefuses -->
 <p><strong>Single-line text:</strong></p>
-<pre><code>stdin=cmd:text=update text nhop set 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24
+<pre><code>stdin=cmd:text=update text nhop set 10.0.0.1 nlri add 10.0.0.0/24
 </code></pre>
 <h3 id="where-the-block-goes">Where the block goes</h3>
 <p>The runner pipes the block, with two exceptions. Each one exists because the
@@ -892,7 +892,9 @@ arrive; classification must not rewrite or weaken those receiver checks.</p>
 including failures before AS derivation. It does not feed other execution
 dialects into the native parser: <code>test/decode</code> uses <code>DecodingTests.parseCIFile</code>,
 and <code>test/exabgp-compat</code> uses <code>parseExaBGPCI</code>. The latter's
-<code>option=file:&lt;name&gt;</code> selects an <code>etc</code>-relative predecessor configuration; it is
+<code>option=file:&lt;name&gt;</code> selects a predecessor configuration relative to the
+population's own <code>etc/</code> when it has one (<code>old-4.2</code>, <code>old-5.0</code>), else the shared
+<code>test/exabgp-compat/etc/</code>; it is
 not the native <code>option=file:path=&lt;name&gt;</code> directive. Those populations are chosen
 by their execution owners, not by tolerating parser errors. Native scenarios
 that intentionally submit invalid Ze configuration remain in the gate: their
@@ -1277,7 +1279,7 @@ a route was NOT forwarded pass because no route was ever offered.</p>
 </tbody>
 </table>
 <h3 id="example_1">Example</h3>
-<pre><code>cmd=api:conn=1:seq=1:text=update text origin set igp nhop set 10.0.1.1 nlri ipv4/unicast add 10.0.0.0/24
+<pre><code>cmd=api:conn=1:seq=1:text=update text origin set igp nhop set 10.0.1.1 nlri add 10.0.0.0/24
 </code></pre>
 <h3 id="process-commands-foregroundbackground">Process Commands (Foreground/Background)</h3>
 <p>For orchestrating multiple processes:</p>
@@ -1707,7 +1709,7 @@ and FreeBSD, the test runner adds loopback aliases via the <code>SIOCAIFADDR</co
 address. A fixture that needs a second one uses <code>fd00::2</code>, which is unique-local
 (RFC 4193) and never globally routable. <code>./le setup install</code> adds it, and
 <code>./le setup check</code> reports whether it is there. The runner never adds it:
-the ioctl returns EPERM to an unprivileged process, and <code>./le verify current mode full</code> runs as
+the ioctl returns EPERM to an unprivileged process, and <code>./le verify current</code> runs as
 an ordinary user. A test that binds an address this host does not carry fails at
 once with <code>loopback_address_missing</code> and the command to run, rather than timing
 out on a bind that could not succeed.</p>
@@ -2797,7 +2799,7 @@ option=file:path=test.conf
 option=asn:value=65000
 
 # Expected API command and wire output
-cmd=api:conn=1:seq=1:text=update text origin set igp nhop set 10.0.1.254 nlri ipv4/unicast add 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=update text origin set igp nhop set 10.0.1.254 nlri add 10.0.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FFFD4003040A0001FE180A0000
 
 # EOR
@@ -3156,7 +3158,10 @@ expect=json:conn=1:seq=1:json={...}
 <!-- source: internal/component/cli/testing/expect.go -- editor expectation types -->
 <!-- source: internal/component/cli/testing/runner_store.go -- createRunnerStore -->
 <p>Editor tests use a tree store by default; <code>option=storage:value=tree</code> states
-that choice explicitly. <code>option=storage:value=blob</code> runs the test on a backup
+that choice explicitly. The tree mode is held in memory (<code>storage.CreateMemory</code>),
+not on disk: it is the live store's contract (name mapping, guards, versions,
+metadata, observers) over a map, so no commit waits on a sync, and it closes
+with the test. <code>option=storage:value=blob</code> runs the test on an on-disk backup
 artifact the way <code>ze config edit --backup</code> opens one: the runner creates
 <code>backup.zefs</code>, seeds it, closes it, reopens it writable through
 <code>storage.OpenBlob</code>, and builds each session with
@@ -3285,7 +3290,7 @@ expect=completion:contains=router-id,local-as,peer
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

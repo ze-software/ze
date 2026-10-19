@@ -27,7 +27,7 @@ The ID leaf accepts a comma\-separated list\, and the selector applies to each I
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, a comma\-separated list of those\, or \* for every peer\. The message goes to each session the selector matches\. |
+| `selector` | string | yes | any value of this type | \* for every peer\, or an address\, a peer name or an AS pattern | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, a comma\-separated list of those\, or \* for every peer\. The message goes to each session the selector matches\. |
 | `id` | string | yes | any value of this type | Cache entry ID\, or a comma\-separated list of IDs\. | One decimal cache entry ID\, as show cache lists it\, or several joined by commas\. A comma\-separated value runs the action once for each ID and reports a failure for each ID that is not in the cache\. A value that is not a decimal number is refused as an invalid cache id\. |
 
 ## Mapping intents

@@ -161,6 +161,16 @@ linux `le` built by the same recipe (`docs/contributing/gh-pages.md`).
 <!-- source: internal/test/perfrunner/run.go -- Execute -->
 <!-- source: internal/le/linuxle/linuxle.go -- Tags -->
 
+Every container, network and image tag the run creates carries the lab's
+owner labels. Ctrl-C (SIGINT) or SIGTERM stops the run, and the run still
+removes the DUT, the sender and the network before it exits 1. A removal that
+fails is printed on stderr with the resource's name, and the run exits 1; a
+run that died before its removals (SIGKILL, a crash) leaves resources that
+`./le test integration cleanup`, or the next lab start, removes. The DUT
+images themselves are kept, so the next `step test` finds them.
+<!-- source: internal/test/perfrunner/run.go -- Runner.removeContainer, Runner.cleanup -->
+<!-- source: internal/le/perf/actions.go -- signalRooted -->
+
 Results are written to `test/perf/results/` as JSON files. An HTML comparison report is generated automatically.
 
 ### Manual Reports
@@ -296,3 +306,38 @@ the typical latency, P99 captures tail latency, and max shows the worst case.
 
 **Routes lost** should always be zero. Any loss indicates the DUT dropped
 routes, which the regression checker always flags.
+
+### Before you report a number
+
+`le perf send` already discards the warmup run, drops outliers and reports a
+median with its standard deviation. That makes one run repeatable. It does
+not say what the number measured, and a result that looks like a win can be a
+measurement of something else. Answer these before you report a number, act on
+it, or pick between two builds or two implementations.
+
+1. **Write the claim first**, in the words you would ship: "ze converges 100k
+   IPv4 routes 25% faster with change X". The questions below test that
+   sentence.
+2. **Why not twice as good?** Name what bounds the result: one core, a lock,
+   the socket, the sender, or the receiver. Read it from per-process CPU
+   (`top`, `pidstat`) or a CPU profile taken during a run you do not report.
+   Start ze with `--pprof 127.0.0.1:6060` to profile it. If the sender or the
+   receiver saturates first, you measured `le perf`, not the DUT.
+3. **Was every side tuned?** Compare release builds with the same flags, the
+   same family and encoding mode, and the same route count. When one side runs
+   on its defaults, you compared configurations, not implementations.
+4. **Did the work happen?** Check that `routes-lost` is zero and that
+   `routes-received` matches `routes-sent`. A run that dropped or rejected routes
+   is often the fastest run.
+5. **Is the gap bigger than the noise?** To compare two builds, alternate them:
+   A, B, A, B, at least five times each, appending every `--json` result. Then
+   warm caches and machine drift favour neither side. A gap smaller than the
+   spread between runs of the same build is no measurable difference.
+6. **Does it matter end to end?** A change to a step that takes 10% of
+   convergence can make convergence at most about 11% faster. A result past
+   that limit measured a cache, a no-op or a bug.
+
+Report the verdict first (faster, slower, no measurable difference, or
+inconclusive). Then give the number with its unit, the run count, the spread
+and the bound you found. Without a run count, a spread and a bound, call the
+result inconclusive and say which answer is missing.

@@ -657,7 +657,7 @@ tree (<code>configjson.CapabilitySelectors</code>).</p>
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- all methods -->
 <h3 id="updateroute">UpdateRoute</h3>
 <p>Injects a route update to matching peers.</p>
-<pre><code class="language-go">peers, routes, err := p.UpdateRoute(ctx, "192.168.1.1", "update text nhop set 10.0.0.1 nlri ipv4/unicast add 10.0.1.0/24")
+<pre><code class="language-go">peers, routes, err := p.UpdateRoute(ctx, "192.168.1.1", "update text nhop set 10.0.0.1 nlri add 10.0.1.0/24")
 </code></pre>
 <h3 id="dispatchcommand">DispatchCommand</h3>
 <p>Dispatches a command through the engine's command dispatcher (inter-plugin communication).</p>
@@ -736,7 +736,7 @@ return fmt.Errorf("validation failed")
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

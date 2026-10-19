@@ -72,7 +72,7 @@
 <li><a href="#list-multiple-instances">List (Multiple Instances)</a></li>
 </ol></li>
 <li><a href="#mandatory-and-default">Mandatory and Default</a></li>
-<li><a href="#references-leafref">References (leafref)</a></li>
+<li><a href="#references">References</a></li>
 <li><a href="#best-practices">Best Practices</a></li>
 <li><a href="#example-complete-plugin-with-schema">Example: Complete Plugin with Schema</a>
 <ol>
@@ -304,26 +304,26 @@ leaf optional-field {
     default 100;     // Used if not provided
 }
 </code></pre>
-<h2 id="references-leafref">References (leafref)</h2>
-<p>Reference values from other parts of config:</p>
-<pre><code class="language-yang">// In ze-bgp-conf module
-list peer-group {
-    key "name";
-    leaf name { type string; }
-}
-
-// In your module - reference peer-group
-leaf group {
-    type leafref {
-        path "/bgp/peer-group/name";
-    }
+<h2 id="references">References</h2>
+<p>Ze checks the three YANG reference types. A <code>leafref</code> value must have the
+type of the leaf its path names and, unless the type says
+<code>require-instance false</code>, equal an instance of that leaf somewhere in the
+config, or its default where the default is in use. An <code>identityref</code> value
+must name an identity derived from the base, unprefixed or with the defining
+module's prefix. An <code>instance-identifier</code> value is a path with every node
+prefixed by its module's prefix, and must name a node the config holds. The
+loader refuses a leafref whose path names no leaf, a config leafref pointing
+at state, and a loop of leafrefs (<code>ErrLeafrefPath</code>).</p>
+<pre><code class="language-yang">// In your module: a reference to a class of the same qdisc
+leaf default-class {
+    type leafref { path "../class/name"; }
 }
 </code></pre>
-<p>Ze does not check leafref values today: the validator accepts any value for a
-leafref leaf, so a reference to a peer-group that does not exist is not
-refused. Checking that the referenced value exists is planned
-(<code>plan/spec-config-yang-type-leafref.md</code>).</p>
-<!-- source: internal/component/config/yang/validator.go -- validateYangType: the Yleafref arm returns nil -->
+<p>A reference no YANG path can express, such as one into state a plugin holds,
+stays a string checked by a <code>ze:validate</code> function.</p>
+<!-- source: internal/component/config/yang/loader_reference.go -- checkReferences -->
+<!-- source: internal/component/config/yang/validator_reference.go -- validateLeafref, validateIdentityref, validateInstanceIdentifier -->
+<!-- source: internal/component/config/yang/validator_instance.go -- ValidateReferences -->
 <h2 id="best-practices">Best Practices</h2>
 <ol>
 <li><strong>Use meaningful namespaces</strong> -- include your organization</li>
@@ -494,7 +494,7 @@ func main() {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

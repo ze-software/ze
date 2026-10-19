@@ -1,13 +1,13 @@
-# `clear interface counters`
+# `clear isis adjacency all`
 
-Zero the Rx\/Tx counters for every managed interface\.
+Tear down every IS\-IS adjacency so neighbors re\-form\.
 
 ## Ze command
 
-- Registry path: `clear interface counters`
-- Usage: `clear interface counters`
+- Registry path: `clear isis adjacency all`
+- Usage: `clear isis adjacency all`
 - Mode: Daemon
-- Wire method: `ze-iface:clear-interface-counters`
+- Wire method: `ze-isis:clear-adjacency`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -21,7 +21,7 @@ Zero the Rx\/Tx counters for every managed interface\.
 - Command pipes: none
 - Pipe aliases: none
 
-One call resets every interface the backend manages\, and the answer reports the scope as all\. Nothing else about the interfaces changes\.
+Adjacencies re\-learn from the next Hello\; the circuit is not closed and the configuration is unchanged\.
 
 ## Arguments
 
@@ -29,9 +29,7 @@ No command-specific arguments listed.
 
 ## Mapping intents
 
-### Clear interface counters
-
-Category: Interfaces
+No vendor equivalent has been curated yet for this Ze command.
 
 ## Vendor equivalents
 
@@ -48,5 +46,5 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-- `clear interfaces ethernet <name> counters` (verified, vyos-cli)
-  - Intent: Clear interface counters
+
+No equivalent listed.

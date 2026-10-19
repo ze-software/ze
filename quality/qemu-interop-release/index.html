@@ -63,7 +63,7 @@
 <!-- source: ../main/internal/le/qemu/alltests.go -- complete guest suite -->
 <!-- source: ../main/internal/le/integration/gates.go -- interop and live actions -->
 <!-- source: ../main/internal/le/evidence/actions.go -- release evidence action -->
-<p><code>./le verify current mode full</code> stays local on purpose. It should be fast enough to run often and safe enough for a normal developer machine. QEMU and interop jobs are the next layer when a local run would skip the real contract.</p>
+<p><code>./le verify current</code> stays local on purpose. It should be fast enough to run often and safe enough for a normal developer machine. QEMU and interop jobs are the next layer when a local run would skip the real contract.</p>
 <h2 id="when-qemu-is-required">When QEMU is required</h2>
 <p>QEMU is required for code that depends on Linux behavior rather than Go behavior. That includes netlink, nftables, network namespaces, veth pairs, PPP, L2TP, eBPF, kernel route state, raw sockets, Linux-only build tags, and tests marked <code>option=needs-linux</code>.</p>
 <table>
@@ -139,7 +139,7 @@ native action checks its prerequisites before it starts the matrix.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

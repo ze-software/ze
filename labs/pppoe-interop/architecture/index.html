@@ -190,7 +190,12 @@ genuinely independent session from the same MAC and requires the PADS it
 provokes to carry session id <code>0x0000</code> and an AC-System-Error tag, read off the
 captured frame -- a session count that stayed at one is not enough evidence on
 its own for either claim (<code>ai/rules/interop-and-goal-validation.md</code>, "Prove a
-scenario discriminates"). <code>spec-pppoe-padr-replay-allocates-unbounded-sessions</code>.</p>
+scenario discriminates"). The first dial's pppd is still running during the
+second dial and owns the session the cap counts, so the second pppd carries
+<code>ipparam ze-over-cap-dial</code> and the checker stops only that one (<code>pkill -f</code>).
+Ze's table must still list the first session afterwards.
+<code>TestOverCapDialCleanupSparesTheLiveSession</code> reproduces the failure a stop of
+every pppd caused. <code>spec-pppoe-padr-replay-allocates-unbounded-sessions</code>.</p>
 <h3 id="pppoe-pap-ze-ac">pppoe-pap-ze-ac</h3>
 <p>Ze's AC carries <code>auth-method pap</code>, and pppd dials with <code>refuse-chap</code>, so PAP is
 the only method both ends accept. The checker requires pppd's trace to show
@@ -313,7 +318,7 @@ missing wire evidence rather than passing vacuously.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

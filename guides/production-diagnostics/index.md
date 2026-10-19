@@ -285,7 +285,7 @@ show dns cache record <hostname>
 **Flush and start fresh:**
 
 ```
-clear dns cache
+clear dns cache all
 ```
 
 **Verify socket connectivity to resolver:**

@@ -28,6 +28,7 @@ l2tp {
     allow-no-auth false;         // explicit opt-in required for no-auth
     hello-interval 60;           // seconds of peer silence before HELLO
     hello-retries 2;             // unanswered HELLO intervals before dead-peer teardown (0 disables)
+    max-retransmit 5;            // retransmissions of an unacknowledged message before the tunnel is cleared
     max-tunnels 1024;            // 0 explicitly means unbounded
     max-sessions 1024;           // per-tunnel, 0 explicitly means unbounded
 }
@@ -81,6 +82,25 @@ The command dials the remote if no tunnel is up, sends an OCRQ, and blocks
 until the call establishes (returning the local/remote session IDs) or fails
 (returning the cause and RFC 2661 Result Code: tunnel auth reject, tie-breaker
 loss, peer CDN, or timeout). The remote must have `outgoing-calls true`.
+
+A dialed tunnel sends from the L2TP listener socket, so the listener's `ip`
+is the tunnel's source address (RFC 2661 Section 8.1 requires the addresses
+and ports to stay static for the life of the tunnel). Every dial, from this
+command or from a relay, uses the first `environment l2tp server`. When that
+listener is on a loopback address it cannot reach another host, so Ze refuses
+a config that pairs it with an off-host remote: Ze does not start with it,
+and a reload that adds such a remote is refused and changes nothing.
+`ze config validate` does not check this yet. A dial that still meets the
+case is refused at once. Each error names the remote, the listener and the fix: bind `environment l2tp server <name> ip`
+to an address that reaches the remote, or to the wildcard of the remote's
+family (`0.0.0.0` for IPv4, `::` for IPv6) to let the route choose it. Ze
+binds a listener only when it starts, so after a reload that moves the
+listener, a dial asks for a restart instead.
+
+<!-- source: internal/component/l2tp/config.go -- validateDialSources -->
+<!-- source: cmd/ze/hub/register_l2tp.go -- registerBNGSubsystems -->
+<!-- source: internal/component/l2tp/subsystem_reload.go -- Reload, reloadDialSource -->
+<!-- source: internal/component/l2tp/reactor_dial.go -- handleDial, dialSourceUnreachable, wildcardFor -->
 
 The `relay` binding is the LAC path: a PPPoE subscriber whose Service-Name
 matches is relayed into an L2TP incoming call (ICRQ) toward the bound remote
@@ -1065,6 +1085,7 @@ each knob according to this policy:
 | `shared-secret` | Hot-apply; takes effect on new SCCRQs. Live tunnels keep the previously-negotiated state. |
 | `hello-interval` | Hot-apply; new tunnels use the new interval. Live tunnels keep theirs. |
 | `hello-retries` | Hot-apply to all reactors; affects the dead-peer deadline on the next tick. |
+| `max-retransmit` | Hot-apply; new tunnels use the new count. Live tunnels keep theirs. |
 | `max-tunnels` | Hot-apply at next admission decision. |
 | `max-sessions` | Hot-apply at next admission decision. |
 | `auth-method` | Hot-apply to new PPP sessions. |
@@ -1138,6 +1159,14 @@ silent -- far faster than the reliable engine's ~31s retransmit exhaustion,
 which is the only signal when a peer (e.g. xl2tpd) dies without sending
 StopCCN.
 
+`max-retransmit` sets that exhaustion budget: the number of retransmissions
+of an unacknowledged control message before the tunnel and all its sessions
+are cleared (RFC 2661 Section 5.8 recommends 5 and asks for it to be
+configurable). The first retransmission waits 1s and each later one doubles
+the wait up to 16s, so each retransmission above the default 5 adds 16s to
+the time a silent tunnel takes to clear. The ~31s figures in this section
+assume the default.
+
 Dead-peer detection is deliberately separate from the reliable-transport
 retransmit backoff and runs only for established tunnels, so setup
 (pre-established) and teardown (closed) retain the full ~31s retransmit
@@ -1149,6 +1178,7 @@ effect; lower `hello-interval` to get faster detection.
 
 <!-- source: internal/component/l2tp/reactor.go -- handleTick dead-peer check -->
 <!-- source: internal/component/l2tp/tunnel.go -- lastLiveness vs lastActivity -->
+<!-- source: internal/component/l2tp/reactor_setters.go -- reliableConfig, setMaxRetransmit -->
 
 ## Environment variables
 

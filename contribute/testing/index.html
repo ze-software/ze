@@ -68,7 +68,7 @@ directives, fuzz target list), see <code>docs/functional-tests.md</code>.</p>
 <li><a href="#interop-and-integration-tests">Interop and integration tests</a></li>
 </ol></li>
 <li><a href="#when-a-test-must-be-weakened">When a test must be weakened</a></li>
-<li><a href="#how-le-verify-current-mode-full-works">How ./le verify current mode full works</a>
+<li><a href="#how-le-verify-current-works">How ./le verify current works</a>
 <ol>
 <li><a href="#the-builds-the-linter-reads">The builds the linter reads</a></li>
 <li><a href="#waiting-for-the-linters-own-lock">Waiting for the linter&#39;s own lock</a></li>
@@ -91,7 +91,7 @@ directives, fuzz target list), see <code>docs/functional-tests.md</code>.</p>
 </ol></nav>
 <h2 id="first-time-setup">First-time setup</h2>
 <pre><code class="language-sh">./le setup install
-./le verify current mode full
+./le verify current
 </code></pre>
 <p><code>./le</code> is the compiled repository development entry point. Each area exposes
 its own verbs, for example <code>./le test functional plugin</code>,
@@ -132,14 +132,25 @@ changes tracked state.</p>
 </tr>
 <tr>
 <td>4</td>
-<td><code>./le verify current mode full</code></td>
-<td>Ready to commit</td>
+<td><code>./le verify current fast</code></td>
+<td>Checking the working tree before a commit</td>
 <td>about 2 minutes</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>./le verify current</code></td>
+<td>The full gate over the last commit</td>
+<td>minutes</td>
 </tr>
 </tbody>
 </table>
-<p><code>./le verify current mode full</code> is the pre-commit gate. The narrower commands
-are development tools. <code>./le job run</code> admits an individual heavy command
+<p><code>./le verify current</code> is the full gate. It runs every stage in a fresh
+detached worktree at HEAD, through the same lifecycle as <code>./le verify worktree</code>,
+so it judges the last commit and never the working tree: an edit made while it
+runs cannot move the tree it judges. <code>./le verify current fast</code> runs the
+changed-files stages in place, over the working tree, and is how uncommitted
+work gets checked. <code>./le verify current full</code> is the bare form spelled out.
+The narrower commands are development tools. <code>./le job run</code> admits an individual heavy command
 through <code>internal/le/job</code>, so concurrent sessions do not oversubscribe the
 machine.</p>
 <h3 id="component-groups-for-step-3">Component groups for step 3</h3>
@@ -203,7 +214,7 @@ right output, does the state machine transition correctly, does the encoder
 round-trip.</p>
 <pre><code class="language-sh">./le job run label bgp-message command go test ./internal/component/bgp/message/...
 ./le job run label parse-origin command go test ./internal/... -run TestParseOrigin
-./le verify current mode full
+./le verify current
 </code></pre>
 <h4 id="fixture-environment-isolation">Fixture environment isolation</h4>
 <p>Native Go test commands remove the launching le's <code>ze.repo.root</code> and
@@ -218,7 +229,10 @@ production commands retain operator checkout overrides and named-build checks.</
 <p>Direct <code>./le job run ... command go test ...</code> children use the same isolation
 at the process boundary, including Go's optional leading <code>-C</code> directory option.
 The admission process retains its root and job identity; only the test child's
-checkout/build identity is removed.</p>
+checkout/build identity is removed. The test child also gets <code>GOTMPDIR</code> set to
+the test temp dir on the home device, as every le-started test does
+(<a href="https://github.com/ze-software/ze/blob/main/docs/contributing/running-commands.md" target="_blank" rel="noopener">running-commands.md</a>, "Where a Go test keeps its temp
+dirs").</p>
 <!-- source: internal/le/job/process.go -- commandEnvironment, RunProcess -->
 <!-- source: internal/le/job/job.go -- Admission.stream -->
 <p>Tests that invoke fixture binaries remove inherited launcher identity before
@@ -354,7 +368,7 @@ suite against each mutation, and reports which mutations survived.</p>
 It is a Go tool recorded in <code>tools.go</code>. The native <code>./le test mutation combine</code>
 command combines completed reports, and <code>./le test mutation record-history</code> appends
 their per-package scores to the committed history.</p>
-<p>Mutation testing is advisory. It never gates <code>./le verify current mode full</code> or CI. A surviving mutant
+<p>Mutation testing is advisory. It never gates <code>./le verify current</code> or CI. A surviving mutant
 is a signal that a test could be stronger, not a blocking failure.</p>
 <p>One consumer reads a gomu report for a narrower question. <code>./le rfc discriminate &lt;selector&gt; report &lt;path&gt;</code> scopes the report to ONE RFC-tagged test: it keeps the
 KILLED mutants that lie in code that test's own coverage profile executes, and
@@ -440,7 +454,18 @@ They are not part of the normal development cycle.</p>
 ./le test integration iface
 ./le test qemu all-tests
 ./le test integration live-rpki
+./le test integration docker-peers   # every package test tagged `docker`
+./le test integration cleanup dry    # what a killed lab run left, and why the rest stays
+./le test integration cleanup        # remove the lab resources whose owner is gone
 </code></pre>
+<p>A package test that starts a real peer container carries <code>//go:build docker</code>,
+never <code>docker</code> and <code>integration</code> together: the integration population runs in
+the QEMU guest, which has no Docker. <code>docker-peers</code> derives its packages from
+the tree and sets <code>ZE_REQUIRE_DOCKER=1</code>. Such a test starts its server with
+<code>labtest.Start(t, spec)</code> from <code>internal/le/interoplab/labtest</code>, never with its
+own <code>exec.Command("docker")</code>, which <code>./le arch tier check</code> refuses outside
+<code>internal/le/interoplab</code>; the contract is <code>docs/architecture/testing/interop.md</code>,
+"A package test's own server container (labtest)".</p>
 <h2 id="when-a-test-must-be-weakened">When a test must be weakened</h2>
 <p>A red test means the CODE is wrong by default. Fix the code. When the coverage is
 genuinely gone, because the feature it proved was removed or another test now
@@ -472,10 +497,13 @@ three cases into one table lowers a count exactly as deleting a check does. The
 COMMIT still needs a row for it, and that row is where you say which of the two
 happened.</p>
 <p><code>./le test weakened check</code> runs the checker over the file and is a stage of
-<code>./le verify current mode full</code> in both modes. The rule is <code>ai/rules/testing.md</code>, and the design is
+<code>./le verify current</code> in both modes. The rule is <code>ai/rules/testing.md</code>, and the design is
 <code>docs/architecture/testing/test-health.md</code>.</p>
-<h2 id="how-le-verify-current-mode-full-works">How <code>./le verify current mode full</code> works</h2>
-<p><code>./le verify current mode full</code> is the pre-commit gate. It uses a two-pass strategy to stay fast:</p>
+<h2 id="how-le-verify-current-works">How <code>./le verify current</code> works</h2>
+<p><code>./le verify current</code> runs the full population in a fresh detached worktree at
+HEAD; <code>./le verify current fast</code> runs the changed-files population in place.
+<code>./le verify list full</code> and <code>./le verify list fast</code> print each population. The
+unit stages use a two-pass strategy to stay fast:</p>
 <ol>
 <li><strong>Lint</strong> (27 linters via golangci-lint)</li>
 <li><strong>Vet evidence</strong> (cross-compile the Go evidence packages for Linux)</li>
@@ -798,7 +826,7 @@ test-setup bug rather than a real failure. Keep the failure list meaningful.</p>
 <tbody>
 <tr>
 <td>Check my setup</td>
-<td><code>./le verify current mode full</code></td>
+<td><code>./le verify current</code></td>
 </tr>
 <tr>
 <td>Run one Go test</td>
@@ -814,7 +842,7 @@ test-setup bug rather than a real failure. Keep the failure list meaningful.</p>
 </tr>
 <tr>
 <td>Run the pre-commit check</td>
-<td><code>./le verify current mode full</code></td>
+<td><code>./le verify current</code></td>
 </tr>
 <tr>
 <td>Type-check every supported feature combination</td>
@@ -845,6 +873,14 @@ test-setup bug rather than a real failure. Keep the failure list meaningful.</p>
 <td><code>./le test functional web</code></td>
 </tr>
 <tr>
+<td>Run every package test that starts a real server container (<code>docker</code> tag)</td>
+<td><code>./le test integration docker-peers</code></td>
+</tr>
+<tr>
+<td>List, then remove, Docker resources a killed lab run left behind</td>
+<td><code>./le test integration cleanup dry</code>, then <code>./le test integration cleanup</code></td>
+</tr>
+<tr>
 <td>Check that every <code>*_templ.go</code> matches its <code>.templ</code> source</td>
 <td><code>./le doc check templ-output</code>. No action writes the output back (<code>./le repo generate</code> carries no templ stage), so bring it back in step with the checker's own invocation minus <code>-check</code>: <code>./le job run label templ-gen command go run -mod=vendor github.com/a-h/templ/cmd/templ generate -keep-orphaned-files -path "$PWD/internal"</code>. Both walk <code>internal/</code> only. Never run a bare <code>templ generate</code>, and switch off an editor's on-save templ integration: a bare run walks from the repo root, writes that root into every generated file, and reds the gate. <span class="ev-src"><span class="ev-ref"><code>./le</code></span></span></td>
 </tr>
@@ -860,7 +896,7 @@ test-setup bug rather than a real failure. Keep the failure list meaningful.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

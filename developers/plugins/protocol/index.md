@@ -176,6 +176,7 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `cache-consumer-unordered` | `bool` | Whether unordered cache delivery is acceptable |
 | `filters` | `[]FilterDecl` | Named route filters the plugin provides |
 | `doctor-checks` | `[]DoctorCheckDecl` | Doctor checks the plugin provides |
+| `resolver-caches` | `[]string` | Resolver caches the plugin holds clients for: `peeringdb`, `irr`, `cymru`. Set by `OnResolverCacheClear`; any other name is refused |
 | `enrichers` | `[]EnricherDecl` | Show enrichers the plugin provides |
 | `pipes` | `[]PipeDecl` | CLI pipe aliases the plugin names for its own commands |
 | `claims` | `[]string` | Exclusive runtime roles the plugin takes over |
@@ -495,12 +496,39 @@ each wire method to its registered handler.
 | `ze-plugin-callback:config-operation-rollback` | `OnConfigOperationRollback` | `ConfigOperationRollbackInput` | `ConfigOperationRollbackOutput` | Roll back config operations |
 | `ze-plugin-callback:config-operation-commit` | `OnConfigOperationCommit` | `ConfigOperationCommitInput` | `ConfigOperationCommitOutput` | Commit operation journals |
 | `ze-plugin-callback:validate-open` | `OnValidateOpen` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN message |
-| `ze-plugin-callback:filter-update` | `OnFilterUpdate` | `FilterUpdateInput` | `FilterUpdateOutput` | Filter a route update |
+| `ze-plugin-callback:filter-update` | `OnFilterUpdate` | `FilterUpdateInput` | `FilterUpdateOutput` | Filter a route update. The reactor waits `rpc.FilterUpdateTimeout` (5 s) for the answer, then applies the filter's `on-error` policy, so a handler that waits MUST bound the wait below it |
 | `ze-plugin-callback:doctor-check` | `OnDoctorCheck` | `DoctorCheckInput` | `DoctorCheckOutput` | Run a doctor check |
+| `ze-plugin-callback:resolver-cache-clear` | `OnResolverCacheClear` | `ResolverCacheClearInput` | `ResolverCacheClearOutput` | Clear a declared resolver cache of the plugin's current clients, answering the entries removed |
 | `ze-plugin-callback:enrich-show` | `OnEnrichShow` | `EnrichShowInput` | `EnrichShowOutput` | Add data to show output |
 | `ze-plugin-callback:post-startup` | `OnAllPluginsReady` | None | None | Signal that all plugins are ready |
 | No wire method (DirectBridge only) | `OnStructuredEvent` | `[]any` of `*rpc.StructuredEvent` | None | Deliver structured events without JSON |
 | `ze-plugin-callback:bye` | `OnBye` | `ByeInput` | None | Notify the plugin of shutdown |
+
+### The Filter Text an `OnFilterUpdate` Handler Reads
+
+`FilterUpdateInput.Update` is the UPDATE as text: `<name> <value>` attribute
+pairs, then one NLRI block for each section the UPDATE carries.
+
+| Block | UPDATE section |
+|-------|----------------|
+| `nlri add <prefix>...` | The legacy NLRI field, always IPv4 unicast |
+| `nlri del <prefix>...` | The legacy Withdrawn Routes, always IPv4 unicast |
+| `mp <family> add <prefix>...` | An MP_REACH_NLRI attribute, any family, IPv4 unicast included |
+| `mp <family> del <prefix>...` | An MP_UNREACH_NLRI attribute |
+
+For example: `origin igp as-path [65001] nlri add 10.0.0.0/24 mp ipv6/unicast add 2001:db8::/32`.
+Split the NLRI value at every `nlri` and `mp` token, and read the family only
+from an `mp` block. A family whose NLRI is not a CIDR prefix renders a marker
+block with no prefix (`mp l2vpn/evpn add`).
+
+A `FilterModify` answer that changes NLRI returns the whole NLRI value, in the
+same keywords, with prefixes removed and the rest in the order given. The
+engine refuses, and drops the route, an answer that adds or reorders a prefix,
+names a section the UPDATE does not carry, or changes a non-CIDR block. The
+full contract is in `docs/architecture/api/process-protocol.md`, "NLRI Blocks
+and the Modify Answer".
+<!-- source: internal/component/bgp/reactor/filter_format.go -- AppendUpdateForFilter -->
+<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- sectionNLRIDelta -->
 
 ## Runtime RPCs (Plugin to Engine)
 

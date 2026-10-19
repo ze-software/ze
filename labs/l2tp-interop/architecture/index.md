@@ -100,6 +100,9 @@ it: ze logs `tunnel now established (initiator)`, and xl2tpd logs
 by the `request l2tp outgoing-call` RPC over its token-guarded REST API.
 
 The typed plan starts `xl2tpd` and Ze in containers on the isolated lab bridge.
+Ze's L2TP listener binds `0.0.0.0`, because Ze dials from its listener socket
+and a loopback listener cannot reach the LNS on the bridge;
+`TestZeL2TPListenerReachesTheLabBridge` refuses a fixture that binds one.
 The checker triggers Ze through its REST API and requires both peers to report
 the established tunnel. The PPPoL2TP preflight is skipped when this
 control-plane-only scenario is selected alone. `xl2tpd` cannot answer the OCRQ

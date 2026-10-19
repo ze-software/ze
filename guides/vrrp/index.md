@@ -114,6 +114,7 @@ to win the higher number.
 | `accept-mode` | false | VRRPv3 only. Whether a non-owner Active accepts packets addressed to the virtual IP. False is the RFC default and means a ping to the virtual IP gets no reply from a non-owner. Forwarding, ARP and Neighbor Discovery are unaffected. |
 | `advertise-interval-milliseconds` | 1000 | How often the Active router advertises. |
 | `version` | 3 | `2` opts this group into VRRPv2. |
+| `checksum` | rfc9568 | IPv4 VRRPv3 only. `rfc5798-compatible` computes the checksum over the IPv4 pseudo-header as RFC 5798 did, which keepalived requires. See [Running beside keepalived](#running-beside-keepalived). |
 | `track` | absent | Interfaces whose loss lowers the priority this group advertises. See [Tracking an interface](#tracking-an-interface). |
 
 ### Tracking an interface
@@ -199,6 +200,31 @@ flapping election.
 
 RFC 3768's authentication types are deliberately not implemented: RFC 9568
 Section 9 removed them, as they protect against no real attack.
+
+### Running beside keepalived
+
+RFC 9568 computes the IPv4 VRRPv3 checksum over the VRRP message alone, and ze
+does the same by default. keepalived, and other routers written to RFC 5798,
+compute it over an IPv4 pseudo-header as well and drop an advertisement in the
+other form, so the two routers never hear each other and both take the virtual
+IP. Set `checksum rfc5798-compatible` on a group that shares its segment with
+them:
+
+```
+vrrp {
+    group gateway {
+        vrid 10;
+        checksum rfc5798-compatible;
+        virtual-address [ 192.0.2.1 ];
+    }
+}
+```
+
+A group accepts only the form it is configured for, so every router in the
+group needs the same choice. A mismatch shows up as a rising `checksum` count
+in `show vrrp statistics` and the `ze_vrrp_packet_errors_total` metric. The leaf
+exists only for IPv4: IPv6 covers a pseudo-header in both RFCs. Version 2 always
+sums the message alone and refuses `rfc5798-compatible`.
 
 ### IPv6
 
@@ -362,7 +388,7 @@ A few consequences of this mechanism are worth knowing:
 | `show vrrp` | Every group: state, priority, vrid, virtual addresses. |
 | `show vrrp interface name eth0` | Only the groups on one interface. |
 | `show vrrp statistics` | Per-group counters, including rejected packets and why. |
-| `clear vrrp statistics` | Resets those counters. |
+| `clear vrrp statistics all` | Resets every group's counters. `clear vrrp statistics` alone is refused. |
 
 State changes are logged as `vrrp: state change` with `from`, `to`, and a
 `reason`, so a failover leaves a record of what triggered it.

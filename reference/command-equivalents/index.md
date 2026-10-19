@@ -1,6 +1,6 @@
 # Command Equivalents
 
-474 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+481 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -8,7 +8,7 @@ These rows have at least one listed vendor command.
 
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
 | --- | --- | --- | --- | --- | --- | --- |
-| `clear interface counters` | Daemon | - | - | - | `clear interfaces ethernet <name> counters` | [details](clear-interface-counters/) |
+| `clear interface counters all` | Daemon | - | - | - | `clear interfaces ethernet <name> counters` | [details](clear-interface-counters-all/) |
 | `clear interface name counters` | Daemon | - | - | - | `clear interfaces ethernet <name> counters` | [details](clear-interface-name-counters/) |
 | `request commit` | Daemon | - | - | - | `commit` | [details](request-commit/) |
 | `request halt` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-halt/) |
@@ -67,26 +67,33 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `clear bgp healthcheck` | Daemon | - | - | - | - | [details](clear-bgp-healthcheck/) |
 | `clear bgp rib in` | Daemon | - | - | - | - | [details](clear-bgp-rib-in/) |
 | `clear bgp rib out` | Daemon | - | - | - | - | [details](clear-bgp-rib-out/) |
+| `clear cymru cache address` | Daemon | - | - | - | - | [details](clear-cymru-cache-address/) |
+| `clear cymru cache all` | Daemon | - | - | - | - | [details](clear-cymru-cache-all/) |
 | `clear debug` | Daemon | - | - | - | - | [details](clear-debug/) |
-| `clear dns cache` | Daemon | - | - | - | - | [details](clear-dns-cache/) |
+| `clear dns cache all` | Daemon | - | - | - | - | [details](clear-dns-cache-all/) |
 | `clear dns cache record` | Daemon | - | - | - | - | [details](clear-dns-cache-record/) |
 | `clear dns cache stats` | Daemon | - | - | - | - | [details](clear-dns-cache-stats/) |
 | `clear firewall domain-group` | Daemon | - | - | - | - | [details](clear-firewall-domain-group/) |
 | `clear firewall irr as-set` | Daemon | - | - | - | - | [details](clear-firewall-irr-as-set/) |
 | `clear firewall irr asn` | Daemon | - | - | - | - | [details](clear-firewall-irr-asn/) |
-| `clear interface counters` | Daemon | - | - | - | `clear interfaces ethernet <name> counters` | [details](clear-interface-counters/) |
+| `clear interface counters all` | Daemon | - | - | - | `clear interfaces ethernet <name> counters` | [details](clear-interface-counters-all/) |
 | `clear interface name counters` | Daemon | - | - | - | `clear interfaces ethernet <name> counters` | [details](clear-interface-name-counters/) |
-| `clear isis adjacency` | Daemon | - | - | - | - | [details](clear-isis-adjacency/) |
+| `clear irr cache all` | Daemon | - | - | - | - | [details](clear-irr-cache-all/) |
+| `clear irr cache as-set` | Daemon | - | - | - | - | [details](clear-irr-cache-as-set/) |
+| `clear isis adjacency all` | Daemon | - | - | - | - | [details](clear-isis-adjacency-all/) |
 | `clear isis counters` | Daemon | - | - | - | - | [details](clear-isis-counters/) |
 | `clear l2tp session all` | Daemon | - | - | - | - | [details](clear-l2tp-session-all/) |
 | `clear l2tp session id` | Daemon | - | - | - | - | [details](clear-l2tp-session-id/) |
 | `clear l2tp tunnel all` | Daemon | - | - | - | - | [details](clear-l2tp-tunnel-all/) |
 | `clear l2tp tunnel id` | Daemon | - | - | - | - | [details](clear-l2tp-tunnel-id/) |
 | `clear ospf counters` | Daemon | - | - | - | - | [details](clear-ospf-counters/) |
-| `clear ospf neighbor` | Daemon | - | - | - | - | [details](clear-ospf-neighbor/) |
-| `clear ospf process` | Daemon | - | - | - | - | [details](clear-ospf-process/) |
-| `clear vpn ipsec sa` | Daemon | - | - | - | - | [details](clear-vpn-ipsec-sa/) |
-| `clear vrrp statistics` | Daemon | - | - | - | - | [details](clear-vrrp-statistics/) |
+| `clear ospf neighbor all` | Daemon | - | - | - | - | [details](clear-ospf-neighbor-all/) |
+| `clear ospf process all` | Daemon | - | - | - | - | [details](clear-ospf-process-all/) |
+| `clear peeringdb cache all` | Daemon | - | - | - | - | [details](clear-peeringdb-cache-all/) |
+| `clear peeringdb cache asn` | Daemon | - | - | - | - | [details](clear-peeringdb-cache-asn/) |
+| `clear vpn ipsec sa all` | Daemon | - | - | - | - | [details](clear-vpn-ipsec-sa-all/) |
+| `clear vpn ipsec sa peer` | Daemon | - | - | - | - | [details](clear-vpn-ipsec-sa-peer/) |
+| `clear vrrp statistics all` | Daemon | - | - | - | - | [details](clear-vrrp-statistics-all/) |
 
 ### create
 

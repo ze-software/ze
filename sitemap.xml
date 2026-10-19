@@ -1201,6 +1201,9 @@
     <loc>https://ze-software.net/quality/rfc-compliance/rfc9830/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc9915/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/rfc-compliance/sflow-v5/</loc>
   </url>
   <url>
@@ -1228,16 +1231,22 @@
     <loc>https://ze-software.net/reference/command-equivalents/clear-bgp-rib-out/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-cymru-cache-address/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-cymru-cache-all/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-debug/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-dns-cache-all/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-dns-cache-record/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-dns-cache-stats/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/clear-dns-cache/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-firewall-domain-group/</loc>
@@ -1249,13 +1258,19 @@
     <loc>https://ze-software.net/reference/command-equivalents/clear-firewall-irr-asn/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/clear-interface-counters/</loc>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-interface-counters-all/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-interface-name-counters/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/clear-isis-adjacency/</loc>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-irr-cache-all/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-irr-cache-as-set/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-isis-adjacency-all/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-isis-counters/</loc>
@@ -1276,16 +1291,25 @@
     <loc>https://ze-software.net/reference/command-equivalents/clear-ospf-counters/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/clear-ospf-neighbor/</loc>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-ospf-neighbor-all/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/clear-ospf-process/</loc>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-ospf-process-all/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/clear-vpn-ipsec-sa/</loc>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-peeringdb-cache-all/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/clear-vrrp-statistics/</loc>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-peeringdb-cache-asn/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-vpn-ipsec-sa-all/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-vpn-ipsec-sa-peer/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-vrrp-statistics-all/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/create-bgp-peer/</loc>

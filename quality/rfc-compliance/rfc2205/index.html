@@ -320,8 +320,8 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>3.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L20" title="internal/plugins/rsvpte/literals_rfc_test.go" target="_blank" rel="noopener"><code>TestRFC2205EmittedVersionIsOne</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L409" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPHeaderRoundTrip</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L443" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPDecodeHeaderBadVersion</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L408" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPHeaderRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L442" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPDecodeHeaderBadVersion</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2205-3.1-2">RFC2205-3.1-2</code></td><td colspan="3"><span class="rfc-subject">All unused fields should be sent as zero and ignored on receipt. (§A)</span></td></tr>
@@ -330,7 +330,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>A - Appendix A</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L35" title="internal/plugins/rsvpte/literals_rfc_test.go" target="_blank" rel="noopener"><code>TestRFC2205UnusedHeaderFieldsIgnoredOnReceipt</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L585" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPReservedByteZeroOnSend</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L584" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPReservedByteZeroOnSend</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze sets the reserved byte to 0 on send (internal/plugins/rsvpte/wire.go:177) and the RFC does not require receivers to reject a nonzero reserved field, so no negative case exists</p></td>
 </tr>
@@ -339,7 +339,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>MUST</td>
 <td>3.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3.1.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L606" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPObjectLengthMultipleOfFour</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L605" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPObjectLengthMultipleOfFour</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L48" title="internal/plugins/rsvpte/rfc2205_carrier_test.go" target="_blank" rel="noopener"><code>TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected</code></a></span></div>
 </div></td>
 </tr>
@@ -380,8 +380,8 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>MUST</td>
 <td>3.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3.10-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L724" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestDecodeUnknownObjectClass</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L731" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestDecodeUnknownObjectClass</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L723" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestDecodeUnknownObjectClass</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L730" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestDecodeUnknownObjectClass</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L949" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestEnginePathWithIgnorableObjectAccepted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L230" title="internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go" target="_blank" rel="noopener"><code>TestRFC2205UnknownClassPathRejectedWithError</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L250" title="internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go" target="_blank" rel="noopener"><code>TestRFC2205UnknownClassResvRejectedWithError</code></a></span></div>
@@ -1262,7 +1262,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L443" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPDecodeHeaderBadVersion</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L442" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPDecodeHeaderBadVersion</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1272,7 +1272,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L409" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPHeaderRoundTrip</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L408" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPHeaderRoundTrip</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1292,7 +1292,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L585" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPReservedByteZeroOnSend</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L584" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPReservedByteZeroOnSend</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1312,7 +1312,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L606" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPObjectLengthMultipleOfFour</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L605" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPObjectLengthMultipleOfFour</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1427,12 +1427,12 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L731" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestDecodeUnknownObjectClass</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L730" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestDecodeUnknownObjectClass</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L724" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestDecodeUnknownObjectClass</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L723" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestDecodeUnknownObjectClass</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2567,7 +2567,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:43 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

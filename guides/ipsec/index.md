@@ -240,6 +240,39 @@ toward the anchor. Ze sends its own chain the same way: the `certificate` entry
 first, then the intermediate that PKI entry carries. A refusal names the anchor
 and the number of intermediate certificates the peer supplied.
 
+An `eap-tls` peer whose EAP-TLS client sends its certificate without the
+intermediate that issued it can still authenticate. Store that intermediate as a
+PKI `ca` entry and name it in `intermediate-certificate`, a list. When Ze is the
+EAP-TLS authenticator, it builds the client's path from the certificates the
+client sent plus this list, anchored at `ca-certificate` only: an intermediate
+completes a path and never ends one. On TLS 1.3 the client certificate's
+revocation status must be read, so give the intermediate entry its own `crl`.
+RFC 5216 Section 5.3 asks the authenticator to obtain the intermediates a path
+needs. Ze does not fetch them from the Authority Information Access URL, so
+that SHOULD is not met; this list is the pre-configuration the same section
+names for a server that cannot retrieve them.
+
+```
+pki {
+    ca corp-root { certificate "<pem>"; crl "<pem>"; }
+    ca corp-sub  { certificate "<pem>"; crl "<pem>"; }
+}
+vpn ipsec site-to-site peer branch authentication {
+    mode eap-tls
+    certificate ze-server
+    ca-certificate corp-root
+    intermediate-certificate corp-sub
+}
+```
+
+Commit and reload refuse a name that is not a PKI `ca` entry, an entry that is
+not a CA certificate, and the list on a peer whose mode is not `eap-tls`, where
+nothing would read it.
+
+<!-- source: internal/component/ike/ipsec/validate.go -- ValidateIntermediateRefs -->
+<!-- source: internal/core/eap/client_chain.go -- clientChainVerifier.verify -->
+<!-- source: internal/component/ike/engine/responder_eap.go -- eapTLSServerConfig reads intermediate-certificate -->
+
 Ze refuses a config that names no `ca-certificate` at commit and at reload. It
 does NOT refuse it under `ze config validate`, which reads the schema and does
 not run a plugin's config verifier.
@@ -870,21 +903,119 @@ set vpn ipsec unmatched discard
 
 | Value | Meaning |
 |---|---|
-| `bypass` (default) | Traffic no entry matches crosses the boundary in the clear, which is what the kernel did before the entry existed |
-| `discard` | Traffic no entry matches is dropped, the disposition Section 5 names |
+| `discard` (default) | Traffic no entry matches is dropped, the disposition Section 5 names |
+| `bypass` | Traffic no entry matches crosses the boundary in the clear, which is what the kernel did before the entry existed |
 
-The default is `bypass` because a router's own control plane (BGP, SSH, DNS)
-crosses the IPsec boundary in the clear, and a default of `discard` would stop
-it the moment `vpn ipsec` was configured. That default deviates from RFC 4301
-Section 4.4.1: "Every SPD SHOULD have a nominal, final entry that matches
-anything that is otherwise unmatched, and discards it." With `bypass`, the
-final entry passes that traffic instead, so Ze does not meet the SHOULD out of
-the box and the RFC 4301 page lists it as a gap. `set vpn ipsec unmatched
-discard` gives the behavior the section asks for. With `discard`, write a `bypass`
-entry under `policy` for every flow that must still cross in the clear. The IKE
-control-plane bypass at order 100 is installed either way, so the tunnels can
-still be negotiated. The entry is re-asserted on every apply and removed when
-the engine stops.
+The default is `discard`, the entry RFC 4301 Section 4.4.1 asks for: "Every
+SPD SHOULD have a nominal, final entry that matches anything that is otherwise
+unmatched, and discards it." Until 2026-10-18 the default was `bypass`; the
+owner reversed that ruling (R27) to follow the RFC.
+
+The catch-all also drops the router's own traffic wherever it crosses in
+the clear:
+
+- BGP sessions, SSH and web logins, DNS and NTP.
+- ICMP: ping, traceroute, the probes of `show mtu`, and the path-MTU errors
+  ("fragmentation needed", "packet too big") that tell the router to send
+  smaller packets.
+- IPv6 neighbor discovery. It is ICMPv6 (protocol 58), and the catch-all
+  matches every protocol, so with no bypass the router cannot resolve an IPv6
+  neighbor on a link and sends it nothing.
+
+Only IKE (UDP 500 and 4500, the control-plane bypass at order 100), the
+negotiated tunnels and your `policy` entries stay open. So write a `bypass`
+entry under `policy` for every flow that must still cross in the clear, for
+example a BGP neighbor:
+
+```
+set vpn ipsec policy frr-bgp action bypass
+set vpn ipsec policy frr-bgp local prefix 172.28.0.2/32
+set vpn ipsec policy frr-bgp remote prefix 172.28.0.4/32
+```
+
+and ICMP for both address families, which keeps ping, traceroute, `show mtu`,
+path-MTU errors and IPv6 neighbor discovery working:
+
+```
+set vpn ipsec policy icmp4 action bypass
+set vpn ipsec policy icmp4 protocol 1
+set vpn ipsec policy icmp4 order 3000
+set vpn ipsec policy icmp4 local prefix 0.0.0.0/0
+set vpn ipsec policy icmp4 remote prefix 0.0.0.0/0
+set vpn ipsec policy icmp6 action bypass
+set vpn ipsec policy icmp6 protocol 58
+set vpn ipsec policy icmp6 order 3000
+set vpn ipsec policy icmp6 local prefix ::/0
+set vpn ipsec policy icmp6 remote prefix ::/0
+```
+
+Order 3000 ranks these entries after a tunnel's default 2000, so ICMP that a
+tunnel's traffic selectors cover still goes through the tunnel. The refusal and
+the start-up log below print the same ICMP example.
+
+Or write `set vpn ipsec unmatched bypass` to pass all of that traffic.
+
+Ze cannot list those flows for you: they live in every other part of the
+configuration and in the routing table, and an exemption list that missed one
+would cut it with nobody told. Instead, a commit that would turn the discard on
+while `unmatched` is unset is refused, so nobody configuring `vpn ipsec` over
+SSH cuts their own session by default:
+
+```
+ike config: this commit turns on the SPD catch-all DISCARD without saying so: `vpn ipsec unmatched` is not set and its default is discard (RFC 4301 Section 4.4.1). ...
+```
+
+The refusal names what stays open, including how many `policy` bypass entries
+you have, and the two commands that settle it: add the `bypass` entries, then
+`set vpn ipsec unmatched discard`; or `set vpn ipsec unmatched bypass`. It
+fires only when the commit would turn the discard on: a written `unmatched`
+leaf, either value, always passes, and so does a commit to a box whose catch-all
+already discards.
+
+The check runs on commit only. A configuration the daemon starts with is not
+verified, so start-up decides from the file's schema stamp (its first line,
+`# ze-schema: YY.MM.DD`, naming the release that saved it) which default the
+file was written under:
+
+| The file | At start |
+|---|---|
+| Stamped 26.10.18 or earlier, `vpn ipsec` present, `unmatched` unset | The schema evolution `ipsec-unmatched-keeps-bypass` writes `unmatched bypass` into it. A config file is saved back, re-stamped; a config piped on stdin is changed in memory only, so the evolution runs again at every start. The router keeps the catch-all it ran with, and the start log says so at warning level |
+| Stamped 26.10.19 or later, `unmatched` unset | Discard, the default, with the error log below |
+| No stamp (written by hand, piped on stdin), or a dev build's `dev` stamp | Discard, the default, with the error log below |
+| `unmatched` written, either value | As written |
+
+A file with no stamp proves no release, so it gets the RFC default rather than
+a guess: write `unmatched bypass` into it to keep passing unmatched traffic. The
+release is the build date, so a binary built on 2026-10-18 may hold either
+default; every build made that day stamps 26.10.18, and every file it saved is
+read as old. The cost falls on one
+case: a file a 26.10.18 build saved with the leaf unset while the discard was
+already in force also gains `unmatched bypass`, so write `unmatched discard` in
+it to keep the discard. The evolution runs at start only, never on a reload.
+After a downgrade recovers a rollback from history, the evolution reads the
+stamp the rollback was saved with, not the one recovery writes over it.
+
+When the evolution applies, the start log says so at warning level, which the
+default log level shows:
+
+```
+level=WARN msg="config evolution changed behavior" config=/etc/ze/ze.conf evolution=ipsec-unmatched-keeps-bypass change="wrote `vpn ipsec unmatched bypass`: ... then run `set vpn ipsec unmatched discard` and commit" saved="saved: ..."
+```
+
+When the daemon starts with the discard in force by default, it logs it at
+error level, with the same facts and commands as the refusal, so the console
+says why BGP or SSH went quiet:
+
+```
+ike: the SPD catch-all DISCARD is in force because `vpn ipsec unmatched` is not set and its default is discard (RFC 4301 Section 4.4.1): ... bypass-entries=0
+```
+
+A box with no `vpn ipsec` block keeps a `bypass` catch-all: it configured no
+IPsec boundary.
+
+The IKE control-plane bypass at order 100 is installed either way, so the
+tunnels can still be negotiated. The entry is re-asserted on every apply and
+removed when the engine stops.
 
 #### When the entry is not there
 
@@ -894,7 +1025,7 @@ applied:
 
 | Situation | `discard` | `bypass` |
 |---|---|---|
-| The dataplane cannot hold an entry bound to no interface: the VPP backend, a build off Linux, or a kernel without XFRM | Refused at commit | Accepted; no entry is installed, and the kernel passes the traffic |
+| The dataplane cannot hold an entry bound to no interface: the VPP backend, a build off Linux, or a kernel without XFRM | Refused at commit. A configuration the daemon starts with is not verified, so a start with `unmatched` unset (or `discard`) fails instead: installing the discard entry fails, and the configure step returns that error. Fix: `set vpn ipsec unmatched bypass` in the configuration file, then start again | Accepted; no entry is installed, and the kernel passes the traffic |
 | No dataplane loaded (the daemon logged that the load failed) | Refused at commit | Accepted; no entry is installed |
 | The install itself fails when the configuration is applied, which includes a daemon without `CAP_NET_ADMIN`: it can open the XFRM socket, so the commit check passes, and the kernel refuses the install | The apply fails with the error, and the configuration is not reported applied: a commit is refused, and at startup the configure step returns the error | Logged as a warning; the kernel passes the traffic |
 | Before the first configuration is applied, and after the engine stops | No entry exists, and the kernel passes the traffic in the clear | Same |
@@ -916,7 +1047,8 @@ the entries are then already installed when the catch-all starts dropping. A
 window.
 
 <!-- source: internal/component/ike/ipsec/config.go -- parseUnmatched -->
-<!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched, verifyUnmatchedEnforceable -->
+<!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched, verifyUnmatchedEnforceable, refuseImplicitDiscard, warnImplicitDiscardAtStart -->
+<!-- source: internal/component/ike/ipsec/unmatched_evolution.go -- unmatchedBypassEvolution -->
 <!-- source: internal/component/ike/engine/apply.go -- applyConfig -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- CatchAllInstaller -->
 <!-- source: internal/component/ike/ipsec/spd_policy.go -- SPDPolicy, parseSPDPolicy, ValidateSPDPolicies -->
@@ -1205,7 +1337,7 @@ and carries no traffic.
 | `show vpn ipsec dataplane sa [spi <spi>]` | The SAs the kernel holds. See Reading the kernel dataplane |
 | `show vpn ipsec dataplane policy` | The policies the kernel holds |
 | `show vpn ipsec dataplane drift` | Child SAs the engine expects that the kernel does not hold. Exits non-zero on drift |
-| `clear vpn ipsec sa [peer <name>]` | Tear down and re-establish SAs, optionally for one peer |
+| `clear vpn ipsec sa all`, `clear vpn ipsec sa peer <name>` | Tear down and re-establish every SA, or one peer's. The bare `clear vpn ipsec sa` is refused and names both forms |
 | `monitor vpn ipsec` | Stream `sa-up`, `sa-down`, `child-up`, `child-down`, and `child-rekey` lifecycle events |
 | `show pki certificates` | List loaded certificates with expiry information |
 
@@ -1230,7 +1362,7 @@ three, with the transform, are what size an ESP packet on the tunnel.
 
 <!-- source: internal/component/ike/cmd/show_ipsec.go -- saToMap -->
 
-`clear vpn ipsec sa` sends a best-effort encrypted IKE Delete before removing
+Both `clear vpn ipsec sa` forms send a best-effort encrypted IKE Delete before removing
 local state. Initiator peers then re-establish immediately. If the UDP Delete is
 lost, the normal DPD path still removes the stale remote SA.
 

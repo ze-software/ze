@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 9 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 16.7% | 3 of 18 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 72.2% | 13 of 18 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -64,7 +64,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 18 |
 | Tagged units | 18 |
 | Recorded audit verdicts | 7 |
-| Discrimination records | 3 |
+| Discrimination records | 13 |
 | Summary | `rfc/short/rfc8956.md` |
 | Requirement shard | `rfc/requirements/rfc8956.md` |
 | RFC text | `rfc/full/rfc8956.txt` |
@@ -111,14 +111,14 @@ Linux firewall packet verification requires the privileged integration carrier. 
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC8956-2-1` | Implementations wishing to exchange IPv6 Flow Specifications MUST use BGP's Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) (§2) | MUST | 2 | **positive:** `unit/verify` [`TestIPv6FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L856). **negative:** no negative test. **{single-polarity}:** the flowspec plugin unconditionally maps its declared ipv6/flow decode family to a Multiprotocol capability during OPEN; there is no wrong input the negotiation path rejects, so no negative case exists |
-| `RFC8956-2-2` | The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be (AFI=2, SAFI=133) for IPv6 Flow Specification rules and (AFI=2, SAFI=134) for L3VPN (§2) | MUST | 2 | **positive:** `unit/verify` [`TestFlowSpecIPv6Basic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L439). **positive:** `unit/verify` [`TestFlowSpecVPNFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L654). **negative:** no negative test. **{single-polarity}:** the (AFI 2, SAFI 133/134) assignment is a family-registration constant, not an input guard; the code accepts no alternative value it could reject, so only the positive assignment is assertable |
-| `RFC8956-3.1-1` | Padding bits MUST be 0 on encoding (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L11). **negative:** `unit/verify` [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L12) |
-| `RFC8956-3.1-2` | Padding bits MUST be 0 on encoding and MUST be ignored on decoding. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L13). **negative:** `unit/verify` [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L14) |
-| `RFC8956-3.6-1` | The Type 12 component bitmask MUST be encoded as a single octet bitmask (bitmask_op len=00). (§3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestRFC8956FragmentSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L10). **negative:** `unit/verify` [`TestRFC8956FragmentSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L11) |
-| `RFC8956-3.6-2` | 0: MUST be set to 0 on NLRI encoding (§3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestRFC8956FragmentEncodingRespectsEnclosingFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L45). **negative:** `unit/verify` [`TestRFC8956FragmentEncodingRespectsEnclosingFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L46) |
-| `RFC8956-3.6-3` | 0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestRFC8956FragmentDecodeIgnoresReservedBits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L69). **negative:** `unit/verify` [`TestRFC8956FragmentDecodeIgnoresReservedBits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L70) |
-| `RFC8956-3.1-3` | If length = 0 and offset = 0, this component matches every address; otherwise, length MUST be in the range offset < length < 129 or the component is malformed. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestIPv6FlowPrefixRejectsMalformedBounds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L44). **positive:** `unit/verify` [`TestRFC8956ZeroLengthZeroOffsetMatchesEveryAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8956_zero_prefix_test.go#L26). **negative:** `unit/verify` [`TestIPv6FlowPrefixRejectsMalformedBounds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L45) |
+| `RFC8956-2-1` | Implementations wishing to exchange IPv6 Flow Specifications MUST use BGP's Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) (§2) | MUST | 2 | **positive:** `unit/verify` [`TestIPv6FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L857). **negative:** no negative test. **{single-polarity}:** the flowspec plugin unconditionally maps its declared ipv6/flow decode family to a Multiprotocol capability during OPEN; there is no wrong input the negotiation path rejects, so no negative case exists |
+| `RFC8956-2-2` | The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be (AFI=2, SAFI=133) for IPv6 Flow Specification rules and (AFI=2, SAFI=134) for L3VPN (§2) | MUST | 2 | **positive:** `unit/verify` [`TestFlowSpecIPv6Basic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L440). **positive:** `unit/verify` [`TestFlowSpecVPNFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L655). **negative:** no negative test. **{single-polarity}:** the (AFI 2, SAFI 133/134) assignment is a family-registration constant, not an input guard; the code accepts no alternative value it could reject, so only the positive assignment is assertable |
+| `RFC8956-3.1-1` | Padding bits MUST be 0 on encoding (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go#L11). **negative:** `unit/verify` [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go#L12) |
+| `RFC8956-3.1-2` | Padding bits MUST be 0 on encoding and MUST be ignored on decoding. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go#L13). **negative:** `unit/verify` [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go#L14) |
+| `RFC8956-3.6-1` | The Type 12 component bitmask MUST be encoded as a single octet bitmask (bitmask_op len=00). (§3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestRFC8956FragmentSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L10). **negative:** `unit/verify` [`TestRFC8956FragmentSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L11) |
+| `RFC8956-3.6-2` | 0: MUST be set to 0 on NLRI encoding (§3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestRFC8956FragmentEncodingRespectsEnclosingFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L45). **negative:** `unit/verify` [`TestRFC8956FragmentEncodingRespectsEnclosingFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L46) |
+| `RFC8956-3.6-3` | 0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestRFC8956FragmentDecodeIgnoresReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L69). **negative:** `unit/verify` [`TestRFC8956FragmentDecodeIgnoresReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L70) |
+| `RFC8956-3.1-3` | If length = 0 and offset = 0, this component matches every address; otherwise, length MUST be in the range offset < length < 129 or the component is malformed. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestIPv6FlowPrefixRejectsMalformedBounds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L12). **positive:** `unit/verify` [`TestRFC8956ZeroLengthZeroOffsetMatchesEveryAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8956_zero_prefix_test.go#L26). **negative:** `unit/verify` [`TestIPv6FlowPrefixRejectsMalformedBounds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L13) |
 | `RFC8956-5-1` | item a) of the validation procedure should now read as follows: \| a) A destination prefix component with offset=0 is embedded in \| the Flow Specification (§5) | MUST | 5 | **positive:** `unit/verify` [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L292). **negative:** `unit/verify` [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L293) |
 | `RFC8956-3.3-1` | Type 3 component values SHOULD be encoded as a single octet (numeric_op len=00). (§3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8956-3.4-1` | Type 7 component values SHOULD be encoded as a single octet (numeric_op len=00). (§3.4) | SHOULD | 3.4 | **positive:** no positive test. **negative:** no negative test |
@@ -142,7 +142,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIPv6FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L856) | unit/verify | unproven |
+| positive | [`TestIPv6FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L857) | unit/verify | unproven |
 
 ### [`RFC8956-2-2`](#rfc8956-2-2)
 
@@ -152,74 +152,74 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestFlowSpecIPv6Basic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L439) | unit/verify | unproven |
-| positive | [`TestFlowSpecVPNFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L654) | unit/verify | unproven |
+| positive | [`TestFlowSpecIPv6Basic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L440) | unit/verify | unproven |
+| positive | [`TestFlowSpecVPNFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L655) | unit/verify | unproven |
 
 ### [`RFC8956-3.1-1`](#rfc8956-3.1-1)
 
 Padding bits MUST be 0 on encoding (§3.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Non-compliant: nonzero padding bits emitted. TestIPv6FlowPrefixPatternAndPadding re-encodes received patterns whose padding is 0xff and asserts fs.Bytes() and WriteTo equal the canonical zero-padded bytes (e.g. 0xff -> 0xfe for 72/65), and asserts a configured 2001:db8:ffff::/33 encodes its last octet as 0x80 with host bits cleared. Both polarities present.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16: TestIPv6FlowPrefixPatternAndPadding moved verbatim to core internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go, with only the family identifier renamed (test-local AFI 2/SAFI 133). RFC 8956 Section 3.1: "Padding bits MUST be 0 on encoding and MUST be ignored on decoding." Encode clause: received patterns padded with 0xff must re-encode through both Bytes() and WriteTo to the canonical zero-padded bytes (0xff becomes 0xfe for 72/65, 0xff becomes 0xc0 for 17/7), and a configured 2001:db8:ffff::/33 must encode its last pattern octet as exactly 0x80.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L12) | unit/verify | unproven |
-| positive | [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L11) | unit/verify | unproven |
+| negative | [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go#L12) | unit/verify | revert, verified |
+| positive | [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go#L11) | unit/verify | revert, verified |
 
 ### [`RFC8956-3.1-2`](#rfc8956-3.1-2)
 
 Padding bits MUST be 0 on encoding and MUST be ignored on decoding. (§3.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. The quote carries both clauses. Encoding: the canonical-bytes assertions described for RFC8956-3.1-1 go red if padding is emitted nonzero. Decoding: inputs with padding 0xff must parse without error and comp.Prefix() must equal the prefix built from pattern bits only (::7f00:0:0:0/72, 103:8000::/17); a decoder that read padding into the match or rejected nonzero padding fails require.NoError or the Prefix assertion.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16: same unit as RFC8956-3.1-1, moved verbatim to core. The quote carries both clauses. Encoding is proven by the canonical-bytes assertions. Decoding: inputs with 0xff padding must parse without error, and comp.Prefix() must equal the pattern-only prefix (::7f00:0:0:0/72, 103:8000::/17) with the exact offset. A decoder that read padding into the match, or rejected nonzero padding, fails require.NoError or the Prefix assertion.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L14) | unit/verify | unproven |
-| positive | [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L13) | unit/verify | unproven |
+| negative | [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go#L14) | unit/verify | revert, verified |
+| positive | [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go#L13) | unit/verify | revert, verified |
 
 ### [`RFC8956-3.6-1`](#rfc8956-3.6-1)
 
 The Type 12 component bitmask MUST be encoded as a single octet bitmask (bitmask_op len=00). (§3.6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Non-compliant: a fragment bitmask encoded wider than one octet. TestRFC8956FragmentSingleOctet encodes a value of ^uint64(0) through IPv6 FlowSpec and VPN producers and asserts the exact bytes {12, 0x81, 0x0e} (len=00, one octet) via WriteTo and Bytes(); the negative requires ParseFlowSpec/ParseFlowSpecVPN to error on a 0x91 (len=01) two-octet operand.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16: the unit moved to core rfc8956_fragment_test.go. It changed only by the family identifiers and the now-exported NewFlowFragmentMatchComponent. RFC 8956 Section 3.6: "The Type 12 component bitmask MUST be encoded as a single octet bitmask (bitmask_op len=00)." A value of ^uint64(0) through the IPv6 FlowSpec and IPv6 VPN producers must encode exactly {12, 0x81, 0x0e} (len=00, one octet) via WriteTo and Bytes(), so core writeToAFI applies fragmentMask before choosing the width. The negative requires ParseFlowSpec/ParseFlowSpecVPN to refuse a 0x91 (len=01) two-octet operand.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8956FragmentSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L11) | unit/verify | unproven |
-| positive | [`TestRFC8956FragmentSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L10) | unit/verify | unproven |
+| negative | [`TestRFC8956FragmentSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L11) | unit/verify | revert, verified |
+| positive | [`TestRFC8956FragmentSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L10) | unit/verify | revert, verified |
 
 ### [`RFC8956-3.6-2`](#rfc8956-3.6-2)
 
 0: MUST be set to 0 on NLRI encoding (§3.6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Non-compliant: a reserved bit set in an encoded IPv6 fragment operand. TestRFC8956FragmentEncodingRespectsEnclosingFamily adds DF|IsF and asserts the IPv6 and IPv6-VPN encodings carry 2 (DF bit cleared) while IPv4 carries 3; IsF/FF/LF emit 2, 4, 8. High reserved bits are cleared in the 3.6-1 unit (0x0e from all-ones).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16: the unit moved verbatim to core, with only the family identifiers renamed. RFC 8956 Section 3.6: "0: MUST be set to 0 on NLRI encoding". One shared component carrying DF|IsF, FF and LF must encode IPv6 and IPv6-VPN as 2, 4, 8 (DF, reserved in Figure 1, cleared), while IPv4 and IPv4-VPN keep 3. Core fragmentMask(AFIIPv6)=0x0e is what clears it. The high reserved bits are covered by the 3.6-1 unit.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8956FragmentEncodingRespectsEnclosingFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L46) | unit/verify | unproven |
-| positive | [`TestRFC8956FragmentEncodingRespectsEnclosingFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L45) | unit/verify | unproven |
+| negative | [`TestRFC8956FragmentEncodingRespectsEnclosingFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L46) | unit/verify | revert, verified |
+| positive | [`TestRFC8956FragmentEncodingRespectsEnclosingFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L45) | unit/verify | revert, verified |
 
 ### [`RFC8956-3.6-3`](#rfc8956-3.6-3)
 
 0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§3.6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. The quote carries both clauses. Decoding: TestRFC8956FragmentDecodeIgnoresReservedBits parses operands 0xf3, 0xf5, 0xf9, 0xf1 (every reserved bit set) without error and asserts Matches() is IsF, FF, LF, 0; a decoder that kept or rejected reserved bits fails. Encoding: the re-encoded NLRI must equal want with reserved bits zeroed (2, 4, 8, 0).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16: the unit moved verbatim to core, with only the family identifiers renamed. The quote carries both clauses. Decoding: operands 0xf3, 0xf5, 0xf9, 0xf1, each carrying every reserved bit, must parse without error for IPv6 and IPv6-VPN, and Matches() must equal exactly IsF, FF, LF, 0. Encoding: the re-encoded NLRI must equal the input with reserved bits zeroed (2, 4, 8, 0).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8956FragmentDecodeIgnoresReservedBits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L70) | unit/verify | unproven |
-| positive | [`TestRFC8956FragmentDecodeIgnoresReservedBits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L69) | unit/verify | unproven |
+| negative | [`TestRFC8956FragmentDecodeIgnoresReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L70) | unit/verify | revert, verified |
+| positive | [`TestRFC8956FragmentDecodeIgnoresReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L69) | unit/verify | revert, verified |
 
 ### [`RFC8956-3.1-3`](#rfc8956-3.1-3)
 
 If length = 0 and offset = 0, this component matches every address; otherwise, length MUST be in the range offset < length < 129 or the component is malformed. (§3.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c31 judge). RFC 8956 Section 3.1: "If length = 0 and offset = 0, this component matches every address; otherwise, length MUST be in the range offset < length < 129 or the component is malformed." First clause: flowspec-firewall rfc8956_zero_prefix_test.go::TestRFC8956ZeroLengthZeroOffsetMatchesEveryAddress parses wire 03 01 00 00 and 03 02 00 00 through ParseFlowSpec and requires the firewall matches MatchDestinationAddress{::/0} and MatchSourceAddress{::/0} exactly (its address-containment loop asserts on the ::/0 constant and adds nothing; the require.Equal on the match is the proof). Second clause: HEAD TestIPv6FlowPrefixRejectsMalformedBounds refuses 0/1, 64/64, 63/64, 129/0 and accepts 80/64. Judge overlay: extractPrefix refusing a 0-bit prefix turns the new positive red; revert record on extractPrefix.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16: both units changed only by package qualification. The plugin unit now calls core flowspec.ParseFlowSpec and flowspec.KwDestinationIPv6; the firewall unit names the IPv6 FlowSpec family as a family.Family literal. RFC 8956 Section 3.1: "If length = 0 and offset = 0, this component matches every address; otherwise, length MUST be in the range offset < length < 129 or the component is malformed." First clause: flowspec-firewall TestRFC8956ZeroLengthZeroOffsetMatchesEveryAddress parses 03 01 00 00 and 03 02 00 00 and requires the firewall matches to be exactly MatchDestinationAddress{::/0} and MatchSourceAddress{::/0}. Its containment loop checks the constant and adds nothing, so the require.Equal is the proof. Second clause: TestIPv6FlowPrefixRejectsMalformedBounds requires parse errors for 0/1, 64/64, 63/64, 129/0 and a truncated pattern, and config refusal for /64/64, /64/65 and /0/1. It also requires 80/64 to encode and compare equal to its received form.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestIPv6FlowPrefixRejectsMalformedBounds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L45) | unit/verify | unproven |
-| positive | [`TestIPv6FlowPrefixRejectsMalformedBounds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L44) | unit/verify | unproven |
+| negative | [`TestIPv6FlowPrefixRejectsMalformedBounds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L13) | unit/verify | unproven |
+| positive | [`TestIPv6FlowPrefixRejectsMalformedBounds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L12) | unit/verify | unproven |
 | positive | [`TestRFC8956ZeroLengthZeroOffsetMatchesEveryAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8956_zero_prefix_test.go#L26) | unit/verify | revert, verified |
 
 ### [`RFC8956-5-1`](#rfc8956-5-1)

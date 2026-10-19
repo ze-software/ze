@@ -24,7 +24,7 @@ Peer selector supports: `*` (all), exact IP, peer name, ASN (`as65001`), glob pa
 
 | Command | Description |
 |---------|-------------|
-| `send bgp * update text <attrs> nlri <family> <op> <prefix>` | Text-format UPDATE |
+| `send bgp * update text <attrs> (nlri | mp <family>) <op> <prefix>` | Text-format UPDATE |
 | `send bgp * update hex <hex>` | Hex-format UPDATE |
 
 Text attribute syntax: `origin set igp`, `nhop set 1.1.1.1`, `local-preference set 100`, `med set 50`, `as-path set [65000 65001]`, `community set [no-export]`, `large-community set [65000:1:1]`.
@@ -39,8 +39,8 @@ NLRI operations: `add`, `del`, `eor` per address family.
 |---------|-------------|
 | `show bgp rib received [peer] [family]` | Show Adj-RIB-In |
 | `show bgp rib sent [peer] [family]` | Show Adj-RIB-Out |
-| `clear bgp rib in [peer] [family]` | Clear Adj-RIB-In |
-| `clear bgp rib out [peer] [family]` | Clear Adj-RIB-Out |
+| `clear bgp rib in <selector>` | Clear Adj-RIB-In (`*` for all peers) |
+| `clear bgp rib out <selector> [family <family>]` | Resend Adj-RIB-Out (`*` for all peers) |
 | `request bgp rib inject <peer> <family> <prefix> [attrs...]` | Insert route into Adj-RIB-In (no live session needed) |
 | `request bgp rib withdraw <peer> <family> <prefix>` | Remove route from Adj-RIB-In |
 

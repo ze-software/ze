@@ -113,7 +113,7 @@ skip covers both surfaces.</p>
 <!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta: the Hidden skip -->
 <p>The <code>ze_execute</code> tool is the key to full control: anything you can do in <code>ze cli</code> (interactive or <code>ze cli -c</code> for one-shot commands), an AI can do via MCP. This includes:</p>
 <ul>
-<li><strong>Route management:</strong> <code>send bgp * update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24</code></li>
+<li><strong>Route management:</strong> <code>send bgp * update text origin set igp nhop set 1.1.1.1 nlri add 10.0.0.0/24</code></li>
 <li><strong>RIB queries:</strong> <code>show bgp rib received</code>, <code>show bgp rib sent</code>, <code>clear bgp rib in</code></li>
 <li><strong>Peer lifecycle:</strong> <code>show bgp peer list</code>, <code>request peer 10.0.0.1 teardown 6</code>, <code>delete bgp peer &lt;sel&gt;</code></li>
 <li><strong>Configuration:</strong> <code>request commit start window1</code>, route changes, <code>request commit end window1</code></li>
@@ -274,7 +274,7 @@ synchronously.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

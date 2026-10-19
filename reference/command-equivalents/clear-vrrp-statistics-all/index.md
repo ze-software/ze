@@ -1,11 +1,11 @@
-# `clear vrrp statistics`
+# `clear vrrp statistics all`
 
 Reset every VRRP virtual router\'s counters to zero\.
 
 ## Ze command
 
-- Registry path: `clear vrrp statistics`
-- Usage: `clear vrrp statistics`
+- Registry path: `clear vrrp statistics all`
+- Usage: `clear vrrp statistics all`
 - Mode: Daemon
 - Wire method: `ze-vrrp:clear-statistics`
 - Backends: any backend

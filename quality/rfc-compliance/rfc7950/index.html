@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7950 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7950: The YANG 1.1 Data Modeling Language. 91 gated MUST-level requirements, 56 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 7950: The YANG 1.1 Data Modeling Language. 91 gated MUST-level requirements, 48 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7950 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7950: The YANG 1.1 Data Modeling Language. 91 gated MUST-level requirements, 56 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 7950: The YANG 1.1 Data Modeling Language. 91 gated MUST-level requirements, 48 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7950 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7950: The YANG 1.1 Data Modeling Language. 91 gated MUST-level requirements, 56 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 7950: The YANG 1.1 Data Modeling Language. 91 gated MUST-level requirements, 48 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -117,10 +117,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>29.7%</strong><b>27 of 91 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>37.4%</strong><b>34 of 91 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1.1%</strong><b>1 of 91 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 91 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>94.6%</strong><b>105 of 111 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>93.4%</strong><b>141 of 151 tagged units, 0 escaped and 4 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +134,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>2.2%</strong><b>2 of 91 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>61.5%</strong><b>56 of 91 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>39</strong><b>of 91 gated MUSTs judged</b><p>17 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>3.3%</strong><b>3 of 91 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>52.7%</strong><b>48 of 91 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>39</strong><b>of 91 gated MUSTs judged</b><p>12 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 91 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -219,7 +219,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>5</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>56</td>
+<td>48</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -231,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>111</td>
+<td>151</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>111</td>
+<td>151</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>39</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>105</td>
+<td>145</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7950.md</code></td>
@@ -271,7 +271,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s loader adds no check of its own where goyang accepts a violating module (circular imports, duplicate typedefs and groupings, a shared import prefix, a typedef named after a built-in type, a shared child name across choice cases, an action or notification under a keyless list, an augment adding a duplicate, an overlapping range, an empty enumeration or union; a self-referencing grouping or identity and an augment targeting a leaf crash goyang instead of being refused): <a href="https://github.com/ze-software/ze/blob/main/plan/pre-release/spec-config-yang-loader-structural-checks.md" target="_blank" rel="noopener"><code>plan/pre-release/spec-config-yang-loader-structural-checks.md</code></a>. The validator evaluates no when or unique, does not check that the nodes satisfying a mandatory choice come from exactly one case, and requires no mandatory leaf inside a case. The mandatory check runs over every top-level section present in the config, but a mandatory node whose only ancestors are non-presence containers is not required when its top-level section is absent from the config (owner-approved deviation of 2026-10-12, as libyang LYD_VALIDATE_PRESENT and FRR do), and by owner ruling of 2026-10-12 a bgp global router-id or local ASN that every session carries counts as present, a deviation from Section 7.6.5: <a href="https://github.com/ze-software/ze/blob/main/plan/pre-release/spec-config-yang-when-unique-choice.md" target="_blank" rel="noopener"><code>plan/pre-release/spec-config-yang-when-unique-choice.md</code></a>. A config list without a key is tolerated, leaf-list values are not deduplicated and leaf-list defaults are not applied: <a href="https://github.com/ze-software/ze/blob/main/plan/pre-release/spec-config-yang-list-key-leaf-list.md" target="_blank" rel="noopener"><code>plan/pre-release/spec-config-yang-list-key-leaf-list.md</code></a>. RPC input and output mandatory and defaults are read by no invocation path: <a href="https://github.com/ze-software/ze/blob/main/plan/pre-release/spec-config-yang-rpc-mandatory-defaults.md" target="_blank" rel="noopener"><code>plan/pre-release/spec-config-yang-rpc-mandatory-defaults.md</code></a>. No repository check reads module namespaces or revisions: <a href="https://github.com/ze-software/ze/blob/main/plan/spec-config-yang-authoring-checks.md" target="_blank" rel="noopener"><code>plan/spec-config-yang-authoring-checks.md</code></a>. Ze offers no bits, leafref, identityref or instance-identifier type, no feature or if-feature, no deviation, no yang-version declaration and no submodule: one plan/spec-config-yang-*.md each, for the owner to decline or schedule.
+Fifty-one MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s loader adds no check of its own where goyang accepts a violating module (circular imports, duplicate typedefs and groupings, a shared import prefix, a typedef named after a built-in type, a shared child name across choice cases, an action or notification under a keyless list, an augment adding a duplicate, an overlapping range, an empty enumeration or union; a self-referencing grouping or identity and an augment targeting a leaf crash goyang instead of being refused): <a href="https://github.com/ze-software/ze/blob/main/plan/pre-release/spec-config-yang-loader-structural-checks.md" target="_blank" rel="noopener"><code>plan/pre-release/spec-config-yang-loader-structural-checks.md</code></a>. The validator evaluates no when or unique, does not check that the nodes satisfying a mandatory choice come from exactly one case, and requires no mandatory leaf inside a case. The mandatory check runs over every top-level section present in the config, but a mandatory node whose only ancestors are non-presence containers is not required when its top-level section is absent from the config (owner-approved deviation of 2026-10-12, as libyang LYD_VALIDATE_PRESENT and FRR do), and by owner ruling of 2026-10-12 a bgp global router-id or local ASN that every session carries counts as present, a deviation from Section 7.6.5: <a href="https://github.com/ze-software/ze/blob/main/plan/pre-release/spec-config-yang-when-unique-choice.md" target="_blank" rel="noopener"><code>plan/pre-release/spec-config-yang-when-unique-choice.md</code></a>. A config list without a key is tolerated, leaf-list values are not deduplicated and leaf-list defaults are not applied: <a href="https://github.com/ze-software/ze/blob/main/plan/pre-release/spec-config-yang-list-key-leaf-list.md" target="_blank" rel="noopener"><code>plan/pre-release/spec-config-yang-list-key-leaf-list.md</code></a>. RPC input and output mandatory and defaults are read by no invocation path: <a href="https://github.com/ze-software/ze/blob/main/plan/pre-release/spec-config-yang-rpc-mandatory-defaults.md" target="_blank" rel="noopener"><code>plan/pre-release/spec-config-yang-rpc-mandatory-defaults.md</code></a>. No repository check reads module namespaces or revisions: <a href="https://github.com/ze-software/ze/blob/main/plan/spec-config-yang-authoring-checks.md" target="_blank" rel="noopener"><code>plan/spec-config-yang-authoring-checks.md</code></a>. The validator checks a bits value&#39;s names but Ze adds no check on a bits type&#39;s bit statements: <a href="https://github.com/ze-software/ze/blob/main/plan/spec-config-yang-type-bits.md" target="_blank" rel="noopener"><code>plan/spec-config-yang-type-bits.md</code></a>. goyang keeps one base statement per identityref type, so a type naming several bases is not resolved as Section 9.10.2 defines: <a href="https://github.com/ze-software/ze/blob/main/plan/spec-config-yang-reference-types.md" target="_blank" rel="noopener"><code>plan/spec-config-yang-reference-types.md</code></a>. Ze offers no feature or if-feature, no deviation, no yang-version declaration and no submodule: one plan/spec-config-yang-*.md each, for the owner to decline or schedule.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -280,11 +280,11 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>27</strong></td>
+<td><strong>34</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>64</strong></td>
+<td><strong>57</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -296,7 +296,7 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
-<td><strong>2</strong></td>
+<td><strong>3</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -311,9 +311,9 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (27):</strong> <a href="#rfc7950-9.6-1"><code>RFC7950-9.6-1</code></a>, <a href="#rfc7950-9.12-1"><code>RFC7950-9.12-1</code></a>, <a href="#rfc7950-7.6.5-3"><code>RFC7950-7.6.5-3</code></a>, <a href="#rfc7950-6.1.3-1"><code>RFC7950-6.1.3-1</code></a>, <a href="#rfc7950-6.5-1"><code>RFC7950-6.5-1</code></a>, <a href="#rfc7950-7.3.4-1"><code>RFC7950-7.3.4-1</code></a>, <a href="#rfc7950-7.6.1-1"><code>RFC7950-7.6.1-1</code></a>, <a href="#rfc7950-7.6.1-3"><code>RFC7950-7.6.1-3</code></a>, <a href="#rfc7950-7.6.3-1"><code>RFC7950-7.6.3-1</code></a>, <a href="#rfc7950-7.6.4-2"><code>RFC7950-7.6.4-2</code></a>, <a href="#rfc7950-7.7.4-1"><code>RFC7950-7.7.4-1</code></a>, <a href="#rfc7950-7.7.5-1"><code>RFC7950-7.7.5-1</code></a>, <a href="#rfc7950-7.19-1"><code>RFC7950-7.19-1</code></a>, <a href="#rfc7950-8.1-3"><code>RFC7950-8.1-3</code></a>, <a href="#rfc7950-8.1-2"><code>RFC7950-8.1-2</code></a>, <a href="#rfc7950-8.3-1"><code>RFC7950-8.3-1</code></a>, <a href="#rfc7950-8.3.3-1"><code>RFC7950-8.3.3-1</code></a>, <a href="#rfc7950-9.1-1"><code>RFC7950-9.1-1</code></a>, <a href="#rfc7950-9.3.1-1"><code>RFC7950-9.3.1-1</code></a>, <a href="#rfc7950-9.3.4-1"><code>RFC7950-9.3.4-1</code></a>, <a href="#rfc7950-9.4.4-1"><code>RFC7950-9.4.4-1</code></a>, <a href="#rfc7950-9.5.1-1"><code>RFC7950-9.5.1-1</code></a>, <a href="#rfc7950-9.6.4-2"><code>RFC7950-9.6.4-2</code></a>, <a href="#rfc7950-9.6.4.2-1"><code>RFC7950-9.6.4.2-1</code></a>, <a href="#rfc7950-7.3.2-1"><code>RFC7950-7.3.2-1</code></a>, <a href="#rfc7950-7.9.2-2"><code>RFC7950-7.9.2-2</code></a>, <a href="#rfc7950-9.4.4-2"><code>RFC7950-9.4.4-2</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (64):</strong> <a href="#rfc7950-7.6.5-1"><code>RFC7950-7.6.5-1</code></a>, <a href="#rfc7950-7.6.5-2"><code>RFC7950-7.6.5-2</code></a>, <a href="#rfc7950-7.5.3-1"><code>RFC7950-7.5.3-1</code></a>, <a href="#rfc7950-9.2.4-1"><code>RFC7950-9.2.4-1</code></a>, <a href="#rfc7950-9.4.5-1"><code>RFC7950-9.4.5-1</code></a>, <a href="#rfc7950-x-1"><code>RFC7950-x-1</code></a>, <a href="#rfc7950-x-2"><code>RFC7950-x-2</code></a>, <a href="#rfc7950-5.1-1"><code>RFC7950-5.1-1</code></a>, <a href="#rfc7950-5.3-1"><code>RFC7950-5.3-1</code></a>, <a href="#rfc7950-5.5-1"><code>RFC7950-5.5-1</code></a>, <a href="#rfc7950-5.6.5-1"><code>RFC7950-5.6.5-1</code></a>, <a href="#rfc7950-6.2-1"><code>RFC7950-6.2-1</code></a>, <a href="#rfc7950-6.2.1-1"><code>RFC7950-6.2.1-1</code></a>, <a href="#rfc7950-6.3.1-1"><code>RFC7950-6.3.1-1</code></a>, <a href="#rfc7950-6.4-1"><code>RFC7950-6.4-1</code></a>, <a href="#rfc7950-6.4-2"><code>RFC7950-6.4-2</code></a>, <a href="#rfc7950-7.1.4-1"><code>RFC7950-7.1.4-1</code></a>, <a href="#rfc7950-7.3-1"><code>RFC7950-7.3-1</code></a>, <a href="#rfc7950-7.6.1-2"><code>RFC7950-7.6.1-2</code></a>, <a href="#rfc7950-7.6.1-4"><code>RFC7950-7.6.1-4</code></a>, <a href="#rfc7950-7.7-1"><code>RFC7950-7.7-1</code></a>, <a href="#rfc7950-7.7.2-1"><code>RFC7950-7.7.2-1</code></a>, <a href="#rfc7950-7.8.2-1"><code>RFC7950-7.8.2-1</code></a>, <a href="#rfc7950-7.8.3-1"><code>RFC7950-7.8.3-1</code></a>, <a href="#rfc7950-7.9.2-1"><code>RFC7950-7.9.2-1</code></a>, <a href="#rfc7950-7.9.3-1"><code>RFC7950-7.9.3-1</code></a>, <a href="#rfc7950-7.9.4-1"><code>RFC7950-7.9.4-1</code></a>, <a href="#rfc7950-7.12-1"><code>RFC7950-7.12-1</code></a>, <a href="#rfc7950-7.14.2-1"><code>RFC7950-7.14.2-1</code></a>, <a href="#rfc7950-7.14.3-1"><code>RFC7950-7.14.3-1</code></a>, <a href="#rfc7950-7.15-1"><code>RFC7950-7.15-1</code></a>, <a href="#rfc7950-7.16-1"><code>RFC7950-7.16-1</code></a>, <a href="#rfc7950-7.17-1"><code>RFC7950-7.17-1</code></a>, <a href="#rfc7950-7.18.2-1"><code>RFC7950-7.18.2-1</code></a>, <a href="#rfc7950-7.20.1-1"><code>RFC7950-7.20.1-1</code></a>, <a href="#rfc7950-7.20.2-1"><code>RFC7950-7.20.2-1</code></a>, <a href="#rfc7950-7.20.3-1"><code>RFC7950-7.20.3-1</code></a>, <a href="#rfc7950-7.20.3.2-1"><code>RFC7950-7.20.3.2-1</code></a>, <a href="#rfc7950-7.21.2-1"><code>RFC7950-7.21.2-1</code></a>, <a href="#rfc7950-7.21.5-1"><code>RFC7950-7.21.5-1</code></a>, <a href="#rfc7950-8.1-1"><code>RFC7950-8.1-1</code></a>, <a href="#rfc7950-8.1-4"><code>RFC7950-8.1-4</code></a>, <a href="#rfc7950-8.3.1-2"><code>RFC7950-8.3.1-2</code></a>, <a href="#rfc7950-8.3.2-1"><code>RFC7950-8.3.2-1</code></a>, <a href="#rfc7950-8.3.3-2"><code>RFC7950-8.3.3-2</code></a>, <a href="#rfc7950-9.2.4-2"><code>RFC7950-9.2.4-2</code></a>, <a href="#rfc7950-9.6.4-1"><code>RFC7950-9.6.4-1</code></a>, <a href="#rfc7950-9.7-1"><code>RFC7950-9.7-1</code></a>, <a href="#rfc7950-9.7.4-1"><code>RFC7950-9.7.4-1</code></a>, <a href="#rfc7950-9.7.4.2-1"><code>RFC7950-9.7.4.2-1</code></a>, <a href="#rfc7950-9.9-1"><code>RFC7950-9.9-1</code></a>, <a href="#rfc7950-9.9.2-1"><code>RFC7950-9.9.2-1</code></a>, <a href="#rfc7950-9.9.3-1"><code>RFC7950-9.9.3-1</code></a>, <a href="#rfc7950-9.10.2-1"><code>RFC7950-9.10.2-1</code></a>, <a href="#rfc7950-9.10.3-1"><code>RFC7950-9.10.3-1</code></a>, <a href="#rfc7950-9.12-2"><code>RFC7950-9.12-2</code></a>, <a href="#rfc7950-9.13-1"><code>RFC7950-9.13-1</code></a>, <a href="#rfc7950-11-1"><code>RFC7950-11-1</code></a>, <a href="#rfc7950-11-2"><code>RFC7950-11-2</code></a>, <a href="#rfc7950-11-3"><code>RFC7950-11-3</code></a>, <a href="#rfc7950-7.2.2-1"><code>RFC7950-7.2.2-1</code></a>, <a href="#rfc7950-7.21.5-2"><code>RFC7950-7.21.5-2</code></a>, <a href="#rfc7950-9.1-2"><code>RFC7950-9.1-2</code></a>, <a href="#rfc7950-12-1"><code>RFC7950-12-1</code></a></p>
-<p class="rfc-id-list"><strong>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (2):</strong> <a href="#rfc7950-7.6.5-1"><code>RFC7950-7.6.5-1</code></a>, <a href="#rfc7950-7.9.4-1"><code>RFC7950-7.9.4-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (34):</strong> <a href="#rfc7950-9.6-1"><code>RFC7950-9.6-1</code></a>, <a href="#rfc7950-9.12-1"><code>RFC7950-9.12-1</code></a>, <a href="#rfc7950-7.6.5-3"><code>RFC7950-7.6.5-3</code></a>, <a href="#rfc7950-6.1.3-1"><code>RFC7950-6.1.3-1</code></a>, <a href="#rfc7950-6.5-1"><code>RFC7950-6.5-1</code></a>, <a href="#rfc7950-7.3.4-1"><code>RFC7950-7.3.4-1</code></a>, <a href="#rfc7950-7.6.1-1"><code>RFC7950-7.6.1-1</code></a>, <a href="#rfc7950-7.6.1-3"><code>RFC7950-7.6.1-3</code></a>, <a href="#rfc7950-7.6.3-1"><code>RFC7950-7.6.3-1</code></a>, <a href="#rfc7950-7.6.4-2"><code>RFC7950-7.6.4-2</code></a>, <a href="#rfc7950-7.7.4-1"><code>RFC7950-7.7.4-1</code></a>, <a href="#rfc7950-7.7.5-1"><code>RFC7950-7.7.5-1</code></a>, <a href="#rfc7950-7.19-1"><code>RFC7950-7.19-1</code></a>, <a href="#rfc7950-8.1-3"><code>RFC7950-8.1-3</code></a>, <a href="#rfc7950-8.1-2"><code>RFC7950-8.1-2</code></a>, <a href="#rfc7950-8.3-1"><code>RFC7950-8.3-1</code></a>, <a href="#rfc7950-8.3.3-1"><code>RFC7950-8.3.3-1</code></a>, <a href="#rfc7950-9.1-1"><code>RFC7950-9.1-1</code></a>, <a href="#rfc7950-9.3.1-1"><code>RFC7950-9.3.1-1</code></a>, <a href="#rfc7950-9.3.4-1"><code>RFC7950-9.3.4-1</code></a>, <a href="#rfc7950-9.4.4-1"><code>RFC7950-9.4.4-1</code></a>, <a href="#rfc7950-9.5.1-1"><code>RFC7950-9.5.1-1</code></a>, <a href="#rfc7950-9.6.4-2"><code>RFC7950-9.6.4-2</code></a>, <a href="#rfc7950-9.6.4.2-1"><code>RFC7950-9.6.4.2-1</code></a>, <a href="#rfc7950-9.9-1"><code>RFC7950-9.9-1</code></a>, <a href="#rfc7950-9.9.2-1"><code>RFC7950-9.9.2-1</code></a>, <a href="#rfc7950-9.9.3-1"><code>RFC7950-9.9.3-1</code></a>, <a href="#rfc7950-9.10.3-1"><code>RFC7950-9.10.3-1</code></a>, <a href="#rfc7950-9.13-1"><code>RFC7950-9.13-1</code></a>, <a href="#rfc7950-7.2.2-1"><code>RFC7950-7.2.2-1</code></a>, <a href="#rfc7950-7.3.2-1"><code>RFC7950-7.3.2-1</code></a>, <a href="#rfc7950-7.9.2-2"><code>RFC7950-7.9.2-2</code></a>, <a href="#rfc7950-9.1-2"><code>RFC7950-9.1-2</code></a>, <a href="#rfc7950-9.4.4-2"><code>RFC7950-9.4.4-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (57):</strong> <a href="#rfc7950-7.6.5-1"><code>RFC7950-7.6.5-1</code></a>, <a href="#rfc7950-7.6.5-2"><code>RFC7950-7.6.5-2</code></a>, <a href="#rfc7950-7.5.3-1"><code>RFC7950-7.5.3-1</code></a>, <a href="#rfc7950-9.2.4-1"><code>RFC7950-9.2.4-1</code></a>, <a href="#rfc7950-9.4.5-1"><code>RFC7950-9.4.5-1</code></a>, <a href="#rfc7950-x-1"><code>RFC7950-x-1</code></a>, <a href="#rfc7950-x-2"><code>RFC7950-x-2</code></a>, <a href="#rfc7950-5.1-1"><code>RFC7950-5.1-1</code></a>, <a href="#rfc7950-5.3-1"><code>RFC7950-5.3-1</code></a>, <a href="#rfc7950-5.5-1"><code>RFC7950-5.5-1</code></a>, <a href="#rfc7950-5.6.5-1"><code>RFC7950-5.6.5-1</code></a>, <a href="#rfc7950-6.2-1"><code>RFC7950-6.2-1</code></a>, <a href="#rfc7950-6.2.1-1"><code>RFC7950-6.2.1-1</code></a>, <a href="#rfc7950-6.3.1-1"><code>RFC7950-6.3.1-1</code></a>, <a href="#rfc7950-6.4-1"><code>RFC7950-6.4-1</code></a>, <a href="#rfc7950-6.4-2"><code>RFC7950-6.4-2</code></a>, <a href="#rfc7950-7.1.4-1"><code>RFC7950-7.1.4-1</code></a>, <a href="#rfc7950-7.3-1"><code>RFC7950-7.3-1</code></a>, <a href="#rfc7950-7.6.1-2"><code>RFC7950-7.6.1-2</code></a>, <a href="#rfc7950-7.6.1-4"><code>RFC7950-7.6.1-4</code></a>, <a href="#rfc7950-7.7-1"><code>RFC7950-7.7-1</code></a>, <a href="#rfc7950-7.7.2-1"><code>RFC7950-7.7.2-1</code></a>, <a href="#rfc7950-7.8.2-1"><code>RFC7950-7.8.2-1</code></a>, <a href="#rfc7950-7.8.3-1"><code>RFC7950-7.8.3-1</code></a>, <a href="#rfc7950-7.9.2-1"><code>RFC7950-7.9.2-1</code></a>, <a href="#rfc7950-7.9.3-1"><code>RFC7950-7.9.3-1</code></a>, <a href="#rfc7950-7.9.4-1"><code>RFC7950-7.9.4-1</code></a>, <a href="#rfc7950-7.12-1"><code>RFC7950-7.12-1</code></a>, <a href="#rfc7950-7.14.2-1"><code>RFC7950-7.14.2-1</code></a>, <a href="#rfc7950-7.14.3-1"><code>RFC7950-7.14.3-1</code></a>, <a href="#rfc7950-7.15-1"><code>RFC7950-7.15-1</code></a>, <a href="#rfc7950-7.16-1"><code>RFC7950-7.16-1</code></a>, <a href="#rfc7950-7.17-1"><code>RFC7950-7.17-1</code></a>, <a href="#rfc7950-7.18.2-1"><code>RFC7950-7.18.2-1</code></a>, <a href="#rfc7950-7.20.1-1"><code>RFC7950-7.20.1-1</code></a>, <a href="#rfc7950-7.20.2-1"><code>RFC7950-7.20.2-1</code></a>, <a href="#rfc7950-7.20.3-1"><code>RFC7950-7.20.3-1</code></a>, <a href="#rfc7950-7.20.3.2-1"><code>RFC7950-7.20.3.2-1</code></a>, <a href="#rfc7950-7.21.2-1"><code>RFC7950-7.21.2-1</code></a>, <a href="#rfc7950-7.21.5-1"><code>RFC7950-7.21.5-1</code></a>, <a href="#rfc7950-8.1-1"><code>RFC7950-8.1-1</code></a>, <a href="#rfc7950-8.1-4"><code>RFC7950-8.1-4</code></a>, <a href="#rfc7950-8.3.1-2"><code>RFC7950-8.3.1-2</code></a>, <a href="#rfc7950-8.3.2-1"><code>RFC7950-8.3.2-1</code></a>, <a href="#rfc7950-8.3.3-2"><code>RFC7950-8.3.3-2</code></a>, <a href="#rfc7950-9.2.4-2"><code>RFC7950-9.2.4-2</code></a>, <a href="#rfc7950-9.6.4-1"><code>RFC7950-9.6.4-1</code></a>, <a href="#rfc7950-9.7-1"><code>RFC7950-9.7-1</code></a>, <a href="#rfc7950-9.7.4-1"><code>RFC7950-9.7.4-1</code></a>, <a href="#rfc7950-9.7.4.2-1"><code>RFC7950-9.7.4.2-1</code></a>, <a href="#rfc7950-9.10.2-1"><code>RFC7950-9.10.2-1</code></a>, <a href="#rfc7950-9.12-2"><code>RFC7950-9.12-2</code></a>, <a href="#rfc7950-11-1"><code>RFC7950-11-1</code></a>, <a href="#rfc7950-11-2"><code>RFC7950-11-2</code></a>, <a href="#rfc7950-11-3"><code>RFC7950-11-3</code></a>, <a href="#rfc7950-7.21.5-2"><code>RFC7950-7.21.5-2</code></a>, <a href="#rfc7950-12-1"><code>RFC7950-12-1</code></a></p>
+<p class="rfc-id-list"><strong>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (3):</strong> <a href="#rfc7950-7.6.5-1"><code>RFC7950-7.6.5-1</code></a>, <a href="#rfc7950-7.9.4-1"><code>RFC7950-7.9.4-1</code></a>, <a href="#rfc7950-9.10.2-1"><code>RFC7950-9.10.2-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -357,7 +357,7 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_mandatory_test.go#L69" title="internal/component/config/yang/rfc7950_mandatory_test.go" target="_blank" rel="noopener"><code>TestRFC7950MandatoryWithNoQualifyingAncestor</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L339" title="internal/component/config/rfc7950_validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_MandatoryMissing</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L944" title="internal/component/config/rfc7950_validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_MandatoryField</code></a></span></div>
-</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;the leaf MUST exist&#34;; gap &#34;If no such ancestor exists in the schema tree&#34;; internal/component/config/validate_sections.go::ValidateCustomSections is the boundary: Tested covers a mandatory leaf whose ancestors are all non-presence containers, required whenever its top-level section is present in the config (bgp/router-id, bgp/session/asn/local, once the bgp section holds a peer or a group); Gap is the same leaf when the whole top-level section is absent, which Ze does not require, because its top-level sections are non-presence containers that stand for an enabled feature and requiring their leaves would refuse every config that omits bgp; owner-approved deviation, OWNER RULING 6 of 2026-10-12 (Thomas, &#34;Like FRR/libyang (Recommended)&#34;): mandatory leaves are checked only in sections present in the config, as libyang&#39;s LYD_VALIDATE_PRESENT (&#34;Validate only modules whose data actually exist&#34;) does when FRR sets it in nb_candidate_validate_yang (lib/northbound.c) and yang_parse_data (lib/yang.c); Gap also holds bgp/router-id and bgp/session/asn/local absent at the bgp level while every BGP session carries the value itself or from its group, which bgpMandatoryFailures counts as present through EverySessionCarries: a second owner-approved deviation, ruling of 2026-10-12 (Thomas, &#34;yes enforce&#34;, spec AC-2); that ruling binds only once a session exists: a bgp section with no peer and no group is accepted and does nothing, so EverySessionCarries counts both leaves as present there (Thomas, 2026-10-16, spec AC-2 RULING 7); a deviation is never counted conformant; plan/pre-release/spec-config-yang-when-unique-choice.md</p><p class="rfc-mark"><strong>Scoped evidence:</strong> Tests and tag-claim records apply only to Tested; zero whole-requirement credit. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-10-16, second pass (independent judge) after the author fixed the first pass&#39;s positive finding. Read at rfc/full/rfc7950.txt Section 7.6.5: &#34;If &#34;mandatory&#34; is &#34;true&#34;, the behavior of the constraint depends on the type of the leaf&#39;s closest ancestor node in the schema tree that is not a non-presence container (see Section 7.5.1): o If no such ancestor exists in the schema tree, the leaf MUST exist.&#34; The row text is a verbatim span of that section. Tested &#34;the leaf MUST exist&#34;; Gap &#34;If no such ancestor exists in the schema tree&#34;; Producer internal/component/config/validate_sections.go::ValidateCustomSections. Tested scope: a bgp section present with at least one session source. Q1-Q4: TestRFC7950MandatoryRefusesBGPConfig and TestValidator_MandatoryField now form minimal pairs: each negative holds one peer that carries neither leaf and lacks one mandatory leaf globally (the other present), and is refused with the exact path (bgp/session/asn/local plus its set command; ErrCustomValidation plus bgp/router-id); each positive is the same section, peer included, with the leaf added, and loads. Because the peer is a session source, the no-session excuse cannot fire on either side, so the positives now catch a producer that misreads a present leaf as missing and the #2 claim &#34;the same section once bgp/session/asn/local is present&#34; is true. TestValidateTree_MandatoryMissing and TestRFC7950MandatoryWithNoQualifyingAncestor are unchanged and still pin walkTree&#39;s descent with no bgp excuse in play. The four LoadConfig records were re-recorded with observed reds and ./le rfc discriminate id RFC7950-7.6.5-1 lists no stale and no unproven entry. The scope of Gap (b) is now pinned by the untagged TestMandatoryBGPNoSessionExcusesOnlySessionLeaves (a non-session global leaf stays required with no source; an empty non-dynamic group is a source) and TestMandatoryBGPLeafNotRequiredWithNoSession; they earn this row nothing. Gap, never counted conformant: (a) a whole top-level section absent from the config is not walked, owner ruling 6 (libyang LYD_VALIDATE_PRESENT); (b) bgp/router-id and bgp/session/asn/local absent globally while every session carries the value itself or from its group, and, per owner ruling 7 of 2026-10-16, absent in a bgp section with no peer and no group, are counted present by EverySessionCarries. Whole requirement earns no credit.</p></td>
+</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;the leaf MUST exist&#34;; gap &#34;If no such ancestor exists in the schema tree&#34;; internal/component/config/validate_sections.go::ValidateCustomSections is the boundary: Tested covers a mandatory leaf whose ancestors are all non-presence containers, required whenever its top-level section is present in the config (bgp/router-id, bgp/session/asn/local, once the bgp section holds a peer or a group); Gap is the same leaf when the whole top-level section is absent, which Ze does not require, because its top-level sections are non-presence containers that stand for an enabled feature and requiring their leaves would refuse every config that omits bgp; owner-approved deviation, OWNER RULING 6 of 2026-10-12 (Thomas, &#34;Like FRR/libyang (Recommended)&#34;): mandatory leaves are checked only in sections present in the config, as libyang&#39;s LYD_VALIDATE_PRESENT (&#34;Validate only modules whose data actually exist&#34;) does when FRR sets it in nb_candidate_validate_yang (lib/northbound.c) and yang_parse_data (lib/yang.c); Gap also holds bgp/router-id and bgp/session/asn/local absent at the bgp level while every BGP session carries the value itself or from its group, which bgpMandatoryFailures counts as present through EverySessionCarries: a second owner-approved deviation, ruling of 2026-10-12 (Thomas, &#34;yes enforce&#34;, spec AC-2); that ruling binds only once a session exists: a bgp section with no peer and no group is accepted and does nothing, so EverySessionCarries counts both leaves as present there (Thomas, 2026-10-16, spec AC-2 RULING 7); a deviation is never counted conformant; plan/pre-release/spec-config-yang-when-unique-choice.md</p><p class="rfc-mark"><strong>Scoped evidence:</strong> Tests and tag-claim records apply only to Tested; zero whole-requirement credit. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-10-18 (independent auditor, after bccd1e7cf5). Read at rfc/full/rfc7950.txt Section 7.6.5: &#34;If &#34;mandatory&#34; is &#34;true&#34;, the behavior of the constraint depends on the type of the leaf&#39;s closest ancestor node in the schema tree that is not a non-presence container (see Section 7.5.1): o If no such ancestor exists in the schema tree, the leaf MUST exist.&#34; The only change under this verdict is one appended line in ValidateCustomSections, found = append(found, referenceFailures(validator, tree)...), which adds require-instance failures after the mandatory ones and changes neither mandatoryFailures nor bgpMandatoryFailures nor walkTree; no tagged unit changed. Shipped modules hold one leafref (traffic default-class), so no tagged bgp config can gain a reference failure that would confound a mandatory assertion. ./le rfc discriminate id RFC7950-7.6.5-1 lists seven records, no stale and no unproven entry. Tested &#34;the leaf MUST exist&#34;; Gap &#34;If no such ancestor exists in the schema tree&#34;; Producer internal/component/config/validate_sections.go::ValidateCustomSections; the Tested/Gap/Producer text is unchanged. Gap stands as before: (a) an absent top-level section is not walked (owner ruling 6), (b) bgp/router-id and bgp/session/asn/local counted present through EverySessionCarries (owner rulings of 2026-10-12 and 2026-10-16). A deviation is never counted conformant; the whole requirement earns no credit.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-7.6.5-2">RFC7950-7.6.5-2</code></td><td colspan="3"><span class="rfc-subject">Otherwise, if this ancestor is a case node, the leaf MUST exist if any node from the case exists in the data tree. (§7.6.5)</span></td></tr>
 <tr><td></td>
@@ -867,8 +867,11 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <td>MUST</td>
 <td>8.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-8.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_reload_validation_test.go#L76" title="cmd/ze/hub/rfc7950_reload_validation_test.go" target="_blank" rel="noopener"><code>TestRFC7950ReloadInstallsAValidConfig</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L33" title="internal/component/config/rfc7950_datastore_test.go" target="_blank" rel="noopener"><code>TestRFC7950RunningDatastoreAcceptsAValidConfig</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_reload_validation_test.go#L94" title="cmd/ze/hub/rfc7950_reload_validation_test.go" target="_blank" rel="noopener"><code>TestRFC7950ReloadRefusesAConstraintViolation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L77" title="internal/component/config/rfc7950_datastore_test.go" target="_blank" rel="noopener"><code>TestRFC7950RunningDatastoreRefusesAViolationAfterParse</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_web_commit_validation_test.go#L82" title="cmd/ze/hub/rfc7950_web_commit_validation_test.go" target="_blank" rel="noopener"><code>TestRFC7950WebCommitRefusesAConstraintViolation</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-8.3-1">RFC7950-8.3-1</code></td><td colspan="3"><span class="rfc-subject">For configuration data, there are three windows when constraints MUST be enforced: o during parsing of RPC payloads o during processing of the &lt;edit-config&gt; operation o during validation (§8.3)</span></td></tr>
@@ -877,8 +880,10 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <td>8.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-8.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L34" title="internal/component/config/rfc7950_datastore_test.go" target="_blank" rel="noopener"><code>TestRFC7950RunningDatastoreAcceptsAValidConfig</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_web_commit_validation_test.go#L58" title="cmd/ze/hub/rfc7950_web_commit_validation_test.go" target="_blank" rel="noopener"><code>TestRFC7950WebCommitWritesAValidEdit</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L78" title="internal/component/config/rfc7950_datastore_test.go" target="_blank" rel="noopener"><code>TestRFC7950RunningDatastoreRefusesAViolationAfterParse</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L53" title="internal/component/config/rfc7950_datastore_test.go" target="_blank" rel="noopener"><code>TestRFC7950RunningDatastoreRefusesAViolationAtParse</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_web_commit_validation_test.go#L81" title="cmd/ze/hub/rfc7950_web_commit_validation_test.go" target="_blank" rel="noopener"><code>TestRFC7950WebCommitRefusesAConstraintViolation</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-8.3.1-2">RFC7950-8.3.1-2</code></td><td colspan="3"><span class="rfc-subject">If data for more than one case branch of a choice is present, the server MUST reply with a &#34;bad-element&#34; &lt;error-tag&gt; in the &lt;rpc-error&gt;. o If data for a node tagged with &#34;if-feature&#34; is present and the &#34;if-feature&#34; expression evaluates to &#34;false&#34; in the server, the server MUST reply with an &#34;unknown-element&#34; &lt;error-tag&gt; in the &lt;rpc-error&gt;. o If data for a node tagged with &#34;when&#34; is present and the &#34;when&#34; condition evaluates to &#34;false&#34;, the server MUST reply with an &#34;unknown-element&#34; &lt;error-tag&gt; in the &lt;rpc-error&gt;. (§8.3.1)</span></td></tr>
@@ -915,16 +920,27 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-8.3.3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> LoadConfig (the &lt;copy-config&gt; window), the web editor commit (internal/component/cli/editor_commit.go validateStagedTree, through config/cli.ValidateContent) and the SSH editor commit (internal/component/cli/validator.go sectionErrors) all run ValidateCustomSections, which refuses a type or ze:validate violation in the sections validatedSections lists and a missing mandatory leaf in every top-level section present in the config, but none of them evaluates when, unique or choice exclusivity, and Ze&#39;s modules declare unique (ze-iface-conf), so the end of the operation does not enforce these constraints; plan/pre-release/spec-config-yang-when-unique-choice.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> LoadConfig (the &lt;copy-config&gt; window), the web editor commit (internal/component/cli/editor_commit.go validateStagedTree, through config/cli.ValidateContent) and the SSH editor commit (internal/component/cli/validator.go sectionErrors) all run ValidateCustomSections, which refuses a type or ze:validate violation in the sections validatedSections lists, a missing mandatory leaf in every top-level section present in the config, and, through the whole-tree reference walk (Validator.ValidateReferences, the SSH editor commit included for the bgp section), a leafref or instance-identifier naming no instance, but none of them evaluates when, unique or choice exclusivity, and Ze&#39;s modules declare unique (ze-iface-conf), so the end of the operation does not enforce these constraints; plan/pre-release/spec-config-yang-when-unique-choice.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-9.1-1">RFC7950-9.1-1</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST support all lexical representations specified in this document. (§9.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>9.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-9.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_validator_lexical_test.go#L50" title="internal/component/config/yang/rfc7950_validator_lexical_test.go" target="_blank" rel="noopener"><code>TestRFC7950BinaryAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_validator_lexical_test.go#L77" title="internal/component/config/yang/rfc7950_validator_lexical_test.go" target="_blank" rel="noopener"><code>TestRFC7950BitsAccepted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_validator_decimal64_test.go#L25" title="internal/component/config/yang/rfc7950_validator_decimal64_test.go" target="_blank" rel="noopener"><code>TestRFC7950Decimal64Accepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L438" title="internal/component/config/yang/rfc7950_reference_walk_test.go" target="_blank" rel="noopener"><code>TestRFC7950InstanceIdentifierLeafListPredicate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_yang_schema_integer_default_test.go#L39" title="internal/component/config/rfc7950_yang_schema_integer_default_test.go" target="_blank" rel="noopener"><code>TestRFC7950IntegerModuleDefaultHexAndOctal</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_validator_integer_test.go#L14" title="internal/component/config/yang/rfc7950_validator_integer_test.go" target="_blank" rel="noopener"><code>TestRFC7950IntegerSignedLexicalForms</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L77" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950ReferenceTypesLoad</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L157" title="internal/component/config/yang/rfc7950_reference_walk_test.go" target="_blank" rel="noopener"><code>TestRFC7950UnionDefaultLeafrefMember</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_validator_lexical_test.go#L64" title="internal/component/config/yang/rfc7950_validator_lexical_test.go" target="_blank" rel="noopener"><code>TestRFC7950BinaryRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_validator_lexical_test.go#L90" title="internal/component/config/yang/rfc7950_validator_lexical_test.go" target="_blank" rel="noopener"><code>TestRFC7950BitsRefused</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_validator_decimal64_test.go#L40" title="internal/component/config/yang/rfc7950_validator_decimal64_test.go" target="_blank" rel="noopener"><code>TestRFC7950Decimal64Refused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L450" title="internal/component/config/yang/rfc7950_reference_walk_test.go" target="_blank" rel="noopener"><code>TestRFC7950InstanceIdentifierLeafListPredicateAbsent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_yang_schema_integer_default_test.go#L88" title="internal/component/config/rfc7950_yang_schema_integer_default_test.go" target="_blank" rel="noopener"><code>TestRFC7950IntegerModuleDefaultMalformedNotation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L146" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefLexical</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-9.2.4-2">RFC7950-9.2.4-2</code></td><td colspan="3"><span class="rfc-subject">If multiple values or ranges are given, they all MUST be disjoint and MUST be in ascending order. If a range restriction is applied to a type that is already range-restricted, the new restriction MUST be equally limiting or more limiting, i.e., raising the lower bounds, reducing the upper bounds, removing explicit values or ranges, or splitting ranges into multiple ranges with intermediate gaps. Each explicit value and range boundary value given in the range expression MUST match the type being restricted or be one of the special values &#34;min&#34; or &#34;max&#34;. (§9.2.4)</span></td></tr>
@@ -1018,7 +1034,7 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-9.7-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze offers no bits type; plan/spec-config-yang-type-bits.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze checks a bits value&#39;s names (validateBits, internal/component/config/yang/validator_lexical.go) but adds no check of its own on a bits type&#39;s bit statements, and goyang builds a restricted bits type&#39;s bits afresh from the restricting statements (types.go, (*Type).resolve: NewBitfield) without comparing them with the base type; plan/spec-config-yang-type-bits.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-9.7.4-1">RFC7950-9.7.4-1</code></td><td colspan="3"><span class="rfc-subject">The &#34;bit&#34; statement, which is a substatement to the &#34;type&#34; statement, MUST be present if the type is &#34;bits&#34;. It is repeatedly used to specify each assigned named bit of a bits type. It takes as an argument a string that is the assigned name of the bit. It is followed by a block of substatements that holds detailed bit information. The assigned name follows the same syntax rules as an identifier (see Section 6.2). All assigned names in a bits type MUST be unique. (§9.7.4)</span></td></tr>
 <tr><td></td>
@@ -1027,7 +1043,7 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-9.7.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze offers no bits type; plan/spec-config-yang-type-bits.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze checks a bits value&#39;s names (validateBits, internal/component/config/yang/validator_lexical.go) but adds no check of its own on a bits type&#39;s bit statements; goyang refuses a repeated bit name when it resolves the type (EnumType.Set: &#34;field %s already assigned&#34;), and no Ze test proves that refusal or the presence of a bit statement; plan/spec-config-yang-type-bits.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-9.7.4.2-1">RFC7950-9.7.4.2-1</code></td><td colspan="3"><span class="rfc-subject">The position value MUST be in the range 0 to 4294967295, and it MUST be unique within the bits type. If a bit position is not specified, then one will be automatically assigned. If the &#34;bit&#34; substatement is the first one defined, the assigned value is zero (0); otherwise, the assigned value is one greater than the current highest bit position (i.e., the highest bit position, implicit or explicit, prior to the current &#34;bit&#34; substatement in the parent &#34;type&#34; statement). Note that the presence of an &#34;if-feature&#34; statement in a &#34;bit&#34; statement does not affect the automatically assigned position. If the current highest bit position value is equal to 4294967295, then a position value MUST be specified for &#34;bit&#34; substatements following the one with the current highest position value. When an existing bits type is restricted, the &#34;position&#34; statement MUST either have the same value as in the base type or not be present, in which case the value is the same as in the base type. (§9.7.4.2)</span></td></tr>
 <tr><td></td>
@@ -1036,52 +1052,57 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-9.7.4.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze offers no bits type; plan/spec-config-yang-type-bits.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze checks a bits value&#39;s names (validateBits, internal/component/config/yang/validator_lexical.go) but adds no check of its own on a bits type&#39;s bit statements; goyang refuses a position outside 0 to 4294967295 (NewBitfield bounds, EnumType.Set) but accepts a position assigned twice, because a bitfield is built non-unique (NewBitfield), and never compares a restricted type&#39;s positions with the base type; plan/spec-config-yang-type-bits.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-9.9-1">RFC7950-9.9-1</code></td><td colspan="3"><span class="rfc-subject">If the &#34;require-instance&#34; property (Section 9.9.3) is &#34;true&#34;, there MUST exist a node in the data tree, or a node with a default value in use (see Sections 7.6.1 and 7.7.2), of the referred schema tree leaf or leaf-list node with the same value as the leafref value in a valid data tree. If the referring node represents configuration data and the &#34;require-instance&#34; property (Section 9.9.3) is &#34;true&#34;, the referred node MUST also represent configuration. There MUST NOT be any circular chains of leafrefs. If the leaf that the leafref refers to is conditional based on one or more features (see Section 7.20.2), then the leaf with the leafref type MUST also be conditional based on at least the same set of features. (§9.9)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>9.9</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-9.9-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze offers no leafref type; plan/spec-config-yang-type-leafref.md</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L64" title="internal/component/config/yang/rfc7950_reference_walk_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefDefaultInUse</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_canonical_test.go#L98" title="internal/component/config/yang/rfc7950_reference_canonical_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefPredicateCanonicalValue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L85" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefValueAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L190" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefConfigAndLoop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L77" title="internal/component/config/yang/rfc7950_reference_walk_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefDefaultNotInUse</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L100" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefInstanceRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L183" title="internal/component/config/yang/rfc7950_reference_walk_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefUnionLoop</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-9.9.2-1">RFC7950-9.9.2-1</code></td><td colspan="3"><span class="rfc-subject">The &#34;path&#34; statement, which is a substatement to the &#34;type&#34; statement, MUST be present if the type is &#34;leafref&#34;. It takes as an argument a string that MUST refer to a leaf or leaf-list node. The syntax for a path argument is a subset of the XPath abbreviated syntax. Predicates are used only for constraining the values for the key nodes for list entries. Each predicate consists of exactly one equality test per key, and multiple adjacent predicates MAY be present if a list has multiple keys. The syntax is formally defined by the rule &#34;path-arg&#34; in Section 14. The predicates are only used when more than one key reference is needed to uniquely identify a leaf instance. This occurs if a list has multiple keys or a reference to a leaf other than the key in a list is needed. In these cases, multiple leafrefs are typically specified, and predicates are used to tie them together. The &#34;path&#34; expression evaluates to a node set consisting of zero, one, or more nodes. If the &#34;require-instance&#34; property is &#34;true&#34;, this node set MUST be non-empty. (§9.9.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>9.9.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-9.9.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze offers no leafref type; plan/spec-config-yang-type-leafref.md</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L179" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefPathAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L161" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefPathRefused</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-9.9.3-1">RFC7950-9.9.3-1</code></td><td colspan="3"><span class="rfc-subject">If &#34;require-instance&#34; is &#34;true&#34;, it means that the instance being referred to MUST exist for the data to be valid. (Section 9.9.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>9.9.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-9.9.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze offers no leafref type; plan/spec-config-yang-type-leafref.md</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L112" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefRequireInstance</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L122" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefRequireInstanceMissing</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-9.10.2-1">RFC7950-9.10.2-1</code></td><td colspan="3"><span class="rfc-subject">The &#34;base&#34; statement, which is a substatement to the &#34;type&#34; statement, MUST be present at least once if the type is &#34;identityref&#34;. The argument is the name of an identity, as defined by an &#34;identity&#34; statement. If a prefix is present on the identity name, it refers to an identity defined in the module that was imported with that prefix. Otherwise, an identity with the matching name MUST be defined in the current module or an included submodule. (§9.10.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>9.10.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-9.10.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze offers no identityref type; plan/spec-config-yang-type-identityref.md</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L205" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950IdentityrefAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L216" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950IdentityrefRefused</code></a></span></div>
+</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;If a prefix is present on the identity name, it refers to an identity defined in the module that was imported with that prefix&#34;; gap &#34;MUST be present at least once&#34;; internal/component/config/yang/validator_reference.go::validateIdentityref is the boundary: Tested covers an identityref with one base, prefixed by an imported module&#39;s prefix or local, resolved by goyang (which refuses an identityref with no base or a base it cannot resolve), whose value must name an identity derived from it; Gap is a type naming the base statement more than once, because goyang keeps one base statement per identityref type (Type.IdentityBase holds one value), so the values derived from every base are not computed; plan/spec-config-yang-reference-types.md</p><p class="rfc-mark"><strong>Scoped evidence:</strong> Tests and tag-claim records apply only to Tested; zero whole-requirement credit. not audited: no reader has judged these tests</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-9.10.3-1">RFC7950-9.10.3-1</code></td><td colspan="3"><span class="rfc-subject">Otherwise, an identity with the matching name MUST be defined in the current module or one of its submodules. (Section 9.10.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>9.10.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-9.10.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze offers no identityref type; plan/spec-config-yang-type-identityref.md</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L228" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950IdentityrefOtherModule</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L134" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950IdentityrefPrefixRefused</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-9.12-2">RFC7950-9.12-2</code></td><td colspan="3"><span class="rfc-subject">When the type is &#34;union&#34;, the &#34;type&#34; statement (Section 7.4) MUST be present. (Section 9.12)</span></td></tr>
 <tr><td></td>
@@ -1097,9 +1118,11 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <td>MUST</td>
 <td>9.13</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-9.13-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze offers no instance-identifier type; plan/spec-config-yang-type-instance-identifier.md</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_canonical_test.go#L73" title="internal/component/config/yang/rfc7950_reference_canonical_test.go" target="_blank" rel="noopener"><code>TestRFC7950InstanceIdentifierCanonicalValue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L88" title="internal/component/config/yang/rfc7950_reference_walk_test.go" target="_blank" rel="noopener"><code>TestRFC7950InstanceIdentifierDefaultInUse</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L278" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950InstanceIdentifierExists</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L267" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950InstanceIdentifierKeys</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-11-1">RFC7950-11-1</code></td><td colspan="3"><span class="rfc-subject">For any published change, a new &#34;revision&#34; statement (Section 7.1.9) MUST be included in front of the existing &#34;revision&#34; statements. If there are no existing &#34;revision&#34; statements, then one MUST be added to identify the new revision. Furthermore, any necessary changes MUST be applied to any metadata statements, including the &#34;organization&#34; and &#34;contact&#34; statements (Sections 7.1.7 and 7.1.8). Note that definitions contained in a module are available to be imported by any other module and are referenced in &#34;import&#34; statements via the module name. Thus, a module name MUST NOT be changed. Furthermore, the &#34;namespace&#34; statement MUST NOT be changed, since all XML elements are qualified by the namespace. Obsolete definitions MUST NOT be removed from published modules, since their identifiers may still be referenced by other modules. (§11)</span></td></tr>
 <tr><td></td>
@@ -1133,9 +1156,9 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <td>MUST</td>
 <td>7.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-7.2.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_structural_test.go#L104" title="internal/component/config/yang/rfc7950_loader_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7950SubmoduleIncludedOnlyByItsModule</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_structural_test.go#L103" title="internal/component/config/yang/rfc7950_loader_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7950SubmoduleIncludedOnlyByItsModule</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-7.3.2-1">RFC7950-7.3.2-1</code></td><td colspan="3"><span class="rfc-subject">The &#34;type&#34; statement, which MUST be present, defines the base type from which this type is derived. (§7.3.2)</span></td></tr>
 <tr><td></td>
@@ -1169,9 +1192,10 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <td>MUST</td>
 <td>9.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-9.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the types with no canonical form, identityref and instance-identifier, are absent from Ze; plan/spec-config-yang-type-identityref.md</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L249" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950InstanceIdentifierLexical</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L289" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950IdentityrefFormat</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L127" title="internal/component/config/yang/rfc7950_reference_walk_test.go" target="_blank" rel="noopener"><code>TestRFC7950InstanceIdentifierKeyPrefix</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-9.4.4-2">RFC7950-9.4.4-2</code></td><td colspan="3"><span class="rfc-subject">If a length restriction is applied to a type that is already length-restricted, the new restriction MUST be equally limiting or more limiting, i.e., raising the lower bounds, reducing the upper bounds, removing explicit length values or ranges, or splitting ranges into multiple ranges with intermediate gaps. (§9.4.4)</span></td></tr>
 <tr><td></td>
@@ -1374,7 +1398,7 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 </tr>
 <tr><td><a href="#rfc7950-8.3.3-2"><code>RFC7950-8.3.3-2</code></a> If the datastore is &#34;running&#34; or &#34;startup&#34;, these constraints MUST be enforced at the end of the &lt;edit-config&gt; or &lt;copy-config&gt; operation. (§8.3.3)</td>
 <td>{gap}, no test</td>
-<td>LoadConfig (the &lt;copy-config&gt; window), the web editor commit (internal/component/cli/editor_commit.go validateStagedTree, through config/cli.ValidateContent) and the SSH editor commit (internal/component/cli/validator.go sectionErrors) all run ValidateCustomSections, which refuses a type or ze:validate violation in the sections validatedSections lists and a missing mandatory leaf in every top-level section present in the config, but none of them evaluates when, unique or choice exclusivity, and Ze&#39;s modules declare unique (ze-iface-conf), so the end of the operation does not enforce these constraints; plan/pre-release/spec-config-yang-when-unique-choice.md</td>
+<td>LoadConfig (the &lt;copy-config&gt; window), the web editor commit (internal/component/cli/editor_commit.go validateStagedTree, through config/cli.ValidateContent) and the SSH editor commit (internal/component/cli/validator.go sectionErrors) all run ValidateCustomSections, which refuses a type or ze:validate violation in the sections validatedSections lists, a missing mandatory leaf in every top-level section present in the config, and, through the whole-tree reference walk (Validator.ValidateReferences, the SSH editor commit included for the bgp section), a leafref or instance-identifier naming no instance, but none of them evaluates when, unique or choice exclusivity, and Ze&#39;s modules declare unique (ze-iface-conf), so the end of the operation does not enforce these constraints; plan/pre-release/spec-config-yang-when-unique-choice.md</td>
 </tr>
 <tr><td><a href="#rfc7950-9.2.4-2"><code>RFC7950-9.2.4-2</code></a> If multiple values or ranges are given, they all MUST be disjoint and MUST be in ascending order. If a range restriction is applied to a type that is already range-restricted, the new restriction MUST be equally limiting or more limiting, i.e., raising the lower bounds, reducing the upper bounds, removing explicit values or ranges, or splitting ranges into multiple ranges with intermediate gaps. Each explicit value and range boundary value given in the range expression MUST match the type being restricted or be one of the special values &#34;min&#34; or &#34;max&#34;. (§9.2.4)</td>
 <td>{gap}, no test</td>
@@ -1386,43 +1410,23 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 </tr>
 <tr><td><a href="#rfc7950-9.7-1"><code>RFC7950-9.7-1</code></a> When an existing bits type is restricted, the set of assigned names in the new type MUST be a subset of the base type&#39;s set of assigned names. The bit position of such an assigned name MUST NOT be changed. (§9.7)</td>
 <td>{gap}, no test</td>
-<td>Ze offers no bits type; plan/spec-config-yang-type-bits.md</td>
+<td>Ze checks a bits value&#39;s names (validateBits, internal/component/config/yang/validator_lexical.go) but adds no check of its own on a bits type&#39;s bit statements, and goyang builds a restricted bits type&#39;s bits afresh from the restricting statements (types.go, (*Type).resolve: NewBitfield) without comparing them with the base type; plan/spec-config-yang-type-bits.md</td>
 </tr>
 <tr><td><a href="#rfc7950-9.7.4-1"><code>RFC7950-9.7.4-1</code></a> The &#34;bit&#34; statement, which is a substatement to the &#34;type&#34; statement, MUST be present if the type is &#34;bits&#34;. It is repeatedly used to specify each assigned named bit of a bits type. It takes as an argument a string that is the assigned name of the bit. It is followed by a block of substatements that holds detailed bit information. The assigned name follows the same syntax rules as an identifier (see Section 6.2). All assigned names in a bits type MUST be unique. (§9.7.4)</td>
 <td>{gap}, no test</td>
-<td>Ze offers no bits type; plan/spec-config-yang-type-bits.md</td>
+<td>Ze checks a bits value&#39;s names (validateBits, internal/component/config/yang/validator_lexical.go) but adds no check of its own on a bits type&#39;s bit statements; goyang refuses a repeated bit name when it resolves the type (EnumType.Set: &#34;field %s already assigned&#34;), and no Ze test proves that refusal or the presence of a bit statement; plan/spec-config-yang-type-bits.md</td>
 </tr>
 <tr><td><a href="#rfc7950-9.7.4.2-1"><code>RFC7950-9.7.4.2-1</code></a> The position value MUST be in the range 0 to 4294967295, and it MUST be unique within the bits type. If a bit position is not specified, then one will be automatically assigned. If the &#34;bit&#34; substatement is the first one defined, the assigned value is zero (0); otherwise, the assigned value is one greater than the current highest bit position (i.e., the highest bit position, implicit or explicit, prior to the current &#34;bit&#34; substatement in the parent &#34;type&#34; statement). Note that the presence of an &#34;if-feature&#34; statement in a &#34;bit&#34; statement does not affect the automatically assigned position. If the current highest bit position value is equal to 4294967295, then a position value MUST be specified for &#34;bit&#34; substatements following the one with the current highest position value. When an existing bits type is restricted, the &#34;position&#34; statement MUST either have the same value as in the base type or not be present, in which case the value is the same as in the base type. (§9.7.4.2)</td>
 <td>{gap}, no test</td>
-<td>Ze offers no bits type; plan/spec-config-yang-type-bits.md</td>
-</tr>
-<tr><td><a href="#rfc7950-9.9-1"><code>RFC7950-9.9-1</code></a> If the &#34;require-instance&#34; property (Section 9.9.3) is &#34;true&#34;, there MUST exist a node in the data tree, or a node with a default value in use (see Sections 7.6.1 and 7.7.2), of the referred schema tree leaf or leaf-list node with the same value as the leafref value in a valid data tree. If the referring node represents configuration data and the &#34;require-instance&#34; property (Section 9.9.3) is &#34;true&#34;, the referred node MUST also represent configuration. There MUST NOT be any circular chains of leafrefs. If the leaf that the leafref refers to is conditional based on one or more features (see Section 7.20.2), then the leaf with the leafref type MUST also be conditional based on at least the same set of features. (§9.9)</td>
-<td>{gap}, no test</td>
-<td>Ze offers no leafref type; plan/spec-config-yang-type-leafref.md</td>
-</tr>
-<tr><td><a href="#rfc7950-9.9.2-1"><code>RFC7950-9.9.2-1</code></a> The &#34;path&#34; statement, which is a substatement to the &#34;type&#34; statement, MUST be present if the type is &#34;leafref&#34;. It takes as an argument a string that MUST refer to a leaf or leaf-list node. The syntax for a path argument is a subset of the XPath abbreviated syntax. Predicates are used only for constraining the values for the key nodes for list entries. Each predicate consists of exactly one equality test per key, and multiple adjacent predicates MAY be present if a list has multiple keys. The syntax is formally defined by the rule &#34;path-arg&#34; in Section 14. The predicates are only used when more than one key reference is needed to uniquely identify a leaf instance. This occurs if a list has multiple keys or a reference to a leaf other than the key in a list is needed. In these cases, multiple leafrefs are typically specified, and predicates are used to tie them together. The &#34;path&#34; expression evaluates to a node set consisting of zero, one, or more nodes. If the &#34;require-instance&#34; property is &#34;true&#34;, this node set MUST be non-empty. (§9.9.2)</td>
-<td>{gap}, no test</td>
-<td>Ze offers no leafref type; plan/spec-config-yang-type-leafref.md</td>
-</tr>
-<tr><td><a href="#rfc7950-9.9.3-1"><code>RFC7950-9.9.3-1</code></a> If &#34;require-instance&#34; is &#34;true&#34;, it means that the instance being referred to MUST exist for the data to be valid. (Section 9.9.3)</td>
-<td>{gap}, no test</td>
-<td>Ze offers no leafref type; plan/spec-config-yang-type-leafref.md</td>
+<td>Ze checks a bits value&#39;s names (validateBits, internal/component/config/yang/validator_lexical.go) but adds no check of its own on a bits type&#39;s bit statements; goyang refuses a position outside 0 to 4294967295 (NewBitfield bounds, EnumType.Set) but accepts a position assigned twice, because a bitfield is built non-unique (NewBitfield), and never compares a restricted type&#39;s positions with the base type; plan/spec-config-yang-type-bits.md</td>
 </tr>
 <tr><td><a href="#rfc7950-9.10.2-1"><code>RFC7950-9.10.2-1</code></a> The &#34;base&#34; statement, which is a substatement to the &#34;type&#34; statement, MUST be present at least once if the type is &#34;identityref&#34;. The argument is the name of an identity, as defined by an &#34;identity&#34; statement. If a prefix is present on the identity name, it refers to an identity defined in the module that was imported with that prefix. Otherwise, an identity with the matching name MUST be defined in the current module or an included submodule. (§9.10.2)</td>
-<td>{gap}, no test</td>
-<td>Ze offers no identityref type; plan/spec-config-yang-type-identityref.md</td>
-</tr>
-<tr><td><a href="#rfc7950-9.10.3-1"><code>RFC7950-9.10.3-1</code></a> Otherwise, an identity with the matching name MUST be defined in the current module or one of its submodules. (Section 9.10.3)</td>
-<td>{gap}, no test</td>
-<td>Ze offers no identityref type; plan/spec-config-yang-type-identityref.md</td>
+<td>{partial}, Partial proof; remaining gap</td>
+<td>tested &#34;If a prefix is present on the identity name, it refers to an identity defined in the module that was imported with that prefix&#34;; gap &#34;MUST be present at least once&#34;; internal/component/config/yang/validator_reference.go::validateIdentityref is the boundary: Tested covers an identityref with one base, prefixed by an imported module&#39;s prefix or local, resolved by goyang (which refuses an identityref with no base or a base it cannot resolve), whose value must name an identity derived from it; Gap is a type naming the base statement more than once, because goyang keeps one base statement per identityref type (Type.IdentityBase holds one value), so the values derived from every base are not computed; plan/spec-config-yang-reference-types.md</td>
 </tr>
 <tr><td><a href="#rfc7950-9.12-2"><code>RFC7950-9.12-2</code></a> When the type is &#34;union&#34;, the &#34;type&#34; statement (Section 7.4) MUST be present. (Section 9.12)</td>
 <td>{gap}, no test</td>
 <td>goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md</td>
-</tr>
-<tr><td><a href="#rfc7950-9.13-1"><code>RFC7950-9.13-1</code></a> For identifying list entries with keys, each predicate consists of one equality test per key, and each key MUST have a corresponding predicate. If a key is of type &#34;empty&#34;, it is represented as a zero-length string (&#34;&#34;). If the leaf with the instance-identifier type represents configuration data and the &#34;require-instance&#34; property (Section 9.9.3) is &#34;true&#34;, the node it refers to MUST also represent configuration. Such a leaf puts a constraint on valid data. All such leaf nodes MUST reference existing nodes or leaf or leaf-list nodes with their default value in use (see Sections 7.6.1 and 7.7.2) for the data to be valid. (§9.13)</td>
-<td>{gap}, no test</td>
-<td>Ze offers no instance-identifier type; plan/spec-config-yang-type-instance-identifier.md</td>
 </tr>
 <tr><td><a href="#rfc7950-11-1"><code>RFC7950-11-1</code></a> For any published change, a new &#34;revision&#34; statement (Section 7.1.9) MUST be included in front of the existing &#34;revision&#34; statements. If there are no existing &#34;revision&#34; statements, then one MUST be added to identify the new revision. Furthermore, any necessary changes MUST be applied to any metadata statements, including the &#34;organization&#34; and &#34;contact&#34; statements (Sections 7.1.7 and 7.1.8). Note that definitions contained in a module are available to be imported by any other module and are referenced in &#34;import&#34; statements via the module name. Thus, a module name MUST NOT be changed. Furthermore, the &#34;namespace&#34; statement MUST NOT be changed, since all XML elements are qualified by the namespace. Obsolete definitions MUST NOT be removed from published modules, since their identifiers may still be referenced by other modules. (§11)</td>
 <td>{gap}, no test</td>
@@ -1436,17 +1440,9 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <td>{gap}, no test</td>
 <td>no repository check reads the namespace or the revision history of the embedded modules; plan/spec-config-yang-authoring-checks.md</td>
 </tr>
-<tr><td><a href="#rfc7950-7.2.2-1"><code>RFC7950-7.2.2-1</code></a> A submodule MUST only be included by either the module to which it belongs or another submodule that belongs to that module. (§7.2.2)</td>
-<td>{gap}, no test</td>
-<td>goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md</td>
-</tr>
 <tr><td><a href="#rfc7950-7.21.5-2"><code>RFC7950-7.21.5-2</code></a> If the XPath expression references any node that also has associated &#34;when&#34; statements, those &#34;when&#34; expressions MUST be evaluated first. There MUST NOT be any circular dependencies among &#34;when&#34; expressions. (§7.21.5)</td>
 <td>{gap}, no test</td>
 <td>walkTree evaluates no when, unique or choice; plan/pre-release/spec-config-yang-when-unique-choice.md</td>
-</tr>
-<tr><td><a href="#rfc7950-9.1-2"><code>RFC7950-9.1-2</code></a> If the data type does not have a canonical form, the format of the value MUST match the data type&#39;s lexical representation, but the exact format is implementation dependent. (§9.1)</td>
-<td>{gap}, no test</td>
-<td>the types with no canonical form, identityref and instance-identifier, are absent from Ze; plan/spec-config-yang-type-identityref.md</td>
 </tr>
 <tr><td><a href="#rfc7950-12-1"><code>RFC7950-12-1</code></a> A YANG version 1.1 module MUST NOT include a YANG version 1 submodule, and a YANG version 1 module MUST NOT include a YANG version 1.1 submodule. A YANG version 1 module or submodule MUST NOT import a YANG version 1.1 module by revision. (§12)</td>
 <td>{gap}, no test</td>
@@ -1536,7 +1532,7 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <h3><a href="#rfc7950-7.6.5-1"><code>RFC7950-7.6.5-1</code></a></h3>
 <p>If &#34;mandatory&#34; is &#34;true&#34;, the behavior of the constraint depends on the type of the leaf&#39;s closest ancestor node in the schema tree that is not a non-presence container (see Section 7.5.1): o If no such ancestor exists in the schema tree, the leaf MUST exist. (§7.6.5)</p>
 <p>Scoped tag-claim records only: tested &#34;the leaf MUST exist&#34;; gap &#34;If no such ancestor exists in the schema tree&#34;; internal/component/config/validate_sections.go::ValidateCustomSections is the boundary: Tested covers a mandatory leaf whose ancestors are all non-presence containers, required whenever its top-level section is present in the config (bgp/router-id, bgp/session/asn/local, once the bgp section holds a peer or a group); Gap is the same leaf when the whole top-level section is absent, which Ze does not require, because its top-level sections are non-presence containers that stand for an enabled feature and requiring their leaves would refuse every config that omits bgp; owner-approved deviation, OWNER RULING 6 of 2026-10-12 (Thomas, &#34;Like FRR/libyang (Recommended)&#34;): mandatory leaves are checked only in sections present in the config, as libyang&#39;s LYD_VALIDATE_PRESENT (&#34;Validate only modules whose data actually exist&#34;) does when FRR sets it in nb_candidate_validate_yang (lib/northbound.c) and yang_parse_data (lib/yang.c); Gap also holds bgp/router-id and bgp/session/asn/local absent at the bgp level while every BGP session carries the value itself or from its group, which bgpMandatoryFailures counts as present through EverySessionCarries: a second owner-approved deviation, ruling of 2026-10-12 (Thomas, &#34;yes enforce&#34;, spec AC-2); that ruling binds only once a session exists: a bgp section with no peer and no group is accepted and does nothing, so EverySessionCarries counts both leaves as present there (Thomas, 2026-10-16, spec AC-2 RULING 7); a deviation is never counted conformant; plan/pre-release/spec-config-yang-when-unique-choice.md; zero whole-requirement credit.</p>
-<p><strong>Audit verdict:</strong> partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-10-16, second pass (independent judge) after the author fixed the first pass&#39;s positive finding. Read at rfc/full/rfc7950.txt Section 7.6.5: &#34;If &#34;mandatory&#34; is &#34;true&#34;, the behavior of the constraint depends on the type of the leaf&#39;s closest ancestor node in the schema tree that is not a non-presence container (see Section 7.5.1): o If no such ancestor exists in the schema tree, the leaf MUST exist.&#34; The row text is a verbatim span of that section. Tested &#34;the leaf MUST exist&#34;; Gap &#34;If no such ancestor exists in the schema tree&#34;; Producer internal/component/config/validate_sections.go::ValidateCustomSections. Tested scope: a bgp section present with at least one session source. Q1-Q4: TestRFC7950MandatoryRefusesBGPConfig and TestValidator_MandatoryField now form minimal pairs: each negative holds one peer that carries neither leaf and lacks one mandatory leaf globally (the other present), and is refused with the exact path (bgp/session/asn/local plus its set command; ErrCustomValidation plus bgp/router-id); each positive is the same section, peer included, with the leaf added, and loads. Because the peer is a session source, the no-session excuse cannot fire on either side, so the positives now catch a producer that misreads a present leaf as missing and the #2 claim &#34;the same section once bgp/session/asn/local is present&#34; is true. TestValidateTree_MandatoryMissing and TestRFC7950MandatoryWithNoQualifyingAncestor are unchanged and still pin walkTree&#39;s descent with no bgp excuse in play. The four LoadConfig records were re-recorded with observed reds and ./le rfc discriminate id RFC7950-7.6.5-1 lists no stale and no unproven entry. The scope of Gap (b) is now pinned by the untagged TestMandatoryBGPNoSessionExcusesOnlySessionLeaves (a non-session global leaf stays required with no source; an empty non-dynamic group is a source) and TestMandatoryBGPLeafNotRequiredWithNoSession; they earn this row nothing. Gap, never counted conformant: (a) a whole top-level section absent from the config is not walked, owner ruling 6 (libyang LYD_VALIDATE_PRESENT); (b) bgp/router-id and bgp/session/asn/local absent globally while every session carries the value itself or from its group, and, per owner ruling 7 of 2026-10-16, absent in a bgp section with no peer and no group, are counted present by EverySessionCarries. Whole requirement earns no credit.</p>
+<p><strong>Audit verdict:</strong> partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-10-18 (independent auditor, after bccd1e7cf5). Read at rfc/full/rfc7950.txt Section 7.6.5: &#34;If &#34;mandatory&#34; is &#34;true&#34;, the behavior of the constraint depends on the type of the leaf&#39;s closest ancestor node in the schema tree that is not a non-presence container (see Section 7.5.1): o If no such ancestor exists in the schema tree, the leaf MUST exist.&#34; The only change under this verdict is one appended line in ValidateCustomSections, found = append(found, referenceFailures(validator, tree)...), which adds require-instance failures after the mandatory ones and changes neither mandatoryFailures nor bgpMandatoryFailures nor walkTree; no tagged unit changed. Shipped modules hold one leafref (traffic default-class), so no tagged bgp config can gain a reference failure that would confound a mandatory assertion. ./le rfc discriminate id RFC7950-7.6.5-1 lists seven records, no stale and no unproven entry. Tested &#34;the leaf MUST exist&#34;; Gap &#34;If no such ancestor exists in the schema tree&#34;; Producer internal/component/config/validate_sections.go::ValidateCustomSections; the Tested/Gap/Producer text is unchanged. Gap stands as before: (a) an absent top-level section is not walked (owner ruling 6), (b) bgp/router-id and bgp/session/asn/local counted present through EverySessionCarries (owner rulings of 2026-10-12 and 2026-10-16). A deviation is never counted conformant; the whole requirement earns no credit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2143,13 +2139,28 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <p>No test carries RFC7950-8.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc7950-8.1-2"><code>RFC7950-8.1-2</code></a></h3>
 <p>The running configuration datastore MUST always be valid. (Section 8.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The tagged units drive config.LoadConfig directly: TestRFC7950RunningDatastoreRefusesAViolationAfterParse requires a nil result and ErrCustomValidation for a ze:validate violation, and TestRFC7950RunningDatastoreAcceptsAValidConfig loads a valid config. &#34;Always&#34; binds every route into the running configuration, and no tagged unit drives one: neither the daemon install path (the load closure runReload receives, cmd/ze/hub/main_reload.go) nor the editor commit (internal/component/cli/editor_commit.go, whose validateStagedTree is a no-op when preCommitValidate is nil). A route that installed a tree without LoadConfig leaves every tagged assertion green. The YANG-type violation is asserted only in TestRFC7950RunningDatastoreRefusesAViolationAtParse, tagged to RFC7950-8.3-1, not to this row.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after 9d4a5e79e2). Section 8.1: &#34;The running configuration datastore MUST always be valid.&#34; The earlier finding (only config.LoadConfig was driven; no install route) is answered for the reload route: TestRFC7950ReloadInstallsAValidConfig and TestRFC7950ReloadRefusesAConstraintViolation write the file and drive diskConfigLoaders and doReload, the path every SIGHUP and editor reload notifier reaches, and assert the refused reload returns ErrCustomValidation naming the value while the reactor keeps system/host reload-valid-host. TestRFC7950WebCommitRefusesAConstraintViolation shows the web editor commit writes nothing for the same violation. Startup stays covered by the LoadConfig units. Residual: the SSH session editor (session_editor.go) sets no pre-commit validator, so its commit relies on the reload refusal the reload units prove; no tagged unit drives that editor, and none drives the gNMI/API configValidationHook route.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_reload_validation_test.go#L94" title="cmd/ze/hub/rfc7950_reload_validation_test.go" target="_blank" rel="noopener"><code>TestRFC7950ReloadRefusesAConstraintViolation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_web_commit_validation_test.go#L82" title="cmd/ze/hub/rfc7950_web_commit_validation_test.go" target="_blank" rel="noopener"><code>TestRFC7950WebCommitRefusesAConstraintViolation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L77" title="internal/component/config/rfc7950_datastore_test.go" target="_blank" rel="noopener"><code>TestRFC7950RunningDatastoreRefusesAViolationAfterParse</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_reload_validation_test.go#L76" title="cmd/ze/hub/rfc7950_reload_validation_test.go" target="_blank" rel="noopener"><code>TestRFC7950ReloadInstallsAValidConfig</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2163,11 +2174,16 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 </div>
 <h3><a href="#rfc7950-8.3-1"><code>RFC7950-8.3-1</code></a></h3>
 <p>For configuration data, there are three windows when constraints MUST be enforced: o during parsing of RPC payloads o during processing of the &lt;edit-config&gt; operation o during validation (§8.3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. parse window and whole-tree validation window are proven through LoadConfig; the edit-processing window (the config editor set/commit path) is untested</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after 9d4a5e79e2). Section 8.3: &#34;For configuration data, there are three windows when constraints MUST be enforced&#34;: parsing, processing of &lt;edit-config&gt;, and validation. Parse and whole-tree validation stay proven through LoadConfig (TestRFC7950RunningDatastoreRefusesAViolationAtParse, ...AfterParse). The earlier finding (edit-processing window untested) is answered for the web editor: TestRFC7950WebCommitWritesAValidEdit (SetValue, CommitNow, file carries the edit) and TestRFC7950WebCommitRefusesAConstraintViolation (a value the YANG type accepts and the internal-plugin ze:validate rule refuses: CommitNow errors naming the value and the file is byte-identical), driven through newEditorFactory(ValidateContent), the factory service_web.go installs. Residual: the SSH CLI editor commit, which carries no pre-commit validator and is refused only at reload, and the gNMI/API session commit are not driven by a tagged unit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_web_commit_validation_test.go#L81" title="cmd/ze/hub/rfc7950_web_commit_validation_test.go" target="_blank" rel="noopener"><code>TestRFC7950WebCommitRefusesAConstraintViolation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L78" title="internal/component/config/rfc7950_datastore_test.go" target="_blank" rel="noopener"><code>TestRFC7950RunningDatastoreRefusesAViolationAfterParse</code></a></td>
 <td>unit/verify</td>
@@ -2175,6 +2191,11 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L53" title="internal/component/config/rfc7950_datastore_test.go" target="_blank" rel="noopener"><code>TestRFC7950RunningDatastoreRefusesAViolationAtParse</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_web_commit_validation_test.go#L58" title="cmd/ze/hub/rfc7950_web_commit_validation_test.go" target="_blank" rel="noopener"><code>TestRFC7950WebCommitWritesAValidEdit</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2216,17 +2237,62 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 </div>
 <h3><a href="#rfc7950-8.3.3-2"><code>RFC7950-8.3.3-2</code></a></h3>
 <p>If the datastore is &#34;running&#34; or &#34;startup&#34;, these constraints MUST be enforced at the end of the &lt;edit-config&gt; or &lt;copy-config&gt; operation. (§8.3.3)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-12, second pass (independent auditor) after 60a74fc04b, 600996fb77, 975428e1b3, 3f1bec74f0 and 84382339ce. Section 8.3.3: &#34;If the datastore is \&#34;running\&#34; or \&#34;startup\&#34;, these constraints MUST be enforced at the end of the &lt;edit-config&gt; or &lt;copy-config&gt; operation.&#34; ValidateCustomSections now runs the full walk over validatedSections, mandatoryFailures over every other top-level section the compiled schema declares that is present in the config (Validator.Sections), and bgpMandatoryFailures over the bgp global level; LoadConfig, ze config validate, the web editor commit and the SSH editor commit (cli ConfigValidator.sectionErrors) all reach it. 600996fb77 added the SSH editor commit to the surfaces that refuse. Still not met: no surface evaluates unique, choice exclusivity or when, and the type and ze:validate walk runs only over validatedSections. Row gap text corrected to the current surfaces. Owner ruling 4; spec-config-yang-when-unique-choice.</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-18 (independent auditor, after 2e4be94ae3). Read at rfc/full/rfc7950.txt Section 8.3.3: &#34;If the datastore is &#34;running&#34; or &#34;startup&#34;, these constraints MUST be enforced at the end of the &lt;edit-config&gt; or &lt;copy-config&gt; operation.&#34; The constraints are the Section 8.1 list, which includes &#34;Nodes MUST be present for at most one case branch in all choices.&#34; 2e4be94ae3 closes the SSH editor hole the prior judgement named: sectionErrors now keeps a bgp failure whose type is ErrTypeReference (editorReportsSectionFailure, unit-tested by TestEditorReportsSectionFailure only, as no bgp module declares a leafref yet), and referenceFailures walks tree.ToPluginMap() so a positional instance-identifier counts in list order. Still unmet at every surface (LoadConfig, ze config validate, web and SSH editor commits through ValidateCustomSections): no evaluation of when, unique (declared in ze-iface-conf, ze-bgp-conf and ze-healthcheck-conf; config.ListNode.Unique is read only by the web fragment for display) or choice exclusivity. An overlay probe shows the missing exclusivity check leaking into the reference walk: with nodes in two cases of one choice, a leafref to the default of one case was accepted in 174 of 200 runs and refused in 26 (activeBranch ranges over choice.Dir, a map). The row&#39;s {gap} still names the plan spec-config-yang-when-unique-choice.md, which exists.</p>
 <p>No test carries RFC7950-8.3.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7950-9.1-1"><code>RFC7950-9.1-1</code></a></h3>
 <p>Implementations MUST support all lexical representations specified in this document. (§9.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. decimal64 lexical forms both polarities, and integer &#34;+17&#34; now accepted for uint8 (validateUnsigned fixed) and int8 (positive only, record on validateUnsigned). Missing: hexadecimal and octal integer forms in a module default (Section 9.2.1, &#34;0x10&#34; refused by ParseUint base 10), and bits, binary, empty, identityref fall to validateYangType&#39;s default arm with no lexical check or tagged case. Re-judged 2026-09-30: the decimal64 units changed only by their RFC7950-9.3.2-1 tags moving to RFC7950-9.3.1-1; the gaps named stand.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/config/yang/validator_instance.go::instanceExists, internal/component/config/yang/validator_reference.go::readEqualsQuoted, internal/component/config/yang/validator_reference.go::readInstancePredicates moved. Re-judged 2026-10-18 (independent auditor, after 8a404499d5). Read at rfc/full/rfc7950.txt Section 9.1: &#34;Implementations MUST support all lexical representations specified in this document.&#34; The prior weak verdict&#39;s only reason was the unproven instance-identifier leaf-list-predicate form (Section 14: &#34;leaf-list-predicate-expr = \&#34;.\&#34; *WSP \&#34;=\&#34; *WSP quoted-string&#34;; Section 9.13.4 example &#34;/ex:system/ex:services/ex:ssh/ex:cipher[.=&#39;blowfish-cbc&#39;]&#34;). TestRFC7950InstanceIdentifierLeafListPredicate now asserts [.=&#39;blue&#39;] and the spaced double-quoted [ . = &#34;blue&#34; ] are accepted by validateLeafValue and by ValidateReferences (the call validate_sections.go makes on every config validate/commit), and TestRFC7950InstanceIdentifierLeafListPredicateAbsent asserts [.=&#39;green&#39;] parses yet is refused as absent; both claims state exactly what the bodies assert. Targeted overlay mutants (tags ze_core ze_bgp), beyond the recorded whole-body halts: disabling the &#39;.&#39; branch of readInstancePredicates reddened both tests; dropping the *WSP skip in readEqualsQuoted reddened the positive (spaced form); making instanceExists answer true for any leaf-list predicate value reddened the negative. All 14 tagged units pass at HEAD in both packages. The units carried from the prior judgement (hex/octal and signed integers, decimal64, binary, bits, leafref lexical, union default via leafref member) still stand. Observed, not denying this row: a present leaf-list or list key is matched against the predicate value as raw text (instanceExists slices.Contains, instanceKeysMatch), while an absent default is matched canonically (absentLeafInUse canonicalValue), so for uint8 [.=&#39;+17&#39;] matches a default 17 but not a configured 17 (overlay probe); one of the two paths is wrong and they should agree.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_yang_schema_integer_default_test.go#L88" title="internal/component/config/rfc7950_yang_schema_integer_default_test.go" target="_blank" rel="noopener"><code>TestRFC7950IntegerModuleDefaultMalformedNotation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L146" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefLexical</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L450" title="internal/component/config/yang/rfc7950_reference_walk_test.go" target="_blank" rel="noopener"><code>TestRFC7950InstanceIdentifierLeafListPredicateAbsent</code></a></td>
+<td>unit/verify</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_validator_decimal64_test.go#L40" title="internal/component/config/yang/rfc7950_validator_decimal64_test.go" target="_blank" rel="noopener"><code>TestRFC7950Decimal64Refused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_validator_lexical_test.go#L64" title="internal/component/config/yang/rfc7950_validator_lexical_test.go" target="_blank" rel="noopener"><code>TestRFC7950BinaryRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_validator_lexical_test.go#L90" title="internal/component/config/yang/rfc7950_validator_lexical_test.go" target="_blank" rel="noopener"><code>TestRFC7950BitsRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_yang_schema_integer_default_test.go#L39" title="internal/component/config/rfc7950_yang_schema_integer_default_test.go" target="_blank" rel="noopener"><code>TestRFC7950IntegerModuleDefaultHexAndOctal</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L77" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950ReferenceTypesLoad</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L438" title="internal/component/config/yang/rfc7950_reference_walk_test.go" target="_blank" rel="noopener"><code>TestRFC7950InstanceIdentifierLeafListPredicate</code></a></td>
+<td>unit/verify</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L157" title="internal/component/config/yang/rfc7950_reference_walk_test.go" target="_blank" rel="noopener"><code>TestRFC7950UnionDefaultLeafrefMember</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2240,6 +2306,16 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_validator_lexical_test.go#L50" title="internal/component/config/yang/rfc7950_validator_lexical_test.go" target="_blank" rel="noopener"><code>TestRFC7950BinaryAccepted</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_validator_lexical_test.go#L77" title="internal/component/config/yang/rfc7950_validator_lexical_test.go" target="_blank" rel="noopener"><code>TestRFC7950BitsAccepted</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -2249,7 +2325,7 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <p>No test carries RFC7950-9.2.4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7950-9.3.1-1"><code>RFC7950-9.3.1-1</code></a></h3>
 <p>A decimal64 value is lexically represented as an optional sign (&#34;+&#34; or &#34;-&#34;), followed by a sequence of decimal digits, optionally followed by a period (&#39;.&#39;) as a decimal indicator and a sequence of decimal digits. (§9.3.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. every element of the §9.3.1 lexical form, both polarities through validateYangType on one decimal64 type: &#39;+1.5&#39;, &#39;-1.5&#39;, &#39;1&#39;, &#39;0.25&#39;, &#39;0.0&#39;, &#39;10.50&#39; accepted; &#39;.5&#39; (no leading digit), &#39;1.&#39; (period without digits), &#39;+&#39;, &#39;-&#39;, &#39;1.2.3&#39;, &#39;abc&#39;, &#39;&#39; each refused with ErrTypeType and &#39;expected decimal64&#39;. Fraction-digits and range refusals in the same unit are distinct asserted kinds. Records on validateDecimal64.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after 2e4be94ae3). Read at rfc/full/rfc7950.txt Section 9.3.1: &#34;A decimal64 value is lexically represented as an optional sign (&#34;+&#34; or &#34;-&#34;), followed by a sequence of decimal digits, optionally followed by a period (&#39;.&#39;) as a decimal indicator and a sequence of decimal digits.&#34; The units changed only from validateYangType to ValidateType, which is the same producer path (validateLeafValue with no leaf). validateDecimal64 tests ^[+-]?\d+(\.\d+)?$ (ASCII digits in Go RE2) before the fraction-digits parse. Positive accepts +1.5, -1.5, -10.5, 1, 0.25, 0.0, 10.50; negative refuses .5, 1., +, -, 1.2.3, abc and the empty string with ErrTypeType and &#39;expected decimal64&#39;, with fraction-digits and range refusals asserted as distinct kinds. Each clause of the sentence has a value that would flip if the regexp lost it; records on validateDecimal64 replay.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2329,7 +2405,7 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 </div>
 <h3><a href="#rfc7950-9.5.1-1"><code>RFC7950-9.5.1-1</code></a></h3>
 <p>The lexical representation of a boolean value is a string with a value of &#34;true&#34; or &#34;false&#34;. These values MUST be in lowercase. (§9.5.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: accepting a boolean not spelled lowercase true or false. validator_rfc7950_test.go TestRFC7950BooleanNotLowercaseRefused requires validateYangType to return a ValidationError of type ErrTypeType with message &#34;expected boolean&#34; for &#34;True&#34;, &#34;FALSE&#34;, &#34;TRUE&#34;, &#34;yes&#34; and &#34;1&#34;; TestRFC7950BooleanLowercaseAccepted requires &#34;true&#34; and &#34;false&#34; to pass (assert.NoError).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after 2e4be94ae3). Read at rfc/full/rfc7950.txt Section 9.5.1: &#34;The lexical representation of a boolean value is a string with a value of &#34;true&#34; or &#34;false&#34;. These values MUST be in lowercase.&#34; The units changed only from validateYangType to ValidateType, the same producer path. validateBoolean accepts exactly &#34;true&#34; and &#34;false&#34;; the negative requires ErrTypeType &#39;expected boolean&#39; for True, FALSE, TRUE, yes and 1, so a case-folding comparison would turn it red. Ze&#39;s config spelling enable/disable is rewritten by NormalizeBool (case-sensitive) before the validator, and TestBooleanConfigSpellingRefused pins that the validator itself refuses them.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2446,23 +2522,129 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <h3><a href="#rfc7950-9.9-1"><code>RFC7950-9.9-1</code></a></h3>
 <p>If the &#34;require-instance&#34; property (Section 9.9.3) is &#34;true&#34;, there MUST exist a node in the data tree, or a node with a default value in use (see Sections 7.6.1 and 7.7.2), of the referred schema tree leaf or leaf-list node with the same value as the leafref value in a valid data tree. If the referring node represents configuration data and the &#34;require-instance&#34; property (Section 9.9.3) is &#34;true&#34;, the referred node MUST also represent configuration. There MUST NOT be any circular chains of leafrefs. If the leaf that the leafref refers to is conditional based on one or more features (see Section 7.20.2), then the leaf with the leafref type MUST also be conditional based on at least the same set of features. (§9.9)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-9.9-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L190" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefConfigAndLoop</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L100" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefInstanceRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L77" title="internal/component/config/yang/rfc7950_reference_walk_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefDefaultNotInUse</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L183" title="internal/component/config/yang/rfc7950_reference_walk_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefUnionLoop</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_canonical_test.go#L98" title="internal/component/config/yang/rfc7950_reference_canonical_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefPredicateCanonicalValue</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L85" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefValueAccepted</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L64" title="internal/component/config/yang/rfc7950_reference_walk_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefDefaultInUse</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7950-9.9.2-1"><code>RFC7950-9.9.2-1</code></a></h3>
 <p>The &#34;path&#34; statement, which is a substatement to the &#34;type&#34; statement, MUST be present if the type is &#34;leafref&#34;. It takes as an argument a string that MUST refer to a leaf or leaf-list node. The syntax for a path argument is a subset of the XPath abbreviated syntax. Predicates are used only for constraining the values for the key nodes for list entries. Each predicate consists of exactly one equality test per key, and multiple adjacent predicates MAY be present if a list has multiple keys. The syntax is formally defined by the rule &#34;path-arg&#34; in Section 14. The predicates are only used when more than one key reference is needed to uniquely identify a leaf instance. This occurs if a list has multiple keys or a reference to a leaf other than the key in a list is needed. In these cases, multiple leafrefs are typically specified, and predicates are used to tie them together. The &#34;path&#34; expression evaluates to a node set consisting of zero, one, or more nodes. If the &#34;require-instance&#34; property is &#34;true&#34;, this node set MUST be non-empty. (§9.9.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-9.9.2-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L161" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefPathRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L179" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefPathAccepted</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7950-9.9.3-1"><code>RFC7950-9.9.3-1</code></a></h3>
 <p>If &#34;require-instance&#34; is &#34;true&#34;, it means that the instance being referred to MUST exist for the data to be valid. (Section 9.9.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-9.9.3-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L122" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefRequireInstanceMissing</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L112" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafrefRequireInstance</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7950-9.10.2-1"><code>RFC7950-9.10.2-1</code></a></h3>
 <p>The &#34;base&#34; statement, which is a substatement to the &#34;type&#34; statement, MUST be present at least once if the type is &#34;identityref&#34;. The argument is the name of an identity, as defined by an &#34;identity&#34; statement. If a prefix is present on the identity name, it refers to an identity defined in the module that was imported with that prefix. Otherwise, an identity with the matching name MUST be defined in the current module or an included submodule. (§9.10.2)</p>
+<p>Scoped tag-claim records only: tested &#34;If a prefix is present on the identity name, it refers to an identity defined in the module that was imported with that prefix&#34;; gap &#34;MUST be present at least once&#34;; internal/component/config/yang/validator_reference.go::validateIdentityref is the boundary: Tested covers an identityref with one base, prefixed by an imported module&#39;s prefix or local, resolved by goyang (which refuses an identityref with no base or a base it cannot resolve), whose value must name an identity derived from it; Gap is a type naming the base statement more than once, because goyang keeps one base statement per identityref type (Type.IdentityBase holds one value), so the values derived from every base are not computed; plan/spec-config-yang-reference-types.md; zero whole-requirement credit.</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-9.10.2-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L216" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950IdentityrefRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L205" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950IdentityrefAccepted</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7950-9.10.3-1"><code>RFC7950-9.10.3-1</code></a></h3>
 <p>Otherwise, an identity with the matching name MUST be defined in the current module or one of its submodules. (Section 9.10.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-9.10.3-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L134" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950IdentityrefPrefixRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L228" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950IdentityrefOtherModule</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7950-9.12-2"><code>RFC7950-9.12-2</code></a></h3>
 <p>When the type is &#34;union&#34;, the &#34;type&#34; statement (Section 7.4) MUST be present. (Section 9.12)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -2470,7 +2652,33 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <h3><a href="#rfc7950-9.13-1"><code>RFC7950-9.13-1</code></a></h3>
 <p>For identifying list entries with keys, each predicate consists of one equality test per key, and each key MUST have a corresponding predicate. If a key is of type &#34;empty&#34;, it is represented as a zero-length string (&#34;&#34;). If the leaf with the instance-identifier type represents configuration data and the &#34;require-instance&#34; property (Section 9.9.3) is &#34;true&#34;, the node it refers to MUST also represent configuration. Such a leaf puts a constraint on valid data. All such leaf nodes MUST reference existing nodes or leaf or leaf-list nodes with their default value in use (see Sections 7.6.1 and 7.7.2) for the data to be valid. (§9.13)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-9.13-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L267" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950InstanceIdentifierKeys</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_canonical_test.go#L73" title="internal/component/config/yang/rfc7950_reference_canonical_test.go" target="_blank" rel="noopener"><code>TestRFC7950InstanceIdentifierCanonicalValue</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L278" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950InstanceIdentifierExists</code></a></td>
+<td>unit/verify</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L88" title="internal/component/config/yang/rfc7950_reference_walk_test.go" target="_blank" rel="noopener"><code>TestRFC7950InstanceIdentifierDefaultInUse</code></a></td>
+<td>unit/verify</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7950-11-1"><code>RFC7950-11-1</code></a></h3>
 <p>For any published change, a new &#34;revision&#34; statement (Section 7.1.9) MUST be included in front of the existing &#34;revision&#34; statements. If there are no existing &#34;revision&#34; statements, then one MUST be added to identify the new revision. Furthermore, any necessary changes MUST be applied to any metadata statements, including the &#34;organization&#34; and &#34;contact&#34; statements (Sections 7.1.7 and 7.1.8). Note that definitions contained in a module are available to be imported by any other module and are referenced in &#34;import&#34; statements via the module name. Thus, a module name MUST NOT be changed. Furthermore, the &#34;namespace&#34; statement MUST NOT be changed, since all XML elements are qualified by the namespace. Obsolete definitions MUST NOT be removed from published modules, since their identifiers may still be referenced by other modules. (§11)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -2485,8 +2693,24 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <p>No test carries RFC7950-11-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7950-7.2.2-1"><code>RFC7950-7.2.2-1</code></a></h3>
 <p>A submodule MUST only be included by either the module to which it belongs or another submodule that belongs to that module. (§7.2.2)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. {gap} stands, re-judged 2026-10-09 after 180df07922: Resolve now runs once and returns *yang.Resolved, and checkStructure only switched to l.modules.sourceModules(); neither compares an include with the included submodule&#39;s belongs-to, and the only BelongsTo read in loader.go resolves extension owners. RFC 7.2.2: &#39;A submodule MUST only be included by either the module to which it belongs or another submodule that belongs to that module.&#39; The 2026-10-09 probe (module b { include s; } with s belonging to a resolves) is not re-run; no code path that could refuse it was added.</p>
-<p>No test carries RFC7950-7.2.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after bb173975ea). Read at rfc/full/rfc7950.txt Section 7.2.2: &#34;A submodule MUST only be included by either the module to which it belongs or another submodule that belongs to that module.&#34; Producer: checkStructure (joined by Resolve) runs moduleIncludeErrors over every loaded module and submodule (sourceModules); it resolves the including unit&#39;s owner (its own name, or its belongs-to) and refuses an include whose submodule belongs to another module with ErrIncludeBelongsTo. TestRFC7950SubmoduleIncludedOnlyByItsModule covers both clauses in both polarities: negatives refuse module a including s (belongs-to b) and submodule a-s of a including s, each requiring the text &#34;belongs to module b&#34;; positives load module a including a-t and a-s including sibling a-t. Module b is loaded and includes s in the negatives, so only the belongs-to differs. Independent overlay mutants (tags ze_core ze_bgp), each red on an assertion: owner ignores belongs-to (submodule-sibling positive red), modules skipped (submodule negative red), submodules skipped (module negative red), comparison always passes (both negatives red), comparison always fails (both positives red). Two equivalent-in-test mutants survive: dropping either lookup in includedSubmodule (include.Module, or the SubModules map fallback) leaves the test green because the other still finds the submodule; the redundancy changes no verdict but no test proves the fallback is needed. The recorded revert tuples (panic in moduleIncludeErrors) prove reach only. {gap} removed from the row in bb173975ea; Ze ships no submodule of its own, so the check guards loaded module sets.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_structural_test.go#L103" title="internal/component/config/yang/rfc7950_loader_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7950SubmoduleIncludedOnlyByItsModule</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_structural_test.go#L104" title="internal/component/config/yang/rfc7950_loader_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7950SubmoduleIncludedOnlyByItsModule</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7950-7.3.2-1"><code>RFC7950-7.3.2-1</code></a></h3>
 <p>The &#34;type&#34; statement, which MUST be present, defines the base type from which this type is derived. (§7.3.2)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): the positive now reads the leaf from schema.GetEntry of the returned Resolved, same assertion (Yuint8). RFC 7.3.2: &#39;The &#34;type&#34; statement, which MUST be present, defines the base type from which this type is derived.&#39; negative: a typedef with only a description refused; positive: the same typedef with type uint8 loads and the leaf using it resolves to Yuint8 (proves the type defines the base type). Twins differ by the type statement alone, so the loose &#34;type&#34; substring cannot be met by another fault. Records on Resolve. Those Resolve revert records no longer verify (unit-changed) and are owed a re-record.</p>
@@ -2533,8 +2757,29 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
 <p>No test carries RFC7950-7.21.5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7950-9.1-2"><code>RFC7950-9.1-2</code></a></h3>
 <p>If the data type does not have a canonical form, the format of the value MUST match the data type&#39;s lexical representation, but the exact format is implementation dependent. (§9.1)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-12, second pass (independent auditor) after 60a74fc04b, 600996fb77, 975428e1b3, 3f1bec74f0 and 84382339ce. Section 9.1: &#34;If the data type does not have a canonical form, the format of the value MUST match the data type&#39;s lexical representation&#34;. The types with no canonical form (identityref, instance-identifier) are still absent from Ze and validated nowhere; walkTree&#39;s changes touched only the mandatory checks. {gap} under owner ruling 4.</p>
-<p>No test carries RFC7950-9.1-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after 2e4be94ae3). Read at rfc/full/rfc7950.txt Section 9.1: &#34;If the data type does not have a canonical form, the format of the value MUST match the data type&#39;s lexical representation, but the exact format is implementation dependent.&#34; The types are identityref (Section 9.10.4) and instance-identifier (Section 9.13.3). Both prior findings are fixed. (1) Section 9.13.2 &#34;All node names in an instance-identifier value MUST be qualified with explicit namespace prefixes&#34;: checkInstanceKeyPrefix now refuses an unprefixed or foreign key prefix; TestRFC7950InstanceIdentifierKeyPrefix (negative) asserts both messages and the accepted rf:name form, and overlay mutants dropping the empty-prefix branch and the entryPrefixed branch each turned it red. (2) Cascade confounding: TestRFC7950IdentityrefFormat now asserts the format check&#39;s own message, and TestRFC7950InstanceIdentifierLexical asserts &#39;not an instance-identifier&#39; for rf:sys and the unprefixed-node message for /sys/mgmt; overlay mutants removing the identifierRefLength check and the leading-slash check turned each red. A probe of further malformed values (rf:1aes, rf:, :aes, trailing space, //rf:sys, an unquoted key value, [0], mismatched and embedded quotes, a space between steps) found each refused with ErrTypeType.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L289" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950IdentityrefFormat</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L127" title="internal/component/config/yang/rfc7950_reference_walk_test.go" target="_blank" rel="noopener"><code>TestRFC7950InstanceIdentifierKeyPrefix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L249" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950InstanceIdentifierLexical</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7950-9.4.4-2"><code>RFC7950-9.4.4-2</code></a></h3>
 <p>If a length restriction is applied to a type that is already length-restricted, the new restriction MUST be equally limiting or more limiting, i.e., raising the lower bounds, reducing the upper bounds, removing explicit length values or ranges, or splitting ranges into multiple ranges with intermediate gaps. (§9.4.4)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. negative: widening a typedef&#39;s length 2..5 to 1..10 refused naming length; positive: equal 2..5, narrowed 3..4, and split 2..3 | 5..5 load, covering the allowed restriction kinds. Records on Resolve. (2026-10-09: tagged units byte-identical, re-stamped for a file shift; the Resolve revert records no longer verify since 180df07922 changed Resolve, re-record owed.)</p>
@@ -4752,7 +4997,7 @@ Fifty-eight MUST rows carry {gap} or {partial}, each naming its spec. Ze&#39;s l
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

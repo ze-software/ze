@@ -17,7 +17,7 @@ The two sides share no configuration and no cache.
 | Feature | Description |
 |---------|-------------|
 | Static name servers | `system { name-server [8.8.8.8 1.1.1.1]; }` sets upstream DNS servers |
-| resolv.conf writer | Writes configured servers to resolv-conf-path at startup |
+| resolv.conf writer | Writes the configured servers, else every DHCP lease's servers, to resolv-conf-path, and rewrites it whenever a source changes |
 | DHCP integration | Static servers take priority over DHCP-discovered DNS |
 | Query types | A, AAAA, TXT, PTR, CNAME, MX, NS, SRV |
 | LRU cache | O(1) operations, configurable size and max TTL |
@@ -25,7 +25,7 @@ The two sides share no configuration and no cache.
 | Concurrent safe | Mutex-protected cache, safe for multi-goroutine use |
 | System fallback | No configured servers uses `/etc/resolv.conf`; if that is missing or empty, queries fail closed with `no DNS server configured` |
 | Timeout control | Per-resolver configurable timeout (1-60 seconds) |
-| Cache management | List entries, inspect by name, selective delete by name/type, flush all, reset counters |
+| Cache management | List entries, inspect by name, and clear with `clear dns cache all/record/stats`: flush everything, delete by name/type, or reset the counters |
 | `\| resolve` pipe | Reverse DNS enrichment for IP addresses in any command's JSON output |
 | `\| origin` pipe | ASN/network enrichment for IP addresses via Team Cymru DNS queries |
 
@@ -53,9 +53,19 @@ system {
 
 ## DHCP interaction
 
-When `name-server` is configured, DHCP-discovered DNS servers do not overwrite
-resolv.conf. When no static servers are configured, DHCP writes DNS servers to
-resolv-conf-path as before (last-writer-wins across interfaces).
+ze keeps the resolver servers of each source apart: the static `name-server`
+list, and one list per DHCP client (DHCPv4 or DHCPv6, per interface and unit).
+resolv.conf is rebuilt from them on every change:
+
+| Situation | resolv.conf lists |
+|-----------|-------------------|
+| `name-server` configured | the static servers alone; DHCP never overrides them (RFC 3646 Section 6) |
+| no `name-server` | every DHCP lease's servers: DHCPv4 clients first, then DHCPv6, each by interface then unit, in the order each server sent them, a repeated server listed once |
+| a renewal reply omits the DNS option, or a lease ends | that lease's servers leave the file; the other sources' stay (RFC 9915 Section 18.2.10.5 for DHCPv6) |
+| every source withdrawn | the ze header with no `nameserver` line, once ze has written the file; a file ze never wrote is left alone |
+
+<!-- source: internal/component/config/system/resolv.go -- Resolvers -->
+<!-- source: internal/plugins/iface/dhcp/resolv_linux.go -- setV4Resolvers, setV6Resolvers -->
 
 ## Cache management
 
@@ -72,7 +82,7 @@ show dns cache record example.com               # Entries for a specific name
 **Clearing:**
 
 ```
-clear dns cache                                 # Flush all entries and reset counters
+clear dns cache all                             # Flush all entries and reset counters (bare `clear dns cache` is refused)
 clear dns cache stats                           # Zero counters without removing entries
 clear dns cache record example.com              # Delete entries for a name (all types)
 clear dns cache record example.com type AAAA    # Delete a single name+type entry
@@ -93,6 +103,9 @@ In `monitor traceroute | log` mode, they enrich the hop legend.
 
 ## Reload behavior
 
-DNS resolver settings and resolv.conf are applied at startup. Changing
-`name-server` or `dns` settings via config reload requires a process restart
-to take effect.
+DNS resolver settings are applied at startup. Changing `name-server` or `dns`
+settings via config reload requires a process restart to reach the internal
+resolver. resolv.conf follows a reload: a reload that changes or removes
+`name-server` rewrites it, and removing every static server hands it back to
+the DHCP leases.
+<!-- source: cmd/ze/hub/main_system.go -- applyResolvConf -->

@@ -1,11 +1,11 @@
-# `clear ospf neighbor`
+# `clear ospf neighbor all`
 
 Tear down every OSPF adjacency so neighbors re\-form\.
 
 ## Ze command
 
-- Registry path: `clear ospf neighbor`
-- Usage: `clear ospf neighbor`
+- Registry path: `clear ospf neighbor all`
+- Usage: `clear ospf neighbor all`
 - Mode: Daemon
 - Wire method: `ze-ospf:clear-neighbor`
 - Backends: any backend

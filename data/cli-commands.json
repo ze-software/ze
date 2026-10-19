@@ -101,11 +101,20 @@
   {
     "path": "clear bgp rib in",
     "short-help": "Remove all routes received from a peer.",
-    "description": "Wipes the Adj-RIB-In for matched peers. They will need to\nre-advertise everything (or you can send a route-refresh).\nSelector: IP, name, AS pattern, glob, or *.",
+    "description": "Wipes the Adj-RIB-In for the peers the selector matches. They will\nneed to re-advertise everything (or you can send a route-refresh). The selector is\nmandatory: clear bgp rib in alone is refused, and * is the explicit form for every peer.",
     "mode": "daemon",
     "wire-method": "ze-bgp:rib-clear-in",
     "task-support": "forbidden",
-    "usage": "clear bgp rib in",
+    "args": [
+      {
+        "name": "selector",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
+        "description": "The value is an IP address, a peer name, an AS pattern such as as65001,\na glob, a comma-separated list of those, or * for every peer. The Adj-RIB-In of each\npeer it matches is wiped."
+      }
+    ],
+    "usage": "clear bgp rib in <selector>",
     "grammar": [
       {
         "text": "clear",
@@ -122,6 +131,10 @@
       {
         "text": "in",
         "kind": "keyword"
+      },
+      {
+        "text": "selector",
+        "kind": "value"
       }
     ],
     "operators": [
@@ -221,11 +234,26 @@
   {
     "path": "clear bgp rib out",
     "short-help": "Re-advertise all routes to a peer.",
-    "description": "Triggers a full Adj-RIB-Out replay to the selected peers. Useful\nafter a policy change to push updated attributes without tearing\ndown the session. Selector: IP, name, AS pattern, glob, or *.",
+    "description": "Triggers a full Adj-RIB-Out replay to the selected peers. Useful\nafter a policy change to push updated attributes without tearing down the session. The\nselector is mandatory: clear bgp rib out alone is refused, and * is the explicit form for\nevery peer. A family typed after its keyword, as family ipv4/unicast, limits the replay to\nthat family.",
     "mode": "daemon",
     "wire-method": "ze-bgp:rib-clear-out",
     "task-support": "forbidden",
-    "usage": "clear bgp rib out",
+    "args": [
+      {
+        "name": "selector",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
+        "description": "The value is an IP address, a peer name, an AS pattern such as as65001,\na glob, a comma-separated list of those, or * for every peer. The Adj-RIB-Out of each\npeer it matches is replayed."
+      },
+      {
+        "name": "family",
+        "type": "string",
+        "short-help": "Address family to replay, such as ipv4/unicast",
+        "description": "An address family such as ipv4/unicast. Absent, every family the\nsession negotiated is replayed."
+      }
+    ],
+    "usage": "clear bgp rib out <selector> [family <family>]",
     "grammar": [
       {
         "text": "clear",
@@ -241,6 +269,265 @@
       },
       {
         "text": "out",
+        "kind": "keyword"
+      },
+      {
+        "text": "selector",
+        "kind": "value"
+      },
+      {
+        "text": "family",
+        "kind": "option"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "clear cymru cache address",
+    "short-help": "Remove the cached Cymru origin of one IP address.",
+    "description": "Removes the origin of one address. The name of the AS it pointed\nat stays cached, because it belongs to the AS. The answer reports found true when any owner\nheld it, removed, and the owners rows.",
+    "mode": "daemon",
+    "wire-method": "ze-resolve:clear-cymru-cache-address",
+    "args": [
+      {
+        "name": "ip-address",
+        "type": "union",
+        "mandatory": true,
+        "short-help": "IP address to clear.",
+        "description": "An IPv4 or IPv6 address. Any spelling of the address finds the\nentry, so 2001:DB8::1 and 2001:db8:0::1 are the same key."
+      }
+    ],
+    "usage": "clear cymru cache address <ip-address>",
+    "grammar": [
+      {
+        "text": "clear",
+        "kind": "keyword"
+      },
+      {
+        "text": "cymru",
+        "kind": "keyword"
+      },
+      {
+        "text": "cache",
+        "kind": "keyword"
+      },
+      {
+        "text": "address",
+        "kind": "keyword"
+      },
+      {
+        "text": "ip-address",
+        "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "clear cymru cache all",
+    "short-help": "Remove every cached Cymru answer.",
+    "description": "Removes the address origins and the AS names. The answer gives\nremoved, the entries removed in total, and owners, one row per owner. The next lookup asks\nDNS again.",
+    "mode": "daemon",
+    "wire-method": "ze-resolve:clear-cymru-cache-all",
+    "usage": "clear cymru cache all",
+    "grammar": [
+      {
+        "text": "clear",
+        "kind": "keyword"
+      },
+      {
+        "text": "cymru",
+        "kind": "keyword"
+      },
+      {
+        "text": "cache",
+        "kind": "keyword"
+      },
+      {
+        "text": "all",
         "kind": "keyword"
       }
     ],
@@ -357,12 +644,12 @@
     ]
   },
   {
-    "path": "clear dns cache",
+    "path": "clear dns cache all",
     "short-help": "Flush all DNS cache entries and reset all DNS cache counters.",
     "description": "The entries and the four counters go together. Use clear dns cache\nstats to zero the counters and keep the entries, or clear dns cache record to evict one\nname.",
     "mode": "daemon",
     "wire-method": "ze-resolve:clear-dns-cache",
-    "usage": "clear dns cache",
+    "usage": "clear dns cache all",
     "grammar": [
       {
         "text": "clear",
@@ -374,6 +661,10 @@
       },
       {
         "text": "cache",
+        "kind": "keyword"
+      },
+      {
+        "text": "all",
         "kind": "keyword"
       }
     ],
@@ -469,10 +760,6 @@
         "available": "with-rows",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
-    ],
-    "subcommands": [
-      "record",
-      "stats"
     ]
   },
   {
@@ -1147,12 +1434,12 @@
     ]
   },
   {
-    "path": "clear interface counters",
+    "path": "clear interface counters all",
     "short-help": "Zero the Rx/Tx counters for every managed interface.",
     "description": "One call resets every interface the backend manages, and the answer\nreports the scope as all. Nothing else about the interfaces changes.",
     "mode": "daemon",
     "wire-method": "ze-iface:clear-interface-counters",
-    "usage": "clear interface counters",
+    "usage": "clear interface counters all",
     "grammar": [
       {
         "text": "clear",
@@ -1164,6 +1451,10 @@
       },
       {
         "text": "counters",
+        "kind": "keyword"
+      },
+      {
+        "text": "all",
         "kind": "keyword"
       }
     ],
@@ -1273,7 +1564,7 @@
         "type": "string",
         "mandatory": true,
         "short-help": "Interface name",
-        "description": "The interface whose counters are reset. The answer names\nit as the scope cleared, where the form without a name reports all."
+        "description": "The interface whose counters are reset. The answer names\nit as the scope cleared, where clear interface counters all reports all."
       }
     ],
     "usage": "clear interface name <name> counters",
@@ -1394,12 +1685,263 @@
     ]
   },
   {
-    "path": "clear isis adjacency",
+    "path": "clear irr cache all",
+    "short-help": "Remove every cached IRR answer.",
+    "description": "The answer gives removed, the entries removed in total, and\nowners, one row per owner with the entries it removed. The next lookup of each AS-SET\nqueries the whois server again. An owner that does not answer makes the command an error\nnaming it.",
+    "mode": "daemon",
+    "wire-method": "ze-resolve:clear-irr-cache-all",
+    "usage": "clear irr cache all",
+    "grammar": [
+      {
+        "text": "clear",
+        "kind": "keyword"
+      },
+      {
+        "text": "irr",
+        "kind": "keyword"
+      },
+      {
+        "text": "cache",
+        "kind": "keyword"
+      },
+      {
+        "text": "all",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "clear irr cache as-set",
+    "short-help": "Remove the cached IRR answers of one AS-SET.",
+    "description": "Removes the members and the prefix list of one AS-SET and keeps\nthe other entries, at every owner. The answer reports found true when any owner held one,\nremoved, and the owners rows.",
+    "mode": "daemon",
+    "wire-method": "ze-resolve:clear-irr-cache-as-set",
+    "args": [
+      {
+        "name": "name",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "AS-SET name to clear.",
+        "description": "The AS-SET name, compared as an exact string: give it as it was\nlooked up, for example AS-EXAMPLE. A name with a control character is refused."
+      }
+    ],
+    "usage": "clear irr cache as-set <name>",
+    "grammar": [
+      {
+        "text": "clear",
+        "kind": "keyword"
+      },
+      {
+        "text": "irr",
+        "kind": "keyword"
+      },
+      {
+        "text": "cache",
+        "kind": "keyword"
+      },
+      {
+        "text": "as-set",
+        "kind": "keyword"
+      },
+      {
+        "text": "name",
+        "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "clear isis adjacency all",
     "short-help": "Tear down every IS-IS adjacency so neighbors re-form.",
     "description": "Adjacencies re-learn from the next Hello; the circuit is not closed and the\nconfiguration is unchanged.",
     "mode": "daemon",
     "wire-method": "ze-isis:clear-adjacency",
-    "usage": "clear isis adjacency",
+    "usage": "clear isis adjacency all",
     "grammar": [
       {
         "text": "clear",
@@ -1411,6 +1953,10 @@
       },
       {
         "text": "adjacency",
+        "kind": "keyword"
+      },
+      {
+        "text": "all",
         "kind": "keyword"
       }
     ],
@@ -2215,12 +2761,12 @@
     ]
   },
   {
-    "path": "clear ospf neighbor",
+    "path": "clear ospf neighbor all",
     "short-help": "Tear down every OSPF adjacency so neighbors re-form.",
     "description": "Adjacencies re-learn from the next Hello.",
     "mode": "daemon",
     "wire-method": "ze-ospf:clear-neighbor",
-    "usage": "clear ospf neighbor",
+    "usage": "clear ospf neighbor all",
     "grammar": [
       {
         "text": "clear",
@@ -2233,6 +2779,10 @@
       {
         "text": "neighbor",
         "kind": "keyword"
+      },
+      {
+        "text": "all",
+        "kind": "keyword"
       }
     ],
     "operators": [
@@ -2330,12 +2880,12 @@
     ]
   },
   {
-    "path": "clear ospf process",
+    "path": "clear ospf process all",
     "short-help": "Full OSPF reset: tear down every adjacency and re-run SPF.",
-    "description": "Adjacencies re-form from the next Hello; the configuration is unchanged.",
+    "description": "Every adjacency, in every configured instance, is torn down and SPF\nre-runs over every area. Adjacencies re-form from the next Hello; the configuration is\nunchanged.",
     "mode": "daemon",
     "wire-method": "ze-ospf:clear-process",
-    "usage": "clear ospf process",
+    "usage": "clear ospf process all",
     "grammar": [
       {
         "text": "clear",
@@ -2348,6 +2898,10 @@
       {
         "text": "process",
         "kind": "keyword"
+      },
+      {
+        "text": "all",
+        "kind": "keyword"
       }
     ],
     "operators": [
@@ -2445,12 +2999,263 @@
     ]
   },
   {
-    "path": "clear vpn ipsec sa",
-    "short-help": "Tear down IKE Security Associations.",
-    "description": "Without arguments, terminates all SAs. Use\n'peer <name>' to clear just one peer. The tunnel WILL renegotiate\nautomatically if the config is still active.",
+    "path": "clear peeringdb cache all",
+    "short-help": "Remove every cached PeeringDB answer.",
+    "description": "The answer gives removed, the entries removed in total, and\nowners, one row per owner with the entries it removed. The next lookup of each AS number\nqueries PeeringDB again. An owner that does not answer makes the command an error naming\nit.",
+    "mode": "daemon",
+    "wire-method": "ze-resolve:clear-peeringdb-cache-all",
+    "usage": "clear peeringdb cache all",
+    "grammar": [
+      {
+        "text": "clear",
+        "kind": "keyword"
+      },
+      {
+        "text": "peeringdb",
+        "kind": "keyword"
+      },
+      {
+        "text": "cache",
+        "kind": "keyword"
+      },
+      {
+        "text": "all",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "clear peeringdb cache asn",
+    "short-help": "Remove the cached PeeringDB answers of one AS number.",
+    "description": "Removes the prefix counts and the AS-SET names of one AS\nnumber at every owner and keeps the other entries. The answer reports found true when any\nowner held one, removed, and the owners rows.",
+    "mode": "daemon",
+    "wire-method": "ze-resolve:clear-peeringdb-cache-asn",
+    "args": [
+      {
+        "name": "as-number",
+        "type": "union",
+        "mandatory": true,
+        "short-help": "AS number to clear.",
+        "description": "The AS number in plain decimal or in asdot notation, which Ze\nparses to one 32-bit value. A spelling that parses to no AS number is refused."
+      }
+    ],
+    "usage": "clear peeringdb cache asn <as-number>",
+    "grammar": [
+      {
+        "text": "clear",
+        "kind": "keyword"
+      },
+      {
+        "text": "peeringdb",
+        "kind": "keyword"
+      },
+      {
+        "text": "cache",
+        "kind": "keyword"
+      },
+      {
+        "text": "asn",
+        "kind": "keyword"
+      },
+      {
+        "text": "as-number",
+        "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "clear vpn ipsec sa all",
+    "short-help": "Tear down every IKE Security Association.",
+    "description": "Every IKE SA and its Child SAs are terminated, and the answer\ncounts them. Each tunnel whose config is still active WILL renegotiate.",
     "mode": "daemon",
     "wire-method": "ze-ike:clear-vpn-ipsec-sa",
-    "usage": "clear vpn ipsec sa",
+    "usage": "clear vpn ipsec sa all",
     "grammar": [
       {
         "text": "clear",
@@ -2467,6 +3272,10 @@
       {
         "text": "sa",
         "kind": "keyword"
+      },
+      {
+        "text": "all",
+        "kind": "keyword"
       }
     ],
     "operators": [
@@ -2564,12 +3373,148 @@
     ]
   },
   {
-    "path": "clear vrrp statistics",
+    "path": "clear vpn ipsec sa peer",
+    "short-help": "Tear down one peer's IKE Security Associations.",
+    "description": "Only the named peer's SAs are terminated. A name that matches\nno configured peer is refused.",
+    "mode": "daemon",
+    "wire-method": "ze-ike:clear-vpn-ipsec-sa-peer",
+    "args": [
+      {
+        "name": "name",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Peer name.",
+        "description": "The peer name as configured under the IPsec connection."
+      }
+    ],
+    "usage": "clear vpn ipsec sa peer <name>",
+    "grammar": [
+      {
+        "text": "clear",
+        "kind": "keyword"
+      },
+      {
+        "text": "vpn",
+        "kind": "keyword"
+      },
+      {
+        "text": "ipsec",
+        "kind": "keyword"
+      },
+      {
+        "text": "sa",
+        "kind": "keyword"
+      },
+      {
+        "text": "peer",
+        "kind": "keyword"
+      },
+      {
+        "text": "name",
+        "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "clear vrrp statistics all",
     "short-help": "Reset every VRRP virtual router's counters to zero.",
     "description": "Protocol state is untouched: clearing counters never triggers a failover.",
     "mode": "daemon",
     "wire-method": "ze-vrrp:clear-statistics",
-    "usage": "clear vrrp statistics",
+    "usage": "clear vrrp statistics all",
     "grammar": [
       {
         "text": "clear",
@@ -2581,6 +3526,10 @@
       },
       {
         "text": "statistics",
+        "kind": "keyword"
+      },
+      {
+        "text": "all",
         "kind": "keyword"
       }
     ],
@@ -4884,7 +5833,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. Ze tears down and deletes each peer it matches."
       }
     ],
@@ -12309,7 +13258,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
       }
     ],
@@ -12437,7 +13386,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
       }
     ],
@@ -12569,7 +13518,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
       }
     ],
@@ -12697,7 +13646,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
       }
     ],
@@ -12825,7 +13774,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
       }
     ],
@@ -12953,7 +13902,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
       },
       {
@@ -13099,7 +14048,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
       }
     ],
@@ -13227,7 +14176,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
       }
     ],
@@ -13355,7 +14304,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
       },
       {
@@ -15685,7 +16634,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, a comma-separated list of those, or * for every peer. The message goes to each\nsession the selector matches."
       },
       {
@@ -15852,7 +16801,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, a comma-separated list of those, or * for every peer. The message goes to each\nsession the selector matches."
       },
       {
@@ -15991,7 +16940,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, a comma-separated list of those, or * for every peer. The message goes to each\nsession the selector matches."
       }
     ],
@@ -16378,7 +17327,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, a comma-separated list of those, or * for every peer. The message goes to each\nsession the selector matches."
       },
       {
@@ -16560,7 +17509,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, a comma-separated list of those, or * for every peer. The message goes to each\nsession the selector matches."
       },
       {
@@ -16749,7 +17698,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, a comma-separated list of those, or * for every peer. The message goes to each\nsession the selector matches."
       },
       {
@@ -16900,7 +17849,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, a comma-separated list of those, or * for every peer. The message goes to each\nsession the selector matches."
       }
     ],
@@ -17032,7 +17981,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, a comma-separated list of those, or * for every peer. The message goes to each\nsession the selector matches."
       },
       {
@@ -17175,7 +18124,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, a comma-separated list of those, or * for every peer. The message goes to each\nsession the selector matches."
       },
       {
@@ -20246,7 +21195,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. Every command under 'show bgp peer' reads the peers it matches,\nexcept 'list', which reads every peer."
       }
     ],
@@ -20402,7 +21351,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. Every command under 'show bgp peer' reads the peers it matches,\nexcept 'list', which reads every peer."
       }
     ],
@@ -20569,7 +21518,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. Every command under 'show bgp peer' reads the peers it matches,\nexcept 'list', which reads every peer."
       }
     ],
@@ -20839,7 +21788,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. Every command under 'show bgp peer' reads the peers it matches,\nexcept 'list', which reads every peer."
       }
     ],
@@ -21013,7 +21962,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. Every command under 'show bgp peer' reads the peers it matches,\nexcept 'list', which reads every peer."
       }
     ],
@@ -54925,7 +55874,7 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "Peer selector",
+        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
         "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'prefix' refreshes the maximums of each peer it matches."
       }
     ],

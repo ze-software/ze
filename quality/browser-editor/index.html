@@ -114,7 +114,7 @@
 </table>
 <p>Use editor tests for completion, validation, path context, commit and discard behavior, session persistence, and lifecycle bugs. Use <code>.ci</code> when the behavior is already visible through a non-interactive command.</p>
 <h2 id="failure-reading">Failure reading</h2>
-<p>Both runners emit per-step trace records. The human output shows action and expectation lines with source locations. The machine output emits <code>VERIFY STEP</code> JSON so <code>./le verify current mode full</code> can group failures without scraping prose.</p>
+<p>Both runners emit per-step trace records. The human output shows action and expectation lines with source locations. The machine output emits <code>VERIFY STEP</code> JSON so <code>./le verify current</code> can group failures without scraping prose.</p>
 <pre><code class="language-bash">./le test web config-menu -v
 ./le test editor completion-basic -v
 ZE_TEST_KEEP_TMP=1 ./le test editor completion-basic -v
@@ -150,7 +150,7 @@ ZE_TEST_KEEP_TMP=1 ./le test editor completion-basic -v
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

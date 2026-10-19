@@ -200,7 +200,7 @@ every interval in microseconds. A future release may add <code>-ms</code> aliase
 <td>Active sessions transmit from creation. Passive waits for the peer's first packet. See RFC 5883 §4.3 for the unidirectional-link use case. A single-hop session that uses a passive profile is refused: a configured session at load, and a BGP peer or static next-hop that names the profile at commit. RFC 5881 §3 requires both ends of a single-hop session to be Active.</td>
 </tr>
 <tr>
-<td><code>auth { type key-id secret }</code></td>
+<td><code>auth { type key-id secret | secret-hex }</code></td>
 <td>see below</td>
 <td>none</td>
 <td>RFC 5880 §6.7 cryptographic authentication (Stage 5).</td>
@@ -292,6 +292,22 @@ yet clear the floor after two Detection Times without a packet (RFC 5880
             secret              "BFD-SHARED-SECRET-V1";
         }
     }
+}
+</code></pre>
+<p>The secret takes one of two forms, and a profile names exactly one. <code>secret</code>
+is an ASCII string whose bytes are the key. <code>secret-hex</code> is any binary string
+written in hexadecimal, two digits for each byte with no <code>0x</code> prefix, so a key
+holding a zero byte or a byte above 0x7F can be configured (RFC 5880 §6.7.2,
+§6.7.3 and §6.7.4). The limits above apply to the decoded bytes, so a 20-byte
+<code>keyed-sha1</code> key is 40 hex digits. <code>ze config validate</code> refuses an odd digit
+count, a character that is not a hex digit, and a profile that names both forms
+or neither. Both forms are redacted from <code>ze config show</code> output.</p>
+<!-- source: internal/component/bfd/config.go — parseAuthSecret decodes secret or secret-hex -->
+<!-- source: internal/component/bfd/yang/ze-bfd-conf.yang — choice secret-form -->
+<pre><code>auth {
+    type                keyed-sha1;
+    key-id              7;
+    secret-hex          "00ff4142434445464748494a4b4c4d4e4f5051ff";
 }
 </code></pre>
 <p>The meticulous variants enforce strict monotonic sequence numbers;
@@ -1184,7 +1200,7 @@ document for the full gap list and the intended follow-up order.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>

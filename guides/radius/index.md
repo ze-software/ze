@@ -72,7 +72,9 @@ system {
 2. The daemon's AAA chain calls the RADIUS backend first (priority 50; TACACS+
    is priority 100, local bcrypt is priority 200).
 3. The backend builds an Access-Request with User-Name, the credential
-   `auth-method` selects, Service-Type=Login, NAS-Identifier (hostname), and
+   `auth-method` selects, Service-Type=Login, NAS-Identifier (hostname),
+   NAS-Port-Id naming the access channel (`ssh` for an SSH login, `web` for a
+   web login, RFC 3579 §3; a login whose caller names no channel sends none), and
    (when a source-address is set) NAS-IP-Address. A login that carries no username
    sends no User-Name attribute, because RFC 2865 §5 forbids sending text of
    length zero. It sends to the first configured server, retransmitting with

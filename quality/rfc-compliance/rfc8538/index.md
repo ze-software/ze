@@ -82,9 +82,9 @@ Not enrolled (blocked, something outside the summary stops the extraction, and i
 
 Cease Hard Reset subcode (9) name is known.
 
-**What the ledger says remains:**
+**What the ledger says remains**
 
-The GR N-bit is decoded but not acted upon; routes are dropped on any NOTIFICATION, so RFC 8538 route retention is not implemented.
+Ze decodes a peer's GR N bit but never advertises its own, so the N bit is never exchanged, and RFC 8538 Section 4 then leaves every NOTIFICATION, sent or received, under the RFC 4724 normal procedures: routes are dropped. Retention across a NOTIFICATION, Hard Reset and the mandatory stale timer are not implemented.
 
 ## Coverage
 

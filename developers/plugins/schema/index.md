@@ -211,30 +211,30 @@ leaf optional-field {
 }
 ```
 
-## References (leafref)
+## References
 
-Reference values from other parts of config:
+Ze checks the three YANG reference types. A `leafref` value must have the
+type of the leaf its path names and, unless the type says
+`require-instance false`, equal an instance of that leaf somewhere in the
+config, or its default where the default is in use. An `identityref` value
+must name an identity derived from the base, unprefixed or with the defining
+module's prefix. An `instance-identifier` value is a path with every node
+prefixed by its module's prefix, and must name a node the config holds. The
+loader refuses a leafref whose path names no leaf, a config leafref pointing
+at state, and a loop of leafrefs (`ErrLeafrefPath`).
 
 ```yang
-// In ze-bgp-conf module
-list peer-group {
-    key "name";
-    leaf name { type string; }
-}
-
-// In your module - reference peer-group
-leaf group {
-    type leafref {
-        path "/bgp/peer-group/name";
-    }
+// In your module: a reference to a class of the same qdisc
+leaf default-class {
+    type leafref { path "../class/name"; }
 }
 ```
 
-Ze does not check leafref values today: the validator accepts any value for a
-leafref leaf, so a reference to a peer-group that does not exist is not
-refused. Checking that the referenced value exists is planned
-(`plan/spec-config-yang-type-leafref.md`).
-<!-- source: internal/component/config/yang/validator.go -- validateYangType: the Yleafref arm returns nil -->
+A reference no YANG path can express, such as one into state a plugin holds,
+stays a string checked by a `ze:validate` function.
+<!-- source: internal/component/config/yang/loader_reference.go -- checkReferences -->
+<!-- source: internal/component/config/yang/validator_reference.go -- validateLeafref, validateIdentityref, validateInstanceIdentifier -->
+<!-- source: internal/component/config/yang/validator_instance.go -- ValidateReferences -->
 
 ## Best Practices
 

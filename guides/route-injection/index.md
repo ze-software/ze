@@ -82,7 +82,7 @@ ze cli -c "send bgp upstream1 update text \
     local-preference 200 \
     as-path [ 65001 65002 ] \
     community [ 65000:100 no-export ] \
-    nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24"
+    nlri add 10.0.0.0/24 10.0.1.0/24"
 ```
 
 ### Attribute Keywords
@@ -144,7 +144,7 @@ in `update text` and in config alike, from one keyword table both parsers read.
 ze cli -c "send bgp upstream update text \
     origin igp nhop self \
     extended-community [ discard ] \
-    nlri ipv4/flow add <flowspec-nlri>"
+    mp ipv4/flow add <flowspec-nlri>"
 ```
 
 `copy-to-nexthop` and `redirect-to-nexthop-draft` differ in one bit of the last
@@ -251,19 +251,28 @@ the interval between them. See `docs/architecture/exabgp-bridge.md`.
 
 ### NLRI Operations
 
-`add` and `del` are NLRI operations (MP_REACH and MP_UNREACH):
+The section keyword names the UPDATE section the routes travel in. `nlri`
+takes no family: it is IPv4 unicast in the NLRI and Withdrawn Routes fields.
+`mp <family>` is every other family, in MP_REACH_NLRI and MP_UNREACH_NLRI.
+`add` announces and `del` withdraws:
 
 ```bash
-nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24    # Announce prefixes
-nlri ipv4/unicast del 10.0.2.0/24                  # Withdraw prefix
-nlri ipv4/unicast eor                               # End-of-RIB marker
+nlri add 10.0.0.0/24 10.0.1.0/24                 # Announce IPv4 unicast prefixes
+nlri del 10.0.2.0/24                             # Withdraw an IPv4 unicast prefix
+nlri eor                                         # IPv4 unicast End-of-RIB marker
+mp ipv6/unicast add 2001:db8::/32                # Announce an IPv6 unicast prefix
+mp ipv6/unicast eor                              # IPv6 unicast End-of-RIB marker
 ```
+
+IPv4 unicast with an IPv6 next hop travels in MP_REACH_NLRI (RFC 8950), so it
+is written `next-hop <ipv6-address> mp ipv4/unicast add <prefix>`. The removed
+form `nlri <family>` is refused, and the error names the form to write.
 
 Multiple families in one command:
 
 ```bash
-nlri ipv4/unicast add 10.0.0.0/24 \
-nlri ipv6/unicast add 2001:db8::/32
+nlri add 10.0.0.0/24 \
+mp ipv6/unicast add 2001:db8::/32
 ```
 
 ## Hex Format
@@ -337,6 +346,6 @@ ships a Python launcher or helper.
 Go plugins use the SDK method:
 
 ```go
-p.UpdateRoute(ctx, "*", "update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24")
+p.UpdateRoute(ctx, "*", "update text nhop 10.0.0.1 nlri add 10.0.0.0/24")
 ```
 <!-- source: pkg/plugin/sdk/sdk.go -- Plugin -->

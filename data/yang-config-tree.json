@@ -337,12 +337,43 @@
                 "type": "uint8"
               },
               {
-                "description": "Shared secret. Redacted from `ze config show` output. The MD5 variants take a secret of up to 16\nbytes (RFC 5880 Section 6.7.3) and the SHA1 variants one of up to 20 bytes (Section 6.7.4). Both pad\na shorter secret with zeros, and a longer one is refused at parse time. The simple-password type\ncarries the secret itself on the wire, so it must be 1 to 16 bytes, and a longer one is refused at\nparse time too (RFC 5880 Section 6.7.2).",
-                "kind": "leaf",
-                "name": "secret",
-                "short-help": "Shared secret, redacted from `ze config show` output.",
-                "source": "config",
-                "type": "string"
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "description": "Shared secret as an ASCII string, whose bytes are the key. Redacted from `ze config\nshow` output. The MD5 variants take a secret of up to 16 bytes (RFC 5880 Section 6.7.3) and\nthe SHA1 variants one of up to 20 bytes (Section 6.7.4). Both pad a shorter secret with\nzeros, and a longer one is refused at parse time. The simple-password type carries the\nsecret itself on the wire, so it must be 1 to 16 bytes, and a longer one is refused at\nparse time too (RFC 5880 Section 6.7.2).",
+                        "kind": "leaf",
+                        "name": "secret",
+                        "short-help": "Shared secret as an ASCII string, redacted from `ze config show` output.",
+                        "source": "config",
+                        "type": "string"
+                      }
+                    ],
+                    "kind": "case",
+                    "name": "secret",
+                    "source": "config"
+                  },
+                  {
+                    "children": [
+                      {
+                        "description": "Shared secret as a binary string in hexadecimal, two digits for each byte with no\n0x prefix, upper or lower case. Redacted from `ze config show` output. The decoded key\nobeys the same limits as secret: 1 to 16 bytes for simple-password, up to 16 bytes for\nthe MD5 variants and up to 20 bytes for the SHA1 variants (RFC 5880 Sections 6.7.2,\n6.7.3 and 6.7.4).",
+                        "kind": "leaf",
+                        "name": "secret-hex",
+                        "short-help": "Shared secret as hexadecimal digits, two for each byte, redacted from output.",
+                        "source": "config",
+                        "type": "string"
+                      }
+                    ],
+                    "kind": "case",
+                    "name": "secret-hex",
+                    "source": "config"
+                  }
+                ],
+                "description": "Name the shared secret in exactly one form. secret takes an ASCII string and uses its\nbytes as the key. secret-hex takes any binary string written in hexadecimal, so a key holding\na zero byte or a byte above 0x7F can be configured (RFC 5880 Sections 6.7.2, 6.7.3 and 6.7.4).\nZe refuses a profile that names both forms or neither.",
+                "kind": "choice",
+                "name": "secret-form",
+                "short-help": "The shared secret, as an ASCII string or in hexadecimal.",
+                "source": "config"
               },
               {
                 "description": "Authentication type. There is no default. The operator names the type, and simple-password is never\nselected on their behalf. simple-password is RFC 5880 Section 6.7.2 Simple Password. The password\ntravels in clear in every Control packet and the section never changes, so it protects against a\nmisconfigured peer and against nothing else. It does not protect against a listener on the path, who\nreads the password from one packet, and it carries no Sequence Number, so a captured packet can be\nreplayed. Choose a keyed type wherever the path is not already trusted.",
@@ -9803,7 +9834,7 @@
       {
         "children": [
           {
-            "description": "show mtu measures the path MTU to this address beside the peers. A\nreference outside the tunnels is what tells a clamped access circuit from a\nclamped peer path: when it measures the full interface MTU the circuit is not\nclamped, and when it measures the same as the peers the whole circuit is. The\ndefault is 1.1.1.1. The environment variable ze.mtu.reference-address\noverrides this leaf.",
+            "description": "show mtu measures the path MTU to this address beside the peers. A\nreference outside the tunnels is what tells a clamped access circuit from a\nclamped peer path: when it measures the full interface MTU the circuit is not\nclamped, and when it measures the same as the peers the whole circuit is. When\nthe leaf is not set, the first system name-server is the reference. When\nneither is set, show mtu refuses to run. The environment variable\nze.mtu.reference-address overrides this leaf.",
             "kind": "leaf",
             "name": "reference-address",
             "short-help": "Address show mtu measures to tell a clamped circuit from a clamped peer path.",
@@ -11749,7 +11780,7 @@
             "type": "string"
           },
           {
-            "description": "The range is 68 to 16000 bytes and the default is 1500. Ze applies the value\nwith the netlink call LinkSetMTU after it creates the interface. Ze restores\nthe previous value when a later step of the same apply fails.",
+            "description": "The range is 68 to 16000 bytes. Ze applies the value with the netlink call\nLinkSetMTU after it creates the interface. Ze restores the previous value\nwhen a later step of the same apply fails. When the leaf is omitted, ze makes\nno MTU call and the device keeps its current MTU. For a device ze creates\nthat is the kernel's default for the kind: 1500 for a dummy, veth or bridge,\n1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel.\nEach kind has its own value, so the schema declares no single default.",
             "kind": "leaf",
             "name": "mtu",
             "short-help": "Maximum transmission unit",
@@ -11997,7 +12028,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "Ze writes the value to net.ipv4.conf.\u003ciface\u003e.rp_filter, where disable\nis 0, strict is 1 and loose is 2. strict drops a packet whose source\naddress would not route back through this interface. loose drops a\npacket whose source address has no route at all.",
+                    "description": "Ze writes the value to net.ipv4.conf.\u003ciface\u003e.rp_filter, where disable\nis 0, strict is 1 and loose is 2. strict drops a packet whose source\naddress would not route back through this interface. loose drops a\npacket whose source address has no route at all. With backend vpp, Ze\nalso enables VPP uRPF in the same mode on the interface's receive path.",
                     "kind": "leaf",
                     "name": "rpf-check",
                     "short-help": "Reverse path filtering mode",
@@ -12037,6 +12068,24 @@
                             "short-help": "Advertisement interval in milliseconds.",
                             "source": "config",
                             "type": "uint32"
+                          },
+                          {
+                            "description": "Selects the VRRPv3 IPv4 checksum form. The group sends\nand accepts only that form, and an advertisement in\nthe other form is dropped and counted as a checksum\nerror. RFC 9568 computes the IPv4 checksum over the\nVRRP message alone. RFC 5798 also covered an IPv4\npseudo-header, and keepalived and other pre-RFC 9568\nrouters still send and require that form, so a group\nsharing a segment with them needs rfc5798-compatible.\nVersion 2 always sums the message alone and refuses\nrfc5798-compatible. IPv6 groups have no such leaf:\nboth RFCs cover the IPv6 pseudo-header.",
+                            "kind": "leaf",
+                            "name": "checksum",
+                            "short-help": "VRRPv3 IPv4 checksum form: rfc9568 or rfc5798-compatible.",
+                            "source": "config",
+                            "type": "enumeration",
+                            "values": [
+                              {
+                                "name": "rfc5798-compatible",
+                                "short-help": "Checksum over the IPv4 pseudo-header and the message, as keepalived sends."
+                              },
+                              {
+                                "name": "rfc9568",
+                                "short-help": "Checksum over the VRRP message alone (RFC 9568 Section 5.2.8)."
+                              }
+                            ]
                           },
                           {
                             "description": "A Backup router with a higher priority takes over from\na live Active router with a lower priority.",
@@ -12172,10 +12221,10 @@
                   {
                     "children": [
                       {
-                        "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID.",
+                        "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID. Write it as colon-separated hex octets, such as\n00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to\n128 octets of identifier (RFC 9915 Section 11.1).",
                         "kind": "leaf",
                         "name": "duid",
-                        "short-help": "Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).",
+                        "short-help": "Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).",
                         "source": "config",
                         "type": "string"
                       },
@@ -12190,7 +12239,7 @@
                       {
                         "children": [
                           {
-                            "description": "The prefix length ze asks for, from 48 to 64. Ze reads the\nleaf into the DHCP client configuration and then sends no\nIA_PD option, so the value reaches no server and changes\nnothing. A prefix that a server sends on its own keeps the\nlength that server assigned.",
+                            "description": "The prefix length ze asks for, from 48 to 64, sent as an IA\nPrefix hint (::/length) in the IA_PD. Without it the IA_PD\ncarries no hint and the server chooses the length.",
                             "kind": "leaf",
                             "name": "length",
                             "short-help": "Requested prefix length",
@@ -12198,7 +12247,7 @@
                             "type": "uint8"
                           }
                         ],
-                        "description": "Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no\nserver for a delegated prefix. Ze does install a prefix that a\nserver sends on its own in the IA_PD option of a Reply. Ze\npublishes that prefix as a lease on this unit. The length leaf\nbelow reaches no message Ze sends.",
+                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this unit.",
                         "kind": "container",
                         "name": "pd",
                         "short-help": "Prefix delegation",
@@ -12370,7 +12419,7 @@
                     "description": "strict drops a packet whose source address would not be routed back\nthrough this interface. loose drops a packet whose source address has\nno route at all. disable performs no source address validation.",
                     "kind": "leaf",
                     "name": "rpf-check",
-                    "short-help": "Reverse path filtering mode, on the VPP data plane only for IPv6.",
+                    "short-help": "Reverse path filtering mode, enforced by an nftables fib lookup.",
                     "source": "config",
                     "type": "enumeration",
                     "values": [
@@ -12643,7 +12692,7 @@
             "source": "config"
           },
           {
-            "description": "The range is 68 to 16000 bytes and the default is 1500. Ze applies the value\nwith the netlink call LinkSetMTU after it creates the interface. Ze restores\nthe previous value when a later step of the same apply fails.",
+            "description": "The range is 68 to 16000 bytes. Ze applies the value with the netlink call\nLinkSetMTU after it creates the interface. Ze restores the previous value\nwhen a later step of the same apply fails. When the leaf is omitted, ze makes\nno MTU call and the device keeps its current MTU. For a device ze creates\nthat is the kernel's default for the kind: 1500 for a dummy, veth or bridge,\n1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel.\nEach kind has its own value, so the schema declares no single default.",
             "kind": "leaf",
             "name": "mtu",
             "short-help": "Maximum transmission unit",
@@ -12883,7 +12932,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "Ze writes the value to net.ipv4.conf.\u003ciface\u003e.rp_filter, where disable\nis 0, strict is 1 and loose is 2. strict drops a packet whose source\naddress would not route back through this interface. loose drops a\npacket whose source address has no route at all.",
+                    "description": "Ze writes the value to net.ipv4.conf.\u003ciface\u003e.rp_filter, where disable\nis 0, strict is 1 and loose is 2. strict drops a packet whose source\naddress would not route back through this interface. loose drops a\npacket whose source address has no route at all. With backend vpp, Ze\nalso enables VPP uRPF in the same mode on the interface's receive path.",
                     "kind": "leaf",
                     "name": "rpf-check",
                     "short-help": "Reverse path filtering mode",
@@ -12923,6 +12972,24 @@
                             "short-help": "Advertisement interval in milliseconds.",
                             "source": "config",
                             "type": "uint32"
+                          },
+                          {
+                            "description": "Selects the VRRPv3 IPv4 checksum form. The group sends\nand accepts only that form, and an advertisement in\nthe other form is dropped and counted as a checksum\nerror. RFC 9568 computes the IPv4 checksum over the\nVRRP message alone. RFC 5798 also covered an IPv4\npseudo-header, and keepalived and other pre-RFC 9568\nrouters still send and require that form, so a group\nsharing a segment with them needs rfc5798-compatible.\nVersion 2 always sums the message alone and refuses\nrfc5798-compatible. IPv6 groups have no such leaf:\nboth RFCs cover the IPv6 pseudo-header.",
+                            "kind": "leaf",
+                            "name": "checksum",
+                            "short-help": "VRRPv3 IPv4 checksum form: rfc9568 or rfc5798-compatible.",
+                            "source": "config",
+                            "type": "enumeration",
+                            "values": [
+                              {
+                                "name": "rfc5798-compatible",
+                                "short-help": "Checksum over the IPv4 pseudo-header and the message, as keepalived sends."
+                              },
+                              {
+                                "name": "rfc9568",
+                                "short-help": "Checksum over the VRRP message alone (RFC 9568 Section 5.2.8)."
+                              }
+                            ]
                           },
                           {
                             "description": "A Backup router with a higher priority takes over from\na live Active router with a lower priority.",
@@ -13058,10 +13125,10 @@
                   {
                     "children": [
                       {
-                        "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID.",
+                        "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID. Write it as colon-separated hex octets, such as\n00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to\n128 octets of identifier (RFC 9915 Section 11.1).",
                         "kind": "leaf",
                         "name": "duid",
-                        "short-help": "Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).",
+                        "short-help": "Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).",
                         "source": "config",
                         "type": "string"
                       },
@@ -13076,7 +13143,7 @@
                       {
                         "children": [
                           {
-                            "description": "The prefix length ze asks for, from 48 to 64. Ze reads the\nleaf into the DHCP client configuration and then sends no\nIA_PD option, so the value reaches no server and changes\nnothing. A prefix that a server sends on its own keeps the\nlength that server assigned.",
+                            "description": "The prefix length ze asks for, from 48 to 64, sent as an IA\nPrefix hint (::/length) in the IA_PD. Without it the IA_PD\ncarries no hint and the server chooses the length.",
                             "kind": "leaf",
                             "name": "length",
                             "short-help": "Requested prefix length",
@@ -13084,7 +13151,7 @@
                             "type": "uint8"
                           }
                         ],
-                        "description": "Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no\nserver for a delegated prefix. Ze does install a prefix that a\nserver sends on its own in the IA_PD option of a Reply. Ze\npublishes that prefix as a lease on this unit. The length leaf\nbelow reaches no message Ze sends.",
+                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this unit.",
                         "kind": "container",
                         "name": "pd",
                         "short-help": "Prefix delegation",
@@ -13256,7 +13323,7 @@
                     "description": "strict drops a packet whose source address would not be routed back\nthrough this interface. loose drops a packet whose source address has\nno route at all. disable performs no source address validation.",
                     "kind": "leaf",
                     "name": "rpf-check",
-                    "short-help": "Reverse path filtering mode, on the VPP data plane only for IPv6.",
+                    "short-help": "Reverse path filtering mode, enforced by an nftables fib lookup.",
                     "source": "config",
                     "type": "enumeration",
                     "values": [
@@ -13521,7 +13588,7 @@
             "source": "config"
           },
           {
-            "description": "The range is 68 to 16000 bytes and the default is 1500. Ze applies the value\nwith the netlink call LinkSetMTU after it creates the interface. Ze restores\nthe previous value when a later step of the same apply fails.",
+            "description": "The range is 68 to 16000 bytes. Ze applies the value with the netlink call\nLinkSetMTU after it creates the interface. Ze restores the previous value\nwhen a later step of the same apply fails. When the leaf is omitted, ze makes\nno MTU call and the device keeps its current MTU. For a device ze creates\nthat is the kernel's default for the kind: 1500 for a dummy, veth or bridge,\n1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel.\nEach kind has its own value, so the schema declares no single default.",
             "kind": "leaf",
             "name": "mtu",
             "short-help": "Maximum transmission unit",
@@ -13761,7 +13828,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "Ze writes the value to net.ipv4.conf.\u003ciface\u003e.rp_filter, where disable\nis 0, strict is 1 and loose is 2. strict drops a packet whose source\naddress would not route back through this interface. loose drops a\npacket whose source address has no route at all.",
+                    "description": "Ze writes the value to net.ipv4.conf.\u003ciface\u003e.rp_filter, where disable\nis 0, strict is 1 and loose is 2. strict drops a packet whose source\naddress would not route back through this interface. loose drops a\npacket whose source address has no route at all. With backend vpp, Ze\nalso enables VPP uRPF in the same mode on the interface's receive path.",
                     "kind": "leaf",
                     "name": "rpf-check",
                     "short-help": "Reverse path filtering mode",
@@ -13801,6 +13868,24 @@
                             "short-help": "Advertisement interval in milliseconds.",
                             "source": "config",
                             "type": "uint32"
+                          },
+                          {
+                            "description": "Selects the VRRPv3 IPv4 checksum form. The group sends\nand accepts only that form, and an advertisement in\nthe other form is dropped and counted as a checksum\nerror. RFC 9568 computes the IPv4 checksum over the\nVRRP message alone. RFC 5798 also covered an IPv4\npseudo-header, and keepalived and other pre-RFC 9568\nrouters still send and require that form, so a group\nsharing a segment with them needs rfc5798-compatible.\nVersion 2 always sums the message alone and refuses\nrfc5798-compatible. IPv6 groups have no such leaf:\nboth RFCs cover the IPv6 pseudo-header.",
+                            "kind": "leaf",
+                            "name": "checksum",
+                            "short-help": "VRRPv3 IPv4 checksum form: rfc9568 or rfc5798-compatible.",
+                            "source": "config",
+                            "type": "enumeration",
+                            "values": [
+                              {
+                                "name": "rfc5798-compatible",
+                                "short-help": "Checksum over the IPv4 pseudo-header and the message, as keepalived sends."
+                              },
+                              {
+                                "name": "rfc9568",
+                                "short-help": "Checksum over the VRRP message alone (RFC 9568 Section 5.2.8)."
+                              }
+                            ]
                           },
                           {
                             "description": "A Backup router with a higher priority takes over from\na live Active router with a lower priority.",
@@ -13936,10 +14021,10 @@
                   {
                     "children": [
                       {
-                        "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID.",
+                        "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID. Write it as colon-separated hex octets, such as\n00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to\n128 octets of identifier (RFC 9915 Section 11.1).",
                         "kind": "leaf",
                         "name": "duid",
-                        "short-help": "Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).",
+                        "short-help": "Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).",
                         "source": "config",
                         "type": "string"
                       },
@@ -13954,7 +14039,7 @@
                       {
                         "children": [
                           {
-                            "description": "The prefix length ze asks for, from 48 to 64. Ze reads the\nleaf into the DHCP client configuration and then sends no\nIA_PD option, so the value reaches no server and changes\nnothing. A prefix that a server sends on its own keeps the\nlength that server assigned.",
+                            "description": "The prefix length ze asks for, from 48 to 64, sent as an IA\nPrefix hint (::/length) in the IA_PD. Without it the IA_PD\ncarries no hint and the server chooses the length.",
                             "kind": "leaf",
                             "name": "length",
                             "short-help": "Requested prefix length",
@@ -13962,7 +14047,7 @@
                             "type": "uint8"
                           }
                         ],
-                        "description": "Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no\nserver for a delegated prefix. Ze does install a prefix that a\nserver sends on its own in the IA_PD option of a Reply. Ze\npublishes that prefix as a lease on this unit. The length leaf\nbelow reaches no message Ze sends.",
+                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this unit.",
                         "kind": "container",
                         "name": "pd",
                         "short-help": "Prefix delegation",
@@ -14134,7 +14219,7 @@
                     "description": "strict drops a packet whose source address would not be routed back\nthrough this interface. loose drops a packet whose source address has\nno route at all. disable performs no source address validation.",
                     "kind": "leaf",
                     "name": "rpf-check",
-                    "short-help": "Reverse path filtering mode, on the VPP data plane only for IPv6.",
+                    "short-help": "Reverse path filtering mode, enforced by an nftables fib lookup.",
                     "source": "config",
                     "type": "enumeration",
                     "values": [
@@ -14459,7 +14544,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "Ze writes the value to net.ipv4.conf.\u003ciface\u003e.rp_filter, where disable\nis 0, strict is 1 and loose is 2. strict drops a packet whose source\naddress would not route back through this interface. loose drops a\npacket whose source address has no route at all.",
+                    "description": "Ze writes the value to net.ipv4.conf.\u003ciface\u003e.rp_filter, where disable\nis 0, strict is 1 and loose is 2. strict drops a packet whose source\naddress would not route back through this interface. loose drops a\npacket whose source address has no route at all. With backend vpp, Ze\nalso enables VPP uRPF in the same mode on the interface's receive path.",
                     "kind": "leaf",
                     "name": "rpf-check",
                     "short-help": "Reverse path filtering mode",
@@ -14516,10 +14601,10 @@
                   {
                     "children": [
                       {
-                        "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID.",
+                        "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID. Write it as colon-separated hex octets, such as\n00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to\n128 octets of identifier (RFC 9915 Section 11.1).",
                         "kind": "leaf",
                         "name": "duid",
-                        "short-help": "Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).",
+                        "short-help": "Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).",
                         "source": "config",
                         "type": "string"
                       },
@@ -14534,7 +14619,7 @@
                       {
                         "children": [
                           {
-                            "description": "The prefix length ze asks for, from 48 to 64. Ze reads the\nleaf into the DHCP client configuration and then sends no\nIA_PD option, so the value reaches no server and changes\nnothing. A prefix that a server sends on its own keeps the\nlength that server assigned.",
+                            "description": "The prefix length ze asks for, from 48 to 64, sent as an IA\nPrefix hint (::/length) in the IA_PD. Without it the IA_PD\ncarries no hint and the server chooses the length.",
                             "kind": "leaf",
                             "name": "length",
                             "short-help": "Requested prefix length",
@@ -14542,7 +14627,7 @@
                             "type": "uint8"
                           }
                         ],
-                        "description": "Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no\nserver for a delegated prefix. Ze does install a prefix that a\nserver sends on its own in the IA_PD option of a Reply. Ze\npublishes that prefix as a lease on this unit. The length leaf\nbelow reaches no message Ze sends.",
+                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this unit.",
                         "kind": "container",
                         "name": "pd",
                         "short-help": "Prefix delegation",
@@ -14714,7 +14799,7 @@
                     "description": "strict drops a packet whose source address would not be routed back\nthrough this interface. loose drops a packet whose source address has\nno route at all. disable performs no source address validation.",
                     "kind": "leaf",
                     "name": "rpf-check",
-                    "short-help": "Reverse path filtering mode, on the VPP data plane only for IPv6.",
+                    "short-help": "Reverse path filtering mode, enforced by an nftables fib lookup.",
                     "source": "config",
                     "type": "enumeration",
                     "values": [
@@ -14896,7 +14981,7 @@
             "type": "empty"
           },
           {
-            "description": "The range is 68 to 16000 bytes and the default is 1500. Ze applies the value\nwith the netlink call LinkSetMTU after it creates the interface. Ze restores\nthe previous value when a later step of the same apply fails.",
+            "description": "The range is 68 to 16000 bytes. Ze applies the value with the netlink call\nLinkSetMTU after it creates the interface. Ze restores the previous value\nwhen a later step of the same apply fails. When the leaf is omitted, ze makes\nno MTU call and the device keeps its current MTU. For a device ze creates\nthat is the kernel's default for the kind: 1500 for a dummy, veth or bridge,\n1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel.\nEach kind has its own value, so the schema declares no single default.",
             "kind": "leaf",
             "name": "mtu",
             "short-help": "Maximum transmission unit",
@@ -15785,7 +15870,7 @@
             "source": "config"
           },
           {
-            "description": "The range is 68 to 16000 bytes and the default is 1500. Ze applies the value\nwith the netlink call LinkSetMTU after it creates the interface. Ze restores\nthe previous value when a later step of the same apply fails.",
+            "description": "The range is 68 to 16000 bytes. Ze applies the value with the netlink call\nLinkSetMTU after it creates the interface. Ze restores the previous value\nwhen a later step of the same apply fails. When the leaf is omitted, ze makes\nno MTU call and the device keeps its current MTU. For a device ze creates\nthat is the kernel's default for the kind: 1500 for a dummy, veth or bridge,\n1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel.\nEach kind has its own value, so the schema declares no single default.",
             "kind": "leaf",
             "name": "mtu",
             "short-help": "Maximum transmission unit",
@@ -15910,7 +15995,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "Ze writes the value to net.ipv4.conf.\u003ciface\u003e.rp_filter, where disable\nis 0, strict is 1 and loose is 2. strict drops a packet whose source\naddress would not route back through this interface. loose drops a\npacket whose source address has no route at all.",
+                    "description": "Ze writes the value to net.ipv4.conf.\u003ciface\u003e.rp_filter, where disable\nis 0, strict is 1 and loose is 2. strict drops a packet whose source\naddress would not route back through this interface. loose drops a\npacket whose source address has no route at all. With backend vpp, Ze\nalso enables VPP uRPF in the same mode on the interface's receive path.",
                     "kind": "leaf",
                     "name": "rpf-check",
                     "short-help": "Reverse path filtering mode",
@@ -15967,10 +16052,10 @@
                   {
                     "children": [
                       {
-                        "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID.",
+                        "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID. Write it as colon-separated hex octets, such as\n00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to\n128 octets of identifier (RFC 9915 Section 11.1).",
                         "kind": "leaf",
                         "name": "duid",
-                        "short-help": "Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).",
+                        "short-help": "Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).",
                         "source": "config",
                         "type": "string"
                       },
@@ -15985,7 +16070,7 @@
                       {
                         "children": [
                           {
-                            "description": "The prefix length ze asks for, from 48 to 64. Ze reads the\nleaf into the DHCP client configuration and then sends no\nIA_PD option, so the value reaches no server and changes\nnothing. A prefix that a server sends on its own keeps the\nlength that server assigned.",
+                            "description": "The prefix length ze asks for, from 48 to 64, sent as an IA\nPrefix hint (::/length) in the IA_PD. Without it the IA_PD\ncarries no hint and the server chooses the length.",
                             "kind": "leaf",
                             "name": "length",
                             "short-help": "Requested prefix length",
@@ -15993,7 +16078,7 @@
                             "type": "uint8"
                           }
                         ],
-                        "description": "Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no\nserver for a delegated prefix. Ze does install a prefix that a\nserver sends on its own in the IA_PD option of a Reply. Ze\npublishes that prefix as a lease on this unit. The length leaf\nbelow reaches no message Ze sends.",
+                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this unit.",
                         "kind": "container",
                         "name": "pd",
                         "short-help": "Prefix delegation",
@@ -16165,7 +16250,7 @@
                     "description": "strict drops a packet whose source address would not be routed back\nthrough this interface. loose drops a packet whose source address has\nno route at all. disable performs no source address validation.",
                     "kind": "leaf",
                     "name": "rpf-check",
-                    "short-help": "Reverse path filtering mode, on the VPP data plane only for IPv6.",
+                    "short-help": "Reverse path filtering mode, enforced by an nftables fib lookup.",
                     "source": "config",
                     "type": "enumeration",
                     "values": [
@@ -16330,7 +16415,7 @@
             "source": "config"
           },
           {
-            "description": "The range is 68 to 16000 bytes and the default is 1500. Ze applies the value\nwith the netlink call LinkSetMTU after it creates the interface. Ze restores\nthe previous value when a later step of the same apply fails.",
+            "description": "The range is 68 to 16000 bytes. Ze applies the value with the netlink call\nLinkSetMTU after it creates the interface. Ze restores the previous value\nwhen a later step of the same apply fails. When the leaf is omitted, ze makes\nno MTU call and the device keeps its current MTU. For a device ze creates\nthat is the kernel's default for the kind: 1500 for a dummy, veth or bridge,\n1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel.\nEach kind has its own value, so the schema declares no single default.",
             "kind": "leaf",
             "name": "mtu",
             "short-help": "Maximum transmission unit",
@@ -16578,7 +16663,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "Ze writes the value to net.ipv4.conf.\u003ciface\u003e.rp_filter, where disable\nis 0, strict is 1 and loose is 2. strict drops a packet whose source\naddress would not route back through this interface. loose drops a\npacket whose source address has no route at all.",
+                    "description": "Ze writes the value to net.ipv4.conf.\u003ciface\u003e.rp_filter, where disable\nis 0, strict is 1 and loose is 2. strict drops a packet whose source\naddress would not route back through this interface. loose drops a\npacket whose source address has no route at all. With backend vpp, Ze\nalso enables VPP uRPF in the same mode on the interface's receive path.",
                     "kind": "leaf",
                     "name": "rpf-check",
                     "short-help": "Reverse path filtering mode",
@@ -16618,6 +16703,24 @@
                             "short-help": "Advertisement interval in milliseconds.",
                             "source": "config",
                             "type": "uint32"
+                          },
+                          {
+                            "description": "Selects the VRRPv3 IPv4 checksum form. The group sends\nand accepts only that form, and an advertisement in\nthe other form is dropped and counted as a checksum\nerror. RFC 9568 computes the IPv4 checksum over the\nVRRP message alone. RFC 5798 also covered an IPv4\npseudo-header, and keepalived and other pre-RFC 9568\nrouters still send and require that form, so a group\nsharing a segment with them needs rfc5798-compatible.\nVersion 2 always sums the message alone and refuses\nrfc5798-compatible. IPv6 groups have no such leaf:\nboth RFCs cover the IPv6 pseudo-header.",
+                            "kind": "leaf",
+                            "name": "checksum",
+                            "short-help": "VRRPv3 IPv4 checksum form: rfc9568 or rfc5798-compatible.",
+                            "source": "config",
+                            "type": "enumeration",
+                            "values": [
+                              {
+                                "name": "rfc5798-compatible",
+                                "short-help": "Checksum over the IPv4 pseudo-header and the message, as keepalived sends."
+                              },
+                              {
+                                "name": "rfc9568",
+                                "short-help": "Checksum over the VRRP message alone (RFC 9568 Section 5.2.8)."
+                              }
+                            ]
                           },
                           {
                             "description": "A Backup router with a higher priority takes over from\na live Active router with a lower priority.",
@@ -16753,10 +16856,10 @@
                   {
                     "children": [
                       {
-                        "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID.",
+                        "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID. Write it as colon-separated hex octets, such as\n00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to\n128 octets of identifier (RFC 9915 Section 11.1).",
                         "kind": "leaf",
                         "name": "duid",
-                        "short-help": "Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).",
+                        "short-help": "Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).",
                         "source": "config",
                         "type": "string"
                       },
@@ -16771,7 +16874,7 @@
                       {
                         "children": [
                           {
-                            "description": "The prefix length ze asks for, from 48 to 64. Ze reads the\nleaf into the DHCP client configuration and then sends no\nIA_PD option, so the value reaches no server and changes\nnothing. A prefix that a server sends on its own keeps the\nlength that server assigned.",
+                            "description": "The prefix length ze asks for, from 48 to 64, sent as an IA\nPrefix hint (::/length) in the IA_PD. Without it the IA_PD\ncarries no hint and the server chooses the length.",
                             "kind": "leaf",
                             "name": "length",
                             "short-help": "Requested prefix length",
@@ -16779,7 +16882,7 @@
                             "type": "uint8"
                           }
                         ],
-                        "description": "Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no\nserver for a delegated prefix. Ze does install a prefix that a\nserver sends on its own in the IA_PD option of a Reply. Ze\npublishes that prefix as a lease on this unit. The length leaf\nbelow reaches no message Ze sends.",
+                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this unit.",
                         "kind": "container",
                         "name": "pd",
                         "short-help": "Prefix delegation",
@@ -16951,7 +17054,7 @@
                     "description": "strict drops a packet whose source address would not be routed back\nthrough this interface. loose drops a packet whose source address has\nno route at all. disable performs no source address validation.",
                     "kind": "leaf",
                     "name": "rpf-check",
-                    "short-help": "Reverse path filtering mode, on the VPP data plane only for IPv6.",
+                    "short-help": "Reverse path filtering mode, enforced by an nftables fib lookup.",
                     "source": "config",
                     "type": "enumeration",
                     "values": [
@@ -17199,7 +17302,7 @@
             "type": "port"
           },
           {
-            "description": "The range is 68 to 16000 bytes and the default is 1500. Ze applies the value\nwith the netlink call LinkSetMTU after it creates the interface. Ze restores\nthe previous value when a later step of the same apply fails.",
+            "description": "The range is 68 to 16000 bytes. Ze applies the value with the netlink call\nLinkSetMTU after it creates the interface. Ze restores the previous value\nwhen a later step of the same apply fails. When the leaf is omitted, ze makes\nno MTU call and the device keeps its current MTU. For a device ze creates\nthat is the kernel's default for the kind: 1500 for a dummy, veth or bridge,\n1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel.\nEach kind has its own value, so the schema declares no single default.",
             "kind": "leaf",
             "name": "mtu",
             "short-help": "Maximum transmission unit",
@@ -17406,7 +17509,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "Ze writes the value to net.ipv4.conf.\u003ciface\u003e.rp_filter, where disable\nis 0, strict is 1 and loose is 2. strict drops a packet whose source\naddress would not route back through this interface. loose drops a\npacket whose source address has no route at all.",
+                    "description": "Ze writes the value to net.ipv4.conf.\u003ciface\u003e.rp_filter, where disable\nis 0, strict is 1 and loose is 2. strict drops a packet whose source\naddress would not route back through this interface. loose drops a\npacket whose source address has no route at all. With backend vpp, Ze\nalso enables VPP uRPF in the same mode on the interface's receive path.",
                     "kind": "leaf",
                     "name": "rpf-check",
                     "short-help": "Reverse path filtering mode",
@@ -17463,10 +17566,10 @@
                   {
                     "children": [
                       {
-                        "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID.",
+                        "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID. Write it as colon-separated hex octets, such as\n00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to\n128 octets of identifier (RFC 9915 Section 11.1).",
                         "kind": "leaf",
                         "name": "duid",
-                        "short-help": "Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).",
+                        "short-help": "Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).",
                         "source": "config",
                         "type": "string"
                       },
@@ -17481,7 +17584,7 @@
                       {
                         "children": [
                           {
-                            "description": "The prefix length ze asks for, from 48 to 64. Ze reads the\nleaf into the DHCP client configuration and then sends no\nIA_PD option, so the value reaches no server and changes\nnothing. A prefix that a server sends on its own keeps the\nlength that server assigned.",
+                            "description": "The prefix length ze asks for, from 48 to 64, sent as an IA\nPrefix hint (::/length) in the IA_PD. Without it the IA_PD\ncarries no hint and the server chooses the length.",
                             "kind": "leaf",
                             "name": "length",
                             "short-help": "Requested prefix length",
@@ -17489,7 +17592,7 @@
                             "type": "uint8"
                           }
                         ],
-                        "description": "Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no\nserver for a delegated prefix. Ze does install a prefix that a\nserver sends on its own in the IA_PD option of a Reply. Ze\npublishes that prefix as a lease on this unit. The length leaf\nbelow reaches no message Ze sends.",
+                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this unit.",
                         "kind": "container",
                         "name": "pd",
                         "short-help": "Prefix delegation",
@@ -17661,7 +17764,7 @@
                     "description": "strict drops a packet whose source address would not be routed back\nthrough this interface. loose drops a packet whose source address has\nno route at all. disable performs no source address validation.",
                     "kind": "leaf",
                     "name": "rpf-check",
-                    "short-help": "Reverse path filtering mode, on the VPP data plane only for IPv6.",
+                    "short-help": "Reverse path filtering mode, enforced by an nftables fib lookup.",
                     "source": "config",
                     "type": "enumeration",
                     "values": [
@@ -17809,7 +17912,7 @@
             "type": "uint32"
           },
           {
-            "description": "The range is 68 to 16000 bytes and the default is 1500. Ze applies the value\nwith the netlink call LinkSetMTU after it creates the interface. Ze restores\nthe previous value when a later step of the same apply fails.",
+            "description": "The range is 68 to 16000 bytes. Ze applies the value with the netlink call\nLinkSetMTU after it creates the interface. Ze restores the previous value\nwhen a later step of the same apply fails. When the leaf is omitted, ze makes\nno MTU call and the device keeps its current MTU. For a device ze creates\nthat is the kernel's default for the kind: 1500 for a dummy, veth or bridge,\n1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel.\nEach kind has its own value, so the schema declares no single default.",
             "kind": "leaf",
             "name": "mtu",
             "short-help": "Maximum transmission unit",
@@ -17934,7 +18037,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "Ze writes the value to net.ipv4.conf.\u003ciface\u003e.rp_filter, where disable\nis 0, strict is 1 and loose is 2. strict drops a packet whose source\naddress would not route back through this interface. loose drops a\npacket whose source address has no route at all.",
+                    "description": "Ze writes the value to net.ipv4.conf.\u003ciface\u003e.rp_filter, where disable\nis 0, strict is 1 and loose is 2. strict drops a packet whose source\naddress would not route back through this interface. loose drops a\npacket whose source address has no route at all. With backend vpp, Ze\nalso enables VPP uRPF in the same mode on the interface's receive path.",
                     "kind": "leaf",
                     "name": "rpf-check",
                     "short-help": "Reverse path filtering mode",
@@ -17991,10 +18094,10 @@
                   {
                     "children": [
                       {
-                        "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID.",
+                        "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID. Write it as colon-separated hex octets, such as\n00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to\n128 octets of identifier (RFC 9915 Section 11.1).",
                         "kind": "leaf",
                         "name": "duid",
-                        "short-help": "Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).",
+                        "short-help": "Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).",
                         "source": "config",
                         "type": "string"
                       },
@@ -18009,7 +18112,7 @@
                       {
                         "children": [
                           {
-                            "description": "The prefix length ze asks for, from 48 to 64. Ze reads the\nleaf into the DHCP client configuration and then sends no\nIA_PD option, so the value reaches no server and changes\nnothing. A prefix that a server sends on its own keeps the\nlength that server assigned.",
+                            "description": "The prefix length ze asks for, from 48 to 64, sent as an IA\nPrefix hint (::/length) in the IA_PD. Without it the IA_PD\ncarries no hint and the server chooses the length.",
                             "kind": "leaf",
                             "name": "length",
                             "short-help": "Requested prefix length",
@@ -18017,7 +18120,7 @@
                             "type": "uint8"
                           }
                         ],
-                        "description": "Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no\nserver for a delegated prefix. Ze does install a prefix that a\nserver sends on its own in the IA_PD option of a Reply. Ze\npublishes that prefix as a lease on this unit. The length leaf\nbelow reaches no message Ze sends.",
+                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this unit.",
                         "kind": "container",
                         "name": "pd",
                         "short-help": "Prefix delegation",
@@ -18189,7 +18292,7 @@
                     "description": "strict drops a packet whose source address would not be routed back\nthrough this interface. loose drops a packet whose source address has\nno route at all. disable performs no source address validation.",
                     "kind": "leaf",
                     "name": "rpf-check",
-                    "short-help": "Reverse path filtering mode, on the VPP data plane only for IPv6.",
+                    "short-help": "Reverse path filtering mode, enforced by an nftables fib lookup.",
                     "source": "config",
                     "type": "enumeration",
                     "values": [
@@ -19189,7 +19292,7 @@
         "type": "uint16"
       },
       {
-        "description": "Dead-peer detection threshold: consecutive unanswered HELLO keepalive intervals tolerated before an\nestablished tunnel's peer is declared dead and the tunnel is torn down. The effective detection time\nis hello-retries x hello-interval, measured from the last proof of peer liveness. That proof is a\ndelivered control message, or an acknowledgement of one of our messages, including a ZLB ACK of a\nHELLO. A value of 0 disables dead-peer detection, and reliable-transport retransmit exhaustion,\nabout 31s, is then the only teardown signal. The default is 2.",
+        "description": "Dead-peer detection threshold: consecutive unanswered HELLO keepalive intervals tolerated before an\nestablished tunnel's peer is declared dead and the tunnel is torn down. The effective detection time\nis hello-retries x hello-interval, measured from the last proof of peer liveness. That proof is a\ndelivered control message, or an acknowledgement of one of our messages, including a ZLB ACK of a\nHELLO. A value of 0 disables dead-peer detection, and reliable-transport retransmit exhaustion,\nabout 31s with the default max-retransmit, is then the only teardown signal. The default is 2.",
         "kind": "leaf",
         "name": "hello-retries",
         "short-help": "Unanswered HELLO intervals tolerated before the peer is declared dead.",
@@ -19203,6 +19306,14 @@
         "short-help": "Maximum concurrent PPP logins the CQM observer tracks.",
         "source": "config",
         "type": "uint32"
+      },
+      {
+        "description": "Retransmissions of an unacknowledged control message before the tunnel and all its sessions are\ncleared, as RFC 2661 Section 5.8 requires. The first retransmission waits 1s and each later one doubles\nthe wait up to 16s, so each retransmission above the default 5 adds 16s to the time a silent tunnel\ntakes to clear. The value applies to tunnels created after it is set; a reload leaves established\ntunnels on the count they started with.",
+        "kind": "leaf",
+        "name": "max-retransmit",
+        "short-help": "Retransmissions of an unacknowledged control message before the tunnel is cleared.",
+        "source": "config",
+        "type": "uint8"
       },
       {
         "description": "Maximum concurrent sessions per tunnel. The default is a finite deployment safety cap. A value of 0\nexplicitly requests unbounded admission on each tunnel. A new ICRQ or OCRQ beyond a positive limit\nis rejected with CDN Result Code 4 (no resources).",
@@ -25950,7 +26061,7 @@
             "type": "string"
           },
           {
-            "description": "A file:// URL writes to the local filesystem. An http:// or\nhttps:// URL uploads the config with an HTTP request.",
+            "description": "A file:// URL writes to the local filesystem. An http:// or\nhttps:// URL uploads the config with an HTTP request. Any\nother scheme is refused when the config is validated.",
             "kind": "leaf",
             "name": "location",
             "short-help": "Archive destination URL (file://, http://, https://).",
@@ -25966,7 +26077,7 @@
             "type": "boolean"
           },
           {
-            "description": "Ze gives up on an upload that passes this timeout. The\nformat is the Go duration format, such as 30s or 2m.",
+            "description": "Ze gives up on an upload that passes this timeout. The\nformat is the Go duration format, such as 30s or 2m, and\nthe value must be above zero. An absent timeout is 30s.",
             "kind": "leaf",
             "name": "timeout",
             "short-help": "HTTP upload timeout, in Go duration format, for example 30s.",
@@ -27150,7 +27261,7 @@
         "type": "string"
       },
       {
-        "description": "Ze writes each address to the resolv.conf file named by\ndns/resolv-conf-path, and its own resolver asks these servers.",
+        "description": "Ze writes each address to the resolv.conf file named by\ndns/resolv-conf-path, and its own resolver asks these servers.\nWhen environment mtu reference-address is not set, show mtu\nmeasures the first server as its reference address.",
         "kind": "leaf-list",
         "name": "name-server",
         "short-help": "Static DNS name servers, written to resolv.conf and used by ze internal resolver.",
@@ -27679,12 +27790,12 @@
                     "source": "config"
                   },
                   {
-                    "description": "The value is the name of a class in the class list of this\nqdisc.",
+                    "description": "The value is the name of a class in the class list of this\nqdisc. The leafref refuses a name no class of this qdisc carries.",
                     "kind": "leaf",
                     "name": "default-class",
                     "short-help": "Name of the class that takes the unclassified traffic.",
                     "source": "config",
-                    "type": "string"
+                    "type": "leafref"
                   },
                   {
                     "description": "The commit-time gate rejects a type the configured backend\ndoes not support.",
@@ -28545,6 +28656,14 @@
                         "type": "boolean"
                       },
                       {
+                        "description": "Names of intermediate CA certificates held as ca entries in the\nPKI store. Read in eap-tls mode only. When ze is the EAP-TLS\nauthenticator, it adds these certificates to path validation of the\nclient's certificate chain, beside the intermediates the client sends.\nA client that sends its certificate alone then still validates, as\nRFC 5216 Section 5.3 asks of an authenticator that cannot fetch the\nintermediates a path needs. The certificates complete a path and never\nend one: ca-certificate stays the only trust anchor. Commit refuses a\nname that is not a PKI ca entry, an entry that is not a CA certificate,\nand the list on a peer whose mode is not eap-tls.",
+                        "kind": "leaf-list",
+                        "name": "intermediate-certificate",
+                        "short-help": "PKI CA certificates that complete an EAP-TLS client chain.",
+                        "source": "config",
+                        "type": "string"
+                      },
+                      {
                         "description": "Ze derives the ID type it sends from the shape of the value. An IP\naddress literal goes out as ID_IPV4_ADDR or ID_IPV6_ADDR, and every\nother value as ID_FQDN. There is no ID_DER_ASN1_DN form, so commit\nrefuses a distinguished name. Commit also refuses a subtree or an\naddress range, because this leaf names the one identity Ze asserts. An\nempty leaf sends the peer name.",
                         "kind": "leaf",
                         "name": "local-id",
@@ -28903,7 +29022,7 @@
             "source": "config"
           },
           {
-            "description": "The disposition of the catch-all entry Ze installs last in the\nSecurity Policy Database, in every direction and for both address\nfamilies. RFC 4301 Section 5: 'If no policy is found in the SPD\nthat matches a packet (for either inbound or outbound traffic),\nthe packet MUST be discarded.' The catch-all is that policy, so\na packet no other entry names always meets one.\n\nThe default is bypass, because a router's own control plane\n(BGP, SSH, DNS) crosses the IPsec boundary in the clear, and a\ndefault of discard would stop it the moment vpn ipsec was\nconfigured. Set discard to get the disposition the RFC names,\nand write a bypass entry under policy for every flow that must\nstill cross in the clear. The IKE control plane keeps its own\nbypass at order 100 either way.",
+            "description": "The disposition of the catch-all entry Ze installs last in the\nSecurity Policy Database, in every direction and for both address\nfamilies. RFC 4301 Section 5: 'If no policy is found in the SPD\nthat matches a packet (for either inbound or outbound traffic),\nthe packet MUST be discarded.' The catch-all is that policy, so\na packet no other entry names always meets one.\n\nThe default is discard, the entry RFC 4301 Section 4.4.1 asks\nfor: 'Every SPD SHOULD have a nominal, final entry that matches\nanything that is otherwise unmatched, and discards it.' It also\ndrops the router's own traffic where it crosses in the clear:\nBGP, SSH, DNS, NTP, ICMP (ping, traceroute, show mtu probes and\npath-MTU errors) and IPv6 neighbor discovery, which is ICMPv6\n(protocol 58). So write a bypass entry under\npolicy for every flow that must still cross in the clear, or set\nbypass to pass all of it. A commit that would turn the discard\non while this leaf is unset is refused until the leaf is\nwritten. The IKE control plane keeps its own bypass at order 100\neither way.",
             "kind": "leaf",
             "name": "unmatched",
             "short-help": "Disposition of traffic no SPD entry matches: discard or bypass.",

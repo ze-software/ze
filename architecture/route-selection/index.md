@@ -119,7 +119,7 @@ later loses too.
 
 | # | Reason | Rule | RFC | Notes |
 |---|--------|------|-----|-------|
-| 9 | `stale-deprioritized` | Route at or above depreference threshold loses to fresh route | 9494 | GR/LLGR stale-level; threshold = 2 |
+| 9 | `stale-deprioritized` | Route at or above depreference threshold loses to fresh route | 9494 | GR/LLGR stale-level; threshold = 2. A route received carrying LLGR_STALE from a neighbor Ze sent the LLGR Capability to enters at the threshold (`extractCandidate`) |
 | 10 | `lost-local-pref` | Highest LOCAL_PREF wins | 4271 | Default 100 if absent |
 | — | `aigp` | A path carrying AIGP beats one without it; then the lowest received AIGP plus interior distance wins | 7311 | After LOCAL_PREF, before AS_PATH; unsigned sums saturate |
 | 11 | `lost-as-path-length` | Shortest AS_PATH wins | 4271 | AS_SET counts as 1 |

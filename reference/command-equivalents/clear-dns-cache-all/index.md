@@ -1,13 +1,13 @@
-# `clear vpn ipsec sa`
+# `clear dns cache all`
 
-Tear down IKE Security Associations\.
+Flush all DNS cache entries and reset all DNS cache counters\.
 
 ## Ze command
 
-- Registry path: `clear vpn ipsec sa`
-- Usage: `clear vpn ipsec sa`
+- Registry path: `clear dns cache all`
+- Usage: `clear dns cache all`
 - Mode: Daemon
-- Wire method: `ze-ike:clear-vpn-ipsec-sa`
+- Wire method: `ze-resolve:clear-dns-cache`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -21,7 +21,7 @@ Tear down IKE Security Associations\.
 - Command pipes: none
 - Pipe aliases: none
 
-Without arguments\, terminates all SAs\. Use \'peer \<name\>\' to clear just one peer\. The tunnel WILL renegotiate automatically if the config is still active\.
+The entries and the four counters go together\. Use clear dns cache stats to zero the counters and keep the entries\, or clear dns cache record to evict one name\.
 
 ## Arguments
 

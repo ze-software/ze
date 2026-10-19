@@ -80,7 +80,7 @@ The two sides share no configuration and no cache.</p>
 </tr>
 <tr>
 <td>resolv.conf writer</td>
-<td>Writes configured servers to resolv-conf-path at startup</td>
+<td>Writes the configured servers, else every DHCP lease's servers, to resolv-conf-path, and rewrites it whenever a source changes</td>
 </tr>
 <tr>
 <td>DHCP integration</td>
@@ -112,7 +112,7 @@ The two sides share no configuration and no cache.</p>
 </tr>
 <tr>
 <td>Cache management</td>
-<td>List entries, inspect by name, selective delete by name/type, flush all, reset counters</td>
+<td>List entries, inspect by name, and clear with <code>clear dns cache all/record/stats</code>: flush everything, delete by name/type, or reset the counters</td>
 </tr>
 <tr>
 <td><code>| resolve</code> pipe</td>
@@ -172,9 +172,37 @@ The two sides share no configuration and no cache.</p>
 </tbody>
 </table>
 <h2 id="dhcp-interaction">DHCP interaction</h2>
-<p>When <code>name-server</code> is configured, DHCP-discovered DNS servers do not overwrite
-resolv.conf. When no static servers are configured, DHCP writes DNS servers to
-resolv-conf-path as before (last-writer-wins across interfaces).</p>
+<p>ze keeps the resolver servers of each source apart: the static <code>name-server</code>
+list, and one list per DHCP client (DHCPv4 or DHCPv6, per interface and unit).
+resolv.conf is rebuilt from them on every change:</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>resolv.conf lists</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name-server</code> configured</td>
+<td>the static servers alone; DHCP never overrides them (RFC 3646 Section 6)</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td>every DHCP lease's servers: DHCPv4 clients first, then DHCPv6, each by interface then unit, in the order each server sent them, a repeated server listed once</td>
+</tr>
+<tr>
+<td>a renewal reply omits the DNS option, or a lease ends</td>
+<td>that lease's servers leave the file; the other sources' stay (RFC 9915 Section 18.2.10.5 for DHCPv6)</td>
+</tr>
+<tr>
+<td>every source withdrawn</td>
+<td>the ze header with no <code>nameserver</code> line, once ze has written the file; a file ze never wrote is left alone</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/config/system/resolv.go -- Resolvers -->
+<!-- source: internal/plugins/iface/dhcp/resolv_linux.go -- setV4Resolvers, setV6Resolvers -->
 <h2 id="cache-management">Cache management</h2>
 <p>The DNS cache can be inspected and managed at runtime via CLI commands.</p>
 <p><strong>Inspection:</strong></p>
@@ -183,7 +211,7 @@ show dns cache list                             # All non-expired entries (sorte
 show dns cache record example.com               # Entries for a specific name
 </code></pre>
 <p><strong>Clearing:</strong></p>
-<pre><code>clear dns cache                                 # Flush all entries and reset counters
+<pre><code>clear dns cache all                             # Flush all entries and reset counters (bare `clear dns cache` is refused)
 clear dns cache stats                           # Zero counters without removing entries
 clear dns cache record example.com              # Delete entries for a name (all types)
 clear dns cache record example.com type AAAA    # Delete a single name+type entry
@@ -212,9 +240,12 @@ clear dns cache record example.com type AAAA    # Delete a single name+type entr
 They work on any command output, including <code>show traceroute</code>, <code>show bgp</code>, etc.
 In <code>monitor traceroute | log</code> mode, they enrich the hop legend.</p>
 <h2 id="reload-behavior">Reload behavior</h2>
-<p>DNS resolver settings and resolv.conf are applied at startup. Changing
-<code>name-server</code> or <code>dns</code> settings via config reload requires a process restart
-to take effect.</p>
+<p>DNS resolver settings are applied at startup. Changing <code>name-server</code> or <code>dns</code>
+settings via config reload requires a process restart to reach the internal
+resolver. resolv.conf follows a reload: a reload that changes or removes
+<code>name-server</code> rewrites it, and removing every static server hands it back to
+the DHCP leases.</p>
+<!-- source: cmd/ze/hub/main_system.go -- applyResolvConf -->
 
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
@@ -249,7 +280,7 @@ to take effect.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
                 </div>
             </div>
         </footer>
