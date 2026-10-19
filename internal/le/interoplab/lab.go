@@ -374,9 +374,13 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 	}
 	lab := newLab(s.Docker, peers)
 	cleanupCtx := context.WithoutCancel(ctx)
+	// The teardown removes only what this run created. A name preClean
+	// refused, or a create that found the name taken, belongs to another run,
+	// so a resource is recorded only once this run's create made it.
+	var created createdResources
 	var hostCleanup func() error
 	defer func() {
-		result.CleanupErrors = lab.cleanup(cleanupCtx, plan.Network.Name, cleanupPeers)
+		result.CleanupErrors = lab.cleanup(cleanupCtx, created)
 		if hostCleanup == nil {
 			return
 		}
@@ -393,11 +397,11 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 		result.Error = err.Error()
 		return result
 	}
+	created.network = network.Name
 	if plan.Prepare != nil {
 		prepared, prepareErr := plan.Prepare(ctx, PrepareContext{Source: plan.Source, Network: network})
 		hostCleanup = prepared.Cleanup
 		peers = resolvedPeers(prepared.Peers, references)
-		cleanupPeers = mergeCleanupPeers(cleanupPeers, peers)
 		lab.setPeers(peers)
 		if prepareErr != nil {
 			result.Error = prepareErr.Error()
@@ -412,8 +416,14 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 	}
 	for index := range peers {
 		peer := &peers[index]
-		if err := s.Docker.runContainer(ctx, network, *peer); err != nil {
-			result.Error = err.Error()
+		runErr := s.Docker.runContainer(ctx, network, *peer)
+		// A failed `docker run -d` can leave the container it created, so the
+		// name is this run's to remove unless the daemon refused it as taken.
+		if !containerNameTaken(runErr) {
+			created.containers = append(created.containers, peer.Container)
+		}
+		if runErr != nil {
+			result.Error = runErr.Error()
 			return result
 		}
 		if peer.Ready == nil {
@@ -542,18 +552,27 @@ func (l *Lab) preClean(ctx context.Context, network string, peers []PeerConfig) 
 	return l.docker.claimName(ctx, resourceNetwork, network)
 }
 
-func (l *Lab) cleanup(ctx context.Context, network string, peers []PeerConfig) []string {
+// createdResources is what one scenario's own creates made, and so all its
+// teardown may remove. Not safe for concurrent use: runScenario owns it.
+type createdResources struct {
+	containers []string
+	network    string
+}
+
+// cleanup removes the containers, then the network, this scenario created.
+// A name it did not create is never removed here, whoever holds it: preClean
+// refused it, or another run took it first (R-1).
+func (l *Lab) cleanup(ctx context.Context, created createdResources) []string {
 	problems := make([]string, 0)
-	for index := range peers {
-		peer := &peers[index]
-		if err := l.docker.RemoveContainer(ctx, peer.Container); err != nil {
+	for _, container := range created.containers {
+		if err := l.docker.RemoveContainer(ctx, container); err != nil {
 			problems = append(problems, err.Error())
 		}
 	}
-	if network == "" {
+	if created.network == "" {
 		return problems
 	}
-	if err := l.docker.RemoveNetwork(ctx, network); err != nil {
+	if err := l.docker.RemoveNetwork(ctx, created.network); err != nil {
 		problems = append(problems, err.Error())
 	}
 	return problems

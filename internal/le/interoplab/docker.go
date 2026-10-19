@@ -558,8 +558,15 @@ func (d *Docker) CreateNetwork(ctx context.Context, spec NetworkSpec) (Network, 
 		if !errors.As(err, &last) {
 			return Network{}, err
 		}
+		// A network of that name is another run's (a lab's preClean claimed
+		// the name, so one made since is concurrent): this run neither joins
+		// nor removes it, so its teardown cannot remove a live run's (R-1).
 		if strings.Contains(last.Stderr, "already exists") {
-			return Network{Name: spec.Name, IPv4: candidate.IPv4, IPv6: candidate.IPv6}, nil
+			var refusal textbuf.Buffer
+			return Network{}, errors.New(refusal.Str("docker network ").Str(spec.Name).
+				Str(" already exists and this run did not create it, so this run neither uses nor removes it.").
+				Str(" Fix: run `").Str(cleanupCommand).Str("`, which removes it once its owner is gone,").
+				Str(" or give each concurrent run its own suffix").String())
 		}
 		if !strings.Contains(strings.ToLower(last.Stderr), "overlap") {
 			return Network{}, err
@@ -662,6 +669,17 @@ func (d *Docker) runContainer(ctx context.Context, network Network, peer PeerCon
 		return unapplied
 	}
 	return err
+}
+
+// containerNameTaken reports whether a failed `docker run` is the daemon
+// refusing a name another container holds, in which case the run created
+// nothing and the container is not its to remove. nil is not taken.
+func containerNameTaken(err error) bool {
+	commandErr, ok := errors.AsType[*commandError](err)
+	if !ok {
+		return false
+	}
+	return strings.Contains(commandErr.Stderr, "is already in use by container")
 }
 
 // RemoveContainer force-removes one peer. Docker's name-specific

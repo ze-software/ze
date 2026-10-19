@@ -112,3 +112,114 @@ func TestPreCleanRefusesLiveOrUnlabeledSameName(t *testing.T) {
 		})
 	}
 }
+
+// VALIDATES: R-1, AC-7: a scenario whose preClean refuses a same-name
+// container or network removes nothing by that name when it tears down, and
+// removes no network it never created. Method: one live-owned resource of the
+// scenario's name, refused, then the recorded argv searched for any removal.
+// PREVENTS: the deferred teardown force-removing a live run's container and
+// network after claimName refused them.
+func TestRunScenarioRefusedClaimRemovesNothingForeign(t *testing.T) {
+	for _, row := range []struct {
+		name    string
+		listing string
+		inspect string
+		refused string
+	}{
+		{name: "refused container", listing: "docker ps -a --no-trunc --filter name=",
+			inspect: "docker container inspect", refused: "lab-peer"},
+		{name: "refused network", listing: "docker network ls --no-trunc --filter name=",
+			inspect: "docker network inspect", refused: "lab-net"},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			runner := &recordingRunner{}
+			runner.run = kernelAnswering(func(command ProcessCommand) (ProcessResult, error) {
+				joined := strings.Join(command.Arguments, " ")
+				if strings.HasPrefix(joined, row.listing) {
+					return ProcessResult{Stdout: fixtureContainerID + "\t" + row.refused + "\n"}, nil
+				}
+				if strings.HasPrefix(joined, row.inspect) {
+					return ProcessResult{Stdout: labelJSON(fixtureLabels(nil)) + "\n"}, nil
+				}
+				return ProcessResult{}, nil
+			})
+			docker := newDocker(runner)
+			docker.judge.lookup = lookupAnswering("100")
+			suite := Suite{
+				Docker: docker, StagedZe: kernelCheckZe, NoBuild: true,
+				Scenarios: []ScenarioPlan{{
+					Source:  ScenarioSource{Name: "one", Directory: "/scenarios/one", Checker: func(context.Context, *CheckContext) error { return nil }},
+					Network: NetworkSpec{Name: "lab-net", Candidates: []Subnet{{IPv4: netip.MustParsePrefix("172.29.0.0/24")}}},
+					Peers:   []PeerConfig{{Name: "peer", Container: "lab-peer", Image: "peer-image", Host: 3}},
+				}},
+			}
+			report := suite.Run(t.Context())
+			if report.Code != 1 {
+				t.Fatalf("Suite code = %d, want 1: %#v", report.Code, report)
+			}
+			if !strings.Contains(report.Scenarios[0].Error, row.refused) {
+				t.Errorf("scenario error %q does not name %s", report.Scenarios[0].Error, row.refused)
+			}
+			joined := recordedCommands(runner.commands)
+			for _, removal := range []string{"docker rm -f", "docker network rm", "docker network create"} {
+				if strings.Contains(joined, removal) {
+					t.Errorf("a refused claim still ran %q:\n%s", removal, joined)
+				}
+			}
+		})
+	}
+}
+
+// VALIDATES: R-1: a create the daemon refuses because another run took the
+// name after preClean claimed it records nothing for teardown, while what this
+// run did create (the network, in the container row) is still removed.
+// PREVENTS: teardown removing a container or network a concurrent run created.
+func TestRunScenarioTakenNameIsNotTornDown(t *testing.T) {
+	for _, row := range []struct {
+		name     string
+		refuse   string
+		stderr   string
+		absent   []string
+		required []string
+	}{
+		{name: "container name taken", refuse: "docker run -d --name lab-peer",
+			stderr:   `Conflict. The container name "/lab-peer" is already in use by container "c0".`,
+			absent:   []string{"docker rm -f lab-peer"},
+			required: []string{"docker network rm lab-net"}},
+		{name: "network name taken", refuse: "docker network create",
+			stderr: "network with name lab-net already exists",
+			absent: []string{"docker rm -f lab-peer", "docker network rm lab-net"}},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			runner := &recordingRunner{}
+			runner.run = kernelAnswering(func(command ProcessCommand) (ProcessResult, error) {
+				if strings.HasPrefix(strings.Join(command.Arguments, " "), row.refuse) {
+					return ProcessResult{ExitCode: 125, Stderr: row.stderr}, nil
+				}
+				return ProcessResult{}, nil
+			})
+			suite := Suite{
+				Docker: newDocker(runner), StagedZe: kernelCheckZe, NoBuild: true,
+				Scenarios: []ScenarioPlan{{
+					Source:  ScenarioSource{Name: "one", Directory: "/scenarios/one", Checker: func(context.Context, *CheckContext) error { return nil }},
+					Network: NetworkSpec{Name: "lab-net", Candidates: []Subnet{{IPv4: netip.MustParsePrefix("172.29.0.0/24")}}},
+					Peers:   []PeerConfig{{Name: "peer", Container: "lab-peer", Image: "peer-image", Host: 3}},
+				}},
+			}
+			if report := suite.Run(t.Context()); report.Code != 1 {
+				t.Fatalf("Suite code = %d, want 1: %#v", report.Code, report)
+			}
+			joined := recordedCommands(runner.commands)
+			for _, removal := range row.absent {
+				if strings.Contains(joined, removal) {
+					t.Errorf("teardown ran %q for a name another run took:\n%s", removal, joined)
+				}
+			}
+			for _, removal := range row.required {
+				if !strings.Contains(joined, removal) {
+					t.Errorf("teardown never ran %q for what this run created:\n%s", removal, joined)
+				}
+			}
+		})
+	}
+}

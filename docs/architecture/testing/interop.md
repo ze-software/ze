@@ -349,11 +349,17 @@ images. For each scenario it then:
 2. Starts Ze and the peer daemons declared by the scenario's config files.
 3. Waits for every declared readiness probe.
 4. Runs the scenario's typed checker from the package-local BGP registry.
-5. Tears down every container and network, including after setup or checker
-   failure and after a Ctrl-C or SIGTERM, which cancel the run rather than end
-   the process. A SIGKILL, a lost machine or a panic runs no teardown; the next
-   lab start, or `./le test integration cleanup`, removes what it left.
-<!-- source: internal/le/interoplab/lab.go -- Suite.Run, Lab.preClean -->
+5. Tears down the containers and the network this scenario created, including
+   after setup or checker failure and after a Ctrl-C or SIGTERM, which cancel
+   the run rather than end the process. A resource is recorded for teardown
+   only once its create succeeds (a failed `docker run` counts unless the
+   daemon refused the name as taken), so a name the pre-clean refused, or one
+   another run took first, is never removed. `Docker.CreateNetwork` refuses a
+   network name that already exists rather than join it. A SIGKILL, a lost
+   machine or a panic runs no teardown; the next lab start, or
+   `./le test integration cleanup`, removes what it left.
+<!-- source: internal/le/interoplab/lab.go -- Suite.Run, Lab.preClean, Lab.cleanup, createdResources -->
+<!-- source: internal/le/interoplab/docker.go -- Docker.CreateNetwork, containerNameTaken -->
 <!-- source: internal/le/test/integration/actions.go -- nativeRunner, signalContext -->
 
 ### Crash-safe teardown
@@ -437,7 +443,9 @@ prints each removal or skip as a progress line. A listing the daemon refuses is
 a setup error. Before a scenario creates its network and containers, its
 pre-clean removes an existing resource of the same name only on the same
 verdict, and otherwise fails the scenario naming the owner and the fix: set
-the lab's `ZE_<LAB>_INTEROP_SUFFIX` variable, or run the cleanup.
+the lab's `ZE_<LAB>_INTEROP_SUFFIX` variable, or run the cleanup. The
+scenario's teardown then removes nothing of that name: it removes only what
+the scenario itself created.
 <!-- source: internal/le/interoplab/orphans.go -- Docker.claimName -->
 
 `./le test integration cleanup` runs the cleanup by hand and exits 1 when a
