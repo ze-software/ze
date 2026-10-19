@@ -110,7 +110,7 @@ func RunAt(ctx context.Context, root string, options Options) interoplab.SuiteRe
 		// run this lab, and refusing it before the cross-compile costs that
 		// machine nothing.
 		Preflight: interoplab.Preflights(
-			preflight(options.Suffix),
+			preflight(),
 			interoplab.StageBinaries(root, options.NoBuild, LabBinaries()...),
 		),
 		Images:    imageBuilds(root),
@@ -202,7 +202,7 @@ func imageBuilds(root string) []interoplab.ImageBuild {
 	}
 }
 
-func preflight(suffix string) interoplab.PreflightCheck {
+func preflight() interoplab.PreflightCheck {
 	return func(ctx context.Context, docker *interoplab.Docker) error {
 		for _, key := range [...]string{
 			"ZE_PPPOE_SKIP_KERNEL_PROBE",
@@ -216,7 +216,7 @@ func preflight(suffix string) interoplab.PreflightCheck {
 			}
 		}
 
-		result, err := docker.RunOneShot(ctx, preflightContainer(suffix))
+		result, err := docker.RunOneShot(ctx, preflightContainer())
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				return errors.New("preflight probe container timed out")
@@ -231,11 +231,11 @@ func preflight(suffix string) interoplab.PreflightCheck {
 // preflightContainer probes the host kernel with the grants the lab's peers
 // hold and nothing more, so it passes only where they can run: it loads no
 // module, because a module it loaded would hide the host's missing setup. The
-// shared PPP device probe runs first, then the PPPoE probe.
-func preflightContainer(suffix string) interoplab.OneShotContainer {
-	var tb textbuf.Buffer
-	containerName := tb.Str("ze-pppoe-preflight-").Str(suffix).String()
-	arguments := append([]string{"--cap-add", netAdminCapability, "--name", containerName}, interoplab.PPPDeviceArguments()...)
+// shared PPP device probe runs first, then the PPPoE probe. RunOneShot names
+// the container, so the probe passes no --name of its own: a second one would
+// win, and the remove-by-name after a cancel would then miss.
+func preflightContainer() interoplab.OneShotContainer {
+	arguments := append([]string{"--cap-add", netAdminCapability}, interoplab.PPPDeviceArguments()...)
 	return interoplab.OneShotContainer{
 		Image:     "alpine:3.21",
 		Arguments: arguments,

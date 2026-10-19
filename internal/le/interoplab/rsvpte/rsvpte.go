@@ -132,7 +132,7 @@ func suiteFor(root string, environment interoplab.Environment, docker *interopla
 		StagedZe:       interoplab.StagedZePath(root, LabBinaries()),
 		// The MPLS probe runs first: a host kernel without mpls_router cannot
 		// run this lab, and refusing it before the cross-compile costs nothing.
-		Preflight: interoplab.Preflights(mplsPreflight(environment.Suffix), interoplab.StageBinaries(root, environment.NoBuild, LabBinaries()...)),
+		Preflight: interoplab.Preflights(mplsPreflight(), interoplab.StageBinaries(root, environment.NoBuild, LabBinaries()...)),
 		Images: []interoplab.ImageBuild{
 			{Name: imageZe, Tag: "ze-rsvpte-interop", Dockerfile: filepath.Join(labRoot, "Dockerfile.ze"), Context: root, Required: true},
 			{Name: imageFreeRtr, Tag: "ze-rsvpte-freertr", Dockerfile: filepath.Join(labRoot, "Dockerfile.freertr"), Context: labRoot, Required: true},
@@ -277,9 +277,9 @@ func zePeer(role string, host uint8, suffix, directory string, network zeNodeNet
 
 // mplsPreflight refuses the run when the host kernel has no MPLS routing. It
 // loads no module: the modules are the host's (spec-lab-containers-least-privilege, D-7).
-func mplsPreflight(suffix string) interoplab.PreflightCheck {
+func mplsPreflight() interoplab.PreflightCheck {
 	return func(ctx context.Context, docker *interoplab.Docker) error {
-		result, err := docker.RunOneShot(ctx, mplsPreflightContainer(suffix))
+		result, err := docker.RunOneShot(ctx, mplsPreflightContainer())
 		if err != nil {
 			return fmt.Errorf("MPLS preflight probe failed: %w", err)
 		}
@@ -289,10 +289,11 @@ func mplsPreflight(suffix string) interoplab.PreflightCheck {
 
 // mplsPreflightContainer reads the MPLS sysctl tree, which needs no grant:
 // mpls_router creates it in every network namespace once the host has it.
-func mplsPreflightContainer(suffix string) interoplab.OneShotContainer {
+// RunOneShot names the container, so the probe passes no --name of its own: a
+// second one would win, and the remove-by-name after a cancel would then miss.
+func mplsPreflightContainer() interoplab.OneShotContainer {
 	return interoplab.OneShotContainer{
-		Image:     "alpine:3.21",
-		Arguments: []string{"--name", containerName("preflight", suffix)},
+		Image: "alpine:3.21",
 		Command: []string{"sh", "-c",
 			"echo MPLS=$(test -f /proc/sys/net/mpls/platform_labels && echo ok || echo missing)"},
 		Timeout: 120 * time.Second,

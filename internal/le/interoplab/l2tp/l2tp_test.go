@@ -423,7 +423,7 @@ func TestPreflightRefusesKernelProbeBypass(t *testing.T) {
 			if err := os.Setenv(key, "true"); err != nil {
 				t.Fatalf("set %s: %v", key, err)
 			}
-			err := preflight("test")(t.Context(), nil)
+			err := preflight()(t.Context(), nil)
 			if err == nil || !strings.Contains(err.Error(), "refusing to run with "+key+" set") {
 				t.Fatalf("preflight error = %v", err)
 			}

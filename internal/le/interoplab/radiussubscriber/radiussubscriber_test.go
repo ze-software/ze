@@ -51,7 +51,7 @@ func TestSuiteTopologyAndGrants(t *testing.T) {
 	if !slices.Equal(names, ScenarioNames()) {
 		t.Errorf("discovered %v, want %v", names, ScenarioNames())
 	}
-	if command := strings.Join(preflightContainer("test").Command, " "); !strings.Contains(command, interoplab.PPPDeviceProbe) {
+	if command := strings.Join(preflightContainer().Command, " "); !strings.Contains(command, interoplab.PPPDeviceProbe) {
 		t.Errorf("preflight %q does not run the shared PPP device probe", command)
 	}
 	if err := preflightRefusal(interoplab.ParsePreflight("DEV_PPP=ok\n")); err != nil {

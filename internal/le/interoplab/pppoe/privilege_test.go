@@ -60,7 +60,7 @@ func TestPPPoELabPeersRunWithoutPrivilege(t *testing.T) {
 // grants, mounts no module tree, and loads no module.
 // PREVENTS: the preflight passing because it loaded a module itself.
 func TestPPPoEPreflightRunsWithoutPrivilege(t *testing.T) {
-	container := preflightContainer("test")
+	container := preflightContainer()
 	want := grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}, Devices: []string{"/dev/ppp"}}
 	for _, problem := range grantcheck.Problems(grantcheck.Parse(nil, container.Arguments), want) {
 		t.Errorf("the preflight container %s: %v", problem, container.Arguments)

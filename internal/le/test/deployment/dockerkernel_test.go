@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -22,16 +23,20 @@ import (
 )
 
 // kernelLackingDocker is a docker on PATH whose daemon kernel lacks PPPoL2TP.
-// It records every argv, passes the L2TP and PPPoE labs' own module preflights so the run
-// reaches the Docker kernel check, answers that probe with one absent row, and
-// answers every other command with success and no output.
+// It records every call as one line, each argument ended by a unit separator
+// (0x1f), so a test reads the argv docker received rather than its words
+// joined by spaces. It passes the L2TP and PPPoE labs' own module preflights,
+// recognized by the probe each runs, so the run reaches the Docker kernel
+// check, answers that probe with one absent row, and answers every other
+// command with success and no output.
 const kernelLackingDocker = `#!/bin/sh
-echo "$*" >> "$DOCKER_RECORD"
+printf '%s\037' "$@" >> "$DOCKER_RECORD"
+printf '\n' >> "$DOCKER_RECORD"
 case "$*" in
 *KernelVersion*) echo 6.8.0-117-generic ;;
 *SecurityOptions*) echo '["name=seccomp,profile=builtin","name=cgroupns"]' ;;
-*ze-l2tp-preflight*) printf 'DEV_PPP=ok\nL2TP_PPP=ok\nIP_L2TP=ok\n' ;;
-*ze-pppoe-preflight*) printf 'DEV_PPP=ok\nPPPOE=ok\n' ;;
+*IP_L2TP=*) printf 'DEV_PPP=ok\nL2TP_PPP=ok\nIP_L2TP=ok\n' ;;
+*PPPOE=*) printf 'DEV_PPP=ok\nPPPOE=ok\n' ;;
 *kernel-capabilities*)
   echo '{"ready": false, "capabilities": [{"subsystem": "l2tp-ppp", "kernel": "CONFIG_PPPOL2TP", "state": "absent", "reason": "protocol not supported"}]}'
   exit 1 ;;
@@ -84,13 +89,61 @@ func TestDockerDeploymentRefusesMissingKernelFeature(t *testing.T) {
 			if err != nil {
 				t.Fatalf("read the docker record: %v", err)
 			}
-			if !strings.Contains(string(recorded), "kernel-capabilities") {
+			calls := recordedCalls(recorded)
+			if !slices.ContainsFunc(calls, func(call []string) bool { return slices.Contains(call, "kernel-capabilities") }) {
 				t.Errorf("%s never probed the kernel:\n%s", verb, recorded)
 			}
-			if strings.Contains(string(recorded), "build") {
-				t.Errorf("%s built an image after the refusal:\n%s", verb, recorded)
+			for _, call := range calls {
+				checkRecordedCall(t, verb, call)
 			}
 		})
+	}
+}
+
+// recordedCalls splits the stub's record into one argv per docker call.
+func recordedCalls(recorded []byte) [][]string {
+	var calls [][]string
+	for line := range strings.Lines(string(recorded)) {
+		call := strings.Split(strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\x1f"), "\x1f")
+		calls = append(calls, call)
+	}
+	return calls
+}
+
+// checkRecordedCall refuses one recorded docker call that builds an image, that
+// carries a flag of the go test binary as a docker argument, or that starts a
+// container under any number of names but one. The build is judged by docker's
+// own subcommand, never by a substring: the owner label quotes this test
+// binary's command line, whose -test.testlogfile path holds "go-build", inside
+// one argument. RunOneShot names every one-shot and removes a canceled one by
+// that name, so a second --name (docker keeps the last) strands the container.
+func checkRecordedCall(t *testing.T, verb string, call []string) {
+	t.Helper()
+	if len(call) == 0 {
+		return
+	}
+	if slices.Contains([]string{"build", "buildx"}, call[0]) {
+		t.Errorf("%s built an image after the refusal: %q", verb, call)
+	}
+	if len(call) > 1 && call[0] == "image" && call[1] == "build" {
+		t.Errorf("%s built an image after the refusal: %q", verb, call)
+	}
+	for _, argument := range call {
+		if strings.HasPrefix(argument, "-test.") {
+			t.Errorf("%s passed the test binary's flag %q to docker: %q", verb, argument, call)
+		}
+	}
+	if call[0] != "run" {
+		return
+	}
+	names := 0
+	for _, argument := range call {
+		if argument == "--name" {
+			names++
+		}
+	}
+	if names != 1 {
+		t.Errorf("%s started a container with %d --name flags, want 1: %q", verb, names, call)
 	}
 }
 

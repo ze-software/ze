@@ -235,7 +235,7 @@ func TestRSVPTELabPeersRunWithoutPrivilege(t *testing.T) {
 // the host command that loads it on a line of its own.
 // PREVENTS: the preflight passing because it loaded mpls_router itself.
 func TestRSVPTEPreflightRunsWithoutPrivilege(t *testing.T) {
-	container := mplsPreflightContainer("test")
+	container := mplsPreflightContainer()
 	// Every privilege-bearing option counts, not only --privileged and
 	// --cap-add: a volume (the module tree), seccomp=unconfined, a host
 	// namespace or the host network each fail the exact empty set.

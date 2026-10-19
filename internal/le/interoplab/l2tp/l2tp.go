@@ -117,7 +117,7 @@ func runAt(ctx context.Context, root, selector string, docker *interoplab.Docker
 	// PPPoL2TP module cannot run this lab, and refusing it before the
 	// cross-compile costs that machine nothing.
 	if standardFlow {
-		suite.Preflight = interoplab.Preflights(preflight(environment.Suffix), stage)
+		suite.Preflight = interoplab.Preflights(preflight(), stage)
 	}
 	return suite.Run(ctx)
 }
@@ -353,14 +353,14 @@ func imageBuilds(root string, plans []interoplab.ScenarioPlan, frrImage string) 
 	return builds
 }
 
-func preflight(suffix string) interoplab.PreflightCheck {
+func preflight() interoplab.PreflightCheck {
 	return func(ctx context.Context, docker *interoplab.Docker) error {
 		for _, key := range []string{"ZE_L2TP_SKIP_KERNEL_PROBE", "ze.l2tp.skip-kernel-probe"} {
 			if _, exists := os.LookupEnv(key); exists {
 				return fmt.Errorf("refusing to run with %s set; full proof must not skip the kernel probe", key)
 			}
 		}
-		result, err := docker.RunOneShot(ctx, preflightContainer(suffix))
+		result, err := docker.RunOneShot(ctx, preflightContainer())
 		if err != nil {
 			return interoplab.PPPPreflightRunRefusal("L2TP", err)
 		}
@@ -371,11 +371,11 @@ func preflight(suffix string) interoplab.PreflightCheck {
 // preflightContainer probes the host kernel with the grants the lab's peers
 // hold and nothing more, so it passes only where they can run: it loads no
 // module, because a module it loaded would hide the host's missing setup. The
-// shared PPP device probe runs first, then the two L2TP probes.
-func preflightContainer(suffix string) interoplab.OneShotContainer {
-	var tb textbuf.Buffer
-	containerName := tb.Str("ze-l2tp-preflight-").Str(suffix).String()
-	arguments := append([]string{"--cap-add", netAdminCapability, "--name", containerName}, interoplab.PPPDeviceArguments()...)
+// shared PPP device probe runs first, then the two L2TP probes. RunOneShot
+// names the container, so the probe passes no --name of its own: a second
+// one would win, and the remove-by-name after a cancel would then miss.
+func preflightContainer() interoplab.OneShotContainer {
+	arguments := append([]string{"--cap-add", netAdminCapability}, interoplab.PPPDeviceArguments()...)
 	return interoplab.OneShotContainer{
 		Image:     "alpine:3.21",
 		Arguments: arguments,

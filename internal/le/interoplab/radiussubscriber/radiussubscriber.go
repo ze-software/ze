@@ -138,7 +138,7 @@ func suiteFor(root string, environment interoplab.Environment, docker *interopla
 		// The /dev/ppp probe runs FIRST: a host with no PPP device cannot run
 		// this lab, and refusing it before the cross-compile costs it nothing.
 		// Suite.Run checks the kernel capabilities (l2tp, l2tp-ppp) itself.
-		Preflight: interoplab.Preflights(preflight(environment.Suffix),
+		Preflight: interoplab.Preflights(preflight(),
 			interoplab.StageBinaries(root, environment.NoBuild, LabBinaries()...)),
 		Images: []interoplab.ImageBuild{
 			{Name: peerZe, Tag: zeImage, Dockerfile: filepath.Join(lab, "Dockerfile.ze"), Context: root, Required: true},
@@ -246,9 +246,9 @@ func lacPeerConfig(root, container string) interoplab.PeerConfig {
 // the grants ze and the LAC hold and nothing more. The kernel modules are
 // Suite.Run's shared kernel check; the character device is the one fact that
 // check cannot see.
-func preflight(suffix string) interoplab.PreflightCheck {
+func preflight() interoplab.PreflightCheck {
 	return func(ctx context.Context, docker *interoplab.Docker) error {
-		result, err := docker.RunOneShot(ctx, preflightContainer(suffix))
+		result, err := docker.RunOneShot(ctx, preflightContainer())
 		if err != nil {
 			return interoplab.PPPPreflightRunRefusal("RADIUS subscriber", err)
 		}
@@ -257,11 +257,11 @@ func preflight(suffix string) interoplab.PreflightCheck {
 }
 
 // preflightContainer runs the shared PPP device probe, and loads no module,
-// because a module it loaded would hide the host's missing setup.
-func preflightContainer(suffix string) interoplab.OneShotContainer {
-	var tb textbuf.Buffer
-	arguments := append([]string{"--cap-add", netAdminCapability, "--name", tb.Str("ze-radsub-preflight-").Str(suffix).String()},
-		interoplab.PPPDeviceArguments()...)
+// because a module it loaded would hide the host's missing setup. RunOneShot
+// names the container, so the probe passes no --name of its own: a second one
+// would win, and the remove-by-name after a cancel would then miss.
+func preflightContainer() interoplab.OneShotContainer {
+	arguments := append([]string{"--cap-add", netAdminCapability}, interoplab.PPPDeviceArguments()...)
 	return interoplab.OneShotContainer{
 		Image:     "alpine:3.21",
 		Arguments: arguments,
