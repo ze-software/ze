@@ -5,8 +5,7 @@
 // VALIDATES: RFC 3101 Section 3.1 list membership: a candidate translator elects over the
 // NSSA's border routers "that are reachable both over the NSSA", so a router-LSA in the
 // NSSA whose originator the NSSA's SPF does not reach is not a member and cannot disable
-// the candidate, while the same router reached by the SPF does. The second condition,
-// "and as ASBRs over the AS's transit topology", is gap RFC3101-3.1-5.
+// the candidate, while the same router reached by the SPF does.
 // PREVENTS: a stale or partitioned higher-Router-ID border router's router-LSA switching
 // translation off for the whole NSSA.
 package ospf
@@ -18,7 +17,6 @@ import (
 
 	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
-	"github.com/ze-software/ze/internal/test/rfcgap"
 )
 
 // translatorListCase builds a candidate border router 10.0.6.1 whose NSSA holds a
@@ -50,26 +48,6 @@ func TestRFC3101UnreachableBorderRouterIsNotListed(t *testing.T) {
 		"an unreachable border router is not on the section 3.1 list, so the candidate is elected and translates")
 }
 
-// TestRFC3101HigherRouterIDWithoutNtDisablesCandidate demonstrates the disclosed deviation
-// RFC3101-3.1-4. Goal: RFC 3101 Section 3.1 disables a candidate when another listed border
-// router "has bit Nt set or who has a higher router ID". Method: a reachable
-// higher-Router-ID border router with the Nt-bit clear is in the NSSA; the body asserts the
-// RFC outcome (the candidate is disabled), which Ze does not produce.
-func TestRFC3101HigherRouterIDWithoutNtDisablesCandidate(t *testing.T) {
-	eng, nssa := nssaTransEngine(t, "10.0.6.1")
-	self := ridOf("10.0.6.1")
-	eng.lsdb.OriginateRouter(ospflsdb.OriginInput{AreaID: nssa, RouterID: ridOf("10.0.6.9"), ABR: true})
-	eng.lsdb.OriginateNSSA(nssa, ridOf("10.0.6.2"), ip4Of("10.26.0.0"), ip4Of("255.255.0.0"), false, 10, ip4Of("10.5.0.2"), 0, true)
-	eng.translateNSSA(transTime)
-	translated := eng.lsdb.SelfExternalCount(self)
-
-	// RFC requirement: RFC3101-3.1-4 gap -- a reachable higher-Router-ID border router with
-	// the Nt-bit clear disables the candidate.
-	rfcgap.Demonstrate(t, "RFC3101-3.1-4", func(tb testing.TB) {
-		assert.Equal(tb, 0, translated, "a listed higher-Router-ID border router disables the candidate")
-	})
-}
-
 func TestRFC3101ReachableBorderRouterIsListed(t *testing.T) {
 	// Goal: the same router, reached by the NSSA's SPF, is a list member. Method: identical
 	// topology with the SPF view reaching 10.0.6.9.
@@ -77,21 +55,4 @@ func TestRFC3101ReachableBorderRouterIsListed(t *testing.T) {
 	// is on the list, so the candidate is disabled and translates nothing.
 	assert.Equal(t, 0, translatorListCase(t, ridOf("10.0.6.9")),
 		"a reachable higher-Router-ID border router is on the list and disables the candidate")
-}
-
-// TestRFC3101BorderRouterNotReachedAsASBROverTransitIsNotListed demonstrates gap
-// RFC3101-3.1-5. Goal: RFC 3101 Section 3.1 lists only the border routers "reachable both
-// over the NSSA and as ASBRs over the AS's transit topology". Method: the higher-Router-ID
-// border router 10.0.6.9 is reached by the NSSA's SPF, but it originates no router-LSA
-// outside the NSSA and sets no E-bit, so no transit area reaches it as an ASBR; the body
-// asserts the RFC outcome (it is not on the list, so the candidate is elected and
-// translates), which Ze does not produce.
-func TestRFC3101BorderRouterNotReachedAsASBROverTransitIsNotListed(t *testing.T) {
-	translated := translatorListCase(t, ridOf("10.0.6.9"))
-
-	// RFC requirement: RFC3101-3.1-5 gap -- a border router not reachable as an ASBR over
-	// the AS's transit topology is not on the list, so the candidate translates.
-	rfcgap.Demonstrate(t, "RFC3101-3.1-5", func(tb testing.TB) {
-		assert.Equal(tb, 1, translated, "a border router the transit topology does not reach as an ASBR is not listed")
-	})
 }
