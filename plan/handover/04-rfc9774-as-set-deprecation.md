@@ -115,3 +115,9 @@ Open:
 2. Red walk for AC-13, each run `GOFLAGS=-overlay=<abs> VERBOSE=1 INTEROP_SCENARIO=bgp-rfc9774-as-set-frr ./le --name <x> test integration interop` (8-10 min). The overlays were in the agent's machine-local scratch, so rebuild them: receive scan off (expect Ze's RIB to hold 10.97.74.0/24), send guard off (expect FRR to hold 10.97.76.0/24), both off (FRR holds 10.97.74.0/24 with its AS_SET, validates A-5). Record each red in the spec, then a final green.
 3. A-5, A-6, the Goal Validation table, step 11 (`verification`, commit, `./le spec release`).
 4. Owed gates (owner holds them): `./le go lint run`, `./le test unit all`, `./le test functional gating`.
+
+## Handoff 2026-10-19, sixth ze-implement agent (implementation finished)
+
+Landed: 7635488c04 (handover), f3cb2fe96f (`routeGroupKey` keys on raw attributes, Prefix-SID, aggregator flag; `TestRFC9774SendGroupedStaticRoutesKeepCleanTwin` red then green; scenario MED workaround removed; journal row `fixed:`), then the spec commit carrying the AC-13 red walk, A-5/A-6 confirmed, Goal Validation and Status `verification`. All three reds and the final green are recorded verbatim in the spec's Interop Tests section.
+
+Next: `/ze-close` reviews the work (Review Gate on the review model). Owed gates unchanged (item 4). The reactor package also shows 7 attribute-order reds (`TestWireFormat_UnicastIPv6` and others) caused by another session's uncommitted `internal/component/bgp/message/update_build*.go` edits, which put MP_REACH first; they are not this spec's.

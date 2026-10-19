@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | verification |
 | Scope | protocol |
 | Depends | - |
 | Phase | 5/5 |
@@ -169,8 +169,8 @@ the recommendations put to him, with Q-4 answered (b) as recorded below.
 | A-2 | Every transmitted UPDATE, `raw` included, passes through `writeUpdateBody` | its comment and the AIGP guard placement; `writeRawUpdateBody` calls it | a producer bypassing it would advertise a set | `gopls call_hierarchy` on `writeUpdateBody` and grep for other `bufWriter` writers of type UPDATE | confirmed 2026-10-18: callers are `writeRawUpdateBody` (relay, `sendRawUpdateBody`), `writeOriginatedRawUpdate` (`writeMessageWithin` for every parsed UPDATE, `SendRawMessage` with raw=true) and the AIGP re-entry; the other `bufWriter.Write` sites carry non-UPDATE packets only (`SendRawMessage` full-packet branch routes UPDATE to `writeOriginatedRawUpdate`) |
 | A-3 | A withdrawal body re-entering `writeUpdateBody` keeps Adj-RIB-Out ownership consistent, and a withdrawal of a prefix the peer never held is suppressed | `ownership.filter` / "announce suppressed: peer holds the final wire advertisement" in `writeUpdateBody` | spurious withdrawals on the wire, or `show` adj-rib-out listing a route the peer never got | unit test AC-9 (no UPDATE for a never-held prefix) and AC-10 (withdrawal for a held one) | confirmed 2026-10-18: `TestRFC9774SendASSetWrittenAsWithdrawal` never-held (no announcement on the wire) and held-then-replaced (exactly the clean announcement then one withdrawal). Partly broken 2026-10-18 on the config static-route rail: `test/encode/rfc9774-as-set-not-advertised.ci` shows the withdrawal of the never-held 10.0.1.0/24 IS written (that rail is not ownership-tracked). It announces nothing, so AC-9 ("No UPDATE announcing the prefix") holds; the .ci pins the withdrawal |
 | A-4 | `SynthesizeWithdrawFamilies` can be driven with send-side predicates | its signature takes `accept` and `addPath` functions; receive passes `mpFamilyDispatchable`, `mpAddPathReceiveWire` | a send-side ADD-PATH body would be mis-framed | test with ADD-PATH negotiated for send | confirmed 2026-10-18: `TestRFC9774SendAddPathFraming` (IPv4, IPv6 unicast, IPv4 labeled unicast, path id 7). The predicate only matters for labeled NLRI (RFC 8277 Section 2.4 label rewrite); unicast is copied byte for byte. `mpAddPathSend` now reads the send encoding context (`bgpctx.Registry.Get(s.sendCtxID).AddPath`), the declaration the splitter and ownership filter use, not `s.negotiated`. Red: `mpAddPathSend` forced false turns the labeled case red only |
-| A-5 | FRR 10.3.1 has `bgp reject-as-sets` and accepts an AS_SET when it is off | FRR command reference (not verified in this checkout) | scenario cannot use FRR as an accepting judge; fall back to GoBGP or BIRD | first scenario run; record FRR's `show bgp` with the knob off | unvalidated |
-| A-6 | The caller's note "FRR 10.5 rejects them by default" does not bind the pinned 10.3.1 image | `run.go` pins 10.3.1 | none, the scenario sets the knob explicitly either way | scenario config states the knob | unvalidated |
+| A-5 | FRR 10.3.1 has `bgp reject-as-sets` and accepts an AS_SET when it is off | FRR command reference (not verified in this checkout) | scenario cannot use FRR as an accepting judge; fall back to GoBGP or BIRD | first scenario run; record FRR's `show bgp` with the knob off | confirmed 2026-10-19: both-off red walk run (receive scan and send guard overlaid off), FRR 10.3.1 with `no bgp reject-as-sets` installed `"10.97.74.0/24": [{"valid":true,"bestpath":true,...,"path":"65001 65004 {65005,65006}"...}]` from Ze's relay |
+| A-6 | The caller's note "FRR 10.5 rejects them by default" does not bind the pinned 10.3.1 image | `run.go` pins 10.3.1 | none, the scenario sets the knob explicitly either way | scenario config states the knob | confirmed 2026-10-19: `test/interop/scenarios/bgp-rfc9774-as-set-frr/frr.conf` line 18 sets `no bgp reject-as-sets` explicitly, the lab image is `quay.io/frrouting/frr:10.3.1` (`defaultFRRImage`), and the both-off run (A-5) shows that image accepting a set with the knob off, so no default of any FRR release decides the verdict |
 | A-7 | Scanning a set in AS4_PATH is safe without a full RFC 6793 Section 6 structure check | `validateAS4PathAttr` comment; `asPathHoldsASZero` bounded walk | a misframed AS4_PATH could be misread | scan judges only a fully framed AS4_PATH; a misframed one is left as today (unit test) | confirmed 2026-10-18: `TestValidateAS4PathRejectsSetSegments` misframed case draws no verdict |
 
 ### Risks
@@ -261,7 +261,16 @@ the recommendations put to him, with Q-4 answered (b) as recorded below.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bgp-rfc9774-as-set-frr` | `test/interop/scenarios/bgp-rfc9774-as-set-frr/` (`ze.conf`, `frr.conf`, `inject.msg`, checker) | FRR 10.3.1 with `no bgp reject-as-sets`, raw injector | AC-13. Discriminates both halves: revert the receive scan and the injected AS_SET prefix appears at FRR via relay only if the send guard is also reverted, so the red runs are (1) both reverted -> injected prefix present, (2) send guard reverted -> static AS_SET prefix present | |
+| `bgp-rfc9774-as-set-frr` | `test/interop/scenarios/bgp-rfc9774-as-set-frr/` (`ze.conf`, `frr.conf`, `inject.msg`, checker) | FRR 10.3.1 with `no bgp reject-as-sets`, raw injector | AC-13. Discriminates both halves: revert the receive scan and the injected AS_SET prefix appears at FRR via relay only if the send guard is also reverted, so the red runs are (1) both reverted -> injected prefix present, (2) send guard reverted -> static AS_SET prefix present | green 2026-10-19 (`interop: 1 passed, 0 failed`, no overlay, after f3cb2fe96f dropped the MED workaround; send-guard warning reads `routes=1`). Red walk below |
+
+AC-13 red walk, 2026-10-19, each run `GOFLAGS=-overlay=<abs> VERBOSE=1 INTEROP_SCENARIO=bgp-rfc9774-as-set-frr ./le --name r9774c test integration interop`, one at a time, over f3cb2fe96f. Overlays: receive off makes `validateASPath`'s set scan (`message/rfc9774.go`) return nil; send off makes `writeUpdateBody`'s guard condition `!raw && false && ...` (`reactor/session_write.go` line 612).
+
+| Overlay | Assertion that went red (verbatim) | What FRR or Ze held |
+|---------|-----------------------------------|---------------------|
+| receive scan off | `scenario bgp-rfc9774-as-set-frr assertion 6: ... peer output unexpectedly contains "10.97.74.0/24"` | Ze's `show bgp rib` held the injected set route; assertions 1-5 passed, so the send guard alone kept the relayed set off FRR (Ze logged the send warning, `routes=1`) |
+| send guard off | `scenario bgp-rfc9774-as-set-frr assertion 4: ... peer output unexpectedly contains "10.97.76.0/24"` | FRR held the static set route as `"10.97.76.0/24": [{... "path":"65001" ...}]`: FRR kept the first of the two AS_PATH attributes (Ze's typed one), so the set is not shown, yet the UPDATE carrying it was advertised. The injected set route stayed off FRR (receive scan intact) |
+| both off | `scenario bgp-rfc9774-as-set-frr assertion 4: ... peer output unexpectedly contains "10.97.74.0/24"` | FRR held `"10.97.74.0/24": [{... "path":"65001 65004 {65005,65006}" ...}]` beside 10.97.75/76/77; validates A-5 |
+| none | green, `interop: 1 passed, 0 failed` | |
 
 ## Files to Modify
 - `internal/component/bgp/message/rfc7606.go` - `validateASPath`: call the set scan after the structure walk, beside the AS 0 scan.
@@ -392,6 +401,16 @@ the recommendations put to him, with Q-4 answered (b) as recorded below.
 
 Add `// RFC 9774 Section 3: "<quoted requirement>"` above the scan and the guard; each
 caller carries `// RFC 9774 Section 3`.
+
+## Goal Validation
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| By default no route whose AS_PATH or AS4_PATH carries an AS_SET or AS_CONFED_SET is installed from a peer | interop + functional | `bgp-rfc9774-as-set-frr` green 2026-10-19, and its receive-off red at assertion 6 (Ze's RIB held 10.97.74.0/24, AC-13 red walk above); `test/plugin/rfc9774-as-set-receive-treat-as-withdraw.ci` |
+| By default no such route is advertised to a peer, whatever produced it (relay, config, API, plugin) | interop + functional + unit | Same scenario green, send-off red at assertion 4 (FRR held static set route 10.97.76.0/24) and both-off red (FRR held relayed 10.97.74.0/24 with `{65005,65006}`); `test/encode/rfc9774-as-set-not-advertised.ci` (config), `test/plugin/rfc9774-as-set-api-not-advertised.ci` (API); `TestRFC9774SendGroupedStaticRoutesKeepCleanTwin` (grouped config rail withdraws the set route alone, red before f3cb2fe96f with counter 2) |
+| A clean route is never withdrawn because a twin carries a set | unit + interop | `TestRFC9774SendGroupedStaticRoutesKeepCleanTwin`; scenario green with no MED workaround, FRR holds 10.97.77.0/24, send warning `routes=1` |
+| Enrol RFC 9774 | gate | `rfc/short/rfc9774.md` (`Implementation ze`, two Section 3 rows); `./le rfc check` 2026-10-19 prints no rfc9774 line (exit 2 from other stems only) |
+| Sections 5.2 and 6.1 recorded as out of scope, never counted as met | gate | `rfc/extraction/rfc9774.json` `feature-out-of-scope` exclusions, named in the summary's enrolment reason |
 
 ## Checklist
 
