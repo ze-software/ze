@@ -247,17 +247,14 @@ func relayPayloadLen(spans []relayAttrSpan, nextHop, nlri []byte, fam family.Fam
 // exact hex. Only the stripped MP attributes (and, for IPv4 unicast delivered via
 // MP_REACH, a re-added NEXT_HOP) change the block.
 //
-// The synthesized attribute takes the POSITION of the source MP_REACH it
-// replaces, not the end of the block. Appending it moved every attribute the
-// source had placed after MP_REACH in front of it, so the same route encoded to
-// two different byte strings depending on which rail delivered it -- the live
-// forward relays the source bytes untouched, this one reconstructs. RFC 4271
-// leaves attribute order free, so both are legal BGP and nothing downstream
-// complains; what it breaks is any consumer comparing the two, which is how
-// test/plugin/role-otc-unicast-scope.ci saw ORIGIN, AS_PATH, OTC, MP_REACH from
-// this rail against the ORIGIN, AS_PATH, MP_REACH, OTC its source sent. Same
-// two-rail divergence, and the same reason, as the ordering notes in
-// peer_rib_routes.go buildRIBRouteUpdate.
+// The synthesized MP_REACH_NLRI leads the block. RFC 7606 Section 5.1: "The
+// MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if present) SHALL be encoded as the
+// very first path attribute in an UPDATE message." The live forward puts a
+// trailing MP attribute first too (buildFwdBody, fwdReorderMPFirst), so one route
+// leaves the daemon as one byte string whichever rail delivered it, which is what
+// test/plugin/role-otc-unicast-scope.ci compares. A re-added legacy NEXT_HOP takes
+// the position of the source MP_REACH it stands in for, or the end of the block
+// when the source carried none.
 func writeRelayPayload(buf []byte, off int, spans []relayAttrSpan, attrs, nextHop, nlri []byte, fam family.Family, needNextHopAttr bool) int {
 	start := off
 	legacyIPv4 := fam == family.IPv4Unicast && len(nextHop) == 4
@@ -272,33 +269,29 @@ func writeRelayPayload(buf []byte, off int, spans []relayAttrSpan, attrs, nextHo
 	off += 2
 	attrStart := off
 
-	// writeSynthesized emits the attribute that stands in for the stripped
-	// MP_REACH: the re-encoded single-NLRI MP_REACH for every MP family, or the
-	// legacy NEXT_HOP when an IPv4 unicast route arrived inside MP_REACH.
-	// Returns the bytes written (zero when there is nothing to substitute).
-	writeSynthesized := func(at int) int {
-		if !legacyIPv4 {
-			return writeMPReach(buf, at, fam, nextHop, nlri)
-		}
-		if !needNextHopAttr {
-			return 0
-		}
-		// RFC 4271 Section 5.1.3: NEXT_HOP is well-known mandatory, so the
-		// legacy IPv4 unicast encoding the relay emits must carry one even
-		// when the source delivered the route inside MP_REACH_NLRI.
+	// RFC 7606 Section 5.1
+	if !legacyIPv4 {
+		off += writeMPReach(buf, off, fam, nextHop, nlri)
+	}
+
+	// writeNextHop emits the legacy NEXT_HOP an IPv4 unicast route that arrived
+	// inside MP_REACH needs. RFC 4271 Section 5.1.3: NEXT_HOP is well-known
+	// mandatory, so the legacy IPv4 unicast encoding the relay emits must carry
+	// one even when the source delivered the route inside MP_REACH_NLRI.
+	writeNextHop := func(at int) int {
 		n := writeAttrHeader(buf, at, byte(attribute.FlagTransitive), attribute.AttrNextHop, len(nextHop))
 		return n + copy(buf[at+n:], nextHop)
 	}
 
-	substituted := false
+	nextHopOwed := legacyIPv4 && needNextHopAttr
 	for _, s := range spans {
 		if isRelayStrippedAttr(s.code, legacyIPv4) {
-			// Slot the replacement in where the source's MP_REACH stood. Only
-			// the FIRST such span gets it: a block carrying both MP_REACH and
-			// MP_UNREACH must still yield exactly one synthesized attribute.
-			if s.code == attribute.AttrMPReachNLRI && !substituted {
-				off += writeSynthesized(off)
-				substituted = true
+			// Slot the NEXT_HOP in where the source's MP_REACH stood. Only the
+			// FIRST such span gets it: a block carrying both MP_REACH and
+			// MP_UNREACH must still yield exactly one.
+			if s.code == attribute.AttrMPReachNLRI && nextHopOwed {
+				off += writeNextHop(off)
+				nextHopOwed = false
 			}
 			continue
 		}
@@ -306,9 +299,9 @@ func writeRelayPayload(buf []byte, off int, spans []relayAttrSpan, attrs, nextHo
 	}
 
 	// No MP_REACH in the source block (an IPv4 unicast route that rode the body
-	// NLRI field, so there was no position to inherit). Append, as before.
-	if !substituted {
-		off += writeSynthesized(off)
+	// NLRI field, so there was no position to inherit). Append.
+	if nextHopOwed {
+		off += writeNextHop(off)
 	}
 
 	binary.BigEndian.PutUint16(buf[attrLenPos:], uint16(off-attrStart)) //nolint:gosec // bounded by relayPayloadLen

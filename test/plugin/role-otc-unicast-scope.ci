@@ -39,7 +39,7 @@ option=tcp_connections:value=1
 option=timeout:value=15s
 option=open:value=drop-capability:code=9
 option=open:value=add-capability:code=9:hex=03
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003F02000000284001010040020A02020000FDE80000FDE9800E0D000102040101010100180A0000C023040000FDE9
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003F0200000028800E0D000102040101010100180A00004001010040020A02020000FDE80000FDE9C023040000FDE9
 # // the removed End-of-RIB rule was unsatisfiable by construction, so
 # it asserted nothing and only produced a red the runner used to mask. This peer's
 # EOR is emitted by its OWN initial sync the moment it establishes

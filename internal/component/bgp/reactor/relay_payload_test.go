@@ -153,20 +153,20 @@ func TestRelayPayloadAddsNextHopWhenIPv4CameViaMPReach(t *testing.T) {
 	}
 }
 
-// TestRelayPayloadKeepsSourceAttributeOrder verifies the synthesized MP_REACH
-// takes the POSITION of the stripped one instead of being appended.
+// TestRelayPayloadLeadsWithMPReach verifies the synthesized MP_REACH is written
+// as the first path attribute, whatever position the source gave it.
 //
-// VALIDATES: writeRelayPayload's contract that "attribute order from the source
-// is preserved for every surviving attribute" holds for attributes the source
-// placed AFTER MP_REACH.
-// PREVENTS: the two-rail byte divergence. A live forward relays the source's own
-// bytes; this rail reconstructs. Appending the synthesized MP_REACH moved every
-// later attribute in front of it, so the same route left the daemon as two
-// different byte strings depending only on whether the destination peer was an
-// established forward target yet. Caught as test/plugin/role-otc-unicast-scope.ci
-// receiving ORIGIN, AS_PATH, OTC, MP_REACH against the ORIGIN, AS_PATH, MP_REACH,
-// OTC its source peer sent.
-func TestRelayPayloadKeepsSourceAttributeOrder(t *testing.T) {
+// VALIDATES: writeRelayPayload writes the synthesized MP_REACH_NLRI first and
+// every surviving attribute after it in source order, including one the source
+// placed AFTER its MP_REACH.
+// PREVENTS: the two-rail byte divergence. The live forward moves a trailing MP
+// attribute first (buildFwdBody); this rail reconstructs. Leaving MP_REACH where
+// the source had it made the same route leave the daemon as two different byte
+// strings depending only on which rail delivered it, the shape
+// test/plugin/role-otc-unicast-scope.ci compares.
+//
+// RFC requirement: RFC7606-5.1-1 positive -- writeRelayPayload, replaying a stored route whose source carried MP_REACH_NLRI after ORIGIN and AS_PATH, writes the synthesized MP_REACH_NLRI as the first path attribute and the surviving attributes after it in source order.
+func TestRelayPayloadLeadsWithMPReach(t *testing.T) {
 	// The source UPDATE from test/plugin/role-otc-unicast-scope.ci: ORIGIN,
 	// AS_PATH, MP_REACH (ipv4/multicast, nh 1.1.1.1, 10.0.0.0/24), then OTC(35)
 	// AFTER the MP_REACH.
@@ -176,25 +176,8 @@ func TestRelayPayloadKeepsSourceAttributeOrder(t *testing.T) {
 
 	got := buildRelay(t, attrs, mustHex(t, "01010101"), mustHex(t, "180A0000"), family.IPv4Multicast)
 
-	out := wireu.NewWireUpdate(got, 0)
-	outAttrs, err := out.Attrs()
-	require.NoError(t, err)
-	outSpans, ok := scanAttrBlock(nil, outAttrs.Packed())
-	require.True(t, ok)
-
-	codes := make([]attribute.AttributeCode, 0, len(outSpans))
-	for _, s := range outSpans {
-		codes = append(codes, s.code)
-	}
-	require.Equal(t,
-		[]attribute.AttributeCode{
-			attribute.AttrOrigin,
-			attribute.AttrASPath,
-			attribute.AttrMPReachNLRI,
-			attribute.AttributeCode(35),
-		},
-		codes,
-		"the synthesized MP_REACH must sit where the source's did, before OTC")
+	want := mustHex(t, "0000"+"0024"+"800E0D"+mpValue+"4001010040020602010000FDE9"+otc)
+	require.Equal(t, want, got, "MP_REACH first, then ORIGIN, AS_PATH and OTC in source order")
 }
 
 // TestScanAttrBlockRejectsMalformed verifies the walker fails closed.

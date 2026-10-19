@@ -52,8 +52,9 @@ type WireUpdate struct {
 	cachedAttrs    *attribute.AttributesWire
 	cachedAttrsErr error
 
-	shapeOnce  sync.Once
-	shapeMixed bool
+	shapeOnce     sync.Once
+	shapeMixed    bool
+	shapeMPTrails bool
 }
 
 // NewWireUpdate creates a WireUpdate from raw UPDATE payload bytes.
@@ -200,18 +201,39 @@ func (u *WireUpdate) MPUnreach() (MPUnreachWire, error) {
 // enforceRFC7606 (reactor/session_read.go:162), and reporting a violation for
 // bytes that could not be read would invent one.
 func (u *WireUpdate) MixesNLRIFields() bool {
+	u.ensureShape()
+	return u.shapeMixed
+}
+
+// ensureShape computes both cached shape verdicts in one pass, once per UPDATE.
+func (u *WireUpdate) ensureShape() {
 	u.shapeOnce.Do(func() {
 		u.ensureParsed()
 		if u.parseErr != nil {
 			return
 		}
+		attrs := u.sections.Attrs(u.payload)
 		u.shapeMixed = message.NLRIBearingFieldCount(
 			u.sections.Withdrawn(u.payload),
-			u.sections.Attrs(u.payload),
+			attrs,
 			u.sections.NLRI(u.payload),
 		) > 1
+		u.shapeMPTrails = message.MPAttributesTrail(attrs)
 	})
-	return u.shapeMixed
+}
+
+// MPAttributesTrail reports whether an MP attribute in this UPDATE is not where
+// RFC 7606 Section 5.1 puts it: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute
+// (if present) SHALL be encoded as the very first path attribute in an UPDATE
+// message." See message.MPAttributesTrail for the exact order.
+//
+// The verdict shares MixesNLRIFields' cache and its single computation, for the
+// same reason: the forward loop asks once per destination peer, and a compliant
+// UPDATE must keep its zero-copy forward at the cost of one bool read. A payload
+// whose sections do not parse reports false, as MixesNLRIFields does.
+func (u *WireUpdate) MPAttributesTrail() bool {
+	u.ensureShape()
+	return u.shapeMPTrails
 }
 
 // Snapshot returns a new WireUpdate with an owned copy of the payload.

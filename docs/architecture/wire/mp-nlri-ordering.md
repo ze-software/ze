@@ -64,26 +64,38 @@ because a withdrawal precedes an announcement, as Withdrawn Routes precede NLRI
 in RFC 4271 Section 4.3. Section 5.1 also forbids the two in one UPDATE, so that
 choice only matters for a block a caller has not yet split.
 
-### Relayed UPDATEs keep the sender's order
+### Relayed UPDATEs lead with the MP attribute too
 
-A relayed UPDATE is not reordered. The zero-copy forward hands the received
-bytes on as they arrived, and a rebuilt relay keeps every attribute the source
-carries in its source position (`attrEmitter.emitNewMP` only places an MP
-attribute the rebuild ADDS). An UPDATE from a speaker that puts MP_REACH_NLRI
-after ORIGIN therefore leaves Ze with MP_REACH_NLRI after ORIGIN.
+Ze is the sender of what it relays, so a relayed UPDATE leaves Ze in the same
+order. The relay changes nothing it does not have to: an UPDATE whose MP
+attribute already leads is handed on as received, and one whose sender put the
+MP attribute elsewhere is relayed with the MP attribute moved to the front
+(MP_UNREACH_NLRI, then MP_REACH_NLRI) and every other byte unchanged. Owner
+ruling of 2026-10-19: "reorder only when the sender's order is wrong".
 
-This is an owner ruling of 2026-10-19: "do not reorder if the update can be
-passed to the peer as it, it is not a MUST".
+`message.MPAttributesTrail` decides whether the order is wrong, and
+`message.WriteMPAttributesFirst` moves the attributes. Every relay producer uses
+them or reaches the same order:
 
-RFC 2119 Section 1 does read SHALL as MUST: "This word, or the terms
-"REQUIRED" or "SHALL", mean that the definition is an absolute requirement of
-the specification." The relay case is therefore a disclosed deviation from RFC
-7606 Section 5.1, and it is not counted as conformant. What Ze composes itself
-complies; what Ze relays unchanged does not when its sender did not.
+| Producer | A trailing MP attribute |
+|----------|-------------------------|
+| `buildFwdBody`, same context | `fwdReorderMPFirst` copies the body into a read-pool buffer with the MP attribute first |
+| `buildFwdBody`, re-encoded for the destination | `fwdMPFirstUpdate` copies the attribute section with the MP attribute first. The re-encode keeps the source's order (`wireu.TranscodeASPath` appends AS4_PATH last), so the source's verdict holds |
+| A split (`SplitWireUpdate`, `Splitter.SplitCompliant`) | Each chunk is written MP first, as for a composed UPDATE |
+| A per-destination rebuild (`buildModifiedPayload`) | `attrEmitter.emitMP` writes every MP attribute, sourced or added, ahead of the rest |
+| A stored route replayed (`writeRelayPayload`) | The synthesized MP_REACH_NLRI is written first |
 
-<!-- source: internal/component/bgp/reactor/forward_body.go -- buildFwdBody, the zero-copy relay branch -->
-<!-- source: internal/component/bgp/reactor/forward_build.go -- attrEmitter.emitNewMP, sourced MP attributes keep their position -->
-<!-- source: internal/component/bgp/reactor/relay_payload_test.go -- TestRelayPayloadKeepsSourceAttributeOrder -->
+The check costs nothing per destination peer. `wireu.WireUpdate.MPAttributesTrail`
+shares the cached shape verdict `MixesNLRIFields` computes once per received
+UPDATE (see "Where requirement 2 is enforced"), so a compliant UPDATE pays one
+bool read and keeps the zero-copy forward with no allocation.
+
+<!-- source: internal/component/bgp/message/rfc7606_shape.go -- MPAttributesTrail, WriteMPAttributesFirst -->
+<!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate.MPAttributesTrail, ensureShape -->
+<!-- source: internal/component/bgp/reactor/forward_body.go -- buildFwdBody, fwdReorderMPFirst, fwdMPFirstUpdate -->
+<!-- source: internal/component/bgp/reactor/forward_build.go -- attrEmitter.emitMP -->
+<!-- source: internal/component/bgp/reactor/relay_payload.go -- writeRelayPayload -->
+<!-- source: internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go -- TestForwardMovesTrailingMPAttributeFirstSameContext, TestForwardLeadingMPAttributeKeepsZeroCopy -->
 
 ## RFC Compliance Analysis
 
@@ -229,14 +241,13 @@ it. A withdrawal loses the record of the discard, never the discard.
 <!-- source: test/interop/scenarios/bgp-relay-withdraw-nexthop-self-frr -- FRR accepts the withdrawal with next-hop-self on -->
 <!-- source: test/interop/scenarios/bgp-relay-withdraw-reflector-frr -- FRR accepts the reflected withdrawal -->
 
-**Ze meets requirement 2, and requirement 1 for every UPDATE it composes:**
+**Ze meets requirements 1 and 2 for every UPDATE it sends, composed or relayed:**
 
 - **MP_UNREACH first:** Compliant. Withdrawal is the first attribute, matching
   both RFC 7606's SHALL and RFC 4271's withdrawal-first wire format.
 
-- **MP_REACH first:** Compliant for every UPDATE Ze composes. A relayed UPDATE
-  keeps its sender's order by owner ruling, a disclosed deviation that is not
-  counted conformant (see "Relayed UPDATEs keep the sender's order").
+- **MP_REACH first:** Compliant. A relayed UPDATE whose sender placed it
+  elsewhere is reordered (see "Relayed UPDATEs lead with the MP attribute too").
 
 <!-- source: internal/component/bgp/message/rfc7606_mp_first_test.go -- TestRFC7606Section51MPAttributeEncodedFirst -->
 
@@ -250,7 +261,7 @@ prepared to receive these fields in any position or combination."
 For ze's own outbound UPDATEs, the ordering is:
 1. RFC 4271 Section 5: receivers MUST accept attributes in any order
 2. RFC 7606 Section 5.1: MP attributes SHALL be first (ze complies for what it
-   composes; a relayed UPDATE keeps its sender's order)
+   composes and for what it relays)
 3. The SHOULD for type-code ordering is overridden by the SHALL in RFC 7606
 
 ## Implementation Notes

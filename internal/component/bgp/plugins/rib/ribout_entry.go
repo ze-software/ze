@@ -130,6 +130,13 @@ func reconstructRoute(entry ribOutEntry, fam family.Family, key ribOutKey) *Rout
 	}
 	route.RawAttrs = hex.EncodeToString(wireBytes)
 
+	// The MP_REACH_NLRI next hop wins over a legacy NEXT_HOP whatever their order:
+	// RFC 7606 Section 5.1 puts MP_REACH_NLRI first, so "the last one read wins"
+	// would hand an IPv6 route the IPv4 NEXT_HOP that rides beside it.
+	// RFC 4760 Section 3: "Network Address of Next Hop: A variable-length field
+	// that contains the Network Address of the next router on the path to the
+	// destination system."
+	mpNextHop := ""
 	iter := attribute.NewAttrIterator(wireBytes)
 	for typeCode, _, value, ok := iter.Next(); ok; typeCode, _, value, ok = iter.Next() {
 		//exhaustive:ignore // Project display fields only; RawAttrs retains every attribute for replay.
@@ -163,10 +170,11 @@ func reconstructRoute(entry ribOutEntry, fam family.Family, key ribOutKey) *Rout
 		case attribute.AttrLargeCommunity:
 			route.LargeCommunities = parseLargeCommunityWire(value)
 		case attribute.AttrMPReachNLRI:
-			if nh := extractNextHopFromMPReach(value); nh != "" {
-				route.NextHop = nh
-			}
+			mpNextHop = extractNextHopFromMPReach(value)
 		}
+	}
+	if mpNextHop != "" {
+		route.NextHop = mpNextHop
 	}
 	if entry.NextHop != "" {
 		route.NextHop = entry.NextHop

@@ -257,6 +257,23 @@ func buildFwdBody(
 			for _, split := range splits {
 				result.rawBodies = append(result.rawBodies, split.Payload())
 			}
+		} else if peerWire.MPAttributesTrail() {
+			// RFC 7606 Section 5.1: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if
+			// present) SHALL be encoded as the very first path attribute in an UPDATE
+			// message." Ze is the sender of what it relays, so a sender that put the MP
+			// attribute elsewhere is corrected here; a compliant UPDATE never reaches this
+			// branch and keeps the raw append below. The verdict shares the cached shape
+			// read above, so it costs one bool read per destination. The rewrite only
+			// moves attributes, so the path identifier copy, when there is one, has the
+			// source's order and the source's verdict.
+			reordered, reorderBuf, reorderErr := fwdReorderMPFirst(bodyOut)
+			if reorderErr != nil {
+				fwdLogger().Warn("forward MP attribute reorder failed", "peer", peerAddr, "err", reorderErr)
+				return result, false
+			}
+			returnReadBuffer(ownedBuf)
+			ownedBuf = reorderBuf
+			result.rawBodies = append(result.rawBodies, reordered)
 		} else {
 			result.rawBodies = append(result.rawBodies, bodyOut)
 		}
@@ -297,6 +314,12 @@ func buildFwdBody(
 				fwdLogger().Warn("forward split failed", "peer", peerAddr, "err", splitErr)
 				return result, false
 			}
+		} else if peerWire.MPAttributesTrail() {
+			// RFC 7606 Section 5.1, as in the raw branch above. The re-encode keeps the
+			// source's attribute order (fwdReencodeMPAttributes re-frames in place and
+			// wireu.TranscodeASPath appends AS4_PATH last), so the source's cached verdict
+			// is this UPDATE's verdict and a compliant one pays one bool read.
+			result.updates = append(result.updates, fwdMPFirstUpdate(destUpdate))
 		} else {
 			result.updates = append(result.updates, destUpdate)
 		}
@@ -304,6 +327,72 @@ func buildFwdBody(
 
 	result.supersedeKey = fwdSupersedeKey(result.rawBodies)
 	return result, true
+}
+
+// fwdReorderMPFirst returns a copy of the UPDATE body payload whose path
+// attributes are in the order message.WriteMPAttributesFirst writes, with every
+// other byte unchanged. The copy lands in a read-pool buffer whose handle the
+// caller owns, as fwdRegenerateRawPathIDs' does; a zero handle means the pool
+// fell back to an allocation that needs no return.
+//
+// RFC 7606 Section 5.1: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if
+// present) SHALL be encoded as the very first path attribute in an UPDATE
+// message."
+//
+// UPDATE body offsets (w = withdrawn length, a = total attribute length):
+//
+//	0       2       2+w     4+w             4+w+a
+//	+-------+-------+-------+---------------+-------------+
+//	| w (2) | routes| a (2) | attributes(a) | NLRI        |
+//	+-------+-------+-------+---------------+-------------+
+func fwdReorderMPFirst(payload []byte) ([]byte, BufHandle, error) {
+	if len(payload) < 4 {
+		return nil, BufHandle{}, fmt.Errorf("reorder MP attributes: body of %d bytes: %w", len(payload), wireu.ErrUpdateMalformed)
+	}
+	attrStart := 4 + int(binary.BigEndian.Uint16(payload))
+	if attrStart > len(payload) {
+		return nil, BufHandle{}, fmt.Errorf("reorder MP attributes: withdrawn routes overrun the body: %w", wireu.ErrUpdateMalformed)
+	}
+	attrEnd := attrStart + int(binary.BigEndian.Uint16(payload[attrStart-2:]))
+	if attrEnd > len(payload) {
+		return nil, BufHandle{}, fmt.Errorf("reorder MP attributes: path attributes overrun the body: %w", wireu.ErrUpdateMalformed)
+	}
+
+	handle := getReadBuf(len(payload) > message.MaxMsgLen-message.HeaderLen)
+	dst := handle.Buf
+	if len(dst) < len(payload) {
+		// pool-fallback, for the reason fwdRegenerateRawPathIDs takes one: a
+		// collector-owned buffer is safe to alias into the async write without a
+		// handle, and an allocation on the exhausted-pool path is the correct trade
+		// against dropping a route.
+		returnReadBuffer(handle)
+		handle = BufHandle{}
+		dst = make([]byte, len(payload))
+	}
+	dst = dst[:len(payload)]
+	copy(dst[:attrStart], payload[:attrStart])
+	message.WriteMPAttributesFirst(dst[attrStart:attrEnd], payload[attrStart:attrEnd])
+	copy(dst[attrEnd:], payload[attrEnd:])
+	return dst, handle, nil
+}
+
+// fwdMPFirstUpdate returns update with its path attributes in the order
+// message.WriteMPAttributesFirst writes.
+//
+// RFC 7606 Section 5.1: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if
+// present) SHALL be encoded as the very first path attribute in an UPDATE
+// message."
+//
+// The withdrawn routes and NLRI keep aliasing update's sections, whose lifetime
+// the caller already manages; only the attribute section is copied.
+func fwdMPFirstUpdate(update *message.Update) *message.Update {
+	attrs := make([]byte, len(update.PathAttributes))
+	message.WriteMPAttributesFirst(attrs, update.PathAttributes)
+	return &message.Update{
+		WithdrawnRoutes: update.WithdrawnRoutes,
+		PathAttributes:  attrs,
+		NLRI:            update.NLRI,
+	}
 }
 
 func fwdSplitParsedUpdate(update *message.Update, maxMsgSize int, sendCtx *bgpctx.EncodingContext, result *fwdBodyResult) error {

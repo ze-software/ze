@@ -655,7 +655,7 @@ func (e *attrEmitter) emitSlot(id filterapi.SlotID) modifyFailure {
 // an attribute being ADDED and therefore one waiting for its insertion point.
 // The slots are already in ascending code order, because the operations were
 // sorted by code before planning. An added MP attribute is not returned: run
-// writes it ahead of every other attribute (emitNewMP).
+// writes it ahead of every other attribute (emitMP).
 func (e *attrEmitter) nextNew(from int) (filterapi.SlotID, uint8, int, bool) {
 	for i := from; i < e.edit.SlotCount(); i++ {
 		id := e.edit.SlotAt(i)
@@ -676,29 +676,42 @@ func isMPAttrCode(code uint8) bool {
 	return code == uint8(attribute.AttrMPReachNLRI) || code == uint8(attribute.AttrMPUnreachNLRI)
 }
 
-// emitNewMP writes every MP attribute the plan ADDS (one with no source span),
-// MP_UNREACH_NLRI before MP_REACH_NLRI.
+// emitMP writes every MP attribute the rebuilt block carries, sourced or added,
+// MP_UNREACH_NLRI before MP_REACH_NLRI, ahead of every other attribute. A sourced
+// MP attribute is kept verbatim unless the plan rewrites it, exactly as run treats
+// any other sourced attribute; only its position moves.
 //
 // RFC 7606 Section 5.1: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if
 // present) SHALL be encoded as the very first path attribute in an UPDATE
 // message."
 //
-// An MP attribute the base already carries keeps the base's position, as every
-// sourced attribute does: a relayed block keeps its sender's order, so the
-// rebuild and the zero-copy forward of one UPDATE stay the same bytes.
-func (e *attrEmitter) emitNewMP() modifyFailure {
+// A source that already leads with its MP attribute is written unchanged, so the
+// rebuild and the zero-copy forward of one UPDATE stay the same bytes: both put a
+// trailing MP attribute first (buildFwdBody, fwdReorderMPFirst) and leave a
+// leading one where it is.
+func (e *attrEmitter) emitMP() modifyFailure {
 	for _, code := range [2]attribute.AttributeCode{attribute.AttrMPUnreachNLRI, attribute.AttrMPReachNLRI} {
-		if _, present := e.spans.Find(code); present {
-			continue
-		}
 		id, planned := e.edit.Find(uint8(code))
-		if !planned {
+		span, present := e.spans.Find(code)
+		if !present {
+			if !planned {
+				continue
+			}
+			if fail := e.emitSlot(id); fail.failed() {
+				return fail
+			}
 			continue
 		}
+		if !planned || e.edit.SlotVerbatim(id) {
+			e.keep(int(span.Offset)-int(span.HdrLen), int(span.HdrLen)+int(span.Length))
+			continue
+		}
+		e.flush()
 		if fail := e.emitSlot(id); fail.failed() {
 			return fail
 		}
 	}
+	e.flush()
 	return modifyFailureNone
 }
 
@@ -713,7 +726,7 @@ func (e *attrEmitter) emitNewMP() modifyFailure {
 // by ascending type code on emission, which is what both announce rails already
 // emit; appending after every source attribute, as the previous build did, let
 // one route reach the wire in two different byte orders depending on which path
-// built it. An added MP attribute is the exception: it leads (emitNewMP).
+// built it. An MP attribute is the exception, sourced or added: it leads (emitMP).
 func (e *attrEmitter) run(buf []byte, off int) (int, modifyFailure) {
 	e.buf = buf
 	e.off = off
@@ -722,7 +735,7 @@ func (e *attrEmitter) run(buf []byte, off int) (int, modifyFailure) {
 	e.runOff = 0
 
 	// RFC 7606 Section 5.1
-	if fail := e.emitNewMP(); fail.failed() {
+	if fail := e.emitMP(); fail.failed() {
 		return 0, fail
 	}
 
@@ -742,6 +755,11 @@ func (e *attrEmitter) run(buf []byte, off int) (int, modifyFailure) {
 				return 0, fail
 			}
 			newAt = at + 1
+		}
+
+		// Already written by emitMP, ahead of every other attribute.
+		if isMPAttrCode(baseCode) {
+			continue
 		}
 
 		attrOff := int(span.Offset) - int(span.HdrLen)
