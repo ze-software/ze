@@ -71,11 +71,11 @@
       "rid": "RFC1350-4-3",
       "polarity": "positive",
       "unit": "internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip",
-      "unit-sha": "a6c8e94d4af1c8ee",
+      "unit-sha": "da8b4c4d33faa617",
       "claim-sha": "ed6abab42edd12c3",
       "route": "revert",
       "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-      "producer-sha": "56992fc1830c92da",
+      "producer-sha": "02c7706e79bf4197",
       "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "1c3350f5ca4f0de0",
       "route": "revert",
       "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-      "producer-sha": "56992fc1830c92da",
+      "producer-sha": "02c7706e79bf4197",
       "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

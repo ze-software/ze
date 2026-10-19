@@ -20,7 +20,7 @@
       "claim-sha": "8c27ae5d8f30b1cf",
       "route": "revert",
       "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-      "producer-sha": "56992fc1830c92da",
+      "producer-sha": "02c7706e79bf4197",
       "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -42,7 +42,7 @@
       "claim-sha": "dd4cf1f5c4ee2ac9",
       "route": "revert",
       "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-      "producer-sha": "56992fc1830c92da",
+      "producer-sha": "02c7706e79bf4197",
       "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -53,7 +53,7 @@
       "claim-sha": "7ea2251fac1cc899",
       "route": "revert",
       "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-      "producer-sha": "56992fc1830c92da",
+      "producer-sha": "02c7706e79bf4197",
       "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "3b804dbb8970d2c8",
       "route": "revert",
       "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-      "producer-sha": "56992fc1830c92da",
+      "producer-sha": "02c7706e79bf4197",
       "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "9f9c092b73b02ce7",
       "route": "revert",
       "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-      "producer-sha": "56992fc1830c92da",
+      "producer-sha": "02c7706e79bf4197",
       "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "61405ed777c2bff3",
       "route": "revert",
       "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-      "producer-sha": "56992fc1830c92da",
+      "producer-sha": "02c7706e79bf4197",
       "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

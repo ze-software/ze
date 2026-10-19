@@ -2445,7 +2445,7 @@
       "claim-sha": "5cb2e07825ab4f0c",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
-      "producer-sha": "4f141950953904e4",
+      "producer-sha": "eb3666dadc9b3b9c",
       "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -2456,7 +2456,7 @@
       "claim-sha": "4f0b39466ec0a2c0",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_batch.go::WithdrawNLRIBatch",
-      "producer-sha": "3c8ca3c22cddf597",
+      "producer-sha": "a4c01f5fccd3dde1",
       "break": "body of WithdrawNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

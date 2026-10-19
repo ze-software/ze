@@ -911,7 +911,7 @@
       "claim-sha": "01031f38b4d01379",
       "route": "revert",
       "producer": "internal/component/config/yang/validator_reference.go::readInstancePredicates",
-      "producer-sha": "608f435840abf08d",
+      "producer-sha": "9452d20a80db0c67",
       "break": "body of readInstancePredicates replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -922,7 +922,7 @@
       "claim-sha": "6c3828834371f071",
       "route": "revert",
       "producer": "internal/component/config/yang/validator_instance.go::instanceExists",
-      "producer-sha": "dee160f0a134f21d",
+      "producer-sha": "93c61ca9c3bab471",
       "break": "body of instanceExists replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1142,7 +1142,7 @@
       "claim-sha": "b341523c674a2a39",
       "route": "revert",
       "producer": "internal/component/config/yang/validator_instance.go::instanceExists",
-      "producer-sha": "dee160f0a134f21d",
+      "producer-sha": "93c61ca9c3bab471",
       "break": "body of instanceExists replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1164,7 +1164,7 @@
       "claim-sha": "91510e045d06ba61",
       "route": "revert",
       "producer": "internal/component/config/yang/validator_instance.go::absentLeafInUse",
-      "producer-sha": "d26b398f2bf8ec82",
+      "producer-sha": "37b004e548f17260",
       "break": "body of absentLeafInUse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
