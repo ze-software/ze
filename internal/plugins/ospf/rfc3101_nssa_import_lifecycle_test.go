@@ -30,6 +30,12 @@ func nssaImportEngine(t *testing.T, f nssaTestFamily) (*engine, *time.Time) {
 	now := time.Unix(1000, 0)
 	eng.lsdb = ospflsdb.New(func() time.Time { return now })
 	eng.setConfig(cfg)
+	// These tests read the Type-7 instances out of the LSDB and advance the
+	// test clock by writing through the returned pointer, which is not safe
+	// for concurrent use. setConfig armed the SPF back-off timer, whose Run
+	// reads that clock from its own goroutine (LSDB.Summary), so stop SPF
+	// here: no assertion in this file depends on a route computation.
+	eng.spf.Stop()
 	for _, name := range []string{"a", "b", "unused"} {
 		ic := interfaceConfig{Name: name, AreaID: types.AreaID{0, 0, 0, 7}, NetworkType: types.NetworkLoopback}
 		eng.running[name] = ic
