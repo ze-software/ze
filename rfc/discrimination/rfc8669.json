@@ -31,7 +31,7 @@
       "claim-sha": "27d5df1f5210766c",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
-      "producer-sha": "cc774267065876e6",
+      "producer-sha": "08735861b57fa742",
       "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -509,7 +509,7 @@
       "claim-sha": "d55b64c84e90113b",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
-      "producer-sha": "e743de877e969826",
+      "producer-sha": "66c0f3d227b0c731",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -520,7 +520,7 @@
       "claim-sha": "431ca2345b117459",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
-      "producer-sha": "e743de877e969826",
+      "producer-sha": "66c0f3d227b0c731",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -626,22 +626,22 @@
       "rid": "RFC8669-8-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go::TestPrefixSIDOriginationBoundary",
-      "unit-sha": "4dcbc9512572879e",
+      "unit-sha": "6213f831004208c9",
       "claim-sha": "9b33b9332c6f01ef",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_static_routes.go::toStaticRouteLabeledUnicastParams",
-      "producer-sha": "da4194adee3a35a7",
+      "producer-sha": "fca78d0a5f506052",
       "break": "body of toStaticRouteLabeledUnicastParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8669-8-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go::TestPrefixSIDOriginationBoundary",
-      "unit-sha": "4dcbc9512572879e",
+      "unit-sha": "6213f831004208c9",
       "claim-sha": "e41d579b43a92231",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_static_routes.go::toStaticRouteLabeledUnicastParams",
-      "producer-sha": "da4194adee3a35a7",
+      "producer-sha": "fca78d0a5f506052",
       "break": "body of toStaticRouteLabeledUnicastParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

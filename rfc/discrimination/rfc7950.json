@@ -1538,7 +1538,7 @@
       "claim-sha": "750256582479c12c",
       "route": "revert",
       "producer": "internal/component/config/yang/validator_default.go::caseInEffect",
-      "producer-sha": "c0173c1eb49f5705",
+      "producer-sha": "1496605823f4d304",
       "break": "body of caseInEffect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

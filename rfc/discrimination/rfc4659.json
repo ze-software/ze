@@ -9,7 +9,7 @@
       "claim-sha": "7dc458d9047c38f8",
       "route": "revert",
       "producer": "internal/component/bgp/config/peers.go::patchStaticRoutes",
-      "producer-sha": "1c7a1a1f915fd9c8",
+      "producer-sha": "21b23a42631c082f",
       "break": "body of patchStaticRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -20,7 +20,7 @@
       "claim-sha": "d8fdd5bd391dac28",
       "route": "revert",
       "producer": "internal/component/bgp/config/peers.go::patchStaticRoutes",
-      "producer-sha": "1c7a1a1f915fd9c8",
+      "producer-sha": "21b23a42631c082f",
       "break": "body of patchStaticRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -119,7 +119,7 @@
       "claim-sha": "04697b717757631e",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_build_vpn.go::vpnNextHopOctets",
-      "producer-sha": "0618b047ebce4049",
+      "producer-sha": "31d4b6e028a403d5",
       "break": "body of vpnNextHopOctets replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -130,7 +130,7 @@
       "claim-sha": "70bb98587c56ebb4",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_build_vpn.go::vpnNextHopOctets",
-      "producer-sha": "0618b047ebce4049",
+      "producer-sha": "31d4b6e028a403d5",
       "break": "body of vpnNextHopOctets replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

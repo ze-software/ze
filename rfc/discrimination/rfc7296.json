@@ -493,7 +493,7 @@
       "claim-sha": "e1c00db6c72f1754",
       "route": "revert",
       "producer": "internal/component/ike/ipsec/config.go::parseAuthConfig",
-      "producer-sha": "1555be9f63b6962a",
+      "producer-sha": "7d3b9464e36c0b06",
       "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -504,7 +504,7 @@
       "claim-sha": "27ac8ca6ee2fff8b",
       "route": "revert",
       "producer": "internal/component/ike/ipsec/config.go::parseAuthConfig",
-      "producer-sha": "1555be9f63b6962a",
+      "producer-sha": "7d3b9464e36c0b06",
       "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

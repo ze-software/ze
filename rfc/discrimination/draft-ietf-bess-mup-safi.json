@@ -328,7 +328,7 @@
       "claim-sha": "f1265e35f075cf11",
       "route": "revert",
       "producer": "internal/core/bgp/nlri/nlritype/nlritype.go::Retain",
-      "producer-sha": "c25d48f254974a4e",
+      "producer-sha": "6c610dcc04872ed2",
       "break": "body of Retain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -339,7 +339,7 @@
       "claim-sha": "e84c178d3cb212e9",
       "route": "revert",
       "producer": "internal/core/bgp/nlri/nlritype/nlritype.go::Retain",
-      "producer-sha": "c25d48f254974a4e",
+      "producer-sha": "6c610dcc04872ed2",
       "break": "body of Retain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

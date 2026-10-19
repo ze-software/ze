@@ -97,7 +97,7 @@
       "claim-sha": "576f6522e2e05b79",
       "route": "revert",
       "producer": "internal/component/tacacs/authenticator.go::handlePass",
-      "producer-sha": "c3e748f7dee05762",
+      "producer-sha": "0247cf0da95085bf",
       "break": "body of handlePass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -108,7 +108,7 @@
       "claim-sha": "f493973339d32d32",
       "route": "revert",
       "producer": "internal/component/tacacs/authenticator.go::handlePass",
-      "producer-sha": "c3e748f7dee05762",
+      "producer-sha": "0247cf0da95085bf",
       "break": "body of handlePass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -141,7 +141,7 @@
       "claim-sha": "9fe44566475577ee",
       "route": "revert",
       "producer": "internal/component/tacacs/authenticator.go::Authenticate",
-      "producer-sha": "40b2508ca0d5e457",
+      "producer-sha": "4f32ab33835cd7c4",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -647,7 +647,7 @@
       "claim-sha": "6d14f95834f9f3d9",
       "route": "revert",
       "producer": "internal/component/tacacs/authenticator.go::handlePass",
-      "producer-sha": "c3e748f7dee05762",
+      "producer-sha": "0247cf0da95085bf",
       "break": "body of handlePass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -691,7 +691,7 @@
       "claim-sha": "4c7d866cbbaf6d77",
       "route": "revert",
       "producer": "internal/component/tacacs/authenticator.go::Authenticate",
-      "producer-sha": "40b2508ca0d5e457",
+      "producer-sha": "4f32ab33835cd7c4",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -702,7 +702,7 @@
       "claim-sha": "e86920872df8b386",
       "route": "revert",
       "producer": "internal/component/tacacs/authenticator.go::Authenticate",
-      "producer-sha": "40b2508ca0d5e457",
+      "producer-sha": "4f32ab33835cd7c4",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -889,7 +889,7 @@
       "claim-sha": "f117d31b78cfde49",
       "route": "revert",
       "producer": "internal/component/tacacs/authenticator.go::handlePass",
-      "producer-sha": "c3e748f7dee05762",
+      "producer-sha": "0247cf0da95085bf",
       "break": "body of handlePass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -955,7 +955,7 @@
       "claim-sha": "ecaa302fa72efe58",
       "route": "revert",
       "producer": "internal/component/tacacs/authenticator.go::handlePass",
-      "producer-sha": "c3e748f7dee05762",
+      "producer-sha": "0247cf0da95085bf",
       "break": "body of handlePass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -999,7 +999,7 @@
       "claim-sha": "eff87eec76ec9262",
       "route": "revert",
       "producer": "internal/component/tacacs/authenticator.go::handlePass",
-      "producer-sha": "c3e748f7dee05762",
+      "producer-sha": "0247cf0da95085bf",
       "break": "body of handlePass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1142,7 +1142,7 @@
       "claim-sha": "5b7ecf93ee5f0161",
       "route": "revert",
       "producer": "internal/component/tacacs/authenticator.go::Authenticate",
-      "producer-sha": "40b2508ca0d5e457",
+      "producer-sha": "4f32ab33835cd7c4",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1153,7 +1153,7 @@
       "claim-sha": "e6b1eb8798b736d3",
       "route": "revert",
       "producer": "internal/component/tacacs/authenticator.go::Authenticate",
-      "producer-sha": "40b2508ca0d5e457",
+      "producer-sha": "4f32ab33835cd7c4",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

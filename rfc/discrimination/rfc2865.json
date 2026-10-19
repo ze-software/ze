@@ -9,7 +9,7 @@
       "claim-sha": "dd9a911d0ec45283",
       "route": "revert",
       "producer": "internal/component/radius/authenticator.go::Authenticate",
-      "producer-sha": "8e8ef436829e6a5a",
+      "producer-sha": "cce9fdbace347544",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "d1bc8fd42b439e11",
       "route": "revert",
       "producer": "internal/component/radius/authenticator.go::Authenticate",
-      "producer-sha": "8e8ef436829e6a5a",
+      "producer-sha": "cce9fdbace347544",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "a5d438753e721143",
       "route": "revert",
       "producer": "internal/component/radius/authenticator.go::Authenticate",
-      "producer-sha": "8e8ef436829e6a5a",
+      "producer-sha": "cce9fdbace347544",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "678006565f0ad7be",
       "route": "revert",
       "producer": "internal/component/radius/authenticator.go::Authenticate",
-      "producer-sha": "8e8ef436829e6a5a",
+      "producer-sha": "cce9fdbace347544",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "f279979c4351db53",
       "route": "revert",
       "producer": "internal/component/radius/authenticator.go::Authenticate",
-      "producer-sha": "8e8ef436829e6a5a",
+      "producer-sha": "cce9fdbace347544",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -284,7 +284,7 @@
       "claim-sha": "080a6132b0dc583c",
       "route": "revert",
       "producer": "internal/component/radius/authenticator.go::Authenticate",
-      "producer-sha": "8e8ef436829e6a5a",
+      "producer-sha": "cce9fdbace347544",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -317,7 +317,7 @@
       "claim-sha": "552ebbb61037d59c",
       "route": "revert",
       "producer": "internal/component/radius/authenticator.go::Authenticate",
-      "producer-sha": "8e8ef436829e6a5a",
+      "producer-sha": "cce9fdbace347544",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -515,7 +515,7 @@
       "claim-sha": "07186084d0f9b9a2",
       "route": "revert",
       "producer": "internal/component/radius/authenticator.go::Authenticate",
-      "producer-sha": "8e8ef436829e6a5a",
+      "producer-sha": "cce9fdbace347544",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -526,7 +526,7 @@
       "claim-sha": "159f99b012f83c45",
       "route": "revert",
       "producer": "internal/component/radius/authenticator.go::Authenticate",
-      "producer-sha": "8e8ef436829e6a5a",
+      "producer-sha": "cce9fdbace347544",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -537,7 +537,7 @@
       "claim-sha": "0799cdea85d065cd",
       "route": "revert",
       "producer": "internal/component/radius/authenticator.go::Authenticate",
-      "producer-sha": "8e8ef436829e6a5a",
+      "producer-sha": "cce9fdbace347544",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -548,7 +548,7 @@
       "claim-sha": "84aa882d5297924c",
       "route": "revert",
       "producer": "internal/component/radius/authenticator.go::Authenticate",
-      "producer-sha": "8e8ef436829e6a5a",
+      "producer-sha": "cce9fdbace347544",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -779,7 +779,7 @@
       "claim-sha": "9026de0b7dd10d6b",
       "route": "revert",
       "producer": "internal/component/radius/authenticator.go::Authenticate",
-      "producer-sha": "8e8ef436829e6a5a",
+      "producer-sha": "cce9fdbace347544",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -812,7 +812,7 @@
       "claim-sha": "3c714e83115d1b56",
       "route": "revert",
       "producer": "internal/component/radius/authenticator_eap.go::authenticateEAP",
-      "producer-sha": "3ea7392011e498d2",
+      "producer-sha": "3e963a2a64e7441c",
       "break": "body of authenticateEAP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -823,7 +823,7 @@
       "claim-sha": "1e72302e66e0f88b",
       "route": "revert",
       "producer": "internal/component/radius/authenticator.go::Authenticate",
-      "producer-sha": "8e8ef436829e6a5a",
+      "producer-sha": "cce9fdbace347544",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

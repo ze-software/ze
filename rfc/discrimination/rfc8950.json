@@ -9,7 +9,7 @@
       "claim-sha": "b999b340b88bf735",
       "route": "revert",
       "producer": "internal/core/bgp/attribute/mpnlri.go::writeNextHops",
-      "producer-sha": "d570e7f78b24b876",
+      "producer-sha": "40d1fdc5b62b1ace",
       "break": "body of writeNextHops replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

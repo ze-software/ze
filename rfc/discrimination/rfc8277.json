@@ -346,11 +346,11 @@
       "rid": "RFC8277-2.4-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNRouteServerPeerDownEmitsOnlyRetainedNativeRoutes",
-      "unit-sha": "f3a4d141f8a271fe",
+      "unit-sha": "09e8fd7e7c2f6601",
       "claim-sha": "f5b38d892265bda0",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rs/server_handlers.go::sendBatchedWithdrawals",
-      "producer-sha": "8a09fb0bbe4f5a4c",
+      "producer-sha": "0348e9ad675b9a74",
       "break": "body of sendBatchedWithdrawals replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -625,7 +625,7 @@
       "claim-sha": "dc66d35ae3a63e2b",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/filter_delta_handlers.go::mpReachNextHopHandler",
-      "producer-sha": "56a57e7ee84478aa",
+      "producer-sha": "908f11d800886461",
       "break": "body of mpReachNextHopHandler replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
