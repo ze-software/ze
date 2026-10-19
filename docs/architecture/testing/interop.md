@@ -249,7 +249,7 @@ These Docker-host integration tests are excluded from the QEMU guest package
 population: the guest has no Docker daemon. The native admission command above
 runs their real container and packet probes rather than substituting guest mocks.
 <!-- source: internal/le/test/qemu/alltests.go -- excludedIntegrationPackages -->
-<!-- source: internal/le/test/deployment/vppiface.go -- newVPPIface, containerArgs -->
+<!-- source: internal/le/test/deployment/vppiface.go -- newVPPIface, containerSpec -->
 
 The compiled peer sends IPv4/unicast MP_REACH with an IPv6 next hop and an
 RFC 9252 L3 Service TLV through a real BGP session. Only Ze installs service
@@ -708,7 +708,7 @@ Each local image build also creates a unique, run-owned tag. This keeps its
 image ID available when another build replaces the shared cache tag.
 The suite removes its tags after the scenarios, including after setup failure.
 Image cleanup errors appear in `cleanup-errors` and make the suite fail.
-<!-- source: internal/le/interoplab/docker.go -- Docker.Build, releaseImage -->
+<!-- source: internal/le/interoplab/docker.go -- Docker.Build, Docker.ReleaseImage -->
 
 One `./le test integration <action>` invocation returns that action's full report.
 Multiple action names return a combined summary.
@@ -861,8 +861,8 @@ The root daemon cannot use a database directory beneath a mount owned by another
 user. A scenario's disable-and-restart check recopies the new input into the
 same private directory before each start.
 <!-- source: internal/le/test/deployment/l2tppppinputs.go -- writeInputs -->
-<!-- source: internal/le/test/deployment/vppiface.go -- writeScratch, stageConfig, daemonArgs -->
-<!-- source: internal/le/test/deployment/vppevidence.go -- writeConfig, evidenceDaemonArgs -->
+<!-- source: internal/le/test/deployment/vppiface.go -- writeScratch, stageConfig, daemonExec -->
+<!-- source: internal/le/test/deployment/vppevidence.go -- writeConfig, evidenceDaemonExec -->
 
 After the native L2TP PPP proof has negotiated IPCP and carried traffic, it
 injects an LCP Configure-Request from the peer namespace into the existing
