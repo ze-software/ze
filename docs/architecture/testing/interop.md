@@ -805,6 +805,9 @@ host uses, which a guest cannot stand in for.
 
 Daemons start conditionally: FRR if `frr.conf` exists, BIRD if `bird.conf` exists,
 GoBGP if `gobgp.toml` exists. This means each scenario only runs the daemons it needs.
+BIRD starts with IPv6 enabled, as FRR always does, only when its `bird.conf` names a
+lab IPv6 address.
+<!-- source: internal/le/interoplab/bgp/prepare.go -- ipv6Sysctls -->
 
 **A scenario directory is NAMED, never numbered** (owner directive, 2026-08-24).
 Run order is lexical by scenario directory name and no scenario depends on it.
@@ -2200,7 +2203,7 @@ is not packet-forwarding evidence.
 | 20 | role-frr | Ze, FRR | RFC 9234 Role capability negotiation |
 | 21 | role-gobgp | Ze, GoBGP | RFC 9234 Role capability negotiation |
 | 22 | evpn-frr | Ze, FRR | EVPN Type-2 route exchange |
-| 23 | vpn-frr | Ze, FRR | VPN (L3VPN) route exchange |
+| 23 | vpn-frr | Ze, FRR, BIRD | VPN-IPv4 route exchange with FRR; RFC 4659 Section 3.2.1.1 VPN-IPv6 next hops, read at BIRD (the 48-octet field's link-local, which FRR 10.3.1 does not display) and at FRR (the off-link route's sole global) |
 | 24 | flowspec-frr | Ze, FRR | FlowSpec rule exchange |
 | 25 | ipv6-ebgp-bird | Ze, BIRD | IPv6 eBGP route exchange |
 | 26 | ipv6-ebgp-gobgp | Ze, GoBGP | IPv6 eBGP route exchange |

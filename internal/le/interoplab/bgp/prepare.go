@@ -476,8 +476,15 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 			Capabilities: []string{capabilityNetAdmin, "SYS_ADMIN"}, Arguments: ipv6Sysctls(), Ready: ready(cmdVtysh, "-c", "show version")})
 	}
 	if path := filepath.Join(scenario, "bird.conf"); regularFile(path) {
+		// A bird.conf naming a lab IPv6 address runs a session over IPv6, so
+		// the container gets the same IPv6 sysctls FRR runs with. One naming
+		// none keeps the arguments every IPv4-only BIRD scenario ran with.
+		var arguments []string
+		if configContains(path, baseIPv6Prefix) {
+			arguments = ipv6Sysctls()
+		}
 		peers = append(peers, interoplab.PeerConfig{Name: peerBIRD, Container: containerName(peerBIRD, suffix), Image: peerBIRD, Host: 4,
-			Mounts: []interoplab.Mount{mount(path, "/etc/bird/bird.conf")}, Capabilities: []string{capabilityNetAdmin}, Ready: ready(cmdBirdc, "show status")})
+			Mounts: []interoplab.Mount{mount(path, "/etc/bird/bird.conf")}, Capabilities: []string{capabilityNetAdmin}, Arguments: arguments, Ready: ready(cmdBirdc, "show status")})
 	}
 	if path := filepath.Join(scenario, "keepalived.conf"); regularFile(path) {
 		peers = append(peers, interoplab.PeerConfig{Name: peerKeepalived, Container: containerName(peerKeepalived, suffix), Image: peerKeepalived, Host: 8,

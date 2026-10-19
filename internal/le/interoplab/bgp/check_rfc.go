@@ -597,24 +597,32 @@ func checkRFC2545NextHops(ctx context.Context, check *interoplab.CheckContext) e
 	return nil
 }
 
-// RFC requirement: RFC4659-3.2.1.1-3 positive -- an independent receiver (FRR) decodes the VPN-IPv6 route 2001:db8:4659::/48, whose global next hop is Ze's own address on the lab /64 FRR's session address shares, with two next hops: Ze's global and Ze's topology-owned link-local, so Ze sent the 48-octet Next Hop field.
-// RFC requirement: RFC4659-3.2.1.1-3 negative -- on the same session with the same `link-local` leaf, the VPN-IPv6 route 2001:db8:465a::/48 whose global 2001:db8:ffff::1 is no address of Ze's (a third party's, whose link-local Ze does not learn) reaches FRR with that global as its sole next hop and no link-local entry.
+// RFC requirement: RFC4659-3.2.1.1-3 positive -- an independent receiver (BIRD 2.15.1) holds the VPN-IPv6 route 2001:db8:4659::/48, whose global next hop is Ze's own address on the lab /64 BIRD's session address shares, with exactly two next-hop addresses, Ze's global then Ze's topology-owned link-local, so Ze sent the 48-octet Next Hop field; BIRD refuses that field when either of its two RDs is non-zero, so holding the route also shows both RDs zero.
+// RFC requirement: RFC4659-3.2.1.1-3 negative -- on the same sessions with the same `link-local` leaf, the VPN-IPv6 route 2001:db8:465a::/48 whose global 2001:db8:ffff::1 is no address of Ze's (a third party's, whose link-local Ze does not learn) reaches both BIRD and FRR with that global as its sole next hop and no link-local entry.
 //
-// UNRUN at authoring (2026-10-18): Docker was held by a full verify. The FRR
-// JSON shape for `show bgp ipv6 vpn rd <rd> <prefix> json` is assumed to match
-// the unicast one parseFRRNextHops reads; the first run settles it. The first
-// run (2026-10-19) never reached it: Ze refused the IPv4 session with Bad BGP
-// Identifier, both sessions coming from one FRR identifier
-// (plan/journal/listener-refuses-the-peer-its-config-names.md).
+// FRR keeps the VPN-IPv4 half and the off-link route. It cannot carry the
+// positive: FRR 10.3.1 prints the link-local of an IPv6 next hop only for a
+// 32-octet field (bgpd/bgp_route.c), so its answer for the on-link route is the
+// global alone whether Ze sent 24 octets or 48. BIRD prints both addresses of a
+// 48-octet VPN field (proto/bgp/packets.c, bgp_decode_next_hop_vpn).
 func checkVPNFRR(ctx context.Context, check *interoplab.CheckContext) error {
 	const (
+		// The scenario literal, which the conformance recorder reads to pick the
+		// scenario a break of this checker runs (rfc-conformance-gates.md).
+		name           = "bgp-vpn-frr"
 		rd             = "65001:100"
 		onLinkPrefix   = "2001:db8:4659::/48"
 		offLinkPrefix  = "2001:db8:465a::/48"
 		offLinkNextHop = "2001:db8:ffff::1"
+		birdProtocol   = "ze_vpn6"
+		birdShowVPN6   = "show route table vpntab6 all"
 	)
-	// The VPN-IPv4 half of the scenario: the session, both VPN-IPv4 routes,
-	// the negotiated ipv4Vpn capability, and the session still up after them.
+	fail := func(assertion int, cause error) error {
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
+	}
+	// Assertions 1 to 5. The VPN-IPv4 half of the scenario: the session, both
+	// VPN-IPv4 routes, the negotiated ipv4Vpn capability, and the session still
+	// up after them.
 	vpnIPv4 := []operation{
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: peerPrefixFirst, family: frrFamilyIPv4VPN},
@@ -624,53 +632,102 @@ func checkVPNFRR(ctx context.Context, check *interoplab.CheckContext) error {
 	}
 	for index := range vpnIPv4 {
 		if err := runOperation(ctx, check.Network, check.Lab, &vpnIPv4[index]); err != nil {
-			return checkerFailure(ctx, check.Lab, scenarioVPNFRR, index+1, err)
+			return fail(index+1, err)
 		}
 	}
 	if !check.Network.IPv6.IsValid() {
-		return errors.New("bgp-vpn-frr has no selected IPv6 network")
+		return fail(6, errors.New("bgp-vpn-frr has no selected IPv6 network"))
 	}
-	session := operation{kind: opFRRSession, argument: networkHostAddress6(check.Network, 2)}
-	if err := runOperation(ctx, check.Network, check.Lab, &session); err != nil {
-		return err
+	offLinkGlobal := netip.MustParseAddr(offLinkNextHop)
+
+	// Assertion 6. The FRR IPv6 session.
+	frrSession := operation{kind: opFRRSession, argument: networkHostAddress6(check.Network, 2)}
+	if err := runOperation(ctx, check.Network, check.Lab, &frrSession); err != nil {
+		return fail(6, err)
 	}
-	query := func(prefix string) ([]nextHop, error) {
-		var wait []nextHop
-		deadline := time.Now().Add(60 * time.Second)
-		for {
-			output, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show bgp ipv6 vpn rd " + rd + " " + prefix + " json"}, nil)
-			if err == nil {
-				wait, err = parseFRRNextHops(output)
-			}
-			if err == nil {
-				return wait, nil
-			}
-			if time.Now().After(deadline) {
-				return nil, fmt.Errorf("%s: %w", prefix, err)
-			}
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(time.Second):
-			}
+
+	// Assertion 7. FRR decodes the off-link route with its global alone.
+	frrOffLink, err := untilDecoded(ctx, func() ([]nextHop, error) {
+		output, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show bgp ipv6 vpn rd " + rd + " " + offLinkPrefix + " json"}, nil)
+		if err != nil {
+			return nil, err
 		}
-	}
-	onLink, err := query(onLinkPrefix)
+		return parseFRRVPNNextHops(output, rd)
+	})
 	if err != nil {
-		return err
+		return fail(7, fmt.Errorf("FRR %s: %w", offLinkPrefix, err))
+	}
+	if err := requireNextHopShape(frrOffLink, offLinkGlobal, netip.Addr{}); err != nil {
+		return fail(7, fmt.Errorf("FRR off-link VPN-IPv6 route: %w", err))
+	}
+
+	// Assertion 8. The BIRD IPv6 session.
+	birdSession := operation{kind: opBIRDSession, argument: birdProtocol}
+	if err := runOperation(ctx, check.Network, check.Lab, &birdSession); err != nil {
+		return fail(8, err)
+	}
+	birdNextHops := func(prefix string) ([]netip.Addr, error) {
+		return untilDecoded(ctx, func() ([]netip.Addr, error) {
+			output, err := check.Lab.Query(ctx, peerBIRD, []string{cmdBirdc, birdShowVPN6}, nil)
+			if err != nil {
+				return nil, err
+			}
+			return birdVPNNextHops(output, rd, prefix)
+		})
+	}
+
+	// Assertion 9. ze.conf names fd00:1e:0::2 as the on-link global next hop,
+	// which the harness rewrites onto the selected IPv6 network: host 2 on that
+	// /64. BIRD shows it, then the link-local the renderer and the startup
+	// provisioner give Ze's eth0.
+	onLink, err := birdNextHops(onLinkPrefix)
+	if err != nil {
+		return fail(9, err)
 	}
 	expectedGlobal := check.Network.IPv6.Masked().Addr().Next().Next()
-	if err := requireNextHopShape(onLink, expectedGlobal, linkLocalAt(check.Network, zeHostNumber)); err != nil {
-		return fmt.Errorf("on-link VPN-IPv6 route: %w", err)
+	if err := requireBIRDNextHops(onLink, expectedGlobal, linkLocalAt(check.Network, zeHostNumber)); err != nil {
+		return fail(9, fmt.Errorf("on-link VPN-IPv6 route: %w", err))
 	}
-	offLink, err := query(offLinkPrefix)
+
+	// Assertion 10. The off-link route reaches BIRD with its global alone.
+	offLink, err := birdNextHops(offLinkPrefix)
 	if err != nil {
-		return err
+		return fail(10, err)
 	}
-	if err := requireNextHopShape(offLink, netip.MustParseAddr(offLinkNextHop), netip.Addr{}); err != nil {
-		return fmt.Errorf("off-link VPN-IPv6 route: %w", err)
+	if err := requireBIRDNextHops(offLink, offLinkGlobal, netip.Addr{}); err != nil {
+		return fail(10, fmt.Errorf("off-link VPN-IPv6 route: %w", err))
 	}
-	return runOperation(ctx, check.Network, check.Lab, &session)
+
+	// Assertion 11. Both IPv6 sessions are still up after the routes.
+	if err := runOperation(ctx, check.Network, check.Lab, &frrSession); err != nil {
+		return fail(11, err)
+	}
+	if err := runOperation(ctx, check.Network, check.Lab, &birdSession); err != nil {
+		return fail(11, err)
+	}
+	return nil
+}
+
+// untilDecoded retries read once a second until it decodes an answer, for at
+// most 60 seconds, and returns the last error when it never does. A receiver
+// installs a route some time after the session comes up, so the first read
+// failing says nothing yet.
+func untilDecoded[T any](ctx context.Context, read func() (T, error)) (T, error) {
+	deadline := time.Now().Add(60 * time.Second)
+	for {
+		answer, err := read()
+		if err == nil {
+			return answer, nil
+		}
+		if time.Now().After(deadline) {
+			return answer, err
+		}
+		select {
+		case <-ctx.Done():
+			return answer, ctx.Err()
+		case <-time.After(time.Second):
+		}
+	}
 }
 
 // RFC requirement: RFC7606-5.1-3 positive -- ONE UPDATE mixing Withdrawn Routes with NLRI is
