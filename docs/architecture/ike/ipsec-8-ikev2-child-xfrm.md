@@ -120,7 +120,9 @@ but in no pair matches none of the SA's inbound policies and is decided by the n
 SPD entry, the unmatched catch-all: dropped under `unmatched discard`, the default,
 and delivered under `unmatched bypass`. That last case, transport mode with several
 pairs that one selector cannot hold exactly under `unmatched bypass`, is where the
-Linux stack does not hold the negotiated values exactly. MOBIKE migration moves tunnel-mode SAs only (the
+Linux stack does not hold the negotiated values exactly. The interop scenario
+`responder-two-subnets` has strongSwan propose two subnets in one Child SA and
+reads both kernels: each must hold exactly the two ESP policy pairs. MOBIKE migration moves tunnel-mode SAs only (the
 migration refuses a non-tunnel template), and it carries the old state selector
 unchanged. The kernel probes are in
 `internal/component/ike/engine/rfc4301_sad_selector_linux_test.go`.

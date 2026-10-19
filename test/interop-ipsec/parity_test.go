@@ -59,6 +59,7 @@ var ipsecScenarios = []string{
 	"responder-ike-rekey",
 	"responder-psk",
 	"responder-raises-child-rekey",
+	"responder-two-subnets",
 }
 
 // VALIDATES: The native registry exposes the complete reviewed IPsec scenario

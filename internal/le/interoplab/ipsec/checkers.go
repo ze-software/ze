@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -81,6 +82,7 @@ var scenarioCheckers = map[string]scenarioCheck{
 	"responder-eap-tls13-revoked-client":   {run: checkResponderEAPTLS13RevokedClient},
 	"responder-ike-rekey":                  {run: checkResponderIKERekey},
 	"responder-psk":                        {run: checkResponderPSK},
+	"responder-two-subnets":                {run: checkResponderTwoSubnets},
 	"responder-raises-child-rekey":         {run: checkResponderRaisesChildRekey},
 }
 
@@ -2712,4 +2714,41 @@ func checkChildlessIKESAZeInitiator(ctx context.Context, lab *scenarioLab) error
 		return err
 	}
 	return lab.verifyTunnelTraffic(ctx, "no ESP traffic through the Child SA Ze created on the childless IKE SA")
+}
+
+// checkResponderTwoSubnets proves Ze installs every traffic selector pair a peer
+// negotiates, not the first one only.
+//
+// strongSwan initiates one Child SA proposing two local subnets (10.1.0.0/24 and
+// 10.3.0.0/24) toward 10.2.0.0/24, and Ze's two configured traffic selectors accept
+// both. RFC 4301 Section 4.4.2: "the entry for an inbound SA in the SAD MUST be
+// initially populated with the value or values negotiated at the time the SA was
+// created." The assertion reads Ze's own kernel: its ESP policy pairs must be exactly
+// the two negotiated pairs, and strongSwan's must agree, so the two ends hold the same
+// scope. Before the fix Ze installed the first pair only, and this check waited for a
+// second pair that never appeared.
+func checkResponderTwoSubnets(ctx context.Context, lab *scenarioLab) error {
+	if err := lab.waitSA(ctx, lab.timeout); err != nil {
+		return err
+	}
+	if err := lab.waitChild(ctx, "ze-child"); err != nil {
+		return err
+	}
+	want := map[string]struct{}{
+		policyPair("10.1.0.0/24", "10.2.0.0/24"): {},
+		policyPair("10.3.0.0/24", "10.2.0.0/24"): {},
+	}
+	for _, peer := range []string{swanPeer, zePeer} {
+		_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+			Timeout: 90 * time.Second, Interval: 2 * time.Second, Description: peer + " ESP policies for both negotiated pairs",
+		}, func(probe context.Context) (map[string]struct{}, error) {
+			return lab.espPolicyPairs(probe, peer)
+		}, func(pairs map[string]struct{}) bool {
+			return maps.Equal(pairs, want)
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
