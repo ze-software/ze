@@ -283,9 +283,9 @@
       "unit-sha": "32bb1d88d909e8b8",
       "claim-sha": "95e474efb21caa9e",
       "route": "revert",
-      "producer": "internal/component/ike/engine/child.go::childPolicyParams",
-      "producer-sha": "96cd5283ad39b417",
-      "break": "body of childPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/ike/engine/child.go::childPolicies",
+      "producer-sha": "1478716193d5ce23",
+      "break": "body of childPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3948-4-1",
