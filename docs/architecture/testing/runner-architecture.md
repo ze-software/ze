@@ -111,9 +111,17 @@ the signal root, so the client must not see the Ctrl-C itself. Every docker
 child heads a process group of its own (`systemProcessRunner.Run`), which takes
 it out of the terminal's foreground group, so a Ctrl-C reaches le alone and the
 teardown's `docker rm -f` is not killed by the same signal, or by a second one.
-A canceled context kills that whole group. A child handed a terminal as one of
-its streams stays in le's group, because a background group that reads its
-terminal is stopped by SIGTTIN.
+A canceled context kills that whole group, and a descendant that left the
+group (a `setsid`) and still holds the child's output keeps `Run` waiting no
+longer than `processWaitDelay`. A child handed a terminal as one of its streams
+stays in le's group, because a background group that reads its terminal is
+stopped by SIGTTIN.
+
+The signal root holds SIGINT and SIGTERM only. A signal le does not root
+(SIGHUP, SIGQUIT) ends le by Go's default action and leaves its docker clients
+and Go builds running in their own groups. The containers they hold carry le's
+pid in their owner labels, so `./le test integration cleanup` removes them once
+le is gone.
 
 So the context is the only stop such a child gets, and every docker command
 and lab cross-compile a `./le` verb runs MUST take its context from that verb's
@@ -131,6 +139,7 @@ record-run` drives, each run under that root.
 <!-- source: internal/le/interoplab/process.go -- systemProcessRunner.Run, sharesTerminal -->
 <!-- source: internal/le/interoplab/orphans.go -- Docker.CleanupOrphans -->
 <!-- test: internal/le/interoplab/orphans_docker_test.go TestKilledLabRunIsCleanedByNextStart -->
+<!-- test: internal/le/interoplab/process_cancel_test.go TestCanceledCommandKillsItsGrandchildren, TestCanceledCommandDoesNotWaitOnAnEscapedPipeHolder -->
 
 ### Shared reporting
 

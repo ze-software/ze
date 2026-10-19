@@ -21,6 +21,13 @@ import (
 
 const timeoutExitCode = 124
 
+// processWaitDelay bounds how long Run waits for a child's output pipes to
+// close once its context is done or the child has exited. The group kill
+// closes them at once; a descendant that left the group (a setsid) and still
+// holds stdout would otherwise keep Run waiting until that descendant exits,
+// so a Ctrl-C would not end the command.
+const processWaitDelay = 2 * time.Second
+
 // ProcessCommand is one bounded host process the wrapper runs: a docker
 // command, or the lab's own Go cross-compile.
 type ProcessCommand struct {
@@ -94,6 +101,7 @@ func (systemProcessRunner) Run(ctx context.Context, command ProcessCommand) (Pro
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
 	}
+	cmd.WaitDelay = processWaitDelay
 	// A nil Env inherits this process's, which is what os/exec already does, so
 	// an empty declaration needs no branch here.
 	cmd.Env = command.Environment
