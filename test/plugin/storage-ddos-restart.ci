@@ -5,6 +5,8 @@
 option=needs-linux
 option=exclusive:group=ddos-flood
 option=timeout:value=450s
+# A restart test needs the disk store: test daemons default to memory (dd3eaf7773).
+option=storage:value=disk
 cmd=foreground:seq=1:exec=le test fixture storage/consumer-restart ddos:timeout=430s
 expect=exit:code=0
 expect=stderr:contains=OK: ddos consumer restored operational state from selected tree without config-dir pin
