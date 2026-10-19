@@ -43,6 +43,12 @@ func rfc9774SentBodies(t *testing.T, written []byte) [][]byte {
 // assert ze_bgp_as_set_withdrawn_total counts the withheld routes. Each
 // set case is paired with the clean twin that IS written, so the guard is bound to the
 // segment type. Method: a session on a recording connection, two-octet AS numbers.
+//
+// RFC requirement: RFC9774-3-1 positive -- an UPDATE body whose AS_PATH, AS4_PATH or a
+// second AS_PATH holds an AS_SET or AS_CONFED_SET announces none of its routes; a route
+// the peer held leaves as its withdrawal.
+// RFC requirement: RFC9774-3-1 negative -- the clean twin, a path of AS_SEQUENCE only, is
+// advertised.
 func TestRFC9774SendASSetWrittenAsWithdrawal(t *testing.T) {
 	prefix := []byte{24, 203, 0, 113}
 	clean := rfc9774Segment(rfc9774SegSequence, 2, 65000, 65010)

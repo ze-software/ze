@@ -1,0 +1,196 @@
+{
+  "schema-version": 1,
+  "stem": "rfc9774",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc9774.txt",
+  "source-sha": "1c7ab2a8ddf3a013",
+  "signed-off": "2026-10-19",
+  "reviewer": "ze-implement agent, spec-bgp-rfc9774-as-set-deprecation",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of This Memo, copyright notice, Abstract and Table of Contents. The Abstract states scope and binds nobody."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Explains why AS_SET and AS_CONFED_SET complicate BGP security and states the document updates RFC 4271 and RFC 5065 and obsoletes RFC 6472. No RFC 2119 keyword; the obligations are stated in section 3."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Requirements Language boilerplate citing BCP 14. It defines keywords and obliges nobody."
+    },
+    {
+      "id": "3",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "The two obligations of the document, both mapped: 3:1 to RFC9774-3-1 (send) and 3:2 to RFC9774-3-2 (receive). The closing paragraph records which sections of RFC 4271 and RFC 5065 are updated and binds nothing further."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Describes how RPKI-ROV, BGPsec and ASPA already treat a route with an AS_SET. Descriptive, no RFC 2119 keyword, and it obliges no BGP speaker beyond the documents it cites."
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Describes brief aggregation. Its one SHOULD is a quotation of RFC 4271 Section 5.1.6 and belongs to RFC 4271; the section adds no obligation of its own."
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Explains why brief aggregation yields an unpredictable origin AS for RPKI-ROV. Descriptive, no RFC 2119 keyword."
+    },
+    {
+      "id": "5.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Consistent brief aggregation. Its MUST (5.2:1) and its SHOULD to attach ATOMIC_AGGREGATE bind an aggregating implementation; Ze implements no aggregation, so 5.2:1 is excluded as feature-out-of-scope."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Section preamble: operator advice on deployment and configuration. No keyword."
+    },
+    {
+      "id": "6.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Its MUST (6.1:1) binds an operator that aggregates; excluded as feature-out-of-scope with 5.2:1."
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "SHOULD NOT and SHOULD on announcing an aggregate to contributing ASes; recommendations conditional on aggregation, which Ze does not implement. No MUST-level site."
+    },
+    {
+      "id": "6.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Reminds that RFC 4632 Section 5.1 Rule 2 binds aggregating implementations; it restates another document and adds no keyword."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. Notes the deprecation shrinks the attack surface. No keyword."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations: marks segment types 1 and 4 deprecated in the registry. A registry action, no speaker obligation."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References heading."
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative references."
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative references."
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Example filtering policy for not advertising an aggregate to contributing ASes. Illustrative, no keyword."
+    },
+    {
+      "id": "B",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Examples of consistent brief aggregation and the ROAs they need. Illustrative, no keyword."
+    },
+    {
+      "id": "B.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Worked example of Appendix B. Illustrative."
+    },
+    {
+      "id": "B.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Worked example of Appendix B. Illustrative."
+    },
+    {
+      "id": "B.3",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Worked example of Appendix B. Illustrative."
+    },
+    {
+      "id": "B.4",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Worked example of Appendix B. Illustrative."
+    },
+    {
+      "id": "C",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Discussion of forwarding loops and AS_SETs. Explanatory, no keyword."
+    }
+  ],
+  "sites": [
+    {
+      "id": "3:1",
+      "quote": "* MUST NOT advertise BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs and",
+      "disposition": "mapped",
+      "mapped-to": "RFC9774-3-1"
+    },
+    {
+      "id": "3:2",
+      "quote": "* MUST use the \"treat-as-withdraw\" error handling behavior per [RFC7606] upon reception of BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs in the AS_PATH or AS4_PATH [RFC6793].",
+      "disposition": "mapped",
+      "mapped-to": "RFC9774-3-2"
+    },
+    {
+      "id": "5.2:1",
+      "quote": "To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of \"brief\" BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Binds implementations of brief BGP aggregation only. RFC 4271 Section 9.1 makes route aggregation optional: \"Route aggregation and information reduction can optionally be performed within this phase.\" Owner decision 2026-10-18 scoped this work to RFC 9774 and not to an aggregation feature (spec-bgp-rfc9774-as-set-deprecation, Key Design Decisions). Ze has no aggregation code: the AS_PATH parsers (ParseASPathText, internal/core/bgp/attribute/text.go) build only AS_SEQUENCE."
+    },
+    {
+      "id": "6.1:1",
+      "quote": "When aggregating prefixes, network operators MUST use consistent brief aggregation as described in Section 5.2.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Binds an operator \"When aggregating prefixes\", which needs an aggregation feature in the speaker. RFC 4271 Section 9.1 makes route aggregation optional: \"Route aggregation and information reduction can optionally be performed within this phase.\" Owner decision 2026-10-18 scoped this work to RFC 9774 and not to an aggregation feature (spec-bgp-rfc9774-as-set-deprecation, Key Design Decisions). Ze has no aggregation code: the AS_PATH parsers (ParseASPathText, internal/core/bgp/attribute/text.go) build only AS_SEQUENCE."
+    }
+  ],
+  "register-reason": "Standards Track, with an RFC 2119 key-words section at 2 and capitalised MUST and MUST NOT keywords in sections 3, 5.2 and 6.1. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade."
+}

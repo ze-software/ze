@@ -31,6 +31,12 @@ func joinSegments(segments ...[]byte) []byte {
 // on a two-octet or a four-octet session, is treat-as-withdraw naming RFC 9774 Section 3,
 // while AS_SEQUENCE and AS_CONFED_SEQUENCE paths stay accepted. Method: build each path
 // from segments and call validateASPath directly.
+//
+// RFC requirement: RFC9774-3-2 positive -- an AS_SET or AS_CONFED_SET segment in a
+// well-framed AS_PATH, at either AS width, is treat-as-withdraw on attribute code 2 with
+// the RFC 9774 Section 3 description.
+// RFC requirement: RFC9774-3-2 negative -- AS_PATHs of AS_SEQUENCE and AS_CONFED_SEQUENCE
+// segments only draw no verdict.
 func TestValidateASPathRejectsSetSegments(t *testing.T) {
 	for _, asnOctets := range []int{2, 4} {
 		asn4 := asnOctets == 4

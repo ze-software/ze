@@ -60,6 +60,12 @@ func rfc9774Attrs(asPath []byte, extra ...byte) []byte {
 // RFC 9774 Section 3: "MUST use the "treat-as-withdraw" error handling behavior per
 // [RFC7606] upon reception of BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs
 // in the AS_PATH or AS4_PATH [RFC6793]." This test covers the AS_PATH.
+//
+// RFC requirement: RFC9774-3-2 positive -- an UPDATE whose AS_PATH holds an AS_SET or
+// AS_CONFED_SET draws treat-as-withdraw from Session.enforceRFC7606 without a session
+// error, on two-octet eBGP, four-octet eBGP and iBGP sessions.
+// RFC requirement: RFC9774-3-2 negative -- the same UPDATE with a sequence segment in the
+// set's place draws no RFC 7606 action.
 func TestRFC9774ReceiveASSetTreatAsWithdraw(t *testing.T) {
 	ebgp4 := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	s4, _ := firstASSession(t, ebgp4, []capability.Capability{&capability.ASN4{ASN: 65002}}, nil)
