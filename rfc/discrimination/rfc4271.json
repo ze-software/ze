@@ -281,17 +281,6 @@
     },
     {
       "rid": "RFC4271-5-7",
-      "polarity": "positive",
-      "unit": "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes",
-      "unit-sha": "631afce9de265df4",
-      "claim-sha": "929da8106288c09c",
-      "route": "revert",
-      "producer": "internal/component/bgp/message/update_build.go::appendRawAttributes",
-      "producer-sha": "8a9b759b4109bb5c",
-      "break": "body of appendRawAttributes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC4271-5-7",
       "polarity": "negative",
       "unit": "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes",
       "unit-sha": "631afce9de265df4",
@@ -304,12 +293,23 @@
     {
       "rid": "RFC4271-5-7",
       "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes",
+      "unit-sha": "631afce9de265df4",
+      "claim-sha": "c7168c08620f6569",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_build.go::appendRawAttributes",
+      "producer-sha": "8a9b759b4109bb5c",
+      "break": "body of appendRawAttributes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-5-7",
+      "polarity": "positive",
       "unit": "internal/component/bgp/message/rfc4271_update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder",
-      "unit-sha": "b76d0f8428dc53ce",
-      "claim-sha": "a2a50965a7e39b77",
+      "unit-sha": "0f567f5eb5a52dcd",
+      "claim-sha": "1d01afc728cce1e6",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_split.go::splitUpdateWithMP",
-      "producer-sha": "5e65ce7152fc4e16",
+      "producer-sha": "8b4096a039d1534a",
       "break": "body of splitUpdateWithMP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

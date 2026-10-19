@@ -200,6 +200,28 @@
       "break": "body of SynthesizeWithdrawFamilies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7606-5.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc4271_update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder",
+      "unit-sha": "0f567f5eb5a52dcd",
+      "claim-sha": "f1349323ae8e072a",
+      "route": "mutant",
+      "producer": "internal/component/bgp/message/update_split.go::emitMPChunk",
+      "producer-sha": "1c31eb0350ce0638",
+      "break": "line 476: \"-\" -\u003e \"+\""
+    },
+    {
+      "rid": "RFC7606-5.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc7606_mp_first_test.go::TestRFC7606Section51MPAttributeEncodedFirst",
+      "unit-sha": "ae54278bd42b47ed",
+      "claim-sha": "ee0106c9746add3f",
+      "route": "mutant",
+      "producer": "internal/core/bgp/attribute/origin.go::OrderAttributes",
+      "producer-sha": "b66733802edbc5c5",
+      "break": "line 266: \"mpReach != nil\" -\u003e \"false\""
+    },
+    {
       "rid": "RFC7606-5.1-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/message/rfc7606_shape_test.go::TestNLRIBearingFieldCountEveryCombination",
