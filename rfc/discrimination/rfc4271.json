@@ -1365,7 +1365,7 @@
       "claim-sha": "4c1954601c12d1d0",
       "route": "revert",
       "producer": "internal/component/bgp/fsm/fsm.go::handleOpenSent",
-      "producer-sha": "0c35f5e58db01e62",
+      "producer-sha": "11b4ebaf65ecfc01",
       "break": "body of handleOpenSent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1387,7 +1387,7 @@
       "claim-sha": "7e838e18149c3395",
       "route": "revert",
       "producer": "internal/component/bgp/fsm/fsm.go::handleOpenConfirm",
-      "producer-sha": "67f47f3393c83cc1",
+      "producer-sha": "4b615454cfa66bd6",
       "break": "body of handleOpenConfirm replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

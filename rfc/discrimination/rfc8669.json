@@ -297,8 +297,8 @@
       "claim-sha": "9a12a1ed7179659b",
       "route": "mutant",
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
-      "producer-sha": "e743de877e969826",
-      "break": "line 186: \"return wu, message.RFC7606ActionNone, nil\" -\u003e \"s.logRFC7606Error(\\\"attribute-discard\\\", 40, \\\"spurious\\\"); return wu, message.RFC7606ActionNone, nil\""
+      "producer-sha": "66c0f3d227b0c731",
+      "break": "line 187: \"return wu, message.RFC7606ActionNone, nil\" -\u003e \"s.logRFC7606Error(\\\"attribute-discard\\\", 40, \\\"spurious\\\"); return wu, message.RFC7606ActionNone, nil\""
     },
     {
       "rid": "RFC8669-4-2",
@@ -352,8 +352,8 @@
       "claim-sha": "081b25265afeffcd",
       "route": "mutant",
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
-      "producer-sha": "e743de877e969826",
-      "break": "line 186: \"return wu, message.RFC7606ActionNone, nil\" -\u003e \"s.logRFC7606Error(\\\"attribute-discard\\\", 40, \\\"spurious\\\"); return wu, message.RFC7606ActionNone, nil\""
+      "producer-sha": "66c0f3d227b0c731",
+      "break": "line 187: \"return wu, message.RFC7606ActionNone, nil\" -\u003e \"s.logRFC7606Error(\\\"attribute-discard\\\", 40, \\\"spurious\\\"); return wu, message.RFC7606ActionNone, nil\""
     },
     {
       "rid": "RFC8669-4.1-15",
@@ -531,8 +531,8 @@
       "claim-sha": "3a14dc99c97c7251",
       "route": "mutant",
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
-      "producer-sha": "e743de877e969826",
-      "break": "line 186: \"return wu, message.RFC7606ActionNone, nil\" -\u003e \"s.logRFC7606Error(\\\"attribute-discard\\\", 40, \\\"spurious\\\"); return wu, message.RFC7606ActionNone, nil\""
+      "producer-sha": "66c0f3d227b0c731",
+      "break": "line 187: \"return wu, message.RFC7606ActionNone, nil\" -\u003e \"s.logRFC7606Error(\\\"attribute-discard\\\", 40, \\\"spurious\\\"); return wu, message.RFC7606ActionNone, nil\""
     },
     {
       "rid": "RFC8669-6-4",
