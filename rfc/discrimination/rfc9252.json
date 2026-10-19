@@ -415,7 +415,7 @@
       "rid": "RFC9252-3.4-1",
       "polarity": "negative",
       "unit": "test/plugin/prefixsid-malformed-receive.ci",
-      "unit-sha": "fb2cd66488b72cc7",
+      "unit-sha": "27b42fb9fcd7cef3",
       "claim-sha": "13b4c9a2a491f662",
       "route": "revert",
       "producer": "internal/component/bgp/message/rfc7606.go::validatePrefixSIDValue",
