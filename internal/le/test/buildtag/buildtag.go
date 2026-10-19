@@ -47,6 +47,21 @@ func (f TestFile) Needs(tag string) bool {
 	return !satisfiable(f.Constraint, tag, false, others)
 }
 
+// Names reports whether the file's constraint mentions tag anywhere, under any
+// operator, negation included. Needs answers which population selects a file;
+// Names answers which runners the file is tied to, so `!docker && integration`
+// and `docker || integration` both name docker though neither needs it. The tag
+// is matched as a whole word, as in Needs.
+func (f TestFile) Names(tag string) bool {
+	named := false
+	collectIdentifiers(f.Constraint, func(name string) {
+		if name == tag {
+			named = true
+		}
+	})
+	return named
+}
+
 // TestFiles answers every _test.go file under internal/ and cmd/ that carries
 // a //go:build constraint, skipping testdata and node_modules. A constraint
 // that does not parse, or names more than identifiersMax tags, is an error

@@ -875,7 +875,14 @@ instead of skipping it. A file needs a tag when its `//go:build` constraint
 holds with the tag set and cannot hold without it, whatever the other tags:
 `docker && linux` needs `docker`, while `!docker`, `integration && !docker` and
 `docker || integration` do not. The integration population is derived the same
-way, and only a file that needs both `docker` and `integration` is refused. `./le test integration live-rpki` runs the `live`-tagged
+way. `TestDockerTagNeverJoinsIntegration` refuses any test file whose
+constraint names both `docker` and `integration`, whatever the operators. A
+file needing both runs nowhere. `docker || integration` and
+`(docker && linux) || integration` need neither tag, so they join neither
+population: docker-peers never lists them, and nothing runs them with Docker.
+A negation still counts: `integration && !docker` ties the file to both
+runners, so it is refused too. Split such a file into a `docker` file and an
+`integration` file. `./le test integration live-rpki` runs the `live`-tagged
 RPKI tests through the same switch. Both run their `go test` child under the
 verb's signal root: a SIGINT or SIGTERM kills the child's whole process group,
 so `le` answers non-zero at once rather than waiting out the child's own
@@ -884,5 +891,6 @@ in `evidence-nightly.yml`, because no container in either runs Ze, so the Docker
 host kernel check does not apply.
 <!-- source: internal/le/test/integration/dockerpeers.go -- dockerPeersArgv, runRequiringDocker, requireDockerEnvironment, liveRPKIArgv -->
 <!-- source: internal/le/gaterun/gaterun.go -- StreamContext, RunContext -->
-<!-- source: internal/le/test/buildtag/buildtag.go -- TestFile.Needs, Packages -->
+<!-- source: internal/le/test/buildtag/buildtag.go -- TestFile.Needs, TestFile.Names, Packages -->
+<!-- source: internal/le/test/qemu/integration_coverage_test.go -- TestDockerTagNeverJoinsIntegration, dockerIntegrationOverlap -->
 <!-- source: internal/le/test/integration/gates.go -- Table, the docker-peers and live-rpki rows -->

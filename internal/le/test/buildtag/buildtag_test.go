@@ -1,6 +1,7 @@
 package buildtag
 
 import (
+	"go/build/constraint"
 	"os"
 	"path/filepath"
 	"slices"
@@ -44,6 +45,31 @@ func TestPackagesSelectOnlyFilesThatNeedTheTag(t *testing.T) {
 		}
 		if !slices.Equal(got, want) {
 			t.Errorf("Packages(%s) = %v, want %v", tag, got, want)
+		}
+	}
+}
+
+// VALIDATES: Names answers whether a constraint mentions a tag under any
+// operator, negation included, matching the whole word only.
+// METHOD: one parsed constraint per shape, asked for docker.
+// PREVENTS: the overlap guard missing a file that names docker by negation or
+// disjunction, or refusing one that names only `dockerish`.
+func TestNamesFindsTheTagUnderEveryOperator(t *testing.T) {
+	for expression, want := range map[string]bool{
+		"docker":                           true,
+		"!docker":                          true,
+		"integration && !docker":           true,
+		"(docker && linux) || integration": true,
+		"!(!docker)":                       true,
+		"integration":                      false,
+		"dockerish":                        false,
+	} {
+		parsed, err := constraint.Parse("//go:build " + expression)
+		if err != nil {
+			t.Fatalf("parse %q: %v", expression, err)
+		}
+		if got := (TestFile{Constraint: parsed}).Names("docker"); got != want {
+			t.Errorf("Names(docker) on %q = %v, want %v", expression, got, want)
 		}
 	}
 }
