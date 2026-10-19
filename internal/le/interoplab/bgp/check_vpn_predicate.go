@@ -49,7 +49,10 @@ func birdVPNNextHops(output, rd, prefix string) ([]netip.Addr, error) {
 		if !inRoute {
 			continue
 		}
-		if line == "" || (line[0] != ' ' && line[0] != '\t') {
+		if line == "" {
+			break
+		}
+		if line[0] != ' ' && line[0] != '\t' {
 			break
 		}
 		value, found := strings.CutPrefix(strings.TrimSpace(line), "BGP.next_hop:")

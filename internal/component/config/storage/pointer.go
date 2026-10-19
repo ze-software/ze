@@ -141,10 +141,11 @@ func StageSourceCandidate(store Storage, configPath string, stamp time.Time) (st
 	}
 	defer func() { err = releaseGuard(guard, err) }()
 
-	if _, ok, err := readPointerLocked(store, guard, configPath, pointerCandidate); err != nil || ok {
-		if err != nil {
-			return "", err
-		}
+	_, exists, err := readPointerLocked(store, guard, configPath, pointerCandidate)
+	if err != nil {
+		return "", err
+	}
+	if exists {
 		return "", ErrCandidateExists
 	}
 	data, err := readSourceLocked(store, guard, configPath)

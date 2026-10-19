@@ -249,8 +249,11 @@ func zeV6LeaseVerdict(output, address string) error {
 			continue
 		}
 		valid := indexOf(fields, "valid_lft")
-		if valid < 0 || valid+1 >= len(fields) {
+		if valid < 0 {
 			return errors.New("ze's " + address + " carries no valid_lft")
+		}
+		if valid+1 >= len(fields) {
+			return errors.New("ze's " + address + " carries valid_lft with no value after it")
 		}
 		seconds, err := strconv.Atoi(strings.TrimSuffix(fields[valid+1], "sec"))
 		if err != nil {
