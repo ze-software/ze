@@ -568,10 +568,10 @@
       "unit": "test/parse/iface-tunnel-invalid-gre-no-remote.ci",
       "unit-sha": "a13f27b6d5f46847",
       "claim-sha": "4ba659300c9ef01d",
-      "route": "revert",
-      "producer": "internal/component/config/yang/reference_path.go::schemaChild",
-      "producer-sha": "145461a84ae2b267",
-      "break": "body of schemaChild replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "route": "mutant",
+      "producer": "internal/component/config/yang/validator.go::walkTree",
+      "producer-sha": "617ed4e9d0378edb",
+      "break": "line 687: \"schemaChild(entry, key)\" -\u003e \"entry.Dir[key]\"",
       "citation": "expect=stdout:contains=mandatory field \"ip\" is missing"
     },
     {
