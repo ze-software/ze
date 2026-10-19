@@ -681,3 +681,21 @@ Gates owed (over five minutes, not run here): `./le go lint run scope
 "internal/le/interoplab/..."` in both the docker and live flavors, `./le test unit
 all`, and a `ZE_REQUIRE_DOCKER=1` run of `TestKilledLabRunIsCleanedByNextStart`,
 which reads the real pid namespace and boot time.
+
+## 2026-10-19: review findings on the docker verbs, buildtag, docker route, pinning
+
+| Finding | Commit | Red before, green after |
+|---------|--------|-------------------------|
+| ISSUE AC-8/AC-22: docker-peers and live-rpki ran `go test` on `context.Background` | `d83fb6a817` | `TestDockerChildStopsOnSignal`: back after 30 s, code 0, for SIGINT and SIGTERM; now the child's process group is killed (`gaterun.StreamContext`/`RunContext`), and `TestStreamContextKillsTheGroupOnCancel` proves the grandchild dies |
+| buildtag counted negated terms | `976d74655a` | `TestPackagesSelectOnlyFilesThatNeedTheTag` and the extended `TestDockerTagNeverJoinsIntegration` fixture: `!docker`, `integration && !docker` and `docker \|\| integration` were taken or refused; now `TestFile.Needs` evaluates the constraint with `go/build/constraint` |
+| AC-16 gate missed const chains, package vars, renamed packages | `e619f62e15` | `TestNoDockerExecOutsideInteroplab`: four new violators unreported; now resolved through name chains and package clauses, and a docker-holding package var is refused at its declaration |
+| Pinning, offline labtest | `7edc3e7e89` | `TestLabtestPullsAPinnedImageOnlyWhenAbsent`, `TestLabtestFailsWhenThePinnedInspectFails`; chrony and `debian:bookworm-slim` pinned by digest; `ZE_REQUIRE_DOCKER=1` docker-tag runs of `internal/plugins/ntp` (Chrony) and `internal/plugins/flowexport` pass |
+
+Unsettled: `docker || integration` now needs neither tag, so it joins neither
+population and the overlap test does not refuse it. Both builds compile it, the
+guest skips it, and docker-peers runs it only when another file brings its
+package in. The owner decides whether that shape is refused too.
+
+Gates owed (over five minutes, not run here): `./le go lint run` over
+`internal/le/gaterun`, `internal/le/test/...`, `internal/le/arch/tier` and
+`internal/le/interoplab/labtest`; `./le test unit all`.
