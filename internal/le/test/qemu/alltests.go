@@ -380,8 +380,9 @@ var integrationPackages = []string{
 var excludedIntegrationPackages = map[string]string{
 	"internal/plugins/as112": "runs as its own verb, `./le test integration as112`" +
 		" (internal/le/test/integration/gates.go), so naming it here would run it twice",
-	"internal/le/interoplab": "requires the host Docker daemon; run TestDockerBuildRetainsImageAcrossRetag" +
-		" through ./le job run as documented in docs/architecture/testing/interop.md",
+	"internal/le/interoplab": "TestDockerKernelCheckOnThisHost judges the host Docker daemon's kernel, which" +
+		" the guest cannot stand in for; run it through ./le job run as documented in" +
+		" docs/architecture/testing/interop.md",
 	"internal/le/test/deployment": "requires the host Docker daemon and privileged VPP containers;" +
 		" run TestVPPSRv6ServiceRoute through ./le job run as documented in docs/architecture/testing/interop.md",
 	"internal/le/test/qemu": "boots its own QEMU guest on the host (TestDockerLabGuestBootsZeKernel), so it" +

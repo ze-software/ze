@@ -723,14 +723,23 @@ Image cleanup errors appear in `cleanup-errors` and make the suite fail.
 One `./le test integration <action>` invocation returns that action's full report.
 Multiple action names return a combined summary.
 
-The image-retention regression requires the host Docker daemon, not the QEMU
-guest. Run it through native admission:
+The image-retention regression, `TestDockerBuildRetainsImageAcrossRetag`,
+carries the build tag `docker`, so `./le test integration docker-peers` runs it
+against the host Docker daemon with `ZE_REQUIRE_DOCKER=1`. Run it alone through
+native admission:
 
 ```bash
-CGO_ENABLED=0 ./le --name image-retention job run label image-retention command \
-  go test -tags integration -count=1 ./internal/le/interoplab \
+ZE_REQUIRE_DOCKER=1 CGO_ENABLED=0 ./le --name image-retention job run label image-retention command \
+  go test -tags docker -count=1 ./internal/le/interoplab \
   -run '^TestDockerBuildRetainsImageAcrossRetag$'
 ```
+<!-- source: internal/le/interoplab/image_retention_docker_test.go -- TestDockerBuildRetainsImageAcrossRetag -->
+<!-- source: internal/le/test/integration/dockerpeers.go -- dockerPeersArgv, requireDockerEnvironment -->
+
+`internal/le/interoplab` stays out of the QEMU guest population because of
+`TestDockerKernelCheckOnThisHost` alone: it judges the kernel of the daemon the
+host uses, which a guest cannot stand in for.
+<!-- source: internal/le/test/qemu/alltests.go -- excludedIntegrationPackages -->
 
 Daemons start conditionally: FRR if `frr.conf` exists, BIRD if `bird.conf` exists,
 GoBGP if `gobgp.toml` exists. This means each scenario only runs the daemons it needs.

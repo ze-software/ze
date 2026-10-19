@@ -1,4 +1,4 @@
-//go:build integration
+//go:build docker
 
 // Design: docs/architecture/testing/interop.md -- run-owned image retention.
 package interoplab
@@ -15,10 +15,19 @@ import (
 	"time"
 )
 
-// Replacing a shared tag must not change or remove an image that a run selected.
+// VALIDATES: AC-3 and AC-14: replacing a shared tag does not change or remove
+// an image that a run selected, and a failed suite setup releases the tag of
+// an earlier successful build. Method: two builds onto one cache tag, each run
+// through RunOneShot by its retained reference, against the real daemon.
+// PREVENTS: a retag or a release removing an image another run still uses.
+// Tagged docker so `./le test integration docker-peers` runs it with
+// ZE_REQUIRE_DOCKER=1, where an absent docker binary fails rather than skips.
 func TestDockerBuildRetainsImageAcrossRetag(t *testing.T) {
 	if _, err := exec.LookPath(DockerExecutable); err != nil {
-		t.Skip("Docker is required for the image-retention integration test")
+		if os.Getenv("ZE_REQUIRE_DOCKER") == "1" {
+			t.Fatalf("docker is not installed, and ZE_REQUIRE_DOCKER=1 says this run must exercise it. Fix: install Docker")
+		}
+		t.Skip("docker is not installed; install Docker to run this test")
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Minute)
 	defer cancel()
