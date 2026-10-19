@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-18",
+  "audited": "2026-10-19",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -106,19 +106,27 @@
       "verdict": "enforced"
     },
     "RFC4301-4.2-1": {
-      "note": "Re-judged: the OSPF unit TestIPsecESPRequiresIntegrity changed only by removing an RFC4303-1-1 negative comment; its assertions and both RFC4301-4.2-1 tags are unchanged, and its validateIPsecInterface revert records still replay. Re-judged pass 6. Both ESP instantiation paths now carry the MUST NOT. XFRM (xfrmStateFromParams, shared by IKE Child SAs and RFC 4552 OSPFv3 manual SAs): NULL + sha256 instantiated, NULL + ''/'none' refused with no state. ze_vpp (vppBackend.InstallSA): new negative TestRFC4301VPPESPNullEncryptionWithoutIntegrityIsRefused, control install of the well-formed SA sends 1 message, then NULL with '', 'none' and sha256 each returns ErrNotSupported and sends VPP nothing, and vppCryptoAlg('null') errors; the sha256 variant shows the refusal comes from the cipher mapping, not only from vppIntegAlg. No VPP positive exists or is owed: the row is a MUST NOT, and VPP refusing NULL encryption outright is compliant (the XFRM positive shows the boundary where NULL is allowed). OSPF config units (validateIPsecInterface) keep both polarities on the manual path; their revert records were observed red and written by this judge (they were the unproven covers). Revert records: xfrmStateFromParams +/-, vppCryptoAlg -, validateIPsecInterface +/-. Ran with -tags ze_vpp -race: green.",
+      "code": {
+        "internal/component/ike/crypto/proposal.go::espProposalComplete": "c5f29bdf757e8f55",
+        "internal/component/ike/dataplane/vpp.go::vppCryptoAlg": "89ce594ba0fd88d3",
+        "internal/component/ike/dataplane/vpp.go::vppIntegAlg": "7bc4c149a758e1a6",
+        "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "82c928a10be6b083",
+        "internal/component/ike/engine/responder.go::espProposalMatches": "def96176faad1cc5",
+        "internal/plugins/ospf/config_ipsec.go::validateIPsecInterface": "6e594509ae92d153"
+      },
+      "note": "Re-judged 2026-10-19 (independent auditor, after d64411a639 and 08bfef9ee7). Section 4.2: \"Note: A compliant implementation MUST NOT allow instantiation of an ESP SA that employs both NULL encryption and no integrity algorithm.\" d64411a639 makes NULL encryption reachable for IKE Child SAs, so every instantiation path was re-read for NULL + no integrity. Config: parseESPProposal requires a hash for every non-AEAD cipher and null is non-AEAD (TestIntegrityOnlyESPConfig, 'hash is required'). Negotiation: initiator NegotiateESP runs espProposalComplete, which now refuses ENCR_NULL beside AUTH_NONE (RFC 4303 Section 3.2 quoted above it; TestIntegrityOnlyESPRefusals asserts ErrProposalIncomplete); responder matchOfferedESP passes a non-zero integID for a non-AEAD local proposal and espProposalMatches requires the offer to contain it. XFRM: planStateAlgos gives non-AEAD ESP Crypt+Auth and xfrmAuthNames holds no '' or 'none', so TestRFC4301ESPNullEncryptionWithoutIntegrityIsRefused (refused, no state) and the NULL+sha256 positive stand. VPP: vppCryptoAlg now names null as CRYPTO_ALG_NONE, so the refusal moved to vppIntegAlg, whose default arm refuses '' and 'none' beside a non-AEAD cipher; the changed TestRFC4301VPPESPNullEncryptionWithoutIntegrityIsRefused keeps the control install (1 message) and asserts ErrNotSupported with zero VPP messages for '' and 'none'. Dropped from it: the null+sha256 refusal case and the vppCryptoAlg('null') error assertion, both of which asserted behaviour RFC 4303 Section 1 now requires to be absent; that is a correction, not a weakening (owner-approval debt row for 08bfef9ee7 is open). OSPF manual SAs unchanged (validateIPsecInterface both polarities). All units pass at HEAD with and without -tags ze_vpp. Finding, no verdict change: the new VPP negative record breaks vppIntegAlg with a panic, which would also redden the control install, so it shows the unit reaches vppIntegAlg rather than that the default arm is the refusal; a record making vppIntegAlg return INTEG_ALG_NONE for '' would discriminate the refusal itself.",
       "requirement_sha": "8977a7cc940a547b",
       "tests": {
         "internal/component/ike/dataplane/rfc4301_esp_null_linux_test.go::TestRFC4301ESPNullEncryptionWithIntegrityIsInstantiated": "4fb15cdf24d02bbb",
         "internal/component/ike/dataplane/rfc4301_esp_null_linux_test.go::TestRFC4301ESPNullEncryptionWithoutIntegrityIsRefused": "4fb15cdf24d02bbb",
-        "internal/component/ike/dataplane/rfc4301_esp_null_vpp_test.go::TestRFC4301VPPESPNullEncryptionWithoutIntegrityIsRefused": "431666bd66ee7755",
+        "internal/component/ike/dataplane/rfc4301_esp_null_vpp_test.go::TestRFC4301VPPESPNullEncryptionWithoutIntegrityIsRefused": "6f3708836e4ccb4a",
         "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "5c20e3c0dfa0036c",
         "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "5c20e3c0dfa0036c"
       },
       "units": {
         "internal/component/ike/dataplane/rfc4301_esp_null_linux_test.go::TestRFC4301ESPNullEncryptionWithIntegrityIsInstantiated": "5e6ac90d3d27e727",
         "internal/component/ike/dataplane/rfc4301_esp_null_linux_test.go::TestRFC4301ESPNullEncryptionWithoutIntegrityIsRefused": "fa5c495d3391c42a",
-        "internal/component/ike/dataplane/rfc4301_esp_null_vpp_test.go::TestRFC4301VPPESPNullEncryptionWithoutIntegrityIsRefused": "829860c392fcdeeb",
+        "internal/component/ike/dataplane/rfc4301_esp_null_vpp_test.go::TestRFC4301VPPESPNullEncryptionWithoutIntegrityIsRefused": "ee3f85730ff0944d",
         "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "86bbfd0cbbcea447",
         "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "86bbfd0cbbcea447"
       },
