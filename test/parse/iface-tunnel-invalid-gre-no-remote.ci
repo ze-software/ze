@@ -1,0 +1,33 @@
+# RFC 7950 Section 7.6.5: "Otherwise, if this ancestor is a case node, the leaf
+# MUST exist if any node from the case exists in the data tree."
+#
+# remote/ip is mandatory in the tunnel-v4-endpoints grouping, and the closest
+# ancestor of that leaf that is not a non-presence container is the gre case of
+# the encapsulation kind choice (remote and gre are both non-presence
+# containers). Writing `gre { ... }` makes the case exist, so remote ip is owed.
+# Before the validator walked through choice and case entries, a gre tunnel with
+# no remote endpoint passed `ze config validate`.
+#
+# VALIDATES: a gre tunnel with a local endpoint and no remote ip is refused, and
+#            the refusal names the missing leaf, the rule, and the set command.
+# PREVENTS: a tunnel with no remote endpoint reaching the backend, which builds
+#           no unnumbered and no multipoint tunnel.
+#
+# RFC requirement: RFC7950-7.6.5-2 negative -- a gre case with local ip set and remote ip absent is refused by ze config validate, naming interface/tunnel[gre0]/encapsulation/gre/remote/ip as missing and the set command that adds it.
+stdin=config:terminator=EOF_CONF
+interface {
+	tunnel gre0 {
+		encapsulation {
+			gre {
+				local { ip 192.0.2.1; }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=interface/tunnel[gre0]/encapsulation/gre/remote/ip
+expect=stdout:contains=mandatory field "ip" is missing
+expect=stdout:contains=set interface tunnel gre0 encapsulation gre remote ip <value>
