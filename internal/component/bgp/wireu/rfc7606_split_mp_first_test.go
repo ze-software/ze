@@ -17,6 +17,8 @@ import (
 // of the base attributes, and a withdrawal-only body carries no base attribute.
 // PREVENTS: the base attributes being copied ahead of the MP attribute, the
 // order this builder used before the three builders were aligned.
+//
+// RFC requirement: RFC7606-5.1-1 positive -- buildUpdatePayload, which assembles every UPDATE body SplitWireUpdate emits, writes MP_REACH_NLRI as the first path attribute ahead of the ORIGIN and AS_PATH base attributes, and writes a withdrawal-only body with MP_UNREACH_NLRI as its only path attribute.
 func TestBuildUpdatePayloadMPAttributeFirst(t *testing.T) {
 	base := []byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x02, 0x00}                                        // ORIGIN, AS_PATH
 	mpReach := []byte{0x80, 0x0e, 0x0a, 0x00, 0x02, 0x01, 0x00, 0x00, 0x20, 0x20, 0x01, 0x0d, 0xb8} // no next hop, 2001:db8::/32

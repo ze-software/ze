@@ -224,17 +224,6 @@
     {
       "rid": "RFC7606-5.1-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/relay_payload_test.go::TestRelayPayloadLeadsWithMPReach",
-      "unit-sha": "7e5453a7d178c2f3",
-      "claim-sha": "ae2cb6a46802e758",
-      "route": "mutant",
-      "producer": "internal/component/bgp/reactor/relay_payload.go::writeRelayPayload",
-      "producer-sha": "d86b24bd0dafec33",
-      "break": "line 273: \"!legacyIPv4\" -\u003e \"false\""
-    },
-    {
-      "rid": "RFC7606-5.1-1",
-      "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go::TestEgressOverrideMovesTrailingMPAttributeFirst",
       "unit-sha": "f50a0f70ef5f6885",
       "claim-sha": "f510fe135b960034",
@@ -286,6 +275,28 @@
       "producer": "internal/component/bgp/reactor/forward_build.go::run",
       "producer-sha": "b6907c502b7a642a",
       "break": "line 761: \"isMPAttrCode(baseCode)\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC7606-5.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7606_relay_payload_test.go::TestRelayPayloadLeadsWithMPReach",
+      "unit-sha": "7e5453a7d178c2f3",
+      "claim-sha": "ae2cb6a46802e758",
+      "route": "mutant",
+      "producer": "internal/component/bgp/reactor/relay_payload.go::writeRelayPayload",
+      "producer-sha": "d86b24bd0dafec33",
+      "break": "line 273: \"!legacyIPv4\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC7606-5.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/wireu/rfc7606_split_mp_first_test.go::TestBuildUpdatePayloadMPAttributeFirst",
+      "unit-sha": "032d774fa1d6be9d",
+      "claim-sha": "0ebe06d4a9765173",
+      "route": "mutant",
+      "producer": "internal/component/bgp/wireu/split.go::buildUpdatePayload",
+      "producer-sha": "53c397652bea949d",
+      "break": "line 495: \"pos += len(mpReach)\" -\u003e \"pos += 0\""
     },
     {
       "rid": "RFC7606-5.1-2",

@@ -408,7 +408,7 @@
       "tests": {
         "internal/component/bgp/message/rfc4271_update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "68f36ef303cb020d",
         "internal/component/bgp/message/rfc7606_mp_first_test.go::TestRFC7606Section51MPAttributeEncodedFirst": "641195b832137ca3",
-        "internal/component/bgp/reactor/relay_payload_test.go::TestRelayPayloadLeadsWithMPReach": "d921ad9273a9cb41",
+        "internal/component/bgp/reactor/rfc7606_relay_payload_test.go::TestRelayPayloadLeadsWithMPReach": "d921ad9273a9cb41",
         "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardLeadingMPAttributeKeepsZeroCopy": "2c145c5e124e09e4",
         "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardMovesTrailingMPAttributeFirstAcrossContexts": "2c145c5e124e09e4",
         "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardMovesTrailingMPAttributeFirstSameContext": "2c145c5e124e09e4",
@@ -417,7 +417,7 @@
       "units": {
         "internal/component/bgp/message/rfc4271_update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "21b5826b2f0c1034",
         "internal/component/bgp/message/rfc7606_mp_first_test.go::TestRFC7606Section51MPAttributeEncodedFirst": "7cd99f49b50572de",
-        "internal/component/bgp/reactor/relay_payload_test.go::TestRelayPayloadLeadsWithMPReach": "9b5a0d904ed0842d",
+        "internal/component/bgp/reactor/rfc7606_relay_payload_test.go::TestRelayPayloadLeadsWithMPReach": "9b5a0d904ed0842d",
         "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardLeadingMPAttributeKeepsZeroCopy": "cc18b2b114ac31c3",
         "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardMovesTrailingMPAttributeFirstAcrossContexts": "075d5ceba9f0a19f",
         "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardMovesTrailingMPAttributeFirstSameContext": "7bb327d8f5cfc664",
