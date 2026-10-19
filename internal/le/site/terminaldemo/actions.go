@@ -245,10 +245,26 @@ func runRendererIn(ctx context.Context, mode string, releaseRequired bool) (any,
 	return report, code
 }
 
+// imageBuildEngine answers the engine image-build runs under ctx. It is the
+// one seam a test replaces, with an engine over a fixture Docker, so the test
+// drives runImageBuild itself and not a copy of its rooting.
+var imageBuildEngine = func(ctx context.Context) (*Engine, error) {
+	engine, _, err := renderEngine(ctx, false)
+	return engine, err
+}
+
 // runImageBuild builds the renderer container image. It needs no release,
 // because the image carries the renderer's pinned versions and not Ze's.
+//
+// It is signal rooted like every other renderer action: the docker build runs
+// under the root context, so a SIGINT or SIGTERM to le alone stops the build
+// rather than leaving it running after le exits.
 func runImageBuild() (any, int) {
-	engine, _, err := renderEngine(context.Background(), false)
+	return signalRooted(runImageBuildIn)
+}
+
+func runImageBuildIn(ctx context.Context) (any, int) {
+	engine, err := imageBuildEngine(ctx)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1

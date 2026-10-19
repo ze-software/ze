@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"os/signal"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 // VALIDATES: AC-8 for the terminal-demo render: SIGINT or SIGTERM delivered
@@ -47,5 +50,66 @@ func TestDemoContainerRunsUnderTheEngineContext(t *testing.T) {
 	}
 	if fixture.canceledRuns == 0 {
 		t.Error("no demo container saw the canceled root context")
+	}
+}
+
+// VALIDATES: G-2 for image-build: SIGINT or SIGTERM delivered to le while the
+// renderer image builds cancels the context the docker build runs under.
+// METHOD: the fixture answers `docker build` by signaling this process and
+// waiting on the build's context. The test holds its own subscription to both
+// signals, so a build that no signal root reaches leaves the process alive and
+// answers "built" after the wait instead of the default action killing the
+// test binary.
+// PREVENTS: image-build rooted on context.Background, where a SIGTERM to le
+// alone (no terminal Ctrl-C reaching the docker client) leaves the build
+// running.
+func TestImageBuildCancelsOnSignal(t *testing.T) {
+	held := make(chan os.Signal, 2)
+	signal.Notify(held, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(held)
+
+	fixture := newDemoFixture(t)
+	saved := imageBuildEngine
+	t.Cleanup(func() { imageBuildEngine = saved })
+	for _, delivered := range []syscall.Signal{syscall.SIGINT, syscall.SIGTERM} {
+		build := &signalingBuild{t: t, signal: delivered}
+		imageBuildEngine = func(ctx context.Context) (*Engine, error) {
+			engine := fixture.engine(&bytes.Buffer{})
+			engine.ctx = ctx
+			engine.docker = interoplab.NewFixtureDocker(build)
+			return engine, nil
+		}
+		_, code := runImageBuild()
+		if !build.canceled {
+			t.Errorf("%v: the docker build ran to the end, want its context canceled", delivered)
+		}
+		if code != 1 {
+			t.Errorf("%v: image-build exited %d, want 1 for an interrupted build", delivered, code)
+		}
+	}
+}
+
+// signalingBuild is a Docker process boundary whose `docker build` signals
+// this process and waits on its context; every other command succeeds.
+type signalingBuild struct {
+	t        *testing.T
+	signal   syscall.Signal
+	canceled bool
+}
+
+func (b *signalingBuild) Run(ctx context.Context, command interoplab.ProcessCommand) (interoplab.ProcessResult, error) {
+	if len(command.Arguments) < 2 || command.Arguments[1] != "build" {
+		return interoplab.ProcessResult{}, nil
+	}
+	if err := syscall.Kill(os.Getpid(), b.signal); err != nil {
+		b.t.Errorf("signal self: %v", err)
+		return interoplab.ProcessResult{}, err
+	}
+	select {
+	case <-ctx.Done():
+		b.canceled = true
+		return interoplab.ProcessResult{}, ctx.Err()
+	case <-time.After(5 * time.Second):
+		return interoplab.ProcessResult{Stdout: "sha256:fixture-renderer\n"}, nil
 	}
 }
