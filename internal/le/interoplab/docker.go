@@ -92,6 +92,12 @@ type Docker struct {
 	// process's with the Colima socket selected (dockerhost.Inherited), so a
 	// macOS host reaches the same daemon `docker` on its PATH would.
 	environ []string
+	// unsettled names the containers whose `docker run` this client issued
+	// and that failed or was canceled (D-e, 2026-10-19). The daemon finishes
+	// a create it accepted even after the client is gone, so RemoveContainer
+	// does not take one early "No such container" answer for such a name as
+	// proof that nothing is left.
+	unsettled unsettledNames
 }
 
 // ImageBuild identifies one image that a suite builds before it starts scenarios.
@@ -481,8 +487,10 @@ func (d *Docker) RunOneShot(ctx context.Context, spec OneShotContainer) (Command
 	})
 	if err != nil {
 		// The bound or the caller's context ended the docker client, which
-		// leaves the container running its command. Remove it by name, on a
-		// context the cancellation does not reach, and report both.
+		// leaves the container running its command, or still being created.
+		// Remove it by name, on a context the cancellation does not reach, and
+		// report both.
+		d.unsettled.mark(name)
 		removeErr := d.RemoveContainer(context.WithoutCancel(ctx), name)
 		return CommandResult(result), errors.Join(d.oneShotError(argv, spec.Timeout, result, err), removeErr)
 	}
@@ -668,7 +676,9 @@ func (d *Docker) runContainer(ctx context.Context, network Network, peer PeerCon
 	if err == nil {
 		return nil
 	}
-	return &issuedRunError{err: d.runContainerFailure(peer, confined, err)}
+	issued := &issuedRunError{err: d.runContainerFailure(peer, confined, err)}
+	d.markUnsettled(peer.Container, issued)
+	return issued
 }
 
 // runContainerFailure names a failed `docker run` of peer: under a Ze
@@ -826,22 +836,38 @@ func containerNameTaken(err error) bool {
 
 // RemoveContainer force-removes one peer. Docker's name-specific
 // absent-container answer is an empty pre-clean state, and any other failure
-// is settled by confirmRemoval.
+// is settled by confirmRemoval. After a start of name that failed or was
+// canceled, one absent answer is not enough: removeSettlingContainer looks
+// again over createSettleWindow (startsettle.go).
 func (d *Docker) RemoveContainer(ctx context.Context, name string) error {
+	absent, err := d.forceRemoveContainer(ctx, name)
+	if !absent {
+		return err
+	}
+	if !d.unsettled.take(name) {
+		return nil
+	}
+	return d.removeSettlingContainer(ctx, name)
+}
+
+// forceRemoveContainer runs one `docker rm -f name`. It answers true when
+// docker says no container holds the name, and otherwise false with the
+// removal's outcome as confirmRemoval settles it.
+func (d *Docker) forceRemoveContainer(ctx context.Context, name string) (bool, error) {
 	_, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, "rm", "-f", name)
 	if err == nil {
-		return nil
+		return false, nil
 	}
 	if commandErr, ok := errors.AsType[*commandError](err); ok {
 		var tb textbuf.Buffer
 		absent := tb.Str("No such container: ").Str(name).String()
 		for line := range strings.SplitSeq(commandErr.Stderr, "\n") {
 			if strings.HasSuffix(strings.TrimSpace(line), absent) {
-				return nil
+				return true, nil
 			}
 		}
 	}
-	return d.confirmRemoval(ctx, resourceContainer, name, err)
+	return false, d.confirmRemoval(ctx, resourceContainer, name, err)
 }
 
 // confirmRemoval settles a removal call that failed by observing the resource

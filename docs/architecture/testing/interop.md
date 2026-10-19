@@ -471,6 +471,21 @@ error, then a removal that failed with the command that finishes it, and it
 exits 1.
 <!-- source: internal/le/interoplab/container.go -- Docker.RunDetached, Docker.ExecAttached -->
 <!-- source: internal/le/test/deployment/deployment.go -- startProofContainer, removeContainer -->
+
+Killing the docker client does not cancel a create the daemon already
+accepted, so after a Ctrl-C during `docker run` the container can appear after
+the first `docker rm -f` answered that no container has that name. When a
+start failed or was canceled, `Docker.RemoveContainer` does not accept that
+first answer. It runs `docker rm -f` again every `createSettleInterval` until
+`createSettleWindow` ends, and removes the container if it appears. If the
+container appears and cannot be removed, or the wait is stopped, the error
+names the container and `./le test integration cleanup`. This applies to every
+start that marks its name: `Docker.RunDetached` (the deployment proofs, the
+benchmark), a lab peer's run, and a one-shot container. A create that lands
+after the window still carries the owner labels, so the cleanup removes it.
+Removing a container whose start succeeded takes one `docker rm -f`.
+<!-- source: internal/le/interoplab/startsettle.go -- createSettleWindow, Docker.removeSettlingContainer, Docker.markUnsettled -->
+<!-- source: internal/le/interoplab/docker.go -- Docker.RemoveContainer, Docker.RunOneShot, Docker.runContainer -->
 <!-- source: internal/le/test/deployment/actions.go -- notReached, proofNotReached -->
 
 A docker command le stopped is named for what stopped it. One whose own bound

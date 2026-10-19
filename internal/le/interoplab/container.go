@@ -78,7 +78,9 @@ func (d *Docker) RunDetached(ctx context.Context, spec DetachedContainer) error 
 		return err
 	}
 	if _, err = d.command(ctx, dockerRunTimeout, argv...); err != nil {
-		return &issuedRunError{err: err}
+		issued := &issuedRunError{err: err}
+		d.markUnsettled(spec.Name, issued)
+		return issued
 	}
 	return nil
 }
