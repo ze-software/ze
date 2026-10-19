@@ -546,40 +546,34 @@ func writeAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, linkLoca
 		off += writeCommunitiesAttr(buf, off, communities)
 	}
 
-	// 7. LARGE_COMMUNITY - RFC 8092: Optional transitive attribute.
-	// Type conversion only, no allocation.
-	if len(largeCommunities) > 0 {
-		lcomms := attribute.LargeCommunities(largeCommunities)
-		off += attribute.WriteAttrTo(lcomms, buf, off)
-	}
-
-	// 8. EXTENDED_COMMUNITIES - RFC 4360: Optional transitive attribute.
+	// 7. EXTENDED_COMMUNITIES (16) - RFC 4360: Optional transitive attribute.
 	// Type conversion only, no allocation.
 	if len(extCommunities) > 0 {
 		extComms := attribute.ExtendedCommunities(extCommunities)
 		off += attribute.WriteAttrTo(extComms, buf, off)
 	}
 
-	if isIPv6 {
-		// AS4_PATH (17) last, after every lower-numbered attribute, when the
-		// two-octet AS_PATH above had to carry AS_TRANS toward an OLD peer.
-		off += writeAS4PathForASNs(buf, off, asn4, asPathASNs)
+	// 8. AS4_PATH (17), when the two-octet AS_PATH above had to carry AS_TRANS
+	// toward an OLD peer.
+	off += writeAS4PathForASNs(buf, off, asn4, asPathASNs)
 
-		// Backfill attr length (no inline NLRI for IPv6)
-		attrLen := off - attrStart
-		buf[attrLenPos] = byte(attrLen >> 8)
-		buf[attrLenPos+1] = byte(attrLen)
-	} else {
-		// AS4_PATH (17) last, after every lower-numbered attribute, when the
-		// two-octet AS_PATH above had to carry AS_TRANS toward an OLD peer.
-		off += writeAS4PathForASNs(buf, off, asn4, asPathASNs)
+	// 9. LARGE_COMMUNITY (32) - RFC 8092: Optional transitive attribute.
+	// RFC 4271 Section 5: "The sender of an UPDATE message SHOULD order path
+	// attributes within the UPDATE message in ascending order of attribute
+	// type." Code 32 therefore follows EXTENDED_COMMUNITIES (16) and AS4_PATH
+	// (17). Type conversion only, no allocation.
+	if len(largeCommunities) > 0 {
+		lcomms := attribute.LargeCommunities(largeCommunities)
+		off += attribute.WriteAttrTo(lcomms, buf, off)
+	}
 
-		// IPv4: Write NLRI directly after attributes (zero-alloc)
-		// Backfill attr length first
-		attrLen := off - attrStart
-		buf[attrLenPos] = byte(attrLen >> 8)
-		buf[attrLenPos+1] = byte(attrLen)
+	// Backfill the attribute length. An IPv6 route carries its NLRI inside
+	// MP_REACH_NLRI; an IPv4 route's NLRI follows the attribute block.
+	attrLen := off - attrStart
+	buf[attrLenPos] = byte(attrLen >> 8)
+	buf[attrLenPos+1] = byte(attrLen)
 
+	if !isIPv6 {
 		// RFC 7911: WriteNLRI handles ADD-PATH encoding
 		inet := nlri.NewINET(family.IPv4Unicast, route.Prefix, 0)
 		off += nlri.WriteNLRI(inet, buf, off, addPath)
