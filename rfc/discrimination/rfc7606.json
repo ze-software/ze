@@ -234,6 +234,17 @@
     },
     {
       "rid": "RFC7606-5.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go::TestEgressOverrideMovesTrailingMPAttributeFirst",
+      "unit-sha": "f50a0f70ef5f6885",
+      "claim-sha": "f510fe135b960034",
+      "route": "mutant",
+      "producer": "internal/component/bgp/reactor/session_write.go::writeOrdinaryUpdateBody",
+      "producer-sha": "ec218faa245a51f9",
+      "break": "line 562: \"message.MPAttributesTrail(update.PathAttributes)\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC7606-5.1-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardLeadingMPAttributeKeepsZeroCopy",
       "unit-sha": "60b15d2aefa9ff84",
@@ -308,6 +319,17 @@
       "producer": "internal/component/bgp/message/update_split.go::SplitCompliant",
       "producer-sha": "b7a3a7d53d70d461",
       "break": "body of SplitCompliant replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-5.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go::TestEgressOverrideSplitsMixedShape",
+      "unit-sha": "de1509ea74a0c7f7",
+      "claim-sha": "f9d68fb9b05fa013",
+      "route": "mutant",
+      "producer": "internal/component/bgp/reactor/session_write.go::writeOrdinaryUpdateBody",
+      "producer-sha": "ec218faa245a51f9",
+      "break": "line 604: \"mixed\" -\u003e \"false\""
     },
     {
       "rid": "RFC7606-5.1-2",

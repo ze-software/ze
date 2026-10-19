@@ -429,6 +429,11 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 	// so every question about what goes on the wire is asked AFTER that.
 	body := s.writeBuf.Buffer()[message.HeaderLen:n]
 
+	// overridden marks a body an export filter replaced. Ze composes the UPDATEs
+	// it originates in RFC 7606 Section 5.1 shape, but a raw policy override is
+	// whatever the filter returned, so only it owes the shape checks below.
+	overridden := false
+
 	// Egress gate: originated and injected routes, and the bgp-rs `update text`
 	// re-advertisement, honor the peer's export filter chain here. Forwarded routes
 	// are filtered in forwardUpdateCore and written pre-filtered, and so is the
@@ -442,6 +447,7 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 		}
 		if override != nil {
 			body = override
+			overridden = true
 		}
 	}
 
@@ -503,7 +509,7 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 	if gate {
 		// writeMu MUST remain held through final sizing and ownership admission.
 		// RFC 4271 Section 4.3; RFC 8654 Section 4; RFC 7311 Section 3.3.
-		return s.writeOrdinaryUpdateBody(body, stripAIGP)
+		return s.writeOrdinaryUpdateBody(body, stripAIGP, overridden)
 	}
 	if stripAIGP {
 		_, err := s.writeUpdateWithoutAIGP(body, false)
@@ -518,6 +524,12 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 // Split callbacks MUST consume their borrowed chunk before returning; they
 // bypass policy but retain the final writer's ownership and admission.
 //
+// overridden MUST be true when an export filter replaced the body. Ze composes
+// its own UPDATEs MP-first with one NLRI-bearing field, so an unreplaced body
+// skips the RFC 7606 Section 5.1 shape walk; a replaced one is whatever the
+// filter returned, and gets the order and the split the forward path gives a
+// relayed UPDATE (reactor/forward_body.go buildFwdBody).
+//
 // RFC 8654 Section 4: "Applications generating information that might be
 // encapsulated within BGP messages MUST limit the size of their payload to
 // take the maximum message size into account."
@@ -526,13 +538,12 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 //
 //	[0:16] Marker | [16:18] Length | [18] Type | [19:21] Withdrawn length
 //	[21:] Withdrawn | Attribute length(2) | Attributes | NLRI
-func (s *Session) writeOrdinaryUpdateBody(body []byte, stripAIGP bool) error {
+func (s *Session) writeOrdinaryUpdateBody(body []byte, stripAIGP, overridden bool) error {
 	maxSize := len(s.writeBuf.Buffer())
-	if !stripAIGP {
-		if len(body)+message.HeaderLen <= maxSize {
-			// RFC 4271 Section 4.3: retain the unchanged body without a copy.
-			return s.writeRawUpdateBody(body)
-		}
+	fits := len(body)+message.HeaderLen <= maxSize
+	if !stripAIGP && !overridden && fits {
+		// RFC 4271 Section 4.3: retain the unchanged body without a copy.
+		return s.writeRawUpdateBody(body)
 	}
 
 	// RFC 4271 Section 4.3.
@@ -544,6 +555,23 @@ func (s *Session) writeOrdinaryUpdateBody(body []byte, stripAIGP bool) error {
 		WithdrawnRoutes: sections.Withdrawn(body),
 		PathAttributes:  sections.Attrs(body),
 		NLRI:            sections.NLRI(body),
+	}
+	mixed := false
+	if overridden {
+		mixed = update.MixesNLRIFields()
+		if message.MPAttributesTrail(update.PathAttributes) {
+			// RFC 7606 Section 5.1: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute
+			// (if present) SHALL be encoded as the very first path attribute in an
+			// UPDATE message." Only the uint16-bounded attribute section moves.
+			handle := getReadBuf(len(update.PathAttributes) > message.MaxMsgLen)
+			defer s.returnReadBuffer(handle)
+			ordered := handle.Buf[:len(update.PathAttributes)]
+			message.WriteMPAttributesFirst(ordered, update.PathAttributes)
+			update.PathAttributes = ordered
+		} else if !stripAIGP && !mixed && fits {
+			// RFC 4271 Section 4.3: a compliant override is written as returned.
+			return s.writeRawUpdateBody(body)
+		}
 	}
 	if stripAIGP {
 		// Only the uint16-bounded attribute section needs scratch. The logical
@@ -560,7 +588,7 @@ func (s *Session) writeOrdinaryUpdateBody(body []byte, stripAIGP bool) error {
 	emitted := false
 	// RFC 4271 Section 4.3; RFC 8654 Section 4; RFC 7911 Sections 3 and 5:
 	// every final section uses its own family's negotiated send framing.
-	err = splitter.Split(&update, maxSize, bgpctx.Registry.Get(s.sendCtxID).AddPath, func(chunk *message.Update) error {
+	emit := func(chunk *message.Update) error {
 		emitted = true
 		// An indivisible attribute-only chunk can survive the splitter. Refuse
 		// it explicitly instead of letting WriteTo truncate into the buffer.
@@ -571,7 +599,18 @@ func (s *Session) writeOrdinaryUpdateBody(body []byte, stripAIGP bool) error {
 		}
 		// RFC 4271 Section 4.3: each final chunk owns its normal writer receipt.
 		return s.writeRawUpdateBody(s.writeBuf.Buffer()[message.HeaderLen:n])
-	})
+	}
+	addPath := bgpctx.Registry.Get(s.sendCtxID).AddPath
+	if mixed {
+		// RFC 7606 Section 5.1: "An UPDATE message MUST NOT contain more than one
+		// of the following: non-empty Withdrawn Routes field, non-empty Network
+		// Layer Reachability Information field, MP_REACH_NLRI attribute, and
+		// MP_UNREACH_NLRI attribute." SplitCompliant also breaks up a mixed
+		// override that fits; Split would emit it whole.
+		err = splitter.SplitCompliant(&update, maxSize, addPath, emit)
+	} else {
+		err = splitter.Split(&update, maxSize, addPath, emit)
+	}
 	if err == nil && !emitted {
 		// An oversized attribute-only UPDATE cannot become silent suppression.
 		err = message.ErrAttributesTooLarge

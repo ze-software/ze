@@ -84,6 +84,7 @@ them or reaches the same order:
 | A split (`SplitWireUpdate`, `Splitter.SplitCompliant`) | Each chunk is written MP first, as for a composed UPDATE |
 | A per-destination rebuild (`buildModifiedPayload`) | `attrEmitter.emitMP` writes every MP attribute, sourced or added, ahead of the rest |
 | A stored route replayed (`writeRelayPayload`) | The synthesized MP_REACH_NLRI is written first |
+| An originated UPDATE an export filter replaced (`writeOrdinaryUpdateBody`) | The override's attribute section is copied into a read-pool buffer with the MP attribute first. An originated UPDATE no filter replaced is composed MP first and is not walked |
 
 The check costs nothing per destination peer. `wireu.WireUpdate.MPAttributesTrail`
 shares the cached shape verdict `MixesNLRIFields` computes once per received
@@ -95,6 +96,7 @@ bool read and keeps the zero-copy forward with no allocation.
 <!-- source: internal/component/bgp/reactor/forward_body.go -- buildFwdBody, fwdReorderMPFirst, fwdMPFirstUpdate -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- attrEmitter.emitMP -->
 <!-- source: internal/component/bgp/reactor/relay_payload.go -- writeRelayPayload -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeOrdinaryUpdateBody -->
 <!-- source: internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go -- TestForwardMovesTrailingMPAttributeFirstSameContext, TestForwardLeadingMPAttributeKeepsZeroCopy -->
 
 ## RFC Compliance Analysis
@@ -136,6 +138,7 @@ where ze puts an UPDATE on the wire, not only where it builds one:
 | Point | Enforcement |
 |-------|-------------|
 | Origination | Compliant by construction: announcements set NLRI without Withdrawn Routes, withdrawals are withdraw-only |
+| Origination, after an export filter replaced the body | `writeOrdinaryUpdateBody` splits the override with `Splitter.SplitCompliant`, because the override is whatever the filter returned |
 | Re-chunking an oversized UPDATE | `buildCombinedUpdates` and `Splitter.splitUpdateWithMP` drain each component into its own message |
 | Relay, same context | `buildFwdBody` splits when the shape mixes, as well as when the size overflows |
 | Relay, re-encoded for the destination | Same, via `Splitter.SplitCompliant` |
