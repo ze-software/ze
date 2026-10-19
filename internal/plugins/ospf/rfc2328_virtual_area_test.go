@@ -34,6 +34,10 @@ func rfc2328VirtualAreaEngine(t *testing.T) (*engine, *fakeBackend) {
 			"eth1":{"area":"0.0.0.0","network-type":"point-to-point"},
 			"eth2":{"area":"0.0.0.2","network-type":"point-to-point"}}}}}`
 	eng, fb := vlEngine(t, j)
+	// The test supplies the transit SPF result. The engine's own SPF run, triggered by
+	// configuration, would resolve the neighbor as unreachable (the LSDB is empty) and tear the
+	// link down once its delay expires, so it is stopped before the result is injected.
+	eng.spf.Stop()
 	eng.onVirtualLinksResolved([]ospfspf.VirtualNeighborResult{{
 		TransitArea: vlArea(t, "0.0.0.1"), Neighbor: vlRID(t, "10.0.0.2"), Reachable: true, Cost: 10,
 		Address:  netip.MustParseAddr("192.0.2.2"),
