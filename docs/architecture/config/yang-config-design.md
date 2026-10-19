@@ -599,11 +599,20 @@ holds is type-checked like any other. `requireMandatoryChildren` checks each
 case that has a node present (`requireMandatoryInPresentCases`) and skips the
 others. A gre tunnel with no `remote ip` is refused with the path
 `interface/tunnel[<name>]/encapsulation/gre/remote/ip` and the `set` command
-that adds it. Defaults are not case-aware yet: `flattenChoiceCases` drops the
-case node, so `ApplyDefaults` fills every case's defaults (RFC 7950 Section
-7.6.1, a recorded gap).
+that adds it. Defaults follow the same case. `flattenChoiceCases` yields the
+data nodes of each case under the node that holds the choice, and the
+container or list records the goyang entry of each one, whose parent chain
+still names its case and choice. `ApplyDefaults` fills the default of such a
+leaf, or creates such a non-presence container, only while
+`yang.CaseInEffect` answers that its case is in effect: the case holds data
+and no other case does, or no case holds data and it is the choice's default
+case (RFC 7950 Sections 7.6.1 and 7.9.3). A presence container or a list that
+a case holds is filled only when it already exists, so the case does not
+decide for it. The reference walk asks the same predicate.
 
 <!-- source: internal/component/config/yang/validator_mandatory.go -- requireMandatoryChildren, requireMandatoryInPresentCases -->
+<!-- source: internal/component/config/schema_defaults.go -- ApplyDefaults, choiceMembers -->
+<!-- source: internal/component/config/yang/validator_default.go -- CaseInEffect -->
 <!-- source: internal/component/config/yang/reference_path.go -- schemaChild -->
 <!-- source: internal/component/config/yang/validator.go -- walkTree -->
 

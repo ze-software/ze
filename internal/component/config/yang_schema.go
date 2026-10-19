@@ -47,9 +47,12 @@ type namedChild struct {
 // yang_schema.go walker only handles LeafEntry and DirectoryEntry, so without
 // this helper any choice subtree would be silently dropped from the schema.
 //
-// The case wrapper layer is bypassed entirely: the inner data node's name
-// is used directly, matching the YANG source. Recursion handles nested
-// choices (e.g. a `choice local` inside a per-encap case container).
+// The case wrapper layer is bypassed in the data names: the inner data
+// node's name is used directly, matching the YANG source. The case is not
+// lost: the entry keeps its parent chain through the case and the choice,
+// and the container records it (choiceMembers.record) so ApplyDefaults can
+// tell which case is in effect. Recursion handles nested choices (e.g. a
+// `choice local` inside a per-encap case container).
 func flattenChildren(entry *gyang.Entry) []namedChild {
 	out := make([]namedChild, 0, len(entry.Dir))
 	for _, name := range sortedKeys(entry.Dir) {
@@ -963,14 +966,17 @@ func (l *ListNode) HasStructuralChildren() bool {
 func yangToContainer(entry *gyang.Entry, path string) *ContainerNode {
 	children := flattenChildren(entry)
 	fields := make([]FieldDef, 0, len(children)+1)
+	var cases choiceMembers
 	for _, c := range children {
 		childPath := AppendPath(path, c.name)
 		node := yangToNode(c.entry, childPath)
 		if node != nil {
 			fields = append(fields, Field(c.name, node))
+			cases.record(c.name, c.entry)
 		}
 	}
 	container := Container(fields...)
+	container.cases = cases
 
 	// Check for ze:allow-unknown-fields extension
 	container.AllowUnknown = hasAllowUnknownExtension(entry)
@@ -1028,6 +1034,7 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 	}
 
 	fields := make([]FieldDef, 0, len(entry.Dir)+1)
+	var cases choiceMembers
 	// Use YANG definition order for list children so inline positional
 	// assignment matches the schema author's intent. Fall back to
 	// alphabetical when the AST is unavailable (generated entries).
@@ -1045,6 +1052,7 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 				node := yangToNode(nc.entry, childPath)
 				if node != nil {
 					fields = append(fields, Field(nc.name, node))
+					cases.record(nc.name, nc.entry)
 				}
 			}
 			continue
@@ -1063,6 +1071,7 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 	}
 
 	l.KeyName = entry.Key
+	l.cases = cases
 	l.Hidden = hasHiddenExtension(entry)
 	l.Ephemeral = hasEphemeralExtension(entry)
 	l.Listener = hasListenerExtension(entry)

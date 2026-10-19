@@ -1,6 +1,7 @@
 // Design: docs/architecture/config/yang-config-design.md — YANG schema handling
 // Related: validator_instance.go — the reference walk that reads defaults in use
 // Related: module_default.go — the module notation a default is written in
+// Related: ../schema_defaults.go — ApplyDefaults, the second consumer of CaseInEffect
 // RFC: rfc/short/rfc7950.md -- Sections 7.6.1 and 7.9.3, defaults in use
 
 package yang
@@ -24,7 +25,7 @@ import (
 // answered, so what remains is the choices between e and data: each case on
 // the way must be the one in effect.
 func defaultInUse(e *yang.Entry, data map[string]any) bool {
-	return caseInEffect(e, data)
+	return CaseInEffect(e, data)
 }
 
 // absentContainerInUse reports whether e, absent from data, is a
@@ -36,20 +37,24 @@ func absentContainerInUse(e *yang.Entry, data map[string]any) bool {
 	if !isNonPresenceContainer(e) {
 		return false
 	}
-	return caseInEffect(e, data)
+	return CaseInEffect(e, data)
 }
 
 // RFC 7950 Section 7.9.3: "The default values and nested default cases
 // under the default case are used if none of the nodes under any of the
 // cases are present."
 //
-// caseInEffect reports whether every case between e and its data parent is
+// CaseInEffect reports whether every case between e and its data parent is
 // in effect over data: the case holds data and no other case does, or no
 // case holds data and it is the choice's default case. When two cases of one
 // choice hold data, no case is in effect, because each one's default needs
 // "no nodes from any other case" (Section 7.6.1). The loop climbs one choice
 // per pass, so it is bounded by the choice nesting of the module.
-func caseInEffect(e *yang.Entry, data map[string]any) bool {
+//
+// It is the one declaration of the fact: the reference walk asks it here, and
+// config.ApplyDefaults asks it before it fills the defaults of a node a choice
+// holds.
+func CaseInEffect(e *yang.Entry, data map[string]any) bool {
 	node := e
 	for node.Parent != nil && isSchemaGroup(node.Parent) {
 		choice, branch := node.Parent, node

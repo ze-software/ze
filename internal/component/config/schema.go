@@ -185,6 +185,7 @@ type ContainerNode struct {
 	Description  string         // Long explanation from the YANG description statement
 	Backend      []string       // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
 	Related      []*RelatedTool // ze:related — operator tools attached to this container (see related.go)
+	cases        choiceMembers  // the children a YANG choice holds, for ApplyDefaults (see schema_defaults.go)
 }
 
 func (n *ContainerNode) Kind() NodeKind { return NodeContainer }
@@ -223,6 +224,7 @@ type ListNode struct {
 	Related     []*RelatedTool // ze:related -- operator tools attached to this list (see related.go)
 	children    map[string]Node
 	order       []string
+	cases       choiceMembers // the children a YANG choice holds, for ApplyDefaults (see schema_defaults.go)
 }
 
 func (n *ListNode) Kind() NodeKind { return NodeList }
@@ -290,6 +292,7 @@ func mergeContainer(dst, src *ContainerNode) {
 		}
 		dst.children[childName] = srcChild
 		dst.order = append(dst.order, childName)
+		dst.cases.adopt(src.cases, childName)
 	}
 }
 
@@ -327,6 +330,7 @@ func mergeNode(dst, src Node) {
 				}
 				d.children[childName] = s.children[childName]
 				d.order = append(d.order, childName)
+				d.cases.adopt(s.cases, childName)
 			}
 		}
 	}

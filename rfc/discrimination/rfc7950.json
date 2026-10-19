@@ -310,6 +310,28 @@
       "break": "body of applyContainerDefault replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7950-7.6.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/config/rfc7950_case_defaults_test.go::TestRFC7950CaseDefaultsFollowTheCaseInEffect",
+      "unit-sha": "831c82fa6fa897c6",
+      "claim-sha": "0a34b93935ae1c79",
+      "route": "mutant",
+      "producer": "internal/component/config/schema_defaults.go::skipsDefaults",
+      "producer-sha": "e008d7e61093803e",
+      "break": "line 114: \"!yang.CaseInEffect(e, data)\" -\u003e \"!yang.CaseInEffect(e, nil)\""
+    },
+    {
+      "rid": "RFC7950-7.6.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/config/rfc7950_case_defaults_test.go::TestRFC7950CaseDefaultsIgnoredOutsideTheCaseInEffect",
+      "unit-sha": "303a7b54bffac8c4",
+      "claim-sha": "06e2825cb8db3df6",
+      "route": "mutant",
+      "producer": "internal/component/config/schema_defaults.go::skipsDefaults",
+      "producer-sha": "e008d7e61093803e",
+      "break": "line 114: \"!yang.CaseInEffect(e, data)\" -\u003e \"yang.CaseInEffect(e, data)\""
+    },
+    {
       "rid": "RFC7950-7.6.1-3",
       "polarity": "positive",
       "unit": "internal/component/config/rfc7950_leaf_default_test.go::TestRFC7950LeafDefaultFollowsItsAncestor",
