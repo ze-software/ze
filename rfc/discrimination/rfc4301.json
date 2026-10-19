@@ -172,10 +172,10 @@
       "unit": "internal/component/ike/dataplane/rfc4301_esp_null_vpp_test.go::TestRFC4301VPPESPNullEncryptionWithoutIntegrityIsRefused",
       "unit-sha": "a1d6d80f02dc5ddc",
       "claim-sha": "e1a6f3a5df71304e",
-      "route": "revert",
+      "route": "mutant",
       "producer": "internal/component/ike/dataplane/vpp.go::vppIntegAlg",
       "producer-sha": "bfcfbd8b68a43e61",
-      "break": "body of vppIntegAlg replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "break": "line 714: \"isAEAD\" -\u003e \"true\""
     },
     {
       "rid": "RFC4301-4.2-1",
