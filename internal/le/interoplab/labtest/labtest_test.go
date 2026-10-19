@@ -61,8 +61,8 @@ func runStart(t *testing.T, tester *fakeTester, h host, spec Spec) netip.AddrPor
 		address = start(tester, h, spec)
 	}()
 	<-done
-	for i := len(tester.cleanups) - 1; i >= 0; i-- {
-		tester.cleanups[i]()
+	for _, cleanup := range slices.Backward(tester.cleanups) {
+		cleanup()
 	}
 	return address
 }

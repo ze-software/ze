@@ -200,7 +200,7 @@ func removeRunResources(t *testing.T, run string) {
 	if run == "" {
 		return
 	}
-	// t.Context is already cancelled when a cleanup runs; each daemon call
+	// t.Context is already canceled when a cleanup runs; each daemon call
 	// below keeps the wrapper's own bound.
 	ctx := context.Background()
 	docker := NewDocker()
