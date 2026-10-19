@@ -84,3 +84,59 @@ func TestContainerRemovalSurvivesCancelAndIsReported(t *testing.T) {
 		t.Errorf("a leftover container exited %d, want 1", code)
 	}
 }
+
+// VALIDATES: G-2 for the deployment proofs: a container start that docker
+// issued and that failed still answers the removal the proof defers, and the
+// removal names the container; a start the daemon refused as name-taken, or a
+// spec that never rendered, answers none.
+// METHOD: the fixture answers `docker run -d` with the daemon's refusal of a
+// missing device, the refusal a host without /dev/vhost-net gives vpp-test
+// after the daemon has created the container (observed 2026-10-19, left
+// `ze-vpp-evidence-2578373` in Created state), then with the name-taken
+// refusal.
+// PREVENTS: a proof that registers its removal only after a successful start,
+// so a refused start or a Ctrl-C during `docker run -d` leaves the created
+// container for the next sweep.
+func TestFailedProofStartStillRemovesItsContainer(t *testing.T) {
+	const name = "ze-vpp-evidence-1"
+	spec := interoplab.DetachedContainer{Name: name, Image: "ligato/vpp-base:24.02", Command: []string{"sleep", "infinity"}}
+	refusal := "docker: Error response from daemon: error gathering device information while adding custom device \"/dev/vhost-net\": no such file or directory"
+	recorder := &argvRecorder{answer: func(argv []string) (interoplab.ProcessResult, error) {
+		if argv[1] == "run" {
+			return interoplab.ProcessResult{ExitCode: 127, Stderr: refusal}, nil
+		}
+		return interoplab.ProcessResult{}, nil
+	}}
+	docker := interoplab.NewFixtureDocker(recorder)
+
+	remove, err := startProofContainer(t.Context(), docker, spec)
+	if err == nil {
+		t.Fatal("a refused start answered no error")
+	}
+	if remove == nil {
+		t.Fatal("a start docker issued answered no removal, so its created container is left behind")
+	}
+	if removal := remove(); removal != "" {
+		t.Fatalf("removal failed: %s", removal)
+	}
+	if want := []string{interoplab.DockerExecutable, "rm", "-f", name}; !slices.Equal(recorder.commands[len(recorder.commands)-1], want) {
+		t.Fatalf("removal argv = %v, want %v", recorder.commands[len(recorder.commands)-1], want)
+	}
+
+	refusal = "docker: Error response from daemon: Conflict. The container name \"/" + name + "\" is already in use by container \"abc\"."
+	remove, err = startProofContainer(t.Context(), docker, spec)
+	if err == nil {
+		t.Fatal("a name-taken start answered no error")
+	}
+	if remove != nil {
+		t.Fatal("a name another container holds answered a removal of that container")
+	}
+
+	remove, err = startProofContainer(t.Context(), docker, interoplab.DetachedContainer{Name: name})
+	if err == nil {
+		t.Fatal("a spec with no image answered no error")
+	}
+	if remove != nil {
+		t.Fatal("a spec docker never ran answered a removal")
+	}
+}

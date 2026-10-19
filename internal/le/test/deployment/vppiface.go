@@ -27,6 +27,7 @@ package testdeployment
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -306,10 +307,13 @@ func (v *vppIface) Run(ctx context.Context) (report VPPIfaceReport, err error) {
 	}
 
 	report.Container = vppContainerName()
-	if err := v.startContainer(report.Container, work); err != nil {
+	remove, err := v.startContainer(report.Container, work)
+	if remove != nil {
+		defer func() { report.ContainerRemoval = remove() }()
+	}
+	if err != nil {
 		return report, err
 	}
-	defer func() { report.ContainerRemoval = removeContainer(ctx, v.Docker, report.Container) }()
 
 	if err := v.startVPP(report.Container, work); err != nil {
 		return report, err
@@ -492,12 +496,15 @@ func (v *vppIface) containerTextWith(container string, environ []interoplab.Envi
 	return output.String(), true
 }
 
-// startContainer starts the container the proof runs in.
-func (v *vppIface) startContainer(name, work string) error {
-	if err := v.Docker.RunDetached(v.ctx, v.containerSpec(name, work)); err != nil {
-		return errors.New("failed to start the VPP evidence container: " + err.Error())
+// startContainer starts the container the proof runs in, and answers the
+// removal the caller MUST defer whenever docker may have created it, a failed
+// start included (startProofContainer).
+func (v *vppIface) startContainer(name, work string) (func() string, error) {
+	remove, err := startProofContainer(v.ctx, v.Docker, v.containerSpec(name, work))
+	if err != nil {
+		return remove, fmt.Errorf("failed to start the VPP evidence container: %w", err)
 	}
-	return nil
+	return remove, nil
 }
 
 // startVPP starts VPP inside the container and waits for the two sockets it

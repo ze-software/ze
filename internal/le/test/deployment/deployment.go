@@ -422,6 +422,21 @@ func ensureImage(ctx context.Context, docker *interoplab.Docker, image string, p
 	return docker.Pull(ctx, image, deploymentPullTimeout)
 }
 
+// startProofContainer starts the proof's container detached, and answers the
+// removal the caller MUST defer whenever docker may have created it. That
+// includes a start that failed: `docker run -d` creates the container before
+// it starts it, so a start refused by the daemon (a device the host lacks) or
+// a client a SIGINT canceled can leave a created container behind. It
+// answers nil only when docker cannot have created one: the spec did not
+// render, or the daemon refused the name as taken by another container.
+func startProofContainer(ctx context.Context, docker *interoplab.Docker, spec interoplab.DetachedContainer) (func() string, error) {
+	err := docker.RunDetached(ctx, spec)
+	if !interoplab.ContainerMayExist(err) {
+		return nil, err
+	}
+	return func() string { return removeContainer(ctx, docker, spec.Name) }, err
+}
+
 // removeContainer takes the proof's container down on a context the run's
 // cancellation does not reach, so a SIGINT still removes it. Its error is
 // answered as text for the report's container-removal field: the run's own

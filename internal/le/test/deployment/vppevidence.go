@@ -91,10 +91,13 @@ func (v *VPP) Run(ctx context.Context) (report VPPReport, err error) {
 	}
 
 	report.Container = vppEvidenceContainerName()
-	if err := v.startContainer(report.Container, work); err != nil {
+	remove, err := v.startContainer(report.Container, work)
+	if remove != nil {
+		defer func() { report.ContainerRemoval = remove() }()
+	}
+	if err != nil {
 		return report, err
 	}
-	defer func() { report.ContainerRemoval = removeContainer(ctx, v.Docker, report.Container) }()
 
 	if err := v.startVPP(report.Container, work); err != nil {
 		return report, err

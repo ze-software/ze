@@ -50,14 +50,17 @@ func TestVPPSRv6ServiceRoute(t *testing.T) {
 		t.Fatal(err)
 	}
 	container := vppEvidenceContainerName() + "-srv6"
-	if err := v.startContainer(container, work); err != nil {
+	remove, err := v.startContainer(container, work)
+	if remove != nil {
+		defer func() {
+			if removal := remove(); removal != "" {
+				t.Error("remove the SRv6 container:", removal)
+			}
+		}()
+	}
+	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if removal := removeContainer(t.Context(), v.Docker, container); removal != "" {
-			t.Error("remove the SRv6 container:", removal)
-		}
-	}()
 	if err := v.startVPP(container, work); err != nil {
 		t.Fatal(err)
 	}

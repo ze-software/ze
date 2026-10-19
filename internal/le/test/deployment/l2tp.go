@@ -339,10 +339,13 @@ func (l *L2TP) Run(ctx context.Context) (report L2TPReport, err error) {
 	}
 
 	report.Container = containerName()
-	if err := l.Docker.RunDetached(ctx, l.containerSpec(report.Container, work)); err != nil {
+	remove, err := startProofContainer(ctx, l.Docker, l.containerSpec(report.Container, work))
+	if remove != nil {
+		defer func() { report.ContainerRemoval = remove() }()
+	}
+	if err != nil {
 		return report, err
 	}
-	defer func() { report.ContainerRemoval = removeContainer(ctx, l.Docker, report.Container) }()
 
 	if _, err := l.Docker.ExecAttached(ctx, l.installExec(report.Container)); err != nil {
 		return report, err

@@ -461,9 +461,13 @@ before its own removal is reaped like a lab's. Commands inside it run through
 `Docker.ExecAttached`, with attached streams and their own bound. Those verbs
 root on SIGINT and SIGTERM, remove their container on a context the signal
 does not reach, and name a failed removal in the report's
-`container-removal-error`, exiting 1.
+`container-removal-error`, exiting 1. The removal is owed from the moment
+`docker run -d` was issued, under the same `ContainerMayExist` test a lab uses:
+the daemon creates the container before it starts it, so a start it refuses
+(a device the host lacks, such as `/dev/vhost-net`) or a Ctrl-C during the
+start still removes the container.
 <!-- source: internal/le/interoplab/container.go -- Docker.RunDetached, Docker.ExecAttached -->
-<!-- source: internal/le/test/deployment/deployment.go -- removeContainer -->
+<!-- source: internal/le/test/deployment/deployment.go -- startProofContainer, removeContainer -->
 
 The multi-DUT benchmark (`./le perf run`, `./le perf evidence-record`) is the
 other such caller. Its network goes through `Docker.CreateNetwork` and
