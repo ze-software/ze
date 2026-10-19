@@ -897,7 +897,9 @@ sweep first waits, for at most 10 s of its 60, until `kill(-group, 0)` answers
 `ESRCH`; a group still holding members then is swept anyway, and the summary
 names the pids left and the cleanup to run once they exit. The group is asked
 again after `ps` lists its members, so a last member that exits during the
-listing counts as an empty group and draws no warning. A child that ends on its own
+listing counts as an empty group and draws no warning. A group still present
+whose members `ps` cannot list, or does not list (one that joined after the
+listing, or one hidden from this user), is named as such instead of by pid. A child that ends on its own
 ran its cleanups and gets no sweep. Both run on the hosted runner's own Docker
 in `evidence-nightly.yml`, because no container in either runs Ze, so the Docker
 host kernel check does not apply.
