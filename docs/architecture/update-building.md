@@ -463,7 +463,13 @@ when a recovery owner is registered (`request bgp rib recovery`), the writer
 does not emit the withdrawal of a source-owned key at such a destination, either
 a forwarded owner withdrawal (received or synthesized) or a bgp-rib lifecycle
 removal. It records the key in the table's owed set instead: the destination
-session, the family, and a copy of the destination-framed NLRI. The adj-out entry
+session, the family, and a copy of the destination-framed NLRI in announcement
+framing, because the RIB is asked in that framing (`ribevents.RecoveryRequest`).
+For a labeled or VPN family the withdrawal carries the RFC 8277 Section 2.4
+Compatibility field where the announcement carried its label stack, and 0x800000
+has the S bit clear, so the copy sets that bit and becomes a one-label stack
+(`oweAnnouncementFraming`); the RIB's route key drops the stack, and the field
+is set back to 0x800000 when the withdrawal is transmitted. The adj-out entry
 keeps the old owner until the decision is written. The writer stages these owes
 during its filter passes and applies them once after the last pass, and then
 wakes the destination's recovery worker without blocking (a one-slot channel,

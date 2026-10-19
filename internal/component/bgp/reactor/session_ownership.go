@@ -349,9 +349,36 @@ func (w *adjOutWrite) applyStaged() {
 		if _, announced := w.owners[key]; announced {
 			continue
 		}
-		w.table.owe(key, w.session, owe.family, owe.nlri)
+		fresh := w.table.owed[key] == nil
+		record := w.table.owe(key, w.session, owe.family, owe.nlri)
+		if fresh {
+			oweAnnouncementFraming(record.family, record.nlri)
+		}
 	}
 	w.session.wakeRecovery()
+}
+
+// oweAnnouncementFraming rewrites, in place, a new owed record's copy of the
+// withdrawn NLRI into the native announcement framing the RIB is asked in
+// (ribevents.RecoveryRequest). Only a family whose withdrawal carries the
+// Compatibility field differs: its three octets stand where the announcement
+// carried its label stack, and 0x800000 has the S bit clear, so the RIB read a
+// label stack that never ended and refused the key. Setting the S bit makes
+// the field a one-label stack. The label names nothing: the RIB's route key
+// drops the stack, the writer sets the field back to 0x800000 on every UPDATE
+// it transmits (setWithdrawalCompatibility), and raw is the record's own copy.
+// The writer framed raw with the family's withdrawal splitter, so it holds at
+// least the Length octet and the field.
+// RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field
+// MUST be ignored."
+//
+//	withdrawn:    [Length:1][Compatibility:3][RD:8, SAFI 128 only][Prefix]
+//	announcement: [Length:1][Label:20 TC:3 S:1][RD:8, SAFI 128 only][Prefix]
+func oweAnnouncementFraming(fam family.Family, raw []byte) {
+	if !nlrisplit.CarriesCompatibility(fam) {
+		return
+	}
+	raw[3] |= 0x01 // The S (bottom of stack) bit of the third octet.
 }
 
 // adjOutExactNLRI avoids a second owned copy when the canonical key already

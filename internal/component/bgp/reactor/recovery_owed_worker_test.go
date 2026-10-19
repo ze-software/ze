@@ -18,6 +18,7 @@ import (
 
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/events"
@@ -158,6 +159,46 @@ func TestAdjOutOwnerWithdrawalOwedToRecovery(t *testing.T) {
 	}, "the RIB's WITHDRAW decision is written")
 	updates := recoveryWrittenUpdates(t, rail.conn.written())
 	require.True(t, bytes.Equal(p, updates[1].WithdrawnRoutes), "the decision withdraws P")
+	lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the decided record leaves the owed set")
+}
+
+// TestOwedVPNWithdrawalAsksInAnnouncementFraming proves the RIB is asked
+// about an owed labeled key in the framing ribevents.RecoveryRequest names:
+// native announcement framing. Method: the source announces a VPN route with
+// a one-label stack, then withdraws it with the RFC 8277 Section 2.4
+// Compatibility field 0x800000, whose S bit is clear. A request carrying the
+// withdrawal's bytes reads as a label stack that never ends, and bgp-rib
+// refused it with "recovery: invalid NLRI for ipv4/mpls-vpn" and retired the
+// destination (test/plugin/vpn-withdrawal-inventory-rr-ipv4.ci). The request's
+// NLRI must parse as an announcement and name the announced route's key, and
+// the RIB's WITHDRAW decision must still reach the wire.
+func TestOwedVPNWithdrawalAsksInAnnouncementFraming(t *testing.T) {
+	rail := newOwedRail(t)
+	vpn := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}
+	rail.destination.negotiated.Load().families[vpn] = true
+	announce := ownershipRailNative(vpn, 0, 1, false, 0)[4:]
+	withdraw := ownershipRailNative(vpn, 0, 1, true, 0x80)[4:]
+
+	require.NoError(t, ownershipWriterForward(t, rail.destination, rail.source, ownershipRailBody(vpn, false, announce, 0), false))
+	require.NoError(t, ownershipWriterForward(t, rail.destination, rail.source, ownershipRailBody(vpn, true, withdraw, 0), false))
+	require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 1, "an owner withdrawal is owed, not written")
+
+	request := rail.request(t)
+	require.Len(t, request.Keys, 1)
+	var askedScratch, announcedScratch [nlrisplit.PrefixKeyScratchSize]byte
+	asked, err := nlrisplit.GetPrefixKey(vpn)(request.Keys[0].NLRI, askedScratch[:], false)
+	require.NoError(t, err, "the RIB reads the request's NLRI as an announcement")
+	announced, err := nlrisplit.GetPrefixKey(vpn)(announce, announcedScratch[:], false)
+	require.NoError(t, err)
+	require.Equal(t, announced, asked, "the request names the announced route")
+	rail.release <- nil
+
+	lowEventually(t, func() bool {
+		return len(recoveryWrittenUpdates(t, rail.conn.written())) == 2
+	}, "the RIB's WITHDRAW decision is written")
+	updates := recoveryWrittenUpdates(t, rail.conn.written())
+	require.True(t, bytes.Contains(updates[1].PathAttributes, withdraw),
+		"the decision withdraws the route with the Compatibility field 0x800000")
 	lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the decided record leaves the owed set")
 }
 
