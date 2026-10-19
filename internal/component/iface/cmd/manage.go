@@ -22,7 +22,7 @@ func handleCreateTyped(ctx *pluginserver.CommandContext, ifType string, create f
 		return errResp(tb.Str("usage: create interface ").Str(ifType).Str(" <name>").String())
 	}
 	var tb textbuf.Buffer
-	if info, _ := iface.GetInterface(name); info != nil {
+	if info, _ := iface.GetLink(name); info != nil {
 		if info.Type != ifType {
 			return errResp(tb.Str("interface ").Str(name).Str(" exists with type ").Str(info.Type).Str(", not ").Str(ifType).String())
 		}

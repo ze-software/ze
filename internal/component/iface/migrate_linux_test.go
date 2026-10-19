@@ -71,6 +71,9 @@ func (m *mockMigrateBackend) ListInterfaces() ([]InterfaceInfo, error) {
 func (m *mockMigrateBackend) GetInterface(_ string) (*InterfaceInfo, error) {
 	return nil, fmt.Errorf("mock: not supported")
 }
+func (m *mockMigrateBackend) GetLink(_ string) (*InterfaceInfo, error) {
+	return nil, fmt.Errorf("mock: not supported")
+}
 func (m *mockMigrateBackend) BridgeAddPort(_, _ string) error {
 	return fmt.Errorf("mock: not supported")
 }

@@ -910,7 +910,7 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		if err := applyBackendStep(journal, func() error {
 			if err := b.CreateDummy(e.Name); err != nil {
 				// ErrInterfaceExists is the backend saying it kept the
-				// interface an earlier apply made. GetInterface cannot
+				// interface an earlier apply made. GetLink cannot
 				// settle that case on every backend: the vpp one names a
 				// loopback loopN in the dataplane while the operator names
 				// it here, so the dump filter finds nothing. Either way
@@ -1025,7 +1025,7 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		// a create that fails can leave a device behind, and a read
 		// afterwards would take that leftover for a netdev an earlier
 		// process made and swallow the error.
-		held, heldErr := b.GetInterface(e.Name)
+		held, heldErr := b.GetLink(e.Name)
 		created := false
 		if err := applyBackendStep(journal, func() error {
 			if err := b.CreateTunnel(e.Spec); err != nil {
@@ -1371,7 +1371,7 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		device, _ := deviceFor(devices, e.Name)
 		if e.MTU > 0 {
 			oldMTU := 0
-			if info, err := b.GetInterface(device); err == nil {
+			if info, err := b.GetLink(device); err == nil {
 				oldMTU = info.MTU
 			}
 			// Read before the parent changes: lowering it makes Linux cap
@@ -1534,7 +1534,7 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		}
 		device, _ := deviceFor(devices, e.Name)
 		wasDown := false
-		if info, err := b.GetInterface(device); err == nil {
+		if info, err := b.GetLink(device); err == nil {
 			wasDown = info.State != "" && info.State != "up" && info.State != "UP"
 		}
 		if err := applyBackendStep(journal, func() error {
@@ -1799,7 +1799,7 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 // the VLAN again.
 func applyVLANMTU(journal *sdk.Journal, b Backend, vlanName string, mtu int) error {
 	oldMTU := 0
-	if info, err := b.GetInterface(vlanName); err == nil {
+	if info, err := b.GetLink(vlanName); err == nil {
 		oldMTU = info.MTU
 	}
 	if oldMTU == mtu {
@@ -1831,7 +1831,7 @@ func readVLANMTUs(b Backend, device string, units []unitEntry) []vlanMTU {
 			continue
 		}
 		name := unitOSName(device, u)
-		info, err := b.GetInterface(name)
+		info, err := b.GetLink(name)
 		if err != nil {
 			continue
 		}
@@ -2030,7 +2030,7 @@ func heldByLinkType(held *InterfaceInfo, wantType string, known bool) bool {
 }
 
 func interfaceExists(b Backend, name string) bool {
-	_, err := b.GetInterface(name)
+	_, err := b.GetLink(name)
 	return err == nil
 }
 

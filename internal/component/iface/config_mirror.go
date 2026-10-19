@@ -129,7 +129,7 @@ func removeStaleMirrors(cfg, previous *ifaceConfig, devices, previousDevices map
 				continue
 			}
 			delete(previousSpecs, osName)
-			if _, err := b.GetInterface(osName); err != nil {
+			if _, err := b.GetLink(osName); err != nil {
 				loggerPtr.Load().Warn("iface config: mirror teardown skipped, cannot read the interface",
 					"iface", osName, "err", err)
 				continue

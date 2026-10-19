@@ -49,10 +49,37 @@ func (s *stubBackend) GetInterface(name string) (*iface.InterfaceInfo, error) {
 	return &info, nil
 }
 
+// GetLink returns one OS interface through the Go standard library, its
+// addresses left unread, so a failed address read cannot fail it.
+func (s *stubBackend) GetLink(name string) (*iface.InterfaceInfo, error) {
+	if err := iface.ValidateIfaceName(name); err != nil {
+		return nil, err
+	}
+	ifc, err := net.InterfaceByName(name)
+	if err != nil {
+		return nil, fmt.Errorf("iface: get %q: %w", name, err)
+	}
+	info := stdlibLinkInfo(ifc)
+	return &info, nil
+}
+
 // stdlibInterfaceInfo converts one standard-library interface, addresses
 // included. A failed address read is returned rather than dropped, so an
 // interface is never reported as holding no address when it was not read.
 func stdlibInterfaceInfo(ifc *net.Interface) (iface.InterfaceInfo, error) {
+	info := stdlibLinkInfo(ifc)
+	addrs, err := ifc.Addrs()
+	if err != nil {
+		return iface.InterfaceInfo{}, fmt.Errorf("iface: addresses of %q: %w", ifc.Name, err)
+	}
+	info.Addresses = stdlibAddrInfo(addrs)
+	info.AddressesRead = true
+	return info, nil
+}
+
+// stdlibLinkInfo converts one standard-library interface without its
+// addresses: AddressesRead stays false.
+func stdlibLinkInfo(ifc *net.Interface) iface.InterfaceInfo {
 	state := iface.LinkStateDown
 	if ifc.Flags&net.FlagUp != 0 {
 		state = iface.LinkStateUp
@@ -70,13 +97,7 @@ func stdlibInterfaceInfo(ifc *net.Interface) (iface.InterfaceInfo, error) {
 	if ifc.Flags&net.FlagLoopback != 0 {
 		info.Type = "loopback"
 	}
-	addrs, err := ifc.Addrs()
-	if err != nil {
-		return iface.InterfaceInfo{}, fmt.Errorf("iface: addresses of %q: %w", ifc.Name, err)
-	}
-	info.Addresses = stdlibAddrInfo(addrs)
-	info.AddressesRead = true
-	return info, nil
+	return info
 }
 
 // stdlibAddrInfo converts the standard library's interface addresses. Only

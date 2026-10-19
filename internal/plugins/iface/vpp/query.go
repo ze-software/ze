@@ -153,6 +153,12 @@ func (b *vppBackendImpl) GetInterface(name string) (*iface.InterfaceInfo, error)
 	return nil, fmt.Errorf("ifacevpp: interface %q not found", name)
 }
 
+// GetLink is GetInterface: this backend's GetInterface already reads no
+// addresses, so its answer is the link facts alone.
+func (b *vppBackendImpl) GetLink(name string) (*iface.InterfaceInfo, error) {
+	return b.GetInterface(name)
+}
+
 // GetMACAddress returns the L2 address of the named interface. Loopback/L3
 // interfaces have a zero MAC; callers receive "00:00:00:00:00:00" rather than
 // an error.

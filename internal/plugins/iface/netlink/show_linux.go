@@ -72,25 +72,44 @@ func (b *netlinkBackend) ListInterfaces() ([]iface.InterfaceInfo, error) {
 }
 
 func (b *netlinkBackend) GetInterface(name string) (*iface.InterfaceInfo, error) {
-	if err := iface.ValidateIfaceName(name); err != nil {
+	link, info, err := b.readLink(name)
+	if err != nil {
 		return nil, err
 	}
-	links, err := b.counters.snapshot(name)
-	if err != nil {
-		return nil, fmt.Errorf("iface: get %q: %w", name, err)
-	}
-	if len(links) != 1 {
-		return nil, fmt.Errorf("iface: get %q: expected one link, got %d", name, len(links))
-	}
-	info := linkToInfo(links[0].link)
-	info.CounterGeneration = links[0].generation
-	addrs, err := addrList(links[0].link)
+	addrs, err := addrList(link)
 	if err != nil {
 		return nil, fmt.Errorf("iface: get %q: %w", name, err)
 	}
 	info.Addresses = addrs
 	info.AddressesRead = true
 	return &info, nil
+}
+
+// GetLink answers the link read GetInterface makes and issues no address
+// dump, so a failed address dump cannot fail it.
+func (b *netlinkBackend) GetLink(name string) (*iface.InterfaceInfo, error) {
+	_, info, err := b.readLink(name)
+	if err != nil {
+		return nil, err
+	}
+	return &info, nil
+}
+
+// readLink reads one link and converts it, addresses left unread.
+func (b *netlinkBackend) readLink(name string) (netlink.Link, iface.InterfaceInfo, error) {
+	if err := iface.ValidateIfaceName(name); err != nil {
+		return nil, iface.InterfaceInfo{}, err
+	}
+	links, err := b.counters.snapshot(name)
+	if err != nil {
+		return nil, iface.InterfaceInfo{}, fmt.Errorf("iface: get %q: %w", name, err)
+	}
+	if len(links) != 1 {
+		return nil, iface.InterfaceInfo{}, fmt.Errorf("iface: get %q: expected one link, got %d", name, len(links))
+	}
+	info := linkToInfo(links[0].link)
+	info.CounterGeneration = links[0].generation
+	return links[0].link, info, nil
 }
 
 func linkToInfo(link netlink.Link) iface.InterfaceInfo {
@@ -248,6 +267,9 @@ func addrList(link netlink.Link) ([]iface.AddrInfo, error) {
 		if !errors.Is(err, netlink.ErrDumpInterrupted) {
 			break
 		}
+	}
+	if errors.Is(err, netlink.ErrDumpInterrupted) {
+		return nil, fmt.Errorf("addresses of %q still changing after %d dumps: %w", link.Attrs().Name, linkListRetries+1, err)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("addresses of %q: %w", link.Attrs().Name, err)

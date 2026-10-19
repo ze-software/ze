@@ -173,12 +173,15 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 
 Each apply creates the devices the config names: dummy, veth, bridge, tunnel,
 wireguard, xfrm, and the VLAN of each unit with a `vlan-id`. Whether a device
-exists is read before its create, never after. A device that existed is kept,
+exists is read before its create, never after, and it is read from the link
+alone (`GetLink`), as are the MTU and admin state the undo puts back: a failed
+address read cannot make a present device read as absent. A device that existed is kept,
 and the undo of a failed apply leaves it in place. A create that fails for a
 device that did not exist fails the commit, even when the backend left a
 partial device behind, and the undo deletes only the devices the apply created.
 
 <!-- source: internal/component/iface/config_apply.go — applyConfig create steps, interfaceExists -->
+<!-- source: internal/component/iface/backend.go — Backend.GetLink -->
 
 ### Reverse-path check
 
@@ -1147,8 +1150,9 @@ underlying mechanism. Cells with a footnote carry a caveat.
 | | `GetMACAddress` | real | real (via SwInterfaceDump) | err |
 | | `GetStats` | real | err (pending GoVPP stats API) | err |
 | | `ResetCounters` | real [4] | err (pending sw_interface_clear_stats) | err |
-| **Query** | `ListInterfaces` | real | real (SwInterfaceDump) | err |
-| | `GetInterface` | real | real (SwInterfaceDump) | err |
+| **Query** | `ListInterfaces` | real | real (SwInterfaceDump) | real (net.Interfaces) |
+| | `GetInterface` | real | real (SwInterfaceDump) | real (net.InterfaceByName) |
+| | `GetLink` | real (no address dump) | real (SwInterfaceDump) | real (net.InterfaceByName) |
 | | `ListNeighbors` | real | err (pending ip_neighbor_dump) | err |
 | **Bridge** | `BridgeAddPort` | real | real (SwInterfaceSetL2Bridge) | err |
 | | `BridgeDelPort` | real | real (SwInterfaceSetL2Bridge) | err |
@@ -1310,8 +1314,8 @@ main gaps against feature parity.
 ### Stub (non-Linux)
 
 On darwin, macOS, BSD, and Windows the netlink backend package compiles
-to a stub whose constructor succeeds. `ListInterfaces` and `GetInterface`
-read the host's interfaces through the Go standard library, so `ze init`
+to a stub whose constructor succeeds. `ListInterfaces`, `GetInterface` and
+`GetLink` read the host's interfaces through the Go standard library, so `ze init`
 discovers them and writes an initial config: the loopback is typed by its
 flag, and any other interface with a hardware address is classified as
 ethernet. Every other method returns
@@ -1326,4 +1330,4 @@ creates, addresses or changes one sees the explicit error and rejects
 under exact-or-reject.
 
 <!-- source: internal/plugins/iface/netlink/backend_other.go -- stubBackend, unsupported() returning "not supported on <GOOS>" -->
-<!-- source: internal/plugins/iface/netlink/show_other.go -- ListInterfaces/GetInterface via net.Interfaces -->
+<!-- source: internal/plugins/iface/netlink/show_other.go -- ListInterfaces/GetInterface/GetLink via net.Interfaces -->

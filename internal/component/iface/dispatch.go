@@ -385,6 +385,18 @@ func GetInterface(name string) (*InterfaceInfo, error) {
 	return info, nil
 }
 
+// GetLink returns the link facts of one device, its addresses unread (see
+// Backend.GetLink). A caller asking whether a device exists uses it, so a
+// failed address dump cannot make a present device read as absent. Its Stats
+// are the backend's raw counters, with no baseline applied.
+func GetLink(name string) (*InterfaceInfo, error) {
+	b, err := backendOrErr()
+	if err != nil {
+		return nil, err
+	}
+	return b.GetLink(name)
+}
+
 func BridgeAddPort(bridge, port string) error {
 	b, err := backendOrErr()
 	if err != nil {

@@ -2619,7 +2619,13 @@ func (b *fakeBackend) ListInterfaces() ([]InterfaceInfo, error) {
 	return result, nil
 }
 
+// GetInterface answers the link projection: the fake records no addresses
+// per device, so it answers what GetLink answers.
 func (b *fakeBackend) GetInterface(name string) (*InterfaceInfo, error) {
+	return b.GetLink(name)
+}
+
+func (b *fakeBackend) GetLink(name string) (*InterfaceInfo, error) {
 	f, ok := b.ifaces[name]
 	if !ok {
 		return nil, fmt.Errorf("interface %s not found", name)

@@ -189,6 +189,13 @@ type Backend interface {
 	// Query.
 	ListInterfaces() ([]InterfaceInfo, error)
 	GetInterface(name string) (*InterfaceInfo, error)
+	// GetLink returns the link facts of one device: everything GetInterface
+	// reports except the addresses, so Addresses is nil and AddressesRead is
+	// false. It never reads the addresses, so a failed address read cannot
+	// fail it. A caller that decides whether a device exists, or reads its
+	// MTU or admin state, MUST use it: GetInterface fails when the address
+	// dump fails, and such a caller would read a present device as absent.
+	GetLink(name string) (*InterfaceInfo, error)
 	// ListNeighbors returns the kernel neighbor table (IPv4 ARP + IPv6 ND).
 	// family is one of NeighborFamilyAny / NeighborFamilyIPv4 / NeighborFamilyIPv6
 	// declared in iface.go; backends translate to their native constants.

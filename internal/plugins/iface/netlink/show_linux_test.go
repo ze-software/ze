@@ -99,6 +99,47 @@ func TestGetInterfaceRefusesAFailedAddressRead(t *testing.T) {
 	assert.Nil(t, list)
 }
 
+// TestGetInterfaceNamesAnAddressTableStillChanging interrupts every address
+// dump.
+//
+// VALIDATES: once the retries are spent, the error says the address table is
+// still changing and how many dumps were tried, as listLinks says for links,
+// and still wraps netlink.ErrDumpInterrupted.
+// PREVENTS: a bare "results may be incomplete" that hides the retries.
+func TestGetInterfaceNamesAnAddressTableStillChanging(t *testing.T) {
+	saved := addrListOf
+	addrListOf = func(netlink.Link, int) ([]netlink.Addr, error) { return nil, netlink.ErrDumpInterrupted }
+	t.Cleanup(func() { addrListOf = saved })
+	b := &netlinkBackend{}
+	t.Cleanup(func() { require.NoError(t, b.Close()) })
+
+	_, err := b.GetInterface("lo")
+	require.ErrorIs(t, err, netlink.ErrDumpInterrupted)
+	assert.Contains(t, err.Error(), `addresses of "lo" still changing after 4 dumps`)
+}
+
+// TestGetLinkAnswersWhenTheAddressReadFails fails the address dump of every
+// link and reads the loopback's link.
+//
+// VALIDATES: GetLink answers the link facts with AddressesRead false and no
+// addresses, because it issues no address dump.
+// PREVENTS: an address-dump failure making the config apply read a present
+// device as absent, or skip its MTU and admin-state undo.
+func TestGetLinkAnswersWhenTheAddressReadFails(t *testing.T) {
+	saved := addrListOf
+	addrListOf = func(netlink.Link, int) ([]netlink.Addr, error) { return nil, errors.New("address dump failed") }
+	t.Cleanup(func() { addrListOf = saved })
+	b := &netlinkBackend{}
+	t.Cleanup(func() { require.NoError(t, b.Close()) })
+
+	info, err := b.GetLink("lo")
+	require.NoError(t, err)
+	assert.Equal(t, "lo", info.Name)
+	assert.Greater(t, info.MTU, 0)
+	assert.False(t, info.AddressesRead, "GetLink reads no address")
+	assert.Empty(t, info.Addresses)
+}
+
 func TestGetInterfaceNotFound(t *testing.T) {
 	b := &netlinkBackend{}
 	_, err := b.GetInterface("nonexistent_iface99")
