@@ -651,3 +651,33 @@ hook on each edited file.
 
 2026-10-19, build bound: `Docker.Build` now runs under max(`ImageBuild.Timeout`, machine bound), so the field only lengthens it, as `Pull` does (D-3); no non-test caller sets the field.
 Proof: `TestDockerBuildUsesDeclaredTimeout` red on the old code (1m field gave 1m, want 1h30m), green after; interop.md "Running" and the field comment state the rule once. Gates owed: lint scope on `internal/le/interoplab`.
+
+## Independent-review fixes, 2026-10-19
+
+| Finding | Commit | Proof (red on old code, green after) |
+|---------|--------|--------------------------------------|
+| BLOCKER R-1/AC-7: teardown removed names `claimName` refused | `62512fcace` | `TestRunScenarioRefusedClaimRemovesNothingForeign` (old: `rm -f lab-peer`, `network rm lab-net` after a refusal); `TestRunScenarioTakenNameIsNotTornDown` |
+| user-facing-errors: `ZE_<LAB>_INTEROP_SUFFIX` placeholder | `4c41912146` | `TestPreCleanRefusalNamesTheRealSuffixVariable` |
+| AC-9: hand-started container from a lab image swept | `008afd8b65` | `TestCleanupOrphansSkipsContainerWithInheritedImageLabels` |
+| R-1: gone judged on machine id and boot id only | `69dd08092b` | seven new `TestCleanupOrphansVerdictTable` rows |
+
+Shape of each: teardown records a container or network only after its create
+(a failed `docker run` counts unless the daemon refused the name as taken), and
+`CreateNetwork` now refuses an existing name rather than adopt it, which also
+covers `perfrunner`. Every lab Suite passes `Environment.SuffixVariable`. Every
+create labels `ze.lab.kind`, `ze.lab.uid`, `ze.lab.os` and, on Linux,
+`ze.lab.pid-ns`. Resources labeled before these commits carry no kind, uid or
+os label, so the sweep skips them as malformed (the safe direction); remove
+those by hand once.
+
+Residual, not settled: a live clone whose owner started before this clone
+booted still reads as gone. No client-side fact tells that apart from a reboot.
+
+Reds seen, not caused here (scenario population): `interoplab/bgp`
+`TestCheckerPopulationMatchesProducer` and `TestAnnouncementPlanOrderAndTimingFixture`,
+`interoplab/pppoe` `TestPPPoELabPeersRunWithoutPrivilege`.
+
+Gates owed (over five minutes, not run here): `./le go lint run scope
+"internal/le/interoplab/..."` in both the docker and live flavors, `./le test unit
+all`, and a `ZE_REQUIRE_DOCKER=1` run of `TestKilledLabRunIsCleanedByNextStart`,
+which reads the real pid namespace and boot time.
