@@ -512,3 +512,13 @@ stages 01, 04, 13, 31, 43. Each gate was rerun on the current HEAD.
 
 `bin/le` was older than the sources during this pass: a gate rerun after an
 `internal/le` change needs `./le --update` or `./le --name <x>`.
+
+### Unit and race reds of the 9fe7a1cfe0 full verify (2026-10-19)
+
+| Red (stage) | Cause | State |
+|-------------|-------|-------|
+| reactor `TestRecoveryWaitsForFilteredReceivedPublication/worker-failure` (49), 2/80 | test defect: a recovery round rerun after B reconnects correctly does not exclude B | fixed 72849759cf, 100/100 |
+| web `TestWebHandlerGoldenOutput/nav-show-l2tp` (49, 51) | cb8e90f006 changed a YANG description, golden not refreshed | fixed 3fbe231907 |
+| sensitivity `TestTheRealCheckoutPassesTheRatchet` (49, 52) | 115 > 114 after 9886507d51 | fixed cb20f4bddc and b8125bceb6 |
+| tftpserver `TestConfigTxReloadCutsTransferInFlight` (51), 3/20 | real: reload left an async socket close, a block from the old root could go out | fixed 0f3ca7969b, 30/30; RFC-tagged call-site edit, owner approval owed |
+| interoplab/bgp `TestExaBGPCaseReadsEveryFixture` (49, 52) | spec-exabgp-6 AC-4 (a)(b) | open, spec scope |
