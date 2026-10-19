@@ -20,15 +20,21 @@ import (
 )
 
 // TestRFC2545ReceivedPairSubnetConditions checks the final writer with actual
-// IPv6 destination addresses and a joint common-prefix predicate.
+// IPv6 destination addresses: IPv6 unicast takes the joint common-prefix
+// predicate, VPN-IPv6 the recipient-only one.
 // RFC 2545 Section 3: "The link-local address shall be included in the Next Hop
 // field if and only if the BGP speaker shares a common subnet with the entity
 // identified by the global IPv6 address carried in the Network Address of Next
 // Hop field and the peer the route is being advertised to."
+// RFC 4659 Section 3.2.1.1: "The link-local address shall be included in the
+// Next Hop field if and only if the advertising BGP speaker shares a common
+// subnet with the peer the route is being advertised to [BGP-IPv6]." So the
+// vpn/global-off-link case keeps its pair (owner decision 2026-10-19).
 // RFC requirement: RFC2545-3-3 positive -- a received global/link-local pair remains intact when the recipient and effective Global share one connected prefix.
-// RFC requirement: RFC2545-3-3 negative -- either off-link entity removes only the link-local half, preserving the global address and native NLRI.
-// MUTATION: bypass either the received-global subnet check or the destination
-// subnet check in applyEgressNextHopScope; alternatively strip every pair.
+// RFC requirement: RFC2545-3-3 negative -- on IPv6 unicast either off-link entity, and on VPN-IPv6 an off-link recipient, removes only the link-local half, preserving the global address and native NLRI.
+// MUTATION: bypass the received-global subnet check (the unicast cases go red)
+// or the destination subnet check in applyEgressNextHopScope; alternatively
+// strip every pair.
 func TestRFC2545ReceivedPairSubnetConditions(t *testing.T) {
 	for _, native := range []struct {
 		name string
@@ -39,15 +45,16 @@ func TestRFC2545ReceivedPairSubnetConditions(t *testing.T) {
 		{"vpn", family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIVPN}, "980001010000ffff0001000020010db800070000"},
 	} {
 		for _, scope := range []struct {
-			name       string
-			peerOnLink bool
-			global     string
-			keepPair   bool
+			name        string
+			peerOnLink  bool
+			global      string
+			keepUnicast bool
+			keepVPN     bool
 		}{
-			{"both-on-link", true, "2001:db8:1::9", true},
-			{"global-off-link", true, "2001:db8:2::9", false},
-			{"peer-off-link", false, "2001:db8:1::9", false},
-			{"both-off-link", false, "2001:db8:2::9", false},
+			{"both-on-link", true, "2001:db8:1::9", true, true},
+			{"global-off-link", true, "2001:db8:2::9", false, true},
+			{"peer-off-link", false, "2001:db8:1::9", false, false},
+			{"both-off-link", false, "2001:db8:2::9", false, false},
 		} {
 			t.Run(native.name+"/"+scope.name, func(t *testing.T) {
 				f := newAIGPReplayFixture(t, nil)
@@ -86,8 +93,12 @@ func TestRFC2545ReceivedPairSubnetConditions(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+				keepPair := scope.keepUnicast
+				if native.fam.SAFI == family.SAFIVPN {
+					keepPair = scope.keepVPN
+				}
 				wantHop := pair[:globalOctets]
-				if scope.keepPair {
+				if keepPair {
 					wantHop = pair
 				}
 				want := []byte{0, 2, byte(native.fam.SAFI), byte(len(wantHop))}
@@ -203,8 +214,8 @@ func TestRFC2545ReceivedUnusableGlobalRefused(t *testing.T) {
 // RFC 2545 Section 3: "A BGP speaker shall advertise to its peer in the Network
 // Address of Next Hop field the global IPv6 address of the next hop, potentially
 // followed by the link-local IPv6 address of the next hop."
-// RFC requirement: RFC2545-3-1 negative -- a usable first global never licenses a non-link-local second address, whether the pair would otherwise be preserved or trimmed.
-// RFC requirement: RFC2545-3-1 positive -- a global/link-local pair remains usable, and capability 77 retains its separate negotiated single-address exception.
+// RFC requirement: RFC2545-3-1 negative -- a usable first global never licenses a non-link-local second address, whether the pair would otherwise be preserved or trimmed; a receiving session with capability 77 withdraws that pair at receipt and the recipient is sent no announcement.
+// RFC requirement: RFC2545-3-1 positive -- a global/link-local pair remains usable whether or not the receiving session negotiated capability 77, and capability 77 retains its separate negotiated single-address exception.
 // MUTATION: validate only the first address, or trim before checking the second;
 // alternatively reject all pairs or let capability 77 license malformed pairs.
 func TestRFC2545ReceivedPairSecondAddressValidated(t *testing.T) {
@@ -229,19 +240,27 @@ func TestRFC2545ReceivedPairSecondAddressValidated(t *testing.T) {
 				for _, tc := range []struct {
 					name, second  string
 					valid, single bool
+					// source77 negotiates capability 77 on the receiving session.
+					// withdrawn expects draft-ietf-idr-linklocal-capability Section 6
+					// treat-as-withdraw there: a second address that is not Link-Local.
+					source77, withdrawn bool
 				}{
-					{"second-global", "2001:db8:1::a", false, false},
-					{"second-unspecified", "::", false, false},
-					{"second-multicast", "ff02::1", false, false},
-					{"second-link-local", "fe80::9", true, false},
-					{"link-local-only-control", "", true, true},
+					{"second-global", "2001:db8:1::a", false, false, false, false},
+					{"second-unspecified", "::", false, false, false, false},
+					{"second-multicast", "ff02::1", false, false, false, false},
+					{"second-link-local", "fe80::9", true, false, false, false},
+					{"link-local-only-control", "", true, true, true, false},
+					{"cap77-source-second-global", "2001:db8:1::a", false, false, true, true},
+					{"cap77-source-second-unspecified", "::", false, false, true, true},
+					{"cap77-source-second-multicast", "ff02::1", false, false, true, true},
+					{"cap77-source-second-link-local", "fe80::9", true, false, true, false},
 				} {
 					t.Run(rail+"/"+caps.name+"/"+scope.name+"/"+tc.name, func(t *testing.T) {
 						f := newAIGPReplayFixture(t, nil)
 						f.destination.settings.NextHopMode = NextHopUnchanged
 						f.destination.settings.PeerAS = 65002
 						for _, peer := range []*Peer{f.source, f.destination} {
-							localLL, remoteLL := true, true
+							localLL, remoteLL := tc.source77, tc.source77
 							if peer == f.destination {
 								localLL, remoteLL = caps.local, caps.remote
 							}
@@ -269,8 +288,9 @@ func TestRFC2545ReceivedPairSecondAddressValidated(t *testing.T) {
 							})
 							t.Cleanup(peer.session.timers.StopAll)
 						}
-						// Receive always negotiates capability 77 so the single-address
-						// control reaches egress. Only destination advertisements vary.
+						// Receive negotiates capability 77 only for the single-address
+						// control, which needs it to reach egress, and for the cases
+						// that prove its Section 6 treat-as-withdraw on receipt.
 						f.source.session.recvCtxID = f.ctxID
 						f.source.session.SetSourceID(f.source.SourceID())
 						rfc2545ForwardScope(f, scope.peerOnLink, scope.globalOnLink)
@@ -285,59 +305,15 @@ func TestRFC2545ReceivedPairSecondAddressValidated(t *testing.T) {
 						}
 						raw := mustHex(t, "4020010db800070000")
 						body := buildUpdatePayload(mixedAttrs(mixedReach(1, hop, raw)), nil)
-						original := bytes.Clone(body)
-						defer func() {
-							if !bytes.Equal(body, original) {
-								t.Error("receive or forwarding changed the original UPDATE")
-							}
-						}()
-						var id uint64
-						calls := 0
-						f.source.session.onMessageReceived = func(addr netip.Addr, typ msgtype.MessageType, received []byte,
-							wu *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection,
-							buf BufHandle, meta map[string]any, sourcePeer string, sourceMessageID uint64) bool {
-							calls++
-							if typ != msgtype.TypeUPDATE || wu == nil || !bytes.Equal(wu.Payload(), original) {
-								t.Fatal("Session did not publish the intact native announcement")
-							}
-							kept := f.r.notifyMessageReceiver(addr, typ, received, wu, ctxID, direction, buf, meta, sourcePeer, sourceMessageID)
-							// Publication assigns the received ID. The fixture consumer
-							// keeps it alive until this explicit assertion-lifetime retain.
-							id = wu.MessageID()
-							f.ids = append(f.ids, id)
-							if !f.r.recentUpdates.Retain(id) {
-								t.Fatalf("published update %d missing before fixture retain", id)
-							}
-							t.Cleanup(func() { f.r.recentUpdates.Release(id) })
-							return kept
+						updates, published := rfc2545ReceiveForwardPublished(t, f, rail, body, tc.withdrawn)
+						if tc.withdrawn {
+							rfc2545AssertWithdrawnAtReceipt(t, updates, published, raw, nil)
+							return
 						}
-						header := message.Header{Type: msgtype.TypeUPDATE, Length: uint16(message.HeaderLen + len(body))}
-						err, kept := f.source.session.processMessage(&header, body, BufHandle{ID: noPoolBufID, Buf: body})
-						if err != nil || !kept || calls != 1 {
-							t.Fatalf("Session receive: err=%v kept=%v publications=%d, want one cached announcement", err, kept, calls)
+						if len(updates) != 1 {
+							t.Fatalf("recipient UPDATE count=%d, want one native announcement or withdrawal", len(updates))
 						}
-						if rail == "rs" {
-							received, found := f.r.recentUpdates.Get(id)
-							if !found {
-								t.Fatal("Session-delivered update missing before RS dispatch")
-							}
-							skipped, sent := reactorForwardRS(f.r, received, id, f.source.Settings().Address, f.source)
-							if len(skipped) != 0 || sent != 1 {
-								t.Fatalf("RS forwarded=%d skipped=%v, want one direct-rail decision", sent, skipped)
-							}
-							f.source.session.flushFwdDirty()
-						} else {
-							f.forward(t, id)
-						}
-						forwardSocketBarrier(t, f.r)
-						bodies := aigpSocketBodies(t, f.conn)
-						if len(bodies) != 1 {
-							t.Fatalf("recipient UPDATE count=%d, want one native announcement or withdrawal", len(bodies))
-						}
-						update, err := message.UnpackUpdate(bodies[0])
-						if err != nil {
-							t.Fatal(err)
-						}
+						update := updates[0]
 						_, _, reach, hasReach := attribute.AttrFind(update.PathAttributes, attribute.AttrMPReachNLRI)
 						_, _, unreach, hasUnreach := attribute.AttrFind(update.PathAttributes, attribute.AttrMPUnreachNLRI)
 						valid := tc.valid
@@ -370,9 +346,20 @@ func TestRFC2545ReceivedPairSecondAddressValidated(t *testing.T) {
 	}
 }
 
-// rfc2545ReceiveFixture negotiates both native families so a mixed legacy/MP
-// input crosses the same Session boundary as a standalone IPv6 announcement.
+// rfc2545ReceiveFixture negotiates capability 77 on the receiving session
+// always, so a received standalone link-local next hop is accepted, and on the
+// sending session only when cap77 is set.
 func rfc2545ReceiveFixture(t *testing.T, cap77, peerOnLink, globalOnLink bool) *aigpReplayFixture {
+	t.Helper()
+	return rfc2545ReceiveFixtureCaps(t, true, cap77, peerOnLink, globalOnLink)
+}
+
+// rfc2545ReceiveFixtureCaps negotiates both native families so a mixed legacy/MP
+// input crosses the same Session boundary as a standalone IPv6 announcement.
+// sourceCap77 decides capability 77 on the receiving session, where
+// draft-ietf-idr-linklocal-capability Section 6 turns a malformed 32-octet next
+// hop into treat-as-withdraw; destinationCap77 decides it on the sending session.
+func rfc2545ReceiveFixtureCaps(t *testing.T, sourceCap77, destinationCap77, peerOnLink, globalOnLink bool) *aigpReplayFixture {
 	t.Helper()
 	f := newAIGPReplayFixture(t, nil)
 	f.destination.settings.NextHopMode = NextHopUnchanged
@@ -383,7 +370,11 @@ func rfc2545ReceiveFixture(t *testing.T, cap77, peerOnLink, globalOnLink bool) *
 			&capability.Multiprotocol{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast},
 			&capability.Multiprotocol{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast},
 		}
-		if peer == f.source || cap77 {
+		cap77 := destinationCap77
+		if peer == f.source {
+			cap77 = sourceCap77
+		}
+		if cap77 {
 			caps = append(caps, &capability.LinkLocalNextHop{})
 		}
 		neg := capability.Negotiate(caps, caps, capability.PeerIdentity{
@@ -443,7 +434,19 @@ func rfc2545ForwardScope(f *aigpReplayFixture, peerOnLink, globalOnLink bool) {
 
 // rfc2545ReceiveForward MUST retain the published cache entry until the writer
 // assertions finish; its cleanup MUST release that retain before fixture teardown.
+// The Session MUST publish the received UPDATE unchanged.
 func rfc2545ReceiveForward(t *testing.T, f *aigpReplayFixture, rail string, body []byte) []*message.Update {
+	t.Helper()
+	recipient, _ := rfc2545ReceiveForwardPublished(t, f, rail, body, false)
+	return recipient
+}
+
+// rfc2545ReceiveForwardPublished is rfc2545ReceiveForward with the receive
+// verdict selectable. withdrawnAtReceipt expects RFC 7606 treat-as-withdraw: every
+// UPDATE the Session publishes announces nothing, and each is forwarded. It
+// returns the recipient's UPDATEs, then the UPDATEs the Session published.
+func rfc2545ReceiveForwardPublished(t *testing.T, f *aigpReplayFixture, rail string, body []byte,
+	withdrawnAtReceipt bool) (recipient, published []*message.Update) {
 	t.Helper()
 	original := bytes.Clone(body)
 	t.Cleanup(func() {
@@ -451,17 +454,28 @@ func rfc2545ReceiveForward(t *testing.T, f *aigpReplayFixture, rail string, body
 			t.Error("receive or forwarding changed the original UPDATE")
 		}
 	})
-	var id uint64
-	calls := 0
+	var ids []uint64
 	f.source.session.onMessageReceived = func(addr netip.Addr, typ msgtype.MessageType, received []byte,
 		wu *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection,
 		buf BufHandle, meta map[string]any, sourcePeer string, sourceMessageID uint64) bool {
-		calls++
-		if typ != msgtype.TypeUPDATE || wu == nil || !bytes.Equal(wu.Payload(), original) {
+		if typ != msgtype.TypeUPDATE || wu == nil {
+			t.Fatal("Session did not publish a native UPDATE")
+		}
+		update, err := message.UnpackUpdate(wu.Payload())
+		if err != nil {
+			t.Fatal(err)
+		}
+		published = append(published, update)
+		if withdrawnAtReceipt {
+			if rfc2545Announces(update) {
+				t.Fatalf("Session published an announcement %x, want treat-as-withdraw", wu.Payload())
+			}
+		} else if !bytes.Equal(wu.Payload(), original) {
 			t.Fatal("Session did not publish the intact native announcement")
 		}
 		kept := f.r.notifyMessageReceiver(addr, typ, received, wu, ctxID, direction, buf, meta, sourcePeer, sourceMessageID)
-		id = wu.MessageID()
+		id := wu.MessageID()
+		ids = append(ids, id)
 		f.ids = append(f.ids, id)
 		if !f.r.recentUpdates.Retain(id) {
 			t.Fatalf("published update %d missing before fixture retain", id)
@@ -471,37 +485,86 @@ func rfc2545ReceiveForward(t *testing.T, f *aigpReplayFixture, rail string, body
 	}
 	header := message.Header{Type: msgtype.TypeUPDATE, Length: uint16(message.HeaderLen + len(body))}
 	err, kept := f.source.session.processMessage(&header, body, BufHandle{ID: noPoolBufID, Buf: body})
-	if err != nil || !kept || calls != 1 {
-		t.Fatalf("Session receive: err=%v kept=%v publications=%d, want one cached announcement", err, kept, calls)
+	if err != nil || !kept {
+		t.Fatalf("Session receive: err=%v kept=%v, want the UPDATE kept and the session up", err, kept)
 	}
-	if rail == "rs" || rail == "rs-export" {
-		received, found := f.r.recentUpdates.Get(id)
-		if !found {
-			t.Fatal("Session-delivered update missing before RS dispatch")
-		}
-		skipped, sent := reactorForwardRS(f.r, received, id, f.source.Settings().Address, f.source)
-		if rail == "rs-export" {
-			if sent != 0 || len(skipped) != 1 || skipped[0] != f.destination.Settings().PeerKey() {
-				t.Fatalf("RS export fallback: forwarded=%d skipped=%v, want this destination skipped", sent, skipped)
-			}
-			f.forward(t, id)
-		} else if len(skipped) != 0 || sent != 1 {
-			t.Fatalf("RS forwarded=%d skipped=%v, want one direct-rail decision", sent, skipped)
-		}
-		f.source.session.flushFwdDirty()
-	} else {
-		f.forward(t, id)
+	if len(ids) == 0 {
+		t.Fatal("Session published nothing")
+	}
+	if !withdrawnAtReceipt && len(ids) != 1 {
+		t.Fatalf("Session publications=%d, want one cached announcement", len(ids))
+	}
+	for _, id := range ids {
+		rfc2545DispatchReceived(t, f, rail, id)
 	}
 	forwardSocketBarrier(t, f.r)
-	var updates []*message.Update
 	for _, body := range aigpSocketBodies(t, f.conn) {
 		update, err := message.UnpackUpdate(body)
 		if err != nil {
 			t.Fatal(err)
 		}
-		updates = append(updates, update)
+		recipient = append(recipient, update)
 	}
-	return updates
+	return recipient, published
+}
+
+// rfc2545AssertWithdrawnAtReceipt checks draft-ietf-idr-linklocal-capability
+// Section 6 treat-as-withdraw end to end: the Session published a withdrawal of
+// the native route (and of legacy, when given), and the recipient was sent no
+// announcement of either.
+func rfc2545AssertWithdrawnAtReceipt(t *testing.T, recipient, published []*message.Update, raw, legacy []byte) {
+	t.Helper()
+	nativeWithdrawn, legacyWithdrawn := false, legacy == nil
+	for _, update := range published {
+		_, _, unreach, hasUnreach := attribute.AttrFind(update.PathAttributes, attribute.AttrMPUnreachNLRI)
+		if hasUnreach && bytes.Equal(unreach, mixedUnreachValue(2, 1, raw)) {
+			nativeWithdrawn = true
+		}
+		if legacy != nil && bytes.Equal(update.WithdrawnRoutes, legacy) {
+			legacyWithdrawn = true
+		}
+	}
+	if !nativeWithdrawn || !legacyWithdrawn {
+		t.Errorf("Session publications withdraw native=%v legacy=%v, want both: treat-as-withdraw", nativeWithdrawn, legacyWithdrawn)
+	}
+	for _, update := range recipient {
+		if rfc2545Announces(update) {
+			t.Errorf("recipient was sent an announcement NLRI=%x attrs=%x after treat-as-withdraw", update.NLRI, update.PathAttributes)
+		}
+	}
+}
+
+// rfc2545DispatchReceived forwards one published UPDATE on the selected rail.
+func rfc2545DispatchReceived(t *testing.T, f *aigpReplayFixture, rail string, id uint64) {
+	t.Helper()
+	if rail != "rs" && rail != "rs-export" {
+		f.forward(t, id)
+		return
+	}
+	received, found := f.r.recentUpdates.Get(id)
+	if !found {
+		t.Fatal("Session-delivered update missing before RS dispatch")
+	}
+	skipped, sent := reactorForwardRS(f.r, received, id, f.source.Settings().Address, f.source)
+	if rail == "rs-export" {
+		if sent != 0 || len(skipped) != 1 || skipped[0] != f.destination.Settings().PeerKey() {
+			t.Fatalf("RS export fallback: forwarded=%d skipped=%v, want this destination skipped", sent, skipped)
+		}
+		f.forward(t, id)
+	} else if len(skipped) != 0 || sent != 1 {
+		t.Fatalf("RS forwarded=%d skipped=%v, want one direct-rail decision", sent, skipped)
+	}
+	f.source.session.flushFwdDirty()
+}
+
+// rfc2545Announces reports whether an UPDATE carries any reachability:
+// MP_REACH_NLRI or legacy NLRI.
+func rfc2545Announces(update *message.Update) bool {
+	if len(update.NLRI) != 0 {
+		return true
+	}
+	_, _, _, hasReach := attribute.AttrFind(update.PathAttributes, attribute.AttrMPReachNLRI)
+	return hasReach
 }
 
 // rfc2545AssertNative checks complete native reachability and forbids a legacy
@@ -531,17 +594,21 @@ func rfc2545AssertNative(t *testing.T, update *message.Update, hop, raw []byte, 
 // RFC 2545 Section 3: "A BGP speaker shall advertise to its peer in the Network
 // Address of Next Hop field the global IPv6 address of the next hop, potentially
 // followed by the link-local IPv6 address of the next hop."
-// RFC requirement: RFC2545-3-1 negative -- a valid second link-local cannot license an unusable first address, even when trimming would hide the original pair.
-// RFC requirement: RFC2545-3-1 positive -- a usable global first address retains the valid pair or only its global half according to configured prefix predicates.
+// RFC requirement: RFC2545-3-1 negative -- a valid second link-local cannot license an unusable first address, even when trimming would hide the original pair; a receiving session with capability 77 withdraws a loopback, multicast or IPv4-mapped first address at receipt and the recipient is sent no announcement.
+// RFC requirement: RFC2545-3-1 positive -- a usable global first address retains the valid pair or only its global half according to configured prefix predicates, whichever session negotiated capability 77.
 // MUTATION: check only unspecified/multicast first addresses, or permit a
 // paired link-local first address under capability 77's single-address exception.
 func TestRFC2545ReceivedPairFirstAddressValidated(t *testing.T) {
 	for _, rail := range []string{"cached", "rs"} {
-		for _, cap77 := range []bool{false, true} {
-			capName := "cap77-neither"
-			if cap77 {
-				capName = "cap77-both"
-			}
+		for _, caps := range []struct {
+			name                string
+			source, destination bool
+		}{
+			{"cap77-neither", false, false},
+			{"cap77-destination", false, true},
+			{"cap77-source", true, false},
+			{"cap77-both", true, true},
+		} {
 			for _, scope := range []struct {
 				name                     string
 				peerOnLink, globalOnLink bool
@@ -553,21 +620,29 @@ func TestRFC2545ReceivedPairFirstAddressValidated(t *testing.T) {
 				for _, tc := range []struct {
 					name, first string
 					valid       bool
+					// malformed77 marks a first address that is neither Global, ::,
+					// nor Link-Local: draft-ietf-idr-linklocal-capability Section 6
+					// malformed, so a capability-77 receiver withdraws it on receipt.
+					malformed77 bool
 				}{
-					{"link-local", "fe80::9", false},
-					{"ipv4-mapped", "::ffff:192.0.2.9", false},
-					{"loopback", "::1", false},
-					{"unspecified", "::", false},
-					{"multicast", "ff02::1", false},
-					{"global-control", "2001:db8:1::9", true},
+					{"link-local", "fe80::9", false, false},
+					{"ipv4-mapped", "::ffff:192.0.2.9", false, true},
+					{"loopback", "::1", false, true},
+					{"unspecified", "::", false, false},
+					{"multicast", "ff02::1", false, true},
+					{"global-control", "2001:db8:1::9", true, false},
 				} {
-					t.Run(rail+"/"+capName+"/"+scope.name+"/"+tc.name, func(t *testing.T) {
-						f := rfc2545ReceiveFixture(t, cap77, scope.peerOnLink, scope.globalOnLink)
+					t.Run(rail+"/"+caps.name+"/"+scope.name+"/"+tc.name, func(t *testing.T) {
+						f := rfc2545ReceiveFixtureCaps(t, caps.source, caps.destination, scope.peerOnLink, scope.globalOnLink)
 						first := netip.MustParseAddr(tc.first).As16()
 						hop := append(first[:], netip.MustParseAddr("fe80::a").AsSlice()...)
 						raw := mustHex(t, "4020010db800070000")
 						body := buildUpdatePayload(mixedAttrs(mixedReach(1, hop, raw)), nil)
-						updates := rfc2545ReceiveForward(t, f, rail, body)
+						updates, published := rfc2545ReceiveForwardPublished(t, f, rail, body, caps.source && tc.malformed77)
+						if caps.source && tc.malformed77 {
+							rfc2545AssertWithdrawnAtReceipt(t, updates, published, raw, nil)
+							return
+						}
 						if len(updates) != 1 {
 							t.Fatalf("recipient UPDATE count=%d, want one native decision", len(updates))
 						}
@@ -586,8 +661,8 @@ func TestRFC2545ReceivedPairFirstAddressValidated(t *testing.T) {
 // RFC 2545 Section 3: "A BGP speaker shall advertise to its peer in the Network
 // Address of Next Hop field the global IPv6 address of the next hop, potentially
 // followed by the link-local IPv6 address of the next hop."
-// RFC requirement: RFC2545-3-1 negative -- an effective invalid pair is withdrawn after policy, without withdrawing an independently valid legacy sibling.
-// RFC requirement: RFC2545-3-1 positive -- a valid policy replacement of an obsolete malformed received pair is announced with exact native bytes.
+// RFC requirement: RFC2545-3-1 negative -- on a receiving session without capability 77, an effective invalid pair is withdrawn after policy, without withdrawing an independently valid legacy sibling; with capability 77 a received non-link-local second address withdraws every route of the UPDATE at receipt, legacy sibling included, and the recipient is sent no announcement.
+// RFC requirement: RFC2545-3-1 positive -- on a receiving session without capability 77, a valid policy replacement of an obsolete malformed received pair is announced with exact native bytes.
 // RFC requirement: RFC2545-3-2 negative -- effective native IPv4 and VPN-shaped next-hop fields cannot leave under IPv6-unicast AFI/SAFI, including policy pairs whose off-link trim would hide their original width.
 // RFC requirement: RFC2545-3-2 positive -- a later legal sixteen- or thirty-two-octet policy replacement supersedes an obsolete wrong-width operation, with valid legacy siblings unchanged.
 // MUTATION: validate the obsolete received pair instead of its replacement,
@@ -625,6 +700,10 @@ func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
 					afterRaw              []byte
 					withoutCap77          bool
 					onLinkOnly            bool
+					// source77 negotiates capability 77 on the receiving session,
+					// where withdrawn expects draft-ietf-idr-linklocal-capability
+					// Section 6 treat-as-withdraw before any policy runs.
+					source77, withdrawn bool
 				}{
 					{name: "invalid-first-unchanged", received: invalidFirst},
 					{name: "invalid-second-unchanged", received: invalidSecond},
@@ -653,6 +732,7 @@ func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
 						afterRaw: netip.MustParseAddr("fe80::9").AsSlice(), withoutCap77: true},
 					{name: "raw-empty-replaced-link-local-cap77", received: validPair, replacement: []byte{}, rawPolicy: true,
 						afterRaw: netip.MustParseAddr("fe80::9").AsSlice(), valid: true, onLinkOnly: true},
+					{name: "cap77-source-invalid-second-withdrawn", received: invalidSecond, source77: true, withdrawn: true},
 				} {
 					if tc.offLinkOnly && onLink {
 						// Direct untrimmed 48-byte AttrModSet is unsupported by
@@ -660,7 +740,7 @@ func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
 						continue
 					}
 					t.Run(rail+"/"+scope+"/"+layout+"/"+tc.name, func(t *testing.T) {
-						f := rfc2545ReceiveFixture(t, !tc.withoutCap77, onLink, true)
+						f := rfc2545ReceiveFixtureCaps(t, tc.source77, !tc.withoutCap77, onLink, true)
 						policyCalls, afterRawCalls := 0, 0
 						if tc.replacement != nil && !tc.rawPolicy {
 							original := bytes.Clone(tc.replacement)
@@ -730,7 +810,13 @@ func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
 								dispatchRail = "rs-export"
 							}
 						}
-						updates := rfc2545ReceiveForward(t, f, dispatchRail, body)
+						updates, published := rfc2545ReceiveForwardPublished(t, f, dispatchRail, body, tc.withdrawn)
+						if tc.withdrawn {
+							// RFC 7606 Section 2 treat-as-withdraw takes every route in
+							// the UPDATE, the legacy sibling included.
+							rfc2545AssertWithdrawnAtReceipt(t, updates, published, raw, legacy)
+							return
+						}
 						if tc.replacement != nil && policyCalls == 0 {
 							t.Fatal("effective next-hop policy never ran")
 						}
