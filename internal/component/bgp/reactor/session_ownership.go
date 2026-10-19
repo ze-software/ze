@@ -35,9 +35,10 @@ type adjOutWrite struct {
 	// the owner withdrawals it leaves to recovery, the forwarded withdrawals
 	// of keys already owed, and the replays refused at an owed key. allow
 	// runs twice for a filtered body, so it stages per key, never applies;
-	// applyStaged applies once after the last pass. The bytes point into the
-	// body.
+	// applyStaged applies once after the last pass. An owe's bytes live in
+	// oweNLRI, never in the body: see stageOwe.
 	owes        map[adjOutKey]adjOutOwe
+	oweNLRI     []byte
 	movers      map[adjOutKey]adjOutPath
 	refused     map[adjOutKey]struct{}
 	keyScratch  [nlrisplit.PrefixKeyScratchSize]byte
@@ -252,7 +253,7 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 	}
 	if withdraw {
 		if w.owesWithdrawal(key, entry) {
-			w.owes[key] = adjOutOwe{family: fam, nlri: raw}
+			w.owes[key] = w.stageOwe(fam, raw)
 			return false, nil
 		}
 		w.withdrawn[key] = struct{}{}
@@ -272,10 +273,33 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 }
 
 // adjOutOwe is one staged owner withdrawal: the family and the
-// destination-framed NLRI, still pointing into the body being written.
+// destination-framed NLRI, in the write's oweNLRI.
 type adjOutOwe struct {
 	family family.Family
 	nlri   []byte
+}
+
+// stageOwe copies raw into the write's own storage. raw points into the body
+// being written, and the body does not hold still until applyStaged: when a
+// pass removes a path, writeUpdateBody materializes the shorter body and
+// copies it over the session write buffer the original sat in, so an owed
+// path that stood before an emitted one would be read back as the emitted
+// one. The route server's merged withdrawal of a mixed UPDATE is that shape
+// (test/plugin/wellknown-no-export-withdraw-egress.ci): the client was owed
+// the received withdrawal, the RIB was asked about the synthesized one, and
+// nothing reached the wire.
+// RFC 4271 Section 9.2: "All newly installed routes and all newly unfeasible
+// routes for which there is no replacement route SHALL be advertised to its
+// peers by means of an UPDATE message."
+// Each owe is a full slice expression, so no later append writes into it. A
+// staged owe still reads the bytes it was given when an append reallocates
+// oweNLRI, because the older array is never written again. Bounded by the
+// NLRI octets of one extended message; clearStaged empties it.
+func (w *adjOutWrite) stageOwe(fam family.Family, raw []byte) adjOutOwe {
+	start := len(w.oweNLRI)
+	w.oweNLRI = append(w.oweNLRI, raw...)
+	end := len(w.oweNLRI)
+	return adjOutOwe{family: fam, nlri: w.oweNLRI[start:end:end]}
 }
 
 // owesWithdrawal reports whether this admitted withdrawal is left to the
@@ -324,6 +348,7 @@ func (w *adjOutWrite) stageMover(key adjOutKey, owner adjOutPath) {
 // clearStaged drops the staged effects of a filter pass.
 func (w *adjOutWrite) clearStaged() {
 	clear(w.owes)
+	w.oweNLRI = w.oweNLRI[:0]
 	clear(w.movers)
 	clear(w.refused)
 }

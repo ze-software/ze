@@ -111,8 +111,9 @@ type adjOutOwed struct {
 }
 
 // owe returns the key's record, creating it when the key is not owed. The
-// copy is deliberate: the body is the session's write buffer, and the record
-// outlives the write. MUST be called with mu held.
+// copy is deliberate: raw is the write's staging storage (adjOutWrite.stageOwe),
+// which the pooled writer reuses, and the record outlives the write. MUST be
+// called with mu held.
 func (a *adjRIBOut) owe(key adjOutKey, session *Session, fam family.Family, raw []byte) *adjOutOwed {
 	if record := a.owed[key]; record != nil {
 		return record

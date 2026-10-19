@@ -470,7 +470,7 @@ none of them is a defect until this table names the new trigger.
 | The UPDATE does not fit | RFC 7606 Section 5.1 and the message size (4096, or 65535 with Extended Message) split one UPDATE into several; ordinary policy or next-hop growth is sized again before final writer admission | `SplitWireUpdate`, `fwdSplitParsedUpdate`, `(*Session).writeOrdinaryUpdateBody` |
 | Ingress AS4 reconciliation | A 2-octet speaker, or an UPDATE that carries AS4_PATH or AS4_AGGREGATOR, gets one canonical four-octet AS path | `(*Session).collapseASPathFamily` |
 | An external plugin reads the UPDATE | The plugin needs JSON text, not wire bytes | `appendParsedUpdateJSONDirect` |
-| An owner withdrawal is owed to recovery | The owed record outlives the write, and the NLRI bytes sit in the session's reused write buffer | `(*adjRIBOut).owe` |
+| An owner withdrawal is owed to recovery | Twice. The writer stages the NLRI in its pooled staging storage, because a body that lost a path is copied over the session write buffer before the owe applies, and the owed path's bytes would then read as the emitted one. The owed record then copies them again, because it outlives the write and the pooled writer reuses that storage | `(*adjOutWrite).stageOwe`, `(*adjRIBOut).owe` |
 
 <!-- source: internal/component/bgp/attrpool/pool.go -- shard.intern -->
 <!-- source: internal/component/bgp/reactor/forward_body.go -- buildFwdBody, fwdUpdateForDestination, fwdSplitParsedUpdate -->
@@ -481,6 +481,7 @@ none of them is a defect until this table names the new trigger.
 <!-- source: internal/component/bgp/reactor/session_read.go -- Session.collapseASPathFamily -->
 <!-- source: internal/component/bgp/format/text_update.go -- appendParsedUpdateJSONDirect -->
 <!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjRIBOut.owe -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- stageOwe -->
 
 ## The pools Ze runs
 
