@@ -614,6 +614,24 @@ const (
 	frrShowMixedWidthPrefixJSON = "show bgp ipv4 unicast " + mixedWidthPrefix + " json"
 )
 
+// The bgp-rfc9774-as-set-frr scenario, where a raw injector announces
+// rfc9774InjectedSetPrefix with an AS_SET in its AS_PATH and then the control
+// rfc9774InjectedControlPrefix without one, and ze originates
+// rfc9774StaticSetPrefix with a configured AS_SET and then its clean twin
+// rfc9774StaticCleanPrefix toward FRR. RFC 9774 Section 3 keeps both set
+// prefixes out of FRR's table and the injected one out of ze's own RIB.
+//
+// rfc9774ReceiveVerdict is the description ze's treat-as-withdraw log line
+// carries for the injected route (asPathSetVerdict,
+// internal/component/bgp/message/rfc9774.go).
+const (
+	rfc9774InjectedSetPrefix     = "10.97.74.0/24"
+	rfc9774InjectedControlPrefix = "10.97.75.0/24"
+	rfc9774StaticSetPrefix       = "10.97.76.0/24"
+	rfc9774StaticCleanPrefix     = "10.97.77.0/24"
+	rfc9774ReceiveVerdict        = "RFC 9774 Section 3: AS_SET in AS_PATH"
+)
+
 // The bgp-prefix-sid-duplicate-tlv-frr scenario, where a raw injector announces
 // prefixSIDDuplicatePrefix as an SRv6 L3VPN route whose Prefix-SID repeats the
 // SRv6 L3 Service TLV, and ze relays it to FRR over iBGP.

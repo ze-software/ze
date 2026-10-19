@@ -2040,6 +2040,12 @@ bytes for one path), the RFC 6793 mixed-width relay
 AS_TRANS and whose AS4_PATH carries the real four-octet AS number, and requires FRR to report that
 AS number and never 23456; `as-path-prepend-two-octet-peer` turns the direction around, so ze's own
 non-mappable AS is prepended toward an FRR that refused the four-octet AS capability), the
+RFC 9774 AS_SET deprecation (`bgp-rfc9774-as-set-frr` has the raw injector announce a route whose
+AS_PATH holds an AS_SET and then a clean control, and Ze originate a static route with a configured
+AS_SET and then its clean twin; FRR, running `no bgp reject-as-sets` so it would keep a set, must
+hold both clean prefixes and neither set prefix, and Ze's own `show bgp rib` must hold the control
+and not the injected set route, because the send guard alone already keeps a relayed set off FRR
+and only Ze's own RIB can show the receive half), the
 RFC 8669 Section 6 repeated Prefix-SID TLV (`bgp-prefix-sid-duplicate-tlv-frr` gives ze an SRv6
 L3VPN route whose Prefix-SID carries the SRv6 L3 Service TLV twice, and requires FRR, whose own
 parser refuses a repeated type-5 TLV, to hold the route with the first SID only), the

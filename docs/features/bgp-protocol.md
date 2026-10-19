@@ -315,6 +315,8 @@ rail did not.
 | A 16-octet link-local next hop needs capability 77 | draft-ietf-idr-linklocal-capability Sections 2, 3 and 5 | The Link-Local-only form is sent only where the session negotiated the capability, and for IPv4 NLRI only where RFC 8950 Extended Next Hop Encoding was negotiated as well. A route whose next hop is link-local is left out of the announcement on any other session, and logged, rather than encoded in a form RFC 2545 Section 3 forbids. This holds for originated and forwarded routes alike, including `next-hop self` on a session that runs over a link-local address. |
 | A malformed 32-octet next hop on a capability-77 session is withdrawn | draft-ietf-idr-linklocal-capability Section 6 | A received Next Hop field of 32 octets must be a Global (or `::`) followed by a Link-Local, or two Link-Locals. Any other pair makes the UPDATE treat-as-withdraw (RFC 7606 Section 7.3). Without the capability, only the length is judged |
 | A reflected link-local-only next hop stays on its own segment | draft-ietf-idr-linklocal-capability Section 4 | A route reflector withholds such a route from a client that shares no connected subnet with the original advertiser, and logs the suppression. A client the operator configured next-hop-self for receives it with this speaker's address instead, which is the other answer Section 4 allows. A link-local prefix is never read as evidence of a shared segment. |
+| No AS_SET or AS_CONFED_SET is advertised | 9774 Section 3 | Asked of the built body on every rail except raw injection, after the export chain: an UPDATE whose AS_PATH or AS4_PATH, in any occurrence, holds a set segment is written as the withdrawal of its prefixes instead, logged as a rate-limited warning that names the peer and the route count, and counted on `ze_bgp_as_set_withdrawn_total`. Proven against FRR by the interop scenario `bgp-rfc9774-as-set-frr`. |
+| A received AS_SET or AS_CONFED_SET is treat-as-withdraw | 9774 Section 3 | An UPDATE whose AS_PATH or AS4_PATH holds a set segment is handled as a withdrawal of its prefixes (RFC 7606), on every session whatever the AS width. The log line carries `RFC 9774 Section 3: AS_SET in AS_PATH`. Proven by `test/plugin/rfc9774-as-set-receive-treat-as-withdraw.ci` and by `bgp-rfc9774-as-set-frr`, where Ze's own RIB never holds the injected set route. |
 | A modification that cannot be applied suppresses the route | none | The route is withheld from that destination rather than forwarded unmodified. Counted on `ze_bgp_update_modify_failed_total{reason}`. |
 
 <!-- source: internal/component/bgp/reactor/forward_local_pref.go -- localPrefAllowedTo, applyFactsLocalPref -->
@@ -326,6 +328,8 @@ rail did not.
 <!-- source: internal/component/bgp/plugins/rib/rib_self_nexthop.go -- refreshSelfNextHopsLocked, isSelfNextHop -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- planAttr, buildModifiedPayload -->
 <!-- source: internal/component/bgp/reactor/forward_modify_failure.go -- modifyFailure -->
+<!-- source: internal/component/bgp/reactor/session_rfc9774.go -- transmittedPathHoldsSet, writeUpdateAsWithdrawal -->
+<!-- source: internal/component/bgp/message/rfc9774.go -- ASPathSetSegment, asPathSetVerdict -->
 <!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- appendMEDRemove -->
 
 ### Unrecognized NLRI types in a typed family

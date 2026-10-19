@@ -172,6 +172,51 @@ var scenarioOperations = map[string][]operation{
 	// absent, read from one answer that also names the prefix. The log absence
 	// comes last and only after FRR logged the adjacency, so silence in an
 	// unread log cannot pass.
+	// RFC 9774 Section 3, both halves, judged by FRR. "BGP speakers: MUST NOT
+	// advertise BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs, and
+	// MUST use the "treat-as-withdraw" error handling behavior per [RFC7606]
+	// upon reception of BGP UPDATE messages containing AS_SETs".
+	//
+	// THE PRESENCES COME FIRST, AND EACH ONE IS THE PROOF FOR AN ABSENCE. The
+	// injector sends the set route before the control on one session, and ze
+	// sends its single-route static UPDATEs in prefix order, the set route's
+	// prefix being the lower, so FRR holding both clean prefixes means ze has
+	// already judged both set routes.
+	// FRR runs with `no bgp reject-as-sets`, so a set that reached it would
+	// still be in the one table read that must name both clean prefixes.
+	//
+	// ZE'S OWN VIEW CARRIES THE RECEIVE HALF. The send guard alone keeps a
+	// relayed set off FRR, so with the receive scan reverted FRR's table is
+	// unchanged; ze's `show bgp rib` then holds the injected set prefix, and
+	// the treat-as-withdraw log line is missing.
+	"bgp-rfc9774-as-set-frr": {
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opFRRRoute, argument: rfc9774InjectedControlPrefix, timeout: 90 * time.Second},
+		{kind: opFRRRoute, argument: rfc9774StaticCleanPrefix, timeout: 60 * time.Second},
+		{
+			kind:    opRequireAbsent,
+			peer:    peerFRR,
+			command: []string{cmdVtysh, "-c", showTableJSON},
+			absent:  []string{rfc9774InjectedSetPrefix, rfc9774StaticSetPrefix},
+			proof:   []string{rfc9774InjectedControlPrefix, rfc9774StaticCleanPrefix},
+		},
+		{
+			kind:     opWaitContains,
+			peer:     "ze",
+			command:  zeCommand(zeShowBGPRIB),
+			contains: []string{rfc9774InjectedControlPrefix},
+			timeout:  60 * time.Second,
+		},
+		{
+			kind:    opRequireAbsent,
+			peer:    "ze",
+			command: zeCommand(zeShowBGPRIB),
+			absent:  []string{rfc9774InjectedSetPrefix},
+			proof:   []string{rfc9774InjectedControlPrefix},
+		},
+		{kind: opWaitLogContains, peer: "ze", contains: []string{rfc9774ReceiveVerdict}, timeout: 30 * time.Second},
+		{kind: opFRRSession, argument: zeLabAddress},
+	},
 	"bgp-prefix-sid-duplicate-tlv-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: prefixSIDDuplicatePrefix, family: frrFamilyIPv4VPN, timeout: 90 * time.Second},
