@@ -648,7 +648,9 @@ What blocks closing, by the rule that demands it:
 | A-2, A-3, A-5 (Colima, Docker Desktop, the QEMU guest's dockerd) and A-8 are `unvalidated` | `/ze-close` step 1 "Assumptions Resolved (BLOCKING)"; `plan/TEMPLATE-CLOSURE.md` "`unvalidated` is not a valid final status"; this spec's Goal Gates "Every A-N confirmed or broken" |
 | The deliverable "docker-peers has a home" names the id of the first nightly run that executed it (AC-25); none exists before an owner-ordered push | `/ze-close` step 1: a missing deliverable returns to `/ze-implement` |
 | Work Not Done rows need an owning spec by path, written in the closure commit; homing the Mac and nightly validations in another spec moves scope | `/ze-close` step 6 "Work Not Done"; `ai/rules/completion.md` (scope is the owner's) |
-| `38ccef54f5` (the group-emptied fix) has had no independent review, and no hash-pinned review artifact is recorded | `/ze-close` step 5; `ai/rules/principles.md` (an author does not review their own work) |
+| Resolved 2026-10-19: `38ccef54f5` and `9cbce6f200` reviewed clean, artifact recorded at round 6 under the owner's authorisation (Review Gate) | `/ze-close` step 5 |
+| The Mac checks (A-2, A-3, A-5 on a Mac; `./le perf run` Ctrl-C; the FreeRtr `--build-context` build) move to a follow-up spec: owner, 2026-10-19, "2 yes" | `ai/rules/completion.md` (scope is the owner's) |
+| The real Ctrl-C proofs here (owner, 2026-10-19, "3 yes") are being run | this spec's G-2 |
 | The precondition gates were not run in this phase (owner: another session owns them) | `/ze-close` Precondition and step 3 |
 
 ## Goal Validation (BLOCKING)
@@ -674,9 +676,9 @@ What blocks closing, by the rule that demands it:
 
 | Field | Value |
 |-------|-------|
-| Artifact | not recorded: the reviewers left no hash-pinned artifact, and recording one in this context would attribute a CLEAN verdict to a reader who did not reach it |
-| `./le spec review check` | not run |
-| Rounds | 4 independent reviews (main thread's report). The third, after `41d1cb7669`, and the fourth, on `2fe96cdffe` and `7fcdb3a4b3`, returned 0 BLOCKER and 0 ISSUE. `38ccef54f5` landed after them and is unreviewed |
+| Artifact | `tmp/review/lab-docker-cleanup-and-go-test-containers-d8e7dbbf-89d5-483d-85d8-b379fee975ed.md`, CLEAN, hash-pinned over the last fix's 5 files. The reviewer of `9cbce6f200` recorded it; re-recorded at round 6 after `08e49931a8` changed qemu-integration.md |
+| `./le spec review check` | OK (4 code files, clean, hashes match), 2026-10-19 |
+| Rounds | 6, owner-authorised (Thomas, 2026-10-19, "4 yes"). Four whole-spec reviews, the third and fourth 0 BLOCKER 0 ISSUE. Round 5, on `38ccef54f5`, found the unlisted-member branch untested (fixed `9cbce6f200`). Round 6, on `38ccef54f5` and `9cbce6f200`, returned 0 BLOCKER 0 ISSUE; its one NOTE (the page did not name the unlisted-member case) is fixed by `08e49931a8` |
 | Reviewer lenses used | AC conformance, docker.md destructive scope, user-facing errors, signal and teardown paths |
 
 ### Findings fixed
@@ -693,6 +695,7 @@ What blocks closing, by the rule that demands it:
 | 9 | ISSUE | `claimName` refused this run's own leftover | `interoplab` | `2f74338d3f` |
 | 10 | ISSUE | a pre-run sweep listing failure was a bare docker error | `interoplab` `Suite.Run` | `055e1e91a2` |
 | 11 | ISSUE | the post-signal sweep ran before the killed group emptied; `-l` inside a short-flag cluster passed | `dockerpeers.go`, `interoplab` | `2fe96cdffe` |
+| 12 | ISSUE | the group-present, no-member-listed branch had no test; the summary nested parentheses | `gaterun`, `dockerpeers.go` | `9cbce6f200` |
 
 ## Pre-Commit Verification
 
