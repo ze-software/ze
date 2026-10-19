@@ -450,6 +450,61 @@ func writeAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, linkLoca
 		}
 	}
 
+	// RFC 7606 Section 5.1: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if
+	// present) SHALL be encoded as the very first path attribute in an UPDATE
+	// message." An IPv6 route's MP_REACH_NLRI is therefore written before ORIGIN.
+	if isIPv6 {
+		// RFC 4760 Section 3 - IPv6: Write MP_REACH_NLRI directly (zero-alloc)
+		// Wire format: AFI(2) + SAFI(1) + NH_Len(1) + NextHop(16 or 32) + Reserved(1) + NLRI(var)
+		inet := nlri.NewINET(family.IPv6Unicast, route.Prefix, 0)
+		nlriPayloadLen := nlri.LenWithContext(inet, addPath)
+
+		// RFC 2545 Section 3: "The value of the Length of Next Hop Network Address
+		// field on a MP_REACH_NLRI attribute shall be set to 16, when only a global
+		// address is present, or 32 if a link-local address is also included in the
+		// Next Hop field." The caller decided inclusion; the length follows it, and
+		// announceNextHopOctets has already applied shared family/field admission,
+		// including the role of the second address.
+		nhLen := 16
+		if nextHop.withLinkLocal {
+			nhLen = 32
+		}
+		mpValueLen := 2 + 1 + 1 + nhLen + 1 + nlriPayloadLen
+
+		// RFC 4760 Section 3 - Attribute header (Optional, non-transitive)
+		off += attribute.WriteHeaderTo(buf, off, attribute.FlagOptional, attribute.AttrMPReachNLRI, uint16(mpValueLen)) //nolint:gosec // mpValueLen bounded by UPDATE max
+
+		// RFC 4760 Section 3 - AFI (2 octets)
+		buf[off] = 0
+		buf[off+1] = byte(attribute.AFIIPv6)
+		off += 2
+
+		// RFC 4760 Section 3 - SAFI (1 octet)
+		buf[off] = byte(attribute.SAFIUnicast)
+		off++
+
+		// RFC 4760 Section 3 - Length of Next Hop (1 octet)
+		buf[off] = byte(nhLen)
+		off++
+
+		// RFC 4760 Section 3 - Network Address of Next Hop (variable)
+		// RFC 2545 Section 3: the global address is always first, the link-local
+		// address second. Both were settled at entry, so each one fills the sixteen
+		// octets the length above promises and names the host the caller gave.
+		off += copy(buf[off:], nextHop.global[:])
+		if nextHop.withLinkLocal {
+			off += copy(buf[off:], nextHop.linkLocal[:])
+		}
+
+		// RFC 4760 Section 3 - Reserved (1 octet, MUST be 0)
+		buf[off] = 0
+		off++
+
+		// RFC 4760 Section 3 - NLRI (variable)
+		// RFC 7911: WriteNLRI handles ADD-PATH encoding when negotiated
+		off += nlri.WriteNLRI(inet, buf, off, addPath)
+	}
+
 	// 1. ORIGIN - RFC 4271 §5.1.1: Well-known mandatory attribute.
 	off += writeOriginAttr(buf, off, origin)
 
@@ -505,59 +560,8 @@ func writeAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, linkLoca
 		off += attribute.WriteAttrTo(extComms, buf, off)
 	}
 
-	// NLRI handling - MP_REACH_NLRI (14) goes at end per our pattern
 	if isIPv6 {
-		// RFC 4760 Section 3 - IPv6: Write MP_REACH_NLRI directly (zero-alloc)
-		// Wire format: AFI(2) + SAFI(1) + NH_Len(1) + NextHop(16 or 32) + Reserved(1) + NLRI(var)
-		inet := nlri.NewINET(family.IPv6Unicast, route.Prefix, 0)
-		nlriPayloadLen := nlri.LenWithContext(inet, addPath)
-
-		// RFC 2545 Section 3: "The value of the Length of Next Hop Network Address
-		// field on a MP_REACH_NLRI attribute shall be set to 16, when only a global
-		// address is present, or 32 if a link-local address is also included in the
-		// Next Hop field." The caller decided inclusion; the length follows it, and
-		// announceNextHopOctets has already applied shared family/field admission,
-		// including the role of the second address.
-		nhLen := 16
-		if nextHop.withLinkLocal {
-			nhLen = 32
-		}
-		mpValueLen := 2 + 1 + 1 + nhLen + 1 + nlriPayloadLen
-
-		// RFC 4760 Section 3 - Attribute header (Optional, non-transitive)
-		off += attribute.WriteHeaderTo(buf, off, attribute.FlagOptional, attribute.AttrMPReachNLRI, uint16(mpValueLen)) //nolint:gosec // mpValueLen bounded by UPDATE max
-
-		// RFC 4760 Section 3 - AFI (2 octets)
-		buf[off] = 0
-		buf[off+1] = byte(attribute.AFIIPv6)
-		off += 2
-
-		// RFC 4760 Section 3 - SAFI (1 octet)
-		buf[off] = byte(attribute.SAFIUnicast)
-		off++
-
-		// RFC 4760 Section 3 - Length of Next Hop (1 octet)
-		buf[off] = byte(nhLen)
-		off++
-
-		// RFC 4760 Section 3 - Network Address of Next Hop (variable)
-		// RFC 2545 Section 3: the global address is always first, the link-local
-		// address second. Both were settled at entry, so each one fills the sixteen
-		// octets the length above promises and names the host the caller gave.
-		off += copy(buf[off:], nextHop.global[:])
-		if nextHop.withLinkLocal {
-			off += copy(buf[off:], nextHop.linkLocal[:])
-		}
-
-		// RFC 4760 Section 3 - Reserved (1 octet, MUST be 0)
-		buf[off] = 0
-		off++
-
-		// RFC 4760 Section 3 - NLRI (variable)
-		// RFC 7911: WriteNLRI handles ADD-PATH encoding when negotiated
-		off += nlri.WriteNLRI(inet, buf, off, addPath)
-
-		// AS4_PATH (17) after MP_REACH_NLRI (14) keeps type-code order, when the
+		// AS4_PATH (17) last, after every lower-numbered attribute, when the
 		// two-octet AS_PATH above had to carry AS_TRANS toward an OLD peer.
 		off += writeAS4PathForASNs(buf, off, asn4, asPathASNs)
 

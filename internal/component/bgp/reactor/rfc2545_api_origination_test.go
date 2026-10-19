@@ -182,9 +182,9 @@ func testAPIOriginateIPv6NextHop(t *testing.T, rail string, postPolicy bool) {
 				}
 				mp := append([]byte{0, 2, 1, byte(len(hop))}, hop...)
 				mp = append(mp, mustHex(t, "004020010db800070000")...)
-				attrs := mustHex(t, "4001010040020602010000fde8")
-				attrs = append(attrs, 0x80, 0x0e, byte(len(mp)))
-				attrs = append(attrs, mp...)
+				// MP_REACH_NLRI first, as Ze's own builders write it (RFC 7606 Section 5.1).
+				attrs := append([]byte{0x80, 0x0e, byte(len(mp))}, mp...)
+				attrs = append(attrs, mustHex(t, "4001010040020602010000fde8")...)
 				body := append([]byte{0, 0, byte(len(attrs) >> 8), byte(len(attrs))}, attrs...)
 				peer.settings.ExportFilters = []filterapi.FilterRef{{Name: "origination:replace-next-hop"}}
 				peer.refreshForwardFacts()
@@ -293,14 +293,14 @@ func testAPIOriginateIPv6NextHop(t *testing.T, rail string, postPolicy bool) {
 			var want []byte
 			var updates, eors uint32
 			if accepted {
-				want = mustHex(t, "ffffffffffffffffffffffffffffffff0045020000002e4001010040020602010000fde8800e1e00020110"+tc.wireHop+"004020010db800070000")
+				want = mustHex(t, "ffffffffffffffffffffffffffffffff0045020000002e800e1e00020110"+tc.wireHop+"004020010db8000700004001010040020602010000fde8")
 				updates++
 			}
 			if tc.mixed {
 				want = append(want, mustHex(t, "ffffffffffffffffffffffffffffffff002f02000000144001010040020602010000fde8400304c000020118c63364")...)
 				updates++
 				if rail == "commit" {
-					want = append(want, mustHex(t, "ffffffffffffffffffffffffffffffff0045020000002e4001010040020602010000fde8800e1e0002011020010db8000900000000000000000001004020010db800080000")...)
+					want = append(want, mustHex(t, "ffffffffffffffffffffffffffffffff0045020000002e800e1e0002011020010db8000900000000000000000001004020010db8000800004001010040020602010000fde8")...)
 					updates++
 				}
 			}
@@ -404,7 +404,7 @@ func testOriginatedPolicyForwardQueue(t *testing.T) {
 			if refuse {
 				hop = "00000000000000000000000000000001"
 			}
-			override := mustHex(t, "0000002e4001010040020602010000fde8800e1e00020110"+hop+"004020010db800070000")
+			override := mustHex(t, "0000002e800e1e00020110"+hop+"004020010db8000700004001010040020602010000fde8")
 			peer.settings.ExportFilters = []filterapi.FilterRef{{Name: "queued:replace-first-next-hop"}}
 			peer.refreshForwardFacts()
 			r.api = &pluginserver.Server{}

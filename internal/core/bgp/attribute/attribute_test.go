@@ -207,11 +207,13 @@ func TestOrderAttributesSingle(t *testing.T) {
 	assert.Equal(t, AttrOrigin, ordered[0].Code())
 }
 
-// TestOrderAttributesMPPlacement verifies MP_UNREACH first, then every other
-// attribute by type code, MP_REACH_NLRI (14) included.
+// TestOrderAttributesMPPlacement verifies the MP attributes lead, then every
+// other attribute by type code.
 //
-// Order: MP_UNREACH_NLRI (15) → every other attribute by type code. With
-// ORIGIN (1) and COMMUNITY (8) present, MP_REACH_NLRI (14) sorts after them.
+// RFC 7606 Section 5.1: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if
+// present) SHALL be encoded as the very first path attribute in an UPDATE
+// message." Order: MP_UNREACH_NLRI (15), MP_REACH_NLRI (14), then ORIGIN (1)
+// and COMMUNITY (8).
 //
 // VALIDATES: MP attributes placed correctly regardless of input order.
 // PREVENTS: ExaBGP compatibility issues from wrong attribute ordering.
@@ -229,9 +231,9 @@ func TestOrderAttributesMPPlacement(t *testing.T) {
 
 	require.Len(t, ordered, 4)
 	assert.Equal(t, AttrMPUnreachNLRI, ordered[0].Code()) // 15 - first
-	assert.Equal(t, AttrOrigin, ordered[1].Code())        // 1
-	assert.Equal(t, AttrCommunity, ordered[2].Code())     // 8
-	assert.Equal(t, AttrMPReachNLRI, ordered[3].Code())   // 14 - by type code
+	assert.Equal(t, AttrMPReachNLRI, ordered[1].Code())   // 14 - second
+	assert.Equal(t, AttrOrigin, ordered[2].Code())        // 1
+	assert.Equal(t, AttrCommunity, ordered[3].Code())     // 8
 }
 
 // TestWriteAttributesOrdered verifies writing attributes with ordering.

@@ -399,7 +399,13 @@ func ordinaryGrowthWire(t *testing.T, stream []byte, ceiling int, wantNLRI []byt
 		}
 		attrs := sections.Attrs(body)
 		fixed := mustHex(t, "4001010040020602010000fde8")
-		if !bytes.HasPrefix(attrs, fixed) {
+		// A block Ze builds carries MP_REACH_NLRI first (RFC 7606 Section 5.1); a
+		// policy-supplied block passed through keeps its own order, fixed first.
+		mpFirst := len(attrs) > 1 && attrs[1] == byte(attribute.AttrMPReachNLRI)
+		if mpFirst && !bytes.HasSuffix(attrs, fixed) {
+			t.Fatal("ORIGIN or local-AS prepend changed")
+		}
+		if !mpFirst && !bytes.HasPrefix(attrs, fixed) {
 			t.Fatal("ORIGIN or local-AS prepend changed")
 		}
 		_, _, mp, found := attribute.AttrFind(attrs, attribute.AttrMPReachNLRI)
@@ -413,7 +419,11 @@ func ordinaryGrowthWire(t *testing.T, stream []byte, ceiling int, wantNLRI []byt
 			t.Fatal("MP_REACH lacks exact IPv6 global + owned link-local + reserved field")
 		}
 		header := 3
-		if attrs[len(fixed)]&0x10 != 0 {
+		mpAt := len(fixed)
+		if mpFirst {
+			mpAt = 0
+		}
+		if attrs[mpAt]&0x10 != 0 {
 			header = 4
 		}
 		if len(attrs) != len(fixed)+header+len(mp) {

@@ -742,8 +742,8 @@ func (r *rawAttribute) CheckedWriteTo(buf []byte, off int) (int, error) {
 }
 
 // packAttributesOrderedInto packs attributes in the order
-// attribute.OrderAttributes decides: MP_UNREACH first, then every other
-// attribute by type code, MP_REACH included.
+// attribute.OrderAttributes decides: the MP attribute first (RFC 7606
+// Section 5.1), then every other attribute by type code.
 // rawAttrs (pass-through config bytes) take their place in that order too.
 //
 // Result is a sub-slice of ub.scratch. See the Update type doc for the

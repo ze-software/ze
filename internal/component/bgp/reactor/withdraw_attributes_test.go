@@ -63,17 +63,17 @@ func TestWithdrawCarriesTheAttributesTheCallerNamed(t *testing.T) {
 		announceFacts{isIBGP: true, asn4: true, nextHop: netip.MustParseAddr("10.10.6.3")})
 	require.NotNil(t, update)
 
-	// Ascending type-code order (RFC 4271 Section 5), which announceAttrs.emit
-	// owns: ORIGIN, an AS_PATH empty toward an internal peer, NEXT_HOP 10.10.6.3,
-	// LOCAL_PREF 100, MP_UNREACH_NLRI over AFI 1 SAFI 128, and the caller's own
-	// extended community last.
-	want := []byte{0x40, 0x01, 0x01, 0x00}
+	// The order announceAttrs.emit owns: MP_UNREACH_NLRI over AFI 1 SAFI 128 first
+	// (RFC 7606 Section 5.1), then ascending type code (RFC 4271 Section 5):
+	// ORIGIN, an AS_PATH empty toward an internal peer, NEXT_HOP 10.10.6.3,
+	// LOCAL_PREF 100, and the caller's own extended community last.
+	want := []byte{0x80, 0x0F, byte(3 + len(vpnWithdrawNLRI)), 0x00, 0x01, 0x80}
+	want = append(want, vpnWithdrawNLRI...)
 	want = append(want,
+		0x40, 0x01, 0x01, 0x00,
 		0x40, 0x02, 0x00,
 		0x40, 0x03, 0x04, 0x0A, 0x0A, 0x06, 0x03,
-		0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64,
-		0x80, 0x0F, byte(3+len(vpnWithdrawNLRI)), 0x00, 0x01, 0x80)
-	want = append(want, vpnWithdrawNLRI...)
+		0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64)
 	want = append(want, targetTenTenExtCommunity...)
 
 	assert.Equal(t, want, update.PathAttributes)

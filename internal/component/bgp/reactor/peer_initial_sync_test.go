@@ -722,20 +722,23 @@ func TestDefaultOriginateRefusesUnusableIPv6NextHop(t *testing.T) {
 
 			want := eorWire(family.IPv6Unicast)
 			if tc.announce {
-				// Header, no withdrawn routes, ORIGIN IGP, AS_SEQUENCE
-				// containing four-octet local AS 65000, and MP_REACH(::/0).
+				// Header, no withdrawn routes, MP_REACH(::/0) first (RFC 7606
+				// Section 5.1), ORIGIN IGP, and AS_SEQUENCE containing four-octet
+				// local AS 65000.
 				update := []byte{
 					0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 					0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 					0x00, 0x3d, 0x02, 0x00, 0x00, 0x00, 0x26,
-					0x40, 0x01, 0x01, 0x00,
-					0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xfd, 0xe8,
 				}
 				wireHop := "2001:db8:1::1"
 				if tc.name == "mapped" {
 					wireHop = "::ffff:192.0.2.1"
 				}
 				update = append(update, mpReachIPv6Attr(t, defaultRouteNLRI, wireHop)...)
+				update = append(update,
+					0x40, 0x01, 0x01, 0x00,
+					0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xfd, 0xe8,
+				)
 				want = append(update, want...)
 			}
 			if got := conn.written(); !bytes.Equal(got, want) {

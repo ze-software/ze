@@ -186,33 +186,35 @@ func ParseOrigin(data []byte) (Origin, error) {
 	return o, nil
 }
 
-// OrderAttributes sorts attributes with MP_UNREACH first, then every remaining
-// attribute -- MP_REACH included -- in ascending type-code order.
+// OrderAttributes returns attrs in the order Ze encodes them: MP_UNREACH_NLRI,
+// then MP_REACH_NLRI, then every other attribute in ascending type-code order.
 //
-// Order: MP_UNREACH_NLRI (15) → all other attrs by type code, so MP_REACH (14)
-// sits between CLUSTER_LIST (10) and EXT_COMMUNITIES (16).
+// RFC 7606 Section 5.1: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if
+// present) SHALL be encoded as the very first path attribute in an UPDATE
+// message."
 //
-// RFC 4271 Section 5 leaves the order free ("A BGP speaker MUST be prepared to
-// accept attributes in any order"), so this is a house convention rather than a
-// requirement -- which is precisely why it has to be ONE convention.
+// RFC 4271 Section 5: "The sender of an UPDATE message SHOULD order path
+// attributes within the UPDATE message in ascending order of attribute type."
+// RFC 7606 updates RFC 4271, so its SHALL wins for codes 14 and 15 and the
+// SHOULD orders the rest. The same section forbids MP_REACH_NLRI and
+// MP_UNREACH_NLRI in one UPDATE, so which of the two leads only matters for a
+// block a caller has not yet split; MP_UNREACH_NLRI leads because a withdrawal
+// precedes an announcement, as Withdrawn Routes precede NLRI in RFC 4271
+// Section 4.3.
 //
-// It used to place MP_REACH LAST, on the rationale that the regular attributes
-// describe the NLRI carried in MP_REACH. Reasonable in isolation, but this is one
-// of three builders that emit the same route, and the other two put MP_REACH at
-// its type-code position: reactor/peer_rib_routes.go buildRIBRouteUpdate (which
-// slots it between writeOptionalAttrs(0,14) and writeOptionalAttrs(14,17)) and
-// reactor/reactor_api_batch.go buildWireModeUpdate (insertAttrOrdered). A route
-// therefore left the daemon as two different byte strings depending on which
-// builder produced it, and an exact-hex functional test became a test of the rail
-// rather than of the route: test/plugin/flowspec-announce.ci asserted EXT_COMMUNITIES
-// before MP_REACH because a static config route produced its bytes, while the
-// same route sent through `update text` produced the reverse.
+//	+---------------------------+  first path attribute
+//	| MP_UNREACH_NLRI (15)      |  if present
+//	| MP_REACH_NLRI (14)        |  if present
+//	+---------------------------+
+//	| ORIGIN (1), AS_PATH (2),  |  every other attribute,
+//	| ... by ascending code     |  ascending type code
+//	+---------------------------+
 //
-// peer_rib_routes.go's own ordering note already CLAIMED this function sorted by
-// type code. It now does, and the claim is true.
-//
-// MP_UNREACH stays first, out of type-code order, deliberately: a withdrawal
-// logically precedes an announcement in the same message.
+// Every builder that writes a block from scratch reaches this order: the
+// message package through WriteAttributesOrdered, the reactor announce rails
+// through attrEmitter, the splitters by writing each MP chunk ahead of the base
+// attributes. A route therefore leaves the daemon as one byte string whichever
+// builder produced it.
 //
 // The function returns a new slice; the original is not modified.
 // If the input is nil, nil is returned.
@@ -228,13 +230,18 @@ func OrderAttributes(attrs []Attribute) []Attribute {
 		return attrs
 	}
 
-	// Separate MP_UNREACH only. MP_REACH sorts with everything else, by code.
+	// Separate the two MP attributes; everything else sorts by code.
 	var regular []Attribute
-	var mpUnreach Attribute
+	var mpUnreach, mpReach Attribute
 
 	for _, attr := range attrs {
-		if attr.Code() == AttrMPUnreachNLRI {
+		//exhaustive:ignore // Only the two MP codes leave the type-code sort.
+		switch attr.Code() {
+		case AttrMPUnreachNLRI:
 			mpUnreach = attr
+			continue
+		case AttrMPReachNLRI:
+			mpReach = attr
 			continue
 		}
 		regular = append(regular, attr)
@@ -251,20 +258,23 @@ func OrderAttributes(attrs []Attribute) []Attribute {
 		regular[j+1] = key
 	}
 
-	// Build result: UNREACH + everything else in type-code order.
+	// RFC 7606 Section 5.1: the MP attribute is the very first path attribute.
 	result := make([]Attribute, 0, len(attrs))
 	if mpUnreach != nil {
 		result = append(result, mpUnreach)
+	}
+	if mpReach != nil {
+		result = append(result, mpReach)
 	}
 	result = append(result, regular...)
 
 	return result
 }
 
-// WriteAttributesOrdered writes attributes ordered by type code into buf.
+// WriteAttributesOrdered writes attributes into buf in the order
+// OrderAttributes decides (MP attribute first, then ascending type code).
 // Returns the number of bytes written.
 //
-// RFC 4271 Appendix F.3: Order by type code for efficient comparison.
 // Zero-allocation: writes directly into provided buffer.
 func WriteAttributesOrdered(attrs []Attribute, buf []byte, off int) int {
 	if len(attrs) == 0 {

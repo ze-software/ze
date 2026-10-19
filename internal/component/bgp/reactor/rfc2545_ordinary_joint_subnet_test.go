@@ -101,9 +101,9 @@ func TestOrdinaryIPv6NormalizationPreservesAdmission(t *testing.T) {
 					mp = append(mp, tc.global.AsSlice()...)
 					mp = append(mp, tc.linkLocal.AsSlice()...)
 					mp = append(mp, mustHex(t, "004020010db800070000")...)
-					attrs := mustHex(t, "4001010040020602010000fde8")
-					attrs = append(attrs, 0x80, 0x0e, byte(len(mp)))
-					attrs = append(attrs, mp...)
+					// MP_REACH_NLRI first, as Ze's own builders write it (RFC 7606 Section 5.1).
+					attrs := append([]byte{0x80, 0x0e, byte(len(mp))}, mp...)
+					attrs = append(attrs, mustHex(t, "4001010040020602010000fde8")...)
 					body := append([]byte{0, 0, byte(len(attrs) >> 8), byte(len(attrs))}, attrs...)
 					r.api = &pluginserver.Server{}
 					policyCalls := 0
@@ -139,8 +139,8 @@ func testOrdinaryIPv6JointSubnet(t *testing.T, source ordinaryJointSource) {
 	t.Helper()
 	// Independent complete-frame oracles: MP_REACH length, both address roles,
 	// reserved octet, unchanged /64 NLRI, ORIGIN and exactly one local-AS prepend.
-	globalWire := mustHex(t, "ffffffffffffffffffffffffffffffff0045020000002e4001010040020602010000fde8800e1e0002011020010db8000a00000000000000000001004020010db800070000")
-	pairWire := mustHex(t, "ffffffffffffffffffffffffffffffff0055020000003e4001010040020602010000fde8800e2e0002012020010db8000a00000000000000000001fe800000000000000000000000000001004020010db800070000")
+	globalWire := mustHex(t, "ffffffffffffffffffffffffffffffff0045020000002e800e1e0002011020010db8000a00000000000000000001004020010db8000700004001010040020602010000fde8")
+	pairWire := mustHex(t, "ffffffffffffffffffffffffffffffff0055020000003e800e2e0002012020010db8000a00000000000000000001fe800000000000000000000000000001004020010db8000700004001010040020602010000fde8")
 	for _, rail := range []struct {
 		name string
 		kind ordinaryJointRail

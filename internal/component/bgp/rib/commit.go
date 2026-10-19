@@ -336,14 +336,24 @@ func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, as
 	buf := make([]byte, totalLen)
 	off := 0
 
+	// RFC 7606 Section 5.1: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if
+	// present) SHALL be encoded as the very first path attribute in an UPDATE
+	// message." An MP_REACH_NLRI therefore leads; a NEXT_HOP takes position 3.
+	mpReachFirst := nhAttr.Code() == attribute.AttrMPReachNLRI
+	if mpReachFirst {
+		off += attribute.WriteAttrTo(nhAttr, buf, off)
+	}
+
 	// 1. ORIGIN
 	off += attribute.WriteAttrTo(origin, buf, off)
 
 	// 2. AS_PATH (context-dependent for ASN4)
 	off += attribute.WriteAttrToWithContext(asPathAttr, buf, off, nil, dstCtx)
 
-	// 3. NEXT_HOP or MP_REACH_NLRI
-	off += attribute.WriteAttrTo(nhAttr, buf, off)
+	// 3. NEXT_HOP
+	if !mpReachFirst {
+		off += attribute.WriteAttrTo(nhAttr, buf, off)
+	}
 
 	// 4. LOCAL_PREF for iBGP
 	if includeLocalPref {

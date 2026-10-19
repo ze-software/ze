@@ -336,6 +336,18 @@ func validationBuildWire(update *ReceivedUpdate, spans []relayAttrSpan, attrs, w
 	off := 2 + copy(buf[2:], withdrawn)
 	attrLenOffset := off
 	off += 2
+	// RFC 7606 Section 5.1: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if
+	// present) SHALL be encoded as the very first path attribute in an UPDATE
+	// message." The MP_UNREACH_NLRI this function adds therefore leads; a sourced
+	// MP_REACH_NLRI keeps its sender's position, as every relayed attribute does.
+	//
+	//	+0 flags(1) type=15(1) length(1|2) | AFI(2) SAFI(1) | withdrawn NLRI
+	if len(mpWithdraw) > 0 {
+		off += writeAttrHeader(buf, off, byte(attribute.FlagOptional), attribute.AttrMPUnreachNLRI, 3+len(mpWithdraw))
+		binary.BigEndian.PutUint16(buf[off:off+2], uint16(withdrawFamily.AFI))
+		buf[off+2] = byte(withdrawFamily.SAFI)
+		off += 3 + copy(buf[off+3:], mpWithdraw)
+	}
 	if len(announced)+len(mpAnnounce) > 0 {
 		for _, span := range spans {
 			//exhaustive:ignore // Only MP NLRI attributes are rebuilt; all other attribute spans are copied unchanged.
@@ -345,17 +357,11 @@ func validationBuildWire(update *ReceivedUpdate, spans []relayAttrSpan, attrs, w
 					off += writeMPReach(buf, off, announceFamily, nextHop, mpAnnounce)
 				}
 			case attribute.AttrMPUnreachNLRI:
-				// Written below even when every announcement was refused.
+				// Written above even when every announcement was refused.
 			default:
 				off += copy(buf[off:], attrs[span.start:span.end])
 			}
 		}
-	}
-	if len(mpWithdraw) > 0 {
-		off += writeAttrHeader(buf, off, byte(attribute.FlagOptional), attribute.AttrMPUnreachNLRI, 3+len(mpWithdraw))
-		binary.BigEndian.PutUint16(buf[off:off+2], uint16(withdrawFamily.AFI))
-		buf[off+2] = byte(withdrawFamily.SAFI)
-		off += 3 + copy(buf[off+3:], mpWithdraw)
 	}
 	binary.BigEndian.PutUint16(buf[attrLenOffset:attrLenOffset+2], uint16(off-attrLenOffset-2))
 	off += copy(buf[off:], announced)

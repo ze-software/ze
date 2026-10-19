@@ -94,7 +94,7 @@ func preserveCases() []preserveCase {
 			nextHop:   "2001:db8::1",
 			isIBGP:    true,
 			packedHex: originIGP + asPath65000 + community + aigpMetric1234 + unknownTransitiveAttr,
-			wantCodes: []int{1, 2, 5, 8, 14, 26, 41},
+			wantCodes: []int{14, 1, 2, 5, 8, 26, 41},
 		},
 		{
 			// The same on IPv4 unicast, where there is no MP_REACH to anchor the

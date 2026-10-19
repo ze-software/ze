@@ -14,8 +14,8 @@ import (
 // attributes a route carries from config.
 //
 // VALIDATES: BuildUnicast, BuildGroupedUnicast and BuildLabeledUnicast emit an
-// attribute sequence whose type codes strictly ascend (MP_UNREACH_NLRI, which
-// these builders never emit, is the one attribute OrderAttributes puts first),
+// attribute sequence whose type codes strictly ascend after the leading
+// MP_REACH_NLRI that RFC 7606 Section 5.1 places first (BuildLabeledUnicast),
 // for a route with no raw attributes and for a route whose raw attributes
 // (AIGP 26, an unknown optional transitive 20) sort before LARGE_COMMUNITY 32.
 // PREVENTS: raw config attributes appended after the ordered block, so AIGP
@@ -23,7 +23,7 @@ import (
 //
 // RFC requirement: RFC4271-5-7 positive -- a route with ORIGIN, AS_PATH, NEXT_HOP, MED,
 // COMMUNITIES and LARGE_COMMUNITY leaves from all three builders with its attribute
-// type codes in ascending order.
+// type codes in ascending order after any leading MP_REACH_NLRI.
 // RFC requirement: RFC4271-5-7 negative -- raw attributes of type 20 and 26, supplied after
 // the builder's own attributes, still leave in ascending order, before LARGE_COMMUNITY 32.
 func TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes(t *testing.T) {
@@ -76,7 +76,8 @@ func TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes(t *testing.T) {
 }
 
 // requireAscendingAttributes walks a path attribute blob and asserts strictly
-// ascending type codes, LARGE_COMMUNITY present, and every raw attribute kept.
+// ascending type codes after a leading MP_REACH_NLRI (RFC 7606 Section 5.1),
+// LARGE_COMMUNITY present, and every raw attribute kept.
 func requireAscendingAttributes(t *testing.T, pathAttrs []byte, raw int, builder string) {
 	t.Helper()
 	var codes []uint8
@@ -91,7 +92,11 @@ func requireAscendingAttributes(t *testing.T, pathAttrs []byte, raw int, builder
 		codes = append(codes, pathAttrs[off+1])
 		off += hdr + length
 	}
-	for i := 1; i < len(codes); i++ {
+	from := 0
+	if len(codes) > 0 && codes[0] == uint8(attribute.AttrMPReachNLRI) {
+		from = 1
+	}
+	for i := from + 1; i < len(codes); i++ {
 		require.Less(t, codes[i-1], codes[i], "%s: attribute codes %v", builder, codes)
 	}
 	require.Contains(t, codes, uint8(32), "%s: LARGE_COMMUNITY", builder)

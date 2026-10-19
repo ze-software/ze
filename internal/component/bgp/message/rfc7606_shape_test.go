@@ -271,12 +271,13 @@ func TestSplitCompliantEmptyMPUnreachKeepsMessageMeaning(t *testing.T) {
 		{
 			name: "MP announcement",
 			body: Update{PathAttributes: append(append(append([]byte(nil), base...), mpReach...), emptyMP...)},
-			want: Update{PathAttributes: append(append([]byte(nil), base...), mpReach...)},
+			// RFC 7606 Section 5.1: the MP attribute leads.
+			want: Update{PathAttributes: append(append([]byte(nil), mpReach...), base...)},
 		},
 		{
 			name: "empty MP announcement field",
 			body: Update{PathAttributes: append(append(append([]byte(nil), base...), emptyReach...), emptyMP...)},
-			want: Update{PathAttributes: append(append([]byte(nil), base...), emptyReach...)},
+			want: Update{PathAttributes: append(append([]byte(nil), emptyReach...), base...)},
 		},
 		{
 			name: "standalone MP End-of-RIB",

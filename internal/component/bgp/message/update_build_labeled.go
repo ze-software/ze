@@ -195,8 +195,8 @@ func (ub *UpdateBuilder) BuildLabeledUnicast(p *LabeledUnicastParams) *Update {
 		})
 	}
 
-	// Order attributes as attribute.OrderAttributes does: MP_UNREACH first,
-	// then every other attribute by code, MP_REACH included.
+	// Order attributes as attribute.OrderAttributes does: the MP attribute
+	// first (RFC 7606 Section 5.1), then every other attribute by code.
 	// Matches the wire-byte order used by ExaBGP fixture round-trip tests.
 	// Raw attributes (already-packed pass-through from config) follow.
 	attrBytes := ub.packAttributesOrderedInto(attrs, p.RawAttributeBytes)

@@ -51,8 +51,8 @@ const (
 // Multiprotocol routes carry next-hop in MP_REACH_NLRI; a family that also needs
 // a legacy NEXT_HOP (code 3) attribute (IPv4 MUP/MVPN) supplies it via RawAttrs.
 //
-// Wire order is fixed by OrderAttributes (MP_UNREACH first, regular attrs by
-// code, MP_REACH included), so the order attributes are added here is irrelevant.
+// Wire order is fixed by OrderAttributes (the MP attribute first, per RFC 7606
+// Section 5.1, then regular attrs by code), so the order attributes are added here is irrelevant.
 // Returns nil when a plain next-hop profile refuses the field. Callers MUST
 // check for nil before packing, measuring or sending the result.
 func (ub *UpdateBuilder) BuildPlugin(p PluginParams) *Update {

@@ -184,8 +184,9 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, nextHop netip.Addr, l
 		plan.add(localPref, nil)
 	}
 
-	// The stored route's optional attributes. The writer places every contribution
-	// at its ascending type-code position (RFC 4271 Section 5), so this loop no
+	// The stored route's optional attributes. The writer places the MP_REACH_NLRI
+	// first (RFC 7606 Section 5.1) and every other contribution at its ascending
+	// type-code position (RFC 4271 Section 5), so this loop no
 	// longer has to interleave range passes around the attributes injected above --
 	// the three writeOptionalAttrs(lo, hi) calls and the hand-placed MP_REACH and
 	// AS4_PATH between them are what the shared writer absorbed.

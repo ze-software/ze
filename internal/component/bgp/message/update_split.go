@@ -249,66 +249,41 @@ func findMPAttribute(pathAttrs []byte, code attribute.AttributeCode) mpAttrInfo 
 }
 
 // splitUpdateWithMP emits one or more UPDATE chunks when MP_REACH_NLRI or
-// MP_UNREACH_NLRI is present. Each chunk's PathAttributes is written into the
-// splitter's scratch: base attrs (everything except MP) at scratch[0:B),
-// per-chunk MP attribute written at scratch[L:...) where L is the length of the
-// base attrs that must PRECEDE the MP attribute by type code, emitted as
-// scratch[0:F]. Between chunks s.off is reset to L so the next MP attribute
-// overwrites the previous one while the base attrs stay valid.
+// MP_UNREACH_NLRI is present.
 //
-// Splitting at L rather than at B is what keeps the chunks in ascending
-// attribute-type-code order (RFC 4271 Section 5). Writing the MP attribute after
-// ALL base attrs put MP_REACH (14) behind an EXTENDED_COMMUNITIES (16) the sender
-// had supplied, so an announce that fitted in one message and the same announce
-// split across two encoded their attributes in different orders. The base attrs
-// above the MP code are stashed above the chunk region and re-copied after each
-// MP attribute; when there are none (the common case) this costs nothing and the
-// layout is exactly as before.
+// RFC 7606 Section 5.1: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if
+// present) SHALL be encoded as the very first path attribute in an UPDATE
+// message." Each chunk is therefore the MP attribute followed by the base
+// attributes (u.PathAttributes minus both MP ranges, in the caller's order).
+//
+// Scratch layout, fixed before the first chunk is written:
+//
+//	0                       mpRegion            mpRegion+baseLen
+//	+-----------------------+-------------------+
+//	| chunk region          | base attributes   |
+//	+-----------------------+-------------------+
+//	          start ^ chunk written to END at mpRegion
+//
+// A chunk is written right-aligned so that it ends where the base begins, and
+// the emitted PathAttributes is scratch[start:mpRegion+baseLen]: one contiguous
+// block with no per-chunk copy of the base. The base is never overwritten, so
+// the IPv4 announcements that follow reuse it as it stands. The peak is
+// mpRegion+baseLen == maxSize-overhead, inside alloc's RFC 8654 bound.
 func (s *Splitter) splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnreachInfo mpAttrInfo, addPathFor func(family.Family) bool, emit func(*Update) error) error {
 	s.resetScratch()
 	overhead := HeaderLen + 4
 
-	// Copy base attrs (u.PathAttributes minus MP_REACH and MP_UNREACH ranges)
-	// into scratch in one pass.
-	baseLen, lowLen := s.writeBaseAttrs(u.PathAttributes, mpReachInfo, mpUnreachInfo)
-	highLen := baseLen - lowLen
-	emitted := 0
-
 	// Chunk budget, shared by both MP branches.
-	//
-	// highLen is subtracted even though it is already inside baseLen, so the high
-	// attributes are charged twice: once as the originals in the base block and
-	// once as the stash copy parked above the chunk region. That is deliberate and
-	// load-bearing, not an oversight. Scratch peaks at
-	// lowLen + (maxMPAttrValue + hdr) + highLen; with the double charge that is
-	// exactly maxSize - overhead, and alloc panics above RFC 8654's ExtendedMaxSize
-	// (65535). Drop the second charge and the peak becomes
-	// maxSize - overhead + highLen, which for an extended-message peer
-	// (maxSize == 65535) carrying large or IPv6 extended communities is a panic.
-	//
-	// The price is that each chunk carries up to highLen fewer NLRI bytes, so a
-	// route with big high-coded attributes packs marginally fewer prefixes per
-	// UPDATE. Bounded by the size of those attributes, correctness-neutral, and the
-	// alternative layouts all reduce to carrying the same duplicate inside the same
-	// bounded scratch -- moving the stash below the working area gives the same
-	// peak. Anyone reclaiming those bytes must first make the scratch bound
-	// independent of maxSize.
 	const mpAttrHeaderSize = 4 // extended length, for safety
-	maxMPAttrValue := maxSize - overhead - baseLen - mpAttrHeaderSize - highLen
-
-	// Reserve the maximum chunk region and park the high attrs above it, so
-	// writing a chunk at lowLen can never clobber the copy it needs afterwards.
-	stashOff := 0
-	if highLen > 0 {
-		if maxMPAttrValue <= 0 {
-			return ErrAttributesTooLarge
-		}
-		s.off = baseLen
-		_ = s.alloc(maxMPAttrValue + mpAttrHeaderSize)
-		stash := s.alloc(highLen)
-		stashOff = baseLen + maxMPAttrValue + mpAttrHeaderSize
-		copy(stash, s.scratch[lowLen:baseLen])
+	baseLen := baseAttrsLen(u.PathAttributes, mpReachInfo, mpUnreachInfo)
+	maxMPAttrValue := maxSize - overhead - baseLen - mpAttrHeaderSize
+	mpRegion := 0
+	if maxMPAttrValue > 0 {
+		mpRegion = maxMPAttrValue + mpAttrHeaderSize
 	}
+	_ = s.alloc(mpRegion)
+	s.writeBaseAttrs(u.PathAttributes, baseLen, mpReachInfo, mpUnreachInfo)
+	emitted := 0
 
 	// The legacy IPv4 fields are carried too. They used to be dropped outright: every
 	// emitted chunk was `&Update{PathAttributes: ...}` with no WithdrawnRoutes and no
@@ -359,7 +334,8 @@ func (s *Splitter) splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnre
 				return fmt.Errorf("splitting MP_UNREACH_NLRI: %w", err)
 			}
 			for _, chunk := range mpChunks {
-				if err := s.emitMPChunk(lowLen, highLen, stashOff, chunk, emit); err != nil {
+				// RFC 7606 Section 5.1
+				if err := s.emitMPChunk(mpRegion, baseLen, chunk, emit); err != nil {
 					return err
 				}
 				emitted++
@@ -382,7 +358,8 @@ func (s *Splitter) splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnre
 			return fmt.Errorf("splitting MP_REACH_NLRI: %w", err)
 		}
 		for _, chunk := range mpChunks {
-			if err := s.emitMPChunk(lowLen, highLen, stashOff, chunk, emit); err != nil {
+			// RFC 7606 Section 5.1
+			if err := s.emitMPChunk(mpRegion, baseLen, chunk, emit); err != nil {
 				return err
 			}
 			emitted++
@@ -396,19 +373,13 @@ func (s *Splitter) splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnre
 		if space <= 0 {
 			return ErrAttributesTooLarge
 		}
-		// The MP chunks above overwrote scratch[lowLen:baseLen); put the high
-		// attributes back so the base block is whole again for these chunks.
-		if highLen > 0 {
-			copy(s.scratch[lowLen:baseLen], s.scratch[stashOff:stashOff+highLen])
-		}
 		chunks, err := chunkIPv4NLRI(u.NLRI, space, addPathIPv4)
 		if err != nil {
 			return fmt.Errorf("chunking NLRI: %w", err)
 		}
+		base := s.scratch[mpRegion : mpRegion+baseLen : mpRegion+baseLen]
 		for _, chunk := range chunks {
-			// s.scratch[:baseLen] is read here rather than captured earlier: alloc may have
-			// grown the buffer while emitting MP chunks, and it copies the prefix across.
-			if err := emit(&Update{PathAttributes: s.scratch[:baseLen], NLRI: chunk}); err != nil {
+			if err := emit(&Update{PathAttributes: base, NLRI: chunk}); err != nil {
 				return err
 			}
 			emitted++
@@ -423,20 +394,28 @@ func (s *Splitter) splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnre
 	return nil
 }
 
-// writeBaseAttrs copies pathAttrs into scratch, omitting the ranges occupied by
-// MP_REACH and MP_UNREACH. Returns the base-attrs length (also s.off after the
-// call) and lowLen, the length of the leading run of those attributes whose type
-// code is below MP_REACH_NLRI (14) -- the point at which the per-chunk MP
-// attribute has to be written to keep the block in ascending type-code order
-// (RFC 4271 Section 5).
+// baseAttrsLen returns the length of pathAttrs once the MP_REACH and
+// MP_UNREACH ranges are removed: the size writeBaseAttrs writes.
+func baseAttrsLen(pathAttrs []byte, mpReachInfo, mpUnreachInfo mpAttrInfo) int {
+	n := len(pathAttrs)
+	if mpUnreachInfo.found {
+		n -= mpUnreachInfo.end - mpUnreachInfo.start
+	}
+	if mpReachInfo.found {
+		n -= mpReachInfo.end - mpReachInfo.start
+	}
+	return n
+}
+
+// writeBaseAttrs copies pathAttrs into the next baseLen octets of scratch,
+// omitting the ranges occupied by MP_REACH and MP_UNREACH. baseLen MUST be
+// baseAttrsLen of the same arguments.
 //
-// lowLen is a leading RUN, not "every attribute with a code below 14". The
-// caller's block is copied in its original order because it may be a relayed
-// UPDATE, and RFC 4271 Section 5 requires a receiver to accept attributes out of
-// order; re-sorting another speaker's attributes here would be a gratuitous
-// rewrite. For a block this daemon built (always ascending) the run is exactly
-// the set of lower-coded attributes.
-func (s *Splitter) writeBaseAttrs(pathAttrs []byte, mpReachInfo, mpUnreachInfo mpAttrInfo) (baseLen, lowLen int) {
+// The caller's block is copied in its original order because it may be a
+// relayed UPDATE, and RFC 4271 Section 5 requires a receiver to accept
+// attributes in any order; re-sorting another speaker's attributes here would
+// be a gratuitous rewrite. Only the MP attribute moves, to the front.
+func (s *Splitter) writeBaseAttrs(pathAttrs []byte, baseLen int, mpReachInfo, mpUnreachInfo mpAttrInfo) {
 	// Collect skip ranges sorted by start.
 	var skipStart, skipEnd [2]int
 	n := 0
@@ -464,12 +443,7 @@ func (s *Splitter) writeBaseAttrs(pathAttrs []byte, mpReachInfo, mpUnreachInfo m
 		add(mpReachInfo.start, mpReachInfo.end)
 	}
 
-	// Compute total base size and allocate once from scratch.
-	baseSize := len(pathAttrs)
-	for i := range n {
-		baseSize -= skipEnd[i] - skipStart[i]
-	}
-	base := s.alloc(baseSize)
+	base := s.alloc(baseLen)
 
 	// Copy surviving ranges.
 	pos := 0
@@ -479,63 +453,36 @@ func (s *Splitter) writeBaseAttrs(pathAttrs []byte, mpReachInfo, mpUnreachInfo m
 		pos = skipEnd[i]
 	}
 	copy(base[off:], pathAttrs[pos:])
-
-	return baseSize, lowRunLen(base)
 }
 
-// lowRunLen returns the byte length of the leading run of attributes in attrs
-// whose type code is below MP_REACH_NLRI (14). A malformed tail stops the walk,
-// which is safe: the run only shortens, so the MP attribute is written earlier
-// rather than into the middle of an attribute.
-func lowRunLen(attrs []byte) int {
-	iter := attribute.NewAttrIterator(attrs)
-	for {
-		off := iter.Offset()
-		code, _, _, ok := iter.Next()
-		if !ok {
-			return off
-		}
-		if code >= attribute.AttrMPReachNLRI {
-			return off
-		}
-	}
-}
-
-// emitMPChunk writes one MP attribute (chunk) into scratch at lowLen -- the
-// type-code position, after the base attributes coded below MP_REACH_NLRI and
-// before those coded above it -- follows it with the highLen stashed
-// higher-coded base attributes from scratch[stashOff:], and emits an Update whose
-// PathAttributes is scratch[0:F]. Resets s.off to lowLen after the callback so the
-// next chunk overwrites this one's region while the low attributes stay valid.
+// emitMPChunk writes one MP attribute (chunk) into scratch so that it ends at
+// mpRegion, where the base attributes begin, and emits an Update whose
+// PathAttributes is the chunk followed by the baseLen base octets.
 //
-// The stash is read, never written, so every chunk gets the same high attributes.
-// splitUpdateWithMP reserved the maximum chunk region below stashOff, so this
-// function's writes cannot reach it and its allocs cannot grow the scratch.
-// highLen == 0 (nothing coded above MP) reduces to the original append.
-func (s *Splitter) emitMPChunk(lowLen, highLen, stashOff int, chunk attribute.Attribute, emit func(*Update) error) error {
-	attrLen := chunk.Len()
+// RFC 7606 Section 5.1: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if
+// present) SHALL be encoded as the very first path attribute in an UPDATE
+// message."
+//
+// splitUpdateWithMP sized every chunk value to at most mpRegion minus the
+// largest attribute header, so the chunk always fits; a chunk that does not is
+// refused rather than written over the scratch below it.
+func (s *Splitter) emitMPChunk(mpRegion, baseLen int, chunk attribute.Attribute, emit func(*Update) error) error {
 	// AttrWireLen owns the header-size rule that WriteAttrToWithLen writes by, which
 	// is the extended four-octet header for a value above 255 octets OR for flags
 	// that already carry FlagExtLength (RFC 4271 Section 4.3). MP_REACH_NLRI and
 	// MP_UNREACH_NLRI return a constant FlagOptional today, so only the length arm
 	// fires here; restating the rule locally is what makes it wrong the day a chunk
 	// carries a sender's flags.
-	//
-	// Reset to the MP insert position and allocate the chunk region.
-	s.off = lowLen
-	attrBuf := s.alloc(attribute.AttrWireLen(chunk))
-	attribute.WriteAttrToWithLen(chunk, attrBuf, 0, attrLen)
-
-	if highLen > 0 {
-		high := s.alloc(highLen)
-		copy(high, s.scratch[stashOff:stashOff+highLen])
+	start := mpRegion - attribute.AttrWireLen(chunk)
+	if start < 0 {
+		return ErrAttributesTooLarge
 	}
+	attribute.WriteAttrToWithLen(chunk, s.scratch, start, chunk.Len())
 
-	err := emit(&Update{
-		PathAttributes: s.scratch[:s.off],
+	end := mpRegion + baseLen
+	return emit(&Update{
+		PathAttributes: s.scratch[start:end:end],
 	})
-	s.off = lowLen // always reset, even on error; next call starts fresh
-	return err
 }
 
 // splitUpdateIPv4 emits one or more UPDATE chunks for an IPv4-only UPDATE.

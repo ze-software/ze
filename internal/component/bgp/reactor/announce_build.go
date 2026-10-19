@@ -386,7 +386,9 @@ func (p *announceAttrs) emit(base, dst []byte) (int, bool) {
 
 	// Ascending type-code order (RFC 4271 Section 5). attrEmitter merge-inserts a
 	// contributed attribute at the first base position whose code sorts after it,
-	// and reads the contributions in plan order, so the plan is sorted first. The
+	// and reads the contributions in plan order, so the plan is sorted first. A
+	// contributed MP_REACH_NLRI the base does not carry leads the block instead
+	// (RFC 7606 Section 5.1, attrEmitter.emitNewMP). The
 	// forward path reaches the same order through GroupedOps; this is the same sort
 	// over a handful of entries, in place and allocation-free.
 	p.sortByCode()

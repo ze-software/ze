@@ -47,22 +47,22 @@ func TestFlowSpecOriginationOmitsConfiguredNextHop(t *testing.T) {
 		{
 			name: "ipv4-flow", family: family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec},
 			nlri:   "050118c00002",
-			packet: "ffffffffffffffffffffffffffffffff003e02000000274001010040020040050400000064800e0b0001850000050118c00002c010088006000046160000",
+			packet: "ffffffffffffffffffffffffffffffff003e0200000027800e0b0001850000050118c000024001010040020040050400000064c010088006000046160000",
 		},
 		{
 			name: "ipv4-flow-vpn", family: family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpecVPN},
 			nlri:   "0d0000ffff000100000118c00002",
-			packet: "ffffffffffffffffffffffffffffffff0046020000002f4001010040020040050400000064800e1300018600000d0000ffff000100000118c00002c010088006000046160000",
+			packet: "ffffffffffffffffffffffffffffffff0046020000002f800e1300018600000d0000ffff000100000118c000024001010040020040050400000064c010088006000046160000",
 		},
 		{
 			name: "ipv6-flow", family: family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpec},
 			nlri:   "0701200020010db8",
-			packet: "ffffffffffffffffffffffffffffffff004002000000294001010040020040050400000064800e0d00028500000701200020010db8c010088006000046160000",
+			packet: "ffffffffffffffffffffffffffffffff00400200000029800e0d00028500000701200020010db84001010040020040050400000064c010088006000046160000",
 		},
 		{
 			name: "ipv6-flow-vpn", family: family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpecVPN},
 			nlri:   "0f0000ffff0001000001200020010db8",
-			packet: "ffffffffffffffffffffffffffffffff004802000000314001010040020040050400000064800e1500028600000f0000ffff0001000001200020010db8c010088006000046160000",
+			packet: "ffffffffffffffffffffffffffffffff00480200000031800e1500028600000f0000ffff0001000001200020010db84001010040020040050400000064c010088006000046160000",
 		},
 	} {
 		for _, hop := range []struct {

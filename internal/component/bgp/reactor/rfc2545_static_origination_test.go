@@ -33,7 +33,12 @@ func TestStaticOriginateIPv6NextHopAdmission(t *testing.T) {
 		if attrs == "" {
 			return want
 		}
-		attributes, err := hex.DecodeString("4001010040020602010000fde8" + attrs)
+		block := "4001010040020602010000fde8" + attrs
+		if len(attrs) >= 4 && attrs[:4] == "800e" {
+			// RFC 7606 Section 5.1: MP_REACH_NLRI is the very first path attribute.
+			block = attrs + "4001010040020602010000fde8"
+		}
+		attributes, err := hex.DecodeString(block)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -172,7 +177,7 @@ func TestStaticOriginateContinuesAfterUnusablePolicyNextHop(t *testing.T) {
 				routes := []StaticRoute{{
 					Prefix: netip.MustParsePrefix("2001:db8:7::/64"), NextHop: bgptypes.NewNextHopExplicit(firstHop),
 				}}
-				firstWire := mustHex(t, "ffffffffffffffffffffffffffffffff0045020000002e4001010040020602010000fde8800e1e0002011020010db8000100000000000000000001004020010db800070000")
+				firstWire := mustHex(t, "ffffffffffffffffffffffffffffffff0045020000002e800e1e0002011020010db8000100000000000000000001004020010db8000700004001010040020602010000fde8")
 				if mode == "grouped-ipv4-batch" {
 					firstHop = netip.MustParseAddr("192.0.2.1")
 					routes = []StaticRoute{
@@ -242,7 +247,7 @@ func TestStaticOriginateContinuesAfterUnusablePolicyNextHop(t *testing.T) {
 				} else {
 					want = append(want, firstWire...)
 				}
-				want = append(want, mustHex(t, "ffffffffffffffffffffffffffffffff0045020000002e4001010040020602010000fde8800e1e0002011020010db8000900000000000000000001004020010db800080000")...)
+				want = append(want, mustHex(t, "ffffffffffffffffffffffffffffffff0045020000002e800e1e0002011020010db8000900000000000000000001004020010db8000800004001010040020602010000fde8")...)
 				want = append(want, eorWire(family.IPv4Unicast)...)
 				want = append(want, eorWire(family.IPv6Unicast)...)
 				if got := conn.written(); !bytes.Equal(got, want) {

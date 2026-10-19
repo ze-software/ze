@@ -7,63 +7,96 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
-	"github.com/ze-software/ze/internal/test/rfcgap"
 )
 
 // RFC 7606 Section 5.1: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if
 // present) SHALL be encoded as the very first path attribute in an UPDATE
 // message."
 //
-// Ze does not meet this on purpose: BuildUnicast writes the attributes through
-// attribute.OrderAttributes, which puts MP_UNREACH_NLRI first and every other
-// attribute in type-code order, so ORIGIN (1) and AS_PATH (2) precede
-// MP_REACH_NLRI (14). The decision
-// and its reasoning are in docs/architecture/wire/mp-nlri-ordering.md, and
-// rfc/short/rfc7606.md keeps RFC7606-5.1-1 annotated {gap}. The test below
-// demonstrates that gap: it asserts the RFC-correct order, so it passes while
-// the gap stands and fails the day the builder encodes the MP attribute first.
+// Every message-package builder writes its attributes through
+// attribute.OrderAttributes, which places the MP attribute first and the rest
+// by ascending type code. This test asks each builder that emits MP_REACH_NLRI,
+// with attributes of lower type code present, which attribute leads.
+// BuildGroupedUnicast builds IPv4 unicast only and carries no MP attribute.
 
-// VALIDATES: an IPv6 announcement built by BuildUnicast, the builder the static
-// route path uses, carries its MP_REACH_NLRI as some path attribute, and the
-// body asserts that attribute is the first one.
-// PREVENTS: the RFC7606-5.1-1 gap staying published after the order changes.
-// RFC requirement: RFC7606-5.1-1 gap -- the first path attribute of an IPv6 unicast UPDATE built by BuildUnicast with ORIGIN, AS_PATH and MED is MP_REACH_NLRI (type 14) or MP_UNREACH_NLRI (type 15).
+// VALIDATES: BuildUnicast (IPv6), BuildVPN and BuildLabeledUnicast, each given ORIGIN, AS_PATH and MED (codes below 14) and
+// LARGE_COMMUNITY (above it), emit MP_REACH_NLRI as the first path attribute,
+// and the attributes after it ascend by type code.
+// PREVENTS: MP_REACH_NLRI sorting into its type-code position behind ORIGIN and
+// AS_PATH, the order Ze sent before RFC7606-5.1-1 was met.
+// RFC requirement: RFC7606-5.1-1 positive -- an UPDATE built by BuildUnicast (IPv6), BuildVPN or BuildLabeledUnicast with ORIGIN, AS_PATH, MED and LARGE_COMMUNITY carries MP_REACH_NLRI (type 14) as its first path attribute.
 func TestRFC7606Section51MPAttributeEncodedFirst(t *testing.T) {
-	ub := NewUpdateBuilder(65001, false, true, false)
-	params := UnicastParams{
-		Prefix:  netip.MustParsePrefix("2001:db8:1::/48"),
-		NextHop: netip.MustParseAddr("2001:db8::1"),
-		Origin:  attribute.OriginIGP,
-		ASPath:  []uint32{65002},
-		MED:     10,
-		HasMED:  true,
+	unicast := UnicastParams{
+		Prefix:           netip.MustParsePrefix("2001:db8:1::/48"),
+		NextHop:          netip.MustParseAddr("2001:db8::1"),
+		Origin:           attribute.OriginIGP,
+		ASPath:           []uint32{65002},
+		MED:              10,
+		HasMED:           true,
+		LargeCommunities: [][3]uint32{{65001, 1, 2}},
 	}
-	update := mustBuildUnicast(t, ub, &params)
-	if update == nil {
-		t.Fatal("BuildUnicast returned nil")
-		return
-	}
+	blocks := map[string][]byte{}
 
-	// The walk runs outside the body: a malformed block or a missing
-	// MP_REACH_NLRI is a defect of its own and MUST NOT read as the gap standing.
-	codes, err := section51AttributeCodes(update.PathAttributes)
-	if err != nil {
-		t.Fatalf("path attribute block: %v", err)
-		return
-	}
-	if !slices.Contains(codes, attribute.AttrMPReachNLRI) {
-		t.Fatalf("no MP_REACH_NLRI among path attribute codes %v", codes)
-		return
-	}
+	built := mustBuildUnicast(t, NewUpdateBuilder(65001, false, true, false), &unicast)
+	blocks["BuildUnicast"] = append([]byte(nil), built.PathAttributes...)
 
-	// RFC 7606 Section 5.1
-	rfcgap.Demonstrate(t, "RFC7606-5.1-1", func(tb testing.TB) {
-		first := codes[0]
-		if first != attribute.AttrMPReachNLRI && first != attribute.AttrMPUnreachNLRI {
-			tb.Errorf("first path attribute is type %d, want MP_REACH_NLRI (14) or MP_UNREACH_NLRI (15); order %v",
-				first, codes)
-		}
+	vpn := NewUpdateBuilder(65001, false, true, false).BuildVPN(&VPNParams{
+		Prefix:           netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:          netip.MustParseAddr("192.168.1.1"),
+		Origin:           attribute.OriginIGP,
+		ASPath:           []uint32{65002},
+		Labels:           []uint32{100},
+		RDBytes:          [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
+		MED:              50,
+		HasMED:           true,
+		LargeCommunities: [][3]uint32{{65001, 1, 2}},
 	})
+	if vpn == nil {
+		t.Fatal("BuildVPN returned nil")
+		return
+	}
+	blocks["BuildVPN"] = vpn.PathAttributes
+
+	labeled := NewUpdateBuilder(65001, false, true, false).BuildLabeledUnicast(&LabeledUnicastParams{
+		Prefix:           netip.MustParsePrefix("2001:db8:2::/48"),
+		NextHop:          netip.MustParseAddr("2001:db8::1"),
+		Origin:           attribute.OriginIGP,
+		ASPath:           []uint32{65002},
+		MED:              10,
+		HasMED:           true,
+		LargeCommunities: [][3]uint32{{65001, 1, 2}},
+		Labels:           []uint32{100},
+	})
+	if labeled == nil {
+		t.Fatal("BuildLabeledUnicast returned nil")
+		return
+	}
+	blocks["BuildLabeledUnicast"] = labeled.PathAttributes
+
+	for _, builder := range []string{"BuildUnicast", "BuildVPN", "BuildLabeledUnicast"} {
+		codes, err := section51AttributeCodes(blocks[builder])
+		if err != nil {
+			t.Fatalf("%s: path attribute block: %v", builder, err)
+			return
+		}
+		if !slices.Contains(codes, attribute.AttrOrigin) {
+			t.Fatalf("%s: no ORIGIN among %v, so nothing of a lower code competes for first place", builder, codes)
+			return
+		}
+		// RFC 7606 Section 5.1
+		if codes[0] != attribute.AttrMPReachNLRI {
+			t.Errorf("%s: first path attribute is type %d, want MP_REACH_NLRI (14); order %v",
+				builder, codes[0], codes)
+			continue
+		}
+		// RFC 4271 Section 5: the rest ascend by type code.
+		for i := 2; i < len(codes); i++ {
+			if codes[i-1] >= codes[i] {
+				t.Errorf("%s: attributes after MP_REACH_NLRI do not ascend: %v", builder, codes)
+				break
+			}
+		}
+	}
 }
 
 // section51AttributeCodes answers the type code of every path attribute in

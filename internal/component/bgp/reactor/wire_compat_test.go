@@ -126,17 +126,17 @@ func TestWireFormat_UnicastIPv6(t *testing.T) {
 
 	update := mustBuildUnicast(t, ub, &params)
 
-	// Expected: ORIGIN + AS_PATH + LOCAL_PREF + MP_REACH_NLRI
+	// Expected: MP_REACH_NLRI (RFC 7606 Section 5.1) + ORIGIN + AS_PATH + LOCAL_PREF
 	// MP_REACH_NLRI = AFI(2) + SAFI(1) + NH_LEN(1) + NH(16) + Reserved(1) + NLRI(5) = 26 bytes
 	expectedAttrs, _ := hex.DecodeString(
-		"40010100" + // ORIGIN: IGP
-			"400200" + // AS_PATH: empty
-			"40050400000064" + // LOCAL_PREF: 100
-			"800e1a" + // MP_REACH_NLRI header (len=26)
+		"800e1a" + // MP_REACH_NLRI header (len=26)
 			"00020110" + // AFI=2, SAFI=1, NH_LEN=16
 			"20010db8000000000000000000000001" + // Next-hop: 2001:db8::1
 			"00" + // Reserved
-			"2020010db8") // NLRI: /32 2001:db8::
+			"2020010db8" + // NLRI: /32 2001:db8::
+			"40010100" + // ORIGIN: IGP
+			"400200" + // AS_PATH: empty
+			"40050400000064") // LOCAL_PREF: 100
 
 	if !bytes.Equal(update.PathAttributes, expectedAttrs) {
 		t.Errorf("PathAttributes mismatch:\nexpected: %x\ngot:      %x",
@@ -174,19 +174,20 @@ func TestWireCompat_VPNIPv4(t *testing.T) {
 	// precedes EXT_COMMUNITIES (16); it used to be emitted last, which made this
 	// builder disagree byte-for-byte with reactor/peer_rib_routes.go and
 	// reactor/reactor_api_batch.go for the same route.
-	// ORIGIN (1) + AS_PATH (2) + NEXT_HOP (3) + LOCAL_PREF (5) + MP_REACH (14) + EXT_COM (16)
+	// MP_REACH (14, first per RFC 7606 Section 5.1) + ORIGIN (1) + AS_PATH (2) +
+	// NEXT_HOP (3) + LOCAL_PREF (5) + EXT_COM (16)
 	expected, _ := hex.DecodeString(
-		"40010100" + // ORIGIN: IGP
-			"400200" + // AS_PATH: empty
-			"400304c0a80101" + // NEXT_HOP: 192.168.1.1
-			"40050400000096" + // LOCAL_PREF: 150
-			"800e20" + // MP_REACH_NLRI header (len=32)
+		"800e20" + // MP_REACH_NLRI header (len=32)
 			"0001800c" + // AFI=1, SAFI=128, NH_LEN=12
 			"0000000000000000c0a80101" + // NH: RD(8 zeros) + IPv4(192.168.1.1)
 			"00" + // Reserved
 			"70" + // NLRI: Length=112 bits (3*8 label + 64 RD + 24 prefix)
 			"000641" + // Label: 100 with BOS
 			"00010000006400640a0000" + // RD + prefix (10.0.0.0/24)
+			"40010100" + // ORIGIN: IGP
+			"400200" + // AS_PATH: empty
+			"400304c0a80101" + // NEXT_HOP: 192.168.1.1
+			"40050400000096" + // LOCAL_PREF: 150
 			"c010080002fde900000064") // EXT_COMMUNITIES: RT 65001:100
 
 	if !bytes.Equal(update.PathAttributes, expected) {
@@ -213,16 +214,17 @@ func TestWireFormat_ExtendedNextHop(t *testing.T) {
 
 	update := mustBuildUnicast(t, ub, &params)
 
-	// Expected: ORIGIN + AS_PATH + LOCAL_PREF + MP_REACH_NLRI (AFI=1, SAFI=1, IPv6 NH)
+	// Expected: MP_REACH_NLRI (AFI=1, SAFI=1, IPv6 NH; first per RFC 7606
+	// Section 5.1) + ORIGIN + AS_PATH + LOCAL_PREF
 	expectedAttrs, _ := hex.DecodeString(
-		"40010100" + // ORIGIN: IGP
-			"400200" + // AS_PATH: empty
-			"40050400000064" + // LOCAL_PREF: 100
-			"800e19" + // MP_REACH_NLRI header (len=25)
+		"800e19" + // MP_REACH_NLRI header (len=25)
 			"00010110" + // AFI=1 (IPv4), SAFI=1, NH_LEN=16
 			"20010db8000000000000000000000001" + // Next-hop: 2001:db8::1
 			"00" + // Reserved
-			"180a0000") // NLRI: /24 10.0.0.0
+			"180a0000" + // NLRI: /24 10.0.0.0
+			"40010100" + // ORIGIN: IGP
+			"400200" + // AS_PATH: empty
+			"40050400000064") // LOCAL_PREF: 100
 
 	if !bytes.Equal(update.PathAttributes, expectedAttrs) {
 		t.Errorf("PathAttributes mismatch:\nexpected: %x\ngot:      %x",

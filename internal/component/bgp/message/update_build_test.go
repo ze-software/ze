@@ -726,8 +726,12 @@ func TestUpdateBuilder_BuildVPN_AttributeOrder(t *testing.T) {
 		t.Fatalf("extractAttributeCodes failed: %v", err)
 	}
 
-	// Verify ordering
-	for i := range len(codes) - 1 {
+	// RFC 7606 Section 5.1: MP_REACH_NLRI leads, then ascending type code.
+	if len(codes) == 0 || codes[0] != attribute.AttrMPReachNLRI {
+		t.Fatalf("first attribute is not MP_REACH_NLRI (14): order %v", codes)
+		return
+	}
+	for i := 1; i < len(codes)-1; i++ {
 		if codes[i] > codes[i+1] {
 			t.Errorf("attribute order violation: type %d before type %d at position %d",
 				codes[i], codes[i+1], i)

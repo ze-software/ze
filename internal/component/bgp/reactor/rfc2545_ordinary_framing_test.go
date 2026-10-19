@@ -98,7 +98,8 @@ func TestOrdinaryIPv6GrowthAsymmetricFraming(t *testing.T) {
 				unreach := append([]byte{0, 1, 1}, withdrawNLRI...)
 				unreachAttr := append([]byte{0x80, 15, byte(len(unreach))}, unreach...)
 				attrs = append(attrs, unreachAttr...)
-				wantWithdrawAttrs = append(bytes.Clone(base), unreachAttr...)
+				// RFC 7606 Section 5.1: the split MP_UNREACH_NLRI chunk leads.
+				wantWithdrawAttrs = append(bytes.Clone(unreachAttr), base...)
 				withdrawn = nil
 			}
 			replacement := ordinaryFramingFrame(withdrawn, attrs)
@@ -132,8 +133,9 @@ func TestOrdinaryIPv6GrowthAsymmetricFraming(t *testing.T) {
 				grownMP = append(grownMP, peer.settings.LinkLocal.AsSlice()...)
 				grownMP = append(grownMP, 0)
 				grownMP = append(grownMP, reachNLRI...)
-				grownAttrs := append(bytes.Clone(base), 0x80, 14, byte(len(grownMP)))
-				grownAttrs = append(grownAttrs, grownMP...)
+				// RFC 7606 Section 5.1: the re-chunked MP_REACH_NLRI leads the block.
+				grownAttrs := append([]byte{0x80, 14, byte(len(grownMP))}, grownMP...)
+				grownAttrs = append(grownAttrs, base...)
 				wantWire = append(wantWire, ordinaryFramingFrame(nil, grownAttrs)...)
 				wantAnnouncements, wantUpdates = 1, 2
 			}

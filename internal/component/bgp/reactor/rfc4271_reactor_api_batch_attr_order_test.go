@@ -71,9 +71,16 @@ func attrCodes(t *testing.T, b []byte) []int {
 }
 
 // assertAscending fails when codes are not in non-decreasing order.
+//
+// RFC 7606 Section 5.1 places an MP_REACH_NLRI or MP_UNREACH_NLRI first, so a
+// leading MP attribute is outside the ascending run this asserts.
 func assertAscending(t *testing.T, codes []int) {
 	t.Helper()
-	for i := 1; i < len(codes); i++ {
+	from := 1
+	if len(codes) > 0 && (codes[0] == 14 || codes[0] == 15) {
+		from = 2
+	}
+	for i := from; i < len(codes); i++ {
 		assert.LessOrEqualf(t, codes[i-1], codes[i],
 			"attributes out of type-code order at index %d: %v", i, codes)
 	}
@@ -120,7 +127,7 @@ func orderCases(t *testing.T) []orderCase {
 			build: func(b *attribute.Builder) {
 				b.AddExtendedCommunity(extCommunity(t, "8006000046160000"))
 			},
-			want: []int{1, 2, 5, 14, 16},
+			want: []int{14, 1, 2, 5, 16},
 		},
 		{
 			// MP_REACH (14) has to land BETWEEN two attributes the caller
@@ -137,7 +144,7 @@ func orderCases(t *testing.T) []orderCase {
 				b.AddCommunity(65000, 100)
 				b.AddLargeCommunity(65000, 1, 2)
 			},
-			want: []int{1, 2, 5, 8, 14, 32},
+			want: []int{14, 1, 2, 5, 8, 32},
 		},
 		{
 			// test/plugin/plugin-nexthop.ci's exact shape: ORIGIN + LOCAL_PREF + an
@@ -157,7 +164,7 @@ func orderCases(t *testing.T) []orderCase {
 				b.SetOrigin(0)
 				b.SetLocalPref(500)
 			},
-			want: []int{1, 2, 5, 14},
+			want: []int{14, 1, 2, 5},
 		},
 		{
 			// AS4_PATH (17) against LARGE_COMMUNITIES (32), through BOTH rails.
@@ -268,9 +275,9 @@ func stripSpaces(s string) string {
 // RFC requirement: RFC4271-5-7 positive -- "The sender of an UPDATE message SHOULD
 // order path attributes within the UPDATE message in ascending order of attribute
 // type" (RFC 4271 Section 5).
-// VALIDATES: buildBatchAnnounceUpdate places LOCAL_PREF (5), NEXT_HOP (3) and
-// MP_REACH_NLRI (14) at their type-code position inside a block that already holds
-// caller-supplied attributes with higher codes.
+// VALIDATES: buildBatchAnnounceUpdate places LOCAL_PREF (5) and NEXT_HOP (3) at
+// their type-code position, and MP_REACH_NLRI (14) first (RFC 7606 Section 5.1),
+// inside a block that already holds caller-supplied attributes with higher codes.
 // PREVENTS: regressing to appending them, which emitted 1,2,16,5,14 for a FlowSpec
 // announce carrying a rate-limit extended community.
 func TestAnnounceBatchRail_AscendingTypeCodeOrder(t *testing.T) {

@@ -454,6 +454,16 @@ func buildMPAttribute(origFlags byte, typeCode attribute.AttributeCode, afiSafiN
 
 // buildUpdatePayload builds UPDATE body with any combination of components.
 // Includes baseAttrs only if announces present (MP_REACH or IPv4 NLRI).
+//
+// RFC 7606 Section 5.1: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if
+// present) SHALL be encoded as the very first path attribute in an UPDATE
+// message." The MP attributes therefore precede baseAttrs:
+//
+//	+--------------------------+----------------------------------------+
+//	| Withdrawn Routes Len (2) | Withdrawn Routes (ipv4Withdraws)       |
+//	| Path Attribute Len (2)   | MP_UNREACH | MP_REACH | baseAttrs      |
+//	| NLRI (ipv4NLRI)          |                                        |
+//	+--------------------------+----------------------------------------+
 func buildUpdatePayload(ipv4Withdraws, baseAttrs, mpUnreach, mpReach, ipv4NLRI []byte) []byte {
 	wLen := len(ipv4Withdraws)
 	hasAnnounces := len(mpReach) > 0 || len(ipv4NLRI) > 0
@@ -477,14 +487,15 @@ func buildUpdatePayload(ipv4Withdraws, baseAttrs, mpUnreach, mpReach, ipv4NLRI [
 	binary.BigEndian.PutUint16(buf[pos:], uint16(aLen)) //nolint:gosec // G115: aLen bounded by BGP max message size
 	pos += 2
 
-	if hasAnnounces {
-		copy(buf[pos:], baseAttrs)
-		pos += len(baseAttrs)
-	}
+	// RFC 7606 Section 5.1: the MP attribute is the very first path attribute.
 	copy(buf[pos:], mpUnreach)
 	pos += len(mpUnreach)
 	copy(buf[pos:], mpReach)
 	pos += len(mpReach)
+	if hasAnnounces {
+		copy(buf[pos:], baseAttrs)
+		pos += len(baseAttrs)
+	}
 
 	// NLRI
 	copy(buf[pos:], ipv4NLRI)
