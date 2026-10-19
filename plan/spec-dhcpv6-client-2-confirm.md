@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol |
 | Depends | `plan/pre-release/spec-dhcpv6-client-1-gap-annotations.md` |
 | Phase | 2/4 of `plan/spec-dhcpv6-client-0-umbrella.md` |

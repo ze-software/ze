@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol |
 | Depends | - |
-| Phase | 0/4 (Do not start until the owner approves) |
+| Phase | 0/4 |
 | Handoff | - |
 | Updated | 2026-10-19 |
 
@@ -138,7 +138,7 @@ Information-request, which child 3 builds.
 | A-1 | Kea 2.6.2 answers Confirm and Information-request | statistics names `pkt6-confirm-received`, `pkt6-infrequest-received` in the `kea-interop` image's binaries | children 2 and 3 need another peer | child 2 and 3 interop scenarios | unvalidated |
 | A-2 | Kea 2.6.2 never sends Reconfigure | no `pkt6-reconfigure-sent` statistic in the image; ISC issue 199 open-ended | Kea could serve child 4 | child 4 research step | unvalidated |
 | A-3 | OpenWrt odhcpd sends Reconfigure (msg-type Renew) with RKAP HMAC-MD5 to a client that sent Reconfigure Accept, when its interface address list changes | `send_reconf`, `handle_addrlist_change` in `openwrt/odhcpd` `src/dhcpv6-ia.c` | child 4 has no interop peer | child 4 Dockerfile and scenario | unvalidated |
-| A-4 | The 17 other `{feature-declined}` rows are outside the owner's 2026-10-19 decision | the decision names four features only | they would also become `{gap}` | owner confirmation (umbrella question Q5) | unvalidated |
+| A-4 | The 17 other `{feature-declined}` rows are outside the owner's 2026-10-19 decision | the decision names four features only | they would also become `{gap}` | owner confirmation (umbrella question Q5) | confirmed: owner decision 2026-10-19, "ok" |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -315,14 +315,14 @@ Information-request, which child 3 builds.
 
 Add `// RFC 9915 Section X.Y: "<quoted requirement>"` above enforcing code, per child.
 
-### Owner questions (each child proceeds under the stated default)
-| # | Question | Default reading |
-|---|----------|-----------------|
-| Q1 | Reconfigure acceptance opt-in? | a `reconfigure-accept` leaf, default false: the RKAP key travels in clear in the Reply, so accepting Reconfigure is an operator decision |
-| Q2 | Stateless mode chosen by config or by the Router Advertisement O flag? | an explicit `stateless` leaf; RFC 9915 leaves the trigger out of scope |
-| Q3 | Reconfigure interop peer? | OpenWrt odhcpd built from source, since Kea 2.6.2 sends no Reconfigure |
-| Q4 | Stateless interop over 10 minutes to see one refresh? | yes |
-| Q5 | Only the 23 rows of the four features change? | yes; the 17 others stay `{feature-declined}` |
+### Owner questions (resolved: owner decision 2026-10-19, verbatim "ok", every default reading accepted)
+| # | Question | Default reading | Resolution |
+|---|----------|-----------------|------------|
+| Q1 | Reconfigure acceptance opt-in? | a `reconfigure-accept` leaf, default false: the RKAP key travels in clear in the Reply, so accepting Reconfigure is an operator decision | → Decision: owner, 2026-10-19, "ok": opt-in `reconfigure-accept` leaf, default false |
+| Q2 | Stateless mode chosen by config or by the Router Advertisement O flag? | an explicit `stateless` leaf; RFC 9915 leaves the trigger out of scope | → Decision: owner, 2026-10-19, "ok": explicit `stateless` leaf, refused beside `pd` |
+| Q3 | Reconfigure interop peer? | OpenWrt odhcpd built from source, since Kea 2.6.2 sends no Reconfigure | → Decision: owner, 2026-10-19, "ok": odhcpd built from source; if it will not build, stop and ask the owner, never skip the interop |
+| Q4 | Stateless interop over 10 minutes to see one refresh? | yes | → Decision: owner, 2026-10-19, "ok": a stateless interop over 10 minutes is accepted |
+| Q5 | Only the 23 rows of the four features change? | yes; the 17 others stay `{feature-declined}` | → Decision: owner, 2026-10-19, "ok": only the 23 named rows change |
 
 ## Checklist
 

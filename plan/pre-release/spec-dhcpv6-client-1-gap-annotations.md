@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | docs |
 | Depends | - |
 | Phase | 1/4 of `plan/spec-dhcpv6-client-0-umbrella.md` |

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol |
 | Depends | `plan/pre-release/spec-dhcpv6-client-1-gap-annotations.md` |
 | Phase | 3/4 of `plan/spec-dhcpv6-client-0-umbrella.md` |
@@ -103,7 +103,7 @@ RFC9915-21.23-1, -5, -6, -7, RFC9915-21.25-2, -3, -4.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | stateless mode is chosen by an explicit leaf, not by the RA O flag | umbrella question Q2; RFC 9915 leaves the trigger out of scope | a second trigger is owed | owner answer | unvalidated |
+| A-1 | stateless mode is chosen by an explicit leaf, not by the RA O flag | umbrella question Q2; RFC 9915 leaves the trigger out of scope | a second trigger is owed | owner answer | confirmed: owner decision 2026-10-19, "ok" (umbrella Q2: explicit `stateless` leaf, refused beside `pd`) |
 | A-2 | Kea 2.6.2 answers Information-request with `dns-servers` and `information-refresh-time` from its `option-data` | `pkt6-infrequest-received` in the image; Kea option table lists `information-refresh-time` (32) | interop needs another peer | `dhcpv6-client-stateless-kea` | unvalidated |
 | A-3 | `stateless` is the leaf name `ai/rules/config.md` allows | the existing sibling names `enabled`, `pd`, `duid` | rename before implementation | read `ai/rules/config.md` naming at implementation start | unvalidated |
 

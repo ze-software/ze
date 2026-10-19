@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol |
 | Depends | `plan/pre-release/spec-dhcpv6-client-1-gap-annotations.md`, `plan/spec-dhcpv6-client-3-stateless.md` |
 | Phase | 4/4 of `plan/spec-dhcpv6-client-0-umbrella.md` |
@@ -128,7 +128,7 @@ at all") stops being true.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Reconfigure acceptance is opt-in with default false | umbrella Q1; the key travels in clear in the Reply | the default flips and every lease negotiates Reconfigure | owner answer | unvalidated |
+| A-1 | Reconfigure acceptance is opt-in with default false | umbrella Q1; the key travels in clear in the Reply | the default flips and every lease negotiates Reconfigure | owner answer | confirmed: owner decision 2026-10-19, "ok" (umbrella Q1) |
 | A-2 | odhcpd builds and runs in a container without the rest of OpenWrt | odhcpd's CMake build makes ubus optional | no interop peer | `test/interop/Dockerfile.odhcpd` builds and the scenario runs | unvalidated |
 | A-3 | odhcpd's HMAC is computed exactly as Section 20.4.2 says, over the whole message with the HMAC field zero | `send_reconf` in `src/dhcpv6-ia.c` | interop red for the peer's reason, not ze's | the scenario, cross-checked by a unit test vector built from a captured odhcpd datagram | unvalidated |
 | A-4 | the kernel does not deliver a datagram to ff02::1 port 546 to a socket bound to the link-local unicast address | Linux UDP socket lookup | a multicast Reconfigure reaches validation | `TestRFC9915Section1611ReconfigureMulticastNotDelivered` in a network namespace | unvalidated |
