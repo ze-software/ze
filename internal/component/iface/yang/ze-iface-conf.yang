@@ -304,6 +304,27 @@ module ze-iface-conf {
                     ze:help "IPv4 addresses in CIDR notation (e.g., 10.0.0.1/24)";
                 }
 
+                leaf unnumbered {
+                    type zt:node-name;
+                    description "The value names another interface in this config, the donor, usually
+                                 loopback or a dummy. Ze installs the donor's IPv4 address on this
+                                 unit as a /32, so the unit has no subnet of its own (Cisco ip
+                                 unnumbered, Junos unnumbered-address). Ze refuses the leaf together
+                                 with address or dhcp, and it refuses a donor that is missing, that is
+                                 itself unnumbered, or that holds no IPv4 address. OSPF runs on such a
+                                 unit only as a point-to-point interface.";
+                    ze:help "Borrow the IPv4 address of another interface (unnumbered point-to-point)";
+                }
+
+                leaf unnumbered-source {
+                    type zt:ipv4-address;
+                    description "Ze installs this address of the donor as the unit's /32. The donor
+                                 must hold it. When the leaf is omitted, ze takes the donor's first
+                                 IPv4 address, in unit name order and then in address order (Junos
+                                 preferred-source-address).";
+                    ze:help "Which donor IPv4 address an unnumbered unit borrows";
+                }
+
                 leaf forwarding {
                     type boolean;
                     description "The leaf sets net.ipv4.conf.<iface>.forwarding. Routing needs it. When

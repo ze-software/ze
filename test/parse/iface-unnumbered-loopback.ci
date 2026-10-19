@@ -1,0 +1,26 @@
+# Test: an unnumbered unit borrowing the loopback address is accepted
+# VALIDATES: RFC2328-8.1-1 gap #55 -- `ipv4 unnumbered loopback` with a source choice parses.
+# PREVENTS: the approved unnumbered shape being unreachable from config.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend netlink;
+	loopback {
+		unit 0 {
+			ipv4 {
+				address [ 192.0.2.1/32 192.0.2.2/32 ];
+			}
+		}
+	}
+	ethernet eth0 {
+		unit 0 {
+			ipv4 {
+				unnumbered loopback;
+				unnumbered-source 192.0.2.2;
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

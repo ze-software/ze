@@ -183,6 +183,32 @@ partial device behind, and the undo deletes only the devices the apply created.
 <!-- source: internal/component/iface/config_apply.go — applyConfig create steps, interfaceExists -->
 <!-- source: internal/component/iface/backend.go — Backend.GetLink -->
 
+### Unnumbered IPv4 units
+
+A unit can borrow the IPv4 address of another interface instead of holding a
+subnet of its own (Cisco `ip unnumbered`, Junos `unnumbered-address`):
+
+```
+interface {
+	loopback { unit 0 { ipv4 { address [ 192.0.2.1/32 ]; } } }
+	ethernet eth0 { unit 0 { ipv4 { unnumbered loopback; } } }
+}
+```
+
+The value names the donor, any interface in the config, or `loopback` for the
+loopback block. Ze installs the donor's address on the unit as a /32, the shape
+FRR and the Linux kernel use for an unnumbered point-to-point link. When the
+donor holds several IPv4 addresses, `unnumbered-source <a.b.c.d>` picks one;
+without it ze takes the donor's first address, in unit name order and then in
+address order (Junos `preferred-source-address`).
+
+The commit is refused when the unit also sets `address` or enables `dhcp`, when
+the donor is not in the config, is disabled, is itself unnumbered or holds no
+IPv4 address, when `unnumbered-source` names an address the donor does not
+hold, and when `unnumbered-source` is set without `unnumbered`.
+
+<!-- source: internal/component/iface/unnumbered.go -- parseIPv4Unnumbered, resolveUnnumbered, pickDonorAddress -->
+
 ### Reverse-path check
 
 Each apply builds the complete set of reverse-path checks the config asks for,

@@ -1,0 +1,23 @@
+# Test: an unnumbered unit with a donor that holds no IPv4 address is refused
+# VALIDATES: RFC2328-8.1-1 gap #55 -- commit refuses an address-less donor.
+# PREVENTS: an unnumbered link that borrows nothing and sources OSPF from no address.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend netlink;
+	dummy dummy0 {
+		unit 0 {
+		}
+	}
+	ethernet eth0 {
+		unit 0 {
+			ipv4 {
+				unnumbered dummy0;
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=the donor holds no IPv4 address

@@ -304,15 +304,24 @@ func (m rpfMode) rpfSysctlValue() int {
 // ipv4Settings holds per-interface IPv4 configuration: addresses and sysctl knobs.
 // Pointer fields: nil = not configured (leave OS default), non-nil = set.
 type ipv4Settings struct {
-	Addresses   []string
-	Forwarding  *bool
-	ArpFilter   *bool
-	ArpAccept   *bool
-	ProxyARP    *bool
-	ArpAnnounce *int
-	ArpIgnore   *int
-	RPFCheck    *rpfMode
-	DHCP        *dhcpUnitConfig
+	Addresses []string
+	// Unnumbered names the donor interface whose IPv4 address this unit
+	// borrows as a /32 (unnumbered.go). Empty means a numbered unit.
+	Unnumbered string
+	// UnnumberedSource is the donor address the operator chose. The zero
+	// Addr means "the donor's first address", never an address to install.
+	UnnumberedSource netip.Addr
+	// UnnumberedAddress is the donor address resolveUnnumbered picked. It is
+	// valid only after resolution, and only when Unnumbered is set.
+	UnnumberedAddress netip.Addr
+	Forwarding        *bool
+	ArpFilter         *bool
+	ArpAccept         *bool
+	ProxyARP          *bool
+	ArpAnnounce       *int
+	ArpIgnore         *int
+	RPFCheck          *rpfMode
+	DHCP              *dhcpUnitConfig
 }
 
 // ipv6Settings holds per-interface IPv6 configuration: addresses and sysctl knobs.
@@ -598,6 +607,9 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 		cfg.Loopback = lo
 	}
 
+	if err := cfg.resolveUnnumbered(); err != nil {
+		return nil, err
+	}
 	return cfg, nil
 }
 
@@ -1284,6 +1296,12 @@ func parseIPv4Settings(um map[string]any) (*ipv4Settings, error) {
 	if len(s.Addresses) > 0 {
 		set = true
 	}
+	if err := parseIPv4Unnumbered(v4, s); err != nil {
+		return nil, err
+	}
+	if s.Unnumbered != "" {
+		set = true
+	}
 	if v, ok := v4["forwarding"].(string); ok {
 		b := v == yangTrue
 		s.Forwarding = &b
@@ -1340,6 +1358,9 @@ func parseIPv4Settings(um map[string]any) (*ipv4Settings, error) {
 	s.DHCP = parseDHCPv4Config(v4)
 	if s.DHCP != nil {
 		set = true
+	}
+	if s.Unnumbered != "" && s.DHCP != nil && s.DHCP.Enabled {
+		return nil, errUnnumberedWithDHCP
 	}
 	if !set {
 		return nil, nil //nolint:nilnil // no ipv4 knobs configured, not an error
