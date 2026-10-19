@@ -111,6 +111,21 @@ that answers several TSi/TSr pairs negotiated several values, and `childPolicies
 builds one inbound and one outbound policy per pair, all protecting with the one SA:
 XFRM resolves each to the state through its template, VPP through the SAD id.
 
+**The initiator installs the answer exactly, or refuses it.** The responder's TS
+payloads are the negotiated values (RFC 4301 Section 4.4.2), so
+`recordInitiatorSelectors` reads them through `answerSelectors`, never through the
+responder's narrowing `wireToSelectors`. An answered address range that is not one
+prefix becomes the exact set of prefixes tiling it (`rangePrefixes`), one pair each,
+and an answer expanding past `answerPairsMax` (64) policies is refused. A port range
+other than any port, one port or OPAQUE is refused: XFRM (`xfrmSelectorPort`) and
+VPP (`vppPortRange`) program every port or exactly one, so `tcp/1024-65535`, which
+strongSwan answers for such a policy, has no exact form short of 64512 policies. A pair
+neither dataplane can program (an OPAQUE port) refuses the whole answer rather than
+being dropped. A refusal is TS_UNACCEPTABLE on IKE_AUTH, a deleted pair on a creation,
+and a Delete for the new pair on a rekey. The responder installs what it answers
+(`narrowChildSelectors` sets `NegotiatedPairs`, which both `pairsToWire` and the
+policies read), so its narrowing is never a gap between the ends.
+
 **An IKE_AUTH response that accepts a Child SA without naming its traffic is
 refused.** RFC 7296 Appendix C.2 lists the response as `SA, TSi, TSr` together, so
 a response carrying SAr2 and no TSi or no TSr negotiated no selector at all.
@@ -153,7 +168,7 @@ SAD data item Ze installs is asserted one item at a time in
 `internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go`.
 
 <!-- source: internal/component/ike/engine/child.go -- installChildSA, childPolicies, inboundStateSelector -->
-<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectors, oneTransportPair, recordInitiatorSelectors -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectors, oneTransportPair, recordInitiatorSelectors, answerSelectors, answerPairs, rangePrefixes -->
 <!-- source: internal/component/ike/engine/transport_mode.go -- adoptAuthResponseNegotiation -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams -->
 

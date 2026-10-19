@@ -32,9 +32,12 @@ var errTSUnacceptable = errors.New("ike: no acceptable traffic selector")
 // The address is a PREFIX rather than the RFC's arbitrary inclusive range, and that is
 // deliberate. The XFRM policy selector carries an address plus a prefix length, so a
 // range that is not prefix-expressible has no exact representation in the dataplane.
-// largestPrefixIn therefore reduces such a range to the largest prefix INSIDE it, which
-// RFC 7296 Section 2.9 permits because narrowing is always allowed. Rounding outward to
-// the enclosing prefix would answer with traffic the peer never proposed.
+// On the responder, largestPrefixIn therefore reduces a proposed range to the largest
+// prefix INSIDE it, which RFC 7296 Section 2.9 permits because narrowing is always
+// allowed, and the answer then carries that prefix. Rounding outward to the enclosing
+// prefix would answer with traffic the peer never proposed. On the initiator an answered
+// range is the negotiated value, so it becomes the exact set of prefixes tiling it
+// (answerSelectors, rangePrefixes), one selector each.
 type tsSelector struct {
 	Net   *net.IPNet
 	Port  ipsec.PortSelector
@@ -402,7 +405,9 @@ func swapPairs(pairs []tsPair) []tsPair {
 	return out
 }
 
-// wireToSelectors converts a received TS payload into Ze's internal form.
+// wireToSelectors converts a PROPOSAL the responder received into Ze's internal form.
+// The initiator reads an answer through answerSelectors instead, because an answer is
+// the negotiated value and must not be narrowed again.
 //
 // A selector Ze cannot express exactly is NARROWED, never rounded outward:
 //   - an address range that is not prefix-expressible becomes the largest prefix inside
@@ -676,10 +681,10 @@ var errTSUnusable = errors.New("ike: the responder's traffic selectors cannot be
 // empty policy in turn means everything. That is the load-bearing default for every
 // configuration written before the traffic-selector list existed, and the test is skipped.
 //
-// A selector Ze cannot program exactly is still reduced to a programmable subset by
-// wireToSelectors, because a peer can answer with a range no backend can express. That
-// reduction only ever shrinks a selector, so it cannot turn a widening answer into a
-// permitted one.
+// A selector Ze cannot program exactly is REFUSED (answerSelectors, answerPairs), never
+// reduced to a programmable subset: the answer is the negotiated value, and a subset
+// installs less than both ends agreed. An address range that is not a prefix is not
+// such a selector, because it is installed as the exact set of prefixes tiling it.
 //
 // floor is the selector set of the SA being rekeyed, or nil for a fresh Child SA, exactly
 // as it is for narrowChildSelectors above. It is in the orientation of the exchange in
@@ -687,8 +692,18 @@ var errTSUnusable = errors.New("ike: the responder's traffic selectors cannot be
 // that does not cover it is refused, so the set this function records is always one the
 // caller can install unchanged.
 func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) error {
-	iSels := wireToSelectors(tsi.TrafficSelectors)
-	rSels := wireToSelectors(tsr.TrafficSelectors)
+	// RFC 4301 Section 4.4.2: "the entry for an inbound SA in the SAD MUST be initially
+	// populated with the value or values negotiated at the time the SA was created".
+	// The answer IS the negotiated value, so it is read exactly (answerSelectors), never
+	// through wireToSelectors, whose narrowing is the responder's to do.
+	iSels, iOrigin, err := answerSelectors(tsi.TrafficSelectors, "TSi")
+	if err != nil {
+		return err
+	}
+	rSels, rOrigin, err := answerSelectors(tsr.TrafficSelectors, "TSr")
+	if err != nil {
+		return err
+	}
 
 	// RFC 7296 Section 2.23.1: "Do address substitution before using those Traffic
 	// Selectors for anything other than storing original content of them. This includes
@@ -719,16 +734,9 @@ func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) 
 		return fmt.Errorf("%w: the responder answered with %d TSi and %d TSr selectors this node could not decode",
 			errTSUnusable, len(iSels), len(rSels))
 	}
-	pairs := make([]tsPair, 0, len(iSels))
-	for i := range iSels {
-		r := rSels[min(i, len(rSels)-1)]
-		if pair, ok := programmablePair(tsPair{I: iSels[i], R: r}); ok {
-			pairs = append(pairs, pair)
-		}
-	}
-	if len(pairs) == 0 {
-		return fmt.Errorf("%w: none of the %d answered selector pairs is programmable",
-			errTSUnusable, len(iSels))
+	pairs, err := answerPairs(iSels, iOrigin, rSels, rOrigin)
+	if err != nil {
+		return err
 	}
 	ceiling, what := sa.ProposedChildPairs, "the proposal ze sent"
 	if len(ceiling) == 0 {
@@ -775,6 +783,117 @@ func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) 
 	sa.NegotiatedTSi = pairs[0].I.Net
 	sa.NegotiatedTSr = pairs[0].R.Net
 	return nil
+}
+
+// answerPairsMax bounds the policies one answer can expand into. An address range that
+// is not a prefix becomes several prefixes, and each answered pair becomes every
+// combination of its two halves' prefixes, so a hostile range could otherwise ask for
+// thousands of kernel policies. An answer past the bound is refused, never cut.
+const answerPairsMax = 64
+
+// answerSelectors reads a responder's TS payload into Ze's form EXACTLY, and refuses
+// what it cannot read exactly.
+//
+// An address range that is not one prefix becomes the exact set of prefixes that tiles
+// it (rangePrefixes). A port range that is neither ANY, nor one port, nor OPAQUE is
+// refused: both dataplanes program either every port or exactly one (xfrmSelectorPort,
+// vppPortRange in internal/component/ike/dataplane), so the only exact form of
+// 1024-65535 is 64512 policies. Cutting it to its start port, as wireToSelectors does
+// for the responder, would install less than was negotiated.
+//
+// origin[k] is the index of the answered selector that sels[k] came from, so
+// answerPairs can pair them the way the payloads paired them.
+func answerSelectors(list []wire.TrafficSelector, payload string) (sels []tsSelector, origin []int, err error) {
+	if len(list) == 0 {
+		return nil, nil, fmt.Errorf("%w: the responder answered %s with no selector", errTSUnusable, payload)
+	}
+	for i := range list {
+		ts := list[i]
+		port, ok := ipsec.PortSelectorFromWire(ts.StartPort, ts.EndPort)
+		if !ok {
+			return nil, nil, fmt.Errorf("%w: %s port range %d-%d has no exact dataplane form",
+				errTSUnusable, payload, ts.StartPort, ts.EndPort)
+		}
+		nets, ok := rangePrefixes(ts.StartAddress, ts.EndAddress, answerPairsMax)
+		if !ok {
+			return nil, nil, fmt.Errorf("%w: %s address range %v-%v is malformed or needs more than %d prefixes",
+				errTSUnusable, payload, net.IP(ts.StartAddress), net.IP(ts.EndAddress), answerPairsMax)
+		}
+		for _, n := range nets {
+			sels = append(sels, tsSelector{Net: n, Port: port, Proto: ts.IPProtocol})
+			origin = append(origin, i)
+		}
+	}
+	return sels, origin, nil
+}
+
+// answerPairs builds the pairs an answer negotiated: answered TSi selector i with TSr
+// selector i (the last TSr when TSr is shorter), and each such pair as every combination
+// of the prefixes its two halves tile into. Every pair must be programmable exactly; one
+// that is not refuses the answer, because dropping it would install less than was
+// negotiated (RFC 4301 Section 4.4.2).
+//
+// Both slices are non-empty: answerSelectors refuses an empty payload.
+func answerPairs(iSels []tsSelector, iOrigin []int, rSels []tsSelector, rOrigin []int) ([]tsPair, error) {
+	rLast := rOrigin[len(rOrigin)-1]
+	var pairs []tsPair
+	for k := range iSels {
+		rIndex := min(iOrigin[k], rLast)
+		for m := range rSels {
+			if rOrigin[m] != rIndex {
+				continue
+			}
+			pair, ok := programmablePair(tsPair{I: iSels[k], R: rSels[m]})
+			if !ok {
+				return nil, fmt.Errorf("%w: the answered pair %v <-> %v has no exact dataplane form",
+					errTSUnusable, iSels[k].Net, rSels[m].Net)
+			}
+			if len(pairs) == answerPairsMax {
+				return nil, fmt.Errorf("%w: the answer expands into more than %d policies",
+					errTSUnusable, answerPairsMax)
+			}
+			pairs = append(pairs, pair)
+		}
+	}
+	return pairs, nil
+}
+
+// rangePrefixes returns the prefixes that tile the inclusive range start..end exactly,
+// lowest first, or false when the range is empty, malformed, or needs more than limit.
+//
+// Each step takes the largest prefix that starts at the next uncovered address and ends
+// inside the range (largestPrefixIn), so the union is the range and no prefix reaches
+// past it. The loop is bounded by limit; an IPv6 range never needs more than 254.
+func rangePrefixes(start, end []byte, limit int) ([]*net.IPNet, bool) {
+	var out []*net.IPNet
+	cur := start
+	for len(out) < limit {
+		n := largestPrefixIn(cur, end)
+		if n == nil {
+			return nil, false
+		}
+		out = append(out, n)
+		last := prefixLastAddr(n.IP, n.Mask)
+		if last == string(end) {
+			return out, true
+		}
+		cur = nextAddr([]byte(last))
+	}
+	return nil, false
+}
+
+// nextAddr returns the address after a. Its one caller passes an address below the
+// range end, which has a successor, so it does not wrap.
+func nextAddr(a []byte) []byte {
+	next := make([]byte, len(a))
+	copy(next, a)
+	for i := len(next) - 1; i >= 0; i-- {
+		next[i]++
+		if next[i] != 0 {
+			break
+		}
+	}
+	return next
 }
 
 // checkAnswerWithin reports the first answered pair that no pair of ceiling covers.

@@ -352,9 +352,12 @@ type SAParams struct {
 // matches exactly Port.
 //
 // The two-field shape is the kernel's, not a Ze invention: XfrmSelector carries Sport,
-// SportMask, Dport and DportMask. A caller that needs an inclusive port RANGE cannot
-// express it here, and must narrow to a single port before installing (RFC 7296 Section
-// 2.9 permits narrowing, and rounding outward to "any port" would widen the policy).
+// SportMask, Dport and DportMask. An inclusive port RANGE cannot be expressed here. The
+// engine's responder narrows a proposed range to a single port before it answers (RFC
+// 7296 Section 2.9 permits narrowing), and its initiator refuses an answered range,
+// because the answer is the negotiated value and RFC 4301 Section 4.4.2 installs it
+// exactly (answerSelectors, engine/ts_narrow.go). Rounding outward to "any port" would
+// widen the policy.
 type PortMatch struct {
 	Port uint16
 	Mask uint16
