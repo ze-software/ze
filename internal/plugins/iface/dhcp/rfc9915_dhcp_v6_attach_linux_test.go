@@ -204,6 +204,40 @@ func TestRFC9915Section182101UniqueAddressKept(t *testing.T) {
 	}
 }
 
+// TestDHCPv6AddressFlushedByLinkDownReinstalledNotDeclined holds an address
+// and a prefix whose DAD completed, then the device is set down and up at 5 s,
+// and the kernel deletes the address with the down, as it deletes every
+// address of finite lifetime on an interface set down.
+//
+// VALIDATES: the move reinstalls the leased address with its remaining
+// lifetimes (valid 295 s, preferred 195 s at 5 s into a 300/200 lease) and
+// sends no Decline: an address the link change deleted is not a duplicate.
+// PREVENTS: every leased address declined to the server after an operator
+// bounces the interface.
+func TestDHCPv6AddressFlushedByLinkDownReinstalledNotDeclined(t *testing.T) {
+	r := newV6Rig(t, dHCPConfig{PDRequested: true})
+	r.srv.serve = leaseServer(leaseLongPD, false, false)
+	r.startWorker()
+	r.runUntil(seconds(5))
+	r.clk.Set(r.start.Add(seconds(5)))
+	r.backend.mu.Lock()
+	r.backend.installed = nil // the kernel flushes the address with the down
+	r.backend.mu.Unlock()
+	r.move()
+	r.awaitSent(dhcpv6.MessageTypeRebind, 1)
+	r.runUntil(seconds(8))
+
+	if got := r.sentOf(dhcpv6.MessageTypeDecline); len(got) != 0 {
+		t.Errorf("%d DECLINE for an address the link change deleted: %s", len(got), r.describeSent())
+	}
+	if got := r.countOps("replace " + loopKernelDevice + " " + v6TestCIDR + " 295 195"); got != 1 {
+		t.Errorf("address reinstalled with 295/195 %d times after the move, want 1", got)
+	}
+	if got := r.countOps("remove-addr"); got != 0 {
+		t.Errorf("address removed %d times, want 0", got)
+	}
+}
+
 // TestRFC9915Section18212MoveRebindsWithConfirmParameters holds an address
 // and a prefix, then the device goes down and up at 5 s; no server answers
 // the Rebind.

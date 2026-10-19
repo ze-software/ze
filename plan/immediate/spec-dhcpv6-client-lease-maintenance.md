@@ -531,3 +531,171 @@ sentence it performs; every caller names the section.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/immediate/spec-dhcpv6-client-lease-maintenance.md` only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- The v6 worker (`dhcp_v6_linux.go`, `dhcp_v6_exchange_linux.go`, `dhcp_v6_lease_linux.go`, `dhcp_v6_attach_linux.go`): Solicit with Advertise selection and Rapid Commit, Request, Renew at the earliest T1, Rebind at T2, expiry, Release on Stop, the Section 15 engine with Elapsed Time and the per-interface rate limit, Reply validation, lifetimes installed as leased, stable DUID, IA_PD requested with its hint, DAD outcome read and Decline, link-move Rebind. Commits 6b5c69ec11, 75cbddde58, b9405b0b6d, ec35ab9a2c, 7d9e1819aa, e96a8131d2, aad1449529, 8bd003c1ce, 4236cf31d1, 5c9cb3c53e; RFC 9915 enrolled (`rfc/short/rfc9915.md`, `rfc/extraction/rfc9915.json`).
+- Closure (this commit): `v6Worker.noteMove` installs every live leased address again with its remaining lifetimes (`v6Binding.remainingAt`); `v6Worker.checkDAD` consumes queued link events (`drainLinks` now reports a completed move) before judging an address gone; 39 summary rows re-annotated `{feature-declined}`.
+
+### Bugs Found/Fixed
+- Interface set down and up: the kernel deletes finite addresses with the down, the DAD read after the up found them gone with the link up and declined the whole lease. Fixed in `noteMove`; covered by `TestDHCPv6AddressFlushedByLinkDownReinstalledNotDeclined` (red before the fix: `sent SOLICIT@0s DECLINE@5s`).
+- DAD poll and a queued down woke the wait together (Go `select` picks either), so a flush could be judged before its down. Fixed by `checkDAD` draining first.
+
+### Documentation Updates
+- `docs/features/interfaces.md`, DHCPv6 DAD paragraph: the move installs every leased address again before DAD (anchor `dhcp_v6_attach_linux.go -- v6Worker.noteMove` already present).
+- `rfc/short/rfc9915.md`: Support remaining now names the NTP server option and any use of a delegated prefix.
+
+### Deviations from Plan
+- None in behavior. A-1 broken with no behavior effect (recorded in Risks & Assumptions).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1: four code quotes labeled RFC 9915 were RFC 8415 text | 9915 rewords 16.10, 18.2.1, 18.2.5, 18.2.10.1 | v6fin forward walk | quotes fixed, 52/52 verbatim |
+| approach | The DAD-by-disappearance rule treated every gone-while-up address as a duplicate, and the move re-queued DAD without reinstalling | an interface set down deletes finite addresses, so "gone" after a down/up is the link change | closure review | reinstall in `noteMove`, drain links before the read |
+| approach | Rows conditional on declined OPTIONAL features were written `{not-applicable}`, which counts as met | `ai/rules/rfc-compliance.md` routes them to `{feature-declined}` with the RFC's optionality quote | closure review | 39 rows re-annotated |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| D-1..D-3 Renew/Rebind keep the lease | Done | `dhcp_v6_linux.go::maintain`, `extend` | AC-1..AC-4 |
+| D-4, D-5 backoff and Elapsed Time | Done | `dhcp_v6_exchange_linux.go::runExchange` | AC-5, AC-6, AC-8 |
+| D-6 stable DUID | Done | `dhcp_v6_linux.go::identify` | AC-20 |
+| D-7, D-8 lifetime validation | Done | `dhcp_v6_lease_linux.go::apply` | AC-10..AC-12 |
+| D-9 earliest T1/T2 | Done | `v6Lease.renewTimes` | AC-13..AC-15 |
+| D-10 Reply validation | Done | `replyMatcher` | AC-18 |
+| D-11 SOL_MAX_RT | Done | `requestOptions` | AC-6, AC-7 |
+| D-12 PD expiry event | Done | `v6Worker.drop` | AC-4 |
+| D-13 IA_PD requested | Done | `buildSolicit`, `buildFromLease` | AC-25 |
+| MUST gaps (owner ruling 2026-10-18) | Done | `dhcp_v6_attach_linux.go` | AC-26..AC-29 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRFC9915Section1824RenewAtT1CarriesLease` | |
+| AC-2 | Done | `TestDHCPv6LeaseHeldAcrossFiveRenewals` | |
+| AC-3 | Done | `TestRFC9915Section1825RebindAtT2WithoutServerID` | |
+| AC-4 | Done | `TestRFC9915Section1825ExpiryRemovesAndSolicits` | |
+| AC-5 | Done | `TestRFC9915Section15RetransmissionTimeout`, `TestRFC9915Section15ElapsedTimeUpdated` | |
+| AC-6 | Done | `TestRFC9915Section1821FirstSolicitRTAboveIRT`, `TestDHCPv6SolicitBacksOffToSolMaxRT` | |
+| AC-7 | Done | `TestRFC9915Section2124SolMaxRTRange` | |
+| AC-8 | Done | `TestDHCPv6SolicitBacksOffToSolMaxRT` (one Warn, one Info) | |
+| AC-9 | Done | `TestRFC9915Section1824RenewAtT1CarriesLease`, `TestDHCPv6RenewsOnSelectorBoundInterface` | |
+| AC-10 | Done | `TestDHCPv6InstalledLifetimeEqualsLease` | |
+| AC-11 | Done | `TestRFC9915Section182101ValidZeroDiscarded` | |
+| AC-12 | Done | `TestRFC9915Section216PreferredAboveValidDiscarded`, `TestRFC9915Section214T1AboveT2DiscardsIA` | |
+| AC-13 | Done | `TestRFC9915Section142ZeroTimersChosenByClient` | |
+| AC-14 | Done | `TestRFC9915Section1824EarliestT1AcrossIAs` | |
+| AC-15 | Done | `TestDHCPv6InstalledLifetimeEqualsLease` (no Renew/Rebind for infinite T1/T2) | |
+| AC-16 | Done | `TestRFC9915Section182101NoBindingSendsRequest` | |
+| AC-17 | Done | `TestRFC9915Section182101OmittedIAKept` | |
+| AC-18 | Done | `TestRFC9915Section1610ReplyValidation` | |
+| AC-19 | Done | `TestRFC9915Section141PerInterfaceRateLimit` | |
+| AC-20 | Done | `TestDHCPv6DefaultDUIDStable`, `TestDHCPv6ConfiguredDUIDReachesEveryMessage` | |
+| AC-21 | Done | `TestDHCPv6ReleaseOnStop` | |
+| AC-22 | Done | `TestRFC9915Section1821AdvertiseSelection` | |
+| AC-23 | Done | `TestRFC9915Section1822RequestGivesUpAfterMRC` | |
+| AC-24 | Done | `TestDHCPv6StopDuringEveryWait` | |
+| AC-25 | Done | `TestDHCPv6PDLengthRequestsDelegatedPrefix` | |
+| AC-26 | Done | `TestRFC9915Section182101DuplicateAddressDeclined`, `TestRFC9915DuplicateAddressDeclinedOnTheLink` (QEMU) | |
+| AC-27 | Done | `TestRFC9915Section182101UniqueAddressKept`, `TestDHCPv6AddressFlushedByLinkDownReinstalledNotDeclined` | second added at closure |
+| AC-28 | Done | `TestRFC9915Section18212MoveRebindsWithConfirmParameters`, `TestRFC9915Section18212NoMoveNoRebind`, `TestRFC9915LinkMoveRebindsThroughTheMonitor` (QEMU) | |
+| AC-29 | Done | `TestRFC9915Section18212MoveRebindRateLimited` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Unit rows of the TDD plan | Done | `internal/plugins/iface/dhcp/rfc9915_*_test.go` | `go test ./internal/plugins/iface/dhcp/` ok 7.6 s at closure |
+| `TestDHCPv6RenewsOnSelectorBoundInterface` | Done | `internal/component/iface/` | QEMU, 2026-10-19 |
+| `dhcpv6-client-renew-kea` | Done | `test/interop/scenarios/` | green twice, red walk recorded |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `dhcp_v6_exchange_linux.go`, `dhcp_v6_lease_linux.go`, `dhcp_v6_linux.go` | Done | `renewV6`, `v6Timers` deleted |
+| `rfc/short/rfc9915.md`, `rfc/extraction/rfc9915.json` | Done | |
+| `test/interop/Dockerfile.kea`, scenario | Done | |
+
+### Audit Summary
+- **Total items:** 29 ACs, 13 defects
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Acquire with Solicit/Advertise/Request/Reply or Rapid Commit | interop + unit | `dhcpv6-client-renew-kea` (Kea logs one SOLICIT and one REQUEST tid); `TestRFC9915Section1821AdvertiseSelection` |
+| Keep the lease with Renew at T1 and Rebind at T2 while a server answers | interop | `dhcpv6-client-renew-kea`: /128 held 3 lease periods, 10..16 RENEW tids, REBIND after Kea's restart under a new DUID; red under a non-applying Renew |
+| Install exactly the leased lifetimes, infinite stays infinite | integration + unit | `TestDHCPv6RenewsOnSelectorBoundInterface` reads kernel lifetimes; `TestDHCPv6InstalledLifetimeEqualsLease` |
+| Retransmit per Section 15 | unit | `TestRFC9915Section15RetransmissionTimeout`, `TestRFC9915Section15ElapsedTimeUpdated` |
+| One stable DUID | interop + unit | Kea sees RENEW from one DUID; `TestDHCPv6DefaultDUIDStable` |
+| One Warn per outage | unit | `TestDHCPv6SolicitBacksOffToSolMaxRT` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is done; the whole-tree gates are verification debt by owner order (`plan/verification-debt/65b935c4.md`) | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/dhcpv6-client-lease-maintenance-20123ea5-a7dd-4d5e-aa9c-d2846361ee33.md` (5 files, verdict clean) |
+| `./le spec review check` | `review_gate: OK (3 code files, clean, hashes match)` |
+| Rounds | 2 |
+| Reviewer lenses used | RFC annotation kinds against `ai/rules/rfc-compliance.md`; DAD-by-disappearance against the kernel's address flush; tag claims against assertions (sampled: the link-move and DAD integration tests); style pass over the closure Go diff |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | 39 MUSTs conditional on declined OPTIONAL features were `{not-applicable}`, counted as met | `rfc/short/rfc9915.md` | `{feature-declined}` with the RFC sentence and producer; Support remaining extended |
+| 2 | ISSUE | After an interface down/up the flushed leased addresses were declined to the server as duplicates | `dhcp_v6_attach_linux.go::noteMove`, `checkDAD` | reinstall with remaining lifetimes; drain queued link events before the DAD read |
+
+### Notes (non-blocking)
+- An operator deleting a leased address during its DAD window (about 1 s) still produces a Decline: the kernel reports no IFA_F_DADFAILED for a finite address, so a deletion cannot be told from a DAD failure. A down whose event has not reached the subscription when the 250 ms poll reads is the same narrow window.
+- RFC 9915 Section 11.4: "A DUID-LL SHOULD NOT be used by DHCP clients or servers that cannot tell whether or not a network interface is permanently attached"; ze defaults to a DUID-LL.
+- Five `{not-applicable}` rows remain, each an unconditional MUST NOT ze meets by never sending the thing (10-1, 18.2.7-5, 20.2-1, 21.16-1, 21.17-2).
+
+### Run 2
+- 0 BLOCKER, 0 ISSUE over the fixed diff: `go test ./internal/plugins/iface/dhcp/` ok; `-race -count=3` over the DAD and move tests ok; `go vet` ok; `./le rfc check` names no rfc9915 or iface/dhcp finding.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go` | yes | `gopls symbols` lists `noteMove`, `checkDAD`, `drainLinks` |
+| `internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go` | yes | read at closure |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-29 | every AC test passes | `./le job run label close6-dhcp command go test -count=1 ./internal/plugins/iface/dhcp/`: `ok 7.595s` |
+| AC-27 | a link-change flush is not declined | `TestDHCPv6AddressFlushedByLinkDownReinstalledNotDeclined` red before the fix, green after |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `dhcpv6 { enabled true }` against Kea | interop `dhcpv6-client-renew-kea` (no `.ci`: the harness has no DHCPv6 server) | green 2026-10-19, red walk recorded |
+| selector-bound unit | `TestDHCPv6RenewsOnSelectorBoundInterface` (QEMU) | green 2026-10-19 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken, no behavior effect | Risks & Assumptions row |
+| A-2..A-5, A-7..A-9 | confirmed | Risks & Assumptions rows |
+| A-6 | superseded | `v6Worker.registerLeased` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/features/interfaces.md` DAD and move paragraph | `dhcp_v6_attach_linux.go::noteMove` reinstalls then queues DAD | yes |
+| RFC status | `rfc/short/rfc9915.md` Support rows; `docs/features/rfc-status.md` is generated | yes |

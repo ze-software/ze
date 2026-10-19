@@ -1,6 +1,9 @@
-# Handover: spec-dhcpv6-client-lease-maintenance (continuation needed)
+# Handover: spec-dhcpv6-client-lease-maintenance (closed 2026-10-19)
 
-Spec: `plan/immediate/spec-dhcpv6-client-lease-maintenance.md` (status
+**Closed 2026-10-19 by the close6 reviewer; see the last section.** Nothing
+here is open but the whole-tree gates named there.
+
+Spec: spec-dhcpv6-client-lease-maintenance, removed at closure (status was
 in-progress, Handoff verify). Code commit: `6b5c69ec11`. Written 2026-10-18 by
 the phase agent at its 100-call budget.
 
@@ -255,3 +258,17 @@ Spec status is now `verification`. Nothing in the implementation list is open.
 Owed by the verifier: `./le go lint run`, `./le test unit all`,
 `./le test functional gating` (debt `65b935c4`, `38d8187a`). `./le rfc check`
 has no finding on rfc9915 or iface/dhcp.
+
+## Closure, 2026-10-19 (close6 reviewer)
+
+Two ISSUEs found and fixed in commit A, then the spec was removed in commit B.
+
+| Finding | Fix |
+|---------|-----|
+| 39 `{not-applicable}` rows in `rfc/short/rfc9915.md` excused MUSTs conditional on OPTIONAL features ze declined (Confirm, Information-request, Reconfigure, Authentication, User Class, Vendor-specific, NTP, DUID-LLT/EN, delegated-prefix use, MRC/MRD, Client-ID omission) | re-annotated `{feature-declined}` with the RFC's optionality sentence and the producer; Support remaining names NTP and delegated-prefix use; 5 vacuous unconditional rows stay `{not-applicable}` |
+| After an interface was set down and up, the kernel had deleted the finite leased addresses, and the next DAD read found them gone with the link up and declined every one (red: `DECLINE@5s`) | `v6Worker.noteMove` installs every live address again with its remaining lifetimes; `checkDAD` reads queued link events first; `TestDHCPv6AddressFlushedByLinkDownReinstalledNotDeclined` |
+
+Still owed (owner: not run here): `./le go lint run`, `./le test unit all`,
+`./le test functional gating`, and the QEMU integration tests under
+`internal/component/iface/` (`TestRFC9915LinkMoveRebindsThroughTheMonitor`
+now also runs the reinstall on a carrier flap).

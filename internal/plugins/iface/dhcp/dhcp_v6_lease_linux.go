@@ -64,6 +64,19 @@ func (b *v6Binding) expires() (time.Time, bool) {
 	return b.received.Add(b.valid), true
 }
 
+// remainingAt is what is left at now of a lifetime counted from the Reply's
+// reception: an infinite lifetime stays infinite, and a spent one is 0.
+func (b *v6Binding) remainingAt(lifetime time.Duration, now time.Time) time.Duration {
+	if lifetime == v6Infinity {
+		return v6Infinity
+	}
+	left := lifetime - now.Sub(b.received)
+	if left < 0 {
+		return 0
+	}
+	return left
+}
+
 func (b *v6Binding) expiredAt(now time.Time) bool {
 	end, finite := b.expires()
 	if !finite {

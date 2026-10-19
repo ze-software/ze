@@ -102,10 +102,12 @@ func (w *v6Worker) waitLease(deadline v6Instant) v6Wake {
 	}
 }
 
-// drainLinks consumes the link events queued while no lease was held. They
-// describe the link the new lease was obtained on, so none is a move; the
-// last one still says whether the device is down now.
-func (w *v6Worker) drainLinks() {
+// drainLinks consumes the link events already queued and reports whether
+// they complete a down/up pair. Queued while no lease was held, they describe
+// the link the new lease was obtained on, so the caller ignores the answer;
+// the last one still says whether the device is down now.
+func (w *v6Worker) drainLinks() bool {
+	moved := false
 	// The bound: the subscription buffer holds a few events and is not
 	// refilled faster than this loop reads it.
 	for {
@@ -113,11 +115,13 @@ func (w *v6Worker) drainLinks() {
 		case ev, ok := <-w.links:
 			if !ok {
 				w.links = nil
-				return
+				return moved
 			}
-			w.linkMoved(ev)
+			if w.linkMoved(ev) {
+				moved = true
+			}
 		default:
-			return
+			return moved
 		}
 	}
 }
@@ -156,10 +160,24 @@ func (w *v6Worker) linkMoved(ev iface.LinkEvent) bool {
 //
 // A lease of addresses alone would owe the SHOULD-level Confirm, which ze
 // does not send.
+//
+// Each leased address is installed again with what is left of its
+// lifetimes: the kernel deletes every address of finite lifetime from an
+// interface set down, and the lease still holds it. Replacing an address the
+// down kept changes nothing but its lifetimes, which are the lease's anyway.
+// Without it, the DAD read after the up would find the address gone with the
+// link up and decline it as a duplicate.
 func (w *v6Worker) noteMove() {
 	now := w.clock().Now()
 	clear(w.dadChecked)
 	for _, b := range w.lease.live(v6KindAddress, now) {
+		valid := v6Seconds(b.remainingAt(b.valid, now))
+		preferred := v6Seconds(b.remainingAt(b.preferred, now))
+		if err := iface.ReplaceAddressWithLifetime(w.c.ifaceName, b.prefix.String(), valid, preferred); err != nil {
+			loggerPtr.Load().Warn("iface dhcp v6: cannot install the leased address again after the link came back up",
+				"iface", w.c.ifaceName, "addr", b.prefix.String(), "err", err)
+			continue
+		}
 		w.queueDAD(b.prefix)
 	}
 	if len(w.lease.live(v6KindPrefix, now)) == 0 {
@@ -251,10 +269,16 @@ func (w *v6Worker) queueDAD(p netip.Prefix) {
 // IFA_F_DADFAILED, and deletes an address of finite lifetime outright
 // (addrconf_dad_stop in net/ipv6/addrconf.c), so an address ze installed that
 // is gone while the link is up is a duplicate too. One that is gone while the
-// link is down was flushed by the link change, and the move queues it again.
+// link is down was flushed by the link change, and the move installs it again
+// (noteMove). The link events already queued are read first: the DAD poll and
+// a queued down can wake the wait together, and a flush judged before its
+// down is read would decline a unique address.
 func (w *v6Worker) checkDAD() bool {
 	if len(w.dadPending) == 0 {
 		return true
+	}
+	if w.drainLinks() {
+		w.noteMove()
 	}
 	addrs, err := iface.Addresses(w.c.ifaceName)
 	if err != nil {

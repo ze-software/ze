@@ -389,7 +389,9 @@ that leased it. The other bindings are kept, and when nothing is left the client
 solicits again. When the bound device goes down and comes back up, the client may
 have moved to a new link: with a delegated prefix held it sends a Rebind for every
 lease, on the Confirm timers (RFC 9915 Section 18.2.12), at most once every 30 s,
-and it runs DAD on its addresses again. A lease of addresses alone sends nothing on a
+and it installs every leased address again with what is left of its lifetimes,
+because the kernel deletes them when the interface is set down, then runs DAD on
+them again. A lease of addresses alone sends nothing on a
 move, because Ze does not send Confirm.
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go -- v6Worker.checkDAD, v6Worker.decline, v6Worker.noteMove, v6Worker.rebindAfterMove -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_linux.go -- runV6, v6Worker.maintain, v6Worker.extend, v6Worker.shutdown, v6Worker.identify -->
