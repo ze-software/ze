@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/le/procscan"
 )
@@ -25,15 +26,18 @@ const (
 // fixture machine, in the fixture boot, with start token "100".
 func fixtureLabels(mutate func(map[string]string)) map[string]string {
 	labels := map[string]string{
-		labelMarker:    labelMarkerValue,
-		labelRun:       "run-fixture",
-		labelPID:       "4242",
-		labelPIDStart:  "100",
-		labelBootID:    fixtureBootID,
-		labelMachineID: fixtureMachineID,
-		labelStarted:   "2026-10-18T10:00:00Z",
-		labelPurpose:   "le test integration interop",
-		labelKind:      "container",
+		labelMarker:       labelMarkerValue,
+		labelRun:          "run-fixture",
+		labelPID:          "4242",
+		labelPIDStart:     "100",
+		labelBootID:       fixtureBootID,
+		labelMachineID:    fixtureMachineID,
+		labelStarted:      "2026-10-18T10:00:00Z",
+		labelPurpose:      "le test integration interop",
+		labelKind:         "container",
+		labelUID:          "1000",
+		labelOS:           hostGOOSLinux,
+		labelPIDNamespace: fixturePIDNamespace,
 	}
 	if mutate != nil {
 		mutate(labels)
@@ -148,14 +152,17 @@ func TestOwnerLabelsOnEveryCreate(t *testing.T) {
 	}
 	owner := fixtureOwner()
 	want := map[string]string{
-		labelMarker:    labelMarkerValue,
-		labelRun:       owner.run,
-		labelPID:       "4242",
-		labelPIDStart:  owner.pidStart,
-		labelBootID:    owner.bootID,
-		labelMachineID: owner.machineID,
-		labelStarted:   owner.started.Format(timeLayoutRFC3339),
-		labelPurpose:   owner.purpose,
+		labelMarker:       labelMarkerValue,
+		labelRun:          owner.run,
+		labelPID:          "4242",
+		labelPIDStart:     owner.pidStart,
+		labelBootID:       owner.bootID,
+		labelMachineID:    owner.machineID,
+		labelStarted:      owner.started.Format(timeLayoutRFC3339),
+		labelPurpose:      owner.purpose,
+		labelUID:          "1000",
+		labelOS:           owner.goos,
+		labelPIDNamespace: owner.pidNamespace,
 	}
 	for _, argv := range creates {
 		joined := strings.Join(argv, " ")
@@ -211,9 +218,18 @@ func TestOwnerIdentityReadsBootID(t *testing.T) {
 				return []byte("0123456789ABCDEF0123456789abcdef\n"), nil
 			case bootIDPath:
 				return []byte("01234567-89ab-cdef-0123-456789abcdef\n"), nil
+			case procStatPath:
+				return []byte("cpu  1 2 3\nbtime 1760781600\nprocesses 9\n"), nil
 			}
 			return nil, os.ErrNotExist
 		},
+		readLink: func(path string) (string, error) {
+			if path == pidNamespacePath {
+				return "pid:[4026531836]", nil
+			}
+			return "", os.ErrNotExist
+		},
+		uid: 1000,
 	}
 	facts := readHostFacts(linux)
 	if facts.problem != "" {
@@ -225,6 +241,15 @@ func TestOwnerIdentityReadsBootID(t *testing.T) {
 	if facts.bootID != fixtureBootID {
 		t.Errorf("boot id = %q, want %q", facts.bootID, fixtureBootID)
 	}
+	if facts.pidNamespace != fixturePIDNamespace {
+		t.Errorf("pid namespace = %q, want %q", facts.pidNamespace, fixturePIDNamespace)
+	}
+	if facts.uid != 1000 {
+		t.Errorf("uid = %d, want 1000", facts.uid)
+	}
+	if want := time.Unix(1760781600, 0).UTC(); !facts.bootStarted.Equal(want) || facts.bootStartedProblem != "" {
+		t.Errorf("boot started = %v (%q), want %v", facts.bootStarted, facts.bootStartedProblem, want)
+	}
 
 	darwin := hostReaders{
 		goos: "darwin",
@@ -234,6 +259,9 @@ func TestOwnerIdentityReadsBootID(t *testing.T) {
 			}
 			if name == "sysctl" && slices.Contains(arguments, "kern.bootsessionuuid") {
 				return []byte("01234567-89AB-CDEF-0123-456789ABCDEF\n"), nil
+			}
+			if name == "sysctl" && slices.Contains(arguments, "kern.boottime") {
+				return []byte("{ sec = 1760781600, usec = 123 } Sat Oct 18 10:00:00 2026\n"), nil
 			}
 			return nil, errors.New("unexpected command")
 		},
@@ -247,6 +275,17 @@ func TestOwnerIdentityReadsBootID(t *testing.T) {
 	}
 	if facts.bootID != fixtureBootID {
 		t.Errorf("darwin boot id = %q", facts.bootID)
+	}
+	if facts.pidNamespace != "" {
+		t.Errorf("darwin pid namespace = %q, want none", facts.pidNamespace)
+	}
+	if want := time.Unix(1760781600, 0).UTC(); !facts.bootStarted.Equal(want) {
+		t.Errorf("darwin boot started = %v (%q), want %v", facts.bootStarted, facts.bootStartedProblem, want)
+	}
+	hidden := linux
+	hidden.readLink = func(string) (string, error) { return "", os.ErrPermission }
+	if facts := readHostFacts(hidden); !strings.Contains(facts.problem, pidNamespacePath) {
+		t.Errorf("an unreadable pid namespace gave problem %q, want one naming %s", facts.problem, pidNamespacePath)
 	}
 
 	unreadable := hostReaders{goos: "linux", readFile: func(string) ([]byte, error) { return nil, os.ErrPermission }}
@@ -266,7 +305,12 @@ func TestOwnerIdentityReadsBootID(t *testing.T) {
 // boundary, over injected identity and process scans.
 // PREVENTS: R-1, a live run's resource judged gone.
 func TestCleanupOrphansVerdictTable(t *testing.T) {
-	host := hostFacts{machineID: fixtureMachineID, bootID: fixtureBootID}
+	host := fixtureJudge().host
+	macOS := host
+	macOS.goos = hostGOOSDarwin
+	macOS.pidNamespace = ""
+	bootTimeUnread := host
+	bootTimeUnread.bootStartedProblem = "/proc/stat is unreadable"
 	for _, row := range []struct {
 		name   string
 		host   hostFacts
@@ -289,6 +333,24 @@ func TestCleanupOrphansVerdictTable(t *testing.T) {
 		{"pid 0 is malformed", host, lookupAnswering(""), func(l map[string]string) { l[labelPID] = "0" }, ownerUnknown},
 		{"pid 2147483648 is malformed", host, lookupAnswering(""), func(l map[string]string) { l[labelPID] = "2147483648" }, ownerUnknown},
 		{"pid -1 is malformed", host, lookupAnswering(""), func(l map[string]string) { l[labelPID] = "-1" }, ownerUnknown},
+		{"R-1b another uid, pid hidden by hidepid", host, lookupAnswering(""), func(l map[string]string) { l[labelUID] = "1001" }, ownerUnknown},
+		{"R-1a another pid namespace on one daemon", host, lookupAnswering(""), func(l map[string]string) { l[labelPIDNamespace] = "4026532999" }, ownerUnknown},
+		{"linux owner with no pid namespace label", host, lookupAnswering(""), func(l map[string]string) { delete(l, labelPIDNamespace) }, ownerUnknown},
+		{"no uid label", host, lookupAnswering(""), func(l map[string]string) { delete(l, labelUID) }, ownerUnknown},
+		{"no os label", host, lookupAnswering(""), func(l map[string]string) { delete(l, labelOS) }, ownerUnknown},
+		{"R-1c another boot id, owner started after this boot (a clone)", host, lookupAnswering(""), func(l map[string]string) {
+			l[labelBootID] = otherBootID
+			l[labelStarted] = "2026-10-18T12:00:00Z"
+		}, ownerUnknown},
+		{"another boot id, boot time unreadable", bootTimeUnread, lookupAnswering(""), func(l map[string]string) { l[labelBootID] = otherBootID }, ownerUnknown},
+		{"macOS owner carries no pid namespace", macOS, lookupAnswering(""), func(l map[string]string) {
+			l[labelOS] = hostGOOSDarwin
+			delete(l, labelPIDNamespace)
+		}, ownerGone},
+		{"another boot id, owner start unreadable", host, lookupAnswering(""), func(l map[string]string) {
+			l[labelBootID] = otherBootID
+			l[labelStarted] = "yesterday"
+		}, ownerUnknown},
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			judge := ownerJudge{host: row.host, lookup: row.lookup}

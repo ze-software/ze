@@ -27,16 +27,19 @@ import (
 // resource without it is never a candidate. docs/architecture/testing/interop.md
 // lists these keys from this declaration.
 const (
-	labelMarker      = "ze.lab"
-	labelMarkerValue = "1"
-	labelRun         = "ze.lab.run"
-	labelPID         = "ze.lab.pid"
-	labelPIDStart    = "ze.lab.pid-start"
-	labelBootID      = "ze.lab.boot-id"
-	labelMachineID   = "ze.lab.machine-id"
-	labelStarted     = "ze.lab.started"
-	labelPurpose     = "ze.lab.purpose"
-	labelKind        = "ze.lab.kind"
+	labelMarker       = "ze.lab"
+	labelMarkerValue  = "1"
+	labelRun          = "ze.lab.run"
+	labelPID          = "ze.lab.pid"
+	labelPIDStart     = "ze.lab.pid-start"
+	labelBootID       = "ze.lab.boot-id"
+	labelMachineID    = "ze.lab.machine-id"
+	labelStarted      = "ze.lab.started"
+	labelPurpose      = "ze.lab.purpose"
+	labelKind         = "ze.lab.kind"
+	labelUID          = "ze.lab.uid"
+	labelOS           = "ze.lab.os"
+	labelPIDNamespace = "ze.lab.pid-ns"
 )
 
 // timeLayoutRFC3339 is the layout of the labelStarted value.
@@ -52,6 +55,8 @@ const retainedTagRepository = "ze-interop-retained"
 const (
 	machineIDPath    = "/etc/machine-id"
 	bootIDPath       = "/proc/sys/kernel/random/boot_id"
+	pidNamespacePath = "/proc/self/ns/pid"
+	procStatPath     = "/proc/stat"
 	hostQueryTimeout = 5 * time.Second
 	purposeBytesMax  = 128
 	purposeWordsMax  = 5
@@ -60,19 +65,26 @@ const (
 
 // The identity newDocker gives a test double, so its argv is deterministic.
 const (
-	fixtureMachineID = "0123456789abcdef0123456789abcdef"
-	fixtureBootID    = "01234567-89ab-cdef-0123-456789abcdef"
+	fixtureMachineID    = "0123456789abcdef0123456789abcdef"
+	fixtureBootID       = "01234567-89ab-cdef-0123-456789abcdef"
+	fixturePIDNamespace = "4026531836"
+	fixtureUID          = 1000
 )
 
-// ownerIdentity is this process as the owner labels record it.
+// ownerIdentity is this process as the owner labels record it. pidNamespace
+// is the inode of the Linux pid namespace the process runs in, and is empty
+// on macOS, which has no pid namespace: its pid label is the host's own.
 type ownerIdentity struct {
-	run       string
-	pid       int
-	pidStart  string
-	bootID    string
-	machineID string
-	started   time.Time
-	purpose   string
+	run          string
+	pid          int
+	pidStart     string
+	bootID       string
+	machineID    string
+	started      time.Time
+	purpose      string
+	uid          int
+	goos         string
+	pidNamespace string
 }
 
 // labelArguments is the one place a create argv gets its labels from. kind is
@@ -89,26 +101,34 @@ func (o ownerIdentity) labelArguments(kind resourceKind) []string {
 		{labelMachineID, o.machineID},
 		{labelStarted, o.started.UTC().Format(timeLayoutRFC3339)},
 		{labelPurpose, o.purpose},
+		{labelUID, strconv.Itoa(o.uid)},
+		{labelOS, o.goos},
 	}
-	argv := make([]string, 0, 2*len(pairs))
+	argv := make([]string, 0, 2*len(pairs)+2)
 	var pair textbuf.Buffer
 	for _, label := range pairs {
 		pair.Reset()
 		argv = append(argv, "--label", pair.Str(label[0]).Byte('=').Str(label[1]).String())
 	}
-	return argv
+	if o.pidNamespace == "" {
+		return argv
+	}
+	pair.Reset()
+	return append(argv, "--label", pair.Str(labelPIDNamespace).Byte('=').Str(o.pidNamespace).String())
 }
 
 func fixtureOwner() ownerIdentity {
 	return ownerIdentity{
 		run: "run-fixture", pid: 4242, pidStart: "100", bootID: fixtureBootID, machineID: fixtureMachineID,
 		started: time.Date(2026, 10, 18, 10, 0, 0, 0, time.UTC), purpose: "le test integration interop",
+		uid: fixtureUID, goos: hostGOOSLinux, pidNamespace: fixturePIDNamespace,
 	}
 }
 
 func fixtureJudge() ownerJudge {
 	return ownerJudge{
-		host:   hostFacts{machineID: fixtureMachineID, bootID: fixtureBootID},
+		host: hostFacts{machineID: fixtureMachineID, bootID: fixtureBootID, goos: hostGOOSLinux, uid: fixtureUID,
+			pidNamespace: fixturePIDNamespace, bootStarted: time.Date(2026, 10, 18, 11, 0, 0, 0, time.UTC)},
 		lookup: func(int) (procscan.Process, bool, error) { return procscan.Process{}, false, nil },
 	}
 }
@@ -120,6 +140,7 @@ var processIdentity = sync.OnceValues(func() (ownerIdentity, ownerJudge) {
 	owner := ownerIdentity{
 		run: rand.Text(), pid: os.Getpid(), bootID: host.bootID, machineID: host.machineID,
 		started: time.Now(), purpose: purposeOf(os.Args),
+		uid: host.uid, goos: host.goos, pidNamespace: host.pidNamespace,
 	}
 	// A start token that cannot be read leaves the label empty, which every
 	// later verdict reads as malformed and skips: the safe direction.
@@ -158,11 +179,19 @@ func purposeOf(argv []string) string {
 }
 
 // hostFacts is the client machine's identity. problem is set, and the ids are
-// empty, when either cannot be read; every verdict is then "unknown".
+// empty, when the machine id, the boot id or (on Linux) the pid namespace
+// cannot be read; every verdict is then "unknown". bootStartedProblem is set
+// when the boot time cannot be read; only an owner under another boot id is
+// then "unknown", because nothing tells a reboot from a clone.
 type hostFacts struct {
-	machineID string
-	bootID    string
-	problem   string
+	machineID          string
+	bootID             string
+	problem            string
+	goos               string
+	uid                int
+	pidNamespace       string
+	bootStarted        time.Time
+	bootStartedProblem string
 }
 
 // The client operating systems readHostFacts can read an identity from, as
@@ -175,14 +204,18 @@ const (
 // hostReaders are the client-side sources readHostFacts asks, injected for tests.
 type hostReaders struct {
 	goos     string
+	uid      int
 	readFile func(string) ([]byte, error)
+	readLink func(string) (string, error)
 	command  func(name string, arguments ...string) ([]byte, error)
 }
 
 func systemHostReaders() hostReaders {
 	return hostReaders{
 		goos:     runtime.GOOS,
+		uid:      os.Getuid(),
 		readFile: os.ReadFile,
+		readLink: os.Readlink,
 		command: func(name string, arguments ...string) ([]byte, error) {
 			ctx, cancel := context.WithTimeout(context.Background(), hostQueryTimeout)
 			defer cancel()
@@ -202,7 +235,13 @@ func readHostFacts(readers hostReaders) hostFacts {
 		if problem != "" {
 			return hostFacts{problem: problem}
 		}
-		return hostFacts{machineID: machine, bootID: boot}
+		namespace, problem := readPIDNamespace(readers)
+		if problem != "" {
+			return hostFacts{problem: problem}
+		}
+		facts := hostFacts{machineID: machine, bootID: boot, goos: readers.goos, uid: readers.uid, pidNamespace: namespace}
+		facts.bootStarted, facts.bootStartedProblem = readLinuxBootStarted(readers)
+		return facts
 	case hostGOOSDarwin:
 		return readDarwinFacts(readers)
 	}
@@ -250,7 +289,103 @@ func readDarwinFacts(readers hostReaders) hostFacts {
 	if !ok {
 		return hostFacts{problem: "`sysctl -n kern.bootsessionuuid` printed no UUID"}
 	}
-	return hostFacts{machineID: machineID, bootID: bootID}
+	facts := hostFacts{machineID: machineID, bootID: bootID, goos: readers.goos, uid: readers.uid}
+	facts.bootStarted, facts.bootStartedProblem = readDarwinBootStarted(readers)
+	return facts
+}
+
+// readPIDNamespace answers the inode of this process's pid namespace, from
+// the `pid:[<inode>]` link the kernel gives.
+func readPIDNamespace(readers hostReaders) (string, string) {
+	var problem textbuf.Buffer
+	link, err := readers.readLink(pidNamespacePath)
+	if err != nil {
+		return "", problem.Str(pidNamespacePath).Str(" is unreadable: ").Err(err).String()
+	}
+	malformed := problem.Str(pidNamespacePath).Str(" links to ").Str(link).Str(", not pid:[<inode>]").String()
+	inode, prefixed := strings.CutPrefix(link, "pid:[")
+	if !prefixed {
+		return "", malformed
+	}
+	inode, closed := strings.CutSuffix(inode, "]")
+	if !closed {
+		return "", malformed
+	}
+	if !namespaceID(inode) {
+		return "", malformed
+	}
+	return inode, ""
+}
+
+// namespaceID reports whether a pid namespace inode, read from this host or
+// from a label, is the decimal number the kernel prints.
+func namespaceID(value string) bool {
+	if value == "" {
+		return false
+	}
+	if len(value) > 20 {
+		return false
+	}
+	for _, character := range value {
+		if character < '0' {
+			return false
+		}
+		if character > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// readLinuxBootStarted answers when this machine booted, from the btime line
+// of /proc/stat.
+func readLinuxBootStarted(readers hostReaders) (time.Time, string) {
+	var problem textbuf.Buffer
+	data, err := readers.readFile(procStatPath)
+	if err != nil {
+		return time.Time{}, problem.Str(procStatPath).Str(" is unreadable: ").Err(err).String()
+	}
+	for line := range strings.SplitSeq(string(data), "\n") {
+		seconds, found := strings.CutPrefix(line, "btime ")
+		if !found {
+			continue
+		}
+		return bootStartedAt(strings.TrimSpace(seconds), procStatPath)
+	}
+	return time.Time{}, problem.Str(procStatPath).Str(" holds no btime line").String()
+}
+
+// readDarwinBootStarted answers when this Mac booted, from the
+// `{ sec = <seconds>, usec = ... }` that `sysctl -n kern.boottime` prints.
+func readDarwinBootStarted(readers hostReaders) (time.Time, string) {
+	const source = "`sysctl -n kern.boottime`"
+	var problem textbuf.Buffer
+	output, err := readers.command("sysctl", "-n", "kern.boottime")
+	if err != nil {
+		return time.Time{}, problem.Str(source).Str(" failed: ").Err(err).String()
+	}
+	_, rest, found := strings.Cut(string(output), "sec = ")
+	if !found {
+		return time.Time{}, problem.Str(source).Str(" printed no sec field").String()
+	}
+	seconds, _, found := strings.Cut(rest, ",")
+	if !found {
+		return time.Time{}, problem.Str(source).Str(" printed no sec field").String()
+	}
+	return bootStartedAt(strings.TrimSpace(seconds), source)
+}
+
+// bootStartedAt reads a boot time given in seconds since the epoch.
+func bootStartedAt(seconds, source string) (time.Time, string) {
+	var problem textbuf.Buffer
+	value, err := strconv.ParseInt(seconds, 10, 64)
+	if err != nil {
+		return time.Time{}, problem.Str(source).Str(" gave a boot time that is not a number: ").Str(seconds).String()
+	}
+	if value < 1 {
+		return time.Time{}, problem.Str(source).Str(" gave a boot time before the epoch: ").Str(seconds).String()
+	}
+	return time.Unix(value, 0).UTC(), ""
 }
 
 // normalizedID answers a machine or boot id in lower case: 32 hex digits,
@@ -347,44 +482,51 @@ func (j ownerJudge) judge(kind resourceKind, labels map[string]string) ownerJudg
 		}
 		return malformed
 	}
-	machine, machineOK := normalizedID(labels[labelMachineID])
-	if !machineOK {
-		return malformed
-	}
-	boot, bootOK := normalizedID(labels[labelBootID])
-	if !bootOK {
-		return malformed
-	}
-	pid, pidErr := strconv.Atoi(labels[labelPID])
-	if pidErr != nil {
-		return malformed
-	}
-	if pid < 1 {
-		return malformed
-	}
-	if pid > pidLabelMax {
-		return malformed
-	}
-	start := labels[labelPIDStart]
-	if start == "" {
+	owner, parsed := parseOwnerLabels(labels)
+	if !parsed {
 		return malformed
 	}
 	if j.host.problem != "" {
 		return ownerJudgement{verdict: ownerUnknown,
 			reason: reason.Str("this machine's identity cannot be read (").Str(j.host.problem).Str(")").String(),
-			fix: reason.Reset().Str("make ").Str(machineIDPath).Str(" and ").Str(bootIDPath).
-				Str(" readable to this user, then run `").Str(cleanupCommand).Str("`").String()}
+			fix: reason.Reset().Str("make ").Str(machineIDPath).Str(", ").Str(bootIDPath).Str(" and ").
+				Str(pidNamespacePath).Str(" readable to this user, then run `").Str(cleanupCommand).Str("`").String()}
 	}
-	if machine != j.host.machineID {
+	if owner.machineID != j.host.machineID {
 		return ownerJudgement{verdict: ownerUnknown,
-			reason: reason.Str("its owner ran on machine ").Str(machine).Str(", and this is machine ").
+			reason: reason.Str("its owner ran on machine ").Str(owner.machineID).Str(", and this is machine ").
 				Str(j.host.machineID).String(),
-			fix: reason.Reset().Str("run `").Str(cleanupCommand).Str("` on machine ").Str(machine).String()}
+			fix: reason.Reset().Str("run `").Str(cleanupCommand).Str("` on machine ").Str(owner.machineID).String()}
 	}
-	if boot != j.host.bootID {
-		return ownerJudgement{verdict: ownerGone,
-			reason: reason.Str("its owner, pid ").Int(int64(pid)).Str(", ran before this machine's last reboot").String()}
+	if owner.goos != j.host.goos {
+		return ownerJudgement{verdict: ownerUnknown,
+			reason: reason.Str("its owner ran on ").Str(owner.goos).Str(", and this client runs on ").Str(j.host.goos).String(),
+			fix:    reason.Reset().Str("run `").Str(cleanupCommand).Str("` on the machine that created it").String()}
 	}
+	// A /proc mounted with hidepid=2 hides another user's live pid, so an
+	// absent pid proves nothing across uids.
+	if owner.uid != j.host.uid {
+		return ownerJudgement{verdict: ownerUnknown,
+			reason: reason.Str("its owner ran as uid ").Int(int64(owner.uid)).Str(", and this client runs as uid ").
+				Int(int64(j.host.uid)).Str(", so a process table that hides other users' processes cannot prove it gone").String(),
+			fix: reason.Reset().Str("run `").Str(cleanupCommand).Str("` as uid ").Int(int64(owner.uid)).
+				Str(", or remove it by hand once that run ends").String()}
+	}
+	// Clients in two pid namespaces (a devcontainer mounting the host's
+	// docker.sock) share the machine and boot id but not the pids.
+	if owner.pidNamespace != j.host.pidNamespace {
+		return ownerJudgement{verdict: ownerUnknown,
+			reason: reason.Str("its owner ran in pid namespace ").Str(owner.pidNamespace).
+				Str(", and this client runs in pid namespace ").Str(j.host.pidNamespace).
+				Str(" (another container sharing this daemon), so its pid cannot be looked up here").String(),
+			fix: reason.Reset().Str("run `").Str(cleanupCommand).Str("` in the pid namespace that created it,").
+				Str(" or remove it by hand once that run ends").String()}
+	}
+	if owner.bootID != j.host.bootID {
+		return j.judgeOtherBoot(owner)
+	}
+	pid := owner.pid
+	start := owner.pidStart
 	process, found, err := j.lookup(pid)
 	if err != nil {
 		return ownerJudgement{verdict: ownerUnknown,
@@ -406,6 +548,85 @@ func (j ownerJudge) judge(kind resourceKind, labels map[string]string) ownerJudg
 			Str("), is still running").String(),
 		fix: reason.Reset().Str("that run removes it when it ends; if it is stuck, stop pid ").Int(int64(pid)).
 			Str(", then run `").Str(cleanupCommand).Str("`").String()}
+}
+
+// parseOwnerLabels reads the owner a resource's labels name. ok is false when
+// a label the verdict compares is missing or malformed. A Linux owner always
+// carries its pid namespace; a macOS owner has none to carry.
+func parseOwnerLabels(labels map[string]string) (ownerIdentity, bool) {
+	var owner ownerIdentity
+	var ok bool
+	if owner.machineID, ok = normalizedID(labels[labelMachineID]); !ok {
+		return owner, false
+	}
+	if owner.bootID, ok = normalizedID(labels[labelBootID]); !ok {
+		return owner, false
+	}
+	pid, err := strconv.Atoi(labels[labelPID])
+	if err != nil {
+		return owner, false
+	}
+	if pid < 1 {
+		return owner, false
+	}
+	if pid > pidLabelMax {
+		return owner, false
+	}
+	owner.pid = pid
+	owner.pidStart = labels[labelPIDStart]
+	if owner.pidStart == "" {
+		return owner, false
+	}
+	uid, err := strconv.Atoi(labels[labelUID])
+	if err != nil {
+		return owner, false
+	}
+	if uid < 0 {
+		return owner, false
+	}
+	owner.uid = uid
+	owner.goos = labels[labelOS]
+	if owner.goos == "" {
+		return owner, false
+	}
+	owner.pidNamespace = labels[labelPIDNamespace]
+	if owner.goos == hostGOOSLinux && !namespaceID(owner.pidNamespace) {
+		return owner, false
+	}
+	started, err := time.Parse(timeLayoutRFC3339, labels[labelStarted])
+	if err != nil {
+		return owner, false
+	}
+	owner.started = started
+	return owner, true
+}
+
+// judgeOtherBoot decides an owner recorded under another boot id. A reboot of
+// this machine and a cloned machine sharing its machine id both give one, so
+// the owner is gone only when it started before this machine booted: no
+// process outlives the boot that followed its start. An owner that started
+// after this boot runs on another machine, which may be a live clone.
+func (j ownerJudge) judgeOtherBoot(owner ownerIdentity) ownerJudgement {
+	var reason textbuf.Buffer
+	if j.host.bootStartedProblem != "" {
+		return ownerJudgement{verdict: ownerUnknown,
+			reason: reason.Str("its owner ran under another boot id, and this machine's boot time cannot be read (").
+				Str(j.host.bootStartedProblem).Str("), so a reboot cannot be told from a clone sharing this machine id").String(),
+			fix: reason.Reset().Str("make ").Str(procStatPath).Str(" (or `sysctl -n kern.boottime` on macOS) readable,").
+				Str(" then run `").Str(cleanupCommand).Str("`").String()}
+	}
+	started := owner.started.UTC().Format(timeLayoutRFC3339)
+	booted := j.host.bootStarted.UTC().Format(timeLayoutRFC3339)
+	if owner.started.Before(j.host.bootStarted) {
+		return ownerJudgement{verdict: ownerGone,
+			reason: reason.Str("its owner, pid ").Int(int64(owner.pid)).Str(", started at ").Str(started).
+				Str(", before this machine's last boot at ").Str(booted).String()}
+	}
+	return ownerJudgement{verdict: ownerUnknown,
+		reason: reason.Str("its owner started at ").Str(started).Str(", after this machine booted at ").Str(booted).
+			Str(", under another boot id: a cloned machine sharing this machine id may still run it").String(),
+		fix: reason.Reset().Str("run `").Str(cleanupCommand).Str("` on the machine that created it,").
+			Str(" or remove it by hand once no run uses it").String()}
 }
 
 // resourceKind is the Docker object a cleanup line names.

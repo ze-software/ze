@@ -379,6 +379,9 @@ from one helper, `ownerIdentity.labelArguments`:
 | `ze.lab.started` | when the run started, RFC 3339 |
 | `ze.lab.purpose` | the creating command line, for the operator |
 | `ze.lab.kind` | the object the create made: `container`, `network` or `image` |
+| `ze.lab.uid` | the creating process's uid |
+| `ze.lab.os` | the client's operating system, as Go names it (`linux`, `darwin`) |
+| `ze.lab.pid-ns` | on Linux, the inode of the creating process's pid namespace (`/proc/self/ns/pid`). Absent on macOS, which has no pid namespace |
 <!-- source: internal/le/interoplab/orphans.go -- labelMarker, ownerIdentity.labelArguments -->
 
 A container inherits the labels of its image, so one a person starts by hand
@@ -393,14 +396,22 @@ Every owner fact is read on the client, the machine running `le`, never from
 the daemon: on a Mac the daemon runs in a VM whose pids are not the Mac's.
 
 `Docker.CleanupOrphans` removes a labeled resource only when its owner is
-provably gone, on one of three paths: the same machine and a different boot;
-the same machine and boot with the pid absent; or the pid held by a process
-with another start token. It removes containers, then networks, then the
+provably gone. Every path to "gone" first requires the owner's machine id,
+operating system, uid and pid namespace to equal this client's: a client in
+another pid namespace (a devcontainer mounting the host's `docker.sock`) or
+under another uid (a `/proc` mounted `hidepid=2`) sees a live owner's pid as
+absent. Then one of three paths proves it: the same boot with the pid absent;
+the same boot with the pid held by a process with another start token; or
+another boot id with the owner started before this machine booted (`btime` in
+`/proc/stat`, `kern.boottime` on macOS). An owner under another boot id that
+started after this boot is a cloned machine sharing the machine id, which may
+still be running, so it is kept. It removes containers, then networks, then the
 run-owned `ze-interop-retained:` tag, each by the id the labeled listing gave.
 Everything else is kept and reported with its reason and the command that
 resolves it: an owner still running, an owner on another machine (run the
-cleanup there), labels it cannot read, or a network another run's container is
-still attached to. An unlabeled resource, a volume and the shared cache tag
+cleanup there), in another pid namespace (run it there) or under another uid
+(run it as that uid), labels it cannot read, a boot time it cannot read, or a
+network another run's container is still attached to. An unlabeled resource, a volume and the shared cache tag
 that `NO_BUILD=1` reuses are never candidates.
 <!-- source: internal/le/interoplab/orphans.go -- Docker.CleanupOrphans, ownerJudge.judge -->
 
