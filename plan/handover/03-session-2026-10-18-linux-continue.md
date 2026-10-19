@@ -472,3 +472,20 @@ Owed (verdict work, not done here): `./le rfc check` reports RFC2545-3-1 and
 (`./le rfc reseal`), and DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 still
 `unimplemented` in its audit JSON with no `{gap}` on its summary row.
 Gates still owed: `./le rfc check` for these stems, `./le verify worktree`.
+
+### Functional reds of the 9fe7a1cfe0 full verify (2026-10-19, gating + exabgp)
+
+Fixed: cef2dda105 (unprivileged apply no longer deletes `ip6 ze_iface_rpf`; 26 of
+37 gating reds + exabgp api-multisession), bc8625b45e (`update resolve rir` reads
+the boot config via `storage.ReadActiveConfig`; storage-rir-restart.ci).
+
+| Case | Cause | State |
+|------|-------|-------|
+| plugin ddos-* (4), interface-errors-show, interface-type-show; reload config-apply-ordering-coarse-root/-mixed-rollback, ospf-added-live, rsvpte-reload, traffic-usage-added-live | rpf | pass on rerun |
+| plugin storage-ddos-restart; rsvpte 1-5; ospf 30 31 33 35 37 38 39 68; vrrp-show; exabgp api-multisession | rpf in logs | expected fixed, rerun unread |
+| plugin storage-bfd-restart | first run never persisted a sequence | red, undiagnosed |
+| plugin plugin-announce | quiesce failure | passes on rerun (load) |
+| plugin vpn-withdrawal-inventory-rr-ipv4, -rs-ipv4, wellknown-no-export-withdraw-egress; reload bgp-attach-grant-change-live | relay ordering (B gets the announce twice, never the withdraw) | red; suspect RS phase 3 (e30abc5e48, f749025a61, 4af80acf2a) |
+| ui le-evidence-vpp-answers | `leEvidenceVPPAnswers` hard-codes 4 scenarios, `vppScenarios` has 5 (6d1d92b1f3) | real; derive the count from the registry |
+| ui le-checks-answers, runner le-derived-artifact-lifecycle, web chaos-stream-swaps, appliance crash-capture-panic-harvest-qemu | not read | undiagnosed |
+| exabgp api-eor, -flow-merge, -health, -peer-lifecycle, -rib, -rr, -rr-rib, -sr-policy, -vpls, -on-exit, -disable | spec-exabgp-6 phases 4, 5, 7 (api-disable is AC-41) | spec scope, not implemented |
