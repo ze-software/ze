@@ -779,11 +779,12 @@ var xfrmEncNames = map[string]string{
 	"aes128": xfrmEncAESCBC,
 	"aes256": xfrmEncAESCBC,
 	"3des":   "cbc(des3_ede)",
-	// RFC 4552 §3 / RFC 2410: ESP with NULL encryption (authentication-only ESP).
-	// NOTE: verify against target kernel -- the kernel's ealg registry names this
-	// transform "cipher_null" (net/xfrm/xfrm_algo.c: ealg_list "cipher_null"), and
-	// some kernels/iproute2 reject the "ecb(cipher_null)" spelling. Validate the
-	// accepted string on the appliance kernel in QEMU (cannot be exercised here).
+	// RFC 4552 §3 / RFC 2410: ESP with NULL encryption (integrity-only ESP).
+	// The kernel's ealg registry (net/xfrm/xfrm_algo.c, ealg_list) names this
+	// transform "ecb(cipher_null)" and accepts "cipher_null" as its compat alias
+	// (xfrm_alg_name_match compares both). The interop scenario
+	// esp-integrity-only-null has Ze install this name through XFRM for a Child SA
+	// negotiated with strongSwan as ENCR_NULL, and carries traffic over it.
 	"null": "ecb(cipher_null)",
 }
 
