@@ -1,5 +1,5 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- SA/SP installation
-// Related: child.go -- childPolicyParams, the producer of every IKE-installed SPD entry
+// Related: child.go -- childPolicies, the producer of every IKE-installed SPD entry
 // RFC: rfc/short/rfc3948.md -- tunnel mode decapsulation NAT procedure (Section 3.1.1)
 package engine
 
@@ -22,7 +22,7 @@ import (
 // exists to close, and no test over the outbound direction alone can see it.
 //
 // The whole install path runs: createFirstChildSA resolves the negotiated selectors,
-// installChildSA calls dp.InstallPolicy(childPolicyParams(child, SADirIn)), and the
+// installChildSA calls dp.InstallPolicy(childPolicies(child, SADirIn)[0]), and the
 // assertions below read what the dataplane was handed.
 //
 // RFC requirement: RFC3948-3.1.1-1 positive -- "If a valid source IP address space has

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"slices"
 	"strings"
 	"syscall"
 
@@ -79,7 +80,7 @@ type ChildSA struct {
 	// MEANS HIGHER PRECEDENCE. A rekey inherits it, because a rekey replaces states and
 	// keeps the entry, so the entry's rank must not move under the operator.
 	//
-	// The zero value is not a rank. childPolicyParams resolves it to
+	// The zero value is not a rank. childPolicies resolves it to
 	// dataplane.PriorityChildSA, exactly as it resolves an unset Mode, so a Child SA
 	// built by a test that fills the struct literally installs at the documented default
 	// instead of at rank 0, which would outrank the IKE control-plane bypass.
@@ -430,20 +431,18 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	// secpath passes that check, so a transport-mode state carries the selector itself,
 	// and the kernel then drops a packet outside it (XfrmInStateMismatch).
 	//
-	// The selector is the inbound policy's, so the state and the policy cannot
-	// disagree. It holds the first negotiated pair only, as the policy does.
+	// The selector is built from the inbound policies, so the state and the policies
+	// cannot disagree. One XFRM state holds ONE selector, so with several negotiated
+	// pairs it holds the narrowest selector covering every pair (inboundStateSelector).
 	if mode == modeTransport {
-		inPolicy := childPolicyParams(child, dataplane.SADirIn)
 		// RFC 4301 Section 4.4.2: "For each of the selectors defined in Section 4.4.1.1,
 		// the entry for an inbound SA in the SAD MUST be initially populated with the
 		// value or values negotiated at the time the SA was created."
-		inbound.Sel = &dataplane.SASelector{
-			Src:        inPolicy.Src,
-			Dst:        inPolicy.Dst,
-			UpperProto: inPolicy.UpperProto,
-			SrcPort:    inPolicy.SrcPort,
-			DstPort:    inPolicy.DstPort,
+		sel, err := inboundStateSelector(childPolicies(child, dataplane.SADirIn))
+		if err != nil {
+			return fmt.Errorf("child-sa: inbound state selector: %w", err)
 		}
+		inbound.Sel = sel
 	}
 	// The ports are the IKE SA's, as childEncapPorts answered them when the Child SA
 	// was built. They are set whenever UDPEncap is, and NATDetected implies UDPEncap, so
@@ -556,19 +555,29 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	// 0.0.0.0/0 site-to-site selector always does. The exemption that stops it is
 	// installed once, at engine start, and it outlives every Child SA: see
 	// installIKEBypass in bypass.go for why it is not installed here.
-	if err := dp.InstallPolicy(childPolicyParams(child, dataplane.SADirIn)); err != nil {
-		_ = dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP)
-		_ = dp.RemoveSA(child.OutboundSPI, child.RemoteAddr, protoESP)
-		return fmt.Errorf("child-sa: install inbound policy: %w", err)
-	}
-
-	if err := dp.InstallPolicy(childPolicyParams(child, dataplane.SADirOut)); err != nil {
+	//
+	// RFC 4301 Section 4.4.2: one inbound and one outbound policy per negotiated pair,
+	// every one protecting with this SA. The inbound ones go first, so no outbound
+	// traffic is sent before the answering direction is accepted.
+	inPolicies := childPolicies(child, dataplane.SADirIn)
+	policies := slices.Concat(inPolicies, childPolicies(child, dataplane.SADirOut))
+	for i, p := range policies {
+		err := dp.InstallPolicy(p)
+		if err == nil {
+			continue
+		}
+		direction := "outbound"
+		if i < len(inPolicies) {
+			direction = "inbound"
+		}
 		// Owner-aware, so a peer whose install was refused cannot roll back over the
-		// owning peer's live inbound policy (dataplane.SPParams.Owner).
-		_ = dp.RemovePolicyParams(childPolicyParams(child, dataplane.SADirIn))
+		// owning peer's live policy (dataplane.SPParams.Owner).
+		for _, installed := range policies[:i] {
+			_ = dp.RemovePolicyParams(installed) //nolint:errcheck // rollback of a failed install; the install error is the one reported
+		}
 		_ = dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP)
 		_ = dp.RemoveSA(child.OutboundSPI, child.RemoteAddr, protoESP)
-		return fmt.Errorf("child-sa: install outbound policy: %w", err)
+		return fmt.Errorf("child-sa: install %s policy %v -> %v: %w", direction, p.Src, p.Dst, err)
 	}
 
 	setChildRemoving(child, false)
@@ -596,11 +605,59 @@ func installChildTolerant(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.D
 	return nil
 }
 
-// childPolicyParams builds the Security Policy this Child SA installs for one
-// direction.
+// childPolicies builds the Security Policies this Child SA installs for one direction:
+// one per negotiated selector pair, every one protecting with the same SA.
 //
-// Install AND remove both go through it, so the delete selector is the install
-// selector by construction. The kernel identifies a policy by its whole selector and by
+// RFC 4301 Section 4.4.2: "For each of the selectors defined in Section 4.4.1.1, the
+// entry for an inbound SA in the SAD MUST be initially populated with the value or
+// values negotiated at the time the SA was created." A peer answer of several TSi/TSr
+// pairs negotiates several values, and each reaches the dataplane as its own policy.
+// XFRM resolves every one of them to the one state through the template (ReqID, SPI
+// and addresses), and VPP through the SAD id, so several policies share one SA.
+//
+// A Child SA that negotiated no selector set (Selectors empty) installs the one policy
+// its TSLocal and TSRemote describe, every protocol and every port.
+//
+// Install AND remove both go through it, so the delete selectors are the install
+// selectors by construction.
+func childPolicies(child *ChildSA, dir dataplane.SADir) []dataplane.SPParams {
+	if len(child.Selectors) == 0 {
+		return []dataplane.SPParams{childPairPolicy(child, dir, policyPair{
+			local:  child.TSLocal,
+			remote: child.TSRemote,
+		})}
+	}
+	out := make([]dataplane.SPParams, 0, len(child.Selectors))
+	for _, pair := range child.Selectors {
+		// Selectors are in TSi/TSr orientation, and SelectorsLocalIsTSi says which half
+		// is ours. LocalIsInitiator answers a DIFFERENT question -- which KEYMAT half
+		// keys this pair -- and it flips at a rekey the peer starts while the selectors
+		// stay put.
+		local, remote := pair.R, pair.I
+		if child.SelectorsLocalIsTSi {
+			local, remote = pair.I, pair.R
+		}
+		out = append(out, childPairPolicy(child, dir, policyPair{
+			local:      local.Net,
+			remote:     remote.Net,
+			upperProto: pair.I.Proto,
+			localPort:  selectorPort(local),
+			remotePort: selectorPort(remote),
+		}))
+	}
+	return out
+}
+
+// policyPair is one negotiated selector pair in this node's orientation, in the form a
+// policy is built from.
+type policyPair struct {
+	local, remote         *net.IPNet
+	upperProto            uint8
+	localPort, remotePort dataplane.PortMatch
+}
+
+// childPairPolicy builds the Security Policy this Child SA installs for one
+// direction and one negotiated pair. The kernel identifies a policy by its whole selector and by
 // nothing else, so a delete that rebuilt only some of the fields would either miss the
 // policy or match a wider one than it meant to. It is also what carries the Owner the
 // dataplane refuses a foreign takeover on (dataplane.SPParams.Owner).
@@ -613,7 +670,7 @@ func installChildTolerant(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.D
 // transport-mode template's addresses unused, and dataplane.tunnelEndpoints REJECTS a
 // non-tunnel policy that carries any, so supplying them would fail the install outright
 // rather than be ignored.
-func childPolicyParams(child *ChildSA, dir dataplane.SADir) dataplane.SPParams {
+func childPairPolicy(child *ChildSA, dir dataplane.SADir, pair policyPair) dataplane.SPParams {
 	// A Child SA built by a test that fills the struct literally carries the zero
 	// value, which is not a mode in the dataplane vocabulary. Resolved here exactly as
 	// installChildSA resolves it, so the two agree.
@@ -634,17 +691,17 @@ func childPolicyParams(child *ChildSA, dir dataplane.SADir) dataplane.SPParams {
 		priority = dataplane.PriorityChildSA
 	}
 
-	src, dst := child.TSLocal, child.TSRemote
+	src, dst := pair.local, pair.remote
 	tunnelSrc, tunnelDst := child.LocalAddr, child.RemoteAddr
-	srcPort, dstPort := selectorPort(child, true), selectorPort(child, false)
+	srcPort, dstPort := pair.localPort, pair.remotePort
 	// The SA this policy protects with, for a dataplane that binds by SA id rather
 	// than by template addresses (dataplane.SPParams.SAID). It is the SPI of the SA
 	// installed for the SAME direction.
 	said := child.OutboundSPI
 	if dir == dataplane.SADirIn {
-		src, dst = child.TSRemote, child.TSLocal
+		src, dst = pair.remote, pair.local
 		tunnelSrc, tunnelDst = child.RemoteAddr, child.LocalAddr
-		srcPort, dstPort = selectorPort(child, false), selectorPort(child, true)
+		srcPort, dstPort = pair.remotePort, pair.localPort
 		said = child.InboundSPI
 	}
 	if mode == modeTransport {
@@ -666,7 +723,7 @@ func childPolicyParams(child *ChildSA, dir dataplane.SADir) dataplane.SPParams {
 		IfID:       child.IfID,
 		ReqID:      child.ReqID,
 		Priority:   priority,
-		UpperProto: selectorProto(child),
+		UpperProto: pair.upperProto,
 		SrcPort:    srcPort,
 		DstPort:    dstPort,
 		TunnelSrc:  tunnelSrc,
@@ -701,16 +758,43 @@ func firstSharingSelector(child *ChildSA, keep ...*ChildSA) *ChildSA {
 // selectors, the XFRM if_id, and the upper-layer protocol and ports the negotiated
 // selector narrows to. The SPIs are deliberately absent -- they identify STATES, and
 // a rekey replaces states while leaving the selector alone.
+//
+// A Child SA installs one policy per negotiated pair (childPolicies), so the two answer
+// to the same policies only when every pair matches, in order. A partial overlap is
+// not sharing: removing the retired pair's policies would then take the survivor's
+// shared ones with it, and keeping them all would leave the retired pair's own.
 func samePolicySelector(a, b *ChildSA) bool {
-	if a == nil || b == nil || a.TSLocal == nil || a.TSRemote == nil || b.TSLocal == nil || b.TSRemote == nil {
+	if a == nil {
 		return false
 	}
-	return a.TSLocal.String() == b.TSLocal.String() &&
-		a.TSRemote.String() == b.TSRemote.String() &&
+	if b == nil {
+		return false
+	}
+	pa, pb := childPolicies(a, dataplane.SADirOut), childPolicies(b, dataplane.SADirOut)
+	if len(pa) != len(pb) {
+		return false
+	}
+	for i := range pa {
+		if !samePolicyEntry(pa[i], pb[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// samePolicyEntry reports whether two policies carry the same kernel selector. A
+// policy with no prefix on either side is never the same as anything, because the
+// selector it would install is not one this Child SA negotiated.
+func samePolicyEntry(a, b dataplane.SPParams) bool {
+	if a.Src == nil || a.Dst == nil || b.Src == nil || b.Dst == nil {
+		return false
+	}
+	return a.Src.String() == b.Src.String() &&
+		a.Dst.String() == b.Dst.String() &&
 		a.IfID == b.IfID &&
-		selectorProto(a) == selectorProto(b) &&
-		selectorPort(a, true) == selectorPort(b, true) &&
-		selectorPort(a, false) == selectorPort(b, false)
+		a.UpperProto == b.UpperProto &&
+		a.SrcPort == b.SrcPort &&
+		a.DstPort == b.DstPort
 }
 
 // removeChildSA tears down an installed Child SA from the dataplane, states and
@@ -773,8 +857,10 @@ func removeChildSAOutgoing(child *ChildSA, dp dataplane.Dataplane, log *slog.Log
 		// foreign delete on (dataplane.SPParams.Owner). A refusal here means another
 		// peer owns the selector, which is a takeover the install should already have
 		// stopped, so it is logged at Warn rather than swallowed.
-		if err := dp.RemovePolicyParams(childPolicyParams(child, dataplane.SADirOut)); err != nil {
-			logPolicyRemoveFailure(log, "outbound", child, err)
+		for _, p := range childPolicies(child, dataplane.SADirOut) {
+			if err := dp.RemovePolicyParams(p); err != nil {
+				logPolicyRemoveFailure(log, "outbound", child, err)
+			}
 		}
 	}
 	if err := dp.RemoveSA(child.OutboundSPI, child.RemoteAddr, protoESP); err != nil {
@@ -793,8 +879,10 @@ func removeChildSAIncoming(child *ChildSA, dp dataplane.Dataplane, log *slog.Log
 	}
 	setChildRemoving(child, true)
 	if dropPolicy {
-		if err := dp.RemovePolicyParams(childPolicyParams(child, dataplane.SADirIn)); err != nil {
-			logPolicyRemoveFailure(log, "inbound", child, err)
+		for _, p := range childPolicies(child, dataplane.SADirIn) {
+			if err := dp.RemovePolicyParams(p); err != nil {
+				logPolicyRemoveFailure(log, "inbound", child, err)
+			}
 		}
 	}
 	if err := dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP); err != nil {
@@ -818,27 +906,7 @@ func logPolicyRemoveFailure(log *slog.Logger, dir string, child *ChildSA, err er
 	log.Debug("child-sa: remove policy", "direction", dir, "error", err)
 }
 
-// selectorProto returns the IP protocol the negotiated selector restricts the policy to,
-// or 0 for every protocol.
-//
-// Only the FIRST negotiated pair is read, because SPParams carries one selector and the
-// policy install is one pair. A multi-selector answer whose entries disagree on protocol
-// would need one policy per entry, which the current install shape does not express;
-// narrowSelectors leads with the initiator's first choice, so the first pair is the one
-// the peer asked for (RFC 7296 Section 2.9).
-func selectorProto(child *ChildSA) uint8 {
-	if len(child.Selectors) == 0 {
-		return 0
-	}
-	return child.Selectors[0].I.Proto
-}
-
 // selectorPort maps a negotiated port form to the kernel's port-plus-mask selector.
-//
-// local selects which half of the pair to read: the LOCAL side of the Child SA when
-// true, the remote side when false. The caller supplies it per direction, because an
-// outbound policy's source is the local side while an inbound policy's source is the
-// remote one.
 //
 // RFC 7296 Section 3.13.1 gives three port forms and each maps to exactly one selector:
 //
@@ -851,18 +919,7 @@ func selectorProto(child *ChildSA) uint8 {
 //	                    Section 3.13.1 records that ANY includes OPAQUE, so answering an
 //	                    OPAQUE negotiation with an any-port policy would program more
 //	                    traffic than was negotiated.
-func selectorPort(child *ChildSA, local bool) dataplane.PortMatch {
-	if len(child.Selectors) == 0 {
-		return dataplane.AnyPortMatch()
-	}
-	pair := child.Selectors[0]
-	// Selectors are in TSi/TSr orientation, and SelectorsLocalIsTSi says which half is
-	// ours. LocalIsInitiator answers a DIFFERENT question -- which KEYMAT half keys this
-	// pair -- and it flips at a rekey the peer starts while the selectors stay put.
-	side := pair.R
-	if local == child.SelectorsLocalIsTSi {
-		side = pair.I
-	}
+func selectorPort(side tsSelector) dataplane.PortMatch {
 	switch side.Port.Form {
 	case ipsec.PortSingle:
 		return dataplane.ExactPortMatch(side.Port.Port)
@@ -873,6 +930,100 @@ func selectorPort(child *ChildSA, local bool) dataplane.PortMatch {
 	default:
 		panic("BUG: unknown traffic selector port form")
 	}
+}
+
+// inboundStateSelector builds the selector a transport-mode inbound state carries
+// from the inbound policies of the same Child SA.
+//
+// RFC 4301 Section 4.4.2: "For each of the selectors defined in Section 4.4.1.1, the
+// entry for an inbound SA in the SAD MUST be initially populated with the value or
+// values negotiated at the time the SA was created."
+//
+// An XFRM state carries ONE selector (x->sel), and one SPI names one state (a second
+// state on the SPI is refused with "file exists"), so a set of negotiated pairs cannot
+// be written into the state pair by pair. Of the single selectors the state can hold,
+// this returns the narrowest one that covers every pair: for one pair it is that pair
+// exactly. Holding the first pair only would drop every other pair's traffic with
+// XfrmInStateMismatch, and clearing the selector would accept anything the SA carries.
+// Exactness for several pairs comes from the per-pair inbound policies
+// (childPolicies): a decrypted packet that falls in the cover but in no pair matches
+// none of them and meets the next SPD entry, the unmatched catch-all.
+//
+// The fields widen independently: each address side to the longest prefix holding
+// every pair's prefix, the protocol to any when the pairs name different ones, and a
+// port to any when the pairs name different ones or the protocol widened.
+func inboundStateSelector(policies []dataplane.SPParams) (*dataplane.SASelector, error) {
+	if len(policies) == 0 {
+		panic("BUG: a Child SA builds at least one inbound policy")
+	}
+	first := policies[0]
+	sel := &dataplane.SASelector{
+		Src:        first.Src,
+		Dst:        first.Dst,
+		UpperProto: first.UpperProto,
+		SrcPort:    first.SrcPort,
+		DstPort:    first.DstPort,
+	}
+	for _, p := range policies[1:] {
+		src, err := coverPrefix(sel.Src, p.Src)
+		if err != nil {
+			return nil, fmt.Errorf("source: %w", err)
+		}
+		dst, err := coverPrefix(sel.Dst, p.Dst)
+		if err != nil {
+			return nil, fmt.Errorf("destination: %w", err)
+		}
+		sel.Src, sel.Dst = src, dst
+		if sel.SrcPort != p.SrcPort {
+			sel.SrcPort = dataplane.AnyPortMatch()
+		}
+		if sel.DstPort != p.DstPort {
+			sel.DstPort = dataplane.AnyPortMatch()
+		}
+		if sel.UpperProto != p.UpperProto {
+			sel.UpperProto = 0
+		}
+	}
+	// A port constrains only the protocol it belongs to, so a selector that widened to
+	// every protocol keeps no port.
+	if sel.UpperProto == 0 {
+		sel.SrcPort, sel.DstPort = dataplane.AnyPortMatch(), dataplane.AnyPortMatch()
+	}
+	return sel, nil
+}
+
+// coverPrefix returns the longest prefix that holds both a and b. A nil prefix
+// matches every address, so it covers anything. Two families have no common prefix
+// one selector can carry, and that is refused rather than widened to everything.
+func coverPrefix(a, b *net.IPNet) (*net.IPNet, error) {
+	if a == nil {
+		return nil, nil //nolint:nilnil // a nil prefix is the any-address selector, an answer
+	}
+	if b == nil {
+		return nil, nil //nolint:nilnil // a nil prefix is the any-address selector, an answer
+	}
+	aIP, bIP := a.IP.To16(), b.IP.To16()
+	if (a.IP.To4() == nil) != (b.IP.To4() == nil) {
+		return nil, fmt.Errorf("negotiated prefixes %s and %s are of two address families, and one transport-mode state selector holds one family", a, b)
+	}
+	aOnes, bits := a.Mask.Size()
+	bOnes, _ := b.Mask.Size()
+	ones := min(aOnes, bOnes)
+	offset := 0
+	if bits == 32 {
+		offset = 96
+	}
+	common := 0
+	for common < ones && bitAt(aIP, offset+common) == bitAt(bIP, offset+common) {
+		common++
+	}
+	mask := net.CIDRMask(common, bits)
+	return &net.IPNet{IP: a.IP.Mask(mask), Mask: mask}, nil
+}
+
+// bitAt returns bit i of ip, counted from the most significant bit.
+func bitAt(ip net.IP, i int) byte {
+	return ip[i/8] >> (7 - uint(i%8)) & 1
 }
 
 func ipToFullNet(ip net.IP) *net.IPNet {

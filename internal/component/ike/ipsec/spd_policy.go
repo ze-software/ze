@@ -91,7 +91,7 @@ func spdDirectionWords() string {
 //
 // It carries the two dispositions of RFC 4301 Section 4.4.1 that no peer can produce.
 // A PROTECT entry names an ESP transform and a peer to negotiate keys with, so it is
-// written under site-to-site peer and reaches the dataplane through childPolicyParams.
+// written under site-to-site peer and reaches the dataplane through childPolicies.
 // A BYPASS or a DISCARD entry names neither, so nothing negotiates it and nothing
 // would install it without this type.
 //

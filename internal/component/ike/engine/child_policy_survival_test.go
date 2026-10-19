@@ -91,7 +91,7 @@ func dirName(dir dataplane.SADir) string {
 
 // hasPolicy reports whether a policy for this Child SA's direction is installed.
 func (d *spdDP) hasPolicy(child *ChildSA, dir dataplane.SADir) bool {
-	_, ok := d.policies[spdKeyOf(childPolicyParams(child, dir))]
+	_, ok := d.policies[spdKeyOf(childPolicies(child, dir)[0])]
 	return ok
 }
 
@@ -106,7 +106,7 @@ func installTestChild(t *testing.T, d *spdDP, child *ChildSA) {
 		t.Fatalf("install outbound state: %v", err)
 	}
 	for _, dir := range []dataplane.SADir{dataplane.SADirIn, dataplane.SADirOut} {
-		if err := d.InstallPolicy(childPolicyParams(child, dir)); err != nil {
+		if err := d.InstallPolicy(childPolicies(child, dir)[0]); err != nil {
 			t.Fatalf("install %s policy: %v", dirName(dir), err)
 		}
 	}
@@ -271,15 +271,15 @@ func TestReapStalePendingKeepsLiveChildPolicy(t *testing.T) {
 	}
 }
 
-// VALIDATES: childPolicyParams builds the delete selector from the same fields as the
+// VALIDATES: childPolicies builds the delete selector from the same fields as the
 // install selector, in both directions, and carries the owner.
 // PREVENTS: a removal that names a different selector from the install and so either
 // misses the policy or matches a wider one.
 func TestChildPolicyParamsMirrorsDirection(t *testing.T) {
 	child := testChildOnSelector(1, 2)
 
-	in := childPolicyParams(child, dataplane.SADirIn)
-	out := childPolicyParams(child, dataplane.SADirOut)
+	in := childPolicies(child, dataplane.SADirIn)[0]
+	out := childPolicies(child, dataplane.SADirOut)[0]
 
 	if in.Src.String() != child.TSRemote.String() || in.Dst.String() != child.TSLocal.String() {
 		t.Errorf("inbound selector = %v -> %v, want %v -> %v", in.Src, in.Dst, child.TSRemote, child.TSLocal)

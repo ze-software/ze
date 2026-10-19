@@ -86,7 +86,7 @@ func installedInitiatorScope(child *ChildSA) []tsPair {
 
 // installedPolicyScope renders the prefixes the KERNEL policy carries.
 //
-// childPolicyParams (child.go) builds SPParams.Src and SPParams.Dst from TSLocal and
+// childPolicies (child.go) builds SPParams.Src and SPParams.Dst from TSLocal and
 // TSRemote, never from Selectors. A fix that moved only the selector set would leave the
 // SPD exactly where the defect left it, so both are asserted.
 func installedPolicyScope(child *ChildSA) string {
@@ -142,7 +142,7 @@ func TestChildRekeyInitiatorInstallsTheAnsweredSelectors(t *testing.T) {
 					"two ends would program different traffic", got, want)
 			}
 			if got, wantPolicy := installedPolicyScope(child), "10.1.0.0/24 <-> 10.2.0.0/24"; got != wantPolicy {
-				t.Errorf("the kernel policy selector is %s, want %s; childPolicyParams reads "+
+				t.Errorf("the kernel policy selector is %s, want %s; childPolicies reads "+
 					"TSLocal and TSRemote, so the SPD still carries the retired pair's scope",
 					got, wantPolicy)
 			}

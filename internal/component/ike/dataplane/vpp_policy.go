@@ -427,7 +427,7 @@ func (b *vppBackend) spdEntry(p SPParams) (ipsec_types.IpsecSpdEntryV2, error) {
 		// SPParams.SAID carries the SPI, and the SPI is not the VPP SAD id (saIdentity).
 		// The SA is looked up by the identity this policy's direction implies: the
 		// tunnel destination is the address the protected packets are sent to, which is
-		// the SA's own destination for both directions (childPolicyParams reverses the
+		// the SA's own destination for both directions (childPolicies reverses the
 		// pair with the direction, ike/engine/child.go).
 		identity, err := saIdentityOf(p.SAID, p.TunnelDst, p.Proto)
 		if err != nil {

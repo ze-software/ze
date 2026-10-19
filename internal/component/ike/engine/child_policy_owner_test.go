@@ -148,7 +148,7 @@ func (d *ownedDP) Close() error                                  { return nil }
 // ownerOf returns the owner recorded against a Child SA's policy for one
 // direction, and whether a policy is installed at all.
 func (d *ownedDP) ownerOf(child *ChildSA, dir dataplane.SADir) (string, bool) {
-	p, ok := d.policies[ownedKeyOf(childPolicyParams(child, dir))]
+	p, ok := d.policies[ownedKeyOf(childPolicies(child, dir)[0])]
 	return p.Owner, ok
 }
 
@@ -180,7 +180,7 @@ const testChildIfID = 7
 // entry point that sets it to the parameter the dataplane refuses takeovers on.
 //
 // VALIDATES: createFirstChildSA puts the configured peer name on the Child SA,
-// and childPolicyParams carries it into both installed policies as a NON-EMPTY
+// and childPolicies carries it into both installed policies as a NON-EMPTY
 // owner.
 // PREVENTS: the owner being dropped anywhere along that path. An empty owner is
 // not a weaker identity, it is no identity: policyOwners.claim refuses only on
@@ -377,7 +377,7 @@ func TestRefusedOutboundInstallRollsBackOnlyItsOwnPolicy(t *testing.T) {
 		TSLocal: intruder.NegotiatedTSi, TSRemote: intruder.NegotiatedTSr,
 		Owner: "site-a", Mode: modeTunnel, ReqID: defaultReqID, IfID: testChildIfID,
 	}
-	occupied := childPolicyParams(probe, dataplane.SADirOut)
+	occupied := childPolicies(probe, dataplane.SADirOut)[0]
 	if err := dp.InstallPolicy(occupied); err != nil {
 		t.Fatalf("seeding the foreign outbound policy: %v", err)
 	}
@@ -392,7 +392,7 @@ func TestRefusedOutboundInstallRollsBackOnlyItsOwnPolicy(t *testing.T) {
 
 	// Its own inbound policy went in before the outbound was refused, so the
 	// rollback must have taken it back out.
-	inbound := childPolicyParams(probe, dataplane.SADirIn)
+	inbound := childPolicies(probe, dataplane.SADirIn)[0]
 	if held, ok := dp.policies[ownedKeyOf(inbound)]; ok {
 		t.Errorf("the refused peer left its inbound policy installed (owner %q): a flow matching "+
 			"that selector is now captured by a policy resolving to no state", held.Owner)

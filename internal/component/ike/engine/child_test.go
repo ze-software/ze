@@ -477,7 +477,7 @@ func TestDeleteNotification(t *testing.T) {
 // mode" (RFC 3948 Section 1). A Child SA that negotiated no transport mode installs in
 // TUNNEL mode on the ChildSA, on both dataplane states and on both policies, and each
 // policy carries the tunnel endpoints the outer IP header needs
-// (child.go:302-304, childPolicyParams).
+// (child.go:302-304, childPolicies).
 func TestTunnelModeIsTheChildSADefault(t *testing.T) {
 	sa := testSA()
 	sa.IsInitiator = true

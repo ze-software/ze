@@ -328,7 +328,7 @@ func (d *mbHandoffDP) assertPolicyResolves(t *testing.T, child *ChildSA) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	for _, dir := range spdPolicyDirs {
-		policy, ok := d.policies[spdKeyOf(childPolicyParams(child, dir))]
+		policy, ok := d.policies[spdKeyOf(childPolicies(child, dir)[0])]
 		if !ok {
 			t.Fatalf("promoted Child has no %s policy", dirName(dir))
 		}

@@ -255,7 +255,7 @@ func delChild(t *testing.T, inSPI, outSPI uint32) *ChildSA {
 func delInstallPolicies(t *testing.T, dp dataplane.Dataplane, child *ChildSA) {
 	t.Helper()
 	for _, dir := range []dataplane.SADir{dataplane.SADirIn, dataplane.SADirOut} {
-		if err := dp.InstallPolicy(childPolicyParams(child, dir)); err != nil {
+		if err := dp.InstallPolicy(childPolicies(child, dir)[0]); err != nil {
 			if strings.Contains(err.Error(), "operation not permitted") ||
 				strings.Contains(err.Error(), "permission denied") {
 				t.Skipf("XFRM policy install needs CAP_NET_ADMIN: %v", err)
@@ -331,7 +331,7 @@ func TestPeerDeleteKeepsKernelPolicyForPendingChild(t *testing.T) {
 	// The negative control. Removing the survivor's policies for real must SILENCE the
 	// counter; if it does not, the readings above were never about these policies.
 	for _, dir := range []dataplane.SADir{dataplane.SADirIn, dataplane.SADirOut} {
-		if err := dp.RemovePolicyParams(childPolicyParams(pending, dir)); err != nil {
+		if err := dp.RemovePolicyParams(childPolicies(pending, dir)[0]); err != nil {
 			t.Fatalf("removing the surviving %v policy: %v", dir, err)
 		}
 	}

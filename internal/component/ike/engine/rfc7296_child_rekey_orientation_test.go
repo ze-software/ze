@@ -97,8 +97,8 @@ func TestRekeyKeepsThePolicyOrientationOfTheRetiredPair(t *testing.T) {
 				name  string
 				local bool
 			}{{"local", true}, {"remote", false}} {
-				want := selectorPort(old, side.local)
-				got := selectorPort(replacement, side.local)
+				want := firstPairPort(old, side.local)
+				got := firstPairPort(replacement, side.local)
 				if got != want {
 					t.Errorf("the replacement's %s port is %+v, want %+v; the rekey moved a "+
 						"selector that did not move", side.name, got, want)
@@ -111,7 +111,7 @@ func TestRekeyKeepsThePolicyOrientationOfTheRetiredPair(t *testing.T) {
 			}
 
 			for _, dir := range []dataplane.SADir{dataplane.SADirOut, dataplane.SADirIn} {
-				oldSP, newSP := childPolicyParams(old, dir), childPolicyParams(replacement, dir)
+				oldSP, newSP := childPolicies(old, dir)[0], childPolicies(replacement, dir)[0]
 				if oldSP.SrcPort != newSP.SrcPort || oldSP.DstPort != newSP.DstPort {
 					t.Errorf("dir %v: the replacement installs ports src=%+v dst=%+v where the "+
 						"retired pair installed src=%+v dst=%+v",
@@ -437,4 +437,14 @@ func TestRekeyProposalBelowTheFloorIsRefused(t *testing.T) {
 			t.Errorf("the response announces %v, want %v", announced, want)
 		}
 	})
+}
+
+// firstPairPort returns the port the first negotiated pair's outbound policy carries
+// for this node's side (local true) or the peer's side (local false).
+func firstPairPort(child *ChildSA, local bool) dataplane.PortMatch {
+	out := childPolicies(child, dataplane.SADirOut)[0]
+	if local {
+		return out.SrcPort
+	}
+	return out.DstPort
 }

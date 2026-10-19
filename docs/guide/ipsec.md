@@ -819,7 +819,7 @@ that rank matches the IKE datagrams first, which hands the exchange that builds
 and rekeys the SA to the SA itself, and the tunnel could then never
 renegotiate. Ze refuses such a value at commit.
 
-<!-- source: internal/component/ike/engine/child.go -- childPolicyParams -->
+<!-- source: internal/component/ike/engine/child.go -- childPolicies -->
 <!-- source: internal/component/ike/ipsec/validate.go -- ValidatePolicyOrder -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- PriorityIKEBypass, PriorityChildSA -->
 
@@ -1248,7 +1248,7 @@ override, it is compiled in only with the `ze_vpp` build tag, and no test has se
 through it. Use the XFRM backend, which is the default and the production path.
 
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppPolicyInterface -->
-<!-- source: internal/component/ike/engine/child.go -- childPolicyParams -->
+<!-- source: internal/component/ike/engine/child.go -- childPolicies -->
 <!-- source: internal/component/ike/engine/testport.go -- ikeDataplaneName -->
 
 ## PKI certificate store

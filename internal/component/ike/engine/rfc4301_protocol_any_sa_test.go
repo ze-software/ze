@@ -3,7 +3,7 @@
 // value), then the port field values are undefined and MUST be set to ANY as well." on
 // the path that builds a Child SA's selectors: the peer's proposal is narrowed by
 // narrowSelectors (ts_narrow.go), and the narrowed pair becomes the policy the kernel
-// holds through childPolicyParams (child.go).
+// holds through childPolicies (child.go).
 // PREVENTS: a protocol-ANY Child SA installed with a port constraint, whether the port
 // came from the peer's proposal as a single port or as OPAQUE, on either side of the pair.
 
@@ -31,7 +31,7 @@ func TestRFC4301ProtocolAnyChildSACarriesAnyPorts(t *testing.T) {
 			Selectors: pairs,
 		}
 		for _, dir := range []dataplane.SADir{dataplane.SADirIn, dataplane.SADirOut} {
-			p := childPolicyParams(child, dir)
+			p := childPolicies(child, dir)[0]
 			if p.UpperProto != 0 {
 				t.Errorf("policy %v dir %d: protocol %d, want ANY (0)", policy, dir, p.UpperProto)
 			}

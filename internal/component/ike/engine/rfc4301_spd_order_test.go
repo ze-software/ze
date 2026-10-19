@@ -1,5 +1,5 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- SA/SP installation
-// Related: child.go -- childPolicyParams, the producer of every IKE-installed SPD entry
+// Related: child.go -- childPolicies, the producer of every IKE-installed SPD entry
 // RFC: rfc/short/rfc4301.md -- Security Policy Database ordering (Section 4.4.1)
 package engine
 
@@ -42,16 +42,16 @@ func TestSpdOperatorOrdersOverlappingPeers(t *testing.T) {
 	}
 
 	for _, dir := range bothDirections {
-		if got := childPolicyParams(childA, dir).Priority; got != firstPriority {
+		if got := childPolicies(childA, dir)[0].Priority; got != firstPriority {
 			t.Errorf("the %s entry of the first peer ranks %d, and the operator wrote %d",
 				dirName(dir), got, firstPriority)
 		}
-		if got := childPolicyParams(childB, dir).Priority; got != secondPriority {
+		if got := childPolicies(childB, dir)[0].Priority; got != secondPriority {
 			t.Errorf("the %s entry of the second peer ranks %d, and the operator wrote %d",
 				dirName(dir), got, secondPriority)
 		}
 		// Lower value means higher precedence, in the kernel and in ze (dataplane.go).
-		if childPolicyParams(childA, dir).Priority >= childPolicyParams(childB, dir).Priority {
+		if childPolicies(childA, dir)[0].Priority >= childPolicies(childB, dir)[0].Priority {
 			t.Errorf("the %s entries of the two peers are not in the order the operator wrote",
 				dirName(dir))
 		}
@@ -77,7 +77,7 @@ func TestSpdUnstatedOrderTakesTheDefaultRank(t *testing.T) {
 	}
 
 	for _, dir := range bothDirections {
-		got := childPolicyParams(child, dir).Priority
+		got := childPolicies(child, dir)[0].Priority
 		if got == 0 {
 			t.Fatalf("the %s entry reached the SPD at rank 0, which outranks the IKE bypass at %d",
 				dirName(dir), dataplane.PriorityIKEBypass)
@@ -91,7 +91,7 @@ func TestSpdUnstatedOrderTakesTheDefaultRank(t *testing.T) {
 	// A rekey replaces the states and keeps the entry, so the rank travels with it.
 	replacement := newRekeyedChild(child, child.InboundSPI+1, child.OutboundSPI+1, nil, child.LocalIsInitiator, child.Selectors)
 	for _, dir := range bothDirections {
-		if got := childPolicyParams(replacement, dir).Priority; got != dataplane.PriorityChildSA {
+		if got := childPolicies(replacement, dir)[0].Priority; got != dataplane.PriorityChildSA {
 			t.Errorf("the rekeyed %s entry ranks %d, and the retired one ranked %d",
 				dirName(dir), got, dataplane.PriorityChildSA)
 		}

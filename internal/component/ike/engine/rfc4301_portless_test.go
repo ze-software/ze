@@ -1,5 +1,5 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- Child SA policies
-// Related: child.go -- childPolicyParams and selectorPort, the producers
+// Related: child.go -- childPolicies and selectorPort, the producers
 // RFC: rfc/short/rfc4301.md -- tunnel mode SAs that ignore port fields (Section 7.1)
 package engine
 
@@ -47,7 +47,7 @@ func rfc4301PortsAny(p dataplane.SPParams) bool {
 // RFC requirement: RFC4301-7.1-1 positive -- a tunnel mode Child SA without a port constraint installs any-port tunnel policies in both directions.
 func TestRFC4301TunnelSAPassesTrafficWithoutRegardToPorts(t *testing.T) {
 	for _, dir := range []dataplane.SADir{dataplane.SADirOut, dataplane.SADirIn} {
-		p := childPolicyParams(rfc4301ChildWith(nil), dir)
+		p := childPolicies(rfc4301ChildWith(nil), dir)[0]
 		if p.Mode != dataplane.ModeTunnel {
 			t.Errorf("dir %d: mode = %d, want tunnel (%d)", dir, p.Mode, dataplane.ModeTunnel)
 		}
@@ -76,14 +76,14 @@ func TestRFC4301PortScopedSAIsNeverInstalledAsAnyPort(t *testing.T) {
 		I: tsSelector{Net: local, Proto: 6, Port: ipsec.PortSelector{Form: ipsec.PortSingle, Port: 443}},
 		R: tsSelector{Net: remote, Proto: 6, Port: ipsec.AnyPort()},
 	}
-	out := childPolicyParams(rfc4301ChildWith(pair), dataplane.SADirOut)
+	out := childPolicies(rfc4301ChildWith(pair), dataplane.SADirOut)[0]
 	if rfc4301PortsAny(out) {
 		t.Fatal("a port-scoped selector installed an any-port outbound policy")
 	}
 	if out.SrcPort != dataplane.ExactPortMatch(443) {
 		t.Fatalf("outbound source port = %+v, want exact 443", out.SrcPort)
 	}
-	in := childPolicyParams(rfc4301ChildWith(pair), dataplane.SADirIn)
+	in := childPolicies(rfc4301ChildWith(pair), dataplane.SADirIn)[0]
 	if rfc4301PortsAny(in) {
 		t.Fatal("a port-scoped selector installed an any-port inbound policy")
 	}
@@ -105,7 +105,7 @@ func TestRFC4301ProtocolScopedSASpecifiesPortsAsAny(t *testing.T) {
 		R: tsSelector{Net: remote, Proto: 17, Port: ipsec.AnyPort()},
 	}
 	for _, dir := range []dataplane.SADir{dataplane.SADirOut, dataplane.SADirIn} {
-		p := childPolicyParams(rfc4301ChildWith(pair), dir)
+		p := childPolicies(rfc4301ChildWith(pair), dir)[0]
 		if p.UpperProto != 17 {
 			t.Errorf("dir %d: protocol = %d, want 17", dir, p.UpperProto)
 		}
@@ -129,7 +129,7 @@ func TestRFC4301AnyPortFormNeverLeaksAPortNumber(t *testing.T) {
 		R: tsSelector{Net: remote, Proto: 6, Port: ipsec.PortSelector{Form: ipsec.PortAny, Port: 9090}},
 	}
 	for _, dir := range []dataplane.SADir{dataplane.SADirOut, dataplane.SADirIn} {
-		p := childPolicyParams(rfc4301ChildWith(pair), dir)
+		p := childPolicies(rfc4301ChildWith(pair), dir)[0]
 		for _, port := range []dataplane.PortMatch{p.SrcPort, p.DstPort} {
 			if port == dataplane.ExactPortMatch(8080) || port == dataplane.ExactPortMatch(9090) || port == dataplane.ExactPortMatch(0) {
 				t.Errorf("dir %d: the ANY form installed an exact port %+v", dir, port)

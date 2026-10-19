@@ -11,7 +11,7 @@ import (
 )
 
 // transportClient builds the outbound or inbound transport-mode policy the engine
-// installs for one client behind the RFC 3948 Section 5.2 NAT (childPolicyParams in
+// installs for one client behind the RFC 3948 Section 5.2 NAT (childPolicies in
 // internal/component/ike/engine/child.go): the server's address and the NAT's external
 // address as the host selector pair, no tunnel endpoints, one owner per client.
 func transportClient(t *testing.T, owner string, dir SADir, upperProto uint8, serverPort PortMatch) SPParams {

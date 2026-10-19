@@ -817,10 +817,11 @@ func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKey
 	tsLocal, tsRemote := old.TSLocal, old.TSRemote
 	if len(negotiated) > 0 {
 		selectors, selectorsLocalIsTSi = negotiated, localIsInitiator
-		// TSLocal and TSRemote are what childPolicyParams turns into the kernel policy's
-		// prefixes (child.go), never the selector set above, so they move with it. The
-		// first pair is oriented local-first here, which is the order those two fields
-		// carry, exactly as createFirstChildSA orients sa.NegotiatedTSi and NegotiatedTSr.
+		// childPolicies (child.go) builds the kernel policies from the selector set above.
+		// TSLocal and TSRemote name the first pair for the event, inventory and show
+		// surfaces, so they move with it. The first pair is oriented local-first here,
+		// which is the order those two fields carry, exactly as createFirstChildSA
+		// orients sa.NegotiatedTSi and NegotiatedTSr.
 		first := negotiated[0]
 		if !localIsInitiator {
 			first = tsPair{I: first.R, R: first.I}

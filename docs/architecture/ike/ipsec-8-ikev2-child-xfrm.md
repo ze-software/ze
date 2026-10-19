@@ -103,10 +103,24 @@ work: `__xfrm_policy_check` drops a decapsulated packet that matches no inbound
 policy while its secpath holds a tunnel-mode state (`XfrmInNoPols`). A
 transport-only secpath passes that check, so in transport mode the inbound state
 carries the selector itself (`SAParams.Sel`, the XFRM `x->sel`), built from the
-inbound policy's own fields so the two cannot disagree, and a packet outside it is
-dropped as `XfrmInStateMismatch`. strongSwan makes the same split. The selector
-holds the first negotiated pair only, as the policy does; an answer with more pairs
-is the gap `RFC4301-4.4.2-2`. MOBIKE migration moves tunnel-mode SAs only (the
+inbound policies' own fields so the two cannot disagree, and a packet outside it is
+dropped as `XfrmInStateMismatch`. strongSwan makes the same split.
+
+**Every negotiated selector pair gets its own policy, in each direction.** A peer
+that answers several TSi/TSr pairs negotiated several values, and `childPolicies`
+builds one inbound and one outbound policy per pair, all protecting with the one SA:
+XFRM resolves each to the state through its template, VPP through the SAD id. An
+XFRM state holds one selector and one SPI names one state, so a transport-mode
+inbound state with several pairs carries the narrowest single selector that covers
+them all (`inboundStateSelector`): each address side widens to the longest common
+prefix, the protocol to any when the pairs disagree, a port to any when they
+disagree. Holding the first pair only would drop the other pairs' traffic, and
+clearing the selector would accept anything. A decrypted packet inside that cover
+but in no pair matches none of the SA's inbound policies and is decided by the next
+SPD entry, the unmatched catch-all: dropped under `unmatched discard`, the default,
+and delivered under `unmatched bypass`. That last case, transport mode with several
+pairs that one selector cannot hold exactly under `unmatched bypass`, is where the
+Linux stack does not hold the negotiated values exactly. MOBIKE migration moves tunnel-mode SAs only (the
 migration refuses a non-tunnel template), and it carries the old state selector
 unchanged. The kernel probes are in
 `internal/component/ike/engine/rfc4301_sad_selector_linux_test.go`.
@@ -119,7 +133,7 @@ addresses mix IPv4 and IPv6 (RFC 4301 Section 4.4.2.1). Each RFC 4301 Section 4.
 SAD data item Ze installs is asserted one item at a time in
 `internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go`.
 
-<!-- source: internal/component/ike/engine/child.go -- installChildSA -->
+<!-- source: internal/component/ike/engine/child.go -- installChildSA, childPolicies, inboundStateSelector -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams -->
 
 **The XFRM interface id comes from the interface the peer's `vti { bind }` names.**
@@ -259,7 +273,7 @@ traffic in the clear.
 
 | Disposition | Producer | Linux XFRM | VPP |
 |---|---|---|---|
-| PROTECT | `childPolicyParams`, from a negotiated Child SA | `allow` with a template | `IPSEC_API_SPD_ACTION_PROTECT` |
+| PROTECT | `childPolicies`, from a negotiated Child SA | `allow` with a template | `IPSEC_API_SPD_ACTION_PROTECT` |
 | BYPASS | `ikeBypassPolicies`, the operator `vpn ipsec policy` list, and `unmatchedPolicies` under `vpn ipsec unmatched bypass` | `allow` with no template | `IPSEC_API_SPD_ACTION_BYPASS` |
 | DISCARD | the operator `vpn ipsec policy` list, and `unmatchedPolicies` under `vpn ipsec unmatched discard` | `block` | `IPSEC_API_SPD_ACTION_DISCARD` |
 
@@ -360,7 +374,7 @@ the public zero value for unlimited. Every finite `uint64` limit is retained.
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- hardLimitFromKernel, saInfoFromState -->
 
 <!-- source: internal/component/ike/dataplane/policy_owner.go -- policyOwners.claim, policyOwners.release, PolicyOwnedError -->
-<!-- source: internal/component/ike/engine/child.go -- childPolicyParams, firstSharingSelector, samePolicySelector -->
+<!-- source: internal/component/ike/engine/child.go -- childPolicies, firstSharingSelector, samePolicySelector -->
 
 ## MOBIKE migration
 

@@ -1,6 +1,6 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- SA/SP installation
 // Related: bypass.go -- the IKE control-plane bypass these entries must never outrank
-// Related: child.go -- childPolicyParams, the producer of every NEGOTIATED SPD entry
+// Related: child.go -- childPolicies, the producer of every NEGOTIATED SPD entry
 // RFC: rfc/short/rfc4301.md -- SPD dispositions and ordering (Sections 4.4.1, 7.4)
 
 package engine
@@ -19,7 +19,7 @@ import (
 // Security Policy is one-way (RFC 4301 Section 4.4.1 splits the database into SPD-O
 // and SPD-I). The inbound half swaps the two sides: the local prefix is the SOURCE of
 // an outbound packet and the DESTINATION of an inbound one, and the ports swap with
-// them. childPolicyParams performs the same swap for a negotiated entry, so the two
+// them. childPolicies performs the same swap for a negotiated entry, so the two
 // producers agree on what "local" means.
 //
 // The result is empty for an entry with no direction. That is not a default this
