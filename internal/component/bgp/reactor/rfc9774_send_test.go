@@ -10,6 +10,7 @@ package reactor
 import (
 	"bytes"
 	"net/netip"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -132,16 +133,16 @@ func TestRFC9774SendAddPathFraming(t *testing.T) {
 			&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast},
 			&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLSLabel},
 		}
-		local := append(caps, &capability.AddPath{Families: []capability.AddPathFamily{
+		local := slices.Concat(caps, []capability.Capability{&capability.AddPath{Families: []capability.AddPathFamily{
 			{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast, Mode: capability.AddPathSend},
 			{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast, Mode: capability.AddPathSend},
 			{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLSLabel, Mode: capability.AddPathSend},
-		}})
-		remote := append(caps, &capability.AddPath{Families: []capability.AddPathFamily{
+		}}})
+		remote := slices.Concat(caps, []capability.Capability{&capability.AddPath{Families: []capability.AddPathFamily{
 			{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast, Mode: capability.AddPathReceive},
 			{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast, Mode: capability.AddPathReceive},
 			{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLSLabel, Mode: capability.AddPathReceive},
-		}})
+		}}})
 		s.negotiated = capability.Negotiate(local, remote, capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001})
 		ctxID, err := bgpctx.Registry.Register(bgpctx.FromNegotiatedSend(s.negotiated))
 		require.NoError(t, err)

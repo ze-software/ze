@@ -57,7 +57,10 @@ func ASPathSetSegment(data []byte, asnOctets int) (segType uint8, found bool) {
 		}
 		current := data[pos]
 		count := int(data[pos+1])
-		if current < asPathTypeASSet || current > asPathTypeConfedSet {
+		if current < asPathTypeASSet {
+			return 0, false
+		}
+		if current > asPathTypeConfedSet {
 			return 0, false
 		}
 		if count == 0 {
