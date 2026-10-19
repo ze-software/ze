@@ -852,17 +852,12 @@ func stageSIGHUPCandidate(store storage.Storage, configPath string) error {
 	if store == nil || configPath == "" || configPath == "-" {
 		return nil
 	}
-	if _, _, ok, err := storage.ReadCandidateConfig(store, configPath); err != nil || ok {
-		if err != nil {
+	// One lock hold for the read and the write: a commit landing between them
+	// would be undone by this reload applying the source it replaced.
+	if _, err := storage.StageSourceCandidate(store, configPath, time.Now()); err != nil {
+		if errors.Is(err, storage.ErrCandidateExists) {
 			return err
 		}
-		return storage.ErrCandidateExists
-	}
-	data, err := storage.ReadConfigSource(store, configPath)
-	if err != nil {
-		return fmt.Errorf("stage SIGHUP candidate: read config: %w", err)
-	}
-	if _, err := storage.WriteCandidateVersion(store, configPath, data, time.Now()); err != nil {
 		return fmt.Errorf("stage SIGHUP candidate: %w", err)
 	}
 	return nil

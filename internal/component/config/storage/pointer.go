@@ -122,6 +122,77 @@ func WriteCandidateVersionWithGuard(store Storage, guard WriteGuard, configPath 
 	return stampStr, nil
 }
 
+// StageSourceCandidate stages the bound config source of configPath as the
+// candidate, reading the source and writing the candidate under ONE hold of
+// the config lock. It refuses with ErrCandidateExists when a candidate is
+// already staged.
+//
+// The single hold is what keeps the staged bytes current. Every commit stages
+// its own candidate and clears it only once the source holds the committed
+// bytes, both under this lock, so a commit either ends before the source is
+// read here or is refused afterwards by the candidate this stages. Reading the
+// source before taking the lock let a whole commit land between the read and
+// the write: the signal reload then staged and applied the configuration the
+// commit had replaced, undoing it.
+func StageSourceCandidate(store Storage, configPath string, stamp time.Time) (stampStr string, err error) {
+	guard, err := store.AcquireLock(configPath)
+	if err != nil {
+		return "", err
+	}
+	defer func() { err = releaseGuard(guard, err) }()
+
+	if _, ok, err := readPointerLocked(store, guard, configPath, pointerCandidate); err != nil || ok {
+		if err != nil {
+			return "", err
+		}
+		return "", ErrCandidateExists
+	}
+	data, err := readSourceLocked(store, guard, configPath)
+	if err != nil {
+		return "", fmt.Errorf("read config source: %w", err)
+	}
+	return WriteCandidateVersionWithGuard(store, guard, configPath, data, stamp)
+}
+
+// readSourceLocked is ReadConfigSource for a caller holding the config lock:
+// the stored source is read through the guard, because Storage reads take the
+// store's lock again. An explicit file is read from disk, which the lock does
+// not cover, but every daemon write of it happens while a candidate is staged.
+// AcquireLock already waited for the boot record, so no boot bytes are pending.
+func readSourceLocked(store Storage, guard WriteGuard, configPath string) ([]byte, error) {
+	switch SourceMode(store) {
+	case ConfigSourceFile:
+		if configPath != SourcePath(store) {
+			return nil, errors.New("configuration path does not match the explicit source")
+		}
+		return os.ReadFile(configPath) //nolint:gosec // explicit operator-supplied config
+	case ConfigSourceStored:
+		return readActiveLocked(store, guard, configPath)
+	case ConfigSourceStdin:
+		return nil, errors.New("stdin configuration has no reload source")
+	case ConfigSourceUnspecified:
+		return nil, errors.New("configuration source mode is unspecified")
+	default:
+		panic("BUG: unknown bound configuration source mode")
+	}
+}
+
+// readActiveLocked is ReadActiveConfig for a caller holding the config lock.
+func readActiveLocked(store Storage, guard WriteGuard, configPath string) ([]byte, error) {
+	stamp, ok, err := readPointerLocked(store, guard, configPath, pointerActive)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return guard.ReadFile(configPath)
+	}
+	data, err := readVersionLocked(store, guard, configPath, stamp)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s names %s: %w", ErrActiveUnresolved, activePointerKey(configPath), stamp, err)
+	}
+	return data, nil
+}
+
 // EnsureActiveVersion writes the current config as a version and points active at it
 // when a legacy config has no active pointer yet.
 func EnsureActiveVersion(store Storage, configPath string, data []byte, stamp time.Time) (stampStr string, wrote bool, err error) {

@@ -245,6 +245,17 @@ reload's own candidate.
 <!-- source: cmd/ze/hub/config_source.go -- promoteSignalCandidate, promoteConfigCandidate -->
 <!-- source: cmd/ze/hub/main_reload.go -- reloadSource, signalReload, promoteReloadCandidate -->
 
+The staging reads the source and writes the candidate under one hold of the
+config lock (`storage.StageSourceCandidate`). A commit holds the candidate from
+the moment it stages until the source carries its bytes, so it either finishes
+before the staging reads the source, and the SIGHUP applies the committed
+configuration, or it is refused because the SIGHUP's candidate is staged. A
+staging that read the source before taking the lock could let a whole commit
+land in between, and the reload then applied, and recorded, the configuration
+the commit had replaced.
+<!-- source: internal/component/config/storage/pointer.go -- StageSourceCandidate -->
+<!-- source: cmd/ze/hub/main_reload.go -- stageSIGHUPCandidate -->
+
 The BGP reactor factory reads the staged candidate when a reload starts BGP.
 Without a candidate, it reads the accepted stored version that the hub published
 from the selected source. Stdin uses the captured startup bytes. The factory

@@ -132,6 +132,16 @@ only on demand" in `docs/guide/configuration.md`.
 <!-- source: internal/component/config/loader.go -- LoadConfig refuses through ValidateCustomSections -->
 <!-- source: cmd/ze/hub/main_reload.go -- runReload loadErr branch, before ReloadConfig -->
 
+A SIGHUP and a commit never undo each other. The reload stages its candidate
+from the config source in one step, under the config lock every commit also
+takes. A commit that staged first finishes, and the SIGHUP is refused with
+`candidate config already staged`; a commit that finished first is in the
+source the reload applies; a commit that starts while the reload's candidate
+is staged is refused the same way. Send the refused SIGHUP, or retry the
+refused commit, once the other has reported.
+<!-- source: internal/component/config/storage/pointer.go -- StageSourceCandidate -->
+<!-- source: cmd/ze/hub/main_reload.go -- stageSIGHUPCandidate -->
+
 If a plugin reload fails:
 - The daemon logs the error
 - In-process BGP continues with the old plugin state
