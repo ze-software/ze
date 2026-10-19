@@ -341,3 +341,21 @@ Next:
    testing.md, ai/INDEX.md rows.
 7. Gates owed: scoped lint over interoplab/..., arch/tier and rpki (tags docker
    and live); `./le test unit all`; `./le test functional gating`.
+
+## Phase 4, second agent and main thread
+
+Landed: `8929d9bd55` (live-rpki under `ZE_REQUIRE_DOCKER=1`;
+`TestLiveRPKIRequiresDocker` red by mutation), `af1416e9b5` (M-8 retention test
+on the `docker` tag; real daemon pass in 52s, fails without docker under
+`ZE_REQUIRE_DOCKER=1`, skips without it), `31ae065d19` (the lint capability
+flavor carries `docker`), `3ea96e151f` (evidence-nightly `docker-peers` and
+`live-rpki` jobs, pinned by workflowcheck), `12eb2f1dee` (testing docs and the
+spec's docker-peers result). `./le test integration docker-peers` on this host:
+exit 0. Scoped lint with the docker tag: 0 issues in this spec's files.
+
+Still open: AC-25 (first nightly `docker-peers` run id, needs an owner-ordered
+push); phase 5 (SHOULD rows S-1 TACACS+, S-2 NTP, S-3 gNMI, S-4 flow-export,
+per Q-5); gates `./le test unit all`, `./le test functional gating`, the full
+`./le go lint run`; real runs of `l2tp-test`, `vpp-test`, `vpp-iface-test`,
+`verify evidence release-candidate` with Ctrl-C, the terminal-demo image build;
+on the owner's Mac a `./le perf run dut ze` with Ctrl-C and the FreeRtr build.
