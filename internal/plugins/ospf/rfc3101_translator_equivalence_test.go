@@ -32,9 +32,17 @@ type yieldCaseV2 struct {
 // translatesBesideV2 runs one translation pass on the elected OSPFv2 translator 10.0.6.9 over
 // a P=1 Type-7 for 10.25.0.0/16, metric 10, forwarding address 10.5.0.2, while 10.0.6.250
 // advertises the Type-5 described by other. It reports whether 10.0.6.9 originated a Type-5.
+// 10.0.6.9 translates in the Always role, as the OSPFv3 case does: as a candidate, the
+// higher-Router-ID border router 10.0.6.250 would disable it before step (2) is reached
+// (RFC 3101 Section 3.1).
 func translatesBesideV2(t *testing.T, other yieldCaseV2) bool {
 	t.Helper()
 	eng, nssa := nssaTransEngine(t, "10.0.6.9")
+	for i := range eng.cfg.Areas {
+		if eng.cfg.Areas[i].AreaID == nssa {
+			eng.cfg.Areas[i].NSSATranslateRole = translateRoleAlways
+		}
+	}
 	self := ridOf("10.0.6.9")
 	higher := ridOf("10.0.6.250")
 	eng.lsdb.OriginateNSSA(nssa, ridOf("10.0.6.2"), ip4Of("10.25.0.0"), ip4Of("255.255.0.0"), false, 10, ip4Of("10.5.0.2"), 0, true)

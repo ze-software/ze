@@ -60,32 +60,32 @@ and Type 7 to Type 5 translation.
   commit that does not touch redistribution leaves the external LSAs alone.
   <!-- source: internal/plugins/ospf/redist_wiring.go -- externalInterfaces, reconcileExternalImports -->
   <!-- source: internal/plugins/ospf/lsdb/origination.go -- existingSelfBodyUnchanged -->
-- **The translator election is computed locally** from the NSSA Router-LSAs
-  whose flags carry BOTH the B-bit and the RFC 3101 Nt-bit, and whose originator
-  the NSSA's last completed SPF run reaches, so a stale or partitioned
-  Router-LSA cannot switch translation off. RFC 3101 Section 3.1 lists only the
-  border routers "reachable both over the NSSA and as ASBRs over the AS's
-  transit topology", and Ze checks the first condition only: a border router
-  the NSSA reaches is listed even when the transit topology does not reach it
-  as an ASBR (gap RFC3101-3.1-5). The highest Router ID wins, with `always` and `never`
-  overrides. Until an SPF run has completed for the current configuration the
-  list is unknown, and a `candidate` keeps the translator state it had rather
-  than electing itself over an empty list. A stability grace keeps a router
-  translating after it loses the election, so a transient flap opens no Type 5
-  gap.
-  <!-- source: internal/plugins/ospf/nssa.go -- electNSSATranslator -->
-- **Disclosed deviation from RFC 3101 Section 3.1 (RFC3101-3.1-4).** The RFC
-  sets the Nt-bit only on a border router whose NSSATranslatorRole is Always,
-  and disables a candidate when "another border router in this list whose
-  router-LSA has bit Nt set or who has a higher router ID" exists. Ze sets the
-  Nt-bit on every NSSA border router whose role is not `never`, and a candidate
-  is disabled only by a listed router that has the Nt-bit set AND a higher
-  Router ID. So a higher-Router-ID router configured `translate never` does not
-  disable a willing candidate (under the RFC it would, and the NSSA would be
-  left with no translator), and a lower-Router-ID `always` router does not
-  disable it either. The row is a `{gap}`, not counted conformant.
+- **The translator election is computed locally** (RFC 3101 Section 3.1). A
+  `candidate` lists the NSSA's border routers (B-bit in their NSSA Router-LSA)
+  that are "reachable both over the NSSA and as ASBRs over the AS's transit
+  topology": the NSSA's last completed SPF run reaches the router, and the same
+  run holds an ASBR entry for it in the backbone or a regular area. An ASBR
+  entry in the NSSA itself does not count. Every NSSA border router sets the
+  E-bit in its non-stub areas, so a border router the transit topology reaches
+  has that entry, and a stale, partitioned or transit-unreachable Router-LSA
+  cannot switch translation off. The candidate is disabled when another listed
+  router has the Nt-bit set or a higher Router ID, and elected otherwise.
+  `always` and `never` need no list. Until an SPF run has completed for the
+  current configuration the list is unknown, and a `candidate` keeps the
+  translator state it had rather than electing itself over an empty list. A
+  stability grace keeps a router translating after it loses the election, so a
+  transient flap opens no Type 5 gap.
+  <!-- source: internal/plugins/ospf/nssa.go -- electNSSATranslator, transitAreas -->
+  <!-- source: internal/plugins/ospf/spf/reachability.go -- ASBRReachableIn -->
+- **Only the `always` role sets the Nt-bit.** RFC 3101 Section 3.1 sets it when
+  NSSATranslatorState is enabled, which only the Always role reaches on gaining
+  border router status; an elected candidate leaves it clear. A router
+  configured `translate never` still counts in the election by its Router ID,
+  so a `never` border router with the highest Router ID leaves the NSSA with no
+  translator, as the RFC's rule does. Set `always` on the router that must
+  translate.
+  <!-- source: internal/plugins/ospf/nssa.go -- nssaTranslatorEnabled -->
   <!-- source: internal/plugins/ospf/instance.go -- ntAreas -->
-  <!-- source: internal/plugins/ospf/nssa.go -- nssaABRs -->
 - **A translator yields a Type 7 only to a functionally equivalent Type 5.**
   RFC 3101 Section 3.2 step (2) keeps the translation with the highest Router ID
   among the NSSA translators that originated a Type 5 with the same destination,

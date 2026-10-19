@@ -546,7 +546,7 @@ func v6IsAreaBorderRouter(areas []types.AreaID) bool {
 func v6NSSATranslatorArea(cfg ospfConfig, area types.AreaID) bool {
 	for _, a := range cfg.Areas {
 		if a.AreaID == area {
-			return a.AreaType == types.AreaTypeNSSA && a.NSSATranslateRole != translateRoleNever
+			return nssaTranslatorEnabled(a)
 		}
 	}
 	return false

@@ -164,7 +164,11 @@ func TestOSPFv6TranslateNSSAToType5(t *testing.T) {
 	assert.True(t, purged.Header.Age.IsMaxAge())
 }
 
-func TestOSPFv6NSSANonCandidateDoesNotWedge(t *testing.T) {
+// TestOSPFv6NSSAHigherBorderRouterDisablesCandidate checks the OSPFv3 election. Goal: RFC 3101
+// Section 3.1 disables a candidate for a listed border router "who has a higher router ID",
+// whatever its Nt-bit. Method: a higher-Router-ID border router with the Nt-bit clear is in
+// the NSSA, and every router is reached over the NSSA and the transit topology.
+func TestOSPFv6NSSAHigherBorderRouterDisablesCandidate(t *testing.T) {
 	eng, self := newV6RedistEngine(t, `{"ospf":{"router-id":"10.0.9.1","areas":{"area":{"0.0.0.0":{"area-id":"0.0.0.0","area-type":"normal"},"0.0.0.9":{"area-id":"0.0.0.9","area-type":"nssa"}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.0"},"eth1":{"area":"0.0.0.9"}}}}}`)
 	nssa := types.AreaID{0, 0, 0, 9}
 	eng.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: types.BackboneArea}
@@ -195,7 +199,7 @@ func TestOSPFv6NSSANonCandidateDoesNotWedge(t *testing.T) {
 
 	eng.translateNSSA(transTime)
 	_, ok = decodeV6External(t, eng, types.BackboneArea, v6ExternalKey(self, lsid))
-	require.True(t, ok, "a higher ABR with Nt clear must not suppress the v6 translator")
+	require.False(t, ok, "a listed higher-Router-ID border router with the Nt-bit clear disables the v6 candidate")
 }
 
 func installV6NSSAForTest(t *testing.T, eng *engine, area types.AreaID, adv types.RouterID, lsid types.LinkStateID, body ospfv3packet.ExternalLSA, age ospfv3types.LSAge, seq ospfv3types.LSSequenceNumber) {

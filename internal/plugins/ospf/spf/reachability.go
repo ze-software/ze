@@ -134,6 +134,32 @@ func (r ReachabilitySnapshot) ASBRReachable(id types.RouterID) bool {
 	return false
 }
 
+// ASBRReachableIn reports whether the completed run holds an AS boundary router routing
+// table entry for id associated with area: an intra-area router of area whose Router-LSA
+// sets the E-bit, or an inter-area ASBR learned from a Type-4 summary in area, with a
+// finite cost and a next hop. Unlike ASBRReachable, an entry in another area does not
+// satisfy it, so a caller can ask about one part of the topology only.
+func (r ReachabilitySnapshot) ASBRReachableIn(area types.AreaID, id types.RouterID) bool {
+	if !r.Ready() || id == (types.RouterID{}) {
+		return false
+	}
+	for _, entry := range r.border {
+		if entry.Kind != BorderRouterASBR {
+			continue
+		}
+		if entry.RouterID != id {
+			continue
+		}
+		if entry.AreaID != area {
+			continue
+		}
+		if entry.Metric < LSInfinity && len(entry.NextHops) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // NetworkReachable resolves a transit-network pseudonode in its own area.
 // Both families retain the advertising DR identity: OSPFv2 additionally keys
 // by Network-LSA ID, while OSPFv3 uses the DR Interface ID instead of the graph's

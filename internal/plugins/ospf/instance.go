@@ -509,11 +509,9 @@ func (e *engine) setConfig(cfg ospfConfig) {
 		ntAreas := make(map[types.AreaID]bool, len(cfg.Areas))
 		for _, area := range cfg.Areas {
 			areaTypes[area.AreaID] = string(area.AreaType)
-			// Advertise the Nt-bit for NSSAs whose translate role is not `never`, so the
-			// highest-Router-ID candidate (not a higher-RID `never` ABR) is elected the
-			// Type 7 -> Type 5 translator. RFC 3101 Section 3.1 sets Nt only for the
-			// Always role: this is the disclosed deviation RFC3101-3.1-4.
-			if area.AreaType == types.AreaTypeNSSA && area.NSSATranslateRole != translateRoleNever {
+			// RFC 3101 Section 3.1: only a border router whose NSSATranslatorState is
+			// enabled (the Always role) sets the Nt-bit; the LSDB adds the ABR check.
+			if nssaTranslatorEnabled(area) {
 				ntAreas[area.AreaID] = true
 			}
 		}

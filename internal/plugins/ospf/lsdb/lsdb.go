@@ -59,7 +59,7 @@ type LSDB struct {
 	linkAreas map[string]types.AreaID
 	areaTypes map[types.AreaID]string
 	// nssaTranslator[area] is true when this router advertises the RFC 3101 Nt-bit for
-	// that NSSA (it is an attached NSSA whose translate role is not `never`); combined
+	// that NSSA (it is an attached NSSA whose translate role is `always`); combined
 	// with ABR status at origination time to set the Router-LSA Nt-bit.
 	nssaTranslator map[types.AreaID]bool
 	now            func() time.Time
@@ -185,7 +185,7 @@ func (d *LSDB) SetAreaTypes(areaTypes map[types.AreaID]string) {
 }
 
 // SetNSSATranslatorAreas records the NSSA areas for which this router advertises the
-// RFC 3101 Nt-bit (attached NSSAs whose translate role is not `never`). At Router-LSA
+// RFC 3101 Nt-bit (attached NSSAs whose translate role is `always`). At Router-LSA
 // origination the bit is set only when this router is also an ABR for the area.
 func (d *LSDB) SetNSSATranslatorAreas(areas map[types.AreaID]bool) {
 	d.mu.Lock()

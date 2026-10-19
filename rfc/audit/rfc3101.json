@@ -9,6 +9,8 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -369,9 +371,9 @@
       "note": "Re-judged 2026-09-29. TestOSPFNSSATranslation now asserts the network mask as well as metric, E1, tag and FA, and the advertising router through the lookup key (translator Router ID) and the network through the Link State ID. New TestRFC3101TranslatedType5FollowsSourceFields re-originates the Type-7 with a new mask, E2, metric, FA and tag (clock advanced past MinLSInterval) and reads each new value in the translated Type-5, so a translator that hardcodes, defaults or keeps stale fields goes red. Revert records on translateNSSA for both. The withdraw and P=0 negatives stay (neighbouring section 3.2 steps).",
       "requirement_sha": "017482a6ad8fbfd6",
       "tests": {
-        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSAPbitNotTranslated": "a977f5140de4f2b1",
-        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslation": "a977f5140de4f2b1",
-        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslation#2": "a977f5140de4f2b1",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSAPbitNotTranslated": "7e7aa3bcfc8314b2",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslation": "7e7aa3bcfc8314b2",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslation#2": "7e7aa3bcfc8314b2",
         "internal/plugins/ospf/rfc3101_translation_test.go::TestRFC3101TranslatedType5FollowsSourceFields": "9c6a58e4cc068efe"
       },
       "units": {
@@ -396,14 +398,14 @@
         "internal/plugins/ospf/lsdb/rfc3101_nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists#3": "9b819c85416f1c4b",
         "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses": "49a610561289e458",
         "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses#2": "49a610561289e458",
-        "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5": "ce75774bb9d76417",
-        "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#2": "ce75774bb9d76417",
-        "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#3": "ce75774bb9d76417",
-        "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#4": "ce75774bb9d76417",
-        "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#5": "ce75774bb9d76417",
-        "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5V6": "ce75774bb9d76417",
-        "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5V6#2": "ce75774bb9d76417",
-        "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5V6#3": "ce75774bb9d76417"
+        "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5": "613283b22a228606",
+        "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#2": "613283b22a228606",
+        "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#3": "613283b22a228606",
+        "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#4": "613283b22a228606",
+        "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#5": "613283b22a228606",
+        "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5V6": "613283b22a228606",
+        "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5V6#2": "613283b22a228606",
+        "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5V6#3": "613283b22a228606"
       },
       "units": {
         "internal/plugins/ospf/lsdb/rfc3101_nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists": "e98176e04ba89461",

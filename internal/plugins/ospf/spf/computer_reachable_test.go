@@ -177,3 +177,30 @@ func TestTriggerArmsBackboneRun(t *testing.T) {
 		t.Fatalf("armed run installed no routes over the P2P+stub topology")
 	}
 }
+
+// TestASBRReachableIn checks the per-area form of the ASBR query. Goal: an ASBR entry
+// answers only for its own area. Method: a snapshot holding one usable ASBR entry in
+// area 0.0.0.5, one in the backbone without a next hop, and one ABR entry in the backbone.
+func TestASBRReachableIn(t *testing.T) {
+	asbr := testRID(t, "2.2.2.2")
+	nssa := types.AreaID{0, 0, 0, 5}
+	hop := []NextHop{{Addr: netip.MustParseAddr("10.0.0.2"), Interface: "eth0"}}
+	snap := ReachabilitySnapshot{
+		root:    testRID(t, "1.1.1.1"),
+		results: map[types.AreaID]*Result{},
+		border: []BorderRouterEntry{
+			{RouterID: asbr, AreaID: nssa, Kind: BorderRouterASBR, Metric: 10, NextHops: hop},
+			{RouterID: asbr, AreaID: types.BackboneArea, Kind: BorderRouterASBR, Metric: 10},
+			{RouterID: asbr, AreaID: types.BackboneArea, Kind: BorderRouterABR, Metric: 10, NextHops: hop},
+		},
+	}
+	if !snap.ASBRReachableIn(nssa, asbr) {
+		t.Fatal("the usable ASBR entry of area 0.0.0.5 must answer for that area")
+	}
+	if snap.ASBRReachableIn(types.BackboneArea, asbr) {
+		t.Fatal("an ASBR entry with no next hop, or an ABR entry, must not answer for the backbone")
+	}
+	if (ReachabilitySnapshot{}).ASBRReachableIn(nssa, asbr) {
+		t.Fatal("a snapshot with no completed run must answer false")
+	}
+}

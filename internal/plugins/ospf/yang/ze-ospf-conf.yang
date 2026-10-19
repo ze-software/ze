@@ -948,13 +948,16 @@ LSA, and the elected translator rewrites it into a Type 5 LSA.";
                     ze:help "NSSA-specific configuration (applies when area-type is nssa).";
                     leaf translate-role {
                         type enumeration {
-                            enum candidate { ze:help "Enter the translator election, which the highest Router ID wins."; }
-                            enum always { ze:help "Translate Type 7 LSAs whatever the election decides."; }
-                            enum never { ze:help "Do no Type 7 to Type 5 translation."; }
+                            enum candidate { ze:help "Translate unless another border router has a higher Router ID or is an always translator."; }
+                            enum always { ze:help "Translate Type 7 LSAs whatever the election decides, and set the Nt-bit."; }
+                            enum never { ze:help "Do no Type 7 to Type 5 translation; the Router ID still counts in the election."; }
                         }
                         default "candidate";
-                        description "candidate enters the election, which the highest router-id
-wins. always translates whatever the election decides. never does no translation.";
+                        description "RFC 3101 section 3.1 election. candidate translates unless
+another border router of the NSSA, reachable over the NSSA and as an ASBR over the
+backbone or a regular area, has a higher router-id or sets the Nt-bit. always translates
+whatever the election decides and sets the Nt-bit. never does no translation, and a never
+router with the highest router-id leaves the NSSA with no translator.";
                         ze:help "Role of this router in the Type 7 to Type 5 translation.";
                     }
                     leaf stability-interval {

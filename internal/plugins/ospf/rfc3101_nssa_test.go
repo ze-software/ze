@@ -9,6 +9,7 @@ package ospf
 
 import (
 	"net/netip"
+	"slices"
 	"testing"
 	"time"
 
@@ -28,16 +29,30 @@ func ridOf(s string) types.RouterID { return types.RouterID(netip.MustParseAddr(
 func ip4Of(s string) [4]byte        { return netip.MustParseAddr(s).As4() }
 
 // fixedReachability is a completed-SPF view for the translator election: every router
-// is reached when all is set, otherwise only the routers in reached.
+// is reached when all is set, otherwise only the routers in reached. A view that sets asbr
+// models the transit topology: only the routers asbr lists under an area hold an ASBR
+// entry in that area. A view with asbr nil does not model it, and every router holds an
+// ASBR entry in every area, so a test about NSSA reachability alone isolates that condition.
 type fixedReachability struct {
 	all     bool
 	reached map[types.RouterID]bool
+	asbr    map[types.AreaID][]types.RouterID
 }
 
 func (f fixedReachability) Ready() bool { return true }
 
 func (f fixedReachability) RouterReachable(_ types.AreaID, id types.RouterID) bool {
 	return f.all || f.reached[id]
+}
+
+func (f fixedReachability) ASBRReachableIn(area types.AreaID, id types.RouterID) bool {
+	if f.all {
+		return true
+	}
+	if f.asbr == nil {
+		return true
+	}
+	return slices.Contains(f.asbr[area], id)
 }
 
 // reachEvery makes the engine's translator election see every router-LSA's originator as
@@ -55,8 +70,9 @@ func TestOSPFNSSATranslatorElection(t *testing.T) {
 	nssa := types.AreaID{0, 0, 0, 5}
 	eng := &engine{}
 	reachEvery(eng)
+	transit := []types.AreaID{types.BackboneArea}
 	elect := func(role string, abrs []types.RouterID) bool {
-		elected, decided := eng.electNSSATranslator(self, role, nssa, abrs)
+		elected, decided := eng.electNSSATranslator(self, role, translatorList{nssa: nssa, transit: transit, border: abrs})
 		require.True(t, decided, "a completed SPF decides the election")
 		return elected
 	}
@@ -72,15 +88,17 @@ func TestOSPFNSSATranslatorElection(t *testing.T) {
 	assert.True(t, elect(translateRoleCandidate, nil), "the only/first candidate translates")
 
 	// A higher Router ID the SPF does not reach is not on the list.
-	eng.nssaReachabilityFn = func() routerReachability { return fixedReachability{reached: map[types.RouterID]bool{self: true}} }
+	eng.nssaReachabilityFn = func() routerReachability {
+		return fixedReachability{reached: map[types.RouterID]bool{self: true}, asbr: map[types.AreaID][]types.RouterID{types.BackboneArea: {higher}}}
+	}
 	assert.True(t, elect(translateRoleCandidate, []types.RouterID{self, higher}), "an unreachable higher Router ID does not disable the candidate")
 
 	// With no completed SPF the list is unknown: a candidate's election is undecided, while
 	// the configured roles need no list.
 	eng.nssaReachabilityFn = func() routerReachability { return ospfspf.ReachabilitySnapshot{} }
-	_, decided := eng.electNSSATranslator(self, translateRoleCandidate, nssa, []types.RouterID{self})
+	_, decided := eng.electNSSATranslator(self, translateRoleCandidate, translatorList{nssa: nssa, transit: transit, border: []types.RouterID{self}})
 	assert.False(t, decided, "no SPF run leaves the candidate election undecided")
-	elected, decided := eng.electNSSATranslator(self, translateRoleAlways, nssa, nil)
+	elected, decided := eng.electNSSATranslator(self, translateRoleAlways, translatorList{nssa: nssa, transit: transit})
 	assert.True(t, elected && decided, "always needs no list")
 }
 
@@ -260,26 +278,4 @@ func TestOSPFNSSANoTranslateWhenNotElected(t *testing.T) {
 	// RFC requirement: RFC3101-3.1-2 negative -- with a reachable higher-Router-ID Nt-capable
 	// ABR present, a candidate self is not elected and does not translate.
 	assert.Equal(t, 0, eng.lsdb.SelfExternalCount(self), "a non-elected candidate ABR does not translate (no duplicate Type 5)")
-}
-
-// TestOSPFNSSANonCandidateDoesNotWedge pins Ze's chosen translator-election behavior, the
-// disclosed deviation RFC3101-3.1-4 (a {gap} row, demonstrated by
-// TestRFC3101HigherRouterIDWithoutNtDisablesCandidate): a higher-Router-ID ABR that
-// advertises NO Nt-bit (e.g. configured `translate never`) does not suppress a willing
-// lower-Router-ID candidate. RFC 3101 Section 3.1 would let the higher Router ID alone
-// disable the candidate, wedging translation off and blackholing the NSSA's externals
-// outside the area.
-func TestOSPFNSSANonCandidateDoesNotWedge(t *testing.T) {
-	eng, nssa := nssaTransEngine(t, "10.0.6.1") // low Router ID, candidate
-	self := ridOf("10.0.6.1")
-	asbr := ridOf("10.0.6.2")
-
-	// A higher-Router-ID ABR present but NOT a translator candidate (Nt-bit clear).
-	eng.lsdb.OriginateRouter(ospflsdb.OriginInput{AreaID: nssa, RouterID: ridOf("10.0.6.9"), ABR: true})
-	eng.lsdb.OriginateNSSA(nssa, asbr, ip4Of("10.24.0.0"), ip4Of("255.255.0.0"), false, 10, ip4Of("10.5.0.2"), 0, true)
-	eng.translateNSSA(transTime)
-
-	// Election counts only Nt-advertising ABRs, so a willing lower-Router-ID candidate is
-	// elected despite a higher-Router-ID non-candidate ABR.
-	assert.Equal(t, 1, eng.lsdb.SelfExternalCount(self), "the willing lower-Router-ID candidate translates despite a higher-RID non-candidate ABR")
 }

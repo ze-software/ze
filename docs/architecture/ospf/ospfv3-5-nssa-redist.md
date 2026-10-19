@@ -80,8 +80,10 @@ inject nothing.
   translation snapshots the redistributed set and then flushes stale self-LSAs,
   so a just-injected Type-5 must already be in that set. Injection and
   translation share the NSSA mutex. Lock order: NSSA mutex, then engine mutex.
-- **A non-candidate ABR with the Nt-bit clear must not wedge translation off**
-  for a willing lower-Router-ID candidate.
+- **The election follows RFC 3101 Section 3.1 in both families.** A higher-Router-ID
+  border router disables a candidate even with its Nt-bit clear, so a `never` ABR with
+  the highest Router ID leaves the NSSA with no translator; configure `always` on the
+  router that must translate.
 - The peer rejected redistributed OSPFv3 routes until Ze drained Loading to Full
   and advertised a reachable Router-LSA. The fix belonged in the Link-LSA, DD
   and LS Request work, not in faking Router-LSA links.
