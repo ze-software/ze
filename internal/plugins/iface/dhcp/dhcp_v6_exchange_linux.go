@@ -99,11 +99,18 @@ func dialV6Link(device string) (v6Link, net.HardwareAddr, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("device %s: %w", device, err)
 	}
-	client, err := nclient6.New(device, nclient6.WithRetry(1), nclient6.WithTimeout(v6ListenCeiling))
+	client, err := nclient6.New(device, v6ClientOptions()...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("socket on %s: %w", device, err)
 	}
 	return nclient6Link{client: client}, ifc.HardwareAddr, nil
+}
+
+// v6ClientOptions are the vendored client's options: one transmission per
+// SendAndRead, so the Section 15 engine owns every retransmission, and a
+// per-transmission timeout above any exchange window, so the window decides.
+func v6ClientOptions() []nclient6.ClientOpt {
+	return []nclient6.ClientOpt{nclient6.WithRetry(1), nclient6.WithTimeout(v6ListenCeiling)}
 }
 
 func (l nclient6Link) exchange(ctx context.Context, clk clock.Clock, window time.Duration, msg *dhcpv6.Message, accept nclient6.Matcher) (*dhcpv6.Message, error) {
