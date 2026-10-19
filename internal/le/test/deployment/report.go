@@ -51,6 +51,25 @@ func (r L2TPReport) Text() string {
 	return tb.String()
 }
 
+// proofNotReached is what a deployment proof answers when its run returned an
+// error: a step it could not perform, or a Ctrl-C reaching the verb's signal
+// root. The run reached no verdict, so this payload carries none, neither the
+// partial report's "established: false" nor an unreached scenario's FAIL. It
+// keeps only the container the run started and why it could not be removed,
+// because a leftover is still the operator's to clean. The error itself is
+// reported on stderr by the answer function.
+type proofNotReached struct {
+	Container        string `json:"container,omitempty"`
+	ContainerRemoval string `json:"container-removal-error,omitempty"`
+}
+
+// Text renders only the container removal a reader must act on.
+func (r proofNotReached) Text() string {
+	var tb textbuf.Buffer
+	writeContainerRemoval(&tb, r.Container, r.ContainerRemoval)
+	return tb.String()
+}
+
 // writeContainerRemoval names a proof container the run could not remove, with
 // the command that removes it, ahead of the verdict a reader looks for.
 func writeContainerRemoval(tb *textbuf.Buffer, container, removal string) {

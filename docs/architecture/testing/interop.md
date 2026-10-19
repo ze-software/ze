@@ -465,9 +465,21 @@ does not reach, and name a failed removal in the report's
 `docker run -d` was issued, under the same `ContainerMayExist` test a lab uses:
 the daemon creates the container before it starts it, so a start it refuses
 (a device the host lacks, such as `/dev/vhost-net`) or a Ctrl-C during the
-start still removes the container.
+start still removes the container. A run that returned an error (a step it
+could not perform, or an interrupt) reached no verdict, so it prints none: the
+error, then a removal that failed with the command that finishes it, and it
+exits 1.
 <!-- source: internal/le/interoplab/container.go -- Docker.RunDetached, Docker.ExecAttached -->
 <!-- source: internal/le/test/deployment/deployment.go -- startProofContainer, removeContainer -->
+<!-- source: internal/le/test/deployment/actions.go -- notReached, proofNotReached -->
+
+A docker command le stopped is named for what stopped it. One whose own bound
+ended reads "did not finish within <bound>" and carries exit 124, as
+`timeout(1)` answers. One whose context was canceled, by an interrupt reaching
+the verb's signal root or by the run stopping, reads "was canceled before it
+finished" and carries no exit code, because the code would be le's own kill.
+<!-- source: internal/le/interoplab/process.go -- systemProcessRunner.Run -->
+<!-- source: internal/le/interoplab/docker.go -- commandError.Error -->
 
 The multi-DUT benchmark (`./le perf run`, `./le perf evidence-record`) is the
 other such caller. Its network goes through `Docker.CreateNetwork` and
@@ -2226,13 +2238,13 @@ is not packet-forwarding evidence.
 | 19 | routes-gobgp | Ze, GoBGP | Route exchange with GoBGP |
 | 20 | role-frr | Ze, FRR | RFC 9234 Role capability negotiation |
 | 21 | role-gobgp | Ze, GoBGP | RFC 9234 Role capability negotiation |
-| 22 | evpn-frr | Ze, FRR | EVPN Type-2 route exchange |
+| 22 | evpn-frr | Ze, FRR | EVPN Type-2 route exchange; FRR accepts an IP Prefix route (Type 5) whose Overlay Index is the ESI. FRR 10.3.1 prints no Type 5 ESI in any view, so evpn-gobgp asserts its octets |
 | 23 | vpn-frr | Ze, FRR, BIRD | VPN-IPv4 route exchange with FRR; RFC 4659 Section 3.2.1.1 VPN-IPv6 next hops, read at BIRD (the 48-octet field's link-local, which FRR 10.3.1 does not display) and at FRR (the off-link route's sole global) |
 | 24 | flowspec-frr | Ze, FRR | FlowSpec rule exchange |
 | 25 | ipv6-ebgp-bird | Ze, BIRD | IPv6 eBGP route exchange |
 | 26 | ipv6-ebgp-gobgp | Ze, GoBGP | IPv6 eBGP route exchange |
 | 27 | multihop-ebgp-frr | Ze, FRR | Multi-hop eBGP with outgoing-ttl |
-| 28 | evpn-gobgp | Ze, GoBGP | EVPN Type-2 route exchange |
+| 28 | evpn-gobgp | Ze, GoBGP | EVPN Type-2 route exchange, Ethernet A-D ESI Labels, and the IP Prefix route (Type 5) sent with overlay-index esi: GoBGP reads the non-zero ESI and a zero GW IP from the NLRI (RFC 9136 Section 3.1) |
 | 29 | vpn-gobgp | Ze, GoBGP | VPN (L3VPN) route exchange |
 | 30 | flowspec-gobgp | Ze, GoBGP | FlowSpec rule exchange |
 | 31 | multihop-ebgp-bird | Ze, BIRD | Multi-hop eBGP with outgoing-ttl |

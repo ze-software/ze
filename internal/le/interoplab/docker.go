@@ -242,9 +242,14 @@ type commandError struct {
 func (e *commandError) Error() string {
 	var tb textbuf.Buffer
 	tb.Str(e.Operation)
-	if errors.Is(e.Cause, context.DeadlineExceeded) {
+	switch {
+	case errors.Is(e.Cause, context.DeadlineExceeded):
 		tb.Str(" did not finish within ").Str(e.Timeout.String())
-	} else {
+	case errors.Is(e.Cause, context.Canceled):
+		// A cancel is no failure of the command: le stopped it, so the
+		// reader is told why rather than shown a code le's kill produced.
+		tb.Str(" was canceled before it finished, by an interrupt or by the run stopping")
+	default:
 		tb.Str(" failed")
 	}
 	if e.ExitCode != 0 {

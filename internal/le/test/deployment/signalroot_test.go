@@ -3,6 +3,7 @@ package testdeployment
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 	"slices"
@@ -138,5 +139,72 @@ func TestFailedProofStartStillRemovesItsContainer(t *testing.T) {
 	}
 	if remove != nil {
 		t.Fatal("a spec docker never ran answered a removal")
+	}
+}
+
+// stubProofRun answers one canned proof run, so a test reads the answer a
+// run's error produces without building a daemon or starting a container.
+type stubProofRun[R any] struct {
+	report R
+	err    error
+}
+
+func (s stubProofRun[R]) Run(context.Context) (R, error) { return s.report, s.err }
+
+// VALIDATES: G-2 for the deployment proofs: a run that returned an error (a
+// step it could not perform, or a Ctrl-C reaching the signal root) answers 1
+// and prints no verdict line, OK or FAIL, yet still names a container it
+// could not remove, with the command that removes it.
+// METHOD: each proof's answer function is handed a stub run that returns the
+// partial report a canceled run leaves (no session, an unreached scenario)
+// beside a canceled-context error, once with the container removed and once
+// with the removal failed; the test reads the payload's text.
+// PREVENTS: an interrupted l2tp-test printing "FAIL: xl2tpd session
+// establishment not observed", a verdict the run never reached (observed in
+// the real Ctrl-C proofs of 2026-10-19, rows 1a and 1b).
+func TestInterruptedProofPrintsNoVerdict(t *testing.T) {
+	const container = "ze-proof-1"
+	interrupted := fmt.Errorf("docker exec %s: %w", container, context.Canceled)
+	for _, removal := range []string{"", "docker rm -f failed (exit 130)"} {
+		answers := map[string]func() (any, int){
+			"l2tp-test": func() (any, int) {
+				report := L2TPReport{Peer: PeerName, Container: container, ContainerRemoval: removal}
+				return runL2TP(t.Context(), stubProofRun[L2TPReport]{report, interrupted})
+			},
+			"vpp-iface-test": func() (any, int) {
+				report := VPPIfaceReport{Container: container, ContainerRemoval: removal,
+					Scenarios: []ScenarioResult{{Detail: "loopback interface created"}}}
+				return runVPPIface(t.Context(), stubProofRun[VPPIfaceReport]{report, interrupted})
+			},
+			"vpp-test": func() (any, int) {
+				report := VPPReport{Container: container, ContainerRemoval: removal,
+					Scenarios: []VPPScenarioReport{{Checks: []VPPCheck{{Check: "route", Detail: "route installed"}}}}}
+				return runVPP(t.Context(), stubProofRun[VPPReport]{report, interrupted})
+			},
+		}
+		for verb, answer := range answers {
+			payload, code := answer()
+			if code != 1 {
+				t.Errorf("%s: an interrupted run exited %d, want 1", verb, code)
+			}
+			rendered, ok := payload.(interface{ Text() string })
+			if !ok {
+				t.Fatalf("%s: payload %T renders no text", verb, payload)
+			}
+			for line := range strings.Lines(rendered.Text()) {
+				if strings.HasPrefix(line, "FAIL: container "+container+" was not removed") {
+					continue
+				}
+				if strings.HasPrefix(line, "OK: ") || strings.HasPrefix(line, "FAIL: ") {
+					t.Errorf("%s (removal %q): an interrupted run printed the verdict %q", verb, removal, strings.TrimSpace(line))
+				}
+			}
+			if removal == "" {
+				continue
+			}
+			if !strings.Contains(rendered.Text(), container+" was not removed") {
+				t.Errorf("%s: an interrupted run dropped the failed removal:\n%s", verb, rendered.Text())
+			}
+		}
 	}
 }

@@ -119,6 +119,13 @@ func Subs() string { return actions.Subs() }
 // Answer is the `le test deployment` command.
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
+// proofRun is one deployment proof run: *L2TP, *vppIface and *VPP. The
+// answer functions take it rather than the concrete run, so a test reads the
+// answer a run's error produces without building a daemon.
+type proofRun[R any] interface {
+	Run(ctx context.Context) (R, error)
+}
+
 // runL2TPAt proves L2TP over the checkout at root.
 func runL2TPAt(ctx context.Context, root string) (any, int) {
 	return runL2TP(ctx, NewL2TP(root))
@@ -128,11 +135,10 @@ func runL2TPAt(ctx context.Context, root string) (any, int) {
 // an error and answers 1 with no verdict; a session that did not establish is
 // the verdict, and it answers 1 with the daemon's last lines behind it. A
 // container the run could not remove answers 1 whatever the verdict.
-func runL2TP(ctx context.Context, run *L2TP) (L2TPReport, int) {
+func runL2TP(ctx context.Context, run proofRun[L2TPReport]) (any, int) {
 	report, err := run.Run(ctx)
 	if err != nil {
-		leaction.ReportError(err)
-		return report, 1
+		return notReached(err, report.Container, report.ContainerRemoval)
 	}
 	return report, l2tpExitCode(report)
 }
@@ -213,11 +219,10 @@ func runVPPIfaceAt(ctx context.Context, root string) (any, int) {
 // runVPPIface answers the proof over one run. It uses the same terms as the L2TP
 // proof. A step that cannot be performed is an error. A feature that VPP never
 // showed is the verdict.
-func runVPPIface(ctx context.Context, run *vppIface) (VPPIfaceReport, int) {
+func runVPPIface(ctx context.Context, run proofRun[VPPIfaceReport]) (any, int) {
 	report, err := run.Run(ctx)
 	if err != nil {
-		leaction.ReportError(err)
-		return report, 1
+		return notReached(err, report.Container, report.ContainerRemoval)
 	}
 	if !report.Passed {
 		return report, 1
@@ -233,13 +238,15 @@ func runVPPAt(ctx context.Context, root string) (any, int) {
 	return runVPP(ctx, newVPP(root))
 }
 
-// runVPP maps the report and operating error onto the action exit code.
-func runVPP(ctx context.Context, run *VPP) (VPPReport, int) {
+// runVPP maps the report and operating error onto the action exit code, in
+// the same terms as the L2TP proof: an operating error answers 1 with no
+// verdict, and a claim VPP disproved is the verdict.
+func runVPP(ctx context.Context, run proofRun[VPPReport]) (any, int) {
 	report, err := run.Run(ctx)
 	if err != nil {
-		leaction.ReportError(err)
+		return notReached(err, report.Container, report.ContainerRemoval)
 	}
-	return report, vppExitCode(report.Passed && report.ContainerRemoval == "", err)
+	return report, vppExitCode(report.Passed && report.ContainerRemoval == "", nil)
 }
 
 func vppExitCode(passed bool, err error) int {
@@ -250,6 +257,14 @@ func vppExitCode(passed bool, err error) int {
 		return 1
 	}
 	return 0
+}
+
+// notReached answers a proof run that returned an error: it reports the error
+// and answers 1 with a payload that carries no verdict, only the container
+// removal the operator may still owe (proofNotReached).
+func notReached(err error, container, removal string) (any, int) {
+	leaction.ReportError(err)
+	return proofNotReached{Container: container, ContainerRemoval: removal}, 1
 }
 
 // runL2TPPPoXDiagnosticHere validates every selector before the Linux path can

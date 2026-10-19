@@ -42,7 +42,10 @@ type ProcessCommand struct {
 }
 
 // ProcessResult is what a ProcessCommand left: the captured streams (empty
-// for a stream the command attached) and the exit code.
+// for a stream the command attached) and the exit code. A command its bound
+// ended answers the timeout exit code (124) with context.DeadlineExceeded; a
+// command whose context was canceled answers no exit code, with
+// context.Canceled, and the error is what the caller reads.
 type ProcessResult struct {
 	Stdout   string
 	Stderr   string
@@ -90,8 +93,16 @@ func (systemProcessRunner) Run(ctx context.Context, command ProcessCommand) (Pro
 	if err == nil {
 		return result, nil
 	}
-	if runCtx.Err() != nil {
+	// A deadline and a cancel are told apart. The bound ending the command is a
+	// hang and answers the timeout exit code, as timeout(1) does. A cancel is
+	// the caller stopping (a Ctrl-C reaching le's signal root): le killed the
+	// client, so it has no exit code of its own, and answering 124 would name a
+	// timeout for an interrupt.
+	if errors.Is(runCtx.Err(), context.DeadlineExceeded) {
 		result.ExitCode = timeoutExitCode
+		return result, runCtx.Err()
+	}
+	if runCtx.Err() != nil {
 		return result, runCtx.Err()
 	}
 	var exit *exec.ExitError
