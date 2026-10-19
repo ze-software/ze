@@ -466,12 +466,18 @@ func (p *Peer) bindProcesses(r *Reactor, session *Session, bindings []ProcessBin
 // up is: a process holds the peer's routes by its update grant, and the down is
 // what makes it let them go. The plugin server still delivers it only to a
 // process subscribed to state events.
+//
+// The down ends no session, so it advances the peer's revocation epoch first:
+// every Adj-RIB-Out path the peer owns at a destination stops being current,
+// and the departure the down provokes (bgp-rs handleStateDown) owes those keys
+// to the RIB's election instead of finding them still owned by a live session.
 func (p *Peer) unbindProcesses(r *Reactor, names []string) {
-	sink := bindEventsOf(r)
-	if sink == nil {
+	if len(names) == 0 {
 		return
 	}
-	if len(names) == 0 {
+	p.forwardRevocation.Add(1)
+	sink := bindEventsOf(r)
+	if sink == nil {
 		return
 	}
 	info := establishedPeerInfo(p)

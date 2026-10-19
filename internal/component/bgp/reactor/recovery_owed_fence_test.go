@@ -147,18 +147,22 @@ func TestOwedKeyMergesDepartureAndWithdrawal(t *testing.T) {
 
 // TestAdjOutDepartureOwesOnlyDepartedSession proves a departure owes a key
 // only where the departed source owns it through a session that is no longer
-// current. Method: the source owns P at the destination; a departure is run
-// while that session is current, for another source, for a prefix never
-// sent, and after the session ended. Only the last owes P, and only it waits.
+// current, or through a binding a targeted down revoked. Method: the source
+// owns P at the destination; a departure is run while that session is
+// current, after a targeted down on the live session, for another source, for
+// a prefix never sent, and after the session ended. Only the revoked and the
+// ended cases owe P, and only they wait.
 func TestAdjOutDepartureOwesOnlyDepartedSession(t *testing.T) {
 	cases := []struct {
 		name     string
 		other    bool
 		prefix   string
 		ended    bool
+		revoked  bool
 		owesTheP bool
 	}{
 		{name: "current-session-keeps-its-route", prefix: "192.0.2.0/24"},
+		{name: "live-source-revoked-owes", prefix: "192.0.2.0/24", revoked: true, owesTheP: true},
 		{name: "other-source-owns-nothing", other: true, prefix: "192.0.2.0/24", ended: true},
 		{name: "prefix-never-sent", prefix: "198.51.100.0/24", ended: true},
 		{name: "earlier-session-owes", prefix: "192.0.2.0/24", ended: true, owesTheP: true},
@@ -170,6 +174,12 @@ func TestAdjOutDepartureOwesOnlyDepartedSession(t *testing.T) {
 			rail.forward(t, false, p)
 			if tc.ended {
 				rail.source.forwardGeneration.Add(1)
+			}
+			if tc.revoked {
+				// A reload rebinds the route server on the kept session: the
+				// targeted down ends no session, so only the revocation epoch
+				// tells the departure that the live source no longer owns P.
+				rail.source.unbindProcesses(nil, []string{"bgp-rs"})
 			}
 			departed := rail.source.Settings().Address
 			if tc.other {

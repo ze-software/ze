@@ -179,9 +179,13 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 		if err != nil {
 			return false, err
 		}
-		// The owner's session generation tells a departure which session of
-		// the source wrote the path. An expected write keeps entry.owner.
+		// The owner's session generation and revocation epoch tell a departure
+		// whether the source still owns the path. An expected write keeps
+		// entry.owner.
 		owner.generation = item.receivedGeneration
+		if owner.source != nil {
+			owner.revocation = owner.source.forwardRevocation.Load()
+		}
 		switch item.authority {
 		case adjOutUnspecified:
 			return false, errAdjOutProvenance
@@ -235,11 +239,11 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 				if entry == nil {
 					return false, nil
 				}
-				if key.addPath && forwardSourceCurrent(entry.owner.source, entry.owner.generation) {
+				if key.addPath && adjOutOwnerCurrent(entry.owner) {
 					// A departure withdraws an ADD-PATH identifier only while
-					// the departed source's ended session owns it: the
-					// reconnected session's newer path, or an originated
-					// one, is never withdrawn for an old DOWN.
+					// the departed source's ended session or revoked binding
+					// owns it: the reconnected session's newer path, or an
+					// originated one, is never withdrawn for an old DOWN.
 					return false, nil
 				}
 				owner = entry.owner

@@ -75,6 +75,10 @@ type adjOutPath struct {
 	// ignores it, so a GR-retained path stays withdrawable by the same source
 	// on its new session; it tells which session of the source wrote it.
 	generation uint64
+	// revocation is the owner's Peer.forwardRevocation when the path was
+	// written. Equality ignores it like the generation; adjOutOwnerCurrent reads
+	// both.
+	revocation uint64
 }
 
 // adjOutOwed is one key whose decision belongs to the destination's recovery

@@ -380,8 +380,9 @@ func oweDeparture(destination *Peer, session *Session, batch *bgptypes.NLRIBatch
 }
 
 // departedOwner reports whether entry is owned by source through a session
-// that is no longer current. The generation is read under the table mutex
-// every write takes, so the test is exact.
+// that is no longer current, or through a binding a targeted down revoked on
+// a session that stays up. The generation and the epoch are read under the
+// table mutex every write takes, so the test is exact.
 func departedOwner(entry *adjRIBOutRoute, source netip.Addr) bool {
 	if entry == nil {
 		return false
@@ -392,7 +393,21 @@ func departedOwner(entry *adjRIBOutRoute, source netip.Addr) bool {
 	if entry.owner.source.Settings().Address != source {
 		return false
 	}
-	return !forwardSourceCurrent(entry.owner.source, entry.owner.generation)
+	return !adjOutOwnerCurrent(entry.owner)
+}
+
+// adjOutOwnerCurrent reports whether owner still owns its path: its source's
+// session is the one that wrote it (forwardSourceCurrent) and no targeted
+// down revoked the source's binding since (Peer.forwardRevocation). An
+// originated path has no source and is always current.
+func adjOutOwnerCurrent(owner adjOutPath) bool {
+	if !forwardSourceCurrent(owner.source, owner.generation) {
+		return false
+	}
+	if owner.source == nil {
+		return true
+	}
+	return owner.source.forwardRevocation.Load() == owner.revocation
 }
 
 // lookupRecovery asks the RIB for one outcome per requested key, in process or

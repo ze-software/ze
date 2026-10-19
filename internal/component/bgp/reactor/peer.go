@@ -288,6 +288,15 @@ type Peer struct {
 	// Established MUST advance it; receive snapshots MUST retain its value.
 	forwardGeneration atomic.Uint64
 
+	// forwardRevocation fences this source's Adj-RIB-Out ownership across a
+	// targeted down on a session that stays up (unbindProcesses), which moves no
+	// generation. Every adj-out owner records it at write (adjOutPath.revocation);
+	// an owner written before the advance is no longer current, so the
+	// departure the down provokes owes its keys. A session loss MUST NOT advance
+	// it: the generation already fences that, and AC-18 needs a reconnected
+	// session's newer route to stay current against an old DOWN.
+	forwardRevocation atomic.Uint64
+
 	// owedRefused counts the bgp-rib replays (ROUTE-REFRESH, clear bgp rib
 	// out, a drain replay) this destination's writer refused because the key
 	// was owed to recovery. Monotonic and never reset; a reader takes the
