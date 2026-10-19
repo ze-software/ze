@@ -26,8 +26,8 @@ const dockerProgram = "docker"
 // host process.
 const execPackage = "os/exec"
 
-// symbolDepthMax bounds how many constant-to-constant hops a program name is
-// followed through, so a cycle in broken source cannot loop the walk.
+// symbolDepthMax bounds how many name-to-name hops a program name is followed
+// through, so a cycle in broken source cannot loop the walk.
 const symbolDepthMax = 16
 
 // dockerExecSite is one exec.Command or exec.CommandContext call whose
@@ -62,15 +62,21 @@ type symbol struct {
 	Value ast.Expr
 }
 
+// localValues maps each name a top-level declaration's function bodies assign
+// to every expression assigned to it.
+type localValues map[string][]ast.Expr
+
 // programUse is an expression naming a program that the walk judges once it
 // has read every file: the program of an exec call, or the initializer of a
-// package-level var.
+// package-level var. Locals are the names of the declaration holding the
+// call, nil for a package-level var.
 type programUse struct {
 	File   string
 	Line   int
 	Action string
 	Name   string
 	Scope  sourceScope
+	Locals localValues
 	Value  ast.Expr
 }
 
@@ -88,7 +94,7 @@ type dockerExecScan struct {
 }
 
 // scanFile records the package name, the package-level constants and vars,
-// and the exec calls of one file. module is the module path, rel the file's
+// and the exec calls of one file with its function-scoped names. module is the module path, rel the file's
 // tree-relative path.
 func (s *dockerExecScan) scanFile(files *token.FileSet, module, rel string, file *ast.File) {
 	scope := sourceScope{Dir: path.Dir(rel)}
@@ -99,7 +105,17 @@ func (s *dockerExecScan) scanFile(files *token.FileSet, module, rel string, file
 	if execName == "" {
 		return
 	}
-	ast.Inspect(file, func(node ast.Node) bool {
+	for _, decl := range file.Decls {
+		s.recordExecCalls(files, rel, scope, execName, decl)
+	}
+}
+
+// recordExecCalls keeps each exec call of one top-level declaration as a use,
+// with the names the declaration's function bodies assign, so a program held
+// in a function-scoped const or var is followed as far as a package-level one.
+func (s *dockerExecScan) recordExecCalls(files *token.FileSet, rel string, scope sourceScope, execName string, decl ast.Decl) {
+	locals := collectLocals(decl)
+	ast.Inspect(decl, func(node ast.Node) bool {
 		call, ok := node.(*ast.CallExpr)
 		if !ok {
 			return true
@@ -110,10 +126,83 @@ func (s *dockerExecScan) scanFile(files *token.FileSet, module, rel string, file
 		}
 		s.uses = append(s.uses, programUse{
 			File: rel, Line: files.Position(call.Pos()).Line, Action: "runs",
-			Name: programName(program), Scope: scope, Value: program,
+			Name: programName(program), Scope: scope, Locals: locals, Value: program,
 		})
 		return true
 	})
+}
+
+// collectLocals answers every name decl's function bodies assign, with each
+// expression assigned to it: a const or var spec, and a `:=` or `=` to a bare
+// name. The map is flow-insensitive and spans nested closures, so a name
+// assigned docker anywhere in decl is docker at every exec of it: a false
+// refusal costs a rename, a missed one an unlabeled container.
+func collectLocals(decl ast.Decl) localValues {
+	locals := localValues{}
+	ast.Inspect(decl, func(node ast.Node) bool {
+		if statement, ok := node.(*ast.DeclStmt); ok {
+			if gen, ok := statement.Decl.(*ast.GenDecl); ok {
+				eachValue(gen, func(name *ast.Ident, value ast.Expr) {
+					locals[name.Name] = append(locals[name.Name], value)
+				})
+			}
+			return true
+		}
+		if statement, ok := node.(*ast.AssignStmt); ok {
+			locals.addAssign(statement)
+		}
+		return true
+	})
+	return locals
+}
+
+// addAssign keeps the right-hand sides of a `:=` or `=` that pairs each bare
+// name with one expression. A compound assignment does not set a program
+// name, and a multi-value call has no expression per name to follow.
+func (l localValues) addAssign(statement *ast.AssignStmt) {
+	if statement.Tok != token.DEFINE && statement.Tok != token.ASSIGN {
+		return
+	}
+	if len(statement.Lhs) != len(statement.Rhs) {
+		return
+	}
+	for i, target := range statement.Lhs {
+		name, ok := target.(*ast.Ident)
+		if !ok {
+			continue
+		}
+		if name.Name == "_" {
+			continue
+		}
+		l[name.Name] = append(l[name.Name], statement.Rhs[i])
+	}
+}
+
+// eachValue calls record for every name gen declares with an initializer. A
+// const spec with no values repeats the previous spec's, as the language
+// defines, so `const ( a = "docker"; b )` gives b the docker value too.
+func eachValue(gen *ast.GenDecl, record func(*ast.Ident, ast.Expr)) {
+	if gen.Tok != token.CONST && gen.Tok != token.VAR {
+		return
+	}
+	var previous []ast.Expr
+	for _, spec := range gen.Specs {
+		value, ok := spec.(*ast.ValueSpec)
+		if !ok {
+			continue
+		}
+		values := value.Values
+		if len(values) == 0 && gen.Tok == token.CONST {
+			values = previous
+		}
+		previous = values
+		for i, name := range value.Names {
+			if i >= len(values) {
+				break
+			}
+			record(name, values[i])
+		}
+	}
 }
 
 // recordPackage keeps the package name of dir. An external test package
@@ -137,27 +226,15 @@ func (s *dockerExecScan) recordSymbols(files *token.FileSet, rel string, scope s
 		if !ok {
 			continue
 		}
-		if gen.Tok != token.CONST && gen.Tok != token.VAR {
-			continue
-		}
-		for _, spec := range gen.Specs {
-			value, ok := spec.(*ast.ValueSpec)
-			if !ok {
-				continue
+		eachValue(gen, func(name *ast.Ident, value ast.Expr) {
+			s.recordSymbol(scope, name.Name, value)
+			if gen.Tok == token.VAR {
+				s.uses = append(s.uses, programUse{
+					File: rel, Line: files.Position(name.Pos()).Line, Action: "holds the docker program in",
+					Name: "var " + name.Name, Scope: scope, Value: value,
+				})
 			}
-			for i, name := range value.Names {
-				if i >= len(value.Values) {
-					break
-				}
-				s.recordSymbol(scope, name.Name, value.Values[i])
-				if gen.Tok == token.VAR {
-					s.uses = append(s.uses, programUse{
-						File: rel, Line: files.Position(name.Pos()).Line, Action: "holds the docker program in",
-						Name: "var " + name.Name, Scope: scope, Value: value.Values[i],
-					})
-				}
-			}
-		}
+		})
 	}
 }
 
@@ -248,40 +325,48 @@ func programName(program ast.Expr) string {
 	return "an expression"
 }
 
-// resolve answers the string an expression evaluates to when it is a literal
-// or a chain of package-level names ending in one, and whether it could
-// follow it. depth counts the hops taken, bounded by symbolDepthMax.
-func (s *dockerExecScan) resolve(scope sourceScope, expr ast.Expr, depth int) (string, bool) {
+// namesDocker reports whether expr names the docker binary: a literal, or a
+// chain of names ending in one, through locals (the function-scoped names of
+// the declaration expr was written in, nil at package level) and then the
+// package-level names. A local shadows a package-level name, and a local
+// assigned several expressions names docker when any of them does. depth
+// counts the hops taken, bounded by symbolDepthMax.
+func (s *dockerExecScan) namesDocker(scope sourceScope, locals localValues, expr ast.Expr, depth int) bool {
 	if depth > symbolDepthMax {
-		return "", false
+		return false
 	}
 	if text, ok := stringLiteral(expr); ok {
-		return text, true
+		return dockerBinary(text)
 	}
 	if ident, ok := expr.(*ast.Ident); ok {
+		if values, local := locals[ident.Name]; local {
+			return slices.ContainsFunc(values, func(value ast.Expr) bool {
+				return s.namesDocker(scope, locals, value, depth+1)
+			})
+		}
 		target, found := s.symbols[scope.Dir][ident.Name]
 		if !found {
-			return "", false
+			return false
 		}
-		return s.resolve(target.Scope, target.Value, depth+1)
+		return s.namesDocker(target.Scope, nil, target.Value, depth+1)
 	}
 	selector, ok := expr.(*ast.SelectorExpr)
 	if !ok {
-		return "", false
+		return false
 	}
 	receiver, ok := selector.X.(*ast.Ident)
 	if !ok {
-		return "", false
+		return false
 	}
 	dir, found := s.importedDir(scope, receiver.Name)
 	if !found {
-		return "", false
+		return false
 	}
 	target, found := s.symbols[dir][selector.Sel.Name]
 	if !found {
-		return "", false
+		return false
 	}
-	return s.resolve(target.Scope, target.Value, depth+1)
+	return s.namesDocker(target.Scope, nil, target.Value, depth+1)
 }
 
 // importedDir answers the directory of the module import scope calls local:
@@ -329,11 +414,7 @@ func (s *dockerExecScan) violations() []dockerExecSite {
 		if underDir(use.File, DockerRoute) {
 			continue
 		}
-		value, ok := s.resolve(use.Scope, use.Value, 0)
-		if !ok {
-			continue
-		}
-		if dockerBinary(value) {
+		if s.namesDocker(use.Scope, use.Locals, use.Value, 0) {
 			found = append(found, dockerExecSite{File: use.File, Line: use.Line, Action: use.Action, Program: use.Name})
 		}
 	}

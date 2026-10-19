@@ -120,12 +120,18 @@ non-vendor Go file, tests included. The program is caught as a string literal
 (`"docker"` or a path ending in `/docker`), as a string constant of the file's
 own package, or as an imported package's constant such as
 `interoplab.DockerExecutable`, and through any chain of constants defined from
-one another (`const x = interoplab.DockerExecutable`). An unaliased import is
+one another (`const x = interoplab.DockerExecutable`), including a const spec
+that repeats the previous spec's value implicitly. An unaliased import is
 matched by the package clause of its directory, so a package named apart from
 its directory is still followed. A package-level `var` initialized to the
 docker binary, by literal or by such a constant, is refused at its declaration,
-because what reads the var is not a call-site fact. A program reached through a
-local variable or a function parameter is not judged. The route is
+because what reads the var is not a call-site fact. Inside a function, a
+`const`, a `var`, a `:=` or an `=` to a bare name is followed too, through
+chains of such locals: the walk keeps every expression the enclosing top-level
+declaration assigns the name, closures included, and refuses the exec when any
+of them names docker. A local shadows a package-level name of the same
+spelling. A program reached through a function parameter, a struct field or a
+multi-value call is not judged. The route is
 `interoplab.Docker`, which labels what it creates so
 `./le test integration cleanup` removes what a killed run left, and bounds
 every command; a package test starts its server with `labtest.Start`. The

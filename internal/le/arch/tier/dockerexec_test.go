@@ -10,9 +10,11 @@ import (
 // aliased os/exec), by a constant of the file's own package declared in
 // another file, by the wrapper's exported constant, by a constant defined from
 // another constant (local or the wrapper's), through a package whose name
-// differs from its directory, and by a package-level var holding docker,
-// naming each file and line; the wrapper's own exec and an exec of another
-// program pass.
+// differs from its directory, by a package-level var holding docker, by a
+// function-scoped const, `:=`, `=` or var (chained through a local to the
+// wrapper's constant too), and by a const repeating a docker value implicitly,
+// naming each file and line; the wrapper's own exec, an exec of another
+// program, and a local shadowing a package docker constant pass.
 // PREVENTS: a test or tool starting containers the cleanup cannot find,
 // because they carry no owner labels.
 func TestNoDockerExecOutsideInteroplab(t *testing.T) {
@@ -40,11 +42,19 @@ func TestNoDockerExecOutsideInteroplab(t *testing.T) {
 		dockerExecViolators[5] + ":6 runs Path",
 		dockerExecViolators[6] + ":3 holds the docker program in var dockerBin",
 		dockerExecViolators[6] + ":4 holds the docker program in var wrapperBin",
+		dockerExecViolators[7] + ":5 runs program",
+		dockerExecViolators[8] + ":5 runs program",
+		dockerExecViolators[8] + ":10 runs tool",
+		dockerExecViolators[9] + ":9 runs program",
+		dockerExecViolators[10] + ":3 runs repeatedBin",
 		"interoplab.Docker", "labtest.Start",
 	} {
 		if !strings.Contains(diagnosis, want) {
 			t.Errorf("diagnosis lacks %q:\n%s", want, diagnosis)
 		}
+	}
+	if strings.Contains(diagnosis, "filterapi/ip.go") {
+		t.Errorf("a local shadowing a package docker constant was refused:\n%s", diagnosis)
 	}
 	if strings.Contains(diagnosis, dockerExecRoute) {
 		t.Errorf("the wrapper's own exec was refused:\n%s", diagnosis)

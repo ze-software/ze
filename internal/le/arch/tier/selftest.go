@@ -737,7 +737,10 @@ const dockerExecRoute = "internal/le/interoplab/docker.go"
 // route: by literal, by a constant of their own package declared in another
 // file, by the wrapper's exported constant, by a constant defined from a local
 // constant, by a constant defined from the wrapper's, through a package whose
-// name differs from its directory, and by holding docker in package-level vars.
+// name differs from its directory, by holding docker in package-level vars,
+// by a function-scoped const, `:=`, `=` or var (directly, or chained through a
+// local to the wrapper's constant), and by a const that repeats the previous
+// spec's docker value implicitly.
 var dockerExecViolators = [...]string{
 	"internal/component/bgp/filterapi/literal_test.go",
 	"internal/component/bgp/filterapi/local.go",
@@ -746,6 +749,10 @@ var dockerExecViolators = [...]string{
 	"internal/component/bgp/filterapi/crossconst.go",
 	"internal/component/bgp/filterapi/renamed.go",
 	"internal/component/bgp/filterapi/vars.go",
+	"internal/component/bgp/filterapi/localconst.go",
+	"internal/component/bgp/filterapi/localdefine.go",
+	"internal/component/bgp/filterapi/localvar.go",
+	"internal/component/bgp/filterapi/implicit.go",
 }
 
 // dockerExecRenamed is a package under the route whose name, dockerbin,
@@ -753,18 +760,20 @@ var dockerExecViolators = [...]string{
 const dockerExecRenamed = "internal/le/interoplab/dockername/name.go"
 
 // dockerExecFixture answers the ownership fixture plus the wrapper, an exec of
-// another program outside it, and, when violate is set, the three violators.
+// another program outside it (one through a local that shadows a package
+// docker constant), and, when violate is set, the violators.
 func dockerExecFixture(violate bool) map[string]string {
 	fixture := ownershipFixture()
 	fixture[dockerExecRoute] = "package interoplab\nimport \"os/exec\"\nconst DockerExecutable = \"docker\"\n" +
 		"func run() { _ = exec.Command(DockerExecutable, \"info\") }\n"
 	fixture["internal/component/bgp/filterapi/ip.go"] = "package filterapi\nimport \"os/exec\"\n" +
-		"func ip() { _ = exec.Command(\"ip\", \"link\") }\n"
+		"func ip() { _ = exec.Command(\"ip\", \"link\") }\n" +
+		"func shadow() {\n\tbinary := \"ip\"\n\t_ = exec.Command(binary, \"addr\")\n}\n"
 	if !violate {
 		return fixture
 	}
 	fixture["internal/component/bgp/filterapi/names.go"] = "package filterapi\nconst binary = \"docker\"\n" +
-		"const chainedBinary = binary\n"
+		"const chainedBinary = binary\nconst (\n\tfirstBin = \"docker\"\n\trepeatedBin\n)\n"
 	fixture[dockerExecRenamed] = "package dockerbin\nconst Path = \"docker\"\n"
 	fixture[dockerExecViolators[0]] = "package filterapi\nimport (\n\t\"context\"\n\trun \"os/exec\"\n)\n" +
 		"func literal() { _ = run.CommandContext(context.Background(), \"/usr/bin/docker\", \"ps\") }\n"
@@ -781,6 +790,16 @@ func dockerExecFixture(violate bool) map[string]string {
 		"/internal/le/interoplab/dockername\"\n)\nfunc renamed() { _ = exec.Command(dockerbin.Path, \"ps\") }\n"
 	fixture[dockerExecViolators[6]] = "package filterapi\nimport \"" + fixtureModule +
 		"/internal/le/interoplab\"\nvar dockerBin = \"docker\"\nvar wrapperBin = interoplab.DockerExecutable\n"
+	fixture[dockerExecViolators[7]] = "package filterapi\nimport \"os/exec\"\nfunc localConst() {\n" +
+		"\tconst program = \"docker\"\n\t_ = exec.Command(program, \"ps\")\n}\n"
+	fixture[dockerExecViolators[8]] = "package filterapi\nimport \"os/exec\"\nfunc localDefine() {\n" +
+		"\tprogram := \"docker\"\n\t_ = exec.Command(program, \"ps\")\n}\nfunc localAssign() {\n" +
+		"\tvar tool string\n\ttool = \"/usr/local/bin/docker\"\n\t_ = exec.Command(tool, \"ps\")\n}\n"
+	fixture[dockerExecViolators[9]] = "package filterapi\nimport (\n\t\"os/exec\"\n\t\"" + fixtureModule +
+		"/internal/le/interoplab\"\n)\nfunc localVar() {\n\tvar tool = interoplab.DockerExecutable\n" +
+		"\tprogram := tool\n\t_ = exec.Command(program, \"ps\")\n}\n"
+	fixture[dockerExecViolators[10]] = "package filterapi\nimport \"os/exec\"\n" +
+		"func implicit() { _ = exec.Command(repeatedBin, \"ps\") }\n"
 	return fixture
 }
 
