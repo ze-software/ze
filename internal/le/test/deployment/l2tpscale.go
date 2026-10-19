@@ -296,7 +296,7 @@ func runL2TPScaleScenario(
 	}
 
 	argv := []string{
-		harness, "test", "scale", "l2tp",
+		harness, leTestArea, "scale", "l2tp",
 		"--target", fmt.Sprintf("127.0.0.1:%d", port),
 		"--tunnels", strconv.Itoa(scenario.tunnels),
 		"--sessions", strconv.Itoa(scenario.sessions),

@@ -200,10 +200,10 @@ func (v *vppIface) daemonExec(name, binaryRel, configFile string) interoplab.Con
 		Container: name,
 		Command:   []string{binary, "start", config},
 		Environment: []interoplab.EnvironmentVariable{
-			{Name: "ZE_LOG_VPP", Value: "info"},
-			{Name: "ZE_LOG_INTERFACE", Value: "debug"},
-			{Name: "ZE_LOG_BGP", Value: "info"},
-			{Name: "ZE_CONFIG_DIR", Value: filepath.Dir(config)},
+			{Name: "ZE_LOG_VPP", Value: zeLogInfo},
+			{Name: "ZE_LOG_INTERFACE", Value: zeLogDebug},
+			{Name: "ZE_LOG_BGP", Value: zeLogInfo},
+			{Name: zeConfigDirVariable, Value: filepath.Dir(config)},
 		},
 		Interactive: true,
 	}

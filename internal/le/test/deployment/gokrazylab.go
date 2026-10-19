@@ -123,7 +123,7 @@ func (g *gokrazyLab) setup() error {
 		{"enslave tap to bridge", []string{"ip", ipLink, ipSet, g.Tap, "master", g.Bridge}},
 		{"bring up tap", []string{"ip", ipLink, ipSet, g.Tap, "up"}},
 		{"create LAC veth pair",
-			[]string{"ip", ipLink, ipAdd, g.HostVeth, ipType, "veth", "peer", ipName, g.PeerVeth}},
+			[]string{"ip", ipLink, ipAdd, g.HostVeth, ipType, "veth", ipPeer, ipName, g.PeerVeth}},
 		{"enslave host veth", []string{"ip", ipLink, ipSet, g.HostVeth, "master", g.Bridge}},
 		{"bring up host veth", []string{"ip", ipLink, ipSet, g.HostVeth, "up"}},
 		{"move LAC veth", []string{"ip", ipLink, ipSet, g.PeerVeth, ipNetns, g.Namespace}},

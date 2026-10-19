@@ -412,14 +412,14 @@ func (v *VPP) evidenceDaemonExec(container, configFile string, port int) interop
 	binary := tb.Str("/src/").Str(filepath.ToSlash(daemonRel(v.Goarch))).String()
 	config := filepath.Join(zeRunDir, configFile, "ze.conf")
 	environ := []interoplab.EnvironmentVariable{
-		{Name: "ZE_LOG_VPP", Value: "info"},
-		{Name: "ZE_LOG_FIB_VPP", Value: "debug"},
-		{Name: "ZE_LOG_TRAFFIC", Value: "debug"},
-		{Name: "ZE_LOG_TRAFFIC_VPP", Value: "debug"},
-		{Name: "ZE_LOG_FIREWALL", Value: "debug"},
-		{Name: "ZE_LOG_FIREWALL_VPP", Value: "debug"},
-		{Name: "ZE_LOG_BGP", Value: "info"},
-		{Name: "ZE_CONFIG_DIR", Value: filepath.Dir(config)},
+		{Name: "ZE_LOG_VPP", Value: zeLogInfo},
+		{Name: "ZE_LOG_FIB_VPP", Value: zeLogDebug},
+		{Name: "ZE_LOG_TRAFFIC", Value: zeLogDebug},
+		{Name: "ZE_LOG_TRAFFIC_VPP", Value: zeLogDebug},
+		{Name: "ZE_LOG_FIREWALL", Value: zeLogDebug},
+		{Name: "ZE_LOG_FIREWALL_VPP", Value: zeLogDebug},
+		{Name: "ZE_LOG_BGP", Value: zeLogInfo},
+		{Name: zeConfigDirVariable, Value: filepath.Dir(config)},
 	}
 	if port != 0 {
 		environ = append(environ, interoplab.EnvironmentVariable{Name: "ZE_TEST_BGP_PORT", Value: strconv.Itoa(port)})

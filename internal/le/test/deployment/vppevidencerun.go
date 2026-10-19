@@ -258,7 +258,7 @@ func (v *VPP) runFIB(container, work string, mpls bool) (VPPScenarioReport, erro
 		Container: container,
 		Command: []string{
 			tb.Reset().Str("/src/").Str(filepath.ToSlash(vppLeRel(v.Goarch))).String(),
-			"test", "peer", "--mode", "sink", "--port", tb.Reset().Int(int64(port)).String(),
+			leTestArea, "peer", "--mode", "sink", "--port", tb.Reset().Int(int64(port)).String(),
 			tb.Reset().Str(vppMount).Byte('/').Str(peerFile).String(),
 		},
 	}, "peer> ", peerSeen, v.Progress)

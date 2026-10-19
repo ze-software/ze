@@ -264,9 +264,9 @@ func (l *L2TP) daemonExec(name, binaryRel string) interoplab.ContainerExec {
 		Container: name,
 		Command:   []string{binary, "-"},
 		Environment: []interoplab.EnvironmentVariable{
-			{Name: "ZE_LOG_L2TP", Value: "debug"},
+			{Name: "ZE_LOG_L2TP", Value: zeLogDebug},
 			{Name: "ze.l2tp.skip-kernel-probe", Value: "true"},
-			{Name: "ZE_CONFIG_DIR", Value: "/run/l2tp/ze"},
+			{Name: zeConfigDirVariable, Value: "/run/l2tp/ze"},
 		},
 		Interactive: true,
 		Stdin:       strings.NewReader(DaemonConfig),

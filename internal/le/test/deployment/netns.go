@@ -52,6 +52,19 @@ const (
 	ipL2TP  = "l2tp"
 	ipType  = "type"
 	ipDev   = "dev"
+	ipPeer  = "peer"
+)
+
+// These are the words of ze's own environment and of le's command tree that
+// more than one proof sets or runs.
+const (
+	// zeLogDebug and zeLogInfo are the ze log levels a proof's daemon runs at.
+	zeLogDebug = "debug"
+	zeLogInfo  = "info"
+	// zeConfigDirVariable names the directory a containerized ze reads.
+	zeConfigDirVariable = "ZE_CONFIG_DIR"
+	// leTestArea is le's test area, under which the scale and peer harnesses run.
+	leTestArea = "test"
 )
 
 // netnsDir is where `ip netns` keeps the bind mount that names a namespace. It

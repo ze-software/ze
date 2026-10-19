@@ -313,7 +313,7 @@ func (l *L2TPPPP) setupNamespaces() error {
 	}{
 		{tb.Str("create netns ").Str(l.ZeNamespace).String(), []string{"ip", ipNetns, ipAdd, l.ZeNamespace}},
 		{tb.Reset().Str("create netns ").Str(l.LACNamespace).String(), []string{"ip", ipNetns, ipAdd, l.LACNamespace}},
-		{"create L2TP underlay veth pair", []string{"ip", ipLink, ipAdd, l.ZeVeth, ipType, "veth", "peer", ipName, l.LACVeth}},
+		{"create L2TP underlay veth pair", []string{"ip", ipLink, ipAdd, l.ZeVeth, ipType, "veth", ipPeer, ipName, l.LACVeth}},
 		{"move Ze veth", []string{"ip", ipLink, ipSet, l.ZeVeth, ipNetns, l.ZeNamespace}},
 		{"move LAC veth", []string{"ip", ipLink, ipSet, l.LACVeth, ipNetns, l.LACNamespace}},
 	}
