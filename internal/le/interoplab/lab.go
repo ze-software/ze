@@ -224,13 +224,16 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 	// claimed. Its per-resource outcomes are progress lines: a dead run's
 	// leftover it could not remove is not this run's failure, and preClean
 	// still refuses a name it collides with.
+	var line textbuf.Buffer
 	orphans, err := s.Docker.CleanupOrphans(ctx, false)
 	if err != nil {
-		report.SetupError = err.Error()
+		report.SetupError = line.Str("the pre-run cleanup of killed runs' leftovers could not list the labeled lab").
+			Str(" resources (").Err(err).Str("), so this run cannot clear a dead run's same-name container or").
+			Str(" network before it claims its own. Fix: run the failing docker command by hand to see why the").
+			Str(" daemon refuses it, then run `").Str(cleanupCommand).Str("` or this run again").String()
 		report.Code = 1
 		return report
 	}
-	var line textbuf.Buffer
 	for _, text := range orphans.Lines() {
 		s.progress(line.Reset().Str("interop: ").Str(text))
 	}
