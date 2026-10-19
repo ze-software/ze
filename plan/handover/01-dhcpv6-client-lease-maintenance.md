@@ -144,8 +144,9 @@ Findings for the next agent (read before starting):
    headers to the three v6 files (the hook warns they lack it).
 2. Phase 5: YANG pattern on `duid` (colon hex, 2..130 octets) +
    `TestDHCPv6DUIDPatternRefusesMalformed` in `internal/component/iface/config_test.go`.
-3. `TestDHCPv6RenewsOnSelectorBoundInterface` (integration, veth lab, Go
-   server, `dhcp_v6_lease_integration_linux_test.go`) -- validates A-4, A-5.
+3. DONE 2026-10-19 (see the fourth-agent section below):
+   `TestDHCPv6RenewsOnSelectorBoundInterface`, now in
+   `internal/component/iface/dhcp_v6_selector_renew_integration_linux_test.go`.
 4. Phase 6: `test/interop/Dockerfile.kea`, scenario `dhcpv6-client-renew-kea`,
    discrimination walk recorded; `docs/architecture/testing/interop.md`.
 5. A-7: Section 18.2.10 "stop using" DNS a Renew Reply omits is NOT
@@ -159,3 +160,30 @@ Findings for the next agent (read before starting):
    2026-10-19).
 9. `plan/journal/reconciler-claims-state-another-owner-installed.md` row and
    `plan/journal/silent-fall-through.md` 2026-10-18 row: status updates owed.
+
+## Continuation 2026-10-19 (fourth phase agent): item 3 done
+
+- Item 3 landed by the test-only route (main thread's decision):
+  `internal/component/iface/export_test.go` (`SetResolverMappingForTest`,
+  `DHCPClientFactoryForTest`) and
+  `internal/component/iface/dhcp_v6_selector_renew_integration_linux_test.go`
+  (package `iface_test`, blank-imports `ifacedhcp`). The client starts
+  through the installed factory under the logical name `uplinkv6`, which only
+  the resolver mapping binds to the veth. The server end lives in its own
+  netns, so replies cross the veth. The test asserts Rapid Commit Solicit,
+  three Renews, a Rebind at T2 (the server ignores the 4th Renew), and a
+  Release on Stop. It checks the client and server ids and the IA_NA address
+  in each message, the kernel lifetimes left at each message, DAD (tentative,
+  then clear), the address removed after Stop, and the acquired/renewed
+  events naming the logical name. A-4 and A-5 are now confirmed in the spec.
+- QEMU: `go test -c -tags integration` on the host (CGO_ENABLED=0), then
+  `./le test qemu run kernel tmp/kernel/build/vmlinuz command "cd
+  /workspace/internal/component/iface && /workspace/<bin> -test.v -test.run
+  '^TestDHCPv6RenewsOnSelectorBoundInterface$'"`. Green 11.4 s. Forced red
+  through a `-overlay` making `extend` dial `w.c.ifaceName`: "waiting for
+  Renew 1: the client sent SOLICIT". Restored: green.
+- Untagged: there is no RFC 9915 summary yet, so item 1 may tag it later (it
+  then owes polarity and `./le rfc discriminate-record`).
+- Gates still owed for this file pair: none beyond item 7. The scoped
+  `golangci-lint run --build-tags integration ./internal/component/iface/`
+  reports 0 issues.
