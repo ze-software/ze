@@ -604,3 +604,28 @@ for the transaction lock, so a commit that takes and releases the lock in that
 gap is followed by a reload of a tree read before the commit. Whether the
 staged-candidate check (`ErrCandidateExists`) already refuses that case was not
 checked.
+
+## Gap #26 RFC4303-1-2 (integrity-only ESP): committed d64411a639, 08bfef9ee7 (2026-10-19)
+
+- d64411a639: ENCR_NULL negotiable for Child SAs (the IKE SA still refuses it,
+  RFC 7296 Section 5), docs, scenario `esp-integrity-only-null`.
+- 08bfef9ee7: `{gap}` removed from RFC4303-1-2 and Support remaining rewritten.
+  The ze_vpp RFC4301-4.2-1 test went red under `-tags ze_vpp` after d64411a639,
+  because vppCryptoAlg now names the null cipher; it is re-scoped to NULL
+  without integrity, and TestRFC4303VPPIntegrityOnlyESPIsInstalled asserts
+  NULL with sha256 installed. Discrimination records: RFC4303-1-2 positive
+  (engine, VPP) and negative (crypto); RFC4301-4.2-1 VPP negative re-taken on
+  vppIntegAlg; four RFC5282-8 records re-taken.
+- Interop `IPSEC_INTEROP_SCENARIO=esp-integrity-only-null ./le test integration
+  interop-ipsec`: PASS over HEAD. Red walk: acceptESPEncryption's null branch
+  forced to ErrNoProposalChosen, the harness rebuilt the image, the run FAILED
+  (charon logged `selected proposal: ESP:NULL/HMAC_SHA2_256_128/`, Ze logged
+  "IKE_AUTH accepted offer rejected ... NO_PROPOSAL_CHOSEN" and sent
+  N(NO_PROP)). Fix restored with no diff against HEAD, rerun PASS.
+- Owed: `rfc/audit/rfc4303.json` RFC4303-1-2 verdict is STALE and still says
+  unimplemented (`./le rfc check` flags it): a ze-rfc-audit re-read, not a
+  stamp. `rfc/audit/rfc4301.json` RFC4301-4.2-1 verdict is STALE (the VPP test
+  changed). RFC7296-2.7-1 is SHIFTED (checkers.go moved) and needs
+  `./le rfc reseal`, but `rfc/audit/rfc7296.json` holds another session's
+  uncommitted hunks. The owner's answer is owed on the rfc-change-ok debt row
+  in `plan/verification-debt/3f5fcb0a.md`.
