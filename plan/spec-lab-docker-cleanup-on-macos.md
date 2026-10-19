@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-19 |
+| Updated | 2026-10-20 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -30,6 +30,17 @@ on another host.
 | G-1 | The parent's assumptions A-2, A-3 and A-5 are confirmed or broken on a Mac: the owner labels, the owner identity and the cleanup verdicts work against Colima, against Docker Desktop, and inside the QEMU guest's dockerd that runs the labs on macOS |
 | G-2 | `./le perf run dut ze`, stopped with Ctrl-C on the Mac, leaves nothing of its run behind |
 | G-3 | The FreeRtr DUT image builds on the Mac through the wrapper's `docker build` with `--build-context` |
+| G-4 | `./le test deployment vpp-test` and `./le test deployment vpp-iface-test`, each stopped with one Ctrl-C on the Mac while its container runs, leave nothing of their run behind |
+
+Owner decision, 2026-10-20: the real Ctrl-C proofs of `vpp-test` and
+`vpp-iface-test` move from the parent into this spec (G-4, AC-8) until the
+vhost-net work in `plan/spec-lab-kernel-features-in-setup.md` lands. The
+parent's Linux host has no `/dev/vhost-net`, so neither proof starts its
+container there.
+
+Owner decision, 2026-10-19 ("1 yes", conditional on the QEMU guest run proving
+A-5 on Linux): AC-5 (A-5 on the guest dockerd) stays in this spec for now. The
+guest run on Linux was interrupted and did not prove the start sweep.
 
 Nothing else is in scope. This spec adds no feature. A check that fails is a
 defect in the parent's implemented capability, and it is fixed here (Failure
@@ -119,6 +130,7 @@ The three rows are the parent's, verbatim. Their status here starts again at `un
 | R-3 | The Mac daemon's kernel fails the Ze DUT kernel check, so `./le perf run dut ze` stops before it creates a DUT | the run's refusal names the missing features | run AC-6 on the daemon the owner already uses for perf; a refusal on every Mac daemon is recorded as the result and reported to the owner, never counted as a pass |
 | R-4 | The reboot in AC-3 also removes the VM's stopped containers | `docker ps -a` after the reboot lacks the seeded container | seed again with a network as well as a container (both persist in the VM's storage) and record which survived |
 | R-5 | `docker-lab` refuses before boot: no runtime kernel cache entry, or no HVF | the refusal names `./le build host-driver` and the kernel build | run the builds the refusal names, then rerun AC-5; nothing is skipped |
+| R-6 | No Mac daemon can start the VPP container: the image is `linux/amd64` only, the proof's Docker kernel check refuses a VM kernel without Ze's features, and the runtime kernel in the `docker-lab` guest lacks `CONFIG_VHOST_NET` until `plan/spec-lab-kernel-features-in-setup.md` AC-4 is built | the proof refuses before its container, or Docker refuses `--device /dev/vhost-net` | run AC-8 on the daemon that passes the kernel check and holds `/dev/vhost-net` (the `docker-lab` guest once its kernel carries the option, or Colima under amd64 emulation), and record which; a refusal on every daemon is recorded as the result and reported to the owner, never counted as a pass |
 
 ## Blast Radius
 
@@ -136,6 +148,7 @@ The three rows are the parent's, verbatim. Their status here starts again at `un
 | `./le perf run dut ze`, then Ctrl-C | → | `signalRooted` → `Runner.cleanup` | `TestPerfInterruptedRunRemovesWhatItStarted` (`internal/test/perfrunner/run_test.go`); the real run is AC-6 |
 | `./le perf run step build dut freertr` | → | `Runner.imageBuild` → `Docker.Build` with `--build-context freertr=<dir>` | `TestBuildRendersNamedContexts` (`internal/le/interoplab/container_test.go`); the real build is AC-7 |
 | `./le test qemu docker-lab lab "test integration interop-ipsec"` | → | guest le `Suite.Run` → `Docker.CleanupOrphans` | `TestSuiteRunCleansOrphansBeforePreflight` (`internal/le/interoplab/lab_test.go`); the real run is AC-5 |
+| `./le test deployment vpp-test` or `vpp-iface-test`, then Ctrl-C | → | `signalRooted` → the proof's container removal | `TestDeploymentVerbsCancelOnSignal` (`internal/le/test/deployment/signalroot_test.go`); the real runs are AC-8 |
 
 ## Acceptance Criteria
 
@@ -150,6 +163,7 @@ Every AC runs on the owner's Mac. "Colima" means `DOCKER_HOST=unix://$HOME/.coli
 | AC-5 | On the Mac with HVF: `./le test qemu docker-lab lab "test integration interop-ipsec" timeout 3600s` (A-5, the QEMU guest's dockerd) | exit 0; the lab output carries the start sweep's `cleanup:` summary line and no "could not be listed" setup error; the run's labeled creates (`run`, `network create`, `build`) are accepted by the guest dockerd |
 | AC-6 | On the perf daemon: `./le perf run dut ze`; once `docker ps --filter label=ze.lab` lists the DUT and the sender, press Ctrl-C once; then, with the run id from the DUT's `ze.lab.run` label, `docker ps -a --filter label=ze.lab.run=<id>`, `docker network ls --filter label=ze.lab.run=<id>` and `docker image ls --filter label=ze.lab.run=<id> --format '{{.Repository}}:{{.Tag}}'` | the run exits 1 after its removals; the first two commands print no resource; the third prints no `ze-interop-retained:` tag (the kept DUT image under its cache tag is allowed); `./le test integration cleanup dry` names no resource of that run |
 | AC-7 | Against Colima, then against Docker Desktop, with a FreeRtr checkout at `FREERTR_DIR` (default `../rtr`): `FREERTR_DIR=<dir> ./le perf run step build dut freertr` | exit 0 on each daemon; `docker image inspect freertr-interop --format '{{index .Config.Labels "ze.lab.kind"}}'` prints `image`; no `ze-interop-retained:` tag of that run is left (`docker image ls --filter label=ze.lab.run=<id>`) |
+| AC-8 | On the daemon R-6 names, for `vpp-test` and then for `vpp-iface-test`: start `./le test deployment <proof>` from a terminal (its own process group); once `docker ps --filter label=ze.lab` lists its container, press Ctrl-C once (SIGINT to the process group); then, with the run id from the container's `ze.lab.run` label, `docker ps -a --filter label=ze.lab.run=<id>`, `docker network ls --filter label=ze.lab.run=<id>` and `docker image ls --filter label=ze.lab.run=<id> --format '{{.Repository}}:{{.Tag}}'` | each run exits 1 and prints no verdict line (no report carrying `passed`), only the interruption; the first two commands print no resource; the third prints no `ze-interop-retained:` tag (the pulled VPP image is allowed); `./le test integration cleanup dry` names no resource of that run |
 
 ## 🧪 TDD Test Plan
 
@@ -174,9 +188,10 @@ A defect found by an AC gets a failing unit test in the producer's package first
 | `./le perf run dut ze` stopped with Ctrl-C | the owner's Mac, output pasted here | AC-6 | |
 | `./le perf run step build dut freertr` | the owner's Mac, output pasted here | AC-7 | |
 | `./le test qemu docker-lab lab "test integration interop-ipsec"` | the owner's Mac, output pasted here | AC-5 | |
+| `./le test deployment vpp-test` and `vpp-iface-test` stopped with Ctrl-C | the owner's Mac, output pasted here | AC-8 | |
 
 ## Files to Modify
-- None planned. A failing AC changes its producer: `internal/le/interoplab/orphans.go` (AC-1..AC-4), `internal/le/interoplab/docker.go` (AC-4, AC-5, AC-7), `internal/test/perfrunner/run.go` (AC-6, AC-7), `internal/le/test/qemu/dockerlab.go` (AC-5), and the page that describes it.
+- None planned. A failing AC changes its producer: `internal/le/interoplab/orphans.go` (AC-1..AC-4), `internal/le/interoplab/docker.go` (AC-4, AC-5, AC-7), `internal/test/perfrunner/run.go` (AC-6, AC-7), `internal/le/test/qemu/dockerlab.go` (AC-5), `internal/le/test/deployment/vppiface.go`, `vppevidence.go` and `actions.go` (AC-8), and the page that describes it.
 - `plan/spec-lab-docker-cleanup-and-go-test-containers.md` - if the parent is still open when a result lands, its A-2, A-3 and A-5 rows name this spec's result; once the parent is closed, nothing.
 
 ## Files to Create
@@ -225,8 +240,8 @@ A defect found by an AC gets a failing unit test in the producer's package first
    - Tests: the four Wiring Test rows
    - Files: none
    - Verify: each named test exits 0 under `./le job run`
-2. **Phase: Mac run (the owner)** - AC-1, AC-2, AC-4, AC-7 on both daemons; AC-6 on the perf daemon; AC-5; AC-3 last, because it reboots the Mac.
-   - Tests: AC-1..AC-7
+2. **Phase: Mac run (the owner)** - AC-1, AC-2, AC-4, AC-7 on both daemons; AC-6 on the perf daemon; AC-5; AC-8 on the daemon R-6 names; AC-3 last, because it reboots the Mac.
+   - Tests: AC-1..AC-8
    - Files: this spec (pasted output)
    - Verify: each AC's pass condition, read from the pasted output
 3. **Phase: Fixes** - only for a failed AC: failing test first, fix at the producer, the owner reruns that AC.
@@ -244,6 +259,7 @@ A defect found by an AC gets a failing unit test in the producer's package first
 |-------------|---------------------|
 | A-2, A-3, A-5 each confirmed or broken on macOS | the Assumptions table here, each row naming its AC output |
 | Ctrl-C leaves nothing | AC-6 output pasted |
+| VPP proofs' Ctrl-C leaves nothing | AC-8 output pasted for `vpp-test` and `vpp-iface-test` |
 | FreeRtr builds with `--build-context` | AC-7 output pasted for both daemons |
 
 ### Security Review Checklist
@@ -294,7 +310,7 @@ A defect found by an AC gets a failing unit test in the producer's package first
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-7 all demonstrated
+- [ ] AC-1..AC-8 all demonstrated
 - [ ] Every user story has a working path and a passing test (N-A: Scope is tooling)
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] `./le verify worktree` passes, if a fix changed code
