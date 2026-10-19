@@ -489,3 +489,26 @@ the boot config via `storage.ReadActiveConfig`; storage-rir-restart.ci).
 | ui le-evidence-vpp-answers | `leEvidenceVPPAnswers` hard-codes 4 scenarios, `vppScenarios` has 5 (6d1d92b1f3) | real; derive the count from the registry |
 | ui le-checks-answers, runner le-derived-artifact-lifecycle, web chaos-stream-swaps, appliance crash-capture-panic-harvest-qemu | not read | undiagnosed |
 | exabgp api-eor, -flow-merge, -health, -peer-lifecycle, -rib, -rr, -rr-rib, -sr-policy, -vpls, -on-exit, -disable | spec-exabgp-6 phases 4, 5, 7 (api-disable is AC-41) | spec scope, not implemented |
+
+### Gate reds of the 9fe7a1cfe0 full verify: lint, compound-guard, iface-resolution, sensitivity, health (2026-10-19)
+
+Logs: `tmp/verify-worktree-logs/20261018T205642.765815094Z-p84123-r1-9fe7a1cfe04d/full-23745759/`
+stages 01, 04, 13, 31, 43. Each gate was rerun on the current HEAD.
+
+| Finding | Cause | State |
+|---------|-------|-------|
+| lint: `recoveryExcludes` and `recoveryEligibleLocked` slicescontains, `recoveryCommand` ST1005 usage error ending in `...` (rib_recovery.go) | f749025a61 | fixed 95fae5058f |
+| lint: `setLinkMTU` errorsastype (vpp/mtu.go) | 29a5fffb76 | fixed 95fae5058f |
+| lint: embedlit in iface config_create_leftover_test.go (5), reconcile_learned_integration_linux_test.go (2), netlink rpf_integration_linux_test.go (2) | fb84f9bd7e, 0d6d873f2b, 6d1d92b1f3 | fixed 95fae5058f |
+| lint: godot on the `parseAuthSecret` comment (bfd/config.go), whose RFC quote ends in a closing quote | 97686ea267 | fixed 95fae5058f |
+| lint: DHCP godot (10), minmax, unparam `newV4Rig`, unused `v6EndUnspecified` and `v6KindUnspecified` | DHCP session | fixed by that session (3f3202c50a, b9405b0b6d); scoped golangci-lint over iface/dhcp: 0 issues |
+| compound-guard: 16 `if a \|\| b { leave }` (relay_recovery x3, yang validator_instance x2 and validator_reference x4, ike engine config, dhcpserver options, iface/dhcp v4 x3 and v6, test/sim) | since pushed, so the gate no longer judges them | fixed db457cb3c2 |
+| compound-guard: `ASPathSetSegment` in internal/component/bgp/message/rfc9774.go | untracked file of the in-flight RFC 9774 work | still red: another session's uncommitted file |
+| lint: gocritic appendAssign x2 in reactor rfc9774_send_test.go (seen in a scoped lint of reactor) | untracked RFC 9774 work | still red: another session's uncommitted file |
+| iface-resolution: InterfaceByName in the dhcp_v4 and dhcp_v6 exchange files | DHCP session | fixed by 6b5c69ec11 (allowlisted with reasons); `./le arch iface-resolution` OK |
+| sensitivity: assert-nothing 115 > 114, TestSessionDownFollowsBufferedDeliveries | the detector did not follow a subtest passed to `t.Run` by name; 9886507d51 dispatches ten named subtests | fixed b8125bceb6 (named subtests followed one level, 3 selftest cases); check OK 114/114 |
+| health: structural facts changed without regeneration | committed test/health/latest.json is stale | green on the working tree only: test/health/latest.json and quality-baseline.json are uncommitted by another session, who owes their commit |
+| full `./le go lint run` on HEAD | three attempts refused: "lint inputs changed during planning" while other sessions edited | not re-proven whole-tree; scoped golangci-lint (linux with integration tag, and darwin) over every touched package: 0 issues in the edited files |
+
+`bin/le` was older than the sources during this pass: a gate rerun after an
+`internal/le` change needs `./le --update` or `./le --name <x>`.
