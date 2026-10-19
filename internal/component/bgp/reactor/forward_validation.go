@@ -338,8 +338,10 @@ func validationBuildWire(update *ReceivedUpdate, spans []relayAttrSpan, attrs, w
 	off += 2
 	// RFC 7606 Section 5.1: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if
 	// present) SHALL be encoded as the very first path attribute in an UPDATE
-	// message." The MP_UNREACH_NLRI this function adds therefore leads; a sourced
-	// MP_REACH_NLRI keeps its sender's position, as every relayed attribute does.
+	// message." The MP_UNREACH_NLRI this function adds therefore leads. A sourced
+	// MP_REACH_NLRI keeps its sender's position here, and buildFwdBody moves it
+	// first downstream when it trails (WireUpdate.MPAttributesTrail), as it does
+	// for every relayed UPDATE.
 	//
 	//	+0 flags(1) type=15(1) length(1|2) | AFI(2) SAFI(1) | withdrawn NLRI
 	if len(mpWithdraw) > 0 {

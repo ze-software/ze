@@ -212,9 +212,10 @@ func buildCombinedUpdates(
 	//
 	// So each component is emitted into its OWN message rather than combined. The order is
 	// load-bearing in two ways: withdrawals precede announcements (a peer must not briefly
-	// see a stale route re-announced), and MP_UNREACH precedes MP_REACH, which is ze's
-	// deliberate Section 5.1 FIRST-bullet divergence documented in
-	// docs/architecture/wire/mp-nlri-ordering.md and left untouched here.
+	// see a stale route re-announced), and MP_UNREACH precedes MP_REACH, the order Ze
+	// composes (docs/architecture/wire/mp-nlri-ordering.md). Each message carries one MP
+	// attribute at most, and buildUpdatePayload writes it as the first path attribute, as
+	// the Section 5.1 first bullet requires.
 	//
 	// baseAttrs rides only with the announce-bearing messages, because buildUpdatePayload
 	// omits it when there are no announces. (That also matches what IsEndOfRIBAnyFamily

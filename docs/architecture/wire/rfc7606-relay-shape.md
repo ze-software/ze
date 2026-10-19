@@ -19,8 +19,9 @@ split on shape as well as on size.
 Requirement ids: `RFC7606-5.1-2` (the sender obligation this page covers) and
 `RFC7606-5.1-3` (the receiver obligation). Checklist: `rfc/short/rfc7606.md`.
 
-The first requirement of that section, `RFC7606-5.1-1`, is a recorded and
-publicly disclosed divergence. See `docs/architecture/wire/mp-nlri-ordering.md`.
+The first requirement of that section, `RFC7606-5.1-1`, puts the MP attribute
+first. Ze composes and relays UPDATEs that way; see
+`docs/architecture/wire/mp-nlri-ordering.md`.
 
 ## The decisions
 
