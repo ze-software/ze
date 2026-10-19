@@ -312,7 +312,7 @@ func (s Suite) prepareImages(ctx context.Context) ([]ImageResult, map[string]str
 			continue
 		}
 		if build.Pull {
-			err := s.Docker.Pull(ctx, build.Tag)
+			err := s.Docker.Pull(ctx, build.Tag, 0)
 			if err == nil {
 				result := ImageResult{Name: build.Name, Tag: build.Tag, Reference: build.Tag}
 				results = append(results, result)

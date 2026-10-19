@@ -396,6 +396,11 @@ func look(names ...string) error {
 	return nil
 }
 
+// deploymentPullTimeout bounds a proof's peer image pull: a VPP or xl2tpd
+// image runs to gigabytes, longer than the wrapper's default allows on a slow
+// link.
+const deploymentPullTimeout = 15 * time.Minute
+
 // ensureImage pulls image when the local daemon does not already hold it.
 //
 // The inspect comes first so that a run on a machine with no network still
@@ -414,7 +419,7 @@ func ensureImage(ctx context.Context, docker *interoplab.Docker, image string, p
 		var tb textbuf.Buffer
 		io.WriteString(progress, tb.Str("pulling ").Str(image).Str("...\n").String()) //nolint:errcheck // progress output
 	}
-	return docker.Pull(ctx, image)
+	return docker.Pull(ctx, image, deploymentPullTimeout)
 }
 
 // removeContainer takes the proof's container down on a context the run's

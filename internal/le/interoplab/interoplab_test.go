@@ -887,3 +887,29 @@ func assertOrder(t *testing.T, text string, needles ...string) {
 // fixtureLabelText is the owner label argv newDocker's fixture owner adds to
 // every create command, as recordedCommands joins it.
 func fixtureLabelText() string { return strings.Join(fixtureOwner().labelArguments(), " ") }
+
+// VALIDATES: a caller's pull bound only ever lengthens the wrapper default:
+// zero and a shorter bound keep dockerPullTimeout, a longer one is used.
+// PREVENTS: a caller shortening every pull on a slow mirror, or a large image
+// that needs more than the default being refused its longer bound (D-3).
+func TestPullBoundOnlyLengthensTheDefault(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		bound time.Duration
+		want  time.Duration
+	}{
+		{name: "no caller bound", bound: 0, want: dockerPullTimeout},
+		{name: "shorter than the default", bound: time.Minute, want: dockerPullTimeout},
+		{name: "longer than the default", bound: 15 * time.Minute, want: 15 * time.Minute},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runner := &recordingRunner{}
+			if err := newDocker(runner).Pull(t.Context(), "frr:10", tc.bound); err != nil {
+				t.Fatalf("Pull: %v", err)
+			}
+			if got := runner.commands[0].Timeout; got != tc.want {
+				t.Errorf("pull bound = %s, want %s", got, tc.want)
+			}
+		})
+	}
+}

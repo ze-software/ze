@@ -436,8 +436,12 @@ func (d *Docker) ReleaseImage(ctx context.Context, image ImageResult) error {
 }
 
 // Pull makes one external image available before the scenarios start.
-func (d *Docker) Pull(ctx context.Context, image string) error {
-	_, err := d.command(ctx, dockerPullTimeout, DockerExecutable, "pull", "-q", image)
+// boundMin only ever lengthens the wrapper's dockerPullTimeout: zero or a
+// shorter bound keeps the default, so no caller can make a pull on a slow
+// mirror fail sooner than every other pull would.
+func (d *Docker) Pull(ctx context.Context, image string, boundMin time.Duration) error {
+	bound := max(boundMin, dockerPullTimeout)
+	_, err := d.command(ctx, bound, DockerExecutable, "pull", "-q", image)
 	return err
 }
 

@@ -283,7 +283,7 @@ func (runner *Runner) buildImages(ctx context.Context, duts []DUT) {
 		}
 		say(runner.Stdout, "Building ", dut.Name, " image...")
 		if dut.Name == dutFRR {
-			if err := runner.Docker.Pull(ctx, dut.Image); err != nil {
+			if err := runner.Docker.Pull(ctx, dut.Image, 0); err != nil {
 				say(runner.Stderr, "  warning: ", dut.Name, " image pull failed: ", err.Error())
 			}
 			continue
