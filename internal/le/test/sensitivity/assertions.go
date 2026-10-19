@@ -413,7 +413,8 @@ func (s scope) withTesting(extra map[string]bool) scope {
 // canFail reports whether the body contains a reachable call that can fail the
 // test. ast.Inspect descends into function literals, so subtests registered
 // with t.Run and callbacks passed to t.Cleanup are covered without special
-// cases.
+// cases. A subtest passed to t.Run by name is followed by
+// namedSubtestCanFail.
 //
 // depth bounds helper following; 1 means "follow helpers one level", which is
 // where the cost and benefit of this detector sit. sc.testing holds the
@@ -457,7 +458,10 @@ func canFail(body *ast.BlockStmt, sc scope, depth int) bool {
 func callCanFail(call *ast.CallExpr, sc scope, depth int) bool {
 	switch fun := call.Fun.(type) {
 	case *ast.SelectorExpr:
-		return selectorCanFail(fun, sc, depth)
+		if selectorCanFail(fun, sc, depth) {
+			return true
+		}
+		return namedSubtestCanFail(fun, call.Args, sc, depth)
 	case *ast.Ident:
 		if fun.Name == "panic" {
 			return true
@@ -467,6 +471,43 @@ func callCanFail(call *ast.CallExpr, sc scope, depth int) bool {
 				canFail(helper.decl.Body, sc.inHelperFile(helper), depth-1) {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+// namedSubtestCanFail reports whether `t.Run(name, fn)` registers a subtest
+// that can fail the test, where fn is a package function passed by name. A
+// function literal needs no such step, because ast.Inspect descends into it;
+// a name is only an identifier to the walk, so without this a Test that only
+// dispatches named subtests read as asserting nothing. The subtest is
+// followed like a helper, one level of depth, which also bounds a subtest
+// that registers itself.
+func namedSubtestCanFail(fun *ast.SelectorExpr, args []ast.Expr, sc scope, depth int) bool {
+	if fun.Sel.Name != "Run" {
+		return false
+	}
+	if depth == 0 {
+		return false
+	}
+	receiver, isIdent := fun.X.(*ast.Ident)
+	if !isIdent {
+		return false
+	}
+	if !sc.testing[receiver.Name] {
+		return false
+	}
+	for _, arg := range args {
+		name, isName := arg.(*ast.Ident)
+		if !isName {
+			continue
+		}
+		helper, known := sc.pkgFuncs[name.Name]
+		if !known {
+			continue
+		}
+		if canFail(helper.decl.Body, sc.inHelperFile(helper), depth-1) {
+			return true
 		}
 	}
 	return false

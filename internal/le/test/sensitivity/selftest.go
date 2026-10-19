@@ -41,7 +41,7 @@ type assertCase struct {
 }
 
 // assertCases pins the assert-nothing detector. Each entry states one property,
-// and the last fourteen are regressions for defects found in review: each was a
+// and the last seventeen are regressions for defects found in review: each was a
 // live false positive or false negative before its fix.
 var assertCases = []assertCase{
 	{"direct t.Fatal counts as a failure path", `package p
@@ -161,6 +161,18 @@ func TestA(t *testing.T) { types.New() }`, 1},
 	{"a real assertion library still counts", `package p
 import ("testing"; "github.com/stretchr/testify/assert")
 func TestA(t *testing.T) { assert.Equal(t, 1, 1) }`, 0},
+	{"a subtest passed to t.Run by name is followed", `package p
+import "testing"
+func checkA(t *testing.T) { t.Fatal("x") }
+func TestA(t *testing.T) { t.Run("a", checkA) }`, 0},
+	{"a named subtest that cannot fail credits nothing", `package p
+import "testing"
+func logA(t *testing.T) { t.Log("x") }
+func TestA(t *testing.T) { t.Run("a", logA) }`, 1},
+	{"a named subtest that registers itself ends the walk", `package p
+import "testing"
+func again(t *testing.T) { t.Run("again", again) }
+func TestA(t *testing.T) { t.Run("a", again) }`, 1},
 }
 
 // crossCases pin the one-level follow into another first-party package. They
