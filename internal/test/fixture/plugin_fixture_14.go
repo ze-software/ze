@@ -612,14 +612,30 @@ func plugin14AssertRouteValidation(ctx context.Context, plugin *sdk.Plugin, pref
 	return nil
 }
 
+// plugin14RPKIAsSet proves an AS_SET route never reaches RPKI validation.
+//
+// RFC 9774 Section 3: BGP speakers "MUST use the "treat-as-withdraw" error
+// handling behavior per [RFC7606] upon reception of BGP UPDATE messages
+// containing AS_SETs or AS_CONFED_SETs in the AS_PATH or AS4_PATH". The peer
+// sends the AS_SET route 10.0.1.0/24 first and the AS_SEQUENCE sentinel
+// 10.0.2.0/24 after it on the same session, so once the sentinel is validated
+// the AS_SET UPDATE has been handled, and its route MUST be absent rather than
+// retained and judged Invalid.
 func plugin14RPKIAsSet(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := plugin14WaitRPKIReady(ctx, plugin); err != nil {
 		return err
 	}
-	if err := plugin14AssertRouteValidation(ctx, plugin, "10.0.1.0/24", 3, true, "AS_SET validation"); err != nil {
+	if err := plugin14AssertRouteValidation(ctx, plugin, "10.0.2.0/24", 1, false, "AS_SEQUENCE sentinel"); err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stderr, "OK: route with AS_SET correctly rejected (OriginNone -> Invalid)")
+	status, value, err := plugin14Dispatch(ctx, plugin, plugin14AdjRIBInCommand)
+	if err != nil || status != rpc.StatusDone {
+		return fmt.Errorf("%s failed after the sentinel was validated: status=%q err=%v", plugin14AdjRIBInCommand, status, err)
+	}
+	if route := plugin14FindRoute(value, "10.0.1.0/24"); route != nil {
+		return fmt.Errorf("AS_SET route 10.0.1.0/24 retained in adj-rib-in; RFC 9774 Section 3 requires treat-as-withdraw: %v", route)
+	}
+	fmt.Fprintln(os.Stderr, "OK: route with AS_SET treated as withdraw and never validated (RFC 9774 Section 3)")
 	return nil
 }
 
