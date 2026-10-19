@@ -36,7 +36,7 @@ cmd=api:conn=1:seq=1:text=route-driver announces the labeled prefix
 # strip it and left this expectation encoding the old, non-conformant output; the
 # hex below is what ze now sends, corrected 2026-08-02. A test that pins a
 # violation is the violation with a green bar on top (ai/rules/rfc-compliance.md).
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000274001010040020602010000FDE94003040A000002800E10000104040A0000020030003E810A0100
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E0200000027800E10000104040A0000020030003E810A01004001010040020602010000FDE94003040A000002
 EOF_PEER
 
 # Native route driver announces the labeled prefix after initial-sync EOR.

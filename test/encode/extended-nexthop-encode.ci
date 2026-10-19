@@ -4,10 +4,10 @@
 # a four-octet AFI2 field and a reverse capability5 tuple do not define it.
 stdin=peer:terminator=EOF_PEER
 cmd=api:conn=1:seq=1:text=send bgp * update text origin igp local-preference 100 nhop bad:cafe:bad:cafe:bad:cafe:bad:cafe mp ipv4/unicast add 153.153.153.153/32
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0042020000002B4001010040020040050400000064800E1A000101100BADCAFE0BADCAFE0BADCAFE0BADCAFE002099999999
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0042020000002B800E1A000101100BADCAFE0BADCAFE0BADCAFE0BADCAFE0020999999994001010040020040050400000064
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["153.153.153.153/32"],"next-hop":"bad:cafe:bad:cafe:bad:cafe:bad:cafe"}]}
 cmd=api:conn=1:seq=1:text=send bgp * update text origin igp local-preference 100 nhop ::ffff:170.170.170.170 mp ipv6/unicast add dead:beef:dead:beef:dead:beef:dead:beef/128
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E02000000374001010040020040050400000064800E260002011000000000000000000000FFFFAAAAAAAA0080DEADBEEFDEADBEEFDEADBEEFDEADBEEF
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E0200000037800E260002011000000000000000000000FFFFAAAAAAAA0080DEADBEEFDEADBEEFDEADBEEFDEADBEEF4001010040020040050400000064
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":100,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["dead:beef:dead:beef:dead:beef:dead:beef/128"],"next-hop":"::ffff:170.170.170.170"}]}
 cmd=api:conn=1:seq=1:text=send bgp * update text nlri eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000

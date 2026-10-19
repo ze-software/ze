@@ -25,7 +25,7 @@
 stdin=peer1:terminator=EOF_PEER1
 option=tcp_connections:value=1
 option=timeout:value=15s
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0035020000001E4001010240020040050400000064800E0D000102047F0000040018E00101
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0035020000001E800E0D000102047F0000040018E001014001010240020040050400000064
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","origin":"incomplete","local-preference":100,"ipv4/multicast":[{"action":"add","nlri":["224.1.1.0/24"],"next-hop":"127.0.0.4"}]}
 EOF_PEER1
 
@@ -38,7 +38,7 @@ stdin=peer2:terminator=EOF_PEER2
 option=tcp_connections:value=1
 option=timeout:value=15s
 option=open:value=router-id:id=1.2.3.6
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0035020000001E4001010240020040050400000064800E0D000102047F0000050018E00101
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0035020000001E800E0D000102047F0000050018E001014001010240020040050400000064
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.2","remote":{"as":65533}},"direction":"in","origin":"incomplete","local-preference":100,"ipv4/multicast":[{"action":"add","nlri":["224.1.1.0/24"],"next-hop":"127.0.0.5"}]}
 EOF_PEER2
 

@@ -17,7 +17,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 # shorter. The `nhop` on the command line is still parsed and still reaches the
 # encoder; the family is what refuses to put it on the wire
 # (family.NeedsNextHop, internal/core/family/family.go).
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0044020000002D4001010040020040050400000064800E1100018500000B0118C00002038106058150C010088006000046160000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0044020000002D800E1100018500000B0118C000020381060581504001010040020040050400000064C010088006000046160000
 EOF_PEER
 
 # Plugin script sends the responder's rendered announce command.
