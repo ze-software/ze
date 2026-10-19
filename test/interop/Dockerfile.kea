@@ -1,0 +1,19 @@
+# Kea DHCPv6 server (kea-dhcp6) for interoperability testing of ze's DHCPv6
+# client. Alpine ships Kea in its community repository.
+#
+# iproute2 is present so a checker can read the container's interface state
+# over `docker exec`. tini forwards the SIGTERM that stops the server.
+#
+# Every start deletes the persisted server DUID, so Kea generates a new one: a
+# checker that stops and starts the container changes the server's identity
+# while the memfile lease database, which lives in the container and not in a
+# mount, keeps the lease. The pid file is removed too, because the container's
+# file system outlives the process that wrote it.
+
+FROM alpine:3.21
+
+RUN apk add --no-cache kea-dhcp6 iproute2 tini && mkdir -p /var/lib/kea /run/kea
+
+ENV KEA_LOCKFILE_DIR=none
+
+ENTRYPOINT ["tini", "--", "/bin/sh", "-c", "rm -f /var/lib/kea/kea-dhcp6-serverid /run/kea/*.pid && exec kea-dhcp6 -c /etc/kea/kea-dhcp6.conf"]

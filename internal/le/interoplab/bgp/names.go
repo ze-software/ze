@@ -26,6 +26,7 @@ const (
 	peerPMACCT     = "pmacct"
 	peerDnsmasq    = "dnsmasq"
 	peerDnsmasqB   = "dnsmasq-b"
+	peerKea        = "kea"
 )
 
 // Programs a scenario runs inside a peer container. cmdGoBGP has the spelling
@@ -722,4 +723,14 @@ const (
 	dnsmasqBHostNumber  = uint8(21)
 	dhcpLeasedAddress   = "172.30.0.50"
 	dhcpReservedAddress = "172.30.0.51"
+)
+
+// The DHCPv6 scenario's Kea sidecar: the file that selects it and the last
+// byte of its lab addresses. Its pool holds one address, host
+// keaLeasedHostNumber of the lab's IPv6 /64, so the lease ze holds is known
+// before the run.
+const (
+	keaConfigFile       = "kea-dhcp6.conf"
+	keaHostNumber       = uint8(22)
+	keaLeasedHostNumber = uint8(0x50)
 )

@@ -79,7 +79,7 @@ func checkScenario(ctx context.Context, check *interoplab.CheckContext, name str
 }
 func checkerFailure(ctx context.Context, lab interoplab.CheckerLab, name string, assertion int, cause error) error {
 	var diagnostics textbuf.Buffer
-	for _, peer := range []string{"ze", peerFRR, peerFRRSink, peerFRRTransit, peerBIRD, peerGoBGP, peerInject, peerSpeaker, peerSpeaker2, peerPMACCT, peerDnsmasq, peerDnsmasqB} {
+	for _, peer := range []string{"ze", peerFRR, peerFRRSink, peerFRRTransit, peerBIRD, peerGoBGP, peerInject, peerSpeaker, peerSpeaker2, peerPMACCT, peerDnsmasq, peerDnsmasqB, peerKea} {
 		logs, err := lab.Logs(ctx, peer, 80)
 		if err != nil {
 			continue
