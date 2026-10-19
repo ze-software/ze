@@ -51,7 +51,7 @@ func executeCommand(command Command) int {
 	if len(command.Args) == 0 {
 		return 127
 	}
-	process := exec.CommandContext(context.Background(), command.Args[0], command.Args[1:]...) // #nosec G204 -- Command.Args[0] is limited to this package's fixed Docker and ffmpeg renderer commands.
+	process := exec.CommandContext(context.Background(), command.Args[0], command.Args[1:]...) // #nosec G204 -- Command.Args[0] is limited to this package's fixed ffmpeg and Go toolchain commands.
 	process.Dir = command.Dir
 	if command.Env != nil {
 		process.Env = command.Env
@@ -94,9 +94,19 @@ func (e *Engine) BuildImage() (Report, error) {
 	if _, err := e.lookup(dockerProgram); err != nil {
 		return report, errors.New("docker is required to build the terminal-demo renderer image")
 	}
-	args := []string{dockerProgram, dockerCommandBuild, "-f", filepath.Join(e.demoRoot, "Dockerfile"), "-t", image, e.demoRoot}
-	if code := e.execute(e.externalCommand(args, e.root)); code != 0 {
-		return report, commandFailure{code: code, args: args}
+	var progress textbuf.Buffer
+	io.WriteString(e.output, progress.Str("building ").Str(image).Str(" from demos/terminal/Dockerfile...\n").String()) //nolint:errcheck // progress output
+	built, err := e.docker.Build(e.ctx, interoplab.ImageBuild{
+		Name: "terminal-demo renderer", Tag: image,
+		Dockerfile: filepath.Join(e.demoRoot, "Dockerfile"), Context: e.demoRoot,
+	})
+	if err != nil {
+		return report, fmt.Errorf("build the renderer image %s: %w", image, err)
+	}
+	// Build tags a run-owned name beside image; the manifest's tag is the
+	// one the recorder runs, so the run-owned one goes now.
+	if err := e.docker.ReleaseImage(context.WithoutCancel(e.ctx), built); err != nil {
+		return report, fmt.Errorf("release the build tag of %s: %w", image, err)
 	}
 	return report, nil
 }
@@ -113,10 +123,11 @@ func (e *Engine) requireRendererImage(manifest Manifest) error {
 	if _, err := e.lookup(dockerProgram); err != nil {
 		return errors.New("docker is required to record a terminal demo")
 	}
-	command := e.externalCommand([]string{dockerProgram, dockerCommandImage, "inspect", image}, e.root)
-	command.Stdout = io.Discard
-	command.Stderr = io.Discard
-	if code := e.execute(command); code != 0 {
+	present, err := e.docker.ImagePresent(e.ctx, image)
+	if err != nil {
+		return fmt.Errorf("check the renderer image %s: %w", image, err)
+	}
+	if !present {
 		var buffer textbuf.Buffer
 		return errors.New(buffer.Str("the renderer image ").Str(image).
 			Str(" is not built on this host; run: le site terminal-demo image-build").String())
@@ -124,9 +135,10 @@ func (e *Engine) requireRendererImage(manifest Manifest) error {
 	return nil
 }
 
-// externalCommand runs Docker or ffmpeg as a child of this process. The child
-// inherits an environment, never the operator's Docker context, so on macOS the
-// daemon socket is named here (`internal/le/dockerhost`).
+// externalCommand runs ffmpeg as a child of this process. Every Docker
+// operation goes through e.docker instead. The child inherits an environment,
+// never the operator's Docker context, so on macOS the daemon socket is named
+// here (`internal/le/dockerhost`).
 func (e *Engine) externalCommand(args []string, dir string) Command {
 	return Command{Args: args, Dir: dir, Env: dockerhost.Inherited(), Stdout: e.output, Stderr: e.output}
 }

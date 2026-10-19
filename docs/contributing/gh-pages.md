@@ -27,8 +27,15 @@ stays beside the worktree.
 A recording runs in a container this repository builds and publishes to no
 registry, so build it once per checkout with `./le site terminal-demo image-build`.
 It reads the image tag from `demos/terminal/manifest.json`, which is the tag the
-recorder runs. A render refuses to start when that image is absent and names
-this action. Rebuild after any change to `demos/terminal/Dockerfile`.
+recorder runs. The build goes through the lab's `interoplab.Docker.Build`, so
+it carries the owner labels and runs `docker build -q`: the action prints one
+progress line, not the build log, and a failure carries Docker's stderr. The
+run-owned tag the wrapper adds beside the manifest's is released when the build
+ends. A render asks the daemon through `Docker.ImagePresent` and refuses to
+start when that image is absent, naming this action; an inspect the daemon
+does not answer is reported as that failure, never as an unbuilt image.
+Rebuild after any change to `demos/terminal/Dockerfile`.
+<!-- source: internal/le/site/terminaldemo/render.go -- Engine.BuildImage, Engine.requireRendererImage -->
 
 Before that, a render, like the renderer's `validate` mode, checks the Docker
 daemon's kernel with the demo `ze`, and

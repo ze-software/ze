@@ -44,16 +44,14 @@ const (
 	dockerEnvironmentToken = "--env"
 )
 
-// The words this package drives two other programs with, and the manifest key
-// that happens to share a spelling with one of them. Each names one thing, so a
-// rename of any of them must not move the others: goCommandBuild is a Go
-// toolchain subcommand, dockerCommandBuild and dockerCommandImage are Docker
-// subcommands, and imageLabel is a field of demos/terminal/manifest.json.
+// The word this package drives the Go toolchain with, and the manifest key
+// that happens to share a spelling with a Docker subcommand. Each names one
+// thing, so a rename of one must not move the other: goCommandBuild is a Go
+// toolchain subcommand, and imageLabel is a field of
+// demos/terminal/manifest.json. Docker's own words live in interoplab.Docker.
 const (
-	goCommandBuild     = "build"
-	dockerCommandBuild = "build"
-	dockerCommandImage = "image"
-	imageLabel         = "image"
+	goCommandBuild = "build"
+	imageLabel     = "image"
 )
 
 // Command is one external renderer or media invocation. Args includes argv[0].
@@ -66,8 +64,9 @@ type Command struct {
 }
 
 // Executor runs one external command and returns its process exit code.
-// The renderer invokes Docker, ffmpeg, and the Go toolchain because those
-// external implementations are the behavior these gates exercise.
+// The renderer invokes ffmpeg and the Go toolchain through it, because those
+// external implementations are the behavior these gates exercise; every
+// Docker operation goes through interoplab.Docker instead.
 type Executor func(Command) int
 
 // PathLookup resolves a required host binary.

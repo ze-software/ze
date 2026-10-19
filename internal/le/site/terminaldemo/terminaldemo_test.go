@@ -172,6 +172,9 @@ type demoFixture struct {
 	// missingImage is the exit code `docker image inspect` answers with, so a
 	// case can model a host where the renderer image was never built.
 	missingImage int
+	// daemonDown makes `docker image inspect` fail the way a daemon that does
+	// not answer does, which is not the daemon saying the image is absent.
+	daemonDown bool
 	// failImageBuild is the exit code `docker build` answers with.
 	failImageBuild int
 	// kernelChecked records the binary each Docker kernel check probed with.
@@ -271,6 +274,18 @@ func (f *demoFixture) Run(ctx context.Context, command interoplab.ProcessCommand
 		return interoplab.ProcessResult{ExitCode: 124}, err
 	}
 	code := f.execute(Command{Args: command.Arguments, Dir: command.Directory, Env: command.Environment, Stdout: command.Stdout, Stderr: command.Stderr})
+	args := command.Arguments
+	if f.daemonDown && len(args) >= 3 && args[1] == "image" && args[2] == "inspect" {
+		return interoplab.ProcessResult{ExitCode: 1, Stderr: "Cannot connect to the Docker daemon at unix:///var/run/docker.sock"}, nil
+	}
+	// The wrapper reads absence from the daemon's own words, and a build's
+	// image id from its quiet stdout, so the fixture answers in both.
+	if code != 0 && len(args) >= 3 && args[1] == "image" && args[2] == "inspect" {
+		return interoplab.ProcessResult{ExitCode: code, Stderr: "Error: No such image: " + args[len(args)-1]}, nil
+	}
+	if code == 0 && len(args) >= 2 && args[1] == "build" {
+		return interoplab.ProcessResult{Stdout: "sha256:fixture-renderer\n"}, nil
+	}
 	return interoplab.ProcessResult{ExitCode: code}, nil
 }
 
@@ -302,6 +317,10 @@ func (f *demoFixture) execute(command Command) int {
 	// image is built. The fixture image is, unless a case says otherwise.
 	if len(command.Args) >= 3 && command.Args[1] == "image" && command.Args[2] == "inspect" {
 		return f.missingImage
+	}
+	// `docker image rm` drops the run-owned tag a build retains.
+	if len(command.Args) >= 3 && command.Args[1] == "image" && command.Args[2] == "rm" {
+		return 0
 	}
 	// `docker build` writes no artifact this fixture publishes; the test that
 	// covers it reads the argv.
@@ -752,15 +771,22 @@ func TestBuildImageTagsTheImageTheManifestNames(t *testing.T) {
 	if report.Mode != rendererImageBuildMode {
 		t.Errorf("report = %#v, want mode %q", report, rendererImageBuildMode)
 	}
-	if len(fixture.commands) != 1 {
-		t.Fatalf("commands = %d, want the build alone: %#v", len(fixture.commands), fixture.commands)
+	// interoplab.Docker.Build tags a run-owned name beside the manifest's, and
+	// ReleaseImage drops it, so the shared tag is all the build leaves behind.
+	if len(fixture.commands) != 2 {
+		t.Fatalf("commands = %d, want the build and its release: %#v", len(fixture.commands), fixture.commands)
 	}
-	assertSubsequence(t, fixture.commands[0].Args, []string{
-		"docker", "build",
-		"-f", filepath.Join(fixture.root, "demos", "terminal", "Dockerfile"),
+	build := fixture.commands[0].Args
+	assertSubsequence(t, build, []string{
+		"docker", "build", "--label",
 		"-t", "fixture-renderer:3",
+		"-f", filepath.Join(fixture.root, "demos", "terminal", "Dockerfile"),
 		filepath.Join(fixture.root, "demos", "terminal"),
 	})
+	assertSubsequence(t, fixture.commands[1].Args, []string{"docker", "image", "rm", "--no-prune"})
+	if fixture.commands[1].Args[len(fixture.commands[1].Args)-1] == "fixture-renderer:3" {
+		t.Errorf("the release removed the manifest's tag: %v", fixture.commands[1].Args)
+	}
 }
 
 // VALIDATES: a failed image build is reported with the argv that failed, and its
@@ -778,7 +804,7 @@ func TestBuildImageReportsTheArgvThatFailed(t *testing.T) {
 	if report.Mode != rendererImageBuildMode {
 		t.Errorf("report = %#v, want mode %q", report, rendererImageBuildMode)
 	}
-	if !strings.Contains(err.Error(), "fixture-renderer:3") || !strings.Contains(err.Error(), "code 7") {
+	if !strings.Contains(err.Error(), "fixture-renderer:3") || !strings.Contains(err.Error(), "exit 7") {
 		t.Errorf("error = %v, want the exit code and the tag it refused", err)
 	}
 }
@@ -797,6 +823,28 @@ func TestRenderRefusesAnUnbuiltRendererImage(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "le site terminal-demo image-build") {
 		t.Errorf("error = %v, want the action that builds the image", err)
+	}
+	if len(fixture.commands) != 1 {
+		t.Errorf("commands = %d, want the image check alone: %#v", len(fixture.commands), fixture.commands)
+	}
+}
+
+// VALIDATES: an image check the daemon does not answer is reported as that
+// failure, and the run stops before any validator.
+// PREVENTS: a stopped daemon read as "the image is not built", which sends the
+// operator to rebuild an image that is already there.
+func TestRenderReportsAnImageCheckTheDaemonDidNotAnswer(t *testing.T) {
+	fixture := newDemoFixture(t)
+	fixture.daemonDown = true
+	_, err := fixture.engine(&bytes.Buffer{}).RenderAll("26.10.19")
+	if err == nil {
+		t.Fatal("a render whose image check failed was accepted")
+	}
+	if strings.Contains(err.Error(), "image-build") {
+		t.Errorf("error = %v, a daemon that did not answer was read as an unbuilt image", err)
+	}
+	if !strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
+		t.Errorf("error = %v, want the daemon's own answer", err)
 	}
 	if len(fixture.commands) != 1 {
 		t.Errorf("commands = %d, want the image check alone: %#v", len(fixture.commands), fixture.commands)
