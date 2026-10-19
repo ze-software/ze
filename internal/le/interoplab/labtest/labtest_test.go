@@ -116,7 +116,7 @@ func fixtureHost(runner *scriptedRunner, docker bool, environment map[string]str
 func fixtureSpec() Spec {
 	return Spec{
 		Name: "stayrtr", Image: "rpki/stayrtr:latest", Command: []string{"-bind", ":3323"},
-		Port: 3323, Ready: func(context.Context, netip.AddrPort) error { return nil },
+		Port: interoplab.TCPPort(3323), Ready: func(context.Context, netip.AddrPort) error { return nil },
 		ReadyTimeout: time.Second, LogLines: 50,
 	}
 }
@@ -233,7 +233,7 @@ func TestLabtestRunsNoKernelCheck(t *testing.T) {
 		t.Fatalf("docker verbs = %v, want exactly %v", runner.verbs(), want)
 	}
 	run := strings.Join(runner.commands[2], " ")
-	for _, want := range []string{"--name ze-labtest-stayrtr-fixture", "-p 127.0.0.1::3323", "ze.lab"} {
+	for _, want := range []string{"--name ze-labtest-stayrtr-fixture", "-p 127.0.0.1::3323/tcp", "ze.lab"} {
 		if !strings.Contains(run, want) {
 			t.Errorf("run argv %q lacks %q", run, want)
 		}
@@ -302,7 +302,8 @@ func TestLabtestRefusesAnUnusableSpec(t *testing.T) {
 		"log lines 0":    func(s *Spec) { s.LogLines = 0 },
 		"log lines 1001": func(s *Spec) { s.LogLines = 1001 },
 		"no image":       func(s *Spec) { s.Image = "" },
-		"port 0":         func(s *Spec) { s.Port = 0 },
+		"port 0":         func(s *Spec) { s.Port.Number = 0 },
+		"no transport":   func(s *Spec) { s.Port.Transport = interoplab.TransportUnspecified },
 		"no ready":       func(s *Spec) { s.Ready = nil },
 		"ready timeout":  func(s *Spec) { s.ReadyTimeout = 0 },
 		"no name":        func(s *Spec) { s.Name = "" },

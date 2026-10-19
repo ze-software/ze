@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 // proofImage is the server image; the orphan test uses the same one.
@@ -54,7 +56,7 @@ func TestLabtestStartsServerAndCleansUp(t *testing.T) {
 	name := "proof-" + strconv.Itoa(os.Getpid())
 	t.Run("start", func(t *testing.T) {
 		address := Start(t, Spec{
-			Name: name, Image: proofImage, Port: 8080,
+			Name: name, Image: proofImage, Port: interoplab.TCPPort(8080),
 			Command: []string{"sh", "-c", "while true; do echo " + proofGreeting + " | nc -l -p 8080; done"},
 			Ready:   greetingReady, ReadyTimeout: 60 * time.Second, LogLines: 50,
 		})

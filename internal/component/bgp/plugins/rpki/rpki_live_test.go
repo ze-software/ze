@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/interoplab/labtest"
 )
 
@@ -33,7 +34,7 @@ func startStayRTR(t *testing.T, name string) uint16 {
 	address := labtest.Start(t, labtest.Spec{
 		Name: name, Image: stayrtrImage,
 		Command: []string{"-cache", rpkiDataURL, "-bind", ":3323"},
-		Port:    3323, Ready: labtest.TCPReady, ReadyTimeout: 60 * time.Second, LogLines: stayrtrLogLines,
+		Port:    interoplab.TCPPort(3323), Ready: labtest.TCPReady, ReadyTimeout: 60 * time.Second, LogLines: stayrtrLogLines,
 	})
 	return address.Port()
 }
@@ -202,7 +203,7 @@ func TestLiveASPAValidation(t *testing.T) {
 		Name: "rpki-aspa", Image: stayrtrImage,
 		Command: []string{"-cache", "http://" + cacheHost + ":" + httpPort + "/rpki.json",
 			"-bind", ":3324", "-checktime=false"},
-		Port: 3324, HostNetwork: !isDockerDesktop(),
+		Port: interoplab.TCPPort(3324), HostNetwork: !isDockerDesktop(),
 		Ready: labtest.TCPReady, ReadyTimeout: 30 * time.Second, LogLines: stayrtrLogLines,
 	})
 	rtrPort := address.Port()

@@ -2249,11 +2249,16 @@ client, starts it with `labtest.Start(t, spec)` from
 `Start` pulls the image, starts one labeled container through
 `Docker.RunDetached` (so a sweep removes it when the test binary is killed),
 answers the host address the server listens on, and returns only once
-`Spec.Ready` accepts that address. The container either publishes `Spec.Port`
-on the host loopback at a port the daemon picks (`Docker.PublishedPort` reads
-which), or runs on the host network (`Spec.HostNetwork`) where it listens on
-`127.0.0.1:Port` and reaches a listener the test opened. `t.Cleanup` writes the
-log tail of a failed test, then removes the container.
+`Spec.Ready` accepts that address. `Spec.Port` names the container port with
+its transport, `interoplab.TCPPort(3323)` or `interoplab.UDPPort(123)`, and a
+port with no transport is refused before any docker command runs. The
+container either publishes that port on the host loopback at a port the daemon
+picks (`Docker.PublishedPort` reads which, under the same transport), or runs
+on the host network (`Spec.HostNetwork`) where it listens on `127.0.0.1:Port`
+and reaches a listener the test opened. `Spec.Entrypoint` replaces the image's
+entry point, for an image whose entry point writes its own configuration and
+ignores the command. `t.Cleanup` writes the log tail of a failed test, then
+removes the container.
 
 | Machine state | What the test does |
 |---------------|--------------------|
@@ -2268,7 +2273,7 @@ feature belongs in an `interoplab.Suite` lab. Only a `_test.go` file, or tooling
 under `internal/le`, imports `labtest` (`./le arch tier check`,
 `docs/architecture/module-tiers.md`).
 <!-- source: internal/le/interoplab/labtest/labtest.go -- Start, start, host.release -->
-<!-- source: internal/le/interoplab/container.go -- DetachedContainer.PublishedPorts, Docker.PublishedPort -->
+<!-- source: internal/le/interoplab/container.go -- DetachedContainer.PublishedPorts, ContainerPort, Docker.PublishedPort -->
 
 ### Debugging Failures
 

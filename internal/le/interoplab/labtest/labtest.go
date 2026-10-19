@@ -61,11 +61,16 @@ type Spec struct {
 	// Name identifies the server in its container name and in messages:
 	// lowercase letters, digits and hyphens. A random suffix keeps two runs
 	// of the same test apart.
-	Name    string
-	Image   string
-	Command []string
-	// Port is the container TCP port the server listens on.
-	Port uint16
+	Name  string
+	Image string
+	// Entrypoint replaces the image's entry point; empty keeps it. A server
+	// whose image entry point writes its own configuration and ignores the
+	// command needs it to serve the configuration the test declares.
+	Entrypoint string
+	Command    []string
+	// Port is the container port the server listens on, with its transport:
+	// interoplab.TCPPort or interoplab.UDPPort.
+	Port interoplab.ContainerPort
 	// HostNetwork runs the container in the host's network namespace, where
 	// the server listens on 127.0.0.1:Port itself and reaches a listener the
 	// test opened on the host. Without it, Port is published on the host
@@ -88,8 +93,12 @@ func (s Spec) validate() error {
 	if s.Image == "" {
 		return errors.New("spec " + s.Name + " names no image")
 	}
-	if s.Port == 0 {
+	if s.Port.Number == 0 {
 		return errors.New("spec " + s.Name + " names container port 0")
+	}
+	if s.Port.Transport == interoplab.TransportUnspecified {
+		return errors.New("spec " + s.Name + " names no transport for its port: use interoplab.TCPPort or" +
+			" interoplab.UDPPort")
 	}
 	if s.Ready == nil {
 		return errors.New("spec " + s.Name + " has no ready probe")
@@ -269,19 +278,20 @@ func (h host) unpullable(t tester, required bool, image string, cause error) {
 
 // detached renders spec as the wrapper's container.
 func detached(name string, spec Spec) interoplab.DetachedContainer {
-	container := interoplab.DetachedContainer{Name: name, Image: spec.Image, Command: spec.Command}
+	container := interoplab.DetachedContainer{Name: name, Image: spec.Image, Entrypoint: spec.Entrypoint,
+		Command: spec.Command}
 	if spec.HostNetwork {
 		container.Network = hostNetwork
 		return container
 	}
-	container.PublishedPorts = []uint16{spec.Port}
+	container.PublishedPorts = []interoplab.ContainerPort{spec.Port}
 	return container
 }
 
 // address answers where the started server listens on the host.
 func (h host) address(ctx context.Context, name string, spec Spec) (netip.AddrPort, error) {
 	if spec.HostNetwork {
-		return netip.AddrPortFrom(netip.AddrFrom4([4]byte{127, 0, 0, 1}), spec.Port), nil
+		return netip.AddrPortFrom(netip.AddrFrom4([4]byte{127, 0, 0, 1}), spec.Port.Number), nil
 	}
 	return h.docker.PublishedPort(ctx, name, spec.Port)
 }

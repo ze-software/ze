@@ -30,11 +30,11 @@ type DetachedContainer struct {
 	// Network.
 	Network string
 	Address netip.Addr
-	// PublishedPorts publishes each container TCP port on the host loopback
-	// at a port the daemon picks (`-p 127.0.0.1::<port>`); PublishedPort
-	// answers which. Loopback only, so a test server is never reachable from
-	// another host.
-	PublishedPorts []uint16
+	// PublishedPorts publishes each container port on the host loopback at a
+	// port the daemon picks (`-p 127.0.0.1::<port>/<transport>`);
+	// PublishedPort answers which. Loopback only, so a test server is never
+	// reachable from another host.
+	PublishedPorts []ContainerPort
 	// Capabilities are added one by one; the container is never privileged.
 	Capabilities []string
 	// Devices are host device nodes passed through unchanged, such as
@@ -102,10 +102,11 @@ func (d *Docker) detachedArguments(spec DetachedContainer) ([]string, error) {
 		argv = append(argv, "--ip", spec.Address.String())
 	}
 	for _, port := range spec.PublishedPorts {
-		if port == 0 {
-			return nil, errors.New("detached container publishes container port 0, which names no port")
+		value, err := port.argument()
+		if err != nil {
+			return nil, err
 		}
-		argv = append(argv, "-p", publishLoopback+strconv.Itoa(int(port)))
+		argv = append(argv, "-p", publishLoopback+value)
 	}
 	if spec.Platform != "" {
 		argv = append(argv, "--platform", spec.Platform)
@@ -144,21 +145,75 @@ func (d *Docker) detachedArguments(spec DetachedContainer) ([]string, error) {
 // the daemon picks.
 const publishLoopback = "127.0.0.1::"
 
-// PublishedPort answers the host address the daemon published a container's
-// TCP port at. `docker port` prints one line per bound address (two on a
+// Transport is the protocol a published container port carries. The zero
+// value names none, so a port whose transport nobody chose is refused rather
+// than published as TCP.
+type Transport uint8
+
+const (
+	// TransportUnspecified is the zero value: no transport was chosen.
+	TransportUnspecified Transport = iota
+	// TransportTCP publishes a TCP port.
+	TransportTCP
+	// TransportUDP publishes a UDP port.
+	TransportUDP
+)
+
+// ContainerPort is one container port and the transport it carries, as
+// `docker run -p` and `docker port` name it: `3323/tcp`, `123/udp`.
+type ContainerPort struct {
+	Number    uint16
+	Transport Transport
+}
+
+// TCPPort names container TCP port number.
+func TCPPort(number uint16) ContainerPort {
+	return ContainerPort{Number: number, Transport: TransportTCP}
+}
+
+// UDPPort names container UDP port number.
+func UDPPort(number uint16) ContainerPort {
+	return ContainerPort{Number: number, Transport: TransportUDP}
+}
+
+// argument renders the port as docker names it, refusing port 0 and an
+// unchosen transport before any docker command runs.
+func (p ContainerPort) argument() (string, error) {
+	if p.Number == 0 {
+		return "", errors.New("container port 0 names no port")
+	}
+	number := strconv.Itoa(int(p.Number))
+	switch p.Transport {
+	case TransportTCP:
+		return number + "/tcp", nil
+	case TransportUDP:
+		return number + "/udp", nil
+	case TransportUnspecified:
+		return "", errors.New("container port " + number + " names no transport: use TCPPort or UDPPort")
+	default:
+		return "", errors.New("container port " + number + " names unknown transport " +
+			strconv.Itoa(int(p.Transport)))
+	}
+}
+
+// PublishedPort answers the host address the daemon published a container
+// port at. `docker port` prints one line per bound address (two on a
 // dual-stack daemon); the first is taken, and an answer that does not parse
 // is an error naming what the daemon printed, never port 0.
-func (d *Docker) PublishedPort(ctx context.Context, name string, port uint16) (netip.AddrPort, error) {
-	result, err := d.command(ctx, dockerCommandTimeout,
-		DockerExecutable, "port", name, strconv.Itoa(int(port))+"/tcp")
+func (d *Docker) PublishedPort(ctx context.Context, name string, port ContainerPort) (netip.AddrPort, error) {
+	value, err := port.argument()
+	if err != nil {
+		return netip.AddrPort{}, err
+	}
+	result, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, "port", name, value)
 	if err != nil {
 		return netip.AddrPort{}, err
 	}
 	line, _, _ := strings.Cut(strings.TrimSpace(result.Stdout), "\n")
 	address, err := netip.ParseAddrPort(strings.TrimSpace(line))
 	if err != nil {
-		return netip.AddrPort{}, fmt.Errorf("docker port %s %d/tcp answered %q, which is no address and port: %w",
-			name, port, result.Stdout, err)
+		return netip.AddrPort{}, fmt.Errorf("docker port %s %s answered %q, which is no address and port: %w",
+			name, value, result.Stdout, err)
 	}
 	return address, nil
 }
