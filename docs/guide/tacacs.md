@@ -128,6 +128,22 @@ RESTART, FOLLOW and a reply whose unencrypted flag disagrees with the configured
 shared secret are terminal denials. A backup server or local password cannot
 override them.
 
+A shared secret that differs from the server's is not a denial. The reply's
+lengths do not add up once de-obfuscated, which RFC 8907 Section 4.5 makes an
+ERROR, so Ze treats that server as unreachable (step 6): the next server is
+tried, then the local accounts. The log line `TACACS+ server unreachable` names
+the cause as `bad secret: body length mismatch after decryption`; correct
+`tacacs.server <ip>.key` to the secret the server holds for this device.
+
+`TestTacPlusNGInterop` (`internal/component/tacacs`, build tag `docker`, run by
+`./le test integration docker-peers`) checks these outcomes against
+tac_plus-ng: a PAP login and its priv-lvl mapping, a wrong password, a wrong
+shared secret, command authorization in both directions, and an accounting
+START.
+<!-- source: internal/component/tacacs/tacplusng_docker_test.go -- TestTacPlusNGInterop -->
+<!-- source: internal/component/tacacs/reply.go -- validateReplyBody, ErrBadSecret -->
+<!-- source: internal/component/tacacs/client.go -- sendToServers -->
+
 The web login fallback follows the same terminal-rejection rule for ordinary
 local accounts. The separate ZeFS super-admin remains a recovery path through
 its reserved local profile; assigning a normal `admin` profile does not grant

@@ -359,3 +359,49 @@ per Q-5); gates `./le test unit all`, `./le test functional gating`, the full
 `./le go lint run`; real runs of `l2tp-test`, `vpp-test`, `vpp-iface-test`,
 `verify evidence release-candidate` with Ctrl-C, the terminal-demo image build;
 on the owner's Mac a `./le perf run dut ze` with Ctrl-C and the FreeRtr build.
+
+## Phase 5, S-1 (TACACS+), 2026-10-19
+
+Test: `TestTacPlusNGInterop` in
+`internal/component/tacacs/tacplusng_docker_test.go` (tag `docker`, no RFC
+tag, so no discrimination record: the walk is recorded here). Server:
+`docker.io/christianbecker/tac_plus-ng@sha256:f17972cf0471ec32d4947a4152c8bd6a383b205f0dd0b48602fa6fa243fa393c`
+(tac_plus-ng from event-driven-servers, Alpine packaging, MIT, image built
+2025-11-11). The image has no ENTRYPOINT, so `labtest.Spec.Command` runs
+`/bin/sh -c` to write the test's config to `/tmp` and exec the daemon: no
+mount, no Dockerfile, no labtest change. Readiness is a PAP answer through
+Ze's client, not a TCP accept.
+
+Subtests and what each asserts through Ze's own code
+(`tacacsAuthenticator.Authenticate`, `tacacsAuthorizer.Authorize`,
+`TacacsClient.SendAccounting`): login accepted (exact `aaa.AuthResult`, the
+priv-lvl 15 profile), wrong password (`aaa.ErrAuthRejected`), wrong shared
+secret (exact error `tacacs: all TACACS+ servers unreachable for
+authentication`, zero result, client WARN log naming `ErrBadSecret`), command
+permitted with a deny-all local fallback, command denied with a permit-all
+local fallback, accounting START answered `AcctStatusSuccess`. Green in 16-38s.
+
+Red walk (each mutation marked `// MUTATION-APPLIED`, verified by diff, run
+with `-count=1`, restored from a saved copy and `cmp`-checked; no marker left):
+
+| Mutation | Red subtest | Failure |
+|----------|-------------|---------|
+| `authenticator.go` FAIL branch returns `errServerFailure` | wrong password rejected | `Target error should be in err chain: expected "authentication rejected"` |
+| `authorizer.go` AUTHOR FAIL returns `fallback()` | command denied | `Should be false` |
+| `authenticator.go` `privLvlMap[privLvl-1]` | login accepted | `Received unexpected error` |
+| `reply.go` length-sum check disabled | shared secret mismatch | log names `non-printable ASCII byte`, not `bad secret` |
+| `client.go` accounting minor version `0xC1` | accounting start recorded | `Received unexpected error` |
+| `authorizer.go` PASS_ADD returns `!allowed` | command permitted | `Should be true` |
+
+Every other subtest stayed green under each mutation. Restored run: `ok` 16.2s.
+
+Behavior found, conformant: a wrong shared secret is an ERROR (RFC 8907
+Section 4.5, "the packet MUST be discarded and an ERROR signaled"), which
+Section 4.4 makes "as if the server could not be connected to", so the chain
+falls to the next server and to local accounts. Documented in
+`docs/guide/tacacs.md`. Defect found, not fixed (does not block S-1): the
+final `sendToServers` error drops the per-server cause, journal row in
+`plan/journal/error-names-no-fix-command.md`.
+
+Owed gates: scoped lint of `internal/component/tacacs` with the docker tag
+(`go vet -tags docker` passed), `./le test unit all`.
