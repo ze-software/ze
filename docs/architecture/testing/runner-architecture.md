@@ -105,7 +105,17 @@ SIGINT and SIGTERM at each lab entry point, so a Ctrl-C runs that teardown. The
 stand-in for `Pdeathsig` is the owner labels every lab resource carries: the
 next lab start, or `./le test integration cleanup`, removes the resources whose
 owner is provably gone (`interop.md`, "Crash-safe teardown").
+
+The docker client is the opposite case to a runner with no handler: le holds
+the signal root, so the client must not see the Ctrl-C itself. Every docker
+child heads a process group of its own (`systemProcessRunner.Run`), which takes
+it out of the terminal's foreground group, so a Ctrl-C reaches le alone and the
+teardown's `docker rm -f` is not killed by the same signal, or by a second one.
+A canceled context kills that whole group. A child handed a terminal as one of
+its streams stays in le's group, because a background group that reads its
+terminal is stopped by SIGTTIN.
 <!-- source: internal/le/test/integration/actions.go -- nativeRunner, signalContext -->
+<!-- source: internal/le/interoplab/process.go -- systemProcessRunner.Run, sharesTerminal -->
 <!-- source: internal/le/interoplab/orphans.go -- Docker.CleanupOrphans -->
 <!-- test: internal/le/interoplab/orphans_docker_test.go TestKilledLabRunIsCleanedByNextStart -->
 

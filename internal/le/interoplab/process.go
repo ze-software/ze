@@ -9,9 +9,12 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"os/exec"
 	"syscall"
 	"time"
+
+	"golang.org/x/term"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -74,6 +77,23 @@ func (systemProcessRunner) Run(ctx context.Context, command ProcessCommand) (Pro
 	//nolint:gosec // Every argv comes from the closed Docker grammar in docker.go or the fixed Go build in zebuild.go.
 	cmd := exec.CommandContext(runCtx, command.Arguments[0], command.Arguments[1:]...)
 	cmd.Dir = command.Directory
+	// The child runs in a process group of its own, so a terminal Ctrl-C (sent
+	// to the terminal's foreground group) reaches le alone, and le's signal
+	// root decides what stops. Sharing le's group, the docker client died with
+	// the same SIGINT that started the teardown, and a second one killed the
+	// teardown's own `docker rm -f` while the daemon finished the removal. The
+	// cancel kills that whole group, so the compilers of a `go build` go too.
+	//
+	// A child handed a terminal stays in le's group: a process in a background
+	// group that reads its terminal is stopped by SIGTTIN, and one that writes
+	// to a terminal set `tostop` by SIGTTOU, and both would then wait out their
+	// bound. Only an *os.File stream is seen; a writer that wraps a terminal
+	// (an io.MultiWriter over os.Stderr) is not, and writes from a background
+	// group proceed under the default `-tostop`.
+	if !sharesTerminal(command) {
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+	}
 	// A nil Env inherits this process's, which is what os/exec already does, so
 	// an empty declaration needs no branch here.
 	cmd.Env = command.Environment
@@ -111,6 +131,21 @@ func (systemProcessRunner) Run(ctx context.Context, command ProcessCommand) (Pro
 	}
 	result.ExitCode = processExitCode(exit)
 	return result, nil
+}
+
+// sharesTerminal reports whether any stream attached to command is a
+// terminal, the case in which the child must stay in le's process group.
+func sharesTerminal(command ProcessCommand) bool {
+	for _, stream := range []any{command.Stdin, command.Stdout, command.Stderr} {
+		file, ok := stream.(*os.File)
+		if !ok {
+			continue
+		}
+		if term.IsTerminal(int(file.Fd())) {
+			return true
+		}
+	}
+	return false
 }
 
 func processExitCode(exit *exec.ExitError) int {

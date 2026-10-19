@@ -478,7 +478,15 @@ ended reads "did not finish within <bound>" and carries exit 124, as
 `timeout(1)` answers. One whose context was canceled, by an interrupt reaching
 the verb's signal root or by the run stopping, reads "was canceled before it
 finished" and carries no exit code, because the code would be le's own kill.
-<!-- source: internal/le/interoplab/process.go -- systemProcessRunner.Run -->
+
+Every docker command runs in a process group of its own, so a terminal Ctrl-C
+reaches `le` and not the docker client: the signal root cancels the run, and
+the removals it then issues on a context the cancel does not reach are not
+killed by the same signal, or by a second Ctrl-C. A command handed a terminal
+as one of its streams stays in the group of `le`, where reading the terminal
+raises no SIGTTIN ("How a suite's child processes end" in
+`runner-architecture.md`).
+<!-- source: internal/le/interoplab/process.go -- systemProcessRunner.Run, sharesTerminal -->
 <!-- source: internal/le/interoplab/docker.go -- commandError.Error -->
 
 The multi-DUT benchmark (`./le perf run`, `./le perf evidence-record`) is the

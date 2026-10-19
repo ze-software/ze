@@ -3,9 +3,13 @@ package interoplab
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
+
+	"github.com/creack/pty"
 )
 
 // VALIDATES: G-2: the system process runner tells a cancel from a deadline. A
@@ -47,5 +51,53 @@ func TestProcessRunnerNamesCancelAndDeadlineApart(t *testing.T) {
 	text = (&commandError{Operation: "docker exec lab-ze sleep 10", ExitCode: result.ExitCode, Cause: err, Timeout: 100 * time.Millisecond}).Error()
 	if !strings.HasPrefix(text, "docker exec lab-ze sleep 10 did not finish within 100ms") {
 		t.Errorf("bounded run text = %q, want it to name the bound", text)
+	}
+}
+
+// VALIDATES: G-2 for a terminal Ctrl-C: a docker child that shares no
+// terminal with le runs in a process group of its own, so the terminal's
+// SIGINT reaches le alone and le's signal root decides what stops; a child
+// handed a terminal stays in le's group, where reading it raises no SIGTTIN.
+// METHOD: a fixture child prints its own process group id (`ps -o pgid=`),
+// once with every stream a pipe and once with a pseudo-terminal as its
+// stdin, and the test compares each with this process's group. Linux and
+// Darwin both provide pseudo-terminals, so failing to open one is a failure.
+// PREVENTS: the teardown `docker rm -f` killed by the same Ctrl-C that stopped
+// the run ("container ... was not removed: docker rm -f failed (exit 130)",
+// real Ctrl-C proof row 3-prime of 2026-10-19), and a background-group child
+// stopped on a terminal read.
+func TestDockerChildRunsInItsOwnProcessGroup(t *testing.T) {
+	own := syscall.Getpgrp()
+	command := ProcessCommand{Arguments: []string{"sh", "-c", "ps -o pgid= -p $$"}, Timeout: 30 * time.Second}
+
+	result, err := systemProcessRunner{}.Run(t.Context(), command)
+	if err != nil {
+		t.Fatalf("run the fixture child: %v", err)
+	}
+	group, err := strconv.Atoi(strings.TrimSpace(result.Stdout))
+	if err != nil {
+		t.Fatalf("read the child's process group from %q: %v", result.Stdout, err)
+	}
+	if group == own {
+		t.Errorf("child runs in le's process group %d, want a group of its own", own)
+	}
+
+	ptmx, tty, err := pty.Open()
+	if err != nil {
+		t.Fatalf("open a pseudo-terminal: %v", err)
+	}
+	defer ptmx.Close() //nolint:errcheck // test cleanup
+	defer tty.Close()  //nolint:errcheck // test cleanup
+	command.Stdin = tty
+	result, err = systemProcessRunner{}.Run(t.Context(), command)
+	if err != nil {
+		t.Fatalf("run the fixture child on a terminal: %v", err)
+	}
+	group, err = strconv.Atoi(strings.TrimSpace(result.Stdout))
+	if err != nil {
+		t.Fatalf("read the terminal child's process group from %q: %v", result.Stdout, err)
+	}
+	if group != own {
+		t.Errorf("child handed a terminal runs in group %d, want le's group %d", group, own)
 	}
 }
