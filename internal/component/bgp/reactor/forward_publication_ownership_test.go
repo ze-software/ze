@@ -25,8 +25,11 @@ import (
 // A departs; B's filtered withdrawal must publish and apply before recovery
 // can elect a replacement for A. When B's delivery worker fails instead, B is
 // torn down with Cease / Out of Resources, the destination is NOT retired, and
-// the lookup runs with B in every key's excluded-source set, so the
-// destination receives the withdrawal and never B's withdrawn route.
+// every lookup of a round that captured B's failed publication runs with B in
+// every key's excluded-source set, so the destination receives the withdrawal
+// and never B's withdrawn route. A later round, once B reconnected, captures
+// B's new publication; by then B's down purged its routes from the RIB, which
+// the lookup checks instead (seen in 7 of 100 runs under -race).
 func TestRecoveryWaitsForFilteredReceivedPublication(t *testing.T) {
 	for _, fail := range []bool{false, true} {
 		name := "published"
@@ -72,12 +75,24 @@ func TestRecoveryWaitsForFilteredReceivedPublication(t *testing.T) {
 			if prior == nil {
 				t.Fatal("registered selecting RIB has no recovery provider")
 			}
-			var lookups atomic.Int32
+			var lookups, excludedLookups atomic.Int32
 			provider := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
 				lookups.Add(1)
 				if fail {
-					if !slices.Contains(request.Keys[0].Excluded, b.peer.Settings().Address) {
+					if slices.Contains(request.Keys[0].Excluded, b.peer.Settings().Address) {
+						excludedLookups.Add(1)
+						return prior.Lookup(request)
+					}
+					// A round that captured B's failed publication MUST
+					// exclude B. A later round, after B's session ended and
+					// B reconnected, captures B's new publication instead;
+					// B's down then purged its routes, so the RIB MUST no
+					// longer hold the route whose withdrawal never published.
+					if current := b.peer.receivePublication.Load(); current == nil || current.failed.Load() {
 						return nil, fmt.Errorf("a source whose publication failed was not excluded")
+					}
+					if len(extendedRecoveryStoredAttributes(b.peer.addrString, []byte{203, 0, 114})) != 0 {
+						return nil, fmt.Errorf("a source whose failed session ended still holds its withdrawn route")
 					}
 					return prior.Lookup(request)
 				}
@@ -153,7 +168,7 @@ func TestRecoveryWaitsForFilteredReceivedPublication(t *testing.T) {
 				if err != nil {
 					t.Fatalf("departure after a source's failed publication returned %v", err)
 				}
-				if lookups.Load() == 0 {
+				if excludedLookups.Load() == 0 {
 					t.Fatal("the lookup never ran with the failed source excluded")
 				}
 				lowEventually(t, func() bool {
