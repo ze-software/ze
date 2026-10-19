@@ -323,7 +323,7 @@ func (l *L2TP) Run(ctx context.Context) (report L2TPReport, err error) {
 		return report, err
 	}
 	// The kernel check comes before the image, so a refused host pulls nothing.
-	if err := buildCheckedDaemon(l.Tree, l.Goarch, func() error { return buildDaemon(l.Tree, l.Goarch, l.Progress) }); err != nil {
+	if err := buildCheckedDaemon(ctx, l.Tree, l.Goarch, func() error { return buildDaemon(l.Tree, l.Goarch, l.Progress) }); err != nil {
 		return report, err
 	}
 	if err := ensureImage(ctx, l.Docker, l.Image, l.Progress); err != nil {

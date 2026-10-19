@@ -29,11 +29,13 @@ const daemonKernelTimeout = 3 * time.Minute
 
 // buildCheckedDaemon runs build, then refuses a Docker daemon whose kernel lacks
 // an enrolled feature, probing with the daemon that build writes for goarch.
+// The probe runs under ctx, the verb's signal root, so a Ctrl-C ends its
+// docker client, which heads a process group of its own.
 //
 // NO_BUILD=1 skips build and reuses the daemon already at that path, as the
 // interop suites do (interoplab.ReadEnvironment). A reuse with no daemon there
 // is refused by name: probing with nothing would read as a broken kernel.
-func buildCheckedDaemon(tree, goarch string, build func() error) error {
+func buildCheckedDaemon(ctx context.Context, tree, goarch string, build func() error) error {
 	daemon := filepath.Join(tree, daemonRel(goarch))
 	if interoplab.ReadEnvironment(interoplab.EnvironmentOptions{}).NoBuild {
 		if _, err := os.Stat(daemon); err != nil {
@@ -45,7 +47,7 @@ func buildCheckedDaemon(tree, goarch string, build func() error) error {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), daemonKernelTimeout)
+	ctx, cancel := context.WithTimeout(ctx, daemonKernelTimeout)
 	defer cancel()
 
 	return interoplab.DockerKernel(daemon)(ctx, interoplab.NewDocker())

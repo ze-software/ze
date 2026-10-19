@@ -75,7 +75,7 @@ func (v *VPP) Run(ctx context.Context) (report VPPReport, err error) {
 		return report, err
 	}
 	// The kernel check comes before the image, so a refused host pulls nothing.
-	if err := buildCheckedDaemon(v.Tree, v.Goarch, v.buildBinaries); err != nil {
+	if err := buildCheckedDaemon(ctx, v.Tree, v.Goarch, v.buildBinaries); err != nil {
 		return report, err
 	}
 	if err := ensureImage(ctx, v.Docker, v.Image, v.Progress); err != nil {
@@ -188,7 +188,7 @@ func (v *VPP) runBuild(argv []string, failed error) error {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), buildTimeout)
+	ctx, cancel := context.WithTimeout(v.ctx, buildTimeout)
 	defer cancel()
 
 	build := exec.CommandContext(ctx, "go", argv...) //nolint:gosec // the argv is package data and manifest tags

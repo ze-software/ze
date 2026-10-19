@@ -114,7 +114,20 @@ teardown's `docker rm -f` is not killed by the same signal, or by a second one.
 A canceled context kills that whole group. A child handed a terminal as one of
 its streams stays in le's group, because a background group that reads its
 terminal is stopped by SIGTTIN.
+
+So the context is the only stop such a child gets, and every docker command
+and lab cross-compile a `./le` verb runs MUST take its context from that verb's
+signal root. A step bounded from `context.Background()` (a kernel check, an
+image build, a scenario) ignores the Ctrl-C and runs to its bound. The kernel
+checks of `./le verify evidence release-candidate`, `./le setup docker-kernel`,
+the deployment proofs and the terminal demos, and the scenarios `./le feature
+record-run` drives, each run under that root.
 <!-- source: internal/le/test/integration/actions.go -- nativeRunner, signalContext -->
+<!-- source: internal/le/verify/evidence/evidence.go -- dockerKernel, Runner.Run -->
+<!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck -->
+<!-- source: internal/le/test/deployment/daemonkernel.go -- buildCheckedDaemon -->
+<!-- source: internal/le/site/terminaldemo/render.go -- Engine.checkKernel, Engine.demoGrants -->
+<!-- source: internal/le/feature/recordrun.go -- runCatalogScenario -->
 <!-- source: internal/le/interoplab/process.go -- systemProcessRunner.Run, sharesTerminal -->
 <!-- source: internal/le/interoplab/orphans.go -- Docker.CleanupOrphans -->
 <!-- test: internal/le/interoplab/orphans_docker_test.go TestKilledLabRunIsCleanedByNextStart -->

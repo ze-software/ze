@@ -25,9 +25,11 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/kernelcap"
@@ -116,15 +118,28 @@ func DockerKernelAnswer(args []string) (any, int) { return dockerKernelActions.A
 // runDockerKernelCheck runs the one Docker kernel check every Docker run that
 // runs Ze makes, against the daemon this process reaches, probing with a linux
 // ze for that daemon's architecture.
+//
+// SIGINT and SIGTERM cancel the check's root, so a Ctrl-C ends its docker
+// clients: each heads a process group of its own and never sees the signal
+// (interoplab.systemProcessRunner).
 func runDockerKernelCheck(args leaction.Arguments) (any, int) {
-	docker := interoplab.NewDocker()
-	ze, err := dockerKernelCheckZe(docker, args.One(dockerKernelZeKeyword))
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	return dockerKernelCheck(ctx, interoplab.NewDocker(), args.One(dockerKernelZeKeyword))
+}
+
+// dockerKernelCheck is the check under the verb's root ctx, against docker,
+// probing with the ze named, or with one built for the daemon when named is
+// empty.
+func dockerKernelCheck(ctx context.Context, docker *interoplab.Docker, named string) (any, int) {
+	ze, err := dockerKernelCheckZe(ctx, docker, named)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), dockerKernelCheckTimeout)
+	ctx, cancel := context.WithTimeout(ctx, dockerKernelCheckTimeout)
 	defer cancel()
 
 	if err := interoplab.DockerKernel(ze)(ctx, docker); err != nil {
@@ -137,8 +152,8 @@ func runDockerKernelCheck(args leaction.Arguments) (any, int) {
 // dockerKernelCheckZe asks the daemon its architecture, then answers the ze to
 // mount. The build runs outside the check's own bound, because a cold
 // cross-compile can outlast it.
-func dockerKernelCheckZe(docker *interoplab.Docker, named string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), dockerKernelCheckTimeout)
+func dockerKernelCheckZe(ctx context.Context, docker *interoplab.Docker, named string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, dockerKernelCheckTimeout)
 	defer cancel()
 
 	goarch, err := docker.ServerArchitecture(ctx)

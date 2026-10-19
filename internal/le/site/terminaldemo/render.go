@@ -256,9 +256,10 @@ func (e *Engine) preflightContainers(manifest Manifest) error {
 }
 
 // checkKernel runs the Docker host kernel check with the demo binary, bounded
-// by kernelCheckTimeout.
+// by kernelCheckTimeout under the engine's root, so a Ctrl-C ends its docker
+// client, which heads a process group of its own.
 func (e *Engine) checkKernel() error {
-	ctx, cancel := context.WithTimeout(context.Background(), kernelCheckTimeout)
+	ctx, cancel := context.WithTimeout(e.ctx, kernelCheckTimeout)
 	defer cancel()
 
 	return e.kernelCheck(ctx, e.binaryPath)
@@ -394,7 +395,7 @@ func (e *Engine) demoGrants(demo *Demo) ([]string, error) {
 	if !demo.isNetSysctl() {
 		return nil, nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), kernelCheckTimeout)
+	ctx, cancel := context.WithTimeout(e.ctx, kernelCheckTimeout)
 	defer cancel()
 
 	grants, err := e.netSysctl(ctx)

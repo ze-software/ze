@@ -169,7 +169,9 @@ type Runner struct {
 	Stdin    io.Reader
 	Progress io.Writer
 	// Kernel refuses a Docker daemon whose kernel lacks a feature Ze enrolls.
-	Kernel func() error
+	// It runs under the run's root, so a Ctrl-C stops its cross-compile: the
+	// compilers head a process group of their own and never see the signal.
+	Kernel func(context.Context) error
 }
 
 // NewRunner answers the runner the command uses: the real PATH, the real git
@@ -199,10 +201,11 @@ const kernelCheckTimeout = 10 * time.Minute
 
 // dockerKernel answers the production Kernel: it cross-compiles a linux ze for
 // the daemon's architecture into the tree and runs the check every Docker run
-// that runs Ze makes (interoplab.DockerKernel) with it.
-func dockerKernel(tree string) func() error {
-	return func() error {
-		ctx, cancel := context.WithTimeout(context.Background(), kernelCheckTimeout)
+// that runs Ze makes (interoplab.DockerKernel) with it, bounded by
+// kernelCheckTimeout under the run's root ctx.
+func dockerKernel(tree string) func(context.Context) error {
+	return func(ctx context.Context) error {
+		ctx, cancel := context.WithTimeout(ctx, kernelCheckTimeout)
 		defer cancel()
 
 		docker := interoplab.NewDocker()
@@ -258,7 +261,7 @@ func (r *Runner) Run(ctx context.Context) (Report, error) {
 	// daemon's kernel, so that kernel must carry every feature Ze enrolls
 	// before the container starts (owner D-4: a wrong kernel "should not be
 	// possible - fail").
-	if err := r.Kernel(); err != nil {
+	if err := r.Kernel(ctx); err != nil {
 		return report, err
 	}
 

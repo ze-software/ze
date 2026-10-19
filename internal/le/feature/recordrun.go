@@ -21,11 +21,13 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -251,16 +253,30 @@ func catalogScenarioRunner(tree string) runScenario {
 		if !registered {
 			return interoplab.SuiteReport{}, errors.New("no interop suite '" + suite + "' is registered")
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), scenarioRunDeadline)
-		defer cancel()
-
-		report := catalog.RunScenario(ctx, tree, scenario)
-		if ctx.Err() != nil {
-			return interoplab.SuiteReport{}, errors.New("did not finish inside " + scenarioRunDeadline.String() +
-				", so whether it passes is unknown")
-		}
-		return report, nil
+		return runCatalogScenario(catalog, tree, scenario)
 	}
+}
+
+// runCatalogScenario runs one scenario of catalog under a root that SIGINT and
+// SIGTERM cancel, bounded by scenarioRunDeadline. The lab's docker clients head
+// process groups of their own, so a Ctrl-C reaches le alone: this root is what
+// ends the scenario through its suite's teardown, rather than the default
+// action killing le and leaving those clients and their containers running.
+func runCatalogScenario(catalog interoplab.Catalog, tree, scenario string) (interoplab.SuiteReport, error) {
+	root, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	ctx, cancel := context.WithTimeout(root, scenarioRunDeadline)
+	defer cancel()
+
+	report := catalog.RunScenario(ctx, tree, scenario)
+	if errors.Is(ctx.Err(), context.Canceled) {
+		return interoplab.SuiteReport{}, errors.New("was interrupted, so whether it passes is unknown")
+	}
+	if ctx.Err() != nil {
+		return interoplab.SuiteReport{}, errors.New("did not finish inside " + scenarioRunDeadline.String() +
+			", so whether it passes is unknown")
+	}
+	return report, nil
 }
 
 // declarationNamed answers the declaration whose id is id, refusing one that

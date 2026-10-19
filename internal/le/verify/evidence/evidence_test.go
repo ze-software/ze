@@ -77,7 +77,7 @@ func (rec *recorder) runner() *Runner {
 		},
 		Docker:   interoplab.NewFixtureDocker(rec),
 		Progress: io.Discard,
-		Kernel: func() error {
+		Kernel: func(context.Context) error {
 			rec.kernelChecks++
 			return rec.kernelErr
 		},
