@@ -83,3 +83,25 @@ the page check for the "every occurrence" guard wording in `docs/architecture/wi
 and the commit. Owed scoped re-run after any edit: `go test -race -run RFC9774` over
 `./internal/component/bgp/message/` and `./internal/component/bgp/reactor/` (reactor green at
 the end of this run; message not re-run, unchanged since the first run).
+
+## Continuation 2026-10-19 (third ze-implement agent, session 20123ea5, at budget)
+
+The code and the encode `.ci` are in HEAD since the owner's rescue commit ca4eae70a0,
+with a follow-up in 0264e29ec1. The tree builds; the link-local blocker is gone.
+
+| Item | Result | Evidence |
+|------|--------|----------|
+| Scoped unit run | green | `go test -race` over `bgp/message` and `bgp/reactor` under `./le job run` (ok, ok) at the start of this run |
+| 5b receive `.ci` | done, commit 0a5c6a7b15 | `test/plugin/rfc9774-as-set-receive-treat-as-withdraw.ci`, fixture `plugin/rfc9774-as-set-receive-treat-as-withdraw` (`routeServerReplay13`). The frames alone did NOT discriminate the receive half (the send guard keeps a relayed set off the receiver too), so the test pins the stderr verdict `description="RFC 9774 Section 3: AS_SET in AS_PATH"`. The AS_CONFED_SET verdict line is rate-limited away and is not pinned |
+| 5c API `.ci` | done, commit 0a5c6a7b15 | `test/plugin/rfc9774-as-set-api-not-advertised.ci`, fixture `internal/test/fixture/register_rfc9774_api_announce.go`. The API rail writes the withdrawal of a never-held prefix (not ownership-tracked), pinned as seq=1 |
+| Red runs of all three `.ci` | done | daemon built with a build overlay: receive scan off turns the receive `.ci` red; send guard off turns the API and encode `.ci` red |
+| 6 enrolment | done, commit 96bf15e6c8 | `rfc/short/rfc9774.md` (rows RFC9774-3-1, RFC9774-3-2), `rfc/extraction/rfc9774.json` (5.2:1, 6.1:1 `feature-out-of-scope`, optionality quoted from RFC 4271 Section 9.1), six tags with records in `rfc/discrimination/rfc9774.json` (route `revert`, producers `ASPathSetSegment` and `transmittedPathHoldsSet`). `./le rfc check` prints no rfc9774 line |
+| Page | done, committed with this handover | `docs/architecture/wire/attributes.md`: "every occurrence" wording, and the false "nothing reaches a peer that never held the prefix" corrected for the config and API rails |
+
+Still open, nothing dropped:
+
+1. Item 7: R-2 notes in `rfc/short/rfc4271.md`, `rfc5065.md`, `rfc6793.md` (prose, keep every row id and quote); `features/bgp-protocol.md` evidence; `docs/comparison.md` holds no AS_SET or RFC 9774 row (grep, 2026-10-19), so nothing is owed there.
+3. Item 8: interop `test/interop/scenarios/bgp-rfc9774-as-set-frr/` (AC-13), A-5/A-6, red with each half reverted, recorded. Not started.
+4. Spec Goal Validation and audit tables, then step 11 (`verification`, commit, `./le spec release`). The spec's Phase is 5/5 and Status stays `in-progress` until the interop lands.
+5. Owed gates for the main thread: `./le go lint run` (the post-edit lint hook failed on a go/packages load timeout, not on a finding), `./le test unit all`, `./le test functional gating`.
+6. `bin/rfc9774-20123ea5/` is scratch (test ze/le builds and the overlay red binaries); delete it when done.

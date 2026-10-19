@@ -5,9 +5,9 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 1/5 |
+| Phase | 5/5 |
 | Handoff | verify |
-| Updated | 2026-10-18 |
+| Updated | 2026-10-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -254,9 +254,9 @@ the recommendations put to him, with Q-4 answered (b) as recorded below.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `rfc9774-as-set-receive-treat-as-withdraw` | `test/plugin/rfc9774-as-set-receive-treat-as-withdraw.ci` | test peer announces a clean prefix, then the same prefix with an AS_SET, then an AS_CONFED_SET prefix: `show bgp rib` holds none of them at the end, session up | |
-| `rfc9774-as-set-not-advertised` | `test/encode/rfc9774-as-set-not-advertised.ci` | static route with raw AS_SET AS_PATH plus a clean static route: test peer receives the clean one only | |
-| `rfc9774-as-set-api-not-advertised` | `test/plugin/rfc9774-as-set-api-not-advertised.ci` | `update hex attr set` with an AS_SET: peer receives nothing for it | |
+| `rfc9774-as-set-receive-treat-as-withdraw` | `test/plugin/rfc9774-as-set-receive-treat-as-withdraw.ci` | test peer announces a clean prefix, then the same prefix with an AS_SET, then an AS_CONFED_SET prefix: `show bgp rib` holds none of them at the end, session up | done 2026-10-19 (commit 0a5c6a7b15): proven through the route-server relay rather than `show bgp rib`: the receiver sees P, P withdrawn, the fence, never Q or a set segment, and the stderr carries the RFC 9774 AS_SET verdict. Red with the receive scan off (the verdict line; the send guard alone keeps the frames clean) |
+| `rfc9774-as-set-not-advertised` | `test/encode/rfc9774-as-set-not-advertised.ci` | static route with raw AS_SET AS_PATH plus a clean static route: test peer receives the clean one only | done (in HEAD via ca4eae70a0); red with the send guard off, re-observed 2026-10-19 |
+| `rfc9774-as-set-api-not-advertised` | `test/plugin/rfc9774-as-set-api-not-advertised.ci` | `update hex attr set` with an AS_SET: peer receives nothing for it | done 2026-10-19 (commit 0a5c6a7b15): peer receives a withdrawal of the never-held prefix (the API rail is not ownership-tracked), then the fence; the warning names RFC 9774 Section 3. Red with the send guard off |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
