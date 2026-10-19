@@ -36,7 +36,7 @@ func TestRFC7606EmptyMPReachEscalatesToReset(t *testing.T) {
 			attrs = append(attrs, mandatory...)
 			attrs = append(attrs, tc.extra...)
 			// RFC 7606 Section 5.2: actual reachable contents, not MP presence.
-			result := ValidateUpdateRFC7606AddPath(attrs, tc.legacyNLRI, false, false, nil)
+			result := ValidateUpdateRFC7606AddPath(attrs, tc.legacyNLRI, false, false, nil, false)
 			require.Equal(t, tc.want, result.Action, result.Description)
 			if tc.origin == 3 {
 				require.Equal(t, uint8(1), result.AttrCode)
@@ -75,7 +75,7 @@ func TestRFC7606ImplementedAttributeFlagConflicts(t *testing.T) {
 				t.Run(flags.name, func(t *testing.T) {
 					attrs := updateWith(optAttr(attr.flags^flags.xor, attr.code, attr.value))
 					// RFC 7606 Section 3(c): exercise registration and validation together.
-					result := ValidateUpdateRFC7606AddPath(attrs, true, false, false, nil)
+					result := ValidateUpdateRFC7606AddPath(attrs, true, false, false, nil, false)
 					require.Equal(t, flags.want, result.Action, result.Description)
 					if flags.want != RFC7606ActionNone {
 						require.Equal(t, attr.code, result.AttrCode)
@@ -115,7 +115,7 @@ func TestRFC7606AttrSetMalformedInnerAttributes(t *testing.T) {
 				t.Run(tc.name, func(t *testing.T) {
 					attrs := updateWith(optAttr(0xc0, 128, attrSetValue(65000, tc.inner)))
 					// RFC 7606 Section 7.16 retains RFC 6368 Section 5's malformed definition.
-					result := ValidateUpdateRFC7606AddPath(attrs, true, false, asn4, nil)
+					result := ValidateUpdateRFC7606AddPath(attrs, true, false, asn4, nil, false)
 					require.Equal(t, tc.want, result.Action, result.Description)
 					if tc.want != RFC7606ActionNone {
 						require.Equal(t, uint8(128), result.AttrCode)

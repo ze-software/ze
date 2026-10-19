@@ -112,7 +112,7 @@ func TestRFC7606MPReachAddPathValidNotReset(t *testing.T) {
 	addPathFor := func(afi uint16, safi uint8) bool { return afi == 2 && safi == 1 }
 
 	// With ADD-PATH awareness the path id is skipped and the /64 is accepted.
-	got := ValidateUpdateRFC7606AddPath(mk(valid), false, false, false, addPathFor)
+	got := ValidateUpdateRFC7606AddPath(mk(valid), false, false, false, addPathFor, false)
 	require.Equal(t, RFC7606ActionNone, got.Action,
 		"a valid ADD-PATH MP_REACH must not be session-reset: %s", got.Description)
 
@@ -127,7 +127,7 @@ func TestRFC7606MPReachAddPathValidNotReset(t *testing.T) {
 	bad := append(append([]byte{}, header...),
 		0x00, 0x00, 0x00, 0x02, // path identifier
 		129, 0x20) // prefix length 129 (> 128 IPv6 maximum)
-	gotBad := ValidateUpdateRFC7606AddPath(mk(bad), false, false, false, addPathFor)
+	gotBad := ValidateUpdateRFC7606AddPath(mk(bad), false, false, false, addPathFor, false)
 	require.Equal(t, RFC7606ActionSessionReset, gotBad.Action,
 		"an ADD-PATH NLRI with prefix length > 128 must still session-reset")
 }
@@ -426,12 +426,14 @@ func TestRFC7606ASPathValidSequence(t *testing.T) {
 	require.Equal(t, RFC7606ActionNone, result.Action)
 }
 
-// TestRFC7606ASPathValidSet verifies valid AS_SET passes.
+// TestRFC7606ASPathValidSet verifies a well-framed AS_SET is no RFC 7606 Section 7.2 fault.
 //
-// VALIDATES: AS_PATH with valid AS_SET (type=1) is accepted.
-// PREVENTS: False positives in AS_PATH validation.
+// VALIDATES: AS_PATH with a well-framed AS_SET (type=1) is not reported as an unrecognized
+// or malformed segment. RFC 9774 Section 3, which updates RFC 4271, makes the UPDATE
+// treat-as-withdraw for a different reason, and the description must name that reason.
+// PREVENTS: False positives in AS_PATH structure validation.
 //
-// RFC requirement: RFC7606-7.2-1 positive — AS_SET is a recognized segment type, so accepted.
+// RFC requirement: RFC7606-7.2-1 positive — AS_SET is a recognized segment type, so no Section 7.2 fault is reported.
 func TestRFC7606ASPathValidSet(t *testing.T) {
 	// AS_PATH with AS_SET: type=1, len=2 (2 ASes)
 	pathAttrs := []byte{
@@ -444,7 +446,8 @@ func TestRFC7606ASPathValidSet(t *testing.T) {
 	}
 
 	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
-	require.Equal(t, RFC7606ActionNone, result.Action)
+	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
+	require.Equal(t, "RFC 9774 Section 3: AS_SET in AS_PATH", result.Description)
 }
 
 // TestRFC7606ASPathUnrecognizedSegmentType verifies RFC 7606 Section 7.2.

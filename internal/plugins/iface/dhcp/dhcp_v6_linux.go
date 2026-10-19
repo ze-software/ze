@@ -56,6 +56,12 @@ type v6Worker struct {
 
 	dadPending []netip.Prefix        // installed addresses whose DAD outcome is not read yet
 	dadChecked map[netip.Prefix]bool // addresses whose DAD outcome was read since their install
+
+	// linkStatesWarned holds each link state, neither up nor down, a Warn was
+	// logged for, so the DAD poll logs one per distinct state and not one per
+	// poll. Bounded by the distinct state strings the backend reports.
+	linkStatesWarned map[string]bool
+	unreportedWarned bool // a Warn was logged that the backend reports no address
 }
 
 func (w *v6Worker) clock() clock.Clock { return w.c.clock }

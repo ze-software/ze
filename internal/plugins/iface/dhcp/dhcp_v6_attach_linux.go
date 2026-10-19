@@ -8,9 +8,11 @@
 package ifacedhcp
 
 import (
+	"errors"
 	"net"
 	"net/netip"
 	"slices"
+	"strconv"
 	"time"
 
 	"github.com/insomniacslk/dhcp/dhcpv6"
@@ -278,9 +280,15 @@ func (w *v6Worker) queueDAD(p netip.Prefix) {
 // (noteMove). The link events already queued are read first: the DAD poll and
 // a queued down can wake the wait together, and a flush judged before its
 // down is read would decline a unique address. A gone address is then judged
-// by goneDuplicates against the link state the same kernel read reported,
-// because the kernel deletes the addresses right after it reports the down,
-// and the read can land before the monitor delivers that down.
+// by goneDuplicates against the link state the backend reported, because the
+// kernel deletes the addresses right after it reports the down, and the read
+// can land before the monitor delivers that down.
+//
+// A read that cannot answer declines nothing: a failed read leaves every
+// address pending for the next poll, and a backend that does not report
+// addresses (iface.ErrAddressesNotReported, VPP) leaves the DAD outcome
+// unknown, so the addresses are dropped from the poll, undeclined, with one
+// Warn.
 func (w *v6Worker) checkDAD() bool {
 	if len(w.dadPending) == 0 {
 		return true
@@ -289,6 +297,10 @@ func (w *v6Worker) checkDAD() bool {
 		w.noteMove()
 	}
 	read, err := iface.ReadAddressState(w.c.ifaceName)
+	if errors.Is(err, iface.ErrAddressesNotReported) {
+		w.dadUnreported(err)
+		return true
+	}
 	if err != nil {
 		loggerPtr.Load().Debug("iface dhcp v6: cannot read the DAD outcome, retrying",
 			"iface", w.c.ifaceName, "err", err)
@@ -324,9 +336,21 @@ func (w *v6Worker) checkDAD() bool {
 	return w.decline(duplicates) != v6EndCanceled
 }
 
+// dadUnreported drops the pending addresses from the DAD poll without
+// declining them, because the backend does not report a device's addresses
+// and so cannot show a DAD outcome. The Warn is logged once for the worker.
+func (w *v6Worker) dadUnreported(err error) {
+	if !w.unreportedWarned {
+		w.unreportedWarned = true
+		loggerPtr.Load().Warn("iface dhcp v6: the iface backend does not report interface addresses, so ze cannot read the duplicate address detection outcome of the leased addresses and declines none of them; run the DHCPv6 client on an interface of the kernel (netlink) iface backend to have duplicates declined",
+			"iface", w.c.ifaceName, "addresses", w.dadPending, "err", err)
+	}
+	w.dadPending = w.dadPending[:0]
+}
+
 // goneDuplicates judges the addresses gone from the device while no down
-// event had been read, against state, the link state the kernel reported in
-// the read that found them gone, and answers the ones that are duplicates.
+// event had been read, against state, the link state the backend reported in
+// the call that found them gone, and answers the ones that are duplicates.
 //
 // The kernel reports the down (RTM_NEWLINK) and then deletes every address
 // of finite lifetime (addrconf_ifdown), and the monitor delivers the down to
@@ -336,34 +360,73 @@ func (w *v6Worker) checkDAD() bool {
 // move and noteMove installs it again even when the down event is late or
 // was dropped (iface.Subscribe keeps the newest event, not every one).
 //
-// With the device up, the link events queued since the first drain are read
-// again before the addresses are declined: a down and up that both happened
-// before the read leave the device up and the address gone, and the move
-// they complete installs it again.
+// An up state is not enough to decline: the kernel backend reads the link
+// before the addresses, so a device set down between the two reads up with
+// its addresses gone. goneWhileUp reads again and judges the link state
+// taken after the addresses were read.
 //
 // A state that is neither "up" nor "down" says nothing about why the address
 // is gone, so nothing is declined on it: the addresses stay pending, the
-// worker logs a Warn, and the next DAD poll reads again.
+// worker logs one Warn for each distinct state, and the next DAD poll reads
+// again.
 func (w *v6Worker) goneDuplicates(gone []netip.Prefix, state string) []netip.Prefix {
 	switch state {
 	case iface.LinkStateUp:
-		if w.drainLinks() {
-			w.noteMove()
-			return nil
-		}
-		if w.linkDown {
-			return nil // the down arrived meanwhile; the up will install them again
-		}
-		return gone
+		return w.goneWhileUp(gone)
 	case iface.LinkStateDown:
 		w.linkDown = true
 		return nil
 	default: // the backend's state string is open; an unknown one decides nothing
-		loggerPtr.Load().Warn("iface dhcp v6: an address left the device, but ze cannot read the link state to tell a duplicate from a link change, so it declines nothing and reads again",
-			"iface", w.c.ifaceName, "state", state, "addresses", gone)
+		w.warnLinkState(state, gone)
 		w.dadPending = append(w.dadPending, gone...)
 		return nil
 	}
+}
+
+// goneWhileUp judges addresses an up read found gone against a second read,
+// whose link state is read after the first read's addresses, and declines
+// them only when that state is up too and no move is queued since.
+//
+// A second read that is not up is judged as goneDuplicates judges it; it
+// never recurses back here, so the depth is one. A second read that fails
+// declines nothing and leaves the addresses pending. With the device still
+// up, the link events queued since the first drain are read again before the
+// addresses are declined: a down and up that both happened before the read
+// leave the device up and the address gone, and the move they complete
+// installs it again.
+func (w *v6Worker) goneWhileUp(gone []netip.Prefix) []netip.Prefix {
+	later, err := iface.ReadAddressState(w.c.ifaceName)
+	if err != nil {
+		loggerPtr.Load().Debug("iface dhcp v6: cannot read the link state again, retrying",
+			"iface", w.c.ifaceName, "err", err)
+		w.dadPending = append(w.dadPending, gone...)
+		return nil
+	}
+	if later.State != iface.LinkStateUp {
+		return w.goneDuplicates(gone, later.State)
+	}
+	if w.drainLinks() {
+		w.noteMove()
+		return nil
+	}
+	if w.linkDown {
+		return nil // the down arrived meanwhile; the up will install them again
+	}
+	return gone
+}
+
+// warnLinkState logs, once for each distinct state, that the backend
+// reported a link state that is neither up nor down.
+func (w *v6Worker) warnLinkState(state string, gone []netip.Prefix) {
+	if w.linkStatesWarned[state] {
+		return
+	}
+	if w.linkStatesWarned == nil {
+		w.linkStatesWarned = make(map[string]bool)
+	}
+	w.linkStatesWarned[state] = true
+	loggerPtr.Load().Warn("iface dhcp v6: an address left the device and the iface backend reported a link state that is neither up nor down, so ze cannot tell a duplicate from a link change; it declines nothing and reads the device again at each duplicate address detection poll. Check the device's state with 'ip link show <device>'; an address still gone once the device reads up is declined then",
+		"iface", w.c.ifaceName, "device", w.device, "state", strconv.Quote(state), "addresses", gone)
 }
 
 // v6DADOf is the DAD outcome of addr among the device's addresses.

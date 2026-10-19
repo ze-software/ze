@@ -7,6 +7,7 @@ package iface
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -127,22 +128,36 @@ func Addresses(name string) ([]AddrInfo, error) { return globalResolver.addresse
 
 // AddressState is one backend read of a logical interface: its addresses,
 // classified as Addresses classifies them, and the operational state the
-// backend reported in the same read (InterfaceInfo.State, "up" or "down" from
-// the kernel and VPP backends). Both come from one dump, so they describe one
-// instant, which link events delivered later cannot.
+// backend reported in the same call (InterfaceInfo.State, LinkStateUp or
+// LinkStateDown from the kernel and VPP backends).
+//
+// The two are not one instant. The kernel backend reads the link
+// (RTM_GETLINK) and then the addresses (RTM_GETADDR), so State can predate the
+// address read: a device set down between the two reads up with its addresses
+// already gone. A consumer that needs the link state at or after the address
+// read takes a second read and uses its State.
 type AddressState struct {
 	Addresses []AddrInfo
 	State     string
 }
 
+// ErrAddressesNotReported is the ReadAddressState error of a backend that does
+// not read a device's addresses (InterfaceInfo.AddressesRead false, the VPP
+// backend). The device's addresses are unknown, not absent.
+var ErrAddressesNotReported = errors.New("the active iface backend does not report interface addresses")
+
 // ReadAddressState reads the logical interface's addresses and its
-// operational state together. The logical name is translated as Addresses
-// translates it. Returns an error if no backend is loaded or the device is
-// absent.
+// operational state in one backend call. The logical name is translated as
+// Addresses translates it. Returns an error if no backend is loaded, the
+// device is absent, or the addresses were not read: wrapping
+// ErrAddressesNotReported when the backend does not report them.
 func ReadAddressState(name string) (AddressState, error) {
 	info, err := globalResolver.osDeviceFor(name)
 	if err != nil {
 		return AddressState{}, err
+	}
+	if !info.AddressesRead {
+		return AddressState{}, fmt.Errorf("interface %q: %w", name, ErrAddressesNotReported)
 	}
 	return AddressState{Addresses: classifyAddresses(info.Addresses), State: info.State}, nil
 }

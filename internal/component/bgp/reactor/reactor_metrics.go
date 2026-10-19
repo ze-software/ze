@@ -98,6 +98,12 @@ type reactorMetrics struct {
 	// (wireu.WellKnown.BlockingName).
 	wellKnownSuppressed metrics.CounterVec // labels: community
 
+	// RFC 9774 Section 3 send guard: routes whose transmitted AS_PATH or AS4_PATH held
+	// an AS_SET or AS_CONFED_SET, written to the peer as withdrawals instead
+	// (session_rfc9774.go). The guard is not configurable, so this counter and the
+	// rate-limited warning are the only places an operator sees it.
+	asSetWithdrawn metrics.Counter
+
 	// Config + operational
 	configReloads      metrics.Counter    // Successful config reloads
 	configReloadErrors metrics.CounterVec // labels: error_type
@@ -198,6 +204,11 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 			"ze_bgp_wellknown_community_suppressed_total",
 			"Routes withheld from a destination peer by an RFC 1997 well-known community.",
 			[]string{"community"},
+		),
+
+		asSetWithdrawn: reg.Counter(
+			"ze_bgp_as_set_withdrawn_total",
+			"Routes written as withdrawals because their AS_PATH or AS4_PATH held an AS_SET or AS_CONFED_SET (RFC 9774 Section 3).",
 		),
 
 		updateModifyFailed: reg.CounterVec(

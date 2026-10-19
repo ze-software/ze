@@ -2,6 +2,7 @@
 // RFC: rfc/short/rfc7607.md — Codification of AS 0 Processing
 // Related: rfc7606.go — the attribute walk this registers into, and the AS_PATH and
 // AGGREGATOR validators that carry the other half of RFC 7607 Section 2
+// Related: rfc9774.go — the AS_SET and AS_CONFED_SET scan validateAS4PathAttr calls
 //
 // RFC 7607 proscribes AS 0 in four attributes. AS_PATH and AGGREGATOR already have a
 // validator in rfc7606.go and the AS 0 test was added there, beside the structural
@@ -28,7 +29,7 @@ func init() {
 	attrValidators[attrCodeAS4Aggregator] = validateAS4AggregatorAttr
 }
 
-// validateAS4PathAttr rejects AS 0 in AS4_PATH.
+// validateAS4PathAttr rejects AS 0 and set segments in AS4_PATH.
 //
 // RFC 7607 Section 2: "An UPDATE message that contains the AS number of zero in the
 // AS4_PATH or AS4_AGGREGATOR attribute MUST be considered as malformed and be handled
@@ -37,11 +38,21 @@ func init() {
 // RFC 6793 Section 6 names that procedure: "the 'attribute discard' approach is chosen
 // to handle a malformed AS4_PATH attribute."
 //
-// This answers the AS 0 question only. A structurally inconsistent AS4_PATH is a
-// different malformation, owned by RFC 6793 Section 6's own length and segment
-// conditions, and reported nowhere on this rail today. Widening this validator to
-// report it would close that gap silently, under an RFC that does not ask for it.
+// It also rejects an AS_SET or AS_CONFED_SET segment, as treat-as-withdraw, on every
+// session whatever the negotiated AS width (RFC 9774 Section 3). That check runs first:
+// RFC 7606 Section 3(h) says "the approach with the strongest action MUST be used", and
+// treat-as-withdraw outranks the attribute discard AS 0 earns.
+//
+// Neither check judges structure. A structurally inconsistent AS4_PATH is a different
+// malformation, owned by RFC 6793 Section 6's own length and segment conditions, and
+// reported nowhere on this rail today; the set scan answers nothing for one. Widening
+// this validator to report it would close that gap silently, under an RFC that does not
+// ask for it.
 func validateAS4PathAttr(code uint8, _ int, attrData []byte, _, _ bool) *RFC7606ValidationResult {
+	// RFC 9774 Section 3
+	if segType, found := ASPathSetSegment(attrData, as4AggregatorASOctets); found {
+		return asPathSetVerdict(code, "AS4_PATH", segType)
+	}
 	if !asPathHoldsASZero(attrData, as4AggregatorASOctets) {
 		return nil
 	}

@@ -233,7 +233,9 @@ MP_UNREACH_NLRI is judged by the prefix walk for unicast and multicast and by a
 family's registered syntax rule otherwise (`nlri.md`, "NLRI Receive
 Validation"); its resets send 3/1, because RFC 4271 Section 6.3 assigns 3/10 to
 the legacy NLRI field only. An SR Policy NLRI of the wrong length for its AFI
-is treat-as-withdraw (RFC 9830 Section 5).
+is treat-as-withdraw (RFC 9830 Section 5). An AS_SET or AS_CONFED_SET segment in
+AS_PATH or AS4_PATH is treat-as-withdraw (RFC 9774 Section 3), and on AS4_PATH it
+outranks the attribute discard AS 0 earns (RFC 7606 Section 3(h)).
 
 <!-- source: internal/component/bgp/message/rfc7606.go -- ValidateUpdateRFC7606AddPath, validateNextHopAttr -->
 <!-- source: internal/component/bgp/reactor/session_validation.go -- rfc7606NLRISyntaxAction, rfc7606ResetNotification -->

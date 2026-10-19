@@ -296,11 +296,13 @@ func TestDHCPv6AddressGoneWithTheLinkBeforeItsDownEventNotDeclined(t *testing.T)
 
 // TestDHCPv6AddressGoneWithAnUnreadableLinkStateNotDeclined holds an address
 // the kernel deletes at 0.5 s, from a device whose read reports a state that
-// is neither up nor down until 2 s, and up after.
+// is neither up nor down: empty until 1 s, "dormant" until 2 s, and up after.
 //
-// VALIDATES: a link state the worker cannot read declines nothing and logs a
-// Warn naming it; the address stays pending, so the read at 2 s that reports
-// the link up finds it gone and declines it then.
+// VALIDATES: a link state the worker cannot read declines nothing and logs
+// one Warn for each distinct state, naming the interface and the state, not
+// one for each DAD poll; the address stays pending, so the first read at or
+// after 2 s, no later than one DAD poll after it, reports the link up, finds
+// the address gone and declines it then.
 // PREVENTS: an unreadable state answered as "up" (a unique address declined)
 // or as "down" (a duplicate address kept in use and never declined).
 func TestDHCPv6AddressGoneWithAnUnreadableLinkStateNotDeclined(t *testing.T) {
@@ -313,10 +315,14 @@ func TestDHCPv6AddressGoneWithAnUnreadableLinkStateNotDeclined(t *testing.T) {
 		return nil
 	}
 	r.backend.stateAt = func(at time.Duration) string {
-		if at < seconds(2) {
+		switch {
+		case at < seconds(1):
 			return ""
+		case at < seconds(2):
+			return "dormant"
+		default:
+			return iface.LinkStateUp
 		}
-		return "up"
 	}
 	r.startWorker()
 	r.runUntil(seconds(4))
@@ -328,8 +334,19 @@ func TestDHCPv6AddressGoneWithAnUnreadableLinkStateNotDeclined(t *testing.T) {
 	if declines[0].at < seconds(2) {
 		t.Errorf("DECLINE at %v, while the link state was unreadable", declines[0].at)
 	}
-	if got := r.logs.count(slog.LevelWarn, "cannot read the link state"); got == 0 {
-		t.Errorf("no Warn for the unreadable link state")
+	if declines[0].at > seconds(2)+v6DADPoll {
+		t.Errorf("DECLINE at %v, more than one DAD poll after the link read up at 2s", declines[0].at)
+	}
+	if got := r.logs.count(slog.LevelWarn, "neither up nor down"); got != 2 {
+		t.Errorf("%d Warn for the unreadable link state, want 2: one for each distinct state", got)
+	}
+	for _, state := range []string{`""`, `"dormant"`} {
+		if got := r.logs.countWith(slog.LevelWarn, "neither up nor down", "state", state); got != 1 {
+			t.Errorf("%d Warn naming state %s, want 1", got, state)
+		}
+	}
+	if got := r.logs.countWith(slog.LevelWarn, "neither up nor down", "iface", r.backend.logical); got != 2 {
+		t.Errorf("%d Warn naming %s, want 2", got, r.backend.logical)
 	}
 }
 

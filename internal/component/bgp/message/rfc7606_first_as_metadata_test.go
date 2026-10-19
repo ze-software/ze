@@ -31,7 +31,7 @@ func TestRFC7606FirstASMetadata(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			input := append(append([]byte(nil), attrs...), tc.extra...)
 			// RFC 7606 Sections 3(g) and 7.2: collect on the existing walk.
-			result := ValidateUpdateRFC7606AddPath(input, true, false, true, nil)
+			result := ValidateUpdateRFC7606AddPath(input, true, false, true, nil, false)
 			require.Equal(t, tc.wantAction, result.Action)
 			require.Equal(t, AttrRange{Start: 7, End: 13}, result.ASPath)
 			require.Equal(t, path, input[result.ASPath.Start:result.ASPath.End])

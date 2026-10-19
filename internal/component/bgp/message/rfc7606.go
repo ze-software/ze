@@ -232,7 +232,7 @@ func validateAttributeFlags(code, flags uint8) *RFC7606ValidationResult {
 // Returns:
 //   - ValidationResult with strongest action, error details, and attribute codes to discard
 func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI, isIBGP, asn4 bool) *RFC7606ValidationResult {
-	return ValidateUpdateRFC7606AddPath(pathAttrs, hasNLRI, isIBGP, asn4, nil)
+	return ValidateUpdateRFC7606AddPath(pathAttrs, hasNLRI, isIBGP, asn4, nil, false)
 }
 
 // ValidateUpdateRFC7606AddPath is ValidateUpdateRFC7606 with per-family ADD-PATH awareness.
@@ -241,8 +241,16 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI, isIBGP, asn4 bool) *RFC760
 // ADD-PATH UPDATE (whose NLRI carry a 4-byte path identifier) is not misread as malformed.
 // A nil addPathFor means "no ADD-PATH", which is the correct default for callers that do not
 // have negotiated state (the plain ValidateUpdateRFC7606 wrapper, and unit tests).
+//
+// linkLocalNextHop reports whether the session negotiated the Link-Local Next Hop
+// capability (code 77). draft-ietf-idr-linklocal-capability Section 6 applies "only when
+// the Link-Local Next Hop Capability has been negotiated", and then makes a 32-octet
+// MP_REACH_NLRI Next Hop that is not a Global followed by a Link-Local treat-as-withdraw
+// (validateLinkLocalNextHopPair). False is the answer for a session that did not
+// negotiate it, which is also the plain ValidateUpdateRFC7606 wrapper's.
 func ValidateUpdateRFC7606AddPath(
 	pathAttrs []byte, hasNLRI, isIBGP, asn4 bool, addPathFor func(afi uint16, safi uint8) bool,
+	linkLocalNextHop bool,
 ) *RFC7606ValidationResult {
 	if len(pathAttrs) == 0 {
 		// Empty path attributes with NLRI = missing mandatory attributes
@@ -492,6 +500,15 @@ func ValidateUpdateRFC7606AddPath(
 				if r.Action == RFC7606ActionSessionReset {
 					return r
 				}
+				recordError(r)
+			}
+		}
+
+		// draft-ietf-idr-linklocal-capability Section 6. After validateMPNLRIField, whose
+		// session reset for a Next Hop overrunning the attribute has already returned, so the
+		// 32-octet field is whole when this reads it.
+		if attrCode == attrCodeMPReachNLRI && linkLocalNextHop {
+			if r := validateLinkLocalNextHopPair(attrData); r != nil {
 				recordError(r)
 			}
 		}
@@ -1064,6 +1081,9 @@ const (
 // - Segment underrun: only 1 byte remaining after last segment
 // - Zero segment length
 //
+// A well-framed AS_PATH holding AS 0 (RFC 7607) or an AS_SET or AS_CONFED_SET segment
+// (RFC 9774) is treat-as-withdraw too, judged after the structure walk.
+//
 // Parameters:
 //   - data: Raw AS_PATH attribute value bytes
 //   - asn4: True if ASNs are 4 bytes, false for 2 bytes
@@ -1147,6 +1167,12 @@ func validateASPath(data []byte, asn4 bool) *RFC7606ValidationResult {
 			AttrCode:    attrCodeASPath,
 			Description: "RFC 7607 Section 2: AS 0 in AS_PATH",
 		}
+	}
+
+	// RFC 9774 Section 3. Like the AS 0 scan, it runs after the structure walk, so a
+	// structural fault keeps its RFC 7606 Section 7.2 description.
+	if segType, found := ASPathSetSegment(data, asSize); found {
+		return asPathSetVerdict(attrCodeASPath, "AS_PATH", segType)
 	}
 
 	return nil

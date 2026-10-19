@@ -149,9 +149,15 @@ type InterfaceInfo struct {
 	// writes "ze:owned:<owner>" here to mark plugin-owned macvlan devices it
 	// manages; the reconcile orphan scan reads it back to detect owner release
 	// and crash leftovers. Empty for links with no alias.
-	Alias     string          `json:"alias,omitempty"`
-	Addresses []AddrInfo      `json:"addresses,omitempty"`
-	Stats     *InterfaceStats `json:"stats,omitempty"`
+	Alias     string     `json:"alias,omitempty"`
+	Addresses []AddrInfo `json:"addresses,omitempty"`
+	// AddressesRead is true when the backend read the device's addresses into
+	// Addresses, so an empty Addresses means the device holds none. It is
+	// false from a backend that does not report addresses (VPP), where an
+	// empty Addresses means nothing: ReadAddressState refuses such a read
+	// with ErrAddressesNotReported rather than report every address gone.
+	AddressesRead bool            `json:"-"`
+	Stats         *InterfaceStats `json:"stats,omitempty"`
 	// CounterGeneration is an opaque raw-counter continuity token. Zero means
 	// the backend does not report continuity. Linux changes it on netdevice
 	// replacement, a raw counter decrease, or loss of link notification history.

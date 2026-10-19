@@ -253,7 +253,14 @@ splits IPv4, IPv6 link-local and IPv6 global with no re-parsing.
 
 `iface.ReadAddressState` returns the same classified addresses with the
 operational state (`iface.LinkStateUp` or `iface.LinkStateDown`) the backend
-reported in the same read. A consumer that must judge an address change against
-the link uses it, because a link event can reach a subscriber after the kernel
-has already acted on the change: the DHCPv6 client tells an address deleted by
-a failed DAD from one deleted with a device set down this way.
+reported in the same call. The two are not one instant: the kernel backend reads
+the link (`RTM_GETLINK`) before the addresses (`RTM_GETADDR`), so a device set
+down between the two reads up with its addresses already gone. A consumer that
+must judge an address change against the link uses a link state read at or after
+the address read, which a second call provides, because a link event can reach a
+subscriber after the kernel has already acted on the change: the DHCPv6 client
+tells an address deleted by a failed DAD from one deleted with a device set down
+this way. A failed address read is an error, never an empty list, and a backend
+that does not read addresses (VPP) answers `iface.ErrAddressesNotReported`.
+<!-- source: internal/plugins/iface/netlink/show_linux.go -- GetInterface, addrList -->
+<!-- source: internal/plugins/iface/vpp/query.go -- GetInterface -->

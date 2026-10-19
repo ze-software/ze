@@ -430,6 +430,19 @@ suppression is not configurable and is never logged per route, so this counter i
 the only place an operator sees it.
 <!-- source: internal/component/bgp/reactor/forward_wellknown.go -- wellKnownAllowsEgress -->
 
+#### AS_SET Withdrawals
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ze_bgp_as_set_withdrawn_total` | counter | none | A route was written to a peer as a withdrawal because its AS_PATH or AS4_PATH held an AS_SET or AS_CONFED_SET |
+
+RFC 9774 Section 3 forbids advertising a set, so the writer sends the
+withdrawal form of such an UPDATE instead, whatever produced it (a static route
+with a raw `attribute`, `update hex`, a plugin). The counter adds the number of
+routes the UPDATE announced. A warning line, at most one a second for each
+peer, names the peer and the route count and says to remove the set segment.
+<!-- source: internal/component/bgp/reactor/session_rfc9774.go -- writeUpdateAsWithdrawal -->
+
 The `community` label set is closed and holds three values: `no-advertise`,
 `no-export-subconfed`, `no-export`. A route carrying more than one is counted
 under the strictest, so one suppressed route is always one observation.

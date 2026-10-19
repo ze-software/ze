@@ -59,6 +59,11 @@ type loopBackend struct {
 	// stateAt answers the device's operational state at a fake-clock offset;
 	// nil reports the device up, as a device a lease is held on is.
 	stateAt func(at time.Duration) string
+	// readErr fails every GetInterface, as a backend whose read cannot answer.
+	readErr error
+	// addressesUnread answers GetInterface without reading the addresses, as
+	// the VPP backend does (InterfaceInfo.AddressesRead false).
+	addressesUnread bool
 	// installed is the addresses ReplaceAddressWithLifetime put on the device
 	// and RemoveAddress has not taken off.
 	installed []string
@@ -86,8 +91,17 @@ func (b *loopBackend) GetInterface(name string) (*iface.InterfaceInfo, error) {
 	b.mu.Lock()
 	addrsAt := b.addrsAt
 	stateAt := b.stateAt
+	readErr := b.readErr
+	unread := b.addressesUnread
 	b.mu.Unlock()
-	info := &iface.InterfaceInfo{Name: name, OsName: loopKernelDevice, Index: 7, State: "up"}
+	if readErr != nil {
+		return nil, readErr
+	}
+	info := &iface.InterfaceInfo{Name: name, OsName: loopKernelDevice, Index: 7, State: iface.LinkStateUp}
+	if unread {
+		return info, nil
+	}
+	info.AddressesRead = true
 	if stateAt != nil {
 		info.State = stateAt(b.now())
 	}
@@ -228,6 +242,7 @@ type logCapture struct {
 type capturedLog struct {
 	level slog.Level
 	msg   string
+	attrs map[string]string // each attribute's value, as slog.Value.String renders it
 }
 
 func (h *logCapture) Enabled(context.Context, slog.Level) bool { return true }
@@ -235,7 +250,12 @@ func (h *logCapture) Enabled(context.Context, slog.Level) bool { return true }
 func (h *logCapture) Handle(_ context.Context, r slog.Record) error { //nolint:gocritic // slog.Handler fixes the value parameter
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.records = append(h.records, capturedLog{level: r.Level, msg: r.Message})
+	attrs := make(map[string]string, r.NumAttrs())
+	r.Attrs(func(a slog.Attr) bool {
+		attrs[a.Key] = a.Value.String()
+		return true
+	})
+	h.records = append(h.records, capturedLog{level: r.Level, msg: r.Message, attrs: attrs})
 	return nil
 }
 
@@ -249,6 +269,20 @@ func (h *logCapture) count(level slog.Level, text string) int {
 	n := 0
 	for _, r := range h.records {
 		if r.level == level && strings.Contains(r.msg, text) {
+			n++
+		}
+	}
+	return n
+}
+
+// countWith is the number of records at level whose message contains text
+// and whose attribute key renders as value.
+func (h *logCapture) countWith(level slog.Level, text, key, value string) int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	n := 0
+	for _, r := range h.records {
+		if r.level == level && strings.Contains(r.msg, text) && r.attrs[key] == value {
 			n++
 		}
 	}

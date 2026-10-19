@@ -780,22 +780,22 @@
       "rid": "RFC2545-3-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSubnetConditions",
-      "unit-sha": "49d9e0ac302bd7c2",
+      "unit-sha": "9c732922c54a07f7",
       "claim-sha": "d74d4de2ccff1d33",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
-      "producer-sha": "f18fe575149c99df",
+      "producer-sha": "eefbfdd62f8042b3",
       "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2545-3-3",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSubnetConditions",
-      "unit-sha": "49d9e0ac302bd7c2",
-      "claim-sha": "78391bc0349880ae",
+      "unit-sha": "9c732922c54a07f7",
+      "claim-sha": "f25fb29c22cb01da",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
-      "producer-sha": "f18fe575149c99df",
+      "producer-sha": "eefbfdd62f8042b3",
       "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

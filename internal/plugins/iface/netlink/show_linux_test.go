@@ -3,6 +3,7 @@
 package ifacenetlink
 
 import (
+	"errors"
 	"net"
 	"testing"
 
@@ -44,7 +45,58 @@ func TestGetInterface(t *testing.T) {
 	assert.Greater(t, info.Index, 0)
 	assert.Greater(t, info.MTU, 0)
 	assert.NotEmpty(t, info.Addresses, "loopback should have at least 127.0.0.1")
+	assert.True(t, info.AddressesRead, "the netlink backend reads the addresses")
 	assert.NotNil(t, info.Stats)
+}
+
+// TestGetInterfaceRetriesAnInterruptedAddressDump interrupts the first
+// address dump.
+//
+// VALIDATES: an interrupted dump (NLM_F_DUMP_INTR) is dumped again and the
+// second dump's addresses are answered.
+// PREVENTS: address-table churn failing every interface read now that a
+// failed address read is returned.
+func TestGetInterfaceRetriesAnInterruptedAddressDump(t *testing.T) {
+	saved := addrListOf
+	dumps := 0
+	addrListOf = func(link netlink.Link, family int) ([]netlink.Addr, error) {
+		dumps++
+		if dumps == 1 {
+			return nil, netlink.ErrDumpInterrupted
+		}
+		return saved(link, family)
+	}
+	t.Cleanup(func() { addrListOf = saved })
+	b := &netlinkBackend{}
+	t.Cleanup(func() { require.NoError(t, b.Close()) })
+
+	info, err := b.GetInterface("lo")
+	require.NoError(t, err)
+	assert.NotEmpty(t, info.Addresses, "loopback should have at least 127.0.0.1")
+	assert.Equal(t, 2, dumps)
+}
+
+// TestGetInterfaceRefusesAFailedAddressRead fails the address dump of every
+// link.
+//
+// VALIDATES: GetInterface and ListInterfaces return the address read's error,
+// so no caller is handed a device that seems to hold no address.
+// PREVENTS: a failed RTM_GETADDR dump answered as an empty address list,
+// which made the DHCPv6 client judge every leased address gone and decline it.
+func TestGetInterfaceRefusesAFailedAddressRead(t *testing.T) {
+	failure := errors.New("address dump failed")
+	saved := addrListOf
+	addrListOf = func(netlink.Link, int) ([]netlink.Addr, error) { return nil, failure }
+	t.Cleanup(func() { addrListOf = saved })
+	b := &netlinkBackend{}
+	t.Cleanup(func() { require.NoError(t, b.Close()) })
+
+	info, err := b.GetInterface("lo")
+	assert.ErrorIs(t, err, failure)
+	assert.Nil(t, info)
+	list, err := b.ListInterfaces()
+	assert.ErrorIs(t, err, failure)
+	assert.Nil(t, list)
 }
 
 func TestGetInterfaceNotFound(t *testing.T) {

@@ -423,6 +423,20 @@ link-local-only next hop is withheld from a route-reflector client that shares n
 link-layer segment with the original advertiser, unless the operator configured
 next-hop-self for that client.
 
+On receipt, Section 6 governs a 32-octet Next Hop field on a session that
+negotiated the capability. The session hands `Negotiated.LinkLocalNextHop` to
+the RFC 7606 attribute walk beside the ADD-PATH state, and the walk accepts
+three shapes: a Global followed by a Link-Local (`fe80::/10`), `::` followed by
+a Link-Local, and two Link-Locals, the last two being the forms Section 6 tells
+a receiver to forward on. Any other pair, a Link-Local first and a Global
+second or two Globals, is malformed, and the UPDATE is treat-as-withdraw (RFC
+7606 Section 7.3) as the section requires. FRR and BIRD drop the Link-Local
+half instead and keep the route. A Next Hop Length the family does not allow
+stays an RFC 7606 Section 7.11 session reset, and a session without the
+capability is judged on that length alone.
+
+<!-- source: internal/component/bgp/message/rfc7606_linklocal.go -- validateLinkLocalNextHopPair -->
+<!-- source: internal/component/bgp/reactor/session_validation_receive.go -- validateRFC7606Attrs -->
 <!-- source: internal/component/bgp/plugins/llnh/llnh.go -- refuseLinkLocalCapabilityWithoutAddress -->
 <!-- source: internal/core/bgp/capability/capability.go -- LinkLocalNextHop, CodeLinkLocalNextHop -->
 <!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate, LinkLocalNextHop -->

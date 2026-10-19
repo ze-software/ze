@@ -606,6 +606,12 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 	if s.writeFailed != nil {
 		return false, s.writeFailed
 	}
+	// RFC 9774 Section 3. Ahead of the AIGP guard: the withdrawal carries no AIGP.
+	// Raw injection is exempt (owner, Q-4 (b), 2026-10-18): it is the operator override
+	// Section 3 names, and the only way to put a set on the wire to test a peer.
+	if !raw && s.transmittedPathHoldsSet(body) {
+		return s.writeUpdateAsWithdrawal(body)
+	}
 	// RFC 7311 Section 3.3: "An AIGP attribute MUST NOT be sent on any BGP
 	// session for which AIGP_SESSION is disabled."
 	if !s.settings.AIGPEnabled() && aigpPresent(body) {

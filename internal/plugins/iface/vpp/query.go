@@ -130,6 +130,11 @@ func readVPPIfaceStats() map[string]*iface.InterfaceStats {
 // GetInterface returns the single interface matching name. The name is the
 // VPP long name; SwInterfaceDump's NameFilter is substring-match, so we
 // re-check for an exact InterfaceName match.
+//
+// The answer carries no addresses and leaves AddressesRead false:
+// SwInterfaceDetails holds none, and reading them is a separate
+// IPAddressDump per interface and family that this backend does not issue.
+// iface.ReadAddressState therefore refuses it with ErrAddressesNotReported.
 func (b *vppBackendImpl) GetInterface(name string) (*iface.InterfaceInfo, error) {
 	details, err := b.dumpByName(name)
 	if err != nil {

@@ -1,6 +1,7 @@
 package iface
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -661,5 +662,35 @@ func TestResolverKeepsTheFinalStateWhenTheChannelFills(t *testing.T) {
 	if last := got[len(got)-1]; last.Kind != LinkDown {
 		t.Errorf("the last event delivered is %q, want %q: a consumer that pauses on down and resumes only on up is stranded when the final state is the one discarded",
 			string(last.Kind), string(LinkDown))
+	}
+}
+
+// TestReadAddressStateRefusesAddressesTheBackendDidNotRead reads a device
+// from a backend that answers without reading its addresses, as the VPP
+// backend does, and one that read them.
+//
+// VALIDATES: the unread addresses come back as ErrAddressesNotReported, not
+// as a device holding no address; a read that did read them answers them.
+// PREVENTS: the DHCPv6 client judging every leased address gone, and
+// declining it, on a backend that never reports addresses.
+func TestReadAddressStateRefusesAddressesTheBackendDidNotRead(t *testing.T) {
+	withResolveBackend(t, &resolveStubBackend{ifaces: map[string]*InterfaceInfo{
+		"vpp0": {Name: "vpp0", OsName: "vpp0", State: LinkStateUp},
+		"eth0": {Name: "eth0", OsName: "eth0", State: LinkStateUp, AddressesRead: true,
+			Addresses: []AddrInfo{{Address: "2001:db8::1", PrefixLength: 64, Family: "ipv6"}}},
+	}})
+
+	if _, err := ReadAddressState("vpp0"); !errors.Is(err, ErrAddressesNotReported) {
+		t.Fatalf("ReadAddressState(vpp0) error = %v, want ErrAddressesNotReported", err)
+	}
+	got, err := ReadAddressState("eth0")
+	if err != nil {
+		t.Fatalf("ReadAddressState(eth0): %v", err)
+	}
+	if len(got.Addresses) != 1 {
+		t.Fatalf("ReadAddressState(eth0) = %d addresses, want 1", len(got.Addresses))
+	}
+	if got.State != LinkStateUp {
+		t.Errorf("ReadAddressState(eth0) state = %q, want %q", got.State, LinkStateUp)
 	}
 }

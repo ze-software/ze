@@ -60,7 +60,12 @@ func (b *netlinkBackend) ListInterfaces() ([]iface.InterfaceInfo, error) {
 	for _, link := range links {
 		info := linkToInfo(link.link)
 		info.CounterGeneration = link.generation
-		info.Addresses = addrList(link.link)
+		addrs, err := addrList(link.link)
+		if err != nil {
+			return nil, fmt.Errorf("iface: list interfaces: %w", err)
+		}
+		info.Addresses = addrs
+		info.AddressesRead = true
 		result = append(result, info)
 	}
 	return result, nil
@@ -79,7 +84,12 @@ func (b *netlinkBackend) GetInterface(name string) (*iface.InterfaceInfo, error)
 	}
 	info := linkToInfo(links[0].link)
 	info.CounterGeneration = links[0].generation
-	info.Addresses = addrList(links[0].link)
+	addrs, err := addrList(links[0].link)
+	if err != nil {
+		return nil, fmt.Errorf("iface: get %q: %w", name, err)
+	}
+	info.Addresses = addrs
+	info.AddressesRead = true
 	return &info, nil
 }
 
@@ -222,11 +232,25 @@ const ifaFlagTentative = 0x40
 // Detection found the IPv6 address in use by another node on the link.
 const ifaFlagDADFailed = 0x08
 
-func addrList(link netlink.Link) []iface.AddrInfo {
-	addrs, err := netlink.AddrList(link, netlink.FAMILY_ALL)
+// addrListOf is netlink.AddrList; a test replaces it to fail the address dump.
+var addrListOf = netlink.AddrList
+
+// addrList reads the link's addresses. A failed dump is returned, never
+// answered as an empty list: a caller cannot tell an empty list from a device
+// that holds no address, and the DHCPv6 client declines a leased address it
+// finds gone. An interrupted dump (the address table changed during the walk)
+// is dumped again, as listLinks does for the link table.
+func addrList(link netlink.Link) ([]iface.AddrInfo, error) {
+	var addrs []netlink.Addr
+	var err error
+	for attempt := 0; attempt <= linkListRetries; attempt++ {
+		addrs, err = addrListOf(link, netlink.FAMILY_ALL)
+		if !errors.Is(err, netlink.ErrDumpInterrupted) {
+			break
+		}
+	}
 	if err != nil {
-		logger().Warn("failed to list addresses", "interface", link.Attrs().Name, "err", err)
-		return nil
+		return nil, fmt.Errorf("addresses of %q: %w", link.Attrs().Name, err)
 	}
 	result := make([]iface.AddrInfo, 0, len(addrs))
 	for _, a := range addrs {
@@ -251,5 +275,5 @@ func addrList(link netlink.Link) []iface.AddrInfo {
 			PreferredLifetime: normalizeLifetime(a.PreferedLft),
 		})
 	}
-	return result
+	return result, nil
 }

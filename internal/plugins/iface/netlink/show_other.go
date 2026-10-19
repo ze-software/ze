@@ -53,9 +53,9 @@ func (s *stubBackend) GetInterface(name string) (*iface.InterfaceInfo, error) {
 // included. A failed address read is returned rather than dropped, so an
 // interface is never reported as holding no address when it was not read.
 func stdlibInterfaceInfo(ifc *net.Interface) (iface.InterfaceInfo, error) {
-	state := "down"
+	state := iface.LinkStateDown
 	if ifc.Flags&net.FlagUp != 0 {
-		state = "up"
+		state = iface.LinkStateUp
 	}
 	info := iface.InterfaceInfo{
 		Name:   ifc.Name,
@@ -75,6 +75,7 @@ func stdlibInterfaceInfo(ifc *net.Interface) (iface.InterfaceInfo, error) {
 		return iface.InterfaceInfo{}, fmt.Errorf("iface: addresses of %q: %w", ifc.Name, err)
 	}
 	info.Addresses = stdlibAddrInfo(addrs)
+	info.AddressesRead = true
 	return info, nil
 }
 

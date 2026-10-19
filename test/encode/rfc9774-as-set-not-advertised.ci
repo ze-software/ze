@@ -1,0 +1,67 @@
+# RFC 9774 Section 3: "BGP speakers: MUST NOT advertise BGP UPDATE messages
+# containing AS_SETs or AS_CONFED_SETs".
+#
+# VALIDATES: a static route whose configured raw AS_PATH holds an AS_SET is not
+# advertised, while its clean twin is. The config writes the raw AS_PATH beside the
+# typed (empty, iBGP) one, so the guard must judge every AS_PATH occurrence. The
+# test peer expects the clean UPDATE, then the withdrawal the guard writes in place
+# of the set route (this rail does not track what the peer holds, so the withdrawal
+# of a never-held prefix is not suppressed; it announces nothing), then the
+# End-of-RIB. An UPDATE announcing 10.0.1.0/24 fails the sequence at seq=2.
+# PREVENTS: a configured raw attribute putting an AS_SET on the wire.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304C0A801FD40050400000064180A0000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00010000
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	group default {
+		peer peer1 {
+			connection {
+				remote {
+					ip 127.0.0.1
+				}
+				local {
+					ip 127.0.0.1
+					accept false
+				}
+			}
+			session {
+				asn {
+					local 65533
+					remote 65533
+				}
+				router-id 10.0.0.2
+			}
+			update {
+				attribute {
+					origin igp
+					next-hop 192.168.1.253
+				}
+				nlri {
+					ipv4/unicast add 10.0.0.0/24
+				}
+			}
+			update {
+				attribute {
+					origin igp
+					next-hop 192.168.1.254
+					attribute "0x02 0x40 0x01020000FDE80000FDEA"
+				}
+				nlri {
+					ipv4/unicast add 10.0.1.0/24
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

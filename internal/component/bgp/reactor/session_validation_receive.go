@@ -164,11 +164,15 @@ func (s *Session) validateRFC7606Attrs(pathAttrs []byte, hasNLRI bool) *message.
 	// to this peer as if this was a natively configured iBGP session".
 	isIBGP := s.settings.IsIBGP()
 	asn4 := false
+	// draft-ietf-idr-linklocal-capability Section 6: its error handling binds only a
+	// session that negotiated capability 77.
+	linkLocalNextHop := false
 	if neg := s.Negotiated(); neg != nil {
 		asn4 = neg.ASN4
+		linkLocalNextHop = neg.LinkLocalNextHop
 	}
 	// RFC 7606 Section 3.
-	result := message.ValidateUpdateRFC7606AddPath(pathAttrs, hasNLRI, isIBGP, asn4, addPathFor)
+	result := message.ValidateUpdateRFC7606AddPath(pathAttrs, hasNLRI, isIBGP, asn4, addPathFor, linkLocalNextHop)
 
 	// RFC 7311 Section 3.3: "If an AIGP attribute is received on a BGP
 	// session for which AIGP_SESSION is disabled, the attribute MUST be

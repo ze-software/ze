@@ -75,7 +75,7 @@ func psidValidate(t *testing.T, reach, value string, prefixSIDFirst bool) *RFC76
 	}
 	raw, err := hex.DecodeString(attrs)
 	require.NoError(t, err)
-	return ValidateUpdateRFC7606AddPath(raw, false, false, true, func(uint16, uint8) bool { return false })
+	return ValidateUpdateRFC7606AddPath(raw, false, false, true, func(uint16, uint8) bool { return false }, false)
 }
 
 // psidRequireDiscard asserts attribute-discard of exactly code 40.
