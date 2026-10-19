@@ -283,3 +283,5 @@ kernel. Two journal rows opened: the DAD/LinkDown race in `checkDAD`, and link
 events unread during an exchange.
 
 2026-10-19 (dadfix): the `checkDAD` race row is fixed (owner option (a): kernel link state read with the addresses, `goneDuplicates`); QEMU `TestDHCPv6AdminDownDuringDADBeforeItsEventNotDeclined` red under a revert, green with the fix; three rfc9915 records re-taken.
+
+2026-10-19 (dadfix2, landed in the rescue commit ca4eae70a0): the independent review of f3090e7a91 found the link-then-address read is two instants, not one; a failed address read declined every pending address; VPP declined every address. Fixed: `goneWhileUp` re-reads the link after the addresses, netlink address-read errors propagate (retry on an interrupted dump), VPP declares `AddressesRead=false` and DAD declines nothing on it, one Warn per unknown link state. All 7 DHCPv6 QEMU tests pass. Open: independent re-review of the fix in HEAD; the VPP empty-address row in `plan/journal/zero-value-as-valid-answer.md`.
