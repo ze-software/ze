@@ -32,7 +32,7 @@ func TestRunDetachedRendersALabeledContainer(t *testing.T) {
 		t.Fatalf("recorded %d commands, want one run", len(runner.commands))
 	}
 	argv := runner.commands[0].Arguments
-	labels := docker.owner.labelArguments()
+	labels := docker.owner.labelArguments(resourceContainer)
 	want := []string{DockerExecutable, "run", "-d", "--name", "ze-vpp-1"}
 	want = append(want, labels...)
 	want = append(want, "--network", "le-perf-1", "--ip", "172.31.0.10", "--platform", "linux/amd64",
@@ -207,7 +207,7 @@ func TestRunDetachedPublishesOnLoopback(t *testing.T) {
 		t.Fatalf("RunDetached: %v", err)
 	}
 	want := []string{DockerExecutable, "run", "-d", "--name", "ze-labtest-1"}
-	want = append(want, docker.owner.labelArguments()...)
+	want = append(want, docker.owner.labelArguments(resourceContainer)...)
 	want = append(want, "-p", "127.0.0.1::3323/tcp", "-p", "127.0.0.1::123/udp", "stayrtr:1", "-bind", ":3323")
 	if argv := runner.commands[0].Arguments; !slices.Equal(argv, want) {
 		t.Errorf("argv =\n%v\nwant\n%v", argv, want)

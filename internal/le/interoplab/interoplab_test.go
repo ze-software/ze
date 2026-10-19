@@ -422,7 +422,7 @@ func TestPeerCommandAndLogAPIsPreserveTheirContracts(t *testing.T) {
 	}
 	joined := recordedCommands(runner.commands)
 	assertOrder(t, joined,
-		"docker run --rm --name "+fixtureOneShotName()+" "+fixtureLabelText()+" --privileged alpine:3 modprobe pppoe",
+		"docker run --rm --name "+fixtureOneShotName()+" "+fixtureLabelText(resourceContainer)+" --privileged alpine:3 modprobe pppoe",
 		"docker exec -e TOKEN=secret lab-peer show state",
 		"docker exec -d lab-peer sh -c exec pppd call peer >/var/log/ppp/dial.log 2>&1",
 		"docker logs lab-peer --tail 20",
@@ -585,7 +585,7 @@ func TestSuiteRunsLifecycleAndCheckerInOrder(t *testing.T) {
 		"docker ps -a --no-trunc --filter name=lab-ze",
 		"docker ps -a --no-trunc --filter name=lab-peer",
 		"docker network ls --no-trunc --filter name=lab-net",
-		"docker network create "+fixtureLabelText()+" --subnet=172.29.0.0/24 lab-net",
+		"docker network create "+fixtureLabelText(resourceNetwork)+" --subnet=172.29.0.0/24 lab-net",
 		"docker run -d --name lab-ze",
 		"docker run -d --name lab-peer",
 		"docker exec lab-peer peer-ready",
@@ -894,7 +894,9 @@ func assertOrder(t *testing.T, text string, needles ...string) {
 
 // fixtureLabelText is the owner label argv newDocker's fixture owner adds to
 // every create command, as recordedCommands joins it.
-func fixtureLabelText() string { return strings.Join(fixtureOwner().labelArguments(), " ") }
+func fixtureLabelText(kind resourceKind) string {
+	return strings.Join(fixtureOwner().labelArguments(kind), " ")
+}
 
 // VALIDATES: a caller's pull bound only ever lengthens the wrapper default:
 // zero and a shorter bound keep dockerPullTimeout, a longer one is used.

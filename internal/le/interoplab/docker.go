@@ -395,7 +395,7 @@ func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, erro
 	}
 	image.retainedTag = retainedTagRepository + ":" + rand.Text()
 	arguments := []string{DockerExecutable, "build"}
-	arguments = append(arguments, d.owner.labelArguments()...)
+	arguments = append(arguments, d.owner.labelArguments(resourceImageTag)...)
 	arguments = append(arguments, "-t", build.Tag)
 	for _, argument := range build.BuildArgs {
 		arguments = append(arguments, "--build-arg", argument)
@@ -518,7 +518,7 @@ func OneShotDidNotExit(err error) bool {
 // included, so each carries the owner labels and the name a canceled run is
 // removed by.
 func (d *Docker) oneShotArguments(spec OneShotContainer, name string) ([]string, error) {
-	labels := d.owner.labelArguments()
+	labels := d.owner.labelArguments(resourceContainer)
 	argv := make([]string, 0, 8+2*len(spec.Mounts)+len(spec.Arguments)+len(labels)+len(spec.Command))
 	argv = append(argv, DockerExecutable, "run", "--rm", "--name", name)
 	argv = append(argv, labels...)
@@ -547,7 +547,7 @@ func (d *Docker) CreateNetwork(ctx context.Context, spec NetworkSpec) (Network, 
 	}
 	var last *commandError
 	for _, candidate := range spec.Candidates {
-		argv, err := networkCreateArguments(spec.Name, candidate, d.owner.labelArguments())
+		argv, err := networkCreateArguments(spec.Name, candidate, d.owner.labelArguments(resourceNetwork))
 		if err != nil {
 			return Network{}, err
 		}
@@ -622,7 +622,7 @@ func (d *Docker) runContainer(ctx context.Context, network Network, peer PeerCon
 		}
 		argv = append(argv, "--ip6", ipv6.String())
 	}
-	argv = append(argv, d.owner.labelArguments()...)
+	argv = append(argv, d.owner.labelArguments(resourceContainer)...)
 	for _, capability := range peer.Capabilities {
 		argv = append(argv, "--cap-add", capability)
 	}

@@ -378,7 +378,16 @@ from one helper, `ownerIdentity.labelArguments`:
 | `ze.lab.machine-id` | the client machine's id (`/etc/machine-id`, or the Mac's IOPlatformUUID) |
 | `ze.lab.started` | when the run started, RFC 3339 |
 | `ze.lab.purpose` | the creating command line, for the operator |
+| `ze.lab.kind` | the object the create made: `container`, `network` or `image` |
 <!-- source: internal/le/interoplab/orphans.go -- labelMarker, ownerIdentity.labelArguments -->
+
+A container inherits the labels of its image, so one a person starts by hand
+from a lab-built image carries the builder's owner labels with `ze.lab.kind`
+`image`. The wrapper sets the kind on every create, overriding the inherited
+one, and the cleanup judges a resource only when its kind label names the
+object it is: such a container is kept and reported as carrying image labels
+only, not created by a lab run.
+<!-- source: internal/le/interoplab/orphans.go -- ownerJudge.judge, resourceKind.labelValue -->
 
 Every owner fact is read on the client, the machine running `le`, never from
 the daemon: on a Mac the daemon runs in a VM whose pids are not the Mac's.

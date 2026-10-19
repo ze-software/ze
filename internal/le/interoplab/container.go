@@ -94,7 +94,7 @@ func (d *Docker) detachedArguments(spec DetachedContainer) ([]string, error) {
 		return nil, errors.New("detached container address needs a network")
 	}
 	argv := []string{DockerExecutable, "run", "-d", "--name", spec.Name}
-	argv = append(argv, d.owner.labelArguments()...)
+	argv = append(argv, d.owner.labelArguments(resourceContainer)...)
 	if spec.Network != "" {
 		argv = append(argv, "--network", spec.Network)
 	}

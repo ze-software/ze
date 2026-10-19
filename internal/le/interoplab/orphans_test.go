@@ -3,6 +3,7 @@ package interoplab
 import (
 	"context"
 	"errors"
+	"maps"
 	"net/netip"
 	"os"
 	"slices"
@@ -32,6 +33,7 @@ func fixtureLabels(mutate func(map[string]string)) map[string]string {
 		labelMachineID: fixtureMachineID,
 		labelStarted:   "2026-10-18T10:00:00Z",
 		labelPurpose:   "le test integration interop",
+		labelKind:      "container",
 	}
 	if mutate != nil {
 		mutate(labels)
@@ -86,13 +88,27 @@ func orphanDaemon(labels map[string]string, extra func(ProcessCommand) (ProcessR
 		case strings.HasPrefix(joined, "docker image ls"):
 			return ProcessResult{Stdout: fixtureImageID + "\tze-interop-peer:latest\n" +
 				fixtureImageID + "\tze-interop-retained:abc\n"}, nil
-		case strings.HasPrefix(joined, "docker container inspect"),
-			strings.HasPrefix(joined, "docker network inspect"),
-			strings.HasPrefix(joined, "docker image inspect"):
+		case strings.HasPrefix(joined, "docker container inspect"):
 			return ProcessResult{Stdout: labelJSON(labels) + "\n"}, nil
+		case strings.HasPrefix(joined, "docker network inspect"):
+			return ProcessResult{Stdout: labelJSON(createdAs(labels, resourceNetwork)) + "\n"}, nil
+		case strings.HasPrefix(joined, "docker image inspect"):
+			return ProcessResult{Stdout: labelJSON(createdAs(labels, resourceImageTag)) + "\n"}, nil
 		}
 		return ProcessResult{}, nil
 	}
+}
+
+// createdAs answers labels as the wrapper writes them on a resource of kind:
+// the fixture's default container kind becomes kind's, and any other kind a
+// test set stays, so a test can label every object with one inherited kind.
+func createdAs(labels map[string]string, kind resourceKind) map[string]string {
+	if labels[labelKind] != resourceContainer.labelValue() {
+		return labels
+	}
+	created := maps.Clone(labels)
+	created[labelKind] = kind.labelValue()
+	return created
 }
 
 // VALIDATES: AC-1, AC-2, AC-3: every create path the wrapper owns carries the
@@ -147,6 +163,16 @@ func TestOwnerLabelsOnEveryCreate(t *testing.T) {
 			if !strings.Contains(joined, "--label "+key+"="+value) {
 				t.Errorf("%s carries no --label %s=%s", joined, key, value)
 			}
+		}
+		kind := "container"
+		switch {
+		case strings.HasPrefix(joined, "docker build"):
+			kind = "image"
+		case strings.HasPrefix(joined, "docker network create"):
+			kind = "network"
+		}
+		if !strings.Contains(joined, "--label "+labelKind+"="+kind) {
+			t.Errorf("%s carries no --label %s=%s (AC-9)", joined, labelKind, kind)
 		}
 	}
 }
@@ -266,7 +292,7 @@ func TestCleanupOrphansVerdictTable(t *testing.T) {
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			judge := ownerJudge{host: row.host, lookup: row.lookup}
-			got := judge.judge(fixtureLabels(row.mutate))
+			got := judge.judge(resourceContainer, fixtureLabels(row.mutate))
 			if got.verdict != row.want {
 				t.Errorf("verdict = %v (%s), want %v", got.verdict, got.reason, row.want)
 			}
@@ -574,5 +600,37 @@ func TestRemoveContainerTimedOutReobservesPresence(t *testing.T) {
 	}
 	if strings.Count(err.Error(), "did not finish within") != 2 {
 		t.Errorf("re-check failed: %v, want the removal and the re-check errors", err)
+	}
+}
+
+// VALIDATES: AC-9: a container that carries only the owner labels it
+// inherited from a lab-built image (kind image, as a container a person
+// starts by hand from that image does) is never removed, and is reported as a
+// skip naming why, while the run-owned tag the same labels sit on still goes.
+// PREVENTS: the sweep removing a hand-started container once the builder of
+// its image has exited.
+func TestCleanupOrphansSkipsContainerWithInheritedImageLabels(t *testing.T) {
+	inherited := fixtureLabels(func(labels map[string]string) { labels["ze.lab.kind"] = "image" })
+	runner := &recordingRunner{run: orphanDaemon(inherited, nil)}
+	report, err := newDocker(runner).CleanupOrphans(t.Context(), false)
+	if err != nil {
+		t.Fatalf("CleanupOrphans: %v", err)
+	}
+	joined := recordedCommands(runner.commands)
+	if strings.Contains(joined, "docker rm -f "+fixtureContainerID) {
+		t.Fatalf("a container with inherited image labels was removed:\n%s", joined)
+	}
+	if !strings.Contains(joined, "docker image rm --no-prune ze-interop-retained:abc") {
+		t.Errorf("the run-owned tag whose image carries the labels was not removed:\n%s", joined)
+	}
+	skipped := false
+	for _, resource := range report.Skipped {
+		if resource.Kind == resourceContainer && strings.Contains(resource.Reason, "image labels only") &&
+			strings.Contains(resource.Reason, "not created by a lab run") && resource.Fix != "" {
+			skipped = true
+		}
+	}
+	if !skipped {
+		t.Errorf("no container skip names inherited image labels: %#v", report.Skipped)
 	}
 }

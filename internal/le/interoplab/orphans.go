@@ -36,6 +36,7 @@ const (
 	labelMachineID   = "ze.lab.machine-id"
 	labelStarted     = "ze.lab.started"
 	labelPurpose     = "ze.lab.purpose"
+	labelKind        = "ze.lab.kind"
 )
 
 // timeLayoutRFC3339 is the layout of the labelStarted value.
@@ -74,10 +75,13 @@ type ownerIdentity struct {
 	purpose   string
 }
 
-// labelArguments is the one place a create argv gets its labels from.
-func (o ownerIdentity) labelArguments() []string {
+// labelArguments is the one place a create argv gets its labels from. kind is
+// the object the argv creates, recorded so a container that inherited a lab
+// image's labels (kind image) is never judged as one a lab run created.
+func (o ownerIdentity) labelArguments(kind resourceKind) []string {
 	pairs := [...][2]string{
 		{labelMarker, labelMarkerValue},
+		{labelKind, kind.labelValue()},
 		{labelRun, o.run},
 		{labelPID, strconv.Itoa(o.pid)},
 		{labelPIDStart, o.pidStart},
@@ -318,7 +322,9 @@ const pidLabelMax = 1<<31 - 1
 // judge answers ownerGone only on three proven paths: the same machine and a
 // different boot; the same machine and boot with the pid absent; the same
 // machine and boot with the pid held by a process of another start token.
-func (j ownerJudge) judge(labels map[string]string) ownerJudgement {
+// kind is the object the labels were read from: labels whose kind label names
+// another object are never a lab run's own, whatever their owner says.
+func (j ownerJudge) judge(kind resourceKind, labels map[string]string) ownerJudgement {
 	var reason textbuf.Buffer
 	if labels[labelMarker] != labelMarkerValue {
 		return ownerJudgement{verdict: ownerUnknown,
@@ -328,6 +334,19 @@ func (j ownerJudge) judge(labels map[string]string) ownerJudgement {
 	malformed := ownerJudgement{verdict: ownerUnknown,
 		reason: "its owner labels are missing or malformed, so its owner cannot be judged",
 		fix:    "inspect it with `docker inspect` and remove it by hand only if no run uses it"}
+	labeledKind := labels[labelKind]
+	if labeledKind != kind.labelValue() {
+		// A container inherits its image's labels, so one a person starts by
+		// hand from a lab-built image says kind image: its owner labels name
+		// the image's builder, never the container's creator.
+		if kind == resourceContainer && labeledKind == resourceImageTag.labelValue() {
+			return ownerJudgement{verdict: ownerUnknown,
+				reason: "it carries image labels only, not created by a lab run: a container started from a" +
+					" lab-built image inherits them",
+				fix: "remove it by hand with `docker rm -f` once you no longer use it"}
+		}
+		return malformed
+	}
 	machine, machineOK := normalizedID(labels[labelMachineID])
 	if !machineOK {
 		return malformed
@@ -411,6 +430,20 @@ func (k resourceKind) String() string {
 		return "image tag"
 	}
 	return "invalid"
+}
+
+// labelValue is the value of the labelKind label on a resource of this kind.
+func (k resourceKind) labelValue() string {
+	switch k {
+	case resourceContainer:
+		return "container"
+	case resourceNetwork:
+		return dockerNetworkObject
+	case resourceImageTag:
+		return dockerImageObject
+	case resourceUnspecified:
+	}
+	return ""
 }
 
 // MarshalText renders the kind for `| json`.
@@ -606,7 +639,7 @@ func (d *Docker) sweepOne(ctx context.Context, report *OrphanReport, kind resour
 		report.Failed = append(report.Failed, resource)
 		return
 	}
-	judgement := d.judge.judge(labels)
+	judgement := d.judge.judge(kind, labels)
 	resource.Reason = judgement.reason
 	if judgement.verdict != ownerGone {
 		resource.Fix = judgement.fix
@@ -838,7 +871,7 @@ func (d *Docker) claimName(ctx context.Context, kind resourceKind, name, suffixV
 		if labelErr != nil {
 			return labelErr
 		}
-		judgement := d.judge.judge(labels)
+		judgement := d.judge.judge(kind, labels)
 		if judgement.verdict == ownerGone {
 			if removeErr := d.removeResource(ctx, kind, row); removeErr != nil {
 				return removeErr
