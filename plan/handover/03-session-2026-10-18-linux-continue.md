@@ -629,3 +629,73 @@ checked.
   `./le rfc reseal`, but `rfc/audit/rfc7296.json` holds another session's
   uncommitted hunks. The owner's answer is owed on the rfc-change-ok debt row
   in `plan/verification-debt/3f5fcb0a.md`.
+
+## Gap #55 RFC2328-8.1-1 (OSPF unnumbered p2p): 3c2c96ec01, c7a04ba492 (2026-10-20); continuation owed
+
+Shape: owner decision row "#55" in `plan/rfc-gap-difficulty-2026-10-18.md`.
+The `{gap}` on RFC2328-8.1-1 in `rfc/short/rfc2328.md` STAYS until every
+owed item below lands.
+
+Done:
+- 3c2c96ec01 iface: `ipv4 unnumbered <donor>` and `unnumbered-source`
+  (`ze-iface-conf.yang`). `internal/component/iface/unnumbered.go` resolves the
+  donor at parse (that is, at verify) and appends `<addr>/32` to
+  `unit.Addresses`, so the normal netlink reconcile installs it. Refusals:
+  with address, with dhcp, a missing, disabled, unnumbered or address-less
+  donor, a source not on the donor, and a source alone. The donor name
+  `loopback` means the loopback block. "First address" means unit-name order,
+  then leaf-list order. Tests: `unnumbered_test.go`,
+  `test/parse/iface-unnumbered-{refused,loopback}.ci`. Doc:
+  `docs/features/interfaces.md`, "Unnumbered IPv4 units".
+- c7a04ba492 OSPF: unnumbered means point-to-point plus a /32 mask
+  (`interface_addr.go::interfaceUnnumbered`). The Hello mask is 0.0.0.0
+  (`helloNetworkMask` in `interfaceRuntimeConfigLocked`). The Router-LSA Type 1
+  Link Data is the ifIndex, with no stub link (`lsdb/origination.go::p2pLinkData`;
+  `InterfaceInfo.Unnumbered` and `IfIndex` are set in `instance.go`). Commit
+  refuses OSPF on an unnumbered unit that is not point-to-point
+  (`unnumbered.go::checkUnnumberedNetworkTypes`, on both verify paths; OSPF
+  ConfigReads now holds `ifcomp.ConfigRoot`). SPF guard:
+  `spf/spf.go::p2pNeighborAddress` refuses Link Data in 0.0.0.0/8 (an ifIndex)
+  as a next-hop address. Doc: `docs/guide/ospf.md`, "Unnumbered point-to-point
+  interfaces", which lists what is missing. Update it as items land.
+
+Owed, in order:
+1. SPF next hop through an unnumbered neighbor. `v4NextHop.P2PNextHop` gets
+   the root's own link. When that link's Link Data is an ifIndex, the next hop
+   is the Full neighbor `neighbor` on that ifIndex's interface, and its address
+   is the neighbor's Hello source (its donor /32). The spf package holds no
+   adjacency, so either give the v4 strategy an adjacency source like
+   `v6Strategy.NextHopSource` and `v6NextHop` (`afstrategy_v6.go`) or resolve
+   by RouterID and interface in `ospfNextHopResolver.ResolveInterface`
+   (`spf_wiring.go`). `lfa.go` (`neighborLinks`) and `tilfa.go` use the same
+   source.
+2. FIB: the neighbor address is off-subnet, so the kernel route needs
+   `onlink` (the FRR shape `via X dev eth0 onlink`). The owner's text says
+   "interface-only next hop". A dev-only route works on a true p2p device but
+   needs proxy-ARP on Ethernet, so `onlink` with the neighbor address is the
+   form that works on Linux. Ask the owner which form, or implement onlink and
+   say so.
+3. Donor down or address lost must take the link out of OSPF. Today iface
+   installs the /32 at apply, from config, and does not withdraw it when the
+   donor goes down. Iface must react to the donor's link and address events
+   (remove the /32 from the unnumbered device, re-add it on recovery), and
+   OSPF must treat the loss of the interface IPv4 address as InterfaceDown.
+   Check first what OSPF does today when an interface address disappears.
+4. RFC tags and discrimination. The RFC2328-8.1-1 claim is the IP source, so
+   the strongest carrier is a netns or guest test showing that the OSPF socket
+   on an unnumbered link sends from the donor address
+   (`transport/backend_linux.go::interfaceIPv4` picks the /32). No rows exist
+   for the 9.5 mask or the 12.4.1.1 Link Data, and the RFC scope is frozen, so
+   add no rows. Record with `./le rfc discriminate-record` (overlay only).
+5. Doctor: warn when the donor is not in OSPF (`internal/plugins/ospf/doctor.go`).
+6. Interop: an `ospf-p2p-frr` variant with FRR `ip unnumbered lo`
+   (`docs/architecture/testing/interop.md`). Prove it red by reverting
+   `p2pLinkData` or `helloNetworkMask` and rebuilding.
+7. Remove the `{gap}` text on RFC2328-8.1-1 and list the ids for a judge.
+   Do not stamp audits.
+
+The main thread owes these gates: `./le go lint run` over
+`internal/component/iface` and `internal/plugins/ospf`, then
+`./le verify current`. Both commits named structural-red-ok: arch tier/check
+and arch iface-resolution were red only in a recorded verify run with no path
+attribution, and both passed when run on the tree.
