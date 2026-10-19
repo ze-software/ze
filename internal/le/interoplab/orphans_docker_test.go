@@ -43,7 +43,7 @@ func TestKilledLabRunIsCleanedByNextStart(t *testing.T) {
 		}
 		t.Skip("docker is not installed; install Docker to run this test")
 	}
-	ctx := t.Context()
+	ctx := testDeadlineContext(t)
 	if err := NewDocker().Probe(ctx); err != nil {
 		t.Fatalf("Docker does not answer: %v. Fix: start Docker, or point DOCKER_HOST at a daemon", err)
 	}
@@ -119,7 +119,11 @@ func (c orphanChild) resources() []string {
 
 func startOrphanChild(t *testing.T, suffix string, subnet int) orphanChild {
 	t.Helper()
-	command := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestKilledLabRunIsCleanedByNextStart$", "-test.timeout=10m") //nolint:gosec // this test binary
+	// The child shares this run's deadline rather than a constant of its own,
+	// and the context kills it at that deadline: its build is bounded by the
+	// wrapper alone (testDeadlineContext), and a kill ends the read below.
+	ctx := testDeadlineContext(t)
+	command := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestKilledLabRunIsCleanedByNextStart$", orphanChildTimeout(t)) //nolint:gosec // this test binary
 	command.Env = append(os.Environ(), orphanChildVariable+"="+suffix, "ZE_ORPHAN_TEST_SUBNET="+strconv.Itoa(subnet))
 	command.Stderr = os.Stderr
 	stdout, err := command.StdoutPipe()
@@ -141,8 +145,6 @@ func startOrphanChild(t *testing.T, suffix string, subnet int) orphanChild {
 		_ = exec.Command(DockerExecutable, "image", "rm", "--no-prune", child.cacheTag).Run() //nolint:errcheck,gosec,noctx // best-effort removal of this test's own tag
 	})
 	lines := bufio.NewScanner(stdout)
-	deadline := time.AfterFunc(5*time.Minute, func() { _ = command.Process.Kill() }) //nolint:errcheck // a wedged child
-	defer deadline.Stop()
 	for lines.Scan() {
 		fields := strings.Fields(lines.Text())
 		if len(fields) == 2 && fields[0] == "orphan-run" {
@@ -155,8 +157,23 @@ func startOrphanChild(t *testing.T, suffix string, subnet int) orphanChild {
 		}
 		t.Logf("%s run: %s", suffix, lines.Text())
 	}
+	if ctx.Err() != nil {
+		t.Fatalf("the %s run did not create its resources before the test's deadline; it was killed", suffix)
+	}
 	t.Fatalf("the %s run exited before it created its resources", suffix)
 	return child
+}
+
+// orphanChildTimeout gives a child run the parent's own deadline, so a parent
+// that dies without its cleanup leaves no child running past it. With no
+// deadline (-timeout 0) the child has none either, and the parent's cleanup
+// kills it.
+func orphanChildTimeout(t *testing.T) string {
+	deadline, ok := t.Deadline()
+	if !ok {
+		return "-test.timeout=0"
+	}
+	return "-test.timeout=" + time.Until(deadline).Round(time.Second).String()
 }
 
 func runOrphanChild(t *testing.T, suffix string) {

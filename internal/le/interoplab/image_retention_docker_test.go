@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
 // VALIDATES: AC-3 and AC-14: replacing a shared tag does not change or remove
@@ -29,8 +28,9 @@ func TestDockerBuildRetainsImageAcrossRetag(t *testing.T) {
 		}
 		t.Skip("docker is not installed; install Docker to run this test")
 	}
-	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Minute)
-	defer cancel()
+	// No bound of the test's own: a population running every docker package in
+	// parallel took this alpine build past the one minute it once set.
+	ctx := testDeadlineContext(t)
 	docker := NewDocker()
 	if err := docker.Probe(ctx); err != nil {
 		t.Fatal(err)
@@ -52,8 +52,7 @@ func TestDockerBuildRetainsImageAcrossRetag(t *testing.T) {
 			t.Fatal(err)
 		}
 		image, err := docker.Build(ctx, ImageBuild{
-			Name: marker, Tag: cacheTag, Dockerfile: dockerfile, Context: directory,
-			Timeout: time.Minute, Required: true,
+			Name: marker, Tag: cacheTag, Dockerfile: dockerfile, Context: directory, Required: true,
 		})
 		t.Cleanup(func() { cleanup(image) })
 		if err != nil {

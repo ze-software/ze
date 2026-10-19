@@ -733,7 +733,14 @@ ZE_REQUIRE_DOCKER=1 CGO_ENABLED=0 ./le --name image-retention job run label imag
   go test -tags docker -count=1 ./internal/le/interoplab \
   -run '^TestDockerBuildRetainsImageAcrossRetag$'
 ```
+
+Neither it nor `TestKilledLabRunIsCleanedByNextStart` sets a bound of its own.
+Each build takes the wrapper's machine bound, and the test's context ends ten
+seconds before the deadline that `go test -timeout` sets. A one-minute build
+bound once failed the retention test under `docker-peers`, which runs every
+docker package in parallel.
 <!-- source: internal/le/interoplab/image_retention_docker_test.go -- TestDockerBuildRetainsImageAcrossRetag -->
+<!-- source: internal/le/interoplab/deadline_docker_test.go -- testDeadlineContext -->
 <!-- source: internal/le/test/integration/dockerpeers.go -- dockerPeersArgv, requireDockerEnvironment -->
 
 `internal/le/interoplab` stays out of the QEMU guest population because of
