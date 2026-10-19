@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-15",
+  "audited": "2026-10-19",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
@@ -63,14 +63,14 @@
       "verdict": "enforced"
     },
     "RFC1350-4-3": {
-      "note": "Re-judged 2026-10-15 after 81cd922cf3 changed TestListenTFTPLoopbackRoundTrip: the only edit passes context.Background() to serve, which now takes the transfer generation's context; the fetch, the TID fixing in tftpFetch and the byte comparison are unchanged. RFC 1350 Section 4: \"In order to create a connection, each end of the connection chooses a TID for itself, to be used for the duration of that connection.\" Forbidden: answering from the request port, or changing TID mid-transfer. TestRFC1350ServerChoosesOneTIDForTheTransfer reads the source of each of three DATA blocks and fails if any equals the listener port or differs from block 1's port. Single-polarity marker holds: the server has no input-driven refusal path; a server reusing port 69 or re-dialing per block goes red on the positive.",
+      "note": "Re-judged 2026-10-19 (independent auditor, after 0f3ca7969b). Section 4: \"In order to create a connection, each end of the connection chooses a TID for itself, to be used for the duration of that connection.\" 0f3ca7969b changed TestListenTFTPLoopbackRoundTrip only in the serve argument (context.Background() -> newTransferGeneration()); the fetch and the byte comparison are unchanged. The requirement stays enforced by TestRFC1350ServerChoosesOneTIDForTheTransfer (unchanged, passes at HEAD), which fails if any of three DATA blocks comes from the request port or from a port other than block 1's. The {single-polarity: positive} marker holds: no input makes the server reuse the listener port. Finding (claim wider than assertion): TestListenTFTPLoopbackRoundTrip's claim says DATA arrives from an ephemeral port rather than port 69, but the body asserts only that the fetch completes with the right bytes; tftpFetch fixes the TID from whatever source the first DATA has and never compares it with port 69, so a server answering from the listener socket would pass. Either add an assertion that the fixed TID port differs from 69 or narrow the claim to transfer completion. The unit is also behind the integration build tag and needs root for port 69, so it skips on ordinary hosts (observed SKIP here). Line references in its claim and in the row's annotation (handler.go:287) are stale: net.DialUDP is now at handler.go:293.",
       "requirement_sha": "d8ce09cd32156ece",
       "tests": {
-        "internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip": "272df5660d89464f",
+        "internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip": "f98c63ff5dd56d10",
         "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350ServerChoosesOneTIDForTheTransfer": "60a1b8ea3f073355"
       },
       "units": {
-        "internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip": "dbc91beff28acf5f",
+        "internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip": "087b7149b9b8cd1c",
         "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350ServerChoosesOneTIDForTheTransfer": "d6258b5c6c294eaf"
       },
       "verdict": "enforced"
