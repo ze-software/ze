@@ -1593,9 +1593,9 @@
       "unit-sha": "03261c5fee99321f",
       "claim-sha": "750256582479c12c",
       "route": "revert",
-      "producer": "internal/component/config/yang/validator_default.go::caseInEffect",
-      "producer-sha": "1496605823f4d304",
-      "break": "body of caseInEffect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/config/yang/validator_default.go::CaseInEffect",
+      "producer-sha": "6ae165b4f59790c9",
+      "break": "body of CaseInEffect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7950-9.9-1",
