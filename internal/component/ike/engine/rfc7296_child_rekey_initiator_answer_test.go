@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -84,13 +85,26 @@ func installedInitiatorScope(child *ChildSA) []tsPair {
 	return swapPairs(child.Selectors)
 }
 
-// installedPolicyScope renders the prefixes the KERNEL policy carries.
+// installedPolicyScope renders the prefixes of the outbound policies the dataplane was
+// handed for child, found by the SA they protect with (SAID, the child's outbound SPI).
 //
-// childPolicies (child.go) builds SPParams.Src and SPParams.Dst from TSLocal and
-// TSRemote, never from Selectors. A fix that moved only the selector set would leave the
-// SPD exactly where the defect left it, so both are asserted.
-func installedPolicyScope(child *ChildSA) string {
-	return child.TSLocal.String() + " <-> " + child.TSRemote.String()
+// It reads what the dataplane RECEIVED, not the Child SA's fields. childPolicies
+// (child.go) builds every policy from child.Selectors, so a fix that recorded the answered
+// set without installing it would pass a check of the fields and leave the SPD where the
+// defect left it. The old and the replacement Child SA share a ReqID, so the SAID is what
+// tells their policies apart.
+func installedPolicyScope(dp *mockDP, child *ChildSA) string {
+	var scope []string
+	for _, p := range dp.policies {
+		if p.Dir != dataplane.SADirOut {
+			continue
+		}
+		if p.SAID != child.OutboundSPI {
+			continue
+		}
+		scope = append(scope, p.Src.String()+" <-> "+p.Dst.String())
+	}
+	return strings.Join(scope, ", ")
 }
 
 // VALIDATES: when ze INITIATES a Child SA rekey, the replacement is installed with the
@@ -141,9 +155,9 @@ func TestChildRekeyInitiatorInstallsTheAnsweredSelectors(t *testing.T) {
 				t.Errorf("the replacement was installed with %v and the peer answered %v; the "+
 					"two ends would program different traffic", got, want)
 			}
-			if got, wantPolicy := installedPolicyScope(child), "10.1.0.0/24 <-> 10.2.0.0/24"; got != wantPolicy {
-				t.Errorf("the kernel policy selector is %s, want %s; childPolicies reads "+
-					"TSLocal and TSRemote, so the SPD still carries the retired pair's scope",
+			if got, wantPolicy := installedPolicyScope(dp, child), "10.1.0.0/24 <-> 10.2.0.0/24"; got != wantPolicy {
+				t.Errorf("the dataplane was handed an outbound policy of %s, want %s; the SPD "+
+					"still carries the retired pair's scope",
 					got, wantPolicy)
 			}
 		})
@@ -167,7 +181,7 @@ func TestChildRekeyInitiatorInstallsTheAnsweredSelectors(t *testing.T) {
 		if len(dp.sas) != installedBefore {
 			t.Errorf("a refused rekey response installed %d dataplane SAs", len(dp.sas)-installedBefore)
 		}
-		if got, want := installedPolicyScope(old), "10.1.0.0/24 <-> 10.2.0.0/24"; got != want {
+		if got, want := installedPolicyScope(dp, old), "10.1.0.0/24 <-> 10.2.0.0/24"; got != want {
 			t.Errorf("the retired pair now carries %s, want %s; the refused answer moved the "+
 				"live SA", got, want)
 		}
@@ -235,7 +249,7 @@ func TestChildRekeyAnswerBelowTheScopeInUseIsRefused(t *testing.T) {
 						"prefix the peer dropped", err, want)
 				}
 			}
-			if got, want := installedPolicyScope(old), "10.1.0.0/24 <-> 10.2.0.0/24"; got != want {
+			if got, want := installedPolicyScope(dp, old), "10.1.0.0/24 <-> 10.2.0.0/24"; got != want {
 				t.Errorf("the retired pair now carries %s, want %s", got, want)
 			}
 		})

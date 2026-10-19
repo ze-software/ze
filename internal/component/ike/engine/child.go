@@ -431,9 +431,9 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	// secpath passes that check, so a transport-mode state carries the selector itself,
 	// and the kernel then drops a packet outside it (XfrmInStateMismatch).
 	//
-	// The selector is built from the inbound policies, so the state and the policies
-	// cannot disagree. One XFRM state holds ONE selector, so with several negotiated
-	// pairs it holds the narrowest selector covering every pair (inboundStateSelector).
+	// The selector is built from the inbound policy, so the state and the policy cannot
+	// disagree. One XFRM state holds ONE selector, so a transport-mode Child SA carries
+	// exactly one negotiated pair (inboundStateSelector).
 	if mode == modeTransport {
 		// RFC 4301 Section 4.4.2: "For each of the selectors defined in Section 4.4.1.1,
 		// the entry for an inbound SA in the SAD MUST be initially populated with the
@@ -939,91 +939,25 @@ func selectorPort(side tsSelector) dataplane.PortMatch {
 // entry for an inbound SA in the SAD MUST be initially populated with the value or
 // values negotiated at the time the SA was created."
 //
-// An XFRM state carries ONE selector (x->sel), and one SPI names one state (a second
-// state on the SPI is refused with "file exists"), so a set of negotiated pairs cannot
-// be written into the state pair by pair. Of the single selectors the state can hold,
-// this returns the narrowest one that covers every pair: for one pair it is that pair
-// exactly. Holding the first pair only would drop every other pair's traffic with
-// XfrmInStateMismatch, and clearing the selector would accept anything the SA carries.
-// Exactness for several pairs comes from the per-pair inbound policies
-// (childPolicies): a decrypted packet that falls in the cover but in no pair matches
-// none of them and meets the next SPD entry, the unmatched catch-all.
-//
-// The fields widen independently: each address side to the longest prefix holding
-// every pair's prefix, the protocol to any when the pairs name different ones, and a
-// port to any when the pairs name different ones or the protocol widened.
+// An XFRM state carries ONE selector (x->sel), and one SPI names one state, so the
+// state holds the negotiated values exactly only when exactly one pair was negotiated.
+// Both producers guarantee that in transport mode: the responder narrows to one pair
+// (narrowChildSelectors) and the initiator refuses an answer of several
+// (recordInitiatorSelectors, ts_narrow.go). Several policies here are therefore a Ze
+// defect, refused rather than widened: a selector wider than the pairs would admit a
+// decrypted packet the SA never negotiated (RFC 4301 Section 5.2).
 func inboundStateSelector(policies []dataplane.SPParams) (*dataplane.SASelector, error) {
-	if len(policies) == 0 {
-		panic("BUG: a Child SA builds at least one inbound policy")
+	if len(policies) != 1 {
+		return nil, fmt.Errorf("a transport-mode Child SA holds %d negotiated pairs, and its one state selector holds exactly one", len(policies))
 	}
-	first := policies[0]
-	sel := &dataplane.SASelector{
-		Src:        first.Src,
-		Dst:        first.Dst,
-		UpperProto: first.UpperProto,
-		SrcPort:    first.SrcPort,
-		DstPort:    first.DstPort,
-	}
-	for _, p := range policies[1:] {
-		src, err := coverPrefix(sel.Src, p.Src)
-		if err != nil {
-			return nil, fmt.Errorf("source: %w", err)
-		}
-		dst, err := coverPrefix(sel.Dst, p.Dst)
-		if err != nil {
-			return nil, fmt.Errorf("destination: %w", err)
-		}
-		sel.Src, sel.Dst = src, dst
-		if sel.SrcPort != p.SrcPort {
-			sel.SrcPort = dataplane.AnyPortMatch()
-		}
-		if sel.DstPort != p.DstPort {
-			sel.DstPort = dataplane.AnyPortMatch()
-		}
-		if sel.UpperProto != p.UpperProto {
-			sel.UpperProto = 0
-		}
-	}
-	// A port constrains only the protocol it belongs to, so a selector that widened to
-	// every protocol keeps no port.
-	if sel.UpperProto == 0 {
-		sel.SrcPort, sel.DstPort = dataplane.AnyPortMatch(), dataplane.AnyPortMatch()
-	}
-	return sel, nil
-}
-
-// coverPrefix returns the longest prefix that holds both a and b. A nil prefix
-// matches every address, so it covers anything. Two families have no common prefix
-// one selector can carry, and that is refused rather than widened to everything.
-func coverPrefix(a, b *net.IPNet) (*net.IPNet, error) {
-	if a == nil {
-		return nil, nil //nolint:nilnil // a nil prefix is the any-address selector, an answer
-	}
-	if b == nil {
-		return nil, nil //nolint:nilnil // a nil prefix is the any-address selector, an answer
-	}
-	aIP, bIP := a.IP.To16(), b.IP.To16()
-	if (a.IP.To4() == nil) != (b.IP.To4() == nil) {
-		return nil, fmt.Errorf("negotiated prefixes %s and %s are of two address families, and one transport-mode state selector holds one family", a, b)
-	}
-	aOnes, bits := a.Mask.Size()
-	bOnes, _ := b.Mask.Size()
-	ones := min(aOnes, bOnes)
-	offset := 0
-	if bits == 32 {
-		offset = 96
-	}
-	common := 0
-	for common < ones && bitAt(aIP, offset+common) == bitAt(bIP, offset+common) {
-		common++
-	}
-	mask := net.CIDRMask(common, bits)
-	return &net.IPNet{IP: a.IP.Mask(mask), Mask: mask}, nil
-}
-
-// bitAt returns bit i of ip, counted from the most significant bit.
-func bitAt(ip net.IP, i int) byte {
-	return ip[i/8] >> (7 - uint(i%8)) & 1
+	p := policies[0]
+	return &dataplane.SASelector{
+		Src:        p.Src,
+		Dst:        p.Dst,
+		UpperProto: p.UpperProto,
+		SrcPort:    p.SrcPort,
+		DstPort:    p.DstPort,
+	}, nil
 }
 
 func ipToFullNet(ip net.IP) *net.IPNet {

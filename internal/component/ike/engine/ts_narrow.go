@@ -596,6 +596,7 @@ func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) erro
 		if len(narrowed) == 0 {
 			return errTSUnacceptable
 		}
+		narrowed = oneTransportPair(narrowed)
 	}
 
 	// RFC 7296 Section 2.9.2 MUST NOT: "Thus, the new SA MUST NOT have narrower selectors
@@ -737,6 +738,18 @@ func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) 
 		return err
 	}
 
+	// A transport-mode inbound state holds ONE selector (inboundStateSelector, child.go),
+	// so an answer of several pairs can be installed only as a cover wider than the
+	// pairs, and RFC 4301 Section 5.2 forbids what that cover admits: "If an IPsec system
+	// receives an inbound packet on an SA and the packet's header fields are not
+	// consistent with the selectors for the SA, it MUST discard the packet." Narrowing the
+	// answer again here would leave the peer sending traffic this node drops, so the
+	// answer is refused and the caller deletes the Child SA (adoptAuthResponseNegotiation,
+	// transport_mode.go), never installs it.
+	if sa.UseTransportMode && len(pairs) > 1 {
+		return fmt.Errorf("%w: the responder answered %s", errTSTransportPairs, pairsText(pairs))
+	}
+
 	// RFC 7296 Section 2.9.2 MUST NOT: "Thus, the new SA MUST NOT have narrower selectors
 	// than the original" (rfc/full/rfc7296.txt:2539-2540), and "The responder MUST NOT
 	// narrow down the Traffic Selectors narrower than the scope currently in use"
@@ -826,6 +839,34 @@ func keepSingleAddress(pairs []tsPair) []tsPair {
 	}
 	return out
 }
+
+// oneTransportPair narrows a transport-mode answer to its first pair.
+//
+// A transport-mode inbound XFRM state carries ONE selector and one SPI names one state
+// (inboundStateSelector, child.go). Several pairs whose union is not one selector would
+// leave the state either too narrow, dropping a negotiated pair's traffic, or a cover
+// wider than the pairs, which breaks RFC 4301 Section 5.2: "If an IPsec system receives
+// an inbound packet on an SA and the packet's header fields are not consistent with the
+// selectors for the SA, it MUST discard the packet."
+//
+// RFC 7296 Section 2.9 lets the responder choose: "When narrowing is done, there may be
+// several subsets that are acceptable but their union is not. In this case, the
+// responder arbitrarily chooses one of them". The first pair is the one kept, because
+// the same section binds the choice when the first selectors are acceptable: "If the
+// responder's policy allows it to accept the first selector of TSi and TSr, then the
+// responder MUST narrow the Traffic Selectors to a subset that includes the initiator's
+// first choices." narrowSelectors leads its answer with that intersection, and with the
+// rekey floor when the floor is answered.
+//
+// pairs MUST hold at least one pair; the caller refuses an empty set first.
+func oneTransportPair(pairs []tsPair) []tsPair {
+	return pairs[:1]
+}
+
+// errTSTransportPairs reports a transport-mode answer of several pairs. It wraps
+// errTSUnusable: the answer can be legal, and only this node's one state selector cannot
+// hold it exactly.
+var errTSTransportPairs = fmt.Errorf("%w: a transport-mode Child SA holds one selector pair", errTSUnusable)
 
 func singleAddress(n *net.IPNet) bool {
 	if n == nil {

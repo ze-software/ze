@@ -587,6 +587,11 @@ const (
 		"retry-after; make the esp-group proposals and traffic selectors match the peer's, then " +
 		"reload the configuration: ze signal reload; if they already match, the peer's IKE " +
 		"implementation sent a defective answer and its own logs name why"
+	childResponseFixTransportPairs = "the peer answered several traffic-selector pairs for a " +
+		"transport-mode Child SA, and a transport-mode SA holds exactly one pair, so ze deleted the " +
+		"pair; no traffic is protected until a Child SA exists, and ze asks again after " +
+		"retry-after; configure one traffic selector for this transport-mode connection, here and " +
+		"on the peer, then reload the configuration: ze signal reload"
 	childRequestFailedFix = "ze could not build the CREATE_CHILD_SA request, so no traffic is protected " +
 		"until a Child SA exists, and ze tries again after retry-after; the error names the cause: an " +
 		"esp-group with no proposal, or pfs enabled on an IKE SA that negotiated no Diffie-Hellman " +
@@ -607,6 +612,8 @@ func childResponseRefusedFix(err error) string {
 		return childResponseFixAddress
 	case errors.Is(err, errChildInstall):
 		return childResponseFixInstall
+	case errors.Is(err, errTSTransportPairs):
+		return childResponseFixTransportPairs
 	default:
 		return childResponseFixAnswer
 	}

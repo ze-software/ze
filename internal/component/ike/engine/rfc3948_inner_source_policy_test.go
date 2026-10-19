@@ -22,8 +22,9 @@ import (
 // exists to close, and no test over the outbound direction alone can see it.
 //
 // The whole install path runs: createFirstChildSA resolves the negotiated selectors,
-// installChildSA calls dp.InstallPolicy(childPolicies(child, SADirIn)[0]), and the
-// assertions below read what the dataplane was handed.
+// installChildSA hands the dataplane one inbound policy per negotiated pair
+// (childPolicies), one here because one pair was negotiated, and the assertions below
+// read what the dataplane was handed.
 //
 // RFC requirement: RFC3948-3.1.1-1 positive -- "If a valid source IP address space has
 // been defined in the policy for the encapsulated packets from the peer, check that the

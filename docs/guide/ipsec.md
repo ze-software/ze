@@ -1177,10 +1177,15 @@ vpn { ipsec { site-to-site { peer host-1 {
 
 Transport mode constrains the selectors. RFC 7296 Section 2.23.1 requires exactly one IP
 address in TSi and in TSr, so every prefix must be a single host, and a `vti` binding is
-refused because an XFRM interface carries tunnel encapsulation. Several selectors are still
-allowed when they share that one address, for example to negotiate several ports.
+refused because an XFRM interface carries tunnel encapsulation. A transport-mode Child SA
+also carries exactly one selector pair: the kernel's transport-mode SA holds one selector,
+and one wide enough for several pairs would admit traffic that no pair negotiated. As
+responder Ze answers a proposal of several pairs with the first one. As initiator it refuses
+an answer of several pairs and deletes the SA, so configure one selector on a transport-mode
+peer, here and on the far end.
 
 <!-- source: internal/component/ike/engine/transport_mode.go -- transportSelectorPairs -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- oneTransportPair, recordInitiatorSelectors -->
 
 A tunnel-mode peer's `vti { bind <name> }` names an `interface { xfrm <name> { if-id } }`
 block. The Child SA is installed with that interface's if_id, so the tunnel's traffic

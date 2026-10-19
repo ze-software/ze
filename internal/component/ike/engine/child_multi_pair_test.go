@@ -117,18 +117,22 @@ func TestRFC4301EveryNegotiatedPairGetsAPolicyPerDirection(t *testing.T) {
 	}
 }
 
-// VALIDATES: the transport-mode inbound state selector admits every negotiated pair.
-// TestRFC4301TransportStateSelectorCoversEveryPair proves the transport-mode inbound
-// state selector holds every negotiated value, and no wider than one selector must.
+// VALIDATES: a transport-mode inbound state selector holds the one negotiated pair
+// exactly, and a transport-mode Child SA of several pairs is refused before anything is
+// installed.
+// TestRFC4301TransportStateSelectorIsTheNegotiatedPair proves the transport-mode SAD
+// entry carries the negotiated values and nothing wider.
 //
-// Goal: RFC 4301 Section 4.4.2 on the SAD entry itself. One XFRM state carries one
-// selector, so two pairs between the same two hosts, TCP to local port 179 and UDP to
-// local port 3784, must leave a selector that admits both: the hosts exactly, every
-// protocol and every port. The first pair alone, the state before the fix, admits
-// TCP/179 only and drops the second pair's traffic as XfrmInStateMismatch. The single
-// pair case keeps that pair exactly.
-func TestRFC4301TransportStateSelectorCoversEveryPair(t *testing.T) {
-	// Claim toward RFC4301-4.4.2-2, untagged while that row holds its {gap} for the transport-mode residual: with two negotiated transport-mode pairs, the inbound state selector Ze installs holds both pairs' values: the two hosts exactly and, as the pairs differ in protocol and port, any protocol and any port.
+// Goal: RFC 4301 Section 4.4.2 and Section 5.2 on the SAD entry itself. One XFRM state
+// carries one selector, so the only exact state is the one pair. Method: install one
+// TCP/179 pair and compare every selector field with the inbound policy of that pair;
+// then hand installChildSA two pairs between the same hosts (TCP/179 and UDP/3784) and
+// require a refusal with no state installed. Before the fix the two pairs left a cover
+// of every protocol and port, which admitted a decrypted packet in no pair.
+func TestRFC4301TransportStateSelectorIsTheNegotiatedPair(t *testing.T) {
+	// RFC requirement: RFC4301-4.4.2-2 positive -- a transport-mode Child SA of one negotiated pair installs an inbound state whose selector is that pair exactly: both hosts, the protocol and both ports.
+	// RFC requirement: RFC4301-4.4.2-2 negative -- a transport-mode Child SA of two negotiated pairs, which one state selector cannot hold exactly, is refused and installs no state.
+	// RFC requirement: RFC4301-5.2-2 positive -- the transport-mode inbound state selector the kernel matches a decrypted packet against equals the single negotiated pair, field by field.
 	local, remote := multiPairPrefix(t, "10.0.0.1/32"), multiPairPrefix(t, "10.0.0.2/32")
 	bgp := tsPair{
 		I: tsSelector{Net: local, Port: ipsec.PortSelector{Form: ipsec.PortSingle, Port: 179}, Proto: 6},
@@ -139,8 +143,8 @@ func TestRFC4301TransportStateSelectorCoversEveryPair(t *testing.T) {
 		R: tsSelector{Net: remote, Proto: 17},
 	}
 
-	t.Run("two pairs", func(t *testing.T) {
-		_, dp := multiPairFixture(t, true, []tsPair{bgp, bfd})
+	t.Run("one pair is exact", func(t *testing.T) {
+		_, dp := multiPairFixture(t, true, []tsPair{bgp})
 		sel := dp.sas[0].Sel
 		if sel == nil {
 			t.Fatal("transport-mode inbound state has no selector")
@@ -148,52 +152,32 @@ func TestRFC4301TransportStateSelectorCoversEveryPair(t *testing.T) {
 		if sel.Src.String() != "10.0.0.2/32" || sel.Dst.String() != "10.0.0.1/32" {
 			t.Errorf("state selector %v -> %v, want the two hosts 10.0.0.2/32 -> 10.0.0.1/32", sel.Src, sel.Dst)
 		}
-		if sel.UpperProto != 0 {
-			t.Errorf("state selector protocol = %d, want any: the pairs negotiated 6 and 17, and a single protocol drops the other pair", sel.UpperProto)
+		if sel.UpperProto != 6 {
+			t.Errorf("state selector protocol = %d, want 6 (TCP), the negotiated protocol", sel.UpperProto)
 		}
-		if sel.SrcPort != dataplane.AnyPortMatch() || sel.DstPort != dataplane.AnyPortMatch() {
-			t.Errorf("state selector ports %+v -> %+v, want any: a single port drops the other pair", sel.SrcPort, sel.DstPort)
+		if sel.DstPort != dataplane.ExactPortMatch(179) || sel.SrcPort != dataplane.AnyPortMatch() {
+			t.Errorf("state selector ports %+v -> %+v, want any -> exactly 179", sel.SrcPort, sel.DstPort)
 		}
-		if len(dp.policies) != 4 {
-			t.Errorf("installed policies = %d, want 4: each pair keeps its exact selector in a policy", len(dp.policies))
-		}
-	})
-	t.Run("one pair stays exact", func(t *testing.T) {
-		_, dp := multiPairFixture(t, true, []tsPair{bgp})
-		sel := dp.sas[0].Sel
-		if sel == nil {
-			t.Fatal("transport-mode inbound state has no selector")
-		}
-		if sel.UpperProto != 6 || sel.DstPort != dataplane.ExactPortMatch(179) {
-			t.Errorf("state selector protocol %d port %+v, want exactly TCP to 179", sel.UpperProto, sel.DstPort)
+		in := policyForDir(t, dp.policies, dataplane.SADirIn)
+		if sel.Src.String() != in.Src.String() || sel.Dst.String() != in.Dst.String() ||
+			sel.UpperProto != in.UpperProto || sel.SrcPort != in.SrcPort || sel.DstPort != in.DstPort {
+			t.Errorf("state selector %+v differs from the inbound policy %+v of the one pair", *sel, in)
 		}
 	})
-}
-
-// VALIDATES: coverPrefix widens to the longest common prefix and refuses two families.
-// TestCoverPrefixIsTheLongestCommonPrefix pins the address widening the transport
-// state selector uses: the longest prefix holding both, nil (any) absorbing, and two
-// families refused rather than widened to every address.
-func TestCoverPrefixIsTheLongestCommonPrefix(t *testing.T) {
-	cases := []struct{ a, b, want string }{
-		{"10.0.0.1/32", "10.0.0.1/32", "10.0.0.1/32"},
-		{"10.0.0.1/32", "10.0.0.3/32", "10.0.0.0/30"},
-		{"10.1.0.0/16", "10.3.0.0/24", "10.0.0.0/14"},
-		{"2001:db8::1/128", "2001:db8::2/128", "2001:db8::/126"},
-	}
-	for _, c := range cases {
-		got, err := coverPrefix(multiPairPrefix(t, c.a), multiPairPrefix(t, c.b))
-		if err != nil {
-			t.Fatalf("coverPrefix(%s, %s): %v", c.a, c.b, err)
+	t.Run("two pairs are refused", func(t *testing.T) {
+		sa := testSA()
+		sa.IsInitiator = true
+		sa.UseTransportMode = true
+		sa.NegotiatedPairs = []tsPair{bgp, bfd}
+		sa.NegotiatedTSi, sa.NegotiatedTSr = bgp.I.Net, bgp.R.Net
+		dp := &mockDP{}
+		child, err := createFirstChildSA(sa, testESPGroup(), "10.0.0.1", "10.0.0.2", 7, dp, slogutil.DiscardLogger())
+		if err == nil {
+			child.Clear()
+			t.Fatal("a transport-mode Child SA of two pairs was installed; one state selector cannot hold both exactly")
 		}
-		if got.String() != c.want {
-			t.Errorf("coverPrefix(%s, %s) = %v, want %s", c.a, c.b, got, c.want)
+		if len(dp.sas) != 0 {
+			t.Errorf("installed SAs = %d after the refusal, want 0", len(dp.sas))
 		}
-	}
-	if got, err := coverPrefix(nil, multiPairPrefix(t, "10.0.0.1/32")); err != nil || got != nil {
-		t.Errorf("coverPrefix(any, host) = %v, %v; want any (nil) and no error", got, err)
-	}
-	if _, err := coverPrefix(multiPairPrefix(t, "10.0.0.1/32"), multiPairPrefix(t, "2001:db8::1/128")); err == nil {
-		t.Error("coverPrefix across two families returned no error; one selector holds one family")
-	}
+	})
 }

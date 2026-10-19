@@ -109,18 +109,26 @@ dropped as `XfrmInStateMismatch`. strongSwan makes the same split.
 **Every negotiated selector pair gets its own policy, in each direction.** A peer
 that answers several TSi/TSr pairs negotiated several values, and `childPolicies`
 builds one inbound and one outbound policy per pair, all protecting with the one SA:
-XFRM resolves each to the state through its template, VPP through the SAD id. An
-XFRM state holds one selector and one SPI names one state, so a transport-mode
-inbound state with several pairs carries the narrowest single selector that covers
-them all (`inboundStateSelector`): each address side widens to the longest common
-prefix, the protocol to any when the pairs disagree, a port to any when they
-disagree. Holding the first pair only would drop the other pairs' traffic, and
-clearing the selector would accept anything. A decrypted packet inside that cover
-but in no pair matches none of the SA's inbound policies and is decided by the next
-SPD entry, the unmatched catch-all: dropped under `unmatched discard`, the default,
-and delivered under `unmatched bypass`. That last case, transport mode with several
-pairs that one selector cannot hold exactly under `unmatched bypass`, is where the
-Linux stack does not hold the negotiated values exactly. The interop scenario
+XFRM resolves each to the state through its template, VPP through the SAD id.
+
+**A transport-mode Child SA carries exactly one pair.** An XFRM state holds one
+selector and one SPI names one state, so a transport-mode inbound state holds the
+negotiated values exactly only when one pair was negotiated. Several pairs whose
+union is not one selector would leave the state either too narrow, dropping a
+negotiated pair's traffic, or a cover wider than the pairs, through which a
+decrypted packet in no pair reaches a bypass entry: RFC 4301 Section 5.2 requires
+such a packet to be discarded. Both negotiation ends therefore keep one pair. The
+responder narrows a transport-mode answer to its first pair
+(`oneTransportPair`, `narrowChildSelectors`), which RFC 7296 Section 2.9 permits
+("the responder arbitrarily chooses one of them") and which keeps the initiator's
+first choice the same section requires. The initiator refuses a transport-mode
+answer of several pairs (`recordInitiatorSelectors`, `errTSTransportPairs`): the
+IKE_AUTH path deletes the SA with TS_UNACCEPTABLE, a CREATE_CHILD_SA creation
+deletes the pair and names the fix (`childResponseFixTransportPairs`), and a refused
+rekey keeps the Child SA in use. `inboundStateSelector` then copies
+the one inbound policy into the state, and refuses a transport-mode Child SA of
+several pairs as a Ze defect rather than widen it. Tunnel mode keeps every pair.
+The interop scenario
 `responder-two-subnets` has strongSwan propose two subnets in one Child SA and
 reads both kernels: each must hold exactly the two ESP policy pairs. MOBIKE migration moves tunnel-mode SAs only (the
 migration refuses a non-tunnel template), and it carries the old state selector
@@ -136,6 +144,7 @@ SAD data item Ze installs is asserted one item at a time in
 `internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go`.
 
 <!-- source: internal/component/ike/engine/child.go -- installChildSA, childPolicies, inboundStateSelector -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectors, oneTransportPair, recordInitiatorSelectors -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams -->
 
 **The XFRM interface id comes from the interface the peer's `vti { bind }` names.**

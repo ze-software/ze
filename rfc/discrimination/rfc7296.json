@@ -1641,6 +1641,17 @@
       "break": "body of intersectNet replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7296-2.9-2",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_transport_one_pair_test.go::TestRFC7296TransportResponderNarrowsToFirstPair",
+      "unit-sha": "fc7963beed4794ff",
+      "claim-sha": "ae7611dec4de954b",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/ts_narrow.go::oneTransportPair",
+      "producer-sha": "d773d1b4024c6224",
+      "break": "line 863: \"pairs[:1]\" -\u003e \"pairs\""
+    },
+    {
       "rid": "RFC7296-3.1-11",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc7296_header_notify_writers_test.go::TestInvalidIKESPIClearsXAndVBits",

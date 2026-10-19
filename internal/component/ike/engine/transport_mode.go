@@ -141,7 +141,7 @@ func adoptAuthResponseNegotiation(sa *SA, transportAccepted bool, tsi, tsr *wire
 	// SA being replaced.
 	if tsi != nil && tsr != nil {
 		if err := recordInitiatorSelectors(sa, tsi, tsr, nil); err != nil {
-			log.Warn("ike: the responder widened the traffic selectors, deleting the SA",
+			log.Warn("ike: the responder's traffic selectors cannot be adopted, deleting the SA",
 				"peer", sa.PeerName, "error", err)
 			// RFC 7296 Section 2.9 names the notification for a traffic-selector answer
 			// this node will not accept: TS_UNACCEPTABLE.
