@@ -86,7 +86,7 @@ func (s *Session) transmittedPathHoldsSet(body []byte) bool {
 // warning per wellKnownScanLogInterval for this peer, because the producer, a config or a
 // plugin, is the operator's to fix and nothing else tells them the route never left.
 // The caller MUST hold writeMu.
-func (s *Session) writeUpdateAsWithdrawal(body []byte) (bool, error) {
+func (s *Session) writeUpdateAsWithdrawal(body []byte) error {
 	routes := s.announcedRouteCount(body)
 	if s.prefixMetrics != nil {
 		s.prefixMetrics.asSetWithdrawn.Add(float64(routes))
@@ -97,10 +97,10 @@ func (s *Session) writeUpdateAsWithdrawal(body []byte) (bool, error) {
 	}
 	for _, withdrawal := range message.SynthesizeWithdrawFamilies(body, nil, s.mpAddPathSendWire) {
 		if _, err := s.writeUpdateBody(withdrawal, false); err != nil {
-			return false, err
+			return err
 		}
 	}
-	return false, nil
+	return nil
 }
 
 // announcedRouteCount counts the routes an UPDATE body announces: the IPv4 unicast NLRI

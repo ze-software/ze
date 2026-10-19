@@ -173,7 +173,7 @@ var scenarioOperations = map[string][]operation{
 	// comes last and only after FRR logged the adjacency, so silence in an
 	// unread log cannot pass.
 	// RFC 9774 Section 3, both halves, judged by FRR. "BGP speakers: MUST NOT
-	// advertise BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs, and
+	// advertise BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs and
 	// MUST use the "treat-as-withdraw" error handling behavior per [RFC7606]
 	// upon reception of BGP UPDATE messages containing AS_SETs".
 	//
