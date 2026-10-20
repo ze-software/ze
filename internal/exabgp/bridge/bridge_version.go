@@ -7,10 +7,10 @@ package bridge
 import (
 	"encoding/json"
 	"errors"
-	"os"
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -35,9 +35,11 @@ const (
 	APIV6
 )
 
-// apiVersionEnvKey is the OS env var the bridge reads when its fleet starts.
-// The parent ze process writes it from `environment { exabgp { api { version
-// ...; } } }` (config.ApplyEnvConfig), as it writes exabgp.api.ack.
+// apiVersionEnvKey is the env var the bridge reads when its fleet starts,
+// through env.Get, so ExaBGP's `exabgp_api_version` reaches it too and the
+// dotted spelling wins over it, as in ExaBGP. The config component registers
+// it and writes it from `environment { exabgp { api { version ...; } } }`
+// (config.ApplyEnvConfig), as it writes exabgp.api.ack.
 const apiVersionEnvKey = "exabgp.api.version"
 
 // ErrUnknownCommand is ExaBGP's UnknownCommand: a line the helper's dispatcher
@@ -105,7 +107,7 @@ func ParseAPIVersion(word string) (APIVersion, error) {
 // `exabgp.api.version` setting, auto when unset. A value ExaBGP would refuse is
 // refused here, so the fleet does not start on a setting it cannot honour.
 func APIVersionFromEnv() (APIVersion, error) {
-	raw := os.Getenv(apiVersionEnvKey)
+	raw := env.Get(apiVersionEnvKey)
 	if strings.TrimSpace(raw) == "" {
 		return APIVersionAuto, nil
 	}

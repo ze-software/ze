@@ -3,7 +3,8 @@
 //
 // Package env provides centralized environment variable lookup for Ze.
 //
-// Lookup is case-insensitive and separator-agnostic. Any of these set the same var:
+// Lookup is case-insensitive and separator-agnostic. Any of these set the same
+// var, and a dotted spelling wins when several are set:
 //   - ze.plugin.hub.host
 //   - ze_plugin_hub_host
 //   - ZE_PLUGIN_HUB_HOST
@@ -78,15 +79,28 @@ func Without(environ []string, keys ...string) []string {
 }
 
 // ensureCache populates the cache from os.Environ() on first call.
+//
+// When several spellings of one key are set, a dotted spelling wins over one
+// without a dot, whatever their order in the environment. That is ExaBGP's
+// reading of its own settings (src/exabgp/environment/config.py,
+// Environment.setup: "Priority: env var (dot) > env var (underscore) > INI
+// file > default"), and the dotted form is the one Set writes.
 func ensureCache() {
 	cacheOnce.Do(func() {
 		cache = make(map[string]string)
+		dotted := make(map[string]bool)
 		for _, entry := range os.Environ() {
 			envKey, envVal, ok := strings.Cut(entry, "=")
 			if !ok {
 				continue
 			}
-			cache[normalize(envKey)] = envVal
+			norm := normalize(envKey)
+			hasDot := strings.Contains(envKey, ".")
+			if dotted[norm] && !hasDot {
+				continue
+			}
+			cache[norm] = envVal
+			dotted[norm] = dotted[norm] || hasDot
 		}
 	})
 }

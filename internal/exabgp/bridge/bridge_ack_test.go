@@ -3,14 +3,49 @@ package bridge
 import (
 	"strings"
 	"testing"
+
+	// The exabgp.api.* keys are registered by the config component, which
+	// writes them from `environment { exabgp { api { ... } } }`; env.Get
+	// refuses an unregistered key.
+	_ "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/env"
 )
+
+// setExaBGPEnv sets one environment variable the way a parent process hands
+// it to the bridge, and drops env's cache so the next read sees it.
+func setExaBGPEnv(t *testing.T, name, value string) {
+	t.Helper()
+	t.Setenv(name, value)
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+}
+
+// TestAckModeReadsEitherExaBGPSpelling proves the bridge reads exabgp.api.ack
+// under both spellings ExaBGP accepts, the dotted one first
+// (src/exabgp/environment/config.py, Environment.setup: "Priority: env var
+// (dot) > env var (underscore) > INI file > default").
+func TestAckModeReadsEitherExaBGPSpelling(t *testing.T) {
+	t.Run("underscore", func(t *testing.T) {
+		setExaBGPEnv(t, "exabgp_api_ack", "false")
+		if NewAckMode().enabled {
+			t.Error("exabgp_api_ack=false left the ack enabled")
+		}
+	})
+	t.Run("dot wins", func(t *testing.T) {
+		setExaBGPEnv(t, ackEnvKey, "false")
+		setExaBGPEnv(t, "exabgp_api_ack", "true")
+		if NewAckMode().enabled {
+			t.Error("exabgp.api.ack=false lost to exabgp_api_ack=true")
+		}
+	})
+}
 
 // TestAckModeDefaultEnabled verifies the default (env unset) is ack enabled.
 //
 // VALIDATES: AC-16 default case: ze.bgp is backward-compatible with ExaBGP clients
 // expecting done/error lines after each dispatched command.
 func TestAckModeDefaultEnabled(t *testing.T) {
-	t.Setenv(ackEnvKey, "")
+	setExaBGPEnv(t, ackEnvKey, "")
 	m := NewAckMode()
 	if !m.enabled {
 		t.Errorf("default ack should be enabled, got disabled")
@@ -23,7 +58,7 @@ func TestAckModeDefaultEnabled(t *testing.T) {
 func TestAckModeDisabled(t *testing.T) {
 	for _, raw := range []string{"false", "0", "no", "off", "disable", "disabled", "FALSE"} {
 		t.Run(raw, func(t *testing.T) {
-			t.Setenv(ackEnvKey, raw)
+			setExaBGPEnv(t, ackEnvKey, raw)
 			m := NewAckMode()
 			if m.enabled {
 				t.Errorf("ack with %q should be disabled, got enabled", raw)
@@ -36,7 +71,7 @@ func TestAckModeDisabled(t *testing.T) {
 func TestAckModeExplicitEnabled(t *testing.T) {
 	for _, raw := range []string{"true", "1", "yes", "on", "enable"} {
 		t.Run(raw, func(t *testing.T) {
-			t.Setenv(ackEnvKey, raw)
+			setExaBGPEnv(t, ackEnvKey, raw)
 			m := NewAckMode()
 			if !m.enabled {
 				t.Errorf("ack with %q should be enabled", raw)

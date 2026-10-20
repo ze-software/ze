@@ -6,6 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	// The config component registers exabgp.api.*, and the bridge reads
+	// them through env.Get, which refuses an unregistered key.
+	_ "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
 )
@@ -69,6 +73,8 @@ func TestScriptHeldToDetectedVersion(t *testing.T) {
 // the fleet at Start, with the reason and the fix.
 func TestFleetRefusesAnInvalidAPIVersionSetting(t *testing.T) {
 	t.Setenv("exabgp.api.version", "5")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
 	fleet := New(slogutil.DiscardLogger(), testFamilies, nil)
 	err := fleet.Start(context.Background(), &recorder{})
 	if err == nil {

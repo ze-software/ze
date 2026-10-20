@@ -160,9 +160,12 @@ notation supported). See [configuration.md](../../guide/configuration.md).
 | `exabgp.api.ack` | true | YANG | Bridge emits `done`/`error` lines on plugin stdin after each dispatched command |
 | `exabgp.api.version` | auto | YANG | ExaBGP API version of the bridge's scripts: `auto` detects each script's from its first deciding command, `4` or `6` holds every script from its start |
 
-The bridge subprocess reads `exabgp.api.ack` and `exabgp.api.version` via
-`os.Getenv` because it runs before Ze's env registry is initialized. The parent
-Ze process writes them via `config.ApplyEnvConfig` when the operator sets
+The bridge reads `exabgp.api.ack` and `exabgp.api.version` through `env.Get`
+(every binary that links the bridge links the config component, which
+registers them), so ExaBGP's underscore spellings `exabgp_api_ack` and
+`exabgp_api_version` reach it too, and the dotted spelling wins when both are
+set, as in ExaBGP (`Environment.setup`: "Priority: env var (dot) > env var
+(underscore) > INI file > default"). The parent Ze process writes them via `config.ApplyEnvConfig` when the operator sets
 `environment { exabgp { api { ack <bool>; version auto|4|6; } } }`. A version
 value ExaBGP refuses stops the bridge at start with ExaBGP's own reason, and
 `ze exabgp migrate` carries ExaBGP's `api.version` (its `0` written `auto`).
@@ -237,7 +240,10 @@ same separator. A hyphen is not a separator and stays as written: the key
 `ZE.TEST.DOCTOR.PROCFS-ROOT`, but `ZE_TEST_DOCTOR_PROCFS_ROOT` is a different
 name that `Get` never reads, so the value is ignored without a message
 (`plan/journal/silent-fall-through.md`, 2026-09-24). When several spellings
-occur in the inherited environment, the last entry wins. This is separate from registered alias precedence.
+occur in the inherited environment, a spelling with a dot wins over one
+without, whatever their order, which is ExaBGP's own precedence for its
+`exabgp.*` settings; among spellings of the same kind the last entry wins. This
+is separate from registered alias precedence.
 `Set()` removes other spellings of the canonical key and publishes one canonical
 OS entry, so a cache reset or a child process sees the value just written.
 `ResetCache()` rereads the environment; it does not remove inherited values.

@@ -61,6 +61,32 @@ func TestSetReplacesEverySpelling(t *testing.T) {
 	}
 }
 
+// TestGetPrefersTheDottedSpelling proves that when the environment holds a
+// key under both its dotted and its underscore spelling, Get answers the dotted
+// one, whichever came first. ExaBGP reads its settings the same way
+// (src/exabgp/environment/config.py, Environment.setup: "Priority: env var
+// (dot) > env var (underscore) > INI file > default"), and the bridge reads
+// `exabgp.api.*` through Get, so an ExaBGP environment means the same to both.
+func TestGetPrefersTheDottedSpelling(t *testing.T) {
+	const key = "ze.test.env.check"
+	t.Cleanup(ResetCache)
+	for _, order := range [][2]string{{key, "ze_test_env_check"}, {"ze_test_env_check", key}} {
+		os.Unsetenv(key)                 //nolint:errcheck // test setup
+		os.Unsetenv("ze_test_env_check") //nolint:errcheck // test setup
+		t.Setenv(order[0], "first-"+order[0])
+		t.Setenv(order[1], "second-"+order[1])
+		ResetCache()
+		got := Get(key)
+		want := "first-" + key
+		if order[1] == key {
+			want = "second-" + key
+		}
+		if got != want {
+			t.Errorf("set %s then %s: Get = %q, want the dotted spelling's %q", order[0], order[1], got, want)
+		}
+	}
+}
+
 // TestWithoutRemovesEverySpelling proves child isolation drops exact keys under
 // every accepted spelling without changing neighbors or the parent's entries.
 func TestWithoutRemovesEverySpelling(t *testing.T) {

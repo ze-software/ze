@@ -14,6 +14,26 @@ import (
 // at ExaBGP 685f772e4).
 // PREVENTS: a 5.x helper held to v6 by a word ExaBGP reads as v4, or a typing
 // mistake in a first line holding a helper to either version.
+// TestAPIVersionFromEnvReadsEitherExaBGPSpelling proves the fleet setting is
+// read under both spellings ExaBGP accepts, the dotted one first
+// (src/exabgp/environment/config.py, Environment.setup: "Priority: env var
+// (dot) > env var (underscore) > INI file > default").
+func TestAPIVersionFromEnvReadsEitherExaBGPSpelling(t *testing.T) {
+	t.Run("underscore", func(t *testing.T) {
+		setExaBGPEnv(t, "exabgp_api_version", "4")
+		if got, err := APIVersionFromEnv(); err != nil || got != APIV4 {
+			t.Errorf("exabgp_api_version=4: got %v, %v; want APIV4", got, err)
+		}
+	})
+	t.Run("dot wins", func(t *testing.T) {
+		setExaBGPEnv(t, apiVersionEnvKey, "6")
+		setExaBGPEnv(t, "exabgp_api_version", "4")
+		if got, err := APIVersionFromEnv(); err != nil || got != APIV6 {
+			t.Errorf("exabgp.api.version=6 beside exabgp_api_version=4: got %v, %v; want APIV6", got, err)
+		}
+	})
+}
+
 func TestCommandAPIVersion(t *testing.T) {
 	cases := []struct {
 		line string

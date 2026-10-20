@@ -5,6 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	// The config component registers exabgp.api.*, and the bridge reads
+	// them through env.Get, which refuses an unregistered key.
+	_ "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
 	"github.com/ze-software/ze/internal/plugins/exabgp/bridgerun"
 	"github.com/ze-software/ze/pkg/plugin/sdk"

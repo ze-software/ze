@@ -5,9 +5,8 @@
 // When the `exabgp.api.ack` OS env var is truthy (default true), the bridge
 // emits `done\n` or `error <msg>\n` on the plugin's stdin after each
 // dispatched command so the plugin can synchronize on Ze's outcome. When
-// false, the bridge stays silent. The ExaBGP convention is the plain text
-// name of the env var: the bridge subprocess reads via os.Getenv because it
-// runs before Ze's env registry is initialized.
+// false, the bridge stays silent. It is read through env.Get, so every
+// spelling ExaBGP accepts reaches it: `exabgp.api.ack`, then `exabgp_api_ack`.
 
 package bridge
 
@@ -15,13 +14,15 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"os"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/ze-software/ze/internal/core/env"
 )
 
-// ackEnvKey is the OS env var the bridge subprocess reads at construction
-// time. The parent Ze process writes it via config.ApplyEnvConfig when the
+// ackEnvKey is the env var the bridge reads at construction time, under any
+// spelling env.Get accepts (the dotted one wins, as in ExaBGP). The config
+// component registers it and writes it via config.ApplyEnvConfig when the
 // operator sets `environment { exabgp { api { ack <bool>; } } }`.
 const ackEnvKey = "exabgp.api.ack"
 
@@ -91,7 +92,7 @@ func (m *AckMode) apply(action LocalAction) bool {
 // waited two seconds for `done`, and gave up: 29 of the 40 ported ExaBGP API
 // tests stopped after one frame for that reason alone.
 func NewAckMode() AckMode {
-	raw := strings.ToLower(strings.TrimSpace(os.Getenv(ackEnvKey)))
+	raw := strings.ToLower(strings.TrimSpace(env.Get(ackEnvKey)))
 	if raw == "" {
 		return AckMode{enabled: true}
 	}

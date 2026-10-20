@@ -40,9 +40,9 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.openwait", Type: valueTypeInt, Default: "120", Description: "Seconds to wait for peer OPEN after TCP connect (1-3600)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.announce.delay", Type: valueTypeDuration, Default: "0s", Description: "Delay between reactor Ready and first UPDATE (staged announcement gate)"})
 
-	// ExaBGP bridge subprocess uses os.Getenv on this key because the bridge
-	// runs before ze's env registry is initialized; ze sets it via env.Set
-	// here so the child inherits it via os.Environ().
+	// The ExaBGP bridge reads these through env.Get (every binary that links
+	// the bridge links this package); ApplyEnvConfig writes them via env.Set,
+	// so a bridge child inherits them via os.Environ().
 	_ = env.MustRegister(env.EnvEntry{Key: "exabgp.api.ack", Type: valueTypeBool, Default: configTrue, Description: "ExaBGP bridge: emit done/error ack lines on plugin stdin after each dispatched command"})
 	_ = env.MustRegister(env.EnvEntry{Key: "exabgp.api.version", Type: valueTypeString, Default: "auto", Description: "ExaBGP bridge: API version of the scripts, auto (detect per script), 4 or 6"})
 

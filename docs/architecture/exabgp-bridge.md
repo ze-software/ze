@@ -518,7 +518,8 @@ lasts until the script exits: a respawned child starts from the setting again.
 
 A held script writing the other API's command is answered `error` and the line
 reaches no peer, as ExaBGP answers its `UnknownCommand`. `environment { exabgp {
-api { version auto|4|6; } } }` is ExaBGP's `exabgp.api.version`: auto detects per
+api { version auto|4|6; } } }` is ExaBGP's `exabgp.api.version` (read under
+ExaBGP's spellings, `exabgp.api.version` before `exabgp_api_version`): auto detects per
 script, 4 or 6 holds every script from its start, and a value ExaBGP refuses
 stops the bridge at start. A script's `api version` line answers `API version:
 <setting> (this helper: <version>)`, and `api version <v>` moves the setting for
