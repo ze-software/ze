@@ -1560,3 +1560,17 @@ Agent stopped at its 100-call budget. Nothing committed but this entry. Baseline
   work lands.
 - Gates owed: scoped `./le go lint run` on reactor, types, cmd/update, rs, rr and bridge;
   `go test -tags ze_bgp` on those packages; the exabgp api population.
+
+### ExaBGP 6 spec, Phase 6 second package (2026-10-20, Mac)
+
+- Committed: a6e0ac212f (bridgerun test helper counted words, not lines; Mac red 3/3), 05aeb4fd75 (six
+  Phase 6 unit tests, each red under an overlay), 19013e6857 (X-23/AC-29: `bridge.RefuseUnsentRoute`
+  turns an update-text `warning` or a message with no counts into a refusal, both runners; cases
+  `api-refusals-v4` and `api-keep-first-v4` green on the pin and ze, red on ze by overlay; docs and the
+  spec's Phase 6 state line). A-4 was wrong (fixed), A-5 and A-6 validated. X-25 covered by the refusal case.
+- Shared-file change: the standalone runner releases a dispatch on the terminator, holding the first
+  record (`answerDocuments`, bridge.go; `pendingResult.document`).
+- Journal row (warning reaches socket callers as done) in `plan/journal/silent-fall-through.md`.
+- Left: AC-29's EOR half (with the adj-rib-out/EOR package); scoped lint on internal/exabgp/bridge and
+  internal/plugins/exabgp ("inputs changed during planning" twice); the api population rerun (blocked by a
+  foreign build break in rs/server_handlers.go); `./le test unit all`; `./le test functional exabgp-test`.
