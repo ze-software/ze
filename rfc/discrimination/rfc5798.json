@@ -1432,6 +1432,28 @@
       "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5798-8.1.3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/proxyarp_test.go::TestNoProxyARPOnVRRPInterfaceAccepted",
+      "unit-sha": "1f81b34a80c869c1",
+      "claim-sha": "9d38163dda6793f5",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/proxyarp.go::validateNoProxyARP",
+      "producer-sha": "06bc6187f690b427",
+      "break": "body of validateNoProxyARP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5798-8.1.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/proxyarp_test.go::TestProxyARPOnVRRPInterfaceRefused",
+      "unit-sha": "9fc662192a8b298f",
+      "claim-sha": "3cee7cb968139010",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/proxyarp.go::validateNoProxyARP",
+      "producer-sha": "06bc6187f690b427",
+      "break": "body of validateNoProxyARP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5798-8.2.1-1",
       "polarity": "positive",
       "unit": "internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go::TestVRRPIPv6RedirectSourcedFromVirtualLinkLocal",
