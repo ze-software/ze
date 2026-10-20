@@ -283,6 +283,68 @@ func TestPerfRemovalFailureIsReportedAndFailsTheRun(t *testing.T) {
 	}
 }
 
+// TestPerfRemovalNamesTheFixOnce pins review round 7 ISSUE 3: the stderr line
+// for a container this run could not remove names the cleanup command exactly
+// once, whether the removal error already carries it (a DUT still settling
+// after a refused start) or not (a plain refused removal).
+// METHOD: the DUT's `docker run` is refused after the daemon may have created
+// it, so the start leaves the unsettled mark; the first `docker rm -f` answers
+// the name absent, every later one is refused busy, and the inspect finds the
+// container. The plain case refuses the same start, then every removal busy
+// with the container present, so the first removal fails before the mark is
+// read. The cleanup command is counted on the "error: remove container"
+// line.
+// PREVENTS: the fix printed twice, once by the error and once by the runner.
+func TestPerfRemovalNamesTheFixOnce(t *testing.T) {
+	for _, row := range []struct {
+		name     string
+		settling bool
+	}{
+		{name: "settling after a refused start", settling: true},
+		{name: "plain refused removal", settling: false},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			var stderr strings.Builder
+			runner, recorder := fixtureRunner(t, &stderr)
+			dut := runner.containerName("ze")
+			removals := 0
+			recorder.answer = func(argv []string) (interoplab.ProcessResult, error) {
+				if argv[1] == "run" && slices.Contains(argv, dut) {
+					return interoplab.ProcessResult{ExitCode: 125, Stderr: "OCI runtime create failed"}, nil
+				}
+				if argv[1] == "rm" && argv[len(argv)-1] == dut {
+					removals++
+					if row.settling && removals == 1 {
+						// Docker 29.9 answers an absent name with exit 0 and no output.
+						return interoplab.ProcessResult{}, nil
+					}
+					return interoplab.ProcessResult{ExitCode: 1, Stderr: "Error response from daemon: device or resource busy"}, nil
+				}
+				if slices.Equal(argv[1:3], []string{"container", "inspect"}) {
+					return interoplab.ProcessResult{Stdout: "abc\n"}, nil
+				}
+				return interoplab.ProcessResult{}, nil
+			}
+			runner.Execute(t.Context(), Steps{Test: true}, []string{"ze"})
+			var line string
+			for candidate := range strings.Lines(stderr.String()) {
+				if strings.Contains(candidate, "error: remove container "+dut) {
+					line = candidate
+				}
+			}
+			if line == "" {
+				t.Fatalf("stderr names no failed removal of %s: %q", dut, stderr.String())
+			}
+			if settled := strings.Contains(line, "was created after its start failed"); settled != row.settling {
+				t.Fatalf("settling removal error = %v, want %v: %q", settled, row.settling, line)
+			}
+			if got := strings.Count(line, cleanupCommand); got != 1 {
+				t.Errorf("the removal line names %q %d times, want once: %q", cleanupCommand, got, line)
+			}
+		})
+	}
+}
+
 // TestPerfInterruptedRunRemovesWhatItStarted pins AC-8 at the runner: when the
 // root context ends while a DUT is up, the DUT and the network are still
 // removed, on a context the cancellation does not reach, and the run fails.

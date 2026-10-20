@@ -437,16 +437,27 @@ func startProofContainer(ctx context.Context, docker *interoplab.Docker, spec in
 	return func() string { return removeContainer(ctx, docker, spec.Name) }, err
 }
 
+// cleanupCommand is what an operator runs to remove a proof container this
+// run could not remove.
+const cleanupCommand = "./le test integration cleanup"
+
 // removeContainer takes the proof's container down on a context the run's
 // cancellation does not reach, so a SIGINT still removes it. Its error is
 // answered as text for the report's container-removal field: the run's own
 // verdict stays what the caller reads first, and a container left behind is
-// named rather than discarded.
+// named rather than discarded. The text ends with the cleanup command once:
+// an error that already names it (interoplab.RemovalNamesCleanup) is answered
+// as it is.
 func removeContainer(ctx context.Context, docker *interoplab.Docker, name string) string {
-	if err := docker.RemoveContainer(context.WithoutCancel(ctx), name); err != nil {
+	err := docker.RemoveContainer(context.WithoutCancel(ctx), name)
+	if err == nil {
+		return ""
+	}
+	if interoplab.RemovalNamesCleanup(err) {
 		return err.Error()
 	}
-	return ""
+	var tb textbuf.Buffer
+	return tb.Err(err).Str(". Fix: run `").Str(cleanupCommand).Str("`").String()
 }
 
 // watchedExecTimeout bounds a daemon exec a proof watches. The proof's own

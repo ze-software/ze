@@ -400,6 +400,12 @@ func (runner *Runner) removeContainer(ctx context.Context, name string) {
 	delete(runner.containers, name)
 	if err := runner.Docker.RemoveContainer(context.WithoutCancel(ctx), name); err != nil {
 		runner.removalFailed = true
+		// A container still settling or still being removed already names the
+		// cleanup command, so the line names it once.
+		if interoplab.RemovalNamesCleanup(err) {
+			say(runner.Stderr, "  error: remove container ", name, ": ", err.Error())
+			return
+		}
 		say(runner.Stderr, "  error: remove container ", name, ": ", err.Error(), "; remove it with ", cleanupCommand)
 	}
 }

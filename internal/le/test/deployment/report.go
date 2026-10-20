@@ -70,12 +70,12 @@ func (r proofNotReached) Text() string {
 	return tb.String()
 }
 
-// writeContainerRemoval names a proof container the run could not remove, with
-// the command that removes it, ahead of the verdict a reader looks for.
+// writeContainerRemoval names a proof container the run could not remove,
+// ahead of the verdict a reader looks for. The removal text already ends with
+// the command that removes it (removeContainer), so it is not repeated here.
 func writeContainerRemoval(tb *textbuf.Buffer, container, removal string) {
 	if removal == "" {
 		return
 	}
-	tb.Str("FAIL: container ").Str(container).Str(" was not removed: ").Str(removal).
-		Str("\nremove it with: ./le test integration cleanup\n")
+	tb.Str("FAIL: container ").Str(container).Str(" was not removed: ").Str(removal).Str("\n")
 }

@@ -148,6 +148,19 @@ func (e *pendingRemovalError) Unwrap() []error {
 	return []error{e.removal, e.stop}
 }
 
+// RemovalNamesCleanup reports whether err, from RemoveContainer, already ends
+// with the fix that names `./le test integration cleanup`: a container still
+// settling or still being removed when this run stopped. A caller that
+// reports a removal error adds its own pointer to the cleanup only when this
+// answers false, so the reader is told the fix once.
+func RemovalNamesCleanup(err error) bool {
+	if _, settling := errors.AsType[*settlingRemovalError](err); settling {
+		return true
+	}
+	_, pending := errors.AsType[*pendingRemovalError](err)
+	return pending
+}
+
 // markUnsettled records name for removeSettlingContainer when err is an issued
 // run that may have left a container (ContainerMayExist). A name another
 // container holds is not this run's, and is not recorded.
