@@ -1928,6 +1928,14 @@ func TestBridgeSRPolicyCommand(t *testing.T) {
 			"send bgp 10.0.0.1 update text nhop 1.2.3.4 mp ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 100 priority 10 binding-sid mpls 24000 segment-list weight 1 segment type-a mpls 16001",
 		},
 		{
+			// RFC 9830 Section 4.2.1: the update carries NO_ADVERTISE or a
+			// Route Target, which ExaBGP writes among the sub-TLVs; update text
+			// takes attributes only before its nlri sections.
+			"announce_ipv4_communities_lifted",
+			"neighbor 10.0.0.1 announce ipv4 sr-policy distinguisher 0 color 100 endpoint 10.0.0.1 next-hop 1.2.3.4 community [ no-advertise ] preference 100 segment-list weight 1 segment type-a mpls 16001 extended-community [ target:10.0.0.1:0 ]",
+			"send bgp 10.0.0.1 update text nhop 1.2.3.4 community [ no-advertise ] extended-community [ target:10.0.0.1:0 ] mp ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 100 segment-list weight 1 segment type-a mpls 16001",
+		},
+		{
 			"announce_ipv6",
 			"neighbor 10.0.0.1 announce ipv6 sr-policy distinguisher 1 color 200 endpoint 2001:db8::1 next-hop 2001:db8::2",
 			"send bgp 10.0.0.1 update text nhop 2001:db8::2 mp ipv6/sr-policy add distinguisher 1 color 200 endpoint 2001:db8::1",

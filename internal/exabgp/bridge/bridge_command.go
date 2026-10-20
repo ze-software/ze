@@ -644,16 +644,25 @@ func familyOfRoute(routeStr string) string {
 // Ze:     send bgp <ip> update text nhop 1.2.3.4 mp ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 100 ...
 //
 // Extracts next-hop and the three NLRI fields (distinguisher, color, endpoint),
-// then appends all remaining tunnel-encap tokens verbatim.
+// lifts the communities ExaBGP accepts among the sub-TLVs to the attributes
+// that precede `mp`, then appends all remaining tunnel-encap tokens verbatim.
 func convertAnnounceSRPolicy(selector, afi, rest string) Command {
 	rest = strings.TrimSpace(rest)
 	parts := strings.Fields(rest)
 
 	var nhop, distinguisher, color, endpoint string
-	var extra []string
+	var attrs, extra []string
 	for i := 0; i < len(parts); i++ {
 		key := strings.ToLower(parts[i])
 		switch key {
+		// RFC 9830 Section 4.2.1: "The SR Policy update MUST have either the
+		// NO_ADVERTISE community, at least one Route Target extended community
+		// in IPv4-address format, or both." ExaBGP reads them anywhere among
+		// the sub-TLVs; update text refuses an attribute after an nlri section.
+		case bridgeAttrCommunity, bridgeAttrLargeCommunity, bridgeAttrExtCommunity:
+			value, next := collectBridgeAttrValue(parts, i+1)
+			attrs = append(attrs, key+" "+value)
+			i = next - 1
 		case bridgeAttrNextHop, srPolicyDistinguisher, srPolicyColor, srPolicyEndpoint:
 			if i+1 >= len(parts) {
 				break
@@ -678,6 +687,9 @@ func convertAnnounceSRPolicy(selector, afi, rest string) Command {
 	tb.Str("send bgp ").Str(selector).Str(" update text")
 	if nhop != "" {
 		tb.Str(" nhop ").Str(nhop)
+	}
+	for _, attr := range attrs {
+		tb.Byte(' ').Str(attr)
 	}
 	// RFC 9830: SR Policy NLRI travels in MP_REACH_NLRI, ze's `mp` section.
 	tb.Str(" mp ").Str(afi).Str("/sr-policy add")

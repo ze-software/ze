@@ -1,7 +1,12 @@
 option=file:api-sr-policy.conf
 # RFC 9830 Section 2.1: SR Policy NLRI in MP_REACH_NLRI, AFI 1 SAFI 73.
-1:cmd:announce ipv4 sr-policy distinguisher 0 color 300 endpoint 10.0.0.3 next-hop 192.0.2.1 preference 300 segment-list weight 1 segment type-a mpls 16001 segment-list weight 2 segment type-a mpls 16002
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0075020000005E4001010040020040050400000064800E1600014904C00002010060000000000000012C0A000003C01734000F00300C0600000000012C8000110009060000000000010106000003E810008000110009060000000000020106000003E82000
+# RFC 9830 Section 4.2.1: "The SR Policy update MUST have either the
+# NO_ADVERTISE community, at least one Route Target extended community in
+# IPv4-address format, or both." ExaBGP 6.0 (pin 685f772e4) refuses the
+# announcement without one, so the route carries NO_ADVERTISE. The bytes are
+# the pin's own (`--dut exabgp`).
+1:cmd:announce ipv4 sr-policy distinguisher 0 color 300 endpoint 10.0.0.3 next-hop 192.0.2.1 preference 300 segment-list weight 1 segment type-a mpls 16001 segment-list weight 2 segment type-a mpls 16002 community [ no-advertise ]
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF007C0200000065800E1600014904C00002010060000000000000012C0A0000034001010040020040050400000064C00804FFFFFF02C01734000F00300C0600000000012C8000110009060000000000010106000003E810008000110009060000000000020106000003E82000
 1:cmd:announce eor ipv4 sr-policy
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000149
 # The withdrawal is MP_UNREACH_NLRI carrying the same NLRI, followed by ORIGIN,

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import time
+
 from exabgp_api import send, wait_for_ack, wait_for_shutdown
 
 
@@ -8,15 +10,20 @@ def main() -> None:
     # MP_UNREACH_NLRI with SAFI 73.
     messages = [
         'announce ipv4 sr-policy distinguisher 0 color 300 endpoint 10.0.0.3 next-hop 192.0.2.1 preference 300 '
-        'segment-list weight 1 segment type-a mpls 16001 segment-list weight 2 segment type-a mpls 16002',
+        'segment-list weight 1 segment type-a mpls 16001 segment-list weight 2 segment type-a mpls 16002 '
+        'community [ no-advertise ]',
         'withdraw ipv4 sr-policy distinguisher 0 color 300 endpoint 10.0.0.3',
     ]
 
     # One command per flush: the bridge nets an announce and a withdrawal of
-    # the same route that share a flush, and this case asserts both.
+    # the same route that share a flush, and this case asserts both. The pause
+    # lets the session come up and the announce leave first: ExaBGP holds an
+    # API route while the session is down, and a withdrawal arriving then
+    # cancels it, so the announce frame was never sent.
     for message in messages:
         send(message)
         wait_for_ack(expected_count=1)
+        time.sleep(2)
 
     wait_for_shutdown()
 
