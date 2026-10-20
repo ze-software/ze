@@ -1718,3 +1718,28 @@ Agent stopped at its 100-call budget. **Fix 1 is written, tested, and UNCOMMITTE
   (`rpc.AppendAnswerTerminator` id/count/faults/message, `AnswerTail`, `Verdict`) has no field for a
   warning, so the fix is a wire-format change in pkg/plugin/rpc plus WriteAnswer/answerMessage,
   SDK answerValue and every consumer; docs ipc_protocol.md / process-protocol.md.
+
+### ExaBGP 6 adj-rib-out package, fourth agent (2026-10-21, Mac): items 0-4 committed, cases partly run
+
+Stopped at the call budget. Committed:
+- `37d6aff8b1` bridgerun stale test: `TestFleetSendsABareEORForIPv4UnicastOnly` (IPv4 EoR only, no IPv6,
+  one ack); row in `test/weakened/f1d4344e.md`. `TestFleetLeavesAOneShotScriptStopped` flaked once under
+  load (green x3 alone): a flake, not investigated.
+- `7339d8b323` bgp-rib `outboundResend` brackets each family with BoRR/EoRR (`resendFamiliesBracketed`,
+  RFC 7313 Section 4 quoted). Config routes confirmed in the resend (`collectGroupedRibOutRoutesFiltered`
+  skips `ConfigStatic` only when `peerUp`). Three tests red with HEAD `rib_commands.go` overlaid.
+- `d27dcdbdf7` bridge: `clear adj-rib out` -> `clear bgp rib advertised <sel>` (`Command.WithdrawsAdjRIBOut`),
+  `flush adj-rib out` -> `clear bgp rib out <sel>`; `Net` cancels earlier same-batch route commands the clear's
+  selector covers and nets each run between clears separately. Both runners share `convertControl`/`ScriptLines`.
+  No-match: the bridge refuses an unserved selector; ze answers `ErrNoPeersMatch` for advertised. Docs:
+  exabgp-bridge.md (new section), update-syntax.md, exabgp-differences.md (route aimed wider than the clear).
+- `e21bd09703` `TestWithdrawAdvertisedPutsTheWithdrawalOnTheWire` (reactor, wire bytes; red with the
+  `WithdrawNLRIBatch` call disabled) and `TestLocalResendAfterAWithdrawalSendsNothing` (rib; no red phase).
+
+Cases on ze (working tree, which also carries other sessions' uncommitted plugin-socket and NLRI work):
+api `api-rib` PASS, `api-rr-rib` PASS, `api-refusals-v4` PASS; `api-family-carry-v4` still running past 34 s
+when this was written (likely a timeout: re-run it). NOT DONE: old-5.0 api-rib/api-rr-rib on ze (queued
+in the same background run); both cases on the pin
+(`PYTHONPATH= uv run --no-project --python 3.12 --with paramiko --with 'exabgp @ git+https://github.com/Exa-Networks/exabgp@685f772e4ede5c818d2ff5c84f4ae040afd37be6' ./le --name exarib3 test exabgp api --dut exabgp api-rib api-rr-rib`);
+`api-family-carry-v4` red on ze with the `update_text.go` pre-check overlaid away (note `update_text.go` is
+dirty in the tree now, another session's). Gates owed: `./le verify worktree`, scoped lint on the four commits.
