@@ -790,6 +790,7 @@ func TestThePayloadRefusesToMeasureAFileThatIsNotThere(t *testing.T) {
 	// is the cheapest way to make the budget look MET.
 	root := digestTree(t, map[string]string{
 		"ai/INSTRUCTIONS.md":   "instructions\n",
+		"ai/META-DECISIONS.md": "decisions\n",
 		"ai/rules/TRIGGERS.md": "triggers\n",
 	})
 	report, err := Payload(root)
@@ -811,6 +812,7 @@ func TestThePayloadRefusesToMeasureAFileThatIsNotThere(t *testing.T) {
 
 	whole, err := Payload(digestTree(t, map[string]string{
 		"ai/INSTRUCTIONS.md":   "instructions\n",
+		"ai/META-DECISIONS.md": "decisions\n",
 		"ai/rules/TRIGGERS.md": "triggers\n",
 		"ai/rules/CORE.md":     "core\n",
 	}))
@@ -820,7 +822,7 @@ func TestThePayloadRefusesToMeasureAFileThatIsNotThere(t *testing.T) {
 	if whole.Failed() {
 		t.Errorf("a complete payload failed: %+v", whole)
 	}
-	if whole.Chars != len("instructions\n")+len("triggers\n")+len("core\n") {
+	if whole.Chars != len("instructions\n")+len("decisions\n")+len("triggers\n")+len("core\n") {
 		t.Errorf("chars = %d", whole.Chars)
 	}
 }

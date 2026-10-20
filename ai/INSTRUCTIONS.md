@@ -51,6 +51,15 @@ you have broken one, stop and tell the user.
 - Never delete or weaken a test to clear a red.
 - Full rule: `ai/rules/completion.md`, `ai/rules/testing.md`.
 
+# Owner Meta Decisions
+
+`ai/META-DECISIONS.md` holds every decision Thomas made about how agents work and
+what is in scope, one row each with its date and his words. A question a row
+answers is never put to him. A harness that does not expand the include below
+reads that file before its first action.
+
+@ai/META-DECISIONS.md
+
 # Standing Decisions
 
 ## Ze is pre-release

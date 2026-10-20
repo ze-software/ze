@@ -16,6 +16,11 @@ Rationale: `ai/rationale/session-start.md`
 [ ] 7. Start working
 ```
 
+`ai/META-DECISIONS.md` arrives with `AGENTS.md`, which includes it. If it is not
+in context, read it before step 1: a question one of its rows answers is never
+put to Thomas, and a new meta decision he states is appended there in the same
+turn (`ai/rules/rule-precedence.md`).
+
 The Go style guide is read before the first Go edit, not at session start: `ai/INSTRUCTIONS.md`, "Every session".
 
 ## Symbols

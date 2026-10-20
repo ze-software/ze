@@ -412,13 +412,12 @@ target the corpus cannot show, the row itself, or a cycle is refused. The row si
 the gated denominator, so it moves no share (`docs/contributing/rfc-conformance-gates.md`,
 "The rollup annotation").
 
-**Annotations record scope and evidence; they do not authorize implementation.**
+**Annotations record scope and evidence.**
 Read the RFC and the current producers before choosing a classification. Close testing
 gaps for implemented capabilities first, and record absent behavior as an explicit gap.
-An absent feature needs separately agreed scope. Apply `ai/rules/rfc-compliance.md`.
-Full RFC support is the long-term goal, not every summary's acceptance criterion.
-Re-check an existing annotation's evidence without treating an agreed capability boundary
-as void merely because the full RFC covers more.
+An absent requirement is owed work, never an owner question (M2 in `ai/META-DECISIONS.md`). Apply `ai/rules/rfc-compliance.md`.
+Full coverage of every RFC Ze implements is the goal (M2).
+Re-check an existing annotation's evidence against the RFC text.
 
 ## Superseded Documents Carry Their Successor
 

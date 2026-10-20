@@ -6,6 +6,7 @@ related: completion, testing, git-safety
 ---
 directives ## Directives
   test-every-linux-only-path-inside-qemu
+  test-guests-run-zes-own-system-not-alpine
   record-a-linux-limitation-in-the-register
 linux-only-functional-ci-tests-run-via-qemu-never-natively ## Linux-only functional (`.ci`) tests run via QEMU, never natively
   mark-a-kernel-touching-ci-test-needs-linux

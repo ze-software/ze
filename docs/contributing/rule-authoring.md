@@ -270,7 +270,10 @@ Moving a point between sections is a rename, not a retirement: the point's
 
 ## What the session payload artifacts hold
 
-Two files load into every session, and one generator emits both from one parse.
+Two generated files load into every session, and one generator emits both from
+one parse. `ai/INSTRUCTIONS.md` (copied to `AGENTS.md`) includes them, together
+with the hand-written `ai/META-DECISIONS.md`, the owner's decisions about how
+agents work and what is in scope.
 
 | Artifact | Holds |
 |----------|-------|

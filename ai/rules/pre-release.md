@@ -15,7 +15,7 @@
 
 **Every red gets one question before anything else: does this red say the product is wrong?** Answer it by reading the failing assertion and the function that produces the value it names (`ai/rules/evidence.md`). The answer takes one read, and it decides everything that follows.
 **A red that exposes an in-scope product defect MUST be fixed at the source without weakening the assertion** (`ai/rules/completion.md`).
-**Scaffolding that prevents trustworthy proof of an agreed capability MUST be repaired within the verification task.** Unrelated scaffolding failures MUST be reported without expanding the task. A gate's demand for an absent RFC feature follows `ai/rules/rfc-compliance.md`.
+**Scaffolding that prevents trustworthy proof of an agreed capability MUST be repaired within the verification task.** Unrelated scaffolding failures MUST be reported without expanding the task. A gate's demand for an absent requirement of an implemented RFC is owed work under `ai/rules/rfc-compliance.md` (M2).
 
 **A check that has run MUST NOT be run again to reconfirm what its output already said.** One run, read the whole output, act on it.
 **Three re-runs are forbidden by name: a gate that passed, a log you have already read, and a tree unchanged since the last run.** A re-run is earned by one thing only, which is an edit to the code under test.
@@ -37,7 +37,7 @@ Verification follows the agreed task. These safeguards still apply.
 
 | Unchanged | Why it is not instrument work |
 |-----------|-------------------------------|
-| Correctness and interoperability of implemented capabilities (`ai/rules/rfc-compliance.md`) | Existing behavior needs proof and exposed defects need fixes. Absent RFC features remain explicit gaps pending separate implementation scope |
+| Correctness and interoperability of implemented capabilities (`ai/rules/rfc-compliance.md`) | Existing behavior needs proof and exposed defects need fixes. An absent requirement of an implemented RFC stays a recorded gap until it is implemented, and it is owed work (M2) |
 | The ban on deleting or weakening a test to clear a red (`ai/rules/testing.md`) | Weakening hides a product defect. Leaving the test red hides nothing, so it is the permitted move |
 | The ban on calling half-written product code finished (`ai/rules/completion.md`) | A completion claim is about the product, and a red test never earns one either way |
 | A structural gate charged to your own commit: lint, generated artifacts, tier | It costs seconds rather than the gate's half hour, and it says the tree is broken rather than merely unverified |

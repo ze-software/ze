@@ -1,7 +1,8 @@
 ---
 kind: directive
-level: MUST
+level: MUST NOT
 stage:
 ---
-**Absent RFC features MUST be recorded as explicit gaps without asking permission to report them.** Recording a gap neither implements it nor authorizes development. Implementation of an absent feature MUST have separately agreed scope; the RFC goal, an audit finding or a false support claim supplies no such authorization.
-**Prior owner scope decisions MUST remain in force until the owner changes them.** Existing unfinished code MUST be preserved, and its presence MUST NOT be treated as authorization to finish or expand it merely to complete an RFC.
+**An absent requirement of an RFC Ze implements is owed work, never a gap awaiting permission: it MUST be recorded in the RFC summary and implemented, and whether to implement it MUST NOT be put to the owner (M2).** When the work in hand touches that capability, the requirement is inside it. Otherwise it gets its gap record and its own work item, still without asking whether.
+**A question the RFC text answers MUST NOT be put to the owner.** Where the RFC leaves it open, read FRR's and BIRD's source, decide, and report the quoted evidence. Ask only when doing less than full coverage under the Linux exception, or when the RFC is silent and FRR and BIRD disagree.
+**Prior owner decisions MUST remain in force until the owner changes them, and existing unfinished code MUST be preserved.**

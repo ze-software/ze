@@ -9,6 +9,8 @@ directives ## Directives
   the-rungs-and-what-each-decides
   end-the-phase-and-report-it-is-not-asking-permission
   ask-how-to-fix-it-never-whether-to-skip-it
+  a-question-a-standing-decision-answers-is-never-asked
+  record-an-owner-meta-decision-the-turn-it-is-made
   tell-deferral-from-parking-by-whether-the-goal-holds
   close-the-work-first-then-ask-about-the-unrelated-defect
   start-a-fix-agent-for-an-investigated-defect-without-asking

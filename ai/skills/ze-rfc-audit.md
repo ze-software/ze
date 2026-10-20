@@ -171,9 +171,9 @@ changed, and removing any verdict that existed at HEAD. Audit coverage is monoto
 requirement id, so a judgement that has been made cannot be un-made by erasing it. If you
 believe a finding was wrong, re-judge it with `mode rejudge` and record `upgrade_reason`.
 
-An `unimplemented` verdict records missing behavior, not permission to implement it.
+An `unimplemented` verdict records missing behavior that is owed work.
 Record the explicit gap with its RFC source. First close testing gaps for implemented
-capabilities and fix exposed defects. An absent feature needs separately agreed scope.
+capabilities and fix exposed defects. An absent requirement of an implemented RFC is owed work, never an owner question (M2 in `ai/META-DECISIONS.md`).
 
 ## Why the fingerprint exists
 

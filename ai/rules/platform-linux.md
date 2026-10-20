@@ -6,12 +6,14 @@
 
 ## Directives
 
-- Linux-only code (`//go:build linux`) MUST ship with integration tests that run in the QEMU Alpine VM. "Needs real hardware" is never a valid reason to skip tests. Virtual substitutes exist for every kernel feature ze uses.
-- A functional `.ci` test that boots a daemon which exercises a real Linux kernel feature MUST be marked `option=needs-linux`, and MUST be validated inside the QEMU Alpine VM, never natively on darwin.
+- Linux-only code (`//go:build linux`) MUST ship with integration tests that run in the QEMU VM. "Needs real hardware" is never a valid reason to skip tests. Virtual substitutes exist for every kernel feature ze uses.
+- A functional `.ci` test that boots a daemon which exercises a real Linux kernel feature MUST be marked `option=needs-linux`, and MUST be validated inside the QEMU VM, never natively on darwin.
 - Every Linux-only interop lab that runs as Docker containers and depends on host-kernel features MUST also ship a QEMU-runnable path. Treat "it is Linux-only / needs the host kernel" as the trigger to build the QEMU runner, not as an excuse to skip it.
 - The installer initrd is a single statically-linked Go binary (`cmd/ze-installer`) running as PID 1 with zero external binaries (busybox removed). Detect system state through `/proc` and `/sys` reads, not external commands, and never reintroduce `exec.Command` of an external tool.
 - A Dependabot alert on a `go.mod` under `gokrazy/modcache/` is almost always a stale vendored upstream manifest, not your real dependency graph. Follow the runbook under "Appliance Dependency Bumps".
 - Never cross-compile a host binary. A target-arch `ze-host` cannot exec on the build host ("exec format error"). Apply `GOARCH=<target>` only to the build of a target binary, or to the `ze appliance initrd` invocation that cross-compiles one internally, never to the build of the host tool that runs it.
+
+**Every VM and test guest MUST run Ze's own system, its kernel and base as the appliance builds them, and MUST NOT be built on Alpine (owner decision M1, Thomas, 2026-10-20, `ai/META-DECISIONS.md`).** Where a guest still boots the Alpine image, a problem that exists only because of Alpine is out of scope: its fix is moving that guest to Ze's system. It MUST NOT be put to the owner as a question, and MUST NOT be worked around in a test, a harness or Ze's code. Until a guest moves, the runtime-kernel directive below still applies to it.
 
 - A Linux kernel behavior, or a library behavior on the path to the kernel, that stops Ze implementing a feature or an RFC requirement as asked MUST be recorded as an entry in `docs/architecture/linux-limitations.md`, with the source file and function read, the quoted line, and the kernel release or module version it was read at. It MUST NOT live only in an `rfc/short/` gap note, a guide, a code comment or an error message: those MUST name the entry id instead of restating it. An entry whose source you could not read MUST be marked `unverified` and MUST say what would settle it.
 - A bump of `internal/appliance/kernel.version`, or of a module an entry names, MUST re-read every affected entry at the new version and update its `Checked` line. `TestLinuxLimitsCheckedAtShippedVersions` (`internal/appliance/linux_limits_test.go`) goes red until that is done; the fix is the re-check, never a version edit without it.

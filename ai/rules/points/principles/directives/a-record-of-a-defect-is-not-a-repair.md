@@ -3,4 +3,4 @@ kind: directive
 level: MUST NOT
 stage:
 ---
-**Recording a defect MUST NOT be presented as fixing the product.** Defects exposed in implemented capabilities follow the agreed scope and `completion.md`. Absent RFC requirements MUST be recorded under `rfc-compliance.md`, which requires separate implementation scope. A gap record accurately describes missing behavior and authorizes no code change.
+**Recording a defect MUST NOT be presented as fixing the product.** A defect stays open until the code is fixed (`completion.md`), and an absent requirement of an implemented RFC stays a gap until it is implemented (`rfc-compliance.md`). The record describes the missing behavior; it is the start of that work, never its substitute.

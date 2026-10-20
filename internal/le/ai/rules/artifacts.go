@@ -519,9 +519,12 @@ func (r PayloadReport) Text() string {
 	return tb.String()
 }
 
-// payloadParts names the three files a session loads before it reads anything
-// else.
-var payloadParts = [...]string{"ai/INSTRUCTIONS.md", "ai/rules/TRIGGERS.md", "ai/rules/CORE.md"}
+// payloadParts names the four files a session loads before it reads anything
+// else: ai/INSTRUCTIONS.md, which becomes AGENTS.md, and the three files its
+// `@` lines include. A new `@` line in ai/INSTRUCTIONS.md owes an entry here.
+var payloadParts = [...]string{
+	"ai/INSTRUCTIONS.md", "ai/META-DECISIONS.md", "ai/rules/TRIGGERS.md", "ai/rules/CORE.md",
+}
 
 // Payload measures what the always-loaded payload costs against its budget.
 func Payload(tree string) (PayloadReport, error) {

@@ -13,7 +13,7 @@ directives ## Directives
   treat-conformance-as-non-negotiable
   read-the-rfc-text-before-claiming-conformance
   prove-a-new-tag-discriminates-its-claim
-implement-full-compliance-ask-thomas-only-before-doing-less ## Trustworthy Baseline and Agreed RFC Scope
+implement-full-compliance-ask-thomas-only-before-doing-less ## Full RFC Coverage (owner decision M2)
   implement-full-compliance-when-it-is-reachable
   asking-is-required-only-when-you-are-about-to-do-less
   a-false-public-claim-is-fixed-by-proof-not-by-disclosure
