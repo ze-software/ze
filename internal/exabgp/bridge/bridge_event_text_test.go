@@ -143,8 +143,10 @@ func TestTextEncoderWritesTheSessionLines(t *testing.T) {
 			name: "notification",
 			event: `{"type":"bgp","bgp":{"message":{"type":"notification","direction":"sent"},
 			         "peer":{"remote":{"address":"10.0.0.1","as":65001}},
-			         "notification":{"code":6,"subcode":2,"data":"41424344"}}}`,
-			want: "neighbor 10.0.0.1 send notification code 6 subcode 2 data 41424344\n",
+			         "notification":{"code":2,"subcode":2,"data":"41424344"}}}`,
+			// hexstring, as v4/text.py writes it: "0x", uppercase. A Cease
+			// carries a Shutdown Communication instead (TestV4NotificationDataReadable).
+			want: "neighbor 10.0.0.1 send notification code 2 subcode 2 data 0x41424344\n",
 		},
 	}
 

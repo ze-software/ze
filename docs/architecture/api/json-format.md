@@ -399,7 +399,7 @@ Next-hop is at the **operation level** (same as all other families), not inside 
     "open": {
       "asn": 65001,
       "router-id": "1.1.1.1",
-      "hold-time": 90,
+      "timer": {"hold-time": 90},
       "capabilities": [
         {"code": 1, "name": "multiprotocol", "value": "ipv4/unicast"},
         {"code": 65, "name": "asn4", "value": "65001"}
@@ -408,7 +408,7 @@ Next-hop is at the **operation level** (same as all other families), not inside 
   }
 }
 ```
-<!-- source: internal/component/bgp/format/text.go -- AppendOpen -->
+<!-- source: internal/component/bgp/format/json.go -- JSONEncoder.Open -->
 
 Capabilities with a structured formatter use that formatter's value, as above.
 Other capabilities use lowercase hexadecimal for the value bytes only, without

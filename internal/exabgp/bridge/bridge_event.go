@@ -266,12 +266,11 @@ func (e Event) ExabgpJSON(format Format) map[string]any {
 	case msgTypeUpdate:
 		neighbor["message"] = updateMessageJSON(e.Data)
 
+	case msgTypeOpen:
+		neighbor[msgTypeOpen] = e.openJSON(format)
+
 	case msgTypeNotification:
-		neighbor[msgTypeNotification] = map[string]any{
-			"code":    e.Data["code"],
-			"subcode": e.Data["subcode"],
-			"data":    e.Data["data"],
-		}
+		neighbor[msgTypeNotification] = e.notificationJSON(format)
 
 	case msgTypeNegotiated:
 		result[msgTypeNegotiated] = convertNegotiated(e.Data)

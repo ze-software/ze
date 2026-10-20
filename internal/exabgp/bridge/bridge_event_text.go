@@ -386,8 +386,12 @@ func (e Event) appendOpenText(buf []byte) []byte {
 	buf = append(buf, textOpenVersion...)
 	buf = append(buf, " asn "...)
 	buf = appendJSONNumber(buf, e.Data["asn"])
+	// ze nests the hold time under `timer` (internal/component/bgp/format/
+	// json.go, Open). It was read flat until 2026-10-20, so every OPEN line
+	// said hold_time 0.
 	buf = append(buf, " hold_time "...)
-	buf = appendJSONNumber(buf, e.Data["hold-time"])
+	timer, _ := e.Data["timer"].(map[string]any)
+	buf = appendJSONNumber(buf, timer["hold-time"])
 	buf = append(buf, " router_id "...)
 	routerID, _ := e.Data["router-id"].(string)
 	buf = appendOneline(buf, routerID)
@@ -417,9 +421,10 @@ func (e Event) appendNotificationText(buf []byte) []byte {
 	buf = appendJSONNumber(buf, e.Data["code"])
 	buf = append(buf, " subcode "...)
 	buf = appendJSONNumber(buf, e.Data["subcode"])
+	// Text is the API 4 encoder alone, and v4/text.py writes hexstring of
+	// Notification.v4_data: the Shutdown Communication decoded, else the wire.
 	buf = append(buf, " data "...)
-	data, _ := e.Data["data"].(string)
-	buf = appendOneline(buf, data)
+	buf = appendOneline(buf, e.readNotificationData().v4Data())
 	return append(buf, '\n')
 }
 

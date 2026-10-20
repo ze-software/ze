@@ -92,7 +92,7 @@ neighbor 127.0.0.1 receive update announced 0.0.0.0/32 next-hop 127.0.0.1 origin
 neighbor 127.0.0.1 receive update withdrawn 10.0.0.0/24
 neighbor 127.0.0.1 receive update end
 neighbor 127.0.0.1 send keepalive
-neighbor 127.0.0.1 send notification code 6 subcode 2 data 41424344
+neighbor 127.0.0.1 send notification code 6 subcode 2 data 0x53687574646F776E20436F6D6D756E69636174696F6E3A202262796522
 neighbor 127.0.0.1 send open version 4 asn 65001 hold_time 90 router_id 1.1.1.1 capabilities [ ... ]
 neighbor 127.0.0.1 receive route-refresh afi 1 safi 1 0
 ```
@@ -523,9 +523,23 @@ script, 4 or 6 holds every script from its start, and a value ExaBGP refuses
 stops the bridge at start. A script's `api version` line answers `API version:
 <setting> (this helper: <version>)`, and `api version <v>` moves the setting for
 the scripts started afterwards, ExaBGP's answers byte for byte. The fan-out still
-renders each event once per format in use, three at most. The 5.x JSON shapes
-ExaBGP restored (capabilities by code, label values, NOTIFICATION data) are not
-yet written: a v4 JSON line differs from the 6.0 one by its envelope only.
+renders each event once per format in use, three at most.
+
+The two APIs read an OPEN and a NOTIFICATION differently, as ExaBGP main writes
+them (`response/json.py`, `Notification.v4_data`):
+
+| Field | API 4 (JSON, and the text line) | API 6 JSON |
+|-------|---------------------------------|------------|
+| `open.capabilities` | keyed by code, `"1"`, `"65"`, body without `code` | keyed by name, `"multiprotocol"`, `"asn4"`, `code` inside the body |
+| `notification.data` | hex of the Shutdown Communication decoded (`Shutdown Communication: "bye"`), else of the wire | hex of the wire, length octet included |
+| `notification.message` | the Data field made readable | the same |
+
+Hex is ExaBGP's `hexstring`, `0x` and uppercase. ze's OPEN event carries each
+capability as a code, a name and a value, and the bridge rebuilds ExaBGP's body
+per code from it: the value ze structures for six capabilities, the payload in hex
+for every other one. `asn` is the two-octet My AS field, so a four-octet AS reads
+23456, AS_TRANS, as in ExaBGP. ze's event omits an ADD-PATH family whose mode RFC
+7911 does not define, which ExaBGP shows as `disabled` or `invalid (<n>)`.
 
 A word that names neither format is REFUSED, by the config parser and by the
 migration. Each of them names the process and the word. Until 2026-09-06 the
@@ -534,6 +548,8 @@ error and no log line.
 
 <!-- source: internal/exabgp/bridge/bridge_encoder.go -- Encoder, ParseEncoder -->
 <!-- source: internal/exabgp/bridge/bridge_version.go -- CommandAPIVersion, FormatFor, APIVersionRequest.Answer -->
+<!-- source: internal/exabgp/bridge/bridge_event_open.go -- Event.openJSON, openCapabilitiesJSON, capabilityBody -->
+<!-- source: internal/exabgp/bridge/bridge_event_notification.go -- notificationData.v4Data, notificationData.readable -->
 <!-- source: internal/plugins/exabgp/bridgerun/version.go -- script.detectAPIVersion, script.resetAPIVersion -->
 <!-- source: internal/plugins/exabgp/bridgeplugin/config.go -- parseEncoder, parseFeeds -->
 
