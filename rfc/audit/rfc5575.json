@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-16",
+  "audited": "2026-10-20",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -70,7 +70,7 @@
       "verdict": "enforced"
     },
     "RFC5575-4-8": {
-      "note": "RFC5575 Section 4: 'Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt.' Historical identity only; live RFC8955 Section 4 requires zero Length of Next-Hop Network Address on advertisement and ignoring the received Network Address. Independently reread all five tagged functions: TestFlowSpecUpdateIgnoresConfiguredNextHop pins zero length and unchanged NLRI; TestRFC8955NextHopIgnoredForFlowSpec pins generation eligibility, one candidate and the identical nonwithdraw selected rule/action for empty, self and non-address next hops including a legacy self NEXT_HOP; TestFlowSpecOriginationOmitsConfiguredNextHop reads literal complete TCP frames for all four flow/flow-vpn families through config, API batch and both queue drains with absent/IPv4/IPv6 hop controls; TestFlowSpecForwardingOmitsNextHop and TestFlowSpecRouteServerOmitsNextHop pin exact zero-hop MP_REACH, NLRI/RD/action and no withdrawal across destination rewrites and received hops. The route-server fixture uses real RIB authorization and plugin bus, unlike the isolated forward fixture's deliberate eligibility callback. Producers are buildMPReachPlugin, buildBatchAnnounceUpdate, buildRIBRouteUpdate, payloadNextHop/applyNextHopFamily/mpReachNextHopHandler and entryNextHopAddr. These current output and receipt assertions independently resolve the old isolated-encoder gap; stored producer halts establish reachability only. All four audit questions pass collectively and both polarities have distinct controls/challenges. No execution or fingerprint verification was performed in this read-only audit; independent live-peer/VPP acceptance remains pending.",
+      "note": "Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 5575 Section 4: \"Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt.\" The only changed unit is TestFlowSpecOriginationOmitsConfiguredNextHop (37f9650797): the four literal packets (ipv4-flow, ipv4-flow-vpn, ipv6-flow, ipv6-flow-vpn) move MP_REACH_NLRI ahead of ORIGIN/AS_PATH/LOCAL_PREF; every attribute TLV is byte-identical, including the MP_REACH next-hop length octet 00, and message lengths are unchanged. The test still compares complete wire packets for absent, IPv4 and IPv6 configured hops on every originating rail. Other carriers unchanged. Passes at HEAD (go test, feature tags). Verdict stands.",
       "requirement_sha": "274b77e34ff118dd",
       "tests": {
         "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop": "0c3cf4704d7e9ed6",
@@ -79,8 +79,8 @@
         "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec#2": "5101973413fefddd",
         "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop": "ed7a220acf5e4000",
         "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop#2": "ed7a220acf5e4000",
-        "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop": "d1febe7855cdb093",
-        "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop#2": "d1febe7855cdb093",
+        "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop": "35393b715d2814ad",
+        "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop#2": "35393b715d2814ad",
         "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop": "3cddaf419ff97267",
         "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop#2": "3cddaf419ff97267"
       },
@@ -91,8 +91,8 @@
         "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec#2": "1826e0984f47222a",
         "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop": "adfeec4586666b55",
         "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop#2": "adfeec4586666b55",
-        "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop": "1a11d065630eb718",
-        "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop#2": "1a11d065630eb718",
+        "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop": "e1f3d8b9277ec8db",
+        "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop#2": "e1f3d8b9277ec8db",
         "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop": "af3f647998b5033c",
         "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop#2": "af3f647998b5033c"
       },
