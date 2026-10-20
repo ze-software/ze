@@ -536,7 +536,7 @@ func hookSubagentContext(ctx context, out io.Writer) int {
 	}
 	cancelBranch()
 	var text textbuf.Buffer
-	text.Reset().Str("Ze is a Network OS in Go (BGP, CLI, web, plugins). Key constraints:\n- Zero-copy, buffer-first encoding: WriteTo(buf, off) int -- no make/append in encoding\n- Registration pattern: init() in register.go, never direct imports between components\n- YANG required for all RPCs -- no command module category\n- Lazy over eager: pass raw bytes, offset iterators, no intermediate structs\n- JSON keys: kebab-case\n- Goroutines: long-lived workers on channels, never per-event\n- Rules: ai/rules/\n- Branch: ").Str(branch).Byte('\n')
+	text.Reset().Str("Ze is a Network OS in Go (BGP, CLI, web, plugins). Key constraints:\n- Zero-copy, buffer-first encoding: WriteTo(buf, off) int -- no make/append in encoding\n- Registration pattern: init() in register.go, never direct imports between components\n- YANG required for all RPCs -- no command module category\n- Lazy over eager: pass raw bytes, offset iterators, no intermediate structs\n- JSON keys: kebab-case\n- Goroutines: long-lived workers on channels, never per-event\n- Third parties hook in: pkg/ is a public API, and any plugin (ours included) may run as an external process, so a direct Go call into another component silently does nothing\n- Before working on a subsystem, read ai/doors/system.md, then that subsystem's door (index: ai/doors/README.md)\n- Rules: ai/rules/\n- Branch: ").Str(branch).Byte('\n')
 	if id != "" {
 		paths, err := lepath.SessionForID(ctx.root, id)
 		if err == nil {

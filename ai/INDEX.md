@@ -29,6 +29,7 @@ Ask the question from Bash instead
 | Which rule covers a topic? | `ai/rules/INDEX.md` |
 | How does data flow through a subsystem? | `docs/architecture/core-design.md` (START HERE), then the subsystem doc below |
 | Fast subsystem orientation (entry→exit, with `file:line`) | `ai/digests/<subsystem>.md` — living flow digests; index + list in `ai/digests/README.md`. Anchors gated by `./le ai digest` |
+| What must I respect before I edit a subsystem? (third-party plugins, the process boundary, the public `pkg/` API, its boundaries) | `ai/doors/system.md`, then `ai/doors/<subsystem>.md`. The index is in `ai/doors/README.md` |
 
 ## I Want To...
 
