@@ -743,6 +743,23 @@ neighbor 10.0.0.1 {
 }`,
 			wantRIB: true,
 		},
+		{
+			// ExaBGP keeps what a process announced (adj-rib-out defaults
+			// to true) and sends it again on the next session: qa/old/4.2
+			// api-teardown expects 1.1.0.0/16 on the second connection.
+			name: "api_process_announces",
+			input: `process foo {
+	run /path
+}
+neighbor 10.0.0.1 {
+	local-as 65001
+	peer-as 65002
+	api {
+		processes [ foo ]
+	}
+}`,
+			wantRIB: true,
+		},
 	}
 
 	for _, tt := range tests {

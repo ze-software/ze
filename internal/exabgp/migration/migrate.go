@@ -113,51 +113,64 @@ func collectTemplates(tree *config.Tree) map[string]*config.Tree {
 
 // needsRIBPlugin checks if the config requires a RIB plugin.
 // ZeBGP delegates RIB to plugins, so features requiring state storage need one.
+// A template counts as a neighbor, because its blocks are expanded into the
+// neighbors that inherit it.
 func needsRIBPlugin(tree *config.Tree) bool {
 	if tree == nil {
 		return false
 	}
 
-	// Check neighbors for GR, route-refresh, or receive [ update ].
 	for _, neighborTree := range tree.GetList("neighbor") {
-		// Check capabilities.
-		if cap := neighborTree.GetContainer("capability"); cap != nil {
-			// graceful-restart requires RIB for state storage.
-			// Can be: graceful-restart; or graceful-restart 120; or graceful-restart { ... }.
-			if cap.GetContainer("graceful-restart") != nil {
-				return true
-			}
-			if _, ok := cap.GetFlex("graceful-restart"); ok {
-				return true
-			}
-			// route-refresh requires RIB for refresh response.
-			if _, ok := cap.GetFlex("route-refresh"); ok {
-				return true
-			}
+		if neighborNeedsRIB(neighborTree) {
+			return true
 		}
-
-		// Check ExaBGP api blocks with receive { update; } (ExaBGP format). A
-		// neighbor can carry several api blocks, named or anonymous, and one
-		// asking for UPDATE is enough (exabgp.yang, list api).
-		for _, api := range neighborTree.GetList("api") {
-			if recv := api.GetContainer("receive"); recv != nil {
-				if _, ok := recv.GetFlex("update"); ok {
-					return true
-				}
-			}
-		}
-
-		// Check ZeBGP-style process bindings with receive [ update ] (ExaBGP tree format).
-		for _, procTree := range neighborTree.GetList("process") {
-			if recv := procTree.GetContainer("receive"); recv != nil {
-				if _, ok := recv.GetFlex("update"); ok {
-					return true
-				}
-			}
+	}
+	for _, neighborTree := range collectTemplates(tree) {
+		if neighborNeedsRIB(neighborTree) {
+			return true
 		}
 	}
 
 	return false
+}
+
+// neighborNeedsRIB reports whether one ExaBGP neighbor relies on state that
+// only ze's RIB plugin keeps.
+func neighborNeedsRIB(neighborTree *config.Tree) bool {
+	if cap := neighborTree.GetContainer("capability"); cap != nil {
+		// graceful-restart requires RIB for state storage.
+		// Can be: graceful-restart; or graceful-restart 120; or graceful-restart { ... }.
+		if cap.GetContainer("graceful-restart") != nil {
+			return true
+		}
+		if _, ok := cap.GetFlex("graceful-restart"); ok {
+			return true
+		}
+		// route-refresh requires RIB for refresh response.
+		if _, ok := cap.GetFlex("route-refresh"); ok {
+			return true
+		}
+	}
+
+	// A neighbor fed by a process owes the RIB whatever the process asks to
+	// receive. ExaBGP keeps every route a process announced (adj-rib-out
+	// defaults to true: "keep the routes sent, to send them again on a route
+	// refresh or a new session", src/exabgp/configuration/grammar/tree/neighbor.py)
+	// and ze keeps them only in the RIB plugin, so without it a reconnect
+	// would lose them (qa/old/4.2 api-teardown). It also covers a process
+	// asking for received UPDATEs. A neighbor can carry several api blocks,
+	// named or anonymous (exabgp.yang, list api).
+	for _, api := range neighborTree.GetList("api") {
+		if len(extractProcessList(api, "processes")) > 0 {
+			return true
+		}
+		if len(extractProcessList(api, processesMatchField)) > 0 {
+			return true
+		}
+	}
+
+	// ZeBGP-style process bindings (ExaBGP tree format) feed a process too.
+	return len(neighborTree.GetList("process")) > 0
 }
 
 // injectRIBPlugin adds the RIB plugin to the tree.

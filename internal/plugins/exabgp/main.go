@@ -273,7 +273,7 @@ func cmdMigrate(args []string) int {
 	}
 
 	if result.RIBInjected {
-		fmt.Fprintf(os.Stderr, "info: RIB plugin injected (required for GR/route-refresh)\n")
+		fmt.Fprintf(os.Stderr, "info: RIB plugin injected (required for GR, route-refresh, and a process's routes kept across sessions)\n")
 	}
 
 	// Output external process info for the wrapper to handle.
