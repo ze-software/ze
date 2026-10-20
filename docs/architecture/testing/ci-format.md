@@ -479,7 +479,12 @@ and `test/exabgp-compat` uses `parseExaBGPCI`. The latter's
 `option=file:<name>` selects a predecessor configuration relative to the
 population's own `etc/` when it has one (`old-4.2`, `old-5.0`), else the shared
 `test/exabgp-compat/etc/`; it is
-not the native `option=file:path=<name>` directive. Those populations are chosen
+not the native `option=file:path=<name>` directive. Its `option=env:<key>=<value>`
+sets one variable in the environment of the daemon under test, ze and
+`--dut exabgp` alike, appended after the runner's own variables so a case can
+override one: `api-version-env.ci` writes `option=env:exabgp.api.version=4` to
+hold every script to API 4 from its start. A line naming no key or no `=` is
+refused at discovery. Those populations are chosen
 by their execution owners, not by tolerating parser errors. Native scenarios
 that intentionally submit invalid Ze configuration remain in the gate: their
 `.ci` itself must still parse.
@@ -487,7 +492,8 @@ The shared draft boundary also excludes `test/draft` before discovery; a
 malformed unpromoted fixture must not redden repository gates.
 <!-- source: internal/test/runner/peer_asn_corpus_test.go -- peerASCorpus, TestPeerASCorpusRejectsNativeParseFailures, TestPeerASCorpusUsesExecutionParsers -->
 <!-- source: internal/test/runner/decoding_ci.go -- DecodingTests.parseCIFile -->
-<!-- source: internal/test/cli/cmd_exabgp.go -- parseExaBGPCI -->
+<!-- source: internal/test/cli/cmd_exabgp.go -- parseExaBGPCI, exaBGPClientEnv -->
+<!-- test: internal/test/cli/cmd_exabgp_test.go -- TestParseExaBGPCIEnvOption -->
 
 #### Observer completion barriers
 

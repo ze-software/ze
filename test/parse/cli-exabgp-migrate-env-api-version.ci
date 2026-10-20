@@ -1,0 +1,41 @@
+# Test: ze exabgp migrate --env carries ExaBGP's api.version from an env file
+# VALIDATES: AC-10 (spec-exabgp-6-api-compatibility) -- `[exabgp.api] version = 4`
+#   becomes environment { exabgp { api { version 4; } } } (0 to auto: TestEnvSurvivingKey)
+# PREVENTS: a migrated v4 deployment losing the version its scripts are held to
+
+stdin=config:terminator=EOF_STDIN
+bgp {
+    router-id 10.0.0.1
+    session {
+        asn {
+            local 65533
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+            }
+        }
+        session {
+            asn {
+                remote 65534
+            }
+        }
+    }
+}
+EOF_STDIN
+
+tmpfs=exabgp.env:terminator=EOF_ENV
+[exabgp.api]
+version = 4
+ack = false
+EOF_ENV
+
+cmd=foreground:seq=1:exec=ze exabgp migrate --env exabgp.env
+expect=exit:code=0
+expect=stdout:contains=version 4;
+expect=stdout:contains=ack false

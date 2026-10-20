@@ -145,6 +145,11 @@ func readExaBGPOption(line string, spec *exabgpCase) error {
 	if option == "serial" {
 		return nil
 	}
+	// `option=env:<key>=<value>` is set in the daemon's environment by the
+	// runner (exaBGPClientEnv), so the mock has nothing to do with it.
+	if strings.HasPrefix(option, "env:") {
+		return nil
+	}
 	// An allowance names a difference ze keeps from the ExaBGP release the
 	// fixture was recorded with (judgeExaBGPAllowed, internal/test/cli).
 	if strings.HasPrefix(option, "allowed:") {

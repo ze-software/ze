@@ -54,6 +54,12 @@ const exabgpAllowedOption = "option=allowed:"
 // deliberate difference and be recorded as a SKIP.
 const exabgpAllowedErrorOption = "option=allowed-error:"
 
+// exabgpEnvOption sets one variable, `<key>=<value>`, in the environment of
+// the daemon under test, ze or `--dut exabgp` alike (exaBGPClientEnv). It is
+// how a case states an ExaBGP environment setting such as exabgp.api.version
+// that holds from the daemon's start.
+const exabgpEnvOption = "option=env:"
+
 const predecessorPrefix = "exabgp-"
 const predecessorTestDir = predecessorPrefix + "compat"
 
@@ -138,6 +144,9 @@ type exabgpTestEntry struct {
 	// allowedError is the text the failure of an allowed case must carry. A
 	// case sets it exactly when it sets allowed (parseExaBGPCI).
 	allowedError string
+	// env is the case's `option=env:` lines, `<key>=<value>` each, in file
+	// order, appended last to the daemon's environment.
+	env []string
 }
 
 type exabgpSuite struct {
@@ -448,6 +457,21 @@ func parseExaBGPCI(configDir string, rec *runner.Record, ciFile string) (*exabgp
 		}
 		if line == "option=serial" {
 			test.serial = true
+			continue
+		}
+		if setting, ok := strings.CutPrefix(line, exabgpEnvOption); ok {
+			key, _, found := strings.Cut(setting, "=")
+			if !found {
+				var tb textbuf.Buffer
+				return nil, errors.New(tb.Str(ciFile).Str(": ").Str(line).
+					Str(" has no `=`, so it sets nothing: write option=env:<key>=<value>, or delete the line").String())
+			}
+			if key == "" {
+				var tb textbuf.Buffer
+				return nil, errors.New(tb.Str(ciFile).Str(": ").Str(line).
+					Str(" names no variable before `=`: write option=env:<key>=<value>, or delete the line").String())
+			}
+			test.env = append(test.env, setting)
 			continue
 		}
 		if reason, ok := strings.CutPrefix(line, exabgpAllowedOption); ok {
@@ -960,7 +984,8 @@ func exaBGPClientEnv(test *exabgpTestEntry, port int, zeBinary, configPath strin
 		// inherited ZE_BIN value.
 		tb.Str("ZE_BIN=").Str(zeBinary).String(),
 	)
-	return env
+	// The case's own settings come last, so one can override a value above.
+	return append(env, test.env...)
 }
 
 // exabgpClientConfigs is what a case's `option=file:` configs become: the path

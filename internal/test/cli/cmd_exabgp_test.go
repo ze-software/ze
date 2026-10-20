@@ -226,3 +226,50 @@ func TestExaBGPFixturePreflightNamesMissingLoopback(t *testing.T) {
 		t.Errorf("error = %q, want the supported route named", test.record.Error)
 	}
 }
+
+// TestParseExaBGPCIEnvOption proves `option=env:<key>=<value>` lines reach the
+// environment of the daemon under test, after the runner's own variables so a
+// case can override one, and that a line naming no key or no `=` is refused.
+//
+// VALIDATES: AC-10, an `exabgp.api.version` set before the daemon starts holds
+// every script, proved against ExaBGP and ze by the same case.
+func TestParseExaBGPCIEnvOption(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		t.Helper()
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	tests := runner.NewTests()
+	configDir := filepath.Join(dir, "configs")
+
+	good := write("good.ci", "option=file:a.conf\noption=env:exabgp.api.version=4\n"+
+		"option=env:exabgp_tcp_connections=2=x\n1:raw:FF\n")
+	entry, err := parseExaBGPCI(configDir, tests.Add("good"), good)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"exabgp.api.version=4", "exabgp_tcp_connections=2=x"}
+	if !slices.Equal(entry.env, want) {
+		t.Fatalf("env = %v, want %v", entry.env, want)
+	}
+	environ := exaBGPClientEnv(entry, 1790, filepath.Join(dir, "ze"), filepath.Join(dir, "a.conf"))
+	if got := environ[len(environ)-2:]; !slices.Equal(got, want) {
+		t.Errorf("client env ends %v, want the case's %v last", got, want)
+	}
+
+	for _, bad := range []string{"option=env:", "option=env:novalue", "option=env:=4"} {
+		path := write("bad.ci", "option=file:a.conf\n"+bad+"\n")
+		_, err := parseExaBGPCI(configDir, tests.Add("bad"), path)
+		if err == nil {
+			t.Errorf("%q was accepted", bad)
+			continue
+		}
+		if !strings.Contains(err.Error(), "option=env:<key>=<value>") {
+			t.Errorf("%q: error = %v, want it to show the form", bad, err)
+		}
+	}
+}
