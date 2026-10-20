@@ -895,3 +895,19 @@ State at hand-off (agent budget exhausted; only this section is committed):
 - Gates owed: `./le go lint run` on `internal/component/bgp/reactor`,
   `internal/component/bgp/message`, `internal/core/bgp/attribute`,
   `internal/le/interoplab/bgp`.
+
+## ExaBGP 6 spec, Phase 1 AC-4 sixth package (2026-10-20, Linux): continuation owed
+
+- Committed febfd66217: a withheld withdrawal writes nothing (attributes-only
+  UPDATE removed; the ExaBGP 6.0 contract it cited does not exist at the pin
+  685f772e4). 5.0 and 6.0 api-flow PASS, 4.2 api-flow SKIP on an allowance.
+  Mock unexpected-message error now names the first owed frame.
+- Lead: api-flow-merge (6.0 and 5.0) fails on the bridge refusing
+  `interface-set` extended communities: absent feature, ask the owner for scope.
+- Not yet diagnosed: 4.2 api-teardown; timeouts api-eor, api-nexthop-self,
+  api-vpls, conf-ipself4/6, extended-nexthop, api-rib; 5.0 api-multiple-api,
+  api-rr, api-rr-rib. Full old-4.2 and old-5.0 runs not done this package.
+- Still held uncommitted: stage change (`internal/le/test/functional/exabgp.go`,
+  `exabgp_test.go`) and the 5.0 `unknown-message.ci` allowance.
+- Gates owed: `./le go lint run` on `internal/component/bgp/reactor`,
+  `internal/le/interoplab/bgp`; `./le test unit all`.
