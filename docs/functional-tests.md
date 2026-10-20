@@ -359,9 +359,9 @@ option=storage:value=disk
 ```
 
 `value=memory` states the default; any other value is refused at parse time.
-The list of tests that carry the disk option, and why each does, is in
-`plan/spec-boot-record-after-listen.md` until that spec closes, and the option
-line in each file after.
+The list of tests that carry the disk option, and why each does, was in
+`spec-boot-record-after-listen` until that spec closed (2026-10-20), and is the
+option line in each file since.
 <!-- source: internal/test/runner/record_dut_store.go -- dutStore, parseOptionStorage, env -->
 <!-- source: internal/test/runner/runner_exec.go -- runTest, runOrchestrated -->
 

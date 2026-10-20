@@ -113,7 +113,7 @@ Left to do:
 7. plugin/server and reactor RFC8654 package failures seen in one run look unrelated
    (namespace `bgp` not registered); not investigated.
 
-### boot-record agent (spec `plan/spec-boot-record-after-listen.md`), stopped at budget
+### boot-record agent (spec `spec-boot-record-after-listen`, closed 2026-10-20), stopped at budget
 
 Nothing committed: the owner asked for independent review before each commit.
 
