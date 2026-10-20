@@ -480,11 +480,15 @@ func mapIPv6RouteIPv4NextHop(prefix string, route, attrBlock *config.Tree) {
 	if _, hasRD := route.Get("rd"); hasRD {
 		return
 	}
-	routePrefix, err := netip.ParsePrefix(prefix)
+	// ExaBGP takes a bare address as a host route (the upstream
+	// extended-nexthop.conf writes `route DEAD:BEEF:...:BEEF next-hop ...`),
+	// so only the address part decides the family.
+	address, _, _ := strings.Cut(prefix, "/")
+	routeAddr, err := netip.ParseAddr(address)
 	if err != nil {
 		return // A malformed prefix is the config loader's to refuse.
 	}
-	if !routePrefix.Addr().Is6() {
+	if !routeAddr.Is6() {
 		return
 	}
 	value, ok := attrBlock.Get(routeAttributeNextHop)

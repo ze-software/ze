@@ -361,6 +361,7 @@ func TestMigrateIPv6RouteIPv4NextHopIsMapped(t *testing.T) {
 	static {
 		route DEAD:BEEF::1/128 next-hop 170.170.170.170
 		route DEAD:BEEF::2/128 next-hop BAD:CAFE::1
+		route DEAD:BEEF::3 next-hop 170.170.170.171
 		route 10.0.0.0/8 next-hop 192.0.2.1
 	}
 }
@@ -369,6 +370,11 @@ func TestMigrateIPv6RouteIPv4NextHopIsMapped(t *testing.T) {
 
 	if !strings.Contains(output, "next-hop ::ffff:170.170.170.170") {
 		t.Errorf("the IPv6 route's IPv4 next hop is not written IPv4-mapped:\n%s", output)
+	}
+	// ExaBGP accepts a bare address as a host route, as the upstream
+	// extended-nexthop.conf writes it.
+	if !strings.Contains(output, "next-hop ::ffff:170.170.170.171") {
+		t.Errorf("a bare IPv6 host route's IPv4 next hop is not written IPv4-mapped:\n%s", output)
 	}
 	if !strings.Contains(output, "next-hop BAD:CAFE::1") {
 		t.Errorf("an IPv6 next hop must be kept as written:\n%s", output)
