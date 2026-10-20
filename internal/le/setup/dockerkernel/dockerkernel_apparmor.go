@@ -17,6 +17,7 @@
 package dockerkernel
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/exec"
@@ -91,7 +92,9 @@ func runDockerKernelAppArmor(args leaction.Arguments) (any, int) {
 		return nil, 1
 	}
 	for _, step := range appArmorLoadSteps(profile, staged, parser) {
-		if err := runInstallStep(step); err != nil {
+		// This verb holds no signal root: its root steps run in le's own
+		// process group, so a Ctrl-C at the terminal reaches them directly.
+		if err := runInstallStep(context.Background(), step); err != nil {
 			leaction.ReportError(err)
 			return nil, 1
 		}

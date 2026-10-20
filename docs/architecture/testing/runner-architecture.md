@@ -143,10 +143,16 @@ stop as an error and prints no OK or FAIL verdict. `./le test qemu docker-lab`
 takes its root before its first child, and its two admitted cross-compiles run
 through `Admission.RunContext`, whose wait for a slot ends with the root: a
 root that captured SIGTERM must not leave a queue that never asks it holding
-the verb.
+the verb. `./le setup docker-kernel install` takes its root before its cache
+query, so the cancel kills the ze-host compile behind that query. Its `sudo`
+steps stay in le's group, where a Ctrl-C at the terminal reaches sudo itself.
+The cancel sends a running step SIGTERM, which sudo relays to its command, and
+starts no later step. The refusal names the step it stopped at and says to run
+the same command again, because every step is safe to repeat.
 <!-- source: internal/le/test/integration/actions.go -- nativeRunner, signalContext -->
 <!-- source: internal/le/verify/evidence/evidence.go -- dockerKernel, Runner.Run -->
-<!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck -->
+<!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck, runDockerKernelInstall, installCache, runInstallStep, installCommand -->
+<!-- test: internal/le/setup/dockerkernel/dockerkernel_root_test.go TestDockerKernelInstallCacheBuildsUnderTheVerbRoot, TestDockerKernelInstallStepsStopWithTheRoot, TestDockerKernelCheckBuildsUnderTheVerbRoot -->
 <!-- source: internal/le/test/deployment/daemonkernel.go -- buildCheckedDaemon -->
 <!-- source: internal/le/test/deployment/daemonbuild.go -- runDaemonBuild -->
 <!-- source: internal/le/test/deployment/gokrazyimage.go -- gokrazyImage, RuntimeKernelCacheDir, hostTool, gokrazyBuildCommand -->

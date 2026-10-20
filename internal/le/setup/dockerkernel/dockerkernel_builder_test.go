@@ -29,7 +29,7 @@ func TestDockerKernelInstallAsksForTheNamedBuilder(t *testing.T) {
 		return "/cache/" + builder, nil
 	}
 	for _, builder := range []string{"qemu", ""} {
-		cache, err := installCache("/checkout", builder)
+		cache, err := installCache(t.Context(), "/checkout", builder)
 		if err != nil || cache != "/cache/"+builder {
 			t.Errorf("builder %q: cache %q, err %v", builder, cache, err)
 		}

@@ -285,7 +285,20 @@ type installStep struct {
 // host relies on (hostdeps.go), and without the release confirmed, before any
 // step; then it places the kernel, rebuilds the boot
 // files, and selects the new GRUB entry by title. The reboot is the operator's.
+//
+// SIGINT and SIGTERM cancel the install's root. The ze-host compile behind the
+// cache query heads a process group of its own (buildcompile.BuildHost), so
+// the root's cancel is the only stop it gets; a root step still running is
+// sent SIGTERM, which sudo relays, and no later step starts.
 func runDockerKernelInstall(args leaction.Arguments) (any, int) {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	return dockerKernelInstall(ctx, args)
+}
+
+// dockerKernelInstall is the install under the verb's root ctx.
+func dockerKernelInstall(ctx context.Context, args leaction.Arguments) (any, int) {
 	if err := dockerKernelInstallPlatform(runtime.GOOS); err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -305,7 +318,7 @@ func runDockerKernelInstall(args leaction.Arguments) (any, int) {
 		return nil, 1
 	}
 	builder := args.One(dockerKernelBuilderKeyword)
-	cache, err := installCache(root, builder)
+	cache, err := installCache(ctx, root, builder)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -328,12 +341,14 @@ func runDockerKernelInstall(args leaction.Arguments) (any, int) {
 		return nil, 1
 	}
 	for _, step := range steps {
-		if err := runInstallStep(step); err != nil {
+		if err := runInstallStep(ctx, step); err != nil {
 			leaction.ReportError(err)
 			return nil, 1
 		}
 	}
-	grubCfg, err := readGrubConfig(os.ReadFile, runInstallStepOutput)
+	grubCfg, err := readGrubConfig(os.ReadFile, func(step installStep) ([]byte, error) {
+		return runInstallStepOutput(ctx, step)
+	})
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -343,7 +358,7 @@ func runDockerKernelInstall(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	if err := runInstallStep(step); err != nil {
+	if err := runInstallStep(ctx, step); err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
@@ -372,11 +387,10 @@ var runtimeKernelCacheDir = testdeployment.RuntimeKernelCacheDir
 // one ze-host keys by this host's architecture and by builder, the backend the
 // operator named after `builder`, or ze-host's own choice when none.
 //
-// The install verb holds no signal root, so the query runs from Background,
-// bounded by the producer's own timeout, as it did before the producer took a
-// context.
-func installCache(root, builder string) (string, error) {
-	return runtimeKernelCacheDir(context.Background(), root, runtime.GOARCH, builder, os.Stderr)
+// ctx is the install verb's signal root, so a Ctrl-C ends the ze-host compile
+// behind the query and the query itself.
+func installCache(ctx context.Context, root, builder string) (string, error) {
+	return runtimeKernelCacheDir(ctx, root, runtime.GOARCH, builder, os.Stderr)
 }
 
 // runtimeKernelRebuild is what every refusal of a cache entry tells the
@@ -588,15 +602,22 @@ func grubTitle(line string) string {
 
 // runInstallStep prints the step and its reason, then runs it with the
 // terminal attached, so sudo can ask for a password.
-func runInstallStep(step installStep) error {
+//
+// ctx is the verb's signal root: a done ctx starts no step, and a running
+// step is sent SIGTERM (installCommand).
+func runInstallStep(ctx context.Context, step installStep) error {
+	if err := ctx.Err(); err != nil {
+		return installStopped(step, err)
+	}
 	if err := printInstallStep(step); err != nil {
 		return err
 	}
-	command := exec.Command(step.Argv[0], step.Argv[1:]...) //nolint:gosec,noctx // argv is this file's own; sudo may wait on a password prompt
-	command.Stdin = os.Stdin
+	command := installCommand(ctx, step)
 	command.Stdout = os.Stderr
-	command.Stderr = os.Stderr
 	if err := command.Run(); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return installStopped(step, ctxErr)
+		}
 		var tb textbuf.Buffer
 		return errors.New(tb.Str(strings.Join(step.Argv, " ")).Str(": ").Err(err).String())
 	}
@@ -605,20 +626,45 @@ func runInstallStep(step installStep) error {
 
 // runInstallStepOutput prints the step and its reason, then runs it and
 // answers what it wrote to stdout. The terminal stays on stdin, so sudo can ask
-// for a password.
-func runInstallStepOutput(step installStep) ([]byte, error) {
+// for a password. ctx stops it as it stops runInstallStep.
+func runInstallStepOutput(ctx context.Context, step installStep) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, installStopped(step, err)
+	}
 	if err := printInstallStep(step); err != nil {
 		return nil, err
 	}
-	command := exec.Command(step.Argv[0], step.Argv[1:]...) //nolint:gosec,noctx // argv is this file's own; sudo may wait on a password prompt
-	command.Stdin = os.Stdin
-	command.Stderr = os.Stderr
-	output, err := command.Output()
+	output, err := installCommand(ctx, step).Output()
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, installStopped(step, ctxErr)
+		}
 		var tb textbuf.Buffer
 		return nil, errors.New(tb.Str(strings.Join(step.Argv, " ")).Str(": ").Err(err).String())
 	}
 	return output, nil
+}
+
+// installCommand answers the command for one root step under ctx, with the
+// terminal on stdin and stderr. The step stays in le's process group, so a
+// Ctrl-C at the terminal reaches sudo itself; a done ctx sends it SIGTERM
+// rather than the default SIGKILL, because sudo relays SIGTERM to the command
+// it runs and cannot relay a SIGKILL.
+func installCommand(ctx context.Context, step installStep) *exec.Cmd {
+	command := exec.CommandContext(ctx, step.Argv[0], step.Argv[1:]...) //nolint:gosec // argv is this file's own; sudo may wait on a password prompt
+	command.Cancel = func() error { return command.Process.Signal(syscall.SIGTERM) }
+	command.Stdin = os.Stdin
+	command.Stderr = os.Stderr
+	return command
+}
+
+// installStopped is the refusal of a root step the verb's root ended: the
+// change is incomplete, and running the verb again redoes every step.
+func installStopped(step installStep, err error) error {
+	var tb textbuf.Buffer
+	return errors.New(tb.Str("setup docker-kernel was stopped by an interrupt or SIGTERM at the step to ").
+		Str(step.Why).Str(" (").Err(err).Str("), so the change is only partly made. Every step is safe to ").
+		Str("repeat: run the same ./le setup docker-kernel command again to finish it.").String())
 }
 
 // printInstallStep prints one step and its reason to stderr.
