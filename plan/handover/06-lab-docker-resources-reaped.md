@@ -844,3 +844,16 @@ Swept for ISSUE 1 and left alone: perf (rooted in `perf/actions.go`), integratio
 Commit hygiene: `dac71530c3` carried another session's `evpn-frr` and `evpn-gobgp` rows of `docs/architecture/testing/interop.md` (Type 5 ESI overlay text) without saying so in its body.
 
 Gates owed (not run here): scoped `./le go lint run` over `internal/le/interoplab`, `internal/le/test/deployment`, `internal/test/perfrunner`, `internal/le/verify/evidence`, `internal/le/setup/dockerkernel`, `internal/le/site/terminaldemo` and `internal/le/feature`; `go vet -tags ze_l2tp` for `interoplab/pppoe`; then `./le verify current` over `289200a903..9360fe8fa9`.
+
+### Review round 8 fixes (2026-10-20)
+
+| Finding | What was wrong | Fix | Commit |
+|---------|----------------|-----|--------|
+| ISSUE | `runDaemonBuild` bounded its compile from `context.Background`, so a SIGTERM to le left a cold cross-compile of l2tp-test, vpp-test or vpp-iface-test running up to `buildTimeout` (20 min) | `buildDaemon`, `buildHostDaemon`, `runDaemonBuild` take ctx; callers pass the verb root. `TestRootedProofsBuildTheDaemonUnderTheVerbRoot` (red on all three subtests with Background restored). `runner-architecture.md` anchor | `e3210cfa5a` |
+| ISSUE sweep | Compiles and docker runs reached from verbs with no signal root at all: l2tp-ppp, gokrazy-l2tp, l2tp-scale, qemu hugepages, qemu docker lab, yangcontract daemon compile | Not fixed, no root to thread: one row in `plan/journal/stop-leaves-the-work-running.md`. `BuildLinuxZe` (docker-kernel) runs through `job` admission, which forwards SIGINT/SIGTERM, so it is covered | `e3210cfa5a` |
+| NOTE 1 | The docker-kernel root test pinned only the architecture query | `TestDockerKernelProbeRunsUnderTheVerbRoot` cancels the root after the query (red: 2 commands live with the probe on Background) | this commit |
+| NOTE 2 | Stale comment in `TestPerfRemovalNamesTheFixOnce` | Reworded: the first removal takes the mark and fails | this commit |
+| NOTE 3 | Duplicate `Docker.RemoveContainer` anchor in `interop.md` | Removed in the working tree, NOT committed: the file carries the dhcpv6-client-2-confirm session's uncommitted Kea hunk, whose checker and config are not in HEAD | none |
+| NOTE 4 | Two test files lacked the file header | `// Design:` / `// Related:` added | this commit |
+
+Gates owed: scoped `./le go lint run` over `internal/le/test/deployment`, `internal/le/setup/dockerkernel`, `internal/le/interoplab`, `internal/test/perfrunner`; then `./le verify current` over the two round-8 commits.

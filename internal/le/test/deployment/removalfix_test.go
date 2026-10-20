@@ -1,3 +1,7 @@
+// Design: docs/architecture/testing/interop.md -- Crash-safe teardown
+// Related: deployment.go -- removeContainer, which names the cleanup command once
+// Related: report.go -- L2TPReport.Text, which renders the removal into the report
+
 package testdeployment
 
 import (

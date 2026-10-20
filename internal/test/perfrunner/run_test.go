@@ -291,9 +291,8 @@ func TestPerfRemovalFailureIsReportedAndFailsTheRun(t *testing.T) {
 // it, so the start leaves the unsettled mark; the first `docker rm -f` answers
 // the name absent, every later one is refused busy, and the inspect finds the
 // container. The plain case refuses the same start, then every removal busy
-// with the container present, so the first removal fails before the mark is
-// read. The cleanup command is counted on the "error: remove container"
-// line.
+// with the container present, so the first removal takes the mark and fails.
+// The cleanup command is counted on the "error: remove container" line.
 // PREVENTS: the fix printed twice, once by the error and once by the runner.
 func TestPerfRemovalNamesTheFixOnce(t *testing.T) {
 	for _, row := range []struct {

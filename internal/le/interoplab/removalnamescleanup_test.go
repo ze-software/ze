@@ -1,3 +1,6 @@
+// Design: docs/architecture/testing/interop.md -- Crash-safe teardown
+// Related: startsettle.go -- RemovalNamesCleanup, the predicate these tests drive
+
 package interoplab
 
 import (
