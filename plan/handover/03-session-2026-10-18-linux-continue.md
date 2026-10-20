@@ -1335,3 +1335,31 @@ All three changes below are UNCOMMITTED and none is green yet.
 - Gates owed by the main thread: `./le go lint run` on internal/exabgp and internal/plugins/exabgp
   (the edit-time lint was clean on the new files); `./le test unit all`; the api population. `./le doc
   wiring` is red on files outside this work (hub-architecture.md and a doc-drift list).
+
+### ExaBGP 6 spec, Phase 4 third package (2026-10-20, Linux, exa10): continuation owed
+
+- 41fd5791d8: A-8 was broken. New case `api-on-exit-configured` (static 1.1.1.1/32 nh 10.10.10.10;
+  an API 6 script announces it with nh 11.11.11.11 and exits) green on the pin (`--dut exabgp`),
+  red on ze before the fix (the mock received the withdrawal). Fix: update-text keyword
+  `restore-configured` (before the first section) -> `NLRIGroup`/`NLRIBatch.RestoreConfigured` ->
+  `WithdrawNLRIBatch` asks `Peer.restoreConfigured` (`reactor/peer_static_restore.go`), which drops
+  each withdrawn NLRI the peer's static config holds and re-sends the configured route via
+  `sendStaticRoutes`. The bridge ledger stores each exit withdrawal with the keyword
+  (`restoringWithdrawal`, `bridgerun/owner.go`). After it: api-on-exit, api-on-exit-v4-keep,
+  api-on-exit-configured green on ze. Docs: update-syntax.md, exabgp-bridge.md.
+- Left, in order: (1) A-8 for static routes with an RD or a label stack: `staticRouteNamesNLRI`
+  matches prefix routes only, so a VPN or labeled configured route is still withdrawn on exit;
+  matching needs the label stack (or the RFC 8277 compatibility field) and RD read from the NLRI
+  wire. (2) A parser test for `restore-configured` (accepted before a section, refused after it with
+  `errRestoreConfiguredAfterNLRI`) in `cmd/update`; none written. (3) The standalone runner's exit
+  policy: move `ownerLedger`, `exitPolicy`, `OnExit`, `restoringWithdrawal` from bridgerun into
+  `internal/exabgp/bridge` (delete the bridgerun copies), make `muxRunner.Dispatched` record, settle
+  the exit where the standalone `Bridge`'s child exits (no process block: the version decides);
+  unit test red first. (4) The api population rerun once with `bin/le-exa10` on PATH; report count
+  and every red. (5) Spec Phase 4 state line.
+- Gates owed by the main thread: `./le go lint run` on internal/component/bgp/reactor,
+  internal/component/bgp/plugins/cmd/update, internal/plugins/exabgp; `./le test unit all` (the
+  reactor change touches `WithdrawNLRIBatch`'s queue path: it now ranges `peerBatch.NLRIs`, which
+  equals `batch.NLRIs` unless restore-configured removed some); `./le test functional exabgp-test`;
+  `./le rfc check`. Untouched foreign files: `internal/plugins/exabgp/bridgerun/version.go`
+  (untracked, one line), `rfc/discrimination/.rfc1997.json.tmp-*`.
