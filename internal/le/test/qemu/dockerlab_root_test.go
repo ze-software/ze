@@ -1,3 +1,4 @@
+// Design: docs/architecture/testing/qemu-integration.md -- Docker labs in the Ze-kernel guest
 // Related: ../deployment/gokrazyroot_test.go -- the same proof for gokrazy-l2tp-ppp-test.
 
 package testqemu
@@ -5,10 +6,13 @@ package testqemu
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/env"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/job"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
@@ -22,6 +26,12 @@ exit 0
 // stageDockerLabTree answers a scratch checkout carrying the files the
 // docker-lab build plans read, and puts a go stub that records each invocation
 // at the head of PATH. It answers the tree and the record.
+//
+// The tree is a git repository with one commit, because job admission
+// fingerprints its inputs from HEAD: a tree with no HEAD refuses every
+// admitted build before its root is ever asked. ParentVariable is cleared, so
+// a run under `./le job run` admits through the queue as a raw `go test` does,
+// rather than running inside the job that started the test.
 //
 // The patched toolchain is activated first, over the real checkout: activation
 // puts its bin at the head of PATH once per process, and the stub must stand
@@ -47,6 +57,11 @@ func stageDockerLabTree(t *testing.T) (string, string) {
 		}
 	}
 
+	commitTree(t, tree)
+	t.Setenv(job.ParentVariable, "")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
 	bin := t.TempDir()
 	if err := os.WriteFile(filepath.Join(bin, "go"), []byte(recordingGo), 0o755); err != nil { //nolint:gosec // a stub on a test's own PATH must be executable
 		t.Fatalf("write the go stub: %v", err)
@@ -57,13 +72,33 @@ func stageDockerLabTree(t *testing.T) (string, string) {
 	return tree, record
 }
 
+// commitTree makes tree a git repository whose one commit holds every file
+// already in it.
+func commitTree(t *testing.T, tree string) {
+	t.Helper()
+	for _, args := range [][]string{
+		{"init", "--quiet"},
+		{"config", "user.email", "test@example.com"},
+		{"config", "user.name", "test"},
+		{"add", "."},
+		{"commit", "--quiet", "-m", "fixture"},
+	} {
+		command := exec.CommandContext(t.Context(), "git", args...)
+		command.Dir = tree
+		if out, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %v in the scratch tree: %v\n%s", args, err, out)
+		}
+	}
+}
+
 // VALIDATES: every build docker-lab starts runs under the verb's signal root,
 // so the root ending (a SIGTERM to le) starts none of them: the host driver's
 // compile behind the runtime-kernel query, the guest le and the linux ze.
 // METHOD: the verb body and each admitted build run under a canceled root over
-// a scratch checkout, with a go stub on PATH that records every invocation. A
-// build rooted on context.Background runs the stub; one under the root never
-// starts it.
+// a scratch checkout, with a go stub on PATH that records every invocation.
+// The admitted builds go through the queue, whether the test runs raw or under
+// `./le job run`. A build rooted on context.Background runs the stub; one
+// under the root never starts it.
 // PREVENTS: docker-lab taking its root only after the builds again, which
 // left a SIGTERM to le (or `./le job run`, which signals the le pid only)
 // unable to reach the compile, and let the queue for a build slot swallow a
