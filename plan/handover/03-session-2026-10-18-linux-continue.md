@@ -1181,3 +1181,17 @@ All three changes below are UNCOMMITTED and none is green yet.
   plugin/types_bgp.go, reactor_api.go, cmd/peer peer.go fields.go fsm_state_test.go ze-peer-cmd.yang,
   docs/architecture/exabgp-bridge.md. Bridge Status/Ping tests pass. Owed: peer package run with the
   feature tags (an untagged run showed unrelated reds), bridgerun tests, a fleet test, the api-health case.
+
+### ExaBGP 6 spec, Phase 2 fourth package (2026-10-20, Linux): continuation owed
+
+- Committed 3511f9ee1b: `exabgp.api.version` / `exabgp.api.ack` read through `env.Get`, so the underscore
+  spelling reaches the bridge; `env.ensureCache` now lets a dotted spelling win over an undotted one for
+  every key (ExaBGP's own priority: dot > underscore > INI > default).
+- AC-10 uncommitted: `option=env:<key>=<value>` in `parseExaBGPCI` (cmd_exabgp.go, test
+  `TestParseExaBGPCIEnvOption`), the mock server accepts it (interoplab/bgp/exabgp_case.go), ci-format.md,
+  case `api-version-env` (.ci, .conf, .run), parse case `cli-exabgp-migrate-env-api-version.ci` (green, red
+  unproven). Owed: split the compound `!found || key == ""` guard; run the case green on ExaBGP and ze and
+  red on ze with detection disabled; commit. The spec's `TestMigrateOnExitAndAPIVersion` does not exist:
+  migration of `api.version` is covered by `TestEnvSurvivingKey` (migration/env_test.go) and the parse case.
+- Populations not run. Pin: `exabgp @ git+https://github.com/Exa-Networks/exabgp@685f772e4ede5c818d2ff5c84f4ae040afd37be6`
+  (`internal/le/test/functional/exabgp.go`); one population at a time.
