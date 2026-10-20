@@ -1,0 +1,86 @@
+# Invalid config: proxy ARP turned on for an interface that carries an IPv4
+# VRRP group, by each of the three config shapes an operator writes.
+#
+# VALIDATES: RFC 5798 / RFC 9568 Section 8.1.3 -- "If Proxy ARP is to be used
+# on a VRRP Router, then the VRRP Router MUST advertise the Virtual Router MAC
+# address in the Proxy ARP message." The kernel answers proxy ARP with the
+# device's own MAC, so ze refuses the configuration at `ze config validate`
+# (validateNoProxyARP, internal/plugins/vrrp/proxyarp.go).
+#   seq=1  ipv4 proxy-arp true on the VRRP unit
+#   seq=2  the builtin `proxy` sysctl profile on the VRRP unit
+#   seq=3  a global sysctl setting net.ipv4.conf.all.proxy_arp 1
+# PREVENTS: a VRRP group whose hosts learn a MAC that does not move on failover.
+option=skip-os:value=darwin
+
+stdin=leaf:terminator=EOF_LEAF
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                address [ 192.0.2.251/24 ];
+                proxy-arp true;
+                vrrp {
+                    group uplink {
+                        vrid 10;
+                        virtual-address [ 192.0.2.1 ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_LEAF
+
+stdin=profile:terminator=EOF_PROFILE
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            sysctl-profile [ proxy ];
+            ipv4 {
+                address [ 192.0.2.251/24 ];
+                vrrp {
+                    group uplink {
+                        vrid 10;
+                        virtual-address [ 192.0.2.1 ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_PROFILE
+
+stdin=global:terminator=EOF_GLOBAL
+sysctl {
+    setting net.ipv4.conf.all.proxy_arp {
+        value 1;
+    }
+}
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                address [ 192.0.2.251/24 ];
+                vrrp {
+                    group uplink {
+                        vrid 10;
+                        virtual-address [ 192.0.2.1 ];
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_GLOBAL
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=leaf:exit=1
+cmd=foreground:seq=2:exec=ze config validate -:stdin=profile:exit=1
+cmd=foreground:seq=3:exec=ze config validate -:stdin=global:exit=1
+expect=exit:code=1
+expect=stdout:contains=ipv4 proxy-arp true on this unit
+expect=stdout:contains=sysctl-profile proxy on this unit
+expect=stdout:contains=sysctl setting net.ipv4.conf.all.proxy_arp 1
+expect=stdout:contains=Section 8.1.3

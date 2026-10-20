@@ -352,7 +352,9 @@ module ze-iface-conf {
                     type boolean;
                     description "The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets
                                  that have no L2 connectivity between them, or for an unnumbered
-                                 interface.";
+                                 interface. Ze refuses it on a unit that carries an IPv4 VRRP
+                                 group, because the reply would carry the device MAC rather than
+                                 the virtual router MAC (RFC 9568 Section 8.1.3).";
                     ze:help "Answer ARP requests for other hosts that are reachable through this router.";
                 }
 

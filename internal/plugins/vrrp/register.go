@@ -70,7 +70,9 @@ func registerVRRP() {
 		// the iface component's root and walks only the vrrp-bearing path of it
 		// (umbrella A-2). Auto-loading with `interface` means the plugin loads
 		// on any interface config; with no groups the engine stays idle (AC-6).
-		ConfigRoots:             []string{configRoot},
+		// sysctl is read only to refuse proxy ARP on a VRRP interface
+		// (validateNoProxyARP, proxyarp.go).
+		ConfigRoots:             []string{configRoot, sysctlRoot},
 		Dependencies:            []string{"interface"},
 		RFCs:                    []string{"9568", "3768"},
 		RunEngine:               runVRRPEngine,
@@ -111,6 +113,9 @@ func registerVRRP() {
 func verifyVRRPConfigSections(sections []rpc.ConfigSection) error {
 	specs, err := extractGroupSpecs(rpcConfigSections(sections))
 	if err != nil {
+		return err
+	}
+	if err := validateNoProxyARP(rpcConfigSections(sections)); err != nil {
 		return err
 	}
 	return validateGroups(specs, ifaceBackend(rpcConfigSections(sections)))
@@ -315,6 +320,9 @@ func (s GroupSpec) vipMaskBits(v netip.Addr) int {
 func parseAndVerify(sections []configSection) ([]GroupSpec, error) {
 	specs, err := extractGroupSpecs(sections)
 	if err != nil {
+		return nil, err
+	}
+	if err := validateNoProxyARP(sections); err != nil {
 		return nil, err
 	}
 	if err := validateGroups(specs, ifaceBackend(sections)); err != nil {

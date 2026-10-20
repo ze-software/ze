@@ -291,6 +291,22 @@ processed, as RFC 3768 Section 7.1 says.
 <!-- source: internal/plugins/vrrp/instance.go -- onPacket, the v2 and rfc5798-compatible owner discard and the address-list carve-out -->
 <!-- source: internal/plugins/vrrp/instance.go -- noteOwnerConflict, the v3 owner count and rate-limited log -->
 
+## Proxy ARP is refused
+
+RFC 9568 Section 8.1.3 says: "If Proxy ARP is to be used on a VRRP Router, then
+the VRRP Router MUST advertise the Virtual Router MAC address in the Proxy ARP
+message." Linux answers a proxy ARP request with the device's own MAC, so hosts
+would keep a MAC that does not move on failover. `ze config verify` and
+`ze config commit` therefore refuse proxy ARP on any unit that carries an IPv4
+VRRP group, whatever turns it on: `ipv4 proxy-arp true` on the unit, a
+`sysctl-profile` on the unit that sets `proxy_arp` (the builtin `proxy` profile
+or one of your own), or a `sysctl setting` of `net.ipv4.conf.<device>.proxy_arp`,
+`net.ipv4.conf.all.proxy_arp` or `net.ipv4.conf.default.proxy_arp`. The last one
+counts because ze creates the virtual-MAC macvlan, which takes the `default`
+value. Turn proxy ARP off there, or run the group on an interface without it.
+
+<!-- source: internal/plugins/vrrp/proxyarp.go -- validateNoProxyARP -->
+
 ## The virtual MAC
 
 Each group gets its own macvlan device carrying the RFC virtual MAC:
