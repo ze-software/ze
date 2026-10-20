@@ -1146,3 +1146,24 @@ All three changes below are UNCOMMITTED and none is green yet.
   Open: the standalone MuxConn runner (`internal/exabgp/bridge`, `pendingResponses`) carries ok/error only,
   so `status` there needs the payload path or is recorded plugin-runner-only; and ze's state names must be
   mapped to ExaBGP's FSM names. Both are design choices for the main thread.
+
+### ExaBGP 6 spec, AC-4 thirteenth package (2026-10-20, Linux): continuation owed
+
+- api-sr-policy: committed ee760dff0a. The pinned ExaBGP refuses an SR Policy announce with neither
+  NO_ADVERTISE nor an IPv4 Route Target (RFC 9830 Section 4.2.1), so the fixture now carries
+  `community [ no-advertise ]`; the bridge now moves community, large and extended community ahead of
+  the `mp` section. Green under `--dut exabgp` and against ze.
+- conf-watchdog: the repeat helper ended when stdin closed, while upstream `watchdog.run` loops for the
+  parent's life; now only `shutdown` or a failed write ends it (`exaPauseInput`, exabgp_helpers.go).
+  Green. 77.77.77.77 at peer up matches the 6.0 fixture; ze still differs from ExaBGP when no script
+  ever announces the route (not recorded as a defect). Journal row for the DEBUG-only post-startup
+  failure: plan/journal/silent-fall-through.md.
+- sr-policy interop (`bgp-exabgp-bridge-sr-policy-gobgp`): still red. Docker exec errors now carry stdout
+  when stderr is empty (interoplab docker.go `failureStdout`, docker_stdout_test.go). ze.conf adds
+  `extended-community [ target:172.30.0.5:0 ]`. Last run used images built before ee760dff0a. Next:
+  rerun `INTEROP_SCENARIO=bgp-exabgp-bridge-sr-policy-gobgp ./le --name exa6c test integration interop`,
+  prove red by breaking the bridge hand-off in the image, add the interop.md row, commit.
+- api-health `status`: not started. Pinned reactor.py text form: `ExaBGP Daemon Status`, `=====...`,
+  `Version:`, `UUID:`, `PID:`, `Uptime: {h}h {m}m {s}s`, `Peers: N`, `  - {key}: {STATE}`, `done`. JSON keys
+  version, uuid, pid, uptime, start_time, peers. Check whether the peers key is `neighbor.index()`
+  (bytes) before fixing the bytes.

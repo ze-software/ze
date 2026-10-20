@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
@@ -68,12 +70,12 @@ func TestExaBGPProfileOrderAndTimingFixture(t *testing.T) {
 	digest := sha256.New()
 	for _, name := range names {
 		profile := exaProfiles[name]
-		fmt.Fprintf(digest, "%s|%d|%d|%d\n", name, profile.startup, profile.between, profile.wait) //nolint:errcheck // hash.Hash.Write never returns an error
+		fmt.Fprintf(digest, "%s|%d|%d|%d|%t\n", name, profile.startup, profile.between, profile.wait, profile.repeat) //nolint:errcheck // hash.Hash.Write never returns an error
 		for _, command := range profile.commands {
 			fmt.Fprintln(digest, command) //nolint:errcheck // hash.Hash.Write never returns an error
 		}
 	}
-	const want = "48c4f2f8acd1c70d419252442ac9f8979df692d46887289bb68c7f5dc8f2606c"
+	const want = "48c4069355c40a1126a92c7967add302c49b3ef5aba908254f4f211e363482fa"
 	if got := hex.EncodeToString(digest.Sum(nil)); got != want {
 		t.Fatalf("ExaBGP profile digest = %s, want %s", got, want)
 	}
@@ -92,6 +94,57 @@ func TestExaBGPProfileEmitsExactCommands(t *testing.T) {
 		t.Fatalf("api-announce output = %q, want %q", output.String(), want)
 	}
 }
+
+// exaWriteLimit accepts limit lines, then fails every write, as a pipe does
+// once the bridge that read it has gone.
+type exaWriteLimit struct {
+	lines []string
+	limit int
+}
+
+func (w *exaWriteLimit) Write(data []byte) (int, error) {
+	if len(w.lines) >= w.limit {
+		return 0, errors.New("broken pipe")
+	}
+	w.lines = append(w.lines, strings.TrimSuffix(string(data), "\n"))
+	return len(data), nil
+}
+
+// TestExaBGPRepeatProfileOutlivesClosedInput proves a repeating profile keeps
+// cycling when its input is already closed, as upstream watchdog.run loops
+// until its parent dies and never reads stdin. It ends only when a write fails.
+func TestExaBGPRepeatProfileOutlivesClosedInput(t *testing.T) {
+	profile := exaProfiles["watchdog"]
+	profile.between = time.Millisecond
+	output := &exaWriteLimit{limit: 6}
+	err := runExaProfile(strings.NewReader(""), output, profile)
+	if err == nil {
+		t.Fatal("repeat profile returned no error, want the failed write that ended it")
+	}
+	want := []string{
+		"announce watchdog dnsr", "withdraw watchdog dnsr",
+		"announce watchdog dnsr", "withdraw watchdog dnsr",
+		"announce watchdog dnsr", "withdraw watchdog dnsr",
+	}
+	if !slices.Equal(output.lines, want) {
+		t.Fatalf("watchdog output = %q, want %q", output.lines, want)
+	}
+}
+
+// TestExaBGPRepeatProfileStopsAtShutdown proves `shutdown` on the input ends
+// a repeating profile cleanly, after the first command it had already written.
+func TestExaBGPRepeatProfileStopsAtShutdown(t *testing.T) {
+	profile := exaProfiles["watchdog"]
+	profile.between = time.Second
+	output := &exaWriteLimit{limit: 100}
+	if err := runExaProfile(strings.NewReader("shutdown\n"), output, profile); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(output.lines, []string{"announce watchdog dnsr"}) {
+		t.Fatalf("watchdog output = %q, want the first announce only", output.lines)
+	}
+}
+
 func TestExaBGPServerCaseParserPreservesWireBytes(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "case.ci")
 	fixture := "option=asn:65000\n1:cmd:announce route 10.0.0.0/24 next-hop 1.2.3.4\n" +

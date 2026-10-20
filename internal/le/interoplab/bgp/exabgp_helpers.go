@@ -15,6 +15,10 @@ import (
 type exaProfile struct {
 	startup, between, wait time.Duration
 	commands               []string
+	// repeat sends the command list again and again until the bridge closes
+	// the helper's input or writes `shutdown`, as a script that loops for the
+	// life of its parent does (ExaBGP qa/encoding/run/watchdog.run).
+	repeat bool
 }
 
 func runExaBGPHelper(args []string, input io.Reader, output, diagnostic io.Writer) error {
@@ -41,6 +45,9 @@ func runExaBGPHelper(args []string, input io.Reader, output, diagnostic io.Write
 func runExaProfile(input io.Reader, output io.Writer, profile exaProfile) error {
 	lines := exaLines(input)
 	time.Sleep(profile.startup)
+	if profile.repeat {
+		return repeatExaCommands(lines, output, profile)
+	}
 	for _, command := range profile.commands {
 		if delayText, ok := strings.CutPrefix(command, "@sleep "); ok {
 			delay, err := time.ParseDuration(delayText)
@@ -214,6 +221,50 @@ func p(startup, between, wait time.Duration, commands ...string) exaProfile {
 	return exaProfile{startup: startup, between: between, wait: wait, commands: commands}
 }
 
+// repeatExaCommands writes profile.commands in order, profile.between apart,
+// and starts the list again until lines carries `shutdown` or a write fails.
+// Upstream watchdog.run loops while its parent lives and never reads stdin, so
+// a closed input does not end the loop here either: the write that fails once
+// the bridge is gone does, as the upstream script's `while os.getppid() != 1`.
+func repeatExaCommands(lines <-chan string, output io.Writer, profile exaProfile) error {
+	pause := time.NewTimer(profile.between)
+	defer pause.Stop()
+	// The loop is bounded by its parent, as the paragraph above says.
+	for {
+		for _, command := range profile.commands {
+			if _, err := fmt.Fprintln(output, command); err != nil {
+				return err
+			}
+			pause.Reset(profile.between)
+			var shutdown bool
+			lines, shutdown = exaPauseInput(lines, pause.C)
+			if shutdown {
+				return nil
+			}
+		}
+	}
+}
+
+// exaPauseInput waits for wake and reports whether lines carried `shutdown`
+// before it fired. A closed lines is returned as nil, so the next pause waits
+// on wake alone rather than spinning on the closed channel.
+func exaPauseInput(lines <-chan string, wake <-chan time.Time) (<-chan string, bool) {
+	for {
+		select {
+		case line, open := <-lines:
+			if !open {
+				lines = nil
+				continue
+			}
+			if strings.Contains(line, "shutdown") {
+				return lines, true
+			}
+		case <-wake:
+			return lines, false
+		}
+	}
+}
+
 var exaProfiles = map[string]exaProfile{
 	"api-ack-control":      p(200*time.Millisecond, 100*time.Millisecond, 5*time.Second, "announce route 1.1.0.0/24 next-hop 101.1.101.1", "disable-ack", "announce route 1.2.0.0/24 next-hop 101.1.101.1", "enable-ack", "announce route 1.3.0.0/24 next-hop 101.1.101.1"),
 	"api-add-remove":       p(0, 0, 5*time.Second, "announce route 1.1.0.0/24 next-hop 101.1.101.1", "announce route 1.1.0.0/25 next-hop 101.1.101.1", "@sleep 200ms", "withdraw route 1.1.0.0/24", "withdraw route 1.1.0.0/25 next-hop 0.0.0.0"),
@@ -260,7 +311,7 @@ var exaProfiles = map[string]exaProfile{
 	"api-api.nothing":      p(0, 0, 5*time.Second, "announce route 6.6.6.0/24 next-hop 9.9.9.9"),
 	"api-blocklist":        p(0, 0, 10*time.Second),
 	"healthcheck":          p(0, 0, 10*time.Second),
-	"watchdog":             p(200*time.Millisecond, 200*time.Millisecond, time.Second, "announce watchdog dnsr", "withdraw watchdog dnsr"),
+	"watchdog":             {between: 200 * time.Millisecond, commands: []string{"announce watchdog dnsr", "withdraw watchdog dnsr"}, repeat: true},
 }
 
 func ribCommands() []string {
