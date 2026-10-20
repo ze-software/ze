@@ -40,6 +40,14 @@ type mockReactor struct {
 		payload []byte
 	}
 
+	// clear bgp rib advertised: the selector each call named, the family
+	// (AFI 0 for every family), and the answer the mock gives.
+	advertisedCalls []string
+	advertisedAFI   uint16
+	advertisedSAFI  uint8
+	advertisedCount int
+	advertisedErr   error
+
 	sendRefreshCalled bool
 	sendBoRRCalled    bool
 	sendEoRRCalled    bool
@@ -185,6 +193,10 @@ func (m *mockReactor) AnnounceEOR(_ *selector.Selector, _ uint16, _ uint8, _ plu
 func (m *mockReactor) AnnounceReplayEOR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
 	return nil
 }
+func (m *mockReactor) SelectedPeersCarry(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
+	return nil
+}
+
 func (m *mockReactor) AnnounceNLRIBatch(_ context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
 	m.announcedBatches = append(m.announcedBatches, struct {
 		peer  string
@@ -297,4 +309,10 @@ func (m *mockReactor) SoftClearPeer(sel *selector.Selector, _ plugin.Sender) ([]
 func newTestContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandContext {
 	server, _ := pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor)
 	return &pluginserver.CommandContext{Server: server}
+}
+
+func (m *mockReactor) WithdrawAdvertised(_ context.Context, sel *selector.Selector, afi uint16, safi uint8, _ plugin.Sender) (int, error) {
+	m.advertisedCalls = append(m.advertisedCalls, sel.String())
+	m.advertisedAFI, m.advertisedSAFI = afi, safi
+	return m.advertisedCount, m.advertisedErr
 }

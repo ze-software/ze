@@ -58,6 +58,10 @@ func (a *readyProducerAPI) SignalPeerAPIReady(peer string, sender plugin.Sender,
 	return err
 }
 
+func (a *readyProducerAPI) SelectedPeersCarry(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
+	return nil
+}
+
 func (a *readyProducerAPI) AnnounceNLRIBatch(ctx context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender) error {
 	if batch.InitialReplay != 0 {
 		if a.beforeInitial != nil {

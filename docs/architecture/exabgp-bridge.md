@@ -623,22 +623,23 @@ for two others. The bridge answers each the way ExaBGP 6.0 does.
 | An attribute written twice (`next-hop 1.1.1.1 next-hop 2.2.2.2`) | the first is sent, the line is done, a warning names the dropped value |
 | `split /<n>` shorter than the prefix | the prefix is sent whole, the line is done, a warning says so |
 
-The route with no carrying peer needs the dispatch answer. Ze's update-text
-handler announces nothing and answers status `warning` with
-`{"message": "announce <family>: no peers have family negotiated"}`.
-A sent route answers `RouteResult`, which always carries `announced` and
-`withdrawn`. The in-process dispatch carries the status. The record wire drops
-it and answers `done` with the same document. So both runners read the
-document (`RefuseUnsentRoute`), and the standalone runner releases a dispatch
-at the answer's terminator, holding its first record. Ze tests the family each
-selected peer NEGOTIATED. ExaBGP tests the family the peer was CONFIGURED with.
+The route with no carrying peer is refused by Ze itself, as ExaBGP refuses it:
+`update text` asks the reactor whether any selected peer is configured for each
+announced family (`SelectedPeersCarry`, the families Ze's OPEN offers that
+peer) and answers an error before any route of the command is sent. A route a
+selected peer is configured for is accepted whatever its session state, which
+is ExaBGP's answer too; when no session has the family negotiated Ze answers
+status `warning`, and the bridge answers `done`. The standalone runner releases
+a dispatch at the answer's terminator, whose message is the failure.
+`api-family-carry-v4` covers both directions on a down peer.
 
 Keep-first is the bridge's own work. Ze's update-text parser keeps the LAST of
 a repeated attribute, so the bridge forwards only the first, keyed on the ze
 keyword. The warnings go to the bridge's log as `exabgp-bridge route line`.
 `api-refusals-v4` and `api-keep-first-v4` are the cases.
 
-<!-- source: internal/exabgp/bridge/bridge_dispatch_answer.go -- RefuseUnsentRoute, answerDocuments -->
+<!-- source: internal/exabgp/bridge/bridge_dispatch_answer.go -- terminatorResult -->
+<!-- source: internal/component/bgp/reactor/reactor_api_carry.go -- SelectedPeersCarry -->
 <!-- source: internal/exabgp/bridge/bridge_attribute.go -- parseRouteAttributes, warnRouteLine, attrValueName -->
 <!-- source: internal/exabgp/bridge/bridge_route_forms.go -- splitPrefix, refuseMaskNotNumber -->
 <!-- source: internal/exabgp/bridge/bridge_operational.go -- convertOperational -->

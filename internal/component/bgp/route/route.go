@@ -71,6 +71,10 @@ var (
 var (
 	ErrNoPeersMatch          = errors.New("no peers match selector")
 	ErrNoPeersAcceptedFamily = errors.New("no peers have family negotiated")
+	// ErrNoPeerConfiguredFamily: no selected peer is configured for the
+	// route's family, so the family is in none of their OPENs and no session
+	// to them can ever carry the route (SelectedPeersCarry).
+	ErrNoPeerConfiguredFamily = errors.New("no selected peer is configured for the family")
 
 	// ErrWithdrawWithheld reports a withdrawal the API rail did not write,
 	// because the session had advertised no route to the peer.

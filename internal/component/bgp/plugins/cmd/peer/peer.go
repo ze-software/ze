@@ -130,6 +130,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-pause", Handler: handleBgpPeerPause, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-resume", Handler: handleBgpPeerResume, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-flush", Handler: handleBgpPeerFlush, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-clear-advertised", Handler: handleRibClearAdvertised, RequiresSelector: true},
 		// Additional owner-registered BGP peer commands.
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-history", Handler: handlePeerHistory, RequiresSelector: true},
 		// `create bgp peer` and `delete bgp peer` are one pair over one runtime

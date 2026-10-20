@@ -100,6 +100,10 @@ func (m *mockReactor) AnnounceEOR(_ *selector.Selector, _ uint16, _ uint8, _ plu
 func (m *mockReactor) AnnounceReplayEOR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
 	return nil
 }
+func (m *mockReactor) SelectedPeersCarry(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
+	return nil
+}
+
 func (m *mockReactor) AnnounceNLRIBatch(_ context.Context, _ *selector.Selector, _ bgptypes.NLRIBatch, _ plugin.Sender) error {
 	return nil
 
@@ -157,4 +161,8 @@ func (m *mockReactor) SoftClearPeer(sel *selector.Selector, _ plugin.Sender) ([]
 func newTestContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandContext {
 	server, _ := pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor)
 	return &pluginserver.CommandContext{Server: server}
+}
+
+func (m *mockReactor) WithdrawAdvertised(_ context.Context, _ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) (int, error) {
+	return 0, nil
 }

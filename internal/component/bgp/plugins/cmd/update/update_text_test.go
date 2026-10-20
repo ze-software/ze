@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/netip"
 	"strings"
 	"testing"
@@ -1230,12 +1231,20 @@ type mockReactorBatch struct {
 	noPeersMatching    bool
 	noPeersAccepted    bool // Simulates family not negotiated
 	noPeersAcceptedFor family.Family
+	notConfiguredFor   family.Family // SelectedPeersCarry refuses this family
 }
 
 // Same reason as the assertion in mock_reactor_test.go: requireBGPReactor
 // asserts at runtime, so drift out of the interface would silently reroute every
 // test below to the "BGP reactor not available" branch.
 var _ bgptypes.BGPReactor = (*mockReactorBatch)(nil)
+
+func (m *mockReactorBatch) SelectedPeersCarry(_ *selector.Selector, afi uint16, safi uint8, _ plugin.Sender) error {
+	if m.notConfiguredFor != (family.Family{}) && m.notConfiguredFor == (family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}) {
+		return fmt.Errorf("%w: %s", route.ErrNoPeerConfiguredFamily, m.notConfiguredFor)
+	}
+	return nil
+}
 
 func (m *mockReactorBatch) AnnounceNLRIBatch(_ context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
 	if m.noPeersMatching {
@@ -1666,6 +1675,34 @@ func TestHandleUpdateText_FamilyNotAccepted(t *testing.T) {
 	m, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "expected plugin.Map, got %T", resp.Data)
 	assert.Contains(t, m["message"], "no peers have family negotiated")
+}
+
+// TestHandleUpdateText_FamilyNoSelectedPeerConfiguredIsRefused pins that a
+// command carrying a family no selected peer is configured for is refused
+// before any of its routes is announced.
+//
+// VALIDATES: IPv4 and IPv6 sections where the selected peers are configured
+// for IPv4 only answer an error naming ipv6/unicast, and the IPv4 section is
+// not announced either.
+// PREVENTS: a route queued and answered accepted for a session whose OPEN
+// never offers its family, and half a command sent before the refusal.
+func TestHandleUpdateText_FamilyNoSelectedPeerConfiguredIsRefused(t *testing.T) {
+	reactor := &mockReactorBatch{notConfiguredFor: family.IPv6Unicast}
+	ctx := &pluginserver.CommandContext{
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
+		Peer:   "*",
+	}
+	args := []string{
+		"nhop", "10.0.0.1",
+		"nlri", "add", "10.0.0.0/24",
+		"mp", "ipv6/unicast", "add", "2001:db8:1::/48",
+	}
+
+	resp, err := handleUpdateText(ctx, args)
+	require.ErrorIs(t, err, route.ErrNoPeerConfiguredFamily)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Error, "ipv6/unicast")
+	assert.Empty(t, reactor.announceCalls, "no section is announced once one is refused")
 }
 
 // TestHandleUpdateText_PartialFamilyAccepted verifies mixed success/warning.
@@ -4158,4 +4195,8 @@ func TestRegistrySectionRefusesLaterAddDel(t *testing.T) {
 		assert.Len(t, result.Groups[0].Announce, 1)
 		assert.Len(t, result.Groups[0].Withdraw, 1)
 	})
+}
+
+func (m *mockReactorBatch) WithdrawAdvertised(_ context.Context, _ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) (int, error) {
+	return 0, nil
 }

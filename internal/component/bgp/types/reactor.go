@@ -57,6 +57,14 @@ type BGPReactor interface {
 	// ctx bounds admission and the peer's socket write, including flush.
 	AnnounceNLRIBatch(ctx context.Context, sel *selector.Selector, batch NLRIBatch, sender plugin.Sender) error
 
+	// SelectedPeersCarry answers nil when a peer the selector matches is
+	// configured for the <afi, safi> family (ze's OPEN to it offers it),
+	// route.ErrNoPeersMatch when the selector matches no peer, and an error
+	// wrapping route.ErrNoPeerConfiguredFamily otherwise. Session state and
+	// negotiation are not read: those are AnnounceNLRIBatch's per-session
+	// questions.
+	SelectedPeersCarry(sel *selector.Selector, afi uint16, safi uint8, sender plugin.Sender) error
+
 	// AnnounceEOR sends an End-of-RIB marker for the given address family to
 	// every selected established peer that negotiated it, each time it is asked.
 	// It answers an error when no selected peer qualifies.
@@ -74,6 +82,13 @@ type BGPReactor interface {
 	// RFC 4271 Section 4.3, RFC 4760.
 	// ctx bounds admission and the peer's socket write, including flush.
 	WithdrawNLRIBatch(ctx context.Context, sel *selector.Selector, batch NLRIBatch, sender plugin.Sender) error
+
+	// WithdrawAdvertised withdraws every route the selected peers' current
+	// sessions hold in their Adj-RIB-Out, one family when afi is not zero (AFI 0
+	// is reserved and stands for every family), and forgets their static route
+	// set. It answers the count withdrawn, and an error when no peer matches.
+	// RFC 4271 Section 9.2.
+	WithdrawAdvertised(ctx context.Context, sel *selector.Selector, afi uint16, safi uint8, sender plugin.Sender) (int, error)
 
 	// --- BGP messages (3 methods) ---
 

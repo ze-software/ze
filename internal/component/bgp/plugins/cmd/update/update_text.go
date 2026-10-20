@@ -1237,6 +1237,18 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 		}
 	}
 
+	// A route for a family no selected peer is configured for can reach no
+	// session, so the command is refused before any of its routes is sent,
+	// rather than queued for a down session that can never negotiate it.
+	for _, group := range groups {
+		if len(group.Announce) == 0 {
+			continue
+		}
+		if err := bgpReactor.SelectedPeersCarry(sel, uint16(group.Family.AFI), uint8(group.Family.SAFI), ctx.Sender); err != nil {
+			return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
+		}
+	}
+
 	for _, group := range groups {
 		if len(group.Announce) > 0 {
 			batch := bgptypes.NLRIBatch{

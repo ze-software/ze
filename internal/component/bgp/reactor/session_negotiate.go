@@ -220,56 +220,11 @@ func (s *Session) buildOpen(settings *PeerSettings, configCaps []capability.Capa
 	// 2. ASN4
 	// 3. Other capabilities (extended-message, route-refresh, etc.)
 	// 4. Plugin-declared capabilities
-	var caps []capability.Capability
+	caps := offeredMultiprotocol(configCaps, s.pluginFamiliesGetter)
 	var otherCaps []capability.Capability
-	var configHasFamilies bool
-
-	// Separate Multiprotocol capabilities from others.
-	// If config specifies families, use ONLY those (plugin families ignored).
 	for _, c := range configCaps {
-		if c.Code() == capability.CodeMultiprotocol {
-			caps = append(caps, c)
-			configHasFamilies = true
-		} else {
+		if c.Code() != capability.CodeMultiprotocol {
 			otherCaps = append(otherCaps, c)
-		}
-	}
-
-	// If config has NO family block, use ALL plugin decode families.
-	// This allows plugins to define what families are available.
-	//
-	// KNOWN DEFECT, and the fix is a DESIGN decision, not a patch here. In the
-	// shipped tree this fallback advertises 17 families and none of them is
-	// ipv4/unicast, because every in-tree NLRI plugin declares decode families
-	// and none of them declares the core family. Negotiate applies its implicit
-	// ipv4/unicast default only when the local set is EMPTY, so 17 families
-	// means the default never fires and the OPEN positively states that ze does
-	// not speak IPv4 unicast. A peer with no family block negotiates nothing
-	// usable against an ordinary neighbor, and is offered BGP-LS nobody asked
-	// for.
-	//
-	// Three readings, and picking one silently is what this comment prevents:
-	// the fallback should ADD ipv4/unicast (breaks a deliberate single-family
-	// plugin, which TestBuildOpenPluginFamiliesUnchanged legitimately pins);
-	// config silence should mean ipv4/unicast alone, as ExaBGP does (drops the
-	// plugin-fills-the-gap behavior AC-3 was written for); or the getter's
-	// population is wrong, because the whole in-tree NLRI catalog is not an
-	// operator choice the way one purpose-built plugin is.
-	if !configHasFamilies && s.pluginFamiliesGetter != nil {
-		seen := make(map[family.Family]bool)
-		for _, famStr := range s.pluginFamiliesGetter() {
-			fam, ok := family.LookupFamily(famStr)
-			if !ok {
-				continue // Invalid family string, skip
-			}
-			if seen[fam] {
-				continue // Avoid duplicates from multiple plugins
-			}
-			caps = append(caps, &capability.Multiprotocol{
-				AFI:  fam.AFI,
-				SAFI: fam.SAFI,
-			})
-			seen[fam] = true
 		}
 	}
 
@@ -392,4 +347,55 @@ func coalescePathsLimit(caps []capability.Capability) ([]capability.Capability, 
 		}
 	}
 	return caps[:count], nil
+}
+
+// offeredMultiprotocol is the Multiprotocol capability list ze's OPEN offers a
+// peer: the configured families when the config names any, and every plugin
+// decode family otherwise. buildOpen sends it, and
+// reactorAPIAdapter.SelectedPeersCarry reads it to answer whether a selected
+// peer is configured for a route's family, so the two cannot disagree.
+//
+// If config has NO family block, use ALL plugin decode families.
+// This allows plugins to define what families are available.
+//
+// KNOWN DEFECT, and the fix is a DESIGN decision, not a patch here. In the
+// shipped tree this fallback advertises 17 families and none of them is
+// ipv4/unicast, because every in-tree NLRI plugin declares decode families
+// and none of them declares the core family. Negotiate applies its implicit
+// ipv4/unicast default only when the local set is EMPTY, so 17 families
+// means the default never fires and the OPEN positively states that ze does
+// not speak IPv4 unicast. A peer with no family block negotiates nothing
+// usable against an ordinary neighbor, and is offered BGP-LS nobody asked
+// for.
+//
+// Three readings, and picking one silently is what this comment prevents:
+// the fallback should ADD ipv4/unicast (breaks a deliberate single-family
+// plugin, which TestBuildOpenPluginFamiliesUnchanged legitimately pins);
+// config silence should mean ipv4/unicast alone, as ExaBGP does (drops the
+// plugin-fills-the-gap behavior AC-3 was written for); or the getter's
+// population is wrong, because the whole in-tree NLRI catalog is not an
+// operator choice the way one purpose-built plugin is.
+func offeredMultiprotocol(configCaps []capability.Capability, pluginFamilies func() []string) []capability.Capability {
+	var caps []capability.Capability
+	for _, c := range configCaps {
+		if c.Code() == capability.CodeMultiprotocol {
+			caps = append(caps, c)
+		}
+	}
+	if len(caps) > 0 || pluginFamilies == nil {
+		return caps
+	}
+	seen := make(map[family.Family]bool)
+	for _, famStr := range pluginFamilies() {
+		fam, ok := family.LookupFamily(famStr)
+		if !ok {
+			continue // Invalid family string, skip
+		}
+		if seen[fam] {
+			continue // Avoid duplicates from multiple plugins
+		}
+		caps = append(caps, &capability.Multiprotocol{AFI: fam.AFI, SAFI: fam.SAFI})
+		seen[fam] = true
+	}
+	return caps
 }

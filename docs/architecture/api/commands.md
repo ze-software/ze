@@ -893,6 +893,7 @@ show bgp rib best [filters...] [terminal]   # Best-path per prefix (RFC 4271 §9
 show bgp rib status                         # RIB status (peer/route counts)
 clear bgp rib in <selector>                  # Clear Adj-RIB-In (* for all peers)
 clear bgp rib out <selector> [family <family>] # Resend Adj-RIB-Out (* for all, optional family)
+clear bgp rib advertised <selector> [family <family>] # Withdraw Adj-RIB-Out (* for all, optional family)
 request bgp rib inject <peer> <family> <prefix> [attrs] # Insert route into Adj-RIB-In (no session needed)
 request bgp rib withdraw <peer> <family> <prefix>       # Remove route from Adj-RIB-In
 show bgp rib rpf <family> <source-addr>      # RPF lookup (longest-prefix-match in Loc-RIB)
@@ -911,6 +912,10 @@ A chain the answer's shape cannot support is refused AFTER the command has run, 
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
 <!-- source: internal/component/cli/client/main.go -- Execute, commandWithFormat -->
 <!-- source: internal/component/cli/client/answer.go -- daemonOutput, newDaemonOutput -->
+
+`clear bgp rib out` and `clear bgp rib advertised` act on the same table in opposite ways. `out` is bgp-rib's replay: it resends what each peer was sent. `advertised` is the engine's: it withdraws every route the session's Adj-RIB-Out holds, configured routes included, and forgets the peer's configured set, so a later reload sends it again. The withdrawals take the local withdraw rail, so bgp-rib drops each route from its own copy and a later `out` does not bring it back. A labeled route (RFC 8277, RFC 3107) is withdrawn with the Section 2.4 Compatibility field 0x800000, rebuilt from the table key, which holds no label stack. A family whose key cannot be written back as the withdrawn NLRI is refused by name rather than guessed. A selector that matches no peer is an error.
+<!-- source: internal/component/bgp/reactor/reactor_api_advertised.go -- WithdrawAdvertised, adjOutWithdrawalNLRI -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/advertised.go -- handleRibClearAdvertised -->
 
 RIB route filters such as `received`, `advertised`, `peer`, `family`, `prefix`, `path`, and `community` are command-specific filters registered by the RIB command and folded into the RIB iterator request before route output is generated.
 

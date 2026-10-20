@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+"""X-23 (AC-29), both directions: ExaBGP 6 refuses a route when no selected peer is
+CONFIGURED with its family (`carrying`, reactor/api/command/announce.py), and accepts
+one a selected peer is configured for, whether or not its session is up or negotiated
+the family. 192.0.2.1 is configured for IPv4 unicast and never connects."""
+
+
+import sys
+import time
+
+
+def send(command: str) -> None:
+    sys.stdout.write(command + '\n')
+    sys.stdout.flush()
+
+
+def read() -> str:
+    line = sys.stdin.readline()
+    if not line:
+        sys.stderr.write('ERROR: stdin closed\n')
+        sys.exit(1)
+    return line.strip()
+
+
+def answer() -> list[str]:
+    """The lines the bridge wrote for one command, up to and including its done or error."""
+    lines = []
+    while True:
+        lines.append(read())
+        if lines[-1] in ('done', 'error'):
+            return lines
+
+
+def expect(command: str, check, what: str) -> None:
+    send(command)
+    got = answer()
+    if not check(got):
+        sys.stderr.write(f'ERROR: {command!r} answered {got!r}, want {what}\n')
+        sys.exit(1)
+
+
+def refused(answer: list[str]) -> bool:
+    return len(answer) <= 2 and answer[-1] == 'error'
+
+
+def main() -> None:
+    time.sleep(0.2)  # let the EOR pass
+    expect('announce route 1.1.1.1/32 next-hop 11.11.11.11', lambda a: a == ['done'], 'done')
+    # Configured, session down: accepted and held.
+    expect('neighbor 192.0.2.1 announce route 5.5.5.5/32 next-hop 55.55.55.55', lambda a: a == ['done'], 'done')
+    # Not configured, session down: refused.
+    expect('neighbor 192.0.2.1 announce route 2001:db8:1::/48 next-hop 2001:db8::1', refused, 'the error marker')
+    # Reached only when every answer above was ExaBGP's: the wire proves it.
+    expect('neighbor 127.0.0.1 announce route 3.3.3.3/32 next-hop 33.33.33.33', lambda a: a == ['done'], 'done')
+    sys.stderr.write('SUCCESS\n')
+    while sys.stdin.readline():
+        pass
+
+
+if __name__ == '__main__':
+    main()

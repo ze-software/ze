@@ -101,6 +101,10 @@ func (m *mockReactor) ReleaseUpdates(_ []uint64, _ string) error { return nil }
 
 // --- BGPReactor: route operations ---
 
+func (m *mockReactor) SelectedPeersCarry(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
+	return nil
+}
+
 func (m *mockReactor) AnnounceNLRIBatch(_ context.Context, _ *selector.Selector, _ bgptypes.NLRIBatch, _ plugin.Sender) error {
 	return nil
 
@@ -179,4 +183,8 @@ func newTestContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandContex
 	server, _ := pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor)
 	server.SetCommitManager(transaction.NewCommitManager())
 	return &pluginserver.CommandContext{Server: server}
+}
+
+func (m *mockReactor) WithdrawAdvertised(_ context.Context, _ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) (int, error) {
+	return 0, nil
 }

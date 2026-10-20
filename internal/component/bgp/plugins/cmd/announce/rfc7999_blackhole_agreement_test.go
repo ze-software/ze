@@ -38,6 +38,10 @@ type agreementReactor struct {
 	batches []bgptypes.NLRIBatch
 }
 
+func (r *agreementReactor) SelectedPeersCarry(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
+	return nil
+}
+
 func (r *agreementReactor) AnnounceNLRIBatch(_ context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
 	r.sels = append(r.sels, sel)
 	r.batches = append(r.batches, batch)

@@ -35,6 +35,10 @@ type captureReactor struct {
 	calls  int
 }
 
+func (r *captureReactor) SelectedPeersCarry(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
+	return nil
+}
+
 func (r *captureReactor) AnnounceNLRIBatch(_ context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender) error {
 	r.sel = sel
 	r.batch = batch

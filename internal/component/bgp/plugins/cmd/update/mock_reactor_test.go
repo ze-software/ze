@@ -154,6 +154,10 @@ func (m *mockReactor) AnnounceEOR(_ *selector.Selector, _ uint16, _ uint8, _ plu
 func (m *mockReactor) AnnounceReplayEOR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
 	return nil
 }
+func (m *mockReactor) SelectedPeersCarry(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
+	return nil
+}
+
 func (m *mockReactor) AnnounceNLRIBatch(_ context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
 	m.announcedBatches = append(m.announcedBatches, struct {
 		peer  string
@@ -257,4 +261,8 @@ func (m *mockReactor) SendEoRR(_ *selector.Selector, _ uint16, _ uint8, _ plugin
 func (m *mockReactor) SoftClearPeer(sel *selector.Selector, _ plugin.Sender) ([]string, error) {
 	m.softClearCalls = append(m.softClearCalls, sel.String())
 	return []string{"ipv4/unicast", "ipv6/unicast"}, nil
+}
+
+func (m *mockReactor) WithdrawAdvertised(_ context.Context, _ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) (int, error) {
+	return 0, nil
 }

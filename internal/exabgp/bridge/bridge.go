@@ -534,7 +534,6 @@ func (b *Bridge) exited(ctx context.Context, runner ExitRunner) {
 // back a MuxConn ok response to ze. It also routes "ok"/"error" responses to pending
 // flush waiters via the pending parameter.
 func (b *Bridge) zebgpToPluginWithScanner(ctx context.Context, scanner *bufio.Scanner, pluginW io.Writer, zeOut *syncWriter, pending *pendingResponses) {
-	documents := answerDocuments{}
 	for scanner.Scan() {
 		if ctx.Err() != nil {
 			slog.Debug("zebgp->plugin: context canceled")
@@ -576,17 +575,12 @@ func (b *Bridge) zebgpToPluginWithScanner(ctx context.Context, scanner *bufio.Sc
 
 		// A dispatch is answered by a head, its records and a terminator
 		// (rpc.WriteRecordAnswer). The terminator releases the waiter, because
-		// it is the one line that states the outcome (rpc.Verdict), and the
-		// waiter is handed the first record: ze's update-text handler states
-		// that it sent nothing in that document and nowhere else on this
-		// wire (RefuseUnsentRoute, X-23). Naming every kind here is what
-		// keeps them off the unknown-verb arm below, which would acknowledge
-		// a line ze never asked to have acknowledged.
-		case rpc.AnswerKindHead, rpc.AnswerKindFault:
-		case rpc.AnswerKindRecord:
-			documents.note(id, payload)
+		// it is the one line that states the outcome (rpc.Verdict). Naming
+		// every kind here is what keeps them off the unknown-verb arm below,
+		// which would acknowledge a line ze never asked to have acknowledged.
+		case rpc.AnswerKindHead, rpc.AnswerKindFault, rpc.AnswerKindRecord:
 		case rpc.AnswerKindTerminator:
-			if !pending.signal(id, documents.result(id, payload)) {
+			if !pending.signal(id, terminatorResult(payload)) {
 				slog.Debug("zebgp->plugin: answer nobody is waiting for", "id", id)
 			}
 
@@ -801,9 +795,7 @@ func (r muxRunner) Dispatch(ctx context.Context, command string) error {
 	if !result.ok {
 		return errors.New(result.errText)
 	}
-	// The record wire carries no status, so ze's `warning` reaches this
-	// runner as `done` with its document (RefuseUnsentRoute).
-	return RefuseUnsentRoute(command, rpc.StatusDone, result.document)
+	return nil
 }
 
 // Flush drains the forward pool of the peers selector names.

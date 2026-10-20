@@ -12,6 +12,10 @@ module ze-bgp-api {
 
     // peer-add and the delete verb's bgp-peer were two spellings of one
     // lifecycle; ze-bgp:peer-create and ze-bgp:peer-delete name the pair.
+    revision 2026-10-21 {
+        description "Declare rib-clear-advertised, the Adj-RIB-Out withdrawal.";
+    }
+
     revision 2026-10-09 {
         description "Rename peer-add to peer-create; declare peer-delete, moved from ze-cli-delete-api.";
     }
@@ -575,6 +579,34 @@ session receives the NOTIFICATION, and the peer stays configured.";
                 description "The Cease subcode, 0 to 255, that the NOTIFICATION carries under error code
 6. Subcodes 2 and 4 can carry a shutdown communication message.";
                 ze:help "CEASE subcode";
+            }
+        }
+    }
+
+    rpc rib-clear-advertised {
+        description "Withdraws every route the selected peers' current sessions hold in their
+Adj-RIB-Out, configured routes included, and forgets the peers' configured route
+set so a reload sends it again. RFC 4271 Section 9.2 sends each withdrawal as an
+UPDATE. A selector that matches no peer is refused.";
+        ze:help "Withdraw the Adj-RIB-Out of the selected peers.";
+        input {
+            leaf selector {
+                type zt:peer-selector;
+                mandatory true;
+                description "A peer address, a peer name, an AS pattern, a comma-separated list of them, or
+'*' for every peer.";
+                ze:help "Peer filter (* for all)";
+            }
+            leaf family {
+                type zt:address-family;
+                description "The one address family to withdraw. Absent, every family is withdrawn.";
+                ze:help "Address family";
+            }
+        }
+        output {
+            leaf withdrawn {
+                type uint32;
+                description "The count of routes withdrawn, summed over the selected peers.";
             }
         }
     }

@@ -328,14 +328,11 @@ type scriptRunner struct {
 	d Dispatcher
 }
 
-// Dispatch hands ze one command through the plugin dispatcher. A route ze
-// accepted and sent to no peer is a refusal (bridge.RefuseUnsentRoute, X-23).
+// Dispatch hands ze one command through the plugin dispatcher. A `warning`
+// is success, as ExaBGP answers it (bridge.terminatorResult explains why).
 func (r scriptRunner) Dispatch(ctx context.Context, command string) error {
-	status, document, err := r.d.DispatchCommand(ctx, command)
-	if err != nil {
-		return err
-	}
-	return bridge.RefuseUnsentRoute(command, status, document)
+	_, _, err := r.d.DispatchCommand(ctx, command)
+	return err
 }
 
 // Flush drains the forward pool of the peers selector names.
