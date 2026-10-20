@@ -174,8 +174,12 @@ func buildLinuxZe(ctx context.Context, goarch string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return testqemu.BuildLinuxZe(ctx, root, goarch)
+	return linuxZe(ctx, root, goarch)
 }
+
+// linuxZe is testqemu.BuildLinuxZe, a variable so a test can see the ctx the
+// check builds under without cross-compiling a ze.
+var linuxZe = testqemu.BuildLinuxZe
 
 // dockerKernelProbeZe answers the ze the probe container mounts: named when the
 // operator gave one, else what build writes for goarch. Either way the file must

@@ -1,3 +1,4 @@
+// Design: docs/architecture/testing/interop.md -- the Docker host kernel check
 // Related: dockerkernel.go -- runDockerKernelCheck, the signal root these tests drive.
 
 package dockerkernel
@@ -82,5 +83,39 @@ func TestDockerKernelProbeRunsUnderTheVerbRoot(t *testing.T) {
 	}
 	if recorder.live != 1 {
 		t.Fatalf("the check issued %d docker commands live, want 1 (the architecture query alone)", recorder.live)
+	}
+}
+
+// VALIDATES: the linux ze the check builds for the daemon is built under the
+// verb's root, so a Ctrl-C that lands during the cross-compile ends it.
+// METHOD: no ze is named, so the check builds one; the double answers the
+// architecture query live and then cancels the root, and the builder records
+// whether its ctx had ended. A build closure that passes
+// context.Background builds under a live ctx.
+// PREVENTS: the cross-compile behind `setup docker-kernel check` running on
+// in its own process group after the operator stopped the check.
+func TestDockerKernelCheckBuildsUnderTheVerbRoot(t *testing.T) {
+	saved := linuxZe
+	t.Cleanup(func() { linuxZe = saved })
+	var builds, live int
+	linuxZe = func(ctx context.Context, _, _ string) (string, error) {
+		builds++
+		if ctx.Err() == nil {
+			live++
+		}
+		return "", context.Canceled
+	}
+	root, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	recorder := &cancelingRecorder{cancel: cancel}
+
+	if _, code := dockerKernelCheck(root, interoplab.NewFixtureDocker(recorder), ""); code != 1 {
+		t.Fatalf("a check whose root ended before its build answered %d, want 1", code)
+	}
+	if builds != 1 {
+		t.Fatalf("the check asked for %d linux ze builds, want 1", builds)
+	}
+	if live != 0 {
+		t.Fatal("the check built its linux ze under a live ctx after its root ended")
 	}
 }
