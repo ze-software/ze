@@ -45,7 +45,7 @@ func TestMarshalExabgpJSONUsesExaBGPSpacing(t *testing.T) {
 // PREVENTS: the forwarding path keeping Go's compact form beside the fleet's.
 func TestTranslateAndForwardWritesExaBGPSpacing(t *testing.T) {
 	var out bytes.Buffer
-	b := &Bridge{}
+	b := NewBridge([]string{"echo"})
 	b.translateAndForward(`{"type":"state","peer":{"address":"127.0.0.1"},"state":"up"}`, &out)
 	if !strings.Contains(out.String(), `"exabgp": "6.0.0"`) {
 		t.Errorf("forwarded line = %q, want ExaBGP's spacing", out.String())

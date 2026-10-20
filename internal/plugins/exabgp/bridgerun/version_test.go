@@ -4,7 +4,6 @@ import (
 	"context"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -64,41 +63,6 @@ func TestScriptHeldToDetectedVersion(t *testing.T) {
 
 	cancel()
 	fleet.Stop()
-}
-
-// TestScriptVersionResetsOnStart: each fork starts from the fleet's setting,
-// so a respawned child is undecided again, and `exabgp.api.version` holds a
-// script before it writes anything.
-//
-// VALIDATES: X-2 "for as long as it runs", X-8, AC-10 (the bridge half).
-func TestScriptVersionResetsOnStart(t *testing.T) {
-	var setting atomic.Uint32
-	setting.Store(uint32(bridge.APIVersionAuto))
-	s := newScript(slogutil.DiscardLogger(), bridge.Translator{}, &setting,
-		Script{Name: "s", Encoder: bridge.EncoderText})
-	s.resetAPIVersion()
-	if got := s.detectAPIVersion("help"); got != bridge.APIV4 {
-		t.Fatalf("help decides v4 (V4_SIMPLE_TRANSLATIONS), got %v", got)
-	}
-	if got := s.detectAPIVersion("peer * announce route 10.0.0.0/24 next-hop 1.2.3.4"); got != bridge.APIV4 {
-		t.Errorf("a later v6 line moved a held helper to %v", got)
-	}
-	if s.format() != bridge.FormatV4Text {
-		t.Errorf("format = %v, want v4 text", s.format())
-	}
-	s.resetAPIVersion()
-	if got := s.apiVersion(); got != bridge.APIVersionAuto {
-		t.Errorf("after a restart the helper is %v, want undecided", got)
-	}
-
-	setting.Store(uint32(bridge.APIV6))
-	s.resetAPIVersion()
-	if got := s.apiVersion(); got != bridge.APIV6 {
-		t.Errorf("with the setting 6 the helper starts %v", got)
-	}
-	if s.format() != bridge.FormatV6JSON {
-		t.Errorf("format with encoder text held to v6 = %v, want v6 json", s.format())
-	}
 }
 
 // TestFleetRefusesAnInvalidAPIVersionSetting: a setting ExaBGP refuses stops

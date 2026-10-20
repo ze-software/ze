@@ -53,21 +53,13 @@ type script struct {
 	// no neighbor reaches.
 	translator bridge.Translator
 
-	// encoder is the format this script's events are written in, from the
-	// `encoder` leaf of the process block that declared it. It is per script
-	// because ExaBGP declares it per process, so one bridge can feed a text
-	// script and a JSON script at once.
-	encoder bridge.Encoder
-
-	// version is the bridge.APIVersion this script is held to, auto while
-	// undecided (version.go). It is atomic because the fan-out reads it on the
-	// event goroutine while the batch goroutine detects it.
-	version atomic.Uint32
-
-	// setting is the fleet's `exabgp.api.version`, which each fork starts
-	// with and `api version <v>` moves. It is the Fleet's, shared by every
-	// script, as ExaBGP's environment setting is shared by every helper.
-	setting *atomic.Uint32
+	// api is the API version this script is held to and the format its
+	// events are written in (bridge.ScriptVersion). Its encoder is the
+	// `encoder` leaf of the process block that declared the script, per
+	// script because ExaBGP declares it per process, so one bridge can feed a
+	// text script and a JSON script at once. Its setting is the Fleet's
+	// `exabgp.api.version`, shared by every script.
+	api *bridge.ScriptVersion
 
 	// grants is the peer-and-event relation each neighbor's api block declared
 	// for this script: the events one peer feeds it, by peer address. A NIL map
@@ -104,13 +96,12 @@ type script struct {
 
 func newScript(log *slog.Logger, translator bridge.Translator, setting *atomic.Uint32, s Script) *script {
 	return &script{
-		setting:    setting,
+		api:        bridge.NewScriptVersion(s.Name, log, s.Encoder, setting),
 		name:       s.Name,
 		argv:       s.Argv,
 		respawn:    s.Respawn,
 		log:        log,
 		translator: translator,
-		encoder:    s.Encoder,
 		grants:     grantSet(s.Feeds),
 		ack:        bridge.NewAckMode(),
 		queue:      make(chan []byte, queueDepth),
@@ -207,7 +198,7 @@ func (s *script) start(ctx context.Context) error {
 	s.stdin = sin
 	s.stdout = sout
 	s.mu.Unlock()
-	s.resetAPIVersion()
+	s.api.Reset()
 	return nil
 }
 
@@ -314,7 +305,7 @@ func (s *script) batch(ctx context.Context, d Dispatcher, lines []string) {
 		// The version is settled BEFORE the line is translated, and the line
 		// is then held to it, as ExaBGP's API.process calls
 		// detect_api_version and then dispatch_for.
-		if err := s.detectAPIVersion(text).Admits(text); err != nil {
+		if err := s.api.Detect(text).Admits(text); err != nil {
 			s.log.Warn("exabgp-bridge line refused", "script", s.name, "error", err)
 			batch = append(batch, bridge.BatchLine{Text: text, Err: err})
 			continue
@@ -328,7 +319,7 @@ func (s *script) batch(ctx context.Context, d Dispatcher, lines []string) {
 		}
 		line := bridge.BatchLine{Text: text, Translation: translation, Err: err}
 		if translation.Local == bridge.LocalAPIVersion {
-			line.Reply, answers[i].Failed = s.answerAPIVersion(translation.APIVersion)
+			line.Reply, answers[i].Failed = s.api.Answer(translation.APIVersion)
 		}
 		batch = append(batch, line)
 	}

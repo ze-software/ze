@@ -133,7 +133,7 @@ func (f *Fleet) Start(ctx context.Context, d Dispatcher) error {
 		// construction site is in this repository, so this is a defect in ze
 		// and not in an operator's config, and it fails at startup where a
 		// reader meets it.
-		if s.encoder == bridge.EncoderUnspecified {
+		if s.api.Encoder() == bridge.EncoderUnspecified {
 			return fmt.Errorf("exabgp-bridge: script %s: no encoder was set for it", s.name)
 		}
 		if err := s.start(ctx); err != nil {
@@ -186,7 +186,7 @@ func (f *Fleet) Broadcast(event string) {
 		if !s.receives(read.Peer, apiKey) {
 			continue
 		}
-		line, ok := f.render(&rendered, s.format(), read)
+		line, ok := f.render(&rendered, s.api.Format(), read)
 		if !ok {
 			continue
 		}
@@ -209,35 +209,7 @@ func (f *Fleet) render(cache *[bridge.FormatCount][]byte, format bridge.Format, 
 		return cache[slot], len(cache[slot]) > 0
 	}
 
-	var line []byte
-	switch format {
-	case bridge.FormatV4Text:
-		var scratch [512]byte
-		out, form := event.AppendText(scratch[:0])
-		switch form {
-		case bridge.TextWritten:
-			line = out
-		case bridge.TextUnknown:
-			f.log.Warn("exabgp-bridge: no text form for this event; the script is not told about it",
-				"event", event.Kind)
-		case bridge.TextNone:
-			// ExaBGP writes no text line for this kind either.
-		default:
-			panic("BUG: invalid bridge text form")
-		}
-	case bridge.FormatV4JSON, bridge.FormatV6JSON:
-		encoded, err := bridge.MarshalExabgpJSON(event.ExabgpJSON(format))
-		if err != nil {
-			f.log.Warn("exabgp-bridge: marshal external JSON failed", "error", err)
-			break
-		}
-		encoded = append(encoded, '\n')
-		line = encoded
-	case bridge.FormatUnspecified:
-		panic("BUG: bridge format unspecified")
-	default:
-		panic("BUG: invalid bridge format")
-	}
+	line := event.Line(format, f.log)
 
 	// An empty slice is not nil, so a format that wrote nothing is cached as
 	// "asked and answered" rather than rendered again for the next script.

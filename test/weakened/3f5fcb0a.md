@@ -1,3 +1,4 @@
 | Test | Reason |
 |---|---|
-| TestFleetRenderUnspecifiedPreservesJSON | Replaced, not weakened: it held the render path for bridge.EncoderUnspecified, which this commit deletes (the fan-out now renders per bridge.Format, chosen by the script API version and encoder; FormatUnspecified is a BUG panic and Fleet.Start still refuses a script with no encoder). TestFleetRenderOncePerFormat in the same file renders v6 JSON, v4 JSON and v6 JSON again, asserting each envelope and that the cached line is reused. |
+| TestScriptVersionResetsOnStart | Moved, not weakened: the state it tested (detect, hold, reset to the setting, format per version and encoder) moved from bridgerun's script into bridge.ScriptVersion, and the test moved with it to internal/exabgp/bridge/bridge_script_version_test.go with every assertion, now calling Detect, Reset, Current and Format on the shared type. |
+| version_test | The assertion count fell only by TestScriptVersionResetsOnStart, moved above; TestScriptHeldToDetectedVersion and TestFleetRefusesAnInvalidAPIVersionSetting stay here unchanged. |

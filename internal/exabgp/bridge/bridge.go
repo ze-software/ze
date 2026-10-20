@@ -363,6 +363,13 @@ type Bridge struct {
 	// construction; drives post-dispatch done/error emission on plugin stdin.
 	ack AckMode
 
+	// apiSetting is `exabgp.api.version`, read at each Start, and api the
+	// version the script is held to (ScriptVersion). The standalone runner has
+	// no process block, so the script reads JSON: the encoder the SDK runner
+	// gives its script too. Held to API 4 it reads 4.0.1 JSON, else 6.0 JSON.
+	apiSetting atomic.Uint32
+	api        *ScriptVersion
+
 	// Families to declare during startup (ZeBGP format: "ipv4/unicast")
 	Families []string
 
@@ -375,16 +382,24 @@ type Bridge struct {
 
 // NewBridge creates a new bridge for the given ExaBGP plugin command.
 func NewBridge(pluginCmd []string) *Bridge {
-	return &Bridge{
+	b := &Bridge{
 		pluginCmd: pluginCmd,
 		Families:  []string{defaultFamily},
 		ack:       NewAckMode(),
 	}
+	b.apiSetting.Store(uint32(APIVersionAuto))
+	b.api = NewScriptVersion(pluginCmd[0], slog.Default(), EncoderJSON, &b.apiSetting)
+	return b
 }
 
 // Start starts the plugin subprocess with the given context.
 func (b *Bridge) Start(ctx context.Context) error {
-	var err error
+	setting, err := APIVersionFromEnv()
+	if err != nil {
+		return fmt.Errorf("exabgp-bridge: %w", err)
+	}
+	b.apiSetting.Store(uint32(setting))
+	b.api.Reset()
 
 	//nolint:gosec // User-provided plugin command is intentional.
 	b.cmd = exec.CommandContext(ctx, b.pluginCmd[0], b.pluginCmd[1:]...)
@@ -620,8 +635,9 @@ func (b *Bridge) handleDeliverEvent(id uint64, payload string, pluginW io.Writer
 	zeOut.Fprintln(formatMuxOK(id))
 }
 
-// translateAndForward parses a ZeBGP JSON event string, translates it to ExaBGP
-// JSON format, and writes it to the plugin's stdin.
+// translateAndForward parses a ZeBGP JSON event string, renders it in the
+// format the script reads now (ScriptVersion.Format), and writes it to the
+// plugin's stdin.
 func (b *Bridge) translateAndForward(eventStr string, pluginW io.Writer) {
 	var zebgp map[string]any
 	if err := json.Unmarshal([]byte(eventStr), &zebgp); err != nil {
@@ -631,14 +647,18 @@ func (b *Bridge) translateAndForward(eventStr string, pluginW io.Writer) {
 		return
 	}
 
-	out, err := MarshalExabgpJSON(zebgpToExabgpJSON(zebgp))
-	if err != nil {
-		slog.Warn("zebgp->plugin: failed to marshal ExaBGP JSON",
-			"error", err)
+	read := ReadEvent(zebgp)
+	if read.Kind == "" {
+		// An envelope that carries no BGP message: neither ExaBGP format has
+		// anything to write for one.
+		slog.Debug("zebgp->plugin: event carries no BGP message", "event", truncate(eventStr, 100))
 		return
 	}
-
-	if _, err := fmt.Fprintln(pluginW, string(out)); err != nil { //nolint:errcheck // output
+	line := read.Line(b.api.Format(), slog.Default())
+	if len(line) == 0 {
+		return
+	}
+	if _, err := pluginW.Write(line); err != nil {
 		slog.Warn("zebgp->plugin: write to plugin failed", "error", err)
 	}
 }
@@ -710,9 +730,18 @@ func (b *Bridge) dispatchBatch(ctx context.Context, lines []string, pluginW io.W
 	const dispatchAckTimeout = 30 * time.Second
 
 	batch := make([]BatchLine, 0, len(lines))
+	answers := make([]BatchAnswer, len(lines))
 	for _, line := range lines {
 		if strings.TrimSpace(line) == "" {
 			batch = append(batch, BatchLine{Text: line})
+			continue
+		}
+		// The version is settled BEFORE the line is translated, and the line
+		// is then held to it, as ExaBGP's API.process calls
+		// detect_api_version and then dispatch_for.
+		if err := b.api.Detect(line).Admits(line); err != nil {
+			slog.Warn("plugin->zebgp: line refused", "error", err)
+			batch = append(batch, BatchLine{Text: line, Err: err})
 			continue
 		}
 		translation, err := Translator{Families: b.Families}.Line(line)
@@ -722,11 +751,14 @@ func (b *Bridge) dispatchBatch(ctx context.Context, lines []string, pluginW io.W
 			// unknown command with no mention of the bridge that sent it.
 			slog.Warn("plugin->zebgp: line refused", "error", err)
 		}
-		batch = append(batch, BatchLine{Text: line, Translation: translation, Err: err})
+		batched := BatchLine{Text: line, Translation: translation, Err: err}
+		if translation.Local == LocalAPIVersion {
+			batched.Reply, answers[len(batch)].Failed = b.api.Answer(translation.APIVersion)
+		}
+		batch = append(batch, batched)
 	}
 
 	netted := Net(batch)
-	answers := make([]BatchAnswer, len(batch))
 	for _, dispatch := range netted {
 		if answers[dispatch.Line].Failed {
 			// This line already met a refusal. Its remaining commands describe

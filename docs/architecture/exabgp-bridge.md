@@ -525,6 +525,15 @@ stops the bridge at start. A script's `api version` line answers `API version:
 the scripts started afterwards, ExaBGP's answers byte for byte. The fan-out still
 renders each event once per format in use, three at most.
 
+The version state is one type, `bridge.ScriptVersion`, and every runner holds
+one per script, so no runner answers a script differently from another. That
+includes the standalone runner, `ze exabgp plugin <command>` started with no hub
+token, which speaks MuxConn on its own stdin and stdout (`bridge.Bridge`). It
+reads `exabgp.api.version` from its environment at each start, detects and
+refuses as above, and answers `api version` itself. Like the external runner it
+has no process block, so its script reads JSON: 6.0 JSON while undecided or held
+to 6, 5.x JSON (envelope `4.0.1`) once held to 4.
+
 The two APIs read an OPEN and a NOTIFICATION differently, as ExaBGP main writes
 them (`response/json.py`, `Notification.v4_data`):
 
@@ -555,7 +564,8 @@ error and no log line.
 <!-- source: internal/exabgp/bridge/bridge_event_notification.go -- notificationData.v4Data, notificationData.readable -->
 <!-- source: internal/exabgp/bridge/bridge_event.go -- exabgpNLRIObject, labelValuesOnly, appendFlowStringNextHop -->
 <!-- source: internal/exabgp/bridge/bridge_event_text.go -- labeledText.appendAnnounced, labeledText.appendQualifier -->
-<!-- source: internal/plugins/exabgp/bridgerun/version.go -- script.detectAPIVersion, script.resetAPIVersion -->
+<!-- source: internal/exabgp/bridge/bridge_script_version.go -- ScriptVersion.Detect, ScriptVersion.Reset, Event.Line -->
+<!-- source: internal/exabgp/bridge/bridge.go -- Bridge.Start, Bridge.dispatchBatch, Bridge.translateAndForward -->
 <!-- source: internal/plugins/exabgp/bridgeplugin/config.go -- parseEncoder, parseFeeds -->
 
 <!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- Fleet.Start, Fleet.Broadcast -->
