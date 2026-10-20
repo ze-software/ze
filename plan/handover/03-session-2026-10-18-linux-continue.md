@@ -791,3 +791,22 @@ State at hand-off (agent budget exhausted; only this section is committed):
    reverse-path filtering with a default route elsewhere drops the neighbor's
    Hellos until its route is learned), the judge listing. `features/ospf.md`
    Interop list untouched (it needs a recorded run).
+
+### Gap #55 status, 2026-10-20 (later)
+
+- Item 3 closed: `ospf-p2p-unnumbered-frr` is green, red with unicast forced,
+  green again. Two causes: the lab (FRR lost its only routes and loose
+  rp_filter dropped Ze's Hellos; the checker now gives FRR a default route out
+  of eth0) and a Ze defect, fixed in 6e810d411b: on point-to-point Ze sent DD,
+  LSR, LSU and direct LSAck unicast to the neighbor's donor, where RFC 2328
+  Section 8.1 says the destination is always AllSPFRouters.
+- `zeloop` reporting down is by design (passive interfaces are Down and still
+  in the Router-LSA); the donor route is learned by FRR.
+- The comment fixes in `rfc2328_backend_linux_test.go` landed with the
+  scenario commit; the guide's reverse-path note landed with the checker fix.
+- Still owed: the guest test `TestOSPFUnnumberedSourcesFromDonorAddress` is red
+  on the VM's strict rp_filter, waiting for the owner to approve setting
+  rp_filter 2 on its test link (the test is RFC-tagged); then its positive
+  and negative discrimination records (`gomu-pos.json`, `gomu-neg.json` in
+  the session scratch), the `{gap}` removal in `rfc/short/rfc2328.md`, the
+  guide's "Not yet complete" line, and a judge for RFC2328-8.1-1.
