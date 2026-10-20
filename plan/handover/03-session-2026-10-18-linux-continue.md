@@ -958,3 +958,52 @@ State at hand-off (agent budget exhausted; only this section is committed):
   `internal/exabgp/migration`, `internal/plugins/exabgp/bridgerun`;
   `./le test unit all`; the `exabgp-test` stage (api suite under every pin,
   since the JSON spacing reaches every JSON script).
+
+### ExaBGP 6 spec, AC-4 ninth package (2026-10-20, Linux): continuation owed
+
+Three 6.0 api cases were handed over: api-peer-lifecycle, api-disable (AC-41), api-on-exit (AC-22..AC-24).
+
+- **api-peer-lifecycle: done, 8dfa2fcfd5.** `create neighbor ... api <p>` now attaches `exabgp-bridge`
+  (the script name was attached before, a process ze does not run). `bridge.PluginName` is the one
+  declaration. The `.ci` JSON line carried mock defaults (asn 65533, router-id 10.0.0.2); corrected to the
+  create line's values. PASS under the 6.0 pin. Still owed on this item: a script that HAS a feed list
+  (some config neighbor names it) does not gain the created peer in its scope (`Translator.Peers` and
+  `script.grants` are built once in `bridgerun.New`), so its unaddressed lines skip the created peer.
+  ExaBGP adds the peer to `api['processes']` with every grant false (`_build_neighbor`, `flatten_api({})`,
+  `reactor/api/command/peer.py` at 685f772e4): commands from the process reach it, no event goes to the
+  process. Fix: `Translation` carries the `api` names; on a dispatched create the fleet adds the peer with
+  empty events to each named script (lock translator and grants, both read on other goroutines);
+  `delete neighbor` removes it.
+- **api-disable (AC-41): STOPPED, owner question.** The AC needs ze to hold a peer administratively down
+  from config and to enable or disable it at runtime with a Cease message. ze has none of it: no peer leaf
+  for "start down" in `ze-bgp-conf.yang`, no peer start/stop command (only `request peer <s> teardown
+  <subcode>`, after which the peer reconnects), and the bridge does not translate `neighbor <ip>
+  enable|disable "<msg>"`. The migration alone cannot satisfy the AC. Question for Thomas: which ze
+  surface carries it (name and place of the config leaf, for example `peer <p> { shutdown true }` or an
+  admin-state leaf; and the commands, for example `request peer <s> disable [message]` and `enable`)? It
+  is a new ze config leaf and new commands, which the spec's Integration Checklist does not name.
+- **api-on-exit (AC-22..AC-24): not started; design gathered.** Prerequisite: per-script API version
+  detection (X-1, X-2), which does not exist yet (phase 2 not done). Pinned source
+  (`dispatch/version.py`): first word in {daemon, session, system, rib, peer} is 6; `neighbor` or a word
+  `translate_v4_to_v6` translates is 4 (`V4_SIMPLE_TRANSLATIONS` in `dispatch/v4.py`: shutdown reload
+  restart status enable-ack disable-ack silence-ack enable-sync disable-sync reset ping bye help version
+  crash queue-status; `api version`; `show adj-rib in|out`; read the rest of `translate_v4_to_v6` for
+  announce and withdraw); anything else undecided. `Processes._on_exit`: the leaf wins (by=on-exit); else
+  API 4 keeps, any other withdraws (by=API 6 or API undecided); log `process.exited process=<p>
+  routes=<keep|withdraw> by=<...>`. Runs on a child's death only (`_handle_problem`), never at daemon
+  shutdown (`script.supervise` already returns on ctx or stopped). Ownership (`withdraw_owner`,
+  `rib/outgoing.py`): the last announcer owns a route, any withdraw clears it; on exit each owned route is
+  withdrawn, or the configured route it replaced is re-announced. Plan: `bridge.Command` gains its
+  withdrawal text, set by each announce builder (`oneCommandPerNLRI` renders the same tokens with
+  `nlriDel`; flow in `bridge_flow.go` via `r.key(verb)`; the sr-policy announce/withdraw pair in
+  `bridge_command.go`); a fleet ledger keyed by (selector, RouteKey identity) records owner and withdrawal
+  after a successful dispatch; `supervise` applies the policy after `reap`, dispatching the withdrawals and
+  a per-selector flush before `start`. YANG leaf `on-exit` (enum keep, withdraw; no default) in
+  `ze-exabgp-bridge-conf.yang`, `Script.OnExit`, parse in `bridgeplugin/config.go`; the migration carries
+  it (`migrate.go` process leaves, `exabgp.yang` process list). Docs: `exabgp-bridge.md` (respawn
+  section), `docs/exabgp/exabgp-migration.md`. Tests: `api-on-exit.ci` (v6 script, withdraw), new
+  `api-on-exit-v4-keep.ci`, `TestMigrateOnExitAndAPIVersion`. Open design point: re-announcing a replaced
+  configured route needs the engine, since the bridge cannot see config routes.
+- Gates owed for 8dfa2fcfd5: `./le go lint run` on `internal/exabgp/bridge`, `internal/plugins/exabgp/...`,
+  `internal/exabgp/migration`; the `exabgp-test` stage (api under both pins and old-4.2/old-5.0, since
+  `api-peer-lifecycle.ci` changed).
