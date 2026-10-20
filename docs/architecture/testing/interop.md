@@ -1417,6 +1417,20 @@ its own `src`/`dst` header and takes the set of directions its caller can claim,
 and it also refuses a ping whose `% packet loss` summary is missing or non-zero.
 <!-- source: internal/le/interoplab/ipsec/helpers.go -- directed ESP counters and the lossless-ping clause -->
 
+### IPsec injected datagrams
+
+`out-of-sa-request-notified-over-sa` proves RFC 7296 Section 2.21.4 against
+strongSwan. Once the PSK tunnel is up, strongSwan sends Ze, from its own
+address and port 500, a header-only IKE datagram whose SPI pair names no IKE SA.
+`nping --send-ip --udp --data` builds it, as `craftedProbe` builds its probes.
+charon logs a `parsed INFORMATIONAL request` line only for a message it
+decrypted under an IKE SA, so a line carrying `N(INVAL_IKE_SPI)` shows that Ze's
+notice arrived protected over the existing SA. A copy marked as a response goes
+first and must draw no such line within five seconds, and the SA and its tunnel
+must survive both.
+
+<!-- source: internal/le/interoplab/ipsec/suspicious.go -- checkOutOfSARequestNotifiedOverSA, injectOutOfSA, countProtectedInvalidIKESPI -->
+
 ### IPsec address movement
 
 `mobike-initiator` moves Ze; `mobike-responder` moves strongSwan. Each native

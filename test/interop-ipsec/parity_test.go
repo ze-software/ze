@@ -42,6 +42,7 @@ var ipsecScenarios = []string{
 	"mtu-tunnel-sizing-strongswan",
 	"natt-transport-inner-checksum",
 	"natt-tunnel-inner-checksum",
+	"out-of-sa-request-notified-over-sa",
 	"peer-reload-narrowing",
 	"psk-site-to-site",
 	"real-nat-port-translated-eap-ze-responder",

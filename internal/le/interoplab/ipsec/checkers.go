@@ -63,6 +63,7 @@ var scenarioCheckers = map[string]scenarioCheck{
 	"mtu-tunnel-sizing-strongswan":                    {run: checkMTUTunnelSizingStrongSwan},
 	"natt-transport-inner-checksum":                   {run: checkNATTTransportInnerChecksum},
 	"natt-tunnel-inner-checksum":                      {run: checkNATTTunnelInnerChecksum},
+	"out-of-sa-request-notified-over-sa":              {run: checkOutOfSARequestNotifiedOverSA},
 	"peer-reload-narrowing":                           {run: checkPeerReloadNarrowing},
 	"psk-site-to-site":                                {run: checkPSKSiteToSite},
 	"real-nat-port-translated-eap-ze-responder":       {run: checkRealNATPortTranslatedEAPZeResponder},
