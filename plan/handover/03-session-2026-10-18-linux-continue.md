@@ -1574,3 +1574,54 @@ Agent stopped at its 100-call budget. Nothing committed but this entry. Baseline
 - Left: AC-29's EOR half (with the adj-rib-out/EOR package); scoped lint on internal/exabgp/bridge and
   internal/plugins/exabgp ("inputs changed during planning" twice); the api population rerun (blocked by a
   foreign build break in rs/server_handlers.go); `./le test unit all`; `./le test functional exabgp-test`.
+
+### ExaBGP 6 adj-rib-out and EOR, continuation (2026-10-20, Mac)
+
+Agent stopped near its 100-call budget. **api-eor is DONE and committed: `b0b734ec2e`.** The
+regression the previous entry warned about is gone (rs/rr replay EORs carry the `replay-eor` meta).
+
+- What landed: `AnnounceEOR` sends each time (RFC 4760 Section 8 skip, `eorNoPeerError`);
+  `AnnounceReplayEOR` keeps the claim gate; `update_text.go` picks it on `bgptypes.ReplayEORMeta`
+  (`replayEORFromMeta`); rs (`updateRouteWithMeta`, the unused `updateRoute` deleted) and rr
+  (`updateRouteWithMeta`) send their replay EOR with the meta; bridge `convertEOR` reads a bare
+  `announce eor` as IPv4 unicast only and refuses a token count other than 0 or 2. Docs:
+  update-syntax.md ("Who gets the marker"), commands.md (translation row), exabgp-bridge.md.
+  exabgp-differences.md needed nothing: the bridge now matches ExaBGP.
+- Evidence: red by `-overlay` over HEAD for the reactor, update, rs, rr tests; bridge test red on
+  the unfixed tree; replay-gate test red with the gate disabled by overlay. Green after.
+  `api-eor` PASS on ze under api, old-4.2, old-5.0, and PASS on the pin.
+- Foreign reds seen in `go test -tags ze_bgp ./internal/component/bgp/reactor/`:
+  TestQueuedSelfResolvesReplacementConnection, TestBatchSelfDoesNotCrossReplacementSession,
+  TestStaticSelfStaysOnCapturedSession, TestWireFormat_UnicastIPv4. They fail identically with
+  this change overlaid back to HEAD (the VPN legacy-next-hop work in reactor_api_batch.go,
+  wire_compat_test.go is uncommitted in the tree). Not this package's.
+- Owed cleanup (small): `bridge.Translator.Families` and `bridgerun.New`'s `families` parameter
+  have no reader now. Remove the field, its writers (`bridge.go` ScriptLines literal, `fleet.go`),
+  the parameter and its 3 callers (`bridgeplugin/internal.go` x2, `exabgp/main_sdk.go`), and the
+  test literals (`bridge_batch_test.go` L52/L429, `bridge_eor_test.go`). Comments already say so.
+- Gates owed for b0b734ec2e: `./le verify worktree` (two debt rows in
+  `plan/verification-debt/0c501db4.md`). Scoped lint showed no finding on lines this commit
+  touched once `rs.updateRoute` was removed; pre-existing goconst/nilerr/godot findings in the
+  bridge and update_text.go remain.
+
+**api-rib / api-rr-rib (item 1): NOT STARTED.** The main thread's design decisions (2026-10-20)
+stand and are the brief for the next agent:
+- Command `clear bgp rib advertised <selector> [family <f>]`, sibling of `clear bgp rib out`,
+  selector mandatory, every-peer spelled `all` (cli rule point
+  `acting-on-everything-needs-an-explicit-all`: "an explicit selector word, `all`, or the typed
+  wildcard the family already uses"); bare prefix refused naming the forms; `RequiresSelector`
+  plus a mandatory YANG leaf. Handler registered with the reactor peer commands, no central switch.
+- Engine side: snapshot `adjOut.routes`, rebuild wire NLRI (`exactNLRI`, else
+  `key.path.nlri[:length]`/`overflow`, path id when `key.addPath`), withdraw through the local API
+  withdraw path (`withdrawBatchFromPeers`), so bgp-rib drops ribOut entries via sent events; empty
+  `staticWire.routes`.
+- Fix the labeled-route gap: a forwarded labeled route stores no `exactNLRI`, so the key lacks the
+  label; the withdrawal must carry the RFC 8277 Section 2.4 / RFC 3107 withdrawal label (quote
+  from rfc/full).
+- Flush (`flush adj-rib out`) sends BoRR/EoRR when enhanced route refresh is negotiated (RFC 7313,
+  quote it) and resends config routes too.
+- Bridge: drop earlier same-batch route commands for the clear's selector before dispatch; map
+  `clear adj-rib out` to the new withdraw and `flush adj-rib out` to the resend, both runners;
+  no matching peer answers `error`.
+- Cases api-rib and api-rr-rib green on ze and the pin; docs update-syntax.md, commands.md,
+  exabgp-bridge.md, exabgp-differences.md in the same commit.
