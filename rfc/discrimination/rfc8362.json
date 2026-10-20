@@ -22,6 +22,94 @@
       "producer": "internal/plugins/ospf/origination_v6.go::v6OriginHeader",
       "producer-sha": "367294e33f1af68d",
       "break": "body of v6OriginHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8362-3.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8362_tlv_applicability_test.go::TestRFC8362RouterLinkTLVIgnoredOutsideERouter",
+      "unit-sha": "18f2faa96daf379a",
+      "claim-sha": "dca6fc127f0b8b20",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/bgpls_export.go::extendedV3",
+      "producer-sha": "b58e088b5ecf1a8d",
+      "break": "line 1210: \"\u0026\u0026\" -\u003e \"||\""
+    },
+    {
+      "rid": "RFC8362-3.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8362_tlv_applicability_test.go::TestRFC8362RouterLinkTLVReadFromERouter",
+      "unit-sha": "049732929bccdd1b",
+      "claim-sha": "e3871c5b0b291f49",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/bgpls_export.go::extendedV3",
+      "producer-sha": "b58e088b5ecf1a8d",
+      "break": "line 1211: \"\u003c\" -\u003e \"\u003e=\""
+    },
+    {
+      "rid": "RFC8362-3.3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8362_tlv_applicability_test.go::TestRFC8362AttachedRoutersTLVIgnoredOutsideENetwork",
+      "unit-sha": "e646b0f4af7e7270",
+      "claim-sha": "71aa238a0b46b1b9",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/bgpls_export.go::extendedV3",
+      "producer-sha": "b58e088b5ecf1a8d",
+      "break": "line 1239: \"\u0026\u0026\" -\u003e \"||\""
+    },
+    {
+      "rid": "RFC8362-3.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8362_tlv_applicability_test.go::TestRFC8362AttachedRoutersTLVReadFromENetwork",
+      "unit-sha": "8264d02ddc4c7dab",
+      "claim-sha": "16b184a6aea0c110",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/bgpls_export.go::extendedV3",
+      "producer-sha": "b58e088b5ecf1a8d",
+      "break": "line 1240: \"len(tlv.Value)%4 != 0\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC8362-6.3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8362_unknown_tlv_test.go::TestRFC8362UnknownTLVIgnoredByBGPLS",
+      "unit-sha": "f1e4f332efa0fbce",
+      "claim-sha": "de49e38820b4bd47",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/bgpls_export.go::extendedV3",
+      "producer-sha": "b58e088b5ecf1a8d",
+      "break": "line 1250: \"\u0026\u0026\" -\u003e \"||\""
+    },
+    {
+      "rid": "RFC8362-6.3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8362_unknown_tlv_test.go::TestRFC8362UnknownTLVIgnoredByPrefixSIDs",
+      "unit-sha": "3a014faebcb7b3db",
+      "claim-sha": "c78c81b6645155b4",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_reception_v6.go::v6PrefixSIDsFromTLV",
+      "producer-sha": "98dc798ec8f64598",
+      "break": "body of v6PrefixSIDsFromTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8362-6.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8362_unknown_tlv_test.go::TestRFC8362UnknownTLVKeepsLSAForBGPLS",
+      "unit-sha": "e7e1c4eccbc49135",
+      "claim-sha": "57e7c69a6a19dab9",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/bgpls_export.go::extendedV3",
+      "producer-sha": "b58e088b5ecf1a8d",
+      "break": "line 1184: \"srV3ExtendedLengthInvalid(ext.TLVs)\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC8362-6.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8362_unknown_tlv_test.go::TestRFC8362UnknownTLVKeepsLSAForPrefixSIDs",
+      "unit-sha": "d556895d196179d8",
+      "claim-sha": "01fc06ae2e8ac42e",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/sr_reception_v6.go::v6ReceivedPrefixSIDs",
+      "producer-sha": "4eaab98114965d38",
+      "break": "line 76: \"srV3ExtendedLengthInvalid(ext.TLVs)\" -\u003e \"true\""
     }
   ]
 }
