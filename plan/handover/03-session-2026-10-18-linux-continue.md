@@ -932,3 +932,29 @@ State at hand-off (agent budget exhausted; only this section is committed):
   (interface-set).
 - Still held uncommitted: the stage change (`internal/le/test/functional/
   exabgp.go`, `exabgp_test.go`) and the old-5.0 `unknown-message.ci` allowance.
+
+### ExaBGP 6 spec, Phase 1 AC-4 seventh package, second agent (2026-10-20)
+
+- Committed 40faec5c95: `mapIPv6RouteIPv4NextHop` also maps a bare IPv6 host
+  route (no `/len`, as upstream writes it); `extended-nexthop.conf` synced to
+  the pin; 6.0 encoding extended-nexthop PASS.
+- Committed 2c46dd325c: allowances, each observed SKIP at -t 180s: old-5.0
+  extended-nexthop, conf-ipself4, conf-ipself6; old-4.2 conf-ipself6.
+- Committed 7fc1f19f28: bridge JSON in ExaBGP's spacing (`MarshalExabgpJSON`,
+  fleet and single-event path). Committed e3876abb19: bridge translates
+  `announce route-refresh <afi> <safi>`. api-rr PASS under 6.0 and old-5.0.
+- Next, needs a design call: api-rr-rib (6.0, 5.0) and api-rib. ExaBGP
+  `clear adj-rib out` withdraws every Adj-RIB-Out route (upstream
+  `neighbor_rib_out_withdraw`); the bridge sends ze's `clear bgp rib out`, a
+  replay. ExaBGP `flush adj-rib out` is that replay (`neighbor_rib_resend`,
+  with BoRR/EoRR under RFC 7313); the bridge sends `request peer flush`.
+  ze has no withdraw-all-Adj-RIB-Out command. Options: a ze RIB command, or
+  bridge-side tracking (which misses config routes). Journal row updated in
+  `plan/journal/delegation-hands-the-callee-a-different-argv.md`.
+- Not reached: 4.2 api-eor, 4.2 api-nexthop-self, 5.0 api-multiple-api; full
+  old-4.2/old-5.0 runs. Stage change and old-5.0 `unknown-message.ci` still
+  held uncommitted (not all non-owner reds are gone).
+- Gates owed: `./le go lint run` on `internal/exabgp/bridge`,
+  `internal/exabgp/migration`, `internal/plugins/exabgp/bridgerun`;
+  `./le test unit all`; the `exabgp-test` stage (api suite under every pin,
+  since the JSON spacing reaches every JSON script).
