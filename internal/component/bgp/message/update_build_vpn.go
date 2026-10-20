@@ -99,13 +99,10 @@ func (ub *UpdateBuilder) BuildVPN(p *VPNParams) *Update {
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	attrs = ub.appendASPath(attrs, p.ASPath)
 
-	// 3. NEXT_HOP - RFC 4271 Section 5.1.3
-	// For ExaBGP compatibility, include NEXT_HOP even for MP_REACH_NLRI routes.
-	// RFC 4760 says NEXT_HOP is optional when using MP_REACH_NLRI, but ExaBGP
-	// includes it for VPN routes with IPv4 next-hop.
-	if p.NextHop.Is4() {
-		attrs = append(attrs, &attribute.NextHop{Addr: p.NextHop})
-	}
+	// No NEXT_HOP: the next hop rides in MP_REACH_NLRI alone.
+	// RFC 4760 Section 3: "An UPDATE message that carries no NLRI, other than the
+	// one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP
+	// attribute." The API rail agrees through family.Family.LegacyNextHop.
 
 	// 4. MED
 	attrs = appendMED(attrs, p.MED, p.HasMED)

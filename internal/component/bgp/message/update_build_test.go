@@ -589,6 +589,13 @@ func TestUpdateBuilder_BuildVPN_IPv4(t *testing.T) {
 	if !hasMPReach {
 		t.Error("VPN route should have MP_REACH_NLRI")
 	}
+
+	// RFC 4760 Section 3: "An UPDATE message that carries no NLRI, other than the
+	// one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP
+	// attribute." The IPv4 next hop rides in MP_REACH_NLRI alone.
+	if slices.Contains(codes, attribute.AttrNextHop) {
+		t.Errorf("VPN route carries NEXT_HOP beside MP_REACH_NLRI: order %v", codes)
+	}
 }
 
 // TestUpdateBuilder_BuildVPN_IPv6 verifies IPv6 VPN UPDATE building.

@@ -172,13 +172,18 @@ func FamilyLess(a, b Family) bool {
 // That is a compatibility deviation; the SHOULD NOT keyword alone does not
 // establish conformance.
 //
-// The set is the one Ze's config rail already sends, family by family: VPN
-// (message.(*UpdateBuilder).BuildVPN), MCAST-VPN (nlri/mvpn), MUP (nlri/mup),
-// labeled unicast (message.(*UpdateBuilder).BuildLabeledUnicast) and unicast
+// The set is the one Ze's config rail sends, family by family: MCAST-VPN
+// (nlri/mvpn), MUP (nlri/mup), labeled unicast
+// (message.(*UpdateBuilder).BuildLabeledUnicast) and unicast
 // (message.(*UpdateBuilder).BuildUnicast). FlowSpec, VPLS, EVPN, SR Policy, RTC
 // and BGP-LS send none, because none of them names a forwarding hop an IPv4
 // NEXT_HOP could restate. A family with no answer of its own takes the RFC's
 // SHOULD NOT.
+//
+// MPLS-VPN (SAFI 128) takes the SHOULD NOT on both rails since 2026-10-20, by
+// owner decision: ExaBGP 6.0 sends MP_REACH_NLRI alone for it, so the ported
+// fixtures no longer argue for the deviation, and
+// message.(*UpdateBuilder).BuildVPN writes no NEXT_HOP either.
 //
 // MULTICAST takes the SHOULD NOT, and it is the one family whose answer is easy
 // to get wrong, because it shares UnicastParams with unicast. BuildUnicast
@@ -191,7 +196,7 @@ func FamilyLess(a, b Family) bool {
 func (f Family) LegacyNextHop() bool {
 	//exhaustive:ignore // Only these families opt into a legacy IPv4 NEXT_HOP attribute.
 	switch f.SAFI {
-	case SAFIUnicast, SAFIMPLSLabel, SAFIMVPN, SAFIMUP, SAFIVPN:
+	case SAFIUnicast, SAFIMPLSLabel, SAFIMVPN, SAFIMUP:
 		return true
 	default:
 		return false

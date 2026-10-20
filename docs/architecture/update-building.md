@@ -997,14 +997,17 @@ Until 2026-09-06 every withdrawal took the bare shape, so `send bgp <selector> u
 
 ### The Legacy NEXT_HOP Beside MP_REACH_NLRI
 
-RFC 4760 Section 3: "An UPDATE message that carries no NLRI, other than the one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP attribute." Ze intentionally retains the extra attribute for the compatibility families declared by `family.Family.LegacyNextHop`, matching its ported ExaBGP contract fixtures. This records a compatibility deviation, not conformance credit merely because the requirement says SHOULD NOT. The same section says receiving speakers SHOULD ignore the extra attribute.
+RFC 4760 Section 3: "An UPDATE message that carries no NLRI, other than the one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP attribute." Ze intentionally retains the extra attribute for the compatibility families declared by `family.Family.LegacyNextHop` (labeled unicast, MCAST-VPN, MUP), matching its ported ExaBGP contract fixtures. This records a compatibility deviation, not conformance credit merely because the requirement says SHOULD NOT. The same section says receiving speakers SHOULD ignore the extra attribute.
+
+MPLS-VPN (SAFI 128) follows the SHOULD NOT on both rails since 2026-10-20, by owner decision: `message.(*UpdateBuilder).BuildVPN` writes no NEXT_HOP and `LegacyNextHop` answers false, so a configured route, an announced route and an announced withdrawal all carry the next hop in the MP attribute alone. ExaBGP 6.0 at the pin sends the same bytes (`api-vpnv4`, `api-mpls-vpn`, `conf-vpn`); its 4.2 and 5.0 branches sent the attribute, so their `old-*` copies of those cases carry an allowance.
 
 Multicast is the family whose answer reads as an exception and is not one. It shares `UnicastParams` with unicast, and `BuildUnicast` writes the attribute only under `isUnicast := p.SAFI == 0 || p.SAFI == attribute.SAFIUnicast`, so the config rail sends MP_REACH_NLRI alone for `ipv4/multicast`. No ported ExaBGP contract fixture pins the other answer, so the RFC's SHOULD NOT stands.
 
 The address must also be an IPv4 address that RFC 4271 Section 6.3 calls syntactically correct, so an IPv6 next hop and `0.0.0.0` each contribute nothing (`legacyNextHopApplies`).
 
-The config rail already sent it -- `message.(*UpdateBuilder).BuildVPN`, and the `nlri/mvpn` and `nlri/mup` config parsers -- while the API rail sent MP_REACH_NLRI alone, so one route reached the wire as two different byte strings depending on whether an operator configured it or announced it.
+The config rail already sent it -- the `nlri/mvpn` and `nlri/mup` config parsers -- while the API rail sent MP_REACH_NLRI alone, so one route reached the wire as two different byte strings depending on whether an operator configured it or announced it.
 <!-- source: internal/core/family/family.go -- Family.LegacyNextHop -->
+<!-- source: internal/component/bgp/message/update_build_vpn.go -- BuildVPN -->
 <!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- legacyNextHopApplies -->
 
 ### Group-Aware Forward Path (ForwardUpdate)

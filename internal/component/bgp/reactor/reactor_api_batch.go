@@ -1464,9 +1464,9 @@ func (a *reactorAPIAdapter) planBatchAttrs(plan *announceAttrs, batch bgptypes.N
 	case legacyNextHopApplies(batch.Family, facts.nextHop):
 		// The multiprotocol families that ALSO restate an IPv4 next hop as the
 		// RFC 4271 Section 5.1.3 attribute (family.Family.LegacyNextHop). Ze's config
-		// rail already sends it -- message.(*UpdateBuilder).BuildVPN, nlri/mvpn and
-		// nlri/mup each add code 3 for an IPv4 next hop, and 42 `conf-*` fixtures pin
-		// it -- while this rail sent MP_REACH_NLRI alone, so the same route reached
+		// rail already sends it -- nlri/mvpn and nlri/mup each add code 3 for an IPv4
+		// next hop, and ported `conf-*` fixtures pin it -- while this rail sent
+		// MP_REACH_NLRI alone, so the same route reached
 		// the wire as two different byte strings depending on whether an operator
 		// configured it or announced it. This is an intentional compatibility
 		// deviation from RFC 4760 Section 3's SHOULD NOT; agreement between

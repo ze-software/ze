@@ -64,7 +64,6 @@ func TestWireFormat_UnicastIPv4(t *testing.T) {
 	expectedAttrs, _ := hex.DecodeString(
 		"40010100" + // ORIGIN: IGP
 			"400200" + // AS_PATH: empty
-			"400304c0a80101" + // NEXT_HOP: 192.168.1.1
 			"800404" + "00000064" + // MED: 100
 			"400504" + "000000c8" + // LOCAL_PREF: 200
 			"c00808" + "ffff0001ffff0002") // COMMUNITIES: sorted
@@ -151,8 +150,9 @@ func TestWireFormat_UnicastIPv6(t *testing.T) {
 
 // TestWireCompat_VPNIPv4 verifies VPN-IPv4 wire format.
 //
-// Order: ORIGIN(1), AS_PATH(2), NEXT_HOP(3), LOCAL_PREF(5), EXT_COM(16), MP_REACH(14 last).
-// MP_REACH_NLRI placed last per docs/architecture/wire/mp-nlri-ordering.md.
+// Order: MP_REACH(14, first per RFC 7606 Section 5.1), ORIGIN(1), AS_PATH(2),
+// LOCAL_PREF(5), EXT_COM(16). No NEXT_HOP: RFC 4760 Section 3 says such an
+// UPDATE "SHOULD NOT carry the NEXT_HOP attribute".
 func TestWireCompat_VPNIPv4(t *testing.T) {
 
 	// Build VPN route UPDATE
@@ -175,7 +175,7 @@ func TestWireCompat_VPNIPv4(t *testing.T) {
 	// builder disagree byte-for-byte with reactor/peer_rib_routes.go and
 	// reactor/reactor_api_batch.go for the same route.
 	// MP_REACH (14, first per RFC 7606 Section 5.1) + ORIGIN (1) + AS_PATH (2) +
-	// NEXT_HOP (3) + LOCAL_PREF (5) + EXT_COM (16)
+	// LOCAL_PREF (5) + EXT_COM (16). The IPv4 next hop rides in MP_REACH alone.
 	expected, _ := hex.DecodeString(
 		"800e20" + // MP_REACH_NLRI header (len=32)
 			"0001800c" + // AFI=1, SAFI=128, NH_LEN=12
@@ -186,7 +186,6 @@ func TestWireCompat_VPNIPv4(t *testing.T) {
 			"00010000006400640a0000" + // RD + prefix (10.0.0.0/24)
 			"40010100" + // ORIGIN: IGP
 			"400200" + // AS_PATH: empty
-			"400304c0a80101" + // NEXT_HOP: 192.168.1.1
 			"40050400000096" + // LOCAL_PREF: 150
 			"c010080002fde900000064") // EXT_COMMUNITIES: RT 65001:100
 

@@ -65,14 +65,15 @@ func TestWithdrawCarriesTheAttributesTheCallerNamed(t *testing.T) {
 
 	// The order announceAttrs.emit owns: MP_UNREACH_NLRI over AFI 1 SAFI 128 first
 	// (RFC 7606 Section 5.1), then ascending type code (RFC 4271 Section 5):
-	// ORIGIN, an AS_PATH empty toward an internal peer, NEXT_HOP 10.10.6.3,
-	// LOCAL_PREF 100, and the caller's own extended community last.
+	// ORIGIN, an AS_PATH empty toward an internal peer, LOCAL_PREF 100, and the
+	// caller's own extended community last. No NEXT_HOP: RFC 4760 Section 3 says
+	// an UPDATE whose only NLRI is in the MP attribute "SHOULD NOT carry the
+	// NEXT_HOP attribute", and mpls-vpn follows it (family.Family.LegacyNextHop).
 	want := []byte{0x80, 0x0F, byte(3 + len(vpnWithdrawNLRI)), 0x00, 0x01, 0x80}
 	want = append(want, vpnWithdrawNLRI...)
 	want = append(want,
 		0x40, 0x01, 0x01, 0x00,
 		0x40, 0x02, 0x00,
-		0x40, 0x03, 0x04, 0x0A, 0x0A, 0x06, 0x03,
 		0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64)
 	want = append(want, targetTenTenExtCommunity...)
 
@@ -155,9 +156,9 @@ func TestWithdrawSkipsAnUnspecifiedNextHop(t *testing.T) {
 // rail for the two answers family.Family.LegacyNextHop gives.
 //
 // VALIDATES: the API rail and the config rail put the same attributes on the wire
-// for one route. message.(*UpdateBuilder).BuildVPN adds NEXT_HOP beside
-// MP_REACH_NLRI for an IPv4 next hop and 42 `conf-*` fixtures pin it; this rail
-// sent MP_REACH_NLRI alone until 2026-09-06.
+// for one route. The MCAST-VPN config parser (nlri/mvpn) adds NEXT_HOP beside
+// MP_REACH_NLRI for an IPv4 next hop and this rail matches it; mpls-vpn takes
+// RFC 4760 Section 3's SHOULD NOT on both rails, as ExaBGP 6.0 does.
 // PREVENTS: the same route reaching the wire as two different byte strings
 // depending on whether an operator configured it or announced it.
 func TestAnnounceRestatesAnIPv4NextHopWhereTheFamilyCarriesOne(t *testing.T) {
@@ -166,7 +167,7 @@ func TestAnnounceRestatesAnIPv4NextHopWhereTheFamilyCarriesOne(t *testing.T) {
 		fam  family.Family
 		want bool
 	}{
-		{"mpls-vpn carries it", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}, true},
+		{"mpls-vpn does not", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}, false},
 		{"mcast-vpn carries it", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMVPN}, true},
 		{"flowspec does not", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}, false},
 		{"vpls does not", family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIVPLS}, false},
