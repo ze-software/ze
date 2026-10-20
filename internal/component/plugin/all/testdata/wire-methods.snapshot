@@ -41,6 +41,7 @@ ze-bgp:plugin-session-peer-ready
 ze-bgp:pool-stats
 ze-bgp:rib-best
 ze-bgp:rib-best-status
+ze-bgp:rib-clear-advertised
 ze-bgp:rib-clear-in
 ze-bgp:rib-clear-out
 ze-bgp:rib-fastpath
