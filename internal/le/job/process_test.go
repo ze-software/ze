@@ -164,7 +164,7 @@ func TestGoTestEnvironmentDropsOnlyLauncherIdentity(t *testing.T) {
 			t.Run("Admission.stream", func(t *testing.T) {
 				var output bytes.Buffer
 				admission := Admission{Root: root, Out: &output}
-				if code := admission.stream(argv, root, childEnv, nil); code != 0 {
+				if code := admission.stream(t.Context(), argv, root, childEnv, nil); code != 0 {
 					t.Fatalf("Admission.stream probe = %d:\n%s", code, output.String())
 				}
 				if !strings.Contains(output.String(), "checkout-probe-ok") {
@@ -308,7 +308,7 @@ func TestGoTestUsesPersistentRaceConfiguration(t *testing.T) {
 			t.Run("Admission.stream", func(t *testing.T) {
 				var output bytes.Buffer
 				admission := Admission{Root: root, Out: &output}
-				if code := admission.stream(argv, root, environ, nil); code != 0 {
+				if code := admission.stream(t.Context(), argv, root, environ, nil); code != 0 {
 					t.Fatalf("real Go stream probe = %d:\n%s", code, output.String())
 				}
 				if !strings.Contains(output.String(), "goenv-compiler-probe-ok") {
@@ -352,7 +352,7 @@ func TestGoTestConfigurationFailureStopsExecution(t *testing.T) {
 	}
 	var output bytes.Buffer
 	admission := Admission{Root: root, Out: &output, Err: &output}
-	if code := admission.stream(argv, root, environ, nil); code != 127 {
+	if code := admission.stream(t.Context(), argv, root, environ, nil); code != 127 {
 		t.Fatalf("Admission.stream = %d, want 127", code)
 	}
 	if !strings.Contains(output.String(), "resolve Go test GOFLAGS") {

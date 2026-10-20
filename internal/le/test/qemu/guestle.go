@@ -6,6 +6,7 @@
 package testqemu
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -34,7 +35,10 @@ func GuestLeRel(goarch string) string {
 // buildGuestLe cross-builds a linux le for goarch into the checkout, through
 // job admission, at GuestLeRel(goarch). The guest runs it as `le test ...`, so
 // every harness command it runs is the harness of this checkout.
-func buildGuestLe(root, goarch string) error {
+//
+// ctx is the calling verb's signal root, or Background for a verb that holds
+// none: a done ctx ends the wait for a slot and the build (RunContext).
+func buildGuestLe(ctx context.Context, root, goarch string) error {
 	toolchain, err := gotoolchain.New(root)
 	if err != nil {
 		return err
@@ -52,7 +56,7 @@ func buildGuestLe(root, goarch string) error {
 	output := filepath.Join(root, GuestLeRel(goarch))
 	environment := append(toolchain.Environment(gotoolchain.EnvOptions{GOOS: guestOS, GOARCH: goarch}),
 		linuxle.Overrides(goarch)...)
-	if _, code := admission.Run("qemu-build-le", linuxle.Argv(tags, output), root, environment); code != 0 {
+	if _, code := admission.RunContext(ctx, "qemu-build-le", linuxle.Argv(tags, output), root, environment); code != 0 {
 		return fmt.Errorf("build the guest le for linux/%s exited %d", goarch, code)
 	}
 	return nil

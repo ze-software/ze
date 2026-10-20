@@ -11,6 +11,7 @@
 package testqemu
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -203,7 +204,7 @@ func runStressGuest(root string, request stressRequest) (any, int) {
 		return nil, 1
 	}
 	options.HardwareOnly = true
-	if err := buildGuestLe(root, goarch); err != nil {
+	if err := buildGuestLe(context.Background(), root, goarch); err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}

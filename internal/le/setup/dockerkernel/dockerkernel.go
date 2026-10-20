@@ -152,24 +152,29 @@ func dockerKernelCheck(ctx context.Context, docker *interoplab.Docker, named str
 // dockerKernelCheckZe asks the daemon its architecture, then answers the ze to
 // mount. The build runs outside the check's own bound, because a cold
 // cross-compile can outlast it.
+//
+// The build takes the verb's root ctx itself, not the probe's bounded one.
 func dockerKernelCheckZe(ctx context.Context, docker *interoplab.Docker, named string) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, dockerKernelCheckTimeout)
+	probe, cancel := context.WithTimeout(ctx, dockerKernelCheckTimeout)
 	defer cancel()
 
-	goarch, err := docker.ServerArchitecture(ctx)
+	goarch, err := docker.ServerArchitecture(probe)
 	if err != nil {
 		return "", err
 	}
-	return dockerKernelProbeZe(named, goarch, buildLinuxZe)
+	return dockerKernelProbeZe(named, goarch, func(goarch string) (string, error) {
+		return buildLinuxZe(ctx, goarch)
+	})
 }
 
-// buildLinuxZe is the producer docker-lab uses, bound to this checkout.
-func buildLinuxZe(goarch string) (string, error) {
+// buildLinuxZe is the producer docker-lab uses, bound to this checkout, under
+// the verb's root ctx.
+func buildLinuxZe(ctx context.Context, goarch string) (string, error) {
 	root, err := lepath.Root()
 	if err != nil {
 		return "", err
 	}
-	return testqemu.BuildLinuxZe(root, goarch)
+	return testqemu.BuildLinuxZe(ctx, root, goarch)
 }
 
 // dockerKernelProbeZe answers the ze the probe container mounts: named when the

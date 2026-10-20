@@ -292,7 +292,7 @@ func runQEMUHere(args leaction.Arguments) (any, int) {
 	}
 	// The guest runs every harness command as `le test <name>` from this
 	// build, so the harness it runs is the harness of this checkout.
-	if err := buildGuestLe(root, GuestArch()); err != nil {
+	if err := buildGuestLe(context.Background(), root, GuestArch()); err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}

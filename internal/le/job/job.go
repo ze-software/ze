@@ -515,6 +515,12 @@ func (t *Ticket) Release(code int) {
 // itself. A holder that names nothing leaves the nested job to claim a slot of
 // its own, which deadlocks when the parent holds the last one.
 func (a *Admission) Admit(label string, argv []string) (*Ticket, error) {
+	return a.admit(context.Background(), label, argv)
+}
+
+// admit is Admit under ctx: a done ctx ends the wait for a slot with ctx's
+// error, so a verb's signal root is not held up by a queue it cannot see.
+func (a *Admission) admit(ctx context.Context, label string, argv []string) (*Ticket, error) {
 	if !validLabel(label) {
 		return nil, ErrLabel
 	}
@@ -546,7 +552,7 @@ func (a *Admission) Admit(label string, argv []string) (*Ticket, error) {
 		key:       jobKey(argv),
 		mayAttach: a.MayAttach,
 	}
-	return a.queue(&job)
+	return a.queue(ctx, &job)
 }
 
 // queue is the admission loop. It queries the registry and then runs, shares,
@@ -555,12 +561,15 @@ func (a *Admission) Admit(label string, argv []string) (*Ticket, error) {
 // The loop intentionally has no iteration limit. A job waits while the
 // machine is busy, for as long as one hour. The registry controls this wait.
 // Each holder in the registry is alive and writing, or the registry reaps it.
-// See registry.go.
-func (a *Admission) queue(job *pending) (*Ticket, error) {
+// See registry.go. ctx is the one other end: a done ctx answers its error.
+func (a *Admission) queue(ctx context.Context, job *pending) (*Ticket, error) {
 	started := time.Now()
 	var lastBanner time.Time
 
 	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		result := a.claim(job)
 		if result.err != nil {
 			return nil, result.err
@@ -575,7 +584,7 @@ func (a *Admission) queue(job *pending) (*Ticket, error) {
 			}, nil
 
 		case stateAttach:
-			if code, observed := a.attach(job.label, result); observed {
+			if code, observed := a.attach(ctx, job.label, result); observed {
 				return &Ticket{
 					Label: job.label, Kind: KindAttached, Code: code, Tree: job.tree,
 					Key: job.key, Entry: result.entry, Log: result.log,
@@ -595,7 +604,7 @@ func (a *Admission) queue(job *pending) (*Ticket, error) {
 				a.reportBusy(job.label, result)
 				lastBanner = time.Now()
 			}
-			time.Sleep(a.Poll)
+			pause(ctx, a.Poll)
 		default:
 			panic("BUG: job registry returned an unknown admission state")
 		}
@@ -635,6 +644,14 @@ func (a *Admission) insideParent() (string, bool) {
 // because it is visible: the child's stdout is a pipe, so a tool that colors
 // only for a terminal stops coloring.
 func (a *Admission) Run(label string, argv []string, dir string, environ []string) (Report, int) {
+	return a.RunContext(context.Background(), label, argv, dir, environ)
+}
+
+// RunContext is Run under ctx, for a verb whose root SIGINT or SIGTERM
+// cancels. A done ctx ends the wait for a slot and the follow of a shared run,
+// refuses to start the child, and sends a running child SIGTERM, the signal
+// the forwarding already relays; the release then runs as for any exit.
+func (a *Admission) RunContext(ctx context.Context, label string, argv []string, dir string, environ []string) (Report, int) {
 	report := Report{Label: label, Command: argv, Admission: KindUnspecified.String()}
 
 	if dryRun() {
@@ -647,11 +664,11 @@ func (a *Admission) Run(label string, argv []string, dir string, environ []strin
 		// Without this branch, the job queues for a slot and writes no log. No
 		// scan sees progress, and `make -n` hangs until the stall window expires.
 		report.Admission = KindUnadmitted.String()
-		report.Code = a.stream(argv, a.runDir(dir), environ, nil)
+		report.Code = a.stream(ctx, argv, a.runDir(dir), environ, nil)
 		return report, report.Code
 	}
 
-	ticket, err := a.Admit(label, argv)
+	ticket, err := a.admit(ctx, label, argv)
 	if err != nil {
 		a.note(errorLine(err))
 		report.Code = 2
@@ -668,7 +685,7 @@ func (a *Admission) Run(label string, argv []string, dir string, environ []strin
 		report.Code = ticket.Code
 		return report, report.Code
 	case KindInside:
-		report.Code = a.stream(argv, a.runDir(dir), environ, nil)
+		report.Code = a.stream(ctx, argv, a.runDir(dir), environ, nil)
 		return report, report.Code
 	case KindUnspecified, KindUnadmitted, KindClaimed:
 		// RunClaimed runs a claimed slot and refuses either nonclaimed sentinel.
@@ -676,7 +693,7 @@ func (a *Admission) Run(label string, argv []string, dir string, environ []strin
 		panic("BUG: job admission returned an unknown ticket kind")
 	}
 
-	report.Code = a.RunClaimed(ticket, argv, dir, environ)
+	report.Code = a.runClaimed(ctx, ticket, argv, dir, environ)
 	return report, report.Code
 }
 
@@ -691,6 +708,11 @@ func (a *Admission) Run(label string, argv []string, dir string, environ []strin
 // The ticket MUST be KindClaimed and MUST NOT be released by the caller: this
 // function releases it.
 func (a *Admission) RunClaimed(ticket *Ticket, argv []string, dir string, environ []string) int {
+	return a.runClaimed(context.Background(), ticket, argv, dir, environ)
+}
+
+// runClaimed is RunClaimed with the child under ctx (stream).
+func (a *Admission) runClaimed(ctx context.Context, ticket *Ticket, argv []string, dir string, environ []string) int {
 	if ticket == nil || ticket.Kind != KindClaimed {
 		a.note("error: a job ran in a slot it did not claim")
 		return gaterun.CannotStart
@@ -704,7 +726,7 @@ func (a *Admission) RunClaimed(ticket *Ticket, argv []string, dir string, enviro
 	}
 
 	a.reportPrevious(ticket.Label)
-	code := a.stream(argv, a.runDir(dir), a.childEnviron(environ, ticket), logFile)
+	code := a.stream(ctx, argv, a.runDir(dir), a.childEnviron(environ, ticket), logFile)
 	if err := logFile.Close(); err != nil {
 		a.note(errorLine(err))
 	}
@@ -760,7 +782,12 @@ const ParentVariable = "ZE_RUN_JOB"
 // This function differs from gaterun.Stream because it owns a tee. It also
 // forwards a signal to the child, so the job releases its slot. The exit-code
 // rule comes from gaterun.
-func (a *Admission) stream(argv []string, dir string, environ []string, logFile io.Writer) int {
+//
+// A done ctx starts no child, and sends a running one SIGTERM (cmd.Cancel)
+// rather than the default SIGKILL: the same signal forwardSignals relays, so
+// the child ends as it would on a Ctrl-C, its grandchildren close the log
+// pipe as they finish, and Wait answers its code.
+func (a *Admission) stream(ctx context.Context, argv []string, dir string, environ []string, logFile io.Writer) int {
 	if len(argv) == 0 {
 		a.note("error: a job declared no command to run")
 		return gaterun.CannotStart
@@ -776,13 +803,15 @@ func (a *Admission) stream(argv []string, dir string, environ []string, logFile 
 		out = io.MultiWriter(a.Out, logFile)
 	}
 
-	// context.Background has no deadline. A job that needs a wall-clock cap
-	// carries the cap in its OWN argv. There, `timeout` can signal the complete
-	// process group. A deadline here would kill the child but leave its
-	// grandchildren holding the log pipe open. internal/le/test/functional runs every
-	// suite under `timeout` to prevent that failure.
+	// ctx is the caller's signal root, or Background, and never a deadline. A
+	// job that needs a wall-clock cap carries the cap in its OWN argv. There,
+	// `timeout` can signal the complete process group. A deadline here would
+	// stop the child but leave its grandchildren holding the log pipe open.
+	// internal/le/test/functional runs every suite under `timeout` to prevent
+	// that failure.
 	//nolint:gosec // argv is what the caller asked to run; le is a build-host tool driven by a developer's argv
-	cmd := exec.CommandContext(context.Background(), argv[0], argv[1:]...)
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	cmd.Cancel = func() error { return cmd.Process.Signal(syscall.SIGTERM) }
 	cmd.Dir = dir
 	cmd.Env = environ
 	cmd.Stdin = os.Stdin
@@ -833,6 +862,17 @@ func forwardSignals(cmd *exec.Cmd) func() {
 	return func() {
 		signal.Stop(signals)
 		close(done)
+	}
+}
+
+// pause sleeps for wait, or until ctx is done, whichever comes first.
+func pause(ctx context.Context, wait time.Duration) {
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+	case <-timer.C:
 	}
 }
 

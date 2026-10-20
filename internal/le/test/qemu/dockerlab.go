@@ -52,14 +52,28 @@ const (
 // runDockerLabHere boots the guest on the cached runtime kernel and runs the lab
 // named by `lab` inside it. With no lab it stops after the kernel check, which
 // is the proof that the guest boots, Docker starts and the kernel passes.
+//
+// The verb's signal root is taken first, so a SIGINT or SIGTERM ends every
+// phase: the host driver's compile and the runtime-kernel query, the two
+// admitted cross-compiles, and the guest run, whose cancel stops QEMU and the
+// ssh session as the other guest verbs do.
 func runDockerLabHere(args leaction.Arguments) (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
+	ctx, cancel := guestContext()
+	defer cancel()
+
+	return runDockerLab(ctx, root, args)
+}
+
+// runDockerLab is the verb over the checkout at root, under its signal root
+// ctx.
+func runDockerLab(ctx context.Context, root string, args leaction.Arguments) (any, int) {
 	goarch := GuestArch()
-	cache, err := testdeployment.RuntimeKernelCacheDir(context.Background(), root, goarch, "", os.Stderr)
+	cache, err := testdeployment.RuntimeKernelCacheDir(ctx, root, goarch, "", os.Stderr)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -90,17 +104,14 @@ func runDockerLabHere(args leaction.Arguments) (any, int) {
 	}
 	// A lab under TCG measures the emulator and times out; HVF or KVM or nothing.
 	options.HardwareOnly = true
-	if err := buildGuestLe(root, goarch); err != nil {
+	if err := buildGuestLe(ctx, root, goarch); err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	if _, err := BuildLinuxZe(root, goarch); err != nil {
+	if _, err := BuildLinuxZe(ctx, root, goarch); err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-
-	ctx, cancel := guestContext()
-	defer cancel()
 
 	report, err := NewRun(root, options).Execute(ctx)
 	if err != nil {
@@ -142,7 +153,10 @@ func GuestZeRel(goarch string) string {
 // `ze doctor kernel-capabilities` in a container, and the guest le cannot stand
 // in: started under the name ze, a ze_le build answers "unknown command:
 // doctor" (first HVF boot, 2026-10-10).
-func BuildLinuxZe(root, goarch string) (string, error) {
+//
+// ctx is the calling verb's signal root: a done ctx ends the wait for a slot
+// and the build (RunContext).
+func BuildLinuxZe(ctx context.Context, root, goarch string) (string, error) {
 	toolchain, err := gotoolchain.New(root)
 	if err != nil {
 		return "", err
@@ -161,7 +175,7 @@ func BuildLinuxZe(root, goarch string) (string, error) {
 	environment := append(toolchain.Environment(gotoolchain.EnvOptions{GOOS: guestOS, GOARCH: goarch}),
 		linuxle.Overrides(goarch)...)
 	argv := []string{"go", "build", tagsFlag, tags, "-o", output, zeMainPackage}
-	if _, code := admission.Run("qemu-build-ze", argv, root, environment); code != 0 {
+	if _, code := admission.RunContext(ctx, "qemu-build-ze", argv, root, environment); code != 0 {
 		return "", fmt.Errorf("build the linux ze for linux/%s exited %d", goarch, code)
 	}
 	return output, nil

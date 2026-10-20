@@ -88,7 +88,7 @@ func TestAdmissionRefusesUnmeasuredInputs(t *testing.T) {
 	if shared, err := adm.shares(waited, held); err == nil || shared {
 		t.Fatalf("unmeasured sharing = %v, error %v", shared, err)
 	}
-	if ticket, err := adm.queue(waited); err == nil || ticket != nil {
+	if ticket, err := adm.queue(t.Context(), waited); err == nil || ticket != nil {
 		t.Fatalf("unmeasured queued claim = %#v, error %v", ticket, err)
 	}
 }

@@ -434,6 +434,19 @@ beside the guest le (`tmp/qemu/linux-<arch>/ze`, daemon feature tags), and only
 then runs `le <lab>`. The guest le cannot be that `ze`: a `ze_le` build started
 under the name `ze` answers "unknown command: doctor".
 
+The action takes its signal root before its first child, so a SIGINT or SIGTERM
+to le ends whichever phase it lands in. The host driver's compile behind the
+cache query heads a process group the cancel kills. The guest le and the linux
+`ze` are built through job admission (`Admission.RunContext`), so the cancel
+ends the wait for a slot, refuses a build not yet started, and sends a running
+one SIGTERM. Once the guest runs, the cancel stops QEMU and the ssh session as
+for every guest verb, and a canceled root starts no phase after the one it
+ended.
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, runDockerLab, BuildLinuxZe -->
+<!-- source: internal/le/test/qemu/guestle.go -- buildGuestLe -->
+<!-- source: internal/le/job/job.go -- Admission.RunContext -->
+<!-- test: internal/le/test/qemu/dockerlab_root_test.go TestDockerLabBuildsUnderTheVerbRoot -->
+
 The host's environment does not reach the guest, so a suite's one-scenario
 selector travels as `env`, a list of `NAME=value` assignments the lab alone runs
 under (the check does not see them). `env` without a `lab` is refused:

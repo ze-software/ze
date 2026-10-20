@@ -10,6 +10,7 @@
 package job
 
 import (
+	"context"
 	"io"
 	"os"
 	"time"
@@ -22,8 +23,9 @@ import (
 // The second return value reports whether anything was OBSERVED. If a holder
 // leaves no result, this value is false. The caller then returns to the queue
 // and runs the job. Repeating the work is preferable to accepting a verdict
-// that no process observed.
-func (a *Admission) attach(label string, target outcome) (int, bool) {
+// that no process observed. A done ctx ends the follow and the wait for the
+// result, and reports nothing observed, so the queue answers ctx's error.
+func (a *Admission) attach(ctx context.Context, label string, target outcome) (int, bool) {
 	colors := textbuf.C
 	var tb textbuf.Buffer
 	tb.SetColor(a.Color)
@@ -31,7 +33,7 @@ func (a *Admission) attach(label string, target outcome) (int, bool) {
 		Str("] attaching to the ").Str(label).Str(" already running over these inputs (pid ").
 		Int(int64(target.pid)).Str("): one run answers both").Colored(colors.Reset).String())
 
-	a.follow(target)
+	a.follow(ctx, target)
 
 	// The holder writes its result before it drops its entry, so this covers
 	// only the moment between its last log line and its exit.
@@ -47,7 +49,10 @@ func (a *Admission) attach(label string, target outcome) (int, bool) {
 		if time.Now().After(deadline) {
 			break
 		}
-		time.Sleep(time.Second)
+		if ctx.Err() != nil {
+			return 0, false
+		}
+		pause(ctx, time.Second)
 	}
 
 	tb.Reset()
@@ -69,8 +74,9 @@ func (a *Admission) attach(label string, target outcome) (int, bool) {
 // racing against the holder's exit.
 //
 // If follow cannot open a log, this job waits for the holder and does not replay
-// the log. A job whose entry named no log has the same behavior.
-func (a *Admission) follow(target outcome) {
+// the log. A job whose entry named no log has the same behavior. A done ctx
+// ends the follow: the holder runs on, and only this job stops watching it.
+func (a *Admission) follow(ctx context.Context, target outcome) {
 	var file *os.File
 	if target.log != "" {
 		opened, err := os.Open(a.abs(target.log)) //nolint:gosec // the path came from a registry entry this scan just read
@@ -89,7 +95,10 @@ func (a *Admission) follow(target outcome) {
 			a.copyTail(file)
 			break
 		}
-		time.Sleep(a.Poll)
+		if ctx.Err() != nil {
+			break
+		}
+		pause(ctx, a.Poll)
 	}
 
 	if file != nil {

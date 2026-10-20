@@ -136,7 +136,10 @@ the root: the host driver's compile, the runtime-kernel query, the child le
 that runs gok, and the QEMU machine. A cancel during the build ends the build
 and boots nothing; a cancel after the boot kills the machine, so every console
 wait ends at once and the deferred stops tear the lab and the peer down, with
-no context of their own.
+no context of their own. `./le test qemu docker-lab` takes its root before its
+first child, and its two admitted cross-compiles run through
+`Admission.RunContext`, whose wait for a slot ends with the root: a root that
+captured SIGTERM must not leave a queue that never asks it holding the verb.
 <!-- source: internal/le/test/integration/actions.go -- nativeRunner, signalContext -->
 <!-- source: internal/le/verify/evidence/evidence.go -- dockerKernel, Runner.Run -->
 <!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck -->
@@ -146,6 +149,10 @@ no context of their own.
 <!-- source: internal/le/test/deployment/gokrazyl2tp.go -- gokrazyL2TP.Run, gokrazyL2TP.observe -->
 <!-- source: internal/le/build/compile/build.go -- BuildHost -->
 <!-- test: internal/le/test/deployment/gokrazyroot_test.go TestGokrazyImageBuildsUnderTheVerbRoot -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLab -->
+<!-- source: internal/le/job/job.go -- Admission.RunContext -->
+<!-- test: internal/le/test/qemu/dockerlab_root_test.go TestDockerLabBuildsUnderTheVerbRoot -->
+<!-- test: internal/le/job/runcontext_test.go TestRunContextEndsTheWaitForASlot, TestRunContextStartsNoChildUnderADoneRoot -->
 <!-- source: internal/le/site/terminaldemo/render.go -- Engine.checkKernel, Engine.demoGrants -->
 <!-- source: internal/le/feature/recordrun.go -- runCatalogScenario -->
 <!-- source: internal/le/interoplab/process.go -- systemProcessRunner.Run, sharesTerminal -->
