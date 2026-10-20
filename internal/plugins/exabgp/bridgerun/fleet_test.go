@@ -284,14 +284,14 @@ func TestFleetStartNamesTheScriptItCannotFork(t *testing.T) {
 	fleet.Stop()
 }
 
-// TestFleetExpandsABareEOROverTheDeclaredFamilies proves the family list the
-// bridge declared reaches the translator. A bare `announce eor` names no
-// family, so ExaBGP sends one End-of-RIB per negotiated family, and a Fleet
-// that carried no family list would refuse the line by name instead.
+// TestFleetSendsABareEORForIPv4UnicastOnly proves a bare `announce eor`
+// reaches the engine as the IPv4 unicast End-of-RIB alone, even when the
+// bridge declared more families. ExaBGP at the pinned commit reads the bare
+// form as IPv4 unicast (b0b734ec2e made the bridge match it), so an IPv6
+// marker here would be a marker ExaBGP never sends.
 //
-// It also pins the ack: one line the script wrote is one answer, however many
-// ze commands the line became.
-func TestFleetExpandsABareEOROverTheDeclaredFamilies(t *testing.T) {
+// It also pins the ack: one line the script wrote is one answer.
+func TestFleetSendsABareEORForIPv4UnicastOnly(t *testing.T) {
 	dir := t.TempDir()
 	acks := filepath.Join(dir, "acks")
 	script := writeScript(t, dir, "eor.sh", "echo 'announce eor'\ncat > "+acks+"\n")
@@ -308,9 +308,9 @@ func TestFleetExpandsABareEOROverTheDeclaredFamilies(t *testing.T) {
 	}
 
 	wantV4 := "send bgp * update text nlri eor"
-	wantV6 := "send bgp * update text mp ipv6/unicast eor"
-	waitFor(t, "both End-of-RIB markers to reach the engine", func() bool {
-		return rec.held(wantV4) && rec.held(wantV6)
+	notV6 := "send bgp * update text mp ipv6/unicast eor"
+	waitFor(t, "the IPv4 unicast End-of-RIB to reach the engine", func() bool {
+		return rec.held(wantV4)
 	})
 	waitFor(t, "the script to be acked", func() bool {
 		return lines(t, acks) > 0
@@ -319,6 +319,11 @@ func TestFleetExpandsABareEOROverTheDeclaredFamilies(t *testing.T) {
 	cancel()
 	fleet.Stop()
 
+	// The ack follows the dispatch of every command the line became, so an
+	// IPv6 marker would be held by now.
+	if rec.held(notV6) {
+		t.Errorf("a bare eor sent the IPv6 unicast End-of-RIB %q; ExaBGP sends IPv4 unicast only", notV6)
+	}
 	if got := lines(t, acks); got != 1 {
 		t.Errorf("the script was acked %d times, want 1: one line it wrote is one answer", got)
 	}
