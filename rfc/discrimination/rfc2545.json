@@ -185,7 +185,7 @@
       "claim-sha": "8bd1e705cba1c590",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate",
-      "producer-sha": "407b221048114400",
+      "producer-sha": "44ccbe7f2ba0402d",
       "break": "body of buildBatchAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -196,7 +196,7 @@
       "claim-sha": "9f33abf1737c6b4f",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate",
-      "producer-sha": "407b221048114400",
+      "producer-sha": "44ccbe7f2ba0402d",
       "break": "body of buildBatchAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -251,7 +251,7 @@
       "claim-sha": "03fa73c4b327b3e0",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
-      "producer-sha": "3df201fd842fe190",
+      "producer-sha": "3f86f9f49b4aa5c6",
       "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -262,7 +262,7 @@
       "claim-sha": "9f33abf1737c6b4f",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
-      "producer-sha": "3df201fd842fe190",
+      "producer-sha": "3f86f9f49b4aa5c6",
       "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -588,24 +588,24 @@
     },
     {
       "rid": "RFC2545-3-2",
-      "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc2545_api_origination_test.go::TestAPIBatchRefusesUnusableIPv6NextHop",
-      "unit-sha": "d15ba711c95c3b44",
-      "claim-sha": "e88dd09d8ab0b580",
-      "route": "revert",
-      "producer": "internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate",
-      "producer-sha": "407b221048114400",
-      "break": "body of buildBatchAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC2545-3-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc2545_api_origination_test.go::TestAPIBatchRefusesUnusableIPv6NextHop",
       "unit-sha": "d15ba711c95c3b44",
       "claim-sha": "0c1c6d50848f3509",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate",
-      "producer-sha": "407b221048114400",
+      "producer-sha": "44ccbe7f2ba0402d",
+      "break": "body of buildBatchAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2545-3-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc2545_api_origination_test.go::TestAPIBatchRefusesUnusableIPv6NextHop",
+      "unit-sha": "d15ba711c95c3b44",
+      "claim-sha": "e88dd09d8ab0b580",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate",
+      "producer-sha": "44ccbe7f2ba0402d",
       "break": "body of buildBatchAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -660,7 +660,7 @@
       "claim-sha": "4fe07cc36579727f",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
-      "producer-sha": "3df201fd842fe190",
+      "producer-sha": "3f86f9f49b4aa5c6",
       "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -671,7 +671,7 @@
       "claim-sha": "7b72e003cafc58c8",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
-      "producer-sha": "3df201fd842fe190",
+      "producer-sha": "3f86f9f49b4aa5c6",
       "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
