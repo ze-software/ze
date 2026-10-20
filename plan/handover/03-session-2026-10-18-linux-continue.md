@@ -1007,3 +1007,21 @@ Three 6.0 api cases were handed over: api-peer-lifecycle, api-disable (AC-41), a
 - Gates owed for 8dfa2fcfd5: `./le go lint run` on `internal/exabgp/bridge`, `internal/plugins/exabgp/...`,
   `internal/exabgp/migration`; the `exabgp-test` stage (api under both pins and old-4.2/old-5.0, since
   `api-peer-lifecycle.ci` changed).
+
+## Tenth package (exa6c, 2026-10-20): ping, SR Policy attributes
+
+- Done: 1177ffc136 bridge answers `ping` (ExaBGP 6.0 bytes; `bridge_ping.go`, page `docs/architecture/exabgp-bridge.md`).
+  af18a709d8 AC-28 API half: sr-policy `add` sections reach `parseConfigRoute` (page `docs/architecture/api/update-syntax.md`).
+- 6.0 api-health: red on `status` (refused). ExaBGP's answer (reactor.py `status`): text lines `ExaBGP Daemon Status`,
+  `====================`, `Version:`, `UUID:`, `PID:`, `Uptime: Xh Ym Zs`, `Peers: N`, `  - <name>: <fsm>`; JSON
+  `{"version","uuid","pid","uptime","start_time","peers"}`. Needs peer FSM state from ze: the bridge's dispatch
+  answer carries ok/error only today (`pendingResponses`), so the payload path must be added first.
+- 6.0 api-sr-policy: red on the withdrawal frame: ze sends MP_UNREACH plus ORIGIN/AS_PATH/LOCAL_PREF for
+  `update text mp ipv4/sr-policy del ...`; ExaBGP sends MP_UNREACH alone. Start in `reactor_api_batch.go`
+  (where a withdraw-only batch gets mandatory attributes). Not diagnosed.
+- 6.0 conf-watchdog: not started (sequence 2 frame never arrives).
+- AC-28 still owes `test/plugin/update-text-sr-policy-attributes.ci` and `bgp-exabgp-bridge-sr-policy-gobgp`.
+- Gates owed for 1177ffc136 and af18a709d8: `./le go lint run` on `internal/exabgp/bridge`,
+  `internal/component/bgp/plugins/cmd/update`, `internal/component/bgp/plugins/nlri/srpolicy`,
+  `internal/component/plugin/registry`; the exabgp stage (6.0 api) and `./le test functional` plugin suite
+  (the sr-policy refusal wording changed in `parseConfigRoute`).
