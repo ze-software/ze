@@ -19,6 +19,7 @@ import (
 	"io"
 	"log/slog"
 	"slices"
+	"strings"
 )
 
 // batchReadSize is the byte count one read of a script's pipe takes.
@@ -214,7 +215,16 @@ type BatchDispatch struct {
 // after the routes. An End-of-RIB is one of these: it names no route, so it
 // cancels nothing and nothing cancels it.
 //
-// The walk is linear in the number of commands, which one read bounds.
+// A `clear adj-rib out` (Command.WithdrawsAdjRIBOut) is the fourth rule, and
+// it splits the batch. Upstream's OutgoingRIB.withdraw pops every route queued
+// for the peer, so a route written for the clear's peers earlier in the same
+// batch never reaches the wire: Net cancels it (adjRIBOutClearCovers). And
+// what the script wrote after the clear is queued after it, so the three rules
+// above net each run between clears on its own, and the clear dispatches where
+// it was written: an announce after it is not withdrawn by it.
+//
+// The walk is linear in the number of commands, which one read bounds, times
+// the number of clears in that read.
 func Net(lines []BatchLine) []BatchDispatch {
 	all := make([]BatchDispatch, 0, len(lines))
 	for i := range lines {
@@ -227,6 +237,33 @@ func Net(lines []BatchLine) []BatchDispatch {
 	}
 
 	canceled := make([]bool, len(all))
+	netted := make([]BatchDispatch, 0, len(all))
+	start := 0
+	for i := range all {
+		if !all[i].Command.WithdrawsAdjRIBOut {
+			continue
+		}
+		clearSelector := lines[all[i].Line].Translation.Selector
+		for earlier := range i {
+			if !all[earlier].Command.Key.Route() {
+				continue
+			}
+			if adjRIBOutClearCovers(clearSelector, lines[all[earlier].Line].Translation.Selector) {
+				canceled[earlier] = true
+			}
+		}
+		netted = netRun(netted, all[start:i], canceled[start:i])
+		netted = append(netted, all[i])
+		start = i + 1
+	}
+	return netRun(netted, all[start:], canceled[start:])
+}
+
+// netRun applies the withdrawal rules of Net to one run of commands with no
+// adj-rib-out clear among them, and appends what survives to netted in the
+// order Net states. canceled marks the commands already canceled, and netRun
+// adds to it.
+func netRun(netted, run []BatchDispatch, canceled []bool) []BatchDispatch {
 	// announced holds, for each route this batch has announced and not yet had
 	// withdrawn, the entries that announced it. A withdrawal empties its own
 	// list, so a later announce of the same route survives an earlier
@@ -235,9 +272,9 @@ func Net(lines []BatchLine) []BatchDispatch {
 	// withdrawn holds the routes this batch has already queued a withdrawal for,
 	// so a second `withdraw` of the same route adds nothing to the wire.
 	withdrawn := make(map[routeIdentity]bool)
-	for i := range all {
-		key := all[i].Command.Key
-		if !key.Route() {
+	for i := range run {
+		key := run[i].Command.Key
+		if !key.Route() || canceled[i] {
 			continue
 		}
 		id := key.identity()
@@ -263,16 +300,34 @@ func Net(lines []BatchLine) []BatchDispatch {
 		withdrawn[id] = true
 	}
 
-	netted := make([]BatchDispatch, 0, len(all))
 	for _, wanted := range [3]func(RouteKey) bool{isWithdraw, isAnnounce, isNotRoute} {
-		for i := range all {
-			if canceled[i] || !wanted(all[i].Command.Key) {
+		for i := range run {
+			if canceled[i] || !wanted(run[i].Command.Key) {
 				continue
 			}
-			netted = append(netted, all[i])
+			netted = append(netted, run[i])
 		}
 	}
 	return netted
+}
+
+// adjRIBOutClearCovers reports whether a `clear adj-rib out` for clear reaches
+// every peer a route command for route was aimed at, so canceling the route
+// takes nothing from a peer the clear leaves alone. `*` covers every selector;
+// otherwise each address of route must be one of clear's. A route aimed wider
+// than the clear is kept: it reaches the wire and the clear withdraws it from
+// the cleared peers, which leaves the same end state ExaBGP reaches.
+func adjRIBOutClearCovers(clear, route string) bool {
+	if clear == bridgeEveryPeer {
+		return true
+	}
+	cleared := strings.Split(clear, ",")
+	for named := range strings.SplitSeq(route, ",") {
+		if !slices.Contains(cleared, named) {
+			return false
+		}
+	}
+	return true
 }
 
 func isWithdraw(k RouteKey) bool { return k.Route() && k.Withdraw }

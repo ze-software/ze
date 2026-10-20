@@ -177,6 +177,15 @@ section, the keyword is refused.
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- kwRestoreConfigured, ParseUpdateText -->
 <!-- source: internal/component/bgp/reactor/peer_static_restore.go -- restoreConfigured, staticRouteNamesNLRI, staticRouteKey -->
 
+#### Withdrawing everything a peer was sent
+
+A command withdraws the routes it names. To withdraw every route a peer's
+Adj-RIB-Out holds, configured routes included, use
+`clear bgp rib advertised <selector> [family <family>]` rather than an UPDATE
+listing them (`docs/architecture/api/commands.md`). `clear bgp rib out` is the
+opposite: it sends them all again. The ExaBGP bridge maps `clear adj-rib out`
+to the first and `flush adj-rib out` to the second.
+
 ### Text Mode Examples
 
 ```bash

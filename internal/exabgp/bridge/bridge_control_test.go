@@ -26,9 +26,9 @@ func TestBridgeTranslatesTheControlVocabulary(t *testing.T) {
 		line string
 		want string
 	}{
-		{"clear adj-rib out", "clear bgp rib out *"},
+		{"clear adj-rib out", "clear bgp rib advertised *"},
 		{"clear adj-rib in", "clear bgp rib in *"},
-		{"flush adj-rib out", "request peer * flush"},
+		{"flush adj-rib out", "clear bgp rib out *"},
 		{"announce watchdog dnsr", "request bgp watchdog announce dnsr"},
 		{"withdraw watchdog dnsr", "request bgp watchdog withdraw dnsr"},
 		{"shutdown", "request shutdown"},
@@ -65,14 +65,15 @@ func TestBridgeTranslatesTheControlVocabulary(t *testing.T) {
 	// be aimed the same way a route can.
 	translation, err := TranslateLine("neighbor 10.0.0.1 flush adj-rib out")
 	require.NoError(t, err)
-	assert.Equal(t, "request peer 10.0.0.1 flush", onlyCommand(translation))
+	assert.Equal(t, "clear bgp rib out 10.0.0.1", onlyCommand(translation))
 
 	// ze refuses a clear with no selector, so the neighbor-less ExaBGP form,
 	// which means every peer, is written with *, and a neighbor-scoped one with
 	// that neighbor.
 	translation, err = TranslateLine("neighbor 10.0.0.1 clear adj-rib out")
 	require.NoError(t, err)
-	assert.Equal(t, "clear bgp rib out 10.0.0.1", onlyCommand(translation))
+	assert.Equal(t, "clear bgp rib advertised 10.0.0.1", onlyCommand(translation))
+	assert.True(t, translation.Commands[0].WithdrawsAdjRIBOut, "the clear is the barrier Net cancels earlier routes at")
 	translation, err = TranslateLine("neighbor 10.0.0.1 clear adj-rib in")
 	require.NoError(t, err)
 	assert.Equal(t, "clear bgp rib in 10.0.0.1", onlyCommand(translation))

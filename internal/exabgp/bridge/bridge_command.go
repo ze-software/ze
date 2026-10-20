@@ -119,6 +119,11 @@ type Command struct {
 	// routes withdrawn (ExaBGP's withdraw_owner). It is empty for a withdrawal
 	// and for every command that carries no route.
 	Withdrawal string
+	// WithdrawsAdjRIBOut says Text withdraws every route the Adj-RIB-Out of
+	// its line's selector holds: ExaBGP's `clear adj-rib out`. Net cancels the
+	// route commands written for that selector earlier in the batch and keeps
+	// every command written after it after it (bridge_batch.go).
+	WithdrawsAdjRIBOut bool
 }
 
 // RouteKey names the routes one command carries.
@@ -399,8 +404,9 @@ func (t Translator) Line(line string) (Translation, error) {
 // Each mapping is to a command ze declares, checked against the live registry
 // rather than assumed:
 //
-//	clear adj-rib in|out        -> clear bgp rib in|out <sel> (ze-bgp:rib-clear-in/out)
-//	flush adj-rib [in|out]      -> request peer <sel> flush   (ze-bgp:peer-flush)
+//	clear adj-rib in            -> clear bgp rib in <sel>         (ze-bgp:rib-clear-in)
+//	clear adj-rib out           -> clear bgp rib advertised <sel> (ze-bgp:rib-clear-advertised)
+//	flush adj-rib out           -> clear bgp rib out <sel>        (ze-bgp:rib-clear-out)
 //	announce watchdog <name>    -> request bgp watchdog announce <name>
 //	withdraw watchdog <name>    -> request bgp watchdog withdraw <name>
 //	shutdown, request shutdown  -> request shutdown           (ze-plugin:system-daemon-shutdown)
@@ -436,22 +442,27 @@ func convertControl(selector, rest string) (Translation, bool) {
 	case len(fields) == 1 && fields[0] == shutdownWord,
 		len(fields) == 2 && fields[0] == "request" && fields[1] == shutdownWord:
 		return Translation{Commands: textCommands("request shutdown"), Selector: selector}, true
-	case len(fields) == 3 && fields[0] == "clear" && fields[1] == "adj-rib" &&
-		(fields[2] == "in" || fields[2] == "out"):
-		// ze refuses `clear bgp rib in|out` without a selector, because the
-		// all-peers effect must be typed. ExaBGP's neighbor-less form means every
-		// peer the process serves, which is what selector already holds
-		// (everyPeer), so the selector is always written into the command.
+	case len(fields) == 3 && fields[0] == "clear" && fields[1] == "adj-rib" && fields[2] == "in":
+		// ze refuses `clear bgp rib in|out|advertised` without a selector,
+		// because the all-peers effect must be typed. ExaBGP's neighbor-less
+		// form means every peer the process serves, which is what selector
+		// already holds (everyPeer), so the selector is always written in.
 		return Translation{
-			Commands: textCommands(tb.Str("clear bgp rib ").Str(fields[2]).Str(" ").Str(selector).String()),
+			Commands: textCommands(tb.Str("clear bgp rib in ").Str(selector).String()),
 			Selector: selector,
 		}, true
-	case fields[0] == "flush" && len(fields) >= 2 && fields[1] == "adj-rib":
-		// ze drains a peer's forward pool rather than a named direction, so the
-		// in/out word an ExaBGP script may add has no counterpart and is not
-		// invented into one.
+	case len(fields) == 3 && fields[0] == "clear" && fields[1] == "adj-rib" && fields[2] == "out":
+		// ExaBGP withdraws every route the adj-rib-out holds
+		// (OutgoingRIB.withdraw at the pin): ze's engine-side withdrawal of
+		// the session's Adj-RIB-Out, not bgp-rib's resend.
+		command := Command{Text: tb.Str("clear bgp rib advertised ").Str(selector).String(), WithdrawsAdjRIBOut: true}
+		return Translation{Commands: []Command{command}, Selector: selector}, true
+	case len(fields) == 3 && fields[0] == "flush" && fields[1] == "adj-rib" && fields[2] == "out":
+		// ExaBGP resends the adj-rib-out (OutgoingRIB.resend at the pin),
+		// bracketed by BoRR and EoRR when Enhanced Route Refresh was
+		// negotiated: bgp-rib's resend does both.
 		return Translation{
-			Commands: textCommands(tb.Str("request peer ").Str(selector).Str(" flush").String()),
+			Commands: textCommands(tb.Str("clear bgp rib out ").Str(selector).String()),
 			Selector: selector,
 		}, true
 	case len(fields) == 3 && fields[1] == bridgeAttrWatchdog &&

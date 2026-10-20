@@ -260,6 +260,21 @@ withdrawal without `label`, and 0x800000 in its raw frame.
 
 ---
 
+## A route aimed wider than a `clear adj-rib out`
+
+ExaBGP keeps one outgoing RIB per peer, so `clear adj-rib out` for one neighbor
+pops a route the same read queued for every peer from that neighbor's queue
+alone. The bridge hands ze one command per line, and one command cannot be
+split by peer. When the route was written for more peers than the clear names,
+the bridge keeps the route: it reaches the cleared neighbor and is withdrawn by
+the clear in the next UPDATE. Every peer ends with the routes ExaBGP leaves it,
+and the cleared neighbor sees one announcement and one withdrawal ExaBGP never
+sends. A route written for exactly the cleared peers, or a clear for every
+peer, nets as ExaBGP does (`docs/architecture/exabgp-bridge.md`, "Clearing and
+flushing the adj-rib-out").
+
+<!-- source: internal/exabgp/bridge/bridge_batch.go -- adjRIBOutClearCovers -->
+
 ## Template for Future Differences
 
 ### Feature Name

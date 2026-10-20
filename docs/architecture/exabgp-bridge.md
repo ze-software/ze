@@ -196,6 +196,31 @@ refused in both spellings with the same reason. `api-v6-vocabulary` is the case.
 <!-- source: internal/exabgp/bridge/bridge_neighbor.go -- convertNeighborControl -->
 <!-- source: internal/exabgp/bridge/bridge_v6_control.go -- v6ControlSpellings, v4ControlSpelling -->
 
+## Clearing and flushing the adj-rib-out
+
+| ExaBGP line | ze command | What ExaBGP does at the pin |
+|-------------|------------|-----------------------------|
+| `clear adj-rib out` | `clear bgp rib advertised <sel>` | `OutgoingRIB.withdraw`: withdraws every route the adj-rib-out holds |
+| `flush adj-rib out` | `clear bgp rib out <sel>` | `OutgoingRIB.resend`: sends them all again, between a BoRR and an EoRR when Enhanced Route Refresh was negotiated |
+| `clear adj-rib in` | `clear bgp rib in <sel>` | clears the adj-rib-in |
+
+The selector is the line's neighbor, or every peer the process serves. A
+selector that matches no peer is answered `error`, as ExaBGP answers "no
+neighbor matching the command".
+
+`clear adj-rib out` also nets the batch it is read in. ExaBGP's withdraw pops
+every route still queued for the peer, so a route the script wrote for the
+cleared peers earlier in the same read never reaches the wire, and a route
+written after the clear is queued after it. `Net` cancels the earlier route
+commands whose selector the clear covers, and nets each run between clears on
+its own, so the clear dispatches where it was written. A route aimed wider
+than the clear (written for `*`, cleared for one neighbor) is kept: it reaches
+the wire and the clear then withdraws it from the cleared peer
+(`docs/exabgp/exabgp-differences.md`). `api-rib` and `api-rr-rib` are the cases.
+
+<!-- source: internal/exabgp/bridge/bridge_command.go -- convertControl -->
+<!-- source: internal/exabgp/bridge/bridge_batch.go -- Net, netRun, adjRIBOutClearCovers -->
+
 ## A bare address is a host route
 
 ExaBGP writes a host route as an address alone. Its `prefix` parser splits on
