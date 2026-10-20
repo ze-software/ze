@@ -78,6 +78,45 @@ func TestBridgeTranslatesTheControlVocabulary(t *testing.T) {
 	assert.Equal(t, "clear bgp rib in 10.0.0.1", onlyCommand(translation))
 }
 
+// TestBridgeTranslatesRouteRefresh holds ExaBGP's `announce route-refresh <afi>
+// <safi>`, which sends a ROUTE-REFRESH (RFC 2918 Section 3) to the peer.
+//
+// VALIDATES: the line becomes ze's `request peer <selector> refresh <family>`,
+// aimed at the neighbor the line names, and a line naming no valid family is
+// refused with the reason.
+// PREVENTS: the line being read as `announce route` with the prefix
+// "-refresh", which ze refused as an unknown flag (qa/api and qa/old/5.0
+// api-rr, 2026-10-20).
+func TestBridgeTranslatesRouteRefresh(t *testing.T) {
+	dispatched := []struct {
+		line string
+		want string
+	}{
+		{"announce route-refresh ipv4 unicast", "request peer * refresh ipv4/unicast"},
+		{"neighbor 127.0.0.1 announce route-refresh ipv6 unicast", "request peer 127.0.0.1 refresh ipv6/unicast"},
+	}
+	for _, tc := range dispatched {
+		t.Run(tc.line, func(t *testing.T) {
+			translation, err := TranslateLine(tc.line)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, onlyCommand(translation))
+			assert.False(t, translation.Route, "a ROUTE-REFRESH is not held with the routes")
+		})
+	}
+
+	for _, line := range []string{
+		"announce route-refresh",
+		"announce route-refresh ipv4",
+		"announce route-refresh ipx unicast",
+		"announce route-refresh ipv4 nonsense",
+	} {
+		t.Run(line, func(t *testing.T) {
+			_, err := TranslateLine(line)
+			require.ErrorIs(t, err, errRouteRefreshNeedsFamily)
+		})
+	}
+}
+
 // TestAckModeApplyTimesTheSilence pins the one thing the three ack words differ
 // on, which is WHEN the silence starts. api-ack-control and api-silence-ack
 // assert exactly this and nothing else.

@@ -5,7 +5,9 @@
 // `announce <afi> <safi> <nlri> <attrs>` are the two bridge_command.go reads.
 // The other two are here: `announce attributes <attrs> nlri <p> <p>`, which
 // carries one attribute set over several prefixes, and `announce eor <afi>
-// <safi>`, which carries no route at all.
+// <safi>`, which carries no route at all. `announce route-refresh <afi> <safi>`
+// is here too: it shares the verb and the family words, and asks the peer for
+// its routes rather than sending one.
 
 package bridge
 
@@ -24,6 +26,11 @@ import (
 // ze's update-text spells the marker per family rather than for all of them at
 // once, so the expansion needs to know which families there are.
 var errEORNeedsFamily = errors.New("the ExaBGP bridge needs a family on `announce eor`")
+
+// errRouteRefreshNeedsFamily is what `announce route-refresh` answers when it
+// does not name one address family and one subsequent address family: a
+// ROUTE-REFRESH carries exactly one AFI/SAFI (RFC 2918 Section 3).
+var errRouteRefreshNeedsFamily = errors.New("the ExaBGP bridge needs `announce route-refresh <afi> <safi>`")
 
 // errSplitLength is what a `split` answers when its length cannot cut the
 // prefix it is written on.
@@ -66,6 +73,37 @@ func convertEOR(selector, rest string, families []string) ([]Command, bool, erro
 	var tb textbuf.Buffer
 	family := tb.Str(afi).Byte('/').Str(canonicalExabgpSAFI(safi)).String()
 	return []Command{eorCommand(selector, family)}, true, nil
+}
+
+// convertRouteRefresh translates `announce route-refresh <afi> <safi>` into ze's
+// `request peer <selector> refresh <family>`, which sends the peer a
+// ROUTE-REFRESH. RFC 2918 Section 3: "A BGP speaker may send a ROUTE-REFRESH
+// message to its peer only if it has received the Route Refresh Capability
+// from its peer"; ze's refresh handler holds that check.
+//
+// It reports false when the line is not a route refresh. It is read before
+// convertRoute, whose `announce route` prefix would otherwise take the line as
+// a route with the prefix "-refresh".
+func convertRouteRefresh(selector, rest string) (Translation, bool, error) {
+	fields := strings.Fields(strings.ToLower(rest))
+	if len(fields) < 2 || fields[0] != announceVerb || fields[1] != "route-refresh" {
+		return Translation{}, false, nil
+	}
+	if len(fields) != 4 {
+		return Translation{}, true, errRouteRefreshNeedsFamily
+	}
+	afi := fields[2]
+	safi := fields[3]
+	if !bridgeAFI[afi] {
+		return Translation{}, true, fmt.Errorf("%w: %q names no address family", errRouteRefreshNeedsFamily, afi)
+	}
+	if _, known := bridgeSAFI[safi]; !known {
+		return Translation{}, true, fmt.Errorf("%w: %q names no subsequent address family", errRouteRefreshNeedsFamily, safi)
+	}
+
+	var tb textbuf.Buffer
+	tb.Str("request peer ").Str(selector).Str(" refresh ").Str(afi).Byte('/').Str(canonicalExabgpSAFI(safi))
+	return Translation{Commands: textCommands(tb.String()), Selector: selector}, true, nil
 }
 
 // eorCommand writes one per-family End-of-RIB.

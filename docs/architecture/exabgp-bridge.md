@@ -38,6 +38,12 @@ which Go's compact form never contains.
 
 <!-- source: internal/exabgp/bridge/bridge_event_json.go -- MarshalExabgpJSON -->
 
+An `announce route-refresh <afi> <safi>` line becomes `request peer <selector>
+refresh <afi>/<safi>`, which sends the peer a ROUTE-REFRESH (RFC 2918 Section 3).
+It is read before the route forms, whose `announce route` prefix would otherwise
+take it as a route.
+
+<!-- source: internal/exabgp/bridge/bridge_route_forms.go -- convertRouteRefresh -->
 
 
 The read happens ONCE for the whole fleet, and each format is rendered once. So

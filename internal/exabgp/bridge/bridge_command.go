@@ -279,6 +279,12 @@ func (t Translator) Line(line string) (Translation, error) {
 		}
 		return translation, nil
 	}
+	if translation, ok, err := convertRouteRefresh(selector, rest); ok {
+		if err != nil {
+			return Translation{}, fmt.Errorf("%w: %q", err, line)
+		}
+		return translation, nil
+	}
 	if commands, translated, err := t.convertRoute(selector, rest); translated {
 		if err != nil {
 			return Translation{}, fmt.Errorf("%w: %q", err, line)
@@ -534,6 +540,11 @@ func convertWithdrawFamily(selector, rest string) ([]Command, bool, error) {
 // route and discarded everything after it.
 func convertFamilyRoute(selector, rest, verb string) ([]Command, bool, error) {
 	rest = strings.TrimSpace(rest)
+
+	// RFC 4761 Section 3.2.2: ExaBGP's `vpls` route (bridge_vpls.go).
+	if commands, matched, err := convertVPLSRoute(selector, rest, verb); matched {
+		return commands, true, err
+	}
 
 	if match := bridgeSRPolicyRE.FindStringSubmatch(rest); match != nil {
 		afi := strings.ToLower(match[1])
