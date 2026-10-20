@@ -108,7 +108,7 @@
       "claim-sha": "0249026c16def459",
       "route": "revert",
       "producer": "internal/component/bgp/rib/commit.go::packAttributesWithASPath",
-      "producer-sha": "e15ac4ce6a1c005e",
+      "producer-sha": "30c62c042f464c65",
       "break": "body of packAttributesWithASPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
