@@ -1,0 +1,19 @@
+# RFC 4684 Route Target membership announced by an ExaBGP API script through
+# the bridge, read by GoBGP, which negotiates rtc and prints each received
+# membership NLRI through gobgp-paths (Dockerfile.gobgp) as origin AS then
+# Route Target.
+[global.config]
+  as = 65002
+  router-id = "172.30.0.5"
+  port = 179
+
+[[neighbors]]
+  [neighbors.config]
+    neighbor-address = "172.30.0.2"
+    peer-as = 65001
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ipv4-unicast"
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "rtc"

@@ -95,11 +95,14 @@ const (
 // SR Policy RIB is read with gobgp-paths, the gRPC ListPath reader
 // test/interop/Dockerfile.gobgp builds, which takes a numeric AFI and SAFI
 // and prints each path's NLRI and attributes through GoBGP's own String().
+// A Route Target membership (SAFI 132) is read the same way, so the checker
+// matches the NLRI GoBGP decoded rather than the client's table layout.
 const (
 	cmdGoBGPPaths     = "gobgp-paths"
 	gobgpAFIIPv4      = "1"
 	gobgpAFIIPv6      = "2"
 	gobgpSAFISRPolicy = "73"
+	gobgpSAFIRTC      = "132"
 )
 
 // gobgp client words.
