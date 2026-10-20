@@ -224,6 +224,8 @@ func parseTrafficMarkingFunction(args []string) ([]attribute.ExtendedCommunity, 
 //   - redirect:ADMIN:value -> Sub-type 0x08; ADMIN picks type 0x80, 0x81 or 0x82
 //   - rate-limit:bps    -> Type 0x80, Subtype 0x06 (IEEE 754 float rate)
 //   - rate-limit:pps:packets -> Type 0x80, Subtype 0x0c (IEEE 754 float rate)
+//   - interface-set:[transitive|non-transitive:]DIR:ASN:GROUP -> Type 0x07 or
+//     0x47, Subtype 0x02 (draft-ietf-idr-flowspec-interfaceset Section 5)
 func parseExtendedCommunity(s string) (attribute.ExtendedCommunity, error) {
 	if s == "" {
 		return attribute.ExtendedCommunity{}, errEmptyExtendedCommunity
@@ -248,6 +250,13 @@ func parseExtendedCommunity(s string) (attribute.ExtendedCommunity, error) {
 	// two vocabularies cannot drift again.
 	if ec, ok := attribute.FlowSpecActionKeyword(s); ok {
 		return ec, nil
+	}
+
+	// The `<keyword>:<value>` communities the attribute package registers
+	// (interface-set), shared with the config parser and with
+	// ParseSingleExtCommunity.
+	if ec, matched, err := attribute.ParseExtendedCommunityKeyword(s); matched {
+		return ec, err
 	}
 
 	// Split on first colon to get type prefix

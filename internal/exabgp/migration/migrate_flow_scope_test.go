@@ -12,31 +12,25 @@ import (
 	bgpconfig "github.com/ze-software/ze/internal/component/bgp/config"
 )
 
-// TestInterfaceSetExtCommunityForms pins the octets each ExaBGP interface-set
-// value produces, and the values that are refused.
+// TestInterfaceSetExtCommunityForms pins the ze text each ExaBGP interface-set
+// value migrates to. The octets behind that text are pinned once, where the
+// attribute package encodes them (TestInterfaceSetEncode).
 //
-// VALIDATES: both ExaBGP forms, both transitivity types, the three directions,
-// and the 14-bit group identifier bound.
-// PREVENTS: a migrated flow route reaching the wire with the wrong interface
-// set, or with a group identifier that overflowed into a direction flag.
+// VALIDATES: both ExaBGP forms, both transitivity types and the three
+// directions migrate to the four-field name every ze parser reads.
+// PREVENTS: the three-field form losing its transitivity on the way to ze.
 func TestInterfaceSetExtCommunityForms(t *testing.T) {
 	cases := []struct {
 		name  string
 		value string
 		want  string
 	}{
-		// The type octet is 0x07, the sub-type 0x02, then the four AS octets,
-		// then the direction flags above the 14-bit group identifier.
-		{"transitive input", "transitive:input:1234:10", "0x0702 000004d2 400a"},
-		{"transitive output", "transitive:output:1234:10", "0x0702 000004d2 800a"},
-		{"transitive both", "transitive:input-output:1234:10", "0x0702 000004d2 c00a"},
-		// 0x40 is the non-transitive bit on the type octet.
-		{"non transitive", "non-transitive:input:3405770241:1", "0x4702 caffee01 4001"},
+		{"transitive input", "transitive:input:1234:10", "interface-set:transitive:input:1234:10"},
+		{"transitive output", "transitive:output:1234:10", "interface-set:transitive:output:1234:10"},
+		{"transitive both", "transitive:input-output:1234:10", "interface-set:transitive:input-output:1234:10"},
+		{"non transitive", "non-transitive:input:3405770241:1", "interface-set:non-transitive:input:3405770241:1"},
 		// The three-field form is the older one and defaults to transitive.
-		{"no transitivity given", "input:1234:10", "0x0702 000004d2 400a"},
-		// Both bounds of the group identifier field.
-		{"group id zero", "transitive:output:0:0", "0x0702 00000000 8000"},
-		{"group id maximum", "transitive:input:1:16383", "0x0702 00000001 7fff"},
+		{"no transitivity given", "input:1234:10", "interface-set:transitive:input:1234:10"},
 	}
 
 	for _, tc := range cases {
@@ -45,9 +39,8 @@ func TestInterfaceSetExtCommunityForms(t *testing.T) {
 			if err != nil {
 				t.Fatalf("interfaceSetExtCommunity(%q): %v", tc.value, err)
 			}
-			want := strings.ReplaceAll(tc.want, " ", "")
-			if got != want {
-				t.Errorf("interfaceSetExtCommunity(%q) = %s, want %s", tc.value, got, want)
+			if got != tc.want {
+				t.Errorf("interfaceSetExtCommunity(%q) = %s, want %s", tc.value, got, tc.want)
 			}
 		})
 	}
@@ -90,9 +83,8 @@ func TestInterfaceSetExtCommunityRefusals(t *testing.T) {
 //
 // VALIDATES: what the migration writes for a scope block is a value ze loads,
 // and it carries the eight octets the interface set defines.
-// PREVENTS: the migration emitting `interface-set:...`, the spelling the API
-// bridge uses, which parseOneExtCommunity has no case for -- the migrated
-// config would then be refused by the daemon it was written for.
+// PREVENTS: the migration emitting a spelling parseOneExtCommunity refuses, so
+// the migrated config would be refused by the daemon it was written for.
 func TestMigrateFlowScopeExtCommunityZeAccepts(t *testing.T) {
 	input := `
 neighbor 127.0.0.1 {
@@ -130,7 +122,7 @@ neighbor 127.0.0.1 {
 	// The interface sets are written before the traffic action, because ExaBGP
 	// packs its extended communities in value order and 0x07/0x47 sorts before
 	// the 0x80 of a traffic action.
-	want := "extended-community [0x4702caffee014001 0x0702000000fe80fe rate-limit:0]"
+	want := "extended-community [interface-set:non-transitive:input:3405770241:1 interface-set:transitive:output:254:254 rate-limit:0]"
 	if !strings.Contains(output, want) {
 		t.Fatalf("migrated config does not carry %q:\n%s", want, output)
 	}

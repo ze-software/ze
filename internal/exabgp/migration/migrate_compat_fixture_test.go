@@ -85,8 +85,8 @@ func TestMigrateCompatFixtures(t *testing.T) {
 			// Two flow routes, each with a scope block of interface sets.
 			fixture: "api-flow-merge",
 			want: []string{
-				"extended-community [0x4702caffee014001 rate-limit:0]",
-				"extended-community [0x4702caffee014001 0x0702000000fe80fe rate-limit:0]",
+				"extended-community [interface-set:non-transitive:input:3405770241:1 rate-limit:0]",
+				"extended-community [interface-set:non-transitive:input:3405770241:1 interface-set:transitive:output:254:254 rate-limit:0]",
 				"ipv4/flow add source-ipv4 202.255.238.1/32",
 			},
 		},

@@ -465,7 +465,20 @@ func matchExaBGPDocument(payload []byte, want string, facts bridge.SessionFacts)
 	bridge.DropVolatile(expected)
 	bridge.DropVolatile(rendered)
 
-	gotText, err := json.Marshal(rendered)
+	// The rendered document is re-read from its text, so its lists are the same
+	// []any the expectation decoded to and the two sort alike.
+	renderedText, err := json.Marshal(rendered)
+	if err != nil {
+		return err
+	}
+	var got map[string]any
+	if err := json.Unmarshal(renderedText, &got); err != nil {
+		return err
+	}
+	sortExaBGPCommunitySets(expected)
+	sortExaBGPCommunitySets(got)
+
+	gotText, err := json.Marshal(got)
 	if err != nil {
 		return err
 	}
@@ -477,6 +490,58 @@ func matchExaBGPDocument(payload []byte, want string, facts bridge.SessionFacts)
 		return fmt.Errorf("json expectation:\n  want %s\n  got  %s", wantText, gotText)
 	}
 	return nil
+}
+
+// exabgpCommunitySets are the attribute members an ExaBGP document writes as a
+// list but whose RFC defines a set: COMMUNITIES (RFC 1997) and EXTENDED
+// COMMUNITIES (RFC 4360 Section 2). They are the two bgpFrameEqual compares as
+// sets, so the document check judges the frame by the same rule.
+var exabgpCommunitySets = [...]string{"community", "extended-community"}
+
+// sortExaBGPCommunitySets puts the members of each community list in one order,
+// the order of their JSON text, so two documents that carry the same set compare
+// equal. ExaBGP 6.0 writes extended communities in value order and ze sends
+// them in the order the command gave them (api-flow-merge, whose scope block
+// lists the non-transitive interface set first); every member still has to
+// match exactly.
+func sortExaBGPCommunitySets(document map[string]any) {
+	attribute, found := exabgpDocumentMember(document, "neighbor", "message", "update", "attribute")
+	if !found {
+		return
+	}
+	for _, name := range exabgpCommunitySets {
+		members, isList := attribute[name].([]any)
+		if !isList {
+			continue
+		}
+		slices.SortFunc(members, func(a, b any) int {
+			return bytes.Compare(jsonText(a), jsonText(b))
+		})
+	}
+}
+
+// exabgpDocumentMember walks a document down the named objects and answers the
+// last one, or false where a step is missing or not an object.
+func exabgpDocumentMember(document map[string]any, path ...string) (map[string]any, bool) {
+	current := document
+	for _, step := range path {
+		next, isObject := current[step].(map[string]any)
+		if !isObject {
+			return nil, false
+		}
+		current = next
+	}
+	return current, true
+}
+
+// jsonText is a decoded JSON value's text, for ordering. A value that came out
+// of json.Unmarshal always marshals, so the error is unreachable.
+func jsonText(value any) []byte {
+	text, err := json.Marshal(value)
+	if err != nil {
+		panic("BUG: a decoded JSON value does not marshal: " + err.Error())
+	}
+	return text
 }
 
 // exabgpSessionFacts reads the neighbor facts an ExaBGP document states off the

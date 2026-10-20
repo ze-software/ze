@@ -221,6 +221,7 @@ func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 //   - Hex format: 0x0002fde800000001 (16 hex chars = 8 bytes wire format)
 //   - Named format: target:ASN:NN, origin:ASN:NN
 //   - FlowSpec actions: rate-limit:N, rate-limit:N:packets, rate-limit-packets:N, redirect-to-nexthop-draft, copy-to-nexthop, mark N
+//   - FlowSpec interface set: interface-set:[transitive|non-transitive:]DIR:ASN:GROUP
 //   - Generic format: ASN:NN, IP:NN
 func parseOneExtCommunity(s string) ([]byte, error) {
 	// The raw 8-octet form. The width check and the decode live in the attribute
@@ -240,6 +241,15 @@ func parseOneExtCommunity(s string) ([]byte, error) {
 	// (route/route_community.go parseExtendedCommunity); it used to have its own,
 	// shorter one, so `copy-to-nexthop` worked here and failed there.
 	if ec, ok := attribute.FlowSpecActionKeyword(s); ok {
+		return ec[:], nil
+	}
+
+	// The `<keyword>:<value>` communities the attribute package registers
+	// (interface-set), shared with the `update text` API parser.
+	if ec, matched, err := attribute.ParseExtendedCommunityKeyword(s); matched {
+		if err != nil {
+			return nil, err
+		}
 		return ec[:], nil
 	}
 

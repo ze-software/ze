@@ -195,6 +195,10 @@ func (b *Builder) ParseExtCommunity(s string) error {
 // consumer that reads its output back has to parse what it writes; a second
 // spelling is how the ribOut path came to drop every community it was handed.
 func ParseSingleExtCommunity(s string) (ExtendedCommunity, error) {
+	if ec, matched, err := ParseExtendedCommunityKeyword(s); matched {
+		return ec, err
+	}
+
 	parts := strings.SplitN(s, ":", 3)
 	if len(parts) != 3 {
 		return ExtendedCommunity{}, fmt.Errorf("invalid extended-community format: %s (expected type:admin:value)", s)

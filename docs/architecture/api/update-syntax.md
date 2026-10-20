@@ -563,20 +563,22 @@ keyword and answers with the flat form to use.
 | `large-community` | `[ <lc>... ]` | LARGE_COMMUNITY (32) | RFC 8092 |
 | `bgp-prefix-sid-srv6` | `( <service> <sid> [<behavior>] [<structure>] )` | BGP Prefix-SID (40) | RFC 8669, RFC 9252 Section 3 |
 
-An `<ec>` in `extended-community` takes one of three forms.
+An `<ec>` in `extended-community` takes one of four forms.
 
 | Form | Example | Meaning |
 |------|---------|---------|
 | named | `target:65000:1`, `origin:65000:1.2.3.4` | the type keyword picks the encoding |
 | FlowSpec action | `discard`, `copy-to-nexthop`, `rate-limit:1000` | RFC 8955 Section 7 |
+| FlowSpec interface set | `interface-set:transitive:input:1234:10`, `interface-set:non-transitive:output:65000:3` | draft-ietf-idr-flowspec-interfaceset Section 5: apply the filter on interface group 3 (0 to 16383) of AS 65000, inbound, outbound or both (`input-output`). Type 0x07, or 0x47 non-transitive; `interface-set:input:1234:10` is transitive |
 | raw | `0x0002FDE900000001` | the 8 octets verbatim |
 
 The raw form is `0x` followed by exactly 16 hex digits, because RFC 4360 Section 2
 encodes "each Extended Community as an 8-octet quantity". It is how an operator
 writes a community Ze has no keyword for, and it is the form ExaBGP writes. Any
 other digit count is refused by name rather than padded or truncated. The config
-file accepts the same three forms.
+file accepts the same four forms.
 <!-- source: internal/core/bgp/attribute/extcomm_hex.go -- ParseExtendedCommunityHex -->
+<!-- source: internal/core/bgp/attribute/extcomm_keyword.go -- parseInterfaceSet -->
 
 Ze emits the attributes in ascending type-code order, whatever order the command
 wrote them in (RFC 4271 Section 5).

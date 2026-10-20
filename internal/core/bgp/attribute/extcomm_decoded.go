@@ -200,9 +200,8 @@ func appendExtCommAS2Specific(buf []byte, name string, e ExtendedCommunity) []by
 // extended community in one flat list, so the text is the only place left to
 // say it. The ExaBGP bridge folds the two forms into one another.
 //
-// Until this arm existed the community had no name anywhere in Ze: the ExaBGP
-// config migration wrote it as raw hex and said so
-// (interfaceSetExtCommunity, exabgp/migration/migrate_flow_scope.go).
+// parseInterfaceSet (extcomm_keyword.go) reads this text back, so every ze
+// parser and the ExaBGP config migration spell the community the same way.
 func appendExtCommInterfaceSet(buf []byte, e ExtendedCommunity, transitive bool) []byte {
 	buf = append(buf, "interface-set:"...)
 	if transitive {

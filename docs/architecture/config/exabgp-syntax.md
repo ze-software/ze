@@ -218,11 +218,13 @@ Each value takes one of two forms:
 The second form is transitive. The group identifier is a 14-bit number, so it
 goes from 0 to 16383.
 
-ze has no keyword for this extended community, so the migration writes the eight
-octets in the hexadecimal form the ze parser accepts. `interface-set [
-non-transitive:input:3405770241:1 ]` becomes
-`extended-community [0x4702caffee014001]`, and it reaches the wire as the same
-octets ExaBGP sends.
+The migration writes each value as ze's `interface-set` extended community, in
+the four-field form so the migrated config states its transitivity.
+`interface-set [ non-transitive:input:3405770241:1 ]` becomes
+`extended-community [interface-set:non-transitive:input:3405770241:1]`, and it
+reaches the wire as the same octets ExaBGP sends (`4702caffee014001`). A value
+outside the two forms, a direction other than the three names, or a group
+identifier above 16383 stops the migration.
 <!-- source: internal/exabgp/migration/migrate_flow_scope.go -- interface-set conversion -->
 
 ---
