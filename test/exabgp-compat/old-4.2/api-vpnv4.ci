@@ -1,4 +1,6 @@
 # ExaBGP qa/old/4.2/qa/ci/api-vpnv4 (ExaBGP 685f772e4e): .ci and .msg joined, options spelt option=
+option=allowed:the withdrawal of 1.4/16 carries the same route distinguisher, prefix and attributes, but ze writes the label field as 0x800000 where the recording repeats the announced label 1000: RFC 8277 Section 2.4 says of the withdrawal NLRI "Upon transmission, the Compatibility field SHOULD be set to 0x800000. Upon reception, the value of the Compatibility field MUST be ignored."
+option=allowed-error:unexpected message = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0052020000003B800F11000180688000000000FDE8000000010104400101004002004003046501650140050400000064C0080400640001C010080002FDE900000001;
 option=file:api-vpnv4.conf
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:001E:02:00000007900F0003000180
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0060:02:00000049400101004002004003046501650140050400000064C0080400640001C010080002FDE900000001800E1F0001800C0000000000000000650165010068003E810000FDE8000000010104

@@ -1,4 +1,6 @@
 # ExaBGP qa/old/4.2/qa/ci/api-check (ExaBGP 685f772e4e): .ci and .msg joined, options spelt option=
+option=allowed:the helper waits for the literal line "receive update announced 0.0.0.0/32 next-hop 127.0.0.1", the route the release's test peer sent with NEXT_HOP 127.0.0.1, which is ze's own address on this session: RFC 4271 Section 6.3 says the NEXT_HOP "MUST NOT be the IP address of the receiving speaker" and that a route failing it "SHOULD be ignored", so the mock sends NEXT_HOP 192.0.2.1 (exabgpDefaultRoute), ze reports that next hop, and the 4.2 helper takes its failure branch and announces 0.0.0.0/0 next-hop 255.255.255.255
+option=allowed-error:unexpected message = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D020000001540010100400200400304FFFFFFFF4005040000006400;
 option=file:api-check.conf
 option=update:send-default-route
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:001702:00000000
