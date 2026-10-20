@@ -17,7 +17,7 @@
 // | # | RFC 7457 | Positive | Negative |
 // |---|----------|----------|----------|
 // | 1 | 2.3 BEAST, 2.4 padding oracles | TestRFC9190MitigationNegotiatesTLS12OrAbove | TestRFC9190MitigationRefusesTLS11 |
-// | 2 | 2.11 Triple Handshake | TestRFC9190MitigationOffersExtendedMasterSecret | TestEAPTLSExportRefusalNamesTheCause (eap_tls_export_refusal_test.go) |
+// | 2 | 2.11 Triple Handshake | TestRFC9190MitigationOffersExtendedMasterSecret | none in Go: two Go endpoints always negotiate the extended master secret, so only checkEAPTLS (interop scenario eap-tls, strongSwan on TLS 1.2 without RFC 7627) runs the refused export. TestEAPTLSExportRefusalNamesTheCause (rfc7627_eap_tls_export_refusal_test.go) refuses through renegotiation instead |
 // | 3 | 2.10 Renegotiation | TestRFC9190MitigationOffersSecureRenegotiationInfo | TestRFC9190MitigationOffersNoPostHandshakeAuthentication |
 // | 4 | 2.7 Certificate and RSA | TestRFC9190MitigationNegotiatesEphemeralKeyExchange | TestRFC9190MitigationOffersNoStaticRSAKeyExchange |
 // | 5 | 2.5 RC4 | TestRFC9190MitigationNegotiatesAnAEADSuite | TestRFC9190MitigationOffersNoRC4Suite |

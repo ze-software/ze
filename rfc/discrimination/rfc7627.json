@@ -4,7 +4,7 @@
     {
       "rid": "RFC7627-5.4-1",
       "polarity": "positive",
-      "unit": "internal/core/eap/eap_tls_export_refusal_test.go::TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret",
+      "unit": "internal/core/eap/rfc7627_eap_tls_export_refusal_test.go::TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret",
       "unit-sha": "546ea65d6fe80dc5",
       "claim-sha": "267e3780cdeb756d",
       "route": "mutant",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC7627-5.4-2",
       "polarity": "positive",
-      "unit": "internal/core/eap/eap_tls_export_refusal_test.go::TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret",
+      "unit": "internal/core/eap/rfc7627_eap_tls_export_refusal_test.go::TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret",
       "unit-sha": "546ea65d6fe80dc5",
       "claim-sha": "880129a835d251c8",
       "route": "mutant",
