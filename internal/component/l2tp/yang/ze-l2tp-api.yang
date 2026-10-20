@@ -10,6 +10,10 @@ module ze-l2tp-api {
          for operator-initiated teardown. RFC 2661 supplies the
          field semantics (tunnel/session state, AVP values).";
 
+    revision 2026-10-21 {
+        description "Declare l2tp-health, moved from ze-cli-show-api.";
+    }
+
     revision 2026-04-17 {
         description "Initial L2TP observability + teardown API (spec-l2tp-7).";
     }
@@ -440,5 +444,15 @@ or Ze supplied one, result-code.";
                 ze:help "JSON object describing the call outcome.";
             }
         }
+    }
+
+    // show l2tp health (ze-l2tp:show-health) points at this rpc from
+    // ze-l2tp-cmd; the handler is show_health.go.
+    rpc l2tp-health {
+        description "The rows are sorted by average round-trip time, highest first.
+Each row carries the login, the last state, the echo count, the average
+round-trip time in milliseconds and the bucket count. The degraded key counts
+the logins whose last state is not established.";
+        ze:help "Show L2TP session health sorted by echo loss.";
     }
 }

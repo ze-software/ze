@@ -7,7 +7,7 @@ module ze-peer-cmd {
     // and delete bgp peer command surface. Its show, create and delete subtrees
     // container-merge onto the show, create and delete verb roots.
     description "BGP peer operations: create, show, delete, and control peer sessions.";
-    revision 2026-10-21 { description "clear bgp rib advertised withdraws the Adj-RIB-Out of the selected peers."; }
+    revision 2026-10-21 { description "clear bgp rib advertised withdraws the Adj-RIB-Out of the selected peers; show bgp health points at bgp-health in ze-bgp-api, its owner."; }
     revision 2026-10-18 { description "The peer selector summary names * for every peer, so the selector guard's refusal, which quotes it, names the explicit every-peer form."; }
     // One verb pair for one runtime resource: create and delete, the pair the
     // verb table declares. peer-add and the delete verb's own spelling were
@@ -198,7 +198,7 @@ up and advertised nothing: it separates a hold that is working from a daemon tha
             container health {
                 config false;
                 ze:command "ze-bgp:show-health";
-                ze:rpc "ze-cli-show-api:bgp-health";
+                ze:rpc "ze-bgp-api:bgp-health";
                 description "Lists every peer with address, state, ASN, and uptime. Reports how
 many are not Established. Much faster than 'show bgp peer *' when
 you just need a status overview.";

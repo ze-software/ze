@@ -11,6 +11,10 @@ module ze-l2tp-cmd {
          Adds 'show l2tp' commands for inspection, 'clear l2tp' commands
          for teardown, and 'request l2tp' operator actions.";
 
+    revision 2026-10-21 {
+        description "show l2tp health points at l2tp-health in ze-l2tp-api, its owner.";
+    }
+
     revision 2026-07-10 {
         description "Add 'request l2tp outgoing-call remote <name> called <number>' (spec-followup-l2tp-call AC-4).";
     }
@@ -42,7 +46,7 @@ sessions.";
             container health {
                 config false;
                 ze:command "ze-l2tp:show-health";
-                ze:rpc "ze-cli-show-api:l2tp-health";
+                ze:rpc "ze-l2tp-api:l2tp-health";
                 description "Sorts sessions by echo loss ratio (worst first). Shows
 subscriber login, session state, echo count, average RTT, and CQM bucket count.
 Reports how many sessions are degraded.";

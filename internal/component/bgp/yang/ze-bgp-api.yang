@@ -13,7 +13,7 @@ module ze-bgp-api {
     // peer-add and the delete verb's bgp-peer were two spellings of one
     // lifecycle; ze-bgp:peer-create and ze-bgp:peer-delete name the pair.
     revision 2026-10-21 {
-        description "Declare rib-clear-advertised, the Adj-RIB-Out withdrawal.";
+        description "Declare rib-clear-advertised, the Adj-RIB-Out withdrawal; declare bgp-health, moved from ze-cli-show-api.";
     }
 
     revision 2026-10-09 {
@@ -993,5 +993,15 @@ notification today, so a subscriber that waits for it receives nothing.";
             description "A text stating why the session closed.";
             ze:help "Close reason";
         }
+    }
+
+    // show bgp health (ze-bgp:show-health) points at this rpc from
+    // ze-peer-cmd; the handler is bgp/plugins/cmd/peer/health.go.
+    rpc bgp-health {
+        description "Each row carries the peer address, the state, the remote AS and
+the uptime. Beside the rows, count holds the peer total and not-established
+holds how many are down. The answer renders as a table, so '| match Idle |
+count' answers how many peers are not established.";
+        ze:help "Show BGP peer health sorted by state and activity.";
     }
 }

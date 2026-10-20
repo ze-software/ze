@@ -732,6 +732,32 @@ bytes are literals, so its text is the same before and after the move. Logs:
 allocs/op identical. ns/op from this VM is not perf evidence (owner: perf is
 measured on his Mac), so the ns/op half of AC-15 is owed from the Mac.
 
+### AC-17 evidence (phase J, 2026-10-21, Mac)
+
+`rpc l2tp-health` moved into `ze-l2tp-api.yang` and `rpc bgp-health` into
+`ze-bgp-api.yang`, names, help and description unchanged, each with a revision
+(`ze-bgp-api` extends its existing 2026-10-21 revision); `ze-cli-show-api.yang`
+gains its first revision recording the removal; the `health` containers in
+`ze-l2tp-cmd.yang` and `ze-peer-cmd.yang` repoint `ze:rpc` (revision each,
+`ze-peer-cmd` extends its 2026-10-21 one). Wire methods and handlers unchanged.
+
+| Test | Before the move | After |
+|------|-----------------|-------|
+| `TestHealthRPCsPublishedOnlyWithOwner` (`internal/component/plugin/all/health_rpcs_owner_test.go`, full feature tags) | FAIL: `ze-bgp:show-health points at ze-cli-show-api:bgp-health, want ze-bgp-api:bgp-health`, the same for l2tp, and `ze-cli-show-api declares l2tp-health` / `bgp-health` | PASS |
+| `TestHealthRPCsAbsentWithoutOwner` (`cmd/ze/hub/build_tag_health_rpcs_absent_test.go`, `CGO_ENABLED=0 -tags ze_core`) | FAIL: `bare build publishes ze-cli-show-api:bgp-health under Unnamed` (and l2tp-health), `ze-cli-show-api declares` both | PASS |
+
+Same package run: `TestRegisteredWireMethods` in `plugin/all` is red at HEAD
+on `ze-bgp:rib-clear-advertised` (`2e32def1a9`, not this spec); journal row in
+`plan/journal/hardcoded-count-in-test.md`. Related packages (`cmd/show/...`,
+`bgp/plugins/cmd/peer/...`, `l2tp/cmd/...`, `config`, `config/yang/...`,
+`le/doc/yangcontract/...`) green under full tags. `test/plugin/l2tp-health-show.ci`
+and `test/plugin/bgp-health-show.ci` unchanged and green after the move
+(`./le test bgp plugin --pattern <name>`: 1/1 PASS each).
+
+AC-1: `./le arch tier check` exits 0 (`plugin ownership OK`) once the docker
+route gate stops reading the gitignored `cache/stdpatch` GOROOT (fixed in its
+own commit, `TestDockerExecGateSkipsTheBuildCache`).
+
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |

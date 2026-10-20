@@ -7,6 +7,12 @@ module ze-cli-show-api {
   description
     "Ze show verb RPCs -- read-only introspection commands.";
 
+  // l2tp-health and bgp-health were declared here, in an always-linked
+  // module, while only the gated L2TP and BGP components answer them.
+  revision 2026-10-21 {
+    description "Move l2tp-health to ze-l2tp-api and bgp-health to ze-bgp-api, their owners.";
+  }
+
   rpc bgp-warnings {
     description "Two codes reach this answer. Ze raises prefix-stale where a peer's
 prefix data is old, and prefix-threshold where a family's prefix count passes
@@ -39,20 +45,6 @@ in the ring does not appear.";
 the answer is what the daemon acts on. A granted token the event registry does
 not know appears under unresolved, which is the one way an edge goes missing.";
     ze:help "Show which peers feed which attached processes.";
-  }
-  rpc l2tp-health {
-    description "The rows are sorted by average round-trip time, highest first.
-Each row carries the login, the last state, the echo count, the average
-round-trip time in milliseconds and the bucket count. The degraded key counts
-the logins whose last state is not established.";
-    ze:help "Show L2TP session health sorted by echo loss.";
-  }
-  rpc bgp-health {
-    description "Each row carries the peer address, the state, the remote AS and
-the uptime. Beside the rows, count holds the peer total and not-established
-holds how many are down. The answer renders as a table, so '| match Idle |
-count' answers how many peers are not established.";
-    ze:help "Show BGP peer health sorted by state and activity.";
   }
   rpc metrics-query {
     description "Ze renders the Prometheus registry and then filters its text
