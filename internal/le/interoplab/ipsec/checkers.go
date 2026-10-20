@@ -372,29 +372,56 @@ var eapTLSRefusalFacts = [...]string{
 	"crypto/tls: ExportKeyingMaterial is unavailable",
 }
 
+// checkEAPTLS drives strongSwan 5.9.14 as an EAP-TLS client on TLS 1.2 with no
+// RFC 7627 extended master secret, and asserts ze refuses to derive the MSK.
+//
+// Each assertion is numbered, so a red run names which one failed and a
+// discrimination record can cite it.
 func checkEAPTLS(ctx context.Context, lab *scenarioLab) error {
+	const (
+		// The grouped form is what `interopScenarioOf` (`internal/le/rfc`) reads to
+		// learn which scenario a tagged checker drives.
+		name = "eap-tls"
+	)
+	fail := func(assertion int, cause error) error {
+		var tb textbuf.Buffer
+		tb.Str("scenario ").Str(name).Str(" assertion ").Str(strconv.Itoa(assertion)).Str(": ").Err(cause)
+		return errors.New(tb.String())
+	}
+
+	// Assertion 1. charon negotiated TLS 1.2, which is the condition under test.
 	if err := lab.waitLog(ctx, swanPeer, "negotiated TLS 1.2", lab.timeout); err != nil {
-		return err
+		return fail(1, err)
 	}
+	// Assertion 2. charon completed the TLS handshake and derived its own MSK, so
+	// the refusal below is ze's and not a failed handshake.
 	if err := lab.waitLog(ctx, swanPeer, "EAP method EAP_TLS succeeded, MSK established", lab.timeout); err != nil {
-		return err
+		return fail(2, err)
 	}
+	// Assertion 3. ze logged that it cannot export the MSK.
 	if err := lab.waitLog(ctx, zePeer, eapTLSRefusalFacts[0], lab.timeout); err != nil {
-		return err
+		return fail(3, err)
 	}
 	logs, err := lab.logs(ctx, zePeer)
 	if err != nil {
-		return err
+		return fail(4, err)
 	}
+	// Assertion 5. The refusal states every fact in eapTLSRefusalFacts, including
+	// the crypto/tls sentence that names the refused export.
 	for _, fact := range eapTLSRefusalFacts {
 		if !strings.Contains(logs, fact) {
-			return interoplab.WithSearchedOutput(fmt.Errorf("ze's EAP-TLS refusal does not state: %s", fact), logs)
+			return fail(5, interoplab.WithSearchedOutput(fmt.Errorf("ze's EAP-TLS refusal does not state: %s", fact), logs))
 		}
 	}
+	// Assertion 6. ze installed no XFRM state from the refused exchange.
 	if err := lab.checkXFRMCount(ctx, zePeer, 0); err != nil {
-		return err
+		return fail(6, err)
 	}
-	return lab.checkXFRMCount(ctx, swanPeer, 0)
+	// Assertion 7. strongSwan installed none either.
+	if err := lab.checkXFRMCount(ctx, swanPeer, 0); err != nil {
+		return fail(7, err)
+	}
+	return nil
 }
 
 func checkEAPTLS13(ctx context.Context, lab *scenarioLab) error {
