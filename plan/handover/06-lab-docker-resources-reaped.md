@@ -857,3 +857,14 @@ Gates owed (not run here): scoped `./le go lint run` over `internal/le/interopla
 | NOTE 4 | Two test files lacked the file header | `// Design:` / `// Related:` added | this commit |
 
 Gates owed: scoped `./le go lint run` over `internal/le/test/deployment`, `internal/le/setup/dockerkernel`, `internal/le/interoplab`, `internal/test/perfrunner`; then `./le verify current` over the two round-8 commits.
+
+### G-2: two unrooted verbs rooted (2026-10-20, owner "yes")
+
+| Verb | Fix | Proof (red with the producer on Background) | Commit |
+|------|-----|---------------------------------------------|--------|
+| `test deployment gokrazy-l2tp-ppp-test` | `signalRooted`; ctx through `gokrazyImage`, `checkRuntimeKernelCache`, `RuntimeKernelCacheDir`, `hostTool`, `buildcompile.BuildHost` (now `gaterun.RunContext`), QEMU; `awaitAppliance` gives up on the root; a stopped run answers an error; deferred lab, peer and machine stops take no context | `TestGokrazyImageBuildsUnderTheVerbRoot` (red: the go stub recorded the ze-host compile) | `394c13cae9` |
+| `test qemu docker-lab` | `guestContext` taken first; ctx to `RuntimeKernelCacheDir`, `buildGuestLe`, `BuildLinuxZe`, `Execute`. `job.Admission.RunContext`: the slot wait, the follow, the start and the running child honor ctx, because a captured SIGTERM otherwise sat in the up-to-an-hour queue | `TestDockerLabBuildsUnderTheVerbRoot` (three subtests red), `TestRunContextStartsNoChildUnderADoneRoot`, `TestRunContextEndsTheWaitForASlot` (red: waited out 10 s) | `611e4af144` |
+
+Still open in the journal row: `l2tp-ppp`, `l2tp-scale`, qemu hugepages, `yangcontract`. `test qemu run` and `stress` pass Background to `buildGuestLe` (their root is taken after the build, as before). `TestTheTreesTheLintLabelIgnoresHoldNoGoFile` (job) is red on this checkout for a foreign `backups/*.go` file.
+
+Gates owed: scoped `./le go lint run` over `internal/le/job`, `internal/le/test/qemu`, `internal/le/test/deployment`, `internal/le/build/compile`, `internal/le/setup/dockerkernel`; `./le verify current` over `394c13cae9..611e4af144`.
