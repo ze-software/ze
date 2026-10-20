@@ -23,6 +23,7 @@ const (
 	bridgeMUPSAFI       = "mup"
 	bridgeFlowSAFI      = "flow"
 	bridgeFlowVPNSAFI   = "flow-vpn"
+	bridgeRTCSAFI       = "rtc"
 )
 
 // The two SAFIs whose word differs between the vocabularies, each named once
@@ -60,6 +61,12 @@ var bridgeSAFI = map[string]string{
 	"flowspec-vpn":      bridgeFlowVPNSAFI,
 	bridgeMVPNSAFI:      zeMVPNSAFI,
 	bridgeMUPSAFI:       bridgeMUPSAFI,
+	// ExaBGP 6.0 reads `announce ipv4 mpls-vpn` as SAFI 128 (CHANGELOG 6.0.0),
+	// the family `announce route ... rd ...` already reached through
+	// familyOfRoute, and `announce ipv4 rtc` as SAFI 132, the Route Target
+	// membership the rtc plugin encodes (grammar/tree/announce.py ANNOUNCE_SAFIS).
+	bridgeVPNSAFI: bridgeVPNSAFI,
+	bridgeRTCSAFI: bridgeRTCSAFI,
 }
 
 // exabgpSAFI is bridgeSAFI read the other way: the word ExaBGP writes for the

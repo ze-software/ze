@@ -1384,3 +1384,16 @@ All three changes below are UNCOMMITTED and none is green yet.
 - Gates owed by the main thread: `./le go lint run` on internal/exabgp/bridge,
   internal/plugins/exabgp, internal/component/bgp/reactor, internal/component/bgp/plugins/cmd/update;
   `./le test unit all`; `./le test functional exabgp-test`; `./le rfc check`.
+
+### ExaBGP 6 spec, Phase 5 first package (exa11, 2026-10-20): continuation owed
+
+- Audit at ba4388fe47: AC-28 met (af18a709d8, 9dea34f1b9, 76b51c8946, interop 65651c27e0); A-9 adopted.
+  Not re-verified: AC-28 "a word after the sub-TLVs is refused". AC-26 (rtc) and AC-27 (mpls-vpn) absent.
+- Built, uncommitted at hand-off: RTC encoder (`nlri/rtc/encode.go`, RFC 4684 Section 4), update-text
+  rtc section fix (`endsRegistrySection` ended it at `origin-as`), bridge rows `mpls-vpn` and `rtc`,
+  cases `api-rtc` (green on pin and ze) and `api-mpls-vpn`, docs incl. `rfc/short/rfc4684.md`.
+- `api-mpls-vpn` pins ze's NEXT_HOP beside MP_REACH (`family.LegacyNextHop`, as `api-vpnv4`); the pin
+  sends none (RFC 4760 Section 3 "SHOULD NOT carry the NEXT_HOP"), so it is red under `--dut exabgp`.
+  Owner decision owed.
+- Next: commit the rest; AC-28 refusal; interop `bgp-exabgp-bridge-rtc-gobgp`,
+  `bgp-exabgp-bridge-vpnv4-frr` (proven red); spec "Phase 5 state" line.

@@ -700,9 +700,16 @@ func refuseAddPath(fam family.Family, reason string) error {
 // at one would hand the encoder a section with no RD, and leave `rd` as the next
 // top-level token, where ParseUpdateText refuses it as an attribute written
 // after an NLRI section. So the plugin keeps all three.
+//
+// `origin-as` is kept for the same reason. RFC 4684 Section 4 names the first
+// field of a Route Target membership "origin as", and the rtc encoder reads
+// `origin-as 65000 route-target 65000:1` (nlri/rtc/encode.go EncodeNLRIHex).
+// The top-level `origin-as` directive is an attribute, so after a section it
+// would be refused anyway; inside one, a family that does not read the word
+// refuses it by name.
 func endsRegistrySection(token string) bool {
 	switch token {
-	case kwRD, kwLabel, kwPathInfo:
+	case kwRD, kwLabel, kwPathInfo, kwOriginAS:
 		return false
 	}
 	return isBoundaryKeyword(token)

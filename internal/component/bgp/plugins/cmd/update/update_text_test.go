@@ -963,13 +963,17 @@ func TestParseUpdateText_UnknownAttribute(t *testing.T) {
 //
 // VALIDATES: Unsupported family returns error.
 // PREVENTS: Silent ignore of unsupported families.
+// unwritableTestFamily is a registered family no parser here and no plugin
+// encoder writes. A real family stops serving once its plugin gains an encoder:
+// the example was MVPN until update_text_exabgp_test.go
+// TestMVPNSectionMatchesTheExaBGPWire, then RTC until nlri/rtc/encode.go.
+// SAFI 241 is in the RFC 4760 private-use range, which no plugin registers.
+var unwritableTestFamily = family.MustRegister(family.AFIIPv4, family.SAFI(241), "ipv4", "test-unwritable")
+
 func TestParseUpdateText_UnsupportedFamily(t *testing.T) {
-	// RTC is a valid family this parser cannot write: it parses no RTC NLRI of
-	// its own, and the rtc plugin registers no NLRI encoder for the registry
-	// path to reach. The example used to be MVPN, which is now writable
-	// (update_text_exabgp_test.go TestMVPNSectionMatchesTheExaBGPWire).
+	// A valid family this parser cannot write is refused as unsupported.
 	_, err := ParseUpdateText([]string{
-		"mp", "ipv4/rtc", "add", "10.0.0.0/24",
+		"mp", unwritableTestFamily.String(), "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, route.ErrFamilyNotSupported)

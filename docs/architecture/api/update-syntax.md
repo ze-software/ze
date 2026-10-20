@@ -733,7 +733,7 @@ section. The whole command is refused, so a command mixing that section with
 another family never half-applies. A `path-information` written inside
 another family's section belongs to that section and is accepted.
 
-A section of a family a plugin encodes (mup, mvpn, sr-policy) is one NLRI, so
+A section of a family a plugin encodes (mup, mvpn, sr-policy, rtc) is one NLRI, so
 its `add` or `del` comes once, right after the family. A second `add` or `del`
 later in the section is refused. The families Ze parses itself (unicast,
 multicast, vpn, labeled, flowspec, vpls, evpn) keep switching mode on a later
@@ -795,6 +795,7 @@ send bgp * update text rd 63333:100 label [ 110 200 ] next-hop 10.0.99.12 \
 | l2vpn/evpn | ✅ | RFC 7432 EVPN (Type 2, 3, 5) |
 | ipv4/mvpn, ipv6/mvpn | ✅ | RFC 6514 MCAST-VPN (route types 5, 6, 7) |
 | ipv4/mup, ipv6/mup | ✅ | MUP SAFI |
+| ipv4/rtc | ✅ | RFC 4684 Route Target membership |
 | flowspec | ❌ | Complex encoding, use text |
 
 A family this parser does not read itself hands its whole token run to the NLRI
@@ -818,6 +819,25 @@ The AFI decides the address family: an IPv6 source or group under `ipv4/mvpn` is
 refused, and so is a missing `source-as` on a join route, because AS 0 on the wire
 cannot be told from an AS the operator chose.
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/encode.go -- EncodeNLRIHex -->
+
+A Route Target membership (RFC 4684 Section 4) is `default`, the zero-length
+membership in every route target, or an origin AS and a route target, which the
+encoder writes as the full 96-bit prefix:
+
+```bash
+send bgp edge1 update text next-hop 192.0.2.1 mp ipv4/rtc add origin-as 65000 route-target 65000:1
+send bgp edge1 update text next-hop 192.0.2.1 mp ipv4/rtc add default
+send bgp edge1 update text mp ipv4/rtc del origin-as 65000 route-target 65000:1
+```
+
+The route target takes the spellings `extended-community` takes for one,
+`<asn>:<n>`, `<ip>:<n>` or `target:...`, and any other community is refused. A
+membership missing its origin AS or its route target is refused rather than
+written with a zero. Inside a plugin section `origin-as` is the section's word,
+not the top-level `origin-as` directive, which still applies when written before
+the section.
+<!-- source: internal/component/bgp/plugins/nlri/rtc/encode.go -- EncodeNLRIHex, parseMembership -->
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- endsRegistrySection -->
 
 ## Attribute Wire Bytes
 

@@ -27,8 +27,10 @@ const (
 	// by exact string.
 	familyIPv4RTC = "ipv4/rtc" // AFI 1, SAFI 132
 
-	// familyModeDecode declares a family this plugin decodes but never encodes.
-	// The plugin server reads it as sdk.FamilyDecl.Mode.
+	// familyModeDecode declares the family to the plugin server as one this
+	// plugin decodes (sdk.FamilyDecl.Mode). The text encoder is reached through
+	// the registry's InProcessNLRIEncoder, as VPLS's is, so the declaration
+	// claims no encoding role at Stage 1.
 	familyModeDecode = "decode"
 )
 

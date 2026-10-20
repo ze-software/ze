@@ -187,7 +187,7 @@
 | FlowSpec | Partial | Full |
 | BGP-LS | Full | Full |
 | VPLS | No | Yes |
-| RTC | No | Yes |
+| RTC | Yes (update text, ExaBGP bridge) | Yes |
 | MVPN | Yes | No |
 | MUP | Yes | No |
 

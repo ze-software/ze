@@ -56,6 +56,16 @@ missing one is refused by name, never sent with a zero in its place. A trailing
 
 <!-- source: internal/exabgp/bridge/bridge_vpls.go -- convertVPLSRoute -->
 
+ExaBGP 6.0's `announce ipv4 mpls-vpn <prefix> ... rd <rd> label <n>` is the
+family-stating spelling of `announce route <prefix> ... rd <rd> label <n>`, and
+both become one `mp ipv4/mpls-vpn` section with the same bytes (SAFI 128).
+`announce ipv4 rtc origin-as <asn> route-target <rt> next-hop <ip>` and
+`announce ipv4 rtc default next-hop <ip>` become an `mp ipv4/rtc` section, which
+the rtc plugin encodes as the RFC 4684 Section 4 membership; `withdraw ipv4 rtc`
+sends the same words under `del`. Both SAFI words are rows of `bridgeSAFI`.
+
+<!-- source: internal/exabgp/bridge/bridge_family.go -- bridgeSAFI -->
+
 
 The read happens ONCE for the whole fleet, and each format is rendered once. So
 the cost of a fan-out grows with the number of formats in use, not with the

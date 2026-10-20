@@ -22,7 +22,7 @@
 | BGP-LS VPN | `bgp-ls/bgp-ls-vpn` | 16388/72 | No | Yes | No |
 | IPv4 MVPN | `ipv4/mvpn` | 1/5 | Yes | Yes | Partial |
 | IPv6 MVPN | `ipv6/mvpn` | 2/5 | Yes | Yes | Partial |
-| IPv4 RTC | `ipv4/rtc` | 1/132 | No | Yes | No |
+| IPv4 RTC | `ipv4/rtc` | 1/132 | Yes | Yes | No |
 | IPv4 MUP | `ipv4/mup` | 1/85 | Yes | Yes | Yes |
 | IPv6 MUP | `ipv6/mup` | 2/85 | Yes | Yes | Yes |
 | IPv4 SR-Policy | `ipv4/sr-policy` | 1/73 | Yes | Yes | Yes |
@@ -87,6 +87,7 @@ announcement with no Tunnel Encapsulation attribute is treat-as-withdraw
 <!-- source: internal/component/bgp/plugins/nlri/vpls/register.go -- VPLS family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- MVPN family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/rtc/register.go -- RTC family registration -->
+<!-- source: internal/component/bgp/plugins/nlri/rtc/encode.go -- EncodeNLRIHex -->
 
 ### Capabilities
 
