@@ -166,13 +166,16 @@ replaced a configured route exits (`docs/architecture/exabgp-bridge.md`).
 send bgp 10.0.0.1 update text restore-configured nlri ipv4/unicast del 1.1.1.1/32
 ```
 
-A static route matches when its family, ADD-PATH path identifier and prefix
-are the withdrawn NLRI's. A static route carrying a route distinguisher or a
-label stack is not matched yet, so its prefix is withdrawn as asked.
-Written after a section, the keyword is refused.
+A static route matches when its family, ADD-PATH path identifier, route
+distinguisher and prefix are the withdrawn NLRI's. Its label stack is not
+compared: a withdrawn labeled or VPN NLRI carries the RFC 8277 Section 2.4
+Compatibility field where the labels were, and that field is ignored, so
+`label` on the `del` need not repeat the configured stack. The same prefix
+under another RD is another route and is withdrawn as asked. Written after a
+section, the keyword is refused.
 
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- kwRestoreConfigured, ParseUpdateText -->
-<!-- source: internal/component/bgp/reactor/peer_static_restore.go -- restoreConfigured, staticRouteNamesNLRI -->
+<!-- source: internal/component/bgp/reactor/peer_static_restore.go -- restoreConfigured, staticRouteNamesNLRI, staticRouteKey -->
 
 ### Text Mode Examples
 

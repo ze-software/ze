@@ -10,6 +10,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 )
 
 // restoreConfigured gives back the configured routes a withdrawal names, and
@@ -25,9 +26,8 @@ import (
 // its initial send reads the same configuration and announces the route
 // itself, and the withdrawal no longer carries the NLRI that would take it back.
 //
-// Only a route the config names by its prefix is matched. A static route with
-// a route distinguisher or a label stack is not, and its NLRI is withdrawn as
-// asked (staticRouteNamesNLRI).
+// A configured route is matched by its family, ADD-PATH identifier, RD and
+// prefix, never by its label (staticRouteNamesNLRI).
 func (p *Peer) restoreConfigured(withdrawn []nlri.NLRI) []nlri.NLRI {
 	configured := p.staticRoutes()
 	if len(configured) == 0 {
@@ -93,36 +93,51 @@ func configuredRouteFor(configured []StaticRoute, n nlri.NLRI) (StaticRoute, boo
 	return StaticRoute{}, false
 }
 
-// staticRouteNamesNLRI says whether static route r and NLRI n are the same
-// route: one family, one ADD-PATH identifier, one prefix. The prefix is
-// compared as RFC 4271 Section 4.3 encodes it, a length in bits followed by
-// the octets that hold it, which is what n.Bytes() carries for a plain prefix.
+// staticRouteNamesNLRI says whether static route r and withdrawn NLRI n are
+// the same route: one family, one ADD-PATH identifier, one route key. The key
+// of n is the family's own (nlrisplit.GetPrefixKey, read as a withdrawal), and
+// the key of r is built in the same form by staticRouteKey.
 //
-// A route with a route distinguisher or a label stack carries those in its
-// NLRI too, so it is never matched here.
+// RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field
+// MUST be ignored." A withdrawn labeled or VPN NLRI carries that field where
+// the announcement carried its label stack, so the label is not part of the
+// key, and a configured route is named whatever label it was given.
 func staticRouteNamesNLRI(r *StaticRoute, n nlri.NLRI) bool {
-	if r.RD != "" {
-		return false
-	}
-	if len(r.Labels) > 0 {
-		return false
-	}
-	if r.Family() != n.Family() {
+	fam := r.Family()
+	if fam != n.Family() {
 		return false
 	}
 	if r.PathID != n.PathID() {
 		return false
 	}
+	var withdrawnScratch, configuredScratch [nlrisplit.PrefixKeyScratchSize]byte
+	withdrawn, err := nlrisplit.GetPrefixKey(fam)(n.Bytes(), withdrawnScratch[:], true)
+	if err != nil {
+		// A withdrawn NLRI the family cannot frame names no configured route.
+		return false
+	}
+	return bytes.Equal(withdrawn, staticRouteKey(r, configuredScratch[:]))
+}
+
+// staticRouteKey writes the route key of r into buf, in the form the family's
+// prefix key answers for a withdrawal: the length in bits, then the RD of a
+// VPN route, then the octets that hold the prefix (RFC 4271 Section 4.3), the
+// trailing bits masked. buf must hold nlrisplit.PrefixKeyScratchSize octets.
+//
+// RFC 4364 Section 4.1: "The purpose of the RD is solely to allow one to
+// create distinct routes to a common IPv4 address prefix." The RD is part of
+// the key, so the same prefix under another RD is another route.
+func staticRouteKey(r *StaticRoute, buf []byte) []byte {
 	prefix := r.Prefix.Masked()
 	bits := prefix.Bits()
-	wire := n.Bytes()
-	if len(wire) == 0 {
-		return false
+	off := 1
+	if r.IsVPN() {
+		bits += 8 * len(r.RDBytes)
+		off += copy(buf[off:], r.RDBytes[:])
 	}
-	if int(wire[0]) != bits {
-		return false
-	}
+	buf[0] = byte(bits)
 	addr := prefix.Addr().AsSlice()
-	octets := (bits + 7) / 8 // Rounded up: a partial octet still travels.
-	return len(wire) == 1+octets && bytes.Equal(wire[1:], addr[:octets])
+	octets := (prefix.Bits() + 7) / 8 // Rounded up: a partial octet still travels.
+	off += copy(buf[off:], addr[:octets])
+	return buf[:off]
 }
