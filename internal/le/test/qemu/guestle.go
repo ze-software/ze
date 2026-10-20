@@ -57,6 +57,11 @@ func buildGuestLe(ctx context.Context, root, goarch string) error {
 	environment := append(toolchain.Environment(gotoolchain.EnvOptions{GOOS: guestOS, GOARCH: goarch}),
 		linuxle.Overrides(goarch)...)
 	if _, code := admission.RunContext(ctx, "qemu-build-le", linuxle.Argv(tags, output), root, environment); code != 0 {
+		if err := ctx.Err(); err != nil {
+			// The root ended the build or the wait for its slot: say so, and
+			// not the code, which reads as a failed compile.
+			return fmt.Errorf("build the guest le for linux/%s: stopped by an interrupt or SIGTERM: %w", goarch, err)
+		}
 		return fmt.Errorf("build the guest le for linux/%s exited %d", goarch, code)
 	}
 	return nil

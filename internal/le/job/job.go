@@ -650,7 +650,9 @@ func (a *Admission) Run(label string, argv []string, dir string, environ []strin
 // RunContext is Run under ctx, for a verb whose root SIGINT or SIGTERM
 // cancels. A done ctx ends the wait for a slot and the follow of a shared run,
 // refuses to start the child, and sends a running child SIGTERM, the signal
-// the forwarding already relays; the release then runs as for any exit.
+// the forwarding already relays; the release then runs as for any exit. A run
+// the done ctx ended or refused notes that an interrupt or SIGTERM stopped it,
+// rather than ctx's error or the code it answers.
 func (a *Admission) RunContext(ctx context.Context, label string, argv []string, dir string, environ []string) (Report, int) {
 	report := Report{Label: label, Command: argv, Admission: KindUnspecified.String()}
 
@@ -665,13 +667,20 @@ func (a *Admission) RunContext(ctx context.Context, label string, argv []string,
 		// scan sees progress, and `make -n` hangs until the stall window expires.
 		report.Admission = KindUnadmitted.String()
 		report.Code = a.stream(ctx, argv, a.runDir(dir), environ, nil)
+		a.noteStopped(ctx, label, report.Code)
 		return report, report.Code
 	}
 
 	ticket, err := a.admit(ctx, label, argv)
 	if err != nil {
-		a.note(errorLine(err))
 		report.Code = 2
+		if ctx.Err() != nil {
+			// The root ended the wait for a slot or the follow of a shared
+			// run: that is the operator's stop, not a failure to report.
+			a.noteStopped(ctx, label, report.Code)
+			return report, report.Code
+		}
+		a.note(errorLine(err))
 		return report, report.Code
 	}
 
@@ -686,6 +695,7 @@ func (a *Admission) RunContext(ctx context.Context, label string, argv []string,
 		return report, report.Code
 	case KindInside:
 		report.Code = a.stream(ctx, argv, a.runDir(dir), environ, nil)
+		a.noteStopped(ctx, label, report.Code)
 		return report, report.Code
 	case KindUnspecified, KindUnadmitted, KindClaimed:
 		// RunClaimed runs a claimed slot and refuses either nonclaimed sentinel.
@@ -694,7 +704,23 @@ func (a *Admission) RunContext(ctx context.Context, label string, argv []string,
 	}
 
 	report.Code = a.runClaimed(ctx, ticket, argv, dir, environ)
+	a.noteStopped(ctx, label, report.Code)
 	return report, report.Code
+}
+
+// noteStopped tells the person watching that an interrupt or SIGTERM stopped
+// the job, when ctx, the verb's signal root, is done and the job did not
+// succeed. The code is left out: 2, 127 or 143 here says only where the stop
+// landed, and reads as a failure of the job itself.
+func (a *Admission) noteStopped(ctx context.Context, label string, code int) {
+	if ctx.Err() == nil {
+		return
+	}
+	if code == 0 {
+		return
+	}
+	var tb textbuf.Buffer
+	a.note(tb.Byte('[').Str(label).Str("] stopped by an interrupt or SIGTERM before it finished").String())
 }
 
 // RunClaimed runs the child in the slot a KindClaimed ticket holds, tees its
@@ -819,6 +845,11 @@ func (a *Admission) stream(ctx context.Context, argv []string, dir string, envir
 	cmd.Stderr = out
 
 	if err := cmd.Start(); err != nil {
+		if ctx.Err() != nil {
+			// A done ctx refused the start: the stop is the caller's to
+			// report (RunContext.noteStopped), and argv[0] is not missing.
+			return gaterun.CannotStart
+		}
 		var tb textbuf.Buffer
 		a.note(tb.Str("  cannot run ").Str(argv[0]).Str(": ").Err(err).String())
 		return gaterun.CannotStart

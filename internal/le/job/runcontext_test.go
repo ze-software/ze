@@ -4,12 +4,15 @@
 package job
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // runContextBound is how long a case waits for RunContext to answer before
@@ -177,6 +180,83 @@ func TestRunContextEndsTheFollowOfASharedRun(t *testing.T) {
 	}
 	if _, err := os.Stat(ran); err == nil {
 		t.Error("RunContext ran its own copy of the work after its root ended")
+	}
+}
+
+// VALIDATES: a run its root ended or refused tells the operator an interrupt
+// or SIGTERM stopped it, wherever the stop landed: in the queue, before the
+// child of a nested job started, or while the child ran.
+// METHOD: each case runs with the admission's notes captured. The queue and
+// nested cases cancel the root before the call; the running case cancels it
+// once the child is up. Every case must note the stop and must name neither
+// ctx's error nor a command that cannot run.
+// PREVENTS: a SIGTERM to le reading as "error: context canceled" or "cannot
+// run go: context canceled", which send the operator after a fault that does
+// not exist.
+func TestRunContextNotesAStopRatherThanItsError(t *testing.T) {
+	quick := []string{"sh", "-c", "exit 0"}
+	cases := []struct {
+		name string
+		// before prepares the case and answers the argv to run; after runs
+		// once RunContext has started, and ends the root if before did not.
+		before func(t *testing.T, root string, cancel context.CancelFunc) []string
+		after  func(t *testing.T, root string, cancel context.CancelFunc)
+	}{
+		{"queue", func(_ *testing.T, _ string, cancel context.CancelFunc) []string {
+			cancel()
+			return quick
+		}, func(*testing.T, string, context.CancelFunc) {}},
+		{"nested", func(t *testing.T, root string, cancel context.CancelFunc) []string {
+			parent := writeEntry(t, root, "parent", "LABEL=parent\n")
+			t.Setenv(ParentVariable, parent)
+			env.ResetCache()
+			cancel()
+			return quick
+		}, func(*testing.T, string, context.CancelFunc) {}},
+		{"running", func(_ *testing.T, root string, _ context.CancelFunc) []string {
+			up := filepath.Join(root, "tmp", "up")
+			return []string{"sh", "-c", "trap 'exit 143' TERM; sleep 30 >/dev/null 2>&1 & " + record(up, "up") + "; wait"}
+		}, func(t *testing.T, root string, cancel context.CancelFunc) {
+			awaitFile(t, filepath.Join(root, "tmp", "up"))
+			cancel()
+		}},
+	}
+	for _, step := range cases {
+		t.Run(step.name, func(t *testing.T) {
+			detach(t)
+			root := fixtureRepo(t)
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			argv := step.before(t, root, cancel)
+
+			var notes bytes.Buffer
+			adm := admission(t, root)
+			adm.Err = &notes
+			answered := make(chan int, 1)
+			go func() {
+				_, code := adm.RunContext(ctx, "probe", argv, root, nil)
+				answered <- code
+			}()
+			step.after(t, root, cancel)
+
+			select {
+			case code := <-answered:
+				if code == 0 {
+					t.Fatal("RunContext answered 0 for a run its root stopped")
+				}
+			case <-time.After(runContextBound):
+				t.Fatal("RunContext kept running after its root ended")
+			}
+			got := notes.String()
+			if !strings.Contains(got, "[probe] stopped by an interrupt or SIGTERM") {
+				t.Errorf("the notes do not say the run was stopped:\n%s", got)
+			}
+			for _, wrong := range []string{"context canceled", "cannot run"} {
+				if strings.Contains(got, wrong) {
+					t.Errorf("the notes name %q for a stop:\n%s", wrong, got)
+				}
+			}
+		})
 	}
 }
 

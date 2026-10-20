@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/env"
@@ -131,6 +132,45 @@ func TestDockerLabBuildsUnderTheVerbRoot(t *testing.T) {
 			}
 			if recorded, err := os.ReadFile(record); err == nil { //nolint:gosec // the test's own temp file
 				t.Fatalf("%s ran go under a canceled root:\n%s", step.name, recorded)
+			}
+		})
+	}
+}
+
+// VALIDATES: a guest-le or linux-ze build that the verb's root stopped says an
+// interrupt or SIGTERM stopped it, and names no exit code.
+// METHOD: each admitted build runs under a canceled root over the staged
+// checkout; its error must say it was stopped and must not say "exited".
+// PREVENTS: a SIGTERM to le reading as "build the guest le ... exited 2",
+// which reads as a compile failure.
+func TestDockerLabBuildsSayTheyWereStopped(t *testing.T) {
+	builds := []struct {
+		name  string
+		build func(ctx context.Context, tree string) error
+	}{
+		{"guest-le", func(ctx context.Context, tree string) error {
+			return buildGuestLe(ctx, tree, GuestArch())
+		}},
+		{"linux-ze", func(ctx context.Context, tree string) error {
+			_, err := BuildLinuxZe(ctx, tree, GuestArch())
+			return err
+		}},
+	}
+	for _, step := range builds {
+		t.Run(step.name, func(t *testing.T) {
+			tree, _ := stageDockerLabTree(t)
+			canceled, cancel := context.WithCancel(t.Context())
+			cancel()
+
+			err := step.build(canceled, tree)
+			if err == nil {
+				t.Fatalf("%s under a canceled root answered success", step.name)
+			}
+			if !strings.Contains(err.Error(), "stopped by an interrupt or SIGTERM") {
+				t.Errorf("%s answered %q, want it to say the build was stopped", step.name, err)
+			}
+			if strings.Contains(err.Error(), "exited") {
+				t.Errorf("%s answered %q, which names an exit code for a stop", step.name, err)
 			}
 		})
 	}
