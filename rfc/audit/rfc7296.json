@@ -100,6 +100,25 @@
       },
       "verdict": "enforced"
     },
+    "RFC7296-1.4.1-1": {
+      "code": {
+        "internal/component/ike/engine/delete.go::sendDeleteESP": "4776f751621e687f",
+        "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned": "ff8eab9dd5afbc8c"
+      },
+      "note": "Re-judged 2026-10-20 (independent judge, after 967dbf7883, 5450fa29e9, b87fdb0b43; HEAD 6dce69a77c). Section 1.4.1: \"ESP and AH SAs always exist in pairs, with one SA in each direction. When an SA is closed, both members of the pair MUST be closed (that is, deleted). Each endpoint MUST close its incoming SAs and allow the other endpoint to close the other SA in each pair.\" No prior audit entry. 5450fa29e9 closes the last path found: a CREATE_CHILD_SA rekey answer with no error notify (so the peer installed its half) that Ze refused for a reason outside the named arms used to only log in the default arm of handleCreateChildSAOwned (inbound.go); it now calls sendDeleteESP with p.newInboundSPI, as the errChildEncapPort arm already did, and keeps the old Child SA. Arms that carry an error notify (TEMPORARY_FAILURE, NO_ADDITIONAL_SAS, CHILD_SA_NOT_FOUND, other refusals) correctly send nothing, because the peer created no SA. A refused IKE_AUTH answer tears the IKE SA down, which RFC 7296 Section 1.4.1 says \"implicitly closes any remaining Child SAs\". The retirement path deletes both halves and names the inbound SPI (cleanupChild -> removeChildSA). TestRFC7296RefusedRekeyAnswerDeletesTheNewPair (Delete lists the new inbound SPI, never the in-use SPI, nothing installed) and TestLcyClosingAChildSAClosesBothHalvesAndDeletesOurInbound PASS at HEAD; the new unit's claim states what it asserts. Discrimination recorded with the Delete removed (rfc/discrimination/rfc7296.json).",
+      "requirement_sha": "818d09283b550b29",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyClosingAChildSAClosesBothHalvesAndDeletesOurInbound": "1d52b16c2d61f057",
+        "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyClosingAChildSAClosesBothHalvesAndDeletesOurInbound#2": "1d52b16c2d61f057",
+        "internal/component/ike/engine/rfc7296_rekey_refused_delete_test.go::TestRFC7296RefusedRekeyAnswerDeletesTheNewPair": "a72262a0398a1cf5"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyClosingAChildSAClosesBothHalvesAndDeletesOurInbound": "10bcbf3df9761138",
+        "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyClosingAChildSAClosesBothHalvesAndDeletesOurInbound#2": "10bcbf3df9761138",
+        "internal/component/ike/engine/rfc7296_rekey_refused_delete_test.go::TestRFC7296RefusedRekeyAnswerDeletesTheNewPair": "8c3a68d1a4b17855"
+      },
+      "verdict": "enforced"
+    },
     "RFC7296-1.4.1-4": {
       "note": "TestDelCrossingDeleteAnswersWithoutAPairedDelete runs the production crossing sequence (recordOwnDelete, send, remove) and asserts the response to the peer's crossing Delete carries no Delete payload; reddens when crossOwnDelete stops detecting the crossing. TestDelWithoutOwnDeleteTheSameRequestIsPaired pins the row's own 'In that case' scope: outside the exception the same Delete draws the paired Delete \u00a71.4.1 requires ('Normally, the response ... will contain Delete payloads for the paired SAs'), so a responder that never pairs cannot pass. The tags on TestLcyInformationalResponseCarriesNoDeletePayload are gone and its stale premise rewritten.",
       "requirement_sha": "48702badce76b398",
@@ -754,11 +773,15 @@
       "verdict": "enforced"
     },
     "RFC7296-2.9-2": {
-      "note": "Re-judged 2026-10-20 (independent judge, after 13c1b058ed, f9d98e8ab1, 6f87487816 and the rename to rfc4301_child_multi_pair_test.go). Section 2.9: \"If the responder's policy allows it to accept the first selector of TSi and TSr, then the responder MUST narrow the Traffic Selectors to a subset that includes the initiator's first choices.\" narrowSelectors leads the answer with the first-choice intersections, keepSingleAddress filters in order and oneTransportPair keeps the first, so the transport answer is the first choice; dropping the others is permitted by the same section: \"When narrowing is done, there may be several subsets that are acceptable but their union is not. In this case, the responder arbitrarily chooses one of them\", and the second bullet's \"can return the same\" is not a MUST. New TestRFC7296TransportResponderNarrowsToFirstPair (keeps TCP/179 of a two-pair proposal, tunnel control keeps both), TestNarrowingIncludesFirstChoice and TestPeerInitiatedRekeyIsNarrowedInTheExchangeOrientation PASS. Caveat, verdict-neutral: on a rekey narrowSelectors answers the floor before the first choice (RFC 7296 Section 2.9.2), unchanged by this commit. No prior audit entry existed for this id.",
+      "code": {
+        "internal/component/ike/engine/ts_narrow.go::narrowChildSelectors": "29a6c71f38c6b3de",
+        "internal/component/ike/engine/ts_narrow.go::narrowSelectors": "f3d4666e6c135cf0"
+      },
+      "note": "Re-judged 2026-10-20 (independent judge, after 967dbf7883, 5450fa29e9, b87fdb0b43; HEAD 6dce69a77c). Section 2.9: \"If the responder's policy allows it to accept the first selector of TSi and TSr, then the responder MUST narrow the Traffic Selectors to a subset that includes the initiator's first choices.\" ./le rfc check reports this row SHIFTED only (TestRFC7296TransportResponderNarrowsToFirstPair byte-identical); re-read anyway because b87fdb0b43 rewrote ts_narrow.go. narrowSelectors is unchanged by the three commits: with a policy, the intersections of proposedI[0] x proposedR[0] lead the answer; with no policy, out[0] is (proposedI[0], proposedR[0]); oneTransportPair keeps the first; pairsToWire puts them first on the wire. Verdict stands; the tests PASS at HEAD. Finding, verdict-neutral for this row: the responder's positional pairing (see RFC4301-4.4.2-2) makes the wire answer negotiate the RFC 7296 Section 3.13 cross product of its lists, which can exceed the configured policy rows; it does not make the answer exclude the first choice.",
       "requirement_sha": "30ccb42f9f5fd42e",
       "tests": {
         "internal/component/ike/engine/rfc7296_child_rekey_orientation_test.go::TestPeerInitiatedRekeyIsNarrowedInTheExchangeOrientation": "936446b574e018e5",
-        "internal/component/ike/engine/rfc7296_transport_one_pair_test.go::TestRFC7296TransportResponderNarrowsToFirstPair": "2c7de49a0efc6acd",
+        "internal/component/ike/engine/rfc7296_transport_one_pair_test.go::TestRFC7296TransportResponderNarrowsToFirstPair": "d8b72938b2447748",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestAuthResponsePayloadsCarryTheNarrowedSelectors": "8731c5a2d354ba07",
         "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice": "7ec56b7d86f07a26",
         "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice#2": "7ec56b7d86f07a26"
