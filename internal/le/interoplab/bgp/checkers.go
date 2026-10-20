@@ -254,17 +254,14 @@ var scenarioOperations = map[string][]operation{
 	// with the label stripped (nlrisplit keyVPN), so the paths compete
 	// whatever labels they carry. The best table is read by peer, not prefix:
 	// `show bgp rib best` renders a VPN NLRI as a CIDR (journal,
-	// silent-fall-through.md). NOT GREEN on 2026-10-20: the Linux Docker kernel
-	// there has no VRF device type ("ip link add ... type vrf" answers "Unknown
-	// device type"), so FRR's VRF instance never exports; the green and the red
-	// phase are both unobserved.
+	// silent-fall-through.md). FRR exports the route from its default
+	// instance (frr.conf, export vpn), so no Linux VRF device is needed: a
+	// "router bgp ... vrf" instance stayed inactive on a Docker kernel with no
+	// VRF device type and exported nothing.
 	"bgp-srv6-invalid-sid-ineligible-frr": {
-		// FRR's "router bgp 65001 vrf customer1" stays inactive until the Linux
-		// VRF device exists, and an inactive instance exports nothing, so ze's
-		// best table would be empty and judge no candidate. The FRR-side wait
-		// proves the route was exported before ze is asked about it.
-		{kind: opExec, peer: peerFRR, command: []string{"sh", shellErrexitCommand, srv6IneligibleVRFSetup}},
 		{kind: opFRRSession, argument: zeLabAddress},
+		// The FRR-side wait proves the route was exported before ze is asked
+		// about it, so an empty best table is never judged.
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv6 vpn"}, contains: []string{srv6IneligiblePrefix}, timeout: 60 * time.Second},
 		{kind: opWaitContains, peer: "ze", command: zeCommand("show bgp rib best"), contains: []string{srv6IneligibleFRRAddress}, timeout: 90 * time.Second},
 		{kind: opWaitContains, peer: "ze", command: zeCommand("show bgp rib received"), contains: []string{srv6IneligibleInjectorAddress}, timeout: 60 * time.Second},
@@ -280,17 +277,18 @@ var scenarioOperations = map[string][]operation{
 	// RFC 8669 Sections 3.1, 4.1 and 6 and RFC 9252 Section 7, judged by FRR
 	// on what ze relays. The VPN control comes first: it proves the VPN
 	// session carries routes, so the absence of the treat-as-withdraw prefix
-	// later is not an empty table. Each labeled-unicast prefix must arrive,
-	// and its own answer must name it without a label index, because ze
-	// discarded the attribute (under the family-blind judge it was relayed or
-	// kept). The valid-index control 10.0.5.0/24 proves the word FRR prints
-	// ("Label Index"). Red walks of 2026-10-20: with the Label-Index length
-	// check off, FRR resets the session on the relayed 6-octet TLV (assertion
-	// 1); with the Service TLV overrun judged attribute-discard, FRR keeps
-	// 10.0.2.0/24 (the withdrawn-prefix assertion). The SRGB-only check does
-	// NOT discriminate: FRR prints nothing for an Originator SRGB, so with
-	// the RFC 8669 Section 4.1 check off it still passes. The .ci case (d),
-	// which reads the relayed bytes, is that check's proof.
+	// later is not an empty table. Each labeled-unicast prefix must arrive.
+	// 10.0.1.0/24 must show no label index, because ze discarded the
+	// attribute; the valid-index control 10.0.5.0/24 proves the word FRR
+	// prints ("Label Index"). FRR prints nothing for an Originator SRGB, so
+	// the SRGB-only prefix 10.0.4.0/24 is judged on the bytes ze sent: FRR's
+	// MRT dump of every received UPDATE must not hold frame (d)'s SRGB TLV,
+	// while it holds that frame's NLRI and frame (e)'s Label-Index TLV. Red
+	// walks of 2026-10-20: with the Label-Index length check off, FRR resets
+	// the session on the relayed 6-octet TLV (assertion 1); with the Service
+	// TLV overrun judged attribute-discard, FRR keeps 10.0.2.0/24 (the
+	// withdrawn-prefix assertion); with the RFC 8669 Section 4.1 check off,
+	// the capture holds frame (d)'s SRGB TLV (the capture assertion).
 	"bgp-prefix-sid-malformed-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: prefixSIDMalformedControlPrefix, family: frrFamilyIPv4VPN, timeout: 90 * time.Second},
@@ -313,9 +311,9 @@ var scenarioOperations = map[string][]operation{
 		{
 			kind:    opRequireAbsent,
 			peer:    peerFRR,
-			command: []string{cmdVtysh, "-c", frrShowPrefixSIDMalformedSRGBOnlyPrefix},
-			absent:  []string{prefixSIDMalformedFRRLabelIndex},
-			proof:   []string{prefixSIDMalformedSRGBOnlyPrefix},
+			command: []string{"sh", shellErrexitCommand, prefixSIDMalformedUpdateDumpHex},
+			absent:  []string{prefixSIDMalformedSRGBOnlyTLV},
+			proof:   []string{prefixSIDMalformedSRGBOnlyNLRI, prefixSIDMalformedValidIndexTLV},
 		},
 		{kind: opFRRRouteAbsent, argument: prefixSIDMalformedWithdrawnPrefix, family: frrFamilyIPv4VPN, timeout: 30 * time.Second},
 		{kind: opFRRSession, argument: zeLabAddress},

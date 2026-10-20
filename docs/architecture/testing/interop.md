@@ -1896,6 +1896,20 @@ check refuses another user's process, and could not `setns` into it without
 neither.
 <!-- source: internal/le/interoplab/sendframe.go -- SendFrameInContainer -->
 
+### The octets FRR received from Ze
+
+When FRR prints nothing for the attribute a check is about, read the bytes
+instead. A scenario's `frr.conf` names `dump bgp updates <file>`, and FRR then
+writes every UPDATE it receives to that file as MRT, octet for octet as Ze sent
+it. The check runs `od -An -v -tx1 <file> | tr -d ' \n'` in the FRR container
+and asserts on the hex. `bgp-prefix-sid-malformed-frr` does this for the
+Originator SRGB TLV, which FRR parses and never shows. Its absence assertion
+names two proofs: the NLRI of the UPDATE it judges, so that UPDATE is in the
+capture, and a TLV Ze relays unchanged in another UPDATE, so the capture holds
+attribute bytes at all.
+<!-- source: internal/le/interoplab/bgp/names.go -- prefixSIDMalformedUpdateDumpHex -->
+<!-- source: test/interop/scenarios/bgp-prefix-sid-malformed-frr/frr.conf -- dump bgp updates -->
+
 ### Querying Ze
 
 `Ze.cli(command)` is the only way to ask the Ze daemon anything. It runs

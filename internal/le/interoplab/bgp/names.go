@@ -678,8 +678,32 @@ const (
 	prefixSIDMalformedFRRLabelIndex    = "Label Index"
 
 	frrShowPrefixSIDMalformedLabelIndexPrefix = "show bgp ipv4 labeled-unicast " + prefixSIDMalformedLabelIndexPrefix
-	frrShowPrefixSIDMalformedSRGBOnlyPrefix   = "show bgp ipv4 labeled-unicast " + prefixSIDMalformedSRGBOnlyPrefix
 	frrShowPrefixSIDMalformedValidIndexPrefix = "show bgp ipv4 labeled-unicast " + prefixSIDMalformedValidIndexPrefix
+)
+
+// The capture of what ze relays to FRR in bgp-prefix-sid-malformed-frr. FRR
+// prints nothing for an Originator SRGB TLV, so the AC-1b proof reads the
+// bytes: frr.conf's "dump bgp updates" writes every UPDATE FRR receives to
+// prefixSIDMalformedUpdateDump as MRT, and prefixSIDMalformedUpdateDumpHex
+// prints that file as one lowercase hex string (busybox od, no separators).
+//
+// prefixSIDMalformedSRGBOnlyTLV is the Originator SRGB TLV of frame (d) as
+// the injector sends it (type 3, length 8, flags 0, SRGB base 16000, range
+// 1000); no other frame carries a type 3 TLV, so its presence anywhere in the
+// capture means ze relayed the invalid attribute. Two proofs make the
+// absence a reading: prefixSIDMalformedSRGBOnlyNLRI is frame (d)'s labeled
+// NLRI (length 48, label 1000 with bottom of stack, 10.0.4.0), so the UPDATE
+// for 10.0.4.0/24 is in the capture; prefixSIDMalformedValidIndexTLV is frame
+// (e)'s Label-Index TLV (type 1, length 7, Reserved 0, Flags 0, index 100),
+// so the capture holds Prefix-SID TLVs when ze relays them. On 2026-10-20 a
+// 9-octet spelling of that TLV failed the green run with "absence assertion
+// was not exercised", which is the proof doing its job.
+const (
+	prefixSIDMalformedUpdateDump    = "/tmp/prefix-sid-malformed-updates.mrt"
+	prefixSIDMalformedUpdateDumpHex = "od -An -v -tx1 " + prefixSIDMalformedUpdateDump + " | tr -d ' \\n'"
+	prefixSIDMalformedSRGBOnlyTLV   = "0300080000003e800003e8"
+	prefixSIDMalformedSRGBOnlyNLRI  = "30003e810a0004"
+	prefixSIDMalformedValidIndexTLV = "01000700000000000064"
 )
 
 // The bgp-srv6-invalid-sid-ineligible-frr scenario, where FRR exports one IPv6
@@ -691,11 +715,9 @@ const (
 	srv6IneligibleFRRAddress      = "172.30.0.3"
 	srv6IneligibleInjectorAddress = "172.30.0.9"
 
-	// srv6IneligiblePrefix is the network frr.conf exports from VRF customer1,
-	// and srv6IneligibleVRFSetup creates the Linux VRF device that instance
-	// needs before it is active.
-	srv6IneligiblePrefix   = "2001:db8:9252:1::/64"
-	srv6IneligibleVRFSetup = "ip link add customer1 type vrf table 1001 && ip link set customer1 up"
+	// srv6IneligiblePrefix is the network frr.conf's default instance leaks
+	// into IPv6 VPN (export vpn), which needs no Linux VRF device.
+	srv6IneligiblePrefix = "2001:db8:9252:1::/64"
 )
 
 // flowspecMatchSCTP is the protocol word nft(8) prints for the SCTP match the

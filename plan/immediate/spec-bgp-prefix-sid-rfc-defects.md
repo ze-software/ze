@@ -5,9 +5,9 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 4/5 |
+| Phase | 5/5 |
 | Handoff | - |
-| Updated | 2026-10-15 |
+| Updated | 2026-10-20 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -56,7 +56,7 @@ reports nothing against the rows below).
 |-------|-------|---------|----------------------------|
 | 1 Wiring, 2 Receive (D1, D2, Q6, AC-10) | landed | `8c1c4013f2` (code, units, docs, records), `8ddd0ba446` (`prefixsid-malformed-receive.ci`, five revert records) | `prefixsid-malformed-receive` PASS (`./le test bgp plugin --pattern`) |
 | 3 Extraction and admission (D3, D4, D5) | landed | `7d37dcd562` (`srv6sid.go`, `isSRv6Ineligible(fam, entry)`, `nlrisplit.TranspositionLabelWidth`, twelve units, Q5 rows 1-6, 20 records), `4333cbb3b9` (`srv6-invalid-sid-ineligible.ci`, red against `7d37dcd562^`) | `go test -race ./internal/component/bgp/plugins/rib/... ./internal/core/bgp/nlri/nlrisplit/` green; `srv6-invalid-sid-ineligible` PASS; `fib-srv6-kernel` SKIP on darwin (R-4 owed on Linux) |
-| 4 Interop | RUN on Linux 2026-10-20, both RED at HEAD `eeb0e0e9f7` (image built from the tree by `./le --name prefixsid test integration interop`), neither for a defect of this spec's producers. Rerun the same day after `a3ed24c523` and `8463adb050`: `bgp-prefix-sid-malformed-frr` GREEN with the D1 and D2 reds recorded; `bgp-srv6-invalid-sid-ineligible-frr` blocked on the host kernel (no VRF). Waits on the two open owner decisions below the rerun table | `acce358e38` (`bgp-prefix-sid-malformed-frr`), `28bed969b0` (`bgp-srv6-invalid-sid-ineligible-frr`) | See "Phase 4 run, 2026-10-20" below. The forced-red walks were not started: a walk needs a green first |
+| 4 Interop | DONE 2026-10-20. Both scenarios GREEN on Linux with every forced red recorded: D1, D2 and AC-1b on `bgp-prefix-sid-malformed-frr`, D3/D4 on `bgp-srv6-invalid-sid-ineligible-frr`. The two blockers recorded earlier that day were resolved by test-harness work, with no scope change (see "Harness resolution, 2026-10-20") | `acce358e38`, `28bed969b0`, `3ea95435e8`, and this spec's commit A (FRR default-instance VPN export, MRT capture check) | See "Phase 4 run", "Phase 4 rerun" and "Phase 4 closure runs" below |
 
 ### Phase 4 run, 2026-10-20 (Linux, FRR 10.3.1)
 
@@ -85,14 +85,32 @@ the ze image id is read from the `docker events` start record of `ze-iop-ze-*`.
 | srv6, as committed | `sha256:dcf3c23aad7b` | FAIL, assertion 2 | session up (dual-stack fix works); ze's best table `[]`: FRR exported nothing |
 | srv6, VRF device created first | `sha256:5c3fe143290a` | FAIL, assertion 1 | `ip link add customer1 type vrf` in the FRR container: "Unknown device type". The Docker kernel has no VRF (`/proc/config.gz` holds no VRF line), so `router bgp 65001 vrf customer1` stays inactive and exports no SRv6 route. `bgp-srv6-frr` never asserted a route, so this was never seen. Blocked on the host kernel |
 
-#### Open owner decisions (2026-10-20)
+#### Harness resolution, 2026-10-20
 
-The spec waits on these two; the claim was released when they were recorded.
+Two blockers were recorded after the rerun as owner questions. Both were
+resolved the same day by test-harness work that keeps every AC as written, so
+neither needed an owner decision and no scope changed.
 
-| # | Decision | Options | What waits on it |
-|---|----------|---------|------------------|
-| 1 | `bgp-srv6-invalid-sid-ineligible-frr` cannot go green on this host: the Docker kernel has no VRF ("Unknown device type"; no VRF line in `/proc/config.gz`), so FRR's VRF instance exports nothing | (a) a VRF-capable Docker kernel (the owner's reboot); (b) run the lab in a QEMU docker-lab guest; (c) redesign the scenario so FRR originates the SRv6 VPN route without a VRF | AC-4a's interop proof, and the D3/D4 forced-red walk (break the RFC 9252 Section 3.2.1 sum check in `parseSIDStructure`, `rib/pool/srv6sid.go`, so its `return false, 0, 0` answers valid) |
-| 2 | AC-1b's interop proof column is vacuous: FRR prints nothing for an Originator SRGB, so the SRGB-only absence check passed with the RFC 8669 Section 4.1 check reverted | (a) drop the interop claim for AC-1b and keep `.ci` case (d) as its proof (a scope change, the owner's); (b) add a packet-capture assertion on the UPDATE ze relays to FRR | AC-1b's Goal Validation row |
+| # | Blocker | Resolution | Why it still proves the AC as written |
+|---|---------|------------|---------------------------------------|
+| 1 | `bgp-srv6-invalid-sid-ineligible-frr`: FRR's `router bgp 65001 vrf customer1` stayed inactive because the Docker kernel has no VRF device type, so FRR exported nothing | `frr.conf` now leaks the route from FRR's DEFAULT instance into IPv6 VPN (`address-family ipv6 unicast`: `sid vpn export auto`, `rd vpn export 65001:1`, `rt vpn both 100:1`, `export vpn`, `network 2001:db8:9252:1::/64`). The default instance needs no Linux VRF device. The VRF-creating `opExec` and `srv6IneligibleVRFSetup` are deleted (`internal/le/interoplab/bgp/checkers.go`, `names.go`) | AC-4a needs two paths for one prefix, the better-attributed one with an invalid SID and the other with a valid SID, and the valid path best. FRR still allocates the valid SID itself from LOC1 and still sends the same RD and prefix over iBGP; the injector still sends the LOCAL_PREF 200 path with SID Structure sum 200. Only the FRR table the route leaks from changed |
+| 2 | AC-1b's interop check was vacuous: FRR prints nothing for an Originator SRGB TLV | `frr.conf` of `bgp-prefix-sid-malformed-frr` gains `dump bgp updates`, so FRR writes every UPDATE it receives from ze to an MRT file. The vacuous `show` absence check for 10.0.4.0/24 is replaced by an `opRequireAbsent` over that file as hex: frame (d)'s SRGB TLV (`0300080000003e800003e8`) must be absent, with frame (d)'s labeled NLRI (`30003e810a0004`) and frame (e)'s Label-Index TLV (`01000700000000000064`) as the proof that the capture holds the UPDATE and holds Prefix-SID TLVs | The capture is the octets ze sent, as FRR read them off the session. With the RFC 8669 Section 4.1 check off the SRGB TLV is in the capture and the scenario goes red (closure runs, below) |
+
+#### Phase 4 closure runs, 2026-10-20 (Linux, FRR 10.3.1)
+
+Each run is `INTEROP_SCENARIO=<name> ./le --name prefixsid2 test integration interop`;
+the ze image id is the `docker events` start record of `ze-iop-ze-*` for that run.
+
+| Run | ze image | Result | What it showed |
+|-----|----------|--------|----------------|
+| srv6, default-instance export | `sha256:9de30eaf4b5c` | PASS (56 s) | FRR exports the SRv6 VPN route with no VRF device; FRR's path is ze's best, the injector's path is held and not best |
+| srv6, `parseSIDStructure` sum check answering valid (`return false, 0, 0` in the RFC 9252 Section 3.2.1 sum `if` replaced by a no-op) | `sha256:db6e31cb031a` | FAIL, assertion 3 | ze's best table names `best-peer` 172.30.0.9: the injector's invalid-SID path wins on LOCAL_PREF. Red recorded for D3/D4 |
+| producer restored | - | `git diff -- internal/component/bgp/plugins/rib/pool/srv6sid.go` empty | - |
+| srv6, restored | `sha256:3ba12a0d168b` | PASS (23 s) | green of record |
+| malformed, capture check first spelling | `sha256:2c1883461af9` | FAIL, assertion 8 (harness) | "absence assertion was not exercised": the proof constant spelled frame (e)'s Label-Index TLV in 9 octets instead of 10. The capture itself was read: it held `c0280a01000700000000000064` for 10.0.5.0/24 and no type 3 TLV. Constant corrected |
+| malformed, corrected | `sha256:9717fc314b52` | PASS (17 s) | green |
+| malformed, RFC 8669 Section 4.1 check off (`labeled && !sawLabelIndex` made false in `attribute/prefixsid_classify.go`) | `sha256:68bf38f69611` | FAIL, assertion 8 | the capture holds `c0280b0300080000003e800003e8`: ze relayed the SRGB-only attribute. Red recorded for AC-1b |
+| producer restored | - | `git diff -- internal/core/bgp/attribute/prefixsid_classify.go` empty | - |
 
 Related specs, not duplicated here: `plan/immediate/spec-srv6-bestpath-resolvability.md`
 owns RFC9252-5-2 (reachability of the SID) at the same candidate filter, and
@@ -526,8 +544,8 @@ Suite: `./le test integration interop` with `INTEROP_SCENARIO=<name>`. Each red 
 
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bgp-prefix-sid-malformed-frr` | `test/interop/scenarios/bgp-prefix-sid-malformed-frr/` | FRR (receiver, judge), raw injector as sender, Ze as bgp-rs relay (shape of `bgp-prefix-sid-duplicate-tlv-frr`) | D1: FRR holds the labeled-unicast prefix with no Prefix-SID; under HEAD FRR receives the 6-octet Label-Index (its own parser then refuses or logs it, A-4). D2: FRR first holds the VPN prefix, then loses it after the malformed re-announce; under HEAD FRR keeps it (attribute discarded only). AC-1b: FRR holds a second labeled-unicast prefix, sent with a Prefix-SID holding only an SRGB TLV, with no Prefix-SID; under HEAD FRR receives the attribute. Control prefix present throughout | written (`acce358e38`), NOT RUN: no Linux Docker kernel on the authoring host |
-| `bgp-srv6-invalid-sid-ineligible-frr` | `test/interop/scenarios/bgp-srv6-invalid-sid-ineligible-frr/` | FRR as the sender of a valid SRv6 L3VPN path for prefix P (FRR's own SID allocation), raw injector as the sender of a path for P with better attributes (higher LOCAL_PREF over iBGP) and an invalid SID Structure; Ze with `bgp-rib` | D3/D4: Ze's best path for P is FRR's path and the installed SID is FRR's SID (read through Ze's `rib best` in the checker); under HEAD the injector's path wins | written (`28bed969b0`), NOT RUN: no Linux Docker kernel on the authoring host |
+| `bgp-prefix-sid-malformed-frr` | `test/interop/scenarios/bgp-prefix-sid-malformed-frr/` | FRR (receiver, judge), raw injector as sender, Ze as bgp-rs relay (shape of `bgp-prefix-sid-duplicate-tlv-frr`) | D1: FRR holds the labeled-unicast prefix with no Prefix-SID; under HEAD FRR receives the 6-octet Label-Index (its own parser then refuses or logs it, A-4). D2: FRR first holds the VPN prefix, then loses it after the malformed re-announce; under HEAD FRR keeps it (attribute discarded only). AC-1b: FRR holds a second labeled-unicast prefix, sent with a Prefix-SID holding only an SRGB TLV, with no Prefix-SID; under HEAD FRR receives the attribute. Control prefix present throughout. AC-1b is judged on FRR's MRT capture of the UPDATEs ze sent (Harness resolution, row 2) | GREEN 2026-10-20 (`sha256:b6e72848b1e1`); red under D1, D2 and AC-1b reverts (rerun and closure-run tables) |
+| `bgp-srv6-invalid-sid-ineligible-frr` | `test/interop/scenarios/bgp-srv6-invalid-sid-ineligible-frr/` | FRR as the sender of a valid SRv6 L3VPN path for prefix P (FRR's own SID allocation, exported from its default instance since 2026-10-20), raw injector as the sender of a path for P with better attributes (higher LOCAL_PREF over iBGP) and an invalid SID Structure; Ze with `bgp-rib` | D3/D4: Ze's best path for P is FRR's path and the installed SID is FRR's SID (read through Ze's `rib best` in the checker); under HEAD the injector's path wins | GREEN 2026-10-20 (`sha256:3ba12a0d168b`); red with the `parseSIDStructure` sum check answering valid (`sha256:db6e31cb031a`, assertion 3) |
 | `bgp-prefix-sid-duplicate-tlv-frr` | `test/interop/scenarios/bgp-prefix-sid-duplicate-tlv-frr/` | FRR | D6 (done in `0c6ae07e69`) | exists |
 
 ## Files to Modify
@@ -728,3 +746,144 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code, usin
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** code + tests + docs + edited spec
+
+## Implementation Summary
+
+### What Was Implemented
+- Phases 1 to 3 (D1 to D5, AC-1 to AC-5, AC-10): `8c1c4013f2`, `8ddd0ba446`, `7d37dcd562`, `4333cbb3b9`, `ea9bb0a1de`. D6 (AC-8, AC-9): `a41bf6a186`, `465af38f1d`, `0c6ae07e69`, `96dbfd4da5`. Phase 4 scenarios: `acce358e38`, `28bed969b0`, `3ea95435e8`, with the lab fixes `a3ed24c523` (adj-rib-in keys) and `8463adb050` (dual-stack lab). Phase 5 verdicts: `b4712634fd`, `ead4951e1f`.
+- Closure (this commit A, harness only, authored by the closure agent `prefixsid2`): `bgp-srv6-invalid-sid-ineligible-frr` exports from FRR's default instance and loses its VRF `opExec`; `bgp-prefix-sid-malformed-frr` judges AC-1b on FRR's MRT capture (`dump bgp updates`) instead of a `show` absence that could not go red; `docs/architecture/testing/interop.md` section "The octets FRR received from Ze".
+
+### Bugs Found/Fixed
+- The AC-1b interop check was vacuous (FRR shows no Originator SRGB). Replaced by the capture assertion, red with the RFC 8669 Section 4.1 check off (`sha256:68bf38f69611`).
+- The srv6 scenario could not export on a Docker kernel with no VRF device type. Fixed by the default-instance export, red with the sum check off (`sha256:db6e31cb031a`).
+
+### Documentation Updates
+- `docs/architecture/testing/interop.md`, new section "The octets FRR received from Ze", anchored to `names.go` `prefixSIDMalformedUpdateDumpHex` and the scenario `frr.conf`. Product pages (`docs/features/srv6.md`, `docs/architecture/wire/attributes.md`, `docs/architecture/fib/fib-depth-4-srv6.md`) were updated in the phase commits above.
+- `./le doc check verify` exit 1 on 2026-10-20 for one foreign anchor only (`docs/architecture/hub-architecture.md` anchors `caseInEffect` in `validator_default.go`, which does not declare it), not touched here; every other stage clean, source anchors included.
+
+### Deviations from Plan
+- AC-4a's FRR source is FRR's default instance, not `router bgp 65001 vrf customer1`; the two paths, the SIDs, the RD and the attributes are as designed (Harness resolution, row 1).
+- AC-1b's interop proof reads the octets FRR received rather than FRR's route display (Harness resolution, row 2).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The srv6 scenario assumed a Linux VRF device | the lab's Docker kernel has no VRF device type; FRR's default instance exports to VPN without one | Phase 4 rerun, "Unknown device type" | frr.conf rewritten, opExec deleted |
+| approach | AC-1b was judged on FRR's route display | FRR parses the Originator SRGB TLV and never shows it | AC-1b revert stayed green (rerun table) | MRT capture assertion, documented in `interop.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| D1 malformed Prefix-SID not propagated on labeled unicast | Done | `attribute/prefixsid_classify.go::ClassifyPrefixSID`, `message/rfc7606.go` post-walk step | |
+| D2 malformed SRv6 Service TLV is treat-as-withdraw | Done | `ClassifyPrefixSID` (type read before the overrun test) | |
+| D3 invalid SID Structure invalidates the SID | Done | `rib/pool/srv6sid.go::parseSIDStructure`, `extractSIDFromServiceTLV` | |
+| D4 path without a valid SID is ineligible | Done | `rib/rib_bestchange.go::isSRv6Ineligible(fam, entry)`, `srv6SIDValidForFamily` | |
+| D5 only the first instance of each Service TLV type | Done | `pool.ExtractSRv6SIDFull` | |
+| D6 repeated single-occurrence TLVs discarded | Done | `reactor/rfc8669_duplicate_tlv.go::discardRepeatedPrefixSIDTLVs` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | units in `message/rfc8669_tlv_length_test.go`; `prefixsid-malformed-receive.ci` (a); `bgp-prefix-sid-malformed-frr`, red under the D1 revert | |
+| AC-1a | Done | `TestRFC8669LabelIndexAnyLengthIgnoredOffLabeledUnicast`, `TestRFC8669SRGBAnyLengthIgnoredOffLabeledUnicast`, `TestParsePrefixSIDAcceptsOffFamilyLabelIndexLength` | |
+| AC-1b | Done | `TestRFC8669NoLabelIndexInvalidOnLabeledUnicast`; `.ci` case (d); interop capture assertion (assertion 8), red under the 4.1 revert | |
+| AC-1c | Done | `TestRFC8669EmptyAttributeMalformed`; `.ci` case (e) | |
+| AC-2 | Done | `message/rfc9252_service_tlv_overrun_test.go`; `.ci` (b); interop, red under the D2 revert | |
+| AC-3 | Done | `pool/rfc9252_sid_structure_validity_test.go` and the changed Q5 units | |
+| AC-4 | Done | `rib/rfc9252_srv6_admission_test.go`; `srv6-invalid-sid-ineligible.ci` | |
+| AC-4a | Done | `bgp-srv6-invalid-sid-ineligible-frr` green `sha256:3ba12a0d168b`, red `sha256:db6e31cb031a` | |
+| AC-5 | Done | `pool/rfc9252_service_tlv_first_instance_test.go` | no `.ci` (A-3) |
+| AC-6, AC-7 | Done | `rfc/audit/rfc8669.json`, `rfc/audit/rfc9252.json`: the eight rows `enforced`, re-judged in `b4712634fd` and `ead4951e1f` | |
+| AC-8, AC-9 | Done | `a41bf6a186`, `96dbfd4da5` | |
+| AC-10 | Done | `TestClearTransmittedLabelIndexOnlyOnLabeledUnicast`; `.ci` case (f) | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Unit and tagged tests of the TDD plan | Done | the files under "Files to Create" | landed in the phase commits; not re-run by this closure agent |
+| `prefixsid-malformed-receive.ci`, `srv6-invalid-sid-ineligible.ci` | Done | `test/plugin/` | PASS 2026-10-15 (progress table) |
+| Both interop scenarios | Done | `test/interop/scenarios/` | green and red runs of 2026-10-20 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify and Files to Create | Done | every path exists at HEAD; the two checker files gained the closure harness edits |
+
+### Audit Summary
+- **Total items:** 6 requirements, 14 AC rows
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** two harness designs (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A malformed Prefix-SID on labeled unicast is not propagated | interop + functional | `bgp-prefix-sid-malformed-frr` green `sha256:b6e72848b1e1`; red with the Label-Index length check off (FRR resets, `sha256:732700e799d4`) and with the 4.1 check off (capture holds `c0280b0300080000003e800003e8`, `sha256:68bf38f69611`); `.ci` hex assertions |
+| A malformed SRv6 Service TLV gets treat-as-withdraw | interop + functional | same scenario, red under the D2 revert (`sha256:f5ec52584580`, FRR keeps 10.0.2.0/24); `.ci` withdrawal bytes |
+| A path with no valid SRv6 SID is not a best-path candidate | interop + functional | `bgp-srv6-invalid-sid-ineligible-frr` green `sha256:3ba12a0d168b`, red `sha256:db6e31cb031a` (injector best); `srv6-invalid-sid-ineligible.ci` |
+| The eight verdicts reach `enforced` | audit | `rfc/audit/rfc8669.json`, `rfc/audit/rfc9252.json`, independent re-judges `b4712634fd`, `ead4951e1f` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is met | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` at closure (path in commit A's message) |
+| `./le spec review check` | clean, run by `./le commit create` |
+| Rounds | 1 |
+| Reviewer lenses used | harness logic and vacuity (the closure edits, authored by this agent: they are judged by their own forced reds, not by self-review), product producers read at source (`ClassifyPrefixSID`, `isSRv6Ineligible`, `parseSIDStructure`), the rest judged by the phase tests and the independent RFC re-judges |
+
+Scope: the closure agent authored none of the product code. Read in full: `attribute/prefixsid_classify.go::ClassifyPrefixSID` and `PrefixSIDRouteFamily`, `rib_bestchange.go::isSRv6Ineligible`, `pool/srv6sid.go::parseSIDStructure`. Judged by tests and the recorded reverts: the rest of `8c1c4013f2` and `7d37dcd562`, and the D6 commits. The harness edits (two `frr.conf`, `checkers.go`, `names.go`, `interop.md`) are this agent's own; their proof is the forced red each one took.
+
+NOTEs (do not block): `isSRv6Ineligible` breaks out of a truncated OtherAttrs walk and answers eligible; the bytes are Ze's own stored attributes, not peer input, so this is an internal-consistency case. Ze relays an attribute 252 (`AttrTombstone`, draft-mangin-idr-attr-tombstone-00) beside a discarded Prefix-SID, seen in the capture; it is that draft's behavior and outside this spec.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | AC-1b interop check could not go red | `checkers.go`, `bgp-prefix-sid-malformed-frr` | MRT capture assertion |
+| 2 | ISSUE | srv6 scenario never exported on this kernel | `bgp-srv6-invalid-sid-ineligible-frr/frr.conf` | default-instance export |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| both `.ci`, both scenario directories, the seven new test files | yes | used by the runs and phase commits named above; the scenarios ran 2026-10-20 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1b | ze relays no SRGB-only Prefix-SID on labeled unicast | interop assertion 8 green `sha256:b6e72848b1e1`, red `sha256:68bf38f69611` |
+| AC-4a | the valid path wins over a better-attributed invalid one | interop green `sha256:3ba12a0d168b`, red `sha256:db6e31cb031a` |
+| AC-1, AC-2 | discard and withdraw reach FRR | reds of the Phase 4 rerun table |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| UPDATE from a peer, receive classifier | `test/plugin/prefixsid-malformed-receive.ci` | PASS 2026-10-15; the interop scenario reaches the same path from a real session |
+| UPDATE from a peer, admission | `test/plugin/srv6-invalid-sid-ineligible.ci` | PASS 2026-10-15; interop reaches it from FRR |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1, A-3, A-4, A-5 | confirmed | Assumptions table, 2026-10-20 |
+| A-2 | confirmed | the MP_REACH reading is `PrefixSIDRouteFamily`; the mixed case is a Known Limitation |
+| A-6 | broken | the `.ci` took the fallback of three wire prefixes (`4333cbb3b9`) |
+| A-7 | confirmed | design review r3 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `interop.md` capture section | `names.go` `prefixSIDMalformedUpdateDumpHex`, scenario `frr.conf` | anchors resolve (`./le doc check verify` source-anchor stage) |
+
+Gates: full suites (`./le test unit all`, `./le test functional gating`, `./le verify worktree`) were not run by this agent (forbidden to it) and are owed as verification debt to the session that owns them; `./le verify status check` reads STALE. Run here: `go vet` and `go test ./internal/le/interoplab/bgp/` (ok, under `./le job run`), and the six interop runs above. One run of the restored malformed scenario failed at assertion 1 under host load 19 with ze's plugins stalled at stage 3 ("no plugin progress for 5s"), the class already in `plan/journal/plugin-startup-barrier-deadlock.md` (2026-10-20 row); its rerun at load 2.6 passed (`sha256:b6e72848b1e1`).

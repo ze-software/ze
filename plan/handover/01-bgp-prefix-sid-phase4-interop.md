@@ -26,12 +26,26 @@ released: the spec waits on the two owner decisions below.
 | A-6 | the `.ci` took the fallback (three wire prefixes, presence and absence), per `4333cbb3b9` |
 | Closure sections, review gate | not started |
 
-## Next steps
+## Update, 2026-10-20 (closure agent `prefixsid2`)
 
-1. The owner answers decisions 1 and 2.
-2. Under decision 1, run `bgp-srv6-invalid-sid-ineligible-frr` green, then the
-   D3/D4 red walk (break, rebuild by running the suite, red, restore exactly,
-   green). Use `./le --name <agent> test integration interop`; `./le` alone
-   runs the prebuilt `bin/le`.
-3. Under decision 2, either edit AC-1b's proof column or add the capture check.
-4. Append `plan/TEMPLATE-CLOSURE.md`; run the review gate; commit A.
+The two owner decisions above are void: both blockers were resolved by
+test-harness work with no scope change (spec, "Harness resolution,
+2026-10-20"). Both scenarios are green with every forced red recorded (spec,
+"Phase 4 closure runs"). The closure sections are appended, the review is
+recorded CLEAN (1 round), and commit A carries all of it with this file.
+`./le arch tier check` and `./le arch iface-resolution` exit 0.
+
+## Next steps (only commit B remains)
+
+1. Citer sweep, on its own commit before B (precedent: the "cites the closed
+   ... spec by stem" commits before `5c84621f48` and `1dfd8ff998`): every hit
+   of `git grep -n "plan/immediate/spec-bgp-prefix-sid-rfc-defects"` outside
+   the spec and this file becomes the bare stem `spec-bgp-prefix-sid-rfc-defects`.
+   Hits on 2026-10-20: `plan/immediate/spec-bgp-update-propagation-rfc-defects.md`
+   (several), `plan/immediate/spec-bgp-unowned-rfc-rows.md`,
+   `plan/pre-release/spec-rfc-verdict-test-fix-pass.md`, and two files under
+   `plan/handover/rfc-verdict-test-fix-pass/bgp/`.
+2. Commit B: `./le commit create append remove plan/immediate/spec-bgp-prefix-sid-rfc-defects.md
+   remove plan/handover/01-bgp-prefix-sid-phase4-interop.md`, body naming the
+   full suites as verification debt (verify STALE).
+3. `ZE_AGENT_ID=prefixsid2 ./le spec release`, then `./le spec citation` green.
