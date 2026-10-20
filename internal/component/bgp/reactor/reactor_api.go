@@ -189,6 +189,7 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			Connect:              s.Connection.Connect,
 			Accept:               s.Connection.Accept,
 			State:                p.State().PluginState(),
+			FSMState:             p.SessionState().String(),
 			InitialReplay:        p.initialReplayToken(),
 			BFDSubState:          p.bfdSubState(),
 			UpdatesReceived:      stats.UpdatesReceived,

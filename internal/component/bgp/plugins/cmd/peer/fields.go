@@ -36,6 +36,7 @@ const (
 	fieldName                = "name"
 	fieldGroup               = "group"
 	fieldState               = "state"
+	fieldFSMState            = "fsm-state"
 	fieldBFDSubState         = "bfd-sub-state"
 	fieldUptime              = "uptime"
 	fieldRemoteAS            = "remote-as"

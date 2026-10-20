@@ -521,6 +521,7 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, validated command.Val
 			"connect":               p.Connect,
 			"accept":                p.Accept,
 			fieldState:              p.State.String(),
+			fieldFSMState:           p.FSMState,
 			fieldUptime:             p.Uptime.Truncate(time.Second).String(),
 			fieldUpdatesReceived:    p.UpdatesReceived,
 			fieldUpdatesSent:        p.UpdatesSent,

@@ -126,7 +126,12 @@ type PeerInfo struct {
 	Connect         bool          // Initiate outbound connections
 	Accept          bool          // Accept inbound connections
 	State           PeerState
-	Uptime          time.Duration
+	// FSMState is the session's RFC 4271 Section 8.2.2 state, named as
+	// fsm.State prints it (IDLE ... ESTABLISHED), IDLE when no session runs.
+	// State above is the peer's lifecycle; this is where the open exchange
+	// stands, which State reports as connecting or active.
+	FSMState string
+	Uptime   time.Duration
 
 	// InitialReplay identifies the exact session whose peer-up replay is owed.
 	// Zero is not a replay receipt.
