@@ -1314,3 +1314,24 @@ All three changes below are UNCOMMITTED and none is green yet.
 - Red overlays: `<parent scratch>/p4/red/v6.json` (v4ControlSpelling identity), `red/exit.json`
   (`script.exited` returns at once). Gates owed by the main thread: `./le go lint run` on
   internal/exabgp and internal/plugins/exabgp; `./le test unit all`; the api population.
+
+### ExaBGP 6 spec, Phase 4 second package (2026-10-20, Linux, exa9): continuation owed
+
+- 636de46430: X-16 to X-20 (AC-18 to AC-21). `bridge.Group` (`internal/exabgp/bridge/bridge_group.go`)
+  and `bridge.ScriptLines.Batch` (`bridge_lines.go`), now the ONE batch path: `script.batch` calls it
+  through `scriptRunner`, `Bridge.dispatchBatch` through `muxRunner`. A closed group's route commands
+  differing only in their one-word NLRI are dispatched as one command, so one UPDATE. Cases
+  `api-group`, `api-group-inline` green on the pin and ze; `api-group` red with `Group.read` overlaid
+  to pass (`<parent scratch>/p4/red/group.json`) and with the merge off (`red/merge.json`).
+- df5f1872f5: AC-23 functional, case `api-on-exit-v4-keep` (one-shot API 4 script plus a marker
+  sibling). Green on the pin and ze; red with `exitPolicy` forced to withdraw (`red/keep.json`).
+- Left, in order: A-8 `TestExitWithdrawRestoresConfiguredRoute` (engine level: does ze re-announce a
+  configured static route of the same prefix after the exit withdrawal; not investigated); the
+  standalone runner's exit policy: `muxRunner.Dispatched` records nothing, and `ownerLedger`,
+  `exitPolicy`, `OnExit` live in `bridgerun`, so sharing them means moving them into
+  `internal/exabgp/bridge` and having `Bridge` run the exit settlement where its child exits (it has
+  no process block, so `on-exit` is unset there and the version decides); the api population rerun
+  with the count.
+- Gates owed by the main thread: `./le go lint run` on internal/exabgp and internal/plugins/exabgp
+  (the edit-time lint was clean on the new files); `./le test unit all`; the api population. `./le doc
+  wiring` is red on files outside this work (hub-architecture.md and a doc-drift list).
