@@ -732,6 +732,32 @@ bytes are literals, so its text is the same before and after the move. Logs:
 allocs/op identical. ns/op from this VM is not perf evidence (owner: perf is
 measured on his Mac), so the ns/op half of AC-15 is owed from the Mac.
 
+### AC-15 ns/op (2026-10-21, the owner's Mac, 16 threads)
+
+Trees: `git archive 69b67933a2^` (before D1, with the D1 bench file copied in,
+its NLRI bytes being literals) and `git archive 69b67933a2` (D1), each run
+`go test -tags <ze_core + every feature-gates.txt tag> -run '^$' -bench
+'BenchmarkRIBFlowSpecValidation|BenchmarkForwardDirect' -benchmem -count=6`
+over `bgp/plugins/rib` and `bgp/reactor` through `./le job run`, before first,
+then after. Median of 6, with the range.
+
+| Benchmark | ns/op before (median, range) | ns/op after (median, range) | allocs/op before / after | B/op before / after |
+|-----------|------------------------------|-----------------------------|--------------------------|---------------------|
+| `BenchmarkRIBFlowSpecValidation/ipv4` | 458 (416-513) | 528 (264-611) | 9 / 9 | 320 / 320 |
+| `BenchmarkRIBFlowSpecValidation/ipv6` | 338 (303-414) | 314 (284-357) | 6 / 6 | 232 / 232 |
+| `BenchmarkRIBFlowSpecValidation/ipv4-vpn` | 473 (437-577) | 392 (338-454) | 10 / 10 | 336 / 336 |
+| `BenchmarkForwardDirect` | 4739 (3931-5564) | 3610 (3318-5258) | 6 / 6 | 2091 / 2050 |
+| `BenchmarkForwardDirect_Batch` | 495k (462k-536k) | 363k (345k-439k) | 555 / 555 | 147763 / 145527 |
+
+allocs/op identical. The ns/op ranges overlap on every row, and the medians
+move in both directions (ipv4 up, the other four down); the per-run spread
+(ipv4 after: 264-611) is larger than any median difference, so no change is
+attributable to D1. The Mac was shared with concurrent agent sessions during
+both runs, which is the noise source; the forward benchmarks' code D1 does not
+touch moved by as much as the FlowSpec ones. Logs:
+`scratch/job-ac15-pre-df695061.log`, `scratch/job-ac15-post-2bf6d8a0.log`
+(session `2026-10-20-8385ff13`).
+
 ### AC-17 evidence (phase J, 2026-10-21, Mac)
 
 `rpc l2tp-health` moved into `ze-l2tp-api.yang` and `rpc bgp-health` into

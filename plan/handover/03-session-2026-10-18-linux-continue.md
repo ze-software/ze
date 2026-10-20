@@ -1719,6 +1719,21 @@ Agent stopped at its 100-call budget. **Fix 1 is written, tested, and UNCOMMITTE
   warning, so the fix is a wire-format change in pkg/plugin/rpc plus WriteAnswer/answerMessage,
   SDK answerValue and every consumer; docs ipc_protocol.md / process-protocol.md.
 
+## spec-plugin-ownership-imports, agent a09707eb109bfcd1b (2026-10-21, Mac)
+
+Claimed under the agent marker (`ZE_AGENT_ID`); the parent's ExaBGP claim untouched.
+- Done: `931051fa3b` tier walk skips top-level `cache/` (docker route gate read the
+  patched GOROOT; `TestDockerExecGateSkipsTheBuildCache` red via overlay, green;
+  `./le arch tier check` exit 0). `75167aea59` route J / AC-17: health rpcs moved to
+  `ze-l2tp-api` / `ze-bgp-api`, both AC-17 tests red then green, both health `.ci` green.
+  AC-15 ns/op from the Mac pasted in the spec (same commit as this section).
+- Red at HEAD, not this spec: `TestRegisteredWireMethods` (`plugin/all`) on
+  `ze-bgp:rib-clear-advertised` from `2e32def1a9`; row in `plan/journal/hardcoded-count-in-test.md`.
+- Left: implementation `/ze-review` by an independent reader over the whole spec's
+  implementation (routes A-J, incl. `75167aea59`, `931051fa3b`), recorded with
+  `./le spec review record`; then `/ze-close` (closure template, commit A + B).
+  Gates owed: `./le verify worktree` (verification debt `plan/verification-debt/0fa95b48.md`).
+
 ### ExaBGP 6 adj-rib-out package, fourth agent (2026-10-21, Mac): items 0-4 committed, cases partly run
 
 Stopped at the call budget. Committed:
