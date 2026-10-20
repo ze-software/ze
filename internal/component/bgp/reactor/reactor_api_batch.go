@@ -1247,8 +1247,10 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 		// Address MUST be set to 0.  The Network Address of the Next-Hop field
 		// MUST be ignored." Offering the unresolved address instead made the
 		// validator below refuse every FlowSpec announce ze was asked to send.
+		// The one FlowSpec exception, shared by every rail, is the
+		// redirect-to-IP-next-hop action (message.MPReachCarriesNextHop).
 		var nextHops []netip.Addr
-		if batch.Family.NeedsNextHop() {
+		if message.MPReachCarriesNextHop(batch.Family, batchRedirectsToNextHop(batch, facts.nextHop)) {
 			nextHops = []netip.Addr{facts.nextHop}
 		}
 		mpReach := attribute.NewMPReachNLRI(attribute.AFI(batch.Family.AFI), attribute.SAFI(batch.Family.SAFI),
@@ -2329,4 +2331,35 @@ func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo
 	default:
 		return staleKeep, nil
 	}
+}
+
+// batchRedirectsToNextHop is ribRouteRedirectsToNextHop for an API batch: it
+// reads the extended communities from whichever form the caller named (the
+// verbatim block, a Builder's raw wire, or a Builder's attributes), as
+// planBatchAttrs does.
+func batchRedirectsToNextHop(batch bgptypes.NLRIBatch, nextHop netip.Addr) bool {
+	if !nextHop.IsValid() {
+		return false
+	}
+	var block []byte
+	switch {
+	case batch.Wire != nil:
+		block = batch.Wire.Packed()
+	case batch.Attrs != nil:
+		block = batch.Attrs.RawWire()
+		if block == nil {
+			var scratch [attribute.BuilderInlineAttrs]attribute.Attribute
+			for _, attr := range batch.Attrs.AppendAttributes(scratch[:0]) {
+				if ecs, ok := attr.(attribute.ExtendedCommunities); ok {
+					return ecs.RedirectsToNextHop()
+				}
+			}
+			return false
+		}
+	}
+	_, _, value, found := attribute.AttrFind(block, attribute.AttrExtCommunity)
+	if !found {
+		return false
+	}
+	return attribute.FlowSpecRedirectsToNextHop(value)
 }

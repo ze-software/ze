@@ -356,13 +356,24 @@ next-hop families, FlowSpec zero-hop and negotiated capability 77 remain intact.
 FlowSpec origination omits the MP_REACH next-hop even when configuration or the
 API supplies an IPv4 or IPv6 address. RFC 8955 Section 4 requires zero next-hop
 length, including the IPv6 families covered by RFC 8956. The config builder,
-established API batch builder and queued writer each consult `Family.NeedsNextHop()`.
+established API batch builder and queued writer each consult
+`message.MPReachCarriesNextHop`, which asks `Family.NeedsNextHop()`.
 The socket test compares complete UPDATEs for all four registered FlowSpec
 families, preserving the NLRI, VPN route distinguisher and traffic-rate action.
 <!-- source: internal/component/bgp/message/update_build_plugin.go -- buildMPReachPlugin -->
 <!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- buildBatchAnnounceUpdate -->
 <!-- source: internal/component/bgp/reactor/peer_rib_routes.go -- buildRIBRouteUpdate -->
 <!-- test: internal/component/bgp/reactor/flowspec_origin_wire_test.go TestFlowSpecOriginationOmitsConfiguredNextHop -->
+
+The one exception is a route whose action is the redirect/mirror-to-IP-next-hop
+community, type 0x0800 (`redirect-to-nexthop-draft`, `copy-to-nexthop`, and
+ExaBGP's `redirect <address>`). Its target is the MP_REACH next hop
+(draft-simpson-idr-flowspec-redirect-02 Section 3), so all three rails carry the
+route's next hop when it has one. Without an address the length stays zero, and
+the receiver ignores the community, as the draft says.
+<!-- source: internal/component/bgp/message/update_build_plugin.go -- MPReachCarriesNextHop -->
+<!-- source: internal/core/bgp/attribute/flowspec_action.go -- FlowSpecRedirectsToNextHop -->
+<!-- test: internal/component/bgp/reactor/flowspec_redirect_nexthop_wire_test.go TestFlowSpecRedirectToNextHopCarriesTheNextHop -->
 
 Forwarding applies that family contract after destination policy and before
 next-hop withholding. Received FlowSpec next-hop bytes are ignored for forwarding

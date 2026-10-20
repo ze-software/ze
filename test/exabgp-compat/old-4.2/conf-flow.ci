@@ -1,5 +1,7 @@
 # ExaBGP qa/old/4.2/qa/ci/conf-flow (ExaBGP 685f772e4e): .ci and .msg joined, options spelt option=
 option=file:conf-flow.conf
+option=allowed:source-ipv6 ::1/128/120 matches the 8 bits from offset 120: 4.2 sent the whole 16-octet address as the pattern, and ze sends the one octet 01, as RFC 8956 Section 3.1 asks ("The encoded pattern contains enough octets for the bits used in matching (length minus offset bits)") and as 5.0 recorded for the same route (old-5.0 conf-flow passes); the other components of that route, traffic-class 101 included, are the bytes 4.2 recorded
+option=allowed-error:unexpected message = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005A0200000043800E270002850000210180002A020B80001500007ACA39FFFEAEA87A028078010381110B81650D9107DD4001010040020040050400000064C010088006000000000000;
 # flow source-ipv4 10.0.0.1/32 rd 65535:65536 extended-community discard
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0047:02:000000304001010040020040050400000064C010088006000000000000800E1400018600000E0000FFFF0001000002200A000001
 

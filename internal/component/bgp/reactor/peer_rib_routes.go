@@ -143,13 +143,14 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, nextHop netip.Addr, l
 		// what makes the length octet zero. RFC 8955 Section 4: "When advertising
 		// Flow Specifications, the Length of the Next-Hop Network Address MUST be
 		// set to 0.  The Network Address of the Next-Hop field MUST be ignored."
-		// The batch rail asks Family.NeedsNextHop the same question
+		// The batch rail asks message.MPReachCarriesNextHop the same question
 		// (reactor_api_batch.go), and which rail encodes a route is decided by
 		// scheduling: a FlowSpec route queued while the peer drains its initial
 		// sync comes through here, so the two rails must answer alike or the wire
-		// bytes depend on timing.
+		// bytes depend on timing. The one FlowSpec exception is the
+		// redirect-to-IP-next-hop action, whose target is this next hop.
 		var nextHops []netip.Addr
-		if fam.NeedsNextHop() {
+		if message.MPReachCarriesNextHop(fam, ribRouteRedirectsToNextHop(route, nextHop)) {
 			nextHops = []netip.Addr{nextHop}
 		}
 		mpReach := attribute.NewMPReachNLRI(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI),
@@ -331,4 +332,22 @@ func buildWithdrawNLRI(buf []byte, n nlri.NLRI, addPath bool) *message.Update {
 	return &message.Update{
 		PathAttributes: buf[:attrLen],
 	}
+}
+
+// ribRouteRedirectsToNextHop reports whether a stored route's action is the
+// FlowSpec redirect-to-IP-next-hop community AND it has a next hop to carry
+// (attribute.FlowSpecRedirectsToNextHop). Without an address the route keeps
+// the RFC 8955 Section 4 zero length: draft-simpson-idr-flowspec-redirect-02
+// Section 3 has the receiver ignore the community then, where an invalid
+// address would make this rail refuse the whole UPDATE.
+func ribRouteRedirectsToNextHop(route *rib.Route, nextHop netip.Addr) bool {
+	if !nextHop.IsValid() {
+		return false
+	}
+	for _, attr := range route.Attributes() {
+		if ecs, ok := attr.(attribute.ExtendedCommunities); ok {
+			return ecs.RedirectsToNextHop()
+		}
+	}
+	return false
 }

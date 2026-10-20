@@ -145,10 +145,12 @@ func (ub *UpdateBuilder) buildMPReachPlugin(p PluginParams) *rawAttribute {
 	// reactor_api_batch.buildBatchAnnounceUpdate and the queued rail at
 	// peer_rib_routes.go, and this one did not, so a FlowSpec route that reached
 	// the wire through a plugin or a config `update` block carried a four-octet
-	// next-hop an RFC 8955 speaker MUST NOT send.
+	// next-hop an RFC 8955 speaker MUST NOT send. MPReachCarriesNextHop owns
+	// the one exception, the redirect-to-IP-next-hop action; a zero next hop
+	// still encodes as length 0 there, which its receiver ignores.
 	var nhBytes []byte
 	fam := family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(p.SAFI)}
-	if fam.NeedsNextHop() {
+	if MPReachCarriesNextHop(fam, pluginRedirectsToNextHop(p.RawAttrs)) {
 		if p.MapV4NextHop && p.IsIPv6 && p.NextHop.Is4() {
 			mapped := p.NextHop.As16()
 			nhBytes = mapped[:]
@@ -221,4 +223,37 @@ func (r *fullRawAttribute) WriteTo(buf []byte, off int) int {
 
 func (r *fullRawAttribute) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
 	return r.WriteTo(buf, off)
+}
+
+// MPReachCarriesNextHop reports whether an originated MP_REACH_NLRI in this
+// family carries the route's next hop. Every rail that encodes one asks it
+// (BuildPlugin here, buildBatchAnnounceUpdate and buildRIBRouteUpdate in the
+// reactor), so the wire bytes cannot depend on which rail a route took.
+//
+// A family that names a forwarding hop carries it. FlowSpec does not (RFC 8955
+// Section 4: "When advertising Flow Specifications, the Length of the Next-Hop
+// Network Address MUST be set to 0."), except when the route's action is the
+// redirect/mirror-to-IP-next-hop community, whose target IS that next hop
+// (attribute.FlowSpecRedirectsToNextHop, draft-simpson-idr-flowspec-redirect-02
+// Section 3).
+func MPReachCarriesNextHop(fam family.Family, redirectsToNextHop bool) bool {
+	if fam.NeedsNextHop() {
+		return true
+	}
+	return redirectsToNextHop
+}
+
+// pluginRedirectsToNextHop reports whether a plugin route's raw attributes
+// (flags+code+len+value each) carry the redirect-to-IP-next-hop community.
+func pluginRedirectsToNextHop(raws [][]byte) bool {
+	for _, raw := range raws {
+		_, _, value, found := attribute.AttrFind(raw, attribute.AttrExtCommunity)
+		if !found {
+			continue
+		}
+		if attribute.FlowSpecRedirectsToNextHop(value) {
+			return true
+		}
+	}
+	return false
 }
