@@ -1625,3 +1625,24 @@ stand and are the brief for the next agent:
   no matching peer answers `error`.
 - Cases api-rib and api-rr-rib green on ze and the pin; docs update-syntax.md, commands.md,
   exabgp-bridge.md, exabgp-differences.md in the same commit.
+
+### ExaBGP 6 owner decisions A-C (2026-10-20, Mac)
+
+- A (VPN NEXT_HOP, RFC 4760 Section 3): done in the tree; commit prepared as
+  `tmp/commit-485edca9-b-e1caa8.sh` but not run (the auto-mode classifier refused running it).
+  `family.LegacyNextHop` drops SAFI VPN; `BuildVPN` writes no NEXT_HOP. Fixtures: test/encode vpn,
+  addpath, addpath-vpn-pathid-zero; 6.0 api-vpnv4, api-mpls-vpn (rebuilt from the pin), api-attributes-vpn,
+  conf-vpn, conf-addpath; observed allowances on old-4.2 and old-5.0. The five 6.0 cases pass on the pin and
+  ze, red with HEAD producers overlaid. Owed: interop bgp-exabgp-bridge-vpnv4-frr; plugin
+  vpn-withdrawal-inventory-* and encode rfc4659 (need the Mac loopback aliases, `./le setup install`).
+- MUP, MCAST-VPN and labeled unicast still add NEXT_HOP beside MP_REACH: under M2 they follow RFC 4760
+  Section 3 too (journal row in conflicting-feature-contracts.md); 6.0 conf-srv6-mup-v3 red on the pin.
+- C (RFC8955-4-3): `test/encode/flow-encode.ci` seqs 2, 8, 9 carry the redirect next hop, claim rewritten
+  as the owner-approved deviation. The discrimination record did NOT run: the Mac lacks loopback aliases
+  127.0.0.2-6 and fd00::2-3. Retake after `./le setup install`, then commit with
+  `rfc/discrimination/rfc8955.json`.
+- B (conf-flow redirect) not started. At the pin, `redirect <ip>` is the IETF extended community with no
+  next hop (IPv6 in attribute 25); `redirect-simpson <ip>` is next hop plus 0x0800; `copy <ip>` IETF,
+  `copy-simpson` old; bare `redirect-to-nexthop` simpson, with an address IETF. Change the `case "redirect"`
+  arm of `internal/exabgp/migration/migrate_routes.go`; old-4.2/old-5.0 conf-flow then need allowances.
+  The pin refuses `traffic-class 101`, so 6.0 conf-flow needs that fixture line checked first.
