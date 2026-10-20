@@ -79,6 +79,9 @@ func formatFlushRequest(id uint64, selector string) string {
 type pendingResult struct {
 	ok      bool
 	errText string
+	// document is the first record of a record answer, which is the whole
+	// document a command under rpc.AnswerBufferThreshold answers with.
+	document json.RawMessage
 }
 
 // pendingResponses tracks in-flight RPC requests that need a response.

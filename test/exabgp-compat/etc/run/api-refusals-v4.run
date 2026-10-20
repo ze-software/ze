@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+"""X-23 to X-25, X-28 to X-30 (AC-29 to AC-31, AC-34 to AC-36): ExaBGP 6 answers each
+line below with the error marker and sends nothing for it. The pin writes the bare
+marker for a selector that matches no peer, so only the last line is read."""
+
+
+import sys
+import time
+
+
+def send(command: str) -> None:
+    sys.stdout.write(command + '\n')
+    sys.stdout.flush()
+
+
+def read() -> str:
+    line = sys.stdin.readline()
+    if not line:
+        sys.stderr.write('ERROR: stdin closed\n')
+        sys.exit(1)
+    return line.strip()
+
+
+def answer() -> list[str]:
+    """The lines the bridge wrote for one command, up to and including its done or error."""
+    lines = []
+    while True:
+        lines.append(read())
+        if lines[-1] in ('done', 'error'):
+            return lines
+
+
+def expect(command: str, check, what: str) -> None:
+    send(command)
+    got = answer()
+    if not check(got):
+        sys.stderr.write(f'ERROR: {command!r} answered {got!r}, want {what}\n')
+        sys.exit(1)
+
+
+def refused(answer: list[str]) -> bool:
+    return len(answer) <= 2 and answer[-1] == 'error'
+
+
+def main() -> None:
+    time.sleep(0.2)  # let the EOR pass
+    expect('announce route 1.1.1.1/32 next-hop 11.11.11.11', lambda a: a == ['done'], 'done')
+    for line in (
+        # X-24: the selector names no peer this process feeds.
+        'neighbor 192.0.2.99 announce route 10.0.0.0/24 next-hop 11.11.11.11',
+        # X-23: no selected peer carries ipv6 unicast.
+        'announce route 2001:db8::/32 next-hop 2001:db8::1',
+        # X-25: a flow route with no match.
+        'announce flow route discard',
+        # X-28: path-information with no value.
+        'announce route 10.0.0.0/24 next-hop 11.11.11.11 path-information',
+        # X-29: a mask that is no number.
+        'announce route 10.0.0.0/x next-hop 11.11.11.11',
+        # X-30: an unknown operational kind, and no kind at all.
+        'announce operational foo afi ipv4 safi unicast',
+        'announce operational',
+    ):
+        expect(line, refused, 'the error marker')
+    # Reached only when every answer above was ExaBGP's: the wire proves it.
+    expect('announce route 3.3.3.3/32 next-hop 33.33.33.33', lambda a: a == ['done'], 'done')
+    sys.stderr.write('SUCCESS\n')
+    while sys.stdin.readline():
+        pass
+
+
+if __name__ == '__main__':
+    main()

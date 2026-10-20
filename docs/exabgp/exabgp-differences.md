@@ -68,6 +68,36 @@ Upstream (exa-networks/exabgp at 685f772e4): `src/exabgp/reactor/api/__init__.py
 
 ---
 
+## Refusals and keep-first: where Ze and ExaBGP 6.0 still differ
+
+The bridge answers ExaBGP 6.0's refusals and keep-first rules as ExaBGP does
+(`docs/architecture/exabgp-bridge.md`, "What the bridge refuses, and what it
+keeps"). Three differences remain.
+
+- **Which family counts.** ExaBGP refuses a route when no selected peer was
+  CONFIGURED with its family (`carrying`, `command/announce.py`). Ze refuses it
+  when no selected peer NEGOTIATED it. A peer whose session is down is skipped
+  by Ze before its family is read.
+- **OPERATIONAL is not sent.** ExaBGP sends `announce operational <kind> ...`
+  for a known kind (draft-ietf-idr-operational-message). Ze does not originate
+  OPERATIONAL, so the bridge refuses the line and says so (Open Owner Decision
+  OD-1). An unknown kind is refused as ExaBGP refuses it.
+- **The warning goes to Ze's log.** A repeated attribute keeps its first value
+  and a `split` shorter than the prefix sends the prefix whole. ExaBGP logs
+  each; Ze logs `exabgp-bridge route line` with the dropped value.
+
+A value-less attribute (`path-information` alone) and a mask that is no number
+(`10.0.0.0/x`) are refused by both. ExaBGP 5.0 ignored the first and took the
+second as the host route `10.0.0.0/32`.
+Upstream (exa-networks/exabgp at 685f772e4): `src/exabgp/reactor/api/command/announce.py`,
+`src/exabgp/configuration/grammar/tree/static.py`, CHANGELOG 6.0.0.
+
+<!-- source: internal/exabgp/bridge/bridge_dispatch_answer.go -- RefuseUnsentRoute -->
+<!-- source: internal/exabgp/bridge/bridge_operational.go -- convertOperational, errOperationalNotSent -->
+<!-- source: internal/exabgp/bridge/bridge_attribute.go -- parseRouteAttributes, warnRouteLine -->
+
+---
+
 ## Neighbor Qualifier Syntax (Multi-Session)
 
 **ExaBGP behavior:**

@@ -310,8 +310,9 @@ so the bridge lists them by address. A row without its state answers the line
 with `error`, never with a guessed state.
 
 Only the exabgp-bridge plugin answers it. The standalone runner, `ze exabgp
-plugin`, reads ok or an error from each dispatch and no payload, so it refuses
-`status` by name in its log and answers `error`.
+plugin`, reads ok or an error from each dispatch and only the answer's first
+record, never ze's peer list, so it refuses `status` by name in its log and
+answers `error`.
 
 <!-- source: internal/exabgp/bridge/bridge_status.go -- StatusPeers, StatusReply, StatusInJSON, errStatusStandalone -->
 <!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.status -->
@@ -596,6 +597,44 @@ and a selector matching no peer; Ze gives the reason there too
 <!-- source: internal/exabgp/bridge/bridge_batch.go -- AnswerBatch, BatchSelectors, BatchLine.Version -->
 <!-- source: internal/exabgp/bridge/bridge_ack.go -- AckMode.WriteError -->
 <!-- source: internal/exabgp/bridge/bridge_lines.go -- ScriptLines.Batch, ScriptLines.answer -->
+
+## What the bridge refuses, and what it keeps
+
+ExaBGP 6.0 refuses some lines 5.0 took, and keeps 5.0's leniency on the API
+for two others. The bridge answers each the way ExaBGP 6.0 does.
+
+| Line | Answer |
+|------|--------|
+| A route no selected peer has the family of | refused with ze's reason |
+| A selector that names no peer this process feeds | refused, nothing dispatched |
+| `flow route` with no `match` | refused |
+| An attribute written with no value (`path-information`) | refused, naming the value to write |
+| A prefix whose mask is no number (`10.0.0.0/x`) | refused, naming the mask |
+| `announce operational` with an unknown kind, or none | refused, naming the command and the kinds |
+| `announce operational` with a known kind | refused: Ze does not send OPERATIONAL |
+| An attribute written twice (`next-hop 1.1.1.1 next-hop 2.2.2.2`) | the first is sent, the line is done, a warning names the dropped value |
+| `split /<n>` shorter than the prefix | the prefix is sent whole, the line is done, a warning says so |
+
+The route with no carrying peer needs the dispatch answer. Ze's update-text
+handler announces nothing and answers status `warning` with
+`{"message": "announce <family>: no peers have family negotiated"}`.
+A sent route answers `RouteResult`, which always carries `announced` and
+`withdrawn`. The in-process dispatch carries the status. The record wire drops
+it and answers `done` with the same document. So both runners read the
+document (`RefuseUnsentRoute`), and the standalone runner releases a dispatch
+at the answer's terminator, holding its first record. Ze tests the family each
+selected peer NEGOTIATED. ExaBGP tests the family the peer was CONFIGURED with.
+
+Keep-first is the bridge's own work. Ze's update-text parser keeps the LAST of
+a repeated attribute, so the bridge forwards only the first, keyed on the ze
+keyword. The warnings go to the bridge's log as `exabgp-bridge route line`.
+`api-refusals-v4` and `api-keep-first-v4` are the cases.
+
+<!-- source: internal/exabgp/bridge/bridge_dispatch_answer.go -- RefuseUnsentRoute, answerDocuments -->
+<!-- source: internal/exabgp/bridge/bridge_attribute.go -- parseRouteAttributes, warnRouteLine, attrValueName -->
+<!-- source: internal/exabgp/bridge/bridge_route_forms.go -- splitPrefix, refuseMaskNotNumber -->
+<!-- source: internal/exabgp/bridge/bridge_operational.go -- convertOperational -->
+<!-- source: internal/exabgp/bridge/bridge_command.go -- Translator.servedSelector, errSelectorMatchesNoPeer -->
 
 ## `encoder` says which format a script reads
 
