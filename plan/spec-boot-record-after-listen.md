@@ -261,9 +261,10 @@ Reads need not wait: the boot bytes are the accepted config before they are dura
   store themselves (`withRuntimeStore` in `config/cli/config_data.go`, `cmd_history.go`,
   `cmd_diff.go`) read the previous active configuration, or none on a first start, until the
   record lands.
-- The record starts before the plugin wait, not after the listeners: SSH binds during plugin
-  startup with BGP; web, LG, MCP and managed bind after WaitForStartupComplete. It runs beside
-  the rest of startup, so no listener waits for it.
+- The record starts right after `writeReadyFile` (moved there by 9ee692f99a: started before the
+  plugin wait, its lock held bgp's Stage 2 GR-marker read behind slow syncs and failed the
+  startup barrier). A config write of the bound name arriving earlier, such as a SIGHUP during
+  startup, waits for it, at most 30s.
 
 ## RFC Documentation (Scope: protocol)
 Not protocol.
@@ -287,3 +288,37 @@ Not protocol.
 
 ### Closure
 - [ ] /ze-close
+
+## Closure attempt 2026-10-20 (agent bootrec): stopped, not closed
+
+Goal measurement, one 192MB `conv=fsync` dd writer looped on the checkout disk (ext4, /dev/sda2),
+`./le --name bootrec test stress-repro run suite plugin test <t> parallel 1 burners 1 timeout 120 any-failure`,
+host load average 31-41 throughout (shared machine). before = `ze` built from `git archive 37823314a5^`,
+after = `ze` built from `git archive 5aff23f38e` (HEAD), both with the DUT tag set, pinned by `ZE_BIN`.
+
+| Run | Writer | Result |
+|-----|--------|--------|
+| filter-irr, before | none | 2/2 pass (control) |
+| filter-irr, after | none | 2/2 pass (control) |
+| filter-irr, before | fsync | invocation 1 FAIL, timeout 21.4s, ze printed `created live store` and nothing after (the stall) |
+| filter-irr, after | fsync | 8/8 pass, 29s for all eight (memory DUT store) |
+| explicit-file-restart, before | fsync | 3 pass, invocation 4 FAIL 70.3s: ze printed `created live store` and the capability warnings, never `Starting ze`; the fixture killed it (the stall) |
+| explicit-file-restart, after | fsync | invocation 1 FAIL 77.3s: ze printed `Starting ze`, `Ze running`, `storage probe authenticated`, then on stop `Stopping: finishing config changes...`, `Ze stopped.`, and was still killed by the fixture |
+| explicit-file-restart, after | none | 1/1 PASS 17.6s (`./le job run` over `le test bgp plugin -v explicit-file-restart`, `LE_TEST_NO_BUILD=1`) |
+
+-> Finding (open, blocks closure): the startup stall is gone at HEAD (the disk-store DUT now serves
+under the writer), but explicit-file-restart, a disk-store test, still fails under the same writer at
+HEAD, now in shutdown: after `Ze stopped.` the process does not exit before the fixture's kill. The
+cause is not traced. Suspect: `defer bootRecord.Wait()` in runYANGConfig (cmd/ze/hub/main.go), which
+this spec added, so a stop now waits for the record's syncs; or the store close's syncs. Next step: a
+SIGQUIT goroutine dump of the stopping ze under the writer (the fixture's kill deadline in
+`storage/tree`), then decide whether shutdown waits on the record with a bound or the fixture's
+deadline is wrong.
+
+Review of 37823314a5, dd3eaf7773, 4c1db99ae2 (read in full, plus 9ee692f99a which moved the record
+start after `writeReadyFile`): no BLOCKER or ISSUE in the diffs themselves. Every pointer.go writer
+(`WriteCandidateVersion`, `StageSourceCandidate`, `EnsureActiveVersion`, `ClearCandidate`,
+`PromoteCandidate`, `RestoreConfig`) takes `store.AcquireLock(configPath)`, which the bound
+`configStore.AcquireLock` gates; `promoteConfigCandidate` writes its intent only after a candidate
+exists, so after the gate. NOTE fixed: Known Limitations said the record starts before the plugin
+wait. Not recorded with `./le spec review record` because the closure stopped at the finding above.
