@@ -44,6 +44,7 @@ var (
 	// runs before ze's env registry is initialized; ze sets it via env.Set
 	// here so the child inherits it via os.Environ().
 	_ = env.MustRegister(env.EnvEntry{Key: "exabgp.api.ack", Type: valueTypeBool, Default: configTrue, Description: "ExaBGP bridge: emit done/error ack lines on plugin stdin after each dispatched command"})
+	_ = env.MustRegister(env.EnvEntry{Key: "exabgp.api.version", Type: valueTypeString, Default: "auto", Description: "ExaBGP bridge: API version of the scripts, auto (detect per script), 4 or 6"})
 
 	// Web server.
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.listen", Type: valueTypeString, Default: "0.0.0.0:3443", Description: "Web server listen address (ip:port[,ip:port])"})

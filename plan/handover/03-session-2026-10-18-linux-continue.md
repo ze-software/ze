@@ -1025,3 +1025,27 @@ Three 6.0 api cases were handed over: api-peer-lifecycle, api-disable (AC-41), a
   `internal/component/bgp/plugins/cmd/update`, `internal/component/bgp/plugins/nlri/srpolicy`,
   `internal/component/plugin/registry`; the exabgp stage (6.0 api) and `./le test functional` plugin suite
   (the sr-policy refusal wording changed in `parseConfigRoute`).
+
+### ExaBGP 6 spec, Phase 2 first package (2026-10-20, Linux): continuation owed
+
+- **Done (X-1 to X-8, AC-5..AC-9, bridge half of AC-10):** per-script API version detection and hold,
+  `api version` command, `exabgp.api.version` env leaf and migration, per-version formats (v4 text,
+  v4 JSON `4.0.1`, v6 JSON), YANG `encoder` default text. Details and evidence: the spec's "Phase 2 state
+  (2026-10-20, first package)" line. Cases `api-version-detect-v4`, `api-version-detect-v6`,
+  `api-version-command` green against ExaBGP main (`PYTHONPATH= uv run --no-project --python 3.12 --with
+  paramiko --with 'exabgp @ git+https://github.com/Exa-Networks/exabgp@685f772e4ede5c818d2ff5c84f4ae040afd37be6'
+  ./le --name exa6e test exabgp api --dut exabgp <cases>`) and against ze; red against ze with detection
+  disabled.
+- **Next package (Phase 2 rest):** X-9/X-10 (OPEN capabilities: v4 JSON keyed by code without `code`, v6
+  keyed by name with `code`; `ReadEvent` carries no capabilities today), X-11 (5.x shapes: label as value,
+  flow `string` ending with next-hop, one-cluster list in brackets), X-12 (v4 NOTIFICATION data: Shutdown
+  Communication decoded, else the wire hexed once). `ExabgpJSON(format)` already takes the format, so each
+  shape branches there. Then `api-version-env.ci` (AC-10 functional; ExaBGP reads `exabgp.api.version` from
+  its env, the case needs an env line in proof mode) and AC-6's "one warning names the process" proof.
+- Open point: the standalone runner `Bridge` (`internal/exabgp/bridge/bridge.go`, `translateAndForward`, the
+  MuxConn path) has no version state and writes 6.0 JSON; the spec puts version state in `bridgerun`, so
+  either that runner adopts `bridge.Format` too or it is recorded as v6-only. Not decided here.
+- Gates owed: `./le go lint run` on `internal/exabgp/bridge`, `internal/plugins/exabgp/...`,
+  `internal/exabgp/migration`, `internal/component/config`; the exabgp stage (api both pins, encoding,
+  old-4.2/old-5.0), since the encoder default and the v4 JSON envelope changed what scripts read; the
+  config YANG tests for the new `version` enum leaf.

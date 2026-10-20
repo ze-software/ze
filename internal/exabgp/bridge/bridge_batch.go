@@ -165,6 +165,11 @@ type BatchLine struct {
 	Translation Translation
 	// Err is the translator's refusal. Translation is zero when it is set.
 	Err error
+	// Reply is the line a local action answers before its done or error, set
+	// by the runner that performed the action (APIVersionRequest.Answer). It
+	// is written whatever the ack state, as ExaBGP writes it with
+	// processes.write and only the marker with answer_done_sync.
+	Reply []byte
 }
 
 // BatchDispatch is one command of a netted batch, with the index of the line
@@ -310,11 +315,20 @@ type BatchAnswer struct {
 func AnswerBatch(w io.Writer, ack *AckMode, lines []BatchLine, answers []BatchAnswer) {
 	for i := range lines {
 		switch {
+		case errors.Is(lines[i].Err, ErrUnknownCommand):
+			// A command the helper's API version does not know. ExaBGP
+			// answers its UnknownCommand `error` (API.process).
+			ack.WriteError(w, lines[i].Err.Error())
 		case lines[i].Err != nil:
 			// A line the translator refused never reached ze, and the bridge
 			// has already named it. ExaBGP answers nothing for a line its own
 			// parser refused, so neither does this.
 		case lines[i].Translation.Local != LocalNone:
+			writeReply(w, lines[i].Reply)
+			if answers[i].Failed {
+				ack.WriteErrorMarker(w)
+				continue
+			}
 			ack.AnswerLocal(w, lines[i].Translation.Local)
 		case !lines[i].Translation.Unmatched && lines[i].Translation.Nothing():
 			// A blank line and a comment carry no command and owe no answer.
@@ -345,4 +359,14 @@ func BatchSelectors(lines []BatchLine, netted []BatchDispatch) []string {
 		selectors = append(selectors, line.Translation.Selector)
 	}
 	return selectors
+}
+
+// writeReply writes a local action's answer line, which owes no ack state.
+func writeReply(w io.Writer, reply []byte) {
+	if len(reply) == 0 {
+		return
+	}
+	if _, err := w.Write(reply); err != nil {
+		slog.Debug("bridge: write reply failed", "error", err)
+	}
 }

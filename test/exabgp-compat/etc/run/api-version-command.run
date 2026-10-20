@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""X-7: `api version` shows, sets and refuses as ExaBGP answers it."""
+
+import sys
+import time
+
+
+def send(command: str) -> None:
+    sys.stdout.write(command + '\n')
+    sys.stdout.flush()
+
+
+def answer() -> list[str]:
+    """The lines the bridge wrote for one command, up to and including its done or error."""
+    lines = []
+    while True:
+        line = sys.stdin.readline()
+        if not line:
+            sys.stderr.write('ERROR: stdin closed\n')
+            sys.exit(1)
+        line = line.strip()
+        lines.append(line)
+        # `error: <why>` is a detail line before the marker; ze still writes
+        # its refusal as one `error <why>` line, which ends the answer too.
+        if line in ('done', 'error') or line.startswith('error '):
+            return lines
+
+
+def expect(command: str, check, what: str) -> None:
+    send(command)
+    got = answer()
+    if not check(got):
+        sys.stderr.write(f'ERROR: {command!r} answered {got!r}, want {what}\n')
+        sys.exit(1)
+
+
+def main() -> None:
+    time.sleep(0.2)  # let the EOR pass
+    expect('api version', lambda a: a == ['API version: auto (this helper: 4)', 'done'], 'the show answer')
+    expect(
+        'api version 5',
+        lambda a: a == ['error: API version must be auto, 4 or 6, got 5', 'error'],
+        'the refusal then error',
+    )
+    expect(
+        'api version 6',
+        lambda a: a == ['API version set to 6 (effective for helpers started afterwards)', 'done'],
+        'the set answer',
+    )
+    expect('api version', lambda a: a == ['API version: 6 (this helper: 4)', 'done'], 'the moved setting')
+    expect('api version auto', lambda a: a[-1] == 'done', 'done')
+    expect('announce route 1.1.1.1/32 next-hop 11.11.11.11', lambda a: a == ['done'], 'done')
+    expect('announce route 3.3.3.3/32 next-hop 33.33.33.33', lambda a: a == ['done'], 'done')
+    sys.stderr.write('SUCCESS\n')
+    while sys.stdin.readline():
+        pass
+
+
+if __name__ == '__main__':
+    main()

@@ -259,10 +259,11 @@ func TestParseConfigReadsTheEncoderAndTheFeeds(t *testing.T) {
 		t.Errorf("10.0.0.1 events = %v, want none: a neighbor can grant a script nothing", got)
 	}
 
-	// An absent encoder is JSON, which is what the 6.0.0 envelope this bridge
-	// declares names, and an absent peer list is every peer.
-	if got := cfg.Scripts[1]; got.Encoder != bridge.EncoderJSON {
-		t.Errorf("quiet encoder = %v, want json", got.Encoder)
+	// An absent encoder is text, ExaBGP's default (Processes._select_encoder,
+	// `configuration.get('encoder', 'text')`), and an absent peer list is every
+	// peer.
+	if got := cfg.Scripts[1]; got.Encoder != bridge.EncoderText {
+		t.Errorf("quiet encoder = %v, want text", got.Encoder)
 	}
 	if got := cfg.Scripts[1].Feeds; len(got) != 0 {
 		t.Errorf("quiet feeds = %v, want none: no feed block is every peer and every event", got)

@@ -98,6 +98,10 @@ type Translation struct {
 	// answer, and ExaBGP acknowledges a command whose selector matched no
 	// session rather than leaving the script waiting.
 	Unmatched bool
+	// APIVersion is the `api version` line when Local is LocalAPIVersion. The
+	// answer depends on the script's version and the fleet's setting, which the
+	// runner holds, so the runner performs it (APIVersionRequest.Answer).
+	APIVersion APIVersionRequest
 }
 
 // Command is one ze command line, with the route it carries named by the
@@ -186,6 +190,9 @@ const (
 	// LocalPingText answers the health check as text, then done: the line
 	// carried the `text` keyword.
 	LocalPingText
+	// LocalAPIVersion is `api version [<value>]`: the runner writes its answer
+	// line, then done, or error when the value is refused.
+	LocalAPIVersion
 )
 
 // Nothing reports a line that carries no command: a blank line, or a comment.
@@ -264,6 +271,12 @@ func (t Translator) Line(line string) (Translation, error) {
 	line = strings.TrimSpace(line)
 	if line == "" || strings.HasPrefix(line, "#") {
 		return Translation{}, nil
+	}
+
+	// `api version` reads or moves the bridge's own setting and reaches no
+	// peer, so it is read before any selector.
+	if request, ok := apiVersionRequest(line); ok {
+		return Translation{Local: LocalAPIVersion, APIVersion: request}, nil
 	}
 
 	// ExaBGP pads a command to align it in a script, and its own qa/api corpus

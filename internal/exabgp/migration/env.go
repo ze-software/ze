@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/exabgp/bridge"
 	"github.com/ze-software/ze/internal/exabgp/topics"
 )
 
@@ -192,6 +193,15 @@ func mapEnvKnownKey(fullKey, value string, b *textbuf.Buffer, configLines *[]str
 		return true
 	case "debug.pprof":
 		*configLines = append(*configLines, fmt.Sprintf("environment {\n    pprof %s;\n}", value))
+		return true
+	case "api.version":
+		// ExaBGP reads 0 as auto (environment/parsing.py, api_version); ze's
+		// leaf spells it auto. A value ExaBGP refuses is carried unchanged, so
+		// the version leaf refuses it by name when the config loads.
+		if version, err := bridge.ParseAPIVersion(value); err == nil {
+			value = version.String()
+		}
+		*configLines = append(*configLines, fmt.Sprintf("environment {\n    exabgp {\n        api {\n            version %s;\n        }\n    }\n}", value))
 		return true
 	case "api.ack":
 		*configLines = append(*configLines, fmt.Sprintf("environment {\n    exabgp {\n        api {\n            ack %s;\n        }\n    }\n}", value))

@@ -59,6 +59,16 @@ type script struct {
 	// script and a JSON script at once.
 	encoder bridge.Encoder
 
+	// version is the bridge.APIVersion this script is held to, auto while
+	// undecided (version.go). It is atomic because the fan-out reads it on the
+	// event goroutine while the batch goroutine detects it.
+	version atomic.Uint32
+
+	// setting is the fleet's `exabgp.api.version`, which each fork starts
+	// with and `api version <v>` moves. It is the Fleet's, shared by every
+	// script, as ExaBGP's environment setting is shared by every helper.
+	setting *atomic.Uint32
+
 	// grants is the peer-and-event relation each neighbor's api block declared
 	// for this script: the events one peer feeds it, by peer address. A NIL map
 	// is every peer and every event, which is what a script no neighbor
@@ -92,8 +102,9 @@ type script struct {
 	stdout io.ReadCloser
 }
 
-func newScript(log *slog.Logger, translator bridge.Translator, s Script) *script {
+func newScript(log *slog.Logger, translator bridge.Translator, setting *atomic.Uint32, s Script) *script {
 	return &script{
+		setting:    setting,
 		name:       s.Name,
 		argv:       s.Argv,
 		respawn:    s.Respawn,
@@ -196,6 +207,7 @@ func (s *script) start(ctx context.Context) error {
 	s.stdin = sin
 	s.stdout = sout
 	s.mu.Unlock()
+	s.resetAPIVersion()
 	return nil
 }
 
@@ -293,9 +305,18 @@ func (s *script) read(ctx context.Context, d Dispatcher) {
 // answers come last, one per line, in the order the script wrote them.
 func (s *script) batch(ctx context.Context, d Dispatcher, lines []string) {
 	batch := make([]bridge.BatchLine, 0, len(lines))
-	for _, text := range lines {
+	answers := make([]bridge.BatchAnswer, len(lines))
+	for i, text := range lines {
 		if text == "" {
 			batch = append(batch, bridge.BatchLine{Text: text})
+			continue
+		}
+		// The version is settled BEFORE the line is translated, and the line
+		// is then held to it, as ExaBGP's API.process calls
+		// detect_api_version and then dispatch_for.
+		if err := s.detectAPIVersion(text).Admits(text); err != nil {
+			s.log.Warn("exabgp-bridge line refused", "script", s.name, "error", err)
+			batch = append(batch, bridge.BatchLine{Text: text, Err: err})
 			continue
 		}
 		translation, err := s.translator.Line(text)
@@ -305,11 +326,14 @@ func (s *script) batch(ctx context.Context, d Dispatcher, lines []string) {
 			// unknown command with no mention of the bridge.
 			s.log.Warn("exabgp-bridge line refused", "script", s.name, "error", err)
 		}
-		batch = append(batch, bridge.BatchLine{Text: text, Translation: translation, Err: err})
+		line := bridge.BatchLine{Text: text, Translation: translation, Err: err}
+		if translation.Local == bridge.LocalAPIVersion {
+			line.Reply, answers[i].Failed = s.answerAPIVersion(translation.APIVersion)
+		}
+		batch = append(batch, line)
 	}
 
 	netted := bridge.Net(batch)
-	answers := make([]bridge.BatchAnswer, len(batch))
 	for _, dispatch := range netted {
 		if answers[dispatch.Line].Failed {
 			// This line already met a refusal. Its remaining commands describe

@@ -217,6 +217,9 @@ func TestEnvSurvivingKey(t *testing.T) {
 		{"tcp.delay converts to minutes", "tcp", "delay", "5", []string{"environment", "bgp", "announce-delay", "5m"}},
 		{"debug.pprof", "debug", "pprof", ":6060", []string{"environment", "pprof", ":6060"}},
 		{"api.ack", "api", "ack", "false", []string{"environment", "exabgp", "api", "ack", "false"}},
+		// AC-10: ExaBGP's api.version, auto, 4 or 6; its 0 is auto.
+		{"api.version", "api", "version", "4", []string{"environment", "exabgp", "api", "version 4;"}},
+		{"api.version 0 is auto", "api", "version", "0", []string{"environment", "exabgp", "api", "version auto;"}},
 	}
 
 	for _, tt := range tests {

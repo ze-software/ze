@@ -158,12 +158,17 @@ notation supported). See [configuration.md](../../guide/configuration.md).
 | Variable | Default | Class | Description |
 |----------|---------|-------|-------------|
 | `exabgp.api.ack` | true | YANG | Bridge emits `done`/`error` lines on plugin stdin after each dispatched command |
+| `exabgp.api.version` | auto | YANG | ExaBGP API version of the bridge's scripts: `auto` detects each script's from its first deciding command, `4` or `6` holds every script from its start |
 
-The bridge subprocess reads `exabgp.api.ack` via `os.Getenv` because it
-runs before Ze's env registry is initialized. The parent Ze process
-writes it via `config.ApplyEnvConfig` when the operator sets
-`environment { exabgp { api { ack <bool>; } } }`.
+The bridge subprocess reads `exabgp.api.ack` and `exabgp.api.version` via
+`os.Getenv` because it runs before Ze's env registry is initialized. The parent
+Ze process writes them via `config.ApplyEnvConfig` when the operator sets
+`environment { exabgp { api { ack <bool>; version auto|4|6; } } }`. A version
+value ExaBGP refuses stops the bridge at start with ExaBGP's own reason, and
+`ze exabgp migrate` carries ExaBGP's `api.version` (its `0` written `auto`).
 <!-- source: internal/exabgp/bridge/bridge_ack.go -- AckMode -->
+<!-- source: internal/exabgp/bridge/bridge_version.go -- APIVersionFromEnv, ParseAPIVersion -->
+<!-- source: internal/exabgp/migration/env.go -- mapEnvKnownKey -->
 
 ---
 

@@ -246,15 +246,14 @@ func parseFeeds(entry map[string]any) []bridgerun.ScriptFeed {
 // parseEncoder reads a process block's `encoder` leaf: the format this script's
 // events are written in.
 //
-// An absent leaf is JSON. The bridge declares the 6.0.0 envelope
-// (bridge.Version), and ExaBGP 6 answers every process in JSON whatever its
-// `encoder` leaf says, so JSON is what an unstated encoder means for a script
-// written against that version. A config that wants the line format asks for it
-// by name, and the migration writes the word when the ExaBGP config carried it.
+// An absent leaf is text, as ExaBGP's own default is
+// (Processes._select_encoder, `configuration.get('encoder', 'text')`). The
+// script's API version then decides with it which format it reads
+// (bridge.FormatFor): a v6 script reads JSON whatever this leaf says.
 func parseEncoder(name string, entry map[string]any) (bridge.Encoder, error) {
 	value, ok := asString(entry, "encoder")
 	if !ok || value == "" {
-		return bridge.EncoderJSON, nil
+		return bridge.EncoderText, nil
 	}
 	encoder, err := bridge.ParseEncoder(value)
 	if err != nil {

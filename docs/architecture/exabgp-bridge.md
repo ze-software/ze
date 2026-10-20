@@ -145,7 +145,11 @@ routes on both sessions. `api-multiple-api` is the case for it.
 ExaBGP spells the keyword twice. Its v4 API writes `neighbor <address>` and its
 v6 API writes `peer <address>`, its own selector parser takes either ("Accept
 both 'neighbor' (v4) and 'peer' (v6) prefixes", `extract_neighbors`,
-`src/exabgp/reactor/api/command/limit.py`), and the bridge reads both.
+`src/exabgp/reactor/api/command/limit.py`), and the bridge reads both. One
+script is held to one of them: its first `neighbor` line holds it to API 4 and its
+first `peer` line to API 6, and from then on a line in the other spelling is
+answered `error` and reaches no peer ("`encoder` says which format a script
+reads" below).
 
 v6 also holds every address in ONE bracket rather than repeating the keyword
 after each comma, so `peer [A router-id X, B] announce route ...` names the two
@@ -494,17 +498,34 @@ blocked for an answer that never comes stops there.
 ## `encoder` says which format a script reads
 
 `encoder` is ExaBGP's leaf. Ze declares it in the same place, inside the process
-block, so one bridge can feed a text script and a JSON script at once.
+block, so one bridge can feed a text script and a JSON script at once. An absent
+leaf is `text`, ExaBGP's own default (`configuration.get('encoder', 'text')`).
 
-An absent leaf is `json`, and the envelope ze declares is 6.0.0. This differs from
-ExaBGP main since e2142a435 (2026-10-01): ExaBGP detects each helper's API version
-from its first deciding command (`command_api_version`, `Processes.detect_api_version`),
-writes a v6 helper JSON only, writes a v4 helper v4 text or v4 JSON (envelope
-`4.0.1`), and writes a helper not yet decided in the format its `encoder` leaf
-names, which defaults to text. Ze has no detection, so a script that leaves the
-leaf out reads ze's JSON where ExaBGP would write it text. `ze exabgp migrate`
-writes the word only when the ExaBGP config carried one. `respawn` follows the
-same rule.
+The leaf is read together with the script's API version, as ExaBGP main reads it
+since e2142a435. A script is held to the API of the first command that tells
+(`command_api_version` in ExaBGP's `dispatch/version.py`, `bridge.CommandAPIVersion`
+here): a first word in `daemon`, `session`, `system`, `rib`, `peer` is API 6;
+`neighbor`, or a word ExaBGP's `translate_v4_to_v6` translates (`announce`,
+`withdraw`, `teardown`, `help`, `api version`, `show adj-rib in`, ...), is API 4;
+anything else, `group` and a typing mistake included, decides nothing. The hold
+lasts until the script exits: a respawned child starts from the setting again.
+
+| API version | `encoder text` (or absent) | `encoder json` |
+|-------------|----------------------------|----------------|
+| undecided | 5.x text | 6.0 JSON, envelope `6.0.0` |
+| 4 | 5.x text | 5.x JSON, envelope `4.0.1` |
+| 6 | 6.0 JSON, and one warning that text is ignored | 6.0 JSON |
+
+A held script writing the other API's command is answered `error` and the line
+reaches no peer, as ExaBGP answers its `UnknownCommand`. `environment { exabgp {
+api { version auto|4|6; } } }` is ExaBGP's `exabgp.api.version`: auto detects per
+script, 4 or 6 holds every script from its start, and a value ExaBGP refuses
+stops the bridge at start. A script's `api version` line answers `API version:
+<setting> (this helper: <version>)`, and `api version <v>` moves the setting for
+the scripts started afterwards, ExaBGP's answers byte for byte. The fan-out still
+renders each event once per format in use, three at most. The 5.x JSON shapes
+ExaBGP restored (capabilities by code, label values, NOTIFICATION data) are not
+yet written: a v4 JSON line differs from the 6.0 one by its envelope only.
 
 A word that names neither format is REFUSED, by the config parser and by the
 migration. Each of them names the process and the word. Until 2026-09-06 the
@@ -512,6 +533,8 @@ leaf was parsed by nothing at all: a config asking for text got JSON, with no
 error and no log line.
 
 <!-- source: internal/exabgp/bridge/bridge_encoder.go -- Encoder, ParseEncoder -->
+<!-- source: internal/exabgp/bridge/bridge_version.go -- CommandAPIVersion, FormatFor, APIVersionRequest.Answer -->
+<!-- source: internal/plugins/exabgp/bridgerun/version.go -- script.detectAPIVersion, script.resetAPIVersion -->
 <!-- source: internal/plugins/exabgp/bridgeplugin/config.go -- parseEncoder, parseFeeds -->
 
 <!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- Fleet.Start, Fleet.Broadcast -->

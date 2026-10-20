@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/exabgp/bridge"
 )
@@ -87,6 +88,11 @@ type Fleet struct {
 	// is the shutdown rather than a crash, so it does not respawn into it.
 	stopping bool
 	mu       sync.Mutex
+
+	// apiSetting is `exabgp.api.version` as a bridge.APIVersion: what each
+	// script starts held to. Start reads it from the env, and a script's
+	// `api version <v>` line moves it for the scripts started afterwards.
+	apiSetting atomic.Uint32
 }
 
 // New builds a Fleet for the given scripts. It forks nothing: Start does.
@@ -101,7 +107,7 @@ func New(log *slog.Logger, families []string, scripts []Script) *Fleet {
 	f := &Fleet{log: log}
 	for _, s := range scripts {
 		translator := bridge.Translator{Families: families, Peers: feedPeers(s.Feeds)}
-		f.scripts = append(f.scripts, newScript(log, translator, s))
+		f.scripts = append(f.scripts, newScript(log, translator, &f.apiSetting, s))
 	}
 	return f
 }
@@ -116,6 +122,11 @@ func (f *Fleet) Count() int { return len(f.scripts) }
 //
 // A script that started before the failing one keeps running, and Stop ends it.
 func (f *Fleet) Start(ctx context.Context, d Dispatcher) error {
+	setting, err := bridge.APIVersionFromEnv()
+	if err != nil {
+		return fmt.Errorf("exabgp-bridge: %w", err)
+	}
+	f.apiSetting.Store(uint32(setting))
 	for _, s := range f.scripts {
 		// A script whose encoder nobody set is refused HERE rather than
 		// written in whichever format the zero value happens to reach. Every
@@ -170,12 +181,12 @@ func (f *Fleet) Broadcast(event string) {
 	}
 	apiKey := read.APIKey()
 
-	var rendered [2][]byte
+	var rendered [bridge.FormatCount][]byte
 	for _, s := range f.scripts {
 		if !s.receives(read.Peer, apiKey) {
 			continue
 		}
-		line, ok := f.render(&rendered, s.encoder, read)
+		line, ok := f.render(&rendered, s.format(), read)
 		if !ok {
 			continue
 		}
@@ -189,15 +200,18 @@ func (f *Fleet) Broadcast(event string) {
 // It answers false for an event that format writes nothing for, which is an
 // answer rather than a failure: ExaBGP's text encoder writes no line for
 // `negotiated`, `fsm` or `signal`.
-func (f *Fleet) render(cache *[2][]byte, encoder bridge.Encoder, event bridge.Event) ([]byte, bool) {
-	slot := encoderSlot(encoder)
+//
+// The format is the script's API version and encoder together (bridge.FormatFor),
+// so a fan-out renders at most bridge.FormatCount lines for one event.
+func (f *Fleet) render(cache *[bridge.FormatCount][]byte, format bridge.Format, event bridge.Event) ([]byte, bool) {
+	slot := format.Slot()
 	if cache[slot] != nil {
 		return cache[slot], len(cache[slot]) > 0
 	}
 
 	var line []byte
-	switch encoder {
-	case bridge.EncoderText:
+	switch format {
+	case bridge.FormatV4Text:
 		var scratch [512]byte
 		out, form := event.AppendText(scratch[:0])
 		switch form {
@@ -211,17 +225,18 @@ func (f *Fleet) render(cache *[2][]byte, encoder bridge.Encoder, event bridge.Ev
 		default:
 			panic("BUG: invalid bridge text form")
 		}
-	case bridge.EncoderUnspecified, bridge.EncoderJSON:
-		// Preserve the helper's zero-value JSON path; Start rejects unset scripts.
-		encoded, err := bridge.MarshalExabgpJSON(event.ExabgpJSON())
+	case bridge.FormatV4JSON, bridge.FormatV6JSON:
+		encoded, err := bridge.MarshalExabgpJSON(event.ExabgpJSON(format))
 		if err != nil {
 			f.log.Warn("exabgp-bridge: marshal external JSON failed", "error", err)
 			break
 		}
 		encoded = append(encoded, '\n')
 		line = encoded
+	case bridge.FormatUnspecified:
+		panic("BUG: bridge format unspecified")
 	default:
-		panic("BUG: invalid bridge encoder")
+		panic("BUG: invalid bridge format")
 	}
 
 	// An empty slice is not nil, so a format that wrote nothing is cached as
@@ -231,20 +246,6 @@ func (f *Fleet) render(cache *[2][]byte, encoder bridge.Encoder, event bridge.Ev
 	}
 	cache[slot] = line
 	return line, len(line) > 0
-}
-
-// encoderSlot indexes the per-format render cache. Script constructors select
-// JSON or Text; Start rejects only Unspecified. Direct helper calls retain its
-// existing JSON slot for Unspecified.
-func encoderSlot(encoder bridge.Encoder) int {
-	switch encoder {
-	case bridge.EncoderText:
-		return 1
-	case bridge.EncoderUnspecified, bridge.EncoderJSON:
-		return 0
-	default:
-		panic("BUG: invalid bridge encoder")
-	}
 }
 
 // Stop closes every script's stdin, which gives each child an EOF, and waits

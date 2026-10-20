@@ -75,7 +75,7 @@ func (m *AckMode) apply(action LocalAction) bool {
 	case LocalAckDisableNow:
 		m.enabled = false
 		return false
-	case LocalNone, LocalPing, LocalPingText:
+	case LocalNone, LocalPing, LocalPingText, LocalAPIVersion:
 		return m.enabled
 	default:
 		panic("BUG: invalid bridge local action")
@@ -123,6 +123,18 @@ func (m AckMode) WriteError(pluginW io.Writer, msg string) {
 	clean := sanitizeErrorMessage(msg)
 	if _, err := fmt.Fprintf(pluginW, "error %s\n", clean); err != nil { //nolint:errcheck // output
 		slog.Debug("bridge ack: write error failed", "error", err)
+	}
+}
+
+// WriteErrorMarker emits the bare `error` line that follows a reply line
+// already written, as ExaBGP's answer_error_sync does. Silent when ack mode is
+// disabled.
+func (m AckMode) WriteErrorMarker(pluginW io.Writer) {
+	if !m.enabled {
+		return
+	}
+	if _, err := io.WriteString(pluginW, "error\n"); err != nil {
+		slog.Debug("bridge ack: write error marker failed", "error", err)
 	}
 }
 

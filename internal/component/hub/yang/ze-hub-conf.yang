@@ -203,8 +203,8 @@ module ze-hub-conf {
                 the settings of the channel to that program.";
             ze:help "ExaBGP compatibility settings for the migration bridge";
             container api {
-                description "The container holds the ack leaf alone. The bridge reads the leaf once, when it
-                    starts, so a change reaches the bridge at the next daemon start.";
+                description "The container holds the ack and version leaves. The bridge reads them once, when
+                    it starts, so a change reaches the bridge at the next daemon start.";
                 ze:help "ExaBGP bridge API settings";
                 leaf ack {
                     type boolean;
@@ -214,6 +214,20 @@ module ze-hub-conf {
                         done then stops. The bridge reads false, 0, no, off, disable and disabled as
                         false, and every other value as true.";
                     ze:help "Emit done/error ack lines on plugin stdin after each dispatched command";
+                }
+                leaf version {
+                    type enumeration {
+                        enum auto { ze:help "Detect each script's API version from its commands."; }
+                        enum "4" { ze:help "Hold every script to the ExaBGP 4.x and 5.x API."; }
+                        enum "6" { ze:help "Hold every script to the ExaBGP 6.0 API, JSON only."; }
+                    }
+                    default auto;
+                    description "ExaBGP's api.version. auto holds each script to the API of the first
+                        command that tells: 'peer ...' is 6, 'announce ...' or 'neighbor ...' is 4. 4 or 6
+                        holds every script to that API from its start. A script held to one API is
+                        answered error for a command of the other. A script's 'api version <v>' line moves
+                        the setting for the scripts started afterwards.";
+                    ze:help "ExaBGP API version of the bridge's scripts: auto, 4 or 6";
                 }
             }
         }

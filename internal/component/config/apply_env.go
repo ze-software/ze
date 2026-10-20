@@ -51,6 +51,7 @@ var envPlumbingTable = []envPlumbing{
 	{section: sectionReactor, option: "read-buffer-size", envKey: "ze.buf.read.size"},
 	{section: sectionReactor, option: "write-buffer-size", envKey: "ze.buf.write.size"},
 	{section: "exabgp.api", option: "ack", envKey: "exabgp.api.ack"},
+	{section: "exabgp.api", option: "version", envKey: "exabgp.api.version"},
 	{section: "cli.format", option: "default", envKey: "ze.cli.format"},
 	{section: "cli", option: "transcript", envKey: "ze.cli.transcript"},
 	// The key is registered by internal/component/mtu/cmd, which reads it.

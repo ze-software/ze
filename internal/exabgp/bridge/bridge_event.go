@@ -16,9 +16,9 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// Version is the ExaBGP JSON envelope version. Set to 6.0.0 to match
-// ExaBGP main, which is the syntax target for the bridge (RFC 8955
-// packet-rate, SR-Policy, unified rate-limit:N:packets spelling).
+// Version is the ExaBGP 6.0 JSON envelope, which a script held to API 6, and an
+// undecided script whose encoder is json, reads (FormatV6JSON). A script held
+// to API 4 reads JSONVersionV4 instead.
 const Version = "6.0.0"
 
 // Mode/direction string constants.
@@ -202,7 +202,7 @@ func eventKindByKey(payload map[string]any) string {
 // is the two steps in one call, for a caller that renders a single event in a
 // single format.
 func zebgpToExabgpJSON(zebgp map[string]any) map[string]any {
-	return ReadEvent(zebgp).ExabgpJSON()
+	return ReadEvent(zebgp).ExabgpJSON(FormatV6JSON)
 }
 
 // ExabgpJSON renders the event as one ExaBGP JSON object.
@@ -225,9 +225,22 @@ func zebgpToExabgpJSON(zebgp map[string]any) map[string]any {
 // renders the pair unconditionally (src/exabgp/reactor/api/response/json.py,
 // _neighbor), and a script that indexes `address["local"]` must not meet a
 // KeyError on the one line whose session was not yet established.
-func (e Event) ExabgpJSON() map[string]any {
+//
+// format is FormatV4JSON or FormatV6JSON, and it decides the envelope: a v4
+// helper reads ExaBGP's frozen `4.0.1`, a v6 helper `6.0.0`.
+func (e Event) ExabgpJSON(format Format) map[string]any {
+	envelope := Version
+	switch format {
+	case FormatV4JSON:
+		envelope = JSONVersionV4
+	case FormatV6JSON:
+	case FormatV4Text, FormatUnspecified:
+		panic("BUG: ExabgpJSON asked for a format that is not JSON")
+	default:
+		panic("BUG: invalid bridge format")
+	}
 	result := map[string]any{
-		"exabgp": Version,
+		"exabgp": envelope,
 		"time":   float64(time.Now().Unix()),
 		"host":   hostname(),
 		"pid":    os.Getpid(),

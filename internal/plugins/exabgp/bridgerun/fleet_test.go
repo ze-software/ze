@@ -479,19 +479,27 @@ func TestFleetRefusesAScriptWithNoEncoder(t *testing.T) {
 	fleet.Stop()
 }
 
-// TestFleetRenderUnspecifiedPreservesJSON keeps the helper's zero-value path
-// distinct from Start's existing refusal of a script with no configured encoder.
-func TestFleetRenderUnspecifiedPreservesJSON(t *testing.T) {
+// TestFleetRenderOncePerFormat: a fan-out renders each format once and hands
+// the same bytes to every script reading it, and the two JSON formats differ by
+// the envelope their API version declares.
+//
+// VALIDATES: X-5, X-6: v4 JSON is `4.0.1`, v6 JSON `6.0.0`, one render each.
+// PREVENTS: a v4 JSON helper and a v6 JSON helper sharing one cached line.
+func TestFleetRenderOncePerFormat(t *testing.T) {
 	fleet := New(slogutil.DiscardLogger(), testFamilies, nil)
 	event := bridge.Event{Kind: "state", Peer: "127.0.0.1", Payload: map[string]any{"state": "up"}}
-	var cache [2][]byte
-	got, ok := fleet.render(&cache, bridge.EncoderUnspecified, event)
-	if !ok || !json.Valid(got) {
-		t.Fatalf("unspecified render = %q, %v; want a JSON event", got, ok)
+	var cache [bridge.FormatCount][]byte
+	v6, ok := fleet.render(&cache, bridge.FormatV6JSON, event)
+	if !ok || !json.Valid(v6) || !bytes.Contains(v6, []byte(`"exabgp": "6.0.0"`)) {
+		t.Fatalf("v6 render = %q, %v; want a 6.0.0 JSON event", v6, ok)
 	}
-	want, ok := fleet.render(&cache, bridge.EncoderJSON, event)
-	if !ok || !bytes.Equal(got, want) {
-		t.Fatalf("unspecified render = %q; JSON render = %q, %v", got, want, ok)
+	v4, ok := fleet.render(&cache, bridge.FormatV4JSON, event)
+	if !ok || !json.Valid(v4) || !bytes.Contains(v4, []byte(`"exabgp": "4.0.1"`)) {
+		t.Fatalf("v4 render = %q, %v; want a 4.0.1 JSON event", v4, ok)
+	}
+	again, ok := fleet.render(&cache, bridge.FormatV6JSON, event)
+	if !ok || &again[0] != &v6[0] {
+		t.Fatalf("second v6 render was rendered again rather than reused")
 	}
 }
 
@@ -500,14 +508,14 @@ func TestFleetRenderUnspecifiedPreservesJSON(t *testing.T) {
 func TestFleetRenderUnknownTextEvent(t *testing.T) {
 	fleet := New(slogutil.DiscardLogger(), testFamilies, nil)
 	event := bridge.Event{Kind: "future-event"}
-	var cache [2][]byte
+	var cache [bridge.FormatCount][]byte
 	for range 2 {
-		line, ok := fleet.render(&cache, bridge.EncoderText, event)
+		line, ok := fleet.render(&cache, bridge.FormatV4Text, event)
 		if ok || len(line) != 0 {
 			t.Fatalf("unknown text event = %q, %v; want no line", line, ok)
 		}
 	}
-	if cache[encoderSlot(bridge.EncoderText)] == nil {
+	if cache[bridge.FormatV4Text.Slot()] == nil {
 		t.Fatal("unknown text event was not cached")
 	}
 }

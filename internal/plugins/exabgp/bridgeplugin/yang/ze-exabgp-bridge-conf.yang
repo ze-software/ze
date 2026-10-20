@@ -80,12 +80,15 @@ arguments. A block with no run command is refused.";
                         enum text { ze:help "Write each event as one line in the ExaBGP text format."; }
                         enum json { ze:help "Write each event as one JSON object."; }
                     }
-                    default json;
+                    default text;
                     description "json writes one JSON object per event. text writes ExaBGP's
 one-event-per-line format, such as 'neighbor 127.0.0.1 receive update announced 10.0.0.0/24
 next-hop 10.0.0.1 origin igp'. ExaBGP spells this leaf the same way and declares it per process,
-so one bridge can feed a text script and a JSON script at once. The default is json because the
-envelope Ze declares is 6.0.0, and ExaBGP 6 answers every process in JSON.";
+so one bridge can feed a text script and a JSON script at once. The default is text, as ExaBGP's.
+The leaf is read with the script's API version, as ExaBGP 6.0 reads it: a script that writes
+'peer ...' reads 6.0.0 JSON whatever this says, a script that writes 'announce ...' or
+'neighbor ...' reads 5.x text or 5.x JSON (envelope 4.0.1), and a script that has written
+neither yet reads 5.x text when this is text and 6.0.0 JSON when it is json.";
                     ze:help "Format the script's events are written in.";
                 }
 
