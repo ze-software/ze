@@ -229,7 +229,8 @@ func (s *store) setDefault(key, value, source string) (appliedPayload string, er
 }
 
 // setTransient sets a transient value for a key. Returns error if config
-// already claims the key. Returns applied payload if written.
+// already claims the key, or if a registered write guard refuses the write.
+// Returns applied payload if written.
 // Note: errors are logged by the EventBus handler but not returned to the
 // CLI caller because (sysctl, set) is fire-and-forget. A future request/
 // response pattern for set would need a correlation ID like the query events.
@@ -239,6 +240,14 @@ func (s *store) setTransient(key, value string) (appliedPayload string, err erro
 	}
 	if verr := sysctlreg.Validate(key, value); verr != nil {
 		return "", verr
+	}
+	// A component whose correctness depends on a kernel setting refuses the
+	// runtime write that breaks it (sysctlreg.RegisterWriteGuard). Config writes
+	// are judged by the same components at config verify instead. Checked
+	// before s.mu is taken, so a guard reading its own state cannot deadlock
+	// against a store call.
+	if gerr := sysctlreg.CheckWrite(key, value); gerr != nil {
+		return "", gerr
 	}
 
 	s.mu.Lock()

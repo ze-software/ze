@@ -2213,6 +2213,17 @@ same interface (e.g., arp_ignore + proxy_arp).
 <!-- source: internal/core/sysctl/conflicts.go -- conflict table, CheckConflicts -->
 <!-- source: internal/component/sysctl/register.go -- plugin registration, EventBus wiring -->
 
+A write-guard registry (`internal/core/sysctl/guard.go`) lets a component refuse a
+transient write that would break it, without the sysctl component naming that
+component. A guard registers under its component's name with `RegisterWriteGuard`,
+and the store runs every guard through `CheckWrite` before a transient value reaches
+the kernel; the first refusal is returned to the `set sysctl` caller. Config writes
+are not guarded here: the same component refuses them at config verify. The vrrp
+plugin registers one that refuses turning proxy ARP on for a device a running IPv4
+VRRP group uses (`docs/guide/vrrp.md`).
+<!-- source: internal/core/sysctl/guard.go -- RegisterWriteGuard, CheckWrite -->
+<!-- source: internal/component/sysctl/sysctl.go -- setTransient -->
+
 ---
 
 ## 17. Implementation Priority

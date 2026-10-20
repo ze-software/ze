@@ -631,3 +631,37 @@ func TestClearSourceDefaults(t *testing.T) {
 		t.Errorf("defaultSource should be cleared, got %q", e.defaultSource)
 	}
 }
+
+// TestSetTransientRefusedByWriteGuard proves a registered write guard stops a
+// runtime `set sysctl` before the kernel is written, and lets every other
+// write through.
+//
+// Method: register a guard refusing one key; the refused key returns the
+// guard's error and leaves the backend untouched, another key is written.
+func TestSetTransientRefusedByWriteGuard(t *testing.T) {
+	refused := "net.ipv4.conf.eth0.proxy_arp"
+	remove, err := sysctlreg.RegisterWriteGuard("test-guard", func(key, _ string) error {
+		if key == refused {
+			return fmt.Errorf("refused by test guard")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("RegisterWriteGuard: %v", err)
+	}
+	t.Cleanup(remove)
+
+	s, fb := newTestStore()
+	if _, err := s.setTransient(refused, "1"); err == nil || !strings.Contains(err.Error(), "refused by test guard") {
+		t.Fatalf("setTransient(%s): got %v, want the guard's refusal", refused, err)
+	}
+	if v, written := fb.values[refused]; written {
+		t.Errorf("a refused write reached the kernel: %s=%s", refused, v)
+	}
+	if _, err := s.setTransient("net.ipv4.conf.eth0.forwarding", "1"); err != nil {
+		t.Fatalf("setTransient of an unguarded key: %v", err)
+	}
+	if fb.values["net.ipv4.conf.eth0.forwarding"] != "1" {
+		t.Error("an unguarded write did not reach the kernel")
+	}
+}

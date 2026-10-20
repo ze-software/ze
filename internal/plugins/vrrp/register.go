@@ -29,6 +29,7 @@ import (
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	sysctlreg "github.com/ze-software/ze/internal/core/sysctl"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/plugins/vrrp/fsm"
 	"github.com/ze-software/ze/internal/plugins/vrrp/transport"
@@ -46,7 +47,12 @@ const pluginName = "vrrp"
 // leaf carries in ze-vrrp-conf.yang. It names a COMPLETION, not a rule.
 const trackInterfaceValidator = "vrrp-track-interface"
 
-func init() { registerVRRP() }
+func init() {
+	// The proxy ARP refusal matches a sysctl key written against the kernel
+	// device name as well as the logical one (validateNoProxyARP, proxyarp.go).
+	kernelDeviceOf = iface.ResolveDevice
+	registerVRRP()
+}
 
 func registerVRRP() {
 	_ = events.RegisterNamespace(Namespace, EventStateChange)
@@ -60,6 +66,14 @@ func registerVRRP() {
 	// internal/component/iface/resolve.go), and a device that has not
 	// enumerated yet must still be configurable.
 	configyang.RegisterSuggestion(trackInterfaceValidator, trackableDevices, nil)
+	// A runtime `set sysctl` never passes config verify, so the proxy ARP
+	// refusal (validateNoProxyARP) is repeated there against the running
+	// groups (refuseLiveProxyARP, proxyarp.go).
+	if _, err := sysctlreg.RegisterWriteGuard(pluginName, refuseLiveProxyARP); err != nil {
+		var tb textbuf.Buffer
+		_ = tb.Str("vrrp: sysctl write guard registration failed: ").Str(err.Error()).Byte('\n').StdErr() //nolint:errcheck // the process exits next; stderr is the only channel left
+		os.Exit(1)
+	}
 
 	reg := registry.Registration{
 		Name:        pluginName,
@@ -70,9 +84,13 @@ func registerVRRP() {
 		// the iface component's root and walks only the vrrp-bearing path of it
 		// (umbrella A-2). Auto-loading with `interface` means the plugin loads
 		// on any interface config; with no groups the engine stays idle (AC-6).
-		// sysctl is read only to refuse proxy ARP on a VRRP interface
-		// (validateNoProxyARP, proxyarp.go).
-		ConfigRoots:             []string{configRoot, sysctlRoot},
+		// sysctl is READ, never owned, only to refuse proxy ARP on a VRRP
+		// interface (validateNoProxyARP, proxyarp.go). As a read root it reaches
+		// `ze config validate`, the daemon's commit and SIGHUP reload alike
+		// (joinConfigReads, plugin/server/startup.go), and a config that holds
+		// only sysctl does not load this plugin.
+		ConfigRoots:             []string{configRoot},
+		ConfigReads:             []string{sysctlRoot},
 		Dependencies:            []string{"interface"},
 		RFCs:                    []string{"9568", "3768"},
 		RunEngine:               runVRRPEngine,
@@ -157,6 +175,10 @@ func runVRRPEngine(conn net.Conn) int {
 
 	eng := newEngine(clock.RealClock{}, livePlatform(), liveDeps())
 	defer eng.stopAll()
+	// The sysctl write guard (refuseLiveProxyARP) judges runtime writes against
+	// this engine's groups for as long as it runs.
+	liveEngine.Store(eng)
+	defer liveEngine.CompareAndSwap(eng, nil)
 
 	// Pending-swap (the ospf model, register.go:403-450): verify parses and
 	// validates into `pending`; apply promotes it. Rollback needs no journal --
