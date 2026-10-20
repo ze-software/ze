@@ -385,6 +385,51 @@ func TestPerfRunnerRefusesALinuxBuildWithoutTags(t *testing.T) {
 	}
 }
 
+// VALIDATES: a build-only run whose image build fails exits 1 and names the
+// DUT and the build error on stderr, and claims no image was built; a run
+// that also tests keeps the warning and goes on to skip the DUT.
+// METHOD: the Docker recorder refuses every `docker build` (and, for the
+// test run, answers the image absent), and Execute runs the freertr DUT
+// with the build step alone, then with both steps.
+// PREVENTS: `./le perf run step build` exiting 0 and reporting the images
+// built when no image was built.
+func TestBuildOnlyRunFailsWhenAnImageBuildFails(t *testing.T) {
+	var stderr, stdout strings.Builder
+	runner, recorder := fixtureRunner(t, &stderr)
+	runner.Stdout = &stdout
+	recorder.answer = func(argv []string) (interoplab.ProcessResult, error) {
+		if argv[1] == "build" {
+			return interoplab.ProcessResult{ExitCode: 1, Stderr: "unknown flag: --build-context"}, nil
+		}
+		if slices.Equal(argv[1:3], []string{"image", "inspect"}) {
+			return interoplab.ProcessResult{ExitCode: 1, Stderr: "Error response from daemon: No such image: " + argv[len(argv)-1]}, nil
+		}
+		return interoplab.ProcessResult{}, nil
+	}
+	if code := runner.Execute(t.Context(), Steps{Build: true}, []string{"freertr"}); code != 1 {
+		t.Fatalf("Execute(build only) = %d after the freertr build failed, want 1", code)
+	}
+	for _, want := range []string{"freertr", "unknown flag: --build-context", "FAIL"} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Errorf("stderr %q lacks %q", stderr.String(), want)
+		}
+	}
+	if strings.Contains(stderr.String(), "warning") {
+		t.Errorf("a build-only failure was reported as a warning: %q", stderr.String())
+	}
+	if strings.Contains(strings.ToLower(stdout.String()), "built") {
+		t.Errorf("stdout claims an image was built: %q", stdout.String())
+	}
+
+	stderr.Reset()
+	if code := runner.Execute(t.Context(), Steps{Build: true, Test: true}, []string{"freertr"}); code != 0 {
+		t.Errorf("Execute(build and test) = %d with the DUT skipped, want 0 as before", code)
+	}
+	if !strings.Contains(stderr.String(), "warning: freertr image build failed") {
+		t.Errorf("a test run lost the skip warning: %q", stderr.String())
+	}
+}
+
 // TestExecuteRefusesARunWithNoStep keeps an empty step selection from
 // answering success over no work.
 func TestExecuteRefusesARunWithNoStep(t *testing.T) {

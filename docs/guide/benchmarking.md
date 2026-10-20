@@ -152,6 +152,13 @@ records nothing, because it measured nothing. Any other `step` value exits 2
 and names the value. A run that measured records the commit, so the perf nudge
 (`./le perf suggest`) stops asking for one.
 
+An image that fails to build or pull is a warning in a run that also measures:
+the test step then skips that DUT and names it in the summary. In a `step build`
+run the image is the whole answer, so a failure prints an error for each DUT
+with its cause, names every DUT that has no image, and exits 1. It never reports
+the images as built.
+<!-- source: internal/test/perfrunner/run.go -- Runner.buildImages, Execute -->
+
 The runner builds no host benchmark program. It cross-builds `le` for linux
 with `CGO_ENABLED=0` into `tmp/perf-run/linux-<arch>/le`, and prints how long
 that build took. It mounts the file at `/usr/local/bin/le` in the sender

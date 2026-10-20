@@ -270,32 +270,43 @@ func (runner *Runner) buildLinuxBinary(ctx context.Context) error {
 }
 
 // buildImages makes every selected DUT's image: FRR is pulled, the others are
-// built. A failed build is a warning, because the test step skips a DUT whose
-// image is absent; a build tag this run could not release fails the run.
-func (runner *Runner) buildImages(ctx context.Context, duts []DUT) {
+// built. It answers the names of the DUTs whose image it could not make. When
+// a test step follows (testFollows), a failure is a warning, because the test
+// step skips a DUT whose image is absent. In a build-only run the failure is
+// the run's answer, so it is reported as an error and the caller MUST fail the
+// run. A build tag this run could not release fails the run either way.
+func (runner *Runner) buildImages(ctx context.Context, duts []DUT, testFollows bool) []string {
 	if runner.NoBuild {
 		say(runner.Stdout, "  skipping image builds (NO_BUILD=1)")
-		return
+		return nil
 	}
+	severity := "  error: "
+	if testFollows {
+		severity = "  warning: "
+	}
+	var failed []string
 	for _, dut := range duts {
 		if ctx.Err() != nil {
-			return
+			return failed
 		}
 		say(runner.Stdout, "Building ", dut.Name, " image...")
 		if dut.Name == dutFRR {
 			if err := runner.Docker.Pull(ctx, dut.Image, 0); err != nil {
-				say(runner.Stderr, "  warning: ", dut.Name, " image pull failed: ", err.Error())
+				failed = append(failed, dut.Name)
+				say(runner.Stderr, severity, dut.Name, " image pull failed: ", err.Error())
 			}
 			continue
 		}
 		build, err := runner.imageBuild(dut)
 		if err != nil {
-			say(runner.Stderr, "  warning: ", err.Error())
+			failed = append(failed, dut.Name)
+			say(runner.Stderr, severity, err.Error())
 			continue
 		}
 		image, err := runner.Docker.Build(ctx, build)
 		if err != nil {
-			say(runner.Stderr, "  warning: ", dut.Name, " image build failed: ", err.Error())
+			failed = append(failed, dut.Name)
+			say(runner.Stderr, severity, dut.Name, " image build failed: ", err.Error())
 			continue
 		}
 		if err := runner.Docker.ReleaseImage(context.WithoutCancel(ctx), image); err != nil {
@@ -303,6 +314,7 @@ func (runner *Runner) buildImages(ctx context.Context, duts []DUT) {
 			say(runner.Stderr, "  error: release the build tag of ", dut.Name, ": ", err.Error(), "; remove it with ", cleanupCommand)
 		}
 	}
+	return failed
 }
 
 // imageBuild answers the build of one DUT image other than FRR, which is pulled.
@@ -571,8 +583,9 @@ type measurement struct {
 
 // Execute runs the selected steps over the named DUTs, or over every DUT when
 // names is empty. It answers 2 when steps selects nothing, 1 when no DUT
-// matches, a measurement fails, ctx ends the run, or a container, network or
-// build tag this run created could not be removed, and 0 otherwise. A DUT
+// matches, a build-only run could not make a DUT's image, a measurement
+// fails, ctx ends the run, or a container, network or build tag this run
+// created could not be removed, and 0 otherwise. A DUT
 // whose image is absent is skipped and reported, never measured. ctx is the
 // command's root: canceling it stops the run, and the removals still run.
 func (runner *Runner) Execute(ctx context.Context, steps Steps, names []string) int {
@@ -594,11 +607,20 @@ func (runner *Runner) Execute(ctx context.Context, steps Steps, names []string) 
 		say(runner.Stderr, "error: no matching DUTs")
 		return 1
 	}
+	var unbuilt []string
 	if steps.Build {
-		runner.buildImages(ctx, duts)
+		unbuilt = runner.buildImages(ctx, duts, steps.Test)
 	}
 	if !steps.Test {
-		return runner.verdict(ctx)
+		code := runner.verdict(ctx)
+		if len(unbuilt) > 0 {
+			names := strings.Join(unbuilt, " ")
+			say(runner.Stderr, "FAIL  no image was made for: ", names, ", so this build-only run fails")
+			say(runner.Stderr, "  fix the cause each error above names, then build them again:")
+			say(runner.Stderr, "  ./le perf run step build dut \"", names, "\"")
+			return 1
+		}
+		return code
 	}
 	if err := runner.buildLinuxBinary(ctx); err != nil {
 		say(runner.Stderr, "build Linux binary: ", err.Error())
