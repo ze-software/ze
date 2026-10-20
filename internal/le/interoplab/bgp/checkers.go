@@ -1064,8 +1064,16 @@ var scenarioOperations = map[string][]operation{
 	},
 	// FRR's eth0 loses Docker's subnet and takes the /32 its lo holds, the form
 	// FRR runs as unnumbered; Ze's eth0 is unnumbered through its own config.
+	// The flush also takes FRR's default route, and Docker starts every lab
+	// namespace with loose reverse-path filtering (rp_filter 2), which drops a
+	// packet whose source has no route at all: FRR then never receives a Hello
+	// from Ze's donor 10.255.0.2 (measured 2026-10-20, IPReversePathFilter
+	// counting each one, Hello Rx 0) and never learns the route that would
+	// admit it. /proc/sys is read-only in the container, so FRR gets back a
+	// default route out of eth0, the shape Ze's side keeps from Docker. OSPF's
+	// /32s are more specific, so the route checks below still see OSPF's.
 	"ospf-p2p-unnumbered-frr": {
-		{kind: opExec, peer: peerFRR, command: []string{"sh", "-c", "ip -4 addr flush dev eth0 && ip addr add " + frrUnnumberedDonor + "/32 dev lo && ip addr add " + frrUnnumberedDonor + "/32 dev eth0"}},
+		{kind: opExec, peer: peerFRR, command: []string{"sh", "-c", "ip -4 addr flush dev eth0 && ip addr add " + frrUnnumberedDonor + "/32 dev lo && ip addr add " + frrUnnumberedDonor + "/32 dev eth0 && ip route add default dev eth0"}},
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull, zeUnnumberedDonor}, timeout: 90 * time.Second},
 	},
 	"ospf-ptmp-frr": {

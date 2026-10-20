@@ -108,7 +108,19 @@ unnumbered link advertises no route to the borrowed address. `ze doctor` warns
 with `doctor-ospf-unnumbered-donor-absent` when it does not, and prints the two
 `set ospf interfaces interface <donor> ...` commands that add it.
 
-Not yet complete (gap RFC2328-8.1-1 stays open): the FRR interop scenario.
+Reverse-path filtering decides whether the first Hellos arrive. A neighbor's
+Hellos come from its donor address, and until OSPF learns a route to that
+address the kernel finds none. Linux, strict (`rp_filter` 1) or loose (2),
+drops a packet whose source it has no route back to at all, so a router whose
+only routes left with the subnet never hears its neighbor, and never learns
+the route that would admit it. Keep `rp_filter` at 0 on the unnumbered device,
+or keep a route that covers the neighbor's donor (a default route out of the
+link does). The FRR interop scenario `ospf-p2p-unnumbered-frr` keeps such a
+default route on the FRR side.
+
+Not yet complete (gap RFC2328-8.1-1 stays open): the network-namespace test of
+the donor source, which waits for an owner decision on the guest's
+reverse-path setting.
 
 <!-- source: internal/plugins/ospf/interface_addr.go -- interfaceUnnumbered, helloNetworkMask -->
 <!-- source: internal/plugins/ospf/lsdb/origination.go -- p2pLinkData, routerLinks -->
