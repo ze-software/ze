@@ -1049,3 +1049,24 @@ Three 6.0 api cases were handed over: api-peer-lifecycle, api-disable (AC-41), a
   `internal/exabgp/migration`, `internal/component/config`; the exabgp stage (api both pins, encoding,
   old-4.2/old-5.0), since the encoder default and the v4 JSON envelope changed what scripts read; the
   config YANG tests for the new `version` enum leaf.
+
+### ExaBGP 6 spec, AC-4 eleventh package (exa6c, 2026-10-20, Linux): continuation owed
+
+- Done: 76b51c8946 api-sr-policy fixture corrected. The real ExaBGP 6.0 pin 685f772e4
+  (`uv run --no-project --with "exabgp @ git+...@685f772e4..." ./le test exabgp api --dut exabgp api-sr-policy`)
+  sends the sr-policy withdrawal as MP_UNREACH + ORIGIN/AS_PATH/LOCAL_PREF (`collection.py` `_attribute_sets`:
+  bare only when every MP withdrawal is unicast/multicast). Ze's producer was right; no Go change. 6.0 api
+  api-sr-policy PASS. Under `--dut exabgp` the pin never sent the sr-policy ANNOUNCE (first frame received was
+  the withdrawal), so the fixture's announce frame is unverified against ExaBGP.
+- Done: 9dea34f1b9 `test/plugin/update-text-sr-policy-attributes.ci`
+  (`./le test bgp plugin --pattern update-text-sr-policy-attributes`): PASS; red with
+  `NLRISectionCarriesAttributes=false` in `srpolicy/register.go` (restored). Ze's update-text rail writes
+  MP_REACH first, then ORIGIN/AS_PATH/LOCAL_PREF/attr 23.
+- In progress, uncommitted: `test/interop/scenarios/bgp-exabgp-bridge-sr-policy-gobgp/{ze.conf,gobgp.toml}`,
+  `internal/le/interoplab/bgp/register_exabgp_bridge_sr_policy.go` (vet ok). Unknowns: whether ze's config
+  parser keeps `\040` in the printf `run` string (the bridge splits `run` on whitespace); GoBGP's text for the
+  Preference sub-TLV (guessed "Preference: 300"); the comment "TunnelEncapSubTLV-free NLRI text" in the
+  register file is wrong. Then prove red (break af18a709d8's hand-off, rebuild the image), add the inventory row
+  to `docs/architecture/testing/interop.md` (foreign uncommitted hunks there: check), commit.
+- Not started: conf-watchdog (helper `le test interop-bgp exabgp-api watchdog`, config `api-watchdog.conf`,
+  sequence 2 = withdraw 77.77.77.77/32 `0005204D4D4D4D0000`); api-health `status` design.
