@@ -877,3 +877,21 @@ State at hand-off (agent budget exhausted; only this section is committed):
   (5.0 api-flow). Spec AC-4 fourth-package line lists every remaining red with
   its first error.
 - Gates owed: `./le go lint run` on `internal/le/interoplab/bgp`.
+
+## ExaBGP 6 spec, Phase 1 AC-4 fifth package (2026-10-20, Linux): continuation owed
+
+- Committed 4358372547: FlowSpec redirect-to-IP (0x0800) carries its MP_REACH
+  next hop on all three origination rails; old-5.0 conf-flow PASS, old-4.2
+  conf-flow SKIP on an observed allowance (RFC 8956 Section 3.1 offset pattern).
+- 5.0 api-flow is not a plain ze defect: ze withholds a withdrawal of a flow it
+  never announced and sends the attribute-only UPDATE on purpose
+  (`buildWithheldWithdrawUpdate`). Next step: verify that function's claim
+  about ExaBGP 6.0 `api/api-flow.ci` frame 2 (the frame follows a
+  `cmd:attributes` line), then allow or fix. Spec AC-4 fifth-package line.
+- Still held uncommitted until both corpora are green: the stage change
+  (`internal/le/test/functional/exabgp.go`, `exabgp_test.go`) and the 5.0
+  `unknown-message.ci` allowance.
+- Remaining reds: as the fourth package lists, less conf-flow (both corpora).
+- Gates owed: `./le go lint run` on `internal/component/bgp/reactor`,
+  `internal/component/bgp/message`, `internal/core/bgp/attribute`,
+  `internal/le/interoplab/bgp`.
