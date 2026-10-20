@@ -134,6 +134,11 @@ func EncodeRoute(routeCmd, _ string, localAS uint32, isIBGP, asn4, addPath bool)
 	vplsNLRI := newVPLSFull(rd, parsed.VEBlockOffset, parsed.VEBlockOffset, parsed.VEBlockSize, parsed.LabelBase)
 	nlriBytes := vplsNLRI.Bytes()
 
+	// RFC 7911 Section 3. The route command names no path, so the Path
+	// Identifier is 0, as `ze bgp encode -i` gives a unicast route
+	// (cli/encode.go encodeUnicastRoute).
+	nlriBytes = message.PluginNLRI(nlriBytes, 0, addPath)
+
 	// Build UPDATE via the generic plugin builder (L2VPN AFI 25, SAFI 65).
 	params := message.PluginParams{
 		AFI:     25,

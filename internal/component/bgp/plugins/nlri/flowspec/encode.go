@@ -105,6 +105,10 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 		raw = append(raw, extComms...)
 		rawAttrs = append(rawAttrs, raw)
 	}
+	// RFC 7911 Section 3. The route command names no path, so the Path
+	// Identifier is 0, as `ze bgp encode -i` gives a unicast route
+	// (cli/encode.go encodeUnicastRoute).
+	nlriBytes = message.PluginNLRI(nlriBytes, 0, addPath)
 	params := message.PluginParams{AFI: afi, SAFI: 133, IsIPv6: isIPv6, NLRI: nlriBytes, RawAttrs: rawAttrs}
 	update := ub.BuildPlugin(params)
 	if update == nil {

@@ -107,6 +107,8 @@ type PluginRouteConfig struct {
 	NLRI    []byte // Pre-built NLRI wire bytes.
 	NextHop string
 	Attrs   []PluginRouteAttrConfig // Extra path attributes.
+	// PathID is the configured path-information (RFC 7911), 0 when none is set.
+	PathID uint32
 
 	// ASPath is the configured AS_PATH (built with ASN4 context at send time).
 	ASPath []uint32

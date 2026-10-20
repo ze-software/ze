@@ -68,6 +68,7 @@ func convertPluginRoute(pr PluginRouteConfig) (reactor.PluginRoute, error) {
 		Family:             pr.Family,
 		IsIPv6:             pr.IsIPv6,
 		NLRI:               pr.NLRI,
+		PathID:             pr.PathID,
 		ASPath:             pr.ASPath,
 		LocalPreference:    pr.LocalPreference,
 		HasLocalPreference: pr.HasLocalPreference,

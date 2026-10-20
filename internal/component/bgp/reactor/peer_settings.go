@@ -174,8 +174,11 @@ func (r *StaticRoute) RouteKey() string {
 type PluginRoute struct {
 	Family  string // "ipv4/sr-policy", etc.
 	IsIPv6  bool
-	NLRI    []byte // Pre-built NLRI wire bytes.
+	NLRI    []byte // Pre-built NLRI wire bytes, one NLRI, without a Path Identifier.
 	NextHop netip.Addr
+	// PathID is the configured path-information, 0 when none is set. It is sent
+	// before NLRI only on a session with ADD-PATH send for the family.
+	PathID uint32
 	// NextHopSelf resolves the route's explicit self policy from the connected
 	// local endpoint, independently of the peer's default export next hop.
 	NextHopSelf bool

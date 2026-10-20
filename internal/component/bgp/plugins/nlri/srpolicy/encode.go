@@ -43,7 +43,6 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 // The owner package reuses parseConfigRoute so config and canonical route encoding
 // share SR-Policy field validation and Tunnel Encapsulation attribute construction.
 func EncodeRoute(routeCmd, famName string, localAS uint32, isIBGP, asn4, addPath bool) ([]byte, []byte, error) {
-	_ = addPath // The SR-Policy route Ze builds carries no ADD-PATH path identifier.
 	afi, err := srPolicyAFI(famName)
 	if err != nil {
 		return nil, nil, err
@@ -71,6 +70,11 @@ func EncodeRoute(routeCmd, famName string, localAS uint32, isIBGP, asn4, addPath
 		rawAttrs = append(rawAttrs, srPolicyAttrWire(a.Flags, a.Code, a.Value))
 	}
 
+	// RFC 7911 Section 3. The route command names no path, so the Path
+	// Identifier is 0, as `ze bgp encode -i` gives a unicast route
+	// (cli/encode.go encodeUnicastRoute).
+	nlri := message.PluginNLRI(pr.NLRI, 0, addPath)
+
 	ub := message.GetUpdateBuilder(localAS, isIBGP, asn4, addPath)
 	defer message.PutUpdateBuilder(ub)
 
@@ -78,7 +82,7 @@ func EncodeRoute(routeCmd, famName string, localAS uint32, isIBGP, asn4, addPath
 		AFI:          uint16(afi),
 		SAFI:         byte(family.SAFISRPolicy),
 		IsIPv6:       isIPv6,
-		NLRI:         pr.NLRI,
+		NLRI:         nlri,
 		NextHop:      nh,
 		RawAttrs:     rawAttrs,
 		MapV4NextHop: false, // RFC 9830 Section 2.1: retain a native IPv4 next hop under either NLRI AFI.
@@ -87,7 +91,7 @@ func EncodeRoute(routeCmd, famName string, localAS uint32, isIBGP, asn4, addPath
 	if update == nil {
 		return nil, nil, message.ErrUnicastNextHopUnusable
 	}
-	return message.PackTo(update, nil), pr.NLRI, nil
+	return message.PackTo(update, nil), nlri, nil
 }
 
 func srPolicyAFI(famName string) (family.AFI, error) {

@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/ipregistry"
 )
 
@@ -256,10 +257,14 @@ func tunnelEndpointValid(value []byte) bool {
 // srPolicyAnnounced reports whether the UPDATE's MP_REACH_NLRI is AFI 1 or 2, SAFI 73,
 // and carries at least one NLRI octet. loc is the validator's location of MP_REACH_NLRI.
 func srPolicyAnnounced(attrs []byte, loc *message.MPNLRILocation) bool {
-	if !loc.Present || loc.SAFI != 73 {
+	if !loc.Present {
 		return false
 	}
-	if loc.AFI != 1 && loc.AFI != 2 {
+	if family.SAFI(loc.SAFI) != family.SAFISRPolicy {
+		return false
+	}
+	afi := family.AFI(loc.AFI)
+	if afi != family.AFIIPv4 && afi != family.AFIIPv6 {
 		return false
 	}
 	_, _, value, found := attribute.AttrFind(attrs, attribute.AttrMPReachNLRI)

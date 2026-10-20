@@ -1,0 +1,72 @@
+# Two configured ipv4/sr-policy routes sent over a session with ADD-PATH
+# negotiated for ipv4/sr-policy. The first (color 100) carries no
+# path-information, so its Path Identifier is 0, as for a static route
+# (peer_static_routes.go toStaticRouteUnicastParams). The second (color 200)
+# carries path-information 9, which the plugin-route rail must send as is. RFC 7911 Section 3: with ADD-PATH negotiated the
+# 4-octet Path Identifier precedes the NLRI, so MP_REACH_NLRI must read
+# 00000000 then the length octet 60 (96 bits), never 60 alone. Without it a Ze
+# receiver with ADD-PATH receive reads the Distinguisher as the Path Identifier
+# and resets the session (srpolicy/split.go srPolicyNLRIBounds).
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006D0200000056800E1A00014904C000020100000000006000000000000000640A0000014001010040020040050400000064C01728000F00240C060000000000640D06000005DC00008000110009060000000000010106000003E81000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006D0200000056800E1A00014904C000020100000000096000000000000000C80A0000014001010040020040050400000064C01728000F00240C060000000000640D06000005DC00008000110009060000000000010106000003E81000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 192.0.2.1
+			family {
+				ipv4/sr-policy { prefix { maximum 10000; } }
+			}
+			capability {
+				add-path {
+					direction send/receive
+					family {
+						ipv4/sr-policy
+					}
+				}
+			}
+		}
+
+		update {
+			attribute {
+				next-hop 192.0.2.1
+			}
+			nlri {
+				ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1 preference 100 binding-sid mpls 24000 segment-list weight 1 segment type-a mpls 16001
+			}
+		}
+		update {
+			attribute {
+				next-hop 192.0.2.1
+				path-information 9
+			}
+			nlri {
+				ipv4/sr-policy add distinguisher 0 color 200 endpoint 10.0.0.1 preference 100 binding-sid mpls 24000 segment-list weight 1 segment type-a mpls 16001
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

@@ -4,6 +4,7 @@
 package message
 
 import (
+	"encoding/binary"
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -20,10 +21,14 @@ import (
 // unless the plugin supplied code 1), AS_PATH (ASN4-encoded from ASPath),
 // LOCAL_PREF (iBGP-gated), and MP_REACH_NLRI.
 type PluginParams struct {
-	AFI      uint16
-	SAFI     byte
-	IsIPv6   bool
-	NLRI     []byte // One or more concatenated NLRIs for this family/SAFI.
+	AFI    uint16
+	SAFI   byte
+	IsIPv6 bool
+	// NLRI is the NLRI field of MP_REACH_NLRI, copied verbatim: one or more
+	// concatenated NLRIs for this family/SAFI. When the builder carries AddPath,
+	// each NLRI MUST already hold its Path Identifier: build each one with
+	// PluginNLRI, because only the producer knows where one NLRI ends.
+	NLRI     []byte
 	NextHop  netip.Addr
 	RawAttrs [][]byte // Pre-built extra attribute wire bytes (flags+code+len+value).
 
@@ -37,6 +42,23 @@ type PluginParams struct {
 	// MapV4NextHop maps an IPv4 next-hop to IPv4-mapped IPv6 in MP_REACH for IPv6
 	// families (MUP). MVPN/VPLS/FlowSpec/SR-Policy leave it false.
 	MapV4NextHop bool
+}
+
+// PluginNLRI returns one pre-built plugin NLRI in the form the session sends it.
+// Without ADD-PATH it returns nlri itself. With ADD-PATH send negotiated for the
+// family it returns a new slice holding pathID, then nlri. The copy is made once
+// per route per session at origination, never on the forward path.
+func PluginNLRI(nlri []byte, pathID uint32, addPath bool) []byte {
+	if !addPath {
+		return nlri
+	}
+	// RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
+	// message, the NLRI encoding MUST be extended by prepending the Path
+	// Identifier field, which is of four octets."
+	framed := make([]byte, 4+len(nlri))
+	binary.BigEndian.PutUint32(framed, pathID)
+	copy(framed[4:], nlri)
+	return framed
 }
 
 // pluginMaxAttrs bounds the per-route attribute count: AS_PATH + AS4_PATH +

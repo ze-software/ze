@@ -184,23 +184,24 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 	}
 
 	// Build UPDATE via the generic plugin builder. MUP is AFI 1/2, SAFI 85.
-	// IPv4 MUP with an IPv4 next-hop also carries a legacy NEXT_HOP (code 3).
+	// No NEXT_HOP (code 3): the next hop rides in MP_REACH_NLRI alone.
+	// RFC 4760 Section 3: "An UPDATE message that carries no NLRI, other than the
+	// one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP
+	// attribute."
 	afi := uint16(1)
 	if isIPv6 {
 		afi = 2
 	}
-	var rawAttrs [][]byte
-	if !isIPv6 && nextHop.Is4() {
-		b := nextHop.As4()
-		rawAttrs = append(rawAttrs, []byte{0x40, 3, 4, b[0], b[1], b[2], b[3]})
-	}
+	// RFC 7911 Section 3. The route command names no path, so the Path
+	// Identifier is 0, as `ze bgp encode -i` gives a unicast route
+	// (cli/encode.go encodeUnicastRoute).
+	nlriBytes = message.PluginNLRI(nlriBytes, 0, addPath)
 	params := message.PluginParams{
 		AFI:          afi,
 		SAFI:         85,
 		IsIPv6:       isIPv6,
-		NLRI:         buf[:n],
+		NLRI:         nlriBytes,
 		NextHop:      nextHop,
-		RawAttrs:     rawAttrs,
 		MapV4NextHop: true,
 	}
 	update := ub.BuildPlugin(params)

@@ -749,13 +749,16 @@ func packNLRIs(nlris [][]byte, maxSize int, measure func(batch []byte) int) [][]
 }
 
 // pluginRouteGroupKey returns a grouping key: routes with the same key share an
-// UPDATE. Family encodes AFI/SAFI; the remaining fields are the shared path
+// UPDATE. Family encodes AFI/SAFI; PathID is the one Path Identifier every NLRI
+// of the group carries under ADD-PATH; the remaining fields are the shared path
 // attributes (next-hop, AS_PATH, LOCAL_PREF, and the pre-built raw attrs which
 // carry ORIGIN/MED/ext-community/originator/cluster/NEXT_HOP).
 func pluginRouteGroupKey(r *PluginRoute) string {
 	var b keyBuilder
 	b.Grow(96)
 	b.WriteString(r.Family)
+	b.Sep()
+	b.Uint(uint64(r.PathID))
 	b.Sep()
 	b.Addr(r.NextHop)
 	b.Sep()
@@ -840,6 +843,9 @@ func (p *Peer) sendPluginRoutesVia(session *Session, sendFn func(*message.Update
 			continue
 		}
 		addPath := p.addPathFor(fam)
+		// RFC 7911 Section 3: the Path Identifier precedes the NLRI on a session
+		// with ADD-PATH send for the family.
+		params.NLRI = message.PluginNLRI(params.NLRI, route.PathID, addPath)
 		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
 		// RFC 8669 Section 8, as for the static routes above: a plugin route's
 		// pre-built attribute bytes can carry type code 40.
@@ -905,8 +911,19 @@ func (p *Peer) sendPluginRouteGroup(g *pluginRouteGroup, local netip.Addr, maxMs
 		message.PutUpdateBuilder(ub)
 	}
 
+	// RFC 7911 Section 3: each NLRI of the group carries the Path Identifier on
+	// a session with ADD-PATH send for the family. The group key holds PathID,
+	// so the representative's is every member's.
+	nlris := g.nlris
+	if addPath {
+		nlris = make([][]byte, len(g.nlris))
+		for i, n := range g.nlris {
+			nlris[i] = message.PluginNLRI(n, g.rep.PathID, addPath)
+		}
+	}
+
 	// Common case: build the whole group once and send it if it fits.
-	full := concatNLRIs(g.nlris)
+	full := concatNLRIs(nlris)
 	ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
 	params := base
 	params.NLRI = full
@@ -929,7 +946,7 @@ func (p *Peer) sendPluginRouteGroup(g *pluginRouteGroup, local netip.Addr, maxMs
 
 	// Oversized group: split NLRIs across multiple size-bounded UPDATEs.
 	sizingRefused := false
-	batches := packNLRIs(g.nlris, maxMsgSize, func(batch []byte) int {
+	batches := packNLRIs(nlris, maxMsgSize, func(batch []byte) int {
 		mub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
 		mparams := base
 		mparams.NLRI = batch

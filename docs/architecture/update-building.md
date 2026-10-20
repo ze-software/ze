@@ -110,6 +110,20 @@ family-specific path attributes, which flow through `reactor.PluginRoute` →
 `message.PluginParams` → `UpdateBuilder.BuildPlugin()`. There is no per-family
 `Build*()` in the message package for these families (see plugin-self-containment).
 
+EVPN config routes take the same path. The pre-built NLRI carries no ADD-PATH
+Path Identifier, because ADD-PATH is negotiated per session and per family.
+`BuildPlugin` copies `PluginParams.NLRI` verbatim and cannot tell where one NLRI
+ends, so the producer frames each NLRI with `message.PluginNLRI` (RFC 7911
+Section 3) when the session has ADD-PATH send for the family: the reactor
+rail (`sendPluginRoutesVia`, each member of a grouped UPDATE included) and the
+`ze bgp encode -i` encoders. The identifier is the route's configured
+`path-information`, 0 when none is set, as for a static route; routes with
+different identifiers never share a grouped UPDATE.
+<!-- source: internal/component/bgp/message/update_build_plugin.go -- PluginNLRI -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendPluginRoutesVia, sendPluginRouteGroup, pluginRouteGroupKey -->
+<!-- test: internal/component/bgp/reactor/plugin_route_addpath_test.go TestPluginRouteAddPathWritesPathID -->
+<!-- test: test/encode/addpath-srpolicy-pathid.ci -->
+
 **Files involved:**
 - `internal/component/bgp/reactor/peer_settings.go` - Domain objects (PluginRoute, StaticRoute, etc.)
 - `internal/component/bgp/reactor/peer_static_routes.go` - Conversion functions (toPluginParams, etc.)
