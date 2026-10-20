@@ -1287,3 +1287,13 @@ All three changes below are UNCOMMITTED and none is green yet.
   so row 49's red claim stands. The hide overlay is no longer needed (the fixture landed in 7d666660d4).
   Committed in 65651c27e0. `go vet` and `go test` of internal/le/interoplab/bgp green under `./le job run`.
   Owed by the main thread: `./le go lint run` (not run here: a subagent must not hold a >5 min command).
+
+### ExaBGP 6 spec, Phase 3 (2026-10-20, Linux, exa7): done
+
+- Committed 1e30e6aa8d: X-13, X-14, AC-14 to AC-16. Details: the spec's "Phase 3 state" line.
+- api population on ze at the pin: 45/50, reds api-disable, api-eor, api-on-exit, api-rib, api-rr-rib
+  (unchanged known reds, each waiting on its owner decision or later phase).
+- Owed by the main thread: `./le go lint run` on `internal/exabgp/bridge`, `internal/plugins/exabgp/bridgerun`;
+  encoding, old-4.2, old-5.0 populations (a translator-refused line now answers `error: <why>` then
+  `error`, where it was silent; the old corpora are where a script might count answers).
+- Next: Phase 4 (X-15 to X-22).
