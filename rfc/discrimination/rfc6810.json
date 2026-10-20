@@ -31,7 +31,7 @@
       "claim-sha": "2233ead7695dae6c",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
-      "producer-sha": "b1ddceb0a1db6a3c",
+      "producer-sha": "fcaaae8230f48b20",
       "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -42,7 +42,7 @@
       "claim-sha": "dbcfa3edfca761ae",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
-      "producer-sha": "b1ddceb0a1db6a3c",
+      "producer-sha": "fcaaae8230f48b20",
       "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "a918b69e6ffa0158",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
-      "producer-sha": "b1ddceb0a1db6a3c",
+      "producer-sha": "fcaaae8230f48b20",
       "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "f8ec65cf7aa56cbc",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
-      "producer-sha": "b1ddceb0a1db6a3c",
+      "producer-sha": "fcaaae8230f48b20",
       "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "06669fe239f61511",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
-      "producer-sha": "b1ddceb0a1db6a3c",
+      "producer-sha": "fcaaae8230f48b20",
       "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -108,7 +108,7 @@
       "claim-sha": "44081478d4952b98",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
-      "producer-sha": "b1ddceb0a1db6a3c",
+      "producer-sha": "fcaaae8230f48b20",
       "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -119,7 +119,7 @@
       "claim-sha": "ae4ca3946fbccd53",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
-      "producer-sha": "b1ddceb0a1db6a3c",
+      "producer-sha": "fcaaae8230f48b20",
       "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -130,7 +130,7 @@
       "claim-sha": "8c909c8c7d35d9db",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
-      "producer-sha": "b1ddceb0a1db6a3c",
+      "producer-sha": "fcaaae8230f48b20",
       "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
