@@ -320,7 +320,7 @@
       "claim-sha": "01074b6d80e47efa",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
-      "producer-sha": "3df201fd842fe190",
+      "producer-sha": "3f86f9f49b4aa5c6",
       "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -595,7 +595,7 @@
       "claim-sha": "afb72dca8718102f",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
-      "producer-sha": "3df201fd842fe190",
+      "producer-sha": "3f86f9f49b4aa5c6",
       "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -606,7 +606,7 @@
       "claim-sha": "60e4ca966739aef2",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
-      "producer-sha": "3df201fd842fe190",
+      "producer-sha": "3f86f9f49b4aa5c6",
       "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
