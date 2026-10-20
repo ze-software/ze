@@ -587,6 +587,35 @@ func TestParseUpdateText_CommunitySet(t *testing.T) {
 	assert.Equal(t, uint32(65000<<16|200), comms[1])
 }
 
+// TestParseUpdateText_CommunityCloseOnLastValue proves a list that opens with
+// a lone `[` and closes on its last value, `community [ 54591:123]`, ends at
+// that value.
+//
+// VALIDATES: the values before the closing bracket are the list, and the
+// words after it (`nlri add ...`) are parsed as the rest of the command.
+// ExaBGP's 4.2 qa/api api-vpls script writes its lists this way.
+// PREVENTS: the bracketed value being refused as a malformed community, and
+// the list swallowing every word after it.
+func TestParseUpdateText_CommunityCloseOnLastValue(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want []uint32
+	}{
+		{"one value", []string{"community", "[", "54591:123]", "nlri", "add", "10.0.0.0/24"}, []uint32{54591<<16 | 123}},
+		{"two values", []string{"community", "[", "65000:100", "65000:200]", "nlri", "add", "10.0.0.0/24"}, []uint32{65000<<16 | 100, 65000<<16 | 200}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := ParseUpdateText(tc.args)
+			require.NoError(t, err)
+			require.Len(t, result.Groups, 1)
+			assert.Equal(t, tc.want, testExtractCommunities(t, result.Groups[0].Wire))
+		})
+	}
+}
+
 // TestParseUpdateText_CommunityWellKnownNames verifies that ALL IANA
 // well-known community names parse via "update text", not just the 3
 // (no-export, no-advertise, no-export-subconfed) parseCommunityText used to

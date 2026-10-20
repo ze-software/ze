@@ -607,14 +607,21 @@ func parseBracketedListText(args []string) ([]string, int) {
 			if args[i] == "]" {
 				return tokens, i + 1
 			}
+			// The close may sit on the last value, `[ 54591:123]`, which is how
+			// ExaBGP's own qa corpus writes a list (4.2 api-vpls); the value
+			// was read with the bracket on it and refused as malformed.
+			value, closed := strings.CutSuffix(args[i], "]")
 			// Split by comma if present
-			for tok := range strings.SplitSeq(args[i], ",") {
+			for tok := range strings.SplitSeq(value, ",") {
 				tok = strings.TrimSpace(tok)
 				if tok != "" {
 					tokens = append(tokens, tok)
 				}
 			}
 			consumed = i + 1
+			if closed {
+				return tokens, consumed
+			}
 		}
 		return tokens, consumed
 	}
