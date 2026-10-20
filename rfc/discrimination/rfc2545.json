@@ -9,7 +9,7 @@
       "claim-sha": "dcc67bd50e1ae73e",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/srpolicy/config.go::parseConfigRoute",
-      "producer-sha": "c5253a5ff69da1ae",
+      "producer-sha": "3d5207e4ceb5c4de",
       "break": "body of parseConfigRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -484,7 +484,7 @@
       "claim-sha": "5e748188044004cb",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/srpolicy/config.go::parseConfigRoute",
-      "producer-sha": "c5253a5ff69da1ae",
+      "producer-sha": "3d5207e4ceb5c4de",
       "break": "body of parseConfigRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
