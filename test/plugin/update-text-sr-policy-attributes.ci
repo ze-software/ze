@@ -1,0 +1,96 @@
+# Test: an SR Policy announced through `update text` reaches the wire with the
+#       Tunnel Encapsulation attribute the config route builds, and a word after
+#       the sub-TLVs is refused.
+#
+# VALIDATES: AC-28 through the real entry point: `send bgp * update text ...
+#            mp ipv4/sr-policy add ... preference 300 segment-list ...` is parsed
+#            by the registered config-route parser (NLRISectionCarriesAttributes,
+#            registry.SectionRouteParserFor) and the UPDATE the peer receives
+#            carries MP_REACH_NLRI (AFI 1, SAFI 73, next hop 192.0.2.1,
+#            distinguisher 0, color 300, endpoint 10.0.0.3), ORIGIN, AS_PATH,
+#            LOCAL_PREF and Tunnel Encapsulation C0 17 34 (tunnel type 15,
+#            Preference 300, two Segment List sub-TLVs with MPLS labels 16001
+#            and 16002): the attribute bytes test/exabgp-compat/api/
+#            api-sr-policy.ci pins for ExaBGP 6.0. The withdrawal is MP_UNREACH_NLRI with ORIGIN, AS_PATH, LOCAL_PREF,
+#            as ExaBGP 6.0 sends it.
+# PREVENTS:  the API refusing an SR Policy the config accepts, dropping its
+#            sub-TLVs, or accepting trailing words it does not encode. Red
+#            observed 2026-10-20 with NLRISectionCarriesAttributes set false in
+#            srpolicy/register.go: the NLRI encoder refuses `preference`, so the
+#            first refusal names it instead of `bogus` and step 4 fails.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=25s
+option=linger:value=true
+# MP_REACH_NLRI 800E16 0001 49 04 C0000201 00 60 0000000000000000012C 0A000003,
+# ORIGIN 40010100, AS_PATH 400200, LOCAL_PREF 40050400000064,
+# TUNNEL_ENCAPSULATION C01734 000F 0030 0C06..012C 80 0011 ..3E81000 80 0011 ..3E82000.
+# Ze writes MP_REACH_NLRI first on this rail, as test/encode/bgp-srpolicy-2-encode.ci
+# pins for the config route; the attribute values are the ExaBGP case's.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0075020000005E800E1600014904C00002010060000000000000012C0A0000034001010040020040050400000064C01734000F00300C0600000000012C8000110009060000000000010106000003E810008000110009060000000000020106000003E82000
+# MP_UNREACH_NLRI 800F10 0001 49 60 0000000000000000012C 0A000003, then ORIGIN,
+# AS_PATH and LOCAL_PREF.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00380200000021800F1000014960000000000000012C0A0000034001010040020040050400000064
+EOF_PEER
+
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external engine-steps {
+		run "le test engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/sr-policy { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process engine-steps {
+			send [ update ]
+		}
+	}
+}
+EOF_CONFIG
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=25s
+
+# The announce is sent once the session is up, so it dispatches to a session.
+command=show bgp peer peer1 detail
+expect=output:matches=established:timeout=15
+
+# A word after the sub-TLVs is refused, and the refusal names it.
+command=send bgp * update text nhop 192.0.2.1 origin igp local-preference 100 mp ipv4/sr-policy add distinguisher 0 color 300 endpoint 10.0.0.3 preference 300 segment-list weight 1 segment type-a mpls 16001 segment-list weight 2 segment type-a mpls 16002 bogus
+expect=command-error:contains=bogus
+
+command=send bgp * update text nhop 192.0.2.1 origin igp local-preference 100 mp ipv4/sr-policy add distinguisher 0 color 300 endpoint 10.0.0.3 preference 300 segment-list weight 1 segment type-a mpls 16001 segment-list weight 2 segment type-a mpls 16002
+command=send bgp * update text mp ipv4/sr-policy del distinguisher 0 color 300 endpoint 10.0.0.3
+
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
