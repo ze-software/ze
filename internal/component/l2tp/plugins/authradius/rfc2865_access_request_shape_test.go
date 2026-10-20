@@ -31,7 +31,7 @@ import (
 func setupCapturingAuthIdentity(t *testing.T, sharedKey []byte, nasID string,
 	sourceAddr net.IP) (*radiusAuth, *capturingRADIUS, *fakeResponder) {
 	t.Helper()
-	srv := startCapturingRADIUS(t, sharedKey, radius.CodeAccessAccept, nil)
+	srv := startCapturingRADIUS(t, sharedKey, radius.CodeAccessAccept)
 	client, err := radius.NewClient(radius.ClientConfig{
 		Servers: []radius.Server{{Address: srv.addr, SharedKey: sharedKey}},
 		Timeout: 300 * time.Millisecond,

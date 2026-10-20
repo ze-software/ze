@@ -182,7 +182,7 @@ func runPlugin(conn net.Conn) int {
 		if current != nil {
 			restoreFallback()
 		}
-		authInstance.swapClient(nil, "", "", nil, "")
+		retireAuthClient()
 		closeCoAListener()
 		retireAccounting()
 		transactionMu.Unlock()
@@ -209,9 +209,10 @@ func runPlugin(conn net.Conn) int {
 		if current != nil {
 			restoreFallback()
 			acctInstance.pauseAdmissions()
-			// Accounting retains this client until whole-reload acceptance.
-			// Compensation can resume the existing accounting sessions.
-			authInstance.swapClient(nil, "", "", nil, "")
+			// Accounting retains its own client until whole-reload
+			// acceptance. Compensation can resume the existing accounting
+			// sessions.
+			retireAuthClient()
 			closeCoAListener()
 		}
 		return nil
@@ -318,6 +319,15 @@ func configTransactionID(payload any) string {
 	return event.TransactionID
 }
 
+// retireAuthClient uninstalls the authentication client and closes it. The
+// accountant holds a client of its own (activateRadiusConfig), so nothing else
+// reads this one once it is uninstalled.
+func retireAuthClient() {
+	if old := authInstance.swapClient(nil, "", "", nil, ""); old != nil {
+		old.Close() //nolint:errcheck // best-effort on a retired client
+	}
+}
+
 func activateRadiusConfig(cfg *radiusConfig) error {
 	client, err := radius.NewClient(radius.ClientConfig{
 		Servers:       cfg.Servers,
@@ -329,9 +339,28 @@ func activateRadiusConfig(cfg *radiusConfig) error {
 	if err != nil {
 		return fmt.Errorf("%s: create client: %w", Name, err)
 	}
-	var primaryAddr string
+	// RFC 2866 Section 3: accounting has its own destination port, so the
+	// accountant holds its own client, built on the accounting-port list. A
+	// client sends every packet to its servers' one address; giving accounting
+	// a client of its own is what keeps an Accounting-Request off the
+	// authentication port.
+	acctClient, err := radius.NewClient(radius.ClientConfig{
+		Servers:       cfg.AccountingServers,
+		Timeout:       cfg.Timeout,
+		Retries:       cfg.Retries,
+		SourceAddress: cfg.SourceAddress,
+		Logger:        logger(),
+	})
+	if err != nil {
+		client.Close() //nolint:errcheck // best-effort on a client never installed
+		return fmt.Errorf("%s: create accounting client: %w", Name, err)
+	}
+	var primaryAddr, acctPrimaryAddr string
 	if len(cfg.Servers) > 0 {
 		primaryAddr = cfg.Servers[0].Address
+	}
+	if len(cfg.AccountingServers) > 0 {
+		acctPrimaryAddr = cfg.AccountingServers[0].Address
 	}
 	oldClient := authInstance.swapClient(client, cfg.NASIdentifier, primaryAddr, cfg.SourceAddress, cfg.NASPortIDFormat)
 	authInstance.setExclusions(cfg.Exclusions)
@@ -347,13 +376,13 @@ func activateRadiusConfig(cfg *radiusConfig) error {
 	l2tp.RegisterAuthHandler(func(req ppp.EventAuthRequest, respond l2tp.AuthRespondFunc) l2tp.AuthResult {
 		return authInstance.handle(req, respond)
 	})
-	oldAcctClient := acctInstance.setClient(client, cfg.NASIdentifier, cfg.AcctInterval, primaryAddr, cfg.SourceAddress, cfg.NASPortIDFormat)
+	oldAcctClient := acctInstance.setClient(acctClient, cfg.NASIdentifier, cfg.AcctInterval, acctPrimaryAddr, cfg.SourceAddress, cfg.NASPortIDFormat)
 	acctInstance.setExclusions(cfg.Exclusions)
 	if oldClient != nil {
 		oldClient.Close() //nolint:errcheck // best-effort on replaced client
 	}
-	if oldAcctClient != nil && oldAcctClient != oldClient {
-		_ = oldAcctClient.Close()
+	if oldAcctClient != nil {
+		oldAcctClient.Close() //nolint:errcheck // best-effort on replaced client
 	}
 	logger().Info("l2tp-auth-radius: configured",
 		"servers", len(cfg.Servers), "timeout", cfg.Timeout)

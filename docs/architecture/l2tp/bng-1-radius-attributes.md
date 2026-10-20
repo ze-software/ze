@@ -55,6 +55,22 @@ Access-Accept value alone. The `acct-interval` leaf carries its own YANG range,
 which is the same 60 to 3600 seconds. A configured value arrives inside the
 range, or the commit fails.
 
+**Accounting has its own destination port and its own client.** RFC 2866
+Section 3 sends the accounting packet where "the UDP Destination Port field
+indicates 1813 (decimal)", and a standard server listens for accounting there
+alone: FreeRADIUS 3.2.7 refused ze's Accounting-Request on 1812 with "Invalid
+packet code 4 sent to authentication port". Each `server` entry therefore
+carries `accounting-port`, default 1813, beside `port`. The parser builds two
+lists from the entries, in the same failover order, and the accountant gets a
+`radius.Client` built on the accounting list. A `radius.Client` sends every
+packet to its servers' one address, so the split lives in the plugin, and the
+RADIUS transport needs no knowledge of request codes. The parser writes the
+1813 default itself, because the YANG default is inert on this path (see
+`acct-interval` above).
+
+<!-- source: internal/component/l2tp/plugins/authradius/config.go -- parseConfigFromTree, serverPort, accountingPortDefault -->
+<!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig, retireAuthClient -->
+
 ## What every Accounting-Request carries
 
 Ze emits the session attributes below on every subscriber Accounting-Request.

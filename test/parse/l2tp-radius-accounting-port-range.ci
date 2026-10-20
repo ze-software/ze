@@ -1,0 +1,24 @@
+# Test: an accounting-port outside 1..65535 is refused.
+# VALIDATES: spec-radius-rfc-defects Q-8 -- the accounting-port leaf carries the
+#            zt:port range, so port 0 never reaches the accounting socket.
+# PREVENTS:  an Accounting-Request addressed to UDP port 0.
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+    enabled true;
+    auth {
+        radius {
+            server main {
+                address 127.0.0.1;
+                accounting-port 0;
+                shared-key testing123;
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=invalid value for accounting-port
+expect=stdout:contains=outside range 1..65535

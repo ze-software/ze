@@ -84,7 +84,9 @@ func lifecycleRadiusConfig(t *testing.T, address string, timeout int) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return fmt.Sprintf(`{"l2tp":{"auth":{"radius":{"timeout":%d,"server":[{"name":"test","address":%q,"port":%s,"shared-key":"lifecycle-key"}]}}}}`, timeout, host, port)
+	// The mock answers both codes on one socket, so the entry names that socket
+	// for accounting too: accounting-port otherwise defaults to 1813.
+	return fmt.Sprintf(`{"l2tp":{"auth":{"radius":{"timeout":%d,"server":[{"name":"test","address":%q,"port":%s,"accounting-port":%s,"shared-key":"lifecycle-key"}]}}}}`, timeout, host, port, port)
 }
 
 func preserveLifecycleLocal(t *testing.T) {
@@ -156,9 +158,10 @@ func TestRegisteredRadiusRemovalApplyDoesNotWaitForAccounting(t *testing.T) {
 	ctx, remote := startAuthProvider(t, Name, lifecycleRadiusConfig(t, server.LocalAddr().String(), 30))
 	// Closing the client on failure also releases the old-source overlay's
 	// synchronous Stop, so the regression cannot strand its registered engine.
-	authInstance.mu.Lock()
-	client := authInstance.client
-	authInstance.mu.Unlock()
+	// The Stop leaves on the accountant's own client, so that is the one closed.
+	acctInstance.mu.Lock()
+	client := acctInstance.client
+	acctInstance.mu.Unlock()
 	t.Cleanup(func() { _ = client.Close() })
 	for id := uint16(1); id <= 3; id++ {
 		lifecycleSessionUp(t, bus, id)
@@ -220,9 +223,11 @@ func TestRegisteredRadiusCommittedRetirementKeepsNewProvider(t *testing.T) {
 	startAuthProvider(t, "l2tp-auth-local", localBeforeReload)
 	ctx, remote := startAuthProvider(t, Name, lifecycleRadiusConfig(t, server.LocalAddr().String(), 1))
 	t.Cleanup(resume)
-	authInstance.mu.Lock()
-	oldClient := authInstance.client
-	authInstance.mu.Unlock()
+	// The retirement under test is the accountant's: its client carries the
+	// held Stop, and the authentication client is closed at removal.
+	acctInstance.mu.Lock()
+	oldClient := acctInstance.client
+	acctInstance.mu.Unlock()
 	lifecycleSessionUp(t, bus, 1)
 	start := capture.waitN(t, 1)[0]
 	verifyAuthConfig(t, ctx, remote, `{}`, rpc.StatusOK)

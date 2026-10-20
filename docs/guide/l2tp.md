@@ -596,12 +596,24 @@ l2tp {
             server main {
                 address 10.0.0.10;
                 port 1812;
+                accounting-port 1813;
                 shared-key radiussecret;
             }
         }
     }
 }
 ```
+
+Each server entry has two destination ports. `port` (default 1812) receives
+the Access-Request packets, and `accounting-port` (default 1813, the port RFC
+2866 Section 3 assigns to accounting) receives every Accounting-Request: Start,
+Interim-Update and Stop. A server that takes both kinds on one socket needs
+`accounting-port` set to the same value as `port`, because without it the
+accounting goes to 1813, where that server is not listening. The two ports share
+the entry's address, shared key and failover position.
+
+<!-- source: internal/component/l2tp/plugins/authradius/config.go -- parseConfigFromTree, serverPort -->
+<!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig -->
 
 `nas-port-id-format` is the template for the NAS-Port-Id attribute (RFC 2869
 Section 5.17). An LNS has no physical port to number, so the operator composes

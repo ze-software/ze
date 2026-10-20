@@ -27,7 +27,7 @@ type capturingRADIUS struct {
 	reqs chan []byte
 }
 
-func startCapturingRADIUS(t *testing.T, sharedKey []byte, code uint8, attrs []radius.Attr) *capturingRADIUS {
+func startCapturingRADIUS(t *testing.T, sharedKey []byte, code uint8) *capturingRADIUS {
 	t.Helper()
 	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	if err != nil {
@@ -51,7 +51,7 @@ func startCapturingRADIUS(t *testing.T, sharedKey []byte, code uint8, attrs []ra
 			default:
 			}
 
-			pkt := &radius.Packet{Code: code, Identifier: buf[1], Attrs: attrs}
+			pkt := &radius.Packet{Code: code, Identifier: buf[1]}
 			resp := make([]byte, radius.MaxPacketLen)
 			nResp, encErr := pkt.EncodeTo(resp, 0)
 			if encErr != nil {
@@ -76,7 +76,7 @@ func startCapturingRADIUS(t *testing.T, sharedKey []byte, code uint8, attrs []ra
 // is fixed.
 func setupCapturingAuth(t *testing.T, sharedKey []byte) (*radiusAuth, *capturingRADIUS, *fakeResponder) {
 	t.Helper()
-	srv := startCapturingRADIUS(t, sharedKey, radius.CodeAccessAccept, nil)
+	srv := startCapturingRADIUS(t, sharedKey, radius.CodeAccessAccept)
 	client, err := radius.NewClient(radius.ClientConfig{
 		Servers: []radius.Server{{Address: srv.addr, SharedKey: sharedKey}},
 		Timeout: 300 * time.Millisecond,

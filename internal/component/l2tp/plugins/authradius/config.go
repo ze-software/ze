@@ -20,10 +20,15 @@ import (
 
 // radiusConfig holds parsed RADIUS server configuration.
 type radiusConfig struct {
-	Servers       []radius.Server
-	Timeout       time.Duration
-	Retries       int
-	NASIdentifier string
+	// Servers is where an Access-Request goes: each entry's address joined to
+	// its `port`. AccountingServers is the same entries in the same failover
+	// order, joined to `accounting-port`, and only an Accounting-Request goes
+	// there. The two lists always have the same length and order.
+	Servers           []radius.Server
+	AccountingServers []radius.Server
+	Timeout           time.Duration
+	Retries           int
+	NASIdentifier     string
 
 	// AcctInterval is the acct-interval leaf. Zero means the operator set
 	// nothing. Neither the leaf nor this parser writes a default, so the absent
@@ -177,24 +182,30 @@ func parseConfigFromTree(tree map[string]any) (*radiusConfig, error) {
 		if address == "" {
 			return nil, fmt.Errorf("%s: server entry missing address", Name)
 		}
-		port := 1812
-		if v, present, err := intFromAny(m["port"]); err != nil {
-			return nil, fmt.Errorf("%s: port: %w", Name, err)
-		} else if present {
-			port = v
-			if port < 1 || port > 65535 {
-				return nil, fmt.Errorf("%s: port must be 1-65535, got %d", Name, port)
-			}
+		port, err := serverPort(m, "port", authenticationPortDefault)
+		if err != nil {
+			return nil, err
+		}
+		accountingPort, err := serverPort(m, "accounting-port", accountingPortDefault)
+		if err != nil {
+			return nil, err
 		}
 		sharedKey, _ := m["shared-key"].(string)
 		if sharedKey == "" {
 			return nil, fmt.Errorf("%s: server %s missing shared-key", Name, address)
 		}
 		cfg.Servers = append(cfg.Servers, radius.Server{
-			Address: func() string {
-				var b textbuf.Buffer
-				return b.Reset().Str(address).Byte(':').Int(int64(port)).String()
-			}(),
+			Address:   serverAddress(address, port),
+			SharedKey: []byte(sharedKey),
+		})
+		// RFC 2866 Section 3: "Exactly one RADIUS Accounting packet is
+		// encapsulated in the UDP Data field [4], where the UDP Destination Port
+		// field indicates 1813 (decimal)." Accounting therefore has its own
+		// destination per entry, accounting-port, defaulting to 1813, and an
+		// Accounting-Request never goes to the authentication port unless the
+		// operator wrote that port into this leaf.
+		cfg.AccountingServers = append(cfg.AccountingServers, radius.Server{
+			Address:   serverAddress(address, accountingPort),
 			SharedKey: []byte(sharedKey),
 		})
 	}
@@ -204,6 +215,36 @@ func parseConfigFromTree(tree map[string]any) (*radiusConfig, error) {
 	}
 
 	return cfg, nil
+}
+
+// The destination ports of a server entry when the operator writes neither
+// leaf. RFC 2865 Section 3 names 1812 for authentication and RFC 2866 Section 3
+// names 1813 for accounting; the YANG leaves carry the same defaults.
+const (
+	authenticationPortDefault = 1812
+	accountingPortDefault     = 1813
+)
+
+// serverPort reads one port leaf of a server entry, portDefault when absent.
+func serverPort(entry map[string]any, leaf string, portDefault int) (int, error) {
+	port, present, err := intFromAny(entry[leaf])
+	if err != nil {
+		return 0, fmt.Errorf("%s: %s: %w", Name, leaf, err)
+	}
+	if !present {
+		return portDefault, nil
+	}
+	if port < 1 || port > 65535 {
+		return 0, fmt.Errorf("%s: %s must be 1-65535, got %d", Name, leaf, port)
+	}
+	return port, nil
+}
+
+// serverAddress joins a server host and a port into the "host:port" form
+// radius.Server carries.
+func serverAddress(host string, port int) string {
+	var b textbuf.Buffer
+	return b.Reset().Str(host).Byte(':').Int(int64(port)).String()
 }
 
 // intFromAny coerces a config scalar to an int. Tree.ToMap() emits scalars as

@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-14",
+  "audited": "2026-10-20",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -51,7 +51,7 @@
       "verdict": "enforced"
     },
     "RFC2866-4.1-1": {
-      "note": "Judge 2026-09-30 (cont 5). Clause 1 (the attribute holds the user's address): TestAcctFramedIPAddressPresent, TestAcctFramedIPAddressIsSubscriberNotNAS, the unset/IPv6 negative and test/l2tp/radius-acct-wire.ci, unchanged. Clause 2, the gap of the prior weak verdict, is now proven and was a real defect: extractAuthMetadata took Framed-IP-Address 255.255.255.254 as a unicast address, the pool pinned it and accounting reported it. Fix (extract.go framedIPNASSelects) leaves FramedIP unset for 0xFFFFFFFE, and 0xFFFFFFFF stays refused by isValidSubscriberIP (limited broadcast), so the pool assigns; RFC 2865 Section 5.8 text checked; 0.0.0.0 is refused as unspecified. Positive TestRFC2866AccountingReportsTheAddressTheNASAssigned: both special values with a Framed-Pool keep the pool and leave FramedIP unset, and Start/Interim/Stop each carry exactly one Framed-IP-Address equal to the assigned 100.64.0.9. Negative TestRFC2866SpecialFramedIPValueIsNeverTheSubscriberAddress: neither value, alone or beside Session-Timeout, becomes the subscriber address. Both recorded red on extractAuthMetadata. The pool step between extraction and the accounting session (session-ip-assigned) is not driven by these units; the .ci covers IPCP-to-accounting end to end. Note: 0xFFFFFFFF ('the NAS Should allow the user to select') is handled as NAS-selects, journaled in plan/journal/field-carries-two-meanings.md; not this row's clause.",
+      "note": "Judge 2026-09-30 (cont 5). Clause 1 (the attribute holds the user's address): TestAcctFramedIPAddressPresent, TestAcctFramedIPAddressIsSubscriberNotNAS, the unset/IPv6 negative and test/l2tp/radius-acct-wire.ci, unchanged. Clause 2, the gap of the prior weak verdict, is now proven and was a real defect: extractAuthMetadata took Framed-IP-Address 255.255.255.254 as a unicast address, the pool pinned it and accounting reported it. Fix (extract.go framedIPNASSelects) leaves FramedIP unset for 0xFFFFFFFE, and 0xFFFFFFFF stays refused by isValidSubscriberIP (limited broadcast), so the pool assigns; RFC 2865 Section 5.8 text checked; 0.0.0.0 is refused as unspecified. Positive TestRFC2866AccountingReportsTheAddressTheNASAssigned: both special values with a Framed-Pool keep the pool and leave FramedIP unset, and Start/Interim/Stop each carry exactly one Framed-IP-Address equal to the assigned 100.64.0.9. Negative TestRFC2866SpecialFramedIPValueIsNeverTheSubscriberAddress: neither value, alone or beside Session-Timeout, becomes the subscriber address. Both recorded red on extractAuthMetadata. The pool step between extraction and the accounting session (session-ip-assigned) is not driven by these units; the .ci covers IPCP-to-accounting end to end. Note: 0xFFFFFFFF ('the NAS Should allow the user to select') is handled as NAS-selects, journaled in plan/journal/field-carries-two-meanings.md; not this row's clause. Rejudge 2026-10-20: test/l2tp/radius-acct-wire.ci gained one config line, `accounting-port $PORT2` in its RADIUS server block (owner 2026-10-20: \"Approve adding accounting-port\"), because Q-8 'A' moved Accounting-Request to a per-server accounting-port defaulting to 1813 while the fixture answers both codes on $PORT2. No expect= directive, fixture argument or input changed; the unit still asserts the Accounting-Start Framed-IP-Address equals the IPCP-negotiated 10.99.7.10 as decoded by the server, so the verdict and its reasoning stand. RFC 2866 Section 4.1 re-read: \"If the Accounting-Request packet includes a Framed-IP-Address, that attribute MUST contain the IP address of the user.\"",
       "requirement_sha": "02f34df8cc8334e7",
       "tests": {
         "internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go::TestAcctFramedIPAddressIsSubscriberNotNAS": "dca57788321e73c5",
@@ -61,7 +61,7 @@
         "internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go::TestAccountingAddressFamiliesShareLifetime": "2345908f88b1d056",
         "internal/component/l2tp/plugins/authradius/rfc2866_special_framed_ip_test.go::TestRFC2866AccountingReportsTheAddressTheNASAssigned": "04b9b08652ca37d7",
         "internal/component/l2tp/plugins/authradius/rfc2866_special_framed_ip_test.go::TestRFC2866SpecialFramedIPValueIsNeverTheSubscriberAddress": "04b9b08652ca37d7",
-        "test/l2tp/radius-acct-wire.ci": "461a530655edbd79"
+        "test/l2tp/radius-acct-wire.ci": "9337877cb382ca7a"
       },
       "units": {
         "internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go::TestAcctFramedIPAddressIsSubscriberNotNAS": "ab54fbfc2939f352",
@@ -71,7 +71,7 @@
         "internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go::TestAccountingAddressFamiliesShareLifetime": "cbeb73b3fc920670",
         "internal/component/l2tp/plugins/authradius/rfc2866_special_framed_ip_test.go::TestRFC2866AccountingReportsTheAddressTheNASAssigned": "8cab260b261340a1",
         "internal/component/l2tp/plugins/authradius/rfc2866_special_framed_ip_test.go::TestRFC2866SpecialFramedIPValueIsNeverTheSubscriberAddress": "4c5b79b41d694594",
-        "test/l2tp/radius-acct-wire.ci": "461a530655edbd79"
+        "test/l2tp/radius-acct-wire.ci": "9337877cb382ca7a"
       },
       "verdict": "enforced"
     },

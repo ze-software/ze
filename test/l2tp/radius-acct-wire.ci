@@ -75,6 +75,7 @@ l2tp {
             server mock {
                 address 127.0.0.1
                 port $PORT2
+                accounting-port $PORT2
                 shared-key testing123
             }
         }

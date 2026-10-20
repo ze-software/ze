@@ -1,0 +1,26 @@
+# Test: a RADIUS server entry takes an accounting-port beside its port.
+# VALIDATES: spec-radius-rfc-defects Q-8 -- the accounting-port leaf parses, so an
+#            operator can send Accounting-Request to a port of their choice while
+#            Access-Request keeps `port`. The 1813 default and the routing of each
+#            code are unit tests (authradius accounting_port_test.go).
+# PREVENTS:  the leaf being unreachable from operator config text.
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+    enabled true;
+    auth {
+        radius {
+            server main {
+                address 127.0.0.1;
+                port 1812;
+                accounting-port 1813;
+                shared-key testing123;
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

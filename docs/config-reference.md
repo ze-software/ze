@@ -1019,6 +1019,22 @@ time: one naming an unknown placeholder, one using `{nas-id}` with no
 the `nas-identifier` it expands is long.
 <!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- leaf nas-port-id-format -->
 
+### L2TP RADIUS server ports
+
+Each `server` entry under `l2tp auth radius` has two destination ports on one
+address. The Access-Request goes to `port`, and every Accounting-Request goes
+to `accounting-port`.
+
+| Leaf | Type | Default | Description |
+|------|------|---------|-------------|
+| `port` | uint16, 1 to 65535 | 1812 | Destination of the Access-Request packets |
+| `accounting-port` | uint16, 1 to 65535 | 1813 | Destination of the Accounting-Request packets (RFC 2866 Section 3) |
+
+A server that takes both kinds on one socket needs `accounting-port` set to the
+same value as `port`.
+<!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- leaf accounting-port -->
+<!-- source: internal/component/l2tp/plugins/authradius/config.go -- parseConfigFromTree -->
+
 ## Removed Syntax
 
 | Form | State |

@@ -159,7 +159,7 @@
       "rid": "RFC2866-4.1-1",
       "polarity": "positive",
       "unit": "test/l2tp/radius-acct-wire.ci",
-      "unit-sha": "40ed11d70b2923ce",
+      "unit-sha": "21e8ec901462dd71",
       "claim-sha": "8156e80885b14e7e",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/acct.go::onSessionIPAssigned",

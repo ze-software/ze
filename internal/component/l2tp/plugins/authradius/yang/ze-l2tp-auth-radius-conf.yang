@@ -305,7 +305,7 @@ holds the attribute back from all three.";
                     leaf name {
                         type string;
                         description "The name is the list key alone. Ze reads the address, the
-                                     port and the shared key of the entry, and the written order
+                                     ports and the shared key of the entry, and the written order
                                      of the list decides the failover order. The name changes no
                                      packet.";
                         ze:help "Logical name for this RADIUS server entry.";
@@ -314,7 +314,9 @@ holds the attribute back from all three.";
                         type string;
                         mandatory true;
                         description "The leaf is mandatory, and Ze refuses a server entry
-                                     without it. Ze joins the value to port to reach the server.
+                                     without it. Ze joins the value to port for an
+                                     Access-Request, and to accounting-port for an
+                                     Accounting-Request.
                                      The first entry of the list is the one Ze tries first, so
                                      write the closest server first.";
                         ze:help "RADIUS server IP address or hostname.";
@@ -323,10 +325,20 @@ holds the attribute back from all three.";
                         type uint16 { range "1..65535"; }
                         default 1812;
                         description "The default is 1812 and the range is 1 to 65535. Ze sends
-                                     the Access-Request packets and the Accounting-Request
-                                     packets of this server to this one port, because a server
-                                     entry carries no second port.";
-                        ze:help "RADIUS server UDP port.";
+                                     the Access-Request packets of this server to this port.
+                                     The Accounting-Request packets go to accounting-port
+                                     instead.";
+                        ze:help "RADIUS server UDP port for Access-Request packets.";
+                    }
+                    leaf accounting-port {
+                        type zt:port;
+                        default 1813;
+                        description "The default is 1813, the port RFC 2866 Section 3 assigns
+                                     to RADIUS accounting, and the range is 1 to 65535. Ze sends
+                                     every Accounting-Request of this server to this port, so a
+                                     server that takes accounting on the authentication port
+                                     needs this leaf set to the same value as port.";
+                        ze:help "RADIUS server UDP port for Accounting-Request packets.";
                     }
                     leaf shared-key {
                         type string {
