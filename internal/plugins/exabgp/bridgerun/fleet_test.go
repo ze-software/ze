@@ -448,7 +448,7 @@ func TestFleetWritesEachScriptInItsOwnEncoder(t *testing.T) {
 		t.Errorf("the text script received %q, want %q", got, wantText)
 	}
 	got := readFile(t, jsonOut)
-	if !strings.HasPrefix(got, "{") || !strings.Contains(got, `"exabgp":"6.0.0"`) {
+	if !strings.HasPrefix(got, "{") || !strings.Contains(got, `"exabgp": "6.0.0"`) {
 		t.Errorf("the json script received %q, want one ExaBGP JSON object", got)
 	}
 }

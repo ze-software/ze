@@ -213,7 +213,7 @@ func (f *Fleet) render(cache *[2][]byte, encoder bridge.Encoder, event bridge.Ev
 		}
 	case bridge.EncoderUnspecified, bridge.EncoderJSON:
 		// Preserve the helper's zero-value JSON path; Start rejects unset scripts.
-		encoded, err := json.Marshal(event.ExabgpJSON())
+		encoded, err := bridge.MarshalExabgpJSON(event.ExabgpJSON())
 		if err != nil {
 			f.log.Warn("exabgp-bridge: marshal external JSON failed", "error", err)
 			break

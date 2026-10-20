@@ -30,6 +30,16 @@ renders that. `ExabgpJSON` writes one JSON object per event, in envelope version
 6.0.0. `AppendText` writes ExaBGP's one-event-per-line text. A script's own
 `encoder` leaf decides which one it gets.
 
+`MarshalExabgpJSON` serializes the JSON object in ExaBGP's own spacing,
+`{ "key": value, "key": value }` and `[ a, b ]`, on both the fleet and the
+single-event path. ExaBGP builds its JSON by hand that way, and scripts match on
+substrings of it: upstream's api-rr script tests `'"nlri": "192.168.0.0/32"'`,
+which Go's compact form never contains.
+
+<!-- source: internal/exabgp/bridge/bridge_event_json.go -- MarshalExabgpJSON -->
+
+
+
 The read happens ONCE for the whole fleet, and each format is rendered once. So
 the cost of a fan-out grows with the number of formats in use, not with the
 number of scripts. Both numbers matter here, because the fan-out runs for every
