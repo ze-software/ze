@@ -9,10 +9,13 @@
 // differently.
 //
 // So a byte comparison of the whole frame asserts an order neither the RFC nor
-// the corpus fixes. This file compares the attributes as a SET instead, and
-// nothing else: every attribute's flags, type, length and value must still match
-// exactly, and so must the withdrawn-routes and NLRI fields. A frame that differs
-// in any byte other than the order of whole attributes still fails.
+// the corpus fixes. This file compares the attributes as a SET instead, and the
+// values inside COMMUNITIES and EXTENDED COMMUNITIES as a set too, because their
+// RFCs define each as a set: ExaBGP writes them in configuration order, ze in
+// ascending order (the ported old-4.2 conf-new-v4 and conf-vpn). Every attribute's
+// flags, type and length, every value, and the withdrawn-routes and NLRI fields
+// must still match exactly. A frame that differs in any byte other than these two
+// orders still fails.
 
 //go:build ze_bgp
 
@@ -117,9 +120,50 @@ func sortedAttributes(block []byte) [][]byte {
 		if end > len(block) {
 			return [][]byte{block}
 		}
-		attributes = append(attributes, block[offset:end])
+		attributes = append(attributes, canonicalAttribute(block[offset:end], header))
 		offset = end
 	}
 	slices.SortFunc(attributes, bytes.Compare)
 	return attributes
+}
+
+// Attribute type codes whose value is a set of fixed-size members.
+const (
+	attrCommunities         = 8
+	attrExtendedCommunities = 16
+)
+
+// canonicalAttribute answers one whole attribute with the members of a set-valued
+// attribute in ascending order, and any other attribute unchanged. A value that
+// is not a whole number of members is answered unchanged, so it compares byte
+// for byte.
+func canonicalAttribute(attribute []byte, header int) []byte {
+	var memberOctets int
+	switch attribute[1] {
+	case attrCommunities:
+		// RFC 1997, COMMUNITIES attribute: "The attribute consists of a set of
+		// four octet values, each of which specify a community."
+		memberOctets = 4
+	case attrExtendedCommunities:
+		// RFC 4360 Section 2: "The attribute consists of a set of "extended
+		// communities"." Each is eight octets.
+		memberOctets = 8
+	default:
+		return attribute
+	}
+	value := attribute[header:]
+	if len(value)%memberOctets != 0 {
+		return attribute
+	}
+	members := make([][]byte, 0, len(value)/memberOctets)
+	for offset := 0; offset < len(value); offset += memberOctets {
+		members = append(members, value[offset:offset+memberOctets])
+	}
+	slices.SortFunc(members, bytes.Compare)
+	sorted := make([]byte, 0, len(attribute))
+	sorted = append(sorted, attribute[:header]...)
+	for _, member := range members {
+		sorted = append(sorted, member...)
+	}
+	return sorted
 }
