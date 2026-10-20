@@ -30,7 +30,8 @@ import (
 //
 // Sequence: LinkAdd, LinkSetAlias, addr_gen_mode, LinkSetUp. The vendored netlink lib does
 // serialize IFLA_IFALIAS inside LinkAdd's RTM_NEWLINK, but the kernel does NOT
-// apply it on create -- QEMU readback proved the alias comes back empty (spec
+// apply it on create (Linux limitation LL-RTNL-NEWLINK-NO-ALIAS,
+// docs/architecture/linux-limitations.md) -- QEMU readback proved the alias comes back empty (spec
 // A-2 broken; see the spec's Mistake Log). So the ownership alias is asserted
 // explicitly with LinkSetAlias right after create; if that fails the device is
 // deleted and the call errors, so no UNMARKED device is ever left behind by a
@@ -86,8 +87,9 @@ const addrGenModeNone = 1
 // mode builds the link-local's Modified EUI-64 identifier from that MAC. The
 // owner installs whatever IPv6 address the device needs (VRRP: the configured
 // virtual link-local). It MUST run before LinkSetUp, because the kernel adds
-// the link-local when the device comes up and a later mode change does not
-// remove it.
+// the link-local when the device comes up (Linux limitation
+// LL-IPV6-LINKLOCAL-FROM-MAC, docs/architecture/linux-limitations.md) and a
+// later mode change does not remove it.
 //
 // EAFNOSUPPORT means the kernel has no IPv6 stack (booted ipv6.disable=1), so
 // no identifier can be derived and there is nothing to suppress.

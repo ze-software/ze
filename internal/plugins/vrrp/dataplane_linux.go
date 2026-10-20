@@ -11,7 +11,8 @@
 //
 //	parent:  arp_ignore=1  arp_filter=1  rp_filter=1
 //	macvlan: arp_ignore=1  rp_filter=0
-//	global:  all.rp_filter=0   (effective rp_filter = max(all, iface), so the
+//	global:  all.rp_filter=0   (Linux limitation LL-IPV4-CONF-ALL-WINS in
+//	                            docs/architecture/linux-limitations.md: the
 //	                            macvlan cannot reach 0 unless all is 0 too)
 //	         icmp_errors_use_inbound_ifaddr=1 (redirect source is the VIP on
 //	                            the macvlan selected by the received VMAC)

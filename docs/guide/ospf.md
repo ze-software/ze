@@ -114,7 +114,9 @@ address the kernel finds none. Linux, strict (`rp_filter` 1) or loose (2),
 drops a packet whose source it has no route back to at all, so a router whose
 only routes left with the subnet never hears its neighbor, and never learns
 the route that would admit it. The kernel applies the larger of the `all`
-value and the device's own, so keep `rp_filter` at 0 on both `all` and the
+value and the device's own
+([LL-IPV4-CONF-ALL-WINS](../architecture/linux-limitations.md#ll-ipv4-conf-all-wins)),
+so keep `rp_filter` at 0 on both `all` and the
 unnumbered device, or keep a route that covers the neighbor's donor (a default
 route out of the link does). The FRR interop scenario
 `ospf-p2p-unnumbered-frr` keeps such a default route on the FRR side.

@@ -45,8 +45,8 @@ still owned by an active group on the first parent.
 - `conf.all.rp_filter=0`
 - `net.ipv4.icmp_errors_use_inbound_ifaddr=1`
 
-`conf.all.rp_filter=0` is required. The effective `rp_filter` is
-`max(all, iface)`, so the macvlan cannot reach 0 while `all` is 1. This is the
+`conf.all.rp_filter=0` is required, because the macvlan cannot reach 0 while
+`all` is 1 ([LL-IPV4-CONF-ALL-WINS](../linux-limitations.md#ll-ipv4-conf-all-wins)). This is the
 ingredient that arp_ignore-only attempts miss.
 
 Each ingredient was isolated in QEMU and proven necessary. `disable_ipv6=1` on
@@ -170,7 +170,8 @@ forwarding off, and clear once the macvlan's knob is cleared.
 
 iface creates every owned macvlan with `addr_gen_mode` none, set before the
 device comes up, because the kernel adds the default Modified EUI-64 link-local
-on link-up and a later mode change does not remove it. RFC 9568 Section 7.4
+on link-up ([LL-IPV6-LINKLOCAL-FROM-MAC](../linux-limitations.md#ll-ipv6-linklocal-from-mac))
+and a later mode change does not remove it. RFC 9568 Section 7.4
 forbids building an interface identifier from the Virtual Router MAC. The only
 link-local the macvlan ever holds is the configured virtual link-local, which
 `InstallVIPs` puts there on promotion. Two consequences follow. A Backup's

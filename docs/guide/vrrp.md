@@ -295,16 +295,16 @@ processed, as RFC 3768 Section 7.1 says.
 
 RFC 9568 Section 8.1.3 says: "If Proxy ARP is to be used on a VRRP Router, then
 the VRRP Router MUST advertise the Virtual Router MAC address in the Proxy ARP
-message." Linux answers a proxy ARP request with the device's own MAC, so hosts
-would keep a MAC that does not move on failover. `ze config verify` and
+message." Linux answers a proxy ARP request with the receiving device's own MAC
+([LL-PROXY-ARP-MAC](../architecture/linux-limitations.md#ll-proxy-arp-mac)), so
+hosts would keep a MAC that does not move on failover. `ze config verify` and
 `ze config commit` therefore refuse proxy ARP on any unit that carries an IPv4
 VRRP group, whatever turns it on: `ipv4 proxy-arp true` on the unit, a
 `sysctl-profile` on the unit that sets `proxy_arp` (the builtin `proxy` profile
 or one of your own), or a `sysctl setting` of `net.ipv4.conf.<device>.proxy_arp`,
 `net.ipv4.conf.all.proxy_arp` or `net.ipv4.conf.default.proxy_arp`. The last one
 counts because ze creates the virtual-MAC macvlan, which takes the `default`
-value. `proxy_arp_pvlan` (private VLAN proxy ARP) answers with the device's own
-MAC too, so the same keys ending in `proxy_arp_pvlan` are refused alike. The
+value. `proxy_arp_pvlan` (private VLAN proxy ARP) is the same reply path, so the same keys ending in `proxy_arp_pvlan` are refused alike. The
 device is matched under the interface name you configured and under the kernel
 device it resolves to (`os-name` or `mac-match`), and a VLAN unit's device
 matches in either spelling, `eth0.100` or sysctl's `eth0/100`. Turn proxy ARP

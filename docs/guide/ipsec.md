@@ -1201,7 +1201,8 @@ vpn { ipsec { site-to-site { peer host-1 {
 Transport mode constrains the selectors. RFC 7296 Section 2.23.1 requires exactly one IP
 address in TSi and in TSr, so every prefix must be a single host, and a `vti` binding is
 refused because an XFRM interface carries tunnel encapsulation. A transport-mode Child SA
-also carries exactly one selector pair: the kernel's transport-mode SA holds one selector,
+also carries exactly one selector pair: the kernel's transport-mode SA holds one selector
+([LL-XFRM-STATE-ONE-SELECTOR](../architecture/linux-limitations.md#ll-xfrm-state-one-selector)),
 and one wide enough for several pairs would admit traffic that no pair negotiated. So
 `ze config verify` and `ze config commit` refuse a transport-mode peer that configures more
 than one `traffic-selector` entry: keep one entry, or set `mode tunnel`. The far end can

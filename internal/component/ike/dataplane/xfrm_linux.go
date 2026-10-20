@@ -47,7 +47,9 @@ type xfrmBackend struct {
 	mu sync.Mutex
 
 	// espForms serves the ESP wire form the installed state refuses. One XFRM state
-	// binds one form, and RFC 7296 Section 2.23 requires both to be received, so an
+	// binds one form (Linux limitation LL-XFRM-STATE-ONE-ESP-FORM,
+	// docs/architecture/linux-limitations.md), and RFC 7296 Section 2.23 requires
+	// both to be received, so an
 	// inbound state that asks for both is registered here as well as with the kernel.
 	espForms *espFormReceiver
 
@@ -573,7 +575,7 @@ func xfrmSelectorPort(side string, p PortMatch) (int, error) {
 	}
 	if p.Port == 0 {
 		return 0, fmt.Errorf(
-			"xfrm: %s port selector asks for exactly port 0, which this backend cannot express: netlink derives the port mask from the port value, so port 0 always matches every port; RFC 7296 Section 3.13.1 OPAQUE ports have no XFRM encoding",
+			"xfrm: %s port selector asks for exactly port 0, which this backend cannot express: the netlink library derives the port mask from the port value, so port 0 always matches every port (docs/architecture/linux-limitations.md, LL-NETLINK-XFRM-PORT-MASK); RFC 7296 Section 3.13.1 OPAQUE ports cannot be installed through it",
 			side)
 	}
 	return int(p.Port), nil

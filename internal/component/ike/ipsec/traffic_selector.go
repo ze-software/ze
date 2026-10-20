@@ -333,11 +333,12 @@ func checkPortProgrammable(peerName, number, side string, p PortSelector, proto 
 	case PortOpaque:
 		// ai/rules/protocol.md. RFC 7296 Section 3.13.1 gives OPAQUE ports the
 		// encoding start 65535 / end 0, and Ze can PARSE that from a peer. It cannot
-		// PROGRAM it: the kernel policy selector derives its port mask from the port
-		// value, so a request for exactly port 0 installs as any-port, which protects
-		// more traffic than OPAQUE names. Refusing at commit is the honest answer;
-		// accepting and widening at install time is not.
-		return fmt.Errorf("%w: peer %q traffic-selector %q: %s port opaque cannot be programmed by any dataplane backend Ze has, because the kernel policy selector derives its port mask from the port value and an exact match on port 0 is not expressible; use any, or a port number in 1..65535",
+		// PROGRAM it: Linux limitation LL-NETLINK-XFRM-PORT-MASK
+		// (docs/architecture/linux-limitations.md), so a request for exactly port 0
+		// installs as any-port, which protects more traffic than OPAQUE names.
+		// Refusing at commit is the honest answer; accepting and widening at install
+		// time is not.
+		return fmt.Errorf("%w: peer %q traffic-selector %q: %s port opaque cannot be programmed by any dataplane backend Ze has, because the netlink library Ze programs XFRM policies through derives the port mask from the port value, so an exact match on port 0 is not expressible (docs/architecture/linux-limitations.md, LL-NETLINK-XFRM-PORT-MASK); use any, or a port number in 1..65535",
 			ErrTrafficSelectorPolicy, peerName, number, side)
 	case 0:
 		return fmt.Errorf("%w: peer %q traffic-selector %q: %s port form %d is not a form Ze can encode; accepted values are any, opaque, or a port number in 1..65535",

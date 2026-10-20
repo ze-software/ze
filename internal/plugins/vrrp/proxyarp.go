@@ -78,9 +78,9 @@ type sysctlCandidate struct {
 //
 // RFC 5798 Section 8.1.3 and RFC 9568 Section 8.1.3: "If Proxy ARP is to be used
 // on a VRRP Router, then the VRRP Router MUST advertise the Virtual Router MAC
-// address in the Proxy ARP message." Linux answers a proxy ARP request with the
-// replying device's own MAC and ze installs nothing that changes it, so a host
-// would learn a MAC that does not move on failover. The owner declined proxy
+// address in the Proxy ARP message." Linux limitation LL-PROXY-ARP-MAC
+// (docs/architecture/linux-limitations.md): the reply carries the receiving
+// device's own MAC, so a host would learn a MAC that does not move on failover. The owner declined proxy
 // ARP on a VRRP router (2026-10-20), so ze refuses the configuration that would
 // turn it on, at ze config verify, commit and reload.
 //

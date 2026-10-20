@@ -432,7 +432,8 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	// and the kernel then drops a packet outside it (XfrmInStateMismatch).
 	//
 	// The selector is built from the inbound policy, so the state and the policy cannot
-	// disagree. One XFRM state holds ONE selector, so a transport-mode Child SA carries
+	// disagree. One XFRM state holds ONE selector (Linux limitation
+	// LL-XFRM-STATE-ONE-SELECTOR, docs/architecture/linux-limitations.md), so a transport-mode Child SA carries
 	// exactly one negotiated pair (inboundStateSelector).
 	if mode == modeTransport {
 		// RFC 4301 Section 4.4.2: "For each of the selectors defined in Section 4.4.1.1,
@@ -958,7 +959,8 @@ func selectorPort(side tsSelector) dataplane.PortMatch {
 // entry for an inbound SA in the SAD MUST be initially populated with the value or
 // values negotiated at the time the SA was created."
 //
-// An XFRM state carries ONE selector (x->sel), and one SPI names one state, so the
+// An XFRM state carries ONE selector (x->sel), and one SPI names one state (Linux
+// limitation LL-XFRM-STATE-ONE-SELECTOR, docs/architecture/linux-limitations.md), so the
 // state holds the negotiated values exactly only when exactly one pair was negotiated.
 // Both producers guarantee that in transport mode: the responder narrows to one pair
 // (narrowChildSelectors) and the initiator refuses an answer of several

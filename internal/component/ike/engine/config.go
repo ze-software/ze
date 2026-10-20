@@ -206,7 +206,8 @@ func validateIPsecSections(sections []sdk.ConfigSection) error {
 // validateTransportOnePair refuses a transport-mode peer configured with more than one
 // traffic-selector entry.
 //
-// A transport-mode inbound XFRM state holds ONE selector (inboundStateSelector, child.go),
+// A transport-mode inbound XFRM state holds ONE selector (inboundStateSelector, child.go;
+// Linux limitation LL-XFRM-STATE-ONE-SELECTOR, docs/architecture/linux-limitations.md),
 // so a transport-mode Child SA carries exactly one selector pair (oneTransportPair,
 // errTSTransportPairs, ts_narrow.go). A selector wide enough for several pairs would break
 // RFC 4301 Section 5.2: "If an IPsec system receives an inbound packet on an SA and the

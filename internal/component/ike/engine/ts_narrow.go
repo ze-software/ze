@@ -354,9 +354,9 @@ func programmableSelector(s tsSelector) (tsSelector, bool) {
 	if s.Proto == 0 && s.Port.Form != ipsec.PortAny {
 		return tsSelector{}, false
 	}
-	// OPAQUE ports have no exact dataplane encoding. The kernel selector derives its
-	// port mask from the port value, so "exactly port 0" cannot be built and would
-	// install as any-port -- which is WIDER than the OPAQUE set RFC 7296 Section 3.13.1
+	// OPAQUE ports have no exact dataplane encoding: Linux limitation
+	// LL-NETLINK-XFRM-PORT-MASK (docs/architecture/linux-limitations.md), so
+	// "exactly port 0" cannot be built and would install as any-port -- which is WIDER than the OPAQUE set RFC 7296 Section 3.13.1
 	// describes, and Section 2.9 forbids widening. A peer that proposes OPAQUE-only
 	// therefore finds no acceptable subset and is answered with TS_UNACCEPTABLE.
 	if s.Port.Form == ipsec.PortOpaque {
@@ -770,7 +770,8 @@ func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) 
 		return err
 	}
 
-	// A transport-mode inbound state holds ONE selector (inboundStateSelector, child.go),
+	// A transport-mode inbound state holds ONE selector (inboundStateSelector, child.go;
+	// Linux limitation LL-XFRM-STATE-ONE-SELECTOR, docs/architecture/linux-limitations.md),
 	// so an answer of several pairs can be installed only as a cover wider than the
 	// pairs, and RFC 4301 Section 5.2 forbids what that cover admits: "If an IPsec system
 	// receives an inbound packet on an SA and the packet's header fields are not
@@ -987,7 +988,8 @@ func keepSingleAddress(pairs []tsPair) []tsPair {
 // oneTransportPair narrows a transport-mode answer to its first pair.
 //
 // A transport-mode inbound XFRM state carries ONE selector and one SPI names one state
-// (inboundStateSelector, child.go). Several pairs whose union is not one selector would
+// (inboundStateSelector, child.go; Linux limitation LL-XFRM-STATE-ONE-SELECTOR,
+// docs/architecture/linux-limitations.md). Several pairs whose union is not one selector would
 // leave the state either too narrow, dropping a negotiated pair's traffic, or a cover
 // wider than the pairs, which breaks RFC 4301 Section 5.2: "If an IPsec system receives
 // an inbound packet on an SA and the packet's header fields are not consistent with the
