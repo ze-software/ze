@@ -249,6 +249,13 @@ type Registration struct {
 	// takes ADD-PATH like any other. `update text` asks NLRIAddPathRefusalFor
 	// instead of testing a SAFI.
 	NLRIAddPathRefusal string
+	// NLRISectionCarriesAttributes declares that an `update text` section of
+	// this plugin's families writes path attributes beside the NLRI, as an SR
+	// Policy section writes its Tunnel Encapsulation sub-TLVs. `update text`
+	// then hands an `add` section to InProcessConfigRouteParser, the parser
+	// config already uses, rather than to InProcessNLRIEncoder, which reads the
+	// NLRI alone. It is ignored without an InProcessConfigRouteParser.
+	NLRISectionCarriesAttributes bool
 
 	// In-process route encoder: builds a full UPDATE message for a given family.
 	// Used by `ze bgp encode` to delegate family-specific encoding to plugins,
@@ -1290,6 +1297,27 @@ func HasNLRIEncoderForFamily(family string) bool {
 
 	reg := familyIndex[family]
 	return reg != nil && reg.InProcessNLRIEncoder != nil
+}
+
+// SectionRouteParserFor answers the config-route parser `update text` hands an
+// `add` section of family to, and false when the family's plugin did not
+// declare NLRISectionCarriesAttributes, registered no such parser, or no
+// plugin registers the family. Safe for concurrent use.
+func SectionRouteParserFor(family string) (func(req ConfigRouteRequest) (PluginRoute, error), bool) {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	reg := familyIndex[family]
+	if reg == nil {
+		return nil, false
+	}
+	if !reg.NLRISectionCarriesAttributes {
+		return nil, false
+	}
+	if reg.InProcessConfigRouteParser == nil {
+		return nil, false
+	}
+	return reg.InProcessConfigRouteParser, true
 }
 
 // NLRIAddPathRefusalFor answers the reason the plugin registered for family

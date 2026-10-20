@@ -62,8 +62,13 @@ func init() {
 			attrCodeTunnelEncap: {Key: "tunnel-encapsulation", Decode: TunnelEncapToJSON},
 		},
 		InProcessConfigRouteParser: parseConfigRoute,
-		RunEngine:                  runSRPolicyPlugin,
-		CLIHandler:                 func([]string) int { return 0 },
+		// RFC 9830 Section 2.2: "The content of the SR Policy CP is encoded in
+		// the Tunnel Encapsulation Attribute", so an API section writes the
+		// attribute's sub-TLVs after the NLRI fields and goes to
+		// parseConfigRoute, the parser config uses.
+		NLRISectionCarriesAttributes: true,
+		RunEngine:                    runSRPolicyPlugin,
+		CLIHandler:                   func([]string) int { return 0 },
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
 		},

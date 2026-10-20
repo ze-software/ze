@@ -100,7 +100,7 @@ func isExplicitIPv6(nextHop bgptypes.RouteNextHop) bool {
 // used to carry the set of unreachable destinations." Every family takes this
 // section, IPv4 unicast only where checkMPIPv4Unicast admits it.
 func parseMPSection(args []string, accum nlriAccum, nextHop bgptypes.RouteNextHop) (nlriParseResult, error) {
-	result, err := parseMPFamilySection(args, accum)
+	result, err := parseMPFamilySection(args, accum, nextHop)
 	if err != nil {
 		return nlriParseResult{}, err
 	}
@@ -134,7 +134,7 @@ func checkMPIPv4Unicast(result nlriParseResult, nextHop bgptypes.RouteNextHop) e
 // parseMPFamilySection parses `mp <family> [modifier]* <nlri-op>+` and
 // `mp <family> eor`, dispatching each family to the parser that owns its NLRI
 // text.
-func parseMPFamilySection(args []string, accum nlriAccum) (nlriParseResult, error) {
+func parseMPFamilySection(args []string, accum nlriAccum, nextHop bgptypes.RouteNextHop) (nlriParseResult, error) {
 	// args[0] = "mp"
 	if len(args) < 2 {
 		return nlriParseResult{}, route.ErrInvalidFamily
@@ -180,7 +180,7 @@ func parseMPFamilySection(args []string, accum nlriAccum) (nlriParseResult, erro
 	// token: `mp ipv4/mup add route-type mup-isd rd 100:100 prefix 10.0.0.0/24`
 	// is one NLRI written as eight tokens.
 	if !nativeTextFamily(fam) {
-		return parseRegistryNLRISection(args, fam, accum)
+		return parseRegistryNLRISection(args, fam, accum, nextHop)
 	}
 
 	return parseINETSection(args, 2, fam, accum)
@@ -493,6 +493,12 @@ func encodeViaRegistry(fam family.Family, args []string, pathID uint32, hasPathI
 	if err != nil {
 		return nil, fmt.Errorf("%s hex decode: %w", fam, err)
 	}
+	return wireNLRI(fam, payload, pathID, hasPathID)
+}
+
+// wireNLRI wraps one NLRI's bytes, with the ADD-PATH path identifier in front
+// when the command gave one (RFC 7911 Section 3).
+func wireNLRI(fam family.Family, payload []byte, pathID uint32, hasPathID bool) (nlri.NLRI, error) {
 	if !hasPathID {
 		return nlri.NewWireNLRI(fam, payload, false)
 	}
@@ -593,7 +599,12 @@ var errFamilyRefusesAddPath = errors.New("path-information not supported")
 // which the accumulator it was handed carries; one right after the family; and
 // one inside the run. A path-information inside another family's section lives
 // in that section's own accumulator copy, so it never reaches this parser.
-func parseRegistryNLRISection(args []string, fam family.Family, accum nlriAccum) (nlriParseResult, error) {
+//
+// A family whose plugin declared that its section writes path attributes
+// (registry.SectionRouteParserFor) hands an `add` run to its config-route
+// parser instead, which answers the NLRI and those attributes. A `del` run
+// names the NLRI alone, so it stays with the NLRI encoder.
+func parseRegistryNLRISection(args []string, fam family.Family, accum nlriAccum, nextHop bgptypes.RouteNextHop) (nlriParseResult, error) {
 	// args[0] = "mp", args[1] = family; the caller has consumed neither.
 	refusal, refusesAddPath := registry.NLRIAddPathRefusalFor(fam.String())
 	if refusesAddPath && accum.HasPathID {
@@ -630,11 +641,47 @@ func parseRegistryNLRISection(args []string, fam family.Family, accum nlriAccum)
 		return nlriParseResult{}, route.ErrEmptyNLRISection
 	}
 
+	if mode == kwAdd {
+		if parse, ok := registry.SectionRouteParserFor(fam.String()); ok {
+			return parseRegistryRouteSection(parse, fam, args[start:i], accum, nextHop, i)
+		}
+	}
 	encoded, err := encodeViaRegistry(fam, args[start:i], accum.PathID, accum.HasPathID)
 	if err != nil {
 		return nlriParseResult{}, err
 	}
 	return buildSingleNLRIResult(fam, mode, encoded, i)
+}
+
+// parseRegistryRouteSection parses an `add` run through the family's
+// config-route parser, the one config and `ze bgp encode` use, so the three
+// paths accept the same words and build the same bytes. It answers the NLRI and
+// the attributes the run wrote; ParseUpdateText merges those attributes.
+//
+// The request carries no attribute block: the attributes written before the
+// section are already in the UPDATE's own block, so the typed fields the parser
+// could fill from one (AS_PATH, LOCAL_PREF) come back unset and are not read.
+func parseRegistryRouteSection(parse func(registry.ConfigRouteRequest) (registry.PluginRoute, error),
+	fam family.Family, run []string, accum nlriAccum, nextHop bgptypes.RouteNextHop, consumed int,
+) (nlriParseResult, error) {
+	route, err := parse(registry.ConfigRouteRequest{
+		Content: run,
+		NextHop: nextHop.String(),
+		IsIPv6:  fam.AFI == family.AFIIPv6,
+	})
+	if err != nil {
+		return nlriParseResult{}, fmt.Errorf("%s: %w", fam, err)
+	}
+	encoded, err := wireNLRI(fam, route.NLRI, accum.PathID, accum.HasPathID)
+	if err != nil {
+		return nlriParseResult{}, err
+	}
+	result, err := buildSingleNLRIResult(fam, kwAdd, encoded, consumed)
+	if err != nil {
+		return nlriParseResult{}, err
+	}
+	result.Attrs = route.Attrs
+	return result, nil
 }
 
 // refuseAddPath builds the one error a path-information applying to fam's

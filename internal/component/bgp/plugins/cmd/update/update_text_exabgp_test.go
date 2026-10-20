@@ -16,7 +16,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/mvpn" // blank import: registers the MVPN NLRI encoder
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/mvpn"     // blank import: registers the MVPN NLRI encoder
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/srpolicy" // blank import: registers the SR Policy parsers
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 )
@@ -486,4 +488,52 @@ func TestPrefixSIDSRv6RefusesAnEmptyValue(t *testing.T) {
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "srv6 prefix-sid requires")
+}
+
+// TestAPISRPolicyAttributesReachParseConfigRoute holds an SR Policy section with
+// its Tunnel Encapsulation sub-TLVs on the API (AC-28).
+//
+// The section used to reach srpolicy.EncodeNLRIHex, which reads the three NLRI
+// fields and refused `preference` and `segment-list`, so no SR Policy announce
+// with an attribute could be sent from the API although config sent it. The
+// section now goes to the family's registered config-route parser, the one
+// config and `ze bgp encode` already share.
+//
+// VALIDATES: the attribute block is ORIGIN, LOCAL_PREF, then the Tunnel
+// Encapsulation attribute in type-code order, whose bytes are the `raw:` run of
+// test/exabgp-compat/api/api-sr-policy.ci line 3 (ExaBGP 6.0's own bytes:
+// C0 17 34, tunnel type 15, Preference sub-TLV 12 with 300, two Segment List
+// sub-TLVs), byte-identical to what the config parser builds, and the NLRI is
+// distinguisher 0, color 300, endpoint 10.0.0.3. A word after the sub-TLVs is
+// refused.
+// PREVENTS: the API refusing an SR Policy the config accepts, or encoding it
+// differently.
+func TestAPISRPolicyAttributesReachParseConfigRoute(t *testing.T) {
+	const tail = "preference 300 segment-list weight 1 segment type-a mpls 16001 segment-list weight 2 segment type-a mpls 16002"
+	result, err := ParseUpdateText(strings.Fields(
+		"nhop 192.0.2.1 origin igp local-preference 100 mp ipv4/sr-policy add distinguisher 0 color 300 endpoint 10.0.0.3 " + tail))
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	group := result.Groups[0]
+	require.Len(t, group.Announce, 1)
+	assert.Equal(t, "60000000000000012C0A000003", strings.ToUpper(hex.EncodeToString(group.Announce[0].Bytes())))
+
+	const tunnelEncap = "C01734000F00300C0600000000012C8000110009060000000000010106000003E810008000110009060000000000020106000003E82000"
+	require.NotNil(t, group.Wire)
+	assert.Equal(t, "40010100"+"40050400000064"+tunnelEncap, strings.ToUpper(hex.EncodeToString(group.Wire.Packed())))
+
+	parse := registry.ConfigRouteParserByFamily("ipv4/sr-policy")
+	require.NotNil(t, parse)
+	configRoute, err := parse(registry.ConfigRouteRequest{
+		Content: strings.Fields("distinguisher 0 color 300 endpoint 10.0.0.3 " + tail),
+		NextHop: "192.0.2.1",
+	})
+	require.NoError(t, err)
+	require.Len(t, configRoute.Attrs, 1)
+	assert.Equal(t, tunnelEncap[6:], strings.ToUpper(hex.EncodeToString(configRoute.Attrs[0].Value)), "the API and config build the same attribute")
+
+	_, err = ParseUpdateText(strings.Fields(
+		"nhop 192.0.2.1 mp ipv4/sr-policy add distinguisher 0 color 300 endpoint 10.0.0.3 " + tail + " bogus"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "bogus")
 }

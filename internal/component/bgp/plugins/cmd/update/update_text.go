@@ -50,6 +50,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -58,6 +59,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/parse"
@@ -221,6 +223,69 @@ type nlriParseResult struct {
 	Withdraw []nlri.NLRI
 	Watchdog string
 	Consumed int
+	// Attrs are the path attributes the section itself wrote, built by the
+	// family's config-route parser (registry.SectionRouteParserFor): an SR
+	// Policy's Tunnel Encapsulation attribute. They join the attributes written
+	// before the section, for this section's routes only.
+	Attrs []registry.PluginRouteAttr
+}
+
+// errSectionAttrTwice refuses a section attribute whose type code the
+// attributes written before the section already carry. RFC 4271 Section 6.3:
+// "If any attribute appears more than once in the UPDATE message, then the
+// Error Subcode MUST be set to Malformed Attribute List."
+var errSectionAttrTwice = errors.New("attribute given twice")
+
+// withSectionAttrs answers the attribute block of a section's routes: the
+// attributes written before the section, plus the ones the section wrote,
+// all in ascending type-code order.
+//
+// RFC 4271 Section 5: "The sender of an UPDATE message SHOULD order path
+// attributes within the UPDATE message in ascending order of attribute type."
+// The reactor writes its own attributes into this block by that order, so the
+// merge keeps it. A nil wire is an empty block.
+func withSectionAttrs(wire *attribute.AttributesWire, extra []registry.PluginRouteAttr) (*attribute.AttributesWire, error) {
+	var base []byte
+	if wire != nil {
+		base = wire.Packed()
+	}
+	sorted := slices.Clone(extra)
+	slices.SortFunc(sorted, func(a, b registry.PluginRouteAttr) int { return int(a.Code) - int(b.Code) })
+
+	size := len(base)
+	for i := range sorted {
+		if len(sorted[i].Value) > 0xFFFF {
+			return nil, fmt.Errorf("attribute %d is %d octets, above the 65535 an attribute length holds", sorted[i].Code, len(sorted[i].Value))
+		}
+		if _, _, _, found := attribute.AttrFind(base, attribute.AttributeCode(sorted[i].Code)); found {
+			return nil, fmt.Errorf("%w: type %d is written before the section and by it", errSectionAttrTwice, sorted[i].Code)
+		}
+		size += 4 + len(sorted[i].Value)
+	}
+
+	merged := make([]byte, size) // command path: the block the section's routes own
+	off := 0
+	next := 0
+	it := attribute.NewAttrIterator(base)
+	for code, flags, value, ok := it.Next(); ok; code, flags, value, ok = it.Next() {
+		for next < len(sorted) && attribute.AttributeCode(sorted[next].Code) < code {
+			off += writeSectionAttr(merged, off, sorted[next])
+			next++
+		}
+		off += attribute.WriteHeaderTo(merged, off, flags, code, uint16(len(value))) //nolint:gosec // G115: the value came out of a length field of at most 16 bits
+		off += copy(merged[off:], value)
+	}
+	for ; next < len(sorted); next++ {
+		off += writeSectionAttr(merged, off, sorted[next])
+	}
+	return attribute.NewAttributesWire(merged[:off], context.APIContextID), nil
+}
+
+// writeSectionAttr writes one section attribute at off and answers its size.
+// The caller checked that the value fits a 16-bit length.
+func writeSectionAttr(buf []byte, off int, attr registry.PluginRouteAttr) int {
+	n := attribute.WriteHeaderTo(buf, off, attribute.AttributeFlags(attr.Flags), attribute.AttributeCode(attr.Code), uint16(len(attr.Value))) //nolint:gosec // G115: withSectionAttrs refused a value above 65535 octets
+	return n + copy(buf[off+n:], attr.Value)
 }
 
 // snapshot returns a wire-format snapshot of the current attribute state.
@@ -745,6 +810,12 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 			result, err := parseNLRISection(args[i:], nlriAcc, nh)
 			if err != nil {
 				return nil, err
+			}
+			if len(result.Attrs) > 0 {
+				wire, err = withSectionAttrs(wire, result.Attrs)
+				if err != nil {
+					return nil, err
+				}
 			}
 			// RFC 9252 Section 7: the SID Structure's transposition must be 0 on routes
 			// where the Transposition Scheme is not applicable. The attributes precede

@@ -3980,7 +3980,7 @@ func TestParseUpdateText_SRPolicyUnknownKeyword(t *testing.T) {
 		"distingisher", "0", "color", "100", "endpoint", "10.0.0.1",
 	})
 	require.Error(t, err)
-	// The plugin encoder's refusal names the typo and the three valid fields.
+	// The config-route parser's refusal names the typo and the words it reads.
 	assert.Contains(t, err.Error(), `"distingisher" is not one of them`)
 	assert.Contains(t, err.Error(), "distinguisher, color, endpoint")
 }

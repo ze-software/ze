@@ -715,6 +715,23 @@ multicast, vpn, labeled, flowspec, vpls, evpn) keep switching mode on a later
 `add` or `del`: `nlri add 10.0.0.0/24 del 10.0.1.0/24`.
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseRegistryNLRISection -->
 
+An `sr-policy` `add` section also writes the policy's Tunnel Encapsulation
+sub-TLVs after its three NLRI fields, in the words the config route uses
+(`preference`, `priority`, `binding-sid`, `segment-list`, `policy-name`,
+`candidate-path-name`). The section goes to the parser config uses, so both
+build the same bytes, and a word after the sub-TLVs is refused. The attribute
+joins the ones written before the section, in ascending type-code order, and a
+type already written there is refused. A `del` section names the three NLRI
+fields only. The plugin declares this with `NLRISectionCarriesAttributes`.
+
+```bash
+send bgp * update text next-hop 192.0.2.1 mp ipv4/sr-policy add distinguisher 0 \
+  color 300 endpoint 10.0.0.3 preference 300 segment-list weight 1 segment type-a mpls 16001
+```
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseRegistryRouteSection -->
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- withSectionAttrs -->
+<!-- source: internal/component/plugin/registry/registry.go -- SectionRouteParserFor -->
+
 All three are accepted in TWO positions, before the first `nlri` section and
 inside one, and they mean the same thing in both. `path-information` used to be
 accepted inside a section only, so a command that wrote all three together had

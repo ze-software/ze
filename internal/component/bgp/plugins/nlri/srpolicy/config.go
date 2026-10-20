@@ -206,7 +206,10 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 			i += 2
 
 		default:
-			return registry.PluginRoute{}, fmt.Errorf("unknown sr-policy keyword: %s", key)
+			// The refusal names the word and every word the switch above reads,
+			// so a typo or a word from another family's grammar (`rd`, `label`)
+			// is answered with what to write instead.
+			return registry.PluginRoute{}, fmt.Errorf("sr-policy takes distinguisher, color, endpoint, preference, priority, binding-sid, segment-list, policy-name, candidate-path-name: %q is not one of them", key)
 		}
 	}
 
