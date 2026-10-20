@@ -239,7 +239,11 @@ type commandError struct {
 	Command   []string `json:"command"`
 	ExitCode  int      `json:"exit-code"`
 	Stderr    string   `json:"stderr,omitempty"`
-	Cause     error    `json:"-"`
+	// Stdout is kept only for a command that failed with an empty stderr,
+	// because some tools print their error on stdout (GoBGP's printError,
+	// cmd/gobgp/common.go), and the exit code alone names no cause.
+	Stdout string `json:"stdout,omitempty"`
+	Cause  error  `json:"-"`
 	// Timeout is the bound the command ran under. The text names it when the
 	// bound is what ended the command, so the reader knows it hung, not failed.
 	Timeout time.Duration `json:"-"`
@@ -263,6 +267,9 @@ func (e *commandError) Error() string {
 	}
 	if e.Stderr != "" {
 		tb.Str(": ").Str(e.Stderr)
+	}
+	if e.Stdout != "" {
+		tb.Str(": stdout: ").Str(e.Stdout)
 	}
 	if e.Cause != nil {
 		tb.Str(": ").Err(e.Cause)
@@ -1079,10 +1086,24 @@ func (d *Docker) commandAs(ctx context.Context, timeout time.Duration, operation
 			Command:   argv,
 			ExitCode:  result.ExitCode,
 			Stderr:    strings.TrimSpace(result.Stderr),
+			Stdout:    failureStdout(result),
 			Timeout:   timeout,
 		}
 	}
 	return result, nil
+}
+
+// failureStdout is the stdout a failed command's error carries: its trimmed
+// text when stderr is empty, bounded by OutputExcerpt, and nothing otherwise.
+func failureStdout(result ProcessResult) string {
+	if strings.TrimSpace(result.Stderr) != "" {
+		return ""
+	}
+	stdout := strings.TrimSpace(result.Stdout)
+	if stdout == "" {
+		return ""
+	}
+	return OutputExcerpt(stdout)
 }
 
 func commandOperation(argv []string) string {
