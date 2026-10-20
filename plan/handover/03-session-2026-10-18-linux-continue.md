@@ -1182,6 +1182,32 @@ All three changes below are UNCOMMITTED and none is green yet.
   docs/architecture/exabgp-bridge.md. Bridge Status/Ping tests pass. Owed: peer package run with the
   feature tags (an untagged run showed unrelated reds), bridgerun tests, a fleet test, the api-health case.
 
+### ExaBGP 6 spec, AC-4 fifteenth package (2026-10-20, Linux): continuation owed
+
+- Committed 01fc0f642b: `show bgp peer * detail` carries `fsm-state` (PeerInfo.FSMState).
+- Committed 8dec40ea85: the bridge answers `status` / `daemon status` from ze's peer list. This is
+  plugin-runner-only: the standalone `ze exabgp plugin` refuses it by name. Recorded in the spec. Proof: cmd/peer,
+  bridge and bridgerun are green with every `ze_` gate tag (feature-gates.txt). `TestFleetAnswersStatusFromZesPeerList`
+  passes. 6.0 api-health PASSES under the stage's uv line and FAILS (five "status missing UUID" respawns) with the
+  bridgerun status answer disabled.
+- sr-policy interop `bgp-exabgp-bridge-sr-policy-gobgp` is still uncommitted and NOT proven, for an environmental
+  reason. Two runs at load average 50-73 failed at assertion 2: `docker exec ... gobgp global rib -a ipv4-srpolicy`
+  did not finish within 30s. The control scenario `bgp-sr-policy-gobgp` failed in the same hour
+  (`docker run -d did not finish within 1m0s`, and image removals timed out), so the Docker daemon was too slow to
+  judge either one. A third attempt could not build le: another session's uncommitted edit to
+  `radiussubscriber/checkers.go` (`lab.capturedRequest` undefined) broke the build. Lab leftovers were removed
+  with `./le test integration cleanup` (12 image tags, 1 container).
+- Next steps, on a quiet machine with le building:
+  1. Rerun `INTEROP_SCENARIO=bgp-exabgp-bridge-sr-policy-gobgp ./le test integration interop` in the background
+     (image prep takes 2-4 min), then the control.
+  2. Red proof without a tree edit: the lab build inherits os.Environ (gotoolchain Environment), so set
+     `GOFLAGS=-overlay=<json>` with an overlay that replaces `internal/component/bgp/plugins/nlri/srpolicy/register.go`
+     by a copy setting `NLRISectionCarriesAttributes: false`.
+  3. Add interop.md row 49 after row 48, then commit. interop.md holds the RADIUS session's hunk (the
+     radius-subscriber section), which cites `replayScript`, not in HEAD. Do not carry the file until that hunk lands.
+- The ExaBGP line matches the api-sr-policy fixture except for the community, so ze sends the fixture's bytes (no
+  BSID, two segment lists). I read GoBGP v3.31.0's segment-list decoder and apiutil: neither hangs on that shape.
+
 ### ExaBGP 6 spec, Phase 2 fourth package (2026-10-20, Linux): continuation owed
 
 - Committed 3511f9ee1b: `exabgp.api.version` / `exabgp.api.ack` read through `env.Get`, so the underscore
