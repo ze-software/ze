@@ -802,10 +802,9 @@ nlri ipv6/unicast is no longer accepted: nlri means IPv4 unicast in the NLRI and
 `send bgp <selector> update text ... mp <family> del ...` (or `nlri del`) names no route to a
 peer whose session has advertised nothing, because RFC 4271 Section 4.3
 identifies a withdrawn route in the context of the connection it was previously
-advertised on. Such a peer is written the withdrawal's path attributes with no
-route in them, or nothing at all where the family's withdrawal carries no
-attributes of its own (`docs/architecture/update-building.md`, "A Withdrawal
-Names a Route This Connection Advertised"). The command still answers `done`,
+advertised on. Nothing is written to such a peer
+(`docs/architecture/update-building.md`, "A Withdrawal Names a Route This
+Connection Advertised"). The command still answers `done`,
 and the peers it withheld the routes from are named in the response's
 `warnings`:
 

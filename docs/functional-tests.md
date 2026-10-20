@@ -3412,7 +3412,10 @@ receive) joined into one file, with `option:` spelt `option=`.
 A case whose difference from the release is deliberate carries
 `option=allowed:<reason>`, as ExaBGP's `ALLOWED` table in
 `qa/bin/test_old_scripts` does, and `option=allowed-error:<text>`, the words
-its failure prints. The runner holds such a case to fail with that text: the
+its failure prints. Both of the mock's frame errors, a frame that never arrived
+and an unexpected frame that arrived instead, end in `(first: <hex>)`, the first
+frame the group still owed, so an allowance for a frame ze does not send can
+name that frame and hold whichever way the run shows it. The runner holds such a case to fail with that text: the
 failure is a SKIP line naming the reason. A green run of it fails the suite,
 because an allowance that outlives its difference would hide the next one. A
 failure without the text (a timeout, a crash) fails the suite too, because the

@@ -10,12 +10,11 @@ import (
 )
 
 // TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts pins the parameter
-// lists of the three group builders to the agreed shape: the per-batch
+// lists of the two group builders to the agreed shape: the per-batch
 // buffers, the per-batch NLRIBatch, and announceFacts.
 //
 // VALIDATES: a per-peer value can reach buildBatchAnnounceUpdate,
-// buildBatchWithdrawUpdate or buildWithheldWithdrawUpdate only as a field of
-// announceFacts. announceFacts is
+// or buildBatchWithdrawUpdate only as a field of announceFacts. announceFacts is
 // the map key that puts peers on one build, so a field there partitions the
 // groups by construction, and announce_facts_partition_test.go proves each
 // field does.
@@ -40,20 +39,17 @@ func TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts(t *testing.T) {
 	// be a parameter, and then the agreed type below changes with it.
 	pinBuilderSignatures(t,
 		(*reactorAPIAdapter).buildBatchAnnounceUpdate,
-		(*reactorAPIAdapter).buildBatchWithdrawUpdate,
-		(*reactorAPIAdapter).buildWithheldWithdrawUpdate)
+		(*reactorAPIAdapter).buildBatchWithdrawUpdate)
 }
 
 // pinBuilderSignatures states the agreed builder signatures as parameter
 // types, one for each builder whose UPDATE is built once per group and sent to
 // every member. The withdraw rail groups on the same struct (withdrawFactsFor
-// returns an announceFacts), so the same rule holds for its two builders:
-// buildBatchWithdrawUpdate, and buildWithheldWithdrawUpdate, whose
-// attributes-only UPDATE goes to every unarmed peer of the group.
+// returns an announceFacts), so the same rule holds for its builder,
+// buildBatchWithdrawUpdate.
 func pinBuilderSignatures(t *testing.T,
 	announce func(*reactorAPIAdapter, []byte, []byte, bgptypes.NLRIBatch, announceFacts) (*message.Update, error),
 	withdraw func(*reactorAPIAdapter, []byte, []byte, bgptypes.NLRIBatch, announceFacts) *message.Update,
-	withheld func(*reactorAPIAdapter, []byte, bgptypes.NLRIBatch, announceFacts) *message.Update,
 ) {
 	t.Helper()
 	if announce == nil {
@@ -61,8 +57,5 @@ func pinBuilderSignatures(t *testing.T,
 	}
 	if withdraw == nil {
 		t.Fatal("BUG: buildBatchWithdrawUpdate method expression is nil")
-	}
-	if withheld == nil {
-		t.Fatal("BUG: buildWithheldWithdrawUpdate method expression is nil")
 	}
 }

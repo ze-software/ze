@@ -39,9 +39,8 @@ import (
 // be a separate builder argument, because this struct is the grouping key and
 // an argument is not. The compiler cannot refuse such an argument, so
 // TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts pins the parameter
-// lists of the three group builders (buildBatchAnnounceUpdate,
-// buildBatchWithdrawUpdate, buildWithheldWithdrawUpdate) and fails to build
-// when one changes.
+// lists of the two group builders (buildBatchAnnounceUpdate,
+// buildBatchWithdrawUpdate) and fails to build when one changes.
 //
 // The two used to be separate lists, and the key was kept in step by
 // remembering. Every field below arrived in its own commit, and three of them
@@ -653,27 +652,17 @@ func (a *reactorAPIAdapter) withdrawBatchFromPeers(ctx context.Context, peers []
 	withheld := make([]string, 0, len(unarmed))
 	var lastErr error
 
-	if len(unarmed) > 0 {
-		// Built ONCE for the whole batch: it names no route, so it does not vary
-		// with the framing the unit loop below applies. It is nil when the
-		// withdrawal has no attributes of its own to write. The build region is
-		// the attribute buffer the unit loop reuses, and every send below returns
-		// before that loop starts.
-		withheldUpdate := a.buildWithheldWithdrawUpdate(attrHandle.Buf, batch, facts)
-		for _, peer := range unarmed {
-			if err := ctx.Err(); err != nil {
-				return 0, withheld, err
-			}
-			peer.adjOut.recordWithheld(len(batch.NLRIs))
-			logWithdrawWithheld(peer, batch)
-			withheld = append(withheld, peer.Settings().Address.String())
-			if withheldUpdate == nil {
-				continue
-			}
-			if err := peer.sendUpdateWithSplit(ctx, withheldUpdate, maxMsgSize, facts.addPath); err != nil {
-				lastErr = err
-			}
+	// A withheld withdrawal writes NOTHING to the peer, whatever its family: the
+	// routes are what the withdrawal carries, and RFC 4271 Section 4.3 leaves this
+	// connection no route to name. The peer is still answered, through the
+	// returned addresses (route.ErrWithdrawWithheld), the log line and the counter.
+	for _, peer := range unarmed {
+		if err := ctx.Err(); err != nil {
+			return 0, withheld, err
 		}
+		peer.adjOut.recordWithheld(len(batch.NLRIs))
+		logWithdrawWithheld(peer, batch)
+		withheld = append(withheld, peer.Settings().Address.String())
 	}
 
 	sent := len(unarmed)
@@ -1781,54 +1770,6 @@ func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, ba
 		// has none (buildBatchAnnounceUpdate carries the same reasoning for
 		// MP_REACH_NLRI, where the address is the operator's to fix).
 		logWithdrawTooLarge(batch, len(attrBuf), "attributes")
-		return nil
-	}
-	return &message.Update{
-		PathAttributes: attrBuf[:n],
-	}
-}
-
-// buildWithheldWithdrawUpdate builds the UPDATE a WITHHELD withdrawal writes: the
-// same message buildBatchWithdrawUpdate would have built, with the routes removed.
-// MP_UNREACH_NLRI is not contributed and no NLRI is written, so what reaches the
-// peer is the withdrawal's path attributes and nothing else.
-//
-// RFC 4271 Section 6.3: "An UPDATE message that contains correct path attributes,
-// but no NLRI, SHALL be treated as a valid UPDATE message." So the message is one
-// a conformant receiver accepts, and it names no route, which is the whole point:
-// withdrawBatchFromPeers withholds the routes because RFC 4271 Section 4.3 scopes
-// a withdrawn route to the connection it was previously advertised on.
-//
-// Nothing in an RFC asks a speaker to SEND it. It is an ExaBGP compatibility
-// contract, pinned by `test/exabgp-compat/api/api-flow.ci`, whose second frame is
-// this message: upstream drops each withdrawn NLRI while a session's
-// include_withdraw is still False and yields the packed attributes regardless
-// (`src/exabgp/bgp/message/update/collection.py`, UpdateCollection.messages).
-//
-// Returns nil when there is nothing left once the routes are gone. IPv4 unicast
-// carries its withdrawal in the Withdrawn Routes field with no path attributes,
-// and the multiprotocol unicast families carry a bare MP_UNREACH_NLRI, so both
-// leave an empty message rather than an attributes-only one. Upstream sends
-// nothing for those too, which `api-fast` records.
-//
-// withdrawBatchFromPeers builds this UPDATE once per group and sends it to
-// every unarmed peer of the group, and it reads per-peer facts through
-// planBatchAttrs. So the announce builder's rule holds here: a per-peer value
-// that changes the bytes is an announceFacts field, never a new parameter.
-// TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts pins this signature.
-func (a *reactorAPIAdapter) buildWithheldWithdrawUpdate(attrBuf []byte, batch bgptypes.NLRIBatch, facts announceFacts) *message.Update {
-	if batch.Family == family.IPv4Unicast || batch.Family.SAFI == family.SAFIUnicast {
-		return nil
-	}
-
-	plan := getAnnouncePlan()
-	defer putAnnouncePlan(plan)
-
-	base := a.planBatchAttrs(plan, batch, facts)
-
-	n, ok := plan.emit(base, attrBuf)
-	if !ok {
-		logWithdrawTooLarge(batch, len(attrBuf), "withheld-attributes")
 		return nil
 	}
 	return &message.Update{

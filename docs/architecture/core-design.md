@@ -949,9 +949,8 @@ struct cannot be left out of the key, and two peers that would be sent different
 bytes cannot share a build. The compiler would still accept a per-peer value
 passed as a separate builder argument, so
 `TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts` pins the parameter
-lists of the three builders whose UPDATE one group shares,
-`buildBatchAnnounceUpdate`, `buildBatchWithdrawUpdate` and
-`buildWithheldWithdrawUpdate`: a new argument fails that test's build, and the
+lists of the two builders whose UPDATE one group shares,
+`buildBatchAnnounceUpdate` and `buildBatchWithdrawUpdate`: a new argument fails that test's build, and the
 value has to become a field. A group is one build AND one send, so a fact that
 changes only the send, the RFC 8654 extended message size that
 `sendUpdateWithSplit` splits at, is a field too. Each field names the RFC

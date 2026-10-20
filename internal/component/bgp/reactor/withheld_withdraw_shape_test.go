@@ -1,17 +1,17 @@
 // Design: docs/architecture/update-building.md -- "A Withdrawal Names a Route This Connection Advertised"
-// Related: reactor_api_batch.go -- withdrawBatchFromPeers, buildWithheldWithdrawUpdate
+// Related: reactor_api_batch.go -- withdrawBatchFromPeers
 // Overview: group_updates_framing_test.go -- the peer, reactor and frame-reading harness these borrow
 //
-// A withdrawal this connection may not name a route for still puts the
-// withdrawal's path attributes on the wire, with no route in them. RFC 4271
-// Section 6.3: "An UPDATE message that contains correct path attributes, but no
-// NLRI, SHALL be treated as a valid UPDATE message." Nothing in an RFC asks a
-// speaker to SEND that message; it is the ExaBGP compatibility contract, and
-// test/exabgp-compat/api/api-flow.ci is where upstream recorded it.
+// A withdrawal this connection may not name a route for puts NOTHING on the
+// wire, whatever its family. RFC 4271 Section 4.3 scopes a withdrawn route to
+// the connection it was previously advertised on, and with the routes removed
+// a withdrawal has nothing left to say. ExaBGP at the pinned 685f772e4 agrees:
+// its qa/api/api-flow.ci records no attributes-only frame, and
+// UpdateCollection._mp_family_messages yields nothing for a withdrawal while
+// include_withdraw is False and nothing is announced.
 //
-// These tests read the BYTES the peer's connection received, because the shape
-// is the whole behavior: a test that asked the builder for a message would pass
-// against a rail that built one and wrote nothing.
+// These tests read the BYTES the peer's connection received, because silence
+// on the wire is the whole behavior.
 package reactor
 
 import (
@@ -29,8 +29,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ipv4FlowSpec is the family whose withdrawal carries path attributes of its
-// own, which is what makes an attributes-only message possible for it.
+// ipv4FlowSpec is a family whose withdrawal carries path attributes of its own,
+// so removing the routes would still leave a message to write.
 var ipv4FlowSpec = family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 
 // flowWithdrawBatch is one FlowSpec withdrawal, the shape api-flow's script
@@ -86,93 +86,53 @@ func updateSections(t *testing.T, body []byte) (withdrawn, attributes, reachable
 		body[4+withdrawnLen+attrLen:]
 }
 
-// attributeCodes reads the type code of every attribute in a block.
-func attributeCodes(t *testing.T, block []byte) []uint8 {
-	t.Helper()
-	var codes []uint8
-	for off := 0; off < len(block); {
-		require.GreaterOrEqual(t, len(block)-off, 3, "an attribute carries flags, code and a length")
-		flags := block[off]
-		length := int(block[off+2])
-		header := 3
-		// RFC 4271 Section 4.3: the Extended Length bit makes the length two octets.
-		if flags&0x10 != 0 {
-			require.GreaterOrEqual(t, len(block)-off, 4, "an extended-length attribute carries two length octets")
-			length = int(binary.BigEndian.Uint16(block[off+2 : off+4]))
-			header = 4
-		}
-		codes = append(codes, block[off+1])
-		require.LessOrEqual(t, off+header+length, len(block), "the attribute must fit its block")
-		off += header + length
-	}
-	return codes
-}
-
-// TestWithheldFlowWithdrawWritesItsAttributesWithNoRoute is api-flow's second
-// frame.
+// TestWithheldFlowWithdrawWritesNothing is api-flow's first withdrawal.
 //
 // VALIDATES: a FlowSpec withdrawal on a connection that has advertised nothing
-// puts ONE UPDATE on the wire, carrying the attributes the withdrawal would
-// have carried, no MP_UNREACH_NLRI, no withdrawn routes and no NLRI. The
-// harness peer is external, so RFC 4271 Section 5.1.5 leaves LOCAL_PREF out and
-// ORIGIN and AS_PATH are what the message owes; api-flow's own peer is internal
-// and its fixture pins the third attribute.
-// PREVENTS: the silence that left api-flow waiting for that frame until its
-// read deadline, and the MP_UNREACH_NLRI that would name a route RFC 4271
-// Section 4.3 says this connection cannot name.
-func TestWithheldFlowWithdrawWritesItsAttributesWithNoRoute(t *testing.T) {
+// puts no UPDATE on the wire, though the family's withdrawal carries path
+// attributes; the route is counted as withheld and the answer names the reason.
+// PREVENTS: the attributes-only UPDATE ze used to send here (no RFC asks for
+// it, and neither ExaBGP 5.0.13 nor the pinned ExaBGP 6.0 sends it), and the
+// MP_UNREACH_NLRI that would name a route RFC 4271 Section 4.3 says this
+// connection cannot name.
+func TestWithheldFlowWithdrawWritesNothing(t *testing.T) {
 	peer, conn := flowSpecPeer(t, "10.0.0.2")
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 
 	err := adapter.WithdrawNLRIBatch(t.Context(), selector.All(), flowWithdrawBatch(t), plugin.OperatorSender())
 	require.Error(t, err, "the answer still carries the reason the routes were withheld")
 
-	bodies := updateBodies(t, conn.written())
-	require.Len(t, bodies, 1, "one UPDATE reaches the peer")
-
-	withdrawn, attributes, reachable := updateSections(t, bodies[0])
-	assert.Empty(t, withdrawn, "no withdrawn routes")
-	assert.Empty(t, reachable, "no NLRI")
-	assert.Equal(t, []uint8{1, 2}, attributeCodes(t, attributes),
-		"ORIGIN and AS_PATH, and no MP_UNREACH_NLRI (code 15)")
+	assert.Empty(t, updateBodies(t, conn.written()), "a withheld withdrawal writes nothing")
 	assert.Equal(t, uint64(1), peer.adjOut.withheldCount(), "the route is still counted as withheld")
 }
 
-// TestWithheldFlowWithdrawArmsNothing keeps the message from arming the guard it
-// was produced by.
+// TestWithheldFlowWithdrawArmsNothing keeps a withheld withdrawal from arming
+// the guard that withheld it.
 //
 // RFC 4271 Section 4.3 scopes a withdrawn route to a connection that was
-// previously advertised the route, and a message with no NLRI makes no
-// destination reachable. If it armed the connection, the NEXT withdrawal would
-// name a route the peer was never sent.
+// previously advertised the route. If a withheld withdrawal armed the
+// connection, the NEXT withdrawal would name a route the peer was never sent.
 //
-// VALIDATES: after the withheld message, the connection has still advertised
+// VALIDATES: after the withheld withdrawal, the connection has still advertised
 // nothing, so a second withdrawal is withheld exactly as the first was.
-// PREVENTS: an attributes-only UPDATE counting as an advertisement.
+// PREVENTS: a withheld withdrawal counting as an advertisement.
 func TestWithheldFlowWithdrawArmsNothing(t *testing.T) {
 	peer, conn := flowSpecPeer(t, "10.0.0.2")
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 
 	require.Error(t, adapter.WithdrawNLRIBatch(t.Context(), selector.All(), flowWithdrawBatch(t), plugin.OperatorSender()))
-	assert.False(t, peer.hasAdvertised(), "a message with no NLRI makes no destination reachable")
+	assert.False(t, peer.hasAdvertised(), "a withheld withdrawal makes no destination reachable")
 
 	require.Error(t, adapter.WithdrawNLRIBatch(t.Context(), selector.All(), flowWithdrawBatch(t), plugin.OperatorSender()))
 
-	bodies := updateBodies(t, conn.written())
-	require.Len(t, bodies, 2, "the second withdrawal is withheld the same way")
-	_, _, reachable := updateSections(t, bodies[1])
-	assert.Empty(t, reachable, "and it names no route either")
+	assert.Empty(t, updateBodies(t, conn.written()), "the second withdrawal is withheld the same way")
 	assert.Equal(t, uint64(2), peer.adjOut.withheldCount())
 }
 
-// TestWithheldUnicastWithdrawWritesNothing is the other half of the rule, and it
-// is what keeps the compatibility contract from reaching a family it was never
-// recorded for.
-//
-// A withdrawal whose family carries no path attributes of its own -- IPv4
-// unicast in the Withdrawn Routes field, IPv6 unicast as a bare MP_UNREACH_NLRI
-// -- has nothing left once the routes are removed, so nothing is written.
-// Upstream sends nothing for those too, which `api-fast` records.
+// TestWithheldUnicastWithdrawWritesNothing is the same rule for a family whose
+// withdrawal carries no path attributes of its own: IPv4 unicast in the
+// Withdrawn Routes field, IPv6 unicast as a bare MP_UNREACH_NLRI. Upstream sends
+// nothing for those either, which `api-fast` records.
 //
 // VALIDATES: an IPv6 unicast withdrawal on an unadvertised connection puts no
 // UPDATE on the wire.

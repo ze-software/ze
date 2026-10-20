@@ -280,7 +280,7 @@ dispatcher. Five rules then decide what leaves.
 
 Each row states what the batch DISPATCHES. What a dispatched withdrawal then
 puts on the wire is the reactor's answer, not the netting's: a session that has
-advertised nothing is written the withdrawal's attributes with no route in them
+advertised nothing is written nothing at all
 (`docs/architecture/update-building.md`, "A Withdrawal Names a Route This
 Connection Advertised"). The rules together are what make `api-fast` batch 1
 produce one frame.

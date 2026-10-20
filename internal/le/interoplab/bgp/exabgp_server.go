@@ -391,7 +391,11 @@ func matchExaBGPFrames(wire exabgpWire, segment []exabgpStep, recorder *frameRec
 				recorder.mismatch()
 				continue
 			}
-			return fmt.Errorf("unexpected message = %X; %d expected frames remain", actual, len(remaining))
+			// The first frame still owed is named as the read failure above
+			// names it, so one allowance text covers a case whichever way the
+			// missing frame shows: a timeout, or a frame that arrived instead.
+			return fmt.Errorf("unexpected message = %X; %d expected frames remain (first: %X)",
+				actual, len(remaining), remaining[0].frame)
 		}
 		remaining = append(remaining[:found], remaining[found+1:]...)
 		if err := replay.matched(wire.connection, messageType, actual); err != nil {
