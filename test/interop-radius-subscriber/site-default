@@ -1,15 +1,24 @@
 # Ze FreeRADIUS subscriber lab: the whole virtual server, written out.
 #
-# ze sends its Access-Requests and its Accounting-Requests to one port (a ze
-# server entry carries one port), so one listener takes both kinds.
+# The server listens as a stock deployment does: Access-Requests on 1812 and
+# Accounting-Requests on 1813 (RFC 2866 Section 3), one listener each, because
+# FreeRADIUS 3.2.7 refuses an Accounting-Request on a UDP auth+acct listener
+# ("Invalid packet code 4 sent to authentication port"). ze reaches both
+# through one server entry, whose accounting port defaults to 1813.
 # Authentication is CHAP against the users file. Accounting writes every
 # record to the ze_detail file, which the checkers read as the server's own
 # record of each Acct-Session-Id.
 server default {
 	listen {
-		type = auth+acct
+		type = auth
 		ipaddr = *
 		port = 1812
+	}
+
+	listen {
+		type = acct
+		ipaddr = *
+		port = 1813
 	}
 
 	authorize {

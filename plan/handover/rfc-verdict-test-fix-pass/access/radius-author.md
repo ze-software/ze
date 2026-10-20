@@ -87,7 +87,7 @@ Files (continuation 3): internal/component/radius/attr.go, internal/component/l2
 
 # Continuation 4 (2026-09-30)
 
-Blocked ids verified: RFC2866-5.5-1, RFC3579-3.3-2, RFC5176-2.3-2 are all in plan/immediate/spec-radius-rfc-defects.md AC-4 (D1, D2, D3) AND in the access child's "Blocked by" table. Nothing missing.
+Blocked ids verified: RFC2866-5.5-1, RFC3579-3.3-2, RFC5176-2.3-2 are all in spec-radius-rfc-defects (closed 2026-10-20) AC-4 (D1, D2, D3) AND in the access child's "Blocked by" table. Nothing missing.
 Continuation 3 leftover: the site 4.4:2 resign-reason sentence is already in rfc/extraction/rfc2865.json; `./le rfc check` no longer reports an rfc2865 sign-off failure.
 Logs: children/access/rc4-*.log.
 

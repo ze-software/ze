@@ -1731,21 +1731,37 @@ the accountant and the CoA and Disconnect listener of
 session, which no fixture can stand in for, so the lab carries its own LAC
 (xl2tpd and pppd), and ze and the LAC hold `NET_ADMIN` and `/dev/ppp`. That is
 why it is a suite of its own: the admin-login suite promises no capability at
-all, and the L2TP lab's RADIUS peer is a mock ze wrote. FreeRADIUS takes ze's
-Access-Requests and Accounting-Requests on one `auth+acct` listener, because a
-ze server entry carries one port, writes every accounting record to its
-`ze_detail` file, and its `radclient` is the Dynamic Authorization Client.
+all, and the L2TP lab's RADIUS peer is a mock ze wrote. FreeRADIUS writes
+every accounting record it accepts to its `ze_detail` file, and its `radclient`
+is the Dynamic Authorization Client.
 
 | Scenario | What it proves |
 |----------|----------------|
-| `radius-coa-duplicate-freeradius` | RFC 5176 Section 2.3 duplicate detection. With ze paused, `radclient` sends one Disconnect-Request and retransmits it on its own socket: ze answers the copies from the cache, `radclient` gets a Disconnect-ACK, and ze logs one teardown. On a second session, two `radclient` processes send one request file with the same Identifier from two ports: the second is processed afresh and answered Disconnect-NAK. A tcpdump capture in ze's container confirms the retransmitted copies share port, Identifier and Authenticator, and the two clients' requests differ in the port alone |
+| `radius-coa-duplicate-freeradius` | RFC 5176 Section 2.3 duplicate detection. With ze paused, `radclient` sends one Disconnect-Request and retransmits it on its own socket: ze answers the copies from the cache, `radclient` gets a Disconnect-ACK, and ze logs one teardown. On a second session, `radclient` sends one Disconnect-Request and gets a Disconnect-ACK, then a bash process in the FreeRADIUS container sends the very octets ze received, read from the capture, out of a socket of its own, so from a new port: ze processes it afresh and answers Disconnect-NAK, where a key blind to the port would answer the cached ACK. A tcpdump capture in ze's container confirms the retransmitted copies share port, Identifier and Authenticator, and the two clients' requests are the same octets from two ports |
 | `radius-acct-restart-freeradius` | RFC 2866 Section 5.5 across a real restart. The Accounting-Start before ze restarts and the one after carry ids of the form tunnel-session-tag-counter, the two boot tags differ, and each Stop carries its Start's id, all read from FreeRADIUS's detail file |
 
-Both scenarios were added on 2026-10-14 and have not run yet: this machine's
-Docker kernel refuses the lab, so neither has a recorded pass or a recorded red.
+The server listens as a stock deployment does, `type = auth` on 1812 and
+`type = acct` on 1813 (`site-default`), and ze sends accounting to a server
+entry's `accounting-port`, 1813 by default, as RFC 2866 Section 3 asks. The
+pinned `radclient` has no `-i`, which is why the two-client half replays
+radclient's own octets rather than running a second `radclient`. The LAC
+dials once (`redial = no` in `xl2tpd.conf`): each new session comes from the
+checker restarting the LAC, so the Accounting-Start a checker reads is the
+session it asked for. Ze's container sets `ze.log.l2tp.auth.radius=debug`,
+because the teardown count reads the plugin's Info line and the default level
+is WARN.
+
+Both scenarios passed on 2026-10-20, and each discriminates. With `replayKey`
+writing port 0 into the key, so blind to the source port, the two-client half fails: "ze answered Code 41,
+want a fresh Disconnect-NAK (42), not the first client's cached answer". With
+`genSessionID` writing the old tunnel-session-counter form, the restart
+scenario fails: "Acct-Session-Id "1702-33224-1" before the restart carries no
+boot tag".
 
 <!-- source: internal/le/interoplab/radiussubscriber/radiussubscriber.go -- the suite, its peers, its grants and its preflight -->
-<!-- source: internal/le/interoplab/radiussubscriber/checkers.go -- checkCoADuplicate, checkAcctRestart, judgeCapture -->
+<!-- source: internal/le/interoplab/radiussubscriber/checkers.go -- checkCoADuplicate, checkAcctRestart, judgeCapture, replayScript, capturedRequest -->
+<!-- source: test/interop-radius-subscriber/site-default -- the authentication and accounting listeners -->
+<!-- source: test/interop-radius-subscriber/xl2tpd.conf -- redial = no -->
 <!-- source: test/interop-radius-subscriber/mods-ze-detail -- the detail module the server's record comes from -->
 
 ### The freeRouter RSVP-TE suite

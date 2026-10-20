@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/interop.md -- the FreeRADIUS subscriber suite
 // Related: radiussubscriber.go -- suiteFor, preflightContainer
-// Related: checkers.go -- parseDetail, parseCapture, judgeCapture
+// Related: checkers.go -- parseDetail, parseCapture, judgeCapture, replayScript, replyCode
 //
 // The tests build the real suite from the repository's scenario tree and read
 // its topology and grants, and feed the checkers' parsers fixed bytes. No
@@ -9,6 +9,7 @@
 package radiussubscriber
 
 import (
+	"bytes"
 	"encoding/binary"
 	"slices"
 	"strings"
@@ -82,20 +83,31 @@ func TestParseDetail(t *testing.T) {
 	}
 }
 
+// datagramOf builds a datagram whose octets are a bare 20-octet RADIUS header
+// carrying code, identifier and authenticator.
+func datagramOf(sourcePort uint16, code, identifier byte, authenticator [16]byte) coaDatagram {
+	octets := make([]byte, 20)
+	octets[0], octets[1] = code, identifier
+	binary.BigEndian.PutUint16(octets[2:4], 20)
+	copy(octets[4:20], authenticator[:])
+	return coaDatagram{sourcePort: sourcePort, code: code, identifier: identifier, authenticator: authenticator, octets: octets}
+}
+
 // pcapOf builds a little-endian classic pcap of Ethernet/IPv4/UDP frames, one
-// per datagram, each carrying a 20-octet RADIUS header.
-func pcapOf(datagrams []coaDatagram) []byte {
+// per datagram, each carrying the datagram's octets followed by padding
+// octets of Ethernet padding past the UDP length.
+func pcapOf(datagrams []coaDatagram, padding int) []byte {
 	capture := make([]byte, 24)
 	binary.LittleEndian.PutUint32(capture[0:4], 0xa1b2c3d4)
 	for _, datagram := range datagrams {
-		frame := make([]byte, 14+20+8+20)
+		frame := make([]byte, 14+20+8+len(datagram.octets)+padding)
 		frame[12], frame[13] = 0x08, 0x00
 		frame[14] = 0x45
 		frame[14+9] = 17
 		binary.BigEndian.PutUint16(frame[34:36], datagram.sourcePort)
 		binary.BigEndian.PutUint16(frame[36:38], 3799)
-		frame[42], frame[43] = datagram.code, datagram.identifier
-		copy(frame[46:62], datagram.authenticator[:])
+		binary.BigEndian.PutUint16(frame[38:40], uint16(8+len(datagram.octets)))
+		copy(frame[42:], datagram.octets)
 		record := make([]byte, 16)
 		binary.LittleEndian.PutUint32(record[8:12], uint32(len(frame)))
 		binary.LittleEndian.PutUint32(record[12:16], uint32(len(frame)))
@@ -105,25 +117,32 @@ func pcapOf(datagrams []coaDatagram) []byte {
 	return capture
 }
 
+func sameDatagram(a, b coaDatagram) bool {
+	return a.sourcePort == b.sourcePort && a.code == b.code && a.identifier == b.identifier &&
+		a.authenticator == b.authenticator && bytes.Equal(a.octets, b.octets)
+}
+
 // VALIDATES: the capture parser recovers each datagram's port, Code,
-// Identifier and Authenticator; judgeCapture accepts a retransmission that
-// kept all three and two clients that differ in the port alone, and refuses
-// each broken precondition.
-// PREVENTS: a scenario that passes over requests that were never duplicates.
+// Identifier, Authenticator and octets, bounded by the UDP length rather than
+// the frame; judgeCapture accepts a retransmission that kept port, Identifier
+// and Authenticator and two clients whose octets differ in the port alone,
+// and refuses each broken precondition.
+// PREVENTS: a scenario that passes over requests that were never duplicates,
+// and a replay that sends Ethernet padding as part of the RADIUS packet.
 func TestJudgeCapture(t *testing.T) {
 	auth := [16]byte{1, 2, 3}
 	other := [16]byte{9}
 	good := []coaDatagram{
-		{sourcePort: 4000, code: 40, identifier: 7, authenticator: auth},
-		{sourcePort: 4000, code: 40, identifier: 7, authenticator: auth},
-		{sourcePort: 5000, code: 40, identifier: 7, authenticator: other},
-		{sourcePort: 5001, code: 40, identifier: 7, authenticator: other},
+		datagramOf(4000, 40, 7, auth),
+		datagramOf(4000, 40, 7, auth),
+		datagramOf(5000, 40, 11, other),
+		datagramOf(5001, 40, 11, other),
 	}
-	parsed, err := parseCapture(pcapOf(good))
+	parsed, err := parseCapture(pcapOf(good, 6))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(parsed, good) {
+	if !slices.EqualFunc(parsed, good, sameDatagram) {
 		t.Fatalf("parsed %+v, want %+v", parsed, good)
 	}
 	if err := judgeCapture(parsed); err != nil {
@@ -134,8 +153,14 @@ func TestJudgeCapture(t *testing.T) {
 		"retransmission from another port": func(d []coaDatagram) { d[1].sourcePort = 4001 },
 		"retransmission re-signed":         func(d []coaDatagram) { d[1].authenticator = other },
 		"clients on one port":              func(d []coaDatagram) { d[3].sourcePort = 5000 },
-		"clients with two Authenticators":  func(d []coaDatagram) { d[3].authenticator = auth },
-		"client with another Identifier":   func(d []coaDatagram) { d[3].identifier = 8 },
+		"clients with two Authenticators":  func(d []coaDatagram) { d[3] = datagramOf(5001, 40, 11, auth) },
+		"client with another Identifier":   func(d []coaDatagram) { d[3] = datagramOf(5001, 40, 12, other) },
+		"client with a longer packet": func(d []coaDatagram) {
+			d[3].octets = append(slices.Clone(d[3].octets), 0)
+		},
+		"clients not a Disconnect-Request": func(d []coaDatagram) {
+			d[2], d[3] = datagramOf(5000, 43, 11, other), datagramOf(5001, 43, 11, other)
+		},
 	}
 	for name, breakIt := range broken {
 		datagrams := slices.Clone(good)
@@ -147,11 +172,54 @@ func TestJudgeCapture(t *testing.T) {
 	if err := judgeCapture(good[:3]); err == nil {
 		t.Error("three datagrams accepted")
 	}
-	if _, err := parseCapture(pcapOf(good)[:30]); err != nil {
+	if _, err := parseCapture(pcapOf(good, 0)[:30]); err != nil {
 		t.Errorf("a truncated trailing record header is not an error: %v", err)
 	}
-	truncated := pcapOf(good)
+	truncated := pcapOf(good, 0)
 	if _, err := parseCapture(truncated[:len(truncated)-5]); err == nil {
 		t.Error("a record claiming more octets than remain was accepted")
+	}
+	overlong := pcapOf(good[:1], 0)
+	binary.BigEndian.PutUint16(overlong[24+16+38:], 8+20+1)
+	if datagrams, err := parseCapture(overlong); err != nil || len(datagrams) != 0 {
+		t.Errorf("a UDP length past the frame answered %+v, %v; want no datagram", datagrams, err)
+	}
+	short := pcapOf(good[:1], 0)
+	binary.BigEndian.PutUint16(short[24+16+38:], 8+19)
+	if datagrams, err := parseCapture(short); err != nil || len(datagrams) != 0 {
+		t.Errorf("a UDP length shorter than a RADIUS header answered %+v, %v; want no datagram", datagrams, err)
+	}
+}
+
+// VALIDATES: replayScript sends every octet, NUL, quote and percent included,
+// as a \xHH escape inside one single-quoted printf argument to ze's CoA
+// device, and replyCode reads the one Code od prints.
+// PREVENTS: a replay whose octets differ from radclient's, which judgeCapture
+// would then refuse as "differ beyond the port", and a missing answer read as
+// Code 0.
+func TestReplayScriptAndReplyCode(t *testing.T) {
+	script := replayScript([]byte{0x28, 0x00, '\'', '%', 0xff})
+	_, rest, found := strings.Cut(script, "printf '")
+	if !found {
+		t.Fatalf("no printf argument in %q", script)
+	}
+	argument, _, found := strings.Cut(rest, "'")
+	if !found {
+		t.Fatalf("unterminated printf argument in %q", script)
+	}
+	if argument != `\x28\x00\x27\x25\xff` {
+		t.Errorf("printf argument %q", argument)
+	}
+	if !strings.Contains(script, "exec 3<>"+coaDevice) || coaDevice != "/dev/udp/172.26.0.2/3799" {
+		t.Errorf("script does not open ze's CoA port %s: %q", coaTarget, script)
+	}
+
+	if code, err := replyCode("   42\n"); err != nil || code != radiusCodeDisconnectNAK {
+		t.Errorf("replyCode(42) = %d, %v", code, err)
+	}
+	for _, output := range []string{"", " \n", "abc", "300"} {
+		if code, err := replyCode(output); err == nil {
+			t.Errorf("replyCode(%q) = %d, want an error", output, code)
+		}
 	}
 }

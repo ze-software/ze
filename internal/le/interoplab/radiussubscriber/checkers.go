@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,24 +29,27 @@ const (
 	// detailPath is where the lab's ze_detail module writes every
 	// Accounting-Request the server accepted (mods-ze-detail).
 	detailPath = "/var/log/freeradius/ze-detail"
-	// coaTarget is ze's CoA listener; the address is zeHost on networkPrefix.
-	coaTarget = "172.26.0.2:3799"
+	// coaAddress and coaPort are ze's CoA listener, zeHost on networkPrefix.
+	// coaTarget names it for radclient, coaDevice for bash's UDP redirection.
+	coaAddress = "172.26.0.2"
+	coaPort    = "3799"
+	coaTarget  = coaAddress + ":" + coaPort
+	coaDevice  = "/dev/udp/" + coaAddress + "/" + coaPort
 	// sharedSecret is the fixture secret in clients.conf and both ze.conf files.
 	sharedSecret = "ze-subscriber-fixture-secret" //nolint:gosec // G101: a fixture secret published in clients.conf, protecting nothing.
-	// requestFile is the one Disconnect-Request file every radclient of a
-	// half sends, so their packets are byte-identical apart from the port.
+	// requestFile is the Disconnect-Request file each half's radclient sends.
 	requestFile = "/tmp/ze-disconnect.req"
 	// capturePath is the tcpdump capture of datagrams to ze's CoA port.
 	capturePath = "/tmp/ze-coa.pcap"
 	// disconnectedLine is the line coa.go handleDisconnect logs once for each
 	// session it tears down; a request answered from the cache logs nothing.
 	disconnectedLine = "coa: disconnected session"
-	// requestIdentifier is the Identifier every radclient sends with (-i),
-	// and requestIdentifierOctet the octet ze receives for it.
-	requestIdentifier      = "7"
-	requestIdentifierOctet = 7
-	// radiusCodeDisconnectRequest is RFC 5176 Section 3's Code 40.
+	// replyWaitSeconds bounds how long the replaying process waits for ze's
+	// answer to its one datagram.
+	replyWaitSeconds = "5"
+	// RFC 5176 Section 3's Codes: 40 Disconnect-Request, 42 Disconnect-NAK.
 	radiusCodeDisconnectRequest = 40
+	radiusCodeDisconnectNAK     = 42
 )
 
 // acctSessionIDShape is the id genSessionID writes: tunnel, session, the
@@ -63,12 +67,14 @@ type accountingRecord struct {
 	sessionID string
 }
 
-// coaDatagram is one CoA or Disconnect request ze's container received.
+// coaDatagram is one CoA or Disconnect request ze's container received:
+// its header fields, and octets, the whole RADIUS packet as it arrived.
 type coaDatagram struct {
 	sourcePort    uint16
 	code          byte
 	identifier    byte
 	authenticator [16]byte
+	octets        []byte
 }
 
 // checkCoADuplicate proves RFC 5176 Section 2.3 duplicate detection against
@@ -80,12 +86,13 @@ type coaDatagram struct {
 // the rest from the cache: radclient gets a Disconnect-ACK and ze tears the
 // session down once.
 //
-// Two clients: two radclient processes send ONE request file with the same
-// Identifier and secret from two source ports, so their Request
-// Authenticators are equal (RFC 2866 Section 3) and only the port differs.
-// The second is not a duplicate: ze processes it afresh and, the session
-// being gone, answers Disconnect-NAK. Under a key that ignores the port it
-// would get the first one's cached Disconnect-ACK.
+// Two clients: radclient sends one Disconnect-Request, and a second process
+// in the server's container sends the very octets ze received from it, read
+// out of the capture, from another source port. The pinned radclient cannot
+// choose its Identifier, so a second radclient could not send the same
+// packet. The second is not a duplicate: ze processes it afresh and, the
+// session being gone, answers Disconnect-NAK. Under a key that ignores the
+// port it would get the first one's cached Disconnect-ACK.
 func checkCoADuplicate(ctx context.Context, lab *scenarioLab) error {
 	first, err := lab.waitRecord(ctx, "Start", "")
 	if err != nil {
@@ -112,6 +119,14 @@ func checkCoADuplicate(ctx context.Context, lab *scenarioLab) error {
 	if err := lab.writeRequest(ctx, second.sessionID); err != nil {
 		return err
 	}
+	// The first client's datagram is the first one captured after the
+	// retransmission half's, found by its index rather than as the last one:
+	// a read can race the capture, and the last datagram is then the previous
+	// half's request.
+	held, err := lab.readCapture(ctx)
+	if err != nil {
+		return err
+	}
 	answer, err := lab.radclient(ctx, "1", "3")
 	if err != nil {
 		return err
@@ -119,15 +134,24 @@ func checkCoADuplicate(ctx context.Context, lab *scenarioLab) error {
 	if !strings.Contains(answer, "Received Disconnect-ACK") {
 		return fmt.Errorf("first client: radclient did not receive a Disconnect-ACK:\n%s", answer)
 	}
-	answer, err = lab.radclient(ctx, "1", "3")
+	sent, err := lab.capturedRequest(ctx, len(held))
 	if err != nil {
 		return err
 	}
-	if !strings.Contains(answer, "Received Disconnect-NAK") {
-		return fmt.Errorf("second client, same request from another port: want a fresh Disconnect-NAK, "+
-			"not the first client's cached answer:\n%s", answer)
+	code, err := lab.replay(ctx, sent.octets)
+	if err != nil {
+		return err
+	}
+	if code != radiusCodeDisconnectNAK {
+		return fmt.Errorf("second client, radclient's request replayed from another port: ze answered Code %d, "+
+			"want a fresh Disconnect-NAK (%d), not the first client's cached answer", code, radiusCodeDisconnectNAK)
 	}
 	if err := lab.waitDisconnects(ctx, 2); err != nil {
+		return err
+	}
+	// The replayed datagram MUST be in the file before tcpdump stops, or the
+	// capture judged below ends one datagram short.
+	if _, err := lab.capturedRequest(ctx, len(held)+1); err != nil {
 		return err
 	}
 
@@ -140,7 +164,8 @@ func checkCoADuplicate(ctx context.Context, lab *scenarioLab) error {
 
 // judgeCapture confirms the preconditions both halves rest on, from the
 // datagrams ze received: the retransmission kept its port, Identifier and
-// Authenticator, and the two clients' requests differ in the port alone.
+// Authenticator, and the two clients' Disconnect-Requests are the same octets
+// from two ports.
 func judgeCapture(datagrams []coaDatagram) error {
 	if len(datagrams) < 4 {
 		return fmt.Errorf("ze received %d Disconnect-Requests, want the retransmitted ones and two clients' (at least 4)", len(datagrams))
@@ -156,15 +181,41 @@ func judgeCapture(datagrams []coaDatagram) error {
 	if clients[0].sourcePort == clients[1].sourcePort {
 		return fmt.Errorf("the two clients sent from one source port %d", clients[0].sourcePort)
 	}
-	for _, client := range clients {
-		if client.code != radiusCodeDisconnectRequest || client.identifier != requestIdentifierOctet {
-			return fmt.Errorf("a client's datagram is not a Disconnect-Request with Identifier %s: %+v", requestIdentifier, client)
-		}
+	if clients[0].code != radiusCodeDisconnectRequest {
+		return fmt.Errorf("the first client's datagram is not a Disconnect-Request: %+v", clients[0])
 	}
-	if clients[0].authenticator != clients[1].authenticator {
+	if !bytes.Equal(clients[0].octets, clients[1].octets) {
 		return fmt.Errorf("the two clients' requests differ beyond the port: %+v and %+v", clients[0], clients[1])
 	}
 	return nil
+}
+
+// replayScript is the bash program that sends octets to ze's CoA port from a
+// socket of its own, so from a new source port, and prints the Code of the
+// one answer it reads as a decimal number, or nothing when none arrives
+// within replyWaitSeconds. Every octet is a \xHH escape of bash's printf, so
+// the program carries no quote and no format directive.
+func replayScript(octets []byte) string {
+	var tb textbuf.Buffer
+	tb.Str("exec 3<>").Str(coaDevice).Str(" || exit 2\nprintf '")
+	for index := range octets {
+		tb.Str(`\x`).Hex(octets[index : index+1])
+	}
+	tb.Str("' >&3\ntimeout ").Str(replyWaitSeconds).Str(" dd bs=4096 count=1 status=none <&3 | od -An -tu1 -N1\n")
+	return tb.String()
+}
+
+// replyCode reads the Code replayScript printed. No output is no answer.
+func replyCode(output string) (byte, error) {
+	field := strings.TrimSpace(output)
+	if field == "" {
+		return 0, errors.New("ze sent no answer to the replayed request within " + replyWaitSeconds + " seconds")
+	}
+	code, err := strconv.ParseUint(field, 10, 8)
+	if err != nil {
+		return 0, fmt.Errorf("the replaying process printed %q, not a RADIUS Code: %w", field, err)
+	}
+	return byte(code), nil
 }
 
 // checkAcctRestart proves RFC 2866 Section 5.5 across a real daemon restart:
@@ -232,7 +283,7 @@ func (s *scenarioLab) retransmittedDisconnect(ctx context.Context, sessionID str
 	if err := s.lab.Pause(ctx, peerZe); err != nil {
 		return fmt.Errorf("pause ze: %w", err)
 	}
-	script := "radclient -x -i " + requestIdentifier + " -r 5 -t 2 -f " + requestFile + " " + coaTarget +
+	script := "radclient -x -r 5 -t 2 -f " + requestFile + " " + coaTarget +
 		" disconnect " + sharedSecret + " > /tmp/ze-retransmit.out 2>&1"
 	if err := s.lab.ExecDetached(ctx, peerServer, []string{"sh", "-c", script}, nil); err != nil {
 		return errors.Join(fmt.Errorf("start the retransmitting radclient: %w", err), s.lab.Unpause(ctx, peerZe))
@@ -272,7 +323,7 @@ func (s *scenarioLab) writeRequest(ctx context.Context, sessionID string) error 
 // radclient sends the request file once as a new process, so from a new
 // source port, and answers its output.
 func (s *scenarioLab) radclient(ctx context.Context, retries, timeoutSeconds string) (string, error) {
-	result, err := s.lab.Exec(ctx, peerServer, []string{"radclient", "-x", "-i", requestIdentifier,
+	result, err := s.lab.Exec(ctx, peerServer, []string{"radclient", "-x",
 		"-r", retries, "-t", timeoutSeconds, "-f", requestFile, coaTarget, "disconnect", sharedSecret}, nil)
 	output := result.Stdout + result.Stderr
 	// radclient exits non-zero on a NAK, which is an answer here, not a failure.
@@ -280,6 +331,36 @@ func (s *scenarioLab) radclient(ctx context.Context, retries, timeoutSeconds str
 		return "", fmt.Errorf("radclient: %w: %s", err, output)
 	}
 	return output, nil
+}
+
+// capturedRequest waits until the running capture holds a datagram at index
+// and answers it, which MUST be a Disconnect-Request. The caller passes the
+// count the capture held before its client sent, so the answer is that
+// client's datagram. A packet reaches ze before it reaches the file, so a
+// read right after the client's answer can miss it: the wait closes that gap.
+func (s *scenarioLab) capturedRequest(ctx context.Context, index int) (coaDatagram, error) {
+	datagrams, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: s.timeout, Interval: time.Second, Description: "the client's datagram in the capture",
+	}, s.readCapture, func(held []coaDatagram) bool { return len(held) > index })
+	if err != nil {
+		return coaDatagram{}, fmt.Errorf("the capture holds %d datagrams, want the client's at index %d: %w", len(datagrams), index, err)
+	}
+	request := datagrams[index]
+	if request.code != radiusCodeDisconnectRequest {
+		return coaDatagram{}, fmt.Errorf("the client's captured datagram is not a Disconnect-Request: %+v", request)
+	}
+	return request, nil
+}
+
+// replay sends octets to ze once from a new process in the server's
+// container, so from the server's address and a new source port, and answers
+// the Code of ze's reply.
+func (s *scenarioLab) replay(ctx context.Context, octets []byte) (byte, error) {
+	result, err := s.lab.Exec(ctx, peerServer, []string{"bash", "-c", replayScript(octets)}, nil)
+	if err != nil {
+		return 0, fmt.Errorf("replay radclient's request from another port: %w: %s", err, result.Stdout+result.Stderr)
+	}
+	return replyCode(result.Stdout)
 }
 
 // waitRecord waits for an accounting record of status whose id is not
@@ -435,6 +516,11 @@ func (s *scenarioLab) stopCapture(ctx context.Context) ([]coaDatagram, error) {
 	if err := sleepContext(ctx, time.Second); err != nil {
 		return nil, err
 	}
+	return s.readCapture(ctx)
+}
+
+// readCapture answers the CoA datagrams the capture file holds so far.
+func (s *scenarioLab) readCapture(ctx context.Context) ([]coaDatagram, error) {
 	encoded, err := s.lab.Query(ctx, peerZe, []string{"base64", capturePath}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("read the capture: %w", err)
@@ -453,7 +539,8 @@ func (s *scenarioLab) stopCapture(ctx context.Context) ([]coaDatagram, error) {
 // pcap global header 24 octets, then per frame a 16-octet record header whose
 // octets 8..12 are the captured length; Ethernet 14 octets (type at 12..14);
 // IPv4 header of IHL*4 octets (protocol at 9); UDP 8 octets (source port at
-// 0..2); RADIUS Code at 0, Identifier at 1, Authenticator at 4..20.
+// 0..2, length of header and payload at 4..6); RADIUS Code at 0, Identifier
+// at 1, Authenticator at 4..20.
 func parseCapture(capture []byte) ([]coaDatagram, error) {
 	if len(capture) < 24 {
 		return nil, fmt.Errorf("capture of %d octets has no pcap header", len(capture))
@@ -487,8 +574,17 @@ func radiusOfFrame(frame []byte) (coaDatagram, bool) {
 		return coaDatagram{}, false
 	}
 	udp := ip[headerOctets:]
-	payload := udp[8:]
-	datagram := coaDatagram{sourcePort: binary.BigEndian.Uint16(udp[0:2]), code: payload[0], identifier: payload[1]}
+	// The UDP length bounds the payload: a short frame may carry Ethernet
+	// padding past it.
+	udpOctets := int(binary.BigEndian.Uint16(udp[4:6]))
+	if udpOctets < 8+20 {
+		return coaDatagram{}, false
+	}
+	if udpOctets > len(udp) {
+		return coaDatagram{}, false
+	}
+	payload := udp[8:udpOctets]
+	datagram := coaDatagram{sourcePort: binary.BigEndian.Uint16(udp[0:2]), code: payload[0], identifier: payload[1], octets: payload}
 	copy(datagram.authenticator[:], payload[4:20])
 	return datagram, true
 }

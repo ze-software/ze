@@ -629,7 +629,7 @@ spec.
 | `plan/immediate/spec-bgp-sr-policy-rfc-defects.md` | RFC 9830 Section 2.4.2 flags and BSID label, RFC9830-4.2.1-2 |
 | `plan/immediate/spec-bmp-sflow-export-rfc-defects.md` | RFC 7854 Section 4.9 reason 4, SFLOW-V5-x-11 |
 | `plan/immediate/spec-vrrp-owner-arp-rfc-defects.md` | RFC 9568 Section 8.1.2, and the vpp verifier parity journal row |
-| `plan/immediate/spec-radius-rfc-defects.md` | RFC3579-3.3-2, RFC5176-2.3-2, RFC 2866 Section 5.5 |
+| `spec-radius-rfc-defects` (closed 2026-10-20) | RFC3579-3.3-2, RFC5176-2.3-2, RFC 2866 Section 5.5 |
 | `plan/immediate/spec-ike-eap-rfc-defects.md` | RFC3948-2.1-2, RFC5216-2.1.1-4 |
 | `plan/immediate/spec-ospf-nssa-translator-reachability.md` | RFC3101-3.2-2, the reachability clause |
 | `plan/immediate/spec-rsvpte-frr-link-protection-fallback.md` | RFC 4090 Section 6 (no row), RFC4090-6-6 |

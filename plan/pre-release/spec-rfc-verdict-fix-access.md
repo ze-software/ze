@@ -478,7 +478,7 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-C1 | Done | the "Derived listing" filter at HEAD, 2026-10-11, returns RFC2866-5.5-1, RFC3579-3.3-2, RFC5176-2.3-2 (all weak), each named in an AC row of `plan/immediate/spec-radius-rfc-defects.md` (RFC2866-5.5-1 also in `spec-lifecycle-invariants.md`) | |
+| AC-C1 | Done | the "Derived listing" filter at HEAD, 2026-10-11, returns RFC2866-5.5-1, RFC3579-3.3-2, RFC5176-2.3-2 (all weak), each named in an AC row of `spec-radius-rfc-defects` (closed 2026-10-20) (RFC2866-5.5-1 also in `spec-lifecycle-invariants.md`) | |
 | AC-C2 | Done | 121 verdicts moved to `enforced` since `174862502f`; every tagged unit carries a record (script over audit and record files, 2026-10-11: 0 unrecorded) | record sweep after the 2026-10-01 strict reading; judge independence per commit is in QUEUE.md and is the reviewer's to confirm |
 | AC-C3 | Done | rfc5176 split rows `8c68fcf514`, RFC1994-4.2-5 row `4e55b63ea6`, RFC2866 table split `10b1ef1ebb` | reviewer to re-walk the split table |
 | AC-C4 | Done | the three blocked verdicts are in `spec-radius-rfc-defects` | |
@@ -496,7 +496,7 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 ## Work Not Done
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| RFC2866-5.5-1, RFC3579-3.3-2, RFC5176-2.3-2 | producer defects (P-3) | `plan/immediate/spec-radius-rfc-defects.md` |
+| RFC2866-5.5-1, RFC3579-3.3-2, RFC5176-2.3-2 | producer defects (P-3) | `spec-radius-rfc-defects`, closed 2026-10-20 with all three verdicts `enforced` |
 | OPEN GATE: interop over the wire-visible D-8 fixes | no run after the D-8 commits is recorded, and the existing scenarios are happy paths (round-1 review ISSUE-2 to ISSUE-4) | this spec, before closure, worked separately. The gate needs the new named scenarios `l2tp-unknown-mandatory-avp-xl2tpd`, `pppoe-chap-rechallenge-ze-client`, `pppoe-peer-terminate-ze-ac`, `radius-coa-disconnect-freeradius` and `l2tp-radius-framed-protocol-reject`, each with a recorded forced red; a pass over HEAD of the existing `01-ppp-ipv4`, `03-ze-lac-xl2tpd-lns`, `04-radius-acct-attrs`, `01-pppoe-chap-ipv4`, `02-ze-ac-pppd-client` and `radius-admin-eap-freeradius`; and every run's log kept |
 | OPEN GATE: `./le verify worktree` | `./le verify status check` (2026-10-11) prints STALE: the last verify failed (exit=1, at 2026-10-05T10:05:53Z), and the run needs a quiet machine | this spec, before closure, worked separately. The gate needs one `./le verify worktree` run over a HEAD that carries this child's commits, on a machine running no other test, VM or Docker lab, that exits 0 so `./le verify status check` reports FRESH |
 

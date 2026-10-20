@@ -190,8 +190,9 @@ func serverPeerConfig(root, container string) interoplab.PeerConfig {
 		// scenario names what the server saw.
 		Command: []string{"radiusd", "-f", "-X"},
 		Ready: &interoplab.ReadyProbe{
-			// 0714 is 1812, the one port ze sends both kinds of request to.
-			Command:  []string{"sh", "-c", "grep -q ':0714 ' /proc/net/udp"},
+			// 0714 is 1812, the authentication listener, and 0715 is 1813,
+			// the accounting listener (site-default).
+			Command:  []string{"sh", "-c", "grep -q ':0714 ' /proc/net/udp && grep -q ':0715 ' /proc/net/udp"},
 			Timeout:  90 * time.Second,
 			Interval: time.Second,
 		},
@@ -210,7 +211,12 @@ func zePeerConfig(source interoplab.ScenarioSource, container string) interoplab
 		Capabilities: []string{netAdminCapability},
 		Arguments:    interoplab.PPPDeviceArguments(),
 		Environment: []interoplab.EnvironmentVariable{
-			{Name: "ZE_LOG_LEVEL", Value: "debug"},
+			// checkCoADuplicate counts coa.go's Info line "coa: disconnected
+			// session", and the default level is WARN. The subsystem is the
+			// plugin name with dots (plugin.CanonicalSubsystemName), so the key
+			// is ze.log.l2tp.auth.radius; ZE_LOG_LEVEL names a subsystem
+			// called "level" and leaves the plugin at WARN.
+			{Name: "ze.log.l2tp.auth.radius", Value: "debug"},
 			{Name: "ze.l2tp.ncp.enable-ipv6cp", Value: "false"},
 			{Name: "ze.l2tp.ncp.ip-timeout", Value: "15s"},
 			{Name: "ze.l2tp.auth.timeout", Value: "15s"},

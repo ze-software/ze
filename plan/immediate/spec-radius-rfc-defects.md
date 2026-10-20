@@ -5,9 +5,9 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 6/7 |
+| Phase | 7/7 |
 | Handoff | - |
-| Updated | 2026-10-14 |
+| Updated | 2026-10-20 |
 
 **Dependencies:** `plan/immediate/spec-rfc5176-remaining-defect-classes.md` lands after this spec (its R-6); its S-1 deletes `coa.go::findSessions`, so the "tunnelID-sessionID-" prefix contract this spec preserves (R-5, AC-3c, `TestRFC2866AcctSessionIDKeepsTunnelSessionPrefix`) ends there.
 
@@ -176,13 +176,13 @@ is not identity"); this spec owns the restart half only.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | No Ze builder emits ARAP-Password (70), so D1 changes no request Ze sends | grep of `radius.Attr{Type:` in `authradius/*.go`, `radius/*.go`; `dict.go` declares no ARAP constant | D1 would refuse a live login | grep at implementation, plus the full `internal/component/radius` and `authradius` package tests | confirmed 2026-10-14: no non-test `Type: 70` or ARAP attribute in `internal/component/`; both package tests green after D1 |
-| A-2 | A legitimate CoA retransmission keeps its Request Authenticator | RFC 5176 Section 2.3, quoted under Required Reading | (B) would miss duplicates from a client that re-signs | the RFC text; interop retransmission by `radclient` | unvalidated |
+| A-2 | A legitimate CoA retransmission keeps its Request Authenticator | RFC 5176 Section 2.3, quoted under Required Reading | (B) would miss duplicates from a client that re-signs | the RFC text; interop retransmission by `radclient` | confirmed 2026-10-20: `radius-coa-duplicate-freeradius` passed (`./le test integration interop-radius-subscriber`, "2 passed, 0 failed"); its `judgeCapture` (`internal/le/interoplab/radiussubscriber/checkers.go`) requires at least two copies of the retransmitted Disconnect-Request in ze's tcpdump capture and refuses any copy whose source port, Identifier or Request Authenticator differs from the first, so FreeRADIUS 3.2.7 `radclient -r 5 -t 2` retransmits with the same Identifier and Authenticator from its own socket |
 | A-3 | The only consumer of the Acct-Session-Id format is `findSessions` (prefix) | grep of `acctSessID` / `AttrAcctSessionID` in `authradius`; `.ci` files and docs assert no format. `coa.go::findSubscriberSession` also reads an Acct-Session-Id, but it compares against the subscriber registry's `AcctSessionID` (`l2tp-T-S` from `subscriber_bridge.go` line 72, or the PPPoE id), which never holds the accountant's id, so it consumes no part of this format; that mismatch is S-2 of `spec-rfc5176-remaining-defect-classes` | a changed format breaks a consumer | grep at implementation; `test/l2tp/radius-acct-wire.ci` and `radius-coa-listener.ci` still pass | confirmed by grep 2026-10-14: the id is written once (`acct.go::onSessionIPAssigned`, `buildAcctPacket`) and read by `coa.go::findSessions` (prefix) and `findSubscriberSession` (registry, not this format); no `test/l2tp/*.ci` asserts the format. Both `.ci` pass, 2026-10-14 over the working tree after `0c7c145b54`: `radius-coa-listener` via `./le test l2tp radius-coa-listener` (PASS, 15.8s); `radius-acct-wire` declares `needs-linux caps=net-admin`, so it skips on the host and was run in the QEMU guest via `./le test qemu run ... command '... le test qemu all-tests test test/l2tp/radius-acct-wire.ci'` (PASS, 68.2s, "QEMU VM: PASS"). The runner carried another session's uncommitted `internal/test/runner` hunks |
-| A-4 | FreeRADIUS `radclient` can set the request Identifier (`-i`) and send from distinct processes (distinct source ports) | FreeRADIUS v3 `radclient` usage, not yet read from the pinned image | the interop duplicate/non-duplicate halves need a raw sender beside radclient | `radclient -h` inside the pinned image | broken 2026-10-20: `docker run --rm --entrypoint radclient docker.io/freeradius/freeradius-server:3.2.7 -h` lists `-4 -6 -b -c -d -D -f -F -h -n -p -q -r -s -S -t -v -x -P` and no `-i`, so radclient cannot set the Identifier; distinct processes still give distinct ports. `checkers.go::retransmittedDisconnect` and `radclient` pass `-i 7`, which this radclient does not accept. Half (1) of `radius-coa-duplicate-freeradius` needs the raw sender this row's "If wrong" column names. Fallback chosen 2026-10-20: `-i` removed from both radclient calls; half (1) sends one Disconnect-Request with radclient, reads the octets ze received from the running tcpdump capture (`checkers.go::lastDisconnect`, UDP-length bounded in `radiusOfFrame`), and replays them byte for byte from a bash process in the FreeRADIUS container (`replayScript`: `exec 3<>/dev/udp/172.26.0.2/3799`, `\xHH` printf, the answer's Code via `dd`/`od`), so the second client has radclient's Identifier and Authenticator from a new port; `judgeCapture` now requires the two clients' octets equal and the ports different. bash, dd, od and timeout confirmed present in the pinned image (`docker run --entrypoint bash ... command -v`), and bash printf emits `\x00` |
-| A-8 | FreeRADIUS takes ze's Access-Requests and Accounting-Requests on one `listen { type = auth+acct }` UDP listener, so ze's one-port server entry reaches both (`test/interop-radius-subscriber/site-default`, interop.md "The FreeRADIUS subscriber suite") | lab design 2026-10-14, never run | accounting never reaches the server: no detail record, no Acct-Session-Id for either scenario | first lab run | broken 2026-10-20: FreeRADIUS 3.2.7 logged `Receive - Invalid packet code 4 sent to authentication port from client ze-lns` for ze's Accounting-Request on 1812 while it accepted the Access-Request there; ze logged `accounting start failed ... radius: all servers unreachable`. Producer on ze's side: `radius.Client.SendToServers` (`internal/component/radius/client.go`) sends every code to `Server.Address`, one host:port per entry, while RFC 2866 Section 3 says the accounting packet goes where "the UDP Destination Port field indicates 1813 (decimal)". Owner decision owed: how ze names an accounting port |
+| A-4 | FreeRADIUS `radclient` can set the request Identifier (`-i`) and send from distinct processes (distinct source ports) | FreeRADIUS v3 `radclient` usage, not yet read from the pinned image | the interop duplicate/non-duplicate halves need a raw sender beside radclient | `radclient -h` inside the pinned image | broken 2026-10-20: `docker run --rm --entrypoint radclient docker.io/freeradius/freeradius-server:3.2.7 -h` lists `-4 -6 -b -c -d -D -f -F -h -n -p -q -r -s -S -t -v -x -P` and no `-i`, so radclient cannot set the Identifier; distinct processes still give distinct ports. `checkers.go::retransmittedDisconnect` and `radclient` pass `-i 7`, which this radclient does not accept. Half (1) of `radius-coa-duplicate-freeradius` needs the raw sender this row's "If wrong" column names. Fallback chosen 2026-10-20: `-i` removed from both radclient calls; half (1) sends one Disconnect-Request with radclient, reads the octets ze received from the running tcpdump capture (`checkers.go::capturedRequest`, which waits for the datagram at the index the capture held before radclient sent, UDP-length bounded in `radiusOfFrame`), and replays them byte for byte from a bash process in the FreeRADIUS container (`replayScript`: `exec 3<>/dev/udp/172.26.0.2/3799`, `\xHH` printf, the answer's Code via `dd`/`od`), so the second client has radclient's Identifier and Authenticator from a new port; `judgeCapture` now requires the two clients' octets equal and the ports different. bash, dd, od and timeout confirmed present in the pinned image (`docker run --entrypoint bash ... command -v`), and bash printf emits `\x00`. Fallback validated 2026-10-20: `radius-coa-duplicate-freeradius` passed with the replay (ze answered the replayed octets Disconnect-NAK, and `judgeCapture` found the two clients' datagrams byte-equal from two ports); the row stays `broken` because the assumption as written (`-i`) is false |
+| A-8 | FreeRADIUS takes ze's Access-Requests and Accounting-Requests on one `listen { type = auth+acct }` UDP listener, so ze's one-port server entry reaches both (`test/interop-radius-subscriber/site-default`, interop.md "The FreeRADIUS subscriber suite") | lab design 2026-10-14, never run | accounting never reaches the server: no detail record, no Acct-Session-Id for either scenario | first lab run | broken 2026-10-20: FreeRADIUS 3.2.7 logged `Receive - Invalid packet code 4 sent to authentication port from client ze-lns` for ze's Accounting-Request on 1812 while it accepted the Access-Request there; ze logged `accounting start failed ... radius: all servers unreachable`. Producer on ze's side: `radius.Client.SendToServers` (`internal/component/radius/client.go`) sends every code to `Server.Address`, one host:port per entry, while RFC 2866 Section 3 says the accounting packet goes where "the UDP Destination Port field indicates 1813 (decimal)". Owner decision owed: how ze names an accounting port. Resolved 2026-10-20: owner chose Q-8 "A", commit b0f097d650 (server leaf `accounting-port`, default 1813), and `site-default` listens `type = auth` on 1812 and `type = acct` on 1813; both scenarios then passed |
 | A-5 | Every test that sends the same CoA wire twice is among the four listed under "Tagged tests that change" | grep of `replay\|duplicate` in `authradius/*_test.go` | an unlisted test goes red or turns vacuous | full `authradius` package test after the key change, and a grep for tests calling a send helper twice with one wire | confirmed 2026-10-14: no other `authradius` test asserts a duplicate or cache answer; the package test is green after the key change |
 | A-6 | `crypto/rand.Read` cannot fail on Go 1.27 | go.mod `go 1.27.2`; since Go 1.24 `crypto/rand.Read` does not return an error | a failure would mint a constant tag | Go release notes at implementation | confirmed 2026-10-14: `$GOROOT/src/crypto/rand/rand.go` line 44, "Read calls [io.ReadFull] on [Reader] and crashes the program irrecoverably if" an error is returned; `acctBootRandom` keeps a `BUG` panic on the unreachable error |
-| A-7 | The first `genSessionID` runs after the NTP plugin's Phase 1 has restored the saved clock, on a box that runs ze's NTP | the first id is minted at the first `SessionIPAssigned` (`acct.go::onSessionIPAssigned`), which needs a tunnel, a session and PPP address assignment after plugin start; no code orders it after `ntp.go::syncWorker.run` Phase 1 | the time part reads the kernel boot clock for that one boot; uniqueness still holds through the random half (AC-3d) | read the plugin start order at implementation; the claim the spec makes stays "at least the restored clock in practice", never a guarantee | unvalidated |
+| A-7 | The first `genSessionID` runs after the NTP plugin's Phase 1 has restored the saved clock, on a box that runs ze's NTP | the first id is minted at the first `SessionIPAssigned` (`acct.go::onSessionIPAssigned`), which needs a tunnel, a session and PPP address assignment after plugin start; no code orders it after `ntp.go::syncWorker.run` Phase 1 | the time part reads the kernel boot clock for that one boot; uniqueness still holds through the random half (AC-3d) | read the plugin start order at implementation; the claim the spec makes stays "at least the restored clock in practice", never a guarantee | broken as an ordering, 2026-10-20 (closure reader): `internal/plugins/ntp/register.go::startWorker` calls `syncWorker.start`, which is `go w.run()`, so Phase 1 (`ntp.go::syncWorker.run`, `loadTime`, `setClock`) runs on its own goroutine and nothing orders it before the L2TP subsystem's first `SessionIPAssigned`; the first `genSessionID` follows it only because a tunnel, a session, PPP authentication and IPCP take longer than one store read. The "If wrong" consequence is the designed one and is covered: the time half may read the unrestored clock for that boot, and uniqueness rests on the 64 random bits, proven by `TestRFC2866AcctSessionIDUniqueWhenClockRepeats` (AC-3d, R-8). No published claim rests on the ordering: `docs/guide/l2tp.md` (Acct-Session-Id paragraph) and the `acct.go::mintBootTag` comment claim only that construction precedes the restore |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -373,9 +373,9 @@ Approved by the owner on 2026-10-13 (Q-3, "approve all RFC-tagged test changes";
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | N-A | no config added |
-| YANG validation constraints | N-A | no leaf added |
-| YANG custom validators | N-A | no leaf added |
+| YANG schema (new RPCs/config) | Yes (Q-8, b0f097d650) | leaf `accounting-port` (zt:port, default 1813) in `ze-l2tp-auth-radius-conf.yang` `list server`; the design held no config until Q-8 |
+| YANG validation constraints | Yes (Q-8) | the `zt:port` range; `test/parse/l2tp-radius-accounting-port-range.ci` |
+| YANG custom validators | N-A | none added |
 | CLI commands/flags | N-A | none |
 | CLI grammar (keyword before value) | N-A | none |
 | Editor autocomplete | N-A | none |
@@ -390,7 +390,7 @@ Approved by the owner on 2026-10-13 (Q-3, "approve all RFC-tagged test changes";
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
 | 1 | New user-facing feature, or a feature's scope, evidence or level changed? | No | defect fixes; the L2TP feature's evidence gains interop, which `./le feature report` reads from the scenarios |
-| 2 | Config syntax changed? | No | - |
+| 2 | Config syntax changed? | Yes (Q-8, b0f097d650) | `docs/guide/l2tp.md` (RADIUS server example and paragraph), `docs/config-reference.md` ("L2TP RADIUS server ports"), `docs/architecture/l2tp/bng-1-radius-attributes.md` |
 | 3 | CLI command added/changed? | No | - |
 | 4 | API/RPC added/changed? | No | - |
 | 5 | Plugin added/changed? | No | behavior inside `authradius` only |
@@ -486,3 +486,145 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code: RFC 
 
 ### Verification
 - [ ] `./le verify worktree`
+
+## Implementation Summary
+
+### What Was Implemented
+- D1 (2423bf8fc3): `internal/component/radius/client.go::oneCredentialType` refuses ARAP-Password (literal 70) beside any other credential type; `dict.go` declares no ARAP constant.
+- D2 (1dbb298e5b): `internal/component/l2tp/plugins/authradius/coa.go::replayKey` keys on source address and port plus Identifier; the Request Authenticator lives in the entry and a different one replaces it (Q-2 B).
+- D3 (77436ce507): `acct.go::genSessionID` writes tunnel-session-tag-counter; `mintBootTag` runs once at the first `genSessionID`, 8 hex digits of Unix seconds and 64 random bits (Q-1 c).
+- Verdicts and discrimination (8b270a61f0): RFC3579-3.3-2, RFC5176-2.3-2, RFC2866-5.5-1 rejudged `enforced` by a reader who did not write the tests.
+- Lab (cda0cc914c, abe8072e81): `interop-radius-subscriber` with the shared `/dev/ppp` preflight in `internal/le/interoplab/pppdevice.go`.
+- Q-8 (b0f097d650, owner "A"): server leaf `accounting-port`, default 1813; the accountant gets its own client on the accounting list.
+- Closure commit: the lab fixes that made both scenarios run and pass (`checkers.go::capturedRequest`, `replay`, `replayScript`, `replyCode`; `radiusOfFrame` bounded by the UDP length; split auth/acct listeners in `site-default`; `redial = no` in `xl2tpd.conf`; `ze.log.l2tp.auth.radius=debug` in `radiussubscriber.go::zePeerConfig`), and the RFC2866-4.1-1 verdict rejudged by the closure reader.
+
+### Bugs Found/Fixed
+- Ze sent Accounting-Request to the authentication port (A-8): fixed by Q-8, covered by `TestAccountingRequestGoesToTheAccountingPort` and both scenarios.
+- Lab: `ZE_LOG_LEVEL=debug` names a subsystem called "level", so authradius stayed at WARN and the teardown count read nothing. Fixed in the lab; the same key elsewhere is a journal row (`plan/journal/silent-fall-through.md`).
+- Lab: the replayed datagram was read from the capture before tcpdump had written it; `capturedRequest` waits for the index. Lab: xl2tpd redialled after ze's teardown, so the checker read a session it never asked for; `redial = no`.
+
+### Documentation Updates
+- `docs/architecture/testing/interop.md`, "The FreeRADIUS subscriber suite": listeners, accounting-port, the replay, `redial = no`, the log key, the pass and both reds, with source anchors for `site-default`, `xl2tpd.conf`, `replayScript`, `capturedRequest`. Closure corrected the red description ("keyed on the address alone" was false: the Identifier stays in the key).
+- `docs/guide/l2tp.md` (Acct-Session-Id paragraph, duplicate key, RADIUS server example with `accounting-port`) and `docs/config-reference.md` "L2TP RADIUS server ports": committed in 77436ce507, 1dbb298e5b and b0f097d650.
+- `./le doc check verify` rc 1 on two foreign findings only: the `show bgp peer detail` catalog drift and the `caseInEffect` source anchor in `docs/architecture/hub-architecture.md`. Neither names a file of this spec.
+
+### Deviations from Plan
+- Q-8 added a config leaf, which the plan did not hold (Integration Checklist and Documentation row 2 updated).
+- `radius-coa-duplicate-freeradius` half (1) replays radclient's captured octets from a bash process instead of a second radclient with `-i` (A-4 broken).
+- FreeRADIUS listens auth on 1812 and acct on 1813 instead of one `auth+acct` listener (A-8 broken).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-4: the pinned radclient sets the Identifier with `-i` | radclient 3.2.7 has no `-i` | `radclient -h` in the pinned image | replay of captured octets; scenario passed |
+| assumption | A-8: one `auth+acct` UDP listener takes both codes, and one port per server entry suffices | FreeRADIUS refuses code 4 on the auth port; RFC 2866 Section 3 names 1813 | first lab run, 2026-10-20 | owner Q-8 "A", b0f097d650 |
+| assumption | A-7: the first `genSessionID` runs after NTP Phase 1 | Phase 1 runs on its own goroutine, unordered | closure read of `ntp/register.go::startWorker` | none needed: AC-3d covers the consequence; no claim relied on it |
+| approach | a lab read the capture right after radclient answered | tcpdump writes after ze reads; the read was one datagram short | run4 failure | `capturedRequest` waits for the index |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| D1 | Done | `internal/component/radius/client.go::oneCredentialType` | 2423bf8fc3 |
+| D2 | Done | `internal/component/l2tp/plugins/authradius/coa.go::replayKey` | 1dbb298e5b |
+| D3 | Done | `internal/component/l2tp/plugins/authradius/acct.go::genSessionID`, `mintBootTag` | 77436ce507 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1, AC-1a..1e | Done | `TestAccessRequestRefusesTwoCredentialTypes`, `TestRFC3579EachCredentialTypeAloneEncodes`, `TestRFC3579ARAPBesideEAPIsRefusedAtExchange`, `TestRFC2869EAPBesideAnotherCredentialIsRefused`, `TestRFC2869EAPOnlyAccessRequestIsSent`, `TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService` | |
+| AC-2, AC-2a..2d, 2f | Done | `TestRFC5176DuplicateIsSameSourcePortAndIdentifier`, `TestRFC5176DifferentSourcePortIsNotADuplicate`, `TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh`, `TestRFC5176DuplicateAndTimestampWindowsBoth*`; interop `radius-coa-duplicate-freeradius` | |
+| AC-3, AC-3a..3f | Done | `TestRFC2866AcctSessionIDUniqueAcrossRestart`, `...KeepsTunnelSessionPrefix`, `...UniqueWhenClockRepeats`, `...TagCarriesBootTime`, `TestDisconnectReplayReturnsCachedResponse`; interop `radius-acct-restart-freeradius` | |
+| AC-4 | Done | `rfc/audit/rfc3579.json`, `rfc5176.json`, `rfc2866.json`: all three `enforced` | rejudged 8b270a61f0 |
+| AC-5 | Done | `./le rfc check`: no violation names rfc3579, rfc2869, rfc5176 or rfc2866 | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every unit in "Unit Tests" and "Tagged tests that change" | Done | `internal/component/radius/`, `internal/component/l2tp/plugins/authradius/` | all PASS, `scratch/close-ac.log` 2026-10-20 |
+| `radius-coa-duplicate-freeradius`, `radius-acct-restart-freeradius` | Done | `test/interop-radius-subscriber/scenarios/` | pass and forced reds under Goal Validation |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `client.go`, `coa.go`, `acct.go`, tests, `rfc/discrimination/*`, `rfc/audit/*` | Done | phases 1-5 commits |
+| `internal/le/interoplab/pppdevice.go` (shared `/dev/ppp`), `l2tp.go`, `pppoe.go` | Done | cda0cc914c; no `pppDeviceArguments` or `parsePreflight` left in either lab |
+| `internal/le/interoplab/radiussubscriber/`, `test/interop-radius-subscriber/` | Done | cda0cc914c plus this closure's fixes |
+| `docs/guide/l2tp.md`, `docs/architecture/testing/interop.md` | Done | |
+
+### Audit Summary
+- **Total items:** 3 defects, 6 AC groups, 2 scenarios
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| D1: no Access-Request leaves Ze with two credential types | unit at the public entry point + discrimination | `TestRFC3579ARAPBesideEAPIsRefusedAtExchange` through `Client.Exchange`, zero datagrams; records in `rfc/discrimination/rfc3579.json` verify under `./le rfc check`. No wire peer: Ze builds no ARAP (A-1) |
+| D2: the DAS detects duplicates on source IP, source port and Identifier | interop against FreeRADIUS 3.2.7 radclient | `./le test integration interop-radius-subscriber` "interop: 2 passed, 0 failed" (run7, 2026-10-20); forced red with `replayKey` writing port 0: "ze answered Code 41, want a fresh Disconnect-NAK (42), not the first client's cached answer" (`radsub-red-coa.log`) |
+| D3: Acct-Session-Ids do not repeat across a restart in the server's log | interop, FreeRADIUS detail file | same run7 pass; forced red with `genSessionID` writing "T-S-N": "Acct-Session-Id "1702-33224-1" before the restart carries no boot tag" (`radsub-red-acct.log`); same-(T,S) case by AC-3a/3d units |
+| AC-4 | independent audit | three verdicts `enforced` (jq over `rfc/audit/`, 2026-10-20) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none in scope | the `findSessions` stale-id prefix (Known Limitations) was moved out by Q-6 before implementation | `plan/immediate/spec-rfc5176-remaining-defect-classes.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/radius-rfc-defects-dc676f37-dfa7-4fc5-82f7-41a7eda9292e.md` |
+| `./le spec review check` | clean: "OK (3 code files, clean, hashes match)" |
+| Rounds | 2 |
+| Reviewer lenses used | wiring (every new checker function called from `checkCoADuplicate`), logic and races (capture index, UDP-length bound, bash replay quoting), style pass over the three Go files (no `panic`, every wait bounded by `s.timeout`), docs against producers, RFC verdict rejudge |
+
+Closure reader: independent of every phase; authored none of the diff.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | the red description said `replayKey` was "keyed on the address alone"; the red wrote port 0 and kept the Identifier | `docs/architecture/testing/interop.md`, subscriber suite | reworded to "writing port 0 into the key, so blind to the source port" |
+
+NOTEs (no fix owed): the pre-radclient `readCapture` in `checkCoADuplicate` can race the capture like the post-read did, but a short count picks a retransmission copy and `judgeCapture` then refuses (fails red, never green), and the second session's Start precedes it by seconds; `replayScript` relies on bash's printf writing one datagram, true for a Disconnect-Request well under 4 KiB; the spec's Integration and Documentation rows said no config changed, corrected for Q-8.
+
+Run 2: 0 BLOCKER, 0 ISSUE.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/interoplab/radiussubscriber/{checkers,radiussubscriber,register_catalog}.go`, `test/interop-radius-subscriber/scenarios/{radius-acct-restart-freeradius,radius-coa-duplicate-freeradius}/ze.conf`, `internal/le/interoplab/pppdevice.go`, `internal/component/radius/rfc3579_credential_types_test.go`, `test/l2tp/radius-coa-listener.ci`, `test/l2tp/radius-acct-wire.ci` | yes | `ls` 2026-10-20 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-3 | units pass | `./le job run label closeac command go test -race -count=1 -v -run ...` over radius, authradius, radiussubscriber: 32 named tests PASS, three packages ok |
+| AC-4 | verdicts | jq: RFC3579-3.3-2, RFC5176-2.3-2, RFC2866-5.5-1, RFC2866-4.1-1 all `enforced` |
+| AC-5 | records verify | `./le rfc check`: 5 violations, all foreign (rfc1997, rfc4301 x3, rfc8955) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| CoA on UDP 3799, `SessionIPAssigned`, `Client.Exchange` | no `.ci` (Functional Tests explains); interop scenarios drive the real daemon | run7 pass, reds observed |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1, A-3, A-5, A-6 | confirmed | rows above, 2026-10-14 |
+| A-2 | confirmed | `judgeCapture` over radclient's retransmissions, run7 |
+| A-4, A-8 | broken | rows above; fallback and Q-8 validated by run7 |
+| A-7 | broken (ordering), consequence covered | `ntp/register.go::startWorker` starts `go w.run()`; AC-3d |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| interop.md subscriber suite | `checkers.go::checkCoADuplicate`, `replayScript`, `capturedRequest`; `site-default` listeners; `xl2tpd.conf` `redial = no`; `radiussubscriber.go::zePeerConfig` | yes |
+| config syntax (accounting-port) | `docs/config-reference.md` "L2TP RADIUS server ports"; `docs/guide/l2tp.md` RADIUS server example | yes |

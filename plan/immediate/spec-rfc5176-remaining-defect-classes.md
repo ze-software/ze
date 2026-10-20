@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | design |
 | Scope | protocol |
-| Depends | `plan/immediate/spec-lifecycle-invariants.md` (applied-result contract, AC-3/AC-4; gates AC-8 only); `plan/immediate/spec-radius-rfc-defects.md` (D2 replay key and D3 Acct-Session-Id format touch the same files; that spec lands first, R-6) |
+| Depends | `plan/immediate/spec-lifecycle-invariants.md` (applied-result contract, AC-3/AC-4; gates AC-8 only); `spec-radius-rfc-defects` (closed 2026-10-20; its D2 replay key and D3 Acct-Session-Id format touched the same files, R-6) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-14 |
