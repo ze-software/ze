@@ -77,10 +77,16 @@ interface {
 EOF_GLOBAL
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=leaf:exit=1
-cmd=foreground:seq=2:exec=ze config validate -:stdin=profile:exit=1
-cmd=foreground:seq=3:exec=ze config validate -:stdin=global:exit=1
 expect=exit:code=1
 expect=stdout:contains=ipv4 proxy-arp true on this unit
+expect=stdout:contains=Section 8.1.3
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=profile:exit=1
+expect=exit:code=1
 expect=stdout:contains=sysctl-profile proxy on this unit
+expect=stdout:contains=Section 8.1.3
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=global:exit=1
+expect=exit:code=1
 expect=stdout:contains=sysctl setting net.ipv4.conf.all.proxy_arp 1
 expect=stdout:contains=Section 8.1.3
