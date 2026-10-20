@@ -439,6 +439,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | NLRI FlowSpec | `docs/architecture/wire/nlri-flowspec.md` |
 | NLRI qualifiers | `docs/architecture/wire/qualifiers.md` |
 | MP NLRI ordering | `docs/architecture/wire/mp-nlri-ordering.md` |
+| NLRI receive validation, per-family syntax rule (`internal/core/bgp/nlri/nlrisyntax`) | `docs/architecture/wire/nlri.md`, "NLRI Receive Validation: the Per-Family Syntax Registry" |
 | UPDATE packing | `docs/architecture/wire/update-packing.md` |
 | Buffer writer | `docs/architecture/wire/buffer-writer.md` |
 | Attributes | `docs/architecture/wire/attributes.md` |
