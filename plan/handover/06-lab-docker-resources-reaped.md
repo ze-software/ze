@@ -868,3 +868,13 @@ Gates owed: scoped `./le go lint run` over `internal/le/test/deployment`, `inter
 Still open in the journal row: `l2tp-ppp`, `l2tp-scale`, qemu hugepages, `yangcontract`. `test qemu run` and `stress` pass Background to `buildGuestLe` (their root is taken after the build, as before). `TestTheTreesTheLintLabelIgnoresHoldNoGoFile` (job) is red on this checkout for a foreign `backups/*.go` file.
 
 Gates owed: scoped `./le go lint run` over `internal/le/job`, `internal/le/test/qemu`, `internal/le/test/deployment`, `internal/le/build/compile`, `internal/le/setup/dockerkernel`; `./le verify current` over `394c13cae9..611e4af144`.
+
+### Rounds 9 and 10, and where the spec stands (2026-10-20)
+
+Round 9 found 7 ISSUEs; fixed in `dad7488236`, `b09c43e229` (gokrazy build group kill; no verdict on a stopped gokrazy run), `8c610178c9` (`setup docker-kernel install` signal root; sudo steps stopped by SIGTERM), `5b563d0658`, `2986e6acb9`, `b5a2c8ac3a`, `ae9b46711e` (RunContext tests, docker-lab stop wording, check-build root test). Round 10 (owner-authorised, limited to those seven) returned 0 BLOCKER 0 ISSUE; recorded CLEAN at rounds 10 over the 63 files of the 23 G-2 fix commits (`081d93a502`..`8c610178c9`), `./le spec review check` OK. Round 10 NOTEs N2 and N6 are rows in `plan/journal/stop-leaves-the-work-running.md`.
+
+What still holds the spec open, unchanged by these rounds:
+- The first nightly `docker-peers` / `live-rpki` run id (AC-25): the jobs are on `origin/main`, but no scheduled run has carried them yet, and every local commit since is unpushed because `./le commit create ... push` refuses while verification-debt rows are open.
+- The full suites (`./le go lint run`, `./le test unit all`, `./le test functional gating`, `./le verify`): the owner reserved them to another session; verify is STALE since 2026-10-19T14:57Z.
+- The Mac checks and the VPP Ctrl-C proofs live in `plan/spec-lab-docker-cleanup-on-macos.md`; vhost-net and lab kernel features in `plan/spec-lab-kernel-features-in-setup.md`.
+- Owner decision still open: the `plan/spec-lab-kernel-features-in-setup.md` bucket (`plan/` vs `plan/pre-release/`).
