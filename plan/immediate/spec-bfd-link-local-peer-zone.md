@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | 5/5 |
 | Handoff | - |
-| Updated | 2026-10-15 |
+| Updated | 2026-10-20 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -372,8 +372,8 @@ the contract, modelled on `bfd-first-packet-pktinfo-v6.ci`):
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bfd-link-local-frr` | `test/interop/scenarios/bfd-link-local-frr/` (`ze.conf`, `frr.conf`) | FRR bfdd | AC-9: a BFD-plugin-pinned link-local single-hop session reaches Up against FRR, each side's discriminator learned from the other's packets. Acceptance evidence, not discrimination (R-2) | written; the harness run is owed on the Linux host (Phase 5 note: blocked on macOS) |
-| `bfd-link-local-two-links-frr` (owner decision 2026-10-15: add) | `test/interop/scenarios/bfd-link-local-two-links-frr/` (`ze.conf`, `frr.conf`; prestarts in `internal/le/interoplab/bgp/prepare_bfd_link_local.go`) | FRR bfdd | AC-21: two sessions to one link-local address on two links each come Up on their own link with crossed discriminators; DISCRIMINATES the receive side (`reconcileZone`, because Ze's Your-Discriminator-zero sends are dropped) and the send side (`sendZone` + `pinsToLink`, because the socket is unbound) | written; colima smoke (not evidence) green, and Down under each break; the harness green and both reds are owed on the Linux host (Phase 5 note) |
+| `bfd-link-local-frr` | `test/interop/scenarios/bfd-link-local-frr/` (`ze.conf`, `frr.conf`) | FRR bfdd | AC-9: a BFD-plugin-pinned link-local single-hop session reaches Up against FRR, each side's discriminator learned from the other's packets. Acceptance evidence, not discrimination (R-2) | green on the Linux host 2026-10-20 (`interop: [1/1] bfd-link-local-frr: pass (12s)`), and still green under each revert (acceptance, as R-2 states); Goal Validation |
+| `bfd-link-local-two-links-frr` (owner decision 2026-10-15: add) | `test/interop/scenarios/bfd-link-local-two-links-frr/` (`ze.conf`, `frr.conf`; prestarts in `internal/le/interoplab/bgp/prepare_bfd_link_local.go`) | FRR bfdd | AC-21: two sessions to one link-local address on two links each come Up on their own link with crossed discriminators; DISCRIMINATES the receive side (`reconcileZone`, because Ze's Your-Discriminator-zero sends are dropped) and the send side (`sendZone` + `pinsToLink`, because the socket is unbound) | green, red under each break, green again on the Linux host 2026-10-20; Goal Validation |
 
 Scenario contract, link-local addresses. A scenario opts in to a link-local
 assignment because its files carry the placeholder, never because of its name:
@@ -873,3 +873,157 @@ Quotes read for this design (whole sentences, from `rfc/full/`):
 | 2026-10-14 | owner answers (Thomas: "LDP, BFD, GR, Prefix-SID, accept") | Q-1 to Q-4 answered, every recommendation accepted: Q-1 refuse a zone (AC-7); Q-2 refuse a link-local peer with no `interface` (AC-5); Q-3 (a), the config-surface scope widening approved; Q-4 stays the journal row in `plan/journal/key-omits-a-fact-the-builder-uses.md` (2026-10-13, present). Unchosen text removed: Phase 1's (b) branch; the Q-3 unanswered failure route; (b) and (c) marked rejected. No redesign follows from the answers: the (a) design is complete through round 6. Owed before implementation, design round 7, narrow, by an independent reviewer, over the round-6 edits as round 6 said: the Q-3 (a) row part 3 (rename, copy, `cmdSet`, `materializeMetaPaths`, the key-move record and `splitQuotedTokens`) and part 4 (emitters, `FilterSetByPath`), the walker table rows touched, AC-12, AC-15b, AC-18, `TestKeyMoveRecordRoundTripsQuotedKeys`, the web rename lowercasing removal, Files to Modify, the round-6 restatement. Phase 1 starts only when it is 0 BLOCKER, 0 ISSUE |
 | 2026-10-14 | design round 7 (editing pass over the round-6 scope, every function re-read at the producer; spec only) | Verified at the producer and kept: the web rename handler's two `strings.ToLower` (`handler_config_entry.go` 290, 305) and the add form's at 72 with its journal row in `plan/journal/validator-mutates-forwarded-data.md` (present); `quoteIfNeeded` (`serialize.go` 787) and `readString` (`tokenizer.go` 208) escape and unescape as round 6 said; `cmdRename`/`cmdCopy` read `to` at a fixed position; `Tree.RenameListEntry`/`CopyListEntry` (`tree.go` 905, 938) touch no key leaf. Corrected: (1) the delete-meta walk is at `setparser_meta.go` 520-530, not 442-457 (the inline branch), and the key-only and "nothing follows" tests read the address. (2) Every inline printer and emitter takes an `*InlineListNode`, built only from a YANG container with `ze:syntax "inline-list"` (`yang_schema.go` 1079, only `exabgp.yang`), which has no key leaves: five brace printers and three set-form emitters change, not eight and six. (3) `materializeMetaPaths` cannot split a key without the schema (a single-leaf key may hold a space): it takes `parser.schema` from `ParseChangeFile`. (4) One codec creator writes the pairs into every new entry; `ensureListEntry` (wrongly "no change") and `resolveListNode` (wrongly "schema only", it skips a key with `i++`) join the walker table. (5) The funnel needs `dst []string`, so `contract.Editor` (`cli/contract/contract.go` 156-157), `cmd/ze/hub/editor_adapter.go` and `web/test_factories_test.go` change; the same-key refusal moves from the web handler into the funnel (AC-18). (6) `resolveListTarget` and the web `resolveNamedListEntryPath` are one walk written twice; it becomes one codec function, which `execListEntryOp` also calls, with the schema `executeTerminalNav` holds. (7) `parseKeyMoveLine` takes the first `to`, so a key spelled `to` is refused today; `to` is read at the second-to-last token, and `ParentPath` tokens are quoted too, so a NEW record is exactly inverted by `splitQuotedTokens`. (8) `isListKeyLeafPath` compares the whole `KeyName`; it compares the first key leaf's name. (9) `FilterSetByPath` matches segments (a list address is one segment), with lines split by `splitQuotedTokens`. AC-15b, AC-18, two test rows, Files, cost (33 files) and a round-7 restatement follow. No owner question raised: each correction follows from the owner's (a) and a producer read. Owed before Phase 1: an independent narrow review of these edits (the Q-3 (a) row parts 3 and 4, the walker table rows marked round 7, AC-15b, AC-18, `TestKeyMoveRecordRoundTripsQuotedKeys`, `TestRenameAndCopyOfMultiLeafKeyEntryChangeOnlyTheFirstValue`, Files to Modify and Create, the round-7 restatement), 0 BLOCKER, 0 ISSUE |
 | 2026-10-14 | design round 8 (narrow review of round 7: 2 ISSUE, 2 NOTE; applied under the owner's 2026-10-14 delegation; spec only) | ISSUE-1: the six existing CLI and web test files that call the rename and copy funnel join Files to Modify, and the cost is restated with them (33 production files, 10 existing test files, 6 new config-surface test files, the `.et`). ISSUE-2: the merged target walk's refusals differed by route (web form: keyless anywhere; CLI: only before a child name; web terminal: none, each read at the producer); one rule now holds on every route, a rename or copy of a keyless list's entry or of an entry nested under one is refused naming the list (AC-19, two test rows, a "Behaviour changes" table under Blast Radius naming the CLI and web terminal change). NOTE-1: the compatibility sentence now says an old raw record whose single-leaf key holds a space was already misread at HEAD (`parseKeyMoveLine` uses `strings.Fields`), so the quoted format is no regression. NOTE-2: the web add form's `strings.ToLower` of `name` is removed here (AC-20, `TestWebAddKeepsTheCaseOfTheFirstKeyValue`); a "Journal rows this spec closes" section lists that row and the `addParsedListEntry` row. Design converged: Phase 1 may start unless the next review finds a product BLOCKER |
+
+## Implementation Summary
+
+### What Was Implemented
+- Phase 1, Q-3 (a): multi-leaf-key list entries stored and addressed by their canonical full-key address on every config surface (`internal/component/config/list_key.go` codec; commits 163d9a07c8, 98394e78ce, d2f0e2cb08, 48df076059, 113f01bfbc, ae15bdc00a).
+- Phase 2: `parseSingleHopSession` refuses a link-local single-hop peer with no `interface` and a zoned `peer` or `local` (f91c7cd21a).
+- Phase 3: kernel proof fixture and `test/bfd/bfd-first-packet-link-local.ci`, green and three reds in the QEMU guest (5d8c3b7083, 226a6cce01, a578d7c423).
+- Phase 4: `RFC5881-3-2 positive` tags with discrimination records (e707b1c5fe, 3da41a20d6).
+- Phase 5: placeholder-derived link-local assignment, `bfd-link-local-frr`, `bfd-link-local-two-links-frr` with compiled prestarts (34fc08f0d4, 08dd26d6b5, 5f9690b158); harness runs on the Linux host 2026-10-20 (Goal Validation).
+
+### Bugs Found/Fixed
+- None in this closure pass. The harness defects of Phase 3 (teardown barrier, BusyBox `ps -p`) are recorded in Implementation Steps step 3.
+
+### Documentation Updates
+- `docs/architecture/testing/interop.md` "BFD over link-local": the colima smoke sentences replaced by the Linux-host harness results (two-links green and both reds; single-link reverts still green). Anchors unchanged (`check_bfd_link_local.go`, `prepare.go`, `prepare_bfd_link_local.go`).
+- `features/bfd-liveness-detection.md` Interop row gains `bgp/bfd-link-local-frr`, `bgp/bfd-link-local-two-links-frr` (held back until the scenarios passed, Phase 5 note).
+- `plan/journal/validator-mutates-forwarded-data.md` 2026-10-14 row marked fixed by d2f0e2cb08 (AC-20), as "Journal rows this spec closes" requires; the `addParsedListEntry` row was already marked fixed.
+- Earlier phases: `docs/guide/bfd.md`, `docs/architecture/bfd.md` (f91c7cd21a), config and gNMI pages (Phase 1 commits).
+
+### Deviations from Plan
+- The image ID is not one ID across the three Phase 5 runs: each harness build carries run-owned labels (`labelArguments` in `Docker.Build`), so every run has its own image ID. "Same build" is the same tree: HEAD `13f2c2412d`, no tracked change under `internal/` between runs (`git diff --stat -- internal/` empty after each restore).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2: a zoneless link-local send goes out a link the kernel picks | Linux refuses it, `sendmsg: invalid argument` | red (2) of `bfd-first-packet-link-local`, and red 2 of `bfd-link-local-two-links-frr` | AC-5's motive restated (A-2 row) |
+| assumption | A-3: two entries for one peer on two links reach the plugin | the config parser refused the second as a duplicate key | read at `addParsedListEntry` | Q-3 (a), Phase 1 |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| P-1 `.ci` on a real link | Done | `test/bfd/bfd-first-packet-link-local.ci` | QEMU guest green and reds, Functional Tests row |
+| P-2 FRR interop, link-local Up | Done | `bfd-link-local-frr`, `bfd-link-local-two-links-frr` | Goal Validation |
+| P-3 config refusals | Done | `internal/component/bfd/config.go` `parseSingleHopSession` | AC-5, AC-7 |
+| P-4 RFC5881-3-2 tags | Done | `engine/rfc5881_link_local_first_packet_test.go`, `rfc/discrimination/rfc5881.json` | AC-10 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestFirstPacketSelectsALinkLocalPeer`; `.ci` red 1 | |
+| AC-2 | Done | `TestTwoLinkLocalSessionsStayApart`, `TestFirstPacketTakesTheLinkFromTheZone`, `TestTwoLinkLocalSingleHopSessionsParseApart`; `.ci` per-link OK lines | |
+| AC-3 | Done | `TestSendKeepsTheZoneForALinkLocalPeer`; `.ci` captures and reds 2, 3 | |
+| AC-4 | Done | `reconcileZone` in `engine.go`, callers `firstPacketIndex`, `firstPacketObserved` | review check |
+| AC-5, AC-6, AC-6a | Done | `TestSingleHopLinkLocalPeerNeedsInterface`; `test/parse/bfd-link-local-needs-interface.ci` | |
+| AC-7 | Done | `TestSingleHopPeerRefusesAZone`; `test/parse/bfd-link-local-zone-refused.ci` | |
+| AC-8 | Done | unchanged by design | no test owed |
+| AC-9 | Done | `bfd-link-local-frr` green, `checkBFDLinkLocal` crossed discriminators | acceptance |
+| AC-10 | Done | three records in `rfc/discrimination/rfc5881.json` | |
+| AC-11 | Done | `TestEditorSetsTwoEntriesForOnePeerOnTwoInterfaces`; `test/editor/commands/bfd-two-links-one-peer.et` | |
+| AC-12 | Done | `TestSetFormRoundTripKeepsTwoSessionsForOnePeer` | |
+| AC-13 | Done | `TestWebWalkAddressesMultiLeafKeyEntry` | |
+| AC-14 | Done | `TestMultiLeafKeyAbsentLeafComparesAsItsDefault`, `TestEditorMultiLeafKeyAbsentLeafComparesAsItsDefault` | |
+| AC-15, AC-15a | Done | `TestGetSelectsEachOfTwoMultiLeafKeyEntries` | |
+| AC-15b | Done | `TestEditorSetsTwoEntriesForOnePeerOnTwoInterfaces` show subtests | |
+| AC-16 | Done | `TestDiffAfterDeletingTheFirstOfTwoMultiLeafKeyEntries` | |
+| AC-17 | Done | `TestTwoEntriesForOneSessionKeyRefused` | |
+| AC-18 | Done | `TestRenameAndCopyOfMultiLeafKeyEntryChangeOnlyTheFirstValue`, `TestWebRenameOfMultiLeafKeyEntryChangesOnlyTheFirstValue` | |
+| AC-19 | Done | `TestRenameAndCopyRefuseAKeylessListEntry`, `TestWebRenameAndTerminalRefuseAKeylessListEntry` | |
+| AC-20 | Done | `TestWebAddKeepsTheCaseOfTheFirstKeyValue` | |
+| AC-21 | Done | `bfd-link-local-two-links-frr` green, red under each break, green | Goal Validation |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every unit test named in the TDD Plan | Done | files named there | `go test -run` over config, cli, web, gnmi, bfd, interoplab/bgp, fixture, 2026-10-20: every named test `--- PASS`, every package `ok` |
+| `bfd-first-packet-link-local` | Done | `test/bfd/` | QEMU guest only: SKIPs on this host (`needs-linux caps=net-admin,net-raw`) |
+| `bfd-link-local-needs-interface`, `bfd-link-local-zone-refused` | Done | `test/parse/` | `pass 2/2` 2026-10-20 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify and Create | Done | committed in the phase commits listed above; Pre-Commit Verification "Files Exist" |
+
+### Audit Summary
+- **Total items:** 4 requirements, 23 AC rows, 25 tests
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A link-local peer's first packet selects its session on a real kernel | functional | `bfd-first-packet-link-local.ci` green in the QEMU guest and red 1 with `reconcileZone` returning its argument (Functional Tests row) |
+| Two links, one address, two sessions | functional + interop | the `.ci`'s per-link OK lines; `bfd-link-local-two-links-frr` green on the Linux host 2026-10-20: `interop: [1/1] bfd-link-local-two-links-frr: pass (11s)`, ze image `sha256:8ba2f734bf3fc5df78c319a58f0cd9dd8410cc3e71c560fdfba5a1526b865c07`; again after both reds `pass (11s)`, image `sha256:5721493647046b746e2685ae29b68eff9d3415a4475b12a12a7ac3b65fa4f187` |
+| Receive side discriminated against FRR | interop red | `reconcileZone` with `return k` first: `FAIL (1m44s): ... assertion 2: wait for FRR BFD peer up on eth1 timed out`, FRR `"remote-id":0`, `"status":"down"`; Ze logs its Your-Discriminator-zero sends refused (`sendmsg: operation not permitted`, the nft rule). Restored, `git diff --stat` of the producer empty |
+| Ze's packets leave the named link | functional + interop red | `.ci` captures and reds 2, 3; two-links with `sendZone` returning `""` and `pinsToLink` returning false: `FAIL (1m50s): ... assertion 2`, FRR `"remote-id":0` on `eth1`, Ze logging `write udp6 [::]:3784->[fe80::fd00:1e:0:3]:3784: sendmsg: invalid argument`. Restored, producer diff empty |
+| Works with a second implementation | interop | `bfd-link-local-frr`: `interop: [1/1] bfd-link-local-frr: pass (12s)`, image `sha256:9866278efb9327525393aa21b4674ff883e0db2bf14345380187ecaee3d5cfc8`; under `reconcileZone` broken `pass (11s)` (image `sha256:9beb1733...`) and under the send break `pass (11s)` (image `sha256:8de9499b...`): acceptance, as R-2 states. `bgp-rfc2545-linklocal-nexthop-frr`: `pass (14s)`, image `sha256:beb7749b996a7594e5874a7aacd3c93b9c4a2ccb6cf30895b079db5cb1aa68b5`, so the placeholder-derived assignment kept it working. All runs from HEAD `13f2c2412d`, `./le --name bfdll` (fresh le), FRR `quay.io/frrouting/frr:10.3.1` |
+| Misconfiguration is refused, not silently mis-sent | functional | `test/parse` pair `pass 2/2`; `TestSingleHopLinkLocalPeerNeedsInterface`, `TestSingleHopPeerRefusesAZone` red before the refusal (f91c7cd21a) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every requirement and AC is done | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bfd-link-local-peer-zone-d8e7dbbf-89d5-483d-85d8-b379fee975ed.md` (4 files, verdict clean; re-recorded after this edit) |
+| `./le spec review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | closure agent that authored none of the spec's commits: wiring and discrimination of the Phase 5 harness (`check_bfd_link_local.go`, `prepare.go` `prepareScenario`/`renderPrestarts`/`assignLinkLocal`, `prepare_bfd_link_local.go`, `register_bfd_link_local.go`), the AC-5/AC-7 refusal in `parseSingleHopSession`, the reds' producer breaks, and every named test re-run. The Phase 1 config codec (d2f0e2cb08 and siblings, about 60 files) was judged by its named tests, not re-read line by line |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | no BLOCKER or ISSUE | - | - |
+
+Notes (non-blocking): (1) `prepareScenario` returns a prestart refusal before the `scenarioPeers` error it already holds, so a scenario failing both reports the prestart; (2) the link-local wrapper execs `ze` directly rather than under the image's `tini`, as the RFC 2545 wrapper always did; (3) FRR printed `% Can't enter config; running datastore locked by another session` once in the send-break run while its peers were configured.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| Files to Create, every `.ci`/`.et` | yes | `ls` 2026-10-20: `internal/component/bfd/link_local_config_test.go`, `internal/component/config/list_key.go`, `internal/le/interoplab/bgp/prepare_link_local_test.go`, `internal/test/fixture/bfd_fixture_link_local{,_linux,_test}.go`, `test/bfd/bfd-first-packet-link-local.ci`, `test/editor/commands/bfd-two-links-one-peer.et`, `test/parse/bfd-link-local-needs-interface.ci`, `test/parse/bfd-link-local-zone-refused.ci`, `test/interop/scenarios/bfd-link-local-frr/{frr,ze}.conf`, `test/interop/scenarios/bfd-link-local-two-links-frr/{frr,ze}.conf` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-20 | named units pass | `go test -count=1 -run '<the named tests>'` over the seven packages, 2026-10-20: each `--- PASS`, each package `ok` |
+| AC-5, AC-7 | refused via `ze config validate` | `./le test bgp parse ...`: `pass 2/2` |
+| AC-11 | editor keystrokes | `./le test editor 1`: `PASS 1 test/editor/commands/bfd-two-links-one-peer.et` |
+| AC-9, AC-21 | interop | Goal Validation rows |
+| AC-10 | records | `grep -c RFC5881-3-2 rfc/discrimination/rfc5881.json` = 7, the three link-local units among them; `./le rfc check` exits 2 on rows of rfc1997 and rfc2328 (other sessions), no rfc5881 row named |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| config to `parseSingleHopSession` refusals | `test/parse/bfd-link-local-needs-interface.ci`, `bfd-link-local-zone-refused.ci` | run green 2026-10-20 |
+| kernel first packet and send | `test/bfd/bfd-first-packet-link-local.ci` | QEMU guest green and reds (Functional Tests row); SKIP on this host |
+| FRR lab, whole receive and send path | interop `bfd-link-local-frr`, `bfd-link-local-two-links-frr` | run green 2026-10-20 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `.ci` red 1 in the QEMU guest (A-1 row); two-links red 1 on the Linux host |
+| A-2 | broken | `.ci` red 2, and two-links red 2: `sendmsg: invalid argument` (Mistake Log) |
+| A-3 | broken | read at `addParsedListEntry`; fixed by Q-3 (a) (Mistake Log) |
+| A-4 | confirmed | `.ci` OK lines and reds (A-4 row) |
+| A-5 | confirmed | the wrapped FRR start ran in every harness run on the Linux host 2026-10-20, FRR bfdd Up on `eth0`, `eth1`, `eth2` with `local-address` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| interop.md "BFD over link-local" results | the runs quoted in Goal Validation; anchors `check_bfd_link_local.go` symbols exist (`checkBFDLinkLocalTwoLinks`, `checkBFDLinkLocalOn`, `zeLinkLocalLinks`) | yes |
+| feature Interop row | scenario directories under `test/interop/scenarios/` and their checkers in `specialCheckers` | yes |
+| Gates owed to the session that owns them | `./le verify current` / `./le verify worktree`, `./le doc check verify`, `./le go lint run`, `./le test functional gating`: not run by this agent (forbidden here); verify status STALE | owed |

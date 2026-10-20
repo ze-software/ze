@@ -1261,7 +1261,8 @@ Discriminator, and the zone Ze reconciles on a first packet is not what the
 scenario can tell apart. The send side cannot fail here either: every session
 of the loop names `eth0`, so the loop's socket is bound to that device
 (`resolveLoopDevices`) and the kernel puts the packet on `eth0` with no zone
-and no ifindex. Both reverts stayed Up in a smoke run. The discrimination is
+and no ifindex. Both reverts still passed the harness run on the Linux host
+(2026-10-20). The discrimination is
 `test/bfd/bfd-first-packet-link-local.ci` in the QEMU guest, and
 `bfd-link-local-two-links-frr` against FRR.
 
@@ -1287,9 +1288,11 @@ one session per link; FRR one peer per link. Two things make it discriminate:
 The checker reads the links from Ze's own `show bfd sessions` (the interfaces of
 its sessions to FRR's link-local, at least two), then runs the one-link check
 on each: FRR's peer on that link Up, Ze's session on that link Up, and the
-discriminators crossed. A smoke on colima (not evidence) held both Up with the
-code as it is, and both Down with `reconcileZone` returning its key unchanged
-and with `sendZone` returning `""` and `pinsToLink` returning false.
+discriminators crossed. On the Linux host (2026-10-20) the harness run passed
+with the code as it is and failed at assertion 2, FRR's peer on `eth1` still
+`down` with `remote-id` 0, under each break: `reconcileZone` returning its key
+unchanged, and `sendZone` returning `""` with `pinsToLink` returning false
+(Ze then logs `sendmsg: invalid argument` for every send).
 <!-- source: internal/le/interoplab/bgp/check_bfd_link_local.go -- checkBFDLinkLocal, checkBFDLinkLocalTwoLinks, checkBFDLinkLocalOn, zeLinkLocalLinks, zeLinkLocalSession, requireCrossedDiscriminators -->
 <!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioPrestarts, renderPrestarts, assignLinkLocal -->
 <!-- source: test/interop/scenarios/bfd-link-local-frr/ -- ze.conf, frr.conf -->
