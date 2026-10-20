@@ -84,10 +84,10 @@
       "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_8210bis_aspa_record_test.go::TestASPAWithdrawalRemovesTheWholeRecord",
       "unit-sha": "a15d31bee286d74c",
       "claim-sha": "1134fc37315a8dc8",
-      "route": "revert",
+      "route": "mutant",
       "producer": "internal/component/bgp/plugins/rpki/rtr_pdu.go::parseASPAPDU",
       "producer-sha": "b9045da80e13f13a",
-      "break": "body of parseASPAPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "break": "line 196: \"providerBytes != 0\" -\u003e \"false\""
     },
     {
       "rid": "DRAFT-IETF-SIDROPS-8210BIS-7-2",
@@ -117,10 +117,10 @@
       "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_8210bis_version_open_test.go::TestRTRSessionOpensAtTheHighestVersion",
       "unit-sha": "4b8f8d31ce9d1919",
       "claim-sha": "e232fef34d16f732",
-      "route": "revert",
+      "route": "mutant",
       "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
       "producer-sha": "b1ddceb0a1db6a3c",
-      "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "break": "line 611: \"errCode == errUnsupportedVersion\" -\u003e \"true\""
     }
   ]
 }
