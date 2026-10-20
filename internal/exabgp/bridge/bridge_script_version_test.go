@@ -45,6 +45,38 @@ func TestScriptVersionResetsOnStart(t *testing.T) {
 	}
 }
 
+// TestV6TextScriptWarnedOnceByName: a script declared `encoder text` whose
+// first deciding line is v6 reads JSON, and the operator is told so once, in a
+// warning that names the process, however many lines the script then writes.
+//
+// VALIDATES: AC-6 "one warning names the process" (ExaBGP's _adopt_v6).
+// PREVENTS: a silent switch to JSON, a warning per line, or one that does not
+// say which of several processes it is about.
+func TestV6TextScriptWarnedOnceByName(t *testing.T) {
+	var logged strings.Builder
+	log := slog.New(slog.NewTextHandler(&logged, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	var setting atomic.Uint32
+	setting.Store(uint32(APIVersionAuto))
+	v := NewScriptVersion("watcher", log, EncoderText, &setting)
+	v.Reset()
+	for range 3 {
+		if got := v.Detect("peer * announce route 10.0.0.0/24 next-hop 1.2.3.4"); got != APIV6 {
+			t.Fatalf("a peer line holds the script to %v, want 6", got)
+		}
+	}
+	if v.Format() != FormatV6JSON {
+		t.Errorf("format = %v, want v6 json despite encoder text", v.Format())
+	}
+	warnings := strings.Split(strings.TrimSpace(logged.String()), "\n")
+	if len(warnings) != 1 {
+		t.Fatalf("warnings = %q, want exactly one", warnings)
+	}
+	if !strings.Contains(warnings[0], "level=WARN") || !strings.Contains(warnings[0], "script=watcher") ||
+		!strings.Contains(warnings[0], "encoder text is ignored") {
+		t.Errorf("warning = %q, want a WARN naming script=watcher and the ignored encoder", warnings[0])
+	}
+}
+
 // TestStandaloneRunnerHeldToDetectedVersion drives the standalone runner
 // (`ze exabgp plugin` over MuxConn) with a script whose first deciding line is
 // v4, and reads back what it answered, what it dispatched and what it fed.
