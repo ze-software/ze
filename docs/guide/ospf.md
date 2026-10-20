@@ -113,14 +113,17 @@ Hellos come from its donor address, and until OSPF learns a route to that
 address the kernel finds none. Linux, strict (`rp_filter` 1) or loose (2),
 drops a packet whose source it has no route back to at all, so a router whose
 only routes left with the subnet never hears its neighbor, and never learns
-the route that would admit it. Keep `rp_filter` at 0 on the unnumbered device,
-or keep a route that covers the neighbor's donor (a default route out of the
-link does). The FRR interop scenario `ospf-p2p-unnumbered-frr` keeps such a
-default route on the FRR side.
+the route that would admit it. The kernel applies the larger of the `all`
+value and the device's own, so keep `rp_filter` at 0 on both `all` and the
+unnumbered device, or keep a route that covers the neighbor's donor (a default
+route out of the link does). The FRR interop scenario
+`ospf-p2p-unnumbered-frr` keeps such a default route on the FRR side.
 
-Not yet complete (gap RFC2328-8.1-1 stays open): the network-namespace test of
-the donor source, which waits for an owner decision on the guest's
-reverse-path setting.
+A Linux guest test, `TestOSPFUnnumberedSourcesFromDonorAddress`, opens an
+unnumbered device that holds only the borrowed /32 and shows the neighbor
+receives OSPF packets whose IP source is the donor address, as RFC 2328
+Section 8.1 asks; `TestOSPFRefusesDeviceWithoutRouterAddress` shows a router
+with no IPv4 address at all opens no OSPF interface.
 
 <!-- source: internal/plugins/ospf/interface_addr.go -- interfaceUnnumbered, helloNetworkMask -->
 <!-- source: internal/plugins/ospf/lsdb/origination.go -- p2pLinkData, routerLinks -->
@@ -129,6 +132,7 @@ reverse-path setting.
 <!-- source: internal/plugins/ospf/spf/install.go -- insert -->
 <!-- source: internal/component/sysrib/ecmp.go -- backupPaths -->
 <!-- source: internal/plugins/ospf/transport/transport.go -- addrWorker -->
+<!-- source: internal/plugins/ospf/transport/backend_linux.go -- interfaceIPv4, multicastDevice -->
 
 ## Interface cost
 
