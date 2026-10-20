@@ -159,50 +159,6 @@ func FamilyLess(a, b Family) bool {
 	return a.SAFI < b.SAFI
 }
 
-// LegacyNextHop reports whether an UPDATE for this family restates an IPv4 next
-// hop as the RFC 4271 Section 5.1.3 NEXT_HOP attribute, beside the next hop RFC
-// 4760 Section 3 carries inside MP_REACH_NLRI.
-//
-// RFC 4760 Section 3: "An UPDATE message that carries no NLRI, other than the one
-// encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP
-// attribute.  If such a message contains the NEXT_HOP attribute, the BGP speaker
-// that receives the message SHOULD ignore this attribute." Ze intentionally
-// retains the attribute for the compatibility families below, whose bytes the
-// ported ExaBGP contract fixtures pin (docs/architecture/testing/interop.md).
-// That is a compatibility deviation; the SHOULD NOT keyword alone does not
-// establish conformance.
-//
-// The set is the one Ze's config rail sends, family by family: MCAST-VPN
-// (nlri/mvpn), MUP (nlri/mup), labeled unicast
-// (message.(*UpdateBuilder).BuildLabeledUnicast) and unicast
-// (message.(*UpdateBuilder).BuildUnicast). FlowSpec, VPLS, EVPN, SR Policy, RTC
-// and BGP-LS send none, because none of them names a forwarding hop an IPv4
-// NEXT_HOP could restate. A family with no answer of its own takes the RFC's
-// SHOULD NOT.
-//
-// MPLS-VPN (SAFI 128) takes the SHOULD NOT on both rails since 2026-10-20, by
-// owner decision: ExaBGP 6.0 sends MP_REACH_NLRI alone for it, so the ported
-// fixtures no longer argue for the deviation, and
-// message.(*UpdateBuilder).BuildVPN writes no NEXT_HOP either.
-//
-// MULTICAST takes the SHOULD NOT, and it is the one family whose answer is easy
-// to get wrong, because it shares UnicastParams with unicast. BuildUnicast
-// guards the attribute with `isUnicast := p.SAFI == 0 || p.SAFI ==
-// attribute.SAFIUnicast`, so a configured ipv4/multicast route carries
-// MP_REACH_NLRI alone, and no ported ExaBGP contract fixture pins the other
-// answer for it. Saying true here made the API rail add seven octets the config
-// rail does not, which is the drift this function exists to remove
-// (test/plugin/forward-mpreach-nexthop-self-two-peer.ci).
-func (f Family) LegacyNextHop() bool {
-	//exhaustive:ignore // Only these families opt into a legacy IPv4 NEXT_HOP attribute.
-	switch f.SAFI {
-	case SAFIUnicast, SAFIMPLSLabel, SAFIMVPN, SAFIMUP:
-		return true
-	default:
-		return false
-	}
-}
-
 // NeedsNextHop reports whether an announce in this family has to resolve a
 // forwarding hop before it can be sent.
 //

@@ -104,9 +104,12 @@ func TestParseConfigRoute_T1STSource(t *testing.T) {
 // TestParseConfigRoute_Attrs verifies the MUP config parser assembles the
 // MUP-specific path attributes from the pre-parsed attribute block.
 //
-// VALIDATES: IPv4 MUP with an IPv4 next-hop emits NEXT_HOP (code 3); extended
-// communities (code 16) and Prefix-SID (code 40) are carried through.
-// PREVENTS: Wire regression vs the old BuildMUP path (NEXT_HOP code-3 quirk).
+// VALIDATES: extended communities (code 16) and Prefix-SID (code 40) are carried
+// through, and no MUP route carries NEXT_HOP (code 3), whatever its AFI: RFC 4760
+// Section 3, "An UPDATE message that carries no NLRI, other than the one encoded
+// in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP attribute."
+// PREVENTS: an IPv4 MUP route restating its IPv4 next hop as a NEXT_HOP beside
+// MP_REACH_NLRI, which ExaBGP 6.0 does not send either.
 func TestParseConfigRoute_Attrs(t *testing.T) {
 	req := registry.ConfigRouteRequest{
 		Content:      strings.Fields("mup-isd 10.0.1.0/24 rd 100:100"),
@@ -123,13 +126,16 @@ func TestParseConfigRoute_Attrs(t *testing.T) {
 	for _, a := range pr.Attrs {
 		got[a.Code] = true
 	}
-	for _, code := range []uint8{attrCodeNextHop, attrCodeExtComm, attrCodePrefixSID} {
+	for _, code := range []uint8{attrCodeExtComm, attrCodePrefixSID} {
 		if !got[code] {
 			t.Errorf("missing attribute code %d", code)
 		}
 	}
+	if got[attrCodeNextHop] {
+		t.Error("IPv4 MUP should not emit NEXT_HOP code-3 beside MP_REACH_NLRI")
+	}
 
-	// IPv6 MUP must NOT emit a legacy NEXT_HOP (code 3).
+	// IPv6 MUP must NOT emit a NEXT_HOP (code 3) either.
 	req6 := registry.ConfigRouteRequest{
 		Content: strings.Fields("mup-isd 2001::/64 rd 100:100"),
 		NextHop: "2001::1",

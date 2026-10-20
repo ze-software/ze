@@ -33,7 +33,7 @@ cmd=api:conn=1:seq=1:text=route-driver announces the labeled prefix
 # strip it and left this expectation encoding the old, non-conformant output; the
 # hex below is what ze now sends, corrected 2026-08-02. A test that pins a
 # violation is the violation with a green bar on top (ai/rules/rfc-compliance.md).
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E0200000027800E10000104040A0000020030003E810A01004001010040020602010000FDE94003040A000002
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00370200000020800E10000104040A0000020030003E810A01004001010040020602010000FDE9
 cmd=api:conn=1:seq=2:text=route-driver withdraws it
 # The withdrawal carries ORIGIN and AS_PATH beside MP_UNREACH_NLRI. RFC 4760
 # Section 4: "An UPDATE message that contains the MP_UNREACH_NLRI is not required

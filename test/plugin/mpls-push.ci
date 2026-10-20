@@ -24,10 +24,10 @@ option=open:value=add-capability:code=1:hex=00010004
 # message 1. The route-driver plugin below issues it for real.
 #
 # Driven from the plugin rather than declared in the peer's `update` block on
-# purpose: the expected bytes below are the API path's. Since fa86db31ed the API
+# purpose: the expected bytes below are the API path's. Since 2026-10-21 neither
 # rail restates the next hop as a top-level NEXT_HOP beside MP_REACH_NLRI for
-# labeled unicast (family.Family.LegacyNextHop), the same 62-byte UPDATE the
-# config-declared path (reactor_wire.go) sends. Keeping the mechanism the
+# labeled unicast (RFC 4760 Section 3, "SHOULD NOT carry the NEXT_HOP
+# attribute"), so the UPDATE is 55 bytes on both. Keeping the mechanism the
 # expectation was written against keeps this test and its sibling
 # mpls-withdraw.ci on one path.
 cmd=api:conn=1:seq=1:text=route-driver announces the labeled prefix
@@ -36,7 +36,7 @@ cmd=api:conn=1:seq=1:text=route-driver announces the labeled prefix
 # strip it and left this expectation encoding the old, non-conformant output; the
 # hex below is what ze now sends, corrected 2026-08-02. A test that pins a
 # violation is the violation with a green bar on top (ai/rules/rfc-compliance.md).
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E0200000027800E10000104040A0000020030003E810A01004001010040020602010000FDE94003040A000002
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00370200000020800E10000104040A0000020030003E810A01004001010040020602010000FDE9
 EOF_PEER
 
 # Native route driver announces the labeled prefix after initial-sync EOR.

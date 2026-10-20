@@ -25,8 +25,10 @@ func TestMVPNConfigRouteParserRegistered(t *testing.T) {
 // TestParseConfigRoute_MVPN verifies the MVPN config parser builds the RFC 6514
 // MCAST-VPN NLRI from the content tokens and marks the route groupable.
 //
-// VALIDATES: NLRI byte layout for a shared-join (type 6) route, and that ORIGIN /
-// NEXT_HOP / EXT_COMMUNITIES are assembled with Group=true.
+// VALIDATES: NLRI byte layout for a shared-join (type 6) route, that ORIGIN /
+// EXT_COMMUNITIES are assembled with Group=true, and that no NEXT_HOP is: RFC 4760
+// Section 3, "An UPDATE message that carries no NLRI, other than the one encoded
+// in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP attribute."
 // PREVENTS: MVPN wire regression vs the old BuildMVPN / grouping path.
 func TestParseConfigRoute_MVPN(t *testing.T) {
 	req := registry.ConfigRouteRequest{
@@ -52,10 +54,13 @@ func TestParseConfigRoute_MVPN(t *testing.T) {
 	for _, a := range pr.Attrs {
 		got[a.Code] = true
 	}
-	for _, code := range []uint8{attrCodeOrigin, attrCodeNextHop, attrCodeExtComm} {
+	for _, code := range []uint8{attrCodeOrigin, attrCodeExtComm} {
 		if !got[code] {
 			t.Errorf("missing attribute code %d", code)
 		}
+	}
+	if got[attrCodeNextHop] {
+		t.Error("MVPN route should not emit NEXT_HOP code-3 beside MP_REACH_NLRI")
 	}
 }
 

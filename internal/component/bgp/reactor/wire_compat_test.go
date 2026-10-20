@@ -64,6 +64,7 @@ func TestWireFormat_UnicastIPv4(t *testing.T) {
 	expectedAttrs, _ := hex.DecodeString(
 		"40010100" + // ORIGIN: IGP
 			"400200" + // AS_PATH: empty
+			"400304c0a80101" + // NEXT_HOP: 192.168.1.1, the body NLRI's next hop (RFC 4271 Section 5.1.3)
 			"800404" + "00000064" + // MED: 100
 			"400504" + "000000c8" + // LOCAL_PREF: 200
 			"c00808" + "ffff0001ffff0002") // COMMUNITIES: sorted

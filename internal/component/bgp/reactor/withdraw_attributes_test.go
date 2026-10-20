@@ -68,7 +68,7 @@ func TestWithdrawCarriesTheAttributesTheCallerNamed(t *testing.T) {
 	// ORIGIN, an AS_PATH empty toward an internal peer, LOCAL_PREF 100, and the
 	// caller's own extended community last. No NEXT_HOP: RFC 4760 Section 3 says
 	// an UPDATE whose only NLRI is in the MP attribute "SHOULD NOT carry the
-	// NEXT_HOP attribute", and mpls-vpn follows it (family.Family.LegacyNextHop).
+	// NEXT_HOP attribute", and every MP family follows it (planBatchAttrs).
 	want := []byte{0x80, 0x0F, byte(3 + len(vpnWithdrawNLRI)), 0x00, 0x01, 0x80}
 	want = append(want, vpnWithdrawNLRI...)
 	want = append(want,
@@ -129,6 +129,8 @@ func TestWithdrawOfAnIPv4UnicastPrefixCarriesNoAttributes(t *testing.T) {
 
 // TestWithdrawSkipsAnUnspecifiedNextHop drives the builder with the
 // `next-hop 0.0.0.0` an operator writes to say a withdrawal names no next hop.
+// No MP family writes a NEXT_HOP at all since 2026-10-21 (RFC 4760 Section 3),
+// so this pins that 0.0.0.0 does not bring one back.
 //
 // VALIDATES: RFC 4271 Section 6.3 -- "Syntactic correctness means that the
 // NEXT_HOP attribute represents a valid IP host address" -- so 0.0.0.0 is not
@@ -152,25 +154,26 @@ func TestWithdrawSkipsAnUnspecifiedNextHop(t *testing.T) {
 	assert.True(t, found, "the withdrawal still carries the well-known mandatory ORIGIN")
 }
 
-// TestAnnounceRestatesAnIPv4NextHopWhereTheFamilyCarriesOne drives the announce
-// rail for the two answers family.Family.LegacyNextHop gives.
+// TestAnnounceWritesNoNextHopBesideMPReach drives the announce rail for every
+// multiprotocol family that once restated an IPv4 next hop as NEXT_HOP.
 //
-// VALIDATES: the API rail and the config rail put the same attributes on the wire
-// for one route. The MCAST-VPN config parser (nlri/mvpn) adds NEXT_HOP beside
-// MP_REACH_NLRI for an IPv4 next hop and this rail matches it; mpls-vpn takes
-// RFC 4760 Section 3's SHOULD NOT on both rails, as ExaBGP 6.0 does.
-// PREVENTS: the same route reaching the wire as two different byte strings
-// depending on whether an operator configured it or announced it.
-func TestAnnounceRestatesAnIPv4NextHopWhereTheFamilyCarriesOne(t *testing.T) {
+// VALIDATES: RFC 4760 Section 3, "An UPDATE message that carries no NLRI, other
+// than the one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the
+// NEXT_HOP attribute." Only ipv4/unicast carries its routes outside
+// MP_REACH_NLRI, so no family here writes the attribute, as ExaBGP 6.0 does.
+// PREVENTS: the API rail adding seven octets the config rail does not, so the
+// same route reaching the wire as two different byte strings.
+func TestAnnounceWritesNoNextHopBesideMPReach(t *testing.T) {
 	cases := []struct {
 		name string
 		fam  family.Family
-		want bool
 	}{
-		{"mpls-vpn does not", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}, false},
-		{"mcast-vpn carries it", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMVPN}, true},
-		{"flowspec does not", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}, false},
-		{"vpls does not", family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIVPLS}, false},
+		{"mpls-vpn", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}},
+		{"mcast-vpn", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMVPN}},
+		{"mup", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMUP}},
+		{"labeled unicast", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel}},
+		{"flowspec", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}},
+		{"vpls", family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIVPLS}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -184,11 +187,8 @@ func TestAnnounceRestatesAnIPv4NextHopWhereTheFamilyCarriesOne(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, update)
 
-			_, _, value, found := attribute.AttrFind(update.PathAttributes, attribute.AttrNextHop)
-			assert.Equal(t, tc.want, found)
-			if tc.want {
-				assert.Equal(t, []byte{0x0A, 0x0A, 0x06, 0x03}, value)
-			}
+			_, _, _, found := attribute.AttrFind(update.PathAttributes, attribute.AttrNextHop)
+			assert.False(t, found, "%s carries NEXT_HOP beside MP_REACH_NLRI", tc.name)
 		})
 	}
 }

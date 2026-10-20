@@ -9,27 +9,25 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 // MUP path attribute wire constants.
 const (
-	attrCodeNextHop   uint8 = 3  // NEXT_HOP (RFC 4271).
+	attrCodeNextHop   uint8 = 3  // NEXT_HOP (RFC 4271), which MUP never sends.
 	attrCodeExtComm   uint8 = 16 // EXTENDED_COMMUNITIES (RFC 4360).
 	attrCodePrefixSID uint8 = 40 // BGP Prefix-SID (RFC 8669/9252).
 
-	flagWellKnownTrans = 0x40 // Well-known transitive.
-	flagOptTrans       = 0xC0 // Optional transitive.
+	flagOptTrans = 0xC0 // Optional transitive.
 )
 
 var errMUPMissingRouteType = errors.New("mup nlri requires a route type (mup-isd/mup-dsd/mup-t1st/mup-t2st)")
 
 // parseConfigRoute implements registry.InProcessConfigRouteParser for MUP.
 // It builds the family-specific NLRI from the content tokens and assembles the
-// MUP-specific path attributes (NEXT_HOP code-3 for IPv4, extended-communities,
-// Prefix-SID) from the pre-parsed attribute block. ORIGIN/AS_PATH/LOCAL_PREF/
+// MUP-specific path attributes (extended-communities, Prefix-SID; never a
+// NEXT_HOP) from the pre-parsed attribute block. ORIGIN/AS_PATH/LOCAL_PREF/
 // MP_REACH are owned by BuildPlugin.
 func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, error) {
 	family := IPv4MUP.String()
@@ -53,14 +51,10 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 
 	var attrs []registry.PluginRouteAttr
 
-	// NEXT_HOP (code 3): IPv4 MUP with an IPv4 next-hop carries a legacy NEXT_HOP
-	// attribute in addition to the MP_REACH next-hop (matches draft expectations).
-	if !req.IsIPv6 && req.NextHop != "" {
-		if ip, err := netip.ParseAddr(req.NextHop); err == nil && ip.Is4() {
-			b := ip.As4()
-			attrs = append(attrs, registry.PluginRouteAttr{Code: attrCodeNextHop, Flags: flagWellKnownTrans, Value: b[:]})
-		}
-	}
+	// No NEXT_HOP (code 3): the next hop rides in MP_REACH_NLRI alone.
+	// RFC 4760 Section 3: "An UPDATE message that carries no NLRI, other than the
+	// one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP
+	// attribute."
 
 	// EXTENDED_COMMUNITIES (code 16): config order, unsorted (MUP convention).
 	if len(req.ExtCommunity) > 0 {

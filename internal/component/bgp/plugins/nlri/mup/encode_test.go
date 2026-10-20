@@ -1,10 +1,13 @@
 package mup
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // TestEncodeT1STRefusesWhatParseMUPWithdraws checks that Ze never originates a
@@ -62,4 +65,42 @@ func TestEncodeT1STRefusesWhatParseMUPWithdraws(t *testing.T) {
 			t.Fatalf("encoded %s lacks TEID, QFI, endpoint length and endpoint 0000303909200A000001", encoded)
 		}
 	})
+}
+
+// TestEncodeRouteWritesNoNextHop checks the announced IPv4 MUP route.
+//
+// VALIDATES: RFC 4760 Section 3, "An UPDATE message that carries no NLRI, other
+// than the one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the
+// NEXT_HOP attribute." Method: encode an ipv4/mup route with an IPv4 next hop,
+// walk to the path attributes and look for code 3.
+// PREVENTS: the announce rail restating the next hop as a NEXT_HOP beside
+// MP_REACH_NLRI, which the config rail and ExaBGP 6.0 do not send.
+func TestEncodeRouteWritesNoNextHop(t *testing.T) {
+	t.Parallel()
+
+	cmd := "mup-t1st 192.168.0.2/32 rd 100:100 teid 12345 qfi 9 endpoint 10.0.0.1 next-hop 10.0.0.2"
+	update, _, err := EncodeRoute(cmd, "ipv4/mup", 65000, true, true, false)
+	if err != nil {
+		t.Fatalf("EncodeRoute: %v", err)
+	}
+	// Header 19, withdrawn length 2 (zero here), path attribute length 2.
+	const attrsAt = 19 + 2 + 2
+	if len(update) < attrsAt {
+		t.Fatalf("update too short: %d bytes", len(update))
+	}
+	withdrawn := int(binary.BigEndian.Uint16(update[19:]))
+	if withdrawn != 0 {
+		t.Fatalf("withdrawn length = %d, want 0", withdrawn)
+	}
+	attrLen := int(binary.BigEndian.Uint16(update[21:]))
+	if attrsAt+attrLen > len(update) {
+		t.Fatalf("path attribute length %d exceeds update size %d", attrLen, len(update))
+	}
+	attrs := update[attrsAt : attrsAt+attrLen]
+	if _, _, _, found := attribute.AttrFind(attrs, attribute.AttrNextHop); found {
+		t.Errorf("ipv4/mup UPDATE carries NEXT_HOP beside MP_REACH_NLRI: % x", attrs)
+	}
+	if _, _, _, found := attribute.AttrFind(attrs, attribute.AttrMPReachNLRI); !found {
+		t.Errorf("ipv4/mup UPDATE carries no MP_REACH_NLRI: % x", attrs)
+	}
 }

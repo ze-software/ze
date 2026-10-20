@@ -18,13 +18,13 @@ import (
 // MVPN path attribute wire constants.
 const (
 	attrCodeOrigin       uint8 = 1
-	attrCodeNextHop      uint8 = 3
+	attrCodeNextHop      uint8 = 3 // NEXT_HOP, which MVPN never sends.
 	attrCodeMED          uint8 = 4
 	attrCodeOriginatorID uint8 = 9
 	attrCodeClusterList  uint8 = 10
 	attrCodeExtComm      uint8 = 16
 
-	flagWellKnownTrans = 0x40 // ORIGIN, NEXT_HOP.
+	flagWellKnownTrans = 0x40 // ORIGIN.
 	flagOptional       = 0x80 // MED, ORIGINATOR_ID, CLUSTER_LIST.
 	flagOptTrans       = 0xC0 // EXT_COMMUNITIES.
 )
@@ -52,14 +52,10 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 	// ORIGIN (code 1) is always present (matches BuildMVPN).
 	attrs := []registry.PluginRouteAttr{{Code: attrCodeOrigin, Flags: flagWellKnownTrans, Value: []byte{req.Origin}}}
 
-	// NEXT_HOP (code 3): MVPN carries a legacy NEXT_HOP whenever the next-hop is
-	// IPv4, regardless of the NLRI AFI (matches BuildMVPN).
-	if req.NextHop != "" {
-		if ip, err := netip.ParseAddr(req.NextHop); err == nil && ip.Is4() {
-			b := ip.As4()
-			attrs = append(attrs, registry.PluginRouteAttr{Code: attrCodeNextHop, Flags: flagWellKnownTrans, Value: b[:]})
-		}
-	}
+	// No NEXT_HOP (code 3): the next hop rides in MP_REACH_NLRI alone.
+	// RFC 4760 Section 3: "An UPDATE message that carries no NLRI, other than the
+	// one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP
+	// attribute."
 	// RFC 4271 Section 5.1.4: the metric is a four-octet unsigned number, 0 included.
 	if req.HasMED {
 		m := req.MED

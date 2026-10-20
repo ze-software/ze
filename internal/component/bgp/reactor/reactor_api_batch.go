@@ -1461,17 +1461,12 @@ func (a *reactorAPIAdapter) planBatchAttrs(plan *announceAttrs, batch bgptypes.N
 		if facts.nextHop.IsValid() {
 			plan.add(plan.nextHopFor(facts.nextHop), nil)
 		}
-	case legacyNextHopApplies(batch.Family, facts.nextHop):
-		// The multiprotocol families that ALSO restate an IPv4 next hop as the
-		// RFC 4271 Section 5.1.3 attribute (family.Family.LegacyNextHop). Ze's config
-		// rail already sends it -- nlri/mvpn and nlri/mup each add code 3 for an IPv4
-		// next hop, and ported `conf-*` fixtures pin it -- while this rail sent
-		// MP_REACH_NLRI alone, so the same route reached
-		// the wire as two different byte strings depending on whether an operator
-		// configured it or announced it. This is an intentional compatibility
-		// deviation from RFC 4760 Section 3's SHOULD NOT; agreement between
-		// the configured and API rails does not itself establish conformance.
-		plan.add(plan.nextHopFor(facts.nextHop), nil)
+	default:
+		// Every other family carries its routes, and its next hop, in MP_REACH_NLRI
+		// alone. RFC 4760 Section 3: "An UPDATE message that carries no NLRI, other
+		// than the one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the
+		// NEXT_HOP attribute." ExaBGP 6.0 sends none, and neither does the config
+		// rail (message builders, nlri/mvpn, nlri/mup).
 	}
 
 	// RFC 4271 Section 5.1.5, the obligation half: LOCAL_PREF SHALL be included in
@@ -1515,27 +1510,6 @@ func (a *reactorAPIAdapter) planBatchAttrs(plan *announceAttrs, batch bgptypes.N
 	}
 
 	return base
-}
-
-// legacyNextHopApplies reports whether this batch restates its next hop as the
-// RFC 4271 Section 5.1.3 NEXT_HOP attribute beside MP_REACH_NLRI or
-// MP_UNREACH_NLRI. The family answers whether the attribute belongs
-// (family.Family.LegacyNextHop); the address answers whether one can be written.
-//
-// RFC 4271 Section 6.3: "Syntactic correctness means that the NEXT_HOP attribute
-// represents a valid IP host address." The unspecified address is not one, and a
-// receiver that finds it MUST answer with an Invalid NEXT_HOP Attribute
-// NOTIFICATION, so `next-hop 0.0.0.0` -- which an operator writes to say a
-// withdrawal names no next hop at all -- contributes nothing rather than
-// resetting the session.
-func legacyNextHopApplies(fam family.Family, nextHop netip.Addr) bool {
-	if !nextHop.Is4() {
-		return false
-	}
-	if nextHop.IsUnspecified() {
-		return false
-	}
-	return fam.LegacyNextHop()
 }
 
 // writeBatchNLRI writes every NLRI of a batch into nlriBuf, in order, and returns
@@ -1778,10 +1752,10 @@ func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, ba
 	n, ok := plan.emit(base, attrBuf)
 	if !ok {
 		// Every refusal reachable here is a size refusal. The one cause that is not,
-		// an attribute with no wire form, belongs to the NEXT_HOP the plan may
-		// contribute, and legacyNextHopApplies has already refused an address that
-		// has none (buildBatchAnnounceUpdate carries the same reasoning for
-		// MP_REACH_NLRI, where the address is the operator's to fix).
+		// an attribute with no wire form, would belong to a NEXT_HOP, and
+		// planBatchAttrs contributes none for a family carried in MP_UNREACH_NLRI
+		// (buildBatchAnnounceUpdate carries the same reasoning for MP_REACH_NLRI,
+		// where the address is the operator's to fix).
 		logWithdrawTooLarge(batch, len(attrBuf), "attributes")
 		return nil
 	}

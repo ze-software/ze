@@ -98,10 +98,10 @@ func (ub *UpdateBuilder) BuildEVPN(p EVPNParams) (*Update, error) {
 	// 2. AS_PATH
 	attrs = ub.appendASPath(attrs, p.ASPath)
 
-	// 3. NEXT_HOP - for IPv4 next-hop compatibility
-	if p.NextHop.Is4() {
-		attrs = append(attrs, &attribute.NextHop{Addr: p.NextHop})
-	}
+	// No NEXT_HOP.
+	// RFC 4760 Section 3: "An UPDATE message that carries no NLRI, other than the
+	// one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP
+	// attribute." The next hop rides in MP_REACH_NLRI alone.
 
 	// 4. MED
 	attrs = appendMED(attrs, p.MED, p.HasMED)
