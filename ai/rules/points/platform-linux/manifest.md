@@ -1,6 +1,6 @@
 ---
 title: Linux, QEMU and the Appliance
-when: writing Linux-only code, finding that Linux or a kernel library cannot do what a feature needs, changing the installer initrd, or bumping and booting an appliance dependency or the kernel
+when: writing Linux-only code, finding Linux or a library cannot do what a feature needs, bumping the kernel or an appliance dependency, or changing the initrd
 severity: blocking
 related: completion, testing, git-safety
 ---
