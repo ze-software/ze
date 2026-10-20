@@ -104,10 +104,11 @@ func TestDataplaneApplyIPv4SetsRecipe(t *testing.T) {
 // global ARP-flux knobs (ND resolves the VIP to the virtual MAC natively --
 // Neighbor Solicitation targets the VIP's solicited-node multicast group, which
 // only the macvlan joins, so the parent never competes, validated in QEMU 6/6
-// with no cold race) and sets exactly two knobs on its own macvlan:
+// with no cold race) and sets exactly three knobs on its own macvlan:
 // accept_dad=0, so the VIP is reachable immediately on promotion instead of
-// tentative for a DAD cycle, and arp_ignore=8, so the IPv6 virtual MAC never
-// answers ARP for the host's IPv4 addresses.
+// tentative for a DAD cycle, arp_ignore=8, so the IPv6 virtual MAC never
+// answers ARP for the host's IPv4 addresses, and forwarding=1, so the kernel's
+// solicited Neighbor Advertisement for a VIP carries the Router flag.
 func TestDataplaneIPv6OnlyDisablesDAD(t *testing.T) {
 	f := newFakeSysctl(map[string]string{allRPFilterPath(): "1"})
 	f.install(t)
@@ -121,12 +122,15 @@ func TestDataplaneIPv6OnlyDisablesDAD(t *testing.T) {
 	if got := f.get(ipv4Conf("zv6-2-10", "arp_ignore")); got != "8" {
 		t.Errorf("macvlan arp_ignore = %q, want 8 (answer no ARP)", got)
 	}
+	if got := f.get(ipv6Conf("zv6-2-10", "forwarding")); got != "1" {
+		t.Errorf("macvlan forwarding = %q, want 1 (Router flag on solicited NAs)", got)
+	}
 	// No parent ARP knobs and no global rp_filter change for an IPv6 group.
 	if got := f.get(allRPFilterPath()); got != "1" {
 		t.Errorf("IPv6 group changed all.rp_filter to %q, want untouched (1)", got)
 	}
-	if len(f.writes) != 2 {
-		t.Errorf("IPv6 group wrote %d sysctls, want exactly 2 (accept_dad, arp_ignore on the macvlan): %v", len(f.writes), f.writes)
+	if len(f.writes) != 3 {
+		t.Errorf("IPv6 group wrote %d sysctls, want exactly 3 (accept_dad, arp_ignore, forwarding on the macvlan): %v", len(f.writes), f.writes)
 	}
 }
 

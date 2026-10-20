@@ -18,9 +18,9 @@
 //
 // Combined with the macvlan being created in PRIVATE mode (register.go) and the
 // VIP installed with the subnet prefix (register.go vipCIDRs), this makes an
-// external host resolve the VIP to the virtual MAC. IPv6 needs none of this --
-// ND answers from the macvlan natively (QEMU probe) -- so the v6 path is a
-// no-op here.
+// external host resolve the VIP to the virtual MAC. IPv6 needs none of the
+// parent or global knobs -- ND answers from the macvlan natively (QEMU probe) --
+// so an IPv6 group writes only its own macvlan's knobs (vmacV6Sysctls).
 //
 // Scope and refcounting: the per-macvlan sysctls live and die with the device.
 // The parent sysctls are shared by every group on that parent, and the global
@@ -83,6 +83,40 @@ func vmacSysctls(vmac string) []sysctlKV {
 	}
 }
 
+// vmacV6Sysctls returns the knobs an IPv6 group sets on its own macvlan. They
+// die with the device, so they need no save/restore.
+//
+// DAD off. A VRRP VIP lives on exactly one router at a time, so Duplicate
+// Address Detection is pointless, and leaving it on costs a ~1s tentative
+// window on every promotion: the VIP is unreachable during it and the first
+// advert sources from the macvlan's auto link-local instead of the configured
+// link-local (both observed in the keepalived IPv6 interop lab).
+//
+// ARP off. Linux answers ARP for any local IPv4 address on any interface
+// (arp_ignore=0), so the IPv6 group's macvlan answered who-has for the parent's
+// IPv4 addresses and an IPv4 group's VIP with the IPv6 virtual MAC (observed in
+// QEMU by TestVRRPOwnerAnswersWithVirtualMACOnly). A LAN host then follows the
+// IPv6 group's mastership for an IPv4 address. arp_ignore=8 makes the device
+// answer no ARP request at all.
+//
+// Router role on. The kernel, not ze, answers a Neighbor Solicitation for a
+// virtual address, and it sets the Router flag of that solicited Neighbor
+// Advertisement from the receiving device's own forwarding knob, which is how
+// Linux answers RFC 4861 Section 7.2.4's "if the node is a router, it MUST set
+// the Router flag to one". So the knob lives on the macvlan rather than resting
+// on whatever host state the operator left.
+// Per-device IPv6 forwarding moves no packet (conf/all/forwarding decides
+// that); it makes the device a router on the link: it stops sending Router
+// Solicitations and ignores Router Advertisements unless accept_ra=2.
+func vmacV6Sysctls(vmac string) []sysctlKV {
+	return []sysctlKV{
+		{ipv6Conf(vmac, "accept_dad"), "0"},
+		{ipv4Conf(vmac, "arp_ignore"), "8"},
+		// RFC 9568 Section 6.4.3: "It MUST respond to ND Neighbor Solicitation messages (with the Router Flag (R) set) for the IPv6 address(es) associated with the Virtual Router."
+		{ipv6Conf(vmac, "forwarding"), "1"},
+	}
+}
+
 // parentSysctls returns the sysctls set on the parent device (IPv4 groups only).
 // Shared across groups on one parent, so the caller saves the prior values.
 func parentSysctls(parent string) []sysctlKV {
@@ -138,28 +172,13 @@ var (
 func applyDataplaneSysctls(parent, vmac, family string) error {
 	if family == familyIPv6 {
 		// IPv6 needs no ARP-flux recipe on the parent (ND answers from the
-		// macvlan natively -- spec-vrrp-6), but two knobs on the macvlan itself:
-		//
-		// DAD off. A VRRP VIP lives on exactly one router at a time, so Duplicate
-		// Address Detection is pointless, and leaving it on costs a ~1s tentative
-		// window on every promotion: the VIP is unreachable during it and the
-		// first advert sources from the macvlan's auto link-local instead of the
-		// configured link-local (both observed in the keepalived IPv6 interop lab).
-		//
-		// ARP off. Linux answers ARP for any local IPv4 address on any interface
-		// (arp_ignore=0), so the IPv6 group's macvlan answered who-has for the
-		// parent's IPv4 addresses and an IPv4 group's VIP with the IPv6 virtual
-		// MAC (observed in QEMU by TestVRRPOwnerAnswersWithVirtualMACOnly). A LAN
-		// host then follows the IPv6 group's mastership for an IPv4 address.
-		// arp_ignore=8 makes the device answer no ARP request at all.
-		//
-		// Set once at create, before any VIP is installed; the knobs die with the
-		// device (no revert).
-		if err := sysctlWrite(ipv6Conf(vmac, "accept_dad"), "0"); err != nil {
-			return fmt.Errorf("disable DAD on %s: %w", vmac, err)
-		}
-		if err := sysctlWrite(ipv4Conf(vmac, "arp_ignore"), "8"); err != nil {
-			return fmt.Errorf("disable ARP answers on %s: %w", vmac, err)
+		// macvlan natively -- spec-vrrp-6), only the macvlan's own knobs. Set
+		// once at create, before any VIP is installed; they die with the device
+		// (no revert).
+		for _, kv := range vmacV6Sysctls(vmac) {
+			if err := sysctlWrite(kv.path, kv.value); err != nil {
+				return fmt.Errorf("set macvlan sysctl %s: %w", kv.path, err)
+			}
 		}
 		return nil
 	}
@@ -254,8 +273,9 @@ func restoreParentSysctls(parent string) error {
 }
 
 // reassertDataplaneSysctls re-writes the recipe values without touching the
-// refcount or the saved originals. The engine calls it for every running IPv4
-// instance on each config apply, so that if another subsystem overwrote a shared
+// refcount or the saved originals. The engine calls it for every running
+// instance on each config apply (an IPv6 group re-writes only its macvlan's
+// knobs), so that if another subsystem overwrote a shared
 // knob the recipe self-heals. The prime case: the iface component emits the
 // parent's arp_ignore/arp_filter/rp_filter from unit config on every apply
 // (config_sysctl.go), which would otherwise silently clobber VRRP's values --
@@ -265,6 +285,13 @@ func restoreParentSysctls(parent string) error {
 // after initial setup; an earlier successful apply cannot explain a new failure.
 func reassertDataplaneSysctls(parent, vmac, family string) {
 	if family == familyIPv6 {
+		// A write to conf/all/forwarding is copied onto every device, so an
+		// operator turning host forwarding off clears the macvlan's router role.
+		for _, kv := range vmacV6Sysctls(vmac) {
+			if err := sysctlWrite(kv.path, kv.value); err != nil {
+				logger().Warn("vrrp: reassert macvlan sysctl failed", "path", kv.path, "error", err)
+			}
+		}
 		return
 	}
 	dataplaneMu.Lock()

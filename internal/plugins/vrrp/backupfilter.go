@@ -4,9 +4,10 @@
 // Related: instance.go -- run, doInstallVIPs and doRemoveVIPs own this filter's lifetime
 //
 // The virtual-MAC macvlan exists for the whole life of a group, in every state:
-// it is created at config apply so its MAC, and the IPv6 link-local address
-// derived from it, stay stable across failovers. Only the virtual addresses wait
-// for promotion. A frame addressed to the Virtual Router MAC that reaches a
+// it is created at config apply so its MAC stays stable across failovers. It
+// derives no IPv6 link-local of its own (iface creates it with addr_gen_mode
+// none), and the virtual addresses, the virtual link-local among them, wait for
+// promotion. A frame addressed to the Virtual Router MAC that reaches a
 // Backup, for example by unknown-unicast flooding after a failover, is therefore
 // received by the macvlan, and with forwarding enabled the kernel forwards it.
 //

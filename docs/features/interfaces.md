@@ -1039,6 +1039,12 @@ creates it, keeps it reconciled, and deletes it on release or after a crash. The
 one consumer today is VRRP (one macvlan per group carrying the RFC virtual MAC),
 but the mechanism is generic and carries zero VRRP knowledge.
 
+An owned macvlan derives no IPv6 link-local of its own: iface sets its IPv6
+address generation mode to none before bringing it up, because the MAC it
+carries is the caller's choice (for VRRP, a MAC every router of the group
+shares) and Linux would otherwise build the link-local's identifier from it. The
+owner installs whatever IPv6 address the device needs.
+
 The API is a small value struct plus three calls (mirroring the address
 registry):
 

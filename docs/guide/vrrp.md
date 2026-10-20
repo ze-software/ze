@@ -253,7 +253,13 @@ parent never competes to answer. Ze does disable Duplicate Address Detection on
 that macvlan (`accept_dad=0`): a virtual IP lives on one router at a time, so DAD
 would only add a tentative window during which the address is unreachable right
 after a promotion. It also stops that macvlan answering ARP (`arp_ignore=8`), so
-the IPv6 virtual MAC is never offered for an IPv4 address. IPv6 interoperability is verified against keepalived under
+the IPv6 virtual MAC is never offered for an IPv4 address, and makes it a router
+on the link (`forwarding=1` on the macvlan only), so its Neighbor Advertisements
+for the virtual IP carry the Router flag RFC 9568 Section 6.4.3 requires. The
+macvlan derives no IPv6 link-local from the virtual MAC (`addr_gen_mode` none,
+RFC 9568 Section 7.4): its only link-local is the group's first virtual address,
+present while the group is Active, which is also the source of its ICMPv6
+redirects. IPv6 interoperability is verified against keepalived under
 QEMU (election, node-death failover, and virtual-MAC resolution of the virtual
 IP).
 

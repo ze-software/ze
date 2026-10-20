@@ -62,7 +62,8 @@ const (
 
 var (
 	// ErrNoLinkLocal is returned by a v6 InstanceHandle.SendAdvert while the macvlan
-	// has no link-local source yet (the DAD window right after device creation).
+	// has no usable link-local source yet: the macvlan derives none of its own, so
+	// this is the window before the virtual link-local lands after a promotion.
 	// The transport counts it {reason=no-link-local} and returns no upward error;
 	// the next FSM timer tick retries (R-2).
 	ErrNoLinkLocal = errors.New("vrrp/transport: macvlan has no link-local source yet")

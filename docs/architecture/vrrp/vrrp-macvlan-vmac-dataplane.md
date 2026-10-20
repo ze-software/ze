@@ -132,9 +132,9 @@ MAC once. Every resolution after it returns the virtual MAC. keepalived's
 must flush and re-resolve to observe the steady state, and must not read the
 cache once.
 
-### IPv6 needs no parent ARP recipe, and does need DAD and ARP off on its macvlan
+### IPv6 needs no parent ARP recipe, and does need DAD and ARP off and the router role on its macvlan
 
-<!-- source: internal/plugins/vrrp/dataplane_linux.go -- accept_dad and arp_ignore on the IPv6 macvlan -->
+<!-- source: internal/plugins/vrrp/dataplane_linux.go -- vmacV6Sysctls: accept_dad, arp_ignore and forwarding on the IPv6 macvlan -->
 
 Neighbour Discovery resolves the VIP to the virtual MAC natively. A Neighbour
 Solicitation targets the VIP's solicited-node multicast group, which only the
@@ -153,30 +153,61 @@ host then followed the IPv6 group's mastership for an IPv4 address. QEMU showed
 it: `TestVRRPOwnerAnswersWithVirtualMACOnly` saw `00:00:5e:00:02:0a` answer an
 ARP request for an IPv4 owner address.
 
-### The first IPv6 advert sources from the auto link-local. Do not reorder the FSM
+The macvlan also gets `net.ipv6.conf.<vmac>.forwarding=1`. The kernel answers a
+Neighbor Solicitation for a virtual address, and it sets the Router flag of that
+solicited Neighbor Advertisement from the receiving device's own forwarding
+knob, which RFC 9568 Section 6.4.3 requires set. Per-device IPv6 forwarding
+moves no packet (`conf/all/forwarding` decides that); it makes the device a
+router on the link, so it sends no Router Solicitation and ignores Router
+Advertisements. A write to `conf/all/forwarding` is copied onto every device, so
+the engine re-asserts the IPv6 knobs on every config apply as it does the IPv4
+recipe. `TestVRRPSolicitedNACarriesRouterFlag` captures the R flag set with host
+forwarding off, and clear once the macvlan's knob is cleared.
+
+### The macvlan derives no link-local from the virtual MAC
+
+<!-- source: internal/plugins/iface/netlink/macvlan_linux.go -- setMacvlanAddrGenNone -->
+
+iface creates every owned macvlan with `addr_gen_mode` none, set before the
+device comes up, because the kernel adds the default Modified EUI-64 link-local
+on link-up and a later mode change does not remove it. RFC 9568 Section 7.4
+forbids building an interface identifier from the Virtual Router MAC. The only
+link-local the macvlan ever holds is the configured virtual link-local, which
+`InstallVIPs` puts there on promotion. Two consequences follow. A Backup's
+macvlan holds no IPv6 address at all, so it sends no MLD report or Router
+Solicitation with the virtual MAC as its source. And Linux sources an ICMPv6
+redirect from a link-local of the device the triggering packet arrived on,
+which is now only the virtual link-local, the address the host used as its
+first hop (RFC 9568 Section 8.2.1). `TestVRRPMacvlanDerivesNoLinkLocalFromVirtualMAC`
+and `TestVRRPIPv6RedirectSourcedFromVirtualLinkLocal` assert both, each against
+a control macvlan created with the kernel's default mode.
+
+`random` (stable privacy with a random secret) was the alternative. It would
+keep a router-unique link-local on the macvlan, but Linux keeps the oldest
+link-local first when it picks a redirect source, so the redirect would still
+not come from the virtual link-local.
+
+### The first IPv6 advert after a promotion is skipped. Do not reorder the FSM
 
 <!-- source: internal/plugins/vrrp/transport/backend_linux.go -- macvlanLinkLocal source resolution -->
 <!-- source: internal/component/iface/address_owner.go -- RegisterOwnedAddresses reconcile trigger -->
 
-The kernel gives the macvlan a transient EUI-64 link-local at creation, for
-example `fe80::200:5eff:fe00:20a`. Installing the VIPs replaces it, so at steady
-state the macvlan holds `fe80::1` and the global VIP only. `macvlanLinkLocal`
-returns the first non-tentative link-local, so after VIP install it returns
-`fe80::1`.
+The macvlan holds no link-local until `InstallVIPs` puts `fe80::1` there (see
+above), so at steady state it holds `fe80::1` and the global VIP only, and
+`macvlanLinkLocal` returns `fe80::1`.
 
 The first advert runs before that. `InstallVIPs` calls
 `iface.RegisterOwnedAddresses`, which is asynchronous: it records the address and
 fires a reconcile trigger, and the kernel apply happens on a later reconcile pass.
 The `SendAdvert` in the same dispatcher loop therefore resolves before `fe80::1`
-exists and picks the auto link-local.
+exists, finds no link-local, and is counted `{reason=no-link-local}`; the next
+advert, one interval later, carries `fe80::1`.
 
 Reordering `promoteToMaster` to install the VIPs before the advert was tried and
 proved ineffective against the keepalived IPv6 lab: ordering cannot win an
 asynchronous race. A real fix gates the first advert on `fe80::1` being present,
 which delays the mastership claim by about one advert interval, or makes the
-address-owner registry apply synchronously. Both cost more than the symptom. The
-auto link-local is a valid RFC 9568 link-local source, keepalived accepts it, and
-election, failover and the dataplane are unaffected.
+address-owner registry apply synchronously.
 
 ### The iface component overwrites the recipe
 

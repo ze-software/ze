@@ -229,7 +229,7 @@ func setRcvTimeout(fd int) error {
 // SendAdvert transmits a prepared advertisement. IPv4 sends the full IP_HDRINCL
 // datagram to 224.0.0.18; IPv6 sends the VRRP message with an IPV6_PKTINFO cmsg
 // pinning the macvlan link-local source to ff02::12. A v6 send with no link-local
-// yet returns ErrNoLinkLocal (the DAD window; the FSM retries).
+// yet returns ErrNoLinkLocal (before the virtual link-local lands; the FSM retries).
 func (li *linuxInstance) SendAdvert(frame []byte) error {
 	li.sendMu.Lock()
 	defer li.sendMu.Unlock()
