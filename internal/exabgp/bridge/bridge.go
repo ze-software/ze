@@ -579,7 +579,7 @@ func (b *Bridge) zebgpToPluginWithScanner(ctx context.Context, scanner *bufio.Sc
 		// every kind here is what keeps them off the unknown-verb arm below,
 		// which would acknowledge a line ze never asked to have acknowledged.
 		case rpc.AnswerKindHead, rpc.AnswerKindFault, rpc.AnswerKindRecord:
-		case rpc.AnswerKindTerminator:
+		case rpc.AnswerKindTerminator, rpc.AnswerKindWarning:
 			if !pending.signal(id, terminatorResult(payload)) {
 				slog.Debug("zebgp->plugin: answer nobody is waiting for", "id", id)
 			}

@@ -74,6 +74,7 @@ three-byte word saying what the line IS:
 | `row` | one record your command produced |
 | `bad` | one record it rejected. The walk goes on |
 | `end` | the terminator, which ends the answer |
+| `wrn` | the terminator of a command that completed and states a warning |
 | `nay` | the whole answer to a command text naming no command |
 
 The head carries a second three-byte word saying how the records read:
@@ -119,7 +120,8 @@ line's field count never varies.
 
 The engine reads that sequence back into one `ExecuteCommandOutput`: the record
 is its `data`, and its `status` is derived from the terminator, which is the one
-line an answer states an outcome on.
+line an answer states an outcome on. A handler that returns status `warning`
+has its terminator spelled `wrn`, and the engine reads `warning` back.
 <!-- source: internal/component/plugin/ipc/rpc.go -- ExecuteCommandValue -->
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandOutput -->
 

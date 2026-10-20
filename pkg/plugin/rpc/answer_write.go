@@ -42,8 +42,9 @@ import (
 //
 // head states what the producer knows before the walk runs: Key is the envelope
 // the head opens the answer under, Fields is the column schema its positional
-// rows are read against, and Message is the operational text the TERMINATOR
-// carries. Type, Count and Faults are the walk's and are ignored here. head
+// rows are read against, and Message and Warning are what the TERMINATOR
+// carries: its operational text, and whether it is spelled AnswerKindWarning.
+// Type, Count and Faults are the walk's and are ignored here. The head line
 // states no outcome at all: the terminator is the one line that carries one.
 //
 // A rejected row is written and the walk goes on, so one answer can report 97
@@ -154,14 +155,14 @@ func WriteRecordAnswer(w io.Writer, id uint64, head AnswerTail, rows iter.Seq[Ro
 		return writeDocumentLines(w, line, id, head, document, count, faults)
 	}
 
-	*line = AppendAnswerTerminator((*line)[:0], id, count, faults, head.Message)
+	*line = appendAnswerTerminatorOf((*line)[:0], id, &head, count, faults)
 	return writeAnswerLine(w, line)
 }
 
 // WriteDocumentAnswer writes the answer of a producer that built its whole
 // payload before the answer opened: a head naming AnswerTypeDocument, that one
-// document as the single record, and the terminator. Only head's Message is
-// read, because the document already carries its own envelope and two
+// document as the single record, and the terminator. Only head's Message and
+// Warning are read, because the document already carries its own envelope and two
 // statements of one fact can disagree.
 //
 // A payload built whole is one row, and a producer that answered with no data
@@ -232,7 +233,7 @@ func writeDocumentLines(w io.Writer, line *[]byte, id uint64, head AnswerTail, d
 			return err
 		}
 	}
-	*line = AppendAnswerTerminator((*line)[:0], id, count, faults, head.Message)
+	*line = appendAnswerTerminatorOf((*line)[:0], id, &head, count, faults)
 	return writeAnswerLine(w, line)
 }
 
@@ -491,3 +492,14 @@ func AnswerStreamType(fields []string) string {
 // that produced nothing answered with; ranging a nil iter.Seq panics instead of
 // saying so.
 func noAnswerRows(func(RowRecord) bool) {}
+
+// appendAnswerTerminatorOf appends the terminator head asks for: AnswerKindWarning
+// when the command completed with a warning, AnswerKindTerminator otherwise. It
+// is the one place a writer chooses between them, so the record path and the
+// document path cannot spell one outcome two ways.
+func appendAnswerTerminatorOf(buf []byte, id uint64, head *AnswerTail, count, faults uint64) []byte {
+	if head.Warning {
+		return AppendAnswerWarning(buf, id, count, faults, head.Message)
+	}
+	return AppendAnswerTerminator(buf, id, count, faults, head.Message)
+}

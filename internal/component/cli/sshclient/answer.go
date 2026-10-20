@@ -139,7 +139,9 @@ func readAnswerFrame(stderr io.Reader) (Answer, string) {
 			answer.Message = tail.Message
 			continue
 		}
-		if kind != rpc.AnswerKindTerminator {
+		// The parsed kind, never the token: a warning terminator is spelled
+		// wrn on the wire and still ends the answer (rpc.AnswerKindWarning).
+		if tail.Kind != rpc.AnswerKindTerminator {
 			continue
 		}
 		answer.Count = tail.Count

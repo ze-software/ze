@@ -1898,7 +1898,7 @@ table.
 
 An answer line carries no verb and no key name. The field after the id is a
 three-byte word saying what the line IS, and every field after that is
-positional. The five words:
+positional. The six words:
 
 | Word | The line is | Its fields, in order |
 |------|-------------|----------------------|
@@ -1906,6 +1906,7 @@ positional. The five words:
 | `row` | one record the command produced | the payload |
 | `bad` | one record the command rejected. The walk goes on | the payload |
 | `end` | the terminator. It ends the answer and is always the last line for this id | records produced, rows rejected, message |
+| `wrn` | the terminator of a command that completed and states a warning, in place of `end` | records produced, rows rejected, message |
 | `nay` | the whole answer to a command text naming no command | error code, message |
 
 The head's item type is a three-byte word too, and it says how the records read:

@@ -457,6 +457,13 @@ const (
 	AnswerKindFault = "bad"
 	// AnswerKindTerminator ends the answer and carries its counts.
 	AnswerKindTerminator = "end"
+	// AnswerKindWarning ends the answer of a command that completed and states
+	// a warning: it is a terminator, with the terminator's fields, spelled
+	// apart because the counts cannot say it. A route accepted and sent to no
+	// peer is the case: one record, no rejection, no failure, and not done.
+	// A parsed one reads as AnswerKindTerminator with AnswerTail.Warning set,
+	// so every reader that waits for the end of an answer finds it.
+	AnswerKindWarning = "wrn"
 	// AnswerKindNotUnderstood is the whole answer to a command text naming no
 	// command: one line, no head and no terminator, because nothing ran.
 	AnswerKindNotUnderstood = "nay"
@@ -516,6 +523,7 @@ var (
 	answerWordRecord        = answerWordOf(AnswerKindRecord)
 	answerWordFault         = answerWordOf(AnswerKindFault)
 	answerWordTerminator    = answerWordOf(AnswerKindTerminator)
+	answerWordWarning       = answerWordOf(AnswerKindWarning)
 	answerWordNotUnderstood = answerWordOf(AnswerKindNotUnderstood)
 	answerWordTypeDocument  = answerWordOf(AnswerTypeDocument)
 	answerWordTypeMap       = answerWordOf(AnswerTypeMap)
@@ -523,7 +531,7 @@ var (
 )
 
 // answerKindOfWord names the kind a word states, and reports whether it states
-// one. Five integer compares, no vocabulary lookup and no string compare.
+// one. Six integer compares, no vocabulary lookup and no string compare.
 func answerKindOfWord(word answerWord) (string, bool) {
 	switch word {
 	case answerWordHead:
@@ -534,6 +542,8 @@ func answerKindOfWord(word answerWord) (string, bool) {
 		return AnswerKindFault, true
 	case answerWordTerminator:
 		return AnswerKindTerminator, true
+	case answerWordWarning:
+		return AnswerKindWarning, true
 	case answerWordNotUnderstood:
 		return AnswerKindNotUnderstood, true
 	}
@@ -571,6 +581,7 @@ var answerKinds = []string{
 	AnswerKindRecord,
 	AnswerKindFault,
 	AnswerKindTerminator,
+	AnswerKindWarning,
 	AnswerKindNotUnderstood,
 }
 
@@ -814,7 +825,25 @@ var answerRecordGap [answerRecordPrefixWidth]byte
 // zero count and an empty message are present and empty rather than omitted, and
 // the terminator's field count never varies.
 func AppendAnswerTerminator(buf []byte, id, count, faults uint64, message string) []byte {
-	buf = appendAnswerPrefix(buf, id, AnswerKindTerminator)
+	return appendAnswerEnd(buf, id, AnswerKindTerminator, count, faults, message)
+}
+
+// AppendAnswerWarning appends the terminator of an answer whose command
+// completed and states a warning (#<id> wrn <count> <faults> <n>:<message>) to
+// buf and returns the extended slice. Newline is NOT appended.
+//
+// Its fields are AppendAnswerTerminator's. Only the kind differs, because a
+// warning is the one outcome the counts cannot state: a route accepted and sent
+// to no peer produced its record, rejected nothing and failed nothing, and is
+// still not done (Verdict).
+func AppendAnswerWarning(buf []byte, id, count, faults uint64, message string) []byte {
+	return appendAnswerEnd(buf, id, AnswerKindWarning, count, faults, message)
+}
+
+// appendAnswerEnd is the one writer of a terminator's fields, whichever of the
+// two terminator kinds spells it.
+func appendAnswerEnd(buf []byte, id uint64, kind string, count, faults uint64, message string) []byte {
+	buf = appendAnswerPrefix(buf, id, kind)
 	buf = append(buf, ' ')
 	buf = appendCountedNumber(buf, count)
 	buf = append(buf, ' ')
@@ -884,6 +913,9 @@ const (
 	VerdictError     = StatusError
 	VerdictAborted   = "aborted"
 	VerdictTruncated = "truncated"
+	// VerdictWarning is a command that completed and states a warning. It is
+	// the status word a response envelope uses for the same outcome.
+	VerdictWarning = StatusWarning
 )
 
 // AnswerTail is one answer line: the kind the line stated, and the fields that
@@ -919,6 +951,11 @@ type AnswerTail struct {
 	// and rows the walk rejected.
 	Count  uint64
 	Faults uint64
+	// Warning reports a terminator spelled AnswerKindWarning: the command
+	// completed and states a warning. Kind still reads AnswerKindTerminator,
+	// because the line ends the answer either way. A producer sets it on the
+	// AnswerTail it hands a writer, which then spells the terminator wrn.
+	Warning bool
 	// Message is the terminator's operational text, which states why a walk
 	// produced fewer records than it set out to, or the not-understood answer's
 	// reason. It is empty for a walk that ran to its end with nothing to say.
@@ -946,6 +983,10 @@ func ParseAnswerTail(kind string, payload []byte) (AnswerTail, error) {
 		return parseAnswerRecord(kind, payload)
 	case AnswerKindTerminator:
 		return parseAnswerTerminator(payload)
+	case AnswerKindWarning:
+		tail, err := parseAnswerTerminator(payload)
+		tail.Warning = err == nil
+		return tail, err
 	case AnswerKindNotUnderstood:
 		return parseAnswerNotUnderstood(payload)
 	}
@@ -1158,12 +1199,23 @@ func Verdict(terminator *AnswerTail) string {
 		return VerdictAborted
 	}
 	if terminator.Faults == 0 {
-		return VerdictDone
+		return doneOrWarning(terminator)
 	}
 	if terminator.Count == 0 {
 		return VerdictError
 	}
 	return VerdictPartial
+}
+
+// doneOrWarning is the verdict of a terminator whose counts derive done: a
+// warning terminator states the one outcome the counts cannot, and nothing
+// else qualifies a success. A failure or a rejected row outranks the warning,
+// because the counts are what an operator acts on first.
+func doneOrWarning(terminator *AnswerTail) string {
+	if terminator.Warning {
+		return VerdictWarning
+	}
+	return VerdictDone
 }
 
 // FormatRequest returns a request line (#<id> <method> [<json>]) in a
@@ -1257,6 +1309,7 @@ var answerLineShapes = map[string][]answerFieldShape{
 	AnswerKindRecord:        {answerFieldText},
 	AnswerKindFault:         {answerFieldText},
 	AnswerKindTerminator:    {answerFieldNumber, answerFieldNumber, answerFieldText},
+	AnswerKindWarning:       {answerFieldNumber, answerFieldNumber, answerFieldText},
 	AnswerKindNotUnderstood: {answerFieldText, answerFieldText},
 }
 

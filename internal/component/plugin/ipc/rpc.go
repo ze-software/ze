@@ -427,6 +427,11 @@ func ExecuteCommandValue(answer *rpc.Answer) (*rpc.ExecuteCommandOutput, error) 
 	if message := answer.Message(); message != "" {
 		return &rpc.ExecuteCommandOutput{Status: rpc.StatusError, Data: json.RawMessage(message)}, nil
 	}
+	// A warning terminator is the plugin's handler reporting a warning, and the
+	// engine reads that status rather than done (rpc.AnswerKindWarning).
+	if answer.Verdict() == rpc.VerdictWarning {
+		return &rpc.ExecuteCommandOutput{Status: rpc.StatusWarning, Data: document}, nil
+	}
 	return &rpc.ExecuteCommandOutput{Status: rpc.StatusDone, Data: document}, nil
 }
 

@@ -394,7 +394,17 @@ func executeCommandAnswer(
 		// A handler that reported a failure beside a walk gave no text with it,
 		// so the terminator states the fixed one. A failure that said nothing
 		// would otherwise reach the caller as a completed answer (rpc.Verdict).
-		return nil, records.WriteAnswer(answer, id, answerFailureMessage(status, nil))
+		//
+		// A handler that reported a warning has its terminator spelled
+		// rpc.AnswerKindWarning, so the engine reads the status the handler
+		// returned rather than done.
+		head := rpc.AnswerTail{
+			Key:     records.Key,
+			Fields:  records.Fields,
+			Message: answerFailureMessage(status, nil),
+			Warning: status == rpc.StatusWarning,
+		}
+		return nil, rpc.WriteRecordAnswer(answer, id, head, records.Rows)
 	}
 	// The value the handler built is the document a bounded walk collapses to,
 	// so it takes the same three lines: the head states how the record is read,
@@ -404,7 +414,7 @@ func executeCommandAnswer(
 	if err != nil {
 		return nil, err
 	}
-	head := rpc.AnswerTail{Message: answerFailureMessage(status, out.Data)}
+	head := rpc.AnswerTail{Message: answerFailureMessage(status, out.Data), Warning: status == rpc.StatusWarning}
 	if head.Message != "" {
 		// A failing answer carries its reason and no payload, which is what the
 		// caller rebuilds the failure from.

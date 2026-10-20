@@ -557,7 +557,7 @@ func TestAnswerFrameUsesPooledBuffer(t *testing.T) {
 			if err := frame.head(rpc.AnswerTypeMap, "peers", nil); err != nil {
 				writeErr = err
 			}
-			if err := frame.terminator(2, 1, ""); err != nil {
+			if err := frame.terminator(2, 1, false, ""); err != nil {
 				writeErr = err
 			}
 			frame.release()
@@ -577,7 +577,7 @@ func TestAnswerFrameUsesPooledBuffer(t *testing.T) {
 		var first bytes.Buffer
 		long := newAnswerFrame(&first)
 		require.NoError(t, long.head(rpc.AnswerTypeDocument, "", nil))
-		require.NoError(t, long.terminator(0, 0, message))
+		require.NoError(t, long.terminator(0, 0, false, message))
 		long.release()
 		require.Contains(t, first.String(), marker,
 			"the first frame carries no marker, so the buffer it leaves behind holds nothing to leak")
@@ -585,7 +585,7 @@ func TestAnswerFrameUsesPooledBuffer(t *testing.T) {
 		var second bytes.Buffer
 		short := newAnswerFrame(&second)
 		require.NoError(t, short.head(rpc.AnswerTypeDocument, "", nil))
-		require.NoError(t, short.terminator(1, 0, ""))
+		require.NoError(t, short.terminator(1, 0, false, ""))
 		short.release()
 
 		assert.NotContains(t, second.String(), marker, "the second frame carries the first frame's bytes")

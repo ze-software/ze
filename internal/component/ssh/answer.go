@@ -91,8 +91,12 @@ func (f *answerFrame) head(answerType, key string, fields []string) error {
 }
 
 // terminator writes the line that ends the answer. Its absence is what states
-// truncation, so nothing else may be written after it.
-func (f *answerFrame) terminator(count, faults uint64, message string) error {
+// truncation, so nothing else may be written after it. warning spells it
+// rpc.AnswerKindWarning, for a command that completed and states a warning.
+func (f *answerFrame) terminator(count, faults uint64, warning bool, message string) error {
+	if warning {
+		return f.write(rpc.AppendAnswerWarning((*f.line)[:0], rpc.AnswerNoID, count, faults, message))
+	}
 	return f.write(rpc.AppendAnswerTerminator((*f.line)[:0], rpc.AnswerNoID, count, faults, message))
 }
 
@@ -124,12 +128,13 @@ func (f *answerFrame) write(line []byte) error {
 // command.RenderRecords instead, which pulls the rows as it writes them.
 func writeExecAnswer(sess ssh.Session, frame *answerFrame, input string, formatOutput func(string) string, result *plugin.RenderedResponse) error {
 	if result == nil {
-		return writeExecDocument(sess, frame, formatOutput, "")
+		return writeExecDocument(sess, frame, formatOutput, "", false)
 	}
+	warning := result.Response != nil && result.Response.Status == plugin.StatusWarning
 	if records, generated := plugin.RecordRows(result.Response); generated {
-		return writeExecRecords(sess, frame, input, records)
+		return writeExecRecords(sess, frame, input, records, warning)
 	}
-	return writeExecDocument(sess, frame, formatOutput, result.Output)
+	return writeExecDocument(sess, frame, formatOutput, result.Output, warning)
 }
 
 // writeExecRecords renders a row generator to the session and frames what it
@@ -146,7 +151,7 @@ func writeExecAnswer(sess ssh.Session, frame *answerFrame, input string, formatO
 // RenderRecords decides whether the threshold permits streaming and returns the
 // schema left by every selection and enrichment. The frame must use that schema
 // instead of the producer's original fields or it labels values incorrectly.
-func writeExecRecords(sess ssh.Session, frame *answerFrame, input string, records plugin.Records) error {
+func writeExecRecords(sess ssh.Session, frame *answerFrame, input string, records plugin.Records, warning bool) error {
 	// An exec channel holds no per-session `set cli format` override, so the
 	// session format is empty and the configured default applies.
 	answer, err := command.RenderRecords(sess, input, "", records.Key, records.Fields, rpc.HeldRecords(records.Rows))
@@ -163,7 +168,7 @@ func writeExecRecords(sess ssh.Session, frame *answerFrame, input string, record
 	if headErr := frame.head(answer.Type, key, fields); headErr != nil {
 		return headErr
 	}
-	return frame.terminator(answer.Count, answer.Faults, "")
+	return frame.terminator(answer.Count, answer.Faults, warning, "")
 }
 
 // writeExecDocument renders a payload the handler built whole and frames it as
@@ -174,7 +179,7 @@ func writeExecRecords(sess ssh.Session, frame *answerFrame, input string, record
 // says which by counting zero records. The client is what turns that into the OK an
 // operator reads, because only the client knows whether the chain named a
 // format.
-func writeExecDocument(sess ssh.Session, frame *answerFrame, formatOutput func(string) string, output string) error {
+func writeExecDocument(sess ssh.Session, frame *answerFrame, formatOutput func(string) string, output string, warning bool) error {
 	if err := frame.head(rpc.AnswerTypeDocument, "", nil); err != nil {
 		return err
 	}
@@ -190,7 +195,7 @@ func writeExecDocument(sess ssh.Session, frame *answerFrame, formatOutput func(s
 			return err
 		}
 	}
-	return frame.terminator(count, 0, "")
+	return frame.terminator(count, 0, warning, "")
 }
 
 // writeExecFailure reports a command that did not produce an answer.
@@ -217,7 +222,7 @@ func writeExecFailure(sess ssh.Session, frame *answerFrame, err error) {
 		return
 	}
 	frame.head(rpc.AnswerTypeDocument, "", nil) //nolint:errcheck // as above
-	frame.terminator(0, 0, err.Error())         //nolint:errcheck // as above
+	frame.terminator(0, 0, false, err.Error())  //nolint:errcheck // as above
 }
 
 // writeExecError writes the plain-text failure an operator reads, in the shape

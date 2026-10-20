@@ -208,7 +208,7 @@ func WriteAnswer(w io.Writer, id uint64, resp *Response) error {
 	if err != nil {
 		return err
 	}
-	head := rpc.AnswerTail{Message: answerMessage(resp)}
+	head := rpc.AnswerTail{Message: answerMessage(resp), Warning: answerWarning(resp)}
 	if generated {
 		head.Key = records.Key
 		head.Fields = records.Fields
@@ -286,7 +286,7 @@ func AnswerFor(resp *Response) (*rpc.Answer, error) {
 		Key:    records.Key,
 		Fields: records.Fields,
 	}
-	terminator := rpc.AnswerTail{Count: count, Faults: faults, Message: answerMessage(resp)}
+	terminator := rpc.AnswerTail{Count: count, Faults: faults, Message: answerMessage(resp), Warning: answerWarning(resp)}
 	return rpc.NewAnswer(head, terminator, slices.Values(held)), nil
 }
 
@@ -303,7 +303,7 @@ func AnswerFor(resp *Response) (*rpc.Answer, error) {
 // rpc.WriteDocumentAnswer states on the wire for the same answer.
 func documentAnswer(resp *Response, document json.RawMessage, count, faults uint64) *rpc.Answer {
 	head := rpc.AnswerTail{Type: rpc.AnswerTypeDocument}
-	terminator := rpc.AnswerTail{Count: count, Faults: faults, Message: answerMessage(resp)}
+	terminator := rpc.AnswerTail{Count: count, Faults: faults, Message: answerMessage(resp), Warning: answerWarning(resp)}
 	if len(document) == 0 {
 		return rpc.NewAnswer(head, terminator, nil)
 	}
@@ -399,6 +399,15 @@ func answerMessage(resp *Response) string {
 		return rpc.AnswerFailureUnstated
 	}
 	return ""
+}
+
+// answerWarning reports whether resp completed with a warning, which the
+// terminator states by its kind (rpc.AnswerKindWarning). The counts cannot say
+// it: a route accepted and sent to no peer produced its record and rejected
+// nothing, and an answer that dropped the status would read done on every
+// socket while the in-process caller read warning.
+func answerWarning(resp *Response) bool {
+	return resp != nil && resp.Status == StatusWarning
 }
 
 // errStatusErrorNoMessage is the failure a Status=error response with no Error

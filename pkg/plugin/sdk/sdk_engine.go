@@ -337,7 +337,8 @@ func (p *Plugin) bridgeReady() bool {
 }
 
 // answerValue walks answer to its end and rebuilds the value its command
-// produced: the status its terminator derives, the document its records carry,
+// produced: the status its terminator derives (done, or warning when the
+// terminator is spelled rpc.AnswerKindWarning), the document its records carry,
 // and the command's own failure as a Go error. label names the RPC in that
 // error.
 //
@@ -359,6 +360,11 @@ func answerValue(answer *rpc.Answer, label string) (string, json.RawMessage, err
 	// and the single-line frame it replaced fail a caller the same way.
 	if message := answer.Message(); message != "" {
 		return rpc.StatusError, nil, errors.New(message)
+	}
+	// A warning terminator is a command that completed and states a warning,
+	// which is the status the in-process bridge hands the same caller.
+	if answer.Verdict() == rpc.VerdictWarning {
+		return rpc.StatusWarning, document, nil
 	}
 	return rpc.StatusDone, document, nil
 }

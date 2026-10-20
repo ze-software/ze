@@ -1174,7 +1174,7 @@ func handleUpdateText(ctx *pluginserver.CommandContext, args []string) (*plugin.
 			}, nil
 		}
 		return &plugin.Response{
-			Status: "warning",
+			Status: plugin.StatusWarning,
 			Data:   plugin.Map{"message": "no routes or EOR markers to send"},
 		}, nil
 	}
@@ -1324,7 +1324,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 			msg = textbuf.Join(warnings, "; ")
 		}
 		return &plugin.Response{
-			Status: "warning",
+			Status: plugin.StatusWarning,
 			Data:   plugin.Map{"message": msg},
 		}, nil
 	}

@@ -27,6 +27,10 @@ const (
 	StatusDone  = "done"
 	StatusError = "error"
 	StatusOK    = "ok"
+	// StatusWarning is a command that completed and states a warning: a
+	// route accepted and sent to no peer. The answer's terminator spells it
+	// AnswerKindWarning, so a socket consumer reads what an in-process one does.
+	StatusWarning = "warning"
 )
 
 // Record is one row of an answer as BYTES: a row that has arrived, a row the

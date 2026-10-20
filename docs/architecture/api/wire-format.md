@@ -164,6 +164,7 @@ reader takes the four bytes as one load rather than searching for a separator.
 | `row` | one record the command produced |
 | `bad` | one record the command rejected. The walk goes on |
 | `end` | the terminator, which ends the answer |
+| `wrn` | the terminator of a command that completed and states a warning |
 | `nay` | the whole answer to a command text naming no command |
 
 Three more words say how the records read, and the head carries one of them:
@@ -183,7 +184,7 @@ field count never varies.
 
 Neither the head nor the terminator states an outcome. The verdict is DERIVED
 from the terminator's two counts and its message: no rejected row and no message
-is `done`, some of each is `partial`, a message over no record is `error`, a
+is `done`, the same under a `wrn` terminator is `warning`, some of each is `partial`, a message over no record is `error`, a
 message over records is `aborted`, and a missing terminator is `truncated`. The
 frame is the same whatever the payload is, so a handler that built one value
 answers with the same three lines and the `doc` type.

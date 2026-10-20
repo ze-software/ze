@@ -517,6 +517,10 @@ const (
 	StatusDone  = "done"
 	StatusError = "error"
 	StatusOK    = "ok"
+	// StatusWarning is a command that completed and states a warning. Every
+	// transport carries it: the answer's terminator spells it wrn
+	// (rpc.AnswerKindWarning), and DirectBridge carries the status itself.
+	StatusWarning = rpc.StatusWarning
 )
 
 // cmdPlugin is the "plugin" token in command strings like "ze plugin <name>".

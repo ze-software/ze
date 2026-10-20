@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,15 +28,17 @@ const zeNoFamilyMessage = "announce ipv6/unicast: no peers have family negotiate
 // VALIDATES: a record answer whose terminator states no message releases the
 // waiter as success, the warning document included, as ExaBGP answers a route
 // for a configured family it cannot send yet; a terminator message fails it.
+// ze spells the warning's terminator `wrn` (rpc.AnswerKindWarning), and the
+// bridge still answers it done.
 // PREVENTS: a `warning` refused as if no peer were configured for the family,
 // and a failure stated on the terminator answered done.
 func TestStandaloneRunnerReleasesADispatchAtItsTerminator(t *testing.T) {
 	warning := json.RawMessage(`{"message":"` + zeNoFamilyMessage + `"}`)
-	answer := func(id uint64, document json.RawMessage, message string) string {
+	answer := func(id uint64, document json.RawMessage, terminator string) string {
 		lines := []string{
 			string(rpc.AppendAnswerHead(nil, id, rpc.AnswerTypeDocument, "", nil)),
 			string(rpc.AppendAnswerItem(nil, id, document)),
-			string(rpc.AppendAnswerTerminator(nil, id, 1, 0, message)),
+			terminator,
 		}
 		for i := range lines {
 			lines[i] = strings.TrimRight(lines[i], "\n")
@@ -48,11 +51,17 @@ func TestStandaloneRunnerReleasesADispatchAtItsTerminator(t *testing.T) {
 	warned := pending.register(7)
 	failed := pending.register(8)
 	var zeBuf, pluginBuf strings.Builder
-	wire := answer(7, warning, "") + answer(8, json.RawMessage(`{}`), "peer is shutting down")
+	wire := answer(7, warning, "#7 wrn 1 0 0:") +
+		answer(8, json.RawMessage(`{}`), string(rpc.AppendAnswerTerminator(nil, 8, 1, 0, "peer is shutting down")))
 	b.zebgpToPluginWithScanner(context.Background(), bufio.NewScanner(strings.NewReader(wire)),
 		&pluginBuf, &syncWriter{w: &zeBuf}, pending)
 
-	result := <-warned
+	var result pendingResult
+	select {
+	case result = <-warned:
+	case <-time.After(time.Second):
+		t.Fatal("a warning terminator must release the dispatch waiter")
+	}
 	assert.True(t, result.ok, "a warning is answered done, as ExaBGP answers it")
 	result = <-failed
 	require.False(t, result.ok)

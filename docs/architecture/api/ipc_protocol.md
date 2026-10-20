@@ -335,8 +335,9 @@ parses a payload to find out what it holds.
 | `row` | one row the command produced |
 | `bad` | one row the command rejected. The walk goes on |
 | `end` | ends the answer and carries its counts |
+| `wrn` | ends the answer of a command that completed and states a warning. Its fields are `end`'s |
 | `nay` | the whole answer to a command text naming no command |
-<!-- source: pkg/plugin/rpc/message.go -- AnswerKindHead, AnswerKindRecord, AnswerKindFault, AnswerKindTerminator, AnswerKindNotUnderstood -->
+<!-- source: pkg/plugin/rpc/message.go -- AnswerKindHead, AnswerKindRecord, AnswerKindFault, AnswerKindTerminator, AnswerKindWarning, AnswerKindNotUnderstood -->
 
 **A three-letter word MUST be followed by a space, and MUST NOT be followed by
 the line terminator.** That holds for the kind token and for the head's item
@@ -419,8 +420,9 @@ encoding.
 | result record | `row` | the row the command produced, counted | between head and terminator |
 | error record | `bad` | the row the command rejected, counted | between head and terminator |
 | terminator | `end` | records produced, rows rejected, message | last line for this id |
+| warning terminator | `wrn` | records produced, rows rejected, message | last line for this id, in place of `end` |
 | not understood | `nay` | error code, message | the only line for this id |
-<!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerItem, AppendAnswerFault, AppendAnswerTerminator, AppendAnswerNotUnderstood -->
+<!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerItem, AppendAnswerFault, AppendAnswerTerminator, AppendAnswerWarning, AppendAnswerNotUnderstood -->
 
 EVERY value is counted, the record payload included, so a JSON value that holds
 `=` or a space needs no escaping and a reader never looks for the newline to
@@ -515,15 +517,36 @@ The verdict is DERIVED from the counts the terminator already carries. A stated
 status would be a second source of truth for a fact the counts hold, and two
 sources can disagree.
 
+The one outcome the counts cannot hold is a warning: a command that completed,
+produced its record, rejected nothing, and still did not do what was asked. A
+route accepted and sent to no peer (`update text` for a family no selected peer
+has negotiated) is the case. Its terminator is spelled `wrn` instead of `end`,
+with the same fields, so the kind states the one fact no count carries and no
+reader that waits for the end of an answer can miss it. A parsed `wrn` line is a
+terminator with `Warning` set. A failure or a rejected row outranks the
+warning, because the counts are what an operator acts on first.
+
 | Terminator | Verdict |
 |------------|---------|
 | N records, no rejected row, no message | `done` |
+| `wrn`, no rejected row, no message | `warning`, the command completed and states a warning |
 | N records and M rejected, N more than 0, no message | `partial` |
 | no record and M rejected, no message | `error`, nothing succeeded |
 | a message over no record and no rejected row | `error`, the command failed before it produced anything |
 | a message over records or rejected rows | `aborted`, and the count states how far the walk got |
 | no terminator | `truncated` |
-<!-- source: pkg/plugin/rpc/message.go -- Verdict, VerdictDone, VerdictPartial, VerdictError, VerdictAborted, VerdictTruncated -->
+<!-- source: pkg/plugin/rpc/message.go -- Verdict, doneOrWarning, VerdictDone, VerdictWarning, VerdictPartial, VerdictError, VerdictAborted, VerdictTruncated -->
+<!-- source: internal/component/plugin/dispatch.go -- answerWarning -->
+
+Every socket consumer reads `warning` where the in-process `DirectBridge` hands
+the same caller `warning`: the SDK's `DispatchCommand`, the engine reading a
+plugin's `execute-command` answer, and the SSH exec client. The ExaBGP bridge
+answers a `wrn` terminator `done`, as ExaBGP answers a route for a configured
+family it cannot send yet.
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- answerValue -->
+<!-- source: internal/component/plugin/ipc/rpc.go -- ExecuteCommandValue -->
+<!-- source: internal/component/cli/sshclient/answer.go -- readAnswerFrame -->
+<!-- source: internal/exabgp/bridge/bridge_dispatch_answer.go -- terminatorResult -->
 
 The message makes an aborted walk expressible when no row faulted.
 `end 417 0 20:rib snapshot expired` is neither done nor partial, and the

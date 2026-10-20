@@ -12,6 +12,8 @@ import (
 // its message is the command's failure (rpc.Verdict), and no message is
 // success.
 //
+// Both terminator kinds carry the same fields, so the payload of a warning
+// terminator (rpc.AnswerKindWarning) is read the same way and answers success.
 // A route ze answers `warning` for is success here, as ExaBGP answers it: a
 // selected peer is configured for its family and its session is down or did
 // not negotiate the family. A route for a family no selected peer is

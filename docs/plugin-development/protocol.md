@@ -34,6 +34,7 @@ three-byte word saying what the line IS:
 | `row` | one record the command produced |
 | `bad` | one record it rejected. The walk goes on |
 | `end` | the terminator, which ends the answer |
+| `wrn` | the terminator of a command that completed and states a warning |
 | `nay` | the whole answer to a command text naming no command |
 
 The head carries a second three-byte word saying how the records read:
@@ -81,6 +82,7 @@ from what the terminator carries:
 | The terminator | Verdict |
 |----------------|---------|
 | no rejected row and no message | `done` |
+| `wrn`, no rejected row and no message | `warning` |
 | records and rejected rows, no message | `partial` |
 | a message over no record | `error` |
 | a message over records | `aborted` |
