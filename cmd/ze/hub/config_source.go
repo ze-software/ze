@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -75,6 +76,26 @@ func recordBootConfig(store storage.Storage, path string, content []byte) error 
 		slogutil.Logger("hub.config").Error("boot configuration not recorded in the store; configuration changes are refused until ze restarts", "source", path, "error", err, "fix", "run `ze data check`, then restart ze")
 	}
 	return err
+}
+
+// awaitBootRecordAtStop holds a stop until the boot record has returned.
+// MUST be called before the stop reports that ze stopped, so the report is true
+// only once the store holds the boot configuration. The wait is not bounded:
+// abandoning the record would leave the store naming the previous configuration
+// for every offline reader. A record still running is announced first, because
+// on a slow disk its syncs can hold the stop for many seconds; a second signal
+// still forces the exit, and the next start then records the same file.
+func awaitBootRecordAtStop(record *storage.BootRecord, out io.Writer) {
+	if record == nil {
+		return
+	}
+	select {
+	case <-record.Done():
+		return
+	default:
+	}
+	_, _ = io.WriteString(out, "Stopping: the store is still recording the boot configuration, because the disk is slow; waiting for it (Ctrl+C again to force, the next start records it)...\n") //nolint:errcheck // operator notice on stdout, nothing to do if it fails
+	record.Wait()
 }
 
 // promoteConfigCandidate publishes a candidate the daemon authored: an SSH,

@@ -306,7 +306,7 @@ after = `ze` built from `git archive 5aff23f38e` (HEAD), both with the DUT tag s
 | explicit-file-restart, after | fsync | invocation 1 FAIL 77.3s: ze printed `Starting ze`, `Ze running`, `storage probe authenticated`, then on stop `Stopping: finishing config changes...`, `Ze stopped.`, and was still killed by the fixture |
 | explicit-file-restart, after | none | 1/1 PASS 17.6s (`./le job run` over `le test bgp plugin -v explicit-file-restart`, `LE_TEST_NO_BUILD=1`) |
 
--> Finding (open, blocks closure): the startup stall is gone at HEAD (the disk-store DUT now serves
+-> Finding (traced 2026-10-20, agent bootrec2, see "Shutdown overrun traced" below): the startup stall is gone at HEAD (the disk-store DUT now serves
 under the writer), but explicit-file-restart, a disk-store test, still fails under the same writer at
 HEAD, now in shutdown: after `Ze stopped.` the process does not exit before the fixture's kill. The
 cause is not traced. Suspect: `defer bootRecord.Wait()` in runYANGConfig (cmd/ze/hub/main.go), which
@@ -322,3 +322,176 @@ start after `writeReadyFile`): no BLOCKER or ISSUE in the diffs themselves. Ever
 `configStore.AcquireLock` gates; `promoteConfigCandidate` writes its intent only after a candidate
 exists, so after the gate. NOTE fixed: Known Limitations said the record starts before the plugin
 wait. Not recorded with `./le spec review record` because the closure stopped at the finding above.
+
+## Shutdown overrun traced (2026-10-20, agent bootrec2)
+
+Method: `ZE_BIN` pointed at a wrapper that timestamps each line ze prints, logs the start and the
+exit, and sends SIGQUIT 4s (later 15s) after `Ze stopped.` (the runner sets `GOTRACEBACK=all`).
+Builds from `git archive`: HEAD b0f097d650, before = 37823314a5^ (9a56996634), fix = 19d0bb86b1
+plus this change, all with the DUT tags. One looping 192MB `conv=fsync` dd writer, bounded by
+`timeout 1800`, file removed after each run.
+
+What blocks exit, at the producer: the SIGQUIT dump taken after `Ze stopped.` shows goroutine 1
+in `storage.(*BootRecord).Wait`, called from the `defer bootRecord.Wait()` of `runYANGConfig`. The
+record starts after `writeReadyFile`, and the fixture's probe stops ze right after `Ze running`, so
+nearly all of the record's syncs run during the stop. The store close is not involved.
+
+| Run (same writer, load 5-14, alternating) | start to `Ze running` | `Ze stopped.` to exit | start to exit, mean |
+|-----|-----|-----|-----|
+| HEAD, 12 starts | 0.6-8.1s | 2.6-8.5s (the record) | 8.2s |
+| before (37823314a5^), 12 starts | 4.1-24.3s (the record is inside) | 4-10ms | 10.0s |
+
+-> Decision: the overrun is not a regression of this spec. The record costs the same disk time
+whichever side of serving it runs on: before the spec the same fixture deadline (`storageCommand`,
+75% of the 90s budget, 67.5s) killed ze during startup (70.3s, the table above), after it during
+the stop. The fixture reads the active pointer after the stop, and AC-5 needs the record to land,
+so the stop keeps waiting for it with no bound. Journal row:
+plan/journal/startup-wait-expires-under-load.md, 2026-10-20.
+
+-> Decision: one defect of this spec fixed. The stop printed `Ze stopped.` and then waited in a
+defer, so the operator saw "stopped" over a process still writing. `awaitBootRecordAtStop`
+(cmd/ze/hub/config_source.go) now runs before `Ze stopped.`; if the record is still running it
+first prints `Stopping: the store is still recording the boot configuration, because the disk is
+slow; waiting for it (Ctrl+C again to force, the next start records it)...`. A second signal still
+force-exits through `stopSignals` (teardown phase). The early-return `defer bootRecord.Wait()`
+stays for the paths that return before the stop.
+
+Tests: `TestStopWaitsForPendingBootRecordAndSaysSo` red with the helper only waiting
+(`stop line does not say "Stopping: the store is still recording the boot configuration"`), green
+with the line; `TestStopAfterBootRecordLandedIsSilent` green.
+
+Measurement with the fix (fsync writer):
+
+| Test | Build | Load | Result |
+|------|-------|------|--------|
+| explicit-file-restart | fix, through the wrapper | 17-39 | 6/6 pass; every stop printed the waiting line; record wait after serving 3-35s; one start up to 37.6s; `Ze stopped.` to exit 15-80ms |
+| explicit-file-restart | fix, raw binary | 15-25 | 4/4 pass |
+| filter-irr | fix, raw binary | 16-27 | 8/8 pass (memory DUT store) |
+
+The one filter-irr red through the wrapper was the wrapper's own `2>&1` putting stderr on stdout
+(`output does not match regex "irr filter modify" on stderr, but this command wrote it to stdout`),
+so filter-irr was measured on the raw binary.
+
+## Implementation Summary
+
+### What Was Implemented
+- A (37823314a5, 9ee692f99a): `storage.DeferBootRecord` / `BootRecord` gate on the bound handle;
+  the record runs after `writeReadyFile`; reads answer the boot bytes, writes wait at most 30s.
+- B (dd3eaf7773): zetest DUT on `storage.CreateMemory` via `ze.test.storage=memory`; disk option per test.
+- C (4c1db99ae2): three syncs trimmed in the storage write path.
+- Stop (bootrec2): `awaitBootRecordAtStop` before `Ze stopped.`, with the waiting line; `BootRecord.Done`.
+
+### Bugs Found/Fixed
+- `Ze stopped.` printed before the boot record landed: `TestStopWaitsForPendingBootRecordAndSaysSo`.
+
+### Documentation Updates
+- docs/architecture/storage-backends.md, "The boot record": the stop waits for the record, the
+  waiting line, no bound and why. `./le doc check verify` owed (not run by bootrec2).
+
+### Deviations from Plan
+- The stop's wait for the record moved from a defer to an explicit call before `Ze stopped.`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | The shutdown overrun was read as a regression of the move | Same disk time, paid at stop instead of boot; the pre-spec build fails the same deadline at startup | Alternating timed runs of both builds under the same writer | Journal row; stop line fixed |
+| approach | Measuring filter-irr through a wrapper that merged stderr into stdout | The runner asserts per stream | The red named the stream | Raw binary for stream-asserting tests |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A: record after listeners, writes wait or refuse, failure reported, crash repaired | Done | `boot_record.go`, `main.go` (`bootRecord.Start` after `writeReadyFile`) | |
+| B: DUT on memory store, disk tests keep disk | Done | `cmd/ze/register_store_zetest.go`, runner | |
+| C: trim redundant fsyncs | Done | `tree.go`, `ownership.go` (4c1db99ae2) | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test/encode/dut-store-slow-boot-record-starts.ci`; fsync measurement | |
+| AC-2 | Done | `TestBootRecordWriteWaitsThenLands`, `TestBootRecordWaitBound` | |
+| AC-3 | Done | `TestBootRecordPendingReadAnswersBootBytes` | |
+| AC-4 | Done | `TestBootRecordFailureRefusesWrites` | |
+| AC-5 | Done | `TestBootRecordWriteWaitsThenLands`; explicit-file-restart (reads active after stop) | |
+| AC-6 | Done | `TestStoreSelector*`, dut-store-memory-default.ci, dut-store-memory-config.ci | |
+| AC-7 | Done | dut-store-disk-option.ci, dut-store-disk-config.ci; option list above | |
+| AC-8 | Done | 4c1db99ae2 comments and storage-backends.md | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestBootRecord*` (6) | Done | internal/component/config/storage/boot_record_test.go | |
+| `TestStoreSelector*` (4) | Done | cmd/ze/register_store_zetest_test.go | |
+| `TestStop*` (2) | Done | cmd/ze/hub/config_source_stop_test.go | added by bootrec2 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| boot_record.go, boot_record_test.go | Done | |
+| cmd/ze/register_store_zetest.go | Done | |
+| cmd/ze/hub/config_source_stop_test.go | Done | not in plan, the stop fix |
+
+### Audit Summary
+- **Total items:** 3 requirements, 8 ACs
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** the stop's wait (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| ze serves before the boot record under fsync load | functional under load | filter-irr: before 1 FAIL in 1 invocation (stall), after 8/8 (2026-10-20 runs); explicit-file-restart before startup 4.1-24.3s vs HEAD 0.6-8.1s to `Ze running` |
+| The record still lands | functional | explicit-file-restart reads the active pointer after the stop: 10/10 with the fix under the writer |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| The fixture deadline vs disk time under a heavy writer | Pre-existing, not this spec's | journal row, plan/journal/startup-wait-expires-under-load.md |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | not recorded: the parent commissions an independent review of the stop fix |
+| `./le spec review check` | not run |
+| Rounds | 0 for the stop fix |
+| Reviewer lenses used | - |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `Ze stopped.` printed before the boot record landed | cmd/ze/hub/main.go | `awaitBootRecordAtStop` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| boot_record.go, boot_record_test.go, register_store_zetest.go, the four dut-store .ci, explicit-file-restart.ci, dut-store-slow-boot-record-starts.ci | yes | `ls` 2026-10-20 listed all ten |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-2..5 | gate and record | `go test -race -count=1 ./internal/component/config/storage/`: ok 286s (2026-10-20) |
+| AC-5 | record lands before exit | explicit-file-restart 10/10 under the writer, fix build |
+| AC-7 | disk option carried | `grep -c option=storage:value=disk` over test/: 85 files at HEAD 19d0bb86b1 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze start <file>` then stop, store read after | test/plugin/explicit-file-restart.ci | fixture `storageExplicitRestart` read: two `ze start`, `ReadActiveConfig` after each |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| boot bytes are the accepted config | held | `TestBootRecordPendingReadAnswersBootBytes` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| storage-backends.md, the stop waits for the record | `awaitBootRecordAtStop` call before `fmt.Println("Ze stopped.")` in `runYANGConfig` | yes |

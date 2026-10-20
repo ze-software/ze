@@ -77,6 +77,12 @@ func (r *BootRecord) Wait() {
 	<-r.done
 }
 
+// Done is closed once the record has returned, landed or failed, so a stop can
+// tell whether Wait would block. Safe for concurrent use.
+func (r *BootRecord) Done() <-chan struct{} {
+	return r.done
+}
+
 func (r *BootRecord) finish(err error) {
 	r.once.Do(func() {
 		r.err = err

@@ -1645,6 +1645,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		fmt.Fprintf(os.Stderr, "warning: shutdown timeout: %v\n", err)
 	}
 
+	// The record starts once ze serves; on a slow disk a stop soon after can
+	// arrive before it lands, and "Ze stopped." must not be printed over it.
+	awaitBootRecordAtStop(bootRecord, os.Stdout)
 	fmt.Println("Ze stopped.")
 
 	if rebootRequested.Load() {

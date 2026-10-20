@@ -336,6 +336,17 @@ allows a few seconds with no plugin progress, failed the start
 a listener nor the plugin handshake waits for it. `Wait` runs before the handle closes. The owner lock, `recoverFileCommit`, stale-candidate
 cleanup and the SSH host key all stay before serving.
 
+A stop waits for the record before it prints `Ze stopped.`
+(`awaitBootRecordAtStop` in `cmd/ze/hub/config_source.go`), so the store holds
+the boot configuration when the process exits and an offline reader finds it.
+The record's syncs therefore cost the same disk time as before the move: they
+are paid after serving, and a stop that arrives soon after serving pays what is
+left. A record still running when the stop reaches it is announced on stdout
+(`Stopping: the store is still recording the boot configuration, because the
+disk is slow; ...`). The wait has no bound, because abandoning the record would
+leave the previous configuration active for every offline reader; a second
+Ctrl+C forces the exit, and the next start records the same file.
+
 While the record is pending, `ReadActiveConfig` of the bound name answers the
 boot bytes from memory and `ReadCandidateConfig` answers no candidate: those
 bytes are the accepted configuration before they are durable. Every config
