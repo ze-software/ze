@@ -18,7 +18,9 @@ import (
 // Its teardown stops the data lease only when the lease lock is free: a panic raised inside
 // handlePDU's End of Data branch leaves that lock held, and a teardown that waited on it would
 // hang the test binary instead of reporting the panic. The lease timer left behind then is the
-// 7200 second Expire Interval, so it never fires inside the test binary's life.
+// 7200 second Expire Interval, so it never fires inside the test binary's life. A held lock in a
+// test that has not already failed is a lock the product leaked, so the teardown fails the test
+// rather than skipping the stop in silence.
 func newHandlerRTRSession(t *testing.T, aspas *aSPACache) *RTRSession {
 	t.Helper()
 	s := newRTRSession("127.0.0.1", 3323, 100, "", newROACache(), aspas, make(chan struct{}))
@@ -27,6 +29,9 @@ func newHandlerRTRSession(t *testing.T, aspas *aSPACache) *RTRSession {
 			return
 		}
 		if !s.dataLease.mu.TryLock() {
+			if !t.Failed() {
+				t.Error("the data lease lock (dataLease.mu) is still held after the test: handlePDU leaked it")
+			}
 			return
 		}
 		s.dataLease.mu.Unlock()
