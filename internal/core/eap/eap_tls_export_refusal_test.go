@@ -196,6 +196,20 @@ func TestEAPTLSExportRefusalNamesTheCause(t *testing.T) {
 // the session carries the RFC 7627 extended master secret, which Go's own client
 // always offers.
 // PREVENTS: a fix that turns every TLS 1.2 session into the refusal.
+//
+// RFC requirement: RFC7627-5.4-1 positive -- exportEAPTLSKeys returns no error
+// and a non-zero MSK and EMSK for a TLS 1.2 session that a Go client and a Go
+// server completed with renegotiation off.
+// RFC requirement: RFC7627-5.4-2 positive -- on that same session the RFC 5705
+// exporter that EAP-TLS derives its keys from (RFC 5216 Section 2.3) answers
+// key material, so neither the exporter nor EAP-TLS is disabled there.
+//
+// The test does not read the extended master secret flag, because crypto/tls
+// does not expose it. It holds because crypto/tls exports from a TLS 1.2
+// session only when that session carries the extended master secret
+// (Conn.connectionStateLocked), and Go's client always offers it. The negative,
+// a TLS 1.2 session without it, has no Go-side reproduction; checkEAPTLS
+// (internal/le/interoplab/ipsec/checkers.go) runs it against strongSwan.
 func TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret(t *testing.T) {
 	state := tls12ClientState(t, exportAllowed)
 

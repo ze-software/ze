@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc7627",
+  "records": [
+    {
+      "rid": "RFC7627-5.4-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/eap_tls_export_refusal_test.go::TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret",
+      "unit-sha": "546ea65d6fe80dc5",
+      "claim-sha": "267e3780cdeb756d",
+      "route": "mutant",
+      "producer": "internal/core/eap/eap_tls.go::exportEAPTLSKeys",
+      "producer-sha": "98b4d1240b3a48b9",
+      "break": "line 302: \"err != nil\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC7627-5.4-2",
+      "polarity": "positive",
+      "unit": "internal/core/eap/eap_tls_export_refusal_test.go::TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret",
+      "unit-sha": "546ea65d6fe80dc5",
+      "claim-sha": "880129a835d251c8",
+      "route": "mutant",
+      "producer": "internal/core/eap/eap_tls.go::exportEAPTLSKeys",
+      "producer-sha": "98b4d1240b3a48b9",
+      "break": "line 302: \"err != nil\" -\u003e \"true\""
+    }
+  ]
+}
