@@ -226,6 +226,7 @@ func parseTrafficMarkingFunction(args []string) ([]attribute.ExtendedCommunity, 
 //   - rate-limit:pps:packets -> Type 0x80, Subtype 0x0c (IEEE 754 float rate)
 //   - interface-set:[transitive|non-transitive:]DIR:ASN:GROUP -> Type 0x07 or
 //     0x47, Subtype 0x02 (draft-ietf-idr-flowspec-interfaceset Section 5)
+//   - l2info:encaps:control:mtu:reserved -> Type 0x80, Subtype 0x0a (RFC 4761 Section 3.2.4)
 func parseExtendedCommunity(s string) (attribute.ExtendedCommunity, error) {
 	if s == "" {
 		return attribute.ExtendedCommunity{}, errEmptyExtendedCommunity
@@ -253,7 +254,7 @@ func parseExtendedCommunity(s string) (attribute.ExtendedCommunity, error) {
 	}
 
 	// The `<keyword>:<value>` communities the attribute package registers
-	// (interface-set), shared with the config parser and with
+	// (interface-set, l2info), shared with the config parser and with
 	// ParseSingleExtCommunity.
 	if ec, matched, err := attribute.ParseExtendedCommunityKeyword(s); matched {
 		return ec, err

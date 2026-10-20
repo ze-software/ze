@@ -222,6 +222,7 @@ func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 //   - Named format: target:ASN:NN, origin:ASN:NN
 //   - FlowSpec actions: rate-limit:N, rate-limit:N:packets, rate-limit-packets:N, redirect-to-nexthop-draft, copy-to-nexthop, mark N
 //   - FlowSpec interface set: interface-set:[transitive|non-transitive:]DIR:ASN:GROUP
+//   - VPLS Layer2 Info: l2info:encaps:control:mtu:reserved (RFC 4761 Section 3.2.4)
 //   - Generic format: ASN:NN, IP:NN
 func parseOneExtCommunity(s string) ([]byte, error) {
 	// The raw 8-octet form. The width check and the decode live in the attribute
@@ -245,7 +246,7 @@ func parseOneExtCommunity(s string) ([]byte, error) {
 	}
 
 	// The `<keyword>:<value>` communities the attribute package registers
-	// (interface-set), shared with the `update text` API parser.
+	// (interface-set, l2info), shared with the `update text` API parser.
 	if ec, matched, err := attribute.ParseExtendedCommunityKeyword(s); matched {
 		if err != nil {
 			return nil, err
@@ -304,39 +305,7 @@ func parseOneExtCommunity(s string) ([]byte, error) {
 		return nil, fmt.Errorf("unknown extended-community type %q", parts[0])
 	}
 
-	if len(parts) == 5 && parts[0] == "l2info" {
-		return parseL2InfoExtCommunity(parts[1], parts[2], parts[3], parts[4])
-	}
-
 	return nil, fmt.Errorf("invalid extended-community %q: expected format like target:ASN:NN", s)
-}
-
-// parseL2InfoExtCommunity parses Layer 2 Info Extended Community (RFC 4761).
-// Format: l2info:encaps:control:mtu:preference
-// Wire format: 0x800A | encaps(1) | control(1) | mtu(2) | preference(2).
-func parseL2InfoExtCommunity(encapsStr, controlStr, mtuStr, prefStr string) ([]byte, error) {
-	encaps, err := strconv.ParseUint(encapsStr, 10, 8)
-	if err != nil {
-		return nil, fmt.Errorf("invalid l2info encaps %q", encapsStr)
-	}
-	control, err := strconv.ParseUint(controlStr, 10, 8)
-	if err != nil {
-		return nil, fmt.Errorf("invalid l2info control %q", controlStr)
-	}
-	mtu, err := strconv.ParseUint(mtuStr, 10, 16)
-	if err != nil {
-		return nil, fmt.Errorf("invalid l2info mtu %q", mtuStr)
-	}
-	preference, err := strconv.ParseUint(prefStr, 10, 16)
-	if err != nil {
-		return nil, fmt.Errorf("invalid l2info preference %q", prefStr)
-	}
-	return []byte{
-		0x80, 0x0A, // Type: Layer 2 Info
-		byte(encaps), byte(control),
-		byte(mtu >> 8), byte(mtu),
-		byte(preference >> 8), byte(preference),
-	}, nil
 }
 
 // fourByteASExtCommunity builds the four-octet AS specific extended community

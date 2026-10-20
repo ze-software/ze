@@ -1,5 +1,6 @@
 // Design: docs/architecture/wire/attributes.md -- path attribute encoding
 // RFC: rfc/drafts/draft-ietf-idr-flowspec-interfaceset.txt -- interface-set extended community (Section 5)
+// RFC: rfc/short/rfc4761.md -- Layer2 Info extended community (Section 3.2.4)
 // Related: extcomm_decoded.go -- the decode half, which renders the names this file reads
 // Related: flowspec_action.go -- the colon-less FlowSpec keywords, the other shared table
 // Related: builder_parse.go -- ParseSingleExtCommunity, one of the three parsers that consult this table
@@ -24,10 +25,14 @@ import (
 // accepted on every surface and none of the three is edited for it.
 var extCommKeywords = map[string]func(value string) (ExtendedCommunity, error){
 	interfaceSetKeyword: parseInterfaceSet,
+	layer2InfoKeyword:   parseLayer2Info,
 }
 
-// interfaceSetKeyword is the name AppendDecoded writes and the parsers read.
-const interfaceSetKeyword = "interface-set"
+// The names AppendDecoded writes and the parsers read.
+const (
+	interfaceSetKeyword = "interface-set"
+	layer2InfoKeyword   = "l2info"
+)
 
 // ParseExtendedCommunityKeyword reads one extended community written as
 // `<keyword>:<value>` for a keyword this package registers. matched is false
@@ -127,4 +132,56 @@ func interfaceSetDirection(name string) (uint16, error) {
 		}
 	}
 	return 0, fmt.Errorf("direction %q is not input, output or input-output", name)
+}
+
+// parseLayer2Info reads the value of a Layer2 Info extended community,
+// `<encaps>:<control>:<mtu>:<reserved>`, the four fields AppendDecoded writes.
+//
+// RFC 4761 Section 3.2.4 Figure 3:
+//
+//	+------------------------------------+
+//	| Extended community type (2 octets) |  0x800A
+//	+------------------------------------+
+//	|  Encaps Type (1 octet)             |  octet 2
+//	+------------------------------------+
+//	|  Control Flags (1 octet)           |  octet 3
+//	+------------------------------------+
+//	|  Layer-2 MTU (2 octet)             |  octets 4-5
+//	+------------------------------------+
+//	|  Reserved (2 octets)               |  octets 6-7
+//	+------------------------------------+
+//
+// RFC 4761 Section 3.2.4: "The extended community value is to be allocated by
+// IANA (currently used value is 0x800A)." The fourth field is written as given:
+// draft-ietf-l2vpn-vpls-multihoming carries a preference there, and ExaBGP
+// sends `l2info:19:0:1500:111` as 0x006F (qa/api/api-vpls.ci).
+func parseLayer2Info(value string) (ExtendedCommunity, error) {
+	fields := strings.Split(value, ":")
+	if len(fields) != 4 {
+		return ExtendedCommunity{}, fmt.Errorf("l2info %q: expected <encaps>:<control>:<mtu>:<reserved>", value)
+	}
+	encaps, err := strconv.ParseUint(fields[0], 10, 8)
+	if err != nil {
+		return ExtendedCommunity{}, fmt.Errorf("l2info %q: encaps %q is not 0 to 255", value, fields[0])
+	}
+	control, err := strconv.ParseUint(fields[1], 10, 8)
+	if err != nil {
+		return ExtendedCommunity{}, fmt.Errorf("l2info %q: control %q is not 0 to 255", value, fields[1])
+	}
+	mtu, err := strconv.ParseUint(fields[2], 10, 16)
+	if err != nil {
+		return ExtendedCommunity{}, fmt.Errorf("l2info %q: mtu %q is not 0 to 65535", value, fields[2])
+	}
+	reserved, err := strconv.ParseUint(fields[3], 10, 16)
+	if err != nil {
+		return ExtendedCommunity{}, fmt.Errorf("l2info %q: reserved %q is not 0 to 65535", value, fields[3])
+	}
+
+	var ec ExtendedCommunity
+	binary.BigEndian.PutUint16(ec[0:2], extCommLayer2Info)
+	ec[2] = byte(encaps)                                  //nolint:gosec // G115: bounded by ParseUint 8-bit
+	ec[3] = byte(control)                                 //nolint:gosec // G115: bounded by ParseUint 8-bit
+	binary.BigEndian.PutUint16(ec[4:6], uint16(mtu))      //nolint:gosec // G115: bounded by ParseUint 16-bit
+	binary.BigEndian.PutUint16(ec[6:8], uint16(reserved)) //nolint:gosec // G115: bounded by ParseUint 16-bit
+	return ec, nil
 }

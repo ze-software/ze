@@ -855,12 +855,15 @@ The following legacy commands have been removed:
 | `announce ipv4/unicast <p> next-hop <nh>` | `update text next <nh> nlri add prefix <p>` |
 | `announce ipv6/unicast <p> next-hop <nh>` | `update text next <nh> mp ipv6/unicast add prefix <p>` |
 | `announce eor <afi> <safi>` | `update text mp <family> eor` (`update text nlri eor` for IPv4 unicast) |
-| `announce vpls ...` | `update text mp l2vpn/vpls add ...` |
+| `announce vpls ...` | `update text mp l2vpn/vpls add rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>` |
 | `announce l2vpn ...` | `update text mp l2vpn/evpn add ...` |
 | `withdraw ipv4/unicast <p>` | `update text nlri del prefix <p>` |
 | `withdraw ipv6/unicast <p>` | `update text mp ipv6/unicast del prefix <p>` |
-| `withdraw vpls ...` | `update text mp l2vpn/vpls del ...` |
+| `withdraw vpls ...` | `update text mp l2vpn/vpls del rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>` |
 | `withdraw l2vpn ...` | `update text mp l2vpn/evpn del ...` |
+
+The ExaBGP bridge still reads ExaBGP's `announce vpls` and `withdraw vpls`
+(`docs/architecture/exabgp-bridge.md`); it is ze's own API that no longer has them.
 
 ### Watchdog Commands
 

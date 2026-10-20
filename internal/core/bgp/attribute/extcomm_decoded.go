@@ -246,9 +246,8 @@ func appendExtCommOriginAS2(buf []byte, e ExtendedCommunity) []byte {
 // appendExtCommLayer2Info appends "l2info:<encaps>:<control>:<mtu>:<reserved>",
 // the four fields RFC 4761 Section 3.2.4 Figure 3 gives the community.
 //
-// Ze's config parser has read this spelling since VPLS arrived
-// (parseL2InfoExtCommunity, component/bgp/config/routeattr_community.go) and
-// nothing rendered it, so a VPLS route an operator configured came back as
+// Ze's parsers read this spelling (parseLayer2Info, extcomm_keyword.go), and
+// until this arm nothing rendered it, so a VPLS route an operator configured came back as
 // "0x800a:130005dc006f" -- the octets, with no reader able to act on them
 // without Figure 3 to hand.
 //

@@ -563,13 +563,14 @@ keyword and answers with the flat form to use.
 | `large-community` | `[ <lc>... ]` | LARGE_COMMUNITY (32) | RFC 8092 |
 | `bgp-prefix-sid-srv6` | `( <service> <sid> [<behavior>] [<structure>] )` | BGP Prefix-SID (40) | RFC 8669, RFC 9252 Section 3 |
 
-An `<ec>` in `extended-community` takes one of four forms.
+An `<ec>` in `extended-community` takes one of five forms.
 
 | Form | Example | Meaning |
 |------|---------|---------|
 | named | `target:65000:1`, `origin:65000:1.2.3.4` | the type keyword picks the encoding |
 | FlowSpec action | `discard`, `copy-to-nexthop`, `rate-limit:1000` | RFC 8955 Section 7 |
 | FlowSpec interface set | `interface-set:transitive:input:1234:10`, `interface-set:non-transitive:output:65000:3` | draft-ietf-idr-flowspec-interfaceset Section 5: apply the filter on interface group 3 (0 to 16383) of AS 65000, inbound, outbound or both (`input-output`). Type 0x07, or 0x47 non-transitive; `interface-set:input:1234:10` is transitive |
+| VPLS Layer2 Info | `l2info:19:0:1500:111` | RFC 4761 Section 3.2.4: `l2info:<encaps>:<control>:<mtu>:<reserved>`, type 0x800A. Encaps and control are 0 to 255, MTU and the last field 0 to 65535; the last field is written as given, because ExaBGP sends a VPLS multihoming preference there |
 | raw | `0x0002FDE900000001` | the 8 octets verbatim |
 
 The raw form is `0x` followed by exactly 16 hex digits, because RFC 4360 Section 2

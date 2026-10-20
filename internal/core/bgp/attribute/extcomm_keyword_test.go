@@ -112,3 +112,29 @@ func TestExtendedCommunityKeywordNoMatch(t *testing.T) {
 		}
 	}
 }
+
+// TestLayer2InfoEncode pins the octets of the VPLS Layer2 Info community.
+//
+// VALIDATES: `l2info:19:0:1500:111` writes RFC 4761 Section 3.2.4 Figure 3,
+// 0x800A then encaps, control, MTU and the reserved field, the octets ExaBGP
+// sends for the same text (qa/api/api-vpls.ci), and reads back by name; every
+// field out of range is refused.
+// PREVENTS: the `update text` path refusing a community the config accepts.
+func TestLayer2InfoEncode(t *testing.T) {
+	ec, matched, err := ParseExtendedCommunityKeyword("l2info:19:0:1500:111")
+	if !matched || err != nil {
+		t.Fatalf("ParseExtendedCommunityKeyword: matched %v, err %v", matched, err)
+	}
+	if got := hex.EncodeToString(ec[:]); got != "800a130005dc006f" {
+		t.Errorf("octets = %s, want 800a130005dc006f", got)
+	}
+	if got := string(ec.AppendDecoded(nil)); got != "l2info:19:0:1500:111" {
+		t.Errorf("AppendDecoded = %q", got)
+	}
+
+	for _, text := range []string{"l2info:256:0:1500:0", "l2info:19:256:1500:0", "l2info:19:0:65536:0", "l2info:19:0:1500:65536", "l2info:19:0:1500"} {
+		if _, matched, err := ParseExtendedCommunityKeyword(text); !matched || err == nil {
+			t.Errorf("ParseExtendedCommunityKeyword(%q): matched %v, err %v, want a refusal", text, matched, err)
+		}
+	}
+}

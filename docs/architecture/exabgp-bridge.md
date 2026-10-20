@@ -45,6 +45,17 @@ take it as a route.
 
 <!-- source: internal/exabgp/bridge/bridge_route_forms.go -- convertRouteRefresh -->
 
+An `announce vpls` or `withdraw vpls` line becomes
+`update text <attributes> mp l2vpn/vpls add|del rd <rd> ve-id <n>
+ve-block-offset <n> ve-block-size <n> label-base <n>`, the RFC 4761 Section 3.2.2
+NLRI. ExaBGP names the fields `rd`, `endpoint`, `offset`, `size` and `base`, and
+writes them among the attributes in any order, so they are taken out by name and
+every other word goes to the attribute parser. All five are required: a line
+missing one is refused by name, never sent with a zero in its place. A trailing
+`withdraw` flag on an announce deletes the route, as it does for every family.
+
+<!-- source: internal/exabgp/bridge/bridge_vpls.go -- convertVPLSRoute -->
+
 
 The read happens ONCE for the whole fleet, and each format is rendered once. So
 the cost of a fan-out grows with the number of formats in use, not with the
@@ -180,7 +191,7 @@ no prefix length until somebody decides it should.
 answers the same set of forms for a line that names a neighbor and for a line
 that does not. The set is the ExaBGP vocabulary: `announce route`,
 `withdraw route`, `announce ipv[46] <safi>` and `withdraw ipv[46] <safi>`, with
-the SR-Policy shape of each.
+the SR-Policy shape of each, and `announce vpls` and `withdraw vpls`.
 
 An announce and its withdraw differ in ONE token, the NLRI verb, so each pair is
 one function taking that verb: `convertFamilyRoute` for a family-stating route
