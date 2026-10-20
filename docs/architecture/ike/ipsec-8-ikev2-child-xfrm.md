@@ -109,7 +109,9 @@ dropped as `XfrmInStateMismatch`. strongSwan makes the same split.
 **Every negotiated selector pair gets its own policy, in each direction.** A peer
 that answers several TSi/TSr pairs negotiated several values, and `childPolicies`
 builds one inbound and one outbound policy per pair, all protecting with the one SA:
-XFRM resolves each to the state through its template, VPP through the SAD id.
+XFRM resolves each to the state through its template, VPP through the SAD id. A pair's
+two halves each carry a protocol, and a packet matches the pair only when it matches
+both, so the policy carries their intersection: TSi "any" with TSr TCP installs TCP.
 
 **TSi and TSr are read as every combination of their entries.** RFC 7296 Section
 3.13: "a packet matches a given TSi/TSr if it matches at least one of the individual

@@ -637,10 +637,23 @@ func childPolicies(child *ChildSA, dir dataplane.SADir) []dataplane.SPParams {
 		if child.SelectorsLocalIsTSi {
 			local, remote = pair.I, pair.R
 		}
+		// RFC 4301 Section 4.4.2: "the entry for an inbound SA in the SAD MUST be
+		// initially populated with the value or values negotiated at the time the SA
+		// was created." A pair's two halves each carry a protocol, and a packet matches
+		// the pair only when it matches both (RFC 7296 Section 3.13), so the protocol the
+		// pair negotiated is their intersection: TSi "any" with TSr TCP is TCP. Reading
+		// one half alone installs "any" for that pair, wider than the negotiation.
+		//
+		// A pair whose protocols are disjoint matches no packet, so it protects nothing
+		// and installs no policy. crossPairs and acceptablePairs never produce one.
+		proto, ok := intersectProto(pair.I.Proto, pair.R.Proto)
+		if !ok {
+			continue
+		}
 		out = append(out, childPairPolicy(child, dir, policyPair{
 			local:      local.Net,
 			remote:     remote.Net,
-			upperProto: pair.I.Proto,
+			upperProto: proto,
 			localPort:  selectorPort(local),
 			remotePort: selectorPort(remote),
 		}))
