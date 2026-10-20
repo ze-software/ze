@@ -88,7 +88,7 @@ var (
 	errMissingAIGPValue                 = errors.New("missing aigp value")
 	errMissingPrefixSIDValue            = errors.New("missing bgp-prefix-sid-srv6 value")
 	errEmptyClusterList                 = errors.New("cluster-list requires at least one cluster id")
-	errRestoreConfiguredAfterNLRI       = errors.New("restore-configured must precede the nlri and mp sections: it says how the whole command withdraws, so write `update text restore-configured nlri <family> del <prefix>`")
+	errRestoreConfiguredAfterNLRI       = errors.New("restore-configured must precede the nlri and mp sections: it says how the whole command withdraws, so write `update text restore-configured nlri del <prefix>` or `update text restore-configured mp <family> del <prefix>`")
 	errSetDelKeywordsRemovedUseNext     = errors.New("set/del keywords removed; use: next-hop <address|self>")
 	errSetDelKeywordsRemovedUseRd       = errors.New("set/del keywords removed; use: rd <value>")
 	errSetDelKeywordsRemovedUseLabel    = errors.New("set/del keywords removed; use: label <value> or label [ <value>... ]")
