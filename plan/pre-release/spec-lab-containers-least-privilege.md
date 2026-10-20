@@ -2,12 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
+| Blocked by | `plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md`: the AC-8/AC-9 lab runs, AC-2 AppArmor load and AC-10 evidence need a Docker host on Ze's kernel (the owner approval of the `plan/verification-debt/d1987d95.md` rows was given 2026-10-11, see the RESOLVED decision below) |
 | Scope | tooling |
 | Depends | `plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md` (D-7, the AppArmor profile registry at a1636c2223) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-10 |
+| Updated | 2026-10-21 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

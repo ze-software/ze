@@ -12,7 +12,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | `plan/immediate/spec-bgp-graceful-restart-rfc-defects.md` D1, for one sub-case only (round 5, I-2): the non-retention input of Phase 2b and the GR-capable half of AC-17 land once D1's reason producer exists; no other phase waits on D1. Landing order with `plan/immediate/spec-daemon-drain-before-stop.md` free, the second carries `TestDrainReplayRefusedAtOwedKey` (Blast Radius) |
-| Phase | 2/9 |
+| Phase | 4/9 (Phases 1, 2, 2b first half and Phase 3 packages a, b, c landed by 2026-10-18, e.g. e30abc5e48, per `plan/handover/03-session-2026-10-18-linux-continue.md`; next: Phase 3's remaining `TestOwedKeyPurgeBetweenLookupAndAdmission`, then 3b, 3a, 4, 5, 6; 2b second half waits on D1) |
 | Handoff | verify |
 | Updated | 2026-10-18 |
 

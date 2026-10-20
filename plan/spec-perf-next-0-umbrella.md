@@ -2,10 +2,11 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
+| Blocked by | every child is closed; only the owner's AC-1/AC-3 stress run (QEMU Linux guest on his Mac, over a committed BGP tree, owner 2026-10-08) remains |
 | Depends | - |
 | Phase | 5/5 |
-| Updated | 2026-10-08 |
+| Updated | 2026-10-21 |
 
 ## Remaining measurement and historical block
 

@@ -2,12 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
+| Blocked by | owner order: `plan/immediate/spec-appliance-kernel-vpn-modules.md` lands first (Depends) |
 | Scope | tooling \| docs |
 | Depends | `spec-session-editor-file-mode-parity` (closed 2026-10-10; session-mode load merge and commit confirmed, former AC-13/AC-14); `plan/immediate/spec-appliance-kernel-vpn-modules.md` (owner order: that spec first. The 2026-10-09 probe shows the render host already carries esp4 and xfrm_interface, so the dependency is the product's, not the recording's: see Probe Results) |
 | Phase | 2/7 |
 | Handoff | - |
-| Updated | 2026-10-10 |
+| Updated | 2026-10-21 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

@@ -2,12 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
+| Blocked by | Phase 3 only: the AC-2, AC-4 and AC-5 suite measurements on a quiet 32-core Linux host (owner condition 2026-10-08: BGP session landed, machine quiet) |
 | Scope | tooling |
 | Depends | - |
 | Phase | 3/4 |
 | Handoff | - |
-| Updated | 2026-10-08 |
+| Updated | 2026-10-21 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

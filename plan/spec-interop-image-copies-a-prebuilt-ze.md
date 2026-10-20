@@ -2,12 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
+| Blocked by | `plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md` (AC-9: `interop-ipsec` green, the mobike scenarios need Ze's kernel on the Docker host) and a full `./le verify worktree` (AC-10) |
 | Scope | tooling |
 | Depends | `plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md` (AC-9 only: `mobike-initiator` and `mobike-responder` need a Docker host kernel with every feature Ze enrols, `XFRM_MSG_MIGRATE_STATE` included) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-09 |
+| Updated | 2026-10-21 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

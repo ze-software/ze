@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 3/6 (next: phase 4, BGP drain, waits for the in-flight IKE `RegisterProtocol` work to land; owner 2026-10-15) |
+| Phase | 3/6 (next: phase 4, BGP drain. The recorded wait on IKE `RegisterProtocol` (owner 2026-10-15) is over: `ipsecProtocolID` in `internal/component/ike/engine/redistribute.go` registers it, checked 2026-10-21) |
 | Handoff | - |
 | Updated | 2026-10-15 |
 
