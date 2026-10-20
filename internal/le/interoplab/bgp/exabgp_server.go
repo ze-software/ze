@@ -248,10 +248,22 @@ func serveExaBGPConnection(connection net.Conn, spec exabgpCase, connectionIndex
 	if _, err := connection.Write(speakerKeepalive()); err != nil {
 		return err
 	}
+	if spec.sendUnknownMessage {
+		// The 5.0 mock's unknown message: a header alone, of type 255.
+		if _, err := connection.Write(speakerMessage(exabgpUnknownMessageType, nil)); err != nil {
+			return err
+		}
+	}
 	if spec.sendDefaultRoute {
 		if _, err := connection.Write(exabgpDefaultRoute()); err != nil {
 			return err
 		}
+	}
+	// Under the 4.2 send-notification option the script is not walked: the
+	// 4.2 mock answers each message with a Cease and reports success when the
+	// connection closes, whatever its script still expected.
+	if spec.notifyEachMessage {
+		return notifyExaBGPUntilClosed(wire)
 	}
 	// The script is walked one sequence group at a time, in the order the
 	// fixture's sequence numbers give, which is how upstream's own mock walks
@@ -260,13 +272,14 @@ func serveExaBGPConnection(connection net.Conn, spec exabgpCase, connectionIndex
 	// refused, and a frame that never arrives leaves the read to fail on the
 	// message timeout, the session's deadline or its close: none ends in success.
 	replay := &exabgpReplay{}
+	decoded := &exabgpDecodedRoutes{}
 	position := matched
 	for position < len(steps) {
 		end := position + 1
 		for end < len(steps) && steps[end].sequence == steps[position].sequence {
 			end++
 		}
-		if err := runExaBGPGroup(wire, steps[position:end], recorder, facts, output, replay); err != nil {
+		if err := runExaBGPGroup(wire, steps[position:end], recorder, facts, output, replay, decoded); err != nil {
 			return err
 		}
 		position = end
@@ -280,10 +293,14 @@ func serveExaBGPConnection(connection net.Conn, spec exabgpCase, connectionIndex
 // runExaBGPGroup performs one sequence group of a session's script.
 // orderExaBGPCase made an action the only step of its group, so a group is
 // either frames or one action.
-func runExaBGPGroup(wire exabgpWire, group []exabgpStep, recorder *frameRecorder, facts bridge.SessionFacts, output io.Writer, replay *exabgpReplay) error {
+func runExaBGPGroup(wire exabgpWire, group []exabgpStep, recorder *frameRecorder, facts bridge.SessionFacts, output io.Writer, replay *exabgpReplay,
+	decoded *exabgpDecodedRoutes,
+) error {
 	switch group[0].kind {
 	case exabgpStepFrame:
 		return matchExaBGPFrames(wire, group, recorder, facts, replay)
+	case exabgpStepRoute:
+		return matchExaBGPRoutes(wire, group, recorder, decoded)
 	case exabgpStepSignal:
 		// Every frame the fixture wrote before this step has matched, so the
 		// runner can act on it now. This mock runs in a separate process from

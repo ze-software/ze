@@ -1,3 +1,8 @@
 # ExaBGP qa/old/5.0/qa/encoding/api-notification (ExaBGP 685f772e4e): .ci and .msg joined, options spelt option=
 option=file:api-notification.conf
+# The mock closes the session with a Cease NOTIFICATION carrying this Shutdown
+# Communication (RFC 9003 Section 2). The case asserts no frame from ze, as the
+# api population's api-notification states: the route its helper may announce
+# can cross before the close or not, and the 5.0 fixture names none.
+option=frames:none
 A1:notification:closing session because we can

@@ -121,7 +121,7 @@ func TestExaBGPCaseRefusesAScriptThatAssertsNothing(t *testing.T) {
 		{"action beside frames", "1:raw:" + caseFrameEOR + "\n1:signal:SIGUSR1\n", "holds an action beside other steps"},
 		{"long communication", "A1:notification:" + strings.Repeat("x", 256) + "\noption=frames:none\n", "the limit is 255"},
 		{"invalid utf-8", "option=frames:none\nA1:notification:bye \xff\n", "is not valid UTF-8"},
-		{"unknown option", "option=open:send-unknown-message\n1:raw:" + caseFrameEOR + "\n", "read by neither this mock nor the runner"},
+		{"unknown option", "option=open:send-no-such-message\n1:raw:" + caseFrameEOR + "\n", "read by neither this mock nor the runner"},
 		{"timeout zero", "option=timeout:0\n1:raw:" + caseFrameEOR + "\n", "not a positive number"},
 		{"timeout negative", "option=timeout:-1\n1:raw:" + caseFrameEOR + "\n", "not a positive number"},
 		{"timeout past the session", "option=timeout:60.5\n1:raw:" + caseFrameEOR + "\n", "longer than the 1m0s"},

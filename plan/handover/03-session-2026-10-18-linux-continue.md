@@ -810,3 +810,28 @@ State at hand-off (agent budget exhausted; only this section is committed):
   and negative discrimination records (`gomu-pos.json`, `gomu-neg.json` in
   the session scratch), the `{gap}` removal in `rfc/short/rfc2328.md`, the
   guide's "Not yet complete" line, and a judge for RFC2328-8.1-1.
+
+## ExaBGP 6 spec, Phase 1 AC-4 third package (2026-10-20, Linux): continuation owed
+
+- Committed (see `git log --grep "4.2 route steps"`): the Go mock reads 4.2
+  `N:announce:`/`N:withdraw:` steps, the 4.2 `notification:send-notification`
+  and 5.0 `open:send-unknown-message` options, and `allowed:`/`allowed-error:`
+  (`internal/le/interoplab/bgp/exabgp_old.go`); old-5.0 api-notification
+  states `frames:none`; allowances for conf-extended-attributes (SKIP
+  observed), conf-hostname and conf-cap-software-version (ze's observed OPEN
+  bytes, SKIP not yet observed). old-4.2: 22/34.
+- UNCOMMITTED, mine, held on purpose: `internal/le/test/functional/exabgp.go`
+  and `exabgp_test.go` (`exaBGPOldSuites`, the old populations in the stage
+  once, under the main pin; `TestExaBGPStageRunsTheOldPopulationsOnce`, red by
+  mutation then green, and the children count 8 to 10). Land only when both
+  populations are green. Also uncommitted: the `unknown-message.ci` allowance
+  (expects `...0016030103FF`, RFC 4271 Section 6.1), not yet observed.
+- Run the populations with `./le --name exa6 test exabgp old-4.2 --all`: the
+  mock is `le` itself and the shared `bin/le` is stale after a mock edit.
+- Blocker for item (e): under parallel load ze's startup fails "stage stalled
+  ... no plugin progress for 5s while waiting for stage 3" (bgp-rib,
+  bgp-adj-rib-in, bgp-bmp at declare-capabilities); 4 of 4 allowance cases
+  died of it on 2026-10-20. Diagnose it first (`plan/journal/plugin-startup-barrier-deadlock.md`).
+- Remaining reds and their first error are in the spec's Phase 1 "AC-4 state
+  (2026-10-20, third package)" line. Phases 2-8 untouched.
+- Gates owed: `./le go lint run` on `internal/le/interoplab/bgp`, `./le test unit all`.

@@ -19,6 +19,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/netip"
 	"os"
 	"slices"
 	"strconv"
@@ -144,6 +145,14 @@ func readExaBGPOption(line string, spec *exabgpCase) error {
 	if option == "serial" {
 		return nil
 	}
+	// An allowance names a difference ze keeps from the ExaBGP release the
+	// fixture was recorded with (judgeExaBGPAllowed, internal/test/cli).
+	if strings.HasPrefix(option, "allowed:") {
+		return nil
+	}
+	if strings.HasPrefix(option, "allowed-error:") {
+		return nil
+	}
 	if value, ok := strings.CutPrefix(option, "asn:"); ok {
 		parsed, err := asn.Parse(value)
 		if err != nil {
@@ -202,6 +211,19 @@ func readExaBGPOption(line string, spec *exabgpCase) error {
 		spec.bindIPv6 = true
 		return nil
 	}
+	// The 4.2 mock's `option:notification:send-notification` (qa/old/4.2/qa/sbin/bgp):
+	// it answers every message after the OPEN with a Cease, and passes when the
+	// speaker closes the session.
+	if option == "notification:send-notification" {
+		spec.notifyEachMessage = true
+		return nil
+	}
+	// The 5.0 mock's `option:open:send-unknown-message` (qa/old/5.0/qa/sbin/bgp):
+	// a message of type 255 follows its OPEN and KEEPALIVE.
+	if option == "open:send-unknown-message" {
+		spec.sendUnknownMessage = true
+		return nil
+	}
 	return fmt.Errorf("option %q is read by neither this mock nor the runner, so the case would run as if it were absent: "+
 		"remove it, or teach readExaBGPOption (internal/le/interoplab/bgp/exabgp_case.go) what it means", line)
 }
@@ -238,7 +260,37 @@ func readExaBGPStep(kind, content string) (exabgpStep, error) {
 	if kind == "notification" {
 		return readExaBGPNotification(content)
 	}
-	return exabgpStep{}, fmt.Errorf("unknown step kind %q: a step is raw, json, signal, notification, cmd, jsv4 or jsv6", kind)
+	if kind == exabgpRouteAnnounce {
+		return readExaBGPRoute(kind, content)
+	}
+	if kind == exabgpRouteWithdraw {
+		return readExaBGPRoute(kind, content)
+	}
+	return exabgpStep{}, fmt.Errorf("unknown step kind %q: a step is raw, json, signal, notification, announce, withdraw, cmd, jsv4 or jsv6", kind)
+}
+
+// The two route step kinds of a 4.2 fixture, spelt as the 4.2 mock writes the
+// routes it decodes (BGPHandler.routes, qa/old/4.2/qa/sbin/bgp).
+const (
+	exabgpRouteAnnounce = "announce"
+	exabgpRouteWithdraw = "withdraw"
+)
+
+// readExaBGPRoute reads a 4.2 fixture's `<n>:announce:<prefix>` or
+// `<n>:withdraw:<prefix>` step: an IPv4 route the speaker owes in the withdrawn
+// routes or the NLRI of an UPDATE. The 4.2 mock compares the text it decodes
+// with the text the fixture wrote, so the step keeps that text, once the prefix
+// is known to be one the decoder can write: a typo would otherwise wait for a
+// route that never arrives.
+func readExaBGPRoute(kind, content string) (exabgpStep, error) {
+	prefix, err := netip.ParsePrefix(content)
+	if err != nil {
+		return exabgpStep{}, fmt.Errorf("%s step %q is no IPv4 prefix: %w", kind, content, err)
+	}
+	if !prefix.Addr().Is4() {
+		return exabgpStep{}, fmt.Errorf("%s step %q is no IPv4 prefix: the 4.2 mock decodes the IPv4 route fields of an UPDATE only", kind, content)
+	}
+	return exabgpStep{kind: exabgpStepRoute, route: kind + ":" + content}, nil
 }
 
 // readExaBGPNotification reads the text a notification step sends, the way
@@ -273,7 +325,7 @@ func orderExaBGPCase(spec *exabgpCase) error {
 		return errors.New("the script has no step, so the case would pass without asserting anything: " +
 			"add the `<n>:raw:` frames the speaker owes")
 	}
-	frames := 0
+	frames, routes := 0, 0
 	for connection := 1; connection <= spec.connections; connection++ {
 		steps, ok := spec.steps[connection]
 		if !ok {
@@ -288,6 +340,10 @@ func orderExaBGPCase(spec *exabgpCase) error {
 				frames++
 				continue
 			}
+			if step.kind == exabgpStepRoute {
+				routes++
+				continue
+			}
 			if index > 0 && steps[index-1].sequence == step.sequence {
 				return fmt.Errorf("session %s sequence %d holds an action beside other steps: give the action a sequence of its own",
 					exabgpSessionLetter(connection), step.sequence)
@@ -298,6 +354,14 @@ func orderExaBGPCase(spec *exabgpCase) error {
 			}
 		}
 	}
+	// The 4.2 mock decodes routes for a whole case, or compares raw frames for
+	// a whole case once any step is one (BGPHandler.setup sets self.raw), so a
+	// script holding both could not run there.
+	if frames > 0 && routes > 0 {
+		return errors.New("the script holds both raw frames and decoded routes, which upstream's 4.2 mock never reads together: " +
+			"write the case in one form")
+	}
+	frames += routes
 	if frames == 0 && !spec.framesNoneStated {
 		return errors.New("the script expects no frame from the speaker, so the case would pass without asserting anything: " +
 			"add the `<n>:raw:` frames it owes, or state `option=frames:none` with a comment saying why the case asserts no frame")
@@ -461,6 +525,7 @@ const (
 	exabgpStepFrame
 	exabgpStepSignal
 	exabgpStepNotification
+	exabgpStepRoute
 )
 
 // exabgpShutdownCommunicationOctetsMax is the longest text a notification step
@@ -469,7 +534,7 @@ const exabgpShutdownCommunicationOctetsMax = 255
 
 // exabgpStep is one entry of a connection's script, in sequence order.
 //
-// A frame step is an expectation the speaker owes. A signal step is an
+// A frame step, or a 4.2 route step, is an expectation the speaker owes. A signal step is an
 // instruction to the RUNNER, which owns the ze process this mock cannot reach,
 // and a notification step makes this mock close the session. Each action has a
 // sequence of its own, so every frame of the groups before it has matched when
@@ -482,6 +547,9 @@ type exabgpStep struct {
 	frame        []byte
 	signal       string
 	notification string
+	// route is a 4.2 route step as the 4.2 mock writes a decoded route:
+	// `announce:1.1.0.0/24` or `withdraw:1.1.0.0/24`.
+	route string
 	// wantJSON is the ExaBGP document this frame owes, as the fixture's `json:`
 	// line states it. Empty when the fixture states none, which is every frame
 	// that is not an UPDATE and most that are.
@@ -517,6 +585,13 @@ type exabgpCase struct {
 	// bindIPv6 is `option=bind:ipv6`: the mock listens on IPv6 alone, so
 	// the case passes only when ze reaches it over IPv6.
 	bindIPv6 bool
+	// notifyEachMessage is the 4.2 `option=notification:send-notification`:
+	// the mock answers every message after the OPEN exchange with a Cease, and
+	// the case passes when the speaker closes the session.
+	notifyEachMessage bool
+	// sendUnknownMessage is the 5.0 `option=open:send-unknown-message`: a
+	// message of type 255 follows the mock's OPEN and KEEPALIVE.
+	sendUnknownMessage bool
 	// messageTimeout is how long the mock waits for the speaker's next
 	// message: `option=timeout:`, or the whole session's length when the
 	// fixture states none.

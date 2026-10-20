@@ -3276,6 +3276,7 @@ runner accepts nothing else.
 | `<n>:json:<doc>` | The ExaBGP document the raw UPDATE above it owes; its number is not read |
 | `<n>:signal:<NAME>` | The runner signals ze (a reload) once every earlier group has matched |
 | `<n>:notification:<text>` | The mock closes the session with a Cease NOTIFICATION carrying `<text>` as an RFC 9003 Shutdown Communication |
+| `<n>:announce:<prefix>`, `<n>:withdraw:<prefix>` | `old-4.2` only: an IPv4 route ze owes in the NLRI or the withdrawn routes of an UPDATE, matched on the decoded route as the 4.2 mock (`BGPHandler.routes`) matches it. An End-of-RIB and an UPDATE with no IPv4 route field are skipped, a route the group does not name fails the case, and the routes of one UPDATE left over when a group completes go to the next group. A case is written in routes or in raw frames, never both |
 | `<n>:cmd:`, `<n>:jsv4:`, `<n>:jsv6:` | Documentation: the API line a frame was generated from, and documents for other ExaBGP versions |
 
 A bare number `<n>` is a sequence number of session A, never a session: `1:`
@@ -3299,10 +3300,13 @@ where upstream's list spans every session of the run.
 | Option | Read by | Meaning |
 |--------|---------|---------|
 | `file:`, `tcp_connections:`, `serial` | the runner | The configs ze runs, how many sessions ze opens, and that the case runs alone |
+| `allowed:<reason>`, `allowed-error:<text>` | the runner | A difference ze keeps from the release an `old-*` case was recorded with (below) |
 | `asn:<n>` | the mock | The AS the mock opens with, instead of the config's `peer-as` |
 | `update:send-default-route` | the mock | The mock announces 0.0.0.0/32 once the session is up |
 | `open:send-unknown-capability` | the mock | The mock's OPEN carries capability 66, which ze does not implement |
 | `open:inspect-open-message` | the mock | Each session's first step is ze's OPEN, compared byte for byte; an OPEN step is refused without it |
+| `open:send-unknown-message` | the mock | `old-5.0`: a header-only message of type 255 follows the mock's OPEN and KEEPALIVE, as the 5.0 mock sends it |
+| `notification:send-notification` | the mock | `old-4.2`: the mock answers every message after the OPEN exchange with a Cease, subcode 0, carrying "closing session because we can", and the case passes when ze closes the session, whatever the script still names, as the 4.2 mock does. ze keeping the session until the message timeout fails it |
 | `bind:ipv6` | the mock | The mock listens on IPv6 alone, on every IPv6 address where upstream binds `::1`, because `conf-llnh-update` and `conf-llnh-lla-only` connect to `fd00::3`; without it, on every address, where upstream listens on 127.0.0.1 |
 | `timeout:<seconds>` | the mock | How long ze may send nothing, at most the session's 60 seconds |
 | `frames:none` | the mock | The case asserts no frame from ze (below) |
@@ -3326,6 +3330,8 @@ the OPEN exchange alone, so a case could go green with ze sending nothing it
 expected (`plan/journal/green-that-could-not-have-been-red.md`).
 <!-- source: internal/le/interoplab/bgp/exabgp_case.go -- readExaBGPCase, readExaBGPOption, readExaBGPStep, orderExaBGPCase, exabgpCasePosition, exabgpEndOfRIB -->
 <!-- source: internal/le/interoplab/bgp/exabgp_server.go -- runExaBGPServer, serveExaBGPConnection, matchExaBGPFrames, exabgpReplay, addExaBGPUnknownCapability -->
+<!-- source: internal/le/interoplab/bgp/exabgp_old.go -- matchExaBGPRoutes, exabgpLegacyRoutes, notifyExaBGPUntilClosed -->
+<!-- test: internal/le/interoplab/bgp/exabgp_case_old_test.go TestExaBGPCaseMatchesDecodedRoutes, TestExaBGPCaseRefusesAnUnexpectedRoute, TestExaBGPCaseNotifiesUntilTheSpeakerCloses, TestExaBGPCaseNotificationNeedsTheClose, TestExaBGPCaseSendsTheUnknownMessage -->
 <!-- test: internal/le/interoplab/bgp/exabgp_case_test.go TestExaBGPCaseRefusesAScriptThatAssertsNothing, TestExaBGPCaseRefusesAFrameAGroupEarly, TestExaBGPCaseSendsTheUnknownCapability, TestExaBGPCaseNamesTheStalledFrame -->
 
 ### ExaBGP Verify Output
@@ -3415,8 +3421,11 @@ refused. The allowance describes how ze differs, so under `--dut exabgp` it is
 not read and the case is judged on its own run.
 
 The two populations are run by hand and are not in the `exabgp-test` stage,
-because they are not green yet: against ze, `old-5.0` passes 51 of its 72
-cases and `old-4.2` 9 of its 34 (2026-10-18). The spec
+because they are not green yet: against ze, `old-5.0` passed 51 of its 72
+cases (2026-10-18) and `old-4.2` 22 of its 34 (2026-10-20). The mock is `le`
+itself, so a run after an edit to it names a session build,
+`./le --name <name> test exabgp old-4.2 --all`, or it runs the stale shared
+binary. The spec
 `plan/immediate/spec-exabgp-6-api-compatibility.md` carries what remains.
 
 ```bash
