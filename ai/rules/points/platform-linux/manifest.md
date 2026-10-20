@@ -1,11 +1,12 @@
 ---
 title: Linux, QEMU and the Appliance
-when: writing Linux-only code, changing the installer initrd, or bumping and booting an appliance dependency
+when: writing Linux-only code, finding that Linux or a kernel library cannot do what a feature needs, changing the installer initrd, or bumping and booting an appliance dependency or the kernel
 severity: blocking
 related: completion, testing, git-safety
 ---
 directives ## Directives
   test-every-linux-only-path-inside-qemu
+  record-a-linux-limitation-in-the-register
 linux-only-functional-ci-tests-run-via-qemu-never-natively ## Linux-only functional (`.ci`) tests run via QEMU, never natively
   mark-a-kernel-touching-ci-test-needs-linux
   never-use-skip-os-in-place-of-needs-linux

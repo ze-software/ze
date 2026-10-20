@@ -107,6 +107,13 @@ fits fails the build instead of placing a hunk by guesswork; a bump refreshes
 the series against the new release.
 <!-- source: internal/appliance/kernelbuilder/worker.go -- kernelSourceSHA256, verifyKernelSource, applyPatches -->
 
+A bump also owes a pass over the
+[Linux limitations register](../linux-limitations.md): re-read each `kernel`
+entry at the new release and update its `Checked` line.
+`TestLinuxLimitsCheckedAtShippedVersions` fails while any entry names another
+release.
+<!-- source: internal/appliance/linux_limits_test.go -- TestLinuxLimitsCheckedAtShippedVersions -->
+
 The runtime profile requires `CONFIG_XFRM_MIGRATE` for atomic MOBIKE state
 migration and `CONFIG_MPLS_IP_MTU` for native labeled-IP fragmentation and ICMP.
 Both requirements are in the compiled runtime floor, so an edited manifest

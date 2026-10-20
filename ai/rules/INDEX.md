@@ -24,7 +24,7 @@ full before acting on a topic it covers.
 | No Layering | when replacing X with Y | blocking | `ai/rules/no-layering.md` |
 | Memory and Encoding | before writing buffer, pool, allocation, string-building, or wire-encoding code, or converting a value between representations on a hot path | blocking | `ai/rules/performance.md` |
 | Specs and Phases | before implementing any non-trivial feature, and whenever a spec phase starts, resumes, or closes | blocking | `ai/rules/planning.md` |
-| Linux, QEMU and the Appliance | writing Linux-only code, changing the installer initrd, or bumping and booting an appliance dependency | blocking | `ai/rules/platform-linux.md` |
+| Linux, QEMU and the Appliance | writing Linux-only code, finding that Linux or a kernel library cannot do what a feature needs, changing the installer initrd, or bumping and booting an appliance dependency or the kernel | blocking | `ai/rules/platform-linux.md` |
 | Plugins | "creating or changing a plugin: its registration, placement, transport, command surface, process boundary, dispatch table, or a feature gate" | blocking | `ai/rules/plugins.md` |
 | Pre-Release, and the Product Is the Deliverable | when a test or a gate goes red, when you are about to re-run a check, or when you are deciding what a commit owes | blocking | `ai/rules/pre-release.md` |
 | Pre-Commit Verification | before running the verification gate, or after running a commit script that carried Go | blocking | `ai/rules/precommit-verify.md` |

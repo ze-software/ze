@@ -26,7 +26,7 @@ rule's body is one Read away at the path in its row.
 | `ai/rules/no-layering.md` | blocking, always-on | when replacing X with Y |
 | `ai/rules/performance.md` | blocking | before writing buffer, pool, allocation, string-building, or wire-encoding code, or converting a value between representations on a hot path |
 | `ai/rules/planning.md` | blocking | before implementing any non-trivial feature, and whenever a spec phase starts, resumes, or closes |
-| `ai/rules/platform-linux.md` | blocking | writing Linux-only code, changing the installer initrd, or bumping and booting an appliance dependency |
+| `ai/rules/platform-linux.md` | blocking | writing Linux-only code, finding that Linux or a kernel library cannot do what a feature needs, changing the installer initrd, or bumping and booting... |
 | `ai/rules/plugins.md` | blocking | "creating or changing a plugin: its registration, placement, transport, command surface, process boundary, dispatch table, or a feature gate" |
 | `ai/rules/pre-release.md` | blocking | when a test or a gate goes red, when you are about to re-run a check, or when you are deciding what a commit owes |
 | `ai/rules/precommit-verify.md` | blocking | before running the verification gate, or after running a commit script that carried Go |

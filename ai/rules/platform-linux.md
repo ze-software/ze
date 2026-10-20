@@ -1,6 +1,6 @@
 # Linux, QEMU and the Appliance
 
-**When:** writing Linux-only code, changing the installer initrd, or bumping and booting an appliance dependency
+**When:** writing Linux-only code, finding that Linux or a kernel library cannot do what a feature needs, changing the installer initrd, or bumping and booting an appliance dependency or the kernel
 **Severity:** blocking
 **Related:** completion, testing, git-safety
 
@@ -12,6 +12,9 @@
 - The installer initrd is a single statically-linked Go binary (`cmd/ze-installer`) running as PID 1 with zero external binaries (busybox removed). Detect system state through `/proc` and `/sys` reads, not external commands, and never reintroduce `exec.Command` of an external tool.
 - A Dependabot alert on a `go.mod` under `gokrazy/modcache/` is almost always a stale vendored upstream manifest, not your real dependency graph. Follow the runbook under "Appliance Dependency Bumps".
 - Never cross-compile a host binary. A target-arch `ze-host` cannot exec on the build host ("exec format error"). Apply `GOARCH=<target>` only to the build of a target binary, or to the `ze appliance initrd` invocation that cross-compiles one internally, never to the build of the host tool that runs it.
+
+- A Linux kernel behavior, or a library behavior on the path to the kernel, that stops Ze implementing a feature or an RFC requirement as asked MUST be recorded as an entry in `docs/architecture/linux-limitations.md`, with the source file and function read, the quoted line, and the kernel release or module version it was read at. It MUST NOT live only in an `rfc/short/` gap note, a guide, a code comment or an error message: those MUST name the entry id instead of restating it. An entry whose source you could not read MUST be marked `unverified` and MUST say what would settle it.
+- A bump of `internal/appliance/kernel.version`, or of a module an entry names, MUST re-read every affected entry at the new version and update its `Checked` line. `TestLinuxLimitsCheckedAtShippedVersions` (`internal/appliance/linux_limits_test.go`) goes red until that is done; the fix is the re-check, never a version edit without it.
 
 ## Linux-only functional (`.ci`) tests run via QEMU, never natively
 
@@ -122,6 +125,7 @@ that skips it is invisible rather than red.
 1. For the vendored gokrazy init, you MUST fetch the latest upstream `.mod` from the proxy, as in step 1 of the bump runbook, and note whether a newer commit carries security-relevant fixes. For ze's runtime kernel, you MUST read kernel.org's latest stable release; a bump changes `internal/appliance/kernel.version` and its `kernelSourceSHA256` entry (`internal/appliance/kernelbuilder/worker.go`, copied from kernel.org's `sha256sums.asc`) together, and the patch series MUST apply with no fuzz.
 2. If a fix applies, you MUST run the bump runbook. If not, you MUST record the review date so the next reviewer knows the pins were checked, not forgotten.
 3. You MUST re-confirm that the GPLv2 source-offer sign-off is still current.
+4. When the kernel moves, you MUST re-read every `kernel` entry in `docs/architecture/linux-limitations.md` at the new release, following its Re-check step, update its `Checked` line, and lift an entry the new source no longer supports.
 
 **The pins MUST move only through the runbook; they MUST NOT move through a bot PR.**
 
