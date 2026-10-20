@@ -911,3 +911,24 @@ State at hand-off (agent budget exhausted; only this section is committed):
   `exabgp_test.go`) and the 5.0 `unknown-message.ci` allowance.
 - Gates owed: `./le go lint run` on `internal/component/bgp/reactor`,
   `internal/le/interoplab/bgp`; `./le test unit all`.
+
+### ExaBGP 6 spec, Phase 1 AC-4 seventh package (2026-10-20)
+
+- Committed 5430bd457c: migrate injects bgp-rib for any neighbor or template a
+  process feeds (ExaBGP's adj-rib-out defaults to true); old-4.2 api-teardown
+  passes. Committed (main thread): mapIPv6RouteIPv4NextHop, an IPv6 route with
+  no RD and an IPv4 next hop migrates to `::ffff:v4`, as 6.0 at the pin sends.
+- Next: sync `test/exabgp-compat/etc/extended-nexthop.conf` lines 26-30 to the
+  pin (`next-hop 170.170.170.170`), run encoding extended-nexthop.
+- Allowances to write and observe SKIP (run at the default `-t 180s`): 5.0
+  extended-nexthop (4-octet next hop for IPv6, RFC 2545 Section 3), 5.0
+  conf-ipself4 (self = the peer's own 127.0.0.1, RFC 4271 Section 5.1.3), 4.2
+  and 5.0 conf-ipself6 (self = ::1, the peer's address and not global).
+- Open: 4.2 api-vpls (bridge has no `announce vpls endpoint`, scope question),
+  4.2 api-eor (EOR missing at seq 3), 4.2 api-nexthop-self (bridge script
+  restart loop), api-rib (announce then clear sends the route), 5.0
+  api-multiple-api, api-rr (bridge emits `nlri add -refresh`, daemon refuses
+  "unexpected flag -refresh"), api-rr-rib; api-flow-merge waits on the owner
+  (interface-set).
+- Still held uncommitted: the stage change (`internal/le/test/functional/
+  exabgp.go`, `exabgp_test.go`) and the old-5.0 `unknown-message.ci` allowance.
