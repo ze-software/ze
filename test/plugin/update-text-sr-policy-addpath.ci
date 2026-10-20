@@ -1,0 +1,94 @@
+# Test: an SR Policy announced and withdrawn through `update text` with a
+#       top-level path-information, over a session with ADD-PATH send/receive
+#       negotiated for ipv4/sr-policy, reaches the wire with that Path
+#       Identifier ahead of each NLRI.
+#
+# VALIDATES: RFC 7911 Section 3: with ADD-PATH negotiated the 4-octet Path
+#            Identifier precedes the NLRI, so MP_REACH_NLRI reads 00000007 then
+#            the length octet 60 (96 bits), and MP_UNREACH_NLRI the same. The
+#            API rail frames the NLRI the config-route parser built with the
+#            accumulated path-information (update_text_nlri.go wireNLRI), as the
+#            config rail does (test/encode/addpath-srpolicy-pathid.ci).
+# PREVENTS:  `update text` refusing a path-information for sr-policy that the
+#            config route sends (sr-policy review round 2, I-3). Red observed
+#            2026-10-21 with the NLRIAddPathRefusal registration in place: the
+#            announce is refused, "path-information not supported for
+#            ipv4/sr-policy", and no UPDATE matches.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=25s
+option=linger:value=true
+# MP_REACH_NLRI 800E1A 0001 49 04 C0000201 00 00000007 60 0000000000000000012C 0A000003,
+# ORIGIN 40010100, AS_PATH 400200, LOCAL_PREF 40050400000064,
+# TUNNEL_ENCAPSULATION C01734 000F 0030 0C06..012C 80 0011 ..3E81000 80 0011 ..3E82000.
+# Ze writes MP_REACH_NLRI first on this rail, as test/encode/bgp-srpolicy-2-encode.ci
+# pins for the config route; the attribute values are the ExaBGP case's.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00790200000062800E1A00014904C0000201000000000760000000000000012C0A0000034001010040020040050400000064C01734000F00300C0600000000012C8000110009060000000000010106000003E810008000110009060000000000020106000003E82000
+# MP_UNREACH_NLRI 800F14 0001 49 00000007 60 0000000000000000012C 0A000003, then ORIGIN,
+# AS_PATH and LOCAL_PREF.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C0200000025800F140001490000000760000000000000012C0A0000034001010040020040050400000064
+EOF_PEER
+
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external engine-steps {
+		run "le test engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/sr-policy { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+				add-path {
+					direction send/receive
+					family {
+						ipv4/sr-policy
+					}
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process engine-steps {
+			send [ update ]
+		}
+	}
+}
+EOF_CONFIG
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=25s
+
+# The announce is sent once the session is up, so it dispatches to a session.
+command=show bgp peer peer1 detail
+expect=output:matches=established:timeout=15
+
+command=send bgp * update text path-information 7 nhop 192.0.2.1 origin igp local-preference 100 mp ipv4/sr-policy add distinguisher 0 color 300 endpoint 10.0.0.3 preference 300 segment-list weight 1 segment type-a mpls 16001 segment-list weight 2 segment type-a mpls 16002
+command=send bgp * update text path-information 7 mp ipv4/sr-policy del distinguisher 0 color 300 endpoint 10.0.0.3
+
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

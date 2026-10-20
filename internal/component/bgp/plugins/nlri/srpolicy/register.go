@@ -42,18 +42,13 @@ func init() {
 	}
 
 	reg := registry.Registration{
-		Name:                 "bgp-nlri-srpolicy",
-		Description:          "SR-Policy family plugin (RFC 9830, SAFI 73)",
-		SupportsNLRI:         true,
-		Features:             "nlri",
-		Families:             []string{IPv4SRPolicy.String(), IPv6SRPolicy.String()},
-		InProcessNLRIDecoder: DecodeNLRIHex,
-		InProcessNLRIEncoder: EncodeNLRIHex,
-		// Ze's own rule, not an RFC one: RFC 9830 says nothing about ADD-PATH,
-		// and DecodeNLRIHex accepts a received path identifier (RFC 7911). The
-		// SR-Policy route Ze builds carries none (SRPolicy.SupportsAddPath), so
-		// `update text` refuses one rather than dropping it.
-		NLRIAddPathRefusal:    "Ze builds SR-Policy routes without an ADD-PATH path identifier",
+		Name:                  "bgp-nlri-srpolicy",
+		Description:           "SR-Policy family plugin (RFC 9830, SAFI 73)",
+		SupportsNLRI:          true,
+		Features:              "nlri",
+		Families:              []string{IPv4SRPolicy.String(), IPv6SRPolicy.String()},
+		InProcessNLRIDecoder:  DecodeNLRIHex,
+		InProcessNLRIEncoder:  EncodeNLRIHex,
 		InProcessRouteEncoder: EncodeRoute,
 		// RFC 9830 Section 2.4.2 and Section 2.4.3: the Tunnel Encapsulation
 		// attribute (type 23) carries the SR Policy's Binding SID sub-TLVs, and

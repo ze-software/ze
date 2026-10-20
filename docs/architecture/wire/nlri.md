@@ -697,17 +697,16 @@ registered `EncodeNLRIHex`, which reads the three NLRI fields alone.
 | a second `add` or `del` after the section's first field | refused, for every registry family (mup, mvpn, rtc, sr-policy) |
 | `rd`, `label` or any word the `add` grammar above does not name, including one after the last segment list | refused by the config-route parser, naming every word it takes |
 | an `endpoint` of the other address family than the NLRI's AFI | refused by `validateSRPolicyEndpoint`, as the config path refuses it |
-| a `path-information` that applies to the section: at top level before its `nlri`, right after the family, or inside its run | the whole command is refused, never stripped silently |
+| a top-level `path-information` | accepted; the SR-Policy NLRI goes out with that Path Identifier ahead of it (RFC 7911 Section 3), as a config route's `path-information` does |
+| a `path-information` right after the family, before `add` or `del` | refused as a missing `add` or `del`, as for every registry family |
+| a `path-information` inside the run | refused by the config-route parser as a word it does not take |
 | a `path-information` inside another family's section of the same command | accepted; that section's NLRI carries it, the SR-Policy NLRI carries none |
 
-The `path-information` refusal is Ze's own rule, not an RFC one: the SR-Policy
-route Ze builds carries no path identifier, and RFC 9830 says nothing about
-ADD-PATH. The plugin declares it in its registration
-(`NLRIAddPathRefusal`), and the parser tests that fact for the section's
-family, so `update` holds no SAFI 73 test. Received SR-Policy NLRIs still
-decode under ADD-PATH, as the section above describes.
-<!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseRegistryNLRISection, refuseAddPath -->
-<!-- source: internal/component/bgp/plugins/nlri/srpolicy/register.go -- NLRIAddPathRefusal -->
+The SR-Policy NLRI the plugin builds holds no Path Identifier; the sender frames
+one ahead of it, `update text` from the accumulated `path-information`
+(`wireNLRI`) and the config rail from the route's (`message.PluginNLRI`).
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseRegistryNLRISection, wireNLRI -->
+<!-- test: test/plugin/update-text-sr-policy-addpath.ci -->
 <!-- source: internal/component/bgp/plugins/nlri/srpolicy/encode.go -- EncodeNLRIHex, validateSRPolicyEndpoint -->
 <!-- source: internal/component/bgp/plugins/nlri/srpolicy/config.go -- parseConfigRoute -->
 <!-- source: internal/component/plugin/registry/registry.go -- SectionRouteParserFor, NLRISectionCarriesAttributes -->

@@ -734,13 +734,15 @@ an IPv6 address included, is refused with an error that names it and both
 accepted forms.
 <!-- source: internal/core/parse/pathid.go -- PathID -->
 
-A family whose plugin declares that its NLRI carries no path identifier
-(`NLRIAddPathRefusal` in its registration; SR-Policy does) refuses a
-`path-information` that applies to its section: one written at top level
-before that section's `nlri`, one right after the family, or one inside the
-section. The whole command is refused, so a command mixing that section with
-another family never half-applies. A `path-information` written inside
-another family's section belongs to that section and is accepted.
+A top-level `path-information` also applies to the section of a family a
+plugin encodes (mup, mvpn, sr-policy, rtc): the NLRI the plugin builds goes out
+with that Path Identifier ahead of it (RFC 7911 Section 3). Written right after
+such a family, before its `add` or `del`, it is refused as a missing `add` or
+`del`; written inside the section, the plugin's grammar refuses it as a word it
+does not take. A `path-information` written inside another family's section
+belongs to that section alone.
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseRegistryNLRISection, wireNLRI -->
+<!-- test: test/plugin/update-text-sr-policy-addpath.ci -->
 
 A section of a family a plugin encodes (mup, mvpn, sr-policy, rtc) is one NLRI, so
 its `add` or `del` comes once, right after the family. A second `add` or `del`

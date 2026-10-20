@@ -4072,11 +4072,12 @@ func srPolicyWire(afi family.AFI, distinguisher, color uint32, endpoint string) 
 // carry the bytes the plugin type builds; refused rows must name the problem.
 //
 // VALIDATES: AC-11a to AC-11f: `update text` speaks the grammar the SR-Policy
-// plugin registers, and refuses an ADD-PATH identifier because the plugin's
-// registration declares none, in the three positions AC-11d lists.
+// plugin registers. A top-level path-information gives the SR-Policy NLRI its
+// ADD-PATH Path Identifier (RFC 7911 Section 3), as a config route's does
+// (sr-policy review round 2, I-3); written after the family or inside the run
+// it is refused, as for every registry family.
 // PREVENTS: a second SR-Policy grammar in `update`, a path-information dropped
-// silently, and a refusal answered by ErrMissingAddDel or the encoder's
-// unknown-keyword error instead of the ADD-PATH reason.
+// silently, and the API refusing a Path Identifier the config route sends.
 func TestSRPolicyTextMatchesPluginGrammar(t *testing.T) {
 	const tail = "distinguisher 1 color 2 endpoint 10.0.0.1"
 	accepted := []struct {
@@ -4092,6 +4093,7 @@ func TestSRPolicyTextMatchesPluginGrammar(t *testing.T) {
 	}
 	for _, tc := range accepted {
 		t.Run("accept/"+tc.name, func(t *testing.T) {
+			// Each accepted row writes no path-information, so no NLRI carries one.
 			result, err := ParseUpdateText(strings.Fields(tc.args))
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
@@ -4101,6 +4103,45 @@ func TestSRPolicyTextMatchesPluginGrammar(t *testing.T) {
 			}
 			require.Len(t, got, 1)
 			assert.Equal(t, tc.want, got[0].Bytes())
+			wire, ok := got[0].(*nlri.WireNLRI)
+			require.True(t, ok, "sr-policy NLRI is a WireNLRI, got %T", got[0])
+			assert.False(t, wire.HasAddPath(), "no path-information, so no Path Identifier")
+		})
+	}
+
+	// A top-level path-information applies to the SR-Policy section, add or del,
+	// and to every other section of the command.
+	withPathID := []struct {
+		name string
+		args string
+		del  bool
+	}{
+		{"top level add", "nhop 192.0.2.1 path-information 5 mp ipv4/sr-policy add " + tail, false},
+		{"top level del", "path-information 5 mp ipv4/sr-policy del " + tail, true},
+		{"top level mixed", "nhop 192.0.2.1 path-information 5 nlri add 10.0.0.0/24 mp ipv4/sr-policy add " + tail, false},
+	}
+	for _, tc := range withPathID {
+		t.Run("path-id/"+tc.name, func(t *testing.T) {
+			result, err := ParseUpdateText(strings.Fields(tc.args))
+			require.NoError(t, err)
+			var sawSRPolicy bool
+			for _, g := range result.Groups {
+				got := g.Announce
+				if tc.del {
+					got = g.Withdraw
+				}
+				require.Len(t, got, 1)
+				assert.Equal(t, uint32(5), got[0].PathID(), "%s Path Identifier", g.Family)
+				if g.Family.SAFI == family.SAFISRPolicy {
+					sawSRPolicy = true
+					wire, ok := got[0].(*nlri.WireNLRI)
+					require.True(t, ok, "sr-policy NLRI is a WireNLRI, got %T", got[0])
+					assert.True(t, wire.HasAddPath(), "the Path Identifier is framed ahead of the NLRI")
+					want := append([]byte{0, 0, 0, 5}, srPolicyWire(family.AFIIPv4, 1, 2, "10.0.0.1")...)
+					assert.Equal(t, want, got[0].Bytes())
+				}
+			}
+			assert.True(t, sawSRPolicy, "sr-policy group present")
 		})
 	}
 
@@ -4112,10 +4153,8 @@ func TestSRPolicyTextMatchesPluginGrammar(t *testing.T) {
 	}{
 		{"AC-11b later del", "nhop 192.0.2.1 mp ipv4/sr-policy add distinguisher 1 del color 2 endpoint 10.0.0.1", errLaterAddDel, "right after the family"},
 		{"AC-11c field before add", "nhop 192.0.2.1 mp ipv4/sr-policy " + tail, route.ErrMissingAddDel, ""},
-		{"AC-11d top level", "nhop 192.0.2.1 path-information 5 mp ipv4/sr-policy add " + tail, errFamilyRefusesAddPath, "without an ADD-PATH path identifier"},
-		{"AC-11d top level mixed", "nhop 192.0.2.1 path-information 5 nlri add 10.0.0.0/24 mp ipv4/sr-policy add " + tail, errFamilyRefusesAddPath, "own command"},
-		{"AC-11d before add", "nhop 192.0.2.1 mp ipv4/sr-policy path-information 5 add " + tail, errFamilyRefusesAddPath, "without an ADD-PATH path identifier"},
-		{"AC-11d inside run", "nhop 192.0.2.1 mp ipv4/sr-policy add distinguisher 1 path-information 5 color 2 endpoint 10.0.0.1", errFamilyRefusesAddPath, "without an ADD-PATH path identifier"},
+		{"AC-11d before add", "nhop 192.0.2.1 mp ipv4/sr-policy path-information 5 add " + tail, route.ErrMissingAddDel, "needs add or del"},
+		{"AC-11d inside run", "nhop 192.0.2.1 mp ipv4/sr-policy add distinguisher 1 path-information 5 color 2 endpoint 10.0.0.1", nil, `"path-information" is not one of them`},
 		{"AC-11e rd", "nhop 192.0.2.1 mp ipv4/sr-policy add distinguisher 1 rd 100:1 color 2 endpoint 10.0.0.1", nil, `"rd"`},
 		{"AC-11e label", "nhop 192.0.2.1 mp ipv4/sr-policy add distinguisher 1 label 100 color 2 endpoint 10.0.0.1", nil, `"label"`},
 		{"AC-11f endpoint family", "nhop 192.0.2.1 mp ipv4/sr-policy add distinguisher 1 color 2 endpoint 2001:db8::1", nil, "not IPv4"},
@@ -4128,10 +4167,6 @@ func TestSRPolicyTextMatchesPluginGrammar(t *testing.T) {
 				require.ErrorIs(t, err, tc.is)
 			}
 			assert.Contains(t, err.Error(), tc.message)
-			if errors.Is(tc.is, errFamilyRefusesAddPath) {
-				assert.NotErrorIs(t, err, route.ErrMissingAddDel)
-				assert.NotContains(t, err.Error(), "unknown sr-policy keyword")
-			}
 		})
 	}
 	for _, token := range []string{"rd", "label"} {

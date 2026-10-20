@@ -42,7 +42,6 @@ The primary registry. A plugin registration carries everything the core needs.
 | `SendTypes` | Send operations this plugin enables |
 | `InProcessNLRIDecoder` | NLRI hex plus the ADD-PATH flag -> JSON |
 | `InProcessNLRIEncoder` | NLRI args -> hex |
-| `NLRIAddPathRefusal` | Non-empty: the families carry no ADD-PATH path identifier; the reason `update text` gives for a `path-information` on their section (SR-Policy) |
 | `InProcessDecoder` | Full message decode (for `ze bgp decode`) |
 | `AttributeJSONDecoders` | Path attribute code -> JSON key and renderer, for `ze bgp decode`; one plugin per code |
 | `ConfigureEngineLogger` | Callback to set plugin logger |

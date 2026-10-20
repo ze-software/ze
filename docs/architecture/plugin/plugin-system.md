@@ -81,7 +81,6 @@ importing its package:
 | `AttributeJSONDecoders` | `map[uint8]AttributeJSONDecoder` | Path attribute code to the JSON key and renderer `ze bgp decode` uses for an attribute the plugin owns (BGP-LS registers 29). `Register` refuses a code another plugin declared, and an entry with no key or no function |
 | `InProcessNLRIDecoder` | `func(family, hex string, addPath, withdraw bool) (any, error)` | NLRI decode without RPC. `addPath` carries negotiated four-octet Path Identifier framing, including identifier zero. `withdraw` selects MP_UNREACH withdrawal semantics; false means announcement |
 | `InProcessNLRIEncoder` | `func(family string, args []string) (string, error)` | NLRI encode without RPC |
-| `NLRIAddPathRefusal` | `string` | When not empty, the plugin's families carry no ADD-PATH path identifier and this is the reason `update text` gives when a `path-information` applies to their section. SR-Policy sets it |
 | `InProcessRouteEncoder` | `func(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath bool) ([]byte, []byte, error)` | Builds a full UPDATE for `ze bgp encode` |
 | `InProcessConfigVerifier` | `func([]rpc.ConfigSection) error` | Side-effect-free equivalent of `OnConfigVerify`, used by static, API and CLI validation |
 | `InProcessConfigNLRIBuilder` | `func(matchCriteria map[string][]string, isIPv6, forVPN bool) []byte` | Builds NLRI bytes from config-format match criteria |

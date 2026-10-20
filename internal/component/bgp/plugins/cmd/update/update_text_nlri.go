@@ -578,11 +578,6 @@ func nativeTextFamily(f family.Family) bool {
 // either be read as a value by the plugin encoder or silently win.
 var errLaterAddDel = errors.New("add or del after the first field: write one add or del right after the family")
 
-// errFamilyRefusesAddPath refuses a path-information that applies to a section
-// whose plugin declared its NLRI carries no ADD-PATH identifier
-// (registry.Registration.NLRIAddPathRefusal).
-var errFamilyRefusesAddPath = errors.New("path-information not supported")
-
 // parseRegistryNLRISection parses an NLRI section whose family this package
 // does not parse itself, by handing the section's whole token run to the
 // plugin encoder registered for it.
@@ -594,11 +589,10 @@ var errFamilyRefusesAddPath = errors.New("path-information not supported")
 // (internal/component/bgp/plugins/nlri/mup/encode.go, EncodeNLRIHex) and the
 // mvpn encoder reads its own.
 //
-// A family whose plugin declared that its NLRI carries no ADD-PATH identifier
-// refuses a path-information in exactly three positions: one at top level,
-// which the accumulator it was handed carries; one right after the family; and
-// one inside the run. A path-information inside another family's section lives
-// in that section's own accumulator copy, so it never reaches this parser.
+// A top-level path-information reaches this parser in the accumulator it was
+// handed, and wireNLRI frames the encoded NLRI with it (RFC 7911 Section 3). A
+// path-information inside another family's section lives in that section's own
+// accumulator copy, so it never reaches this parser.
 //
 // A family whose plugin declared that its section writes path attributes
 // (registry.SectionRouteParserFor) hands an `add` run to its config-route
@@ -606,14 +600,7 @@ var errFamilyRefusesAddPath = errors.New("path-information not supported")
 // names the NLRI alone, so it stays with the NLRI encoder.
 func parseRegistryNLRISection(args []string, fam family.Family, accum nlriAccum, nextHop bgptypes.RouteNextHop) (nlriParseResult, error) {
 	// args[0] = "mp", args[1] = family; the caller has consumed neither.
-	refusal, refusesAddPath := registry.NLRIAddPathRefusalFor(fam.String())
-	if refusesAddPath && accum.HasPathID {
-		return nlriParseResult{}, refuseAddPath(fam, refusal)
-	}
 	i := 2
-	if refusesAddPath && i < len(args) && args[i] == kwPathInfo {
-		return nlriParseResult{}, refuseAddPath(fam, refusal)
-	}
 	mode := ""
 	if i < len(args) && (args[i] == kwAdd || args[i] == kwDel) {
 		mode = args[i]
@@ -631,9 +618,6 @@ func parseRegistryNLRISection(args []string, fam family.Family, accum nlriAccum,
 		}
 		if token == kwDel {
 			return nlriParseResult{}, fmt.Errorf("%w: %s section has %q after its first field", errLaterAddDel, fam, token)
-		}
-		if refusesAddPath && token == kwPathInfo {
-			return nlriParseResult{}, refuseAddPath(fam, refusal)
 		}
 		i++
 	}
@@ -682,13 +666,6 @@ func parseRegistryRouteSection(parse func(registry.ConfigRouteRequest) (registry
 	}
 	result.Attrs = route.Attrs
 	return result, nil
-}
-
-// refuseAddPath builds the one error a path-information applying to fam's
-// section gets: the reason fam's plugin registered, and the two ways out.
-func refuseAddPath(fam family.Family, reason string) error {
-	return fmt.Errorf("%w for %s: %s; drop path-information, or send the %s section in its own command",
-		errFamilyRefusesAddPath, fam, reason, fam)
 }
 
 // endsRegistrySection reports whether a token ends a plugin family's token run.

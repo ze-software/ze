@@ -243,12 +243,6 @@ type Registration struct {
 	// callers MUST pass the enclosing message's action, not infer it from bytes.
 	InProcessNLRIDecoder func(family, hex string, addPath, withdraw bool) (any, error)
 	InProcessNLRIEncoder func(family string, args []string) (string, error) // (family, args) → hex
-	// NLRIAddPathRefusal, when not empty, declares that the NLRI of every family
-	// this plugin registers carries no ADD-PATH path identifier, and is the
-	// reason an operator reads when a command gives one. Empty means the family
-	// takes ADD-PATH like any other. `update text` asks NLRIAddPathRefusalFor
-	// instead of testing a SAFI.
-	NLRIAddPathRefusal string
 	// NLRISectionCarriesAttributes declares that an `update text` section of
 	// this plugin's families writes path attributes beside the NLRI, as an SR
 	// Policy section writes its Tunnel Encapsulation sub-TLVs. `update text`
@@ -1318,23 +1312,6 @@ func SectionRouteParserFor(family string) (func(req ConfigRouteRequest) (PluginR
 		return nil, false
 	}
 	return reg.InProcessConfigRouteParser, true
-}
-
-// NLRIAddPathRefusalFor answers the reason the plugin registered for family
-// gives for refusing an ADD-PATH path identifier, and false when the family
-// takes one or no plugin registers it. Safe for concurrent use.
-func NLRIAddPathRefusalFor(family string) (string, bool) {
-	mu.RLock()
-	defer mu.RUnlock()
-
-	reg := familyIndex[family]
-	if reg == nil {
-		return "", false
-	}
-	if reg.NLRIAddPathRefusal == "" {
-		return "", false
-	}
-	return reg.NLRIAddPathRefusal, true
 }
 
 // RouteEncoderByFamily finds the plugin registered for a family and returns

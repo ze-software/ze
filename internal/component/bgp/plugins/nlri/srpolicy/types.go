@@ -119,13 +119,16 @@ func (s *SRPolicy) Bytes() []byte {
 	return buf
 }
 
-// PathID returns 0 (SR-Policy does not use ADD-PATH).
+// PathID returns 0: an SRPolicy holds the NLRI alone. Under ADD-PATH the
+// sender frames the 4-octet Path Identifier ahead of it (RFC 7911 Section 3):
+// the config rail with message.PluginNLRI, `update text` with a WireNLRI.
 func (s *SRPolicy) PathID() uint32 { return 0 }
 
-// HasPathID returns false.
+// HasPathID returns false: the Path Identifier is framed outside this value.
 func (s *SRPolicy) HasPathID() bool { return false }
 
-// SupportsAddPath returns false.
+// SupportsAddPath returns false: this value never carries a Path Identifier,
+// which the sender frames around it.
 func (s *SRPolicy) SupportsAddPath() bool { return false }
 
 // String returns a human-readable representation.
