@@ -678,7 +678,7 @@ func TestRFC2545ReceivedPairFirstAddressValidated(t *testing.T) {
 // RFC requirement: RFC2545-3-1 positive -- on a receiving session without capability 77, a valid policy replacement of an obsolete malformed received pair is announced with exact native bytes.
 // RFC requirement: RFC2545-3-2 negative -- effective native IPv4 and VPN-shaped next-hop fields cannot leave under IPv6-unicast AFI/SAFI, including policy pairs whose off-link trim would hide their original width.
 // RFC requirement: RFC2545-3-2 positive -- a later legal sixteen- or thirty-two-octet policy replacement supersedes an obsolete wrong-width operation, with valid legacy siblings unchanged.
-// RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 negative -- on a receiving session that negotiated capability 77, a received global/global pair is malformed and treated as withdraw at receipt, before any policy runs: the Session publishes the withdrawal of every route of the UPDATE, legacy sibling included, and the recipient is sent no announcement.
+// RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 negative -- on a receiving session that negotiated capability 77, a received global/global pair is malformed and treated as withdraw at receipt: the Session publishes the withdrawal of every route of the UPDATE, legacy sibling included, and the recipient is sent no announcement.
 // MUTATION: validate the obsolete received pair instead of its replacement,
 // trust every policy-written pair, or withdraw the whole mixed UPDATE.
 func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
@@ -716,7 +716,7 @@ func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
 					onLinkOnly            bool
 					// source77 negotiates capability 77 on the receiving session,
 					// where withdrawn expects draft-ietf-idr-linklocal-capability
-					// Section 6 treat-as-withdraw before any policy runs.
+					// Section 6 treat-as-withdraw at receipt.
 					source77, withdrawn bool
 				}{
 					{name: "invalid-first-unchanged", received: invalidFirst},
