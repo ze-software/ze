@@ -795,8 +795,9 @@ func (in *instance) onPacket(item transport.RxItem) {
 	// (Priority equals 255 (decimal))." ... "If any one of the above checks
 	// fails, the receiver MUST discard the packet".
 	// Decode enforces the VRID half; the owner half lives here because only the
-	// engine knows this router owns the address. It is v2-only: VRRPv3 follows
-	// RFC 9568 erratum 8298, which lowers the owner half to a SHOULD that logs.
+	// engine knows this router owns the address. Here it is v2-only: VRRPv3
+	// follows RFC 9568 erratum 8298, which lowers the owner half to a SHOULD
+	// that logs, unless the group is `checksum rfc5798-compatible` (below).
 	// Without the discard, an equal-priority advertisement from a greater
 	// sender address would demote the owner through the Master tie-break.
 	if in.spec.Version == versionV2 {
@@ -811,8 +812,19 @@ func (in *instance) onPacket(item transport.RxItem) {
 	// management that a misconfiguration was detected."
 	// The v2 owner has returned above, so this is the VRRPv3 owner. The
 	// erratum moved the check out of the discard list, so the advertisement is
-	// still processed below.
+	// still processed below, except in a group configured
+	// `checksum rfc5798-compatible`, which keeps RFC 5798 as published.
 	if in.spec.IsOwner {
+		// RFC 5798 Section 7.1: "MUST verify that the VRID is configured on
+		// the receiving interface and the local router is not the IPvX address
+		// owner (Priority = 255 (decimal))." ... "If any one of the above checks
+		// fails, the receiver MUST discard the packet".
+		// The operator chose the RFC 5798 deployed base for this group, so its
+		// owner discards as RFC 5798 orders rather than as erratum 8298 lowers.
+		if in.spec.Checksum == packet.ChecksumRFC5798Compatible {
+			in.deps.recordRxError(in.key, packet.ReasonOwner)
+			return
+		}
 		in.noteOwnerConflict(item.Meta.Src, adv.Priority)
 	}
 	// RFC 3768 Section 7.1: "MAY verify that "Count IP Addrs" and the list of

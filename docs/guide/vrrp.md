@@ -278,14 +278,17 @@ A second box claiming the same address therefore cannot demote it. A
 advertisement, so two owners of one address resolve by election. It still
 treats the advertisement as a sign of misconfiguration: each one is counted
 under the `owner-conflict` packet-error reason, and a warning naming the
-sender is logged at most once a minute per group.
+sender is logged at most once a minute per group. The exception is a `version 3`
+group configured `checksum rfc5798-compatible`: that group keeps RFC 5798 as
+published, so its owner discards every advertisement it receives, as RFC 5798
+Section 7.1 requires, and counts each one under the `owner` reason.
 
 A `version 2` backup that receives an advertisement whose address list differs
 from its own counts it under `address-list`. It drops it, unless the sender
 advertised priority 255: an advertisement from the address owner is still
 processed, as RFC 3768 Section 7.1 says.
 
-<!-- source: internal/plugins/vrrp/instance.go -- onPacket, the v2 owner discard and the address-list carve-out -->
+<!-- source: internal/plugins/vrrp/instance.go -- onPacket, the v2 and rfc5798-compatible owner discard and the address-list carve-out -->
 <!-- source: internal/plugins/vrrp/instance.go -- noteOwnerConflict, the v3 owner count and rate-limited log -->
 
 ## The virtual MAC

@@ -160,6 +160,9 @@ module ze-vrrp-conf {
                                  pseudo-header, and keepalived and other pre-RFC 9568
                                  routers still send and require that form, so a group
                                  sharing a segment with them needs rfc5798-compatible.
+                                 Such a group also keeps the RFC 5798 owner rule: its
+                                 address owner discards every advertisement it
+                                 receives, where an rfc9568 owner logs and processes it.
                                  Version 2 always sums the message alone and refuses
                                  rfc5798-compatible. IPv6 groups have no such leaf:
                                  both RFCs cover the IPv6 pseudo-header.";
