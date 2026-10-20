@@ -20,6 +20,7 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/seqmap"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -141,7 +142,9 @@ func TestHandleReceivedStructuredIPv4NextHop(t *testing.T) {
 	require.Equal(t, "172.30.0.3", legacyNextHop(attrs))
 	nlri, err := wu.NLRI()
 	require.NoError(t, err)
-	require.Len(t, wireNLRIsToAny(nlri, false, family.IPv4Unicast), 3)
+	split, err := nlrisplit.Split(family.IPv4Unicast, nlri, false)
+	require.NoError(t, err)
+	require.Len(t, split, 3)
 
 	r.handleReceivedStructured(&rpc.StructuredEvent{
 		EventType:   rpc.EventKindUpdate,

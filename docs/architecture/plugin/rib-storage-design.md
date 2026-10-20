@@ -870,6 +870,22 @@ type FamilyRIB struct {
 }
 ```
 
+### Adj-RIB-In route keys
+
+`bgp-adj-rib-in` stores one entry per received route, keyed by family, path
+identifier and the route the NLRI names. The plain unicast and multicast
+families key on their prefix. Every other family is split by its registered
+`nlrisplit` splitter and keyed by the family's own decoder, never by reading its
+octets as an address: labeled unicast keys on the prefix behind its label stack,
+and VPN keys on the Route Distinguisher and prefix together, so one prefix under
+two Route Distinguishers is two routes. A withdrawal is framed by the family's
+withdrawal splitter and ignores the RFC 8277 Compatibility field, so it removes
+the one route it names. Each stored route keeps its own NLRI bytes, label stack
+and Route Distinguisher included, and the peer-up replay sends every one of them.
+
+<!-- source: internal/component/bgp/plugins/adj_rib_in/compact_key.go -- compactRouteKey, routeKeyFromNLRI -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_complex.go -- installComplexNLRIs, removeComplexNLRIs -->
+
 ### Validation eligibility
 
 `bgp-adj-rib-in` retains the received wire attributes, next hop and NLRI when a

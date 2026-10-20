@@ -434,9 +434,10 @@ func parsePeerAddress(peerAddr string) (netip.Addr, error) {
 }
 
 // handleReceivedStructured processes received UPDATE events from StructuredEvent wire types.
-// Walks wire bytes directly using NLRIIterator, skipping the bgp.Event intermediary
-// and wireNLRIsToAny boxing. The legacy handleReceived path is preserved for external
-// text/JSON plugins.
+// Walks wire bytes directly, skipping the bgp.Event intermediary: NLRIIterator for
+// the plain prefix families, the family's registered splitter and route key for
+// every other (rib_complex.go). The legacy handleReceived path is preserved for
+// external text/JSON plugins.
 func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
 	if !ok || msg == nil {
@@ -620,88 +621,6 @@ func (r *AdjRIBInManager) removeStructuredNLRIs(peerAddr netip.Addr, fam family.
 			continue
 		}
 		rk := routeKeyFromWire(fam, pfx, pathID)
-		r.removePending(peerAddr, rk)
-		if r.ribIn[peerAddr] != nil {
-			r.ribIn[peerAddr].Delete(rk)
-		}
-	}
-}
-
-// installComplexNLRIs handles non-simple-prefix families (VPN, EVPN) via wireNLRIsToAny.
-// These are rare in benchmarks and their wire format prevents direct prefix extraction.
-// Caller must hold r.mu.
-//
-// nhopHex is the MP_REACH next-hop field as the source framed it. It used to be
-// an address STRING, which lost the link-local half of an RFC 2545 Section 3
-// pair before it ever reached storage.
-func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string, msgID uint64) {
-	if attrHex == "" {
-		return
-	}
-	if nhopHex == "" {
-		return
-	}
-	nlris := wireNLRIsToAny(data, addPath, fam)
-	rawNLRIHex := hex.EncodeToString(data)
-	for i, nlriVal := range nlris {
-		prefix, pathID := bgp.ParseNLRIValue(nlriVal)
-		if prefix == "" {
-			continue
-		}
-		rk := routeKeyFromStrings(fam, prefix, pathID)
-		var nlriHex string
-		if i != 0 {
-			continue
-		}
-
-		nlriHex = rawNLRIHex
-
-		route := &RawRoute{
-			Family:  fam,
-			AttrHex: attrHex,
-			NHopHex: nhopHex,
-			NLRIHex: nlriHex,
-			// The whole NLRI section is stored verbatim, so it already carries
-			// whatever framing the source used, path identifiers included. PathID
-			// stays unset: two representations of one identifier would drift.
-			NLRIFraming: rpc.NLRIFramingSourceWire,
-			MsgID:       msgID,
-		}
-		if r.validationEnabled && isSimplePrefixFamily(fam) {
-			r.removeInstalled(peerAddr, rk)
-			pr := &pendingRoute{
-				peerAddr:   peerAddr,
-				family:     fam,
-				prefix:     prefix,
-				routeKey:   rk,
-				route:      route,
-				receivedAt: time.Now(),
-				state:      ValidationPending,
-			}
-			if !r.applyEarlyDecision(peerAddr, rk, pr) {
-				pKey := pendingKey(peerAddr, rk)
-				r.pending[pKey] = pr
-			}
-		} else {
-			if r.ribIn[peerAddr] == nil {
-				r.ribIn[peerAddr] = newSeqMap()
-			}
-			r.seqCounter++
-			r.ribIn[peerAddr].Put(rk, r.seqCounter, route)
-		}
-	}
-}
-
-// removeComplexNLRIs handles withdrawal of non-simple-prefix families.
-// Caller must hold r.mu.
-func (r *AdjRIBInManager) removeComplexNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool) {
-	nlris := wireNLRIsToAny(data, addPath, fam)
-	for _, nlriVal := range nlris {
-		prefix, pathID := bgp.ParseNLRIValue(nlriVal)
-		if prefix == "" {
-			continue
-		}
-		rk := routeKeyFromStrings(fam, prefix, pathID)
 		r.removePending(peerAddr, rk)
 		if r.ribIn[peerAddr] != nil {
 			r.ribIn[peerAddr].Delete(rk)

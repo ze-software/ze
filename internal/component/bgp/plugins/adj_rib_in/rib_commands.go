@@ -228,7 +228,7 @@ func (r *AdjRIBInManager) show(selectorStr string) any {
 		}
 		routeList := make([]map[string]any, 0, routes.Len())
 		routes.Range(func(key compactRouteKey, seq uint64, rt *RawRoute) bool {
-			keyStr := key.Fam.String() + ":" + key.Prefix.String()
+			keyStr := key.Fam.String() + ":" + key.routeName()
 			if key.PathID > 0 {
 				keyStr += ":" + textbuf.StringUint32(key.PathID)
 			}
@@ -496,13 +496,13 @@ func (r *AdjRIBInManager) revalidateCommand(args []string) (string, any, error) 
 			if rt.Family != fam {
 				return true
 			}
-			if !allPrefixes && key.Prefix.String() != prefix {
+			if !allPrefixes && key.routeName() != prefix {
 				return true
 			}
 			routes = append(routes, map[string]any{
 				"peer":                  peer.String(),
 				routeKeyFamily:          famStr,
-				"prefix":                key.Prefix.String(),
+				"prefix":                key.routeName(),
 				routeKeyAttrHex:         rt.AttrHex,
 				routeKeyNHopHex:         rt.NHopHex,
 				routeKeyNLRIHex:         rt.NLRIHex,
