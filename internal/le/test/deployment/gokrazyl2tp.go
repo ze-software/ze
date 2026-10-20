@@ -291,9 +291,43 @@ func (g *gokrazyL2TP) Run(ctx context.Context) (GokrazyL2TPReport, error) {
 		return report, err
 	}
 
-	image, err := gokrazyImage(ctx, g.Tree, work, template, g.Arch, g.Progress)
+	return proveAppliance(ctx, g, report, work, template, peerDir)
+}
+
+// gokrazyStages are the steps of a run that build, network and boot the
+// appliance. *gokrazyL2TP performs them. A test hands proveAppliance stand-ins,
+// so it reads what a stopped root answers with no image, no lab and no QEMU.
+type gokrazyStages interface {
+	buildImage(ctx context.Context, work, template string) (string, error)
+	setupLab() error
+	removeLab()
+	observe(ctx context.Context, report GokrazyL2TPReport, image, peerDir string) (GokrazyL2TPReport, error)
+}
+
+// buildImage builds the appliance image under ctx.
+func (g *gokrazyL2TP) buildImage(ctx context.Context, work, template string) (string, error) {
+	return gokrazyImage(ctx, g.Tree, work, template, g.Arch, g.Progress)
+}
+
+// setupLab creates the network the appliance and the peer meet on.
+func (g *gokrazyL2TP) setupLab() error { return g.Lab.setup() }
+
+// removeLab removes the network setupLab created, with no context of its own.
+func (g *gokrazyL2TP) removeLab() { g.Lab.remove() }
+
+// proveAppliance builds the image, creates the lab, boots the appliance and
+// answers the verdict. A root that ended at any of these stages answers
+// stoppedRun, never what the stage left behind: a step that failed, or a wait
+// that the killed machine cut short, is the stop and not the verdict.
+func proveAppliance(
+	ctx context.Context,
+	stages gokrazyStages,
+	report GokrazyL2TPReport,
+	work, template, peerDir string,
+) (GokrazyL2TPReport, error) {
+	image, err := stages.buildImage(ctx, work, template)
 	if err != nil {
-		return report, err
+		return report, stoppedOr(ctx, err)
 	}
 	report.Image = image
 	// A root that ended after the build creates no lab and boots nothing.
@@ -301,15 +335,17 @@ func (g *gokrazyL2TP) Run(ctx context.Context) (GokrazyL2TPReport, error) {
 		return report, stoppedRun(err)
 	}
 
-	defer g.Lab.remove()
-	if err := g.Lab.setup(); err != nil {
-		return report, err
+	defer stages.removeLab()
+	if err := stages.setupLab(); err != nil {
+		return report, stoppedOr(ctx, err)
 	}
 
-	report, err = g.observe(ctx, report, image, peerDir)
+	report, err = stages.observe(ctx, report, image, peerDir)
 	if err != nil {
-		return report, err
+		return report, stoppedOr(ctx, err)
 	}
+	// The killed machine ends every console wait, and a wait cut short reads
+	// as a missed step: the verdict observe answered is the stop's.
 	if err := ctx.Err(); err != nil {
 		return report, stoppedRun(err)
 	}
@@ -317,6 +353,15 @@ func (g *gokrazyL2TP) Run(ctx context.Context) (GokrazyL2TPReport, error) {
 		os.RemoveAll(work) //nolint:errcheck // the run passed; a scratch directory left behind is not a verdict
 	}
 	return report, nil
+}
+
+// stoppedOr answers err for a step that failed, unless the root ended: a step
+// that failed under an ended root failed of the stop, so the stop is reported.
+func stoppedOr(ctx context.Context, err error) error {
+	if stopped := ctx.Err(); stopped != nil {
+		return stoppedRun(stopped)
+	}
+	return err
 }
 
 // observe boots the appliance, walks the L2TP path, and answers the verdict.

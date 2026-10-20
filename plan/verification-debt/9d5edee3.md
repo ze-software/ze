@@ -7,6 +7,6 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
-| 2026-10-20 | 9d5edee3 | deployment: a canceled gokrazy build kills the compilers gok started | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-19T14:57:42Z) | open |
-| 2026-10-20 | 9d5edee3 | deployment: a canceled gokrazy build kills the compilers gok started | native structural checks (red) | ./le arch tier check and ./le arch iface-resolution both exit 0 over this tree; the red is the recorded stage, charged for want of path attribution | open |
-| 2026-10-20 | 9d5edee3 | deployment: a canceled gokrazy build kills the compilers gok started | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-10-20 | 9d5edee3 | deployment: a canceled gokrazy build kills the compilers gok started (+1 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-19T14:57:42Z) | open |
+| 2026-10-20 | 9d5edee3 | deployment: a canceled gokrazy build kills the compilers gok started (+1 more) | native structural checks (red) | ./le arch tier check and ./le arch iface-resolution both exit 0 over this tree; the red is the recorded stage, charged for want of path attribution | open |
+| 2026-10-20 | 9d5edee3 | deployment: a canceled gokrazy build kills the compilers gok started (+1 more) | full native verification over this commit's Go | no full native verification covers this commit's Go | open |

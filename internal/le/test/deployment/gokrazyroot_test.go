@@ -154,3 +154,85 @@ func TestGokrazyBuildCancelEndsTheGrandchildren(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 }
+
+// stagedAppliance stands in for the build, the lab and the boot of a gokrazy
+// run. The root ends inside the stage named by stopAt; setup then fails the way
+// a lab command killed by the stop would, and observe answers the missed-step
+// verdict a machine killed by the stop leaves behind.
+type stagedAppliance struct {
+	cancel context.CancelFunc
+	stopAt string
+	booted bool
+}
+
+func (s *stagedAppliance) buildImage(_ context.Context, work, _ string) (string, error) {
+	if s.stopAt == "build" {
+		s.cancel()
+	}
+	return filepath.Join(work, "ze.img"), nil
+}
+
+func (s *stagedAppliance) setupLab() error {
+	if s.stopAt == "setup" {
+		s.cancel()
+		return errors.New("create lab bridge: signal: interrupt")
+	}
+	return nil
+}
+
+func (s *stagedAppliance) removeLab() {}
+
+func (s *stagedAppliance) observe(_ context.Context, report GokrazyL2TPReport, _, _ string) (GokrazyL2TPReport, error) {
+	s.booted = true
+	if s.stopAt == "observe" {
+		s.cancel()
+	}
+	report.Reason = "gokrazy appliance web server did not start"
+	report.LogTail = []string{"qemu-system-x86_64: terminating on signal 9"}
+	return report, nil
+}
+
+// Run is the proof over the stand-in stages, as gokrazyL2TP.Run hands its own.
+func (s *stagedAppliance) Run(ctx context.Context) (GokrazyL2TPReport, error) {
+	work := filepath.Join(os.TempDir(), "unused")
+	return proveAppliance(ctx, s, GokrazyL2TPReport{Peer: PeerName}, work, "ze.conf", work)
+}
+
+// VALIDATES: G-2 for gokrazy-l2tp-ppp-test: a run whose signal root ended
+// during the build, the lab setup or the boot answers the stop as an error and
+// prints no verdict, neither OK nor FAIL with a console tail; a stop during
+// the build boots nothing.
+// METHOD: proveAppliance, the body of gokrazyL2TP.Run past its host checks,
+// runs over stand-in stages that end the root inside one stage each, and
+// runGokrazyL2TP renders the answer.
+// PREVENTS: a Ctrl-C printing "FAIL: gokrazy appliance web server did not
+// start" for a run that reached no verdict, a stop during setup reported as a
+// lab that would not start, and a stopped build going on to boot.
+func TestGokrazyStoppedRunPrintsNoVerdict(t *testing.T) {
+	for _, stage := range []string{"build", "setup", "observe"} {
+		ctx, cancel := context.WithCancel(t.Context())
+		run := &stagedAppliance{cancel: cancel, stopAt: stage}
+		if _, err := run.Run(ctx); !errors.Is(err, context.Canceled) {
+			t.Errorf("stop during %s: Run answered %v, want the stop", stage, err)
+		}
+		if stage == "build" && run.booted {
+			t.Error("stop during build: the appliance was booted after the root ended")
+		}
+
+		ctx, cancel = context.WithCancel(t.Context())
+		payload, code := runGokrazyL2TP(ctx, &stagedAppliance{cancel: cancel, stopAt: stage})
+		cancel()
+		if code != 1 {
+			t.Errorf("stop during %s: exited %d, want 1", stage, code)
+		}
+		rendered, ok := payload.(interface{ Text() string })
+		if !ok {
+			t.Fatalf("stop during %s: payload %T renders no text", stage, payload)
+		}
+		for line := range strings.Lines(rendered.Text()) {
+			if strings.HasPrefix(line, "OK: ") || strings.HasPrefix(line, "FAIL: ") || strings.Contains(line, "console tail") {
+				t.Errorf("stop during %s: a stopped run printed the verdict %q", stage, strings.TrimSpace(line))
+			}
+		}
+	}
+}

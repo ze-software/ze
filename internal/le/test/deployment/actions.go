@@ -192,13 +192,14 @@ func runGokrazyL2TPAt(ctx context.Context, root string) (any, int) {
 }
 
 // runGokrazyL2TP answers the proof over one run. It uses the same terms as its
-// on-host sibling. A step that cannot be performed is an error. A step in the
-// path that did not happen is the verdict.
-func runGokrazyL2TP(ctx context.Context, run *gokrazyL2TP) (GokrazyL2TPReport, int) {
+// on-host sibling. A step that cannot be performed, or a run the signal root
+// stopped, is an error and answers 1 with no verdict (notReached): the
+// appliance proof starts no container, so nothing is left to name. A step in
+// the path that did not happen is the verdict.
+func runGokrazyL2TP(ctx context.Context, run proofRun[GokrazyL2TPReport]) (any, int) {
 	report, err := run.Run(ctx)
 	if err != nil {
-		leaction.ReportError(err)
-		return report, 1
+		return notReached(err, "", "")
 	}
 	if !report.Proven {
 		return report, 1
