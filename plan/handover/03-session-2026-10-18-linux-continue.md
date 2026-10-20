@@ -860,3 +860,20 @@ State at hand-off (agent budget exhausted; only this section is committed):
 - Judge owed (audits stale, not stamped): RFC4301-5.2-1, RFC4301-5.2-9, RFC4301-4.4.1-3,
   RFC4301-5.1-7. Gates owed: `./le go lint run` on internal/component/ike/..., verify.
 - Path (a) VPP stays the only `{gap}` on 5.2-1/5.2-9 (owner checks VPP first).
+
+## ExaBGP 6 spec, Phase 1 AC-4 fourth package (2026-10-20, Linux): continuation owed
+
+- Committed: 5cf57ad1aa (mock reads COMMUNITIES and EXTENDED COMMUNITIES as
+  sets; 4.2 conf-new-v4, conf-vpn green) and ae49f963d0 (six allowances, each
+  observed SKIP). Counts now: old-4.2 24 pass, 4 skip, 6 red of 34; old-5.0
+  52 pass, 7 skip, 13 red of 72 (fresh full run old50-r3 plus the two 5.0
+  allowances run alone).
+- Still held uncommitted until both populations are green: the stage change
+  (`internal/le/test/functional/exabgp.go`, `exabgp_test.go`) and the 5.0
+  `unknown-message.ci` allowance (now observed SKIP).
+- Two ze defects found, owed fixes (they block AC-4 green): flowspec
+  redirect-to-IP drops the MP_REACH next hop (4.2 and 5.0 conf-flow); an API
+  flow withdrawal goes out as an attribute-only UPDATE with no MP_UNREACH
+  (5.0 api-flow). Spec AC-4 fourth-package line lists every remaining red with
+  its first error.
+- Gates owed: `./le go lint run` on `internal/le/interoplab/bgp`.
