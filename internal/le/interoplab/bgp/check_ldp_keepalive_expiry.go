@@ -25,7 +25,10 @@ const (
 	ldpLabTable         = "ldplab"
 	ldpLabChain         = "input"
 	// ldpLabChainSpec hooks the chain ahead of every other input filter.
-	ldpLabChainSpec     = "{ type filter hook input priority -300; policy accept; }"
+	ldpLabChainSpec = "{ type filter hook input priority -300; policy accept; }"
+	// ldpLabDataSegments matches the LDP session segments that carry PDUs (PSH
+	// set) and leaves pure ACKs alone; nft joins its arguments into one rule.
+	ldpLabDataSegments  = "tcp sport " + ldpPort + " tcp flags & psh == psh"
 	ldpStateOperational = "OPERATIONAL"
 	// ldpExpiryStatus is the Status name FRR logs for Status Code 0x00000014.
 	ldpExpiryStatus = "KeepAlive Timer Expired"
@@ -36,11 +39,20 @@ const (
 
 var frrShowLDPNeighbor = []string{cmdVtysh, "-c", "show mpls ldp neighbor"}
 
-// checkLDPKeepaliveExpiry brings the LDP session up, drops FRR's TCP segments in
+// checkLDPKeepaliveExpiry brings the LDP session up, drops FRR's LDP PDUs in
 // ze's container so ze's KeepAlive Timer is the one that expires, and requires
 // FRR to log a received Notification naming KeepAlive Timer Expired after the
 // break, then to leave OPERATIONAL. Hellos are UDP and still pass, so the
 // adjacency stays and the close is the timer's, not the adjacency expiry's.
+//
+// KNOWN BROKEN (2026-10-20, spec-ldp-keepalive-expiry-notification A-4): any
+// drop of FRR's segments stalls ze's own TCP stream. FRR always has KeepAlives
+// queued, so its ACKs ride on data segments; with those dropped ze gets no
+// ACK, falls into retransmission, and its KeepAlives and Notification stop
+// reaching FRR. FRR's KeepAlive Timer then fires first (FRR logged ze's
+// KeepAlives each second up to the break, then nbr_ktimeout about 3 s later).
+// Dropping only PSH segments, as below, did not change that. The break needs a
+// redesign that leaves FRR's TCP acknowledging ze's data.
 func checkLDPKeepaliveExpiry(ctx context.Context, check *interoplab.CheckContext) (resultErr error) {
 	address := []string{"ip", "address", "add", ldpTransportAddress + "/32", "dev", "eth0"}
 	if _, err := check.Lab.Exec(ctx, "ze", address, nil); err != nil {
@@ -60,13 +72,13 @@ func checkLDPKeepaliveExpiry(ctx context.Context, check *interoplab.CheckContext
 	}
 	before := expiryNotificationsLogged(logBefore)
 
-	// The break: FRR's TCP segments toward ze, dropped in a table of ze's own
-	// container. The FRR image ships no iptables, and the table is outside the
-	// ze_ prefix, so ze's firewall never sweeps it.
+	// The break: FRR's LDP data segments toward ze, dropped in a table of ze's
+	// own container (see KNOWN BROKEN above). The FRR image ships no iptables,
+	// and the table is outside the ze_ prefix, so ze's firewall never sweeps it.
 	for _, argv := range [][]string{
 		{cmdNft, nftActionAdd, nftObjectTable, nftFamilyInet, ldpLabTable},
 		{cmdNft, nftActionAdd, nftObjectChain, nftFamilyInet, ldpLabTable, ldpLabChain, ldpLabChainSpec},
-		{cmdNft, nftActionAdd, nftObjectRule, nftFamilyInet, ldpLabTable, ldpLabChain, "ip", "saddr", frrLabAddress, "tcp", "sport", ldpPort, "drop"},
+		{cmdNft, nftActionAdd, nftObjectRule, nftFamilyInet, ldpLabTable, ldpLabChain, "ip", "saddr", frrLabAddress, ldpLabDataSegments, "drop"},
 	} {
 		if _, err := check.Lab.Exec(ctx, "ze", argv, nil); err != nil {
 			return fmt.Errorf("drop FRR's LDP TCP traffic: %w", err)
