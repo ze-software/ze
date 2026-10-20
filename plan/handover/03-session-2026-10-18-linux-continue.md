@@ -1487,3 +1487,76 @@ NOT done, next on the Mac:
   `./le test functional exabgp-test`.
 - Untouched: `internal/plugins/exabgp/bridgerun/version.go`, `rfc/discrimination/.rfc1997.json.tmp-*`,
   the owner-pending `api-mpls-vpn` case files.
+
+### ExaBGP 6 adj-rib-out and EOR (2026-10-20, Mac)
+
+Agent stopped at its 100-call budget. Nothing committed but this entry. Baseline on ze
+(`./le --name exarib test exabgp api api-rib api-rr-rib api-eor`): all three FAIL.
+
+**api-eor (item 2): code half-done, UNCOMMITTED in the tree. Do not commit it as it stands.**
+- Guard named: `Peer.claimInitialSyncEOR` IS a guard. It stops the route server's
+  (`rs/server_handlers.go` ~L557) and the route reflector's (`rr/rr.go` L656, `rrEORCmd`)
+  replay-closing `update text ... eor` from repeating the marker the reactor's own initial
+  sync sent (RFC 4724 Section 2). `AnnounceEOR` has one caller, `update_text.go` L1156, so a
+  script's EOR and an RS/RR replay EOR cannot be told apart today.
+- Design: `AnnounceEOR` sends every time (ExaBGP `announce_eor`), skips a peer that did not
+  negotiate the family (RFC 4760 Section 8 quoted), and answers `eorNoPeerError` when none
+  qualifies. The new `AnnounceReplayEOR` keeps the claim gate. Both live in
+  `reactor/reactor_api_forward.go` (`announceEOR(sel, fam, sender, once)`); the interface is in
+  `bgp/types/reactor.go`; `AnnounceReplayEOR` is added to 7 test mocks. These edits ARE in the
+  tree (`go vet` clean). An explicit EOR still claims the family when unclaimed, and releases
+  only a claim it took.
+- Owed: (1) `update_text.go` handleUpdateText: pick `AnnounceReplayEOR` when
+  `ctx.Meta["replay-eor"] == true` (helper `replayEORFromMeta` beside `replayFromMeta`). The
+  edit was refused only because `ai/doors/bgp-plugins.md` had not been read. (2) RS and RR send
+  their replay EOR with `UpdateRouteWithMeta(..., map[string]any{"replay-eor": true})` (RS has
+  an `updateRouteHook` that tests use). Until (1) and (2) land, the AnnounceEOR change in the
+  tree lets an RS/RR replay repeat the EOR, which is a regression. (3) Bridge: a bare
+  `announce eor` is IPv4 unicast only (pin `api_eor`, `reactor/api/__init__.py` L307: no
+  tokens gives `Family(ipv4, unicast)`). `convertEOR` in `bridge_route_forms.go` expands it to
+  every declared family, which breaks api-eor sequence 3. (4) Tests, each red first with an
+  overlay: a reactor test that two explicit EORs both reach the wire, that a replay EOR after
+  the initial-sync one does not, and that a non-negotiated family answers the error. Review
+  `peer_initial_sync_test.go` L406 and `forward_replay_fence_test.go` L242, which call
+  AnnounceEOR in a sync window (the shouldQueue / initialSyncEOROwed drop is kept). (5) Docs:
+  `docs/architecture/api/update-syntax.md` and `commands.md` (EOR semantics, the `replay-eor`
+  meta), `exabgp-bridge.md`, `exabgp-differences.md`. (6) api-eor under api, old-4.2 and
+  old-5.0, on ze and on the pin.
+
+**api-rib / api-rr-rib (item 1): investigated, not started. Findings for the design:**
+- ze has three outbound stores. The reactor's `adjRIBOut` (`reactor/adj_rib_out.go`) holds
+  every route on the session as keys plus local signatures and NO attributes, so it can
+  withdraw but cannot resend. bgp-rib's `ribOut` is fed by sent events and is the source of
+  the `clear bgp rib out` replay (`outboundResend`). Config routes sit in
+  `Peer.staticWire.routes` and are NOT in ribOut (`peer_static_wire.go` L255,
+  `sendingConfigStatic`).
+- Withdraw-all, engine-side: for each matching peer, snapshot `adjOut.routes` under
+  `adjOut.mu`. The wire NLRI is `exactNLRI` when set, else `key.path.nlri[:length]` or
+  `overflow`; the path id is `key.path.received` when `key.addPath`. Send through the local
+  (not source-bound) API withdraw path (`withdrawBatchFromPeers`, `nlri.NewWireNLRI`), so
+  `adjOutWrite.allow` removes the key and the sent event lets bgp-rib drop its ribOut entries.
+  A later flush must not resend them, and the case checks that. Empty `staticWire.routes` too.
+  Open gap: a forwarded labeled route stores no exactNLRI, so its key lacks the label field.
+- api-rib step 10 sends `announce .0` then `clear adj-rib out` in one bridge batch and expects
+  NOTHING on the wire for .0, because ExaBGP coalesces in its RIB. ze flushes the forward pool
+  once per batch (`bridge_lines.go` L179), so a clear has to drop the same batch's earlier
+  route commands for its selector before dispatch. Otherwise .0 goes out, which is today's
+  failure.
+- Flush has to emit BoRR/EoRR when enhanced route refresh is negotiated: api-rr-rib expects
+  `05:00010101` ... `05:00010201` around the resend. bgp-rib sends them only for a received
+  refresh (`handleRefreshStructured`, `dispatchPeerAction("borr ...")`). `outboundResend`
+  sends no markers, and config routes are not in its replay.
+- CLI: the verb table says `clear` means the data becomes empty, which fits withdraw-all (the
+  existing `clear bgp rib out` replay is the misfit). Candidate: a sibling YANG container,
+  `clear bgp rib advertised <selector> [family <f>]`, with a mandatory selector and `*` as the
+  explicit all form (cli-grammar `acting-on-everything-needs-an-explicit-all`). Because the
+  store is the engine's, the handler belongs with the reactor's peer commands, not in bgp-rib.
+  Decide this before coding.
+- The pin source was fetched to `tmp/session/2026-10-20-8385ff13-.../scratch/exa-src`, which
+  is local to this machine.
+- Foreign red seen: `internal/exabgp/bridge/bridge.go` has undefined `documents`,
+  `answerDocuments` and `RefuseUnsentRoute`, from another session's in-flight bridge work. It
+  stops `plugin/all` from linking, so reactor tests that import it will not build until that
+  work lands.
+- Gates owed: scoped `./le go lint run` on reactor, types, cmd/update, rs, rr and bridge;
+  `go test -tags ze_bgp` on those packages; the exabgp api population.
