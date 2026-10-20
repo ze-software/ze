@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+"""AC-23: an API 4 helper with no on-exit announces a route and exits; ExaBGP keeps the route
+(Processes._on_exit: API 4 keeps, as 4.x and 5.x did). The marker process announces after it,
+so a withdrawal of 1.1.1.1/32 would reach the peer before the marker route."""
+
+import sys
+import time
+
+
+def send(command: str) -> None:
+    sys.stdout.write(command + '\n')
+    sys.stdout.flush()
+
+
+def answer() -> list[str]:
+    """The lines the bridge wrote for one command, up to and including its done or error."""
+    lines = []
+    while True:
+        line = sys.stdin.readline()
+        if not line:
+            sys.stderr.write('ERROR: stdin closed\n')
+            sys.exit(1)
+        line = line.strip()
+        lines.append(line)
+        # `error: <why>` is a detail line before the marker, so only the
+        # marker ends the answer.
+        if line in ('done', 'error'):
+            return lines
+
+
+def expect(command: str, check, what: str) -> None:
+    send(command)
+    got = answer()
+    if not check(got):
+        sys.stderr.write(f'ERROR: {command!r} answered {got!r}, want {what}\n')
+        sys.exit(1)
+
+
+def main() -> None:
+    time.sleep(0.2)  # let the EOR pass
+    expect('announce route 1.1.1.1/32 next-hop 11.11.11.11', lambda a: a == ['done'], 'done')
+    sys.stderr.write('exiting\n')
+
+
+if __name__ == '__main__':
+    main()

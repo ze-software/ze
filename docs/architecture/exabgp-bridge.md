@@ -693,7 +693,9 @@ announce a route owns it, and a withdraw of it from any script clears it. The
 fleet keeps that record for every route command it dispatched, keyed by the
 selector and the route, and an exit withdrawing its routes sends each one the
 withdrawal its builder wrote beside the announce (`Command.Withdrawal`), then
-flushes. `api-on-exit` is the case. `ze exabgp migrate` carries the leaf as
+flushes. `api-on-exit` is the case for an API 6 script, and
+`api-on-exit-v4-keep` for an API 4 one, whose route is still standing when a
+sibling script announces after it exited. `ze exabgp migrate` carries the leaf as
 written and leaves it unset when the ExaBGP block did.
 
 <!-- source: internal/plugins/exabgp/bridgerun/owner.go -- exitPolicy, ownerLedger -->
