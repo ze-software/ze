@@ -1195,3 +1195,22 @@ All three changes below are UNCOMMITTED and none is green yet.
   migration of `api.version` is covered by `TestEnvSurvivingKey` (migration/env_test.go) and the parse case.
 - Populations not run. Pin: `exabgp @ git+https://github.com/Exa-Networks/exabgp@685f772e4ede5c818d2ff5c84f4ae040afd37be6`
   (`internal/le/test/functional/exabgp.go`); one population at a time.
+
+### ExaBGP 6 spec, Phase 2 fifth package (2026-10-20, Linux)
+
+- Committed a42756b10d: AC-10 functional. `option=env:` guard split in two; `api-version-env` green on the
+  pin (`--dut exabgp`) and ze, red on ze with `APIVersionFromEnv` overlaid to ignore the setting; parse case
+  red with the `api.version` arm of `migration/env.go` overlaid away. Spec fourth-package line added. The
+  test-plan row correction (no `TestMigrateOnExitAndAPIVersion`; AC-10 is `TestEnvSurvivingKey`,
+  `TestParseExaBGPCIEnvOption`, the parse case) rode along in the other agent's 8dec40ea85.
+- Populations at the pin, each run as the stage runs it (`uv run ... bin/le-exa6f/le test exabgp <p> --all`,
+  `bin/le-exa6f` on PATH, no `--name`: under `./le --name` the conf-watchdog helper's `le` refuses the
+  inherited build name; journal row in `delegation-hands-the-callee-a-different-argv.md`):
+  encoding 41/42 (red conf-flow); old-4.2 25 pass, 8 skip, red api-eor; old-5.0 57 pass, 12 skip, red
+  api-eor, api-rib, api-rr-rib; api 43/48, red api-disable, api-eor, api-on-exit, api-rib, api-rr-rib
+  (api-health passes). Every red's first error matches its recorded cause: api-eor (scripted EOR dropped,
+  `claimInitialSyncEOR`), api-rib/api-rr-rib (`clear`/`flush adj-rib out` mapping), api-disable (migration
+  refuses `shutdown`, AC-41), api-on-exit (AC-22..24), conf-flow (6.0 `redirect <ip>` is the IETF form; the
+  pin refuses `traffic-class 101`). All wait on owner decisions; conf-flow journal row in
+  `conflicting-feature-contracts.md`. No bridge defect found, so no fix commit.
+- Gates owed by the main thread: `./le go lint run` on `internal/test/cli`, `internal/le/interoplab/bgp`.
