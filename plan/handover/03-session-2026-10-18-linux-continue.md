@@ -1240,3 +1240,38 @@ All three changes below are UNCOMMITTED and none is green yet.
   pin refuses `traffic-class 101`). All wait on owner decisions; conf-flow journal row in
   `conflicting-feature-contracts.md`. No bridge defect found, so no fix commit.
 - Gates owed by the main thread: `./le go lint run` on `internal/test/cli`, `internal/le/interoplab/bgp`.
+
+### ExaBGP 6 spec, AC-4 sixteenth package: sr-policy interop (2026-10-20, Linux): continuation owed
+
+- The earlier "environmental" verdict was wrong. On a quiet machine (load 2) the CONTROL
+  `bgp-sr-policy-gobgp` fails too: it was committed unrun (65ecdbf014, "NOT RUN"). Two real causes:
+  1. No gobgp CLI release names an SR Policy family after `-a` (`checkAddressFamily` in cmd/gobgp/common.go,
+     read at v3.31.0, v3.37.0, v4.4.0, v4.10.0), so `gobgp global rib -a ipv4-srpolicy` answers
+     "unsupported address family". Fix in the tree, UNCOMMITTED: `test/interop/Dockerfile.gobgp` builds
+     `gobgp-paths <afi> <safi>`, a gRPC ListPath reader (heredoc, GoBGP v3.31.0) printing NLRI + each
+     attribute's String(); `names.go` drops `gobgpFamilyIPv[46]SRPolicy` for `cmdGoBGPPaths`,
+     `gobgpAFIIPv4/6`, `gobgpSAFISRPolicy`; `check_extras.go` (control and malformed-receive) and the new
+     `register_exabgp_bridge_sr_policy.go` use it; tomls/ze.conf comments and interop.md rows 45 and 49
+     (49 is new) say so. The reader skips MP_REACH: GoBGP v3.31.0's apiutil panics converting an SR Policy
+     MP_REACH back from API form (`SRPolicyNLRI.Serialize`, "slice bounds out of range [:5] with
+     capacity 2"), reproduced offline. `go vet` of the reader clean; interoplab/bgp unit tests pass.
+  2. gobgpd itself appears to hang once it holds ze's SR Policy: in both scenarios `docker exec` of
+     the CLI and of `gobgp-paths` (own 10s deadline) ran past 30s, the gobgp log section came back empty,
+     and load rose to ~72 during the run and fell after. Offline, GoBGP v3.31.0 `ParseBGPMessage` decodes
+     the api-sr-policy fixture UPDATE cleanly and prints every needle (Preference 300, labels 16001/16002).
+     So the hang is server side, after parse (RIB insert, best path, or ListPath's ToApi). NOT yet observed
+     directly. Next: run the scenario and, while assertion 2 waits, `docker top`/`docker stats` the
+     `ze-iop-gobgp-*` container and `docker logs` it to a scratch file; if gobgpd spins, find the loop
+     (candidate: the server's own MP_REACH round trip through apiutil, the panic above, if a recover
+     loops on it) and either work around it in the reader or judge with gobgpd at `-l debug` (it logs
+     received UPDATEs through String()).
+- How to run: `bin/le` does NOT pick up uncommitted le sources; use `./le --name srp ...`. Another
+  session's untracked `internal/test/fixture/register_stop_boot_record.go` (undefined
+  `stopDuringBootRecord`) broke the le-linux cross-compile at 18:43; I hid it with
+  `GOFLAGS=-overlay=<parent scratch>/srp/hide.json` (never edited it). The red overlay (hide + srpolicy
+  register.go `NLRISectionCarriesAttributes: false`) is `<parent scratch>/srp/red.json`. The lab build
+  inherits GOFLAGS through gotoolchain `Environment` (os.Environ); the `./le --name` self-build too.
+- interop.md: the RADIUS hunk is in HEAD now (`replayScript` in radiussubscriber/checkers.go), so the file
+  carries only this session's rows. Nothing of this package is committed; owed: green, red (red.json),
+  commit of Dockerfile.gobgp + names.go + check_extras.go + the scenario + interop.md, with the control
+  run green too (it shares the reader).
