@@ -1021,7 +1021,9 @@ stops, every tunnel is torn down first, then the IKE bypass and your `policy`
 entries are removed, and the catch-all goes last, so no Ze entry is ever in
 force without it. If any of those entries cannot be removed, the catch-all
 stays installed beneath it, and the daemon logs a warning naming each entry
-left and the `ip xfrm policy delete` command that removes it.
+left as the exact `ip xfrm policy delete` command that removes it: direction,
+prefixes, protocol, ports and `if_id`, so two entries that differ only by port
+get two different commands.
 
 #### When the entry is not there
 

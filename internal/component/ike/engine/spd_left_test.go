@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"slices"
 	"strings"
 	"testing"
@@ -58,8 +59,8 @@ func TestChildInstallRollbackFailureIsRecordedInTheSPDLedger(t *testing.T) {
 	}
 	left := spdLeft.describe()
 	for _, p := range dp.installed {
-		want := dirLabel(p.Dir) + " " + p.Src.String() + " -> " + p.Dst.String()
-		if !slices.Contains(left, want) {
+		want := "ip xfrm policy delete " + dirLabel(p.Dir) + " src " + p.Src.String() + " dst " + p.Dst.String()
+		if !slices.ContainsFunc(left, func(entry string) bool { return strings.HasPrefix(entry, want) }) {
 			t.Errorf("the inbound policy the rollback failed to remove (%s) is not in the SPD ledger: %v", want, left)
 		}
 	}
@@ -134,5 +135,58 @@ func TestVPPExitLeavesNoFalseSPDLeftovers(t *testing.T) {
 	}
 	if strings.Contains(logged.String(), "catch-all stays installed") {
 		t.Errorf("the exit warned that entries were left installed when none was ever installed:\n%s", logged.String())
+	}
+}
+
+// VALIDATES: two leftover entries that differ only by port are named by two different
+// strings, and each string is the exact `ip xfrm policy delete` command that removes
+// that entry and no other: direction, both prefixes, protocol, both ports and if_id.
+// METHOD: record failed removals of two UDP bypass entries (ports 500 and 4500) and of
+// one entry with no source prefix and an if_id, then compare describe and the warning
+// text with the commands written out by hand.
+// PREVENTS: describe printing only direction, prefixes and protocol, so the IKE bypass
+// on port 500 and the one on port 4500 printed the same line and the operator could
+// not tell which command removes which entry.
+func TestSPDLeftoverNamesTheExactRemovalCommand(t *testing.T) {
+	resetSPDLeft(t)
+	refused := errors.New("netlink: operation not permitted")
+	_, host1, _ := net.ParseCIDR("192.0.2.1/32")
+	_, host2, _ := net.ParseCIDR("192.0.2.2/32")
+	_, net6, _ := net.ParseCIDR("2001:db8::/64")
+
+	bypass := func(port uint16) dataplane.SPParams {
+		return dataplane.SPParams{
+			Src: host1, Dst: host2, Dir: dataplane.SADirIn,
+			UpperProto: 17,
+			SrcPort:    dataplane.ExactPortMatch(port),
+			DstPort:    dataplane.ExactPortMatch(port),
+			Priority:   dataplane.PriorityIKEBypass,
+			Action:     dataplane.SPActionBypass,
+		}
+	}
+	ike, natt := bypass(500), bypass(4500)
+	child := dataplane.SPParams{Dst: net6, Dir: dataplane.SADirOut, IfID: 7, Priority: dataplane.PriorityChildSA}
+	for _, p := range []dataplane.SPParams{ike, natt, child} {
+		spdLeft.record(&p, refused)
+	}
+
+	want := []string{
+		"ip xfrm policy delete dir in src 192.0.2.1/32 dst 192.0.2.2/32 proto 17 sport 4500 dport 4500",
+		"ip xfrm policy delete dir in src 192.0.2.1/32 dst 192.0.2.2/32 proto 17 sport 500 dport 500",
+		"ip xfrm policy delete dir out src ::/0 dst 2001:db8::/64 if_id 7",
+	}
+	left := spdLeft.describe()
+	if !slices.Equal(left, want) {
+		t.Fatalf("describe named the leftover entries as\n%q\nwant\n%q", left, want)
+	}
+
+	var logged bytes.Buffer
+	if !warnSPDLeft(slog.New(slog.NewTextHandler(&logged, nil))) {
+		t.Fatal("warnSPDLeft reports nothing left with three entries in the ledger")
+	}
+	for _, command := range want {
+		if !strings.Contains(logged.String(), command) {
+			t.Errorf("the warning does not carry the command %q:\n%s", command, logged.String())
+		}
 	}
 }

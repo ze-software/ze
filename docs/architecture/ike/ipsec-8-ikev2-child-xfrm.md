@@ -380,8 +380,9 @@ removal that fails (anything but ENOENT, another peer's ownership refusal, or
 as the IKE bypass on VPP) leaves its entry in the SPD ledger (`removeZePolicy`,
 `spd_left.go`), which every Child SA policy, Child SA install rollback, bypass and
 operator removal reports to; `releaseSPD` then keeps
-the catch-all beneath the entries left and logs them at Warn with the command
-that removes them (`warnSPDLeft`). The whole shutdown runs in `runEngine`'s
+the catch-all beneath the entries left and logs them at Warn, each written as
+the exact `ip xfrm policy delete` command, every selector field included, that
+removes it (`warnSPDLeft`, `deleteCommand`). The whole shutdown runs in `runEngine`'s
 deferred cleanup for a clean and an error return alike: `reEstablishFn` is
 cleared and the IKE sockets closed after the peers stop and before the release,
 so no session can install a policy behind it. This lifetime is the IKE engine's

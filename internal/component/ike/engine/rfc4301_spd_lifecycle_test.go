@@ -271,8 +271,9 @@ func TestReleaseSPDKeepsTheCatchAllWhenARemovalFails(t *testing.T) {
 			if !strings.Contains(out, "level=WARN") || !strings.Contains(out, "catch-all stays installed") {
 				t.Fatalf("no warning that the catch-all stays installed:\n%s", out)
 			}
-			if !strings.Contains(out, stuck.Src.String()+" -> "+stuck.Dst.String()) {
-				t.Fatalf("the warning does not name the entry left (%s -> %s):\n%s", stuck.Src, stuck.Dst, out)
+			want := "ip xfrm policy delete " + dirLabel(stuck.Dir) + " src " + stuck.Src.String() + " dst " + stuck.Dst.String()
+			if !strings.Contains(out, want) {
+				t.Fatalf("the warning does not name the command that removes the entry left (%s):\n%s", want, out)
 			}
 		})
 	}
