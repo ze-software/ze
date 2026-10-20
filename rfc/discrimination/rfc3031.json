@@ -1,0 +1,49 @@
+{
+  "rfc": "rfc3031",
+  "records": [
+    {
+      "rid": "RFC3031-3.14-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ldp/rfc3031_label_test.go::TestRFC3031LocalFECsGetDistinctLabels",
+      "unit-sha": "39da4f2388be0d51",
+      "claim-sha": "62d35fd80926864a",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/lib.go::allocateLabelLocked",
+      "producer-sha": "231360435e40e6b1",
+      "break": "body of allocateLabelLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3031-3.14-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ldp/rfc3031_label_test.go::TestRFC3031WrappedAllocatorNeverReissuesALabel",
+      "unit-sha": "f5808823f19f7d21",
+      "claim-sha": "43d27e0487945630",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/lib.go::allocateLabelLocked",
+      "producer-sha": "231360435e40e6b1",
+      "break": "body of allocateLabelLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3031-3.16-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ldp/rfc3031_label_test.go::TestApplyRemoteBindingImplicitNull",
+      "unit-sha": "d36422a03d59497e",
+      "claim-sha": "87638678c6fb3294",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/fib.go::applyRemoteBinding",
+      "producer-sha": "85b09e864a867c53",
+      "break": "body of applyRemoteBinding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3031-3.16-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ldp/rfc3031_label_test.go::TestApplyRemoteBindingRealLabel",
+      "unit-sha": "d98ffc10d8ccec55",
+      "claim-sha": "1c0c0f8d53059ee7",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/fib.go::applyRemoteBinding",
+      "producer-sha": "85b09e864a867c53",
+      "break": "body of applyRemoteBinding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

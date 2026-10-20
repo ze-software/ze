@@ -159,32 +159,8 @@ func TestLDPFIBRemovePop(t *testing.T) {
 	assert.Equal(t, mplsSourceLDP, e.Source)
 }
 
-// VALIDATES: AC-4 -- a real label learned from a peer becomes an ingress push.
-func TestApplyRemoteBindingRealLabel(t *testing.T) {
-	bus := &captureBus{}
-	fib := newLDPFIB(bus, slogutil.DiscardLogger())
-	fec := netip.MustParsePrefix("10.9.0.0/24")
-	peer := netip.MustParseAddr("10.0.0.1")
-
-	applyRemoteBinding(fib, fec, 17000, peer, slogutil.DiscardLogger())
-
-	e := bus.lastEntry(t)
-	assert.Equal(t, mplsfibevents.OpPush, e.Op)
-	assert.Equal(t, []uint32{17000}, e.OutLabels)
-}
-
-// VALIDATES: implicit-null (3) means forward as plain IP -- ze must NOT push a
-// label (it would otherwise impose label 3 on the wire, breaking forwarding).
-func TestApplyRemoteBindingImplicitNull(t *testing.T) {
-	bus := &captureBus{}
-	fib := newLDPFIB(bus, slogutil.DiscardLogger())
-	fec := netip.MustParsePrefix("10.9.0.0/24")
-	peer := netip.MustParseAddr("10.0.0.1")
-
-	applyRemoteBinding(fib, fec, ImplicitNull, peer, slogutil.DiscardLogger())
-
-	assert.Empty(t, bus.emits, "implicit-null must not program a push entry")
-}
+// TestApplyRemoteBindingRealLabel and TestApplyRemoteBindingImplicitNull moved
+// to rfc3031_label_test.go, which carries their RFC 3031 Section 3.16 tags.
 
 // VALIDATES: explicit-null (0) is a real on-wire label and is imposed normally.
 func TestApplyRemoteBindingExplicitNull(t *testing.T) {
