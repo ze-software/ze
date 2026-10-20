@@ -676,9 +676,9 @@ What blocks closing, by the rule that demands it:
 
 | Field | Value |
 |-------|-------|
-| Artifact | `tmp/review/lab-docker-cleanup-and-go-test-containers-d8e7dbbf-89d5-483d-85d8-b379fee975ed.md`, CLEAN, hash-pinned over the last fix's 5 files. The reviewer of `9cbce6f200` recorded it; re-recorded at round 6 after `08e49931a8` changed qemu-integration.md |
-| `./le spec review check` | OK (4 code files, clean, hashes match), 2026-10-19 |
-| Rounds | 6, owner-authorised (Thomas, 2026-10-19, "4 yes"). Four whole-spec reviews, the third and fourth 0 BLOCKER 0 ISSUE. Round 5, on `38ccef54f5`, found the unlisted-member branch untested (fixed `9cbce6f200`). Round 6, on `38ccef54f5` and `9cbce6f200`, returned 0 BLOCKER 0 ISSUE; its one NOTE (the page did not name the unlisted-member case) is fixed by `08e49931a8` |
+| Artifact | `tmp/review/lab-docker-cleanup-and-go-test-containers-d8e7dbbf-89d5-483d-85d8-b379fee975ed.md`, CLEAN, round 10, hash-pinned over the 63 files of the 23 G-2 fix commits (`081d93a502` through `8c610178c9`), recorded 2026-10-20 |
+| `./le spec review check` | OK (59 code files, clean, hashes match), 2026-10-20 |
+| Rounds | 6, owner-authorised (Thomas, 2026-10-19, "4 yes"). Four whole-spec reviews, the third and fourth 0 BLOCKER 0 ISSUE. Round 5, on `38ccef54f5`, found the unlisted-member branch untested (fixed `9cbce6f200`). Round 6, on `38ccef54f5` and `9cbce6f200`, returned 0 BLOCKER 0 ISSUE; its one NOTE (the page did not name the unlisted-member case) is fixed by `08e49931a8`. Rounds 7 to 10, owner-authorised (Thomas, 2026-10-20), reviewed the fixes for the defects the real Ctrl-C proofs found (handover 06, "Real Ctrl-C proofs" onward). Round 7 found 4 ISSUE, round 8 1 ISSUE, round 9 7 ISSUE, each fixed test-first; round 10, limited to round 9's seven, returned 0 BLOCKER 0 ISSUE 7 NOTE. Its NOTEs N2 (`installStopped` says "partly made" when nothing ran, and gives no reboot caveat) and N6 (a root step ignoring SIGTERM cannot be forced) are journal rows |
 | Reviewer lenses used | AC conformance, docker.md destructive scope, user-facing errors, signal and teardown paths |
 
 ### Findings fixed
