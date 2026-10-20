@@ -821,7 +821,8 @@ func (d *LSDB) sendLSUpdate(iface string, dst netip.Addr, area types.AreaID, lsa
 		return
 	}
 	buf := enc.EncodeLSUpdate(routerID, area, packet.LSUpdate{LSAs: lsas})
-	_ = tx(iface, dst, buf)
+	// RFC 2328 Section 8.1
+	_ = tx(iface, d.linkDestination(iface, dst), buf)
 	d.mUpdatesSent.With(iface).Inc()
 }
 
@@ -838,8 +839,29 @@ func (d *LSDB) sendAck(iface string, dst netip.Addr, area types.AreaID, headers 
 		return
 	}
 	buf := enc.EncodeLSAck(routerID, area, packet.LSAck{Headers: headers})
-	_ = tx(iface, dst, buf)
+	// RFC 2328 Section 8.1
+	_ = tx(iface, d.linkDestination(iface, dst), buf)
 	d.mAcksSent.With(iface).Inc()
+}
+
+// linkDestination is the IP destination of a Link State Update or a Link State
+// Acknowledgment the database sends on iface toward dst, which is either a
+// group already or the address of the one neighbor the packet answers (the
+// source of the packet that prompted it, or the neighbor a retransmission is
+// owed to). transport.PacketDestination carries the rule and its quote: on a
+// point-to-point network that neighbor is reached through AllSPFRouters.
+// A group is returned unchanged before the interface lookup, so a flood pays
+// nothing for it. An interface the topology no longer lists keeps dst, the
+// address the caller chose, because no network type is known to change it.
+func (d *LSDB) linkDestination(iface string, dst netip.Addr) netip.Addr {
+	if dst.IsMulticast() {
+		return dst
+	}
+	info, ok := d.interfaceByName(iface)
+	if !ok {
+		return dst
+	}
+	return transport.PacketDestination(info.NetworkType, dst)
 }
 
 func (d *LSDB) deletePurgedIfAcked(area types.AreaID, key types.LSAKey) {

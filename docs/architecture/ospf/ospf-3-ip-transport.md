@@ -26,6 +26,18 @@ the OSPF multicast groups and carries datagrams to and from the engine.
   resolver, whose cache a link event clears when a device is re-created.
   <!-- source: internal/plugins/ospf/transport/backend_linux.go -- multicastDevice, joinGroup, setMulticastOptions -->
   <!-- source: internal/plugins/ospf/transport/multicast.go -- AllSPFRouters, AllDRouters -->
+- **On a point-to-point interface, a packet meant for one neighbor goes to
+  AllSPFRouters.** RFC 2328 Section 8.1 sets that destination for every packet
+  on a physical point-to-point network: Database Description, Link State
+  Request, a retransmitted or requested Link State Update and a direct Link
+  State Acknowledgment, as well as Hellos and floods. Every other network type
+  sends those to the neighbor's address. On an unnumbered link the neighbor's
+  address is its donor, which no route on the link names, so a unicast never
+  arrives: FRR sat in ExStart until this rule was applied. The neighbor table
+  and the database both ask `PacketDestination`; OSPFv3 addresses pass through.
+  <!-- source: internal/plugins/ospf/transport/multicast.go -- PacketDestination -->
+  <!-- source: internal/plugins/ospf/neighbor/dd.go -- sendDBDescLocked, resendLastDDLocked -->
+  <!-- source: internal/plugins/ospf/lsdb/flooding.go -- linkDestination -->
 - **Transport metrics label packet TYPE only, and do not validate.**
   Common-header dispatch and validation belong to the runtime packages. The
   transport owns receive-side malformed IPv4 drops before dispatch, counted as

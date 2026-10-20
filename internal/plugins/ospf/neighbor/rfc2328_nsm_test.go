@@ -795,8 +795,10 @@ func TestOSPFNSMSendsInitialDDOnExStart(t *testing.T) {
 	if len(sender.sent) != 1 {
 		t.Fatalf("sent DD count = %d, want 1", len(sender.sent))
 	}
-	if sender.dst[0] != netip.MustParseAddr("10.0.0.2") {
-		t.Fatalf("dst = %s, want peer address", sender.dst[0])
+	// RFC 2328 Section 8.1: "On physical point-to-point networks, the IP
+	// destination is always set to the address AllSPFRouters."
+	if sender.dst[0] != netip.MustParseAddr("224.0.0.5") {
+		t.Fatalf("dst = %s, want AllSPFRouters on a point-to-point network", sender.dst[0])
 	}
 	p := sentPacket(t, sender, 0)
 	if p.DBDesc == nil || p.DBDesc.Flags != packet.DDFlagInit|packet.DDFlagMore|packet.DDFlagMaster || p.DBDesc.Options != types.OptionE {

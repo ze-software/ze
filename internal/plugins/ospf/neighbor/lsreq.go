@@ -5,6 +5,7 @@ package neighbor
 
 import (
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/transport"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
@@ -196,7 +197,8 @@ func (t *Table) sendLSReqPacketLocked(cfg InterfaceConfig, n *Neighbor, req pack
 		return
 	}
 	buf := t.encoder.EncodeLSReq(cfg.RouterID, cfg.AreaID, req)
-	_ = t.sender.SendPacket(cfg.Name, n.Address, buf)
+	// RFC 2328 Section 8.1
+	_ = t.sender.SendPacket(cfg.Name, transport.PacketDestination(cfg.NetworkType, n.Address), buf)
 }
 
 func (t *Table) sendLSUpdateLocked(cfg InterfaceConfig, n *Neighbor, lsas []packet.LSA) {
@@ -222,7 +224,8 @@ func (t *Table) sendLSUpdateLocked(cfg InterfaceConfig, n *Neighbor, lsas []pack
 
 func (t *Table) sendLSUpdatePacketLocked(cfg InterfaceConfig, n *Neighbor, lsas []packet.LSA) {
 	buf := t.encoder.EncodeLSUpdate(cfg.RouterID, cfg.AreaID, packet.LSUpdate{LSAs: lsas})
-	_ = t.sender.SendPacket(cfg.Name, n.Address, buf)
+	// RFC 2328 Section 8.1
+	_ = t.sender.SendPacket(cfg.Name, transport.PacketDestination(cfg.NetworkType, n.Address), buf)
 }
 
 func (t *Table) resendLastLSReqLocked(cfg InterfaceConfig, n *Neighbor) {

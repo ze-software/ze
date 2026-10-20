@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/transport"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
@@ -191,7 +192,8 @@ func (t *Table) sendDBDescLocked(cfg InterfaceConfig, n *Neighbor, flags uint8) 
 		return flags
 	}
 	buf := t.encoder.EncodeDBDesc(cfg.RouterID, cfg.AreaID, dd)
-	_ = t.sender.SendPacket(cfg.Name, n.Address, buf)
+	// RFC 2328 Section 8.1
+	_ = t.sender.SendPacket(cfg.Name, transport.PacketDestination(cfg.NetworkType, n.Address), buf)
 	t.armDDRetransmitLocked(cfg, n)
 	return flags
 }
@@ -212,7 +214,8 @@ func (t *Table) resendLastDDLocked(cfg InterfaceConfig, n *Neighbor) {
 		return
 	}
 	buf := t.encoder.EncodeDBDesc(cfg.RouterID, cfg.AreaID, n.lastSentDD)
-	_ = t.sender.SendPacket(cfg.Name, n.Address, buf)
+	// RFC 2328 Section 8.1
+	_ = t.sender.SendPacket(cfg.Name, transport.PacketDestination(cfg.NetworkType, n.Address), buf)
 	t.armDDRetransmitLocked(cfg, n)
 }
 
