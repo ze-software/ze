@@ -16,6 +16,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
@@ -132,4 +133,40 @@ func TestLocalResendCarriesConfigRoutes(t *testing.T) {
 	require.Equal(t, []refreshRouteIdentity{
 		{family: family.IPv4Unicast, prefix: netip.MustParsePrefix("198.51.100.0/24")},
 	}, brackets[family.IPv4Unicast.String()], "the configured route is resent inside the IPv4 bracket")
+}
+
+// TestLocalResendAfterAWithdrawalSendsNothing proves a route the engine withdrew
+// leaves bgp-rib's Adj-RIB-Out copy, so `clear bgp rib out` does not bring it
+// back. `clear bgp rib advertised` withdraws on the local withdraw rail, and the
+// sent event of that withdrawal is what bgp-rib reads here.
+func TestLocalResendAfterAWithdrawalSendsNothing(t *testing.T) {
+	r := newTestRIBManager(t)
+	peer := netip.MustParseAddr(rfc7313RefreshPeer)
+	r.peerUp[peer] = true
+	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
+	announce := []byte{0, 0, 0, 14, 0x40, 1, 1, 0, 0x40, 2, 0, 0x40, 3, 4, 192, 0, 2, 1, 24, 198, 51, 100}
+	wu := wireu.NewWireUpdate(announce, ctxID)
+	attrs, err := wu.Attrs()
+	require.NoError(t, err)
+	r.handleSentStructured(&rpc.StructuredEvent{
+		PeerAddress: peer.String(),
+		Meta:        map[string]any{"config-static": true},
+		RawMessage:  &bgptypes.RawMessage{WireUpdate: wu, AttrsWire: attrs},
+	})
+	require.Len(t, r.collectGroupedRibOutRoutes(peer), 1, "the fixture holds the configured route")
+
+	// RFC 4271 Section 4.3: withdrawn routes length 4, the route 198.51.100.0/24,
+	// path attribute length 0.
+	withdraw := wireu.NewWireUpdate([]byte{0, 4, 24, 198, 51, 100, 0, 0}, ctxID)
+	r.handleSentStructured(&rpc.StructuredEvent{
+		PeerAddress: peer.String(),
+		RawMessage:  &bgptypes.RawMessage{WireUpdate: withdraw},
+	})
+	sequence := &[]string{}
+	r.dispatchHook = func(cmd string) { *sequence = append(*sequence, "marker "+cmd) }
+	r.updateHook = func(cmd string, _ map[string]any) { *sequence = append(*sequence, "route "+cmd) }
+
+	r.outboundResend(rfc7313RefreshPeer, "")
+
+	assert.Empty(t, *sequence, "a withdrawn route is not resent, and an empty family gets no bracket")
 }
