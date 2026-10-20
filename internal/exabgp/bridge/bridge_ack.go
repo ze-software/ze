@@ -77,7 +77,7 @@ func (m *AckMode) apply(action LocalAction) bool {
 	case LocalAckDisableNow:
 		m.enabled = false
 		return false
-	case LocalNone, LocalPing, LocalPingText, LocalAPIVersion, LocalStatus:
+	case LocalNone, LocalPing, LocalPingText, LocalAPIVersion, LocalStatus, LocalGroup:
 		return m.enabled
 	default:
 		panic("BUG: invalid bridge local action")

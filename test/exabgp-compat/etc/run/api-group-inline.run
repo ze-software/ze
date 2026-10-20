@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""X-17 to X-20 (AC-18, AC-21): `group a ; b` with no selector is for every peer; a `;` inside
+quotes does not split; the `attributes` command gives its next-hop to routes with none; a v6
+`peer * announce` inside a block is held, and the end answers in JSON."""
+
+import sys
+import time
+
+
+def send(command: str) -> None:
+    sys.stdout.write(command + '\n')
+    sys.stdout.flush()
+
+
+def answer() -> list[str]:
+    """The lines the bridge wrote for one command, up to and including its done or error."""
+    lines = []
+    while True:
+        line = sys.stdin.readline()
+        if not line:
+            sys.stderr.write('ERROR: stdin closed\n')
+            sys.exit(1)
+        line = line.strip()
+        lines.append(line)
+        # `error: <why>` is a detail line before the marker, so only the
+        # marker ends the answer.
+        if line in ('done', 'error'):
+            return lines
+
+
+def expect(command: str, check, what: str) -> None:
+    send(command)
+    got = answer()
+    if not check(got):
+        sys.stderr.write(f'ERROR: {command!r} answered {got!r}, want {what}\n')
+        sys.exit(1)
+
+
+def main() -> None:
+    time.sleep(0.2)  # let the EOR pass
+    expect('group announce route 1.1.1.1/32 next-hop 11.11.11.11 ; announce route 2.2.2.2/32 next-hop 11.11.11.11', lambda a: a == ['group processed: 2 announced, 0 withdrawn', 'done'], ['group processed: 2 announced, 0 withdrawn', 'done'])
+    expect('group attributes next-hop 22.22.22.22 ; announce route 3.3.3.3/32 ; announce route 4.4.4.4/32', lambda a: a == ['group processed: 2 announced, 0 withdrawn', 'done'], ['group processed: 2 announced, 0 withdrawn', 'done'])
+    expect('group announce route 5.5.5.5/32 next-hop 11.11.11.11 ; withdraw route "6.6.6.6/32 ; announce route 7.7.7.7/32 next-hop 11.11.11.11"', lambda a: a == ['group processed: 1 announced, 0 withdrawn, 1 errors', 'error'], ['group processed: 1 announced, 0 withdrawn, 1 errors', 'error'])
+    expect('group start', lambda a: a == ['group started', 'done'], ['group started', 'done'])
+    expect('peer * announce route 8.8.8.8/32 next-hop 11.11.11.11', lambda a: a == ['done'], ['done'])
+    expect('group end', lambda a: a == ['{"status": "group processed", "announced": 1, "withdrawn": 0}', 'done'], ['{"status": "group processed", "announced": 1, "withdrawn": 0}', 'done'])
+    sys.stderr.write('SUCCESS\n')
+    for _ in sys.stdin:
+        pass
+
+
+if __name__ == '__main__':
+    main()

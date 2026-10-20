@@ -416,6 +416,46 @@ the withdrawal first.
 <!-- source: internal/exabgp/bridge/bridge_batch.go -- BatchReader, Net -->
 <!-- source: internal/exabgp/bridge/bridge_command.go -- Command, RouteKey -->
 
+## A group is applied at its end
+
+ExaBGP 6.0 lets a script send several routes as one set. `group start` opens a
+block; every line after it that starts with `announce` or `withdraw`, and an
+API 6 `peer <selector> announce|withdraw` of a route kind (`route`, `ipv4`,
+`ipv6`, `flow`, `vpls`, `attributes`), is held and answered `done` alone.
+`group end` applies them. `group <command> ; <command>` is a group of its own
+on one line, for every peer of the script unless `peer <selector> group ...`
+names them. The line is split where ExaBGP's lexer ends a statement: at a `;`
+outside quotes and braces, read with its backslash escapes resolved, so a `;`
+inside a quoted word cannot start a command. An End-of-RIB or a route-refresh
+written as API 6 is sent as it comes.
+
+The first `attributes ...` command of a group gives its attributes to every
+route after it that does not write them, and its next-hop to every route that
+gives none. The routes of a closed group are translated, netted and sent as one
+set, and route commands that differ only in their one prefix are sent as ONE ze
+command, so they leave in one UPDATE as they do from ExaBGP's RIB. A route
+whose NLRI is several words (a flow rule, an RD and a label) is never run
+together with another.
+
+The answers are ExaBGP's own (`command/group.py`), in text, or in JSON for an
+API 6 script or a line ending in `json`:
+
+| Line | Answer |
+|------|--------|
+| `group start` | `group started`, then `done`; inside an open group `error: already in group block (nested groups not allowed)`, then `error` |
+| `group end` | `group processed: <n> announced, <m> withdrawn`, then `done`; with `, <k> errors` and `error` when a command could not be applied (the others are); `group ended (0 commands)` for an empty group; `error: not in group block` with none open |
+| `group a ; b` | as `group end`; `error: empty group` when it holds no command |
+
+A group holds at most 100000 commands and 100 MiB, ExaBGP's bounds, and is
+discarded past either. Each script has its own group, emptied when its child
+exits. Every runner reads its lines through one shared path,
+`bridge.ScriptLines.Batch`, and differs only in how it hands ze a command, so the
+group, the netting and the answers cannot drift between them. `api-group` and
+`api-group-inline` are the cases.
+
+<!-- source: internal/exabgp/bridge/bridge_group.go -- Group.read, SplitCommands, Translator.group, mergeShared, groupApply.answer -->
+<!-- source: internal/exabgp/bridge/bridge_lines.go -- ScriptLines.Batch, ScriptLines.applyGroup, ScriptLines.dispatch, mergeHead -->
+
 ## The selector travels with the command
 
 After a batch's route commands, the bridge injects one flush per selector the
@@ -545,7 +585,7 @@ and a selector matching no peer; Ze gives the reason there too
 
 <!-- source: internal/exabgp/bridge/bridge_batch.go -- AnswerBatch, BatchSelectors, BatchLine.Version -->
 <!-- source: internal/exabgp/bridge/bridge_ack.go -- AckMode.WriteError -->
-<!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.batch -->
+<!-- source: internal/exabgp/bridge/bridge_lines.go -- ScriptLines.Batch, ScriptLines.answer -->
 
 ## `encoder` says which format a script reads
 
@@ -622,7 +662,8 @@ error and no log line.
 <!-- source: internal/plugins/exabgp/bridgeplugin/config.go -- parseEncoder, parseFeeds -->
 
 <!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- Fleet.Start, Fleet.Broadcast -->
-<!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.batch, script.writeLoop -->
+<!-- source: internal/exabgp/bridge/bridge_lines.go -- ScriptLines.Batch, LineRunner -->
+<!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.batch, scriptRunner, script.writeLoop -->
 
 ## A script that exits is started again, unless `respawn` says otherwise
 

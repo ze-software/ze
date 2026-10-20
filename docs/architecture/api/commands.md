@@ -943,7 +943,10 @@ This explicit handoff does not infer lifecycle ownership from peer state.
 
 A named commit holds withdrawals and flushes them to every peer the selector
 matches. There is no `group start` or `group end`: this page published that pair
-until 2026-09-05 and no handler ever answered either spelling.
+until 2026-09-05 and no handler ever answered either spelling. An ExaBGP script's
+`group start` and `group end` are the ExaBGP bridge's, which applies the block
+through ordinary update commands (`docs/architecture/exabgp-bridge.md`, "A group
+is applied at its end").
 
 ```
 request commit start <name>                      # Open a named commit

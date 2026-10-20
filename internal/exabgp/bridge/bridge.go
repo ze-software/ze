@@ -370,6 +370,9 @@ type Bridge struct {
 	apiSetting atomic.Uint32
 	api        *ScriptVersion
 
+	// group is the script's `group start` buffer, emptied at each Start.
+	group Group
+
 	// Families to declare during startup (ZeBGP format: "ipv4/unicast")
 	Families []string
 
@@ -400,6 +403,7 @@ func (b *Bridge) Start(ctx context.Context) error {
 	}
 	b.apiSetting.Store(uint32(setting))
 	b.api.Reset()
+	b.group = Group{}
 
 	//nolint:gosec // User-provided plugin command is intentional.
 	b.cmd = exec.CommandContext(ctx, b.pluginCmd[0], b.pluginCmd[1:]...)
@@ -723,97 +727,82 @@ func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, pluginW io.Writ
 	}
 }
 
-// dispatchBatch translates, nets, dispatches, flushes and answers one batch.
+// dispatchBatch reads one batch of the script's lines through the steps every
+// runner shares (ScriptLines.Batch), reaching ze over MuxConn.
 //
 // It runs OFF the read path, on the goroutine pluginToZebgp owns.
 func (b *Bridge) dispatchBatch(ctx context.Context, lines []string, pluginW io.Writer, zeOut *syncWriter, pending *pendingResponses) {
-	const flushTimeout = 30 * time.Second
-	const dispatchAckTimeout = 30 * time.Second
-
-	batch := make([]BatchLine, 0, len(lines))
-	answers := make([]BatchAnswer, len(lines))
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			batch = append(batch, BatchLine{Text: line})
-			continue
-		}
-		// The version is settled BEFORE the line is translated, and the line
-		// is then held to it, as ExaBGP's API.process calls
-		// detect_api_version and then dispatch_for.
-		version := b.api.Detect(line)
-		if err := version.Admits(line); err != nil {
-			slog.Warn("plugin->zebgp: line refused", "error", err)
-			batch = append(batch, BatchLine{Text: line, Version: version, Err: err})
-			continue
-		}
-		translation, err := Translator{Families: b.Families}.Line(line)
-		if err != nil {
-			// The bridge names the line it refused. Forwarding it instead put an
-			// untranslated line in front of ze's dispatcher, where it died as an
-			// unknown command with no mention of the bridge that sent it.
-			slog.Warn("plugin->zebgp: line refused", "error", err)
-		}
-		batched := BatchLine{Text: line, Version: version, Translation: translation, Err: err}
-		if translation.Local == LocalAPIVersion {
-			batched.Reply, answers[len(batch)].Failed = b.api.Answer(translation.APIVersion)
-		}
-		if translation.Local == LocalStatus {
-			// The MuxConn dispatch answer carries ok or an error, never a
-			// payload, so this runner cannot read the peers' states the
-			// status answer lists. The line is refused by name rather than
-			// answered with a peer list that is not ze's.
-			slog.Warn("plugin->zebgp: line refused", "error", errStatusStandalone, "line", line)
-			answers[len(batch)] = BatchAnswer{Failed: true, Error: errStatusStandalone.Error()}
-		}
-		batch = append(batch, batched)
-	}
-
-	netted := Net(batch)
-	for _, dispatch := range netted {
-		if answers[dispatch.Line].Failed {
-			// This line already met a refusal. Its remaining commands describe
-			// the same route, and the rest of the BATCH keeps going: one line's
-			// failure never swallows another line's answer.
-			continue
-		}
-		reqID := b.nextRequestID.Add(1)
-		ackCh := pending.register(reqID)
-		zeOut.Fprintln(formatDispatchRequest(reqID, dispatch.Command.Text))
-
-		// Wait for ze to ack the dispatch before answering the line. A bounded
-		// timeout keeps the bridge from stalling indefinitely if ze drops the
-		// response line.
-		ackCtx, ackCancel := context.WithTimeout(ctx, dispatchAckTimeout)
-		result, ackErr := pending.wait(ackCtx, reqID, ackCh)
-		ackCancel()
-		if ackErr != nil {
-			slog.Warn("plugin->zebgp: dispatch ack wait error", "error", ackErr, "id", reqID)
-			answers[dispatch.Line] = BatchAnswer{Failed: true, Error: "ze dispatch timeout"}
-			continue
-		}
-		if !result.ok {
-			answers[dispatch.Line] = BatchAnswer{Failed: true, Error: result.errText}
-		}
-	}
-
-	// The flush comes BEFORE every answer, because `done` means the command is
-	// done and a route is not done until it is on the wire. One flush per
-	// selector the batch reached, so a batch that announced to two neighbors
-	// drains both.
-	for _, selector := range BatchSelectors(batch, netted) {
-		flushID := b.nextRequestID.Add(1)
-		flushCh := pending.register(flushID)
-		zeOut.Fprintln(formatFlushRequest(flushID, selector))
-
-		flushCtx, cancel := context.WithTimeout(ctx, flushTimeout)
-		if _, err := pending.wait(flushCtx, flushID, flushCh); err != nil {
-			slog.Warn("plugin->zebgp: flush wait error", "error", err, "peer", selector)
-		}
-		cancel()
-	}
-
-	AnswerBatch(pluginW, &b.ack, batch, answers)
+	ScriptLines{
+		Name:       b.pluginCmd[0],
+		Log:        slog.Default(),
+		Translator: Translator{Families: b.Families},
+		API:        b.api,
+		Ack:        &b.ack,
+		Group:      &b.group,
+	}.Batch(ctx, muxRunner{b: b, zeOut: zeOut, pending: pending}, pluginW, lines)
 }
+
+// muxRunner is how the standalone runner reaches ze: one MuxConn request per
+// command, each awaited for ze's answer.
+type muxRunner struct {
+	b       *Bridge
+	zeOut   *syncWriter
+	pending *pendingResponses
+}
+
+// muxDispatchTimeout and muxFlushTimeout bound the wait for ze's answer, so
+// the bridge does not stall indefinitely if ze drops the response line.
+const (
+	muxDispatchTimeout = 30 * time.Second
+	muxFlushTimeout    = 30 * time.Second
+)
+
+// errMuxDispatchTimeout is a dispatch ze did not answer in time.
+var errMuxDispatchTimeout = errors.New("ze dispatch timeout")
+
+// Dispatch sends ze one command and waits for its answer.
+func (r muxRunner) Dispatch(ctx context.Context, command string) error {
+	reqID := r.b.nextRequestID.Add(1)
+	ackCh := r.pending.register(reqID)
+	r.zeOut.Fprintln(formatDispatchRequest(reqID, command))
+
+	ackCtx, cancel := context.WithTimeout(ctx, muxDispatchTimeout)
+	result, err := r.pending.wait(ackCtx, reqID, ackCh)
+	cancel()
+	if err != nil {
+		slog.Warn("plugin->zebgp: dispatch ack wait error", "error", err, "id", reqID)
+		return errMuxDispatchTimeout
+	}
+	if !result.ok {
+		return errors.New(result.errText)
+	}
+	return nil
+}
+
+// Flush drains the forward pool of the peers selector names.
+func (r muxRunner) Flush(ctx context.Context, selector string) {
+	flushID := r.b.nextRequestID.Add(1)
+	flushCh := r.pending.register(flushID)
+	r.zeOut.Fprintln(formatFlushRequest(flushID, selector))
+
+	flushCtx, cancel := context.WithTimeout(ctx, muxFlushTimeout)
+	if _, err := r.pending.wait(flushCtx, flushID, flushCh); err != nil {
+		slog.Warn("plugin->zebgp: flush wait error", "error", err, "peer", selector)
+	}
+	cancel()
+}
+
+// Status refuses a `status` line. The MuxConn dispatch answer carries ok or an
+// error, never a payload, so this runner cannot read the peers' states the
+// status answer lists, and it refuses by name rather than answer with a peer
+// list that is not ze's.
+func (r muxRunner) Status(context.Context, bool) ([]byte, BatchAnswer) {
+	slog.Warn("plugin->zebgp: line refused", "error", errStatusStandalone)
+	return nil, BatchAnswer{Failed: true, Error: errStatusStandalone.Error()}
+}
+
+// Dispatched records nothing: the standalone runner keeps no owner ledger.
+func (r muxRunner) Dispatched(string, Command) {}
 
 // truncate returns s truncated to maxLen runes with "..." suffix if needed.
 func truncate(s string, maxLen int) string {

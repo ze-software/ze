@@ -203,6 +203,10 @@ const (
 	// peer's state from ze and writes ExaBGP's daemon status, then done
 	// (StatusPeers, StatusReply).
 	LocalStatus
+	// LocalGroup is a `group` line, or a route line an open group holds: the
+	// runner writes the group's answer line, if any, then done, or error when
+	// the group refused the line (Group, ScriptLines.Batch).
+	LocalGroup
 )
 
 // statusWord is ExaBGP's daemon status command, `status` in API 4 and

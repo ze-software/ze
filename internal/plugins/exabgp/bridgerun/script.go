@@ -84,6 +84,12 @@ type script struct {
 	// line it sent.
 	ack bridge.AckMode
 
+	// group is the script's `group start` buffer (bridge.Group). It is per
+	// script for the reason ack is, and it is emptied when a new child
+	// starts: ExaBGP drops it when the process behind it is gone
+	// (clear_group).
+	group bridge.Group
+
 	// queue carries the lines bound for the child's stdin, from the event
 	// fan-out and from this script's own acks. One writer goroutine drains it,
 	// so no two writes into the pipe interleave.
@@ -208,6 +214,7 @@ func (s *script) start(ctx context.Context) error {
 	s.stdout = sout
 	s.mu.Unlock()
 	s.api.Reset()
+	s.group = bridge.Group{}
 	return nil
 }
 
@@ -302,77 +309,43 @@ func (s *script) read(ctx context.Context, d Dispatcher) {
 	}
 }
 
-// batch translates, nets, dispatches, flushes and answers the lines of one read.
-//
-// The order is fixed and each step earns its place. The netting is ExaBGP's own
-// (bridge.Net). The flush comes BEFORE the answers, because `done` means the
-// command is done and a route is not done until it is on the wire: acking first
-// let a script send its NEXT command while the previous route's flush was still
-// running, and api-ipv4, api-ipv6, api-mvpn and api-vpnv4 each caught it. The
-// answers come last, one per line, in the order the script wrote them.
+// batch translates, nets, dispatches, flushes and answers the lines of one
+// read, through the steps every runner shares (bridge.ScriptLines.Batch).
 func (s *script) batch(ctx context.Context, d Dispatcher, lines []string) {
-	batch := make([]bridge.BatchLine, 0, len(lines))
-	answers := make([]bridge.BatchAnswer, len(lines))
-	for i, text := range lines {
-		if text == "" {
-			batch = append(batch, bridge.BatchLine{Text: text})
-			continue
-		}
-		// The version is settled BEFORE the line is translated, and the line
-		// is then held to it, as ExaBGP's API.process calls
-		// detect_api_version and then dispatch_for.
-		version := s.api.Detect(text)
-		if err := version.Admits(text); err != nil {
-			s.log.Warn("exabgp-bridge line refused", "script", s.name, "error", err)
-			batch = append(batch, bridge.BatchLine{Text: text, Version: version, Err: err})
-			continue
-		}
-		translation, err := s.translator.Line(text)
-		if err != nil {
-			// The bridge names the line it refused rather than handing an
-			// untranslated line to ze's dispatcher, where it would die as an
-			// unknown command with no mention of the bridge.
-			s.log.Warn("exabgp-bridge line refused", "script", s.name, "error", err)
-		}
-		line := bridge.BatchLine{Text: text, Version: version, Translation: translation, Err: err}
-		if translation.Local == bridge.LocalAPIVersion {
-			line.Reply, answers[i].Failed = s.api.Answer(translation.APIVersion)
-		}
-		if translation.Local == bridge.LocalStatus {
-			line.Reply, answers[i] = s.status(ctx, d, bridge.StatusInJSON(version, text))
-		}
-		batch = append(batch, line)
-	}
+	bridge.ScriptLines{
+		Name:       s.name,
+		Log:        s.log,
+		Translator: s.translator,
+		API:        s.api,
+		Ack:        &s.ack,
+		Group:      &s.group,
+	}.Batch(ctx, scriptRunner{s: s, d: d}, s.writer(), lines)
+}
 
-	netted := bridge.Net(batch)
-	for _, dispatch := range netted {
-		if answers[dispatch.Line].Failed {
-			// This line already met a refusal. Its remaining commands describe
-			// the same route, and the rest of the BATCH keeps going: one line's
-			// failure never swallows another line's answer.
-			continue
-		}
-		if _, _, derr := d.DispatchCommand(ctx, dispatch.Command.Text); derr != nil {
-			s.log.Warn("exabgp-bridge dispatch failed",
-				"script", s.name, "error", derr, "cmd", dispatch.Command.Text)
-			answers[dispatch.Line] = bridge.BatchAnswer{Failed: true, Error: derr.Error()}
-			continue
-		}
-		s.owners.note(s.name, batch[dispatch.Line].Translation.Selector, dispatch.Command)
-	}
+// scriptRunner is how this runner reaches ze for one script's batch: the
+// plugin dispatcher, and the fleet's owner ledger.
+type scriptRunner struct {
+	s *script
+	d Dispatcher
+}
 
-	// Route commands: one per-peer flush for each selector the batch reached, so
-	// the forward pool drains before any line of it is answered. ExaBGP orders
-	// the two the same way: announce_route awaits every peer's flush event and
-	// calls answer_done after it (src/exabgp/reactor/api/command/announce.py).
-	for _, selector := range bridge.BatchSelectors(batch, netted) {
-		s.flush(ctx, d, selector)
-	}
+// Dispatch hands ze one command through the plugin dispatcher.
+func (r scriptRunner) Dispatch(ctx context.Context, command string) error {
+	_, _, err := r.d.DispatchCommand(ctx, command)
+	return err
+}
 
-	// The script is waiting for these. An ExaBGP API client sends one command,
-	// blocks for `done`, and gives up after two seconds, so a runner that
-	// dispatches without acking delivers exactly one command per script.
-	bridge.AnswerBatch(s.writer(), &s.ack, batch, answers)
+// Flush drains the forward pool of the peers selector names.
+func (r scriptRunner) Flush(ctx context.Context, selector string) { r.s.flush(ctx, r.d, selector) }
+
+// Status performs a `status` line.
+func (r scriptRunner) Status(ctx context.Context, asJSON bool) ([]byte, bridge.BatchAnswer) {
+	return r.s.status(ctx, r.d, asJSON)
+}
+
+// Dispatched makes the script the owner of the route command ze accepted.
+func (r scriptRunner) Dispatched(selector string, command bridge.Command) {
+	r.s.owners.note(r.s.name, selector, command)
 }
 
 // flush drains the forward pool of the peers selector names, so what was
