@@ -1646,3 +1646,34 @@ stand and are the brief for the next agent:
   `copy-simpson` old; bare `redirect-to-nexthop` simpson, with an address IETF. Change the `case "redirect"`
   arm of `internal/exabgp/migration/migrate_routes.go`; old-4.2/old-5.0 conf-flow then need allowances.
   The pin refuses `traffic-class 101`, so 6.0 conf-flow needs that fixture line checked first.
+
+### ExaBGP 6 adj-rib-out clear/flush, third agent (2026-10-21, Mac): engine command written, NOT committed
+
+Stopped at the call budget. Nothing committed but this entry. The engine half is in the tree,
+`go vet -tags ze_bgp` clean over reactor, types, cmd/..., route_refresh.
+
+- In the tree (mine): `reactor/reactor_api_advertised.go` (`WithdrawAdvertised`, `withdrawPeerAdvertised`,
+  `adjRIBOut.withdrawalBatches`, `adjOutWithdrawalNLRI`: RFC 8277 Section 2.4 Compatibility rebuild, plus a
+  re-key round trip that refuses a family whose key cannot be written back, e.g. forwarded FlowSpec) and its
+  `_test.go`; `cmd/peer/advertised.go` (`handleRibClearAdvertised`, wire `ze-bgp:rib-clear-advertised`,
+  registered in `peer.go`) and `advertised_test.go`; `WithdrawAdvertised` on `bgptypes.BGPReactor` with stubs
+  in 7 mocks (the peer mock records calls); YANG `clear bgp rib advertised <selector> [family <f>]` in
+  `ze-peer-cmd.yang`, rpc `rib-clear-advertised` in `ze-bgp-api.yang`, both with revisions;
+  `docs/architecture/api/commands.md` line and paragraph.
+- Deviation from the brief: every-peer is `*`, not `all`, to match the sibling `clear bgp rib out` and the
+  peer-selector type (the cli point allows "the typed wildcard the family already uses"). Main thread to confirm.
+- Evidence: `TestAdjOutWithdrawalNLRILabeled/Unicast/Batches` and `TestRibClearAdvertisedSelector/Refusals`
+  green; red under `-overlay` (labeled branch disabled: the labeled test fails; the ErrNoPeersMatch branch
+  disabled: the refusal test fails). The reactor overlay had to blank the foreign untracked
+  `plugin_route_addpath_test.go` (redeclares `mustHex`, unknown field `PathID`).
+- COMMIT BLOCKER: `types/reactor.go` and the 6 mock files also carry another session's `SelectedPeersCarry`
+  hunk, implemented in the untracked `reactor/reactor_api_carry.go`, which HEAD lacks. Carrying those files
+  alone breaks HEAD. Commit after that session lands its carry work, or together with it.
+- Not started: flush (`outboundResend` in `rib_commands.go` sends BoRR/EoRR per family via
+  `dispatchPeerAction`, RFC 7313 Section 4 "initiated locally" quote; the reactor already skips peers without
+  ERR; config routes are already in ribOut, `ConfigStatic` is skipped only on the peer-up replay); bridge
+  (`bridge_command.go convertControl`: `clear adj-rib out` to `clear bgp rib advertised <sel>`,
+  `flush adj-rib out` to `clear bgp rib out <sel>`, drop earlier same-batch route commands for the selector,
+  both runners); a reactor end-to-end test that the withdrawal reaches the wire and bgp-rib drops ribOut;
+  docs update-syntax.md, exabgp-bridge.md, exabgp-differences.md; cases api-rib, api-rr-rib (api, old-5.0)
+  on ze and on the pin. `Translator.Families` is left to the other agent.
