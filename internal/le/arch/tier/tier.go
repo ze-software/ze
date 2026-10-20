@@ -71,6 +71,14 @@ var skipWalk = map[string]bool{
 // already-baselined edges, and none of it is first-party source.
 const modCacheDir = "gokrazy/modcache"
 
+// buildCacheDir is the gitignored top-level store le's builds write, among them
+// a patched copy of the Go toolchain's GOROOT under cache/stdpatch. None of it
+// is first-party source: the standard library's own generator scripts exec
+// docker, so walking it made the docker route gate's verdict depend on which
+// builds had run on the machine. Only the top-level directory is skipped; a
+// package named cache deeper in the tree is source and is scanned.
+const buildCacheDir = "cache"
+
 // engineCall is the constructor that makes a package a config-driven engine.
 const engineCall = "sdk.NewWithConn("
 
@@ -162,7 +170,13 @@ func collectSourceEdges(tree, module string) (sourceGraph, error) {
 			if rel == "." {
 				return nil
 			}
-			if skipWalk[entry.Name()] || rel == modCacheDir {
+			if skipWalk[entry.Name()] {
+				return fs.SkipDir
+			}
+			if rel == modCacheDir {
+				return fs.SkipDir
+			}
+			if rel == buildCacheDir {
 				return fs.SkipDir
 			}
 			return nil

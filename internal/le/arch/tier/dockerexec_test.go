@@ -60,3 +60,37 @@ func TestNoDockerExecOutsideInteroplab(t *testing.T) {
 		t.Errorf("the wrapper's own exec was refused:\n%s", diagnosis)
 	}
 }
+
+// VALIDATES: the docker route gate does not read the top-level build cache,
+// where le keeps a patched GOROOT whose standard library generators exec
+// docker, and it still reads a source package named cache deeper in the tree.
+// PREVENTS: the tier check failing on a machine that has run a build and
+// passing on one that has not, over code that is not Ze's.
+func TestDockerExecGateSkipsTheBuildCache(t *testing.T) {
+	const stdlibGenerator = "cache/stdpatch/0123/goroot/src/crypto/internal/gen/generate.go"
+	const nestedCache = "internal/component/bgp/cache/run.go"
+	fixture := dockerExecFixture(false)
+	fixture[stdlibGenerator] = "package main\nimport \"os/exec\"\n" +
+		"func main() { _ = exec.Command(\"docker\", \"run\") }\n"
+	report, err := checkFixture("docker-exec-cache", fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Failed != 0 {
+		t.Fatalf("an exec inside the build cache was refused: %s", report.Diagnosis())
+	}
+
+	fixture[nestedCache] = "package cache\nimport \"os/exec\"\n" +
+		"func run() { _ = exec.Command(\"docker\", \"ps\") }\n"
+	report, err = checkFixture("docker-exec-nested-cache", fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	diagnosis := report.Diagnosis()
+	if !strings.Contains(diagnosis, nestedCache+":3 runs \"docker\"") {
+		t.Errorf("a source package named cache was not scanned:\n%s", diagnosis)
+	}
+	if strings.Contains(diagnosis, stdlibGenerator) {
+		t.Errorf("the build cache was scanned:\n%s", diagnosis)
+	}
+}

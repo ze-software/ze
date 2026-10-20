@@ -123,7 +123,11 @@ leaf package, so both checks import it and neither keeps a copy.
 
 The `docker-exec-route` check refuses an `exec.Command` or `exec.CommandContext`
 whose program is the docker binary, outside `internal/le/interoplab`, in any
-non-vendor Go file, tests included. The program is caught as a string literal
+Go file the tier walk reads, tests included. The walk skips `vendor`, `tmp`,
+`testdata` and the other names in `skipWalk`, `gokrazy/modcache`, and the
+top-level build cache `cache/` (`buildCacheDir`, `internal/le/arch/tier/tier.go`),
+whose patched GOROOT holds standard library generators that exec docker. The
+program is caught as a string literal
 (`"docker"` or a path ending in `/docker`), as a string constant of the file's
 own package, or as an imported package's constant such as
 `interoplab.DockerExecutable`, and through any chain of constants defined from
