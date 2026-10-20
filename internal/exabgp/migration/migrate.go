@@ -182,7 +182,7 @@ func injectRIBPlugin(tree *config.Tree) {
 
 // bridgePluginName is the registry name of the in-process ExaBGP bridge, and it
 // is the plugin every migrated ExaBGP process binds to.
-const bridgePluginName = "exabgp-bridge"
+const bridgePluginName = bridge.PluginName
 
 // migrateProcesses converts ExaBGP process definitions into the in-process
 // ExaBGP bridge.

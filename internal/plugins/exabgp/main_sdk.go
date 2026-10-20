@@ -33,7 +33,7 @@ import (
 //
 // Returns exit code (0 = success, 1 = error).
 func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh bool, addPath string) int {
-	p, err := sdk.NewFromTLSEnv("exabgp-bridge")
+	p, err := sdk.NewFromTLSEnv(bridge.PluginName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: TLS connect: %v\n", err)
 		return exitError

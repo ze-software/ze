@@ -18,6 +18,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/exabgp/bridge"
 	bridgeyang "github.com/ze-software/ze/internal/plugins/exabgp/bridgeplugin/yang"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -36,7 +37,7 @@ func init() {
 	loggerPtr.Store(slogutil.DiscardLogger())
 
 	reg := registry.Registration{
-		Name:                    "exabgp-bridge",
+		Name:                    bridge.PluginName,
 		Description:             "In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim)",
 		Features:                "yang",
 		YANG:                    bridgeyang.ZeExabgpBridgeConfYANG,

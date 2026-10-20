@@ -187,6 +187,11 @@ const (
 	zeKeywordAttach          = "attach"
 )
 
+// PluginName is the registry name of the ze plugin that runs every ExaBGP
+// script. A script is a child of that plugin and never a ze process of its own,
+// so a peer serves a script by attaching this plugin.
+const PluginName = "exabgp-bridge"
+
 // neighborParameter is one ExaBGP `create neighbor` parameter: the
 // `create bgp peer` keyword that carries it, and the conversion its value
 // needs on the way.
@@ -242,7 +247,7 @@ var neighborCreateRequired = []string{zeKeywordASN, zeKeywordLocalAS, zeKeywordL
 // and the rest are parameter pairs.
 //
 //	create neighbor 127.0.0.1 local-address 127.0.0.1 local-as 1 peer-as 1 api peer-lifecycle
-//	create bgp peer 127.0.0.1 asn 1 local-as 1 local-address 127.0.0.1 attach peer-lifecycle
+//	create bgp peer 127.0.0.1 asn 1 local-as 1 local-address 127.0.0.1 attach exabgp-bridge
 //
 // The peer ze builds lives in the reactor alone, which is what ExaBGP's own
 // dynamic peer does: neither writes the configuration file.
@@ -253,7 +258,7 @@ func convertNeighborCreate(fields []string) (Translation, bool, error) {
 	address := fields[0]
 
 	values := make(map[string]string, len(fields)/2)
-	var processes []string
+	attached := false
 
 	for i := 1; i < len(fields); i++ {
 		name := strings.ToLower(fields[i])
@@ -264,10 +269,10 @@ func convertNeighborCreate(fields []string) (Translation, bool, error) {
 		i++
 
 		// `api` is the one repeating parameter: ExaBGP writes the keyword once
-		// per process. ze names them all in one `attach`, because the
-		// dispatcher binds exactly one token to a keyword.
+		// per process. Every ExaBGP process is a script the bridge plugin
+		// runs, so whatever the names, the peer attaches that one plugin.
 		if name == "api" {
-			processes = append(processes, value)
+			attached = true
 			continue
 		}
 
@@ -285,8 +290,11 @@ func convertNeighborCreate(fields []string) (Translation, bool, error) {
 		values[parameter.keyword] = converted
 	}
 
-	if len(processes) > 0 {
-		values[zeKeywordAttach] = textbuf.Join(processes, ",")
+	// Attaching the plugin by the SCRIPT's name named a process ze does not
+	// run, so the created peer attached nothing and refused every route the
+	// script then sent it (api-peer-lifecycle).
+	if attached {
+		values[zeKeywordAttach] = PluginName
 	}
 
 	// The created neighbor DIALS and does not listen.

@@ -132,7 +132,7 @@ func runInternalBridge(conn net.Conn) int {
 	log := logger()
 	r := &bridgeRunner{log: log}
 
-	p := sdk.NewWithConn("exabgp-bridge", conn)
+	p := sdk.NewWithConn(bridge.PluginName, conn)
 	defer func() { _ = p.Close() }()
 
 	ctx, cancel := sdk.SignalContext()

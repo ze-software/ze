@@ -299,7 +299,13 @@ Each parameter maps to the `create bgp peer` keyword that means the same thing.
 | `family-allowed ipv4-unicast/ipv6-unicast` | `family ipv4/unicast,ipv6/unicast` |
 | `graceful-restart <seconds>` | `graceful-restart <seconds>` |
 | `group-updates true\|false` | `group-updates true\|false` |
-| `api <process>`, repeated | `attach <process,process>` |
+| `api <process>`, repeated | `attach exabgp-bridge`, once |
+
+Every ExaBGP process is a script the `exabgp-bridge` plugin runs, never a ze
+process of its own, so `api <process>` attaches that plugin whatever the process
+is called. Attaching it under the script's name named a process ze does not run:
+the created peer then attached nothing and refused every route the script sent
+it, which is what `api-peer-lifecycle` caught.
 
 Four lines are refused, and each refusal names what it refused rather than
 dropping it. `family-allowed in-open` is ExaBGP's "let the OPEN decide the
