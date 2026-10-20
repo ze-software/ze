@@ -84,10 +84,10 @@
       "unit": "internal/plugins/ospf/rfc8362_unknown_tlv_test.go::TestRFC8362UnknownTLVIgnoredByPrefixSIDs",
       "unit-sha": "3a014faebcb7b3db",
       "claim-sha": "c78c81b6645155b4",
-      "route": "revert",
+      "route": "mutant",
       "producer": "internal/plugins/ospf/sr_reception_v6.go::v6PrefixSIDsFromTLV",
-      "producer-sha": "98dc798ec8f64598",
-      "break": "body of v6PrefixSIDsFromTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer-sha": "5a93c95847b8a481",
+      "break": "line 120: \"v6TLVCarriesPrefixSIDSubTLVs(tlv.Type)\" -\u003e \"true\""
     },
     {
       "rid": "RFC8362-6.3-1",

@@ -116,11 +116,24 @@ func v6PrefixSIDsFromTLV(tlv ospfv3packet.ExtendedTLV, sids []sr.PrefixSID) (net
 			return netip.Prefix{}, sids
 		}
 		return pfx, append(sids, rng.PrefixSIDs...)
-	case extTLVIntraAreaPrefix, extTLVInterAreaPrefix, extTLVExternalPrefix:
-		return v6PrefixSIDsFromPrefixTLV(tlv.Value, sids)
 	default:
+		if v6TLVCarriesPrefixSIDSubTLVs(tlv.Type) {
+			return v6PrefixSIDsFromPrefixTLV(tlv.Value, sids)
+		}
 		return netip.Prefix{}, sids
 	}
+}
+
+// v6TLVCarriesPrefixSIDSubTLVs reports whether a top-level Extended-LSA TLV of this type is
+// one of the Intra/Inter/External Prefix TLVs whose value nests Prefix-SID sub-TLVs.
+//
+// RFC 8362 Section 6.3: "Unrecognized TLVs and sub-TLVs are ignored when parsing or
+// processing Extended LSAs." A false answer is that rule: a TLV of any other type is not
+// parsed for a Prefix-SID, even when its value carries one.
+func v6TLVCarriesPrefixSIDSubTLVs(tlvType uint16) bool {
+	return tlvType == extTLVIntraAreaPrefix ||
+		tlvType == extTLVInterAreaPrefix ||
+		tlvType == extTLVExternalPrefix
 }
 
 // v6PrefixSIDsFromPrefixTLV parses an RFC 8362 §3.11 Intra/Inter/External Prefix TLV value:
