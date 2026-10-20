@@ -376,9 +376,11 @@ SA (`stopAllPeers`), then `releaseSPD` removes the IKE bypass, the operator's
 entries, and the catch-all LAST. So no Ze entry is in force without the final
 entry beneath it, and outside that window Ze holds no SPD entry and no SA: it is
 not acting as an IPsec implementation then (owner decision 2026-10-20). A
-removal that fails (anything but ENOENT, or another peer's ownership refusal)
-leaves its entry in the SPD ledger (`removeZePolicy`, `spd_left.go`), which every
-Child SA policy, bypass and operator removal reports to; `releaseSPD` then keeps
+removal that fails (anything but ENOENT, another peer's ownership refusal, or
+`dataplane.ErrNotSupported`, the backend's answer for an entry it cannot hold, such
+as the IKE bypass on VPP) leaves its entry in the SPD ledger (`removeZePolicy`,
+`spd_left.go`), which every Child SA policy, Child SA install rollback, bypass and
+operator removal reports to; `releaseSPD` then keeps
 the catch-all beneath the entries left and logs them at Warn with the command
 that removes them (`warnSPDLeft`). The whole shutdown runs in `runEngine`'s
 deferred cleanup for a clean and an error return alike: `reEstablishFn` is

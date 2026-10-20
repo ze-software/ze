@@ -157,7 +157,9 @@ func installIKEBypass(dp dataplane.Dataplane, log *slog.Logger) {
 // owns what it touches, so every way out gives the kernel back the state it installed.
 //
 // A removal that finds nothing is the expected case for a family that never carried
-// a tunnel, and for a platform that never installed anything. Errors are logged and
+// a tunnel, and for a platform that never installed anything: the VPP backend refuses
+// every bypass entry with dataplane.ErrNotSupported, because they name no interface,
+// and the ledger reads that refusal as "not installed". Errors are logged and
 // never returned: shutdown continues, and a removal that left the entry installed is
 // recorded in the SPD ledger (removeZePolicy, spd_left.go), so releaseSPD keeps the
 // catch-all beneath it.

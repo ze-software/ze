@@ -62,9 +62,20 @@ var spdLeft = &spdLeftover{entries: map[spdSelector]dataplane.SPParams{}}
 // removeZePolicy removes one SPD entry Ze installed and records the outcome in the
 // ledger. It returns the backend's error unchanged, so each caller keeps its own log.
 //
-// Two refusals do not leave the entry behind. ENOENT is the kernel saying it holds no
+// Three refusals do not leave the entry behind. ENOENT is the kernel saying it holds no
 // such entry (dataplane/policy_owner.go), so the entry is gone. A PolicyOwnedError means
 // another peer's Child SA owns the selector, and that peer's own removal answers for it.
+// dataplane.ErrNotSupported is the backend saying it cannot hold this entry at all, from
+// a check it makes before any write reaches the dataplane and that refused the install
+// the same way: the VPP backend for an entry naming no interface (the IKE bypass, which
+// VPP has no node-wide SPD for) or when it created no SPD, and a platform with no XFRM.
+// The entry was never installed, so recording it would make warnSPDLeft name entries
+// that do not exist and keep the catch-all on every exit.
+//
+// Why the refusal and not a record of which installs succeeded: the ledger's question
+// is whether the entry is in the dataplane, and the backend's removal answer is the
+// one fact about that taken at exit. An install whose error came back after the entry
+// landed is still removed, and still recorded if that removal fails.
 func removeZePolicy(dp dataplane.Dataplane, p dataplane.SPParams) error {
 	err := dp.RemovePolicyParams(p)
 	spdLeft.record(&p, err)
@@ -80,6 +91,10 @@ func (l *spdLeftover) record(p *dataplane.SPParams, err error) {
 		return
 	}
 	if errors.Is(err, syscall.ENOENT) {
+		delete(l.entries, sel)
+		return
+	}
+	if errors.Is(err, dataplane.ErrNotSupported) {
 		delete(l.entries, sel)
 		return
 	}

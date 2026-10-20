@@ -571,9 +571,14 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 			direction = "inbound"
 		}
 		// Owner-aware, so a peer whose install was refused cannot roll back over the
-		// owning peer's live policy (dataplane.SPParams.Owner).
+		// owning peer's live policy (dataplane.SPParams.Owner). Through removeZePolicy,
+		// so a rollback removal that fails leaves its entry in the SPD ledger
+		// (spd_left.go) and releaseSPD keeps the catch-all beneath it at exit.
 		for _, installed := range policies[:i] {
-			_ = dp.RemovePolicyParams(installed) //nolint:errcheck // rollback of a failed install; the install error is the one reported
+			if rmErr := removeZePolicy(dp, installed); rmErr != nil {
+				log.Warn("child-sa: could not roll back a policy after a failed install; it stays installed",
+					"dir", dirLabel(installed.Dir), "src", installed.Src, "dst", installed.Dst, "error", rmErr)
+			}
 		}
 		_ = dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP)
 		_ = dp.RemoveSA(child.OutboundSPI, child.RemoteAddr, protoESP)
