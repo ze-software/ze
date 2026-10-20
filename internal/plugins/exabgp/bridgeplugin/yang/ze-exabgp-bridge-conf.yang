@@ -129,6 +129,20 @@ more than five times in 64 seconds stays stopped whatever this leaf holds, and Z
 did. ExaBGP spells this leaf the same way and applies the same limit.";
                     ze:help "Start the script again when it exits.";
                 }
+
+                leaf on-exit {
+                    type enumeration {
+                        enum keep { ze:help "Leave the routes the script announced in place."; }
+                        enum withdraw { ze:help "Withdraw the routes the script announced."; }
+                    }
+                    description "What becomes of the routes this script announced when it exits.
+keep leaves them; withdraw withdraws every route the script was the last to announce, before
+a restarted script writes its first line. Left unset, a script that writes the ExaBGP 4 API
+('announce ...', 'neighbor ...') keeps its routes, as ExaBGP 4.x and 5.x did, and any other
+has them withdrawn, as ExaBGP 6.0 does. Each exit is logged with the choice and its reason.
+ExaBGP spells this leaf the same way.";
+                    ze:help "Keep or withdraw the script's routes when it exits.";
+                }
             }
 
             leaf-list family {

@@ -218,3 +218,29 @@ neighbor 10.0.0.1 {
 		t.Errorf("migrated config states an encoder for a word it could not read:\n%s", output)
 	}
 }
+
+// TestMigrateOnExit checks `on-exit` is carried as written, and left unwritten
+// when the ExaBGP block left it unset, so the script's API version decides in
+// ze as it does in ExaBGP (AC-24).
+func TestMigrateOnExit(t *testing.T) {
+	const neighbor = `
+neighbor 10.0.0.1 {
+	router-id 1.1.1.1;
+	local-as 65001;
+	peer-as 65002;
+	api {
+		processes [ helper ];
+	}
+}
+`
+	for _, word := range []string{"keep", "withdraw"} {
+		output := migrateSource(t, "process helper {\n\trun ./run/helper.run;\n\ton-exit "+word+";\n}\n"+neighbor)
+		if !strings.Contains(output, "on-exit "+word) {
+			t.Errorf("on-exit %s not carried:\n%s", word, output)
+		}
+	}
+	output := migrateSource(t, "process helper {\n\trun ./run/helper.run;\n}\n"+neighbor)
+	if strings.Contains(output, "on-exit") {
+		t.Errorf("migrated config states an on-exit the ExaBGP config did not:\n%s", output)
+	}
+}

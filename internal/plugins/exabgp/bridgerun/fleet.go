@@ -55,6 +55,9 @@ type Script struct {
 	Feeds   []ScriptFeed
 	Encoder bridge.Encoder
 	Respawn bool
+	// OnExit is ExaBGP's `on-exit` leaf; its zero, OnExitByVersion, is the
+	// leaf left unset (owner.go, exitPolicy).
+	OnExit OnExit
 }
 
 // ScriptFeed is one peer that feeds one script, and the events it feeds it.
@@ -93,6 +96,11 @@ type Fleet struct {
 	// script starts held to. Start reads it from the env, and a script's
 	// `api version <v>` line moves it for the scripts started afterwards.
 	apiSetting atomic.Uint32
+
+	// owners is which script announced each route last, shared by every
+	// script because a route one script announces another can take over or
+	// withdraw (owner.go).
+	owners *ownerLedger
 }
 
 // New builds a Fleet for the given scripts. It forks nothing: Start does.
@@ -104,10 +112,10 @@ type Fleet struct {
 // The translator is built PER SCRIPT, because the peers an unaddressed line
 // reaches are the peers that script serves.
 func New(log *slog.Logger, families []string, scripts []Script) *Fleet {
-	f := &Fleet{log: log}
+	f := &Fleet{log: log, owners: newOwnerLedger()}
 	for _, s := range scripts {
 		translator := bridge.Translator{Families: families, Peers: feedPeers(s.Feeds)}
-		f.scripts = append(f.scripts, newScript(log, translator, &f.apiSetting, s))
+		f.scripts = append(f.scripts, newScript(log, translator, &f.apiSetting, f.owners, s))
 	}
 	return f
 }

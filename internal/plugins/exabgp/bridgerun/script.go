@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -46,7 +47,13 @@ type script struct {
 	name    string
 	argv    []string
 	respawn bool
+	onExit  OnExit
 	log     *slog.Logger
+
+	// owners is the Fleet's ledger of who announced each route last. batch
+	// notes every route command it dispatched, and exited withdraws this
+	// script's routes from it.
+	owners *ownerLedger
 
 	// translator turns one ExaBGP line into ze commands. It carries the family
 	// list a bare `announce eor` expands over, and the peers a line that names
@@ -94,12 +101,14 @@ type script struct {
 	stdout io.ReadCloser
 }
 
-func newScript(log *slog.Logger, translator bridge.Translator, setting *atomic.Uint32, s Script) *script {
+func newScript(log *slog.Logger, translator bridge.Translator, setting *atomic.Uint32, owners *ownerLedger, s Script) *script {
 	return &script{
 		api:        bridge.NewScriptVersion(s.Name, log, s.Encoder, setting),
 		name:       s.Name,
 		argv:       s.Argv,
 		respawn:    s.Respawn,
+		onExit:     s.OnExit,
+		owners:     owners,
 		log:        log,
 		translator: translator,
 		grants:     grantSet(s.Feeds),
@@ -210,9 +219,16 @@ func (s *script) supervise(ctx context.Context, f *Fleet, d Dispatcher) {
 		s.read(ctx, d)
 		s.reap()
 
-		if ctx.Err() != nil || f.stopped() {
+		if ctx.Err() != nil {
 			return
 		}
+		if f.stopped() {
+			return
+		}
+		// The exit is settled BEFORE the next child starts, so the withdrawals
+		// reach the wire ahead of anything the respawned child announces, as
+		// ExaBGP queues its exit marker ahead of the new child's commands.
+		s.exited(ctx, d)
 		if !s.respawn {
 			// api-no-respawn asserts exactly this: the one-shot script exits
 			// after its ack and is not started again, while its sibling keeps
@@ -340,7 +356,9 @@ func (s *script) batch(ctx context.Context, d Dispatcher, lines []string) {
 			s.log.Warn("exabgp-bridge dispatch failed",
 				"script", s.name, "error", derr, "cmd", dispatch.Command.Text)
 			answers[dispatch.Line] = bridge.BatchAnswer{Failed: true, Error: derr.Error()}
+			continue
 		}
+		s.owners.note(s.name, batch[dispatch.Line].Translation.Selector, dispatch.Command)
 	}
 
 	// Route commands: one per-peer flush for each selector the batch reached, so
@@ -348,17 +366,59 @@ func (s *script) batch(ctx context.Context, d Dispatcher, lines []string) {
 	// the two the same way: announce_route awaits every peer's flush event and
 	// calls answer_done after it (src/exabgp/reactor/api/command/announce.py).
 	for _, selector := range bridge.BatchSelectors(batch, netted) {
-		var tb textbuf.Buffer
-		flush := tb.Str("request peer ").Str(selector).Str(" flush").String()
-		if _, _, ferr := d.DispatchCommand(ctx, flush); ferr != nil {
-			s.log.Warn("exabgp-bridge flush failed", "script", s.name, "error", ferr, "peer", selector)
-		}
+		s.flush(ctx, d, selector)
 	}
 
 	// The script is waiting for these. An ExaBGP API client sends one command,
 	// blocks for `done`, and gives up after two seconds, so a runner that
 	// dispatches without acking delivers exactly one command per script.
 	bridge.AnswerBatch(s.writer(), &s.ack, batch, answers)
+}
+
+// flush drains the forward pool of the peers selector names, so what was
+// dispatched for them is on the wire before the caller goes on.
+func (s *script) flush(ctx context.Context, d Dispatcher, selector string) {
+	var tb textbuf.Buffer
+	flush := tb.Str("request peer ").Str(selector).Str(" flush").String()
+	if _, _, err := d.DispatchCommand(ctx, flush); err != nil {
+		s.log.Warn("exabgp-bridge flush failed", "script", s.name, "error", err, "peer", selector)
+	}
+}
+
+// exited settles the routes of a child that has exited, as ExaBGP's
+// Processes._queue_exit does: the `on-exit` leaf, or the API version the
+// child was held to, decides whether they are withdrawn (exitPolicy), the
+// decision is logged with its reason, and a withdrawal sends each route this
+// script owns its own withdrawal command, then flushes.
+//
+// It MUST run after the child's last batch is dispatched (script.read has
+// returned) and before the next child starts, while the version the child was
+// held to is still the script's.
+func (s *script) exited(ctx context.Context, d Dispatcher) {
+	withdraw, by := exitPolicy(s.onExit, s.api.Current())
+	routes := "keep"
+	if withdraw {
+		routes = "withdraw"
+	}
+	s.log.Info("exabgp-bridge process exited", "process", s.name, "routes", routes, "by", by)
+	if !withdraw {
+		return
+	}
+
+	var selectors []string
+	for _, route := range s.owners.release(s.name) {
+		if _, _, err := d.DispatchCommand(ctx, route.withdrawal); err != nil {
+			s.log.Warn("exabgp-bridge exit withdrawal failed",
+				"script", s.name, "error", err, "cmd", route.withdrawal)
+			continue
+		}
+		if !slices.Contains(selectors, route.selector) {
+			selectors = append(selectors, route.selector)
+		}
+	}
+	for _, selector := range selectors {
+		s.flush(ctx, d, selector)
+	}
 }
 
 // status performs a `status` line: it reads every peer's state from ze and

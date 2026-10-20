@@ -201,7 +201,7 @@ const bridgePluginName = bridge.PluginName
 // read by nothing.
 //
 // Every leaf of the ExaBGP process block that changes what ze does is carried:
-// `run`, `respawn` and `encoder`. `encoder` was read by nothing until
+// `run`, `respawn`, `encoder` and `on-exit`. `encoder` was read by nothing until
 // 2026-09-06, so a config asking for the text event format was migrated into a
 // bridge that answered JSON, with no error and no log line.
 func migrateProcesses(tree *config.Tree, result *MigrateResult) map[string]string {
@@ -226,6 +226,7 @@ func migrateProcesses(tree *config.Tree, result *MigrateResult) map[string]strin
 			RunCmd:  runCmd,
 			Respawn: exabgpRespawn(entry.Value),
 			Encoder: encoder,
+			OnExit:  exabgpOnExit(entry.Value),
 		})
 		processMap[entry.Key] = bridgePluginName
 	}
@@ -244,6 +245,20 @@ type bridgeProcess struct {
 	Encoder bridge.Encoder
 	// Respawn is ExaBGP's own default, true, unless the block says otherwise.
 	Respawn bool
+	// OnExit is the block's `on-exit` word, `keep` or `withdraw`, or empty
+	// when the block left it unset and the script's API version decides.
+	OnExit string
+}
+
+// exabgpOnExit reads a process block's `on-exit` leaf as written. ExaBGP
+// accepts `keep` and `withdraw`; any other word is carried as it is, so the ze
+// config refuses it by name at load rather than the migration dropping it.
+func exabgpOnExit(process *config.Tree) string {
+	value, ok := process.Get("on-exit")
+	if !ok {
+		return ""
+	}
+	return strings.ToLower(strings.Trim(value, `"';`))
 }
 
 // exabgpEncoder reads a process block's `encoder` leaf.
@@ -289,7 +304,7 @@ func exabgpBoolean(value string) bool {
 
 // injectBridgePlugin declares the bridge and the script it runs:
 //
-//	exabgp { bridge { process <name> { run "<command>"; respawn <v>; encoder <e> } } }
+//	exabgp { bridge { process <name> { run "<command>"; respawn <v>; encoder <e>; on-exit <o> } } }
 //	plugin { internal exabgp-bridge { use exabgp-bridge } }
 //
 // The family leaf is left out on purpose. It refines the ADD-PATH capability
@@ -312,6 +327,11 @@ func injectBridgePlugin(dst *config.Tree, processes []bridgeProcess) {
 		// absent leaf stays absent and the ze default decides.
 		if process.Encoder != bridge.EncoderUnspecified {
 			entry.Set("encoder", process.Encoder.String())
+		}
+		// Unset stays unset: the script's API version then decides, in ze as
+		// in ExaBGP.
+		if process.OnExit != "" {
+			entry.Set("on-exit", process.OnExit)
 		}
 		block.AddListEntry("process", process.Name, entry)
 	}

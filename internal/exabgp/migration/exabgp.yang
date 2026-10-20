@@ -45,6 +45,7 @@ module exabgp {
         leaf run { type string; }
         leaf encoder { type string; }
         leaf respawn { type boolean; }
+        leaf on-exit { type string; }
     }
 
     // ExaBGP uses 'neighbor' not 'peer'

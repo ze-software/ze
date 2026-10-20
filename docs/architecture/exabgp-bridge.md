@@ -638,6 +638,27 @@ times, and then stays stopped with an error line naming it.
 
 <!-- source: internal/plugins/exabgp/bridgerun/respawn.go -- respawnLimiter, respawnWindow, respawnMax -->
 
+What becomes of the routes an exited script announced is ExaBGP 6.0's
+`on-exit` leaf. `keep` leaves them and `withdraw` withdraws them. Left unset, a
+script held to API 4 keeps them, as ExaBGP 4.x and 5.x did, and any other has
+them withdrawn (ExaBGP's `Processes._on_exit`). Each exit logs
+`exabgp-bridge process exited` with `routes=keep|withdraw` and
+`by=on-exit|API 4|API 6|API undecided`. The withdrawal is settled before the
+script is started again, so it reaches the wire ahead of anything the new child
+announces.
+
+Which routes are the script's is ExaBGP's owner rule: the last script to
+announce a route owns it, and a withdraw of it from any script clears it. The
+fleet keeps that record for every route command it dispatched, keyed by the
+selector and the route, and an exit withdrawing its routes sends each one the
+withdrawal its builder wrote beside the announce (`Command.Withdrawal`), then
+flushes. `api-on-exit` is the case. `ze exabgp migrate` carries the leaf as
+written and leaves it unset when the ExaBGP block did.
+
+<!-- source: internal/plugins/exabgp/bridgerun/owner.go -- exitPolicy, ownerLedger -->
+<!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.exited -->
+<!-- source: internal/exabgp/migration/migrate.go -- exabgpOnExit -->
+
 That is the bridge restarting a SCRIPT. The bridge itself is a ze plugin, and it
 declares `failure-policy: restart` in its own Stage-1 registration, so a bridge
 process that dies is started again by the engine and its scripts come back with

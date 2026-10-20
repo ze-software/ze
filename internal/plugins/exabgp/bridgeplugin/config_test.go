@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/plugins/exabgp/bridgerun"
 )
 
 // modelAddPathModes answers the values of the add-path enumeration, read by
@@ -94,4 +95,26 @@ func TestParseConfigAddPathRefusesWhenTheModelCannotAnswer(t *testing.T) {
 	cfg, err := parseConfig(`{"exabgp":{"bridge":{"process":{"main":{"run":"./p.py"}}}}}`)
 	require.NoError(t, err)
 	require.Equal(t, addPathNone, cfg.AddPath)
+}
+
+// TestParseScriptsReadsOnExit checks the `on-exit` leaf reaches the script,
+// unset is OnExitByVersion, and an unknown word is refused by name (AC-24).
+func TestParseScriptsReadsOnExit(t *testing.T) {
+	block := func(onExit string) map[string]any {
+		entry := map[string]any{"run": "./helper"}
+		if onExit != "" {
+			entry["on-exit"] = onExit
+		}
+		return map[string]any{processList: map[string]any{"helper": entry}}
+	}
+	want := map[string]bridgerun.OnExit{"": bridgerun.OnExitByVersion, "keep": bridgerun.OnExitKeep, "withdraw": bridgerun.OnExitWithdraw}
+	for word, onExit := range want {
+		scripts, err := parseScripts(block(word))
+		if err != nil || len(scripts) != 1 || scripts[0].OnExit != onExit {
+			t.Errorf("on-exit %q: %v %v, want %d", word, scripts, err, onExit)
+		}
+	}
+	if _, err := parseScripts(block("drop")); err == nil || !strings.Contains(err.Error(), "on-exit") {
+		t.Errorf("on-exit drop: %v, want a refusal naming on-exit", err)
+	}
 }

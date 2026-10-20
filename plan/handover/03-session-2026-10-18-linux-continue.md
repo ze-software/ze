@@ -1297,3 +1297,20 @@ All three changes below are UNCOMMITTED and none is green yet.
   encoding, old-4.2, old-5.0 populations (a translator-refused line now answers `error: <why>` then
   `error`, where it was silent; the old corpora are where a script might count answers).
 - Next: Phase 4 (X-15 to X-22).
+
+### ExaBGP 6 spec, Phase 4 first package (2026-10-20, Linux, exa8): continuation owed
+
+- Populations before any edit (pin 685f772e4, `bin/le-exa8` on PATH as the stage runs it): encoding
+  41/42 (conf-flow; conf-watchdog is red only without `bin/le-exa8` on PATH, the journaled helper-`le`
+  cause); old-4.2 25 pass 8 skip, red api-eor; old-5.0 57 pass 12 skip, red api-eor, api-rib,
+  api-rr-rib (a first run also failed api-attributes-path and unknown-message on EOR timing; both
+  green alone). No Phase 3 regression.
+- e9ac5ea736: X-15 (AC-17). The on-exit commit (X-21, X-22, AC-22, AC-24, AC-25) carries this entry;
+  details in the spec's "Phase 4 state" line. `api-on-exit` green on the pin and on ze.
+- Next agent: X-16 to X-20 group (AC-18 to AC-21: a `group start/end` buffer per script, the inline
+  `group a ; b` split by ExaBGP's lexer rule, `attributes` sharing, answers per `command/group.py`;
+  cases `api-group`, `api-group-inline`); the `api-on-exit-v4-keep` case (AC-23); A-8; the api
+  population rerun.
+- Red overlays: `<parent scratch>/p4/red/v6.json` (v4ControlSpelling identity), `red/exit.json`
+  (`script.exited` returns at once). Gates owed by the main thread: `./le go lint run` on
+  internal/exabgp and internal/plugins/exabgp; `./le test unit all`; the api population.
