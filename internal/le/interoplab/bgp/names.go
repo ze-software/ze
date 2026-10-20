@@ -663,17 +663,23 @@ const (
 // Label-Index and prefixSIDMalformedSRGBOnlyPrefix an SRGB-only Prefix-SID,
 // both on labeled unicast; prefixSIDMalformedControlPrefix is the valid VPN
 // route; prefixSIDMalformedWithdrawnPrefix is the VPN route re-announced with
-// an overrunning SRv6 L3 Service TLV. prefixSIDMalformedFRRLabelIndex is the
-// word FRR prints in a route's detail when it holds a label index.
+// an overrunning SRv6 L3 Service TLV; prefixSIDMalformedValidIndexPrefix is a
+// labeled-unicast route with a valid Label-Index, the positive control.
+// prefixSIDMalformedFRRLabelIndex is the word FRR prints in a route's detail
+// when it holds a label index, proved on that positive control: FRR 10.3.1
+// prints "Label Index: 100" (observed 2026-10-20). The earlier "label-index"
+// never appears in that output, so its absence proved nothing.
 const (
 	prefixSIDMalformedLabelIndexPrefix = "10.0.1.0/24"
 	prefixSIDMalformedWithdrawnPrefix  = "10.0.2.0/24"
 	prefixSIDMalformedControlPrefix    = "10.0.3.0/24"
 	prefixSIDMalformedSRGBOnlyPrefix   = "10.0.4.0/24"
-	prefixSIDMalformedFRRLabelIndex    = "label-index"
+	prefixSIDMalformedValidIndexPrefix = "10.0.5.0/24"
+	prefixSIDMalformedFRRLabelIndex    = "Label Index"
 
 	frrShowPrefixSIDMalformedLabelIndexPrefix = "show bgp ipv4 labeled-unicast " + prefixSIDMalformedLabelIndexPrefix
 	frrShowPrefixSIDMalformedSRGBOnlyPrefix   = "show bgp ipv4 labeled-unicast " + prefixSIDMalformedSRGBOnlyPrefix
+	frrShowPrefixSIDMalformedValidIndexPrefix = "show bgp ipv4 labeled-unicast " + prefixSIDMalformedValidIndexPrefix
 )
 
 // The bgp-srv6-invalid-sid-ineligible-frr scenario, where FRR exports one IPv6
@@ -684,6 +690,12 @@ const (
 const (
 	srv6IneligibleFRRAddress      = "172.30.0.3"
 	srv6IneligibleInjectorAddress = "172.30.0.9"
+
+	// srv6IneligiblePrefix is the network frr.conf exports from VRF customer1,
+	// and srv6IneligibleVRFSetup creates the Linux VRF device that instance
+	// needs before it is active.
+	srv6IneligiblePrefix   = "2001:db8:9252:1::/64"
+	srv6IneligibleVRFSetup = "ip link add customer1 type vrf table 1001 && ip link set customer1 up"
 )
 
 // flowspecMatchSCTP is the protocol word nft(8) prints for the SCTP match the

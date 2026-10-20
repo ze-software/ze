@@ -254,10 +254,18 @@ var scenarioOperations = map[string][]operation{
 	// with the label stripped (nlrisplit keyVPN), so the paths compete
 	// whatever labels they carry. The best table is read by peer, not prefix:
 	// `show bgp rib best` renders a VPN NLRI as a CIDR (journal,
-	// silent-fall-through.md). NOT RUN: written 2026-10-14 where the Docker
-	// kernel refuses the lab; the green and the red phase are both unobserved.
+	// silent-fall-through.md). NOT GREEN on 2026-10-20: the Linux Docker kernel
+	// there has no VRF device type ("ip link add ... type vrf" answers "Unknown
+	// device type"), so FRR's VRF instance never exports; the green and the red
+	// phase are both unobserved.
 	"bgp-srv6-invalid-sid-ineligible-frr": {
+		// FRR's "router bgp 65001 vrf customer1" stays inactive until the Linux
+		// VRF device exists, and an inactive instance exports nothing, so ze's
+		// best table would be empty and judge no candidate. The FRR-side wait
+		// proves the route was exported before ze is asked about it.
+		{kind: opExec, peer: peerFRR, command: []string{"sh", shellErrexitCommand, srv6IneligibleVRFSetup}},
 		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv6 vpn"}, contains: []string{srv6IneligiblePrefix}, timeout: 60 * time.Second},
 		{kind: opWaitContains, peer: "ze", command: zeCommand("show bgp rib best"), contains: []string{srv6IneligibleFRRAddress}, timeout: 90 * time.Second},
 		{kind: opWaitContains, peer: "ze", command: zeCommand("show bgp rib received"), contains: []string{srv6IneligibleInjectorAddress}, timeout: 60 * time.Second},
 		{
@@ -275,14 +283,26 @@ var scenarioOperations = map[string][]operation{
 	// later is not an empty table. Each labeled-unicast prefix must arrive,
 	// and its own answer must name it without a label index, because ze
 	// discarded the attribute (under the family-blind judge it was relayed or
-	// kept). NOT RUN: written 2026-10-14 where the Docker kernel refuses the
-	// lab, so FRR's "label-index" wording (spec assumption A-4) and the red
-	// phase are both unobserved.
+	// kept). The valid-index control 10.0.5.0/24 proves the word FRR prints
+	// ("Label Index"). Red walks of 2026-10-20: with the Label-Index length
+	// check off, FRR resets the session on the relayed 6-octet TLV (assertion
+	// 1); with the Service TLV overrun judged attribute-discard, FRR keeps
+	// 10.0.2.0/24 (the withdrawn-prefix assertion). The SRGB-only check does
+	// NOT discriminate: FRR prints nothing for an Originator SRGB, so with
+	// the RFC 8669 Section 4.1 check off it still passes. The .ci case (d),
+	// which reads the relayed bytes, is that check's proof.
 	"bgp-prefix-sid-malformed-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: prefixSIDMalformedControlPrefix, family: frrFamilyIPv4VPN, timeout: 90 * time.Second},
 		{kind: opFRRRoute, argument: prefixSIDMalformedLabelIndexPrefix, family: frrFamilyIPv4Labeled, timeout: 30 * time.Second},
 		{kind: opFRRRoute, argument: prefixSIDMalformedSRGBOnlyPrefix, family: frrFamilyIPv4Labeled, timeout: 30 * time.Second},
+		{kind: opFRRRoute, argument: prefixSIDMalformedValidIndexPrefix, family: frrFamilyIPv4Labeled, timeout: 30 * time.Second},
+		{
+			kind:     opRequireContains,
+			peer:     peerFRR,
+			command:  []string{cmdVtysh, "-c", frrShowPrefixSIDMalformedValidIndexPrefix},
+			contains: []string{prefixSIDMalformedValidIndexPrefix, prefixSIDMalformedFRRLabelIndex},
+		},
 		{
 			kind:    opRequireAbsent,
 			peer:    peerFRR,
