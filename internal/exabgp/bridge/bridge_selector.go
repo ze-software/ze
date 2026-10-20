@@ -83,8 +83,8 @@ func bridgeSelectorKeyword(field string) bool {
 //
 // The exception is the qualifier that can never match anything: unmatched says
 // every address the line named was excluded, so the line reaches no session.
-// The caller acks it and dispatches nothing, which is what ExaBGP does with a
-// command whose selector matches no session.
+// The caller refuses it and dispatches nothing, which is what ExaBGP does with
+// a command whose selector matches no session (NoMatchingPeers, X-24).
 func splitNeighborSelector(line, everyPeer string) (selector, rest string, unmatched bool) {
 	fields := strings.Fields(line)
 	if len(fields) == 0 || !bridgeSelectorKeyword(fields[0]) {

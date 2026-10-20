@@ -62,7 +62,7 @@ func convertVPLSRoute(selector, rest, verb string) ([]Command, bool, error) {
 			continue
 		}
 		if i+1 >= len(parts) {
-			return nil, true, fmt.Errorf("vpls %s: %w", name, errMissingAttrValue)
+			return nil, true, fmt.Errorf("vpls %s %w", name, errMissingAttrValue)
 		}
 		i++
 		fields[name] = parts[i]

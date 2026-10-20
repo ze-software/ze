@@ -95,10 +95,13 @@ Upstream (exa-networks/exabgp): `src/exabgp/reactor/api/command/limit.py`,
 - The exception is `family-allowed in-open`, which no Ze session can satisfy.
   ExaBGP's `in-open` names a session that negotiates the families the OPEN
   carried; Ze STATES the families its OPEN offers and has no mode that defers
-  the choice. The bridge therefore treats the address it qualifies as excluded,
-  dispatches nothing, and still answers `done`, which is what ExaBGP does with a
-  command whose selector matches no session.
+  the choice. The bridge therefore treats the address it qualifies as excluded.
+- A selector left with no peer (every address excluded, or every address
+  outside the peers the process feeds) is refused: the bridge dispatches
+  nothing and answers the reason and `error`, as ExaBGP 6.0's dispatcher does
+  (`NoMatchingPeers`). ExaBGP writes the `error` marker alone; Ze adds why.
 <!-- source: internal/exabgp/bridge/bridge_selector.go -- bridgeSelectorKeys, splitNeighborSelector, selectorExcludes -->
+<!-- source: internal/exabgp/bridge/bridge_command.go -- Translator.servedSelector, errSelectorMatchesNoPeer -->
 
 **RFC compliance:**
 - N/A - This is API syntax, not BGP protocol

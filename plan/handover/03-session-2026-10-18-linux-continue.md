@@ -1438,3 +1438,52 @@ All three changes below are UNCOMMITTED and none is green yet.
 - `restore-configured`: owner asked what it is; still public update-text keyword pending the answer.
 - Next ExaBGP phases: Phase 6 (in flight at the move, see its own entry), Phase 7 (incl. AC-41 api-disable),
   Phase 8, then review and close.
+
+### ExaBGP 6 spec, Phase 6 first package (2026-10-20, Linux, stopped for the Mac move)
+
+Committed with this entry (bridge code and one doc fix; no new unit test, no `.ci`, no red run yet):
+- X-24 (AC-30): `Translation.Unmatched` deleted. `Translator.Line` refuses a selector left with no
+  peer (`errSelectorMatchesNoPeer`): every address excluded by `family-allowed in-open`, or every
+  address outside `Translator.Peers` (new `Translator.servedSelector`; `*` and an empty
+  `Translator.Peers` pass whole, and ze answers `route.ErrNoPeersMatch` for an unknown address).
+  The `bridge_control_test.go` unmatched cases now expect the refusal (spec: X-24 reverses the old
+  `done`). `docs/exabgp/exabgp-differences.md` corrected (it said the line was answered `done`).
+- X-26/X-27 keep-first (AC-32): `parseRouteAttributes` keeps the first of a repeated attribute
+  (keyed on the ze keyword) and records `routeAttributes.Warnings`; `warnRouteLine` logs them
+  (`slog.Warn "exabgp-bridge route line"`) from `buildRouteCommand` and `convertAttributesForm`.
+- X-27 short split (AC-33): `splitPrefix` returns `(pieces, whole, err)`; a split shorter than the
+  prefix sends the prefix itself and adds a warning. A split longer than the address is refused.
+- X-28 (AC-34): a value-less attribute is refused as `... path-information is written with no
+  value; write path-information <path identifier, a number or an IPv4 address>`.
+- X-29 (AC-35): `defaultPrefixLengths` now returns an error; `refuseMaskNotNumber` refuses
+  `10.0.0.0/x` (`errMaskNotNumber`).
+- X-30 (AC-36): `bridge_operational.go` `convertOperational`: unknown kind gives `unknown operational
+  message: <command>`; a known kind gives `the OPERATIONAL message is not sent by Ze (<kind>)` (OD-1).
+- Evidence: `go vet ./internal/exabgp/bridge` clean; `go test -count=1 ./internal/exabgp/bridge/`
+  green (job p6bridge). bridgerun not re-run (it never read `Unmatched`).
+
+NOT done, next on the Mac:
+1. Unit tests from the spec TDD plan, each red first with a Go overlay: `TestSelectorMatchingNoPeerRefused`
+   (bridge_batch_test.go, with Translator.Peers narrowing), `TestRepeatedAttributeKeepsFirstAndWarns`,
+   `TestSplitShorterThanPrefixSendsPrefix`, `TestPathInformationWithoutValueRefused` (settles A-6),
+   `TestPrefixMaskNotNumberRefused`, `TestOperationalRefusedByKind`.
+2. X-23 (AC-29) NOT started. Finding: ze's update-text handler answers status `warning`, not
+   error, when no selected peer has the family negotiated (`route.ErrNoPeersAcceptedFamily`,
+   `update_text.go` near lines 1256 and 1295), and `bridgerun` `scriptRunner.Dispatch` drops the
+   status, so the bridge answers `done`. Fix: a `warning` with no route sent is a refusal carrying
+   its message, in both runners (check what the standalone MuxConn answer carries for a warning).
+   ze tests the NEGOTIATED family, ExaBGP the CONFIGURED one (`carrying`, announce.py): record it.
+   EOR (ExaBGP errors when no established peer carries the family) unchecked. Test
+   `TestFamilyNoSelectedPeerCarriesAnswersError` against the real engine (A-4).
+3. X-25 (AC-31): already refused (`errFlowRouteNoMatch`); needs a case only.
+4. `.ci` cases, green on `--dut exabgp` and ze, red on ze with an overlay: one refusal case (selector
+   no peer, flow no match, path-information, mask, operational twice; accept `a[-1] == 'error'`,
+   because the pin writes the bare marker for NoMatchingPeers) and one keep-first case (NEXT_HOP
+   1.1.1.1 on the wire for `next-hop 1.1.1.1 next-hop 2.2.2.2`; the /24 whole for `split /23`).
+   Template: `test/exabgp-compat/api/api-error-answer-v4.*`.
+5. Docs: keep-first, short split, mask, operational (OD-1) in `exabgp-bridge.md` and
+   `exabgp-differences.md`; spec "Phase 6 state" line; api population rerun.
+- Gates owed: `./le go lint run` on internal/exabgp/bridge; `./le test unit all`;
+  `./le test functional exabgp-test`.
+- Untouched: `internal/plugins/exabgp/bridgerun/version.go`, `rfc/discrimination/.rfc1997.json.tmp-*`,
+  the owner-pending `api-mpls-vpn` case files.

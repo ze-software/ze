@@ -317,20 +317,18 @@ func TestFamilyAllowedInOpenReachesNoSession(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			translation, err := TranslateLine(tc.line)
-			if err != nil {
-				t.Fatalf("TranslateLine(%q): %v", tc.line, err)
-			}
 			if tc.unmatched {
-				if !translation.Unmatched {
-					t.Fatalf("commands = %v, want the line to reach no session", translation.Commands)
+				// X-24: refused, as ExaBGP's NoMatchingPeers, and nothing sent.
+				if !errors.Is(err, errSelectorMatchesNoPeer) {
+					t.Fatalf("TranslateLine(%q) err = %v, want %v", tc.line, err, errSelectorMatchesNoPeer)
 				}
 				if len(translation.Commands) != 0 {
 					t.Errorf("an unmatched line carries commands: %v", translation.Commands)
 				}
 				return
 			}
-			if translation.Unmatched {
-				t.Fatalf("the line reached no session, want %q", tc.want)
+			if err != nil {
+				t.Fatalf("TranslateLine(%q): %v", tc.line, err)
 			}
 			if len(translation.Commands) != 1 {
 				t.Fatalf("commands = %v, want one", translation.Commands)
@@ -444,17 +442,14 @@ func TestThePeerKeywordNamesTheSameSessionsAsNeighbor(t *testing.T) {
 				}
 				return
 			}
-			if err != nil {
-				t.Fatalf("TranslateLine(%q): %v", tc.line, err)
-			}
 			if tc.unmatched {
-				if !translation.Unmatched {
-					t.Fatalf("commands = %v, want the line to reach no session", translation.Commands)
+				if !errors.Is(err, errSelectorMatchesNoPeer) {
+					t.Fatalf("TranslateLine(%q) err = %v, want %v", tc.line, err, errSelectorMatchesNoPeer)
 				}
 				return
 			}
-			if translation.Unmatched {
-				t.Fatalf("the line reached no session, want selector %q", tc.selector)
+			if err != nil {
+				t.Fatalf("TranslateLine(%q): %v", tc.line, err)
 			}
 			if translation.Selector != tc.selector {
 				t.Errorf("selector = %q, want %q", translation.Selector, tc.selector)

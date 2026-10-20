@@ -14,6 +14,7 @@
 package bridge
 
 import (
+	"log/slog"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -127,6 +128,12 @@ type routeAttributes struct {
 	// Split is the prefix length ExaBGP's `split /<n>` cuts the route into, or
 	// zero when the line carries none.
 	Split int
+	// Warnings are what the line asked for and does not get, one sentence
+	// each: a repeated attribute after its first, a `split` shorter than the
+	// prefix. ExaBGP's API keeps 5.0's leniency for both and logs it (X-26,
+	// X-27); a configuration file refuses them, which is not the bridge's to
+	// judge. warnRouteLine logs them.
+	Warnings []string
 	// written records each ze keyword the line carried, so a caller can ask
 	// what was present without re-reading the token stream it produced.
 	written map[string]bool
@@ -183,7 +190,8 @@ func parseRouteAttributes(parts []string) (routeAttributes, error) {
 
 		value, next, err := takeAttrValue(attr.Arity, parts, i+1)
 		if err != nil {
-			return routeAttributes{}, fmt.Errorf("%s: %w", key, err)
+			return routeAttributes{}, fmt.Errorf("%w: %s %w; write %s %s",
+				ErrLineNotTranslated, key, err, key, attrValueName(key))
 		}
 		i = next
 
@@ -219,6 +227,15 @@ func parseRouteAttributes(parts []string) (routeAttributes, error) {
 			value = converted
 		}
 
+		// A repeated attribute keeps its first value: the RIB holds one
+		// attribute of each kind, and ExaBGP's API keeps the one it read
+		// first and logs the one it dropped (X-26, X-27). Forwarding both
+		// would let ze's parser pick, and it does not pick the first.
+		if out.written[attr.Ze] {
+			out.Warnings = append(out.Warnings, "the line repeats "+key+
+				", the first is kept and "+strings.TrimSpace(key+" "+value)+" is dropped")
+			continue
+		}
 		out.written[attr.Ze] = true
 		out.Tokens = append(out.Tokens, attr.Ze)
 		if attr.Arity != arityFlag {
@@ -226,6 +243,14 @@ func parseRouteAttributes(parts []string) (routeAttributes, error) {
 		}
 	}
 	return out, nil
+}
+
+// warnRouteLine logs each warning a route line's attributes carry, once, when
+// the line becomes ze commands.
+func warnRouteLine(attrs routeAttributes) {
+	for _, warning := range attrs.Warnings {
+		slog.Warn("exabgp-bridge route line", "warning", warning)
+	}
 }
 
 // pathIDNumber answers an ADD-PATH path identifier as the decimal ze reads.
@@ -327,8 +352,19 @@ func takeAttrValue(arity bridgeAttrArity, parts []string, start int) (string, in
 	}
 }
 
+// attrValueName names what an attribute's value is, for a refusal that tells
+// the operator what to write after the keyword.
+func attrValueName(key string) string {
+	if key == bridgeAttrPathInformation {
+		// RFC 7911 Section 3: the Path Identifier, which ExaBGP reads as a
+		// number or as an IPv4 address (pathIDNumber).
+		return "<path identifier, a number or an IPv4 address>"
+	}
+	return "<value>"
+}
+
 var (
-	errMissingAttrValue = errors.New("missing value")
+	errMissingAttrValue = errors.New("is written with no value")
 	errUnclosedGroup    = errors.New("unclosed group")
 )
 

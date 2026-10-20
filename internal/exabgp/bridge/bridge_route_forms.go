@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
@@ -175,7 +176,11 @@ func convertAttributesForm(selector, rest, verb string) ([]Command, bool, error)
 	// naming them all. Whether they share an UPDATE on the wire is the
 	// destination peer's `behavior { group-updates }` leaf, not the bridge's.
 	family := familyForAttributes(attrs, prefixes[0])
-	prefixes = defaultPrefixLengths(family, prefixes)
+	prefixes, err = defaultPrefixLengths(family, prefixes)
+	if err != nil {
+		return nil, true, err
+	}
+	warnRouteLine(attrs)
 	return oneCommandPerNLRI(selector, family, verb, attrs, prefixes, false), true, nil
 }
 
@@ -227,14 +232,17 @@ var bridgePrefixSAFI = map[string]bool{
 // It is called at the two points a token run becomes NLRI: buildRouteCommand,
 // before `split /<n>` cuts a prefix that must already be one, and
 // convertAttributesForm, whose `nlri` section names the prefixes itself.
-func defaultPrefixLengths(family string, tokens []string) []string {
+func defaultPrefixLengths(family string, tokens []string) ([]string, error) {
 	_, safi, ok := strings.Cut(family, "/")
 	if !ok || !bridgePrefixSAFI[safi] {
-		return tokens
+		return tokens, nil
 	}
 
 	var completed []string
 	for i, token := range tokens {
+		if err := refuseMaskNotNumber(token); err != nil {
+			return nil, err
+		}
 		address, err := netip.ParseAddr(token)
 		if err != nil {
 			continue
@@ -246,9 +254,31 @@ func defaultPrefixLengths(family string, tokens []string) []string {
 		completed[i] = netip.PrefixFrom(address, address.BitLen()).String()
 	}
 	if completed == nil {
-		return tokens
+		return tokens, nil
 	}
-	return completed
+	return completed, nil
+}
+
+// errMaskNotNumber is what a prefix whose mask is no number answers.
+var errMaskNotNumber = errors.New("the mask of a prefix is no number")
+
+// refuseMaskNotNumber refuses a prefix written with a mask that is no number,
+// `10.0.0.0/x`. ExaBGP 5.0 took it as the host route 10.0.0.0/32; 6.0 refuses
+// it in the configuration and on the API (X-29), so the bridge refuses it in
+// ExaBGP's terms rather than handing ze a token whose refusal names no mask.
+func refuseMaskNotNumber(token string) error {
+	address, mask, ok := strings.Cut(token, "/")
+	if !ok {
+		return nil
+	}
+	if _, err := netip.ParseAddr(address); err != nil {
+		return nil
+	}
+	if _, err := strconv.ParseUint(mask, 10, 8); err == nil {
+		return nil
+	}
+	return fmt.Errorf("%w: %w: %q has the mask %q; write the prefix length as a number, %s/<length>",
+		ErrLineNotTranslated, errMaskNotNumber, token, mask, address)
 }
 
 // splitPrefix cuts one prefix into every subnet of the given length, which is
@@ -256,20 +286,27 @@ func defaultPrefixLengths(family string, tokens []string) []string {
 //
 // ExaBGP announces the pieces rather than the whole: `announce route
 // 1.0.0.0/21 ... split /23` puts four /23 routes on the wire and no /21. A
-// length shorter than the prefix's own cannot cut it, and a length that would
-// produce more than splitLimit pieces is refused rather than expanded, because
-// `split /32` on a /8 is 16 million NLRIs in one command.
-func splitPrefix(prefix string, length int) ([]string, error) {
+// length shorter than the prefix's own cuts nothing: ExaBGP's API sends the
+// prefix itself and logs it, as 4.2 and 5.0 did (`split`,
+// configuration/grammar/tree/static.py, X-27), so whole is set and the one
+// piece is the prefix. A length longer than an address, or one that would
+// produce more than splitLimit pieces, is refused rather than expanded,
+// because `split /32` on a /8 is 16 million NLRIs in one command.
+func splitPrefix(prefix string, length int) (pieces []string, whole bool, err error) {
 	parsed, err := netip.ParsePrefix(prefix)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %q", errSplitLength, prefix)
+		return nil, false, fmt.Errorf("%w: %q", errSplitLength, prefix)
+	}
+	if length < parsed.Bits() {
+		return []string{prefix}, true, nil
 	}
 	bits := parsed.Addr().BitLen()
-	if length < parsed.Bits() || length > bits {
-		return nil, fmt.Errorf("%w: /%d does not cut %s", errSplitLength, length, prefix)
+	if length > bits {
+		return nil, false, fmt.Errorf("%w: /%d is longer than an address of %s; write a length up to /%d",
+			errSplitLength, length, prefix, bits)
 	}
 	if length-parsed.Bits() > splitLimitBits {
-		return nil, fmt.Errorf("%w: /%d cuts %s into more than %d pieces",
+		return nil, false, fmt.Errorf("%w: /%d cuts %s into more than %d pieces",
 			errSplitLength, length, prefix, 1<<splitLimitBits)
 	}
 
@@ -280,7 +317,7 @@ func splitPrefix(prefix string, length int) ([]string, error) {
 		out = append(out, netip.PrefixFrom(addr, length).String())
 		addr = nextPrefixAddr(addr, length)
 	}
-	return out, nil
+	return out, false, nil
 }
 
 // splitLimitBits bounds a split to 2^10 pieces. ExaBGP has no such bound, and

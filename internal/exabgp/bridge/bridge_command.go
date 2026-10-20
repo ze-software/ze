@@ -7,6 +7,7 @@ package bridge
 
 import (
 	"errors"
+	"net/netip"
 	"fmt"
 	"strings"
 
@@ -92,12 +93,6 @@ type Translation struct {
 	// then, and a caller MUST read this before it reads Nothing: a local action
 	// carries no command and is not an empty line.
 	Local LocalAction
-	// Unmatched says the line named a destination no ze session can be, so it
-	// reaches nothing. Commands is empty, and a caller MUST read this before it
-	// reads Nothing for the reason Local gives: the script is blocked on an
-	// answer, and ExaBGP acknowledges a command whose selector matched no
-	// session rather than leaving the script waiting.
-	Unmatched bool
 	// APIVersion is the `api version` line when Local is LocalAPIVersion. The
 	// answer depends on the script's version and the fleet's setting, which the
 	// runner holds, so the runner performs it (APIVersionRequest.Answer).
@@ -281,6 +276,45 @@ type Translator struct {
 	Peers []string
 }
 
+// errSelectorMatchesNoPeer refuses a line whose selector names no peer this
+// script feeds: every address it named is outside Translator.Peers, or carried
+// a qualifier no ze session can satisfy (splitNeighborSelector).
+var errSelectorMatchesNoPeer = errors.New("the selector matches no peer")
+
+// servedSelector narrows a selector of addresses to the peers this script
+// feeds, as ExaBGP matches a selector against Reactor.peers(service) only
+// (match_neighbors, reactor/api/command/limit.py). unmatched is set when none
+// is left. A translator serving every peer, and the `*` selector, pass whole:
+// ze's own dispatcher refuses an address it holds no peer for
+// (route.ErrNoPeersMatch).
+func (t Translator) servedSelector(selector string) (narrowed string, unmatched bool) {
+	if len(t.Peers) == 0 || selector == bridgeEveryPeer || selector == t.everyPeer() {
+		return selector, false
+	}
+	served := make(map[netip.Addr]bool, len(t.Peers))
+	for _, peer := range t.Peers {
+		if address, err := netip.ParseAddr(peer); err == nil {
+			served[address] = true
+		}
+	}
+	var kept []string
+	for named := range strings.SplitSeq(selector, ",") {
+		address, err := netip.ParseAddr(named)
+		if err != nil {
+			// Not an address: ze's dispatcher reads it and answers for it.
+			kept = append(kept, named)
+			continue
+		}
+		if served[address] {
+			kept = append(kept, named)
+		}
+	}
+	if len(kept) == 0 {
+		return "", true
+	}
+	return selectorForAddresses(kept), false
+}
+
 // everyPeer answers the selector for a line that names no neighbor: the peers
 // this script serves, or the wildcard when it serves them all.
 func (t Translator) everyPeer() string {
@@ -313,8 +347,15 @@ func (t Translator) Line(line string) (Translation, error) {
 	// as the script wrote it.
 	collapsed := v4ControlSpelling(strings.Join(strings.Fields(line), " "))
 	selector, rest, unmatched := splitNeighborSelector(collapsed, t.everyPeer())
+	if !unmatched {
+		selector, unmatched = t.servedSelector(selector)
+	}
 	if unmatched {
-		return Translation{Unmatched: true}, nil
+		// X-24: ExaBGP's dispatcher refuses a selector that matches no peer
+		// (NoMatchingPeers, reactor/api/dispatch/common.py) and answers the
+		// error marker; it sends nothing.
+		return Translation{}, fmt.Errorf("%w: %q; name a peer this process feeds, or write no selector",
+			errSelectorMatchesNoPeer, line)
 	}
 
 	if translation, ok := convertControl(selector, rest); ok {
@@ -331,6 +372,9 @@ func (t Translator) Line(line string) (Translation, error) {
 			return Translation{}, fmt.Errorf("%w: %q", err, line)
 		}
 		return translation, nil
+	}
+	if refused, err := convertOperational(rest); refused {
+		return Translation{}, err
 	}
 	if commands, translated, err := t.convertRoute(selector, rest); translated {
 		if err != nil {
@@ -485,7 +529,10 @@ func (t Translator) convertRoute(selector, rest string) ([]Command, bool, error)
 func buildRouteCommand(selector, family, verb, body string) ([]Command, error) {
 	nlriTokens, attrTokens := splitRouteBodyForFamily(family, strings.Fields(strings.TrimSpace(body)))
 	nlriTokens = shapePluginNLRI(family, nlriTokens)
-	nlriTokens = defaultPrefixLengths(family, nlriTokens)
+	nlriTokens, err := defaultPrefixLengths(family, nlriTokens)
+	if err != nil {
+		return nil, err
+	}
 	attrs, err := parseRouteAttributes(attrTokens)
 	if err != nil {
 		return nil, err
@@ -501,12 +548,19 @@ func buildRouteCommand(selector, family, verb, body string) ([]Command, error) {
 		if len(nlriTokens) != 1 {
 			return nil, fmt.Errorf("%w: split needs exactly one prefix", errSplitLength)
 		}
-		pieces, err := splitPrefix(nlriTokens[0], attrs.Split)
+		pieces, whole, err := splitPrefix(nlriTokens[0], attrs.Split)
 		if err != nil {
 			return nil, err
 		}
+		if whole {
+			var tb textbuf.Buffer
+			tb.Str("split /").Int(int64(attrs.Split)).Str(" is shorter than the prefix ").
+				Str(nlriTokens[0]).Str(", so the prefix is sent whole")
+			attrs.Warnings = append(attrs.Warnings, tb.String())
+		}
 		nlriTokens = pieces
 	}
+	warnRouteLine(attrs)
 
 	return oneCommandPerNLRI(selector, family, verb, attrs, nlriTokens, false), nil
 }

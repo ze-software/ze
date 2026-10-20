@@ -281,14 +281,14 @@ func isNotRoute(k RouteKey) bool { return !k.Route() }
 
 // dispatchable reports whether this line carries commands for ze's dispatcher.
 //
-// A refused line, a line the bridge answers itself, and a line whose selector
-// names no session each carry none. They are still ANSWERED, in write order, by
+// A refused line (a selector that names no session among them) and a line the
+// bridge answers itself each carry none. They are still ANSWERED, in write order, by
 // the runner's own second pass.
 func (l BatchLine) dispatchable() bool {
 	if l.Err != nil {
 		return false
 	}
-	if l.Translation.Local != LocalNone || l.Translation.Unmatched {
+	if l.Translation.Local != LocalNone {
 		return false
 	}
 	return !l.Translation.Nothing()
@@ -337,7 +337,7 @@ func AnswerBatch(w io.Writer, ack *AckMode, lines []BatchLine, answers []BatchAn
 				continue
 			}
 			ack.AnswerLocal(w, lines[i].Translation.Local)
-		case !lines[i].Translation.Unmatched && lines[i].Translation.Nothing():
+		case lines[i].Translation.Nothing():
 			// A blank line and a comment carry no command and owe no answer.
 		case answers[i].Failed:
 			ack.WriteError(w, lines[i].Version, answers[i].Error)
