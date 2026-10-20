@@ -636,8 +636,8 @@
       "claim-sha": "6edad218cb240964",
       "route": "mutant",
       "producer": "internal/component/ike/engine/ts_narrow.go::answerSelectors",
-      "producer-sha": "7b9198503716daa9",
-      "break": "line 812: \"ipsec.PortSelectorFromWire(ts.StartPort, ts.EndPort)\" -\u003e \"ipsec.PortSelectorFromWire(ts.StartPort, ts.StartPort)\""
+      "producer-sha": "f05bd3544caa0cfb",
+      "break": "line 834: \"ipsec.PortSelectorFromWire(ts.StartPort, ts.EndPort)\" -\u003e \"ipsec.PortSelectorFromWire(ts.StartPort, ts.StartPort)\""
     },
     {
       "rid": "RFC4301-4.4.2-2",
@@ -669,8 +669,8 @@
       "claim-sha": "7e1f82152a3c7e91",
       "route": "mutant",
       "producer": "internal/component/ike/engine/ts_narrow.go::recordInitiatorSelectors",
-      "producer-sha": "d2174f52ae99917c",
-      "break": "line 757: \"sa.UseTransportMode \u0026\u0026 len(pairs) \u003e 1\" -\u003e \"false\""
+      "producer-sha": "856e7cab6820dd68",
+      "break": "line 781: \"sa.UseTransportMode \u0026\u0026 len(pairs) \u003e 1\" -\u003e \"false\""
     },
     {
       "rid": "RFC4301-4.4.2-2",
@@ -746,7 +746,7 @@
       "claim-sha": "baea35d924574dae",
       "route": "revert",
       "producer": "internal/component/ike/engine/established.go::maintainSA",
-      "producer-sha": "2d8be0f7cc3191e2",
+      "producer-sha": "6310495816039b0b",
       "break": "body of maintainSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -757,7 +757,7 @@
       "claim-sha": "d3cb23c414038883",
       "route": "revert",
       "producer": "internal/component/ike/engine/established.go::maintainSA",
-      "producer-sha": "2d8be0f7cc3191e2",
+      "producer-sha": "6310495816039b0b",
       "break": "body of maintainSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

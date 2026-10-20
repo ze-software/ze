@@ -21,6 +21,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -725,8 +726,8 @@
         "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationNoMatch": "a6de5fb37ffc1f6e",
         "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried": "c6cc102fdb5f482d",
         "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried#2": "c6cc102fdb5f482d",
-        "internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered": "d08d72f3d376e3b7",
-        "internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused": "d08d72f3d376e3b7"
+        "internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered": "a3242748274775e5",
+        "internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused": "a3242748274775e5"
       },
       "units": {
         "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationFirstMatch": "eb95e994924bfa94",
@@ -1045,8 +1046,8 @@
       "note": "selectorsToWire encodes protocol-0 all-ports Start Port 0; single-port selector proves the encoder can emit non-zero",
       "requirement_sha": "f9a6633b996ca03e",
       "tests": {
-        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "7ec56b7d86f07a26",
-        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "7ec56b7d86f07a26"
+        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "f8202c6c1c2c2a71",
+        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "f8202c6c1c2c2a71"
       },
       "units": {
         "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "9aebd2917a3a0115",
@@ -1058,8 +1059,8 @@
       "note": "all-ports End Port 65535; single-port 443 discriminator",
       "requirement_sha": "95053d78048c3563",
       "tests": {
-        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "7ec56b7d86f07a26",
-        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "7ec56b7d86f07a26"
+        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "f8202c6c1c2c2a71",
+        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "f8202c6c1c2c2a71"
       },
       "units": {
         "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "9aebd2917a3a0115",
@@ -1071,8 +1072,8 @@
       "note": "PortOpaque encodes 65535/0 and ANY is not emitted in that form",
       "requirement_sha": "6de0d80d4f1433e8",
       "tests": {
-        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "7ec56b7d86f07a26",
-        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "7ec56b7d86f07a26"
+        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "f8202c6c1c2c2a71",
+        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "f8202c6c1c2c2a71"
       },
       "units": {
         "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "9aebd2917a3a0115",
