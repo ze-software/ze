@@ -18,5 +18,5 @@ states it, and committed then (`ai/rules/rule-precedence.md`).
 | M5 | 2026-08-14 | The goal behind all work is shipping Ze in production as a NOS. A change to the shipped binary outranks tooling, and "recorded" never counts as closed | Restated 2026-08-08, 08-09 and 08-14 | this row |
 | M6 | 2026-09-08 | Before a protocol design is approved, read FRR's and BIRD's source and quote the deciding function | Asks how FRR and BIRD do it before approving a protocol design | this row |
 | M7 | 2026-09-26 | Sessions share the one `main` checkout. No worktree per session: fix shared-checkout friction inside that model | Declined after the AI-setup review | this row |
-| M8 | 2026-10-15 | Close in-progress specs before opening new ones. The WIP cap (`ZE_SPEC_WIP_CAP`) stays at 22 and is lowered as specs close, never raised | "let's try to close from now on" | this row |
+| M8 | 2026-10-15 | Close in-progress specs before opening new ones. The WIP cap (`ZE_SPEC_WIP_CAP`, printed by `./le spec wip`) is lowered as specs close, never raised; 2026-10-21: "close some to reduce the number in progress" | "let's try to close from now on" | this row |
 | M9 | 2026-10-17 | A handover lives in the repository (`plan/handover/`), committed the turn it is written, never only in a session directory | "handover must NEVER be in the session" | `.claude/rules/handover-in-repo.md` |
