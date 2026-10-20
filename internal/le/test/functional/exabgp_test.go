@@ -54,9 +54,10 @@ func TestRunExaBGPMatchesMakeProducer(t *testing.T) {
 		t.Fatalf("exit = %d report code = %d error = %q", code, report.Code, report.Error)
 	}
 	// Two builds, then for each pin its version probe and one subject per
-	// predecessor population. Each subject names its suite, because
+	// predecessor population, then the populations copied from ExaBGP's 4.2
+	// and 5.0 branches once. Each subject names its suite, because
 	// `le test exabgp` alone runs encoding and nothing else.
-	wantCommands := 2 + len(exaBGPPins)*(1+len(exaBGPSuites))
+	wantCommands := 2 + len(exaBGPPins)*(1+len(exaBGPSuites)) + len(exaBGPOldSuites)
 	if len(recorder.commands) != wantCommands {
 		t.Fatalf("commands = %d, want %d", len(recorder.commands), wantCommands)
 	}
@@ -414,7 +415,7 @@ func TestExaBGPReportTextSaysSomethingWhenEveryChildPassed(t *testing.T) {
 	}
 	want := "functional/exabgp-test: pin 5.0.13 ran ExaBGP 5.0.13\n" +
 		"functional/exabgp-test: pin main ran ExaBGP main\n" +
-		"functional/exabgp-test: 8 children passed\n"
+		"functional/exabgp-test: 10 children passed\n"
 	if report.Text() != want {
 		t.Errorf("text = %q, want %q", report.Text(), want)
 	}
@@ -471,6 +472,37 @@ func TestExaBGPMainPinCommands(t *testing.T) {
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("report text %q does not carry %q", text, want)
+		}
+	}
+}
+
+// TestExaBGPStageRunsTheOldPopulationsOnce checks old-4.2 and old-5.0 run
+// once per stage, under the main pin's uv environment with the named Python,
+// rather than once per pin: their helpers import no ExaBGP, so a second run
+// under 5.0.13 would drive the same code twice.
+func TestExaBGPStageRunsTheOldPopulationsOnce(t *testing.T) {
+	root := exaBGPFixture(t)
+	recorder := &exaBGPRecorder{}
+	report, code := runExaBGP(t.Context(), root, recorder)
+	if code != 0 {
+		t.Fatalf("exit = %d error = %q", code, report.Error)
+	}
+	for _, suite := range []string{"old-4.2", "old-5.0"} {
+		var stages []string
+		for _, command := range recorder.commands {
+			if argumentAfter(command.Arguments, "exabgp") != suite {
+				continue
+			}
+			stages = append(stages, command.Stage)
+			if command.Stage != "exabgp-main-"+suite {
+				t.Fatalf("%s ran as stage %q, want exabgp-main-%s", suite, command.Stage, suite)
+			}
+			if got := argumentAfter(command.Arguments, "--python"); got != exaBGPPython {
+				t.Fatalf("%s --python = %q, want %q", command.Stage, got, exaBGPPython)
+			}
+		}
+		if len(stages) != 1 {
+			t.Fatalf("%s ran as stages %v, want exactly one", suite, stages)
 		}
 	}
 }

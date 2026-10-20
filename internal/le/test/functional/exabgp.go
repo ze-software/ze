@@ -96,6 +96,14 @@ var exaBGPPins = [...]exaBGPPin{
 // came to sit in the tree with no runner.
 var exaBGPSuites = [...]string{"encoding", "api"}
 
+// exaBGPOldSuites are the populations copied from ExaBGP's 4.2 and 5.0
+// branches (qa/old/<branch> at the main pin's commit). They run once per
+// stage, under the last pin's uv environment for its named Python, rather than
+// once per pin: ze is the daemon, their helpers import no ExaBGP (only the
+// exabgp_api.py beside them), so a run under each pin would drive the same code
+// twice.
+var exaBGPOldSuites = [...]string{"old-4.2", "old-5.0"}
+
 // exaBGPVersionProbe prints the version of the distribution a pin resolved,
 // so the report names what ran rather than what was asked for.
 const exaBGPVersionProbe = "from exabgp.version import version; print(version)"
@@ -455,6 +463,18 @@ func exaBGPCommands(
 				ReportEnvironment: runReportEnvironment,
 			})
 		}
+	}
+	oldPin := exaBGPPins[len(exaBGPPins)-1]
+	for _, suite := range exaBGPOldSuites {
+		commands = append(commands, exaBGPCommand{
+			Stage: tb.Reset().Str("exabgp-").Str(oldPin.Name).Byte('-').Str(suite).String(),
+			Pin:   oldPin.Name,
+			Arguments: exaBGPUVRun(oldPin, set.lePath(),
+				leTestWord, "exabgp", suite, "--all", "--timeout", timeout),
+			Directory:         toolchain.Root,
+			Environment:       runEnvironment,
+			ReportEnvironment: runReportEnvironment,
+		})
 	}
 	return commands, nil
 }
