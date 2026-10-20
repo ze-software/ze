@@ -112,17 +112,18 @@ func TestStandaloneRunnerHeldToDetectedVersion(t *testing.T) {
 	b.pluginToZebgp(ctx, strings.NewReader("peer * announce route 2.2.2.2/32 next-hop 22.22.22.22\napi version\n"),
 		&answers, zeOut, newPendingResponses())
 	got := strings.Split(strings.TrimSpace(answers.String()), "\n")
-	if len(got) != 4 {
-		t.Fatalf("answers = %q, want four lines", got)
+	if len(got) != 5 {
+		t.Fatalf("answers = %q, want five lines", got)
 	}
 	if got[0] != "done" {
 		t.Errorf("answer to the v4 announce = %q, want done", got[0])
 	}
-	if !strings.HasPrefix(got[1], "error") {
-		t.Errorf("answer to the v6 announce from a v4 helper = %q, want error", got[1])
+	// X-13, X-14: the reason in the API 4 form, then the marker.
+	if !strings.HasPrefix(got[1], "error: ") || got[2] != "error" {
+		t.Errorf("answer to the v6 announce from a v4 helper = %q, %q, want error: <why> then error", got[1], got[2])
 	}
-	if got[2] != "API version: auto (this helper: 4)" || got[3] != "done" {
-		t.Errorf("answer to api version = %q, %q", got[2], got[3])
+	if got[3] != "API version: auto (this helper: 4)" || got[4] != "done" {
+		t.Errorf("answer to api version = %q, %q", got[3], got[4])
 	}
 	if strings.Contains(zeBuf.String(), "2.2.2.2/32") {
 		t.Errorf("the refused v6 line reached the engine: %q", zeBuf.String())

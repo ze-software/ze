@@ -10,6 +10,7 @@
 package bridge
 
 import (
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -41,10 +42,16 @@ func (r *writeReader) Read(p []byte) (int, error) {
 func batchOf(t *testing.T, lines ...string) []BatchLine {
 	t.Helper()
 	batch := make([]BatchLine, 0, len(lines))
+	// The version moves as ScriptVersion.Detect moves it for a fresh script:
+	// the first deciding line holds the rest.
+	version := APIVersionAuto
 	for _, line := range lines {
+		if version == APIVersionAuto {
+			version = CommandAPIVersion(line)
+		}
 		translation, err := Translator{Families: []string{"ipv4/unicast"}}.Line(line)
 		require.NoError(t, err, line)
-		batch = append(batch, BatchLine{Text: line, Translation: translation})
+		batch = append(batch, BatchLine{Text: line, Version: version, Translation: translation})
 	}
 	return batch
 }
@@ -309,7 +316,7 @@ func TestBridgeBatchDispatchOrderAndAcks(t *testing.T) {
 	ack := NewAckMode()
 	AnswerBatch(&written, &ack, batch, answers)
 
-	assert.Equal(t, "done\nerror no peers match selector\ndone\n", written.String())
+	assert.Equal(t, "done\nerror: no peers match selector\nerror\ndone\n", written.String())
 }
 
 // TestBridgeBatchAckControlAppliesInWriteOrder pins the second reason the
@@ -378,4 +385,34 @@ func TestBridgeBatchWithdrawsEachRouteOnce(t *testing.T) {
 	require.Len(t, netted, 2, "both routes are withdrawn")
 	assert.Contains(t, netted[0].Command.Text, "del 1.1.0.0/24")
 	assert.Contains(t, netted[1].Command.Text, "del 2.2.0.0/24")
+}
+
+// TestAnswerBatchRefusalInTheLineVersion pins where AnswerBatch takes the form
+// of a refusal's reason (X-13, X-14): from the version the script was held to
+// when it wrote THAT line.
+//
+// VALIDATES: an unknown command (ErrUnknownCommand) and a line the translator
+// refused are both answered with the reason then `error`; an undecided line
+// keeps the text form even when a later line of the same batch holds the
+// script to API 6, because ExaBGP answers each line before it reads the next.
+// PREVENTS: a translator refusal answered with nothing, which left a script
+// blocked for an answer ExaBGP gives ("Could not parse route").
+func TestAnswerBatchRefusalInTheLineVersion(t *testing.T) {
+	unknown := errors.Join(ErrUnknownCommand, errors.New("v4 command from an API 6 helper"))
+	unread := errors.New("cannot read route")
+	lines := []BatchLine{
+		{Text: "bogus", Version: APIVersionAuto, Err: unread},
+		{Text: "announce route 1.1.1.1/32 next-hop 2.2.2.2", Version: APIV6, Err: unknown},
+		{Text: "peer * bogus", Version: APIV6, Err: unread},
+	}
+	answers := make([]BatchAnswer, len(lines))
+
+	var written strings.Builder
+	ack := NewAckMode()
+	AnswerBatch(&written, &ack, lines, answers)
+
+	want := "error: cannot read route\nerror\n" +
+		"{\"error\": \"unknown command v4 command from an API 6 helper\"}\nerror\n" +
+		"{\"error\": \"cannot read route\"}\nerror\n"
+	assert.Equal(t, want, written.String())
 }

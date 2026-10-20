@@ -674,7 +674,8 @@ func (b *Bridge) translateAndForward(eventStr string, pluginW io.Writer) {
 // wrote in two separate writes (bridge_batch.go).
 //
 // When exabgp.api.ack is enabled (the default), each line is answered with
-// `done\n` or `error <msg>\n` after the batch's flush.
+// `done\n`, or its reason and `error\n` (AckMode.WriteError), after the batch's
+// flush.
 func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, pluginW io.Writer, zeOut *syncWriter, pending *pendingResponses) {
 	batches := make(chan []string, BatchQueueDepth)
 
@@ -739,9 +740,10 @@ func (b *Bridge) dispatchBatch(ctx context.Context, lines []string, pluginW io.W
 		// The version is settled BEFORE the line is translated, and the line
 		// is then held to it, as ExaBGP's API.process calls
 		// detect_api_version and then dispatch_for.
-		if err := b.api.Detect(line).Admits(line); err != nil {
+		version := b.api.Detect(line)
+		if err := version.Admits(line); err != nil {
 			slog.Warn("plugin->zebgp: line refused", "error", err)
-			batch = append(batch, BatchLine{Text: line, Err: err})
+			batch = append(batch, BatchLine{Text: line, Version: version, Err: err})
 			continue
 		}
 		translation, err := Translator{Families: b.Families}.Line(line)
@@ -751,7 +753,7 @@ func (b *Bridge) dispatchBatch(ctx context.Context, lines []string, pluginW io.W
 			// unknown command with no mention of the bridge that sent it.
 			slog.Warn("plugin->zebgp: line refused", "error", err)
 		}
-		batched := BatchLine{Text: line, Translation: translation, Err: err}
+		batched := BatchLine{Text: line, Version: version, Translation: translation, Err: err}
 		if translation.Local == LocalAPIVersion {
 			batched.Reply, answers[len(batch)].Failed = b.api.Answer(translation.APIVersion)
 		}

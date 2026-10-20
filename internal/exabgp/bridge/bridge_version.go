@@ -5,10 +5,10 @@
 package bridge
 
 import (
-	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
+	"unicode/utf16"
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -345,12 +345,47 @@ func (r APIVersionRequest) Answer(helper APIVersion, setting *APIVersion) ([]byt
 	return tb.Bytes(), false
 }
 
-// jsonString quotes s as a JSON string. The value can carry a word the helper
-// wrote, so it is marshalled rather than concatenated.
+// jsonString quotes s as Python's json.dumps quotes a str, which is what writes
+// every JSON answer the bridge copies: with ensure_ascii, its default, a
+// character above 0x7F is a lowercase `\uXXXX` escape (a surrogate pair past
+// 0xFFFF), and `<`, `>` and `&` stay as they are, where encoding/json escapes
+// the three and writes UTF-8. The value can carry a word the helper wrote, so
+// it is escaped rather than concatenated, and bounded as every answer is.
 func jsonString(s string) string {
-	quoted, err := json.Marshal(sanitizeErrorMessage(s))
-	if err != nil {
-		panic("BUG: a Go string always marshals: " + err.Error())
+	const hex = "0123456789abcdef"
+	var tb textbuf.Buffer
+	escape := func(unit rune) {
+		tb.Str(`\u`).Byte(hex[unit>>12&0xF]).Byte(hex[unit>>8&0xF]).Byte(hex[unit>>4&0xF]).Byte(hex[unit&0xF])
 	}
-	return string(quoted)
+	tb.Byte('"')
+	for _, r := range sanitizeErrorMessage(s) {
+		switch {
+		case r == '"':
+			tb.Str(`\"`)
+		case r == '\\':
+			tb.Str(`\\`)
+		case r == '\n':
+			tb.Str(`\n`)
+		case r == '\r':
+			tb.Str(`\r`)
+		case r == '\t':
+			tb.Str(`\t`)
+		case r == '\b':
+			tb.Str(`\b`)
+		case r == '\f':
+			tb.Str(`\f`)
+		case r < 0x20:
+			escape(r)
+		case r < 0x80:
+			tb.Byte(byte(r))
+		case r > 0xFFFF:
+			high, low := utf16.EncodeRune(r)
+			escape(high)
+			escape(low)
+		default:
+			escape(r)
+		}
+	}
+	tb.Byte('"')
+	return tb.String()
 }

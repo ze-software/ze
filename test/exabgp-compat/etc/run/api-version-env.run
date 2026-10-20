@@ -22,9 +22,9 @@ def answer() -> list[str]:
             sys.exit(1)
         line = line.strip()
         lines.append(line)
-        # `error: <why>` is a detail line before the marker; ze still writes
-        # its refusal as one `error <why>` line, which ends the answer too.
-        if line in ('done', 'error') or line.startswith('error '):
+        # `error: <why>` is a detail line before the marker, so only the
+        # marker ends the answer.
+        if line in ('done', 'error'):
             return lines
 
 

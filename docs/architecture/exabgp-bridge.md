@@ -148,7 +148,7 @@ both 'neighbor' (v4) and 'peer' (v6) prefixes", `extract_neighbors`,
 `src/exabgp/reactor/api/command/limit.py`), and the bridge reads both. One
 script is held to one of them: its first `neighbor` line holds it to API 4 and its
 first `peer` line to API 6, and from then on a line in the other spelling is
-answered `error` and reaches no peer ("`encoder` says which format a script
+answered with its reason and `error`, and reaches no peer ("`encoder` says which format a script
 reads" below).
 
 v6 also holds every address in ONE bracket rather than repeating the keyword
@@ -526,7 +526,19 @@ would silence the wrong lines. One line whose dispatch failed is answered
 `error` on its own and the rest of the batch keeps its answers, because a script
 blocked for an answer that never comes stops there.
 
-<!-- source: internal/exabgp/bridge/bridge_batch.go -- AnswerBatch, BatchSelectors -->
+A refused line, whether ze's dispatcher refused it, the translator could not
+read it, or the script's API version does not know it, is answered with its
+reason and then the `error` marker, as ExaBGP's `answer_error_sync` writes it:
+`{"error": "<why>"}` (quoted as Python's `json.dumps` quotes it) to a script
+held to API 6, `error: <why>` to an API 4 or undecided one. The form is the
+version the script was held to when it wrote that line (`BatchLine.Version`),
+because ExaBGP answers a line before it reads the next. With ack disabled
+neither line is written. ExaBGP writes the marker alone for an unknown command
+and a selector matching no peer; Ze gives the reason there too
+(`docs/exabgp/exabgp-differences.md`, "A refused line names its reason").
+
+<!-- source: internal/exabgp/bridge/bridge_batch.go -- AnswerBatch, BatchSelectors, BatchLine.Version -->
+<!-- source: internal/exabgp/bridge/bridge_ack.go -- AckMode.WriteError -->
 <!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.batch -->
 
 ## `encoder` says which format a script reads
@@ -550,8 +562,8 @@ lasts until the script exits: a respawned child starts from the setting again.
 | 4 | 5.x text | 5.x JSON, envelope `4.0.1` |
 | 6 | 6.0 JSON, and one warning that text is ignored | 6.0 JSON |
 
-A held script writing the other API's command is answered `error` and the line
-reaches no peer, as ExaBGP answers its `UnknownCommand`. `environment { exabgp {
+A held script writing the other API's command is answered with the reason and
+`error`, and the line reaches no peer, as ExaBGP answers its `UnknownCommand`. `environment { exabgp {
 api { version auto|4|6; } } }` is ExaBGP's `exabgp.api.version` (read under
 ExaBGP's spellings, `exabgp.api.version` before `exabgp_api_version`): auto detects per
 script, 4 or 6 holds every script from its start, and a value ExaBGP refuses

@@ -308,7 +308,7 @@ func (s *script) batch(ctx context.Context, d Dispatcher, lines []string) {
 		version := s.api.Detect(text)
 		if err := version.Admits(text); err != nil {
 			s.log.Warn("exabgp-bridge line refused", "script", s.name, "error", err)
-			batch = append(batch, bridge.BatchLine{Text: text, Err: err})
+			batch = append(batch, bridge.BatchLine{Text: text, Version: version, Err: err})
 			continue
 		}
 		translation, err := s.translator.Line(text)
@@ -318,7 +318,7 @@ func (s *script) batch(ctx context.Context, d Dispatcher, lines []string) {
 			// unknown command with no mention of the bridge.
 			s.log.Warn("exabgp-bridge line refused", "script", s.name, "error", err)
 		}
-		line := bridge.BatchLine{Text: text, Translation: translation, Err: err}
+		line := bridge.BatchLine{Text: text, Version: version, Translation: translation, Err: err}
 		if translation.Local == bridge.LocalAPIVersion {
 			line.Reply, answers[i].Failed = s.api.Answer(translation.APIVersion)
 		}

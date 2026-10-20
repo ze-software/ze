@@ -165,6 +165,12 @@ type BatchLine struct {
 	Translation Translation
 	// Err is the translator's refusal. Translation is zero when it is set.
 	Err error
+	// Version is the API version the script was held to once this line was
+	// read (ScriptVersion.Detect), set by the runner for every line it
+	// answers. A refusal's reason is written in its form (AckMode.WriteError):
+	// ExaBGP answers a line before it reads the next, so a later line of the
+	// same batch that decides the version does not move this one's answer.
+	Version APIVersion
 	// Reply is the line a local action answers before its done or error, set
 	// by the runner that performed the action (APIVersionRequest.Answer). It
 	// is written whatever the ack state, as ExaBGP writes it with
@@ -315,14 +321,15 @@ type BatchAnswer struct {
 func AnswerBatch(w io.Writer, ack *AckMode, lines []BatchLine, answers []BatchAnswer) {
 	for i := range lines {
 		switch {
-		case errors.Is(lines[i].Err, ErrUnknownCommand):
-			// A command the helper's API version does not know. ExaBGP
-			// answers its UnknownCommand `error` (API.process).
-			ack.WriteError(w, lines[i].Err.Error())
 		case lines[i].Err != nil:
-			// A line the translator refused never reached ze, and the bridge
-			// has already named it. ExaBGP answers nothing for a line its own
-			// parser refused, so neither does this.
+			// A line refused before ze saw it: a command the helper's API
+			// version does not know (ErrUnknownCommand), or one the
+			// translator could not read. ExaBGP answers the first with the
+			// marker alone (API.process) and the second with its parser's
+			// reason (announce_route's "Could not parse route"); Ze gives the
+			// reason to both, so the operator reads why
+			// (docs/exabgp/exabgp-differences.md).
+			ack.WriteError(w, lines[i].Version, lines[i].Err.Error())
 		case lines[i].Translation.Local != LocalNone:
 			writeReply(w, lines[i].Reply)
 			if answers[i].Failed {
@@ -333,7 +340,7 @@ func AnswerBatch(w io.Writer, ack *AckMode, lines []BatchLine, answers []BatchAn
 		case !lines[i].Translation.Unmatched && lines[i].Translation.Nothing():
 			// A blank line and a comment carry no command and owe no answer.
 		case answers[i].Failed:
-			ack.WriteError(w, answers[i].Error)
+			ack.WriteError(w, lines[i].Version, answers[i].Error)
 		default:
 			ack.WriteAck(w)
 		}

@@ -28,7 +28,7 @@ func TestScriptHeldToDetectedVersion(t *testing.T) {
 	events := filepath.Join(dir, "events")
 	script := writeScript(t, dir, "v4.sh", ""+
 		"echo 'announce route 1.1.1.1/32 next-hop 11.11.11.11'; read a; echo \"$a\" >> "+answers+"\n"+
-		"echo 'peer * announce route 2.2.2.2/32 next-hop 22.22.22.22'; read a; echo \"$a\" >> "+answers+"\n"+
+		"echo 'peer * announce route 2.2.2.2/32 next-hop 22.22.22.22'; read a; echo \"$a\" >> "+answers+"; read a; echo \"$a\" >> "+answers+"\n"+
 		"echo 'api version'; read a; echo \"$a\" >> "+answers+"; read a; echo \"$a\" >> "+answers+"\n"+
 		"cat > "+events+"\n")
 
@@ -42,16 +42,17 @@ func TestScriptHeldToDetectedVersion(t *testing.T) {
 	if err := fleet.Start(ctx, rec); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	waitFor(t, "the four answers", func() bool { return lines(t, answers) >= 4 })
+	waitFor(t, "the five answers", func() bool { return lines(t, answers) >= 5 })
 	got := strings.Split(strings.TrimSpace(readFile(t, answers)), "\n")
 	if got[0] != "done" {
 		t.Errorf("answer to the v4 announce = %q, want done", got[0])
 	}
-	if !strings.HasPrefix(got[1], "error") {
-		t.Errorf("answer to the v6 announce from a v4 helper = %q, want error", got[1])
+	// X-13, X-14: the reason in the API 4 form, then the marker.
+	if !strings.HasPrefix(got[1], "error: ") || got[2] != "error" {
+		t.Errorf("answer to the v6 announce from a v4 helper = %q, %q, want error: <why> then error", got[1], got[2])
 	}
-	if got[2] != "API version: auto (this helper: 4)" || got[3] != "done" {
-		t.Errorf("answer to api version = %q, %q", got[2], got[3])
+	if got[3] != "API version: auto (this helper: 4)" || got[4] != "done" {
+		t.Errorf("answer to api version = %q, %q", got[3], got[4])
 	}
 	for _, command := range rec.seen() {
 		if strings.Contains(command, "2.2.2.2/32") {

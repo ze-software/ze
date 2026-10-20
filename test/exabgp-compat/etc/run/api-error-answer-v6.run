@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""X-13, AC-15: a refused line from an API 6 helper is answered with the reason as
+json.dumps({'error': <why>}), then the `error` marker."""
+
+import json
+import sys
+import time
+
+
+def send(command: str) -> None:
+    sys.stdout.write(command + '\n')
+    sys.stdout.flush()
+
+
+def answer() -> list[str]:
+    """The lines the bridge wrote for one command, up to and including its done or error."""
+    lines = []
+    while True:
+        line = sys.stdin.readline()
+        if not line:
+            sys.stderr.write('ERROR: stdin closed\n')
+            sys.exit(1)
+        lines.append(line.strip())
+        if lines[-1] in ('done', 'error'):
+            return lines
+
+
+def expect(command: str, check, what: str) -> None:
+    send(command)
+    got = answer()
+    if not check(got):
+        sys.stderr.write(f'ERROR: {command!r} answered {got!r}, want {what}\n')
+        sys.exit(1)
+
+
+def refused(answer: list[str]) -> bool:
+    if len(answer) != 2 or answer[1] != 'error' or not answer[0].startswith('{"error": "'):
+        return False
+    detail = json.loads(answer[0])
+    return list(detail) == ['error'] and bool(detail['error']) and json.dumps(detail) == answer[0]
+
+
+def main() -> None:
+    time.sleep(0.2)  # let the EOR pass
+    expect('peer * announce route 1.1.1.1/32 next-hop 11.11.11.11', lambda a: a == ['done'], 'done')
+    expect('peer * announce route 10.0.0.0/33 next-hop 11.11.11.11', refused, '{"error": "<why>"} then error')
+    # Reached only when every answer above was ExaBGP's: the wire proves it.
+    expect('peer * announce route 3.3.3.3/32 next-hop 33.33.33.33', lambda a: a == ['done'], 'done')
+    sys.stderr.write('SUCCESS\n')
+    while sys.stdin.readline():
+        pass
+
+
+if __name__ == '__main__':
+    main()

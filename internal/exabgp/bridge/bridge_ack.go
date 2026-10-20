@@ -3,9 +3,9 @@
 // Related: bridge_muxconn.go — MuxConn wire format parsing
 //
 // When the `exabgp.api.ack` OS env var is truthy (default true), the bridge
-// emits `done\n` or `error <msg>\n` on the plugin's stdin after each
-// dispatched command so the plugin can synchronize on Ze's outcome. When
-// false, the bridge stays silent. It is read through env.Get, so every
+// emits `done\n`, or the reason and `error\n` (WriteError), on the plugin's
+// stdin after each dispatched command so the plugin can synchronize on Ze's
+// outcome. When false, the bridge stays silent. It is read through env.Get, so every
 // spelling ExaBGP accepts reaches it: `exabgp.api.ack`, then `exabgp_api_ack`.
 
 package bridge
@@ -18,6 +18,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // ackEnvKey is the env var the bridge reads at construction time, under any
@@ -114,15 +115,33 @@ func (m AckMode) WriteAck(pluginW io.Writer) {
 	}
 }
 
-// WriteError emits `error <sanitized message>\n` on the plugin's stdin.
-// The message is newline-stripped and length-bounded so a malformed Ze
-// error cannot inject additional framing.
-func (m AckMode) WriteError(pluginW io.Writer, msg string) {
+// WriteError answers a refused line: the reason, in the form the script's API
+// version reads, then the `error` marker. It is ExaBGP's answer_error_sync
+// (src/exabgp/reactor/api/processes.py at 685f772e4), whose _error_detail
+// writes "{"error": "<why>"}" to an API 6 helper, "which is JSON only", and the
+// `error: <why>` 5.x wrote to an API 4 or undecided one. Both lines are acks,
+// so a disabled ack writes neither.
+//
+// version is the version the script was held to when it wrote the line
+// (BatchLine.Version). The reason is newline-stripped and length-bounded, so a
+// malformed ze error cannot inject additional framing.
+func (m AckMode) WriteError(pluginW io.Writer, version APIVersion, reason string) {
 	if !m.enabled {
 		return
 	}
-	clean := sanitizeErrorMessage(msg)
-	if _, err := fmt.Fprintf(pluginW, "error %s\n", clean); err != nil { //nolint:errcheck // output
+	var tb textbuf.Buffer
+	switch version {
+	case APIV6:
+		tb.Str(`{"error": `).Str(jsonString(reason)).Str("}\n")
+	case APIV4, APIVersionAuto:
+		tb.Str("error: ").Str(sanitizeErrorMessage(reason)).Byte('\n')
+	case APIVersionUnspecified:
+		panic("BUG: a refused line answered with no API version; the runner MUST record BatchLine.Version")
+	default:
+		panic("BUG: invalid bridge API version")
+	}
+	tb.Str("error\n")
+	if _, err := pluginW.Write(tb.Bytes()); err != nil {
 		slog.Debug("bridge ack: write error failed", "error", err)
 	}
 }

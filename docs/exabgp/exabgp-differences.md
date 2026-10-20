@@ -35,6 +35,39 @@ ExaBGP difference and the non-determinism.
 
 ---
 
+## A refused line names its reason
+
+**ExaBGP behavior:**
+- A command the helper's dispatcher does not know (`UnknownCommand`), and one
+  whose selector matches no peer (`NoMatchingPeers`), are answered with the
+  `error` marker alone (`API.process`, `answer_error_sync(service)`).
+- Every other refusal writes its reason first: `{"error": "<why>"}` to an API 6
+  helper, `error: <why>` to an API 4 or undecided one, then `error`
+  (`Processes._error_detail`, `answer_error_sync`). A route the parser cannot
+  read is one of these (`announce_route`, "Could not parse route").
+Upstream (exa-networks/exabgp at 685f772e4): `src/exabgp/reactor/api/__init__.py`,
+`src/exabgp/reactor/api/processes.py`.
+
+**ZeBGP behavior:**
+- Every refused line is answered the second way, the two marker-only cases
+  included: the reason in the form the script's API version reads, then
+  `error`. The form follows the version the script was held to when it wrote
+  the line. With ack disabled neither line is written.
+- The reason is Ze's own words, not ExaBGP's sentence for the same refusal.
+<!-- source: internal/exabgp/bridge/bridge_ack.go -- AckMode.WriteError -->
+<!-- source: internal/exabgp/bridge/bridge_batch.go -- AnswerBatch, BatchLine.Version -->
+
+**RFC compliance:**
+- N/A - This is API syntax, not BGP protocol
+
+**Impact:**
+- A script reads the same two lines it reads from ExaBGP 6.0 for any other
+  refusal, and every 5.x and 6.0 helper already reads a reason line before
+  `error`. An operator reading the script's input learns why the line was
+  refused (the user-facing errors rule).
+
+---
+
 ## Neighbor Qualifier Syntax (Multi-Session)
 
 **ExaBGP behavior:**

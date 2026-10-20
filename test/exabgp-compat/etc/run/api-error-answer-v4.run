@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+"""X-13, AC-14, AC-16: a refused line from an API 4 helper is answered with the reason
+as `error: <why>`, then the `error` marker; with ack disabled neither line is written."""
+
+import sys
+import time
+
+
+def send(command: str) -> None:
+    sys.stdout.write(command + '\n')
+    sys.stdout.flush()
+
+
+def read() -> str:
+    line = sys.stdin.readline()
+    if not line:
+        sys.stderr.write('ERROR: stdin closed\n')
+        sys.exit(1)
+    return line.strip()
+
+
+def answer() -> list[str]:
+    """The lines the bridge wrote for one command, up to and including its done or error."""
+    lines = []
+    while True:
+        lines.append(read())
+        if lines[-1] in ('done', 'error'):
+            return lines
+
+
+def expect(command: str, check, what: str) -> None:
+    send(command)
+    got = answer()
+    if not check(got):
+        sys.stderr.write(f'ERROR: {command!r} answered {got!r}, want {what}\n')
+        sys.exit(1)
+
+
+def refused(answer: list[str]) -> bool:
+    return len(answer) == 2 and answer[0].startswith('error: ') and len(answer[0]) > 7 and answer[1] == 'error'
+
+
+def main() -> None:
+    time.sleep(0.2)  # let the EOR pass
+    expect('announce route 1.1.1.1/32 next-hop 11.11.11.11', lambda a: a == ['done'], 'done')
+    expect('announce route 10.0.0.0/33 next-hop 11.11.11.11', refused, 'error: <why> then error')
+    expect('disable-ack', lambda a: a == ['done'], 'done')
+    # Silenced: the refusal writes nothing, so the next line read is the
+    # answer of `api version`, which is written whatever the ack state.
+    send('announce route 10.0.0.0/33 next-hop 11.11.11.11')
+    send('api version')
+    got = read()
+    if got != 'API version: auto (this helper: 4)':
+        sys.stderr.write(f'ERROR: with ack disabled read {got!r}, want the api version answer\n')
+        sys.exit(1)
+    expect('enable-ack', lambda a: a == ['done'], 'done')
+    # Reached only when every answer above was ExaBGP's: the wire proves it.
+    expect('announce route 3.3.3.3/32 next-hop 33.33.33.33', lambda a: a == ['done'], 'done')
+    sys.stderr.write('SUCCESS\n')
+    while sys.stdin.readline():
+        pass
+
+
+if __name__ == '__main__':
+    main()
