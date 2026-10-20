@@ -8,6 +8,7 @@ package migration
 import (
 	"encoding/hex"
 	"net"
+	"net/netip"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -94,6 +95,7 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 						attrBlock.Set(field, v)
 					}
 				}
+				mapIPv6RouteIPv4NextHop(prefix, attrTree, attrBlock)
 
 				update.SetContainer("attribute", attrBlock)
 
@@ -402,6 +404,7 @@ func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) {
 			attrBlock.Set(field, v)
 		}
 	}
+	mapIPv6RouteIPv4NextHop(prefix, attrTree, attrBlock)
 
 	// BGP Prefix-SID (RFC 8669) — inline-list parser stores bracketed values via Set().
 	if v, ok := attrTree.Get("bgp-prefix-sid"); ok {
@@ -460,6 +463,42 @@ func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) {
 	}
 
 	dst.AddListEntry("update", "", update)
+}
+
+// mapIPv6RouteIPv4NextHop rewrites the IPv4 next hop of an IPv6 route without
+// a route distinguisher as its IPv4-mapped IPv6 address, as ExaBGP 6.0 sends it
+// (685f772e4, qa/encoding/extended-nexthop.ci: `next-hop 170.170.170.170` on an
+// IPv6 route goes out as ::ffff:170.170.170.170). ze refuses a 4-octet next hop
+// for IPv6 NLRI, so without this the route would never be sent.
+// RFC 2545 Section 3: the Length of Next Hop Network Address field "shall be
+// set to 16, when only a global address is present, or 32 if a link-local
+// address is also included in the Next Hop field". RFC 4798 Section 2: "The
+// IPv4 address of the egress 6PE router MUST be encoded as an IPv4-mapped IPv6
+// address in the BGP Next Hop field."
+// A VPN route (rd set) is left alone: RFC 4659 carries its own next-hop form.
+func mapIPv6RouteIPv4NextHop(prefix string, route, attrBlock *config.Tree) {
+	if _, hasRD := route.Get("rd"); hasRD {
+		return
+	}
+	routePrefix, err := netip.ParsePrefix(prefix)
+	if err != nil {
+		return // A malformed prefix is the config loader's to refuse.
+	}
+	if !routePrefix.Addr().Is6() {
+		return
+	}
+	value, ok := attrBlock.Get(routeAttributeNextHop)
+	if !ok {
+		return
+	}
+	nextHop, err := netip.ParseAddr(value)
+	if err != nil {
+		return // "self" and other keywords are not addresses.
+	}
+	if !nextHop.Is4() {
+		return
+	}
+	attrBlock.Set(routeAttributeNextHop, netip.AddrFrom16(nextHop.As16()).String())
 }
 
 // detectRouteFamily determines the BGP address family from route characteristics.

@@ -341,3 +341,39 @@ neighbor 127.0.0.1 {
 		t.Errorf("the error does not say why: %v", err)
 	}
 }
+
+// TestMigrateIPv6RouteIPv4NextHopIsMapped checks that an IPv6 route with an
+// IPv4 next hop migrates to the IPv4-mapped IPv6 next hop.
+//
+// VALIDATES: ExaBGP 6.0 (685f772e4, qa/encoding/extended-nexthop.ci) sends
+// `route DEAD:BEEF:... next-hop 170.170.170.170` with the 16-octet next hop
+// ::ffff:170.170.170.170, because RFC 2545 Section 3 sets an AFI 2 next-hop
+// length to 16 or 32; ze refuses a 4-octet next hop for IPv6 NLRI, so the
+// route was never sent (qa/old/5.0 extended-nexthop).
+// PREVENTS: an IPv4 next hop reaching ze's IPv6 unicast builder.
+func TestMigrateIPv6RouteIPv4NextHopIsMapped(t *testing.T) {
+	input := `neighbor 127.0.0.1 {
+	local-as 1
+	peer-as 1
+	family {
+		ipv6 unicast
+	}
+	static {
+		route DEAD:BEEF::1/128 next-hop 170.170.170.170
+		route DEAD:BEEF::2/128 next-hop BAD:CAFE::1
+		route 10.0.0.0/8 next-hop 192.0.2.1
+	}
+}
+`
+	output, _ := migrateText(t, input)
+
+	if !strings.Contains(output, "next-hop ::ffff:170.170.170.170") {
+		t.Errorf("the IPv6 route's IPv4 next hop is not written IPv4-mapped:\n%s", output)
+	}
+	if !strings.Contains(output, "next-hop BAD:CAFE::1") {
+		t.Errorf("an IPv6 next hop must be kept as written:\n%s", output)
+	}
+	if !strings.Contains(output, "next-hop 192.0.2.1") {
+		t.Errorf("an IPv4 route's IPv4 next hop must be kept as written:\n%s", output)
+	}
+}
