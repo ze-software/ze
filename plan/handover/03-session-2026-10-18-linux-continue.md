@@ -739,3 +739,55 @@ the donor is not in OSPF), item 6 (`ospf-p2p-frr` variant with FRR `ip
 unnumbered`, prove red), item 7 (remove the `{gap}`, list ids for a judge, no
 audit stamps). Update the "Not yet complete" paragraph in `docs/guide/ospf.md`
 as each lands.
+
+### Gap #55 continuation, 2026-10-20
+
+State at hand-off (agent budget exhausted; only this section is committed):
+
+1. `TestOSPFUnnumberedSourcesFromDonorAddress` guest red, cause FOUND, not a Ze
+   transport defect. A diagnostic run in the guest showed: the AllSPFRouters
+   membership is on the unnumbered veth (`/proc/net/igmp`), not the dummy; the
+   guest root namespace has `all.rp_filter=1`, `default.rp_filter=1` (Alpine)
+   and `default via 10.0.2.2 dev eth0`, so strict reverse-path checking drops
+   the peer reply (source 10.255.0.2), whose route back leaves by eth0. Writing
+   0 to `all` and the device `rp_filter` made the same reply arrive. The peer
+   namespace (strict, no routes at all) receives fine. FRR does not touch
+   rp_filter either. The fix was REFUSED by the pretool hook because the test
+   is RFC-tagged: an edit needs `./le rfc approve unit
+   transport.TestOSPFUnnumberedSourcesFromDonorAddress reason "<owner words>"`.
+   Proposed edit: after `addDonorDevice`, a helper writes `2` (loose) to
+   `/proc/sys/net/ipv4/conf/<nameA>/rp_filter` (the kernel takes max(all,
+   dev), so only loose overrides a strict all; the value dies with the device).
+   OWNER DECISION NEEDED: approve that edit, or pick another way (for example
+   the QEMU harness resetting the guest rp_filter to the kernel default 0, which
+   the gokrazy appliance runs).
+2. Discrimination records: none written. The positive needs item 1 green
+   (clean-before-break). The negative (producer `interfaceIPv4`, the no-IPv4
+   `fmt.Errorf` mutated to nil, report `gomu-neg.json` in the parent session
+   scratch) was refused only because another session's in-flight IKE edits
+   broke the guest le build at that moment; rerun it.
+3. Interop scenario `ospf-p2p-unnumbered-frr`, UNCOMMITTED and RED:
+   `test/interop/scenarios/ospf-p2p-unnumbered-frr/` (ze.conf, frr.conf),
+   entries in `internal/le/interoplab/bgp/checkers.go` (an FRR `opExec`
+   flushes eth0's IPv4 and puts 10.255.0.3/32 on lo and eth0) and
+   `check_extras.go`, donor constants in `names.go`. Run it with
+   `INTEROP_SCENARIO=ospf-p2p-unnumbered-frr ./le --name <n> test integration
+   interop` (the shared bin/le does not see new checkers). Measured: iface made
+   Ze's eth0 unnumbered (only 10.255.0.2/32; the Docker /24 removed, though
+   `default via 172.30.0.1 dev eth0` survives; rp_filter 2 on both sides). FRR
+   shows eth0 UNNUMBERED, POINTOPOINT, Neighbor Count 0; Ze shows eth0
+   point-to-point with neighbor-count 1. So Ze hears FRR and FRR never accepts
+   Ze's Hellos. Cause unknown: next step is FRR `debug ospf packet hello recv
+   detail` plus its log, or a capture on FRR's eth0, then Ze's Hello source,
+   mask and TTL, and whether FRR's loose rp_filter with no route to 10.255.0.2
+   drops it (if so the scenario, not Ze, gives FRR a route or rp_filter 0).
+   Also seen: Ze's passive donor `zeloop` (dummy) reports `state down`, which
+   would keep the donor out of the Router-LSA; check it after the adjacency.
+   The red proof (revert the `multicastDevice` ifindex) is owed after green.
+4. Done but uncommitted: the two stale `{gap}` comments in
+   `internal/plugins/ospf/transport/rfc2328_backend_linux_test.go`. Not done:
+   the `{gap}` removal in `rfc/short/rfc2328.md` (summary row and the 8.1-1
+   row), the `docs/guide/ospf.md` "Not yet complete" paragraph (add that strict
+   reverse-path filtering with a default route elsewhere drops the neighbor's
+   Hellos until its route is learned), the judge listing. `features/ospf.md`
+   Interop list untouched (it needs a recorded run).
