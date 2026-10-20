@@ -603,7 +603,7 @@
       "claim-sha": "2ed8ff542129c21c",
       "route": "revert",
       "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-      "producer-sha": "cd7a5179f145bb82",
+      "producer-sha": "18af7d2e3bff87a5",
       "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1263,7 +1263,7 @@
       "claim-sha": "e8c3ec50d8d95104",
       "route": "revert",
       "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-      "producer-sha": "cd7a5179f145bb82",
+      "producer-sha": "18af7d2e3bff87a5",
       "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1274,7 +1274,7 @@
       "claim-sha": "8fec51b7df2be50e",
       "route": "revert",
       "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-      "producer-sha": "cd7a5179f145bb82",
+      "producer-sha": "18af7d2e3bff87a5",
       "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1351,7 +1351,7 @@
       "claim-sha": "efb7ed01cfb1efc6",
       "route": "revert",
       "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-      "producer-sha": "cd7a5179f145bb82",
+      "producer-sha": "18af7d2e3bff87a5",
       "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1362,7 +1362,7 @@
       "claim-sha": "06f7ebf21e0d08fa",
       "route": "revert",
       "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-      "producer-sha": "cd7a5179f145bb82",
+      "producer-sha": "18af7d2e3bff87a5",
       "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1395,7 +1395,7 @@
       "claim-sha": "f12a7dcc6d4a7fe1",
       "route": "revert",
       "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-      "producer-sha": "cd7a5179f145bb82",
+      "producer-sha": "18af7d2e3bff87a5",
       "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1406,7 +1406,7 @@
       "claim-sha": "a10db8b6d6cf7209",
       "route": "revert",
       "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-      "producer-sha": "cd7a5179f145bb82",
+      "producer-sha": "18af7d2e3bff87a5",
       "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1450,7 +1450,7 @@
       "claim-sha": "846f25c883ec2839",
       "route": "revert",
       "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-      "producer-sha": "cd7a5179f145bb82",
+      "producer-sha": "18af7d2e3bff87a5",
       "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1483,7 +1483,7 @@
       "claim-sha": "2bd469ffbe9b7632",
       "route": "revert",
       "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-      "producer-sha": "cd7a5179f145bb82",
+      "producer-sha": "18af7d2e3bff87a5",
       "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1494,7 +1494,7 @@
       "claim-sha": "06d939a0d866ad8f",
       "route": "revert",
       "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-      "producer-sha": "cd7a5179f145bb82",
+      "producer-sha": "18af7d2e3bff87a5",
       "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1615,7 +1615,7 @@
       "claim-sha": "3b61102209df9730",
       "route": "revert",
       "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-      "producer-sha": "cd7a5179f145bb82",
+      "producer-sha": "18af7d2e3bff87a5",
       "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1626,7 +1626,7 @@
       "claim-sha": "e13c7d70f4b2d67b",
       "route": "revert",
       "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-      "producer-sha": "cd7a5179f145bb82",
+      "producer-sha": "18af7d2e3bff87a5",
       "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
