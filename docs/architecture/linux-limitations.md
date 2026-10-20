@@ -11,6 +11,21 @@ to implement a feature in single global register so that on kernel update we
 can check it gain, record what kernel was checked so we can perform regular
 review."
 
+## What belongs here
+
+An entry is a behavior of the kernel Ze ships, or of a library version
+`go.mod` requires, read in its source, that falls in one of two effects:
+
+| Effect | Inclusion rule |
+|--------|----------------|
+| `blocks` | Ze cannot implement a feature or an RFC requirement on Linux the way the standard asks, whatever Ze's own code does |
+| `constrains design` | Ze can implement the feature, but only in a shape the behavior forces: a workaround, an extra step, a carried patch, or a refusal Ze chose because the direct design would be wrong. A kernel or library change would let Ze simplify or lift it |
+
+Left out: a gap whose fix lies in Ze's code with the kernel as it is, a Linux
+behavior no Ze feature needs, and a behavior the kernel version Ze ships no
+longer has. Each candidate that was considered and left out is listed under
+"Considered and left out", with the reason, so the next pass does not redo it.
+
 ## How an entry is written
 
 Each entry is a `###` heading that holds its id, followed by these fields:
@@ -18,18 +33,23 @@ Each entry is a `###` heading that holds its id, followed by these fields:
 | Field | Content |
 |-------|---------|
 | Kind | `kernel` or `library` (a Go module, never the kernel) |
+| Effect | `blocks` or `constrains design`, by the rule above |
 | Status | `verified` (the source was read at the version in `Checked`) or `unverified` (what would settle it is stated) |
 | Checked | `Linux <version>, <date>` or `module <path> <version>, <date>` on one line |
 | Limitation | The behavior, in plain words |
 | Blocks | The feature, and the RFC requirement ids where one exists |
 | Evidence | Each file and function read, with the line quoted from that source |
+| Alternatives | Optional: a design that looks like it avoids the limitation, and the source line that defeats it |
 | Re-check | What to read, and what result lifts or keeps the limitation |
 | Ze meanwhile | What Ze does now: refuse, work around, or carry a gap |
 
 `TestLinuxLimitsCheckedAtShippedVersions` (`internal/appliance/linux_limits_test.go`)
 fails when a `kernel` entry's `Checked` version differs from
 `internal/appliance/kernel.version`, or a `library` entry's version differs
-from the requirement in `go.mod`. A kernel bump therefore owes a pass over
+from the requirement in `go.mod`. It also fails on a heading under `## Entries`
+that is not an `LL-` id, a missing or repeated `Kind`, `Effect`, `Status` or
+`Checked` line, a value outside the forms above, and a date that is not a
+calendar date. A kernel bump therefore owes a pass over
 this page: re-read each entry at the new version, update `Checked`, and lift
 any entry the new source no longer supports.
 
@@ -53,37 +73,53 @@ For a `library` entry, read the module in the module cache:
 ### LL-PROXY-ARP-MAC
 
 - **Kind:** kernel
+- **Effect:** constrains design
 - **Status:** verified
 - **Checked:** Linux 7.2.9, 2026-10-20
-- **Limitation:** A proxy ARP reply always carries the hardware address of
-  the device that received the request. No sysctl or proxy mode
-  (`proxy_arp`, `proxy_arp_pvlan`, a `pneigh` entry, `medium_id`) names
-  another MAC. A broadcast request that arrives on a macvlan's parent is also
-  passed up the parent, so a parent with proxy ARP on answers with the
-  physical MAC.
-- **Blocks:** proxy ARP on a VRRP router. RFC9568-8.1.3-1, RFC5798-8.1.3-1,
-  RFC3768-8.3-1 ("the VRRP Router MUST advertise the Virtual Router MAC
-  address in the Proxy ARP message").
+- **Limitation:** A proxy ARP reply carries the hardware address of the
+  device that received the request (`dev->dev_addr`), with no setting that
+  names another MAC. A broadcast request that arrives on a macvlan's parent is
+  also passed up the parent, so a parent with proxy ARP on answers with the
+  parent's MAC.
+- **Blocks:** proxy ARP answered by the parent of a VRRP group's virtual-MAC
+  macvlan. RFC9568-8.1.3-1, RFC5798-8.1.3-1, RFC3768-8.3-1 ("the VRRP Router
+  MUST advertise the Virtual Router MAC address in the Proxy ARP message")
+  hold only for a design that answers from somewhere else; see Re-check.
 - **Evidence:** `net/ipv4/arp.c` `arp_process`, the forwarding branch taken
   when `arp_fwd_proxy(in_dev, dev, rt) || arp_fwd_pvlan(in_dev, dev, rt, sip, tip)`
-  holds, replies with `arp_send_dst(ARPOP_REPLY, ETH_P_ARP, sip, dev, tip, sha, dev->dev_addr, sha, reply_dst);`.
+  holds, replies with `arp_send_dst(ARPOP_REPLY, ETH_P_ARP, sip, dev, tip, sha, dev->dev_addr, sha, reply_dst);`,
+  where `dev` is the receiving device.
   `drivers/net/macvlan.c` `macvlan_handle_frame` queues a broadcast to the
   macvlans with `macvlan_broadcast_enqueue(port, src, skb);` and then
   `return RX_HANDLER_PASS;`, so the parent processes the frame too.
-- **Re-check:** read the three `arp_send_dst(ARPOP_REPLY` calls in
-  `arp_process`. The limitation is lifted only if one takes a hardware address
-  other than `dev->dev_addr`. Not yet tested: proxy ARP on the virtual-MAC
-  macvlan alone, with the parent off, would answer with the virtual MAC by
-  the same code; a QEMU test that sends a proxied request and reads the reply
-  MAC on a Backup and an Active router settles whether that is a usable design.
+- **Re-check:** read the `arp_send_dst(ARPOP_REPLY` calls in `arp_process`;
+  the entry stays while each takes `dev->dev_addr`. Two designs are untested,
+  and either could make Ze answer with the Virtual Router MAC on this kernel:
+  (a) proxy ARP (`proxy_arp`, or a `ip neigh add proxy` entry) on the
+  virtual-MAC macvlan only, with the parent off. `arp_fwd_proxy` answers when
+  `rt->dst.dev != dev` and `IN_DEV_PROXY_ARP(in_dev)` holds, and the reply would
+  then carry the macvlan's MAC, the Virtual Router MAC. A Backup router keeps
+  its macvlan up with the same MAC, so it would answer too unless an `arp`
+  family rule drops the request there; the Backup filter `ze_vrrp_backup` is an
+  `inet` table and carries no ARP. (b) an nftables `arp` family rule on the
+  output hook that rewrites the sender MAC, `arp saddr ether set <vmac>`; the
+  appliance kernel has `CONFIG_NF_TABLES_ARP=y` and `CONFIG_NFT_PAYLOAD=y`
+  (`gokrazy/kernel/kernel.config`). The test that settles both is a QEMU
+  functional test, `test/vrrp/vrrp-proxy-arp-vmac.ci` (not yet written), on
+  the pattern of `vrrp-track.ci`: an Active and a Backup router, a host that
+  sends an ARP request for a proxied address, and an AF_PACKET capture that
+  reads the sender MAC of every reply and checks the Backup sends none.
 - **Ze meanwhile:** refuses proxy ARP on every unit that carries an IPv4 VRRP
-  group, at config verify and on a runtime `set sysctl`.
+  group, at config verify and on a runtime `set sysctl`. This is Ze's choice,
+  approved by the owner on 2026-10-20, not something the kernel forces: the
+  parent design is wrong by the source above, and (a) and (b) are unproven.
 
 <!-- source: internal/plugins/vrrp/proxyarp.go -- validateNoProxyARP, refuseLiveProxyARP -->
 
 ### LL-NS-SOURCE-MAC
 
 - **Kind:** kernel
+- **Effect:** constrains design
 - **Status:** verified
 - **Checked:** Linux 7.2.9, 2026-10-20
 - **Limitation:** A Neighbor Solicitation the kernel sends carries, in its
@@ -107,20 +143,24 @@ For a `library` entry, read the module in the module cache:
 ### LL-IPV6-LINKLOCAL-FROM-MAC
 
 - **Kind:** kernel
+- **Effect:** constrains design
 - **Status:** verified
 - **Checked:** Linux 7.2.9, 2026-10-20
-- **Limitation:** On link-up the kernel adds a link-local address built from
-  the device MAC (Modified EUI-64) unless the device's `addr_gen_mode` is
-  `none` (or a stable or random mode) before that moment. A macvlan carrying
-  the Virtual Router MAC would get a link-local derived from it.
+- **Limitation:** On link-up, a device whose `addr_gen_mode` is `eui64` (the
+  default) gets a link-local address built from its MAC (Modified EUI-64). A
+  macvlan carrying the Virtual Router MAC would get a link-local derived from
+  it unless the mode is changed to `none` before link-up.
 - **Blocks:** RFC9568-7.4-1 ("The Virtual Router MAC MUST NOT be used for the
   Net_Iface parameter used in the Interface Identifier (IID) derivation
-  algorithms").
+  algorithms") under the default mode.
 - **Evidence:** `net/ipv6/addrconf.c` `addrconf_addr_gen`:
   `case IN6_ADDR_GEN_MODE_EUI64:` then
   `if (ipv6_generate_eui64(addr.s6_addr + 8, idev->dev) == 0)`, and
   `case IN6_ADDR_GEN_MODE_NONE:` with `/* will not add any link local address */`.
-  `addrconf_ifid_eui48` reads the MAC: `memcpy(eui, dev->dev_addr, 3);`.
+  `ipv6_generate_eui64` answers `case ARPHRD_ETHER:` with
+  `return addrconf_ifid_eui48(eui, dev);`, and `include/net/addrconf.h`
+  `addrconf_ifid_eui48` builds the identifier from the MAC:
+  `addrconf_addr_eui48_base(eui, dev->dev_addr);`.
 - **Re-check:** read `addrconf_addr_gen`. The workaround stays valid while
   `IN6_ADDR_GEN_MODE_NONE` adds no address.
 - **Ze meanwhile:** works around it. iface sets `addr_gen_mode` none on every
@@ -131,6 +171,7 @@ For a `library` entry, read the module in the module cache:
 ### LL-IPV4-CONF-ALL-WINS
 
 - **Kind:** kernel
+- **Effect:** constrains design
 - **Status:** verified
 - **Checked:** Linux 7.2.9, 2026-10-20
 - **Limitation:** For `rp_filter`, `arp_ignore` and `arp_announce` the
@@ -156,6 +197,7 @@ For a `library` entry, read the module in the module cache:
 ### LL-XFRM-STATE-ONE-SELECTOR
 
 - **Kind:** kernel
+- **Effect:** blocks
 - **Status:** verified
 - **Checked:** Linux 7.2.9, 2026-10-20
 - **Limitation:** An XFRM state holds one selector, and inbound processing
@@ -165,11 +207,27 @@ For a `library` entry, read the module in the module cache:
 - **Blocks:** a transport-mode Child SA with several traffic selector pairs
   (RFC 7296 Section 2.9 lets a peer propose several).
 - **Evidence:** `include/net/xfrm.h` `struct xfrm_state` has one
-  `struct xfrm_selector	sel;`. `net/xfrm/xfrm_policy.c` `__xfrm_policy_check`:
-  `if (!xfrm_selector_match(&x->sel, &fl, family)) {` then
-  `XFRM_INC_STATS(net, LINUX_MIB_XFRMINSTATEMISMATCH);`.
-- **Re-check:** read `struct xfrm_state` and the state loop in
-  `__xfrm_policy_check`. Lifted only if a state gains a selector list.
+  `struct xfrm_selector	sel;`. `net/xfrm/xfrm_policy.c` `__xfrm_policy_check`
+  checks each state that decrypted the packet:
+  `if (!xfrm_selector_match(&x->sel, &fl, family)) {`, then excuses an ICMP
+  error whose inner packet matches, `if (x->props.flags & XFRM_STATE_ICMP &&`
+  `xfrm_selector_inner_icmp_match(skb, family, &x->sel, &fl))` `ret = 0;`,
+  and otherwise counts `XFRM_INC_STATS(net, LINUX_MIB_XFRMINSTATEMISMATCH);`
+  and drops.
+- **Alternatives:** a covering selector does not help: one state whose selector covers
+  every pair, with one inbound policy per pair, still admits traffic no pair
+  negotiated. In the same function a packet that matches no policy is accepted
+  unless it went through a non-transport state:
+  `if (sp && secpath_has_nontransport(sp, 0, &xerr_idx) && !is_crypto_offload) {`
+  rejects, and otherwise `return 1;`. A matching policy with no template (a
+  bypass) runs no template check, and the closing
+  `if (secpath_has_nontransport(sp, k, &xerr_idx)) {` again rejects only a
+  non-transport state. The one exception is a namespace whose default input
+  policy is block (`XFRM_USERPOLICY_BLOCK`), which drops every packet that
+  matches no policy, protected or not.
+- **Re-check:** read `struct xfrm_state` and `__xfrm_policy_check`. Lifted
+  if a state gains a selector list, or if a transport-mode decrypted packet
+  that matches no policy, or a template-less one, is rejected.
 - **Ze meanwhile:** refuses a transport-mode peer with more than one
   `traffic-selector` entry; as responder it answers several proposed pairs
   with the first, as initiator it refuses an answer of several pairs.
@@ -179,6 +237,7 @@ For a `library` entry, read the module in the module cache:
 ### LL-XFRM-STATE-ONE-ESP-FORM
 
 - **Kind:** kernel
+- **Effect:** constrains design
 - **Status:** verified
 - **Checked:** Linux 7.2.9, 2026-10-20
 - **Limitation:** An XFRM state receives one ESP form: UDP-encapsulated or
@@ -203,6 +262,7 @@ For a `library` entry, read the module in the module cache:
 ### LL-NETLINK-XFRM-PORT-MASK
 
 - **Kind:** library
+- **Effect:** constrains design
 - **Status:** verified
 - **Checked:** module github.com/vishvananda/netlink v1.3.1, 2026-10-20
 - **Limitation:** The netlink library Ze programs XFRM policies through derives
@@ -230,6 +290,7 @@ For a `library` entry, read the module in the module cache:
 ### LL-RTNL-NEWLINK-NO-ALIAS
 
 - **Kind:** kernel
+- **Effect:** constrains design
 - **Status:** verified
 - **Checked:** Linux 7.2.9, 2026-10-20
 - **Limitation:** An `RTM_NEWLINK` that creates a device ignores
@@ -251,6 +312,7 @@ For a `library` entry, read the module in the module cache:
 ### LL-XFRM-ICMP-RETURN-SA
 
 - **Kind:** kernel
+- **Effect:** blocks
 - **Status:** unverified
 - **Checked:** Linux 7.2.9, 2026-10-20
 - **Limitation:** Possibly none. The question is whether the kernel maps an
@@ -272,3 +334,116 @@ For a `library` entry, read the module in the module cache:
   `plan/immediate/spec-rfc4301-architecture-gaps.md`.
 
 <!-- source: rfc/short/rfc4301.md -- RFC4301-6.2-3 -->
+
+### LL-MPLS-FORWARD-NO-PMTU
+
+- **Kind:** kernel
+- **Effect:** constrains design
+- **Status:** verified
+- **Checked:** Linux 7.2.9, 2026-10-20
+- **Limitation:** Upstream `mpls_forward` drops a labeled frame too big for
+  the outgoing device without reading the inner IP header, so it neither
+  fragments a DF-clear IPv4 datagram nor sends ICMP Fragmentation Needed or
+  Packet Too Big. An `AF_MPLS` route also refuses `RTA_METRICS`, so a transit
+  swap or pop cannot carry the LSP's path MTU.
+- **Blocks:** enforcing an RSVP-TE LSP's path MTU at a transit router (RFC
+  3209 Section 2.6) on a kernel without Ze's patch.
+- **Evidence:** `net/mpls/af_mpls.c` `mpls_forward`:
+  `if (mpls_pkt_too_big(skb, mtu - new_header_size))` then `goto tx_err;`,
+  which counts `tx_errors` and ends at `kfree_skb(skb);`.
+  `rtm_to_route_config` answers any attribute it does not list, `RTA_METRICS`
+  among them, with `NL_SET_ERR_MSG_ATTR(extack, nla, "Unknown attribute");`
+  and `goto errout;`.
+- **Re-check:** read `mpls_forward` and the attribute switch in
+  `rtm_to_route_config` at the new version; the entry is lifted if upstream
+  fragments or answers with ICMP and accepts `RTA_METRICS`. Then check that
+  `gokrazy/kernel/patches/0002-mpls-ip-mtu.patch` still applies at the new
+  version, or is no longer needed.
+- **Ze meanwhile:** works around it. The appliance kernel carries
+  `gokrazy/kernel/patches/0002-mpls-ip-mtu.patch` (`CONFIG_MPLS_IP_MTU`). On a
+  kernel without it, the forwarding owner probes once, installs transit routes
+  without the MTU, logs a warning, and `ze doctor` reports
+  `doctor-mpls-transit-mtu-unenforced`.
+
+<!-- source: internal/plugins/fib/kernel/mplsentry_linux.go -- transitRouteMTU, askTransitMTU -->
+
+### LL-IPV6-NO-RP-FILTER
+
+- **Kind:** kernel
+- **Effect:** constrains design
+- **Status:** verified
+- **Checked:** Linux 7.2.9, 2026-10-20
+- **Limitation:** IPv6 has no per-device reverse-path filter sysctl; IPv4's
+  `rp_filter` has no IPv6 counterpart.
+- **Blocks:** a sysctl-only IPv6 reverse-path check (the `rpf-check` leaf
+  under a unit's `ipv6`). No RFC requirement.
+- **Evidence:** `include/linux/inetdevice.h` defines
+  `#define IN_DEV_RPFILTER(in_dev)		IN_DEV_MAXCONF((in_dev), RP_FILTER)` for
+  IPv4. A case-insensitive search for `rp_filter` and `rpfilter` in
+  `include/uapi/linux/ipv6.h` (the `DEVCONF_` list of IPv6 per-device
+  settings) and `net/ipv6/addrconf.c` (the `addrconf_sysctl` table) finds no
+  line.
+- **Re-check:** repeat that search at the new version; lifted if IPv6 gains a
+  per-device reverse-path setting.
+- **Ze meanwhile:** works around it. iface enforces the IPv6 check with an
+  nftables `fib` lookup in a prerouting chain of its own table,
+  `ip6 ze_iface_rpf`.
+
+<!-- source: internal/plugins/iface/netlink/rpf_linux.go -- ReplaceIPv6RPF -->
+
+### LL-NETLINK-XFRM-DECODE
+
+- **Kind:** library
+- **Effect:** constrains design
+- **Status:** verified
+- **Checked:** module github.com/vishvananda/netlink v1.3.1, 2026-10-20
+- **Limitation:** The netlink library's XFRM code mis-reads and mis-writes
+  state and policy messages Ze relies on: the state reader ignores the
+  extended sequence number replay attribute, and the policy and state readers
+  lose the selector family and port masks. The kernel is not the limit.
+- **Blocks:** reading back an SA that uses extended sequence numbers, a replay
+  window above 32, transport-mode templates without a destination, and
+  dual-family policy dumps, through the unpatched library.
+- **Evidence:** library, `xfrm_state_linux.go`: the writer sends
+  `out := nl.NewRtAttr(nl.XFRMA_REPLAY_ESN_VAL, writeReplayEsn(state.ReplayWindow))`,
+  while the reader's attribute switch handles only `case nl.XFRMA_REPLAY_VAL:`
+  and has no `XFRMA_REPLAY_ESN_VAL` case. The full list of corrections is in
+  `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, "Vendored netlink patch".
+- **Re-check:** at a new module version, check each hunk of
+  `internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch` against the
+  module source; a hunk the release already carries is dropped, and the
+  entry is lifted when no hunk remains. `TestNetlinkXFRMPatchApplied`
+  (`internal/le/vendorpatch`) fails when the vendored copy lacks the patch,
+  for example after `go mod vendor`.
+- **Ze meanwhile:** works around it. Ze vendors the module and applies
+  `netlink-xfrm-fixes.patch`.
+
+<!-- source: internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch -- XFRM state and policy decoding corrections -->
+
+### LL-NETLINK-NO-CTA-ID
+
+- **Kind:** library
+- **Effect:** constrains design
+- **Status:** verified
+- **Checked:** module github.com/vishvananda/netlink v1.3.1, 2026-10-20
+- **Limitation:** The netlink library's conntrack reader skips `CTA_ID`, so a
+  flow carries no kernel id that survives a tuple being reused.
+- **Blocks:** keying per-flow deltas on the kernel's conntrack id in flow
+  export. No RFC requirement.
+- **Evidence:** library, `conntrack_linux.go` `parseRawData`:
+  `case nl.CTA_ID, nl.CTA_STATUS, nl.CTA_USE:` then
+  `skipNfAttrValue(reader, l)`.
+- **Re-check:** read the conntrack attribute switch in the module version
+  `go.mod` requires; lifted when `CTA_ID` is decoded into the flow.
+- **Ze meanwhile:** works around it. Flow export keys each flow by its
+  5-tuple.
+
+<!-- source: internal/plugins/flowexport/conntrack/delta.go -- flowKey -->
+
+## Considered and left out
+
+| Candidate | Why it is not an entry |
+|-----------|------------------------|
+| IPv4 fragmentation on an MPLS push route looping on empty fragments | The kernel Ze ships no longer has it. `net/ipv4/ip_output.c` `ip_do_fragment` at Linux 7.2.9 refuses an MTU below one fragment: `if (mtu < hlen + 8) {` then `err = -EMSGSIZE;`. Older kernels without that check loop in `ip_frag_next`; `mplsfib.PathMTUMinimum` keeps Ze off that path on any host kernel |
+| Conntrack runs after IP defragmentation, so it never sees a fragment | The defined order of netfilter, and no feature is blocked: the fragment-flood classifier is planned on packet sampling, which sees fragments (`docs/architecture/ddos/cp-survival-5-detect-5-characterization.md`) |
+| Linux has no route tag attribute | No Ze feature needs the tag in the kernel: Ze carries it in its own RIB into redistribution and the OSPF External Route Tag |
