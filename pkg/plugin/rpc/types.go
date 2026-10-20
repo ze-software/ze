@@ -800,8 +800,11 @@ const (
 	NLRIFramingPrefixOnly
 	// NLRIFramingSourceWire means NLRIHex holds the NLRI bytes exactly as the
 	// source framed them, path identifiers included. PathID is not consulted.
-	// Complex families (VPN, EVPN, Flowspec) store a whole NLRI section this way
-	// because their NLRI does not split into per-route prefix bytes.
+	// The JSON ingest path of bgp-adj-rib-in (handleReceived, a forked plugin)
+	// stores a whole NLRI section of a family other than plain unicast and
+	// multicast this way, and relay recovery relays a survivor's NLRI as received.
+	// The bridge ingest path splits every family into its routes and stores each
+	// NLRIFramingPrefixOnly.
 	NLRIFramingSourceWire
 )
 

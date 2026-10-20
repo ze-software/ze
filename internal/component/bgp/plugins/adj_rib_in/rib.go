@@ -31,6 +31,7 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/seqmap"
@@ -173,6 +174,10 @@ type AdjRIBInManager struct {
 	validationGate bool
 
 	mu sync.RWMutex
+
+	// keyScratch is where routeKeyFromNLRI decodes a route identity, guarded by
+	// mu. A local array escapes through the family's key function, per NLRI.
+	keyScratch [nlrisplit.PrefixKeyScratchSize]byte
 
 	// routeRelayer, if set, overrides the engine relay call for replay delivery.
 	// Used in tests to verify peer-up triggers replay without an engine.
@@ -540,7 +545,8 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			if isSimplePrefixFamily(fam) {
 				r.installStructuredNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID)
 			} else {
-				// Complex families: fall back to Event path for correct NLRI handling.
+				// Every other family: split and key each NLRI with the family's
+				// registered codec (rib_complex.go).
 				r.installComplexNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID)
 			}
 		}

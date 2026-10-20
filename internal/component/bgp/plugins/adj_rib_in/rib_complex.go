@@ -1,6 +1,8 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — Adj-RIB-In raw hex storage
 // Related: rib.go — the structured ingest path that calls these
 // Related: compact_key.go — routeKeyFromNLRI, the key these store under
+// RFC: rfc/short/rfc7911.md -- Section 3, the Path Identifier split from each NLRI
+// RFC: rfc/short/rfc8277.md -- Section 2.4, what a withdrawal must match
 
 package adj_rib_in
 
@@ -41,11 +43,12 @@ func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Fa
 		return
 	}
 	_, err := split(data, addPath, func(raw []byte) bool {
+		// RFC 7911 Section 3
 		pathID, payload, err := nlri.SplitPathID(raw, addPath)
 		if err != nil {
 			return false
 		}
-		rk, err := routeKeyFromNLRI(fam, payload, pathID, false)
+		rk, err := r.routeKeyFromNLRI(fam, payload, pathID, false)
 		if err != nil {
 			logger().Debug("received NLRI not stored: it names no route of its family",
 				"peer", peerAddr, "family", fam, "error", err)
@@ -84,11 +87,20 @@ func (r *AdjRIBInManager) removeComplexNLRIs(peerAddr netip.Addr, fam family.Fam
 		return
 	}
 	_, err := split(data, addPath, func(raw []byte) bool {
+		// RFC 7911 Section 3
 		pathID, payload, err := nlri.SplitPathID(raw, addPath)
 		if err != nil {
 			return false
 		}
-		rk, err := routeKeyFromNLRI(fam, payload, pathID, true)
+		// RFC 8277 Section 2.4: "When using an MP_UNREACH_NLRI attribute to
+		// withdraw a route whose NLRI was previously specified in an
+		// MP_REACH_NLRI attribute, the lengths and values of the respective
+		// prefixes must match, and the respective AFI/SAFIs must match. If the
+		// procedures of [RFC7911] are being used, the respective values of the
+		// "path identifier" fields must match as well." The key is the family,
+		// the path identifier and the route the NLRI names, built as the
+		// announcement's was, so the withdrawal matches on exactly those.
+		rk, err := r.routeKeyFromNLRI(fam, payload, pathID, true)
 		if err != nil {
 			logger().Debug("withdrawn NLRI ignored: it names no route of its family",
 				"peer", peerAddr, "family", fam, "error", err)

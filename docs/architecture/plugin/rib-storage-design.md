@@ -872,6 +872,7 @@ type FamilyRIB struct {
 
 ### Adj-RIB-In route keys
 
+On the bridge ingest path (`handleReceivedStructured`, the in-process plugin),
 `bgp-adj-rib-in` stores one entry per received route, keyed by family, path
 identifier and the route the NLRI names. The plain unicast and multicast
 families key on their prefix. Every other family is split by its registered
@@ -881,10 +882,29 @@ and VPN keys on the Route Distinguisher and prefix together, so one prefix under
 two Route Distinguishers is two routes. A withdrawal is framed by the family's
 withdrawal splitter and ignores the RFC 8277 Compatibility field, so it removes
 the one route it names. Each stored route keeps its own NLRI bytes, label stack
-and Route Distinguisher included, and the peer-up replay sends every one of them.
+and Route Distinguisher included, with any ADD-PATH identifier moved to its
+`PathID`.
+
+The key is 48 bytes for every family. A family keyed by its decoder holds the
+decoded identity as an interned `unique.Handle[string]` rather than a string, so
+the key of the plain prefix families does not grow, and a refreshed or withdrawn
+route whose identity is already held costs no allocation.
+
+The JSON ingest path (`handleReceived`, taken by a forked plugin) does not do
+this yet: it keys a family other than plain unicast and multicast on the
+event's `prefix` string, so a VPN key drops the RD, and it stores only the first
+NLRI of a section, under the whole raw section. That defect is an open row in
+`plan/journal/declared-format-contradicts-payload.md`.
+
+The peer-up replay (`buildReplayRoutes`) sends every stored route of every
+source peer other than the target, within the requested from-index and
+max-msg-id cut, except FlowSpec routes, whose snapshots come
+only from the selecting RIB, and routes a validation decision marked
+`Ineligible`.
 
 <!-- source: internal/component/bgp/plugins/adj_rib_in/compact_key.go -- compactRouteKey, routeKeyFromNLRI -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib_complex.go -- installComplexNLRIs, removeComplexNLRIs -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- handleReceived, buildReplayRoutes -->
 
 ### Validation eligibility
 
