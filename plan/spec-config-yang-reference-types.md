@@ -159,6 +159,22 @@ Phase 1 in the order listed; tests first for each check.
 -> Decision: reference failures use `ErrTypeType`; no new `ErrorType`, which would need a new diagnostic code.
 - Owed by phase 2: independent `/ze-review`; independent re-judgement (`./le rfc audit-stamp ... mode rejudge`) of the verdicts `./le rfc check` reports STALE: RFC7950-9.1-1, 9.1-2 (its audit record says unimplemented), 7.6.5-1, 8.3.3-2, 7.2.2-1; then `./le rfc index-update`; gates `./le go lint run` and `./le verify worktree` in a fresh agent.
 
+## Review Gate
+
+| Round | Reviewer | Scope | BLOCKER | ISSUE | Disposition |
+|-------|----------|-------|---------|-------|-------------|
+| 1-3 | independent agents, 2026-10-18 | bccd1e7cf5, then 2e4be94ae3, then 8a404499d5 | see commits | see commits | fixed by 2e4be94ae3, 8a404499d5, 40a03eb762 and 32d2ed5b51 |
+| 4 | independent agent (closure, 2026-10-21), author of none of the five commits | whole change, bccd1e7cf5^..HEAD over the spec's files | 0 | 3 | all fixed in the round-4 commit; a fresh reader owes round 5 |
+
+Round 4 findings:
+- ISSUE 1 (fixed): a leafref path step, key predicate or `current()` name was matched by its local name alone, so `../bogus:l/k` and a prefix naming an imported module that does not hold the node loaded (AC-2 fail-open; RFC 7950 Section 6.4, "all prefixes used MUST be present in the XPath context"). Fix: `checkPathPrefix` (`reference_path.go`), test `TestLeafrefPathPrefixChecked` (`reference_prefix_test.go`), red observed with the check disabled.
+- ISSUE 2 (fixed): `checkLeafrefSchema` refused a leafref under an rpc or action input, or a notification, that refers to state, because goyang answers `ReadOnly` false there; Section 9.9 binds only a referring node that "represents configuration data". Fix: `representsConfig` (`loader_reference.go`), test `TestLeafrefNonConfigNodeReferringToState`, red observed (both nodes refused) with the check disabled.
+- ISSUE 3 (fixed): two claims made false by AC-1, `internal/component/l2tp/config.go` `validateRelays` ("No leafref exists in ze's YANG engine") and the `ze-l2tp-conf.yang` remote `name` description, corrected; `yang-config-design.md` loader table carries the two fixes.
+- NOTE: `test/parse/yang-leafref-default-class.ci` claimed the refusal names the classes that exist and did not assert it; `expect=stdout:contains=name one of "data voice"` added, suite run green.
+- NOTE: an instance-identifier step at a leaf-list with no `[.='v']` is accepted and answers existence of any entry (Section 9.13 states no MUST for it).
+- NOTE: `canonicalValue` compares a union- or leafref-typed referred leaf as written text.
+- Pre-existing, not from this change: `go test ./internal/component/config/yang/cli/` fails at HEAD without the round-4 edits (`TestDocCommand`, "unknown command: show bgp peer list").
+
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|

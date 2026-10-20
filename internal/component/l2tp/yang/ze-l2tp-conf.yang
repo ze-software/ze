@@ -244,7 +244,7 @@ module ze-l2tp-conf {
                 description "The name is the list key, and it is what the rest of the config points at.
                     `request l2tp outgoing-call remote <name>` names it, and so does a PPPoE relay
                     binding. Ze refuses a relay binding that names a remote which does not exist,
-                    because its YANG engine carries no leafref. The length is 1 to 64
+                    in the L2TP config parser, not through a leafref. The length is 1 to 64
                     characters.";
                 ze:help "Operator-assigned remote name (dial-target key).";
             }

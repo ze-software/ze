@@ -468,8 +468,8 @@ func appendRemote(p *Parameters, rem Remote) error {
 }
 
 // validateRelays confirms every relay binding references a declared remote.
-// No leafref exists in ze's YANG engine, so referential integrity is
-// enforced here (config-load time) rather than by the schema.
+// The relay's remote leaf is a plain string, not a leafref, so referential
+// integrity is enforced here (config-load time) rather than by the schema.
 func validateRelays(p *Parameters) error {
 	for _, rl := range p.Relays {
 		found := false

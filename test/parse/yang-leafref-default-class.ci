@@ -62,6 +62,7 @@ cmd=foreground:seq=1:exec=ze config validate -:stdin=missing
 expect=exit:code=1
 expect=stdout:contains=default-class
 expect=stdout:contains=no name "bulk" exists at "../class/name"
+expect=stdout:contains=name one of "data voice"
 cmd=foreground:seq=2:exec=ze config validate -:stdin=present
 expect=exit:code=0
 expect=stdout:contains=configuration valid

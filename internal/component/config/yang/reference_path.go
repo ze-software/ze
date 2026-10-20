@@ -181,6 +181,9 @@ func (v *Validator) leafrefTarget(leaf *yang.Entry, typ *yang.YangType) (*yang.E
 		if node == nil {
 			return nil, path, refError(tb.Str("leafref path ").Quoted(typ.Path).Str(" names no node ").Quoted(step.node).Str(": correct the path to name an existing leaf"))
 		}
+		if err := checkPathPrefix(leaf, step.node, node); err != nil {
+			return nil, path, refError(tb.Str("leafref path ").Quoted(typ.Path).Str(": ").Str(err.Error()))
+		}
 		if err := v.checkPathKeys(leaf, typ.Path, node, step); err != nil {
 			return nil, path, err
 		}
@@ -260,6 +263,9 @@ func (v *Validator) checkPathKeys(leaf *yang.Entry, text string, node *yang.Entr
 			return refError(tb.Str("leafref path ").Quoted(text).Str(" tests key ").Quoted(name).Str(" twice: give one equality test per key"))
 		}
 		seen[name] = true
+		if err := checkPathPrefix(leaf, key.node, schemaChild(node, name)); err != nil {
+			return refError(tb.Str("leafref path ").Quoted(text).Str(": ").Str(err.Error()))
+		}
 		if _, err := v.keyExprTarget(leaf, key); err != nil {
 			return refError(tb.Str("leafref path ").Quoted(text).Str(": ").Str(err.Error()))
 		}
@@ -287,12 +293,69 @@ func (v *Validator) keyExprTarget(leaf *yang.Entry, key pathKey) (*yang.Entry, e
 		if target == nil {
 			return nil, refError(tb.Str("current() expression names no node ").Quoted(nodeID))
 		}
+		if err := checkPathPrefix(leaf, nodeID, target); err != nil {
+			return nil, err
+		}
 		parents = []*yang.Entry{target}
 	}
 	if !target.IsLeaf() {
 		return nil, refError(tb.Str("current() expression ends at ").Quoted(target.Name).Str(", which is not a leaf"))
 	}
 	return target, nil
+}
+
+// RFC 7950 Section 6.4: "The XPath expressions MUST be syntactically
+// correct, and all prefixes used MUST be present in the XPath context (see
+// Section 6.4.1)."
+// RFC 7950 Section 6.4.1: "The set of namespace declarations is the set of
+// all "import" statements' prefix and namespace pairs in the module where the
+// XPath expression is specified, and the "prefix" statement's prefix for the
+// "namespace" statement's URI."
+//
+// checkPathPrefix checks the prefix of nodeID, one node-identifier of a
+// leafref path of leaf, against node, the schema node its local name matched:
+// the prefix is declared in the module the leaf is written in, and names the
+// module whose namespace holds node. An unprefixed name belongs to the
+// namespace of the referring node (Section 6.4.1), which the local-name match
+// already follows. The context is the statement of leaf, where an inline
+// leafref type is written; a leafref typedef of another module is resolved in
+// the using module too, and no Ze module declares one.
+func checkPathPrefix(leaf *yang.Entry, nodeID string, node *yang.Entry) error {
+	prefix := nodePrefix(nodeID)
+	if prefix == "" {
+		return nil
+	}
+	var tb textbuf.Buffer
+	if node == nil {
+		return refError(tb.Str("names no node ").Quoted(nodeID))
+	}
+	if leaf.Node == nil {
+		return refError(tb.Str("the module ").Quoted(leaf.Name).Str(" is written in is not known, so prefix ").Quoted(prefix).Str(" cannot be resolved: this is a Ze defect, report it"))
+	}
+	if yang.RootNode(leaf.Node) == nil {
+		return refError(tb.Str("the module ").Quoted(leaf.Name).Str(" is written in is not known, so prefix ").Quoted(prefix).Str(" cannot be resolved: this is a Ze defect, report it"))
+	}
+	declared := yang.FindModuleByPrefix(leaf.Node, prefix)
+	if declared == nil {
+		return refError(tb.Str("prefix ").Quoted(prefix).Str(" of ").Quoted(nodeID).Str(" is neither this module's prefix nor an imported one: import the module defining ").Quoted(node.Name).Str(" and use its prefix"))
+	}
+	owner, err := node.InstantiatingModule()
+	if err != nil {
+		return refError(tb.Str("the module of ").Quoted(node.Name).Str(" is not known: ").Str(err.Error()))
+	}
+	if declaredName := belongingModule(declared); declaredName != owner {
+		return refError(tb.Str("prefix ").Quoted(prefix).Str(" names module ").Str(declaredName).Str(", but ").Quoted(node.Name).Str(" belongs to module ").Str(owner).Str(": write the prefix this module imports ").Str(owner).Str(" under"))
+	}
+	return nil
+}
+
+// belongingModule answers the name of the module whose namespace mod's
+// definitions carry: its own, or for a submodule the module it belongs to.
+func belongingModule(mod *yang.Module) string {
+	if mod.BelongsTo != nil {
+		return mod.BelongsTo.Name
+	}
+	return mod.Name
 }
 
 // referenceError is a refusal of a reference type's path or value, before

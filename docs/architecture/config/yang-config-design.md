@@ -137,8 +137,8 @@ refusal names the module, the file location and the fault.
 | An enumeration whose values break Section 9.6.4.2: a value outside int32, a value assigned twice, an enum with no value after one holding 2147483647 | 9.6.4.2 | it checks only an enumeration it resolves, and it resolves none in a grouping no schema node uses | `ErrEnumValue` |
 | An `enum` in a restricted enumeration that the base type does not assign, or whose `value` differs from the base type's | 9.6.4, 9.6.4.2 | it builds the restricted values afresh and never compares them with the base | `ErrEnumRestriction` |
 | A statement under an extension statement that is not a YANG keyword, that the block holding it does not admit, whose argument breaks its Section 14 argument rule, whose substatements break the counts or the alternatives of its rule's block, or that omits a block its rule requires | 7.19 | it keeps an extension statement as raw text | `ErrExtensionSubstatement` |
-| A leafref whose path names no node, ends at a node that is not a leaf or leaf-list, puts a predicate on a node that is not a list or on a leaf that is not one of its keys, or whose `current()` expression reaches no leaf | 9.9.2 | it keeps the path as text and resolves nothing | `ErrLeafrefPath` |
-| A config leafref with require-instance true whose referred leaf is state, and a chain of leafrefs that comes back to a leaf already in it | 9.9 | it never follows a path | `ErrLeafrefPath` |
+| A leafref whose path names no node, ends at a node that is not a leaf or leaf-list, puts a predicate on a node that is not a list or on a leaf that is not one of its keys, or whose `current()` expression reaches no leaf; a node name whose prefix the module neither declares nor imports, or whose prefix names a module other than the one holding the node | 9.9.2, 6.4, 6.4.1 | it keeps the path as text and resolves nothing | `ErrLeafrefPath` |
+| A config leafref with require-instance true whose referred leaf is state (a leaf under an rpc or action input or output, or a notification, is no configuration and may refer to state), and a chain of leafrefs that comes back to a leaf already in it | 9.9 | it never follows a path | `ErrLeafrefPath` |
 
 The grammar under an extension is the RFC's own: `rfc7950.abnf`, embedded in
 the package, is the Section 14 code component of `rfc/full/rfc7950.txt`, and
@@ -209,8 +209,8 @@ rather than checked against a guessed span.
 <!-- source: internal/component/config/yang/loader.go -- Resolve, checkExtensions, DefaultLoader -->
 <!-- source: internal/component/config/yang/enum_assignment.go -- parseEnumAssignment, assignEnumValues -->
 <!-- source: internal/component/config/yang/loader_structure.go -- checkStructure, moduleIncludeErrors, restrictedLengthSpan, resolveProduction, extensionSubstatementError -->
-<!-- source: internal/component/config/yang/loader_reference.go -- checkReferences, checkLeafrefSchema -->
-<!-- source: internal/component/config/yang/reference_path.go -- leafrefTarget, checkPathKeys -->
+<!-- source: internal/component/config/yang/loader_reference.go -- checkReferences, checkLeafrefSchema, representsConfig -->
+<!-- source: internal/component/config/yang/reference_path.go -- leafrefTarget, checkPathKeys, checkPathPrefix -->
 <!-- source: internal/component/config/yang/loader_abnf.go -- parseYANGGrammar, rfc7950Grammar -->
 <!-- source: internal/component/config/yang/loader_grammar.go -- argumentCheckers, checkURI, checkPathArg -->
 <!-- source: internal/component/config/yang/loader_source.go -- statementHasBlock -->

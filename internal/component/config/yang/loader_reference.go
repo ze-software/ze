@@ -86,11 +86,27 @@ func (v *Validator) checkLeafrefSchema(leaf *yang.Entry, typ *yang.YangType) err
 	if err != nil {
 		return err
 	}
-	if !typ.OptionalInstance && !leaf.ReadOnly() && target.ReadOnly() {
+	if !typ.OptionalInstance && representsConfig(leaf) && target.ReadOnly() {
 		return fmt.Errorf("the leaf is configuration and requires an instance, but %s is state: "+
 			"point the path at a config leaf, or add require-instance false", target.Path())
 	}
 	return v.checkLeafrefLoop(leaf, target)
+}
+
+// representsConfig reports whether leaf is configuration data: a config true
+// node of the data tree. A node under an rpc or action input or output, or
+// under a notification, is no configuration whatever its config property, so
+// Section 9.9 lets its leafref refer to state. goyang answers ReadOnly false
+// for an input node, because no config statement is above it.
+func representsConfig(leaf *yang.Entry) bool {
+	for node := leaf; node != nil; node = node.Parent {
+		//exhaustive:ignore // a predicate over the entry kinds that hold no data tree node
+		switch node.Kind {
+		case yang.InputEntry, yang.OutputEntry, yang.NotificationEntry:
+			return false
+		}
+	}
+	return !leaf.ReadOnly()
 }
 
 // checkLeafrefLoop refuses a chain of leafrefs that leads from target back to
