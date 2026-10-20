@@ -15,6 +15,10 @@
 # asserted by the responder-backed tests (ipsec-sa-installed) and the
 # strongSwan interop lab (test/interop-ipsec/).
 
+# The zetest recording dataplane: the SPD catch-all must be installed or the
+# apply fails (installUnmatched), and an unprivileged kernel cannot hold it, so
+# the recording backend holds it instead (dataplane/recording_zetest.go).
+option=env:var=ze_test_ike_dataplane:value=recording
 stdin=config:terminator=EOF_CONFIG
 plugin {
 	external engine-steps {
@@ -52,9 +56,9 @@ bgp {
 
 vpn {
 	ipsec {
-		# The kernel dataplane runs unprivileged here, so the default discard catch-all
-		# cannot be installed and would fail the start (installUnmatched fails closed).
-		# A bypass that cannot be installed is tolerated, so this test keeps its subject.
+		# Written, so the default discard's start error and commit refusal
+		# (warnImplicitDiscardAtStart, refuseImplicitDiscard) stay out of this test's
+		# subject. The recording dataplane holds the bypass catch-all.
 		unmatched bypass;
 		esp-group esp-default {
 			lifetime 3600
@@ -94,6 +98,14 @@ cmd=foreground:seq=1:exec=ze -:stdin=config:timeout=30s
 command=show vpn ipsec status
 expect=output:contains=engine-running:timeout=5
 expect=output:contains=configured-peers:timeout=1
+
+# RFC 4301 Section 5.2: the SPD catch-all is installed on the first apply, so
+# every inbound packet meets an SPD-I entry. Its priority is the largest u32
+# (dataplane.PriorityUnmatched), which no other entry carries, and under
+# `unmatched bypass` its action is bypass. The recording dataplane answers the
+# listing from what the engine installed.
+command=show vpn ipsec dataplane policy
+expect=output:contains=4294967295:timeout=5
 expect=exit:code=0
 expect=stderr:contains=engine-steps: all steps passed
 reject=stderr:pattern=panic recovered

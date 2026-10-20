@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
 )
@@ -38,6 +39,12 @@ func applyTestState(t *testing.T) *ikeEngineState {
 	previous := ikeTestPortFn
 	ikeTestPortFn = func() string { return strconv.Itoa(port) }
 	t.Cleanup(func() { ikeTestPortFn = previous })
+
+	// The apply installs the SPD catch-all and fails when it cannot (installUnmatched),
+	// so a test that loaded no backend of its own gets one that holds every entry.
+	if dataplane.Get() == nil {
+		loadFailClosedBackend(t, &catchAllDP{})
+	}
 
 	state := &ikeEngineState{
 		table:        NewSATable(),

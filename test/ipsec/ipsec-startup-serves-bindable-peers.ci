@@ -27,6 +27,10 @@
 # transports, the reconcile and the active-config store. A run that took the refusal
 # branch returns before all of it, so this assertion cannot pass over the defect.
 
+# The zetest recording dataplane: the SPD catch-all must be installed or the
+# apply fails (installUnmatched), and an unprivileged kernel cannot hold it, so
+# the recording backend holds it instead (dataplane/recording_zetest.go).
+option=env:var=ze_test_ike_dataplane:value=recording
 option=env:var=ze_test_ike_port:value=$PORT2
 option=env:var=ze_log_ike:value=info
 option=timeout:value=60s
@@ -68,9 +72,9 @@ bgp {
 
 vpn {
 	ipsec {
-		# The kernel dataplane runs unprivileged here, so the default discard catch-all
-		# cannot be installed and would fail the start (installUnmatched fails closed).
-		# A bypass that cannot be installed is tolerated, so this test keeps its subject.
+		# Written, so the default discard's start error and commit refusal
+		# (warnImplicitDiscardAtStart, refuseImplicitDiscard) stay out of this test's
+		# subject. The recording dataplane holds the bypass catch-all.
 		unmatched bypass;
 		# No link carries this name, so the address lookup fails.
 		interface ze-absent-test0

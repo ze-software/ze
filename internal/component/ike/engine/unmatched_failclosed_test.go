@@ -1,5 +1,5 @@
-// VALIDATES: an operator who writes `unmatched discard` either gets the discard
-// catch-all installed or is told the configuration was not applied. A catch-all that
+// VALIDATES: an operator gets the catch-all `unmatched` names installed, discard or
+// bypass, or is told the configuration was not applied. A catch-all that
 // cannot be installed, because the install failed, because no dataplane is loaded, or
 // because the backend holds no entry bound to no interface, fails the apply rather than
 // leaving the kernel to pass what the operator asked to stop. The same condition is
@@ -29,8 +29,16 @@ type catchAllRefusingDP struct {
 }
 
 func (catchAllRefusingDP) CatchAllSupported() error {
-	return dataplane.ErrNotSupported
+	return dataplane.ErrNoNodeWideSPD
 }
+
+// noXFRMDP is a backend on a platform without XFRM: it declares the catch-all
+// unsupported, as xfrm_other.go does, and every install fails.
+type noXFRMDP struct {
+	bypassDP
+}
+
+func (noXFRMDP) CatchAllSupported() error { return dataplane.ErrNotSupported }
 
 // catchAllDP is a backend that declares it can hold the catch-all.
 type catchAllDP struct {
@@ -63,29 +71,25 @@ func loadFailClosedBackend(t *testing.T, dp dataplane.Dataplane) {
 	})
 }
 
-// A failed DISCARD install fails the apply, on both deliveries, and the error names the
-// catch-all. A failed BYPASS install does not: with no entry the kernel passes the
-// packet, which is what a bypass entry would have done.
-func TestUnmatchedDiscardInstallFailureFailsTheApply(t *testing.T) {
+// A failed catch-all install fails the apply, on both deliveries and for both
+// dispositions, and the error names the catch-all. A failed BYPASS used to be logged and
+// tolerated, which left an inbound packet meeting no SPD-I entry at all (RFC 4301 Section
+// 5.2 step 3b; owner decision 2026-10-20, Q7 A).
+func TestUnmatchedInstallFailureFailsTheApply(t *testing.T) {
 	loadFailClosedBackend(t, &bypassDP{installErr: errors.New("operation not permitted")})
 
 	for _, phase := range []applyPhase{applyStartup, applyReload} {
-		state := applyTestState(t)
-		cfg := testIPsecConfig(applyTestPeer("127.0.0.1"))
-		cfg.Unmatched = dataplane.SPActionDiscard
-		err := state.applyConfig(cfg, phase)
-		if err == nil {
-			t.Fatalf("phase %d: a discard catch-all that failed to install was reported applied", phase)
-		}
-		if !strings.Contains(err.Error(), "catch-all") {
-			t.Errorf("phase %d: error %q does not name the catch-all", phase, err)
-		}
-
-		bypass := applyTestState(t)
-		cfg = testIPsecConfig(applyTestPeer("127.0.0.1"))
-		cfg.Unmatched = dataplane.SPActionBypass
-		if err := bypass.applyConfig(cfg, phase); err != nil {
-			t.Errorf("phase %d: a failed bypass catch-all failed the apply: %v", phase, err)
+		for _, action := range []dataplane.SPAction{dataplane.SPActionDiscard, dataplane.SPActionBypass} {
+			state := applyTestState(t)
+			cfg := testIPsecConfig(applyTestPeer("127.0.0.1"))
+			cfg.Unmatched = action
+			err := state.applyConfig(cfg, phase)
+			if err == nil {
+				t.Fatalf("phase %d action %d: a catch-all that failed to install was reported applied", phase, action)
+			}
+			if !strings.Contains(err.Error(), "catch-all") {
+				t.Errorf("phase %d action %d: error %q does not name the catch-all", phase, action, err)
+			}
 		}
 	}
 }
@@ -178,22 +182,31 @@ func failClosedBypassEntry(t *testing.T, name, local string) ipsec.SPDPolicy {
 	}
 }
 
-// A DISCARD with no dataplane, or with a backend that cannot hold the entry, is an
-// error from installUnmatched. A BYPASS in the same place is not.
-func TestUnmatchedDiscardWithNoEnforcingDataplaneIsAnError(t *testing.T) {
+// A catch-all with no dataplane, or on a platform without XFRM, is an error from
+// installUnmatched for both dispositions. The one bypass that is neither installed nor
+// refused is on a backend that declares it holds no entry bound to no interface (VPP),
+// the gap rfc/short/rfc4301.md keeps open on RFC4301-5.2-1 and RFC4301-5.2-9.
+func TestUnmatchedWithNoEnforcingDataplaneIsAnError(t *testing.T) {
 	log := slogutil.Logger("test")
-	if err := installUnmatched(nil, dataplane.SPActionDiscard, log); err == nil {
-		t.Error("a discard catch-all with no dataplane loaded returned no error")
-	}
 	unsupported := &bypassDP{installErr: dataplane.ErrNotSupported}
-	if err := installUnmatched(unsupported, dataplane.SPActionDiscard, log); err == nil {
-		t.Error("a discard catch-all on a backend without XFRM returned no error")
+	for _, action := range []dataplane.SPAction{dataplane.SPActionDiscard, dataplane.SPActionBypass} {
+		if err := installUnmatched(nil, action, log); err == nil {
+			t.Errorf("action %d: a catch-all with no dataplane loaded returned no error", action)
+		}
+		if err := installUnmatched(unsupported, action, log); err == nil {
+			t.Errorf("action %d: a catch-all on a backend without XFRM returned no error", action)
+		}
 	}
-	if err := installUnmatched(nil, dataplane.SPActionBypass, log); err != nil {
-		t.Errorf("a bypass catch-all with no dataplane returned %v", err)
+	noXFRM := &noXFRMDP{bypassDP{installErr: dataplane.ErrNotSupported}}
+	if err := installUnmatched(noXFRM, dataplane.SPActionBypass, log); err == nil {
+		t.Error("a bypass catch-all on a platform that declares no XFRM returned no error")
 	}
-	if err := installUnmatched(unsupported, dataplane.SPActionBypass, log); err != nil {
-		t.Errorf("a bypass catch-all on a backend without XFRM returned %v", err)
+	vpp := &catchAllRefusingDP{}
+	if err := installUnmatched(vpp, dataplane.SPActionBypass, log); err != nil {
+		t.Errorf("a bypass on a backend with no node-wide SPD returned %v", err)
+	}
+	if len(vpp.installed) != 0 {
+		t.Errorf("a backend with no node-wide SPD was asked to install %d catch-all entries", len(vpp.installed))
 	}
 	installed := &bypassDP{}
 	if err := installUnmatched(installed, dataplane.SPActionDiscard, log); err != nil {

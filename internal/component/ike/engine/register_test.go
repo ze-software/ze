@@ -51,19 +51,17 @@ func TestRouteInboundKeysOnSANotPeer(t *testing.T) {
 	}
 }
 
-// VALIDATES: spec-fixit-ike-resource-lifetime-leaks AC-2 -- when runEngine takes an error
-// exit after the bypass is installed, no IKE bypass policy is left in the kernel policy
-// table: every policy start installed is released.
-// PREVENTS: four node-wide XFRM policies surviving the daemon that installed them. The
-// release sat in the shutdown tail, BELOW the `return 1` that a failed plugin handshake
-// takes, so a start that failed after installIKEBypass left ze's IKE ports exempt from
-// IPsec processing for a daemon that is no longer running. The policies carry no peer
-// identity and are not reference-counted, so nothing on the box ever removed them.
+// VALIDATES: an engine that exits before its first configuration apply installed no SPD
+// entry and removed none: Ze's SPD, the IKE bypass and the catch-all, appears on the
+// first apply and not at engine start (owner decision 2026-10-20, Q6 B), and a catch-all
+// another policy manager left in place survives the failed start.
+// PREVENTS: the IKE bypass going in at engine start, before any configuration, which
+// made Ze hold SPD entries with no catch-all beneath them; and the earlier defect, a
+// start failing after that install leaving four node-wide bypass policies behind.
 //
-// It drives runEngine itself rather than the removal helper: the helper is already proven
-// by TestInstallAndRemoveIKEBypassCoverBothFamilies, and the defect was the WIRING between
-// the two -- which exits reach it (ai/rules/evidence.md).
-func TestRunRemovesIKEBypassOnEveryErrorExit(t *testing.T) {
+// It drives runEngine itself rather than a helper, because the defect class is the
+// WIRING: which step of the start installs, and which exits release.
+func TestRunInstallsNoSPDEntryBeforeTheFirstApply(t *testing.T) {
 	dp := &bypassDP{}
 	// This engine has not applied a configuration yet and does not own the
 	// catch-all left by another policy manager. Startup failure must preserve it.
@@ -108,14 +106,11 @@ func TestRunRemovesIKEBypassOnEveryErrorExit(t *testing.T) {
 		t.Fatalf("runEngine returned %d on a broken plugin connection, want 1 (the error exit under test)", code)
 	}
 
-	if len(dp.installed) == 0 {
-		t.Fatal("engine start installed no bypass policy, so the removal asserted below proves nothing")
+	if len(dp.installed) != 0 {
+		t.Errorf("an engine that applied no configuration installed %d SPD entries: %+v", len(dp.installed), dp.installed)
 	}
-
-	for _, installed := range dp.installed {
-		if _, remains := dp.live[keyOf(installed)]; remains {
-			t.Errorf("the error exit left its IKE bypass policy %+v installed", keyOf(installed))
-		}
+	if len(dp.removed) != 0 {
+		t.Errorf("an engine that applied no configuration removed %d SPD entries: %+v", len(dp.removed), dp.removed)
 	}
 	if len(dp.live) != 1 {
 		t.Fatalf("startup failure changed the pre-existing policy set: %+v", dp.live)

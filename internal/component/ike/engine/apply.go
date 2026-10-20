@@ -181,9 +181,16 @@ type ikeEngineState struct {
 	// installed with (installSPDPolicies, spd_policy.go).
 	installedSPD map[string]ipsec.SPDPolicy
 
-	// unmatchedApplied records whether this engine reached the catch-all writer.
-	// An early SDK startup failure must not remove policies it never managed.
-	unmatchedApplied bool
+	// spdApplied records whether this engine reached the SPD writers of its first
+	// apply: the IKE bypass and the catch-all (applyConfig). Ze's SPD appears there and
+	// is released as one unit on exit (releaseSPD), so an engine that never applied a
+	// configuration holds no SPD entry, and an early SDK startup failure removes no
+	// policy it never managed.
+	spdApplied bool
+
+	// ikeBypassInstalled records that an apply installed the IKE bypass, once, after
+	// the catch-all it follows.
+	ikeBypassInstalled bool
 
 	// discardInForce is true once an apply installed a DISCARD catch-all, and false
 	// after one installed a BYPASS. The commit check reads it on the SDK's verify path
@@ -277,21 +284,32 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	//
 	// The catch-all goes in first, ahead of the operator's entries and the cookie
 	// threshold, and it is the one step of an apply that
-	// can refuse the configuration after the interface check above. A DISCARD
-	// catch-all that could not be installed leaves the kernel passing the traffic the
-	// operator asked to stop, so the apply fails and the configuration is not reported
+	// can refuse the configuration after the interface check above. A catch-all that
+	// could not be installed, DISCARD or BYPASS, leaves an inbound packet meeting no
+	// SPD-I entry at all, so the apply fails and the configuration is not reported
 	// applied (installUnmatched, unmatched.go). Running it before the operator's entries
 	// and the cookie threshold means a refusal leaves those unchanged. The entries a
 	// partial install did place are discards, and they fail closed. The catch-all is
 	// re-asserted on every apply, because the backend upserts a template-free policy, so
 	// a changed disposition replaces the entry in place.
 	//
-	// Before the first apply no catch-all exists at all, so the kernel passes an
-	// unmatched packet in the clear until the configuration the daemon starts with is
-	// applied (docs/guide/ipsec.md, "Traffic no entry matches").
-	s.unmatchedApplied = true
+	// Ze's SPD comes into being here, on the first apply, and is released as one unit
+	// on exit (releaseSPD). The catch-all is the FIRST entry in and the LAST out, so at
+	// no instant does Ze hold an SPD entry without the final entry beneath it, and
+	// outside [first apply, exit] Ze holds no SPD entry and no SA: it is not acting as
+	// an IPsec implementation then, and no packet is looked up in an SPD-I of Ze's
+	// (owner decision 2026-10-20, Q6 B; docs/guide/ipsec.md, "Traffic no entry
+	// matches"). The IKE bypass follows it on the first apply. No IKE socket is open
+	// before this apply (listeners.open runs below), so a DISCARD catch-all installed
+	// ahead of the bypass drops no IKE exchange. The bypass carries no configuration, so
+	// it is installed once (installIKEBypass, bypass.go).
+	s.spdApplied = true
 	if err := installUnmatched(dataplane.Get(), cfg.Unmatched, s.log); err != nil {
 		return err
+	}
+	if !s.ikeBypassInstalled {
+		installIKEBypass(dataplane.Get(), s.log)
+		s.ikeBypassInstalled = true
 	}
 	s.discardInForce.Store(cfg.Unmatched == dataplane.SPActionDiscard)
 	if phase == applyStartup {
@@ -385,9 +403,11 @@ func (s *ikeEngineState) rebindListeners(host string, wanted bool) {
 	}
 }
 
-// stopAllPeers tears every running session down. It is the first step of a rebind: the
-// sockets a session holds cannot be swapped under it, so the session cannot outlive
-// them.
+// stopAllPeers tears every running session down, removing each Child SA before it
+// returns (stopPeerSession). It is the first step of a rebind: the sockets a session
+// holds cannot be swapped under it, so the session cannot outlive them. It is also the
+// first step of every exit of runEngine, before releaseSPD, and a second call finds no
+// peer.
 func (s *ikeEngineState) stopAllPeers() {
 	peersMu.RLock()
 	stopping := make(map[string]*PeerSession, len(s.peers))
@@ -439,4 +459,28 @@ func (s *ikeEngineState) reloadPool(ra *ipsec.RemoteAccessConfig) {
 	s.pool = pool
 	s.poolCfg = ra.Pool
 	s.log.Info("ike: virtual IP pool created", "range", ra.Pool.Range)
+}
+
+// releaseSPD removes the SPD this engine installed, on every exit of runEngine, as
+// the one unit applyConfig installed it as: the IKE bypass, then the operator's
+// entries, and the catch-all LAST. Each set is node-wide and outlives the process
+// that installed it, so an entry left behind keeps acting for a daemon that is no
+// longer running: a DISCARD keeps dropping traffic, a bypass keeps exempting it.
+//
+// The catch-all goes last so that no packet meets a database holding the catch-all's
+// disposition and nothing above it: while any other Ze entry is still installed, so
+// is the final entry that decides what that entry does not name. Once it is gone Ze
+// holds no SPD entry and no SA (stopAllPeers ran first), which is the state before
+// the first apply (owner decision 2026-10-20, Q6 B).
+//
+// An engine that never applied a configuration installed nothing, so it removes
+// nothing, and a catch-all another policy manager put in place survives its failed
+// start.
+func (s *ikeEngineState) releaseSPD(dp dataplane.Dataplane, log *slog.Logger) {
+	if !s.spdApplied {
+		return
+	}
+	removeIKEBypass(dp, log)
+	removeSPDPolicies(dp, s.installedSPD, log)
+	removeUnmatched(dp, log)
 }

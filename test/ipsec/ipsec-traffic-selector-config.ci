@@ -12,6 +12,10 @@
 # the responder answered every IKE_AUTH with a full wildcard while installing the
 # initiator's own selectors, so the wire and the dataplane disagreed.
 
+# The zetest recording dataplane: the SPD catch-all must be installed or the
+# apply fails (installUnmatched), and an unprivileged kernel cannot hold it, so
+# the recording backend holds it instead (dataplane/recording_zetest.go).
+option=env:var=ze_test_ike_dataplane:value=recording
 stdin=config:terminator=EOF_CONFIG
 plugin {
 	external engine-steps {
@@ -49,9 +53,9 @@ bgp {
 
 vpn {
 	ipsec {
-		# The kernel dataplane runs unprivileged here, so the default discard catch-all
-		# cannot be installed and would fail the start (installUnmatched fails closed).
-		# A bypass that cannot be installed is tolerated, so this test keeps its subject.
+		# Written, so the default discard's start error and commit refusal
+		# (warnImplicitDiscardAtStart, refuseImplicitDiscard) stay out of this test's
+		# subject. The recording dataplane holds the bypass catch-all.
 		unmatched bypass;
 		esp-group esp-default {
 			lifetime 3600

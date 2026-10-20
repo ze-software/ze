@@ -69,7 +69,7 @@ func vppPortRange(m PortMatch) (start, stop uint16, err error) {
 // effect only on the interfaces it is bound to, so VPP holds no entry bound to no
 // interface, and the engine's catch-all is exactly that entry.
 func (b *vppBackend) CatchAllSupported() error {
-	return fmt.Errorf("%w: vpp: an SPD entry applies only to the interfaces its SPD is bound to; VPP has no node-wide SPD", ErrNotSupported)
+	return fmt.Errorf("%w: vpp: an SPD entry applies only to the interfaces its SPD is bound to", ErrNoNodeWideSPD)
 }
 
 func (b *vppBackend) InstallPolicy(p SPParams) error {

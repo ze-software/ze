@@ -104,10 +104,12 @@ func ikeBypassPolicies(family net.IP) []dataplane.SPParams {
 
 // installIKEBypass installs the bypass set for every address family.
 //
-// WHEN. Once, at engine start, immediately after the dataplane is loaded and before
-// any peer session exists. That ordering is the point: the exemption has to be in
-// place BEFORE the first Child SA policy, or a retransmission or a Delete landing in
-// the window between them is swallowed by the policy it was meant to manage.
+// WHEN. Once, on the first configuration apply, right after the SPD catch-all and
+// before any IKE socket or peer session exists (applyConfig, apply.go). That ordering
+// is the point: the exemption has to be in place BEFORE the first Child SA policy, or
+// a retransmission or a Delete landing in the window between them is swallowed by the
+// policy it was meant to manage. It is not installed at engine start, because an
+// engine that applied no configuration holds no SPD entry at all.
 //
 // WHY NOT PER CHILD SA. The exemption belongs to ze's IKE listener, not to any one
 // tunnel. Installing it per Child SA would need a refcount to survive several peers
@@ -147,8 +149,8 @@ func installIKEBypass(dp dataplane.Dataplane, log *slog.Logger) {
 
 // removeIKEBypass releases the bypass policies for every address family.
 //
-// It runs on EVERY exit of the engine, from the deferred cleanup registered beside
-// installIKEBypass (register.go runEngine), because the policies belong to ze's IKE
+// It runs on EVERY exit of an engine that applied a configuration, from releaseSPD
+// (apply.go), which runEngine's deferred cleanup calls, because the policies belong to ze's IKE
 // listener rather than to any peer or Child SA: a clean shutdown and an error return
 // both end the listener, and the policies are node-wide, so one that outlives the
 // process exempts IKE traffic from IPsec for a daemon that is no longer running. Ze

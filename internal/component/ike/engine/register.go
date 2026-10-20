@@ -366,21 +366,14 @@ func runEngine(conn net.Conn) int {
 	if err := dataplane.Load(ikeDataplaneName()); err != nil {
 		log.Warn("ike: dataplane load failed, SA installation disabled", "error", err)
 	}
-	// Exempt ze's own IKE traffic from IPsec BEFORE any peer can negotiate a Child
-	// SA. A negotiated selector that covers the peer's IKE address would otherwise
-	// capture the exchange that maintains the very tunnel it belongs to
-	// (installIKEBypass, bypass.go).
-	installIKEBypass(dataplane.Get(), log)
-	// Released on EVERY exit of runEngine, which is why this is a defer. The four
-	// policies are node-wide rather than per-peer, so they outlive the process that
-	// installed them: an error return that skipped the removal left ze's IKE traffic
-	// exempt from IPsec for a daemon that is no longer running, and nothing on the box
-	// ever cleaned it up. The engine owns what it installed on every way out, and
-	// removeIKEBypass is idempotent, so a removal that finds nothing is expected.
+	// No SPD entry is installed here. Ze's SPD, the IKE bypass and the catch-all,
+	// appears on the first configuration apply (applyConfig, apply.go) and is released
+	// on EVERY exit of runEngine by the deferred releaseSPD below, catch-all last, so
+	// before the first apply and after exit Ze holds no SPD entry and no SA.
 	//
-	// The backend closes here too, and AFTER the removal: CloseBackend clears the
-	// active backend, so a removal ordered after it would have no dataplane to talk to
-	// and would silently release nothing.
+	// The backend closes in the same defer, and AFTER the release: CloseBackend clears
+	// the active backend, so a release ordered after it would have no dataplane to talk
+	// to and would silently release nothing.
 	// The running state this engine owns across every configuration it is given
 	// (ikeEngineState, apply.go). It is built before the deferred release below,
 	// because that release reads the SPD entries the apply path installed.
@@ -395,15 +388,11 @@ func runEngine(conn net.Conn) int {
 	setActivePeers(state.peers)
 
 	defer func() {
-		removeIKEBypass(dataplane.Get(), log)
-		// The operator's entries are node-wide in exactly the way the bypass is, so
-		// they are released on the same every-exit path and for the same reason: a
-		// DISCARD that outlives the process keeps dropping traffic for a daemon that
-		// is no longer running (removeSPDPolicies, spd_policy.go).
-		removeSPDPolicies(dataplane.Get(), state.installedSPD, log)
-		if state.unmatchedApplied {
-			removeUnmatched(dataplane.Get(), log)
-		}
+		// An error exit skips the shutdown tail that stops the peers, so it is done
+		// here too: every Child SA and its policies are gone before the SPD the engine
+		// installed is released (stopAllPeers finds no peer once the tail ran).
+		state.stopAllPeers()
+		state.releaseSPD(dataplane.Get(), log)
 		if err := dataplane.CloseBackend(); err != nil {
 			log.Warn("ike: dataplane close error", "error", err)
 		}
@@ -556,25 +545,12 @@ func runEngine(conn net.Conn) int {
 	// Cleanup after Run returns (shutdown).
 	reEstablishFn.Store(nil)
 	close(metricsStop)
-	peersMu.Lock()
-	shutdownPeers := make(map[string]*PeerSession, len(state.peers))
-	maps.Copy(shutdownPeers, state.peers)
-	peersMu.Unlock()
-	shutdownBus := getEventBus()
-	for name, ps := range shutdownPeers {
-		ps.Stop()
-		ps.cleanupPendingSA(state.table, dataplane.Get(), shutdownBus, log)
-		peersMu.Lock()
-		delete(state.peers, name)
-		dataplaneChanged()
-		peersMu.Unlock()
-	}
+	state.stopAllPeers()
 	state.listeners.closeSockets(log)
-	// The IKE bypass and the backend are released by the deferred cleanup registered
-	// beside installIKEBypass, so this clean shutdown and every error exit release the
-	// same set. It runs after this line, which is after every peer has stopped, so
-	// nothing is left that still needs the exemption (installIKEBypass, bypass.go,
-	// for why the bypass outlives every peer rather than being removed per Child SA).
+	// The SPD and the backend are released by the deferred cleanup above, so this
+	// clean shutdown and every error exit release the same set. It runs after this
+	// line, which is after every peer has stopped, so nothing is left that still needs
+	// the IKE bypass, and the catch-all goes last (releaseSPD, apply.go).
 
 	return 0
 }

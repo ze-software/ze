@@ -361,12 +361,24 @@ config verify refuses `unmatched discard` when the loaded backend's
 `CatchAllSupported` (`dataplane.CatchAllInstaller`) says no, or when no
 dataplane is loaded, and `installUnmatched` returns an error for a discard
 install that fails, which fails the apply before the operator's entries, the
-cookie threshold or any peer change. A BYPASS catch-all that is not installed is
-logged and tolerated, because the kernel then passes the packet as the entry
-would have. Before the first apply no catch-all exists.
-The engine records whether configuration reached this catch-all writer.
-Cleanup removes catch-all policies only after that apply boundary; an earlier
-SDK startup failure must not delete a pre-existing policy it never managed.
+cookie threshold or any peer change. A BYPASS catch-all that is not installed
+fails the apply the same way (no dataplane, no XFRM, a failed install), because
+without the entry an inbound packet meets no SPD-I entry at all (RFC 4301
+Section 5.2). The one bypass neither installed nor refused is on a backend whose
+`CatchAllSupported` answers `dataplane.ErrNoNodeWideSPD` (VPP), the open gap on
+RFC4301-5.2-1 and RFC4301-5.2-9.
+
+Ze's SPD is one unit with a lifetime of [first apply, exit]. `applyConfig`
+installs the catch-all first and, on the first apply only, the IKE bypass
+(`installIKEBypass`) right after it, before any IKE socket opens; engine start
+installs nothing. Every exit of `runEngine` stops every peer, removing its Child
+SA (`stopAllPeers`), then `releaseSPD` removes the IKE bypass, the operator's
+entries, and the catch-all LAST. So no Ze entry is in force without the final
+entry beneath it, and outside that window Ze holds no SPD entry and no SA: it is
+not acting as an IPsec implementation then (owner decision 2026-10-20). The
+engine records whether configuration reached the SPD writers (`spdApplied`);
+an SDK startup failure before it removes nothing, so a pre-existing policy it
+never managed survives.
 
 BYPASS and DISCARD are TEMPLATE-FREE: neither hands traffic to a transform, so
 neither names a mode, a tunnel endpoint pair or a reqid, and both are built
@@ -391,6 +403,7 @@ it is being dropped.
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppSPDAction -->
 <!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, installSPDPolicies -->
 <!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched -->
+<!-- source: internal/component/ike/engine/apply.go -- applyConfig, releaseSPD -->
 
 ## Policy ownership
 

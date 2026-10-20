@@ -71,19 +71,32 @@ func unmatchedPolicies(family net.IP, action dataplane.SPAction) ([]dataplane.SP
 // upserts a template-free policy (xfrmBackend.InstallPolicy), so a changed
 // disposition replaces the entry under the same selector rather than adding a second.
 //
-// A DISCARD that is not installed is an error, whatever stopped it: no dataplane
-// loaded, a backend that holds no entry bound to no interface, or an install that
-// failed. The kernel passes a packet no entry matches, so a missing discard entry
-// fails OPEN, and the caller fails the apply rather than report the configuration in
-// force. A BYPASS that is not installed is logged and tolerated: with no entry the
-// kernel passes the packet, which is what the entry would have done.
+// A catch-all that is not installed is an error, whichever disposition it carries and
+// whatever stopped it: no dataplane loaded, a platform without XFRM, or an install that
+// failed. RFC 4301 Section 4.4.1: "Since the SPD-I is just a part of the SPD, if a
+// packet that is looked up in the SPD-I cannot be matched to an entry there, then the
+// packet MUST be discarded." The kernel passes a packet no entry matches, so without
+// the entry an inbound packet meets no SPD-I entry at all and is delivered, which is
+// neither the discard the MUST names nor a disposition the operator chose. A BYPASS
+// entry is still an entry: the packet met a policy. So the caller fails the apply
+// rather than report the configuration in force (owner decision 2026-10-20, Q7 A).
+//
+// One case is not installed and not refused: a BYPASS on a backend that declares,
+// ahead of any install, that it holds no entry bound to no interface (the VPP backend,
+// dataplane.ErrNoNodeWideSPD, vppBackend.CatchAllSupported). verifyUnmatchedEnforceable refuses a DISCARD there,
+// and a bypass is the only disposition such a backend runs under. Packets no entry
+// matches meet no SPD-I entry on it, which rfc/short/rfc4301.md records as the open
+// gap of RFC4301-5.2-1 and RFC4301-5.2-9.
 func installUnmatched(dp dataplane.Dataplane, action dataplane.SPAction, log *slog.Logger) error {
-	discard := action == dataplane.SPActionDiscard
 	if dp == nil {
-		if discard {
-			return errUnmatchedDiscardNoDataplane
+		return errUnmatchedNoDataplane
+	}
+	if action == dataplane.SPActionBypass {
+		if err := catchAllUnsupported(dp); err != nil {
+			log.Warn("ike: this dataplane holds no SPD entry bound to no interface, so no SPD catch-all bypass entry is installed; "+
+				"traffic no entry matches crosses the IPsec boundary unchanged", "error", err)
+			return nil
 		}
-		return nil
 	}
 	for _, family := range ikeBypassFamilies {
 		policies, err := unmatchedPolicies(family, action)
@@ -91,35 +104,50 @@ func installUnmatched(dp dataplane.Dataplane, action dataplane.SPAction, log *sl
 			return fmt.Errorf("ike: build the SPD catch-all entry: %w", err)
 		}
 		for _, p := range policies {
-			err := dp.InstallPolicy(p)
-			if err == nil {
-				continue
-			}
 			// RFC 4301 Section 4.4.1: "Every SPD SHOULD have a nominal, final entry
 			// that matches anything that is otherwise unmatched, and discards it."
-			// RFC 4301 Section 5: "If no policy is found in the SPD that matches a
-			// packet (for either inbound or outbound traffic), the packet MUST be
-			// discarded." The operator asked for that entry, so a discard that did not
-			// reach the dataplane refuses the configuration.
-			if discard {
-				return fmt.Errorf("ike: install the SPD catch-all discard entry (dir %d): %w", p.Dir, err)
+			// RFC 4301 Section 5.2: "If there is no match, discard the traffic." The
+			// entry is what makes every inbound packet meet an SPD-I entry, so one that
+			// did not reach the dataplane refuses the configuration.
+			if err := dp.InstallPolicy(p); err != nil {
+				return fmt.Errorf("ike: install the SPD catch-all %s entry (dir %d): %w; "+
+					"the daemon needs CAP_NET_ADMIN and a kernel with XFRM (CONFIG_XFRM_USER) to hold it",
+					unmatchedActionName(action), p.Dir, err)
 			}
-			if isXFRMUnsupported(err) {
-				log.Debug("ike: unmatched policies unavailable on this platform", "error", err)
-				return nil
-			}
-			log.Warn("ike: could not install the SPD catch-all bypass entry; traffic no entry matches crosses the IPsec boundary unchanged",
-				"dir", p.Dir, "error", err)
 		}
 	}
 	return nil
 }
 
-// errUnmatchedDiscardNoDataplane is the refusal of a discard catch-all when no
-// dataplane is loaded: runEngine logs a failed dataplane.Load and carries on, and a
-// discard then has nothing to be installed into.
-var errUnmatchedDiscardNoDataplane = errors.New("ike: `unmatched discard` (written, or the default when the leaf is unset) needs a dataplane to install the SPD catch-all entry, and none is loaded: " +
-	"the daemon log names why the dataplane failed to load; fix that, or `set vpn ipsec unmatched bypass` to run without the entry")
+// catchAllUnsupported answers the backend's own declaration that it has no node-wide
+// SPD (dataplane.ErrNoNodeWideSPD, the VPP backend), and nil otherwise. Any other
+// refusal, a platform without XFRM included, is not this declaration: the install is
+// attempted and its failure refuses the apply.
+func catchAllUnsupported(dp dataplane.Dataplane) error {
+	capable, ok := dp.(dataplane.CatchAllInstaller)
+	if !ok {
+		return nil
+	}
+	err := capable.CatchAllSupported()
+	if errors.Is(err, dataplane.ErrNoNodeWideSPD) {
+		return err
+	}
+	return nil
+}
+
+// unmatchedActionName names a catch-all disposition in an error message.
+func unmatchedActionName(action dataplane.SPAction) string {
+	if action == dataplane.SPActionDiscard {
+		return "discard"
+	}
+	return "bypass"
+}
+
+// errUnmatchedNoDataplane is the refusal of a catch-all when no dataplane is loaded:
+// runEngine logs a failed dataplane.Load and carries on, and the catch-all then has
+// nothing to be installed into.
+var errUnmatchedNoDataplane = errors.New("ike: the SPD catch-all entry (`vpn ipsec unmatched`, discard or bypass) needs a dataplane to be installed into, and none is loaded: " +
+	"the daemon log names why the dataplane failed to load; fix that and commit again")
 
 // verifyUnmatchedEnforceable is the config-verify half of installUnmatched: it refuses
 // `unmatched discard` when the loaded dataplane says, ahead of any install, that it
@@ -132,7 +160,7 @@ func verifyUnmatchedEnforceable(dp dataplane.Dataplane, action dataplane.SPActio
 		return nil
 	}
 	if dp == nil {
-		return errUnmatchedDiscardNoDataplane
+		return errUnmatchedNoDataplane
 	}
 	capable, ok := dp.(dataplane.CatchAllInstaller)
 	if !ok {

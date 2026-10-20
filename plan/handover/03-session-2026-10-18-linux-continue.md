@@ -835,3 +835,28 @@ State at hand-off (agent budget exhausted; only this section is committed):
 - Remaining reds and their first error are in the spec's Phase 1 "AC-4 state
   (2026-10-20, third package)" line. Phases 2-8 untouched.
 - Gates owed: `./le go lint run` on `internal/le/interoplab/bgp`, `./le test unit all`.
+
+### 2026-10-20 RFC 4301 gaps #50/#51 (Q6 B, Q7 A): done in the tree, NOT committed
+
+- Implemented and green, uncommitted (agent ran out of budget at the commit step).
+  Files: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md, docs/guide/ipsec.md,
+  internal/component/ike/dataplane/{dataplane.go,vpp_policy.go,recording_zetest.go,
+  register_recording_zetest.go,recording_zetest_test.go,recording_shipped_test.go},
+  internal/component/ike/engine/{apply.go,apply_test.go,bypass.go,child.go,
+  reconcile_test.go,register.go,register_test.go,unmatched.go,
+  unmatched_failclosed_test.go,rfc4301_spd_lifecycle_test.go},
+  rfc/discrimination/rfc4301.json, rfc/short/rfc4301.md, test/weakened/3f5fcb0a.md
+  (4 rows appended), the 3 test/ipsec and 5 test/reload `.ci` files that ran
+  `unmatched bypass` unprivileged (now `ze_test_ike_dataplane=recording`).
+- Evidence: go test engine+dataplane+cmd (tags ze_vpp) ok; dataplane -tags zetest ok;
+  `./le test ipsec --pattern ipsec-` and `./le test bgp reload --pattern ipsec` all PASS;
+  ipsec-status-show.ci catch-all assertion red with a wrong priority, green restored;
+  revert record for TestRFC4301FinalEntryIsUnderEveryZeSPDEntry written.
+- To land: clear stale tmp/commit-msg-* (create said "no free message tag"), rerun
+  `./le commit create replace session 3f5fcb0a` with those files, structural-red-ok
+  (arch tier check and iface-resolution both exit 0 on the tree), and run the printed
+  script. tmp/commit-3f5fcb0a-z-cd2c6d.sh / -7c470b.sh exist but which is this one was
+  not seen; do not run either blind.
+- Judge owed (audits stale, not stamped): RFC4301-5.2-1, RFC4301-5.2-9, RFC4301-4.4.1-3,
+  RFC4301-5.1-7. Gates owed: `./le go lint run` on internal/component/ike/..., verify.
+- Path (a) VPP stays the only `{gap}` on 5.2-1/5.2-9 (owner checks VPP first).

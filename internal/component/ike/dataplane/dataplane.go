@@ -16,6 +16,13 @@ import (
 var (
 	ErrNotRegistered = errors.New("dataplane: no backend registered")
 	ErrNotSupported  = errors.New("dataplane: operation not supported on this platform")
+
+	// ErrNoNodeWideSPD is CatchAllSupported's answer from a backend whose SPD entries
+	// apply only to the interfaces their SPD is bound to (VPP), so it holds no entry
+	// bound to no interface. It is a property of the backend, not a platform failure:
+	// the engine skips a BYPASS catch-all there rather than failing the apply, and a
+	// platform without XFRM, which answers ErrNotSupported alone, fails it.
+	ErrNoNodeWideSPD = fmt.Errorf("%w: the backend has no node-wide SPD", ErrNotSupported)
 )
 
 // SAIdentity is the destination-qualified SAD key, including the XFRM interface.

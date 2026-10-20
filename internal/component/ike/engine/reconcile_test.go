@@ -23,6 +23,9 @@ func testIPsecConfig(peers ...ipsec.SiteToSitePeer) *ipsec.IPsecConfig {
 			"test-ike": testIKEGroup(),
 		},
 		Peers: make(map[string]ipsec.SiteToSitePeer),
+		// The parser always fills the disposition; the zero value is PROTECT, which
+		// installUnmatched refuses, so a configuration built by hand names one.
+		Unmatched: dataplane.SPActionBypass,
 	}
 	for i := range peers {
 		cfg.Peers[peers[i].Name] = peers[i]

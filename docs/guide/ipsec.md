@@ -1014,21 +1014,27 @@ A box with no `vpn ipsec` block keeps a `bypass` catch-all: it configured no
 IPsec boundary.
 
 The IKE control-plane bypass at order 100 is installed either way, so the
-tunnels can still be negotiated. The entry is re-asserted on every apply and
-removed when the engine stops.
+tunnels can still be negotiated. Ze's entries appear together on the first
+apply, the catch-all first and the IKE bypass right after it, before any IKE
+socket opens. The catch-all is re-asserted on every apply. When the engine
+stops, every tunnel is torn down first, then the IKE bypass and your `policy`
+entries are removed, and the catch-all goes last, so no Ze entry is ever in
+force without it.
 
 #### When the entry is not there
 
-A `discard` entry that is not installed would let the kernel pass exactly the
-traffic you asked it to drop, so Ze never reports such a configuration as
-applied:
+A catch-all that is not installed leaves a packet no entry matches meeting no
+entry at all, which RFC 4301 Section 5.2 forbids ("If there is no match,
+discard the traffic"), so Ze never reports such a configuration as applied,
+whichever value `unmatched` holds. The one exception is the VPP backend:
 
 | Situation | `discard` | `bypass` |
 |---|---|---|
-| The dataplane cannot hold an entry bound to no interface: the VPP backend, a build off Linux, or a kernel without XFRM | Refused at commit. A configuration the daemon starts with is not verified, so a start with `unmatched` unset (or `discard`) fails instead: installing the discard entry fails, and the configure step returns that error. Fix: `set vpn ipsec unmatched bypass` in the configuration file, then start again | Accepted; no entry is installed, and the kernel passes the traffic |
-| No dataplane loaded (the daemon logged that the load failed) | Refused at commit | Accepted; no entry is installed |
-| The install itself fails when the configuration is applied, which includes a daemon without `CAP_NET_ADMIN`: it can open the XFRM socket, so the commit check passes, and the kernel refuses the install | The apply fails with the error, and the configuration is not reported applied: a commit is refused, and at startup the configure step returns the error | Logged as a warning; the kernel passes the traffic |
-| Before the first configuration is applied, and after the engine stops | No entry exists, and the kernel passes the traffic in the clear | Same |
+| The VPP backend, which holds no entry bound to no interface | Refused at commit. A configuration the daemon starts with is not verified, so a start with `unmatched` unset (or `discard`) fails instead: installing the discard entry fails, and the configure step returns that error. Fix: `set vpn ipsec unmatched bypass` in the configuration file, then start again | Accepted; no entry is installed, and the traffic crosses in the clear. This is an open RFC 4301 gap on VPP |
+| A build off Linux, or a kernel without XFRM | Refused at commit, and a start fails as in the row above | The apply fails: a commit is refused, and at startup the configure step returns the error. Fix: run Ze on a Linux kernel with XFRM (`CONFIG_XFRM_USER`) |
+| No dataplane loaded (the daemon logged that the load failed) | Refused at commit | The apply fails. Fix: the cause the daemon logged |
+| The install itself fails when the configuration is applied, which includes a daemon without `CAP_NET_ADMIN`: it can open the XFRM socket, so the commit check passes, and the kernel refuses the install | The apply fails with the error, and the configuration is not reported applied: a commit is refused, and at startup the configure step returns the error | Same as `discard`. Fix: give the daemon `CAP_NET_ADMIN` |
+| Before the first configuration is applied, and after the engine stops | Ze holds no SPD entry and no SA, so it is not acting as an IPsec implementation and no packet is looked up in an SPD of Ze's; the kernel passes traffic as it does with no IPsec configured | Same |
 
 The catch-all is installed before the `policy` entries, the peers and the
 cookie threshold of the same configuration, so a refused apply leaves the

@@ -23,6 +23,10 @@
 # the capture shows `received SIGHUP, reloading config...` as the daemon's last
 # line. See plan/known-failures/reload-transaction-tests-load-sensitive.md.
 
+# The zetest recording dataplane: the SPD catch-all must be installed or the
+# apply fails (installUnmatched), and an unprivileged kernel cannot hold it, so
+# the recording backend holds it instead (dataplane/recording_zetest.go).
+option=env:var=ze_test_ike_dataplane:value=recording
 option=skip-os:value=darwin
 stdin=peer:terminator=EOF_PEER
 
@@ -85,9 +89,9 @@ bgp {
 
 vpn {
 	ipsec {
-		# The kernel dataplane runs unprivileged here, so the default discard catch-all
-		# cannot be installed and would fail the apply (installUnmatched fails closed).
-		# A bypass that cannot be installed is tolerated, so this test keeps its subject.
+		# Written, so the default discard's start error and commit refusal
+		# (warnImplicitDiscardAtStart, refuseImplicitDiscard) stay out of this test's
+		# subject. The recording dataplane holds the bypass catch-all.
 		unmatched bypass;
 		ike-group IKE-1 {
 			proposal 1 {
@@ -162,9 +166,9 @@ bgp {
 
 vpn {
 	ipsec {
-		# The kernel dataplane runs unprivileged here, so the default discard catch-all
-		# cannot be installed and would fail the apply (installUnmatched fails closed).
-		# A bypass that cannot be installed is tolerated, so this test keeps its subject.
+		# Written, so the default discard's start error and commit refusal
+		# (warnImplicitDiscardAtStart, refuseImplicitDiscard) stay out of this test's
+		# subject. The recording dataplane holds the bypass catch-all.
 		unmatched bypass;
 		ike-group IKE-1 {
 			proposal 1 {

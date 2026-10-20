@@ -553,7 +553,7 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	// The policies below can capture ze's own IKE traffic whenever the negotiated
 	// selector covers the two addresses IKE runs between, which the ordinary
 	// 0.0.0.0/0 site-to-site selector always does. The exemption that stops it is
-	// installed once, at engine start, and it outlives every Child SA: see
+	// installed once, on the first configuration apply, and it outlives every Child SA: see
 	// installIKEBypass in bypass.go for why it is not installed here.
 	//
 	// RFC 4301 Section 4.4.2: one inbound and one outbound policy per negotiated pair,
