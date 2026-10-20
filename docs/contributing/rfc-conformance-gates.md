@@ -1164,7 +1164,15 @@ use the mutant route inside the value that the initializer returns
 |---|---|---|
 | `mutant` | one gomu mutant, substituted into its own line | `go test -v -run '^<Func>$'` over the tagged unit's package, under a Go `-overlay` |
 | `revert` on a `.ci` | the producing function's body replaced by a halt | ONE `.ci`, against the isolated set `testfunctional.Prepare` builds under the same overlay: `le test <suite> <name>` for ordinary suites, `le test exabgp <suite> <absolute-ci-path>` for `test/exabgp-compat/` |
-| `revert` on an interop checker | the same | `./le test integration interop` with `INTEROP_SCENARIO` set to the scenario the checker's own `const name` declares |
+| `revert` on an interop checker | the same | the `Action` of the suite whose catalog `Package` holds the checker (`./le test integration interop-ipsec` for `internal/le/interoplab/ipsec/`), with that catalog's `SelectorVariable` (`IPSEC_INTEROP_SCENARIO`) set to the scenario the checker's own `const name` declares, confirmed under the catalog's `ScenarioRoot` |
+
+The suite comes from the interoplab catalog each lab registers in its
+`register_catalog.go`, the same registry that maps an interop tag to its
+carrier, so every lab with a catalog can carry a record and no suite table
+exists in `internal/le/rfc`. A checker in a package no catalog declares is
+refused before anything runs, naming the registration it lacks.
+<!-- source: internal/le/rfc/carriers.go -- interopTrees, interopSuiteOf -->
+<!-- source: internal/le/rfc/discriminate_observe.go -- carrierArgv, environment, interopScenarioOf -->
 
 The compatibility runner's positional path selects exactly that file; `--pattern`
 is a substring filter and can select siblings, so the recorder does not use it.

@@ -73,7 +73,7 @@ func Run(ctx context.Context, options Options) interoplab.SuiteReport {
 // RunAt runs the native PPPoE interop suite against root.
 func RunAt(ctx context.Context, root string, options Options) interoplab.SuiteReport {
 	environment := interoplab.ReadEnvironment(interoplab.EnvironmentOptions{
-		SelectorVariable: "ZE_PPPOE_INTEROP_SCENARIO",
+		SelectorVariable: selectorVariable,
 		SuffixVariable:   "ZE_PPPOE_INTEROP_SUFFIX",
 	})
 	if options.Scenario == "" {
@@ -85,7 +85,7 @@ func RunAt(ctx context.Context, root string, options Options) interoplab.SuiteRe
 	options.NoBuild = options.NoBuild || environment.NoBuild
 
 	sources, err := interoplab.Discover(
-		filepath.Join(root, suitePath, "scenarios"),
+		filepath.Join(root, filepath.FromSlash(scenarioDirectory)),
 		options.Scenario,
 		checkers(),
 	)

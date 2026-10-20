@@ -134,7 +134,7 @@ func Run() (any, int) {
 // an empty one leaves the variable to choose.
 func RunAt(ctx context.Context, root, selector string) (Report, int) {
 	environment := interoplab.ReadEnvironment(interoplab.EnvironmentOptions{
-		SelectorVariable: "IPSEC_INTEROP_SCENARIO",
+		SelectorVariable: selectorVariable,
 		SuffixVariable:   "ZE_IPSEC_INTEROP_SUFFIX",
 		DefaultImage:     defaultFRRImage,
 		DefaultSuffix:    strconv.Itoa(os.Getpid()),
@@ -146,7 +146,7 @@ func RunAt(ctx context.Context, root, selector string) (Report, int) {
 }
 
 func runAt(ctx context.Context, root string, environment interoplab.Environment, docker *interoplab.Docker) (Report, int) {
-	scenarioRoot := filepath.Join(root, "test", "interop-ipsec", "scenarios")
+	scenarioRoot := filepath.Join(root, filepath.FromSlash(scenarioDirectory))
 	sources, err := interoplab.Discover(scenarioRoot, environment.Selector, checkerAdapters())
 	if err != nil {
 		report := Report{SetupError: err.Error(), Code: 1}

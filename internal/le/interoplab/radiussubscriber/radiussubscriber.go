@@ -104,7 +104,7 @@ func Run(ctx context.Context) interoplab.SuiteReport {
 // the one scenario to run and wins over RADIUS_SUBSCRIBER_INTEROP_SCENARIO.
 func RunAt(ctx context.Context, root, selector string) interoplab.SuiteReport {
 	environment := interoplab.ReadEnvironment(interoplab.EnvironmentOptions{
-		SelectorVariable: "RADIUS_SUBSCRIBER_INTEROP_SCENARIO",
+		SelectorVariable: selectorVariable,
 		SuffixVariable:   "ZE_RADIUS_SUBSCRIBER_INTEROP_SUFFIX",
 		DefaultSuffix:    strconv.Itoa(os.Getpid()),
 	})
@@ -121,7 +121,7 @@ func RunAt(ctx context.Context, root, selector string) interoplab.SuiteReport {
 // suiteFor builds the complete suite without starting anything, so a test can
 // assert the topology and the grants this lab declares.
 func suiteFor(root string, environment interoplab.Environment, docker *interoplab.Docker) (interoplab.Suite, error) {
-	sources, err := interoplab.Discover(filepath.Join(root, labDirectory, "scenarios"), environment.Selector,
+	sources, err := interoplab.Discover(filepath.Join(root, filepath.FromSlash(scenarioDirectory)), environment.Selector,
 		scenarioCheckerMap(environment.SessionTimeout))
 	if err != nil {
 		return interoplab.Suite{}, err

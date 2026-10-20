@@ -87,7 +87,7 @@ func RunAt(ctx context.Context, root, selector string) interoplab.SuiteReport {
 		}
 	}
 	environment := interoplab.ReadEnvironment(interoplab.EnvironmentOptions{
-		SelectorVariable: "ZE_L2TP_INTEROP_SCENARIO",
+		SelectorVariable: selectorVariable,
 		SuffixVariable:   "ZE_L2TP_INTEROP_SUFFIX",
 		DefaultImage:     defaultFRRImage,
 	})
@@ -123,7 +123,7 @@ func runAt(ctx context.Context, root, selector string, docker *interoplab.Docker
 }
 
 func plansAt(root, selector string, environment interoplab.Environment) ([]interoplab.ScenarioPlan, bool, error) {
-	scenariosRoot := filepath.Join(root, "test", "interop-l2tp", "scenarios")
+	scenariosRoot := filepath.Join(root, filepath.FromSlash(scenarioDirectory))
 	sources, err := interoplab.Discover(scenariosRoot, selector, scenarioCheckerMap(environment.SessionTimeout))
 	if err != nil {
 		return nil, false, err

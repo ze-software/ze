@@ -21,6 +21,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/interoplab"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
 	testrunner "github.com/ze-software/ze/internal/test/runner"
@@ -45,6 +46,10 @@ type observationRunner struct {
 	names string
 	// scenario is the interop scenario the checker drives, empty otherwise.
 	scenario string
+	// suite is the catalog of the interop suite whose package holds the
+	// checker: its scenario directory, selector variable and action. Zero for
+	// any other carrier kind.
+	suite interoplab.Catalog
 	// self is the le binary this process is, re-executed for a carrier whose
 	// runner is a native action.
 	self string
@@ -108,7 +113,11 @@ func newObservationRunner(tree string, reader *sourceReader, index *scopeIndex, 
 	if carrier.Kind != kindInterop {
 		return runner, nil
 	}
-	runner.scenario, err = interopScenarioOf(tree, reader, index, record)
+	runner.suite, err = interopSuiteOf(tag.File)
+	if err != nil {
+		return nil, err
+	}
+	runner.scenario, err = interopScenarioOf(tree, reader, index, record, runner.suite)
 	if err != nil {
 		return nil, err
 	}
@@ -119,10 +128,11 @@ func newObservationRunner(tree string, reader *sourceReader, index *scopeIndex, 
 // interopScenarioOf answers the scenario one interop checker drives.
 //
 // The checker declares it as `const name = "<scenario>"`, and the answer is
-// confirmed against test/interop/scenarios/, so what reaches the runner's
-// environment is a directory this tree holds rather than authored text.
+// confirmed against the ScenarioRoot of the suite whose package holds the
+// checker, so what reaches the runner's environment is a directory this tree
+// holds rather than authored text.
 func interopScenarioOf(tree string, reader *sourceReader, index *scopeIndex,
-	record DiscriminationRecord) (string, error) {
+	record DiscriminationRecord, suite interoplab.Catalog) (string, error) {
 	var tb textbuf.Buffer
 	rel, symbol, err := fingerprintKey(record.Unit, record.Source)
 	if err != nil {
@@ -143,9 +153,10 @@ func interopScenarioOf(tree string, reader *sourceReader, index *scopeIndex,
 		return "", parseErr(tb.Str(record.Unit).Str(" declares no `const name = \"<scenario>\"`, ").
 			Str("so which scenario to run cannot be read off the checker"))
 	}
-	if _, statErr := os.Stat(treePath(tree, interopScenarioRel, match[1])); statErr != nil {
-		return "", parseErr(tb.Str(interopScenarioRel).Byte('/').Str(match[1]).
-			Str(" is not a directory in this tree, so that scenario cannot be run"))
+	if _, statErr := os.Stat(treePath(tree, suite.ScenarioRoot, match[1])); statErr != nil {
+		return "", parseErr(tb.Str(suite.ScenarioRoot).Byte('/').Str(match[1]).
+			Str(" is not a directory in this tree, so the ").Str(suite.Suite).
+			Str(" suite cannot run that scenario"))
 	}
 	return match[1], nil
 }
@@ -424,20 +435,16 @@ func (o *observationRunner) argv(overlay, profile string) []string {
 	return o.toolchain.GoTest(gotoolchain.TestOptions{}, options...)
 }
 
-// carrierArgv re-executes this le binary on the interop action the carrier names.
+// carrierArgv re-executes this le binary on the action the suite's catalog
+// declares runs it, `<command> <area>/<verb>`.
 //
 // The already-built binary rather than the `./le` script, because the script
 // rebuilds itself from the tree and the tree is about to be compiled under an
-// overlay. Re-running the action the carrier table NAMES is what keeps this
-// from being a second interop runner.
+// overlay. Re-running the action the suite DECLARES is what keeps this from
+// being a second interop runner.
 func (o *observationRunner) carrierArgv() []string {
-	protocol := strings.TrimPrefix(o.carrier.Name, "interop-")
-	verb := "interop"
-	if protocol != "bgp" {
-		var tb textbuf.Buffer
-		verb = tb.Str("interop-").Str(protocol).String()
-	}
-	return []string{o.self, leTestCommand, "integration", verb}
+	command, verb, _ := strings.Cut(o.suite.Action, "/")
+	return append(append([]string{o.self}, strings.Fields(command)...), verb)
 }
 
 // coverPackages answers the -coverpkg patterns one clean run instruments: the
@@ -600,7 +607,7 @@ func (o *observationRunner) environment(overlay string) []string {
 	}
 	if o.scenario != "" {
 		var tb textbuf.Buffer
-		environ = append(environ, tb.Str("INTEROP_SCENARIO=").Str(o.scenario).String())
+		environ = append(environ, tb.Str(o.suite.SelectorVariable).Byte('=').Str(o.scenario).String())
 	}
 	return environ
 }

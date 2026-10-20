@@ -87,13 +87,10 @@ const revertMarker = "disabled this producer to observe the red"
 // interopScenarioRE reads the scenario a checker drives from its own body.
 //
 // The interop checkers declare it as `const name = "<scenario>"`, and the
-// scenario is then confirmed against test/interop/scenarios/, so the value that
-// reaches the runner's environment comes from the tree rather than from a
-// record's free text.
+// scenario is then confirmed against the scenario directory the checker's suite
+// declares in its interoplab catalog, so the value that reaches the runner's
+// environment comes from the tree rather than from a record's free text.
 var interopScenarioRE = regexp.MustCompile(`(?m)^\s*(?:const\s+)?name\s*=\s*"([a-z0-9][a-z0-9-]*)"`)
-
-// interopScenarioRel is where a scenario's directory lives.
-const interopScenarioRel = "test/interop/scenarios"
 
 // discriminationRecordReport is what `./le rfc discriminate-record` answers.
 //

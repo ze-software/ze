@@ -103,7 +103,12 @@ func init() {
 		// The check never runs a scenario; record-run tests pass their own runner.
 		RunScenario: func(context.Context, string, string) interoplab.SuiteReport {
 			return interoplab.SuiteReport{SetupError: "the fixture suite runs nothing", Code: 1}
-		}})
+		},
+		Package:          "internal/le/interoplab/fixture/",
+		ScenarioRoot:     "test/interop-fixture/scenarios",
+		SelectorVariable: "FIXTURE_INTEROP_SCENARIO",
+		Action:           "test integration/interop-fixture",
+	})
 }
 
 func writeFile(t *testing.T, tree, rel, content string) {

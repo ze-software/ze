@@ -75,7 +75,7 @@ func RunAt(ctx context.Context, root string, options Options) interoplab.SuiteRe
 // assert what this lab declares rather than what a Docker run happens to do.
 func suiteFor(root string, options Options) (interoplab.Suite, error) {
 	environment := interoplab.ReadEnvironment(interoplab.EnvironmentOptions{
-		SelectorVariable: "INTEROP_SCENARIO",
+		SelectorVariable: selectorVariable,
 		SuffixVariable:   "ZE_INTEROP_SUFFIX",
 		DefaultImage:     defaultFRRImage,
 		DefaultSuffix:    options.Suffix,
@@ -92,7 +92,7 @@ func suiteFor(root string, options Options) (interoplab.Suite, error) {
 
 	producer := filepath.Join(root, "test", "interop")
 	sources, err := interoplab.Discover(
-		filepath.Join(producer, "scenarios"), options.Scenario, checkers())
+		filepath.Join(root, filepath.FromSlash(scenarioDirectory)), options.Scenario, checkers())
 	if err != nil {
 		return interoplab.Suite{}, err
 	}

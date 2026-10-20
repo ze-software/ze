@@ -36,7 +36,7 @@ disagree. Nothing depends on the order: each scenario gets its own setup, check
 and teardown.
 
 A reader outside a suite asks for its scenarios through the suite's catalog.
-Each lab registers one in its `register.go` (`interoplab.RegisterCatalog`,
+Each lab registers one in its `register_catalog.go` (`interoplab.RegisterCatalog`,
 `internal/le/interoplab/catalog.go`), built on the same `Discover` call and
 checker map its runner uses, so a name cited elsewhere is a name the runner
 runs. `./le feature check` resolves a feature's Interop entry
@@ -47,6 +47,17 @@ over the lab's selector variable. `./le feature record-run` records an interop
 green run through it, against the scenario directory's git tree id, so a
 feature's Supported claim needs a current green run of each scenario it counts
 (`docs/contributing/feature-maturity.md`, "Recorded runs").
+
+The catalog is also where a lab declares where it lives and how the repository
+runs it: `Package` (the checker directory), `ScenarioRoot`, `SelectorVariable`
+and `Action` (`<command> <area>/<verb>`). The lab's own runner reads the same
+`scenarioDirectory` and `selectorVariable` constants, so the declaration and
+the run cannot disagree. `./le rfc` derives its interop carriers from these
+fields, one per registered suite, and `./le rfc discriminate-record` runs one
+scenario through the declared action and selector.
+<!-- source: internal/le/interoplab/catalog.go -- Catalog -->
+<!-- source: internal/le/rfc/carriers.go -- interopTrees -->
+
 <!-- source: internal/le/interoplab/catalog.go -- RegisterCatalog, CatalogNamed, Catalog.RunScenario -->
 
 A scenario directory carries only declarative inputs its runner reads: `ze.conf`

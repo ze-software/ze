@@ -181,15 +181,19 @@ func TestInteropScenarioOfConstantDeclarations(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			suite, err := interopSuiteOf(source)
+			if err != nil {
+				t.Fatal(err)
+			}
 			tree := t.TempDir()
-			if err := os.MkdirAll(filepath.Join(tree, interopScenarioRel, "fixture-scenario"), 0o755); err != nil {
+			if err := os.MkdirAll(filepath.Join(tree, filepath.FromSlash(suite.ScenarioRoot), "fixture-scenario"), 0o755); err != nil {
 				t.Fatal(err)
 			}
 			reader := newTextReader(map[string]string{
 				source: "package bgp\n\nfunc checkFixture() {\n" + tt.declaration + "}\n",
 			})
 			record := DiscriminationRecord{Unit: source + "::checkFixture"}
-			scenario, err := interopScenarioOf(tree, reader, newScopeIndex(), record)
+			scenario, err := interopScenarioOf(tree, reader, newScopeIndex(), record, suite)
 			if err != nil {
 				t.Fatal(err)
 			}

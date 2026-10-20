@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/interoplab"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
 )
@@ -154,13 +155,35 @@ type Carrier struct {
 // The tier is derived from whether CI schedules that action.
 type interopTree struct{ name, prefix, action string }
 
-var interopTrees = [...]interopTree{
-	{"interop-bgp", "internal/le/interoplab/bgp/", "test integration/interop"},
-	{"interop-ipsec", "internal/le/interoplab/ipsec/", "test integration/interop-ipsec"},
-	{"interop-l2tp", "internal/le/interoplab/l2tp/", "test deployment/docker-l2tp-ppp-test"},
-	{"interop-radius", "internal/le/interoplab/radius/", "test integration/interop-radius"},
-	{"interop-radius-subscriber", "internal/le/interoplab/radiussubscriber/", "test integration/interop-radius-subscriber"},
-	{"interop-pppoe", "internal/le/interoplab/pppoe/", "test deployment/docker-pppoe-accel-test"},
+// interopTrees answers one tree per registered interop suite, read off the
+// suite's own catalog (internal/le/interoplab/<lab>/register_catalog.go), so a
+// lab is a carrier the moment it registers and no table here can omit one.
+// The labs are linked into this package by interoplabs.go.
+func interopTrees() []interopTree {
+	suites := interoplab.CatalogSuites()
+	trees := make([]interopTree, 0, len(suites))
+	for _, suite := range suites {
+		catalog, _ := interoplab.CatalogNamed(suite)
+		trees = append(trees, interopTree{name: "interop-" + suite, prefix: catalog.Package, action: catalog.Action})
+	}
+	return trees
+}
+
+// interopSuiteOf answers the catalog of the interop suite whose package holds
+// the file at rel, which is where the recorder reads the scenario directory,
+// the selector variable and the action that runs the suite.
+func interopSuiteOf(rel string) (interoplab.Catalog, error) {
+	for _, suite := range interoplab.CatalogSuites() {
+		catalog, _ := interoplab.CatalogNamed(suite)
+		if strings.HasPrefix(rel, catalog.Package) {
+			return catalog, nil
+		}
+	}
+	var tb textbuf.Buffer
+	return interoplab.Catalog{}, parseErr(tb.Str(rel).
+		Str(" is in no registered interop suite's package, so which scenario directory, selector ").
+		Str("and action would run it is unknown. Register the lab's catalog in its ").
+		Str("register_catalog.go and link the lab from internal/le/rfc/interoplabs.go"))
 }
 
 var legacyInteropTrees = [...]interopTree{
@@ -207,8 +230,9 @@ func suiteCarriers(kind, suffix, reader, runner, stage string, suites []string) 
 // and its tags stay refused, which is the same answer four literals used to
 // assert -- but now it is measured.
 func interopCarriers(scheduled map[string]string) []Carrier {
-	out := make([]Carrier, 0, len(interopTrees))
-	for _, tree := range interopTrees {
+	trees := interopTrees()
+	out := make([]Carrier, 0, len(trees))
+	for _, tree := range trees {
 		workflow := scheduled[tree.action]
 		tier, pipeline := tierUnrun, noAutomatedCaller
 		if workflow != "" {
@@ -273,7 +297,7 @@ func carriersFor(suites []string, scheduled map[string]string) []Carrier {
 	}
 
 	var unrunCI, unrunET textbuf.Buffer
-	out := make([]Carrier, 0, len(suites)+len(editorSuites)+len(interopTrees)+5)
+	out := make([]Carrier, 0, len(suites)+len(editorSuites)+len(interoplab.CatalogSuites())+5)
 	out = append(out, interopCarriers(scheduled)...)
 	out = append(out, Carrier{
 		Name: "interop-unrun", Kind: kindUnknown, Tier: tierUnrun, Prefix: "internal/le/interoplab/",
@@ -642,7 +666,7 @@ func workflowCommand(name string) bool {
 	if registeredCommand(name) {
 		return true
 	}
-	for _, tree := range &interopTrees {
+	for _, tree := range interopTrees() {
 		if interopTreeCommand(tree) == name {
 			return true
 		}
