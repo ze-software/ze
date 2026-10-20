@@ -17,6 +17,7 @@
 package testdeployment
 
 import (
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -204,7 +205,7 @@ var (
 // exist or cannot be executed is an operator error worth naming. Without this
 // check, the command fails deep inside a namespace where the reason is much
 // harder to see.
-func hostDaemon(tree, name string, progress io.Writer) (string, error) {
+func hostDaemon(ctx context.Context, tree, name string, progress io.Writer) (string, error) {
 	var tb textbuf.Buffer
 	if override := firstSetting(evidenceBinaryEntry.Key, l2tpPPPBinaryEntry.Key); override != "" {
 		info, err := os.Stat(override)
@@ -221,7 +222,7 @@ func hostDaemon(tree, name string, progress io.Writer) (string, error) {
 		return "", err
 	}
 	rel := hostDaemonRel(name)
-	if err := buildHostDaemon(tree, rel, progress); err != nil {
+	if err := buildHostDaemon(ctx, tree, rel, progress); err != nil {
 		return "", err
 	}
 	return filepath.Join(tree, rel), nil

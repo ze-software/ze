@@ -129,11 +129,14 @@ signal root. A step bounded from `context.Background()` (a kernel check, an
 image build, a scenario) ignores the Ctrl-C and runs to its bound. The kernel
 checks of `./le verify evidence release-candidate`, `./le setup docker-kernel`,
 the deployment proofs and the terminal demos, and the scenarios `./le feature
-record-run` drives, each run under that root.
+record-run` drives, each run under that root, and so does the daemon
+cross-compile of the signal-rooted deployment proofs (`l2tp-test`, `vpp-test`,
+`vpp-iface-test`).
 <!-- source: internal/le/test/integration/actions.go -- nativeRunner, signalContext -->
 <!-- source: internal/le/verify/evidence/evidence.go -- dockerKernel, Runner.Run -->
 <!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck -->
 <!-- source: internal/le/test/deployment/daemonkernel.go -- buildCheckedDaemon -->
+<!-- source: internal/le/test/deployment/daemonbuild.go -- runDaemonBuild -->
 <!-- source: internal/le/site/terminaldemo/render.go -- Engine.checkKernel, Engine.demoGrants -->
 <!-- source: internal/le/feature/recordrun.go -- runCatalogScenario -->
 <!-- source: internal/le/interoplab/process.go -- systemProcessRunner.Run, sharesTerminal -->

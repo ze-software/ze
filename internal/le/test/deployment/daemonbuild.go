@@ -78,10 +78,13 @@ var errBuildFailed = errors.New("go build ./cmd/ze failed")
 // build host's. GOCACHE is set inside the checkout only when the operator named
 // none, which keeps a proof that cross-compiles the whole daemon from paying
 // for it twice.
-func buildDaemon(tree, goarch string, progress io.Writer) error {
+//
+// ctx MUST be the verb's root, so the signal that ends the verb ends a cold
+// cross-compile with it rather than leaving it to run to buildTimeout.
+func buildDaemon(ctx context.Context, tree, goarch string, progress io.Writer) error {
 	var tb textbuf.Buffer
 	cross := []string{"GOOS=linux", tb.Str("GOARCH=").Str(goarch).String()}
-	return runDaemonBuild(tree, daemonRel(goarch), cross, progress)
+	return runDaemonBuild(ctx, tree, daemonRel(goarch), cross, progress)
 }
 
 // buildHostDaemon compiles the daemon for THIS machine into outRel.
@@ -90,8 +93,8 @@ func buildDaemon(tree, goarch string, progress io.Writer) error {
 // on the host uses the binary it just built. A cross-compiled binary would not
 // execute. This is the one difference from the container proofs, so the two
 // builds have separate names rather than a shared flag.
-func buildHostDaemon(tree, outRel string, progress io.Writer) error {
-	return runDaemonBuild(tree, outRel, nil, progress)
+func buildHostDaemon(ctx context.Context, tree, outRel string, progress io.Writer) error {
+	return runDaemonBuild(ctx, tree, outRel, nil, progress)
 }
 
 // runDaemonBuild compiles the daemon into outRel with extra in the environment.
@@ -100,7 +103,11 @@ func buildHostDaemon(tree, outRel string, progress io.Writer) error {
 // is not the build host's. The host proof gains nothing from a dynamic link. The
 // function sets GOCACHE inside the checkout only when the operator named none.
 // This keeps a proof that compiles the whole daemon from paying for it twice.
-func runDaemonBuild(tree, outRel string, extra []string, progress io.Writer) error {
+//
+// The build runs under ctx, bounded by buildTimeout, and never under a context
+// of its own: a build rooted on context.Background outlives the SIGTERM that
+// ends the verb, and a cold cross-compile then runs on for up to twenty minutes.
+func runDaemonBuild(ctx context.Context, tree, outRel string, extra []string, progress io.Writer) error {
 	argv, err := daemonBuildArgsTo(tree, outRel)
 	if err != nil {
 		return err
@@ -109,7 +116,7 @@ func runDaemonBuild(tree, outRel string, extra []string, progress io.Writer) err
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), buildTimeout)
+	ctx, cancel := context.WithTimeout(ctx, buildTimeout)
 	defer cancel()
 
 	build := exec.CommandContext(ctx, "go", argv...) //nolint:gosec // the argv is derived from the manifest, never from an operator
@@ -124,6 +131,11 @@ func runDaemonBuild(tree, outRel string, extra []string, progress io.Writer) err
 	}
 
 	if err := build.Run(); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			// The root ended or the bound passed: say so, rather than blame
+			// the toolchain for a build that was stopped.
+			return errors.Join(errBuildFailed, ctxErr)
+		}
 		return errBuildFailed
 	}
 	return nil

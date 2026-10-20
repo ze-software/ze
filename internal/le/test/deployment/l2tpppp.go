@@ -29,6 +29,7 @@
 package testdeployment
 
 import (
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -263,7 +264,9 @@ func (l *L2TPPPP) Run() (L2TPPPPReport, error) {
 		return report, err
 	}
 
-	binary, err := hostDaemon(l.Tree, daemonBinaryName, l.Progress)
+	// l2tp-ppp is not signal-rooted (signalRooted in actions.go roots only the
+	// container verbs), so the host build has no verb root to end it yet.
+	binary, err := hostDaemon(context.Background(), l.Tree, daemonBinaryName, l.Progress)
 	if err != nil {
 		return report, err
 	}

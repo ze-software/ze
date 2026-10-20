@@ -153,7 +153,7 @@ func appendVPPScenario(report *VPPReport, scenario VPPScenarioReport) bool {
 }
 
 func (v *VPP) buildBinaries() error {
-	if err := buildDaemon(v.Tree, v.Goarch, v.Progress); err != nil {
+	if err := buildDaemon(v.ctx, v.Tree, v.Goarch, v.Progress); err != nil {
 		return err
 	}
 	// The container runs the harness as `le test peer`, from a linux le built

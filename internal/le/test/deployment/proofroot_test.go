@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // refusingDocker is a docker on PATH whose kernel probe passes, that holds
@@ -99,6 +101,58 @@ func TestRootedProofsProbeTheKernelUnderTheVerbRoot(t *testing.T) {
 			}
 			if recorded, readErr := os.ReadFile(record); readErr == nil { //nolint:gosec // the test's own temp file
 				t.Fatalf("%s ran docker under a canceled root:\n%s", proof.name, recorded)
+			}
+		})
+	}
+}
+
+// recordingGo is a go on PATH that records each invocation and builds nothing.
+const recordingGo = `#!/bin/sh
+echo "$*" >> "$GO_RECORD"
+exit 0
+`
+
+// VALIDATES: the daemon build of each signal-rooted proof runs under the
+// verb's root, so the SIGTERM that ends the verb ends a cold cross-compile
+// rather than leaving it to run to buildTimeout.
+// METHOD: NO_BUILD is unset, so each proof builds; a go stub on PATH records
+// every invocation, and the tree carries the real feature-gates.txt so the
+// build reaches exec. Under a canceled root a build rooted on the verb never
+// starts the stub; one rooted on context.Background runs it.
+// PREVENTS: runDaemonBuild taking context.Background again, which a SIGTERM
+// to le (or `./le job run`, which signals the le pid only) cannot reach.
+func TestRootedProofsBuildTheDaemonUnderTheVerbRoot(t *testing.T) {
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("find the checkout: %v", err)
+	}
+	manifest, err := os.ReadFile(filepath.Join(root, "feature-gates.txt")) //nolint:gosec // the checkout's own manifest
+	if err != nil {
+		t.Fatalf("read the feature manifest: %v", err)
+	}
+	for _, proof := range rootedProofs() {
+		t.Run(proof.name, func(t *testing.T) {
+			tree := t.TempDir()
+			stageProofDocker(t, proofDocker, proof.goarch(tree), tree)
+			t.Setenv("NO_BUILD", "")
+			if err := os.WriteFile(filepath.Join(tree, "feature-gates.txt"), manifest, 0o600); err != nil {
+				t.Fatalf("write the feature manifest: %v", err)
+			}
+			bin := t.TempDir()
+			if err := os.WriteFile(filepath.Join(bin, "go"), []byte(recordingGo), 0o755); err != nil { //nolint:gosec // a stub on a test's own PATH must be executable
+				t.Fatalf("write the go stub: %v", err)
+			}
+			record := filepath.Join(bin, "record")
+			t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+			t.Setenv("GO_RECORD", record)
+			canceled, cancel := context.WithCancel(t.Context())
+			cancel()
+
+			if err := proof.run(canceled, tree); err == nil {
+				t.Fatalf("%s under a canceled root answered no error", proof.name)
+			}
+			if recorded, readErr := os.ReadFile(record); readErr == nil { //nolint:gosec // the test's own temp file
+				t.Fatalf("%s ran go under a canceled root:\n%s", proof.name, recorded)
 			}
 		})
 	}

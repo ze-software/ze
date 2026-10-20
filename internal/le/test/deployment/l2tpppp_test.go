@@ -262,7 +262,7 @@ func TestTheProofRefusesAnUnusableBinaryOverride(t *testing.T) {
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	if _, err := hostDaemon(tree, daemonBinaryName, io.Discard); err == nil ||
+	if _, err := hostDaemon(t.Context(), tree, daemonBinaryName, io.Discard); err == nil ||
 		!strings.Contains(err.Error(), "does not exist") {
 		t.Errorf("an override naming nothing answered %v, want a refusal naming the path", err)
 	}
@@ -274,7 +274,7 @@ func TestTheProofRefusesAnUnusableBinaryOverride(t *testing.T) {
 	t.Setenv("ZE_EVIDENCE_ZE_BINARY", unreadable)
 	env.ResetCache()
 
-	if _, err := hostDaemon(tree, daemonBinaryName, io.Discard); err == nil ||
+	if _, err := hostDaemon(t.Context(), tree, daemonBinaryName, io.Discard); err == nil ||
 		!strings.Contains(err.Error(), "is not executable") {
 		t.Errorf("an override that cannot be executed answered %v, want a refusal", err)
 	}
