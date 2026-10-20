@@ -1397,3 +1397,24 @@ All three changes below are UNCOMMITTED and none is green yet.
   Owner decision owed.
 - Next: commit the rest; AC-28 refusal; interop `bgp-exabgp-bridge-rtc-gobgp`,
   `bgp-exabgp-bridge-vpnv4-frr` (proven red); spec "Phase 5 state" line.
+
+### ExaBGP 6 spec, Phase 5 second package (exa12, 2026-10-20): Phase 5 rows met
+
+- AC-28 refusal re-verified, no code change: `TestAPISRPolicyAttributesReachParseConfigRoute` green,
+  red with srpolicy `parseConfigRoute`'s default-arm refusal overlaid to skip the word.
+- 7cec4fa82c: interop `bgp-exabgp-bridge-rtc-gobgp` (row 50) and `bgp-exabgp-bridge-vpnv4-frr`
+  (row 51), green, each red at assertion 2 with its `bridgeSAFI` row overlaid away (ze logs the
+  refusal; `GOFLAGS=-overlay=<json>` with `./le --name <n> test integration interop` reaches the lab
+  build; plain `./le` runs a cached bin/le that lacks new scenario registrations).
+- GoBGP v3.31.0 panics (nil Route Target, `BgpServer.propagateUpdate`) on a 0-bit default RTC
+  membership after another membership; the rtc scenario sends only `65001:100`. Not a ze defect.
+- NEXT_HOP question: FRR accepts ze's UPDATE with NEXT_HOP beside MP_REACH, installs the route
+  with its RD and label, session stays Established. Which next hop FRR uses is not observable here:
+  the bridge writes the same address into both. `api-mpls-vpn` files stay uncommitted pending owner.
+- `docs/architecture/wire/nlri.md`: the "SR-Policy in `update text`" section was false since
+  af18a709d8 (said `add` went to `EncodeNLRIHex` refusing all but three words); rewritten to the
+  producer, and an "RTC in `update text`" section added (the spec hook required naming the page).
+  `./le doc check verify` red only on a foreign anchor (hub-architecture.md `caseInEffect`).
+- Spec "Phase 5 state" line added. Phase 5 rows AC-26..AC-28 met. Gates owed by the main thread: `./le go lint run` on
+  internal/le/interoplab/bgp; `./le test unit all` (`internal/le/interoplab/pppoe`
+  `TestPPPoELabPeersRunWithoutPrivilege` is red on a foreign scenario `ipv6cp-missing-option`).

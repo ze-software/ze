@@ -682,15 +682,20 @@ falls back to `attr-23`. The live receive path still shows the attribute as
 
 `update text` has no SR-Policy parser of its own. An `mp ipv4/sr-policy` or
 `mp ipv6/sr-policy` section goes, like every family the `update` package does
-not parse itself, to `parseRegistryNLRISection`, which hands the whole token
-run to the plugin's registered `EncodeNLRIHex`. The grammar is the plugin's:
+not parse itself, to `parseRegistryNLRISection`. The grammar is the plugin's:
 `add` or `del` right after the family, then `distinguisher`, `color` and
-`endpoint`.
+`endpoint`. The sr-policy registration declares `NLRISectionCarriesAttributes`,
+so an `add` run goes to the plugin's config-route parser
+(`registry.SectionRouteParserFor`), the one config uses, and also takes
+`preference`, `priority`, `binding-sid`, `srv6-binding-sid`, `segment-list`,
+`policy-name` and `candidate-path-name`, whose Tunnel Encapsulation attribute
+joins the UPDATE's attributes in type-code order. A `del` run goes to the
+registered `EncodeNLRIHex`, which reads the three NLRI fields alone.
 
 | Input | Outcome |
 |-------|---------|
-| a second `add` or `del` after the section's first field | refused, for every registry family (mup, mvpn, sr-policy) |
-| `rd`, `label` or any keyword other than the three | refused by the encoder, naming the three it takes |
+| a second `add` or `del` after the section's first field | refused, for every registry family (mup, mvpn, rtc, sr-policy) |
+| `rd`, `label` or any word the `add` grammar above does not name, including one after the last segment list | refused by the config-route parser, naming every word it takes |
 | an `endpoint` of the other address family than the NLRI's AFI | refused by `validateSRPolicyEndpoint`, as the config path refuses it |
 | a `path-information` that applies to the section: at top level before its `nlri`, right after the family, or inside its run | the whole command is refused, never stripped silently |
 | a `path-information` inside another family's section of the same command | accepted; that section's NLRI carries it, the SR-Policy NLRI carries none |
@@ -704,6 +709,18 @@ decode under ADD-PATH, as the section above describes.
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseRegistryNLRISection, refuseAddPath -->
 <!-- source: internal/component/bgp/plugins/nlri/srpolicy/register.go -- NLRIAddPathRefusal -->
 <!-- source: internal/component/bgp/plugins/nlri/srpolicy/encode.go -- EncodeNLRIHex, validateSRPolicyEndpoint -->
+<!-- source: internal/component/bgp/plugins/nlri/srpolicy/config.go -- parseConfigRoute -->
+<!-- source: internal/component/plugin/registry/registry.go -- SectionRouteParserFor, NLRISectionCarriesAttributes -->
+
+### RTC in `update text`
+
+An `mp ipv4/rtc` section reaches the rtc plugin's `EncodeNLRIHex` the same
+way, `add` or `del` then `origin-as <asn> route-target <rt>`, or `default`.
+It writes the RFC 4684 Section 4 NLRI: a 96-bit prefix of the origin AS and
+the Route Target, or the zero-length default membership, never a partial
+prefix. A membership naming one of the two fields is refused rather than
+written with a zero.
+<!-- source: internal/component/bgp/plugins/nlri/rtc/encode.go -- EncodeNLRIHex, parseMembership -->
 
 ### ADD-PATH Decoding for Plugin Families (RFC 7911)
 
