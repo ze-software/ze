@@ -445,6 +445,7 @@ ended.
 <!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, runDockerLab, BuildLinuxZe -->
 <!-- source: internal/le/test/qemu/guestle.go -- buildGuestLe -->
 <!-- source: internal/le/job/job.go -- Admission.RunContext -->
+<!-- test: internal/le/job/runcontext_test.go TestRunContextEndsTheWaitForASlot, TestRunContextStartsNoChildUnderADoneRoot, TestRunContextStopsARunningChildWithSIGTERM, TestRunContextEndsTheFollowOfASharedRun -->
 <!-- test: internal/le/test/qemu/dockerlab_root_test.go TestDockerLabBuildsUnderTheVerbRoot -->
 
 The host's environment does not reach the guest, so a suite's one-scenario
