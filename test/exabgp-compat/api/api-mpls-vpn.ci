@@ -1,0 +1,16 @@
+option=file:api-mpls-vpn.conf
+1:cmd:announce eor ipv4 mpls-vpn
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:001E:02:00000007900F0003000180
+1:cmd:announce ipv4 mpls-vpn 10.0.0.0/24 next-hop 1.2.3.4 rd 100:100 label 10
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:004F:02:00000038800E200001800C00000000000000000102030400700000A100000064000000640A0000400101004002004003040102030440050400000064
+1:cmd:announce route 10.0.1.0/24 next-hop 1.2.3.4 rd 100:100 label 10
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:004F:02:00000038800E200001800C00000000000000000102030400700000A100000064000000640A0001400101004002004003040102030440050400000064
+# Both frames carry the NEXT_HOP attribute (40030401020304) beside MP_REACH_NLRI.
+# The ExaBGP 6.0 pin (685f772e4) sends the same UPDATE without it, as
+# FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0048:02:00000031800E20...0A00004001010040020040050400000064,
+# observed under --dut exabgp on 2026-10-20. RFC 4760 Section 3: "An UPDATE
+# message that carries no NLRI, other than the one encoded in the MP_REACH_NLRI
+# attribute, SHOULD NOT carry the NEXT_HOP attribute." Ze keeps it for VPN on
+# purpose (family.Family.LegacyNextHop, internal/core/family/family.go), the
+# ExaBGP 5.0 bytes api-vpnv4 and the conf-* fixtures pin. Which contract wins is
+# the owner's decision; this case pins Ze's bytes, as api-vpnv4 does.

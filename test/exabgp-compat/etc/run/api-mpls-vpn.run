@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+"""ExaBGP 6.0's `announce ipv4 mpls-vpn`: the route leaves as SAFI 128, the same
+bytes `announce route ... rd ... label` sends (CHANGELOG 6.0.0). No withdrawal:
+the pin writes the label into an MP_UNREACH_NLRI where Ze writes the RFC 8277
+Section 2.4 Compatibility field (api-vpnv4.ci), so no frame of one would pass
+against both."""
+
+import time
+
+from exabgp_api import send, wait_for_ack, wait_for_shutdown
+
+
+def main() -> None:
+    messages = [
+        'neighbor 127.0.0.1 announce ipv4 mpls-vpn 10.0.0.0/24 next-hop 1.2.3.4 rd 100:100 label 10',
+        'neighbor 127.0.0.1 announce route 10.0.1.0/24 next-hop 1.2.3.4 rd 100:100 label 10',
+    ]
+
+    time.sleep(0.2)  # let the EOR pass
+
+    for message in messages:
+        send(message)
+        time.sleep(0.2)
+
+    wait_for_ack(expected_count=2)
+    wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
