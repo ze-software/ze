@@ -88,6 +88,7 @@ var (
 	errMissingAIGPValue                 = errors.New("missing aigp value")
 	errMissingPrefixSIDValue            = errors.New("missing bgp-prefix-sid-srv6 value")
 	errEmptyClusterList                 = errors.New("cluster-list requires at least one cluster id")
+	errRestoreConfiguredAfterNLRI       = errors.New("restore-configured must precede the nlri and mp sections: it says how the whole command withdraws, so write `update text restore-configured nlri <family> del <prefix>`")
 	errSetDelKeywordsRemovedUseNext     = errors.New("set/del keywords removed; use: next-hop <address|self>")
 	errSetDelKeywordsRemovedUseRd       = errors.New("set/del keywords removed; use: rd <value>")
 	errSetDelKeywordsRemovedUseLabel    = errors.New("set/del keywords removed; use: label <value> or label [ <value>... ]")
@@ -114,8 +115,11 @@ const (
 	kwNLRI     = textparse.KWNLRISection // NLRI and Withdrawn Routes fields (RFC 4271 Section 4.3)
 	kwMP       = textparse.KWMPSection   // MP_REACH_NLRI and MP_UNREACH_NLRI (RFC 4760)
 	kwWatchdog = "watchdog"
-	kwNhop     = "nhop"             // Top-level next-hop keyword.
-	kwPathInfo = "path-information" // ADD-PATH path-id keyword.
+	// kwRestoreConfigured makes the command's withdrawals give back a route
+	// the peer's static config holds (bgptypes.NLRIBatch.RestoreConfigured).
+	kwRestoreConfigured = "restore-configured"
+	kwNhop              = "nhop"             // Top-level next-hop keyword.
+	kwPathInfo          = "path-information" // ADD-PATH path-id keyword.
 )
 
 // UpdateText action keywords (NLRI-only: add=MP_REACH, del=MP_UNREACH).
@@ -166,7 +170,7 @@ func isAttributeKeyword(token string) bool {
 // Tokens are already alias-resolved (nhop→next-hop, path-id→path-information).
 func isBoundaryKeyword(token string) bool {
 	switch token {
-	case kwAttr, kwNLRI, kwMP, kwWatchdog, textparse.KWNextHop, kwPathInfo, kwRD, kwLabel:
+	case kwAttr, kwNLRI, kwMP, kwWatchdog, kwRestoreConfigured, textparse.KWNextHop, kwPathInfo, kwRD, kwLabel:
 		return true
 	}
 	return isAttributeKeyword(token)
@@ -797,6 +801,7 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 	var groups []bgptypes.NLRIGroup
 	var eorFamilies []family.Family
 	var watchdog string
+	restoreConfigured := false
 	seenNLRI := false
 	i := 0
 
@@ -853,12 +858,21 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 					NextHop:      nh,
 					WatchdogName: result.Watchdog,
 					OriginAS:     attrs.OriginAS,
+
+					RestoreConfigured: restoreConfigured,
 				})
 				if result.Watchdog != "" {
 					watchdog = result.Watchdog
 				}
 			}
 			i += result.Consumed
+
+		case kwRestoreConfigured:
+			if seenNLRI {
+				return nil, errRestoreConfiguredAfterNLRI
+			}
+			restoreConfigured = true
+			i++
 
 		case kwWatchdog:
 			if i+1 >= len(args) {
@@ -1264,6 +1278,8 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 				Wire:             group.Wire,
 				RecoverySource:   recoverySource,
 				SentOwnerMessage: sentOwnerMessage,
+
+				RestoreConfigured: group.RestoreConfigured,
 			}
 			switch err := bgpReactor.WithdrawNLRIBatch(ctx.Context(), sel, batch, ctx.Sender); {
 			case err == nil:

@@ -693,12 +693,17 @@ announce a route owns it, and a withdraw of it from any script clears it. The
 fleet keeps that record for every route command it dispatched, keyed by the
 selector and the route, and an exit withdrawing its routes sends each one the
 withdrawal its builder wrote beside the announce (`Command.Withdrawal`), then
-flushes. `api-on-exit` is the case for an API 6 script, and
+flushes. Each such withdrawal carries `restore-configured`, so a route that
+replaced one the peer's static config holds gives the configured route back
+rather than leaving the prefix unannounced, as ExaBGP's `withdraw_owner` does
+(`docs/architecture/api/update-syntax.md`); `api-on-exit-configured` is its
+case. `api-on-exit` is the case for an API 6 script, and
 `api-on-exit-v4-keep` for an API 4 one, whose route is still standing when a
 sibling script announces after it exited. `ze exabgp migrate` carries the leaf as
 written and leaves it unset when the ExaBGP block did.
 
-<!-- source: internal/plugins/exabgp/bridgerun/owner.go -- exitPolicy, ownerLedger -->
+<!-- source: internal/plugins/exabgp/bridgerun/owner.go -- exitPolicy, ownerLedger, restoringWithdrawal -->
+<!-- source: internal/component/bgp/reactor/peer_static_restore.go -- restoreConfigured -->
 <!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.exited -->
 <!-- source: internal/exabgp/migration/migrate.go -- exabgpOnExit -->
 

@@ -244,6 +244,9 @@ type NLRIGroup struct {
 	// rule, unlike a verbatim `as-path`. Zero uses the legacy default (empty
 	// iBGP / [localAS] eBGP). Set by the `origin-as` update-text token.
 	OriginAS uint32
+	// RestoreConfigured is the `restore-configured` update-text keyword, carried
+	// onto the withdrawal batch (NLRIBatch.RestoreConfigured).
+	RestoreConfigured bool
 }
 
 // UpdateTextResult is the parsed result of an update text command.
@@ -291,6 +294,12 @@ type NLRIBatch struct {
 	// ordinary API withdrawal. The RIB supplies replacement selection, and the
 	// writer owes a key only where the source's ended session owns it.
 	RecoverySource netip.Addr
+	// RestoreConfigured gives back a configured route: a withdrawn NLRI that
+	// the peer's static config also announces is not withdrawn, the configured
+	// route is sent in its place. It is ExaBGP's withdraw_owner, which the
+	// ExaBGP bridge asks for when a script that replaced a configured route
+	// exits (docs/architecture/exabgp-bridge.md). Withdrawals only.
+	RestoreConfigured bool
 	// SentOwnerMessage fences automatic sent replay and cleanup against the
 	// exact advertisement captured by the RIB before dispatch. A replacement
 	// owner or destination session MUST NOT inherit that operation.

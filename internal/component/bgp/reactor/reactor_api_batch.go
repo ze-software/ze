@@ -893,14 +893,27 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(ctx context.Context, sel *selector
 		// no update group shares.
 		peerBatch := batch
 		partial := false
+		if batch.RestoreConfigured {
+			// A withdrawn NLRI this peer's config also announces gives the
+			// configured route back instead (restoreConfigured).
+			rest := peer.restoreConfigured(peerBatch.NLRIs)
+			if len(rest) != len(peerBatch.NLRIs) {
+				acceptedCount++ // The routes given back count as accepted.
+				if len(rest) == 0 {
+					continue
+				}
+				peerBatch.NLRIs = rest
+				partial = true
+			}
+		}
 		if batch.SentOwnerMessage == 0 && peer.shouldQueue() && !peer.withdrawBehindForwards() {
 			// Session not established or queue draining: queue to preserve order
 			// A dropped withdrawal is worse than a dropped announce: the peer
 			// keeps forwarding to a prefix this speaker has taken back. Same
 			// contract as the announce rail above.
-			refused := len(batch.NLRIs)
+			refused := len(peerBatch.NLRIs)
 			var queueErr error
-			for k, n := range batch.NLRIs {
+			for k, n := range peerBatch.NLRIs {
 				if err := ctx.Err(); err != nil {
 					return err
 				}
@@ -922,7 +935,7 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(ctx context.Context, sel *selector
 			// the queue refused go out directly.
 			if refused > 0 {
 				acceptedCount++ // The queued part counts as accepted.
-				peerBatch.NLRIs = batch.NLRIs[refused:]
+				peerBatch.NLRIs = peerBatch.NLRIs[refused:]
 				partial = true
 			}
 		}

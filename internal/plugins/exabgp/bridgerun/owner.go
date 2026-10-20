@@ -106,7 +106,23 @@ func (l *ownerLedger) note(script, selector string, command bridge.Command) {
 		// send would be a withdrawal the exit silently skips.
 		return
 	}
-	l.routes[key] = ownedRoute{script: script, selector: selector, withdrawal: command.Withdrawal}
+	l.routes[key] = ownedRoute{script: script, selector: selector, withdrawal: restoringWithdrawal(command.Withdrawal)}
+}
+
+// updateTextWords is where every route builder's withdrawal names its grammar.
+const updateTextWords = " update text "
+
+// restoringWithdrawal is a route's withdrawal as an exit sends it: with
+// `restore-configured`, so a route that replaced one the peer's config holds
+// gives the configured route back rather than leaving the prefix unannounced
+// (ExaBGP's withdraw_owner, rib/outgoing.py). A withdrawal written in another
+// grammar is sent as written: no configured route is named by it.
+func restoringWithdrawal(withdrawal string) string {
+	head, tail, found := strings.Cut(withdrawal, updateTextWords)
+	if !found {
+		return withdrawal
+	}
+	return head + updateTextWords + "restore-configured " + tail
 }
 
 // release removes every route script owns and answers them, ordered by their

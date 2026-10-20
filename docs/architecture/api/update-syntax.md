@@ -152,6 +152,28 @@ update text nlri del prefix 1.0.0.0/24
 update text nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24 del prefix 2.0.0.0/24
 ```
 
+#### Withdrawing a route the config also announces
+
+`restore-configured`, written before the first `nlri` or `mp` section, changes
+what the command's withdrawals do on each peer whose static config holds the
+same route: the configured route is announced again in its place, instead of
+the prefix being withdrawn. A withdrawn route the config does not hold is
+withdrawn as usual, and the keyword does nothing to an announcement. It is
+ExaBGP's `withdraw_owner`: the ExaBGP bridge sends it when a script that
+replaced a configured route exits (`docs/architecture/exabgp-bridge.md`).
+
+```
+send bgp 10.0.0.1 update text restore-configured nlri ipv4/unicast del 1.1.1.1/32
+```
+
+A static route matches when its family, ADD-PATH path identifier and prefix
+are the withdrawn NLRI's. A static route carrying a route distinguisher or a
+label stack is not matched yet, so its prefix is withdrawn as asked.
+Written after a section, the keyword is refused.
+
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- kwRestoreConfigured, ParseUpdateText -->
+<!-- source: internal/component/bgp/reactor/peer_static_restore.go -- restoreConfigured, staticRouteNamesNLRI -->
+
 ### Text Mode Examples
 
 ```bash

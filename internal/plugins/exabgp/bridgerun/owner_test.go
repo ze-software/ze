@@ -59,7 +59,7 @@ func TestOwnershipTransfers(t *testing.T) {
 	if owned := ledger.release("a"); len(owned) != 0 {
 		t.Fatalf("a no longer owns the route B announced after it, released %v", owned)
 	}
-	if owned := ledger.release("b"); len(owned) != 1 || owned[0].withdrawal != route.Withdrawal {
+	if owned := ledger.release("b"); len(owned) != 1 || owned[0].withdrawal != restoringWithdrawal(route.Withdrawal) {
 		t.Fatalf("b owns the route: released %v, want its withdrawal %q", owned, route.Withdrawal)
 	}
 
@@ -93,8 +93,8 @@ func TestExitWithdrawsOwnedRoutes(t *testing.T) {
 		t.Fatalf("Start: %v", err)
 	}
 
-	v6Withdrawal := announced(t, "peer * announce route 10.6.0.0/24 next-hop 1.2.3.4").Withdrawal
-	v4Withdrawal := announced(t, "announce route 10.4.0.0/24 next-hop 1.2.3.4").Withdrawal
+	v6Withdrawal := restoringWithdrawal(announced(t, "peer * announce route 10.6.0.0/24 next-hop 1.2.3.4").Withdrawal)
+	v4Withdrawal := restoringWithdrawal(announced(t, "announce route 10.4.0.0/24 next-hop 1.2.3.4").Withdrawal)
 	waitFor(t, "the v6 script's route to be withdrawn on exit", func() bool { return rec.held(v6Withdrawal) })
 	waitFor(t, "the v4 script to exit", func() bool {
 		_, err := os.Stat(marker)
@@ -112,5 +112,23 @@ func TestExitWithdrawsOwnedRoutes(t *testing.T) {
 	at := slices.Index(seen, v6Withdrawal)
 	if at < 0 || at+1 >= len(seen) || !strings.HasSuffix(seen[at+1], " flush") {
 		t.Errorf("the exit withdrawal is not followed by its flush: %v", seen)
+	}
+}
+
+// TestExitWithdrawalRestoresConfigured holds the exit withdrawal to ExaBGP's
+// withdraw_owner (A-8): it asks ze to give back a configured route of the same
+// prefix, so it carries `restore-configured` ahead of its NLRI section.
+func TestExitWithdrawalRestoresConfigured(t *testing.T) {
+	route := announced(t, "announce route 10.0.0.0/24 next-hop 1.2.3.4")
+	ledger := newOwnerLedger()
+	ledger.note("a", "*", route)
+
+	owned := ledger.release("a")
+	if len(owned) != 1 {
+		t.Fatalf("a owns its route, released %v", owned)
+	}
+	want := "send bgp * update text restore-configured nhop 1.2.3.4 nlri del 10.0.0.0/24"
+	if owned[0].withdrawal != want {
+		t.Errorf("exit withdrawal %q, want %q", owned[0].withdrawal, want)
 	}
 }
