@@ -1418,3 +1418,23 @@ All three changes below are UNCOMMITTED and none is green yet.
 - Spec "Phase 5 state" line added. Phase 5 rows AC-26..AC-28 met. Gates owed by the main thread: `./le go lint run` on
   internal/le/interoplab/bgp; `./le test unit all` (`internal/le/interoplab/pppoe`
   `TestPPPoELabPeersRunWithoutPrivilege` is red on a foreign scenario `ipv6cp-missing-option`).
+
+### Owner decisions, 2026-10-20 (Linux to Mac move)
+
+- api-eor: ExaBGP at the pin (`announce_eor`, reactor/api/command/announce.py) sends an EOR every time a
+  script asks, to each established peer that negotiated that family (RFC 4760 Section 8), and answers
+  `error` when no peer qualifies. Owner asked what ExaBGP does; proposal: do the same instead of
+  `claimInitialSyncEOR` dropping repeats. Confirm with the owner before coding.
+- api-rib, api-rr-rib: owner: "do the same on adj-rib-out". At the pin `clear adj-rib out` withdraws every
+  route in the peer's adj-rib-out (`neighbor_rib_out_withdraw`) and `flush adj-rib out` re-sends it
+  (`neighbor_rib_resend`), then answer `done`; no matching peer answers `error`. Map both onto ze's own
+  adj-rib-out.
+- conf-flow: follow the 6.0 flowspec redirect form.
+- RFC8955-4-3: owner approved fixing the violation, i.e. updating the RFC-tagged `test/encode/flow-encode.ci`
+  to the redirect next hop ze now sends, then `./le rfc discriminate-record` it.
+- mpls-vpn NEXT_HOP: follow the RFC (RFC 4760 Section 3 "SHOULD NOT carry the NEXT_HOP"): drop the NEXT_HOP
+  beside MP_REACH for VPN (`family.LegacyNextHop`), update `api-vpnv4`/conf-* fixtures. The uncommitted
+  `api-mpls-vpn` case files on the Linux VM pin the old bytes; recreate them on the Mac from the pin.
+- `restore-configured`: owner asked what it is; still public update-text keyword pending the answer.
+- Next ExaBGP phases: Phase 6 (in flight at the move, see its own entry), Phase 7 (incl. AC-41 api-disable),
+  Phase 8, then review and close.
