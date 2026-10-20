@@ -1050,6 +1050,31 @@ Three 6.0 api cases were handed over: api-peer-lifecycle, api-disable (AC-41), a
   old-4.2/old-5.0), since the encoder default and the v4 JSON envelope changed what scripts read; the
   config YANG tests for the new `version` enum leaf.
 
+### ExaBGP 6 spec, Phase 2 second package (exa6e, 2026-10-20, Linux): continuation owed
+
+- Done: 6bc5593f8f X-9/X-10/X-12 (OPEN capabilities by code for v4, by name with `code` for v6;
+  NOTIFICATION `data`/`message` per version, text line too); fbec2a2061 X-11 (v4 label `[[100]]`, flow
+  `string` + next-hop, v4 text labeled/VPN route). Evidence and the AC-13 wording conflict: the spec's
+  "Phase 2 state (second package)" line. Unit tests red then green (pasted in both commit bodies).
+- Api population against ze after both commits (`./le --name exa6e test exabgp api --all`): 40/47, reds
+  api-disable, api-eor, api-health, api-on-exit, api-rib, api-rr-rib (the six known reds of ae033ddb68)
+  and api-healthcheck-module, NEW against ae033ddb68's 41/47 and red again when run alone (frames of
+  sequence 1 never arrive; the case is `encoder text`). Not attributed: commits from other sessions landed
+  in between (04e4661dc0 and earlier) and a foreign hunk sits in `test/exabgp-compat/etc/run/api-sr-policy.run`.
+  Next: run it at ae033ddb68 vs fbec2a2061 to tell whether my text-encoder change (OPEN hold_time,
+  notification data, labeled routes) reaches it.
+- NOT run (owed): `./le test exabgp encoding`, `old-4.2`, `old-5.0` populations; lint on
+  `internal/exabgp/bridge`.
+- NOT done: `api-version-env.ci` (AC-10 functional); AC-6 "one warning names the process" proof.
+- Standalone runner decision: the spec does not make `ze exabgp plugin` standalone mode
+  (`internal/exabgp/bridge/bridge.go`, `translateAndForward`, `dispatchBatch`) v6-only, so under no-layering
+  it adopts the same path: move the per-script version state now in `bridgerun/version.go`
+  (`detectAPIVersion`, `adopt`, `resetAPIVersion`) into package `bridge` as one type both runners hold, have
+  `dispatchBatch` detect and refuse cross-version lines, and render with `ReadEvent(...).ExabgpJSON(FormatFor(...))`
+  / `AppendText` instead of `zebgpToExabgpJSON` (which then has no shipped caller and goes). The standalone
+  runner has no `encoder` flag: state in the change whether it gains one or stays JSON (ExaBGP's default is
+  text, X-5).
+
 ### ExaBGP 6 spec, AC-4 eleventh package (exa6c, 2026-10-20, Linux): continuation owed
 
 - Done: 76b51c8946 api-sr-policy fixture corrected. The real ExaBGP 6.0 pin 685f772e4
