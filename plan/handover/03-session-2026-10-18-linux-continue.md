@@ -1275,3 +1275,15 @@ All three changes below are UNCOMMITTED and none is green yet.
   carries only this session's rows. Nothing of this package is committed; owed: green, red (red.json),
   commit of Dockerfile.gobgp + names.go + check_extras.go + the scenario + interop.md, with the control
   run green too (it shares the reader).
+- RESOLVED 2026-10-20 (continuation): gobgpd never hung. Captured mid-wait: gobgpd 0.04% CPU, 12.7 MiB,
+  session Established with 3 received, `gobgp-paths` answering in 0.1s. The control failed on the reader:
+  GoBGP v3.31.0 apiutil turns the raw 4-octet Binding SID into a label a second time (`NewBSID` shifts 12
+  bits), so BSID 1048575 printed 1044480, and the NLRI Length comes back in bits ("Length: 1"). The reader
+  now asks ListPath for `EnableOnlyBinary` and decodes with GoBGP's packet decoder (journal row in
+  `plan/journal/field-carries-two-meanings.md`). Green: `bgp-sr-policy-gobgp`,
+  `bgp-exabgp-bridge-sr-policy-gobgp`, `bgp-sr-policy-malformed-receive-gobgp`. Red: the bridge scenario
+  with the srpolicy registration's `NLRISectionCarriesAttributes: false` fails assertion 2 (GoBGP holds
+  nothing; ze logs `sr-policy takes only distinguisher, color, endpoint: "preference" is not one of them`),
+  so row 49's red claim stands. The hide overlay is no longer needed (the fixture landed in 7d666660d4).
+  Committed in 65651c27e0. `go vet` and `go test` of internal/le/interoplab/bgp green under `./le job run`.
+  Owed by the main thread: `./le go lint run` (not run here: a subagent must not hold a >5 min command).
