@@ -146,3 +146,103 @@ func TestGuestObservationCommands(t *testing.T) {
 		t.Errorf("guest run argv\n got %q\nwant %q", run, wantRun)
 	}
 }
+
+// VALIDATES: a .ci carrier runs in the guest exactly when the functional runner says
+// this host skips it, and an ExaBGP compatibility file never asks.
+// METHOD: functionalNeedsGuest over a stub of testrunner.NeedsGuest answering each way.
+// PREVENTS: the gap of the 2026-09-30 journal row -- a caps-gated .ci observed through a
+// host run that skipped it -- and a guest boot for a file the host runs.
+func TestFunctionalPlacementIsTheRunnersAnswer(t *testing.T) {
+	plugin := Carrier{Kind: kindFunctional, Name: "functional-plugin"}
+	for _, skipped := range []bool{true, false} {
+		guest, err := functionalNeedsGuest(plugin, "/tree/test/plugin/a.ci",
+			func(string) (bool, error) { return skipped, nil })
+		if err != nil {
+			t.Fatalf("skipped=%v: %v", skipped, err)
+		}
+		if guest != skipped {
+			t.Errorf("host skips it=%v: guest=%v, want %v", skipped, guest, skipped)
+		}
+	}
+	if _, err := functionalNeedsGuest(plugin, "/tree/test/plugin/a.ci",
+		func(string) (bool, error) { return false, os.ErrNotExist }); err == nil {
+		t.Error("an unreadable .ci was placed, want a refusal")
+	}
+	asked := false
+	guest, err := functionalNeedsGuest(Carrier{Kind: kindFunctional, Name: exabgpCarrierName},
+		"/tree/test/exabgp-compat/x.ci", func(string) (bool, error) { asked = true; return true, nil })
+	if err != nil || guest || asked {
+		t.Errorf("exabgp carrier: guest=%v err=%v asked=%v, want the host and no question", guest, err, asked)
+	}
+}
+
+// VALIDATES: a guest .ci observation boots the named runtime kernel with the packages a
+// caps-gated test needs, and runs the ONE .ci against this run's own cross-built daemons.
+// METHOD: guestCIArgv over a fixture runner.
+// PREVENTS: a guest proof over the Alpine kernel, a run of the shared guest daemons
+// rather than the ones built under the overlay, and a whole-suite run with no attribution.
+func TestGuestCIObservationCommand(t *testing.T) {
+	runner := &observationRunner{
+		tree: t.TempDir(), carrier: Carrier{Kind: kindFunctional, Name: "functional-plugin"},
+		tag: Tag{File: "test/plugin/gated.ci"}, self: "/bin/le",
+		kernel: "tmp/kernel/build/vmlinuz", guest: true,
+	}
+	binaries := "tmp/qemu/rfc-discriminate/pid-1/linux-amd64/bin"
+	got := runner.guestCIArgv(binaries, testqemu.ArchAMD64)
+	want := []string{"/bin/le", "test", "qemu", "run", "kernel", "tmp/kernel/build/vmlinuz",
+		"packages", testqemu.OneCIPackages, "timeout", guestCICommandTimeout,
+		"command", testqemu.OneCICommand(binaries, "test/plugin/gated.ci", testqemu.ArchAMD64)}
+	if !slices.Equal(got, want) {
+		t.Errorf("guest .ci argv\n got %q\nwant %q", got, want)
+	}
+}
+
+// VALIDATES: a .ci observation is judged by the runner's result line for that .ci: the
+// clean run must show PASS, a run under the break must show FAIL or TIME, and a SKIP or a
+// missing line is refused as unobserved, whatever the exit code said.
+// METHOD: the clean-run check, judgeRed and attribution over runner output fixtures, for
+// an ordinary suite and for the ExaBGP carrier that prints no such line.
+// PREVENTS: the 2026-09-30 journal row: a skipped .ci (exit 0) read as a clean green, and
+// its skip under the break reported as "stayed GREEN" rather than as nothing observed.
+func TestCIResultLineDecidesWhatWasObserved(t *testing.T) {
+	const stem = "gated"
+	line := func(outcome string) string {
+		return "  1.2s  1/1  " + outcome + "  A  " + stem + "\n"
+	}
+	runner := &observationRunner{carrier: Carrier{Kind: kindFunctional, Name: "functional-plugin"},
+		tag: Tag{File: "test/plugin/gated.ci"}, names: stem,
+		record: DiscriminationRecord{Unit: "test/plugin/gated.ci"}}
+
+	if why := runner.cleanRunUnobserved(line(ciPass)); why != "" {
+		t.Errorf("clean PASS refused: %s", why)
+	}
+	for _, output := range []string{line(ciSkip), "pass 0/0\n"} {
+		if why := runner.cleanRunUnobserved(output); why == "" {
+			t.Errorf("clean run %q accepted as green", output)
+		}
+	}
+	for _, outcome := range []string{ciFail, ciTimeout} {
+		if err := runner.judgeRed(false, line(outcome)); err != nil {
+			t.Errorf("red %s refused: %v", outcome, err)
+		}
+	}
+	err := runner.judgeRed(true, line(ciSkip))
+	if err == nil || !strings.Contains(err.Error(), "did not run under the break") {
+		t.Errorf("skip under the break: %v, want the unobserved refusal", err)
+	}
+	if err := runner.judgeRed(false, "boot failed\n"); err == nil {
+		t.Error("a failing run with no result line was accepted as the red")
+	}
+	if err := runner.judgeRed(false, line(ciPass)); err == nil {
+		t.Error("a failing exit over a PASS line was accepted as the red")
+	}
+
+	exabgp := *runner
+	exabgp.carrier = Carrier{Kind: kindFunctional, Name: exabgpCarrierName}
+	if why := exabgp.cleanRunUnobserved("compat report\n"); why != "" {
+		t.Errorf("exabgp clean run judged by a line it never prints: %s", why)
+	}
+	if err := exabgp.judgeRed(false, "case "+stem+" failed\n"); err != nil {
+		t.Errorf("exabgp red naming the file refused: %v", err)
+	}
+}

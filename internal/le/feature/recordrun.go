@@ -55,11 +55,6 @@ const guestRunDeadline = time.Hour
 // guestRunDeadline.
 const guestCommandTimeout = "3000s"
 
-// guestPackages are what a capability-gated test shells out to in the guest
-// beyond its base image: `ip`, `nft`, `setcap` for the per-test namespace
-// suites, `ping`, and the module loader (docs/architecture/testing/qemu-integration.md).
-const guestPackages = "coreutils nftables iproute2 iputils-ping kmod iptables libcap"
-
 // guestBinariesRel is where the guest daemons are cross-built, inside the
 // checkout because the guest reaches it as /workspace.
 const guestBinariesRel = "tmp/qemu/feature-record-run"
@@ -450,13 +445,9 @@ func (r *repoRunner) runInGuest(file string) (observation, error) {
 		}
 		r.guestBuilt = true
 	}
-	var command textbuf.Buffer
-	command.Str("ZE_BIN=").Str(filepath.ToSlash(filepath.Join(binaries, "ze"))).
-		Str(" ZE_STRIPPED_BIN=").Str(filepath.ToSlash(filepath.Join(binaries, "ze-stripped"))).
-		Byte(' ').Str(filepath.ToSlash(testqemu.GuestLeRel(goarch))).
-		Str(" test qemu all-tests test ").Str(file)
 	argv := []string{filepath.Join(r.set.Dir, testfunctional.LE), "test", "qemu", "run",
-		"packages", guestPackages, "timeout", guestCommandTimeout, "command", command.String()}
+		"packages", testqemu.OneCIPackages, "timeout", guestCommandTimeout,
+		"command", testqemu.OneCICommand(binaries, file, goarch)}
 	seen, err := r.exec(argv, r.set.Environment(r.toolchain), guestRunDeadline)
 	if err != nil {
 		return observation{}, errors.New("the QEMU guest route (`le test qemu run`): " + err.Error())

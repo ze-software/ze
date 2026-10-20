@@ -23,6 +23,7 @@ import (
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
+	testrunner "github.com/ze-software/ze/internal/test/runner"
 )
 
 // observationRunner runs one tagged unit, with and without a break.
@@ -51,7 +52,8 @@ type observationRunner struct {
 	// carries what was actually run rather than what one branch would have run.
 	command string
 	// guest is true when the tagged unit's file compiles only in the Linux
-	// guest, so the unit is built for it and run there (discriminate_guest.go).
+	// guest, or when the tagged .ci is one this host's runner skips, so the
+	// unit is built for the guest and run there (discriminate_guest.go).
 	guest bool
 	// kernel is the runtime kernel a guest run boots, empty for a host run.
 	kernel string
@@ -84,6 +86,12 @@ func newObservationRunner(tree string, reader *sourceReader, index *scopeIndex, 
 	if carrier.Kind == kindUnit {
 		host, guest := placementContexts(strings.Fields(toolchain.TestTags()))
 		runner.guest, err = unitNeedsGuest(&host, &guest, treePath(tree, tag.File))
+		if err != nil {
+			return nil, err
+		}
+	}
+	if carrier.Kind == kindFunctional {
+		runner.guest, err = functionalNeedsGuest(carrier, treePath(tree, tag.File), testrunner.NeedsGuest)
 		if err != nil {
 			return nil, err
 		}
@@ -170,6 +178,10 @@ func (o *observationRunner) requireCleanGreen() error {
 		return parseErr(tb.Str(o.record.Unit).Str(" is already failing before any break is ").
 			Str("applied, so no red this run produces could be attributed to one:\n").
 			Str(excerpt(output)))
+	}
+	if why := o.cleanRunUnobserved(output); why != "" {
+		var tb textbuf.Buffer
+		return parseErr(tb.Str(why))
 	}
 	if profile == "" {
 		return nil
@@ -264,6 +276,9 @@ func (o *observationRunner) requireRed(broken overlayFile) (ObservedRed, error) 
 // learns which of those it was.
 func (o *observationRunner) judgeRed(passed bool, output string) error {
 	var tb textbuf.Buffer
+	if why := o.brokenRunUnobserved(output); why != "" {
+		return parseErr(tb.Str(why))
+	}
 	if passed {
 		return parseErr(tb.Str(o.record.Unit).Str(" stayed GREEN under the break ").
 			Quoted(o.record.Break).Str(" applied to ").Str(o.record.Producer).
@@ -296,6 +311,19 @@ func (o *observationRunner) attribution(output string) string {
 		// the break's is the clean run that passed minutes earlier over the same
 		// lab, which requireCleanGreen has already demanded.
 		return ""
+	}
+	if o.readsResultLine() {
+		// brokenRunUnobserved has already refused a skip and a missing line,
+		// so the line here is a PASS on a failing exit or the red itself.
+		result := ciResult(output, o.names)
+		if result == ciFail {
+			return ""
+		}
+		if result == ciTimeout {
+			return ""
+		}
+		return tb.Str("the runner reported ").Str(o.names).Str(" as ").Str(result).
+			Str(", so the failing exit came from somewhere else").String()
 	}
 	if o.unitName == "" {
 		if strings.Contains(output, o.names) {
@@ -428,6 +456,9 @@ func (o *observationRunner) coverPackages() string {
 // run executes one observation under its deadline.
 func (o *observationRunner) run(overlay, profile string) (bool, string, error) {
 	if o.carrier.Kind == kindFunctional {
+		if o.guest {
+			return o.runFunctionalInGuest(overlay)
+		}
 		return o.runFunctional(overlay)
 	}
 	if o.guest {
@@ -512,7 +543,7 @@ func (o *observationRunner) runFunctional(overlay string) (bool, string, error) 
 // ExaBGP has its own action outside Suites. Its positional selector matches an
 // exact path, unlike --pattern, which also selects siblings.
 func (o *observationRunner) functionalSelection() ([]string, bool) {
-	if o.carrier.Name == "functional-exabgp" {
+	if o.carrier.Name == exabgpCarrierName {
 		suite := strings.TrimPrefix(filepath.ToSlash(filepath.Dir(o.tag.File)), o.carrier.Prefix)
 		return []string{"exabgp", suite, treePath(o.tree, o.tag.File)}, true
 	}
@@ -727,4 +758,109 @@ func excerpt(output string) string {
 		lines = lines[len(lines)-excerptLines:]
 	}
 	return strings.Join(lines, "\n")
+}
+
+// The outcome words the functional runner prints on a .ci's result line
+// (internal/test/runner/display.go, TestFinished).
+const (
+	ciPass    = "PASS"
+	ciFail    = "FAIL"
+	ciTimeout = "TIME"
+	ciSkip    = "SKIP"
+)
+
+// readsResultLine answers whether this carrier's run prints the functional
+// runner's per-test result line, which is then the evidence of what ran. The
+// ExaBGP compatibility runner prints its own report, so it keeps the name match.
+func (o *observationRunner) readsResultLine() bool {
+	if o.carrier.Kind != kindFunctional {
+		return false
+	}
+	return o.carrier.Name != exabgpCarrierName
+}
+
+// ciResult answers the outcome word on the runner's result line for the .ci
+// named stem, or the empty string when no line names it.
+//
+// The line is `<elapsed>  <i>/<n>  <OUTCOME>  <nick>  <name>`, and the name is
+// left out when it equals the nick, so the outcome is the third field from the
+// end or, failing that, the second.
+func ciResult(output, stem string) string {
+	for line := range strings.Lines(output) {
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
+		}
+		if fields[len(fields)-1] != stem {
+			continue
+		}
+		for _, word := range fields[len(fields)-3 : len(fields)-1] {
+			if isCIOutcome(word) {
+				return word
+			}
+		}
+	}
+	return ""
+}
+
+// isCIOutcome answers whether word is one of the runner's outcome words.
+func isCIOutcome(word string) bool {
+	return word == ciPass || word == ciFail || word == ciTimeout || word == ciSkip
+}
+
+// cleanRunUnobserved answers why a clean run that exited 0 did not observe
+// the .ci passing, or the empty string when it did.
+//
+// A .ci the runner SKIPS exits 0 like one that passed: a host without
+// CAP_NET_ADMIN skips every `caps=net-admin` test. A skip is not a green, and
+// a break applied to a test that is skipped again can only "stay green", so the
+// clean run must show the PASS line itself (journal row of 2026-09-30 in
+// plan/journal/green-that-could-not-have-been-red.md).
+func (o *observationRunner) cleanRunUnobserved(output string) string {
+	if !o.readsResultLine() {
+		return ""
+	}
+	result := ciResult(output, o.names)
+	if result == ciPass {
+		return ""
+	}
+	var tb textbuf.Buffer
+	return tb.Str(o.record.Unit).Str(" did not run in the clean run: ").
+		Str(describeCIResult(o.names, result)).
+		Str(". A skip is not a green, so nothing a break does to it can be observed:\n").
+		Str(excerpt(output)).String()
+}
+
+// brokenRunUnobserved answers why a run under the break observed nothing
+// about the .ci: it was skipped, or no line names it.
+func (o *observationRunner) brokenRunUnobserved(output string) string {
+	if !o.readsResultLine() {
+		return ""
+	}
+	result := ciResult(output, o.names)
+	if result == ciSkip {
+		return describeUnobservedBreak(o.record.Unit, describeCIResult(o.names, result), output)
+	}
+	if result == "" {
+		return describeUnobservedBreak(o.record.Unit, describeCIResult(o.names, result), output)
+	}
+	return ""
+}
+
+// describeUnobservedBreak words the refusal of a broken run that did not run
+// the unit.
+func describeUnobservedBreak(unit, what, output string) string {
+	var tb textbuf.Buffer
+	return tb.Str(unit).Str(" did not run under the break: ").Str(what).
+		Str(". Nothing is written: a red this run did not observe is never recorded:\n").
+		Str(excerpt(output)).String()
+}
+
+// describeCIResult words what the runner's output said about one .ci.
+func describeCIResult(stem, result string) string {
+	var tb textbuf.Buffer
+	if result == "" {
+		return tb.Str("the output carries no result line for ").Str(stem).String()
+	}
+	return tb.Str("the runner reported ").Str(stem).Str(" as ").Str(result).String()
 }

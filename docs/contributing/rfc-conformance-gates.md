@@ -1204,6 +1204,32 @@ refuses the keyword for a unit that runs on the host (`requireGuestKernel`):
     ./le rfc discriminate-record id <ID> polarity <p> unit <file>::<Func> \
       route revert producer <file>::<Func> kernel tmp/kernel/build/vmlinuz
 
+A `.ci` the host's runner skips takes the same guest. The functional runner
+decides, not the recorder: `testrunner.NeedsGuest` answers whether this host
+skips the file (`option=needs-linux:caps=...` on a host that lacks the
+capability), and a file it skips runs in the guest; a file this host runs keeps
+the host run, and an ExaBGP compatibility file never asks. The daemons are
+cross-built on the host into `tmp/qemu/rfc-discriminate/pid-<pid>/`, with the
+overlay in `GOFLAGS` for the broken run, and the guest runs the one file through
+`le test qemu all-tests test <path>`, the narrowing `./le feature record-run`
+already drives (`testqemu.OneCICommand`). The guest le that `le test qemu run`
+rebuilds into the shared `tmp/qemu/` path is built after `GOFLAGS` is restored,
+so it never carries the break. The same `kernel <vmlinuz>` rule applies:
+
+    ./le rfc discriminate-record id <ID> polarity <p> unit test/<dir>/<name>.ci \
+      route revert producer <file>::<Func> citation '<directive>' \
+      kernel tmp/kernel/build/vmlinuz
+
+On either placement a `.ci` observation is judged by the runner's result line
+for that file, never by the exit code alone. A skipped `.ci` exits 0 like one
+that passed, so the clean run must print its `PASS` line and a run under the
+break must print `FAIL` or `TIME`; a `SKIP`, or no line naming the file, is
+refused as unobserved (`cleanRunUnobserved`, `brokenRunUnobserved`). Before
+2026-10-20 a host without `CAP_NET_ADMIN` read a skip as a clean green and its
+second skip as "stayed GREEN under the break".
+<!-- source: internal/le/rfc/discriminate_guest.go -- functionalNeedsGuest, runFunctionalInGuest -->
+<!-- source: internal/le/rfc/discriminate_observe.go -- cleanRunUnobserved, brokenRunUnobserved -->
+
 Before 2026-09-27 the unit route always ran host `go test` with no extra tags,
 so an `integration && linux` unit never compiled and its tags could not be
 proven at all (journal row 155 of `gate-excludes-part-of-its-population.md`).

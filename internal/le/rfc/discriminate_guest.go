@@ -9,6 +9,11 @@
 // for the QEMU guest on the host, where the overlay still reaches the compiler,
 // and run there by name through `le test qemu run`, the guest runner the
 // repository already has.
+//
+// A .ci the host's runner skips (`option=needs-linux:caps=...` on a host that
+// lacks the capability) runs in the same guest through `le test qemu all-tests
+// test <path>`, the one-.ci narrowing `le feature record-run` already drives,
+// against daemons cross-built on the host under the overlay.
 package rfc
 
 import (
@@ -20,11 +25,24 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
 	testqemu "github.com/ze-software/ze/internal/le/test/qemu"
 )
 
 // guestGOOS is the operating system the QEMU guest runs.
 const guestGOOS = "linux"
+
+// exabgpCarrierName is the carrier of the ExaBGP compatibility files, whose
+// runner is not the functional runner and whose files carry no needs-linux.
+const exabgpCarrierName = "functional-exabgp"
+
+// guestDaemonsRel is where a guest .ci observation cross-builds its daemons,
+// inside the checkout because the guest reaches it as GuestWorkspace.
+const guestDaemonsRel = "tmp/qemu/rfc-discriminate"
+
+// guestCICommandTimeout is what `le test qemu run` gives the guest command,
+// inside carrierRunDeadline: a boot, the package install, and the one .ci.
+const guestCICommandTimeout = "3000s"
 
 // placementContexts answers the two build contexts a tagged unit's file is
 // asked of: this host under the tag set the host run passes, and the guest.
@@ -90,7 +108,7 @@ func requireGuestKernel(unit string, guest bool, kernel string) error {
 		if kernel != "" {
 			return nil
 		}
-		return parseErr(tb.Str(unit).Str(" compiles only in the Linux guest, and a guest ").
+		return parseErr(tb.Str(unit).Str(" runs only in the Linux guest, and a guest ").
 			Str("proof MUST boot Ze's runtime kernel: pass `").Str(keyKernel).
 			Str(" <vmlinuz>`, which `ze appliance kernel` builds ").
 			Str("(docs/architecture/testing/qemu-integration.md)"))
@@ -190,4 +208,69 @@ func (o *observationRunner) guestPath(host string) string {
 func singleQuoted(value string) string {
 	var tb textbuf.Buffer
 	return tb.Byte('\'').Str(strings.ReplaceAll(value, "'", `'\''`)).Byte('\'').String()
+}
+
+// functionalNeedsGuest answers whether one .ci runs only in the guest. The
+// answer is the functional runner's own (needs is testrunner.NeedsGuest): a
+// file marked needs-linux whose capability this host lacks is skipped here,
+// and a skip observes nothing. A file this host runs keeps the host run.
+func functionalNeedsGuest(carrier Carrier, file string, needs func(string) (bool, error)) (bool, error) {
+	if carrier.Name == exabgpCarrierName {
+		return false, nil
+	}
+	guest, err := needs(file)
+	if err != nil {
+		var tb textbuf.Buffer
+		return false, parseErr(tb.Str("cannot read the options of ").Str(file).
+			Str(" to decide where it runs: ").Err(err))
+	}
+	return guest, nil
+}
+
+// runFunctionalInGuest runs ONE .ci the host skips inside the guest, on the
+// runtime kernel.
+//
+// The daemons are cross-built on the host, with the overlay in GOFLAGS for the
+// broken run, into a directory of this process's own: a concurrent recorder
+// must never boot this run's broken ze. The guest command then runs under the
+// restored environment, so the guest le `le test qemu run` rebuilds into the
+// shared tmp/qemu path never carries the break.
+func (o *observationRunner) runFunctionalInGuest(overlay string) (bool, string, error) {
+	goarch := testqemu.GuestArch()
+	var tb textbuf.Buffer
+	root := filepath.Join(guestDaemonsRel, tb.Str("pid-").Int(int64(os.Getpid())).String())
+	binaries := filepath.Join(root, "linux-"+goarch, "bin")
+
+	defer os.RemoveAll(filepath.Join(o.tree, root)) //nolint:errcheck // scratch; a leftover costs disk, never an answer
+	if err := o.buildGuestDaemons(filepath.Join(o.tree, binaries), goarch, overlay); err != nil {
+		return false, "", err
+	}
+	return o.exec(carrierRunDeadline, o.guestCIArgv(binaries, goarch), os.Environ(), o.tree)
+}
+
+// buildGuestDaemons cross-builds the guest ze and ze-stripped, under the
+// overlay when one is given, and restores GOFLAGS before it returns.
+func (o *observationRunner) buildGuestDaemons(binaries, goarch, overlay string) error {
+	if overlay != "" {
+		restore, err := setGoFlagsOverlay(overlay)
+		if err != nil {
+			return err
+		}
+		defer restore()
+	}
+	if err := testfunctional.PrepareGuest(o.toolchain, binaries, goarch); err != nil {
+		var tb textbuf.Buffer
+		return parseErr(tb.Str("cannot cross-build the guest ze for linux/").Str(goarch).
+			Str(": ").Err(err))
+	}
+	return nil
+}
+
+// guestCIArgv answers the command that boots the guest on the runtime kernel
+// and runs the one .ci there, re-executing this le binary on the qemu action
+// as guestRunArgv does for a Go unit.
+func (o *observationRunner) guestCIArgv(binaries, goarch string) []string {
+	return []string{o.self, leTestCommand, "qemu", "run", keyKernel, o.kernel,
+		"packages", testqemu.OneCIPackages, "timeout", guestCICommandTimeout,
+		"command", testqemu.OneCICommand(binaries, filepath.ToSlash(o.tag.File), goarch)}
 }
