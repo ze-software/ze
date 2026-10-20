@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
-	"github.com/ze-software/ze/internal/plugins/exabgp/bridgerun"
+	"github.com/ze-software/ze/internal/exabgp/bridge"
 )
 
 // modelAddPathModes answers the values of the add-path enumeration, read by
@@ -107,7 +107,7 @@ func TestParseScriptsReadsOnExit(t *testing.T) {
 		}
 		return map[string]any{processList: map[string]any{"helper": entry}}
 	}
-	want := map[string]bridgerun.OnExit{"": bridgerun.OnExitByVersion, "keep": bridgerun.OnExitKeep, "withdraw": bridgerun.OnExitWithdraw}
+	want := map[string]bridge.OnExit{"": bridge.OnExitByVersion, "keep": bridge.OnExitKeep, "withdraw": bridge.OnExitWithdraw}
 	for word, onExit := range want {
 		scripts, err := parseScripts(block(word))
 		if err != nil || len(scripts) != 1 || scripts[0].OnExit != onExit {

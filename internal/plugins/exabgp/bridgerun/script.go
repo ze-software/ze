@@ -14,7 +14,6 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -47,13 +46,13 @@ type script struct {
 	name    string
 	argv    []string
 	respawn bool
-	onExit  OnExit
+	onExit  bridge.OnExit
 	log     *slog.Logger
 
 	// owners is the Fleet's ledger of who announced each route last. batch
 	// notes every route command it dispatched, and exited withdraws this
 	// script's routes from it.
-	owners *ownerLedger
+	owners *bridge.OwnerLedger
 
 	// translator turns one ExaBGP line into ze commands. It carries the family
 	// list a bare `announce eor` expands over, and the peers a line that names
@@ -107,7 +106,7 @@ type script struct {
 	stdout io.ReadCloser
 }
 
-func newScript(log *slog.Logger, translator bridge.Translator, setting *atomic.Uint32, owners *ownerLedger, s Script) *script {
+func newScript(log *slog.Logger, translator bridge.Translator, setting *atomic.Uint32, owners *bridge.OwnerLedger, s Script) *script {
 	return &script{
 		api:        bridge.NewScriptVersion(s.Name, log, s.Encoder, setting),
 		name:       s.Name,
@@ -345,7 +344,7 @@ func (r scriptRunner) Status(ctx context.Context, asJSON bool) ([]byte, bridge.B
 
 // Dispatched makes the script the owner of the route command ze accepted.
 func (r scriptRunner) Dispatched(selector string, command bridge.Command) {
-	r.s.owners.note(r.s.name, selector, command)
+	r.s.owners.Note(r.s.name, selector, command)
 }
 
 // flush drains the forward pool of the peers selector names, so what was
@@ -358,40 +357,16 @@ func (s *script) flush(ctx context.Context, d Dispatcher, selector string) {
 	}
 }
 
-// exited settles the routes of a child that has exited, as ExaBGP's
-// Processes._queue_exit does: the `on-exit` leaf, or the API version the
-// child was held to, decides whether they are withdrawn (exitPolicy), the
-// decision is logged with its reason, and a withdrawal sends each route this
-// script owns its own withdrawal command, then flushes.
+// exited settles the routes of a child that has exited
+// (bridge.OwnerLedger.Exited): the `on-exit` leaf, or the API version the
+// child was held to, decides whether the routes this script owns are
+// withdrawn.
 //
 // It MUST run after the child's last batch is dispatched (script.read has
 // returned) and before the next child starts, while the version the child was
 // held to is still the script's.
 func (s *script) exited(ctx context.Context, d Dispatcher) {
-	withdraw, by := exitPolicy(s.onExit, s.api.Current())
-	routes := "keep"
-	if withdraw {
-		routes = "withdraw"
-	}
-	s.log.Info("exabgp-bridge process exited", "process", s.name, "routes", routes, "by", by)
-	if !withdraw {
-		return
-	}
-
-	var selectors []string
-	for _, route := range s.owners.release(s.name) {
-		if _, _, err := d.DispatchCommand(ctx, route.withdrawal); err != nil {
-			s.log.Warn("exabgp-bridge exit withdrawal failed",
-				"script", s.name, "error", err, "cmd", route.withdrawal)
-			continue
-		}
-		if !slices.Contains(selectors, route.selector) {
-			selectors = append(selectors, route.selector)
-		}
-	}
-	for _, selector := range selectors {
-		s.flush(ctx, d, selector)
-	}
+	s.owners.Exited(ctx, s.log, s.name, s.onExit, s.api.Current(), scriptRunner{s: s, d: d})
 }
 
 // status performs a `status` line: it reads every peer's state from ze and

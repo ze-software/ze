@@ -702,7 +702,14 @@ case. `api-on-exit` is the case for an API 6 script, and
 sibling script announces after it exited. `ze exabgp migrate` carries the leaf as
 written and leaves it unset when the ExaBGP block did.
 
-<!-- source: internal/plugins/exabgp/bridgerun/owner.go -- exitPolicy, ownerLedger, restoringWithdrawal -->
+The standalone runner (`ze exabgp plugin <command>`, `bridge.Bridge`) follows
+the same rule with the same ledger: it notes each route command ze accepted,
+and when its one child exits it settles the exit after the child's last batch
+is dispatched. It has no process block, so `on-exit` is unset there and the API
+version the child was held to decides. It does not respawn the child.
+
+<!-- source: internal/exabgp/bridge/bridge_owner.go -- exitPolicy, OwnerLedger, OwnerLedger.Exited, restoringWithdrawal -->
+<!-- source: internal/exabgp/bridge/bridge.go -- Bridge.Run, Bridge.exited, muxRunner.Dispatched -->
 <!-- source: internal/component/bgp/reactor/peer_static_restore.go -- restoreConfigured -->
 <!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.exited -->
 <!-- source: internal/exabgp/migration/migrate.go -- exabgpOnExit -->

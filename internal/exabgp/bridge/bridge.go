@@ -373,6 +373,10 @@ type Bridge struct {
 	// group is the script's `group start` buffer, emptied at each Start.
 	group Group
 
+	// owners is who announced each route last (OwnerLedger), so the child's
+	// exit withdraws the routes it owns (Bridge.exited).
+	owners *OwnerLedger
+
 	// Families to declare during startup (ZeBGP format: "ipv4/unicast")
 	Families []string
 
@@ -389,6 +393,7 @@ func NewBridge(pluginCmd []string) *Bridge {
 		pluginCmd: pluginCmd,
 		Families:  []string{defaultFamily},
 		ack:       NewAckMode(),
+		owners:    NewOwnerLedger(),
 	}
 	b.apiSetting.Store(uint32(APIVersionAuto))
 	b.api = NewScriptVersion(pluginCmd[0], slog.Default(), EncoderJSON, &b.apiSetting)
@@ -481,7 +486,9 @@ func (b *Bridge) Run(ctx context.Context) error {
 	pending := newPendingResponses()
 
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(2)
+	var commands sync.WaitGroup
+	commands.Add(1)
 
 	// ZeBGP stdin -> plugin stdin (parse MuxConn deliver-batch, translate events)
 	// Uses the SAME scanner that completed startup to avoid losing buffered data.
@@ -492,7 +499,7 @@ func (b *Bridge) Run(ctx context.Context) error {
 
 	// Plugin stdout -> ZeBGP stdout (translate commands, wrap in MuxConn dispatch + flush)
 	go func() {
-		defer wg.Done()
+		defer commands.Done()
 		b.pluginToZebgp(ctx, b.stdout, b.stdin, zeOut, pending)
 	}()
 
@@ -504,10 +511,22 @@ func (b *Bridge) Run(ctx context.Context) error {
 		}
 	}()
 
-	// Wait for plugin to exit
+	// Wait for the plugin to exit. Its stdout is read to EOF and its last
+	// batch dispatched first: Wait closes the pipe, and the exit settles the
+	// routes that batch announced. The ze reader is still running, so the
+	// exit's withdrawals are answered.
+	commands.Wait()
 	err := b.cmd.Wait()
+	b.exited(ctx, muxRunner{b: b, zeOut: zeOut, pending: pending})
 	wg.Wait()
 	return err
+}
+
+// exited settles the routes of the child that exited (OwnerLedger.Exited).
+// The standalone runner has no process block, so `on-exit` is unset and the
+// API version the child was held to decides.
+func (b *Bridge) exited(ctx context.Context, runner ExitRunner) {
+	b.owners.Exited(ctx, slog.Default(), b.pluginCmd[0], OnExitByVersion, b.api.Current(), runner)
 }
 
 // zebgpToPluginWithScanner reads MuxConn lines from ze, extracts deliver-batch events,
@@ -801,8 +820,10 @@ func (r muxRunner) Status(context.Context, bool) ([]byte, BatchAnswer) {
 	return nil, BatchAnswer{Failed: true, Error: errStatusStandalone.Error()}
 }
 
-// Dispatched records nothing: the standalone runner keeps no owner ledger.
-func (r muxRunner) Dispatched(string, Command) {}
+// Dispatched makes the script the owner of the route command ze accepted.
+func (r muxRunner) Dispatched(selector string, command Command) {
+	r.b.owners.Note(r.b.pluginCmd[0], selector, command)
+}
 
 // truncate returns s truncated to maxLen runes with "..." suffix if needed.
 func truncate(s string, maxLen int) string {

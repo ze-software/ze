@@ -268,19 +268,19 @@ func parseEncoder(name string, entry map[string]any) (bridge.Encoder, error) {
 }
 
 // parseOnExit reads a process block's `on-exit` leaf. An absent leaf is
-// bridgerun.OnExitByVersion, which is ExaBGP's own unset behavior.
-func parseOnExit(name string, entry map[string]any) (bridgerun.OnExit, error) {
+// bridge.OnExitByVersion, which is ExaBGP's own unset behavior.
+func parseOnExit(name string, entry map[string]any) (bridge.OnExit, error) {
 	value, ok := asString(entry, "on-exit")
 	if !ok || value == "" {
-		return bridgerun.OnExitByVersion, nil
+		return bridge.OnExitByVersion, nil
 	}
 	switch value {
 	case "keep":
-		return bridgerun.OnExitKeep, nil
+		return bridge.OnExitKeep, nil
 	case "withdraw":
-		return bridgerun.OnExitWithdraw, nil
+		return bridge.OnExitWithdraw, nil
 	}
-	return bridgerun.OnExitByVersion, fmt.Errorf("exabgp bridge: process %q: on-exit %q invalid (keep|withdraw)", name, value)
+	return bridge.OnExitByVersion, fmt.Errorf("exabgp bridge: process %q: on-exit %q invalid (keep|withdraw)", name, value)
 }
 
 // splitCommand splits an operator run string into argv on whitespace. The
