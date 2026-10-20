@@ -1421,6 +1421,17 @@
       "break": "body of setMacvlanAddrGenNone replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5798-8.2.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go::TestVRRPIPv6RedirectSourcedFromVirtualLinkLocal",
+      "unit-sha": "2229ada6f4e9653e",
+      "claim-sha": "0b10c0b1804bbc14",
+      "route": "revert",
+      "producer": "internal/plugins/iface/netlink/macvlan_linux.go::setMacvlanAddrGenNone",
+      "producer-sha": "50329bdf4f7a16fe",
+      "break": "body of setMacvlanAddrGenNone replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5798-8.2.1-2",
       "polarity": "positive",
       "unit": "internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC",
