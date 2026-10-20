@@ -1677,3 +1677,44 @@ Stopped at the call budget. Nothing committed but this entry. The engine half is
   both runners); a reactor end-to-end test that the withdrawal reaches the wire and bgp-rib drops ribOut;
   docs update-syntax.md, exabgp-bridge.md, exabgp-differences.md; cases api-rib, api-rr-rib (api, old-5.0)
   on ze and on the pin. `Translator.Families` is left to the other agent.
+
+### ExaBGP 6 family check (X-23) and plugin-socket warning, agent stop (2026-10-21, Mac)
+
+Agent stopped at its 100-call budget. **Fix 1 is written, tested, and UNCOMMITTED.** It shares
+`types/reactor.go` and 7 reactor mocks with the stopped adj-rib-out agent's uncommitted
+`WithdrawAdvertised` work, so neither lands alone; the joint commit was beyond this budget.
+
+- Fix 1 design: `Translator.Families` is the bridge's declared union, not per peer, so the configured
+  check lives in ze (also a ze logic fix: a down session queued, and answered accepted, a route its
+  OPEN never offers). `reactor_api_carry.go` `SelectedPeersCarry` (BGPReactor method, afi/safi like
+  AnnounceEOR) reads `offeredMultiprotocol`, extracted from `buildOpen` (session_negotiate.go);
+  `route.ErrNoPeerConfiguredFamily`; `update_text.go` pre-checks every announce group before any is
+  sent. Bridge: `RefuseUnsentRoute`, `answerDocuments`, `pendingResult.document` deleted;
+  `terminatorResult` (bridge_dispatch_answer.go); `scriptRunner.Dispatch` returns the dispatch error
+  only, so a ze `warning` answers done as ExaBGP does. Docs: exabgp-bridge.md paragraph,
+  exabgp-differences.md "Which family counts" bullet removed (two differences remain).
+- Files: reactor_api_carry.go(+_test), session_negotiate.go, route/route.go, types/reactor.go,
+  update_text.go, update_text_test.go, mocks (cmd/{update,commit,cache,peer,raw}/mock_reactor_test.go,
+  announce/{announce_test,rfc7999_blackhole_agreement_test}.go, route_refresh/handler/mock_reactor_test.go,
+  reactor/peer_ready_producer_test.go), bridge.go, bridge_dispatch_answer.go(+_test), bridge_muxconn.go,
+  bridgerun/script.go, the two docs, case api-family-carry-v4 (.ci, etc/.conf, etc/run/.run). Draft
+  commit message: tmp/session/2026-10-20-8385ff13-31c1-470c-822b-d731474836f1/scratch/msg-fam.txt
+  (machine-local; its content is this entry).
+- Evidence: TestSelectedPeersCarryReadsTheConfiguredFamily red with the peer loop overlaid to
+  `return nil`; TestHandleUpdateText_FamilyNoSelectedPeerConfiguredIsRefused red with the pre-check
+  overlaid away; both green; vet clean on reactor, cmd/..., route_refresh; bridge, exabgp,
+  bridgeplugin tests green. `api-family-carry-v4` PASS on the pin (down peer: configured family done,
+  unconfigured refused).
+- Owed for Fix 1: run api-family-carry-v4 and api-refusals-v4 on ze (blocked: foreign uncommitted
+  `internal/component/bgp/config/bgp_routes.go` breaks the ze build, ConfigRouteRequest arity), then
+  red on ze by overlaying `update_text.go` pre-check away; the established-but-not-negotiated
+  direction has no case (the exabgp DUT runner refuses `option=open:value=drop-capability`); the
+  next-hop refusals of ExaBGP `unsendable` (link-local without capability or multihop; RFC 4271
+  5.1.3 next-hop-is-the-peer refused when no carrier is left) are not compared yet (ze withholds
+  5.1.3 routes per link_scope.go, answer unverified); joint commit with the adj-rib-out files.
+- Foreign red: bridgerun TestFleetExpandsABareEOROverTheDeclaredFamilies expects two markers for a
+  bare eor, which b0b734ec2e made IPv4 unicast alone (stale test).
+- Fix 2 (warning lost on the plugin socket) NOT STARTED. Finding: the terminator
+  (`rpc.AppendAnswerTerminator` id/count/faults/message, `AnswerTail`, `Verdict`) has no field for a
+  warning, so the fix is a wire-format change in pkg/plugin/rpc plus WriteAnswer/answerMessage,
+  SDK answerValue and every consumer; docs ipc_protocol.md / process-protocol.md.
