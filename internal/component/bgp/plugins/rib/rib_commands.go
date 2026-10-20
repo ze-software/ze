@@ -33,6 +33,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/stringsx"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // grTimerMargin is the extra time added to restart-time for the RIB's safety-net timer.
@@ -640,7 +641,8 @@ func (r *RIBManager) inboundEmpty(selectorStr string) any {
 	return map[string]any{"cleared": cleared}
 }
 
-// outboundResend replays Adj-RIB-Out routes for matching peers.
+// outboundResend replays Adj-RIB-Out routes for matching peers, each family
+// bracketed by BoRR and EoRR (resendFamiliesBracketed).
 // If family is non-empty, only routes from that family are resent.
 // Does NOT send "plugin session ready" - that's only for initial reconnect.
 // Uses cursor mode for efficient batched replay with delta encoding.
@@ -675,7 +677,7 @@ func (r *RIBManager) outboundResend(selectorStr, famStr string) any {
 	resent, refused := 0, 0
 	for _, peer := range peersToResend {
 		// RPC selector is a string boundary: one conversion per resent peer.
-		peerResent, peerRefused := r.resendRoutesWithCursor(peer.String(), groupsToResend[peer])
+		peerResent, peerRefused := r.resendFamiliesBracketed(peer.String(), groupsToResend[peer])
 		resent += peerResent
 		refused += peerRefused
 	}
@@ -683,6 +685,45 @@ func (r *RIBManager) outboundResend(selectorStr, famStr string) any {
 	// refused names the routes the engine did not take, so an operator never
 	// reads a resend the engine rejected as delivered.
 	return map[string]any{"resent": resent, "refused": refused, "peers": len(peersToResend)}
+}
+
+// resendFamiliesBracketed resends a peer's Adj-RIB-Out one family at a time,
+// each family between a BoRR and an EoRR.
+//
+// RFC 7313 Section 4: "Before the speaker starts a route refresh that is either
+// initiated locally, or in response to a "normal route refresh request" from the
+// peer, the speaker MUST send a BoRR message.  After the speaker completes the
+// re-advertisement of the entire Adj-RIB-Out to the peer, it MUST send an EoRR
+// message."
+//
+// A resend here is the locally initiated refresh. The markers are dispatched for
+// every peer; the engine sends them only to a peer that advertised Enhanced Route
+// Refresh (reactor sendRouteRefresh), since Section 4 applies "only if a BGP
+// speaker has received the "Enhanced Route Refresh Capability" from a peer".
+// A family with no route in the Adj-RIB-Out gets no bracket: there is nothing of
+// it this refresh replays, so nothing for the peer to mark stale against.
+func (r *RIBManager) resendFamiliesBracketed(peerAddr string, groups []replayGroup) (resent, refused int) {
+	byFamily := make(map[family.Family][]replayGroup)
+	families := make([]family.Family, 0, 2)
+	for i := range groups {
+		fam := groups[i].Family
+		if _, seen := byFamily[fam]; !seen {
+			families = append(families, fam)
+		}
+		byFamily[fam] = append(byFamily[fam], groups[i])
+	}
+	// Sort for a deterministic marker order across runs; map iteration is not.
+	slices.SortFunc(families, func(a, b family.Family) int { return strings.Compare(a.String(), b.String()) })
+
+	var tb textbuf.Buffer
+	for _, fam := range families {
+		r.dispatchPeerAction(peerAddr, tb.Reset().Str("borr ").Str(fam.String()).String())
+		famResent, famRefused := r.resendRoutesWithCursor(peerAddr, byFamily[fam])
+		r.dispatchPeerAction(peerAddr, tb.Reset().Str("eorr ").Str(fam.String()).String())
+		resent += famResent
+		refused += famRefused
+	}
+	return resent, refused
 }
 
 // sendRoutes sends routes to a peer without the "plugin session ready" signal.
