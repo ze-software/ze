@@ -212,3 +212,45 @@ func TestSusRateLimitCapsTheNotify(t *testing.T) {
 		t.Errorf("%d notifications went out, above the bucket bound of %d over %v", sent, bound, elapsed)
 	}
 }
+
+// VALIDATES: once the SA's endpoint is no longer its configured remote (NAT rebinding or
+// a MOBIKE address update), an out-of-SA request from the endpoint the SA now uses still
+// draws the protected INVALID_IKE_SPI notification over that SA.
+// PREVENTS: the dispatch goroutine finding the session by its configured remote address
+// alone, which let every suspicious message from a moved peer go unanswered.
+//
+// RFC requirement: RFC7296-2.21.4-8 positive -- an out-of-SA request from the endpoint an established IKE SA moved to, which is not the session's configured remote, draws exactly one INFORMATIONAL request over that SA carrying INVALID_IKE_SPI.
+func TestSusMovedSAEndpointDrawsTheNotify(t *testing.T) {
+	ini, peer, ps, peerTr, myTr := osrSession(t)
+	susRegister(t, ps, ini)
+	remote := ini.remoteUDPAddr()
+	// The peer now talks from remote, and the configuration still names another host.
+	ps.peerCfg.RemoteAddress = "127.0.0.9"
+	ini.peerEndpoint = copyUDPAddr(remote)
+	ps.publishSAEndpoint(ini)
+
+	susDeliver(t, ps, ini, myTr, transport.Packet{
+		Data:       susOutOfSA(t, wire.FlagInitiator, wire.ExchangeInformational),
+		RemoteAddr: remote,
+	})
+
+	got := imiDrain(t, peerTr, myTr, remote, "an out-of-SA request from the SA's moved endpoint")
+	if len(got) != 1 {
+		t.Fatalf("%d datagrams went out over the SA, want exactly 1", len(got))
+	}
+	msg := parseMsg(t, got[0])
+	inner, err := decryptAndParse(peer, msg, got[0])
+	if err != nil {
+		t.Fatalf("the peer could not authenticate the notification: %v", err)
+	}
+	if len(inner) != 1 {
+		t.Fatalf("the notification carries %d payloads, want exactly 1 Notify", len(inner))
+	}
+	notify, ok := inner[0].Payload.(*wire.PayloadNotify)
+	if !ok {
+		t.Fatalf("the payload is %T, want a Notify", inner[0].Payload)
+	}
+	if notify.NotifyMsgType != wire.NotifyInvalidIKESPI {
+		t.Errorf("Notify type %d, want INVALID_IKE_SPI (%d)", notify.NotifyMsgType, wire.NotifyInvalidIKESPI)
+	}
+}

@@ -30,6 +30,7 @@ package engine
 
 import (
 	"log/slog"
+	"net"
 
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
@@ -91,7 +92,7 @@ func noteSuspicious(pkt transport.Packet) {
 		countErrorNotifySuppressed("suspicious-sa-init")
 		return
 	}
-	ps := establishedSessionFrom(pkt.RemoteAddr.IP.String())
+	ps := establishedSessionFrom(pkt.RemoteAddr.IP)
 	if ps == nil {
 		countErrorNotifySuppressed("suspicious-no-sa")
 		return
@@ -103,28 +104,48 @@ func noteSuspicious(pkt transport.Packet) {
 	}
 }
 
-// establishedSessionFrom returns the running session configured for this remote
-// address that owns an established IKE SA, or nil.
+// establishedSessionFrom returns the running session that owns an established IKE SA
+// and talks to this source address, or nil.
+//
+// RFC 7296 Section 2.21.4 SHOULD: "A node receiving a suspicious message from an IP
+// address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send
+// an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA." The address an
+// SA has is the one it talks to now. After NAT rebinding or a MOBIKE address update that
+// is no longer the configured remote, so a session is a candidate when either the
+// configured remote or the endpoint its owner loop published (saEndpoint) is the source.
 //
 // It reads the immutable session config under the peers lock, as matchResponderPeer
-// does, and the atomic ownedSA pointer. The owner loop makes the exact endpoint
-// comparison, because the SA's observed endpoint is its state alone.
-func establishedSessionFrom(source string) *PeerSession {
+// does, and the atomic ownedSA and saEndpoint pointers. The owner loop makes the exact
+// endpoint comparison, port included (fromSAEndpoint), because the SA's observed
+// endpoint is its state alone; this is the candidate filter in front of it.
+func establishedSessionFrom(source net.IP) *PeerSession {
+	configured := source.String()
 	peersMu.RLock()
 	defer peersMu.RUnlock()
 	for _, ps := range activePeersMap {
 		if ps.suspicious == nil {
 			continue
 		}
-		if ps.peerCfg.RemoteAddress != source {
-			continue
-		}
 		if ps.ownedSA.Load() == nil {
 			continue
 		}
-		return ps
+		if ps.peerCfg.RemoteAddress == configured {
+			return ps
+		}
+		if endpoint := ps.saEndpoint.Load(); endpoint != nil && endpoint.IP.Equal(source) {
+			return ps
+		}
 	}
 	return nil
+}
+
+// publishSAEndpoint makes the endpoint sa talks to now visible to the dispatch
+// goroutine (establishedSessionFrom). It MUST be called on the owner loop, which alone
+// reads sa.peerEndpoint. sa.remoteUDPAddr returns a copy, so the published value never
+// aliases owner-loop state. A nil answer (an unresolvable configured remote) is
+// published as nil, which leaves the configured address as the only match.
+func (ps *PeerSession) publishSAEndpoint(sa *SA) {
+	ps.saEndpoint.Store(sa.remoteUDPAddr())
 }
 
 // suspiciousNotifyAllowed reports whether this SA can raise one more INVALID_IKE_SPI

@@ -260,6 +260,11 @@ func (ps *PeerSession) maintainSA(
 	defer routeReannounce.Stop()
 
 	for {
+		// RFC 7296 Section 2.21.4: the dispatch goroutine finds this session for a
+		// suspicious message by the endpoint the SA uses now. Published at the top of
+		// every pass, so an endpoint the last event moved is visible before this loop
+		// waits again, and the rekey arm's swapped sa is published on the next pass.
+		ps.publishSAEndpoint(sa)
 		select {
 		case <-ps.stopCh:
 			// RFC 7296 Section 1.4: on an operator `clear` (graceful) say goodbye so the

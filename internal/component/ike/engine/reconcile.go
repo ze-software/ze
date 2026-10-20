@@ -6,6 +6,7 @@ package engine
 import (
 	"log/slog"
 	"maps"
+	"net"
 	"net/netip"
 	"sync"
 	"sync/atomic"
@@ -58,6 +59,14 @@ type PeerSession struct {
 	// (spec-fixit-ipsec-clear-reestablish, coupling #1). Atomic: read on the shared
 	// dispatch goroutine, written by the session goroutine.
 	ownedSA atomic.Pointer[SA]
+
+	// saEndpoint is the address and port the owned SA talks to, as sa.remoteUDPAddr
+	// answers it: the authenticated endpoint once one is adopted (NAT rebinding, MOBIKE),
+	// the configured remote before. Its one writer is publishSAEndpoint, on the owner loop
+	// (maintainSA), which owns sa.peerEndpoint; its one reader is establishedSessionFrom,
+	// on the shared dispatch goroutine, which may not read owner-loop state. Atomic for
+	// that reason. Nil until the owner loop first publishes.
+	saEndpoint atomic.Pointer[net.UDPAddr]
 
 	// graceful marks a session that operator `clear` is bouncing (vs a config-change
 	// stop). Set by StopGraceful before Stop; the owner loop reads it in its stopCh

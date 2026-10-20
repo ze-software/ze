@@ -894,6 +894,17 @@
     },
     {
       "rid": "RFC7296-2.21.4-8",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_suspicious_test.go::TestSusMovedSAEndpointDrawsTheNotify",
+      "unit-sha": "eb4acf4a93acfcef",
+      "claim-sha": "aff99a79f3b26500",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/notify_suspicious.go::establishedSessionFrom",
+      "producer-sha": "06c00f4f4a374cde",
+      "break": "line 135: \"endpoint.IP.Equal(source)\" -\u003e \"endpoint == nil\""
+    },
+    {
+      "rid": "RFC7296-2.21.4-8",
       "polarity": "negative",
       "unit": "internal/component/ike/engine/rfc7296_suspicious_test.go::TestSusOnlyTheSAEndpointDrawsTheNotify",
       "unit-sha": "04feb9f599a4e00d",
