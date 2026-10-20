@@ -388,7 +388,9 @@ so filter-irr was measured on the raw binary.
 
 ### Documentation Updates
 - docs/architecture/storage-backends.md, "The boot record": the stop waits for the record, the
-  waiting line, no bound and why. `./le doc check verify` owed (not run by bootrec2).
+  waiting line, no bound and why. `./le doc check verify` (bootrec4, 2026-10-20) exit 1 on one
+  stage only: docs/architecture/hub-architecture.md anchors `caseInEffect` in
+  validator_default.go, which does not declare it; a file this spec does not touch.
 
 ### Deviations from Plan
 - The stop's wait for the record moved from a defer to an explicit call before `Ze stopped.`.
@@ -460,10 +462,20 @@ so filter-irr was measured on the raw binary.
 
 | Field | Value |
 |-------|-------|
-| Artifact | not recorded: the parent commissions an independent review of the stop fix |
-| `./le spec review check` | not run |
-| Rounds | 0 for the stop fix |
-| Reviewer lenses used | - |
+| Artifact | `tmp/review/boot-record-after-listen-d8e7dbbf-89d5-483d-85d8-b379fee975ed.md`, written by `./le spec review record` (agent bootrec4, 2026-10-20), verdict CLEAN, over the code and tests of 37823314a5, dd3eaf7773, 4c1db99ae2, 9ee692f99a, 322fc9e5c7 and 7d666660d4 (112 files; the docs pages and plan/ excluded) |
+| `./le spec review check` | `review_gate: OK (111 code files, clean, hashes match ...)` (2026-10-20, bootrec4) |
+| Rounds | 2: round 1 (independent, over the spec's commits and 322fc9e5c7) found ISSUE 2 below; round 2 (bootrec4, over 7d666660d4 only) found 0 BLOCKER, 0 ISSUE |
+| Reviewer lenses used | round 2: fixture goroutine and process lifecycle, discrimination (mutant rebuilt), timeout budget, second-signal timing, .ci format, registration |
+
+### Run 2 (bootrec4, 2026-10-20, over 7d666660d4): 0 BLOCKER, 0 ISSUE, 3 NOTE
+
+- Lifecycle: `stopDuringBootRecord` starts no goroutine; `relayStopBootRecord` reads stdout to EOF on the caller's goroutine, then `command.Wait` reaps ze on every path. A cue never printed ends at EOF with `sent < len(signals)` and an error naming the cue. Bounded by the runner: `boundProcessDeadline` (`internal/test/runner/runner_exec_util.go`) puts the fixture in its own process group and SIGKILLs the group at the deadline, so ze dies with it.
+- Second signal: the waiting line is printed by `awaitBootRecordAtStop`, which `runYANGConfig` calls after `signals.enterTeardown()`, so `stopSignals.onSignal` sees `drainOver` and calls `forceExit`; the 6s hold keeps the record in flight past the cue.
+- Discrimination re-checked: `git archive HEAD` copy with the `awaitBootRecordAtStop(bootRecord, os.Stdout)` line of main.go deleted, DUT tags. stop-waits-for-boot-record FAIL 17.6s (`output does not match regex`, stdout `Ze stopped.` only); stop-boot-record-second-signal FAIL 8.1s (`ZE-OBSERVER-FAIL ... sent 1 of 2 signals; ze exited 0`). Same-tree green build: PASS 52.7s, 7.6s, 7.4s and 0.70s.
+- `go test -race -count=1 ./internal/test/fixture/`: ok 13.3s.
+- NOTE 1: the first green run of stop-waits-for-boot-record took 52.7s of its 60s budget at load average 21 (a timestamped manual run at load 7 took 14.5s: 5s to `created live store`, 3s to `Ze running.`, 6.3s in the wait). The cost is startup and record syncs on a disk under other writers, the open class of plan/journal/startup-wait-expires-under-load.md; explicit-file-restart.ci carries 90s for the same exposure. The assertions are ordered and the mutants fail by regex, not timeout, so the budget masks nothing.
+- NOTE 2: the author's unexplained 30s timeout in a mutant run fits that class: with the call removed, `defer bootRecord.Wait()` in `runYANGConfig` still holds the exit for the record's syncs.
+- NOTE 3: on a relay error (a stdout write failure, `ErrTooLong`) `stopDuringBootRecord` calls `Wait` without stopping ze; the runner's group kill at the deadline bounds it.
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
@@ -489,6 +501,8 @@ so filter-irr was measured on the raw binary.
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
 | `ze start <file>` then stop, store read after | test/plugin/explicit-file-restart.ci | fixture `storageExplicitRestart` read: two `ze start`, `ReadActiveConfig` after each |
+| `ze start <file>`, SIGTERM while the record holds the store | test/plugin/stop-waits-for-boot-record.ci | PASS 2026-10-20 (bootrec4); red with the main.go call deleted |
+| `ze start <file>`, Ctrl+C twice, the second inside the wait | test/plugin/stop-boot-record-second-signal.ci | PASS 2026-10-20 (bootrec4); red with the main.go call deleted |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
