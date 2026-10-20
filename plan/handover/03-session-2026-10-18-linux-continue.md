@@ -1363,3 +1363,24 @@ All three changes below are UNCOMMITTED and none is green yet.
   equals `batch.NLRIs` unless restore-configured removed some); `./le test functional exabgp-test`;
   `./le rfc check`. Untouched foreign files: `internal/plugins/exabgp/bridgerun/version.go`
   (untracked, one line), `rfc/discrimination/.rfc1997.json.tmp-*`.
+
+### ExaBGP 6 spec, Phase 4 fourth package (2026-10-20, Linux, exa10): Phase 4 rows met
+
+- d54ccff4ad: parser tests for `restore-configured` (before a section marks every group; after
+  one refused, red with the refusal overlaid away). The refusal text named the refused
+  `nlri <family>` form; it now names `nlri del <prefix>` and `mp <family> del <prefix>`.
+- 159d3765a2: A-8 for routes with an RD or a label stack (`staticRouteNamesNLRI` compares route
+  keys, `nlrisplit.GetPrefixKey` as a withdrawal vs `staticRouteKey`; RFC 4364 4.1 and RFC 8277
+  2.4 quoted). Test red against the old matcher; whole reactor package green (`-tags ze_bgp`).
+- 8f3048d439: the owner ledger and exit policy live once in `internal/exabgp/bridge/bridge_owner.go`
+  (`OwnerLedger.Exited`), bridgerun's copy deleted; the standalone `Bridge` records ownership and
+  settles its child's exit in `Run`. `TestStandaloneExitWithdrawsOwnedRoutes` red first.
+  `test/weakened/9586869b.md` records the three tests that moved packages.
+- api population at the pin, once, `bin/le-exa10` rebuilt: 51/55. Reds: api-disable (AC-41 owner
+  question, migration refuses `shutdown`), api-eor (EOR at sequence 3, `claimInitialSyncEOR`),
+  api-rib, api-rr-rib (`clear`/`flush adj-rib out`): the known four, first errors match causes.
+- Phase 4 rows X-15..X-22, AC-17..AC-25 met. Still open, in no AC: the ledger keys on the selector
+  text where ExaBGP's owner is per peer.
+- Gates owed by the main thread: `./le go lint run` on internal/exabgp/bridge,
+  internal/plugins/exabgp, internal/component/bgp/reactor, internal/component/bgp/plugins/cmd/update;
+  `./le test unit all`; `./le test functional exabgp-test`; `./le rfc check`.
