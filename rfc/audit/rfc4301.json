@@ -292,13 +292,38 @@
     },
     "RFC4301-4.4.2-2": {
       "code": {
-        "internal/component/ike/engine/child.go::childPolicies": "83dedc88e2afbbc5",
-        "internal/component/ike/engine/child.go::inboundStateSelector": "a159bd0822bbf061",
-        "internal/component/ike/engine/child.go::installChildSA": "0e3e715c86ba954a"
+        "internal/component/ike/engine/child.go::childPolicies": "188352614a881c1b",
+        "internal/component/ike/engine/child.go::inboundStateSelector": "cf8f48c0cc64cbe3",
+        "internal/component/ike/engine/ts_narrow.go::acceptablePairs": "5c9b9046add8fd29",
+        "internal/component/ike/engine/ts_narrow.go::crossPairs": "af7ecaba257f263b"
       },
-      "note": "Re-judged 2026-10-19 (independent judge, after 4c41f84038, which replaced childPolicyParams with childPolicies: one inbound and one outbound policy per negotiated pair, all bound to the one SA, plus inboundStateSelector for the transport-mode state). RFC 4301 Section 4.4.2: \"For each of the selectors defined in Section 4.4.1.1, the entry for an inbound SA in the SAD MUST be initially populated with the value or values negotiated at the time the SA was created.\" Prior verdict unimplemented (only Selectors[0] reached the dataplane). At HEAD, childPolicies builds one policy per pair in child.Selectors in both directions with that pair's prefixes, protocol (pair.I.Proto) and ports (selectorPort per side), every one carrying the child's ReqID/SAID; installChildSA installs all inbound then all outbound and rolls back what it installed on failure; removal, MOBIKE migration and samePolicySelector take the whole set. Tunnel mode: the state carries no selector and the per-pair require-policies with the SA's template are the entry's selectors, so every negotiated value is populated exactly (interop responder-two-subnets shows both pairs' policies on both kernels; TestRFC4301EveryNegotiatedPairGetsAPolicyPerDirection, untagged, PASS). Transport mode: one XFRM state holds one selector, so inboundStateSelector writes the narrowest single selector covering every pair (coverPrefix per side, protocol to any and ports to any when pairs differ; exact for one pair; TestRFC4301TransportStateSelectorCoversEveryPair and TestCoverPrefixIsTheLongestCommonPrefix, untagged, PASS). With several pairs whose union is not one selector the SAD entry therefore holds a superset of the values negotiated, so the {gap} stands, narrowed. Finding on the gap text: it conditions the delivery on `unmatched bypass`, but a decrypted transport-mode packet in the cover and in no pair is decided by the FIRST SPD-I entry it matches, which can be the IKE bypass (PriorityIKEBypass 100, UDP 500/4500 between the endpoints, which in transport mode are the inner addresses) or an operator `vpn ipsec policy` BYPASS entry (any order above 100, searched before the catch-all at PriorityUnmatched); an allow entry with no template accepts a transport-mode secpath, so such a packet is delivered under `unmatched discard` too (reasoned from Linux __xfrm_policy_check/secpath_has_nontransport, not observed by a test). The gap should say the entry is a superset regardless of the unmatched leaf and name every BYPASS entry that can then deliver. Transport pairs of two address families make coverPrefix refuse and the install fail with a named error, not widen. Row carries {gap}; the implemented scope (tunnel mode, single-pair transport) would be better expressed as {partial} with this residual as Gap, which the author may propose. No tests tag the row.",
+      "note": "Re-judged 2026-10-20 (independent judge, after d5af024e2a, e52de83fbd, f69b6cace8, d822d12769, 7f4f79d49e; HEAD 818c9edb34). Section 4.4.2: \"For each of the selectors defined in Section 4.4.1.1, the entry for an inbound SA in the SAD MUST be initially populated with the value or values negotiated at the time the SA was created.\" The judge12 gap is closed at the producer: childPolicies (child.go) now sets upperProto from intersectProto(pair.I.Proto, pair.R.Proto) and skips a disjoint pair, so a negotiated pair TSi any / TSr TCP port 80 installs TCP with the port in both directions; the TSi-alone read is gone. childPolicies is the only SPParams builder for negotiated pairs: install/remove (installChildSA), the transport-mode state selector (inboundStateSelector takes the one policy's UpperProto), MOBIKE migration (mobike.go:505/516) and the VPP backend (vpp_policy.go maps SPParams.UpperProto) all go through it, so no path installs the TSi protocol alone. Producers of the pairs unchanged since judge12: answerPairs/crossPairs on the initiator (exact read, inside the proposal, disjoint protocols skipped), narrowChildSelectors+closedSubset on the responder, rekey both directions and CREATE_CHILD_SA read sa.NegotiatedPairs, transport mode one pair. TestRFC4301MixedProtocolPairInstallsTheIntersection drives recordInitiatorSelectors and narrowChildSelectors then childPolicies and asserts exactly two policies, both proto 6, on initiator and responder plus a UDP/any mirror pair (17): claims match the body. Positive and negative mutant records (intersectProto -> pair.I.Proto) present in rfc/discrimination/rfc4301.json. go test -race on the engine carriers PASS at HEAD. rfc/short/rfc4301.md:478 needs no {gap}. Bookkeeping: ./le rfc check reports this row STALE (childPolicies, inboundStateSelector, installChildSA changed) and the old 'unimplemented' audit verdict without {gap}; this entry is the replacement.",
       "requirement_sha": "36315016bf1c571b",
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/component/ike/engine/rfc4301_auth_response_no_ts_test.go::TestRFC4301AuthResponseWithoutTSIsRefused": "34b21b3ba88cc7ac",
+        "internal/component/ike/engine/rfc4301_child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair": "574abc2fa42f900d",
+        "internal/component/ike/engine/rfc4301_child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair#2": "574abc2fa42f900d",
+        "internal/component/ike/engine/rfc4301_initiator_exact_answer_test.go::TestRFC4301InitiatorInstallsAnAddressRangeExactly": "1fa7b972485ca2c0",
+        "internal/component/ike/engine/rfc4301_initiator_exact_answer_test.go::TestRFC4301InitiatorRefusesAnAnswerItCannotInstallExactly": "1fa7b972485ca2c0",
+        "internal/component/ike/engine/rfc4301_pair_protocol_test.go::TestRFC4301MixedProtocolPairInstallsTheIntersection": "9a4d2017793bb27c",
+        "internal/component/ike/engine/rfc4301_pair_protocol_test.go::TestRFC4301MixedProtocolPairInstallsTheIntersection#2": "9a4d2017793bb27c",
+        "internal/component/ike/engine/rfc7296_transport_one_pair_test.go::TestRFC4301TransportInitiatorRefusesSeveralPairs": "d8b72938b2447748",
+        "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC4301InitiatorInstallsEveryAnsweredCombination": "85fb834418fe48f0",
+        "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC4301InitiatorInstallsEveryAnsweredCombination#2": "85fb834418fe48f0"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc4301_auth_response_no_ts_test.go::TestRFC4301AuthResponseWithoutTSIsRefused": "39ab3d40084e5804",
+        "internal/component/ike/engine/rfc4301_child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair": "d307edef3a8df9b4",
+        "internal/component/ike/engine/rfc4301_child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair#2": "d307edef3a8df9b4",
+        "internal/component/ike/engine/rfc4301_initiator_exact_answer_test.go::TestRFC4301InitiatorInstallsAnAddressRangeExactly": "b4e63222275012b9",
+        "internal/component/ike/engine/rfc4301_initiator_exact_answer_test.go::TestRFC4301InitiatorRefusesAnAnswerItCannotInstallExactly": "7364ca325a8d8f65",
+        "internal/component/ike/engine/rfc4301_pair_protocol_test.go::TestRFC4301MixedProtocolPairInstallsTheIntersection": "504c8e06c8b70f75",
+        "internal/component/ike/engine/rfc4301_pair_protocol_test.go::TestRFC4301MixedProtocolPairInstallsTheIntersection#2": "504c8e06c8b70f75",
+        "internal/component/ike/engine/rfc7296_transport_one_pair_test.go::TestRFC4301TransportInitiatorRefusesSeveralPairs": "08661ccc764ebced",
+        "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC4301InitiatorInstallsEveryAnsweredCombination": "9d5e83ac5e000871",
+        "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC4301InitiatorInstallsEveryAnsweredCombination#2": "9d5e83ac5e000871"
+      },
+      "verdict": "enforced"
     },
     "RFC4301-4.4.2.1-1": {
       "code": {},

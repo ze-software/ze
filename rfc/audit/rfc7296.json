@@ -424,12 +424,26 @@
     },
     "RFC7296-2.21.4-8": {
       "code": {
-        "internal/component/ike/engine/inbound.go::handleOwnedInbound": "ad10c68c320fd7e8",
-        "internal/component/ike/engine/notify_error.go::answerOutOfSA": "7779929ee7fef0de"
+        "internal/component/ike/engine/notify_suspicious.go::establishedSessionFrom": "74770b9f5bae5a4c",
+        "internal/component/ike/engine/notify_suspicious.go::informSuspicious": "f8a76d3c0ecc33a6",
+        "internal/component/ike/engine/notify_suspicious.go::noteSuspicious": "15e9980ae908d405",
+        "internal/component/ike/engine/notify_suspicious.go::publishSAEndpoint": "55faea48f2e11fca"
       },
-      "note": "Re-judged 2026-10-15 after 4fecbbd82a changed handleOwnedInbound: the only edit calls rebindChildSAs (rebind.go) when an AUTHENTICATED message moves the peer endpoint, migrating Child SAs or owing a rekey; it sends no Notify. RFC 7296 Section 2.21.4: 'A node receiving a suspicious message from an IP address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA.' handleOwnedInbound still returns after countErrorNotifySuppressed on outer-parse-unauthenticated, unprotected-retransmit, replay-rate-limited and invalid-msgid-unauthenticated without starting a protected exchange, and answerOutOfSA (notify_error.go) still emits only the unprotected INVALID_IKE_SPI response to an unknown SPI with no address-based existing-SA lookup. The SHOULD stays unmet and the {gap} annotation matches the code. No tests tag this row.",
+      "note": "Re-judged 2026-10-20 (independent judge, after d5af024e2a, e52de83fbd, f69b6cace8, d822d12769, 7f4f79d49e; HEAD 818c9edb34). Section 2.21.4: \"A node receiving a suspicious message from an IP address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA. The recipient MUST NOT change the state of any SAs as a result, but may wish to audit the event to aid in diagnosing malfunctions.\" The judge12/13 gap is closed at the producer: maintainSA calls ps.publishSAEndpoint(sa) at the top of every loop pass (established.go), storing sa.remoteUDPAddr() (a copy of peerEndpoint, or the resolved configured remote) in the atomic PeerSession.saEndpoint; establishedSessionFrom (dispatch goroutine) takes a session owning an SA (ownedSA non-nil) whose configured remote equals the source or whose published endpoint IP equals it; informSuspicious on the owner loop keeps the exact fromSAEndpoint check against the current sa (port on 4500), rate limit, request window, protected INFORMATIONAL with INVALID_IKE_SPI. Race review: one writer (owner loop), one reader (dispatch), atomic pointer to a fresh copy, no aliasing of owner-loop state; -race PASS. The endpoint moved by setMobikePath or adoptAuthenticatedEndpoint inside an arm is published before the next select; the rekey swap stores the new sa (which inherits peerEndpoint, sa.go:566) and publishes on the next pass. saEndpoint is not cleared when maintainSA returns, but ownedSA is (defer Store(nil)) and gates the match first; after a new SA is owned and before its first publish a stale endpoint can at worst pick a candidate the owner loop then rejects, so no notify goes over a wrong SA (worst case a missed SHOULD in that window). Tested: TestSusMovedSAEndpointDrawsTheNotify (moved endpoint, configured remote elsewhere, exactly one authenticated INFORMATIONAL carrying INVALID_IKE_SPI) plus the three earlier Sus tests; claims match bodies; mutant record on establishedSessionFrom's endpoint compare present. FINDING (test, no behavior gap): the test calls ps.publishSAEndpoint itself, and susDeliver drives noteSuspicious then informSuspicious directly, so no test runs maintainSA's publish; deleting the publishSAEndpoint call in maintainSA leaves every tagged test green. Minor, no verdict effect: when several sessions match the source only the first in map order is tried; remoteUDPAddr runs net.ResolveUDPAddr(\"udp4\", ...) on every pass while peerEndpoint is nil (nil for an IPv6 configured remote, leaving the configured string match).",
       "requirement_sha": "353610cc278b34ce",
-      "verdict": "unimplemented"
+      "tests": {
+        "internal/component/ike/engine/rfc7296_suspicious_test.go::TestSusMovedSAEndpointDrawsTheNotify": "2904aff94d966a90",
+        "internal/component/ike/engine/rfc7296_suspicious_test.go::TestSusOnlyTheSAEndpointDrawsTheNotify": "2904aff94d966a90",
+        "internal/component/ike/engine/rfc7296_suspicious_test.go::TestSusOutOfSARequestFromSAPeerDrawsProtectedNotify": "2904aff94d966a90",
+        "internal/component/ike/engine/rfc7296_suspicious_test.go::TestSusRateLimitCapsTheNotify": "2904aff94d966a90"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_suspicious_test.go::TestSusMovedSAEndpointDrawsTheNotify": "f2d1251fd67d64c0",
+        "internal/component/ike/engine/rfc7296_suspicious_test.go::TestSusOnlyTheSAEndpointDrawsTheNotify": "3bfff843fc6b8e3f",
+        "internal/component/ike/engine/rfc7296_suspicious_test.go::TestSusOutOfSARequestFromSAPeerDrawsProtectedNotify": "c05addfea85193ec",
+        "internal/component/ike/engine/rfc7296_suspicious_test.go::TestSusRateLimitCapsTheNotify": "42d986fbcbf5ad19"
+      },
+      "verdict": "enforced"
     },
     "RFC7296-2.23-1": {
       "note": "Rejudged 2026-09-30 (ike-eap judge). TestRFC7296InitiatorChecksEachNATDetectionPayload drives handleSAInitResponse over a real encoded IKE_SA_INIT response: a SOURCE_IP mismatch alone sets NATDetected+PeerBehindNAT and floats to 4500, a DESTINATION_IP mismatch alone sets NATDetected+BehindNAT and floats, so ignoring either payload goes red. TestRFC7296InitiatorCheckFindsNoNATOnMatchingPayloads (both present, both matching: no NAT, not floated) goes red if presence alone were taken as a NAT, i.e. if the payloads were not checked. Both carry observed-red records on fsm.go handleSAInitResponse. HEAD tags on transport TestNATDetectionPresent/Absent (DetectNAT in isolation) are supplementary and hold no record.",
@@ -520,6 +534,28 @@
         "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296IKEOnPort500CarriesNoMarker": "aaf5c6c364165e6f",
         "internal/component/ike/transport/nat_test.go::TestNonESPMarker": "3fbaf9d3acd139e0",
         "internal/component/ike/transport/nat_test.go::TestNonESPMarkerESPPacket": "bad94cfe12331e23"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.23.1-1": {
+      "code": {
+        "internal/component/ike/engine/transport_mode.go::transportSelectorPairs": "472481f3c9bd32b1",
+        "internal/component/ike/engine/ts_narrow.go::keepSingleAddress": "af457c70d2e3d922",
+        "internal/component/ike/engine/ts_narrow.go::oneTransportPair": "df0fddddd83a135a"
+      },
+      "note": "Re-judged 2026-10-20 (independent judge, after d5af024e2a, e52de83fbd, f69b6cace8, d822d12769, 7f4f79d49e; HEAD 818c9edb34). No prior audit entry. Section 2.23.1: \"For transport mode, it MUST use exactly one IP address in the TSi and TSr payloads.  It can have multiple Traffic Selectors if it has, for example, multiple port ranges that it wants to negotiate\". Proposal: transportSelectorPairs substitutes the SA's endpoint addresses (single-address prefixes) and keeps each pair's port and protocol. Responder: narrowChildSelectors applies keepSingleAddress then oneTransportPair (also on the floor branch) and refuses with TS_UNACCEPTABLE when no single-address pair is left. Initiator: checkAnswerWithin against the single-address proposal, and more than one pair refused (errTSTransportPairs). d5af024e2a only makes the one transport policy, and so the inbound state selector, carry the intersection of the pair's protocols; addresses unchanged. TestTransportModeUsesExactlyOneAddress PASS with -race at HEAD; claim matches body. Capability note, not a violation: one transport pair is answered and accepted, so several port ranges are narrowed to the first by the responder and refused by the initiator.",
+      "requirement_sha": "94c565064d74a38f",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_transport_nat_test.go::TestResponderAnswersTheIKESAAddressesBehindANAT": "235c6f7e874e30ca",
+        "internal/component/ike/engine/rfc7296_transport_nat_test.go::TestResponderAnswersTheIKESAAddressesBehindANAT#2": "235c6f7e874e30ca",
+        "internal/component/ike/engine/rfc7296_transport_test.go::TestTransportModeUsesExactlyOneAddress": "fabd90e9a9b5f392",
+        "internal/component/ike/engine/rfc7296_transport_test.go::TestTransportModeUsesExactlyOneAddress#2": "fabd90e9a9b5f392"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_transport_nat_test.go::TestResponderAnswersTheIKESAAddressesBehindANAT": "c0bd95f2cca724db",
+        "internal/component/ike/engine/rfc7296_transport_nat_test.go::TestResponderAnswersTheIKESAAddressesBehindANAT#2": "c0bd95f2cca724db",
+        "internal/component/ike/engine/rfc7296_transport_test.go::TestTransportModeUsesExactlyOneAddress": "399692f1a15b5b25",
+        "internal/component/ike/engine/rfc7296_transport_test.go::TestTransportModeUsesExactlyOneAddress#2": "399692f1a15b5b25"
       },
       "verdict": "enforced"
     },
@@ -753,46 +789,60 @@
       "verdict": "enforced"
     },
     "RFC7296-2.9-1": {
-      "note": "Re-judged 2026-10-20 (independent judge, after 13c1b058ed, f9d98e8ab1, 6f87487816 and the rename to rfc4301_child_multi_pair_test.go). Section 2.9: \"When the responder chooses a subset of the traffic proposed by the initiator, it narrows the Traffic Selectors to some subset of the initiator's proposal (provided the set does not become the null set).\" oneTransportPair takes narrowed[:1] of a set narrowSelectors already built as a subset, after the empty-set refusal, so the transport answer is still a non-null subset. The stale unit TestChildRekeyInitiatorInstallsTheAnsweredSelectors changed only its helper: installedPolicyScope now reads the outbound policies the dataplane received (by SAID), which fixes the prior judge's false-comment finding and strengthens the assertion. Primary carriers TestResponderNarrowsBothSelectorsToPolicy and TestTSUnacceptableIsSentWhenNothingIsAcceptable unchanged; all PASS at HEAD. Verdict stands. The open owner question (transport initiator proposes every pair, refuses an all-pairs answer) concerns the initiator and does not touch this responder obligation.",
+      "code": {
+        "internal/component/ike/engine/ts_narrow.go::closedSubset": "16360f376346ca62",
+        "internal/component/ike/engine/ts_narrow.go::floorWithinProposal": "0d2fb71acab037ab",
+        "internal/component/ike/engine/ts_narrow.go::pairWithinAny": "e1aced2ec1016aae",
+        "internal/component/ike/engine/ts_narrow.go::selectorWithin": "fdd126589416984c"
+      },
+      "note": "Re-judged 2026-10-20 (independent judge, after d5af024e2a, e52de83fbd, f69b6cace8, d822d12769, 7f4f79d49e; HEAD 818c9edb34). Section 2.9: \"When the responder chooses a subset of the traffic proposed by the initiator, it narrows the Traffic Selectors to some subset of the initiator's proposal (provided the set does not become the null set).\" The judge12 gap is closed at the producer: floorWithinProposal now keeps a floor pair only when pairWithinAny(f, crossPairs(proposedI, proposedR)) holds, i.e. one proposed combination covers both halves in prefix (containsNet), port (intersectPort yields inner) and protocol (intersectProto yields inner) via selectorWithin; coveredBy is deleted and has no caller. A floor not inside the proposal falls through to ordinary narrowing, and coversFloor then refuses with TS_UNACCEPTABLE, so a rekey answer is never wider than the proposal and never narrower than the scope in use. Kept floor pairs still pass closedSubset before pairsToWire, so the wire answer and sa.NegotiatedPairs agree. Other paths re-checked: fresh Child SA and CREATE_CHILD_SA (acceptablePairs: intersection with policy, or the combination itself unconfigured, disjoint protocols dropped), transport mode (keepSingleAddress, oneTransportPair after the floor), initiator adoption (checkAnswerWithin against ProposedChildPairs), MOBIKE and VPP (no selector source of their own). TestRFC7296RekeyFloorIsAnsweredOnlyInsideTheProposal asserts the any/any floor answered exactly to a 10/8 any/any proposal (one pair, prefixes, port, protocol) and TS_UNACCEPTABLE with no recorded pair for a TCP/80 proposal over the same prefixes: claims match the body; positive and negative mutant records on floorWithinProposal present. Finding, verdict-neutral: selectorWithin compares each half's own protocol, so a floor recorded as (TSi TCP, TSr any) against a proposal (TSi any, TSr TCP), the same TCP flow, is refused rather than answered: an over-refusal, never a widening. Tests PASS with -race at HEAD.",
       "requirement_sha": "c05dbf88d2b667b3",
       "tests": {
         "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors": "898df03dba5c2897",
         "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors#2": "898df03dba5c2897",
-        "internal/component/ike/engine/rfc7296_transport_test.go::TestResponderNarrowsBothSelectorsToPolicy": "8731c5a2d354ba07",
-        "internal/component/ike/engine/rfc7296_transport_test.go::TestResponderNarrowsBothSelectorsToPolicy#2": "8731c5a2d354ba07",
-        "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable": "8731c5a2d354ba07",
-        "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable#2": "8731c5a2d354ba07"
+        "internal/component/ike/engine/rfc7296_rekey_floor_scope_test.go::TestRFC7296RekeyFloorIsAnsweredOnlyInsideTheProposal": "803557ad2e523b40",
+        "internal/component/ike/engine/rfc7296_rekey_floor_scope_test.go::TestRFC7296RekeyFloorIsAnsweredOnlyInsideTheProposal#2": "803557ad2e523b40",
+        "internal/component/ike/engine/rfc7296_transport_test.go::TestResponderNarrowsBothSelectorsToPolicy": "fabd90e9a9b5f392",
+        "internal/component/ike/engine/rfc7296_transport_test.go::TestResponderNarrowsBothSelectorsToPolicy#2": "fabd90e9a9b5f392",
+        "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable": "fabd90e9a9b5f392",
+        "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable#2": "fabd90e9a9b5f392",
+        "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC7296ResponderAnswersOnlyCombinationsItChose": "85fb834418fe48f0",
+        "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC7296ResponderAnswersOnlyCombinationsItChose#2": "85fb834418fe48f0"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors": "5e722d58e9accc2b",
         "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors#2": "5e722d58e9accc2b",
+        "internal/component/ike/engine/rfc7296_rekey_floor_scope_test.go::TestRFC7296RekeyFloorIsAnsweredOnlyInsideTheProposal": "5bfa13685406fd3b",
+        "internal/component/ike/engine/rfc7296_rekey_floor_scope_test.go::TestRFC7296RekeyFloorIsAnsweredOnlyInsideTheProposal#2": "5bfa13685406fd3b",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestResponderNarrowsBothSelectorsToPolicy": "6d7e563cac21a8a0",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestResponderNarrowsBothSelectorsToPolicy#2": "6d7e563cac21a8a0",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable": "799b2ff1ee595ed2",
-        "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable#2": "799b2ff1ee595ed2"
+        "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable#2": "799b2ff1ee595ed2",
+        "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC7296ResponderAnswersOnlyCombinationsItChose": "17a5187c318e24c4",
+        "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC7296ResponderAnswersOnlyCombinationsItChose#2": "17a5187c318e24c4"
       },
       "verdict": "enforced"
     },
     "RFC7296-2.9-2": {
       "code": {
-        "internal/component/ike/engine/ts_narrow.go::narrowChildSelectors": "29a6c71f38c6b3de",
-        "internal/component/ike/engine/ts_narrow.go::narrowSelectors": "f3d4666e6c135cf0"
+        "internal/component/ike/engine/ts_narrow.go::closedSubset": "16360f376346ca62",
+        "internal/component/ike/engine/ts_narrow.go::narrowSelectors": "b3a98ea38c2a69aa"
       },
-      "note": "Re-judged 2026-10-20 (independent judge, after 967dbf7883, 5450fa29e9, b87fdb0b43; HEAD 6dce69a77c). Section 2.9: \"If the responder's policy allows it to accept the first selector of TSi and TSr, then the responder MUST narrow the Traffic Selectors to a subset that includes the initiator's first choices.\" ./le rfc check reports this row SHIFTED only (TestRFC7296TransportResponderNarrowsToFirstPair byte-identical); re-read anyway because b87fdb0b43 rewrote ts_narrow.go. narrowSelectors is unchanged by the three commits: with a policy, the intersections of proposedI[0] x proposedR[0] lead the answer; with no policy, out[0] is (proposedI[0], proposedR[0]); oneTransportPair keeps the first; pairsToWire puts them first on the wire. Verdict stands; the tests PASS at HEAD. Finding, verdict-neutral for this row: the responder's positional pairing (see RFC4301-4.4.2-2) makes the wire answer negotiate the RFC 7296 Section 3.13 cross product of its lists, which can exceed the configured policy rows; it does not make the answer exclude the first choice.",
+      "note": "Re-judged 2026-10-20 (independent judge, after d5af024e2a, e52de83fbd, f69b6cace8, d822d12769, 7f4f79d49e; HEAD 818c9edb34). Section 2.9: \"If the responder's policy allows it to accept the first selector of TSi and TSr, then the responder MUST narrow the Traffic Selectors to a subset that includes the initiator's first choices.\" narrowSelectors still collects the (proposedI[0], proposedR[0]) intersections apart and puts them first, and closedSubset always keeps the first pair. e52de83fbd changes only the floor branch (Section 2.9.2 scope in use, answered when wholly inside a proposed combination); when it declines, ordinary narrowing with first choices first runs as before. TestNarrowingIncludesFirstChoice and TestRFC7296ResponderAnswersOnlyCombinationsItChose PASS with -race at HEAD. Verdict stands; ./le rfc check reports the row STALE on narrowChildSelectors/narrowSelectors, this entry replaces it.",
       "requirement_sha": "30ccb42f9f5fd42e",
       "tests": {
         "internal/component/ike/engine/rfc7296_child_rekey_orientation_test.go::TestPeerInitiatedRekeyIsNarrowedInTheExchangeOrientation": "936446b574e018e5",
         "internal/component/ike/engine/rfc7296_transport_one_pair_test.go::TestRFC7296TransportResponderNarrowsToFirstPair": "d8b72938b2447748",
-        "internal/component/ike/engine/rfc7296_transport_test.go::TestAuthResponsePayloadsCarryTheNarrowedSelectors": "8731c5a2d354ba07",
-        "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice": "7ec56b7d86f07a26",
-        "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice#2": "7ec56b7d86f07a26"
+        "internal/component/ike/engine/rfc7296_transport_test.go::TestAuthResponsePayloadsCarryTheNarrowedSelectors": "fabd90e9a9b5f392",
+        "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice": "f8202c6c1c2c2a71",
+        "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice#2": "f8202c6c1c2c2a71"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_child_rekey_orientation_test.go::TestPeerInitiatedRekeyIsNarrowedInTheExchangeOrientation": "c0a9c8efaeaceeca",
         "internal/component/ike/engine/rfc7296_transport_one_pair_test.go::TestRFC7296TransportResponderNarrowsToFirstPair": "80f18c772867f0db",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestAuthResponsePayloadsCarryTheNarrowedSelectors": "b2194a3f02562d55",
-        "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice": "597e8416c536f5bc",
-        "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice#2": "597e8416c536f5bc"
+        "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice": "3b6040212dbc1915",
+        "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice#2": "3b6040212dbc1915"
       },
       "verdict": "enforced"
     },
