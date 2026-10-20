@@ -1167,3 +1167,17 @@ All three changes below are UNCOMMITTED and none is green yet.
   `Version:`, `UUID:`, `PID:`, `Uptime: {h}h {m}m {s}s`, `Peers: N`, `  - {key}: {STATE}`, `done`. JSON keys
   version, uuid, pid, uptime, start_time, peers. Check whether the peers key is `neighbor.index()`
   (bytes) before fixing the bytes.
+
+### ExaBGP 6 spec, AC-4 fourteenth package (2026-10-20, Linux): continuation owed
+
+- Committed 64484bfd45: a failed docker exec names stdout when stderr is empty.
+- sr-policy interop: the rerun died on a full cache disk (docker run timed out); caches since cleaned.
+  Next: `./le test integration cleanup` if anything is left, rerun the scenario, red proof, interop.md row, commit.
+- api-health `status`: built, uncommitted. Peer key is ExaBGP `Neighbor.name()` (a str, not index()
+  bytes); state is FSMState.name, equal to ze's fsm.State.String(); JSON always under API 6, else only with
+  a trailing `json`. Ze exposes the real FSM state through a new `fsm-state` field in `show bgp peer * detail`
+  (PeerInfo.FSMState). Files: bridge_status.go/_test.go, bridge_command.go, bridge.go (standalone runner
+  refuses `status`: plugin-runner-only, record in the spec), bridge_ack.go (one token), bridgerun/script.go,
+  plugin/types_bgp.go, reactor_api.go, cmd/peer peer.go fields.go fsm_state_test.go ze-peer-cmd.yang,
+  docs/architecture/exabgp-bridge.md. Bridge Status/Ping tests pass. Owed: peer package run with the
+  feature tags (an untagged run showed unrelated reds), bridgerun tests, a fleet test, the api-health case.
